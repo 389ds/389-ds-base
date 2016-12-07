@@ -790,3 +790,8 @@ def ensure_list_bytes(val):
     if MAJOR >= 3:
         return [ensure_bytes(v) for v in val]
     return val
+
+def ensure_list_str(val):
+    if MAJOR >= 3:
+        return [ensure_str(v) for v in val]
+    return val

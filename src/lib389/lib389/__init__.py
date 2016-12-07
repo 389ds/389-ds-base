@@ -347,7 +347,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.plugins import Plugins
         from lib389.tasks import Tasks
         from lib389.index import Index
-        from lib389.monitor import Monitor
+        from lib389.monitor import Monitor, MonitorLDBM
         from lib389.rootdse import RootDSE
 
         # Need updating
@@ -362,9 +362,10 @@ class DirSrv(SimpleLDAPObject, object):
         self.schema = Schema(self)
         self.plugins = Plugins(self)
         self.tasks = Tasks(self)
-        self.monitor = Monitor(self)
         # Do we have a certdb path?
         # if MAJOR < 3:
+        self.monitor = Monitor(self)
+        self.monitorldbm = MonitorLDBM(self)
         self.rootdse = RootDSE(self)
         self.backends = Backends(self)
         self.mappingtrees = MappingTrees(self)

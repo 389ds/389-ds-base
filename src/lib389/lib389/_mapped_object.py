@@ -12,9 +12,11 @@ from ldap import filter as ldap_filter
 import logging
 
 from lib389._constants import *
-from lib389.utils import ensure_bytes, ensure_str, ensure_list_bytes
+from lib389.utils import ensure_bytes, ensure_str, ensure_list_bytes, ensure_list_str
 
 from lib389._entry import Entry
+
+from functools import partial
 
 # This function filter and term generation provided thanks to
 # The University of Adelaide. <william@adelaide.edu.au>
@@ -109,10 +111,42 @@ class DSLdapObject(DSLogging):
         e = self._instance.getEntry(self._dn)
         return e.__repr__()
 
+    def _jsonify(self, fn, *args, **kwargs):
+        # This needs to map all the values to ensure_str
+        attrs = fn(*args, **kwargs)
+        str_attrs = {}
+        for k in attrs:
+            str_attrs[ensure_str(k)] = ensure_list_str(attrs[k])
+
+        response = { "dn": ensure_str(self._dn), "attrs" : str_attrs }
+        print('json response')
+        print(response)
+
+        return response
+
+    def __getattr__(self, name):
+        """
+        This enables a bit of magic to allow us to wrap any function ending with
+        _json to it's form without json, then transformed. It means your function
+        *must* return it's values as a dict of:
+
+        { attr : [val, val, ...], attr : [], ... }
+        to be supported.
+        """
+        if (name.endswith('_json')):
+            int_name = name.replace('_json', '')
+            pfunc = partial(self._jsonify, fn=getattr(self, int_name))
+            return pfunc
+
     # We make this a property so that we can over-ride dynamically if needed
     @property
     def dn(self):
         return self._dn
+
+    @property
+    def rdn(self):
+        # How can we be sure this returns the primary one?
+        return ensure_str(self.get_attr_val(self._rdn_attribute))
 
     def present(self, attr, value=None):
         """
@@ -191,9 +225,16 @@ class DSLdapObject(DSLogging):
             mod_list.append((action, key, value))
         return self._instance.modify_s(self._dn, mod_list)
 
+    def get_attrs_vals(self, keys):
+        self._log.debug("%s get_attrs_vals(%r)" % (self._dn, keys))
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+        else:
+            return self._instance.getEntry(self._dn).getValuesSet(keys)
+
     def get_attr_vals(self, key):
         """Get an attribute's values from the dn"""
-        self._log.debug("%s get(%r)" % (self._dn, key))
+        self._log.debug("%s get_attr_vals(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")

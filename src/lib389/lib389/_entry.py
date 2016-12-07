@@ -155,6 +155,15 @@ class Entry(object):
             return self.__dict__.get(name, None)
         return self.getValue(name)
 
+    def getValuesSet(self, keys):
+        """
+        returns a set of values based on keys
+        """
+        result = {}
+        for k in keys:
+            result[k] = self.data.get(k, [])
+        return result
+
     def getValues(self, name):
         """Get the list (array) of values for the attribute named name"""
         return self.data.get(name, [])

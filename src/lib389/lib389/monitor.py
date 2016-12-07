@@ -13,29 +13,38 @@ Monitor class to display current server performance details
 import ldap
 from ldap import filter as ldap_filter
 from lib389._constants import *
+from lib389._mapped_object import DSLdapObject
 
 
-class Monitor(object):
-    def __init__(self, conn):
-        """@param conn - An instance of DirSrv"""
-        self.conn = conn
-        self.log = conn.log
+class Monitor(DSLdapObject):
+    """
+        Allows reading of cn=monitor for server statistics.
+    """
 
-    def server(self):
-        """
-        Show current monitoring information from the server
-        """
-        monitor_keys = [
-            'connection',
+    def __init__(self, instance, dn=None, batch=False):
+        super(Monitor, self).__init__(instance=instance, batch=batch)
+        self._dn = DN_MONITOR
+        self._monitor_keys = [
+            'instanceection',
+            'currentinstanceections',
             'currentconnections',
             'opscompleted',
             'opsinitiated',
             'threads',
-            'totalconnections',
+            'totalinstanceections',
             'version',
             'currenttime',
+            'connection',
         ]
-        backend_keys = [
+
+    def status(self):
+        return self.get_attrs_vals(self._monitor_keys)
+
+class MonitorLDBM(DSLdapObject):
+    def __init__(self, instance, dn=None, batch=False):
+        super(MonitorLDBM, self).__init__(instance=instance, batch=batch)
+        self._dn = DN_MONITOR_LDBM
+        self._backend_keys = [
             'dbcachehits',
             'dbcachetries',
             'dbcachehitratio',
@@ -44,53 +53,18 @@ class Monitor(object):
             'dbcacheroevict',
             'dbcacherwevict',
         ]
-        status = {}
-        # Should this be an amalgomation of cn=snmp and cn=monitor?
-        # In the future it would make sense perhaps to do this
-        try:
-            monitor_status = self.conn.search_s(DN_MONITOR,
-                                                ldap.SCOPE_BASE,
-                                                '(objectClass=*)',
-                                                monitor_keys)
 
-            # We aren't using this yet, so leave it here for now
-            # again.
-            # snmp_status = self.conn.search_s(DN_MONITOR_SNMP,
-            #                                  ldap.SCOPE_BASE,
-            #                                  '(objectClass=*)')
-            backend_status = self.conn.search_s(DN_MONITOR_LDBM,
-                                                ldap.SCOPE_BASE,
-                                                '(objectClass=*)',
-                                                backend_keys)
-        except ldap.LDAPError as e:
-            return "Unable to retrieve monitor information: error %s" + str(e)
+    def status(self):
+        return self.get_attrs_vals(self._backend_keys)
 
-        status['dn'] = 'cn=monitor'  # Generic DN, but we need a DN
+class MonitorBackend(DSLdapObject):
+    """
+    This is initialised from Backend in backend.py to get the right basedn.
+    """
 
-        # There is likely a smarter way to do this on the entry
-        if len(monitor_status) == 1:
-            for k in monitor_keys:
-                status[k] = monitor_status[0].getValues(k)
-        else:
-            # Error case?
-            pass
-
-        if len(backend_status) == 1:
-            for k in backend_keys:
-                status[k] = backend_status[0].getValues(k)
-        else:
-            # Error case?
-            pass
-        return status
-
-    def backend(self, backend):
-        """
-        @param backend - The backend DB name to show monitoring details for.
-
-        Show monitoring status for the named backend.
-        """
-
-        backend_keys = [
+    def __init__(self, instance, dn=None, batch=False):
+        super(MonitorBackend, self).__init__(instance=instance, dn=dn, batch=batch)
+        self._backend_keys = [
             'readonly',
             'entrycachehits',
             'entrycachetries',
@@ -115,36 +89,6 @@ class Monitor(object):
             'currentnormalizeddncachecount',
         ]
 
-        backend = ldap_filter.escape_filter_chars(backend)
-        dn = "cn=%s,%s" % (backend, DN_LDBM)
+    def status(self):
+        return self.get_attrs_vals(self._backend_keys)
 
-        # How do we handle errors?
-        try:
-            backend_status = self.conn.search_s(dn,
-                                                ldap.SCOPE_SUBTREE,
-                                                '(cn=monitor)',
-                                                backend_keys)
-        except ldap.LDAPError as e:
-            return ('Unable to retrieve backend monitor information: ' +
-                    'error %s' + str(e))
-
-        status = {}
-        if len(backend_status) == 1:
-            status['dn'] = backend_status[0].dn
-            for k in backend_keys:
-                status[k] = backend_status[0].getValues(k)
-        else:
-            # Error case?
-            pass
-        return status
-
-    def backends(self):
-        """
-        Show monitoring status for all backends on the server.
-        """
-        # List all backends
-        status = {}
-        backends = self.conn.backend.list()
-        for backend in backends:
-            status[backend.cn] = self.backend(backend.cn)
-        return status

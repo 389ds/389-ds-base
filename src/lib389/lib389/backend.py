@@ -18,6 +18,9 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.mappingTree import MappingTrees, MappingTree
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
+# We need to be a factor to the backend monitor
+from lib389.monitor import MonitorBackend
+
 
 class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
@@ -520,6 +523,10 @@ the instance and editing dse.ldif.
         if len(results) == 0:
             return None
         return results
+
+    def get_monitor(self):
+        monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn, batch=self._batch)
+        return monitor
 
 # This only does ldbm backends. Chaining backends are a special case
 # of this, so they can be subclassed off.
