@@ -257,7 +257,7 @@ map {$conn{$_} = $_} @conncodes;
 
 # hash db-backed hashes
 my @hashnames = qw(attr rc src rsrc excount conn_hash ip_hash conncount nentries
-                   filter base ds6xbadpwd saslmech bindlist etime oid
+                   filter base ds6xbadpwd saslmech saslconnop bindlist etime oid
                    start_time_of_connection end_time_of_connection
                    notesa_conn_op notesu_conn_op etime_conn_op nentries_conn_op
                    optype_conn_op time_conn_op srch_conn_op del_conn_op mod_conn_op
@@ -2117,7 +2117,7 @@ sub parseLineNormal
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		handleConnClose($connID);
 	}
-	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
+	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method=128/i ){
 		my $binddn = $1;
 		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
 		$bindCount++;
@@ -2534,7 +2534,28 @@ sub parseLineNormal
 	if (/ BIND / && /method=sasl/i){
 		$saslBindCount++;
 		if ($_ =~ /mech=(.*)/i ){
-			$hashes->{saslmech}->{$1}++;
+			my $mech = $1;
+			$hashes->{saslmech}->{$mech}++;
+			my ($conn, $op);
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
+				$conn = $1;
+				$op = $2;
+				$hashes->{saslconnop}->{$conn-$op} = $mech;
+			}
+		}
+		if (/ mech=ANONYMOUS/){
+			$anonymousBindCount++;
+		}
+	}
+	if (/ RESULT err=14 tag=97 / && / SASL bind in progress/){
+		# Drop the sasl bind count since this is step in the bind process
+		$saslBindCount--;
+		my ($conn, $op);
+		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
+			$conn = $1;
+			$op = $2;
+			my $mech = $hashes->{saslconnop}->{$conn-$op};
+			$hashes->{saslmech}->{$mech}--;
 		}
 	}
 	if (/ conn=Internal op=-1 / && !/ RESULT err=/){ $internalOpCount++; }
