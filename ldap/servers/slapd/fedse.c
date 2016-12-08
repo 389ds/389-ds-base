@@ -48,6 +48,8 @@ extern char ** getEnabledCiphers(void);
 extern int getSSLVersionInfo(int *ssl2, int *ssl3, int *tls1);
 extern int getSSLVersionRange(char **min, char **max);
 
+static struct slapdplugin   fedse_plugin = {0};
+
 /* Note: These DNs are no need to be normalized */
 static const char *internal_entries[] =
 {
@@ -1846,7 +1848,7 @@ setup_internal_backends(char *configdir)
 		dse_register_callback(pfedse,SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_add,NULL, NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,&plugins,LDAP_SCOPE_SUBTREE,"(objectclass=nsSlapdPlugin)",check_plugin_path,NULL, NULL);
 
-		be = be_new_internal(pfedse, "DSE", DSE_BACKEND);
+		be = be_new_internal(pfedse, "DSE", DSE_BACKEND, &fedse_plugin);
 		be_addsuffix(be,&root);
 		be_addsuffix(be,&monitor);
 		be_addsuffix(be,&config);

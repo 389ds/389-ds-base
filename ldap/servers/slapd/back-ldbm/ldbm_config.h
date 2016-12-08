@@ -155,6 +155,7 @@ int ldbm_instance_config_add_index_entry(ldbm_instance *inst, Slapi_Entry *e, in
 int
 ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry* e);
 int ldbm_instance_create_default_user_indexes(ldbm_instance *inst);
+void ldbm_config_destroy(struct ldbminfo *li);
 
 
 #endif /* _LDBM_CONFIG_H_ */

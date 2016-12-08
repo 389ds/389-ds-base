@@ -3480,6 +3480,10 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
     /* password storage scheme (kexcoff) */
     case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME:
+        if (pblock->pb_plugin->plg_pwdstorageschemename != NULL) {
+            /* Free the old name. */
+            slapi_ch_free_string(&pblock->pb_plugin->plg_pwdstorageschemename);
+        }
         pblock->pb_plugin->plg_pwdstorageschemename = slapi_ch_strdup((char *)value);
         break;
     case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_USER_PWD:

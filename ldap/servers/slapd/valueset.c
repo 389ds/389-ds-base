@@ -604,10 +604,11 @@ slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 void
 slapi_valueset_join_attr_valueset(const Slapi_Attr *a, Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 {
-	if (slapi_valueset_isempty(vs1))
-		valueset_set_valueset(vs1,vs2);
-	else
-		slapi_valueset_add_attr_valuearray_ext (a, vs1, vs2->va, vs2->num, 0, NULL);
+    if (slapi_valueset_isempty(vs1)) {
+        valueset_set_valueset(vs1,vs2);
+    } else {
+        slapi_valueset_add_attr_valuearray_ext (a, vs1, vs2->va, vs2->num, 0, NULL);
+    }
 }
 
 int
@@ -721,9 +722,10 @@ valueset_remove_value(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value
 	} else {
 		if(!valuearray_isempty(vs->va))
 		{
-			r= valuearray_remove_value(a, vs->va, v);
-			if (r)
+			r = valuearray_remove_value(a, vs->va, v);
+			if (r) {
 				vs->num--;
+            }
 		}
 	}
 	PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));

@@ -231,7 +231,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 
 fail:
 	dblayer_terminate( li );
-	slapi_ch_free((void **)&li);
+    ldbm_config_destroy(li);
 	slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, NULL );
 	return( -1 );
 }

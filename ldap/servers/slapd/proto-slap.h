@@ -192,7 +192,7 @@ void global_backend_lock_unlock(void);
 /*
  * backend_manager.c
  */
-Slapi_Backend *be_new_internal(struct dse *pdse, const char *type, const char *name);
+Slapi_Backend *be_new_internal(struct dse *pdse, const char *type, const char *name, struct slapdplugin *plugininfo);
 void be_replace_dse_internal(Slapi_Backend *be, struct dse *pdse);
 int fedse_create_startOK(char *filename,  char *startokfilename, const char *configdir);
 void be_cleanupall(void);

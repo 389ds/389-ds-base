@@ -112,6 +112,8 @@ add_plugin_to_list(struct slapdplugin **list, struct slapdplugin *plugin)
 	struct slapdplugin *last = NULL;
 	int plugin_added = 0;
 
+    slapi_log_err(SLAPI_LOG_TRACE, "add_plugin_to_list", "Adding %s \n", plugin->plg_name );
+
 	/* Insert the plugin into list based off of precedence. */
 	for ( tmp = list; *tmp; tmp = &(*tmp)->plg_next )
 	{
@@ -219,8 +221,7 @@ new_plugin_entry(entry_and_plugin_t **ep, Slapi_Entry *e, struct slapdplugin *pl
 	entry_and_plugin_t *oldep = 0;
 	entry_and_plugin_t *iterep = *ep;
 
-	entry_and_plugin_t *newep =
-		(entry_and_plugin_t*)slapi_ch_calloc(1,sizeof(entry_and_plugin_t));
+	entry_and_plugin_t *newep = (entry_and_plugin_t*)slapi_ch_calloc(1,sizeof(entry_and_plugin_t));
 	newep->e = e;
 	newep->plugin = plugin;
 	
@@ -232,10 +233,11 @@ new_plugin_entry(entry_and_plugin_t **ep, Slapi_Entry *e, struct slapdplugin *pl
 
 	newep->next = 0;
 
-	if(oldep)
+	if(oldep) {
 		oldep->next = newep;
-	else
+	} else {
 		*ep = newep;
+    }
 }
 
 static void
@@ -2764,21 +2766,21 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 static void
 plugin_free(struct slapdplugin *plugin)
 {
-	slapi_log_err(SLAPI_LOG_TRACE, "plugin_free", "Freeing %s \n", plugin->plg_name );
-	charray_free(plugin->plg_argv);
-	slapi_ch_free_string(&plugin->plg_libpath);
-	slapi_ch_free_string(&plugin->plg_initfunc);
-	slapi_ch_free_string(&plugin->plg_name);
-	slapi_ch_free_string(&plugin->plg_dn);
-	if (plugin->plg_type == SLAPI_PLUGIN_PWD_STORAGE_SCHEME) {
-		slapi_ch_free_string(&plugin->plg_pwdstorageschemename);
-	}
-	release_componentid(plugin->plg_identity);
-	slapi_counter_destroy(&plugin->plg_op_counter);
-	if (!plugin->plg_group) {
-		plugin_config_cleanup(&plugin->plg_conf);
+    slapi_log_err(SLAPI_LOG_TRACE, "plugin_free", "Freeing %s \n", plugin->plg_name );
+    charray_free(plugin->plg_argv);
+    slapi_ch_free_string(&plugin->plg_libpath);
+    slapi_ch_free_string(&plugin->plg_initfunc);
+    slapi_ch_free_string(&plugin->plg_name);
+    slapi_ch_free_string(&plugin->plg_dn);
+    if (plugin->plg_type == SLAPI_PLUGIN_PWD_STORAGE_SCHEME || plugin->plg_type == SLAPI_PLUGIN_REVER_PWD_STORAGE_SCHEME ) {
+        slapi_ch_free_string(&plugin->plg_pwdstorageschemename);
     }
-	slapi_ch_free((void**)&plugin);
+    release_componentid(plugin->plg_identity);
+    slapi_counter_destroy(&plugin->plg_op_counter);
+    if (!plugin->plg_group) {
+        plugin_config_cleanup(&plugin->plg_conf);
+    }
+    slapi_ch_free((void**)&plugin);
 }
 
 /***********************************
@@ -3125,18 +3127,16 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		add_plugin_entry_dn(dn_copy);
 	}
 
-	if (add_entry)
-	{
-		/* make a copy of the plugin entry for our own use because it will
-		   be freed later by the caller */
-		Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
-		/* new_plugin_entry(&plugin_entries, plugin_entry, plugin); */
-		new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
-	}
+    /* make a copy of the plugin entry for our own use because it will
+       be freed later by the caller */
+    Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
+    /* new_plugin_entry(&plugin_entries, plugin_entry, plugin); */
+    new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
 
 PLUGIN_CLEANUP:
-	if (status)
+	if (status) {
 		plugin_free(plugin);
+    }
 	slapi_ch_free((void **)&configdir);
 
 	return status;

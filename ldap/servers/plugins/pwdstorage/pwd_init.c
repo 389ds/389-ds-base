@@ -231,24 +231,25 @@ ssha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
 int
 crypt_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
-	int	rc;
+    int rc;
 
-	slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_pwd_storage_scheme_init\n" );
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_pwd_storage_scheme_init\n" );
 
-	crypt_init();
-	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    (void *) SLAPI_PLUGIN_VERSION_01 );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-	    (void *)&crypt_pdesc );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
-	    (void *) crypt_pw_enc );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
-	    (void *) crypt_pw_cmp );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    "CRYPT" );
+    rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+        (void *) SLAPI_PLUGIN_VERSION_01 );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+        (void *)&crypt_pdesc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void*)&crypt_start);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void*)&crypt_close);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+        (void *) crypt_pw_enc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+        (void *) crypt_pw_cmp );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+        "CRYPT" );
 
-	slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_pwd_storage_scheme_init %d\n\n", rc );
-	return( rc );
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_pwd_storage_scheme_init %d\n\n", rc );
+    return( rc );
 }
 
 int

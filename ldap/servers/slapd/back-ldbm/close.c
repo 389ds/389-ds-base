@@ -32,6 +32,9 @@ int ldbm_back_close( Slapi_PBlock *pb )
 	/* close down all the ldbm instances */
 	dblayer_close( li, DBLAYER_NORMAL_MODE );
 
+    /* Close all the entry caches for this instance */
+    ldbm_instance_stopall_caches(li);
+
 	slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_close", "ldbm backend done syncing\n");
 	return 0;
 }

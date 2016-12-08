@@ -44,16 +44,32 @@ int ldbm_back_cleanup( Slapi_PBlock *pb )
 		PR_Unlock (be->be_state_lock);
 		return 0;
 	}
-    
-	dblayer_terminate( li );
 
-/* JCM I tried adding this to tidy up memory on shutdown. */
-/* JCM But, the result was very messy. */
-/* JCM objset_delete(&li->li_instance_set); */
+    /*
+     * We check if li is NULL. Because of an issue in how we create backends
+     * we share the li and plugin info between many unique backends. This causes
+     * be_cleanall to try to trigger this multiple times. But we don't need to!
+     * dblayer_terminate is sufficent to be called once for each instance of
+     * ldbminfo. This protects us from heap use after frees while still cleaning
+     * up. Ultimately, it's a flaw in how ldbm can have many backends, but for
+     * "one" plugin.
+     */
+    if (li != NULL) {
 
-	be->be_state = BE_STATE_CLEANED;
+        dblayer_terminate( li );
 
-	PR_Unlock (be->be_state_lock);
+        /* JCM I tried adding this to tidy up memory on shutdown. */
+        /* JCM But, the result was very messy. */
+        objset_delete(&(li->li_instance_set));
 
-	return 0;
+        ldbm_config_destroy(li);
+
+        slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, NULL );
+    }
+
+    be->be_state = BE_STATE_CLEANED;
+
+    PR_Unlock (be->be_state_lock);
+
+    return 0;
 }

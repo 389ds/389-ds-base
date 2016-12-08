@@ -100,10 +100,10 @@ be_plgfn_unwillingtoperform(Slapi_PBlock *pb)
 /* JCM - Seems rather DSE specific... why's it here?... Should be in fedse.c... */
 
 Slapi_Backend *
-be_new_internal(struct dse *pdse, const char *type, const char *name)
+be_new_internal(struct dse *pdse, const char *type, const char *name, struct slapdplugin *plugininfo)
 {
     Slapi_Backend *be= slapi_be_new(type, name, 1 /* Private */, 0 /* Do Not Log Changes */);
-    be->be_database = (struct slapdplugin *) slapi_ch_calloc( 1, sizeof(struct slapdplugin) );
+    be->be_database = plugininfo;
     be->be_database->plg_private= (void*)pdse;
     be->be_database->plg_bind= &dse_bind;
     be->be_database->plg_unbind= &dse_unbind;
@@ -283,44 +283,20 @@ slapi_be_select_by_instance_name( const char *name )
 	return NULL;
 }
 
-/* void
-be_cleanupall()
-{
-	int		i;
-	Slapi_PBlock	pb;
-
-    for ( i = 0; i < maxbackends; i++ ) 
-	{
-		if ( backends[i] &&
-			 backends[i]->be_cleanup != NULL &&
-			(backends[i]->be_state == BE_STATE_STOPPED ||
-			 backends[i]->be_state == BE_STATE_DELETED)) 
-		{
-			slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
-			slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
-            
-    		(*backends[i]->be_cleanup)( &pb );
-		}
-	}
-}*/
-
 void
 be_cleanupall()
 {
     int             i;
-    Slapi_PBlock    pb;
+    Slapi_PBlock    pb = {0};
 
-    for ( i = 0; i < maxbackends; i++ ) 
+    for ( i = 0; i < maxbackends; i++ )
     {
-        if (backends[i] &&
-            backends[i]->be_cleanup != NULL &&
-            (backends[i]->be_state == BE_STATE_STOPPED ||
-            backends[i]->be_state == BE_STATE_DELETED)) 
-        {
-            slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
-            slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
-
-            (*backends[i]->be_cleanup)( &pb );
+        if (backends[i] && (backends[i]->be_state == BE_STATE_STOPPED || backends[i]->be_state == BE_STATE_DELETED)) {
+            if (backends[i]->be_cleanup != NULL) {
+                slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
+                slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
+                (*backends[i]->be_cleanup)( &pb );
+            }
             slapi_be_free(&backends[i]);
         }
     }
@@ -330,20 +306,20 @@ be_cleanupall()
 void
 be_flushall()
 {
-	int		i;
-	Slapi_PBlock	pb;
+    int i;
+    Slapi_PBlock pb = {0};
 
-	for ( i = 0; i < maxbackends; i++ )
-	{
-		if ( backends[i] &&
-			 backends[i]->be_state == BE_STATE_STARTED &&
-			 backends[i]->be_flush != NULL )
-		{
-			slapi_pblock_set( &pb, SLAPI_PLUGIN,  backends[i]->be_database );
-			slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );            
-    		(*backends[i]->be_flush)( &pb );
-		}
-	}
+    for ( i = 0; i < maxbackends; i++ )
+    {
+        if ( backends[i] &&
+             backends[i]->be_state == BE_STATE_STARTED &&
+             backends[i]->be_flush != NULL )
+        {
+            slapi_pblock_set( &pb, SLAPI_PLUGIN,  backends[i]->be_database );
+            slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
+            (*backends[i]->be_flush)( &pb );
+        }
+    }
 }
 
 void

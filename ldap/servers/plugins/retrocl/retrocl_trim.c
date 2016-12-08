@@ -481,5 +481,7 @@ void retrocl_stop_trimming(void)
       slapi_eq_cancel(retrocl_trim_ctx);
       retrocl_trim_ctx = NULL;
     }
+    PR_DestroyLock(ts.ts_s_trim_mutex);
+    ts.ts_s_trim_mutex = NULL;
 }
 

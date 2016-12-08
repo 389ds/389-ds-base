@@ -319,9 +319,9 @@ void  index_free_prefix (char*);
 int ldbm_instance_create(backend *be, char *name);
 int ldbm_instance_create_default_indexes(backend *be);
 int ldbm_instance_start(backend *be);
-int ldbm_instance_stop(backend *be);
+void ldbm_instance_stop_cache(backend *be);
 int ldbm_instance_startall(struct ldbminfo *li);
-int ldbm_instance_stopall(struct ldbminfo *li);
+int ldbm_instance_stopall_caches(struct ldbminfo *li);
 ldbm_instance *ldbm_instance_find_by_name(struct ldbminfo *li, char *name);
 int ldbm_instance_destroy(ldbm_instance *inst);
 

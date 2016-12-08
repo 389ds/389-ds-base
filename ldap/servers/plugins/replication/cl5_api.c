@@ -238,7 +238,7 @@ typedef struct cl5desc
 typedef void (*VFP)(void *);
 
 /***** Global Variables *****/
-static CL5Desc s_cl5Desc;
+static CL5Desc s_cl5Desc = {0};
 
 /***** Forward Declarations *****/
 
@@ -427,6 +427,11 @@ void cl5Cleanup ()
 		PR_DestroyLock (cl5_diskfull_lock);
 		cl5_diskfull_lock = NULL;
 	}
+    if (s_cl5Desc.clLock != NULL)
+    {
+        PR_DestroyLock(s_cl5Desc.clLock);
+        s_cl5Desc.clLock = NULL;
+    }
 
 	memset (&s_cl5Desc, 0, sizeof (s_cl5Desc));
 }

@@ -764,7 +764,6 @@ handle_listeners(Connection_Table *ct)
 static void
 convert_pbe_des_to_aes(void)
 {
-    Slapi_PBlock *pb = NULL;
     Slapi_Entry **entries = NULL;
     struct slapdplugin *plugin = NULL;
     char **attrs = NULL;
@@ -816,20 +815,20 @@ convert_pbe_des_to_aes(void)
         for (i = 0; attrs && attrs[i]; i++){
             char *filter = PR_smprintf("%s=*", attrs[i]);
 
-            pb = slapi_pblock_new();
-            slapi_search_internal_set_pb(pb, "cn=config",
+            Slapi_PBlock pb = {0};
+            slapi_search_internal_set_pb(&pb, "cn=config",
                 LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL,
                 (void *)plugin_get_default_component_id(),
                 SLAPI_OP_FLAG_IGNORE_UNINDEXED);
-            slapi_search_internal_pb(pb);
-            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            slapi_search_internal_pb(&pb);
+            slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
             for (ii = 0; entries && entries[ii]; ii++){
                 if((val = slapi_entry_attr_get_charptr(entries[ii], attrs[i]))){
                     if(strlen(val) >= 5 && strncmp(val,"{DES}", 5) == 0){
                         /*
                          * We have a DES encoded password, convert it to AES
                          */
-                        Slapi_PBlock *mod_pb = NULL;
+                        Slapi_PBlock mod_pb = {0};
                         Slapi_Value *sval = NULL;
                         LDAPMod mod_replace;
                         LDAPMod *mods[2];
@@ -866,12 +865,11 @@ convert_pbe_des_to_aes(void)
                             mods[0] = &mod_replace;
                             mods[1] = 0;
 
-                            mod_pb = slapi_pblock_new();
-                            slapi_modify_internal_set_pb(mod_pb, slapi_entry_get_dn(entries[ii]),
+                            slapi_modify_internal_set_pb(&mod_pb, slapi_entry_get_dn(entries[ii]),
                                     mods, 0, 0, (void *)plugin_get_default_component_id(), 0);
-                            slapi_modify_internal_pb(mod_pb);
+                            slapi_modify_internal_pb(&mod_pb);
 
-                            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+                            slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
                             if (LDAP_SUCCESS != result) {
                                 slapi_log_err(SLAPI_LOG_ERR, "convert_pbe_des_to_aes",
                                         "Failed to convert password for (%s) error (%d)\n",
@@ -885,14 +883,13 @@ convert_pbe_des_to_aes(void)
                         }
                         slapi_ch_free_string(&passwd);
                         slapi_value_free(&sval);
-                        slapi_pblock_destroy(mod_pb);
+                        pblock_done(&mod_pb);
                     }
                     slapi_ch_free_string(&val);
                 }
             }
-            slapi_free_search_results_internal(pb);
-            slapi_pblock_destroy(pb);
-            pb = NULL;
+            slapi_free_search_results_internal(&pb);
+            pblock_done(&pb);
             slapi_ch_free_string(&filter);
         }
         if (!converted_des_passwd){
@@ -1176,7 +1173,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		for (size_t ii = 0; ii < listeners; ++ii) {
 			listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
 			ns_add_io_job(tp, listener_idxs[ii].listenfd, NS_JOB_ACCEPT|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD,
-				      ns_handle_new_connection, &listener_idxs[ii], &listener_idxs[ii].ns_job);
+				      ns_handle_new_connection, &listener_idxs[ii], &(listener_idxs[ii].ns_job));
 
 		}
 	}
@@ -1280,11 +1277,11 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif
 	}
 
-	/* Might compete with housecleaning thread, but so far so good */
-	be_flushall();
-	op_thread_cleanup();
-	housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
-       disk_monitoring_stop();
+    /* Might compete with housecleaning thread, but so far so good */
+    be_flushall();
+    op_thread_cleanup();
+    housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
+    disk_monitoring_stop();
 
 	threads = g_get_active_threadcnt();
 	if ( threads > 0 ) {
@@ -2828,18 +2825,25 @@ ns_set_shutdown(struct ns_job_t *job)
 {
     /* Is there a way to make this a bit more atomic? */
     /* I think NS protects this by only executing one signal job at a time */
+    PRStatus shutdown_status = PR_SUCCESS;
 
     if (g_get_shutdown() == 0) {
         g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
 
-        /* Stop all the long running jobs */
-        for (size_t i = 0; i < listeners; ++i) {
-            ns_job_done(listener_idxs[i].ns_job);
-            listener_idxs[i].ns_job = NULL;
-        }
-
         /* Signal all the worker threads to stop */
         ns_thrpool_shutdown(ns_job_get_tp(job));
+
+        /* Stop all the long running jobs */
+        /* Please see https://firstyear.fedorapeople.org/nunc-stans/md_docs_job-safety.html */
+        /* tldr is shutdown needs to run first to allow job_done on an ARMED job */
+        for (size_t i = 0; i < listeners; i++) {
+            shutdown_status = ns_job_done(listener_idxs[i].ns_job);
+            if (shutdown_status != PR_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_CRIT, "ns_set_shutdown", "Failed to shutdown listener idx %"PRIu64" !\n", i);
+            }
+            PR_ASSERT(shutdown_status == PR_SUCCESS);
+            listener_idxs[i].ns_job = NULL;
+        }
     }
 }
 #endif

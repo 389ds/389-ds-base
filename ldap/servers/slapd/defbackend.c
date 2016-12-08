@@ -77,10 +77,9 @@ defbackend_init( void )
      */
     defbackend_plugin.plg_type = SLAPI_PLUGIN_DATABASE;
     defbackend_backend->be_database = &defbackend_plugin;
-    if (( rc = slapi_pblock_set( &pb, SLAPI_PLUGIN, &defbackend_plugin ))
-	    != 0 ) {
-	errmsg = "slapi_pblock_set SLAPI_PLUGIN failed";
-	goto cleanup_and_return;
+    if (( rc = slapi_pblock_set( &pb, SLAPI_PLUGIN, &defbackend_plugin )) != 0 ) {
+        errmsg = "slapi_pblock_set SLAPI_PLUGIN failed";
+        goto cleanup_and_return;
     }
 
     /* default backend is managed as if it would */

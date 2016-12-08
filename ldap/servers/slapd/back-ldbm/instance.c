@@ -266,34 +266,17 @@ ldbm_instance_start(backend *be)
 
 
 /* Stops a backend instance */
-int 
-ldbm_instance_stop(backend *be)
+void
+ldbm_instance_stop_cache(backend *be)
 {
-    int rc;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-
-    PR_Lock (be->be_state_lock);
-
-    if (be->be_state != BE_STATE_STARTED) {
-        slapi_log_err(SLAPI_LOG_WARNING, 
-                   "ldbm_instance_stop", "Backend %s is in the wrong state - %d\n", 
-                   inst ? inst->inst_name : "", be->be_state);
-        PR_Unlock (be->be_state_lock);
-        return 0;
-    }
-
-    rc = dblayer_instance_close(be);
-
-    be->be_state = BE_STATE_STOPPED;
-    PR_Unlock (be->be_state_lock);
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) { /* subtree-rename: on */
         cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
     }
-
-    return rc;
 }
+
 static void
 ldbm_instance_set_flags(ldbm_instance *inst)
 {
@@ -333,7 +316,7 @@ ldbm_instance_startall(struct ldbminfo *li)
 
 
 /* Walks down the set of instances, stopping each one. */
-int ldbm_instance_stopall(struct ldbminfo *li)
+int ldbm_instance_stopall_caches(struct ldbminfo *li)
 {
     Object *inst_obj;
     ldbm_instance *inst;
@@ -341,7 +324,7 @@ int ldbm_instance_stopall(struct ldbminfo *li)
     inst_obj = objset_first_obj(li->li_instance_set);
     while (inst_obj != NULL)  {
         inst = (ldbm_instance *) object_get_data(inst_obj);
-        ldbm_instance_stop(inst->inst_be);
+        ldbm_instance_stop_cache(inst->inst_be);
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
     }
     
@@ -395,14 +378,13 @@ ldbm_instance_destructor(void **arg)
     PR_DestroyLock(inst->inst_config_mutex);
     slapi_ch_free_string(&inst->inst_dir_name);
     slapi_ch_free_string(&inst->inst_parent_dir_name);
-    PR_DestroyMonitor(inst->inst_db_mutex);
-    PR_DestroyLock(inst->inst_handle_list_mutex);
+    /* These are removed in dblayer_terminate */
+    /* PR_DestroyMonitor(inst->inst_db_mutex); */
+    /* PR_DestroyLock(inst->inst_handle_list_mutex); */
     PR_DestroyLock(inst->inst_nextid_mutex);
     PR_DestroyCondVar(inst->inst_indexer_cv);
     attrinfo_deletetree(inst);
-    if (inst->inst_dataversion) {
-        slapi_ch_free((void **)&inst->inst_dataversion);
-    }
+    slapi_ch_free((void **)&inst->inst_dataversion);
     /* cache has already been destroyed */
 
     slapi_ch_free((void **)&inst);

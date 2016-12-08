@@ -117,7 +117,8 @@ void vattr_init()
 /* Called on server shutdown, free all structures, inform service providers that we're going down etc */
 void vattr_cleanup()
 {
-	vattr_map_destroy();
+    /* We need to free and remove anything that was inserted first */
+    vattr_map_destroy();
 }
 
 /* The public interface functions start here */
@@ -1842,9 +1843,23 @@ static int vattr_map_create(void)
 	return 0;
 }
 
+void vattr_map_entry_free(vattr_map_entry *vae) {
+    slapi_ch_free((void **)&(vae->sp_list));
+    slapi_ch_free_string(&(vae->type_name));
+    slapi_ch_free((void **)&vae);
+}
+
+static PRIntn
+vattr_he_cleanup_fn(PLHashEntry *he, PRIntn index, void *arg) {
+    vattr_map_entry_free((vattr_map_entry *)he->value);
+    he->value = NULL;
+    return HT_ENUMERATE_NEXT;
+}
+
 static void vattr_map_destroy(void)
 {
 	if (the_map) {
+        PL_HashTableEnumerateEntries(the_map->hashtable, vattr_he_cleanup_fn, NULL);
 		if (the_map->hashtable) {
 			PL_HashTableDestroy(the_map->hashtable);
 		}
@@ -1904,19 +1919,13 @@ static int vattr_map_lookup(const char *type_to_find, vattr_map_entry **result)
 /* Insert an entry into the attribute map */
 int vattr_map_insert(vattr_map_entry *vae)
 {
-	char *copy_of_type_name = NULL;
 	PR_ASSERT(the_map);
-	copy_of_type_name = slapi_ch_strdup(vae->type_name);
-	if (NULL == copy_of_type_name) {
-		slapd_nasty(sourcefile,6,0);
-		return ENOMEM;
-	}
 	/* Get the writer lock */
 	slapi_rwlock_wrlock(the_map->lock);
 	/* Insert the thing */
 	/* It's illegal to call this function if the entry is already there */
-	PR_ASSERT(NULL == PL_HashTableLookupConst(the_map->hashtable,(void*)copy_of_type_name));
-    PL_HashTableAdd(the_map->hashtable,(void*)copy_of_type_name,(void*)vae);
+	PR_ASSERT(NULL == PL_HashTableLookupConst(the_map->hashtable,(void*)vae->type_name));
+    PL_HashTableAdd(the_map->hashtable,(void*)vae->type_name,(void*)vae);
 	/* Unlock and we're done */
 	slapi_rwlock_unlock(the_map->lock);
 	return 0;

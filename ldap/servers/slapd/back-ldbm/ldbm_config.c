@@ -2242,3 +2242,15 @@ void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
     slapi_mods_done(&smods);
     pblock_done(&pb);
 }
+
+/* Dispose of an ldbminfo struct for good */
+void
+ldbm_config_destroy(struct ldbminfo *li) {
+    if (li->li_attrs_to_exclude_from_export != NULL) {
+        charray_free( li->li_attrs_to_exclude_from_export );
+    }
+    slapi_ch_free((void **) &(li->li_new_directory));
+    slapi_ch_free((void **) &(li->li_directory));
+    /* Finally free the ldbminfo */
+    slapi_ch_free((void **)&li);
+}

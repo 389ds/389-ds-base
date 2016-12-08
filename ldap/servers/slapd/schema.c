@@ -26,6 +26,8 @@
 #include <ldap_schema.h> /* openldap schema parser */
 #endif
 
+static struct slapdplugin   schema_plugin = {0};
+
 typedef struct sizedbuffer
 {
     char *buffer;
@@ -5317,8 +5319,9 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
                                   load_schema_dse, (void *)&schema_flags, NULL);
     }
     slapi_ch_free_string(&userschematmpfile);
-    if (NULL == schemadir)
+    if (NULL == schemadir) {
         slapi_ch_free_string(&myschemadir); /* allocated in this function */
+    }
 
     if(rc)
     {
@@ -5375,10 +5378,11 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
     if (rc && !(schema_flags & DSE_SCHEMA_NO_BACKEND))
     {
         /* make sure the schema is normalized */
-        if (schema_flags & DSE_SCHEMA_LOCKED)
+        if (schema_flags & DSE_SCHEMA_LOCKED) {
             normalize_oc_nolock();
-        else
+        } else {
             normalize_oc();
+        }
 
         /* register callbacks */
         dse_register_callback(*local_pschemadse, SLAPI_OPERATION_SEARCH,
@@ -5400,7 +5404,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
             }
             if (NULL == be) {   /* first time */
                 /* add as a backend */
-                be = be_new_internal(*local_pschemadse, "DSE", DSE_SCHEMA);
+                be = be_new_internal(*local_pschemadse, "DSE", DSE_SCHEMA, &schema_plugin);
                 be_addsuffix(be, &schema);
             } else {                    /* schema file reload */
                 struct slapdplugin *backend_plugin = NULL;

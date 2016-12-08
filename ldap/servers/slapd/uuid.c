@@ -606,10 +606,11 @@ static int write_state_to_file(void)
 /* write_state_to_entry -- stores state to state file
 */
 static int write_state_to_entry(PRBool newState) {
-  if (newState)
-	return add_state_entry ();
-  else
-	return modify_state_entry ();
+    if (newState) {
+        return add_state_entry ();
+    } else {
+        return modify_state_entry ();
+    }
 }
 
 /* add_state_entry -- add state entry to the dit */

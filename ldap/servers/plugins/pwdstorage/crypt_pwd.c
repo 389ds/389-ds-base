@@ -39,10 +39,18 @@ static unsigned char itoa64[] =         /* 0 ... 63 => ascii - 64 */
 
 
 
-void
-crypt_init()
+int
+crypt_start(Slapi_PBlock *pb __attribute__((unused)))
 {
     cryptlock = PR_NewLock();
+    return 0;
+}
+
+int
+crypt_close(Slapi_PBlock *pb __attribute__((unused)))
+{
+    PR_DestroyLock(cryptlock);
+    return 0;
 }
 
 int
