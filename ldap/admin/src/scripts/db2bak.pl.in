@@ -65,6 +65,7 @@ while ($i <= $#ARGV) {
     } elsif ("$ARGV[$i]" eq "-v") {    # verbose
         $verbose = 1;
     } else {
+        print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);
     }
     $i++;

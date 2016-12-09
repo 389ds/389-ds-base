@@ -481,7 +481,7 @@ while( $arg = shift)
     } elsif ($arg eq "-P") { 
         $protocol = shift @ARGV;
     } else {
-        print "$arg: Unknown command line argument.\n";
+        print "ERROR - Unknown option: $ARGV[$i]\n";
         usage();
         exit(1);
     }

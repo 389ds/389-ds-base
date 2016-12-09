@@ -44,6 +44,20 @@ do
     esac
 done
 
+if [ $# -lt 4 ]
+then
+    usage
+    exit 1
+fi
+
+shift $(($OPTIND - 1))
+if [ $1 ]
+then
+    echo "ERROR - Unknown option: $1"
+    usage
+    exit 1
+fi
+
 initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? -eq 1 ]
 then
@@ -54,11 +68,5 @@ then
 fi
 
 . $initfile
-
-if [ $# -lt 4 ]
-then
-    usage
-    exit 1
-fi
 
 eval @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args

@@ -63,6 +63,7 @@ while ($i <= $#ARGV)
         # protocol preference
         $i++; $protocol = $ARGV[$i];
     } else {
+        print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage;
         exit(1);
     }

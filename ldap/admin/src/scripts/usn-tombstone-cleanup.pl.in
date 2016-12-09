@@ -71,6 +71,7 @@ while ($i <= $#ARGV)
         # verbose
         $verbose = 1;
     } else {
+        print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage;
         exit(1);
     }

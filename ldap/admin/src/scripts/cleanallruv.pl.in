@@ -71,6 +71,7 @@ while ($i <= $#ARGV)
         # help
         &usage; exit(0);
     } else {
+        print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);
     }
     $i++;

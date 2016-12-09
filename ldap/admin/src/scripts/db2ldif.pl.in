@@ -153,6 +153,7 @@ while ($i <= $#ARGV) {
     } elsif ("$ARGV[$i]" eq "-c") {    # cwd
         $i++; $cwd = $ARGV[$i];
     } else {
+        print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);
     }
     $i++;

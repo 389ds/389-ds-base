@@ -53,6 +53,13 @@ do
     esac
 done
 
+shift $(($OPTIND - 1))
+if [ $1 ]
+then
+    echo "ERROR - Unknown option: $1"
+    usage
+    exit 1
+fi
 
 initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? -eq 1 ]
