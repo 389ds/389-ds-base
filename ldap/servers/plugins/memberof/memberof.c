@@ -3103,17 +3103,12 @@ static PLHashTable *hashtable_new()
 static PRIntn fixup_hashtable_remove(PLHashEntry *he, PRIntn index, void *arg)
 {
 	char *dn_copy;
-	char *msg; /* used for debug purpose */
 
 	if (he == NULL) {
 		return HT_ENUMERATE_NEXT;
 	}
-
-
 	dn_copy = (char*) he->value;
-	msg = (char *) arg;
-
-	slapi_ch_free((void **) &dn_copy);
+	slapi_ch_free_string(&dn_copy);
 
 	return HT_ENUMERATE_REMOVE;
 }
