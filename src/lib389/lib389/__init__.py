@@ -487,6 +487,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldapuri = None
         self.sslport = None
         self.port = None
+        self.inst_scripts = args.get(SER_INST_SCRIPTS_ENABLED, None)
         # Or do we have tcp / ip settings?
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
@@ -863,6 +864,10 @@ class DirSrv(SimpleLDAPObject, object):
                 SER_DEPLOYED_DIR: self.prefix,
                 SER_BACKUP_INST_DIR: self.backupdir,
                 SER_STRICT_HOSTNAME_CHECKING: self.strict_hostname}
+
+        if self.inst_scripts is not None:
+            args[SER_INST_SCRIPTS_ENABLED] = self.inst_scripts
+
         content = formatInfData(args)
         result = DirSrvTools.runInfProg(prog, content, self.verbose,
                                         prefix=self.prefix)

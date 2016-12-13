@@ -733,6 +733,8 @@ def formatInfData(args):
 
     if 'ldapifilepath' in args:
         content += "\nldapifilepath=%s\n" % args['ldapifilepath']
+    if SER_INST_SCRIPTS_ENABLED in args:
+        content += "\n{}={}\n".format(SER_INST_SCRIPTS_ENABLED, args[SER_INST_SCRIPTS_ENABLED])
 
     return content
 

@@ -28,6 +28,7 @@ SER_CREATION_SUFFIX = 'suffix'
 SER_LDAPI_ENABLED = 'ldapi_enabled'
 SER_LDAPI_SOCKET = 'ldapi_socket'
 SER_LDAPI_AUTOBIND = 'ldapi_autobind'
+SER_INST_SCRIPTS_ENABLED = 'InstScriptsEnabled'
 
 SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_PORT: 'nsslapd-port',
