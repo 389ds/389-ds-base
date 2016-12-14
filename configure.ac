@@ -29,6 +29,7 @@ AC_PROG_CXX
 AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_AS
+AC_PROG_CC_STDC
 # disable static libs by default - we only use a couple
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
