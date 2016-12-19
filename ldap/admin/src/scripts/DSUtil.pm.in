@@ -1262,7 +1262,7 @@ sub get_info {
             last;
         }
     }
-    if($foundcfg eq "yes"){
+    if($foundcfg eq "yes" && $entry){
         $info{cacertfile} = $entry->getValues("CACertExtractFile");
         if ($info{cacertfile}) {
             $ENV{LDAPTLS_CACERT}=$info{cacertfile};

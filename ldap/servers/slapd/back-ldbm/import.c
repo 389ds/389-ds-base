@@ -1485,12 +1485,12 @@ error:
         }
     }
     if (0 != ret) {
+        dblayer_instance_close(job->inst->inst_be);
         if (!(job->flags & (FLAG_DRYRUN|FLAG_UPGRADEDNFORMAT_V1))) {
             /* If not dryrun NOR upgradedn space */
             /* if running in the dry run mode, don't touch the db */
             dblayer_delete_instance_dir(be);
         }
-        dblayer_instance_close(job->inst->inst_be);
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be)) ) {
             import_log_notice(job, SLAPI_LOG_WARNING, "import_main_offline", "Failed to close database");
