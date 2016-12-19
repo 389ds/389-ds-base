@@ -44,13 +44,13 @@ use DSUtil qw(shellEscape);
 
 sub usage {
 	print(STDERR "Usage: $0 [-v] -D rootdn { -w password | -w - | -j filename } \n");
-	print(STDERR "        {-n instance}* | {-s include}* [{-x exclude}*] \n");
+	print(STDERR "        {-n backend}* | {-s include}* [{-x exclude}*] \n");
 	print(STDERR "        [-m] [-M] [-u] [-C] [-N] [-U] [-a filename]\n");
 	print(STDERR " Opts: -D rootdn   - Directory Manager\n");
 	print(STDERR "     : -w password - Directory Manager's password\n");
 	print(STDERR "     : -w -        - Prompt for Directory Manager's password\n");
 	print(STDERR "     : -j filename - Read Directory Manager's password from file\n");
-	print(STDERR "     : -n instance - instance to be exported\n");
+	print(STDERR "     : -n backend  - Backend database name to be exported\n");
 	print(STDERR "     : -a filename - output ldif file\n");
 	print(STDERR "     : -s include  - included suffix(es)\n");
 	print(STDERR "     : -x exclude  - excluded suffix(es)\n");
