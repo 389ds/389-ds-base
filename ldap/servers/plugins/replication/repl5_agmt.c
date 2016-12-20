@@ -78,6 +78,7 @@ typedef struct repl5agmt {
 	Slapi_DN *replarea; /* DN of replicated area */
 	char **frac_attrs; /* list of fractional attributes to be replicated */
 	char **frac_attrs_total; /* list of fractional attributes to be replicated for total update protocol */
+	PRBool frac_attr_total_defined; /* TRUE if frac_attrs_total is defined */
 	Schedule *schedule; /* Scheduling information */
 	int auto_initialize; /* 1 = automatically re-initialize replica */
 	const Slapi_DN *dn; /* DN of replication agreement entry */
@@ -621,6 +622,7 @@ agmt_delete(void **rap)
 	slapi_ch_free_string(&ra->binddn);
 	slapi_ch_array_free(ra->frac_attrs);
 	slapi_ch_array_free(ra->frac_attrs_total);
+	ra->frac_attr_total_defined = PR_FALSE;
 
 	if (NULL != ra->creds)
 	{
@@ -1044,8 +1046,7 @@ agmt_get_fractional_attrs_total(const Repl_Agmt *ra)
 {
 	char ** return_value = NULL;
 	PR_ASSERT(NULL != ra);
-	if (NULL == ra->frac_attrs_total)
-	{
+	if (!ra->frac_attr_total_defined) {
 		return agmt_get_fractional_attrs(ra);
 	}
 	PR_Lock(ra->lock);
@@ -1074,7 +1075,7 @@ int agmt_is_fractional_attr_total(const Repl_Agmt *ra, const char *attrname)
 {
 	int return_value;
 	PR_ASSERT(NULL != ra);
-	if (NULL == ra->frac_attrs_total)
+	if (!ra->frac_attr_total_defined)
 	{
 		return agmt_is_fractional_attr(ra, attrname);
 	}
@@ -1611,6 +1612,7 @@ agmt_set_replicated_attributes_total_from_entry(Repl_Agmt *ra, const Slapi_Entry
 	{
 		slapi_ch_array_free(ra->frac_attrs_total);
 		ra->frac_attrs_total = NULL;
+		ra->frac_attr_total_defined = PR_FALSE;
 	}
 	if (NULL != sattr)
 	{
@@ -1620,6 +1622,9 @@ agmt_set_replicated_attributes_total_from_entry(Repl_Agmt *ra, const Slapi_Entry
 		{
 			const char *val = slapi_value_get_string(sval);
 			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs_total));
+			if (return_value == 0) {
+				ra->frac_attr_total_defined = PR_TRUE;
+			}
 		}
 	}
 	PR_Unlock(ra->lock);
@@ -1675,6 +1680,7 @@ agmt_set_replicated_attributes_total_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
 	{
 		slapi_ch_array_free(ra->frac_attrs_total);
 		ra->frac_attrs_total = NULL;
+		ra->frac_attr_total_defined = PR_FALSE;
 	}
 	if (NULL != sattr)
 	{
@@ -1684,6 +1690,9 @@ agmt_set_replicated_attributes_total_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
 		{
 			const char *val = slapi_value_get_string(sval);
 			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs_total));
+			if (return_value == 0) {
+				ra->frac_attr_total_defined = PR_TRUE;
+			}
 		}
 	}
 	PR_Unlock(ra->lock);
@@ -1706,9 +1715,9 @@ agmt_validate_replicated_attributes(Repl_Agmt *ra, int total)
 	char **frac_attrs = NULL;
 
 	/* If checking for total update, use the total attr list
-	 * if it exists.  If oen is not set, use the incremental
+	 * if it exists.  If total attr list is not set, use the incremental
 	 * attr list. */
-	if (total && ra->frac_attrs_total)
+	if (total && ra->frac_attr_total_defined)
 	{
 		frac_attrs = ra->frac_attrs_total;
 	}
