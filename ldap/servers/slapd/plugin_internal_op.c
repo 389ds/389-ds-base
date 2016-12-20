@@ -726,7 +726,7 @@ search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	if (ifstr == NULL || (scope != LDAP_SCOPE_BASE && scope != LDAP_SCOPE_ONELEVEL 
         && scope != LDAP_SCOPE_SUBTREE))
     {
-        opresult =  LDAP_PARAM_ERROR;
+        opresult = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
         return -1;
     }
@@ -743,19 +743,19 @@ search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
     op->o_search_referral_handler = internal_ref_entry_callback;
 	
     filter = slapi_str2filter((fstr = slapi_ch_strdup(ifstr)));
-    if(scope == LDAP_SCOPE_BASE) {
+    if (NULL == filter) {
+        int result = LDAP_FILTER_ERROR;
+        send_ldap_result(pb, result, NULL, NULL, 0, NULL);
+        slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        rc = -1;
+        goto done;
+    }
+
+    if (scope == LDAP_SCOPE_BASE) {
         filter->f_flags |= (SLAPI_FILTER_LDAPSUBENTRY |
                             SLAPI_FILTER_TOMBSTONE | SLAPI_FILTER_RUV);
     }
-
-    if (NULL == filter) 
-	{
-    	send_ldap_result(pb, LDAP_FILTER_ERROR, NULL, NULL, 0, NULL);
-		rc = -1;
-    	goto done;
-    }
     filter_normalize(filter);
-
     slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter);
 	slapi_pblock_set(pb, SLAPI_REQCONTROLS, controls);
 
@@ -783,11 +783,8 @@ search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
 
 done:
-    slapi_ch_free((void **) & fstr);
-    if (filter != NULL) 
-    {
-        slapi_filter_free(filter, 1 /* recurse */);
-    }
+    slapi_ch_free_string(&fstr);
+    slapi_filter_free(filter, 1 /* recurse */);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
     slapi_ch_array_free(tmp_attrs);
     slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, NULL);

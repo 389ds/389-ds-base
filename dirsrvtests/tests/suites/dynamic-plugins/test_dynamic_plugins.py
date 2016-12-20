@@ -250,7 +250,8 @@ def test_dynamic_plugins(topology_st):
 
             except:
                 log.info('Stress test failed!')
-                repl_fail(replica_inst)
+                if replication_run:
+                    repl_fail(replica_inst)
 
             stress_count += 1
             log.info('####################################################################')

@@ -88,8 +88,9 @@ class DelUsers(threading.Thread):
             try:
                 conn.delete_s(USER_DN)
             except ldap.LDAPError as e:
-                log.fatal('DeleteUsers: failed to delete (' + USER_DN + ') error: ' + e.message['desc'])
-                assert False
+                if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
+                    log.fatal('DeleteUsers: failed to delete (' + USER_DN + ') error: ' + e.message['desc'])
+                    assert False
 
             idx += 1
 
@@ -115,11 +116,10 @@ class AddUsers(threading.Thread):
                 conn.add_s(Entry((GROUP_DN,
                     {'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
                      'uid': 'user' + str(idx)})))
-            except ldap.ALREADY_EXISTS:
-                pass
             except ldap.LDAPError as e:
-                log.fatal('AddUsers: failed to add group (' + USER_DN + ') error: ' + e.message['desc'])
-                assert False
+                if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
+                    log.fatal('AddUsers: failed to add group (' + USER_DN + ') error: ' + e.message['desc'])
+                    assert False
 
         log.info('AddUsers - Adding ' + str(NUM_USERS) + ' entries (' + self.rdnval + ')...')
 
@@ -129,16 +129,18 @@ class AddUsers(threading.Thread):
                 conn.add_s(Entry((USER_DN, {'objectclass': 'top extensibleObject'.split(),
                            'uid': 'user' + str(idx)})))
             except ldap.LDAPError as e:
-                log.fatal('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])
-                assert False
+                if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
+                    log.fatal('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])
+                    assert False
 
             if self.addToGroup:
                 # Add the user to the group
                 try:
                     conn.modify_s(GROUP_DN, [(ldap.MOD_ADD, 'uniquemember', USER_DN)])
                 except ldap.LDAPError as e:
-                    log.fatal('AddUsers: Failed to add user' + USER_DN + ' to group: error ' + e.message['desc'])
-                    assert False
+                    if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
+                        log.fatal('AddUsers: Failed to add user' + USER_DN + ' to group: error ' + e.message['desc'])
+                        assert False
 
             idx += 1
 
