@@ -156,7 +156,6 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 {
 	int rc = 0;
 	Replica *r;
-	char *repl_name = NULL;
 
 	if (e == NULL)
 	{
@@ -245,8 +244,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
     /* ONREPL - the state update can occur before the entry is added to the DIT. 
        In that case the updated would fail but nothing bad would happen. The next
        scheduled update would save the state */
-	repl_name = slapi_ch_strdup (r->repl_name);
-	r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, repl_name,
+	r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
                                        current_time () + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
 
 	if (r->tombstone_reap_interval > 0)
@@ -255,8 +253,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 		 * Reap Tombstone should be started some time after the plugin started.
 		 * This will allow the server to fully start before consuming resources.
 		 */
-		repl_name = slapi_ch_strdup (r->repl_name);
-		r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, repl_name,
+		r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, r->repl_name,
 										   current_time() + r->tombstone_reap_interval,
 										   1000 * r->tombstone_reap_interval);
 	}
@@ -313,7 +310,6 @@ void
 replica_destroy(void **arg)
 {
 	Replica *r;
-	void *repl_name;
 
 	if (arg == NULL)
 		return;
@@ -333,16 +329,12 @@ replica_destroy(void **arg)
 
 	if (r->repl_eqcxt_rs)
 	{
-		repl_name = slapi_eq_get_arg (r->repl_eqcxt_rs);
-		slapi_ch_free (&repl_name);
 		slapi_eq_cancel(r->repl_eqcxt_rs);
 		r->repl_eqcxt_rs = NULL;
 	}
 
 	if (r->repl_eqcxt_tr)
 	{
-		repl_name = slapi_eq_get_arg (r->repl_eqcxt_tr);
-		slapi_ch_free (&repl_name);
 		slapi_eq_cancel(r->repl_eqcxt_tr);
 		r->repl_eqcxt_tr = NULL;
 	}
@@ -1623,8 +1615,6 @@ consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv)
 void 
 replica_set_enabled (Replica *r, PRBool enable)
 {
-	char *repl_name = NULL;
-
     PR_ASSERT (r);
 
     replica_lock(r->repl_lock);
@@ -1633,8 +1623,7 @@ replica_set_enabled (Replica *r, PRBool enable)
     {
         if (r->repl_eqcxt_rs == NULL)   /* event is not already registered */
         {
-            repl_name = slapi_ch_strdup (r->repl_name);
-            r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, repl_name,
+            r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
                                                current_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);  
         }
     }
@@ -1642,8 +1631,6 @@ replica_set_enabled (Replica *r, PRBool enable)
     {
         if (r->repl_eqcxt_rs)   /* event is still registerd */
         {
-			repl_name = slapi_eq_get_arg (r->repl_eqcxt_rs);
-			slapi_ch_free ((void**)&repl_name);
             slapi_eq_cancel(r->repl_eqcxt_rs);
             r->repl_eqcxt_rs = NULL;
         }   
@@ -1898,7 +1885,7 @@ int replica_check_for_data_reload (Replica *r, void *arg)
                             slapi_sdn_get_dn(r->repl_root));
                     rc = 0;
                 }
-            } // slapi_disordely_shutdown
+            } /* slapi_disordely_shutdown */
 
             object_release (ruv_obj);
         }
@@ -3868,8 +3855,6 @@ replica_set_purge_delay(Replica *r, PRUint32 purge_delay)
 void
 replica_set_tombstone_reap_interval (Replica *r, long interval)
 {
-	char *repl_name;
-
 	replica_lock(r->repl_lock);
 
 	/*
@@ -3880,8 +3865,6 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 	{
 		int found;
 
-		repl_name = slapi_eq_get_arg (r->repl_eqcxt_tr);
-		slapi_ch_free ((void**)&repl_name);
 		found = slapi_eq_cancel (r->repl_eqcxt_tr);
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 			"replica_set_tombstone_reap_interval - tombstone_reap event (interval=%ld) was %s\n",
@@ -3891,8 +3874,7 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 	r->tombstone_reap_interval = interval;
 	if ( interval > 0 && r->repl_eqcxt_tr == NULL )
 	{
-		repl_name = slapi_ch_strdup (r->repl_name);
-		r->repl_eqcxt_tr = slapi_eq_repeat (eq_cb_reap_tombstones, repl_name,
+		r->repl_eqcxt_tr = slapi_eq_repeat (eq_cb_reap_tombstones, r->repl_name,
 											current_time() + r->tombstone_reap_interval,
 											1000 * r->tombstone_reap_interval);
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,

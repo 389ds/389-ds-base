@@ -301,10 +301,14 @@ slapi_register_plugin_ext(
 	slapi_entry_init_ext(e, sdn, NULL);
 	slapi_sdn_free(&sdn);
 
-	slapi_entry_attr_set_charptr(e, "cn", name);
-	slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_TYPE, plugintype);
-	if (!enabled)
-		slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_ENABLED, "off");
+    slapi_entry_attr_set_charptr(e, "cn", name);
+    /* Need a valid objectClass! No plugin OC so just use extensible :( */
+    slapi_entry_add_string(e, "objectclass", "top");
+    slapi_entry_add_string(e, "objectclass", "extensibleObject");
+    slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_TYPE, plugintype);
+    if (!enabled) {
+        slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_ENABLED, "off");
+    }
 
 	slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_INITFN, initsymbol);
 

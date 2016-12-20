@@ -303,8 +303,20 @@ be_cleanupall()
     slapi_ch_free((void**)&backends);
 }
 
+/*
+ * This ifdef is needed to resolve a gcc 6 issue which throws a false positive
+ * here. See also: https://bugzilla.redhat.com/show_bug.cgi?id=1386445
+ *
+ * It's a good idea to run this in EL7 to check the overflows etc, but with
+ * GCC 6 and lsan to find memory leaks ....
+ */
 void
 be_flushall()
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer) && __GNUC__ == 6
+__attribute__((no_sanitize("address")))
+#  endif
+#endif
 {
     int i;
     Slapi_PBlock pb = {0};

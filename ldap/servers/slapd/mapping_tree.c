@@ -2064,7 +2064,11 @@ done:
 static int sdn_is_nulldn(const Slapi_DN *sdn){
 
     if(sdn){
-        const char *dn= slapi_sdn_get_ndn(sdn); 
+        /*
+         * Use get_dn rather than get_ndn, because an issue in get_ndn exists
+         * where ndn can be set to 0x8
+         */
+        const char *dn= slapi_sdn_get_dn(sdn); 
         if(dn && ( '\0' == *dn)){
                 return 1;    
         }
@@ -2900,7 +2904,7 @@ slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn)
      * it has been assigned to a different backend.
      * e.g: a container backend 
      */
-    if ( sdn_is_nulldn(dn) && mapping_tree_root && mapping_tree_root->mtn_be[0] &&
+    if (sdn_is_nulldn(dn) && mapping_tree_root && mapping_tree_root->mtn_be[0] &&
          mapping_tree_root->mtn_be[0] != slapi_be_select_by_instance_name(DSE_BACKEND)) {
         return( mapping_tree_root );
     }
@@ -2911,10 +2915,11 @@ slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn)
         next_best_match = best_matching_child(current_best_match, dn);
     }
 
-    if (current_best_match == mapping_tree_root)
+    if (current_best_match == mapping_tree_root) {
         return NULL;
-    else
+    } else {
         return current_best_match;
+    }
 }
 
 

@@ -113,9 +113,21 @@ if ( PBLOCK ->pb_plugin->plg_type != TYPE) return( -1 )
 #define SLAPI_PBLOCK_GET_PLUGIN_RELATED_POINTER( pb, element ) \
 		((pb)->pb_plugin == NULL ? NULL : (pb)->pb_plugin->element)
 
+/*
+ * This ifdef is needed to resolve a gcc 6 issue which throws a false positive
+ * here. See also: https://bugzilla.redhat.com/show_bug.cgi?id=1386445
+ *
+ * It's a good idea to run this in EL7 to check the overflows etc, but with
+ * GCC 6 and lsan to find memory leaks ....
+ */
 
 int
 slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer) && __GNUC__ == 6
+__attribute__((no_sanitize("address")))
+#  endif
+#endif
 {
 	char *authtype;
 	Slapi_Backend		*be;
@@ -1985,8 +1997,21 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	return( 0 );
 }
 
+/*
+ * This ifdef is needed to resolve a gcc 6 issue which throws a false positive
+ * here. See also: https://bugzilla.redhat.com/show_bug.cgi?id=1386445
+ *
+ * It's a good idea to run this in EL7 to check the overflows etc, but with
+ * GCC 6 and lsan to find memory leaks ....
+ */
+
 int
 slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer) && __GNUC__ == 6
+__attribute__((no_sanitize("address")))
+#  endif
+#endif
 {
 	char *authtype;
 

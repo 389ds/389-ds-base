@@ -433,6 +433,11 @@ void cl5Cleanup ()
         s_cl5Desc.clLock = NULL;
     }
 
+    if (s_cl5Desc.clCvar != NULL) {
+        PR_DestroyCondVar(s_cl5Desc.clCvar);
+        s_cl5Desc.clCvar = NULL;
+    }
+
 	memset (&s_cl5Desc, 0, sizeof (s_cl5Desc));
 }
 

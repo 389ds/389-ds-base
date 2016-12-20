@@ -35,10 +35,30 @@ multimaster_mtnode_extension_init ()
 }
 
 void
+multimaster_mtnode_free_replica_object(const Slapi_DN *root) {
+    mapping_tree_node *mtnode;
+    multimaster_mtnode_extension *ext;
+
+    /* In some cases, root can be an empty SDN */
+    /* Othertimes, a bug is setting root to 0x8, and I can't see where... */
+    if (root != NULL) {
+        mtnode = slapi_get_mapping_tree_node_by_dn(root);
+        if (mtnode != NULL) {
+            ext = (multimaster_mtnode_extension *)repl_con_get_ext (REPL_CON_EXT_MTNODE, mtnode);
+            if (ext != NULL && ext->replica != NULL) {
+                object_release(ext->replica);
+            }
+        }
+    }
+}
+
+void
 multimaster_mtnode_extension_destroy ()
 {
-	dl_cleanup (root_list, (FREEFN)slapi_sdn_free);
-	dl_free (&root_list);
+    /* First iterate over the list to free the replica infos */
+    /* dl_cleanup (root_list, (FREEFN)multimaster_mtnode_free_replica_object); */
+    dl_cleanup (root_list, (FREEFN)slapi_sdn_free);
+    dl_free (&root_list);
 }
 
 /* This function loops over the list of node roots, constructing replica objects 
@@ -59,7 +79,7 @@ multimaster_mtnode_construct_replicas ()
         if (r)
         {
 
-			mtnode = slapi_get_mapping_tree_node_by_dn(root);    
+			mtnode = slapi_get_mapping_tree_node_by_dn(root);
 			if (mtnode == NULL)
 			{
 				slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, 
@@ -110,7 +130,7 @@ multimaster_mtnode_extension_constructor (void *object, void *parent)
 		   we can't fully initialize replica here since backends
 		   are not yet started. Instead, replica objects are created
 		   during replication plugin startup */
-        if (root)
+        if (root != NULL && !slapi_sdn_isempty(root))
         {
 			/* for now just store node root in the root list */
             dl_add (root_list, slapi_sdn_dup (root));
