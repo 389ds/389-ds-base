@@ -96,6 +96,7 @@ def test_dependency(inst, plugin):
 ################################################################################
 def wait_for_task(conn, task_dn):
     finished = False
+    exitcode = 0
     count = 0
     while count < 60:
         try:
@@ -105,6 +106,7 @@ def wait_for_task(conn, task_dn):
                 assert False
             if task_entry[0].hasAttr('nstaskexitcode'):
                 # task is done
+                exitcode = task_entry[0].nsTaskExitCode
                 finished = True
                 break
         except ldap.LDAPError as e:
@@ -116,6 +118,8 @@ def wait_for_task(conn, task_dn):
     if not finished:
         log.fatal('wait_for_task: Task (%s) did not complete!' % task_dn)
         assert False
+
+    return exitcode
 
 
 ################################################################################
@@ -1416,9 +1420,82 @@ def test_memberof(inst, args=None):
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
-    # Enable the plugin, and run the task
+    # Enable memberof plugin
     inst.plugins.enable(name=PLUGIN_MEMBER_OF)
 
+    #############################################################
+    # Test memberOf fixup arg validation:  Test the DN and filter
+    #############################################################
+
+    #
+    # Test bad/nonexistant DN
+    #
+    TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
+    try:
+        inst.add_s(Entry((TASK_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'basedn': DEFAULT_SUFFIX + "bad",
+                          'filter': 'objectclass=top'})))
+    except ldap.LDAPError as e:
+        log.fatal('test_memberof: Failed to add task(bad dn): error ' +
+                  e.message['desc'])
+        assert False
+
+    exitcode = wait_for_task(inst, TASK_DN)
+    if exitcode == "0":
+        # We should an error
+        log.fatal('test_memberof: Task with invalid DN still reported success')
+        assert False
+
+    #
+    # Test invalid DN syntax
+    #
+    TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
+    try:
+        inst.add_s(Entry((TASK_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'basedn': "bad",
+                          'filter': 'objectclass=top'})))
+    except ldap.LDAPError as e:
+        log.fatal('test_memberof: Failed to add task(invalid dn syntax): ' +
+                  e.message['desc'])
+        assert False
+
+    exitcode = wait_for_task(inst, TASK_DN)
+    if exitcode == "0":
+        # We should an error
+        log.fatal('test_memberof: Task with invalid DN syntax still reported' +
+                  ' success')
+        assert False
+
+    #
+    # Test bad filter (missing closing parenthesis)
+    #
+    TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
+    try:
+        inst.add_s(Entry((TASK_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'basedn': DEFAULT_SUFFIX,
+                          'filter': '(objectclass=top'})))
+    except ldap.LDAPError as e:
+        log.fatal('test_memberof: Failed to add task(bad filter: error ' +
+                  e.message['desc'])
+        assert False
+
+    exitcode = wait_for_task(inst, TASK_DN)
+    if exitcode == "0":
+        # We should an error
+        log.fatal('test_memberof: Task with invalid filter still reported ' +
+                  'success')
+        assert False
+
+    ####################################################
+    # Test fixup works
+    ####################################################
+
+    #
+    # Run the task and validate that it worked
+    #
     TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
     try:
         inst.add_s(Entry((TASK_DN, {
