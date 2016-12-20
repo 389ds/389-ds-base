@@ -405,6 +405,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/protect_db.h \
 	ldap/servers/slapd/proto-slap.h \
 	ldap/servers/slapd/pw.h \
+	ldap/servers/slapd/pw_verify.h \
 	ldap/servers/slapd/secerrstrs.h \
 	ldap/servers/slapd/slap.h \
 	ldap/servers/slapd/slapi-plugin-compat4.h \
@@ -494,6 +495,7 @@ dist_noinst_DATA = \
 	$(srcdir)/LICENSE \
 	$(srcdir)/LICENSE.* \
 	$(srcdir)/VERSION.sh \
+	$(srcdir)/setup.py.in \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/wrappers/systemd.template.sysconfig \
 	$(srcdir)/dirsrvtests \
