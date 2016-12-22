@@ -2859,7 +2859,7 @@ int memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *t
 
 		slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 		errmsg = ldap_err2string(result);
-		slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_fix_memberof - Failed (%s)\n", errmsg );
 		slapi_task_log_notice(task, "Memberof task failed (%s)\n", errmsg );
 	}
