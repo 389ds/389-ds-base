@@ -676,6 +676,14 @@ typedef struct _cleanruv_data
 	char *force;
 } cleanruv_data;
 
+typedef struct _cleanruv_purge_data
+{
+	int cleaned_rid;
+	const Slapi_DN *suffix_sdn;
+	char *replName;
+	char *replGen;
+} cleanruv_purge_data;
+
 /* replutil.c */
 LDAPControl* create_managedsait_control ();
 LDAPControl* create_backend_control(Slapi_DN *sdn);

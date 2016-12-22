@@ -1211,6 +1211,7 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not
 	Object *RUVObj;
 	RUV *local_ruv = NULL;
 	Replica *replica = (Replica*)object_get_data (r);
+	cleanruv_purge_data *purge_data;
 	int rc = 0;
 	PR_ASSERT (replica);
 
@@ -1242,9 +1243,16 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not
 	cl5CleanRUV(rid);
 
 	/*
-	 * Now purge the changelog
+	 * Now purge the changelog.  The purging thread will free the purge_data
 	 */
-	trigger_cl_purging(replica);
+	if (replica){
+		purge_data = (cleanruv_purge_data*)slapi_ch_calloc(1, sizeof(cleanruv_purge_data));
+		purge_data->cleaned_rid = rid;
+		purge_data->suffix_sdn = replica_get_root(replica);
+		purge_data->replName = (char *)replica_get_name(replica);
+		purge_data->replGen = replica_get_generation(replica);
+		trigger_cl_purging(purge_data);
+	}
 
 	if (rc != RUV_SUCCESS){
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanruv_task: task failed(%d)\n",rc);

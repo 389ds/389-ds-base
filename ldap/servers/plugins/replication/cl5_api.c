@@ -3491,12 +3491,12 @@ static void _cl5DoTrimming ()
  * changelog for the backend that is being cleaned, and purge all the records
  * with the cleaned rid.
  */
-static void _cl5DoPurging (Replica *replica)
+static void _cl5DoPurging (cleanruv_purge_data *purge_data)
 {
-	ReplicaId rid = replica_get_rid(replica);
-	const Slapi_DN *sdn = replica_get_root(replica);
-	const char *replName = replica_get_name(replica);
-	char *replGen = replica_get_generation(replica);
+	ReplicaId rid = purge_data->cleaned_rid;
+	const Slapi_DN *suffix_sdn = purge_data->suffix_sdn;
+	const char *replName = purge_data->replName;
+	char *replGen = purge_data->replGen;
 	char *fileName;
 	Object *obj;
 
@@ -3508,17 +3508,14 @@ static void _cl5DoPurging (Replica *replica)
 		_cl5PurgeRID (obj, rid);
 		object_release (obj);
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
-			"Purged rid (%d) from suffix (%s)\n",
-			rid, slapi_sdn_get_dn(sdn));
+			"_cl5DoPurging - Purged rid (%d) from suffix (%s)\n",
+			rid, slapi_sdn_get_dn(suffix_sdn));
 	} else {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-			"Purge rid (%d) failed to find changelog file (%s) for suffix (%s)\n",
-			rid, fileName, slapi_sdn_get_dn(sdn));
+			"_cl5DoPurging - Purge rid (%d) failed to find changelog file (%s) for suffix (%s)\n",
+			rid, fileName, slapi_sdn_get_dn(suffix_sdn));
 	}
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
-
-	slapi_ch_free_string(&replGen);
-	slapi_ch_free_string(&fileName);
 
 	return;
 }
@@ -6888,19 +6885,27 @@ cl5CleanRUV(ReplicaId rid){
     slapi_rwlock_unlock (s_cl5Desc.stLock);
 }
 
+static void free_purge_data(cleanruv_purge_data *purge_data)
+{
+    slapi_ch_free_string(&purge_data->replGen);
+    slapi_ch_free_string(&purge_data->replName);
+    slapi_ch_free((void **)&purge_data);
+}
+
 /*
  * Create a thread to purge a changelog of cleaned RIDs
  */
-void trigger_cl_purging(Replica *replica){
+void trigger_cl_purging(cleanruv_purge_data *purge_data){
     PRThread *trim_tid = NULL;
 
     trim_tid = PR_CreateThread(PR_USER_THREAD, (VFP)(void*)trigger_cl_purging_thread,
-                   (void *)replica, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                   (void *)purge_data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                    PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE);
     if (NULL == trim_tid){
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-            "trigger_cl_purging: failed to create trimming "
+            "trigger_cl_purging: failed to create cl trimming "
             "thread; NSPR error - %d\n", PR_GetError ());
+        free_purge_data(purge_data);
     } else {
         /* need a little time for the thread to get started */
         DS_Sleep(PR_SecondsToInterval(1));
@@ -6912,13 +6917,12 @@ void trigger_cl_purging(Replica *replica){
  */
 void
 trigger_cl_purging_thread(void *arg){
-    Replica *replica = (Replica *)arg;
+    cleanruv_purge_data *purge_data = (cleanruv_purge_data *)arg;
 
     /* Make sure we have a change log, and we aren't closing it */
-    if (replica == NULL ||
-        s_cl5Desc.dbState == CL5_STATE_CLOSED ||
+    if (s_cl5Desc.dbState == CL5_STATE_CLOSED ||
         s_cl5Desc.dbState == CL5_STATE_CLOSING) {
-        return;
+        goto free_and_return;
     }
 
     /* Bump the changelog thread count */
@@ -6926,13 +6930,17 @@ trigger_cl_purging_thread(void *arg){
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
             "trigger_cl_purging: Abort - failed to increment thread count "
             "NSPR error - %d\n", PR_GetError ());
-        return;
+        goto free_and_return;
     }
 
     /* Purge the changelog */
-    _cl5DoPurging(replica);
+    _cl5DoPurging(purge_data);
     _cl5RemoveThread();
+
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
-        "trigger_cl_purging: purged changelog for (%s) rid (%d)\n",
-        slapi_sdn_get_dn(replica_get_root(replica)), replica_get_rid(replica));
+        "trigger_cl_purging_thread - purged changelog for (%s) rid (%d)\n",
+        slapi_sdn_get_dn(purge_data->suffix_sdn), purge_data->cleaned_rid);
+
+free_and_return:
+    free_purge_data(purge_data);
 }
