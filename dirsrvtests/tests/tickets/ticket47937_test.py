@@ -6,72 +6,29 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
+import time
+
+import ldap
 import pytest
-from lib389 import DirSrv, Entry, tools
-from lib389.tools import DirSrvTools
+from lib389 import Entry
 from lib389._constants import *
-from lib389.properties import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47937(topology):
+def test_ticket47937(topology_st):
     """
         Test that DNA plugin only accepts valid attributes for "dnaType"
     """
 
     log.info("Creating \"ou=people\"...")
     try:
-        topology.standalone.add_s(Entry(('ou=people,' + SUFFIX, {
-                                         'objectclass': 'top organizationalunit'.split(),
-                                         'ou': 'people'
-                                         })))
+        topology_st.standalone.add_s(Entry(('ou=people,' + SUFFIX, {
+            'objectclass': 'top organizationalunit'.split(),
+            'ou': 'people'
+        })))
 
     except ldap.ALREADY_EXISTS:
         pass
@@ -81,10 +38,10 @@ def test_ticket47937(topology):
 
     log.info("Creating \"ou=ranges\"...")
     try:
-        topology.standalone.add_s(Entry(('ou=ranges,' + SUFFIX, {
-                                         'objectclass': 'top organizationalunit'.split(),
-                                         'ou': 'ranges'
-                                         })))
+        topology_st.standalone.add_s(Entry(('ou=ranges,' + SUFFIX, {
+            'objectclass': 'top organizationalunit'.split(),
+            'ou': 'ranges'
+        })))
 
     except ldap.LDAPError as e:
         log.error('Failed to add ou=ranges org unit: error ' + e.message['desc'])
@@ -92,10 +49,10 @@ def test_ticket47937(topology):
 
     log.info("Creating \"cn=entry\"...")
     try:
-        topology.standalone.add_s(Entry(('cn=entry,ou=people,' + SUFFIX, {
-                                         'objectclass': 'top groupofuniquenames'.split(),
-                                         'cn': 'entry'
-                                         })))
+        topology_st.standalone.add_s(Entry(('cn=entry,ou=people,' + SUFFIX, {
+            'objectclass': 'top groupofuniquenames'.split(),
+            'cn': 'entry'
+        })))
 
     except ldap.LDAPError as e:
         log.error('Failed to add test entry: error ' + e.message['desc'])
@@ -103,13 +60,13 @@ def test_ticket47937(topology):
 
     log.info("Creating DNA shared config entry...")
     try:
-        topology.standalone.add_s(Entry(('dnaHostname=localhost.localdomain+dnaPortNum=389,ou=ranges,%s' % SUFFIX, {
-                                         'objectclass': 'top dnaSharedConfig'.split(),
-                                         'dnaHostname': 'localhost.localdomain',
-                                         'dnaPortNum': '389',
-                                         'dnaSecurePortNum': '636',
-                                         'dnaRemainingValues': '9501'
-                                         })))
+        topology_st.standalone.add_s(Entry(('dnaHostname=localhost.localdomain+dnaPortNum=389,ou=ranges,%s' % SUFFIX, {
+            'objectclass': 'top dnaSharedConfig'.split(),
+            'dnaHostname': 'localhost.localdomain',
+            'dnaPortNum': '389',
+            'dnaSecurePortNum': '636',
+            'dnaRemainingValues': '9501'
+        })))
 
     except ldap.LDAPError as e:
         log.error('Failed to add shared config entry: error ' + e.message['desc'])
@@ -117,16 +74,17 @@ def test_ticket47937(topology):
 
     log.info("Add dna plugin config entry...")
     try:
-        topology.standalone.add_s(Entry(('cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config', {
-                                         'objectclass': 'top dnaPluginConfig'.split(),
-                                         'dnaType': 'description',
-                                         'dnaMaxValue': '10000',
-                                         'dnaMagicRegen': '0',
-                                         'dnaFilter': '(objectclass=top)',
-                                         'dnaScope': 'ou=people,%s' % SUFFIX,
-                                         'dnaNextValue': '500',
-                                         'dnaSharedCfgDN': 'ou=ranges,%s' % SUFFIX
-                                         })))
+        topology_st.standalone.add_s(
+            Entry(('cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config', {
+                'objectclass': 'top dnaPluginConfig'.split(),
+                'dnaType': 'description',
+                'dnaMaxValue': '10000',
+                'dnaMagicRegen': '0',
+                'dnaFilter': '(objectclass=top)',
+                'dnaScope': 'ou=people,%s' % SUFFIX,
+                'dnaNextValue': '500',
+                'dnaSharedCfgDN': 'ou=ranges,%s' % SUFFIX
+            })))
 
     except ldap.LDAPError as e:
         log.error('Failed to add DNA config entry: error ' + e.message['desc'])
@@ -134,22 +92,22 @@ def test_ticket47937(topology):
 
     log.info("Enable the DNA plugin...")
     try:
-        topology.standalone.plugins.enable(name=PLUGIN_DNA)
+        topology_st.standalone.plugins.enable(name=PLUGIN_DNA)
     except e:
         log.error("Failed to enable DNA Plugin: error " + e.message['desc'])
         assert False
 
     log.info("Restarting the server...")
-    topology.standalone.stop(timeout=120)
+    topology_st.standalone.stop(timeout=120)
     time.sleep(1)
-    topology.standalone.start(timeout=120)
+    topology_st.standalone.start(timeout=120)
     time.sleep(3)
 
     log.info("Apply an invalid attribute to the DNA config(dnaType: foo)...")
 
     try:
-        topology.standalone.modify_s('cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config',
-                                     [(ldap.MOD_REPLACE, 'dnaType', 'foo')])
+        topology_st.standalone.modify_s('cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config',
+                                        [(ldap.MOD_REPLACE, 'dnaType', 'foo')])
     except ldap.LDAPError as e:
         log.info('Operation failed as expected (error: %s)' % e.message['desc'])
     else:

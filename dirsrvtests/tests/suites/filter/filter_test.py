@@ -6,16 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
+
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
@@ -35,10 +28,10 @@ def test_filter_escaped(topology_st):
 
     try:
         topology_st.standalone.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '1',
-                                 'cn': 'test * me',
-                                 'uid': 'test_entry',
-                                 'userpassword': PASSWORD})))
+                                                       'sn': '1',
+                                                       'cn': 'test * me',
+                                                       'uid': 'test_entry',
+                                                       'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to add test user ' + USER1_DN + ': error ' +
                   e.message['desc'])
@@ -46,10 +39,10 @@ def test_filter_escaped(topology_st):
 
     try:
         topology_st.standalone.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'test me',
-                                 'uid': 'test_entry2',
-                                 'userpassword': PASSWORD})))
+                                                       'sn': '2',
+                                                       'cn': 'test me',
+                                                       'uid': 'test_entry2',
+                                                       'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to add test user ' + USER2_DN + ': error ' + e.message['desc'])
         assert False
@@ -61,7 +54,7 @@ def test_filter_escaped(topology_st):
             assert False
     except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to search for user(%s), error: %s' %
-        (USER1_DN, e.message('desc')))
+                  (USER1_DN, e.message('desc')))
         assert False
 
     log.info('test_filter_escaped: PASSED')
@@ -77,7 +70,7 @@ def test_filter_search_original_attrs(topology_st):
 
     try:
         entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_BASE,
-                                             'objectclass=top', ['objectclass-EXTRA'])
+                                                'objectclass=top', ['objectclass-EXTRA'])
         if entry[0].hasAttr('objectclass-EXTRA'):
             log.fatal('test_filter_search_original_attrs: Entry does not have the original attribute')
             assert False

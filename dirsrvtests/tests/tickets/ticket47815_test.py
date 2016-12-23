@@ -6,62 +6,19 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
+import time
+
+import ldap
 import pytest
-from lib389 import DirSrv, Entry, tools
-from lib389.tools import DirSrvTools
+from lib389 import Entry
 from lib389._constants import *
-from lib389.properties import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47815(topology):
+def test_ticket47815(topology_st):
     """
         Test betxn plugins reject an invalid option, and make sure that the rejected entry
         is not in the entry cache.
@@ -75,41 +32,42 @@ def test_ticket47815(topology):
     result = 0
     result2 = 0
 
-    log.info('Testing Ticket 47815 - Add entries that should be rejected by the betxn plugins, and are not left in the entry cache')
+    log.info(
+        'Testing Ticket 47815 - Add entries that should be rejected by the betxn plugins, and are not left in the entry cache')
 
     # Enabled the plugins
-    topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-    topology.standalone.plugins.enable(name=PLUGIN_AUTOMEMBER)
-    topology.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+    topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+    topology_st.standalone.plugins.enable(name=PLUGIN_AUTOMEMBER)
+    topology_st.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
 
     # configure automember config entry
     log.info('Adding automember config')
     try:
-        topology.standalone.add_s(Entry(('cn=group cfg,cn=Auto Membership Plugin,cn=plugins,cn=config', {
-                                     'objectclass': 'top autoMemberDefinition'.split(),
-                                     'autoMemberScope': 'dc=example,dc=com',
-                                     'autoMemberFilter': 'cn=user',
-                                     'autoMemberDefaultGroup': 'cn=group,dc=example,dc=com',
-                                     'autoMemberGroupingAttr': 'member:dn',
-                                     'cn': 'group cfg'})))
+        topology_st.standalone.add_s(Entry(('cn=group cfg,cn=Auto Membership Plugin,cn=plugins,cn=config', {
+            'objectclass': 'top autoMemberDefinition'.split(),
+            'autoMemberScope': 'dc=example,dc=com',
+            'autoMemberFilter': 'cn=user',
+            'autoMemberDefaultGroup': 'cn=group,dc=example,dc=com',
+            'autoMemberGroupingAttr': 'member:dn',
+            'cn': 'group cfg'})))
     except:
         log.error('Failed to add automember config')
         exit(1)
 
-    topology.standalone.stop(timeout=120)
+    topology_st.standalone.stop(timeout=120)
     time.sleep(1)
-    topology.standalone.start(timeout=120)
+    topology_st.standalone.start(timeout=120)
     time.sleep(3)
 
     # need to reopen a connection toward the instance
-    topology.standalone.open()
+    topology_st.standalone.open()
 
     # add automember group
     log.info('Adding automember group')
     try:
-        topology.standalone.add_s(Entry(('cn=group,dc=example,dc=com', {
-                                  'objectclass': 'top groupOfNames'.split(),
-                                  'cn': 'group'})))
+        topology_st.standalone.add_s(Entry(('cn=group,dc=example,dc=com', {
+            'objectclass': 'top groupOfNames'.split(),
+            'cn': 'group'})))
     except:
         log.error('Failed to add automember group')
         exit(1)
@@ -118,10 +76,10 @@ def test_ticket47815(topology):
     log.info('Adding invalid entry')
 
     try:
-        topology.standalone.add_s(Entry(('cn=user,dc=example,dc=com', {
-                                  'objectclass': 'top person'.split(),
-                                  'sn': 'user',
-                                  'cn': 'user'})))
+        topology_st.standalone.add_s(Entry(('cn=user,dc=example,dc=com', {
+            'objectclass': 'top person'.split(),
+            'sn': 'user',
+            'cn': 'user'})))
     except ldap.UNWILLING_TO_PERFORM:
         log.debug('Adding invalid entry failed as expected')
         result = 53
@@ -134,10 +92,10 @@ def test_ticket47815(topology):
 
     # Attempt to add user again, should result in error 53 again
     try:
-        topology.standalone.add_s(Entry(('cn=user,dc=example,dc=com', {
-                                  'objectclass': 'top person'.split(),
-                                  'sn': 'user',
-                                  'cn': 'user'})))
+        topology_st.standalone.add_s(Entry(('cn=user,dc=example,dc=com', {
+            'objectclass': 'top person'.split(),
+            'sn': 'user',
+            'cn': 'user'})))
     except ldap.UNWILLING_TO_PERFORM:
         log.debug('2nd add of invalid entry failed as expected')
         result2 = 53

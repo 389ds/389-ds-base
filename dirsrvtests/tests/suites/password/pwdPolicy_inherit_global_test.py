@@ -6,19 +6,14 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
-import pytest
-import shutil
 import subprocess
-from lib389 import DirSrv, Entry, tools
-from lib389 import DirSrvTools
-from lib389.tools import DirSrvTools
+import time
+
+import ldap
+import pytest
+from lib389 import Entry
 from lib389._constants import *
-from lib389.properties import *
 from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.INFO)

@@ -6,18 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
-import ldap.sasl
 import logging
+
+import ldap.sasl
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
@@ -33,56 +27,15 @@ SECOND_SUFFIX = 'o=netscaperoot'
 BE_NAME = 'netscaperoot'
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
-
-
 def addSubtreePwPolicy(inst):
     #
     # Add subtree policy to the people branch
     #
     try:
         inst.add_s(Entry((BRANCH_CONTAINER, {
-                          'objectclass': 'top nsContainer'.split(),
-                          'cn': 'nsPwPolicyContainer'
-                          })))
+            'objectclass': 'top nsContainer'.split(),
+            'cn': 'nsPwPolicyContainer'
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add subtree container for ou=people: error ' + e.message['desc'])
         assert False
@@ -90,15 +43,15 @@ def addSubtreePwPolicy(inst):
     # Add the password policy subentry
     try:
         inst.add_s(Entry((BRANCH_PWP, {
-                          'objectclass': 'top ldapsubentry passwordpolicy'.split(),
-                          'cn': 'cn=nsPwPolicyEntry,ou=people,dc=example,dc=com',
-                          'passwordMustChange': 'off',
-                          'passwordExp': 'off',
-                          'passwordHistory': 'off',
-                          'passwordMinAge': '0',
-                          'passwordChange': 'off',
-                          'passwordStorageScheme': 'ssha'
-                          })))
+            'objectclass': 'top ldapsubentry passwordpolicy'.split(),
+            'cn': 'cn=nsPwPolicyEntry,ou=people,dc=example,dc=com',
+            'passwordMustChange': 'off',
+            'passwordExp': 'off',
+            'passwordHistory': 'off',
+            'passwordMinAge': '0',
+            'passwordChange': 'off',
+            'passwordStorageScheme': 'ssha'
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy: error ' + e.message['desc'])
         assert False
@@ -106,12 +59,12 @@ def addSubtreePwPolicy(inst):
     # Add the COS template
     try:
         inst.add_s(Entry((BRANCH_COS_TMPL, {
-                          'objectclass': 'top ldapsubentry costemplate extensibleObject'.split(),
-                          'cn': 'cn=nsPwPolicyEntry,ou=people,dc=example,dc=com',
-                          'cosPriority': '1',
-                          'cn': 'cn=nsPwTemplateEntry,ou=people,dc=example,dc=com',
-                          'pwdpolicysubentry': BRANCH_PWP
-                          })))
+            'objectclass': 'top ldapsubentry costemplate extensibleObject'.split(),
+            'cn': 'cn=nsPwPolicyEntry,ou=people,dc=example,dc=com',
+            'cosPriority': '1',
+            'cn': 'cn=nsPwTemplateEntry,ou=people,dc=example,dc=com',
+            'pwdpolicysubentry': BRANCH_PWP
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add COS template: error ' + e.message['desc'])
         assert False
@@ -119,11 +72,11 @@ def addSubtreePwPolicy(inst):
     # Add the COS definition
     try:
         inst.add_s(Entry((BRANCH_COS_DEF, {
-                          'objectclass': 'top ldapsubentry cosSuperDefinition cosPointerDefinition'.split(),
-                          'cn': 'cn=nsPwPolicyEntry,ou=people,dc=example,dc=com',
-                          'costemplatedn': BRANCH_COS_TMPL,
-                          'cosAttribute': 'pwdpolicysubentry default operational-default'
-                          })))
+            'objectclass': 'top ldapsubentry cosSuperDefinition cosPointerDefinition'.split(),
+            'cn': 'cn=nsPwPolicyEntry,ou=people,dc=example,dc=com',
+            'costemplatedn': BRANCH_COS_TMPL,
+            'cosAttribute': 'pwdpolicysubentry default operational-default'
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add COS def: error ' + e.message['desc'])
         assert False
@@ -157,7 +110,7 @@ def delSubtreePwPolicy(inst):
     time.sleep(0.5)
 
 
-def test_ticket47981(topology):
+def test_ticket47981(topology_st):
     """
         If there are multiple suffixes, and the last suffix checked does not contain any COS entries,
         while other suffixes do, then the vattr cache is not invalidated as it should be.  Then any
@@ -171,12 +124,12 @@ def test_ticket47981(topology):
     #
     log.info('Adding second suffix that will not contain any COS entries...\n')
 
-    topology.standalone.backend.create(SECOND_SUFFIX, {BACKEND_NAME: BE_NAME})
-    topology.standalone.mappingtree.create(SECOND_SUFFIX, bename=BE_NAME)
+    topology_st.standalone.backend.create(SECOND_SUFFIX, {BACKEND_NAME: BE_NAME})
+    topology_st.standalone.mappingtree.create(SECOND_SUFFIX, bename=BE_NAME)
     try:
-        topology.standalone.add_s(Entry((SECOND_SUFFIX, {
-                          'objectclass': 'top organization'.split(),
-                          'o': BE_NAME})))
+        topology_st.standalone.add_s(Entry((SECOND_SUFFIX, {
+            'objectclass': 'top organization'.split(),
+            'o': BE_NAME})))
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
@@ -189,10 +142,10 @@ def test_ticket47981(topology):
     log.info('Add our test entries to the default suffix, and proceed with the test...')
 
     try:
-        topology.standalone.add_s(Entry((BRANCH, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'ou': 'level4'
-                          })))
+        topology_st.standalone.add_s(Entry((BRANCH, {
+            'objectclass': 'top extensibleObject'.split(),
+            'ou': 'level4'
+        })))
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
@@ -203,10 +156,10 @@ def test_ticket47981(topology):
     # Add a user to the branch
     #
     try:
-        topology.standalone.add_s(Entry((USER_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+        topology_st.standalone.add_s(Entry((USER_DN, {
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add user1: error ' + e.message['desc'])
         assert False
@@ -215,21 +168,21 @@ def test_ticket47981(topology):
     # Enable password policy and add the subtree policy
     #
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
     except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
 
-    addSubtreePwPolicy(topology.standalone)
+    addSubtreePwPolicy(topology_st.standalone)
 
     #
     # Now check the user has its expected passwordPolicy subentry
     #
     try:
-        entries = topology.standalone.search_s(USER_DN,
-                                              ldap.SCOPE_BASE,
-                                              '(objectclass=top)',
-                                              ['pwdpolicysubentry', 'dn'])
+        entries = topology_st.standalone.search_s(USER_DN,
+                                                  ldap.SCOPE_BASE,
+                                                  '(objectclass=top)',
+                                                  ['pwdpolicysubentry', 'dn'])
         if not entries[0].hasAttr('pwdpolicysubentry'):
             log.fatal('User does not have expected pwdpolicysubentry!')
             assert False
@@ -240,9 +193,9 @@ def test_ticket47981(topology):
     #
     # Delete the password policy and make sure it is removed from the same user
     #
-    delSubtreePwPolicy(topology.standalone)
+    delSubtreePwPolicy(topology_st.standalone)
     try:
-        entries = topology.standalone.search_s(USER_DN, ldap.SCOPE_BASE, '(objectclass=top)', ['pwdpolicysubentry'])
+        entries = topology_st.standalone.search_s(USER_DN, ldap.SCOPE_BASE, '(objectclass=top)', ['pwdpolicysubentry'])
         if entries[0].hasAttr('pwdpolicysubentry'):
             log.fatal('User unexpectedly does have the pwdpolicysubentry!')
             assert False
@@ -253,9 +206,9 @@ def test_ticket47981(topology):
     #
     # Add the subtree policvy back and see if the user now has it
     #
-    addSubtreePwPolicy(topology.standalone)
+    addSubtreePwPolicy(topology_st.standalone)
     try:
-        entries = topology.standalone.search_s(USER_DN, ldap.SCOPE_BASE, '(objectclass=top)', ['pwdpolicysubentry'])
+        entries = topology_st.standalone.search_s(USER_DN, ldap.SCOPE_BASE, '(objectclass=top)', ['pwdpolicysubentry'])
         if not entries[0].hasAttr('pwdpolicysubentry'):
             log.fatal('User does not have expected pwdpolicysubentry!')
             assert False

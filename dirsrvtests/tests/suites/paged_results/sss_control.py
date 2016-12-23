@@ -11,14 +11,10 @@ __all__ = [
     'SSSResponseControl',
 ]
 
-
-import ldap
-from ldap.ldapobject import LDAPObject
 from ldap.controls import (RequestControl, ResponseControl,
-        KNOWN_RESPONSE_CONTROLS, DecodeControlTuples)
-
-from pyasn1.type import univ, namedtype, tag, namedval, constraint
+                           KNOWN_RESPONSE_CONTROLS)
 from pyasn1.codec.ber import encoder, decoder
+from pyasn1.type import univ, namedtype, tag, namedval, constraint
 
 
 #    SortKeyList ::= SEQUENCE OF SEQUENCE {
@@ -29,14 +25,14 @@ from pyasn1.codec.ber import encoder, decoder
 
 class SortKeyType(univ.Sequence):
     componentType = namedtype.NamedTypes(
-            namedtype.NamedType('attributeType', univ.OctetString()),
-            namedtype.OptionalNamedType('orderingRule',
-                  univ.OctetString().subtype(
-                    implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)
-                  )
-                ),
-            namedtype.DefaultedNamedType('reverseOrder', univ.Boolean(False).subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1))))
+        namedtype.NamedType('attributeType', univ.OctetString()),
+        namedtype.OptionalNamedType('orderingRule',
+                                    univ.OctetString().subtype(
+                                        implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)
+                                    )
+                                    ),
+        namedtype.DefaultedNamedType('reverseOrder', univ.Boolean(False).subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1))))
 
 
 class SortKeyListType(univ.SequenceOf):
@@ -50,11 +46,11 @@ class SSSRequestControl(RequestControl):
     controlType = '1.2.840.113556.1.4.473'
 
     def __init__(
-        self,
-        criticality=False,
-        ordering_rules=None,
+            self,
+            criticality=False,
+            ordering_rules=None,
     ):
-        RequestControl.__init__(self,self.controlType,criticality)
+        RequestControl.__init__(self, self.controlType, criticality)
         self.ordering_rules = ordering_rules
         if isinstance(ordering_rules, basestring):
             ordering_rules = [ordering_rules]
@@ -87,33 +83,33 @@ class SSSRequestControl(RequestControl):
 
 class SortResultType(univ.Sequence):
     componentType = namedtype.NamedTypes(
-            namedtype.NamedType('sortResult', univ.Enumerated().subtype(
-                namedValues=namedval.NamedValues(
-                        ('success', 0),
-                        ('operationsError', 1),
-                        ('timeLimitExceeded', 3),
-                        ('strongAuthRequired', 8),
-                        ('adminLimitExceeded', 11),
-                        ('noSuchAttribute', 16),
-                        ('inappropriateMatching', 18),
-                        ('insufficientAccessRights', 50),
-                        ('busy', 51),
-                        ('unwillingToPerform', 53),
-                        ('other', 80)),
-                subtypeSpec=univ.Enumerated.subtypeSpec + constraint.SingleValueConstraint(
-                        0, 1, 3, 8, 11, 16, 18, 50, 51, 53, 80))),
-            namedtype.OptionalNamedType('attributeType',
-                  univ.OctetString().subtype(
-                    implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)
-                  )
-                ))
+        namedtype.NamedType('sortResult', univ.Enumerated().subtype(
+            namedValues=namedval.NamedValues(
+                ('success', 0),
+                ('operationsError', 1),
+                ('timeLimitExceeded', 3),
+                ('strongAuthRequired', 8),
+                ('adminLimitExceeded', 11),
+                ('noSuchAttribute', 16),
+                ('inappropriateMatching', 18),
+                ('insufficientAccessRights', 50),
+                ('busy', 51),
+                ('unwillingToPerform', 53),
+                ('other', 80)),
+            subtypeSpec=univ.Enumerated.subtypeSpec + constraint.SingleValueConstraint(
+                0, 1, 3, 8, 11, 16, 18, 50, 51, 53, 80))),
+        namedtype.OptionalNamedType('attributeType',
+                                    univ.OctetString().subtype(
+                                        implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)
+                                    )
+                                    ))
 
 
 class SSSResponseControl(ResponseControl):
     controlType = '1.2.840.113556.1.4.474'
 
-    def __init__(self,criticality=False):
-        ResponseControl.__init__(self,self.controlType,criticality)
+    def __init__(self, criticality=False):
+        ResponseControl.__init__(self, self.controlType, criticality)
 
     def decodeControlValue(self, encoded):
         p, rest = decoder.decode(encoded, asn1Spec=SortResultType())

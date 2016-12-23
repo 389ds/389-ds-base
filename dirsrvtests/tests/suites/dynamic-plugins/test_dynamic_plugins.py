@@ -11,20 +11,14 @@ Created on Dec 09, 2014
 
 @author: mreynolds
 '''
-import os
-import sys
-import time
-import ldap
-import ldap.sasl
 import logging
+
+import ldap.sasl
 import pytest
+from lib389.tasks import *
+
 import plugin_tests
 import stress_tests
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
-from lib389.tasks import *
 from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)

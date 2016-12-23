@@ -5,66 +5,20 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
-import pytest
-import re
 import subprocess
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
-from lib389.tasks import *
 from datetime import datetime, timedelta
 
+import pytest
+from lib389.tasks import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
-
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
 
 @pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-@pytest.fixture(scope="module")
-def log_dir(topology):
+def log_dir(topology_st):
     '''
     Do a search operation
     and disable access log buffering
@@ -72,15 +26,15 @@ def log_dir(topology):
     '''
 
     log.info("Diable access log buffering")
-    topology.standalone.setAccessLogBuffering(False)
+    topology_st.standalone.setAccessLogBuffering(False)
 
     log.info("Do a ldapsearch operation")
-    topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+    topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
 
     log.info("sleep for sometime so that access log file get generated")
-    time.sleep( 1 )
+    time.sleep(1)
 
-    return topology.standalone.accesslog
+    return topology_st.standalone.accesslog
 
 
 def format_time(local_datetime):
@@ -106,7 +60,7 @@ def execute_logconv(inst, start_time_stamp, end_time_stamp, access_log):
     return proc.returncode
 
 
-def test_ticket47910_logconv_start_end_positive(topology, log_dir):
+def test_ticket47910_logconv_start_end_positive(topology_st, log_dir):
     '''
     Execute logconv.pl with -S and -E(endtime) with random time stamp
     This is execute successfully
@@ -125,11 +79,11 @@ def test_ticket47910_logconv_start_end_positive(topology, log_dir):
     formatted_end_time_stamp = format_time(end_time_stamp)
 
     log.info("Executing logconv.pl with -S and -E")
-    result = execute_logconv(topology.standalone, formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
+    result = execute_logconv(topology_st.standalone, formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
     assert result == 0
 
 
-def test_ticket47910_logconv_start_end_negative(topology, log_dir):
+def test_ticket47910_logconv_start_end_negative(topology_st, log_dir):
     '''
     Execute logconv.pl with -S and -E(endtime) with random time stamp
     This is a negative test case, where endtime will be lesser than the
@@ -151,11 +105,11 @@ def test_ticket47910_logconv_start_end_negative(topology, log_dir):
     formatted_end_time_stamp = format_time(end_time_stamp)
 
     log.info("Executing logconv.pl with -S and -E")
-    result = execute_logconv(topology.standalone, formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
+    result = execute_logconv(topology_st.standalone, formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
     assert result == 1
 
 
-def test_ticket47910_logconv_start_end_invalid(topology, log_dir):
+def test_ticket47910_logconv_start_end_invalid(topology_st, log_dir):
     '''
     Execute logconv.pl with -S and -E(endtime) with invalid time stamp
     This is a negative test case, where it should give error message
@@ -169,12 +123,11 @@ def test_ticket47910_logconv_start_end_invalid(topology, log_dir):
     end_time_stamp = "invalid"
 
     log.info("Executing logconv.pl with -S and -E")
-    result = execute_logconv(topology.standalone, start_time_stamp, end_time_stamp, log_dir)
+    result = execute_logconv(topology_st.standalone, start_time_stamp, end_time_stamp, log_dir)
     assert result == 1
 
 
-def test_ticket47910_logconv_noaccesslogs(topology, log_dir):
-
+def test_ticket47910_logconv_noaccesslogs(topology_st, log_dir):
     '''
     Execute logconv.pl -S(starttime) without specify
     access logs location
@@ -189,7 +142,7 @@ def test_ticket47910_logconv_noaccesslogs(topology, log_dir):
     time_stamp = (datetime.now() - timedelta(minutes=2))
     formatted_time_stamp = format_time(time_stamp)
     log.info("Executing logconv.pl with -S current time")
-    cmd = [os.path.join(topology.standalone.get_bin_dir(), 'logconv.pl'), '-S', formatted_time_stamp]
+    cmd = [os.path.join(topology_st.standalone.get_bin_dir(), 'logconv.pl'), '-S', formatted_time_stamp]
     log.info(" ".join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()

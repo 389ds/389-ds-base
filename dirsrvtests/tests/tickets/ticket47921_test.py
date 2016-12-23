@@ -6,59 +6,16 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
-import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
 
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47921(topology):
+def test_ticket47921(topology_st):
     '''
     Test that indirect cos reflects the current value of the indirect entry
     '''
@@ -69,45 +26,46 @@ def test_ticket47921(topology):
 
     # Add COS definition
     try:
-        topology.standalone.add_s(Entry((INDIRECT_COS_DN,
-            {'objectclass': 'top cosSuperDefinition cosIndirectDefinition ldapSubEntry'.split(),
-             'cosIndirectSpecifier': 'manager',
-             'cosAttribute': 'roomnumber'
-            })))
+        topology_st.standalone.add_s(Entry((INDIRECT_COS_DN,
+                                            {
+                                                'objectclass': 'top cosSuperDefinition cosIndirectDefinition ldapSubEntry'.split(),
+                                                'cosIndirectSpecifier': 'manager',
+                                                'cosAttribute': 'roomnumber'
+                                                })))
     except ldap.LDAPError as e:
         log.fatal('Failed to add cos defintion, error: ' + e.message['desc'])
         assert False
 
     # Add manager entry
     try:
-        topology.standalone.add_s(Entry((MANAGER_DN,
-            {'objectclass': 'top extensibleObject'.split(),
-             'uid': 'my manager',
-             'roomnumber': '1'
-            })))
+        topology_st.standalone.add_s(Entry((MANAGER_DN,
+                                            {'objectclass': 'top extensibleObject'.split(),
+                                             'uid': 'my manager',
+                                             'roomnumber': '1'
+                                             })))
     except ldap.LDAPError as e:
         log.fatal('Failed to add manager entry, error: ' + e.message['desc'])
         assert False
 
     # Add user entry
     try:
-        topology.standalone.add_s(Entry((USER_DN,
-            {'objectclass': 'top person organizationalPerson inetorgperson'.split(),
-             'sn': 'last',
-             'cn': 'full',
-             'givenname': 'mark',
-             'uid': 'user',
-             'manager': MANAGER_DN
-            })))
+        topology_st.standalone.add_s(Entry((USER_DN,
+                                            {'objectclass': 'top person organizationalPerson inetorgperson'.split(),
+                                             'sn': 'last',
+                                             'cn': 'full',
+                                             'givenname': 'mark',
+                                             'uid': 'user',
+                                             'manager': MANAGER_DN
+                                             })))
     except ldap.LDAPError as e:
         log.fatal('Failed to add manager entry, error: ' + e.message['desc'])
         assert False
 
     # Test COS is working
     try:
-        entry = topology.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                             "uid=user",
-                                             ['roomnumber'])
+        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                                "uid=user",
+                                                ['roomnumber'])
         if entry:
             if entry[0].getValue('roomnumber') != '1':
                 log.fatal('COS is not working.')
@@ -121,16 +79,16 @@ def test_ticket47921(topology):
 
     # Modify manager entry
     try:
-        topology.standalone.modify_s(MANAGER_DN, [(ldap.MOD_REPLACE, 'roomnumber', '2')])
+        topology_st.standalone.modify_s(MANAGER_DN, [(ldap.MOD_REPLACE, 'roomnumber', '2')])
     except ldap.LDAPError as e:
         log.error('Failed to modify manager entry: ' + e.message['desc'])
         assert False
 
     # Confirm COS is returning the new value
     try:
-        entry = topology.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                             "uid=user",
-                                             ['roomnumber'])
+        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                                "uid=user",
+                                                ['roomnumber'])
         if entry:
             if entry[0].getValue('roomnumber') != '2':
                 log.fatal('COS is not working after manager update.')

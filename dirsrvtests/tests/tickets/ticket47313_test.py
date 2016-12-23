@@ -6,64 +6,20 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
-import time
+
+import ldap
 import pytest
-from lib389 import DirSrv, Entry, tools
-from lib389.tools import DirSrvTools
+from lib389 import Entry
 from lib389._constants import *
-from lib389.properties import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
 ENTRY_NAME = 'test_entry'
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47313_run(topology):
+def test_ticket47313_run(topology_st):
     """
         It adds 2 test entries
         Search with filters including subtype and !
@@ -71,14 +27,14 @@ def test_ticket47313_run(topology):
     """
 
     # bind as directory manager
-    topology.standalone.log.info("Bind as %s" % DN_DM)
-    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology_st.standalone.log.info("Bind as %s" % DN_DM)
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     # enable filter error logging
-    #mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '32')]
-    #topology.standalone.modify_s(DN_CONFIG, mod)
+    # mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '32')]
+    # topology_st.standalone.modify_s(DN_CONFIG, mod)
 
-    topology.standalone.log.info("\n\n######################### ADD ######################\n")
+    topology_st.standalone.log.info("\n\n######################### ADD ######################\n")
 
     # Prepare the entry with cn;fr & cn;en
     entry_name_fr = '%s fr' % (ENTRY_NAME)
@@ -101,44 +57,44 @@ def test_ticket47313_run(topology):
     entry_en_only.setValues('cn', entry_name_en_only)
     entry_en_only.setValues('cn;en', entry_name_en)
 
-    topology.standalone.log.info("Try to add Add %s: %r" % (entry_dn_both, entry_both))
-    topology.standalone.add_s(entry_both)
+    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_both, entry_both))
+    topology_st.standalone.add_s(entry_both)
 
-    topology.standalone.log.info("Try to add Add %s: %r" % (entry_dn_en_only, entry_en_only))
-    topology.standalone.add_s(entry_en_only)
+    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_en_only, entry_en_only))
+    topology_st.standalone.add_s(entry_en_only)
 
-    topology.standalone.log.info("\n\n######################### SEARCH ######################\n")
+    topology_st.standalone.log.info("\n\n######################### SEARCH ######################\n")
 
     # filter: (&(cn=test_entry en only)(!(cn=test_entry fr)))
     myfilter = '(&(sn=%s)(!(cn=%s)))' % (entry_name_en_only, entry_name_fr)
-    topology.standalone.log.info("Try to search with filter %s" % myfilter)
-    ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
     assert len(ents) == 1
     assert ents[0].sn == entry_name_en_only
-    topology.standalone.log.info("Found %s" % ents[0].dn)
+    topology_st.standalone.log.info("Found %s" % ents[0].dn)
 
     # filter: (&(cn=test_entry en only)(!(cn;fr=test_entry fr)))
     myfilter = '(&(sn=%s)(!(cn;fr=%s)))' % (entry_name_en_only, entry_name_fr)
-    topology.standalone.log.info("Try to search with filter %s" % myfilter)
-    ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
     assert len(ents) == 1
     assert ents[0].sn == entry_name_en_only
-    topology.standalone.log.info("Found %s" % ents[0].dn)
+    topology_st.standalone.log.info("Found %s" % ents[0].dn)
 
     # filter: (&(cn=test_entry en only)(!(cn;en=test_entry en)))
     myfilter = '(&(sn=%s)(!(cn;en=%s)))' % (entry_name_en_only, entry_name_en)
-    topology.standalone.log.info("Try to search with filter %s" % myfilter)
-    ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
     assert len(ents) == 0
-    topology.standalone.log.info("Found none")
+    topology_st.standalone.log.info("Found none")
 
-    topology.standalone.log.info("\n\n######################### DELETE ######################\n")
+    topology_st.standalone.log.info("\n\n######################### DELETE ######################\n")
 
-    topology.standalone.log.info("Try to delete  %s " % entry_dn_both)
-    topology.standalone.delete_s(entry_dn_both)
+    topology_st.standalone.log.info("Try to delete  %s " % entry_dn_both)
+    topology_st.standalone.delete_s(entry_dn_both)
 
-    topology.standalone.log.info("Try to delete  %s " % entry_dn_en_only)
-    topology.standalone.delete_s(entry_dn_en_only)
+    topology_st.standalone.log.info("Try to delete  %s " % entry_dn_en_only)
+    topology_st.standalone.delete_s(entry_dn_en_only)
 
     log.info('Testcase PASSED')
 
@@ -148,4 +104,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

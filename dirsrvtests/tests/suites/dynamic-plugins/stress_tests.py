@@ -11,15 +11,11 @@ Created on Dec 16, 2014
 
 @author: mreynolds
 '''
-import os
-import sys
-import time
-import ldap
 import logging
-import pytest
 import threading
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+
+import ldap
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 
@@ -114,8 +110,8 @@ class AddUsers(threading.Thread):
         if self.addToGroup:
             try:
                 conn.add_s(Entry((GROUP_DN,
-                    {'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
-                     'uid': 'user' + str(idx)})))
+                                  {'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
+                                   'uid': 'user' + str(idx)})))
             except ldap.LDAPError as e:
                 if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
                     log.fatal('AddUsers: failed to add group (' + USER_DN + ') error: ' + e.message['desc'])
@@ -127,7 +123,7 @@ class AddUsers(threading.Thread):
             USER_DN = 'uid=' + self.rdnval + str(idx) + ',' + DEFAULT_SUFFIX
             try:
                 conn.add_s(Entry((USER_DN, {'objectclass': 'top extensibleObject'.split(),
-                           'uid': 'user' + str(idx)})))
+                                            'uid': 'user' + str(idx)})))
             except ldap.LDAPError as e:
                 if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
                     log.fatal('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])

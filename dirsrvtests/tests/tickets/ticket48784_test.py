@@ -6,26 +6,13 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import shlex
-import subprocess
-import ldap
-import logging
 import pytest
-import base64
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_m2
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
-installation1_prefix = None
 
 CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
@@ -37,113 +24,8 @@ M1SERVERCERT = 'Server-Cert1'
 M2SERVERCERT = 'Server-Cert2'
 M1LDAPSPORT = '41636'
 M2LDAPSPORT = '42636'
-
-
-class TopologyReplication(object):
-    def __init__(self, master1, master2):
-        master1.open()
-        self.master1 = master1
-        master2.open()
-        self.master2 = master2
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating master 1...
-    master1 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    master2 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
-
-    #
-    # Create all the agreements
-    #
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME:      r'meTo_%s:%s' % (master2.host, master2.port),
-                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    global m1_m2_agmt
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m1_m2_agmt)
-
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME:      r'meTo_%s:%s' % (master1.host, master1.port),
-                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    global m2_m1_agmt
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
-    if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m2_m1_agmt)
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(2)
-
-    global M1SUBJECT
-    M1SUBJECT = 'CN=%s,OU=389 Directory Server' % (master1.host)
-    global M2SUBJECT
-    M2SUBJECT = 'CN=%s,OU=390 Directory Server' % (master2.host)
-
-    #
-    # Initialize all the agreements
-    #
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Delete each instance in the end
-    def fin():
-        master1.delete()
-        master2.delete()
-    request.addfinalizer(fin)
-
-    return TopologyReplication(master1, master2)
+M1SUBJECT = 'CN={},OU=389 Directory Server'.format(HOST_MASTER_1)
+M2SUBJECT = 'CN={},OU=390 Directory Server'.format(HOST_MASTER_2)
 
 
 @pytest.fixture(scope="module")
@@ -211,16 +93,16 @@ def doAndPrintIt(cmdline, filename):
     time.sleep(1)
 
 
-def create_keys_certs(topology):
+def create_keys_certs(topology_m2):
     log.info("\n######################### Creating SSL Keys and Certs ######################\n")
 
     global m1confdir
-    m1confdir = topology.master1.confdir
+    m1confdir = topology_m2.ms["master1"].confdir
     global m2confdir
-    m2confdir = topology.master2.confdir
+    m2confdir = topology_m2.ms["master2"].confdir
 
     log.info("##### shutdown master1")
-    topology.master1.stop(timeout=10)
+    topology_m2.ms["master1"].stop(timeout=10)
 
     log.info("##### Creating a password file")
     pwdfile = '%s/pwdfile.txt' % (m1confdir)
@@ -255,43 +137,47 @@ def create_keys_certs(topology):
     log.info("##### Create key3.db and cert8.db database (master1): %s" % cmdline)
     doAndPrintIt(cmdline, None)
 
-    cmdline = ['certutil', '-G', '-d', m1confdir, '-z',  noisefile, '-f', pwdfile]
+    cmdline = ['certutil', '-G', '-d', m1confdir, '-z', noisefile, '-f', pwdfile]
     log.info("##### Creating encryption key for CA (master1): %s" % cmdline)
-    #os.system('certutil -G -d %s -z %s -f %s' % (m1confdir, noisefile, pwdfile))
+    # os.system('certutil -G -d %s -z %s -f %s' % (m1confdir, noisefile, pwdfile))
     doAndPrintIt(cmdline, None)
 
     time.sleep(2)
 
     log.info("##### Creating self-signed CA certificate (master1) -- nickname %s" % CACERT)
-    os.system('( echo y ; echo ; echo y ) | certutil -S -n "%s" -s "%s" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' % (CACERT, ISSUER, m1confdir, noisefile, pwdfile))
+    os.system(
+        '( echo y ; echo ; echo y ) | certutil -S -n "%s" -s "%s" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' % (
+        CACERT, ISSUER, m1confdir, noisefile, pwdfile))
 
     global M1SUBJECT
-    cmdline = ['certutil', '-S', '-n', M1SERVERCERT, '-s', M1SUBJECT, '-c', CACERT, '-t', ',,', '-m', '1001', '-v', '120', '-d', m1confdir, '-z', noisefile, '-f', pwdfile]
+    cmdline = ['certutil', '-S', '-n', M1SERVERCERT, '-s', M1SUBJECT, '-c', CACERT, '-t', ',,', '-m', '1001', '-v',
+               '120', '-d', m1confdir, '-z', noisefile, '-f', pwdfile]
     log.info("##### Creating Server certificate -- nickname %s: %s" % (M1SERVERCERT, cmdline))
     doAndPrintIt(cmdline, None)
 
     time.sleep(2)
 
     global M2SUBJECT
-    cmdline = ['certutil', '-S', '-n', M2SERVERCERT, '-s', M2SUBJECT, '-c', CACERT, '-t', ',,', '-m', '1002', '-v', '120', '-d', m1confdir, '-z', noisefile, '-f', pwdfile]
+    cmdline = ['certutil', '-S', '-n', M2SERVERCERT, '-s', M2SUBJECT, '-c', CACERT, '-t', ',,', '-m', '1002', '-v',
+               '120', '-d', m1confdir, '-z', noisefile, '-f', pwdfile]
     log.info("##### Creating Server certificate -- nickname %s: %s" % (M2SERVERCERT, cmdline))
     doAndPrintIt(cmdline, None)
 
     time.sleep(2)
 
     log.info("##### start master1")
-    topology.master1.start(timeout=10)
+    topology_m2.ms["master1"].start(timeout=10)
 
     log.info("##### enable SSL in master1 with all ciphers")
-    enable_ssl(topology.master1, M1LDAPSPORT, M1SERVERCERT)
+    enable_ssl(topology_m2.ms["master1"], M1LDAPSPORT, M1SERVERCERT)
 
     cmdline = ['certutil', '-L', '-d', m1confdir]
     log.info("##### Check the cert db: %s" % cmdline)
     doAndPrintIt(cmdline, None)
 
     log.info("##### stop master[12]")
-    topology.master1.stop(timeout=10)
-    topology.master2.stop(timeout=10)
+    topology_m2.ms["master1"].stop(timeout=10)
+    topology_m2.ms["master2"].stop(timeout=10)
 
     global mytmp
     mytmp = '/tmp'
@@ -329,36 +215,36 @@ def create_keys_certs(topology):
     time.sleep(1)
 
     log.info("##### start master2")
-    topology.master2.start(timeout=10)
+    topology_m2.ms["master2"].start(timeout=10)
 
     log.info("##### enable SSL in master2 with all ciphers")
-    enable_ssl(topology.master2, M2LDAPSPORT, M2SERVERCERT)
+    enable_ssl(topology_m2.ms["master2"], M2LDAPSPORT, M2SERVERCERT)
 
     log.info("##### restart master2")
-    topology.master2.restart(timeout=30)
+    topology_m2.ms["master2"].restart(timeout=30)
 
     log.info("##### restart master1")
-    topology.master1.restart(timeout=30)
+    topology_m2.ms["master1"].restart(timeout=30)
 
     log.info("\n######################### Creating SSL Keys and Certs Done ######################\n")
 
 
-def config_tls_agreements(topology):
+def config_tls_agreements(topology_m2):
     log.info("######################### Configure SSL/TLS agreements ######################")
     log.info("######################## master1 <-- startTLS -> master2 #####################")
 
     log.info("##### Update the agreement of master1")
-    global m1_m2_agmt
-    topology.master1.modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
+    m1_m2_agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
 
     log.info("##### Update the agreement of master2")
-    global m2_m1_agmt
-    topology.master2.modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
+    m2_m1_agmt = topology_m2.ms["master2_agmts"]["m2_m1"]
+    topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
 
     time.sleep(1)
 
-    topology.master1.restart(10)
-    topology.master2.restart(10)
+    topology_m2.ms["master1"].restart(10)
+    topology_m2.ms["master2"].restart(10)
 
     log.info("\n######################### Configure SSL/TLS agreements Done ######################\n")
 
@@ -382,7 +268,7 @@ def set_ssl_Version(server, name, version):
         assert False
 
 
-def test_ticket48784(topology):
+def test_ticket48784(topology_m2):
     """
     Set up 2way MMR:
         master_1 <----- startTLS -----> master_2
@@ -393,43 +279,43 @@ def test_ticket48784(topology):
     """
     log.info("Ticket 48784 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
 
-    create_keys_certs(topology)
-    config_tls_agreements(topology)
+    create_keys_certs(topology_m2)
+    config_tls_agreements(topology_m2)
 
-    add_entry(topology.master1, 'master1', 'uid=m1user', 0, 5)
-    add_entry(topology.master2, 'master2', 'uid=m2user', 0, 5)
+    add_entry(topology_m2.ms["master1"], 'master1', 'uid=m1user', 0, 5)
+    add_entry(topology_m2.ms["master2"], 'master2', 'uid=m2user', 0, 5)
 
     time.sleep(10)
 
     log.info('##### Searching for entries on master1...')
-    entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    entries = topology_m2.ms["master1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
 
     log.info('##### Searching for entries on master2...')
-    entries = topology.master2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    entries = topology_m2.ms["master2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
 
     log.info("##### openldap client just accepts sslVersionMin not Max.")
-    set_ssl_Version(topology.master1, 'master1', 'SSL3')
-    set_ssl_Version(topology.master2, 'master2', 'TLS1.2')
+    set_ssl_Version(topology_m2.ms["master1"], 'master1', 'SSL3')
+    set_ssl_Version(topology_m2.ms["master2"], 'master2', 'TLS1.2')
 
     log.info("##### restart master[12]")
-    topology.master1.restart(timeout=10)
-    topology.master2.restart(timeout=10)
+    topology_m2.ms["master1"].restart(timeout=10)
+    topology_m2.ms["master2"].restart(timeout=10)
 
     log.info("##### replication from master_1 to master_2 should be ok.")
-    add_entry(topology.master1, 'master1', 'uid=m1user', 10, 1)
+    add_entry(topology_m2.ms["master1"], 'master1', 'uid=m1user', 10, 1)
     log.info("##### replication from master_2 to master_1 should fail.")
-    add_entry(topology.master2, 'master2', 'uid=m2user', 10, 1)
+    add_entry(topology_m2.ms["master2"], 'master2', 'uid=m2user', 10, 1)
 
     time.sleep(10)
 
     log.info('##### Searching for entries on master1...')
-    entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    entries = topology_m2.ms["master1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 11 == len(entries)  # This is supposed to be "1" less than master 2's entry count
 
     log.info('##### Searching for entries on master2...')
-    entries = topology.master2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    entries = topology_m2.ms["master2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 12 == len(entries)
 
     log.info("Ticket 48784 - PASSED")

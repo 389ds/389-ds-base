@@ -6,19 +6,11 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
-import logging
+from collections import Counter
+
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
-from collections import Counter
 from lib389.topologies import topology_m2
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)

@@ -6,62 +6,20 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
+import time
+
+import ldap
 import pytest
-from lib389 import DirSrv, Entry, tools
-from lib389.tools import DirSrvTools
+from lib389 import Entry
 from lib389._constants import *
 from lib389.properties import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47560(topology):
+def test_ticket47560(topology_st):
     """
        This test case does the following:
           SETUP
@@ -90,19 +48,19 @@ def test_ticket47560(topology):
         """
         # enable/disable the mbo plugin
         if value == 'on':
-            topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+            topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
         else:
-            topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+            topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
 
         log.debug("-------------> _enable_disable_mbo(%s)" % value)
 
-        topology.standalone.stop(timeout=120)
+        topology_st.standalone.stop(timeout=120)
         time.sleep(1)
-        topology.standalone.start(timeout=120)
+        topology_st.standalone.start(timeout=120)
         time.sleep(3)
 
         # need to reopen a connection toward the instance
-        topology.standalone.open()
+        topology_st.standalone.open()
 
     def _test_ticket47560_setup():
         """
@@ -123,7 +81,7 @@ def test_ticket47560(topology):
         entry.setValues('objectclass', 'top', 'groupOfNames', 'inetUser')
         entry.setValues('cn', 'group')
         try:
-            topology.standalone.add_s(entry)
+            topology_st.standalone.add_s(entry)
         except ldap.ALREADY_EXISTS:
             log.debug("Entry %s already exists" % (group_DN))
 
@@ -133,12 +91,12 @@ def test_ticket47560(topology):
         entry.setValues('cn', 'member')
         entry.setValues('sn', 'member')
         try:
-            topology.standalone.add_s(entry)
+            topology_st.standalone.add_s(entry)
         except ldap.ALREADY_EXISTS:
             log.debug("Entry %s already exists" % (member_DN))
 
         replace = [(ldap.MOD_REPLACE, 'memberof', group_DN)]
-        topology.standalone.modify_s(member_DN, replace)
+        topology_st.standalone.modify_s(member_DN, replace)
 
         #
         # enable the memberof plugin and restart the instance
@@ -149,12 +107,12 @@ def test_ticket47560(topology):
         # check memberof attribute is still present
         #
         filt = 'uid=member'
-        ents = topology.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
+        ents = topology_st.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
         assert len(ents) == 1
         ent = ents[0]
-        #print ent
+        # print ent
         value = ent.getValue('memberof')
-        #print "memberof: %s" % (value)
+        # print "memberof: %s" % (value)
         assert value == group_DN
 
     def _test_ticket47560_teardown():
@@ -166,11 +124,11 @@ def test_ticket47560(topology):
         log.debug("-------- > _test_ticket47560_teardown\n")
         # remove the entries group_DN and member_DN
         try:
-            topology.standalone.delete_s(group_DN)
+            topology_st.standalone.delete_s(group_DN)
         except:
             log.warning("Entry %s fail to delete" % (group_DN))
         try:
-            topology.standalone.delete_s(member_DN)
+            topology_st.standalone.delete_s(member_DN)
         except:
             log.warning("Entry %s fail to delete" % (member_DN))
         #
@@ -178,7 +136,7 @@ def test_ticket47560(topology):
         #
         _enable_disable_mbo('off')
 
-    group_DN  = "cn=group,%s"   % (SUFFIX)
+    group_DN = "cn=group,%s" % (SUFFIX)
     member_DN = "uid=member,%s" % (SUFFIX)
 
     #
@@ -194,15 +152,15 @@ def test_ticket47560(topology):
     log.debug("-------- > Start ticket tests\n")
 
     filt = 'uid=member'
-    ents = topology.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
+    ents = topology_st.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
     assert len(ents) == 1
     ent = ents[0]
     log.debug("Unfixed entry %r\n" % ent)
 
     # run the fixup task
-    topology.standalone.tasks.fixupMemberOf(suffix=SUFFIX, args={TASK_WAIT: True})
+    topology_st.standalone.tasks.fixupMemberOf(suffix=SUFFIX, args={TASK_WAIT: True})
 
-    ents = topology.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
+    ents = topology_st.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
     assert len(ents) == 1
     ent = ents[0]
     log.debug("Fixed entry %r\n" % ent)
@@ -228,4 +186,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

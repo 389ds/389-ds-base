@@ -6,128 +6,13 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import shlex
-import subprocess
-import ldap
-import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_m2
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
-installation1_prefix = None
-
-m1_m2_agmt = None
-
-
-class TopologyReplication(object):
-    def __init__(self, master1, master2):
-        master1.open()
-        self.master1 = master1
-        master2.open()
-        self.master2 = master2
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating master 1...
-    master1 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    master2 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
-
-    #
-    # Create all the agreements
-    #
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME:      r'meTo_%s:%s' % (master2.host, master2.port),
-                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    global m1_m2_agmt
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m1_m2_agmt)
-
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME:      r'meTo_%s:%s' % (master1.host, master1.port),
-                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
-    if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m2_m1_agmt)
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    #
-    # Initialize all the agreements
-    #
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Delete each instance in the end
-    def fin():
-        master1.delete()
-        master2.delete()
-    request.addfinalizer(fin)
-
-    return TopologyReplication(master1, master2)
 
 
 @pytest.fixture(scope="module")
@@ -180,8 +65,8 @@ def add_ldapsubentry(server, myparent):
     tmplentry = 'cn=%s,%s' % (name, myparent)
     tmpldn = 'cn="%s",%s' % (tmplentry, container)
     server.add_s(Entry((tmpldn, {'objectclass': ['top', 'ldapsubentry', 'costemplate', 'extensibleObject'],
-                                'cosPriority': '1',
-                                'cn': '%s' % tmplentry})))
+                                 'cosPriority': '1',
+                                 'cn': '%s' % tmplentry})))
 
     name = 'nsPwPolicy_CoS'
     cos = 'cn=%s,%s' % (name, myparent)
@@ -192,11 +77,11 @@ def add_ldapsubentry(server, myparent):
     time.sleep(1)
 
 
-def test_ticket48755(topology):
+def test_ticket48755(topology_m2):
     log.info("Ticket 48755 - moving an entry could make the online init fail")
 
-    M1 = topology.master1
-    M2 = topology.master2
+    M1 = topology_m2.ms["master1"]
+    M2 = topology_m2.ms["master2"]
 
     log.info("Generating DIT_0")
     idx = 0
@@ -248,7 +133,7 @@ def test_ticket48755(topology):
     log.info('%s => %s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, parent1, parent01, parent001))
 
     log.info("Run Consumer Initialization.")
-    global m1_m2_agmt
+    m1_m2_agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
     M1.startReplication_async(m1_m2_agmt)
     M1.waitForReplInit(m1_m2_agmt)
     time.sleep(2)

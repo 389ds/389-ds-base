@@ -1,80 +1,32 @@
-import os
-import sys
-import time
-import ldap
-import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
-from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
-DEBUGGING = False
+DEBUGGING = os.getenv('DEBUGGING', False)
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
+
 log = logging.getLogger(__name__)
 
 
-class TopologyStandalone(object):
-    """The DS Topology Class"""
-    def __init__(self, standalone):
-        """Init"""
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    """Create DS Deployment"""
-
-    # Creating standalone instance ...
-    if DEBUGGING:
-        standalone = DirSrv(verbose=True)
-    else:
-        standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        """If we are debugging just stop the instances, otherwise remove them
-        """
-        if DEBUGGING:
-            standalone.stop()
-        else:
-            standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket48961_storagescheme(topology):
+def test_ticket48961_storagescheme(topology_st):
     """
     Test deleting of the storage scheme.
     """
 
-    default = topology.standalone.config.get_attr_val('passwordStorageScheme')
+    default = topology_st.standalone.config.get_attr_val('passwordStorageScheme')
     # Change it
-    topology.standalone.config.set('passwordStorageScheme', 'CLEAR')
+    topology_st.standalone.config.set('passwordStorageScheme', 'CLEAR')
     # Now delete it
-    topology.standalone.config.remove('passwordStorageScheme', None)
+    topology_st.standalone.config.remove('passwordStorageScheme', None)
     # Now check it's been reset.
-    assert(default == topology.standalone.config.get_attr_val('passwordStorageScheme'))
+    assert (default == topology_st.standalone.config.get_attr_val('passwordStorageScheme'))
     log.info(default)
     log.info('Test PASSED')
+
 
 def _reset_config_value(inst, attrname):
     # None to value here means remove all instances of the attr.
@@ -82,7 +34,8 @@ def _reset_config_value(inst, attrname):
     newval = inst.config.get_attr_val(attrname)
     log.info("Reset %s to %s" % (attrname, newval))
 
-def test_ticket48961_deleteall(topology):
+
+def test_ticket48961_deleteall(topology_st):
     """
     Test that we can delete all valid attrs, and that a few are rejected.
     """
@@ -90,12 +43,12 @@ def test_ticket48961_deleteall(topology):
         'nsslapd-listenhost': 'localhost',
         'nsslapd-securelistenhost': 'localhost',
         'nsslapd-allowed-sasl-mechanisms': 'GSSAPI',
-        'nsslapd-svrtab': 'Some bogus data', # This one could reset?
+        'nsslapd-svrtab': 'Some bogus data',  # This one could reset?
     }
     attr_to_fail = {
         # These are the values that should always be dn dse.ldif too
         'nsslapd-localuser': 'dirsrv',
-        'nsslapd-defaultnamingcontext': 'dc=example,dc=com', # Can't delete
+        'nsslapd-defaultnamingcontext': 'dc=example,dc=com',  # Can't delete
         'nsslapd-accesslog': '/opt/dirsrv/var/log/dirsrv/slapd-standalone/access',
         'nsslapd-auditlog': '/opt/dirsrv/var/log/dirsrv/slapd-standalone/audit',
         'nsslapd-errorlog': '/opt/dirsrv/var/log/dirsrv/slapd-standalone/errors',
@@ -111,17 +64,17 @@ def test_ticket48961_deleteall(topology):
         'nsslapd-localhost': 'localhost.localdomain',
         # These can't be reset, but might be in dse.ldif. Probably in libglobs.
         'nsslapd-certmap-basedn': 'cn=certmap,cn=config',
-        'nsslapd-port': '38931', # Can't delete
-        'nsslapd-secureport': '636', # Can't delete
+        'nsslapd-port': '38931',  # Can't delete
+        'nsslapd-secureport': '636',  # Can't delete
         'nsslapd-conntablesize': '1048576',
         'nsslapd-rootpw': '{SSHA512}...',
         # These are hardcoded server magic.
-        'nsslapd-hash-filters': 'off', # Can't delete
-        'nsslapd-requiresrestart': 'cn=config:nsslapd-port', # Can't change
-        'nsslapd-plugin': 'cn=case ignore string syntax,cn=plugins,cn=config', # Can't change
-        'nsslapd-privatenamespaces': 'cn=schema', # Can't change
-        'nsslapd-allowed-to-delete-attrs': 'None', # Can't delete
-        'nsslapd-accesslog-list': 'List!', # Can't delete
+        'nsslapd-hash-filters': 'off',  # Can't delete
+        'nsslapd-requiresrestart': 'cn=config:nsslapd-port',  # Can't change
+        'nsslapd-plugin': 'cn=case ignore string syntax,cn=plugins,cn=config',  # Can't change
+        'nsslapd-privatenamespaces': 'cn=schema',  # Can't change
+        'nsslapd-allowed-to-delete-attrs': 'None',  # Can't delete
+        'nsslapd-accesslog-list': 'List!',  # Can't delete
         'nsslapd-auditfaillog-list': 'List!',
         'nsslapd-auditlog-list': 'List!',
         'nsslapd-errorlog-list': 'List!',
@@ -130,10 +83,10 @@ def test_ticket48961_deleteall(topology):
         'objectclass': '',
         'cn': '',
         # These are the odd values
-        'nsslapd-backendconfig': 'cn=config,cn=userRoot,cn=ldbm database,cn=plugins,cn=config', # Doesn't exist?
-        'nsslapd-betype': 'ldbm database', # Doesn't exist?
-        'nsslapd-connection-buffer': 1, # Has an ldap problem
-        'nsslapd-malloc-mmap-threshold': '-10', # Defunct anyway
+        'nsslapd-backendconfig': 'cn=config,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',  # Doesn't exist?
+        'nsslapd-betype': 'ldbm database',  # Doesn't exist?
+        'nsslapd-connection-buffer': 1,  # Has an ldap problem
+        'nsslapd-malloc-mmap-threshold': '-10',  # Defunct anyway
         'nsslapd-malloc-mxfast': '-10',
         'nsslapd-malloc-trim-threshold': '-10',
         'nsslapd-referralmode': '',
@@ -141,7 +94,7 @@ def test_ticket48961_deleteall(topology):
         'passwordadmindn': '',
     }
 
-    config_entry = topology.standalone.config.raw_entry()
+    config_entry = topology_st.standalone.config.raw_entry()
 
     for attr in config_entry.getAttrs():
         if attr.lower() in attr_to_fail:
@@ -151,23 +104,23 @@ def test_ticket48961_deleteall(topology):
             log.info("Reseting %s" % (attr))
             # Check if we have to do some override of this attr.
             # Some attributes need specific syntax, so we override just these.
-            newval = topology.standalone.config.get_attr_vals(attr)
+            newval = topology_st.standalone.config.get_attr_vals(attr)
             log.info("         --> %s" % newval)
             if attr.lower() in attr_to_test:
                 newval = attr_to_test[attr]
                 log.info("override --> %s" % newval)
             # We need to set the attr to its own value
             # so that it's "written".
-            topology.standalone.config.set(attr, newval)
+            topology_st.standalone.config.set(attr, newval)
             # Now we can really reset
-            _reset_config_value(topology.standalone, attr)
+            _reset_config_value(topology_st.standalone, attr)
 
     for attr in sorted(attr_to_fail):
         log.info("Removing %s" % attr)
         try:
-            _reset_config_value(topology.standalone, attr)
+            _reset_config_value(topology_st.standalone, attr)
             # Shouldn't reach here, the reset should fail!
-            assert(False)
+            assert (False)
         except ldap.UNWILLING_TO_PERFORM:
             log.info('Change was rejected')
         except ldap.OPERATIONS_ERROR:
@@ -178,12 +131,11 @@ def test_ticket48961_deleteall(topology):
             log.info("This attribute isn't part of cn=config, so is already default!")
             pass
 
+    topology_st.standalone.restart()
 
-    topology.standalone.restart()
 
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

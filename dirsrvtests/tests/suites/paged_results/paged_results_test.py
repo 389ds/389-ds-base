@@ -6,21 +6,17 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import time
-import ldap
-import logging
-import pytest
 from random import sample
+
+import pytest
 from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
-from lib389 import DirSrv, Entry
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
+
 from sss_control import SSSRequestControl
 
-DEBUGGING = False
+DEBUGGING = os.getenv('DEBUGGING', False)
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

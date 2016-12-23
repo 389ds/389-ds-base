@@ -6,18 +6,13 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
+
+import ldap
 import pytest
-import shutil
-from lib389 import DirSrv, Entry, tools
-from lib389 import DirSrvTools
-from lib389.tools import DirSrvTools
+from lib389 import Entry
 from lib389._constants import *
-from lib389.properties import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
@@ -28,55 +23,15 @@ LINKTYPE = 'directReport'
 MANAGEDTYPE = 'manager'
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
+def _header(topology_st, label):
+    topology_st.standalone.log.info("###############################################")
+    topology_st.standalone.log.info("####### %s" % label)
+    topology_st.standalone.log.info("###############################################")
 
 
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-    This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
-
-
-def _header(topology, label):
-    topology.standalone.log.info("###############################################")
-    topology.standalone.log.info("####### %s" % label)
-    topology.standalone.log.info("###############################################")
-
-def check_attr_val(topology, dn, attr, expected, revert):
+def check_attr_val(topology_st, dn, attr, expected, revert):
     try:
-        centry = topology.standalone.search_s(dn, ldap.SCOPE_BASE, 'uid=*')
+        centry = topology_st.standalone.search_s(dn, ldap.SCOPE_BASE, 'uid=*')
         if centry:
             val = centry[0].getValue(attr)
             if val:
@@ -106,50 +61,51 @@ def check_attr_val(topology, dn, attr, expected, revert):
         assert False
 
 
-def test_48295_init(topology):
+def test_48295_init(topology_st):
     """
     Set up Linked Attribute
     """
-    _header(topology, 'Testing Ticket 48295 - Entry cache is not rolled back -- Linked Attributes plug-in - wrong behaviour when adding valid and broken links')
+    _header(topology_st,
+            'Testing Ticket 48295 - Entry cache is not rolled back -- Linked Attributes plug-in - wrong behaviour when adding valid and broken links')
 
     log.info('Enable Dynamic plugins, and the linked Attrs plugin')
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     try:
-        topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
+        topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
     except ValueError as e:
         ldap.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
         assert False
 
     log.info('Add the plugin config entry')
     try:
-        topology.standalone.add_s(Entry((MANAGER_LINK, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'Manager Link',
-                          'linkType': LINKTYPE,
-                          'managedType': MANAGEDTYPE
-                          })))
+        topology_st.standalone.add_s(Entry((MANAGER_LINK, {
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'Manager Link',
+            'linkType': LINKTYPE,
+            'managedType': MANAGEDTYPE
+        })))
     except ldap.LDAPError as e:
         log.fatal('Failed to add linked attr config entry: error ' + e.message['desc'])
         assert False
 
     log.info('Add 2 entries: manager1 and employee1')
     try:
-        topology.standalone.add_s(Entry(('uid=manager1,%s' % OU_PEOPLE, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'manager1'})))
+        topology_st.standalone.add_s(Entry(('uid=manager1,%s' % OU_PEOPLE, {
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'manager1'})))
     except ldap.LDAPError as e:
         log.fatal('Add manager1 failed: error ' + e.message['desc'])
         assert False
 
     try:
-        topology.standalone.add_s(Entry(('uid=employee1,%s' % OU_PEOPLE, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'employee1'})))
+        topology_st.standalone.add_s(Entry(('uid=employee1,%s' % OU_PEOPLE, {
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'employee1'})))
     except ldap.LDAPError as e:
         log.fatal('Add employee1 failed: error ' + e.message['desc'])
         assert False
@@ -157,22 +113,23 @@ def test_48295_init(topology):
     log.info('PASSED')
 
 
-def test_48295_run(topology):
+def test_48295_run(topology_st):
     """
     Add 2 linktypes - one exists, another does not
     """
 
-    _header(topology, 'Add 2 linktypes to manager1 - one exists, another does not to make sure the managed entry does not have managed type.')
+    _header(topology_st,
+            'Add 2 linktypes to manager1 - one exists, another does not to make sure the managed entry does not have managed type.')
     try:
-        topology.standalone.modify_s('uid=manager1,%s' % OU_PEOPLE,
-                                     [(ldap.MOD_ADD, LINKTYPE, 'uid=employee1,%s' % OU_PEOPLE),
-                                      (ldap.MOD_ADD, LINKTYPE, 'uid=doNotExist,%s' % OU_PEOPLE)])
+        topology_st.standalone.modify_s('uid=manager1,%s' % OU_PEOPLE,
+                                        [(ldap.MOD_ADD, LINKTYPE, 'uid=employee1,%s' % OU_PEOPLE),
+                                         (ldap.MOD_ADD, LINKTYPE, 'uid=doNotExist,%s' % OU_PEOPLE)])
     except ldap.UNWILLING_TO_PERFORM:
         log.info('Add uid=employee1 and uid=doNotExist expectedly failed.')
         pass
 
     log.info('Check managed attribute does not exist.')
-    check_attr_val(topology, 'uid=employee1,%s' % OU_PEOPLE, MANAGEDTYPE, 'uid=manager1,%s' % OU_PEOPLE, True)
+    check_attr_val(topology_st, 'uid=employee1,%s' % OU_PEOPLE, MANAGEDTYPE, 'uid=manager1,%s' % OU_PEOPLE, True)
 
     log.info('PASSED')
 

@@ -6,30 +6,15 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import time
-import ldap
-import logging
-import pytest
 import ldapurl
+import pytest
 from ldap.ldapobject import SimpleLDAPObject
 from ldap.syncrepl import SyncreplConsumer
-from lib389 import DirSrv
-from lib389._constants import *
-from lib389.properties import *
-from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
-installation1_prefix = None
-
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
 
 
 class SyncObject(SimpleLDAPObject, SyncreplConsumer):
@@ -46,34 +31,7 @@ class SyncObject(SimpleLDAPObject, SyncreplConsumer):
         self.syncrepl_poll(all=1)
 
 
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket48013(topology):
+def test_ticket48013(topology_st):
     '''
     Content Synchonization: Test that invalid cookies are caught
     '''
@@ -82,16 +40,16 @@ def test_ticket48013(topology):
 
     # Enable dynamic plugins
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
         ldap.error('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     # Enable retro changelog
-    topology.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+    topology_st.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
 
     # Enbale content sync plugin
-    topology.standalone.plugins.enable(name=PLUGIN_REPL_SYNC)
+    topology_st.standalone.plugins.enable(name=PLUGIN_REPL_SYNC)
 
     # Set everything up
     ldap_url = ldapurl.LDAPUrl('ldap://%s:%s' % (HOST_STANDALONE,

@@ -7,56 +7,17 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-import time
-import ldap
 import logging
+
 import pytest
-from lib389 import DirSrv, Entry
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
 
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    # Delete each instance in the end
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket365(topology):
+def test_ticket365(topology_st):
     '''
     Write your testcase here...
 
@@ -75,11 +36,11 @@ def test_ticket365(topology):
     # Add the test entry
     #
     try:
-        topology.standalone.add_s(Entry((USER_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'test_entry',
-                          'userpassword': 'password'
-                          })))
+        topology_st.standalone.add_s(Entry((USER_DN, {
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'test_entry',
+            'userpassword': 'password'
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add test user: error ' + e.message['desc'])
         assert False
@@ -88,16 +49,16 @@ def test_ticket365(topology):
     # Enable the audit log
     #
     try:
-        topology.standalone.modify_s(DN_CONFIG,
-                                     [(ldap.MOD_REPLACE,
-                                       'nsslapd-auditlog-logging-enabled',
-                                       'on')])
+        topology_st.standalone.modify_s(DN_CONFIG,
+                                        [(ldap.MOD_REPLACE,
+                                          'nsslapd-auditlog-logging-enabled',
+                                          'on')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable audit log, error: ' + e.message['desc'])
         assert False
     '''
     try:
-        ent = topology.standalone.getEntry(DN_CONFIG, attrlist=[
+        ent = topology_st.standalone.getEntry(DN_CONFIG, attrlist=[
                     'nsslapd-instancedir',
                     'nsslapd-errorlog',
                     'nsslapd-accesslog',
@@ -108,8 +69,8 @@ def test_ticket365(topology):
     # Allow the unhashed password to be written to audit log
     #
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-            'nsslapd-auditlog-logging-hide-unhashed-pw', 'off')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
+                                                     'nsslapd-auditlog-logging-hide-unhashed-pw', 'off')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable writing unhashed password to audit log, ' +
                   'error: ' + e.message['desc'])
@@ -119,9 +80,9 @@ def test_ticket365(topology):
     # Set new password, and check the audit log
     #
     try:
-        topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                'userpassword',
-                                                'mypassword')])
+        topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                                   'userpassword',
+                                                   'mypassword')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable writing unhashed password to audit log, ' +
                   'error: ' + e.message['desc'])
@@ -129,7 +90,7 @@ def test_ticket365(topology):
 
     # Check audit log
     time.sleep(1)
-    if not topology.standalone.searchAuditLog('unhashed#user#password: mypassword'):
+    if not topology_st.standalone.searchAuditLog('unhashed#user#password: mypassword'):
         log.fatal('failed to find unhashed password in auditlog')
         assert False
 
@@ -137,10 +98,10 @@ def test_ticket365(topology):
     # Hide unhashed password in audit log
     #
     try:
-        topology.standalone.modify_s(DN_CONFIG,
-            [(ldap.MOD_REPLACE,
-              'nsslapd-auditlog-logging-hide-unhashed-pw',
-              'on')])
+        topology_st.standalone.modify_s(DN_CONFIG,
+                                        [(ldap.MOD_REPLACE,
+                                          'nsslapd-auditlog-logging-hide-unhashed-pw',
+                                          'on')])
     except ldap.LDAPError as e:
         log.fatal('Failed to deny writing unhashed password to audit log, ' +
                   'error: ' + e.message['desc'])
@@ -151,9 +112,9 @@ def test_ticket365(topology):
     # Modify password, and check the audit log
     #
     try:
-        topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                'userpassword',
-                                                'hidepassword')])
+        topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                                   'userpassword',
+                                                   'hidepassword')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable writing unhashed password to audit log, ' +
                   'error: ' + e.message['desc'])
@@ -161,7 +122,7 @@ def test_ticket365(topology):
 
     # Check audit log
     time.sleep(1)
-    if topology.standalone.searchAuditLog('unhashed#user#password: hidepassword'):
+    if topology_st.standalone.searchAuditLog('unhashed#user#password: hidepassword'):
         log.fatal('Found unhashed password in auditlog')
         assert False
 
@@ -173,4 +134,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

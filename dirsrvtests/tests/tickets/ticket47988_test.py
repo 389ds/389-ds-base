@@ -11,51 +11,43 @@ Created on Nov 7, 2013
 
 @author: tbordaz
 '''
-import os
-import sys
-import time
-import ldap
 import logging
-import pytest
-import tarfile
-import stat
 import shutil
+import stat
+import tarfile
+import time
 from random import randint
-from lib389 import DirSrv, Entry, tools
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 
+import ldap
+import pytest
+from lib389 import Entry
+from lib389._constants import *
+from lib389.topologies import topology_m2
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-#
-# important part. We can deploy Master1 and Master2 on different versions
-#
-installation1_prefix = None
-installation2_prefix = None
-
 TEST_REPL_DN = "cn=test_repl, %s" % SUFFIX
 OC_NAME = 'OCticket47988'
 MUST = "(postalAddress $ postalCode)"
-MAY  = "(member $ street)"
+MAY = "(member $ street)"
 
 OTHER_NAME = 'other_entry'
 MAX_OTHERS = 10
 
-BIND_NAME  = 'bind_entry'
-BIND_DN    = 'cn=%s, %s' % (BIND_NAME, SUFFIX)
-BIND_PW    = 'password'
+BIND_NAME = 'bind_entry'
+BIND_DN = 'cn=%s, %s' % (BIND_NAME, SUFFIX)
+BIND_PW = 'password'
 
 ENTRY_NAME = 'test_entry'
-ENTRY_DN   = 'cn=%s, %s' % (ENTRY_NAME, SUFFIX)
-ENTRY_OC   = "top person %s" % OC_NAME
+ENTRY_DN = 'cn=%s, %s' % (ENTRY_NAME, SUFFIX)
+ENTRY_OC = "top person %s" % OC_NAME
+
 
 def _oc_definition(oid_ext, name, must=None, may=None):
-    oid  = "1.2.3.4.5.6.7.8.9.10.%d" % oid_ext
+    oid = "1.2.3.4.5.6.7.8.9.10.%d" % oid_ext
     desc = 'To test ticket 47490'
-    sup  = 'person'
+    sup = 'person'
     if not must:
         must = MUST
     if not may:
@@ -63,120 +55,14 @@ def _oc_definition(oid_ext, name, must=None, may=None):
 
     new_oc = "( %s  NAME '%s' DESC '%s' SUP %s AUXILIARY MUST %s MAY %s )" % (oid, name, desc, sup, must, may)
     return new_oc
-class TopologyMaster1Master2(object):
-    def __init__(self, master1, master2):
-        master1.open()
-        self.master1 = master1
-
-        master2.open()
-        self.master2 = master2
 
 
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to create a replicated topology for the 'module'.
-        The replicated topology is MASTER1 <-> Master2.
-    '''
-    global installation1_prefix
-    global installation2_prefix
-
-    #os.environ['USE_VALGRIND'] = '1'
-
-    # allocate master1 on a given deployement
-    master1 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Args for the master1 instance
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-
-    # allocate master1 on a given deployement
-    master2 = DirSrv(verbose=False)
-    if installation2_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation2_prefix
-
-    # Args for the consumer instance
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-
-    # Get the status of the instance and restart it if it exists
-    instance_master1 = master1.exists()
-    instance_master2 = master2.exists()
-
-    # Remove all the instances
-    if instance_master1:
-        master1.delete()
-    if instance_master2:
-        master2.delete()
-
-    # Create the instances
-    master1.create()
-    master1.open()
-    master2.create()
-    master2.open()
-
-    def fin():
-        master1.delete()
-        master2.delete()
-    request.addfinalizer(fin)
-
-    #
-    # Now prepare the Master-Consumer topology
-    #
-    # First Enable replication
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
-
-    # Initialize the supplier->consumer
-
-    properties = {RA_NAME:      r'meTo_$host:$port',
-                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    repl_agreement = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
-
-    if not repl_agreement:
-        log.fatal("Fail to create a replica agreement")
-        sys.exit(1)
-
-    log.debug("%s created" % repl_agreement)
-
-    properties = {RA_NAME:      r'meTo_$host:$port',
-                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
-
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(repl_agreement)
-
-    # Check replication is working fine
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Here we have two instances master and consumer
-    return TopologyMaster1Master2(master1, master2)
-
-
-def _header(topology, label):
-    topology.master1.log.info("\n\n###############################################")
-    topology.master1.log.info("#######")
-    topology.master1.log.info("####### %s" % label)
-    topology.master1.log.info("#######")
-    topology.master1.log.info("###################################################")
+def _header(topology_m2, label):
+    topology_m2.ms["master1"].log.info("\n\n###############################################")
+    topology_m2.ms["master1"].log.info("#######")
+    topology_m2.ms["master1"].log.info("####### %s" % label)
+    topology_m2.ms["master1"].log.info("#######")
+    topology_m2.ms["master1"].log.info("###################################################")
 
 
 def _install_schema(server, tarFile):
@@ -216,7 +102,7 @@ def _install_schema(server, tarFile):
     os.chmod(server.schemadir, st.st_mode | stat.S_IRUSR | stat.S_IRGRP)
 
 
-def test_ticket47988_init(topology):
+def test_ticket47988_init(topology_m2):
     """
         It adds
            - Objectclass with MAY 'member'
@@ -225,48 +111,48 @@ def test_ticket47988_init(topology):
 
     """
 
-    _header(topology, 'test_ticket47988_init')
+    _header(topology_m2, 'test_ticket47988_init')
 
     # enable acl error logging
     mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192))]  # REPL
-    topology.master1.modify_s(DN_CONFIG, mod)
-    topology.master2.modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
     mod = [(ldap.MOD_REPLACE, 'nsslapd-accesslog-level', str(260))]  # Internal op
-    topology.master1.modify_s(DN_CONFIG, mod)
-    topology.master2.modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
     # add dummy entries
     for cpt in range(MAX_OTHERS):
         name = "%s%d" % (OTHER_NAME, cpt)
-        topology.master1.add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
-                                            'objectclass': "top person".split(),
-                                            'sn': name,
-                                            'cn': name})))
+        topology_m2.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
+            'objectclass': "top person".split(),
+            'sn': name,
+            'cn': name})))
 
     # check that entry 0 is replicated before
     loop = 0
     entryDN = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     while loop <= 10:
         try:
-            ent = topology.master2.getEntry(entryDN, ldap.SCOPE_BASE, "(objectclass=*)", ['telephonenumber'])
+            ent = topology_m2.ms["master2"].getEntry(entryDN, ldap.SCOPE_BASE, "(objectclass=*)", ['telephonenumber'])
             break
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
         loop += 1
     assert (loop <= 10)
 
-    topology.master1.stop(timeout=10)
-    topology.master2.stop(timeout=10)
+    topology_m2.ms["master1"].stop(timeout=10)
+    topology_m2.ms["master2"].stop(timeout=10)
 
-    #install the specific schema M1: ipa3.3, M2: ipa4.1
-    schema_file = os.path.join(topology.master1.getDir(__file__, DATA_DIR), "ticket47988/schema_ipa3.3.tar.gz")
-    _install_schema(topology.master1, schema_file)
-    schema_file = os.path.join(topology.master1.getDir(__file__, DATA_DIR), "ticket47988/schema_ipa4.1.tar.gz")
-    _install_schema(topology.master2, schema_file)
+    # install the specific schema M1: ipa3.3, M2: ipa4.1
+    schema_file = os.path.join(topology_m2.ms["master1"].getDir(__file__, DATA_DIR), "ticket47988/schema_ipa3.3.tar.gz")
+    _install_schema(topology_m2.ms["master1"], schema_file)
+    schema_file = os.path.join(topology_m2.ms["master1"].getDir(__file__, DATA_DIR), "ticket47988/schema_ipa4.1.tar.gz")
+    _install_schema(topology_m2.ms["master2"], schema_file)
 
-    topology.master1.start(timeout=10)
-    topology.master2.start(timeout=10)
+    topology_m2.ms["master1"].start(timeout=10)
+    topology_m2.ms["master2"].start(timeout=10)
 
 
 def _do_update_schema(server, range=3999):
@@ -276,7 +162,8 @@ def _do_update_schema(server, range=3999):
     postfix = str(randint(range, range + 1000))
     OID = '2.16.840.1.113730.3.8.12.%s' % postfix
     NAME = 'thierry%s' % postfix
-    value = '( %s NAME \'%s\' DESC \'Override for Group Attributes\' STRUCTURAL MUST ( cn ) MAY sn X-ORIGIN ( \'IPA v4.1.2\' \'user defined\' ) )' % (OID, NAME)
+    value = '( %s NAME \'%s\' DESC \'Override for Group Attributes\' STRUCTURAL MUST ( cn ) MAY sn X-ORIGIN ( \'IPA v4.1.2\' \'user defined\' ) )' % (
+    OID, NAME)
     mod = [(ldap.MOD_ADD, 'objectclasses', value)]
     server.modify_s('cn=schema', mod)
 
@@ -286,8 +173,8 @@ def _do_update_entry(supplier=None, consumer=None, attempts=10):
     This is doing an update on M2 (IPA4.1) and checks the update has been
     propagated to M1 (IPA3.3)
     '''
-    assert(supplier)
-    assert(consumer)
+    assert (supplier)
+    assert (consumer)
     entryDN = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     value = str(randint(100, 200))
     mod = [(ldap.MOD_REPLACE, 'telephonenumber', value)]
@@ -306,170 +193,170 @@ def _do_update_entry(supplier=None, consumer=None, attempts=10):
     assert (loop <= attempts)
 
 
-def _pause_M2_to_M1(topology):
-    topology.master1.log.info("\n\n######################### Pause RA M2->M1 ######################\n")
-    ents = topology.master2.agreement.list(suffix=SUFFIX)
+def _pause_M2_to_M1(topology_m2):
+    topology_m2.ms["master1"].log.info("\n\n######################### Pause RA M2->M1 ######################\n")
+    ents = topology_m2.ms["master2"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology.master2.agreement.pause(ents[0].dn)
+    topology_m2.ms["master2"].agreement.pause(ents[0].dn)
 
 
-def _resume_M1_to_M2(topology):
-    topology.master1.log.info("\n\n######################### resume RA M1->M2 ######################\n")
-    ents = topology.master1.agreement.list(suffix=SUFFIX)
+def _resume_M1_to_M2(topology_m2):
+    topology_m2.ms["master1"].log.info("\n\n######################### resume RA M1->M2 ######################\n")
+    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology.master1.agreement.resume(ents[0].dn)
+    topology_m2.ms["master1"].agreement.resume(ents[0].dn)
 
 
-def _pause_M1_to_M2(topology):
-    topology.master1.log.info("\n\n######################### Pause RA M1->M2 ######################\n")
-    ents = topology.master1.agreement.list(suffix=SUFFIX)
+def _pause_M1_to_M2(topology_m2):
+    topology_m2.ms["master1"].log.info("\n\n######################### Pause RA M1->M2 ######################\n")
+    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology.master1.agreement.pause(ents[0].dn)
+    topology_m2.ms["master1"].agreement.pause(ents[0].dn)
 
 
-def _resume_M2_to_M1(topology):
-    topology.master1.log.info("\n\n######################### resume RA M2->M1 ######################\n")
-    ents = topology.master2.agreement.list(suffix=SUFFIX)
+def _resume_M2_to_M1(topology_m2):
+    topology_m2.ms["master1"].log.info("\n\n######################### resume RA M2->M1 ######################\n")
+    ents = topology_m2.ms["master2"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology.master2.agreement.resume(ents[0].dn)
+    topology_m2.ms["master2"].agreement.resume(ents[0].dn)
 
 
-def test_ticket47988_1(topology):
+def test_ticket47988_1(topology_m2):
     '''
     Check that replication is working and pause replication M2->M1
     '''
-    _header(topology, 'test_ticket47988_1')
+    _header(topology_m2, 'test_ticket47988_1')
 
-    topology.master1.log.debug("\n\nCheck that replication is working and pause replication M2->M1\n")
-    _do_update_entry(supplier=topology.master2, consumer=topology.master1, attempts=5)
-    _pause_M2_to_M1(topology)
+    topology_m2.ms["master1"].log.debug("\n\nCheck that replication is working and pause replication M2->M1\n")
+    _do_update_entry(supplier=topology_m2.ms["master2"], consumer=topology_m2.ms["master1"], attempts=5)
+    _pause_M2_to_M1(topology_m2)
 
 
-def test_ticket47988_2(topology):
+def test_ticket47988_2(topology_m2):
     '''
     Update M1 schema and trigger update M1->M2
     So M1 should learn new/extended definitions that are in M2 schema
     '''
-    _header(topology, 'test_ticket47988_2')
+    _header(topology_m2, 'test_ticket47988_2')
 
-    topology.master1.log.debug("\n\nUpdate M1 schema and an entry on M1\n")
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\nBefore updating the schema on M1\n")
-    topology.master1.log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
+    topology_m2.ms["master1"].log.debug("\n\nUpdate M1 schema and an entry on M1\n")
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\nBefore updating the schema on M1\n")
+    topology_m2.ms["master1"].log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
 
     # Here M1 should no, should check M2 schema and learn
-    _do_update_schema(topology.master1)
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\nAfter updating the schema on M1\n")
-    topology.master1.log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
+    _do_update_schema(topology_m2.ms["master1"])
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\nAfter updating the schema on M1\n")
+    topology_m2.ms["master1"].log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
     assert (master1_schema_csn)
 
     # to avoid linger effect where a replication session is reused without checking the schema
-    _pause_M1_to_M2(topology)
-    _resume_M1_to_M2(topology)
+    _pause_M1_to_M2(topology_m2)
+    _resume_M1_to_M2(topology_m2)
 
-    #topo.master1.log.debug("\n\nSleep.... attach the debugger dse_modify")
-    #time.sleep(60)
-    _do_update_entry(supplier=topology.master1, consumer=topology.master2, attempts=15)
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\nAfter a full replication session\n")
-    topology.master1.log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
+    # topo.master1.log.debug("\n\nSleep.... attach the debugger dse_modify")
+    # time.sleep(60)
+    _do_update_entry(supplier=topology_m2.ms["master1"], consumer=topology_m2.ms["master2"], attempts=15)
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\nAfter a full replication session\n")
+    topology_m2.ms["master1"].log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
     assert (master1_schema_csn)
     assert (master2_schema_csn)
 
 
-def test_ticket47988_3(topology):
+def test_ticket47988_3(topology_m2):
     '''
     Resume replication M2->M1 and check replication is still working
     '''
-    _header(topology, 'test_ticket47988_3')
+    _header(topology_m2, 'test_ticket47988_3')
 
-    _resume_M2_to_M1(topology)
-    _do_update_entry(supplier=topology.master1, consumer=topology.master2, attempts=5)
-    _do_update_entry(supplier=topology.master2, consumer=topology.master1, attempts=5)
+    _resume_M2_to_M1(topology_m2)
+    _do_update_entry(supplier=topology_m2.ms["master1"], consumer=topology_m2.ms["master2"], attempts=5)
+    _do_update_entry(supplier=topology_m2.ms["master2"], consumer=topology_m2.ms["master1"], attempts=5)
 
 
-def test_ticket47988_4(topology):
+def test_ticket47988_4(topology_m2):
     '''
     Check schemaCSN is identical on both server
     And save the nsschemaCSN to later check they do not change unexpectedly
     '''
-    _header(topology, 'test_ticket47988_4')
+    _header(topology_m2, 'test_ticket47988_4')
 
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\n\nMaster1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("\n\nMaster2 nsschemaCSN: %s" % master2_schema_csn)
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\n\nMaster1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("\n\nMaster2 nsschemaCSN: %s" % master2_schema_csn)
     assert (master1_schema_csn)
     assert (master2_schema_csn)
     assert (master1_schema_csn == master2_schema_csn)
 
-    topology.master1.saved_schema_csn = master1_schema_csn
-    topology.master2.saved_schema_csn = master2_schema_csn
+    topology_m2.ms["master1"].saved_schema_csn = master1_schema_csn
+    topology_m2.ms["master2"].saved_schema_csn = master2_schema_csn
 
 
-def test_ticket47988_5(topology):
+def test_ticket47988_5(topology_m2):
     '''
     Check schemaCSN  do not change unexpectedly
     '''
-    _header(topology, 'test_ticket47988_5')
+    _header(topology_m2, 'test_ticket47988_5')
 
-    _do_update_entry(supplier=topology.master1, consumer=topology.master2, attempts=5)
-    _do_update_entry(supplier=topology.master2, consumer=topology.master1, attempts=5)
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\n\nMaster1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("\n\nMaster2 nsschemaCSN: %s" % master2_schema_csn)
+    _do_update_entry(supplier=topology_m2.ms["master1"], consumer=topology_m2.ms["master2"], attempts=5)
+    _do_update_entry(supplier=topology_m2.ms["master2"], consumer=topology_m2.ms["master1"], attempts=5)
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\n\nMaster1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("\n\nMaster2 nsschemaCSN: %s" % master2_schema_csn)
     assert (master1_schema_csn)
     assert (master2_schema_csn)
     assert (master1_schema_csn == master2_schema_csn)
 
-    assert (topology.master1.saved_schema_csn == master1_schema_csn)
-    assert (topology.master2.saved_schema_csn == master2_schema_csn)
+    assert (topology_m2.ms["master1"].saved_schema_csn == master1_schema_csn)
+    assert (topology_m2.ms["master2"].saved_schema_csn == master2_schema_csn)
 
 
-def test_ticket47988_6(topology):
+def test_ticket47988_6(topology_m2):
     '''
     Update M1 schema and trigger update M2->M1
     So M2 should learn new/extended definitions that are in M1 schema
     '''
 
-    _header(topology, 'test_ticket47988_6')
+    _header(topology_m2, 'test_ticket47988_6')
 
-    topology.master1.log.debug("\n\nUpdate M1 schema and an entry on M1\n")
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\nBefore updating the schema on M1\n")
-    topology.master1.log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
+    topology_m2.ms["master1"].log.debug("\n\nUpdate M1 schema and an entry on M1\n")
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\nBefore updating the schema on M1\n")
+    topology_m2.ms["master1"].log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
 
     # Here M1 should no, should check M2 schema and learn
-    _do_update_schema(topology.master1, range=5999)
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\nAfter updating the schema on M1\n")
-    topology.master1.log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
+    _do_update_schema(topology_m2.ms["master1"], range=5999)
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\nAfter updating the schema on M1\n")
+    topology_m2.ms["master1"].log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
     assert (master1_schema_csn)
 
     # to avoid linger effect where a replication session is reused without checking the schema
-    _pause_M1_to_M2(topology)
-    _resume_M1_to_M2(topology)
+    _pause_M1_to_M2(topology_m2)
+    _resume_M1_to_M2(topology_m2)
 
-    #topo.master1.log.debug("\n\nSleep.... attach the debugger dse_modify")
-    #time.sleep(60)
-    _do_update_entry(supplier=topology.master2, consumer=topology.master1, attempts=15)
-    master1_schema_csn = topology.master1.schema.get_schema_csn()
-    master2_schema_csn = topology.master2.schema.get_schema_csn()
-    topology.master1.log.debug("\nAfter a full replication session\n")
-    topology.master1.log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
-    topology.master1.log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
+    # topo.master1.log.debug("\n\nSleep.... attach the debugger dse_modify")
+    # time.sleep(60)
+    _do_update_entry(supplier=topology_m2.ms["master2"], consumer=topology_m2.ms["master1"], attempts=15)
+    master1_schema_csn = topology_m2.ms["master1"].schema.get_schema_csn()
+    master2_schema_csn = topology_m2.ms["master2"].schema.get_schema_csn()
+    topology_m2.ms["master1"].log.debug("\nAfter a full replication session\n")
+    topology_m2.ms["master1"].log.debug("Master1 nsschemaCSN: %s" % master1_schema_csn)
+    topology_m2.ms["master1"].log.debug("Master2 nsschemaCSN: %s" % master2_schema_csn)
     assert (master1_schema_csn)
     assert (master2_schema_csn)
 

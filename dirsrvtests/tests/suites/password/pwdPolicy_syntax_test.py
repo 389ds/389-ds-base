@@ -6,14 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import time
-import ldap
 import logging
+
 import pytest
-from lib389 import DirSrv, Entry
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.topologies import topology_st
 

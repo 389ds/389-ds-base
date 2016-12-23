@@ -1,53 +1,13 @@
-import os
-import sys
-import time
-import ldap
-import logging
+from subprocess import check_output
+
 import pytest
-
-import nss
-
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
-
-from subprocess import check_output
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    # Delete each instance in the end
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
 
 def check_socket_dh_param_size(hostname, port):
     ### You know why we have to do this?
@@ -67,7 +27,7 @@ def check_socket_dh_param_size(hostname, port):
     return i
 
 
-def test_ticket48798(topology):
+def test_ticket48798(topology_st):
     """
     Test DH param sizes offered by DS.
 
@@ -78,69 +38,69 @@ def test_ticket48798(topology):
     ## THIS ASSUMES old nss format. SQLite will bite us!
     for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
         try:
-            os.remove("%s/%s" % (topology.standalone.confdir, f ))
+            os.remove("%s/%s" % (topology_st.standalone.confdir, f))
         except:
             pass
 
     # Check if the db exists. Should be false.
-    assert(topology.standalone.nss_ssl._db_exists() is False)
+    assert (topology_st.standalone.nss_ssl._db_exists() is False)
     time.sleep(0.5)
 
     # Create it. Should work.
-    assert(topology.standalone.nss_ssl.reinit() is True)
+    assert (topology_st.standalone.nss_ssl.reinit() is True)
     time.sleep(0.5)
 
     # Check if the db exists. Should be true
-    assert(topology.standalone.nss_ssl._db_exists() is True)
+    assert (topology_st.standalone.nss_ssl._db_exists() is True)
     time.sleep(0.5)
 
     # Check if ca exists. Should be false.
-    assert(topology.standalone.nss_ssl._rsa_ca_exists() is False)
+    assert (topology_st.standalone.nss_ssl._rsa_ca_exists() is False)
     time.sleep(0.5)
 
     # Create it. Should work.
-    assert(topology.standalone.nss_ssl.create_rsa_ca() is True)
+    assert (topology_st.standalone.nss_ssl.create_rsa_ca() is True)
     time.sleep(0.5)
 
     # Check if ca exists. Should be true
-    assert(topology.standalone.nss_ssl._rsa_ca_exists() is True)
+    assert (topology_st.standalone.nss_ssl._rsa_ca_exists() is True)
     time.sleep(0.5)
 
     # Check if we have a server cert / key. Should be false.
-    assert(topology.standalone.nss_ssl._rsa_key_and_cert_exists() is False)
+    assert (topology_st.standalone.nss_ssl._rsa_key_and_cert_exists() is False)
     time.sleep(0.5)
 
     # Create it. Should work.
-    assert(topology.standalone.nss_ssl.create_rsa_key_and_cert() is True)
+    assert (topology_st.standalone.nss_ssl.create_rsa_key_and_cert() is True)
     time.sleep(0.5)
 
     # Check if server cert and key exist. Should be true.
-    assert(topology.standalone.nss_ssl._rsa_key_and_cert_exists() is True)
+    assert (topology_st.standalone.nss_ssl._rsa_key_and_cert_exists() is True)
     time.sleep(0.5)
 
-    topology.standalone.config.enable_ssl(secport=DEFAULT_SECURE_PORT, secargs={'nsSSL3Ciphers': '+all'} )
+    topology_st.standalone.config.enable_ssl(secport=DEFAULT_SECURE_PORT, secargs={'nsSSL3Ciphers': '+all'})
 
-    topology.standalone.restart(30)
+    topology_st.standalone.restart(30)
 
     # Confirm that we have a connection, and that it has DH
 
     # Open a socket to the port.
     # Check the security settings.
-    size = check_socket_dh_param_size(topology.standalone.host, DEFAULT_SECURE_PORT)
+    size = check_socket_dh_param_size(topology_st.standalone.host, DEFAULT_SECURE_PORT)
 
-    assert(size == 2048)
+    assert (size == 2048)
 
     # Now toggle the settings.
     mod = [(ldap.MOD_REPLACE, 'allowWeakDHParam', 'on')]
     dn_enc = 'cn=encryption,cn=config'
-    topology.standalone.modify_s(dn_enc, mod)
+    topology_st.standalone.modify_s(dn_enc, mod)
 
-    topology.standalone.restart(30)
+    topology_st.standalone.restart(30)
 
     # Check the DH params are less than 1024.
-    size = check_socket_dh_param_size(topology.standalone.host, DEFAULT_SECURE_PORT)
+    size = check_socket_dh_param_size(topology_st.standalone.host, DEFAULT_SECURE_PORT)
 
-    assert(size == 1024)
+    assert (size == 1024)
 
     log.info('Test complete')
 

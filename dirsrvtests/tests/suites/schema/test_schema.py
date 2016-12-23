@@ -11,19 +11,14 @@ Created on Dec 18, 2013
 
 @author: rmeggins
 '''
-import os
-import sys
-import time
+import logging
+
 import ldap
+import pytest
 import six
 from ldap.cidict import cidict
 from ldap.schema import SubSchema
-import logging
-import pytest
-from lib389 import DirSrv, Entry, tools
-from lib389.tools import DirSrvTools
 from lib389._constants import *
-from lib389.properties import *
 from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -49,7 +44,7 @@ def ochasattr(subschema, oc, mustormay, attr, key):
         # look in parents
         for noroid in oc.sup:
             ocpar = subschema.get_obj(occlass, noroid)
-            assert(ocpar)
+            assert (ocpar)
             rc = ochasattr(subschema, ocpar, mustormay, attr, key)
             if rc:
                 break
@@ -101,7 +96,7 @@ def atgetparfield(subschema, at, field):
     v = None
     for nameoroid in at.sup:
         atpar = subschema.get_obj(attrclass, nameoroid)
-        assert(atpar)
+        assert (atpar)
         v = atpar.__dict__.get(field, atgetparfield(subschema, atpar, field))
         if v is not None:
             break

@@ -6,68 +6,27 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import time
-import ldap
-import logging
 import pytest
-from lib389 import DirSrv
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
-installation1_prefix = None
 
 DN_7BITPLUGIN = "cn=7-bit check,%s" % DN_PLUGIN
 ATTRS = ["uid", "mail", "userpassword", ",", SUFFIX, None]
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47431_0(topology):
+def test_ticket47431_0(topology_st):
     '''
     Enable 7 bit plugin
     '''
     log.info("Ticket 47431 - 0: Enable 7bit plugin...")
-    topology.standalone.plugins.enable(name=PLUGIN_7_BIT_CHECK)
+    topology_st.standalone.plugins.enable(name=PLUGIN_7_BIT_CHECK)
 
 
-def test_ticket47431_1(topology):
+def test_ticket47431_1(topology_st):
     '''
     nsslapd-pluginarg0: uid
     nsslapd-pluginarg1: mail
@@ -85,38 +44,39 @@ def test_ticket47431_1(topology):
 
     log.debug('modify_s %s' % DN_7BITPLUGIN)
     try:
-        topology.standalone.modify_s(DN_7BITPLUGIN,
-                                     [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', "uid"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', "mail"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg2', "userpassword"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg3', ","),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg4', SUFFIX)])
+        topology_st.standalone.modify_s(DN_7BITPLUGIN,
+                                        [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', "uid"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', "mail"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg2', "userpassword"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg3', ","),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg4', SUFFIX)])
     except ValueError:
         log.error('modify failed: Some problem occured with a value that was provided')
         assert False
 
     arg2 = "nsslapd-pluginarg2: userpassword"
-    topology.standalone.stop(timeout=10)
-    dse_ldif = topology.standalone.confdir + '/dse.ldif'
+    topology_st.standalone.stop(timeout=10)
+    dse_ldif = topology_st.standalone.confdir + '/dse.ldif'
     os.system('mv %s %s.47431' % (dse_ldif, dse_ldif))
-    os.system('sed -e "s/\\(%s\\)/\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1/" %s.47431 > %s' % (arg2, dse_ldif, dse_ldif))
-    topology.standalone.start(timeout=10)
+    os.system(
+        'sed -e "s/\\(%s\\)/\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1/" %s.47431 > %s' % (
+        arg2, dse_ldif, dse_ldif))
+    topology_st.standalone.start(timeout=10)
 
-    cmdline = 'egrep -i "%s" %s' % (expected, topology.standalone.errlog)
+    cmdline = 'egrep -i "%s" %s' % (expected, topology_st.standalone.errlog)
     p = os.popen(cmdline, "r")
     line = p.readline()
     if line == "":
-        log.error('Expected error "%s" not logged in %s' % (expected, topology.standalone.errlog))
+        log.error('Expected error "%s" not logged in %s' % (expected, topology_st.standalone.errlog))
         assert False
     else:
         log.debug('line: %s' % line)
-        log.info('Expected error "%s" logged in %s' % (expected, topology.standalone.errlog))
-
+        log.info('Expected error "%s" logged in %s' % (expected, topology_st.standalone.errlog))
 
     log.info("Ticket 47431 - 1: done")
 
 
-def test_ticket47431_2(topology):
+def test_ticket47431_2(topology_st):
     '''
     nsslapd-pluginarg0: uid
     nsslapd-pluginarg0: mail
@@ -140,23 +100,23 @@ def test_ticket47431_2(topology):
     log.info("Ticket 47431 - 2: Check two values belonging to one arg is fixed...")
 
     try:
-        topology.standalone.modify_s(DN_7BITPLUGIN,
-                                     [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', "uid"),
-                                      (ldap.MOD_ADD, 'nsslapd-pluginarg0', "mail"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', "userpassword"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg2', ","),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg3', SUFFIX),
-                                      (ldap.MOD_DELETE, 'nsslapd-pluginarg4', None)])
+        topology_st.standalone.modify_s(DN_7BITPLUGIN,
+                                        [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', "uid"),
+                                         (ldap.MOD_ADD, 'nsslapd-pluginarg0', "mail"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', "userpassword"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg2', ","),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg3', SUFFIX),
+                                         (ldap.MOD_DELETE, 'nsslapd-pluginarg4', None)])
     except ValueError:
         log.error('modify failed: Some problem occured with a value that was provided')
         assert False
 
     # PLUGIN LOG LEVEL
-    topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
+    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
 
-    topology.standalone.restart(timeout=10)
+    topology_st.standalone.restart(timeout=10)
 
-    cmdline = 'egrep -i %s %s' % ("NS7bitAttr_Init", topology.standalone.errlog)
+    cmdline = 'egrep -i %s %s' % ("NS7bitAttr_Init", topology_st.standalone.errlog)
     p = os.popen(cmdline, "r")
     i = 0
     while ATTRS[i]:
@@ -175,7 +135,7 @@ def test_ticket47431_2(topology):
     log.info("Ticket 47431 - 2: done")
 
 
-def test_ticket47431_3(topology):
+def test_ticket47431_3(topology_st):
     '''
     nsslapd-pluginarg1: uid
     nsslapd-pluginarg3: mail
@@ -199,27 +159,27 @@ def test_ticket47431_3(topology):
     log.info("Ticket 47431 - 3: Check missing args are fixed...")
 
     try:
-        topology.standalone.modify_s(DN_7BITPLUGIN,
-                                     [(ldap.MOD_DELETE, 'nsslapd-pluginarg0', None),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', "uid"),
-                                      (ldap.MOD_DELETE, 'nsslapd-pluginarg2', None),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg3', "mail"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg5', "userpassword"),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg7', ","),
-                                      (ldap.MOD_REPLACE, 'nsslapd-pluginarg9', SUFFIX)])
+        topology_st.standalone.modify_s(DN_7BITPLUGIN,
+                                        [(ldap.MOD_DELETE, 'nsslapd-pluginarg0', None),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', "uid"),
+                                         (ldap.MOD_DELETE, 'nsslapd-pluginarg2', None),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg3', "mail"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg5', "userpassword"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg7', ","),
+                                         (ldap.MOD_REPLACE, 'nsslapd-pluginarg9', SUFFIX)])
     except ValueError:
         log.error('modify failed: Some problem occured with a value that was provided')
         assert False
 
     # PLUGIN LOG LEVEL
-    topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
+    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
 
-    topology.standalone.stop(timeout=10)
-    os.system('mv %s %s.47431' % (topology.standalone.errlog, topology.standalone.errlog))
-    os.system('touch %s' % (topology.standalone.errlog))
-    topology.standalone.start(timeout=10)
+    topology_st.standalone.stop(timeout=10)
+    os.system('mv %s %s.47431' % (topology_st.standalone.errlog, topology_st.standalone.errlog))
+    os.system('touch %s' % (topology_st.standalone.errlog))
+    topology_st.standalone.start(timeout=10)
 
-    cmdline = 'egrep -i %s %s' % ("NS7bitAttr_Init", topology.standalone.errlog)
+    cmdline = 'egrep -i %s %s' % ("NS7bitAttr_Init", topology_st.standalone.errlog)
     p = os.popen(cmdline, "r")
     i = 0
     while ATTRS[i]:
@@ -242,4 +202,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

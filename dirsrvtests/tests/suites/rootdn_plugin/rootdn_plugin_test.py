@@ -6,18 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
 import logging
-import pytest
 import socket
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
+
+import pytest
 from lib389.tasks import *
+from lib389.tools import DirSrvTools
 from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -62,8 +56,8 @@ def test_rootdn_init(topology_st):
     #
     try:
         topology_st.standalone.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
-                                 'uid': 'user1',
-                                 'userpassword': PASSWORD})))
+                                                       'uid': 'user1',
+                                                       'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_init: Failed to add test user ' + USER1_DN + ': error ' +
                   e.message['desc'])
@@ -104,7 +98,7 @@ def test_rootdn_access_specific_time(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-open-time', open_time),
-                                  (ldap.MOD_ADD, 'rootdn-close-time', close_time)])
+                                                    (ldap.MOD_ADD, 'rootdn-close-time', close_time)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_specific_time: Failed to set (blocking) open/close times: error ' +
                   e.message['desc'])
@@ -134,7 +128,7 @@ def test_rootdn_access_specific_time(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', '0000'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', '2359')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', '2359')])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_specific_time: Failed to set (open) open/close times: error ' +
                   e.message['desc'])
@@ -152,7 +146,7 @@ def test_rootdn_access_specific_time(topology_st):
     #
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-open-time', None),
-                                                 (ldap.MOD_DELETE, 'rootdn-close-time', None)])
+                                                    (ldap.MOD_DELETE, 'rootdn-close-time', None)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_specific_time: Failed to delete open and close time: error ' +
                   e.message['desc'])
@@ -198,7 +192,7 @@ def test_rootdn_access_day_of_week(topology_st):
     #
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed',
-                                     deny_days)])
+                                                     deny_days)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_day_of_week: Failed to set the deny days: error ' +
                   e.message['desc'])
@@ -228,7 +222,7 @@ def test_rootdn_access_day_of_week(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed',
-                                     allow_days)])
+                                                     allow_days)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_day_of_week: Failed to set the deny days: error ' +
                   e.message['desc'])
@@ -270,11 +264,11 @@ def test_rootdn_access_denied_ip(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                  'rootdn-deny-ip',
-                                                  '127.0.0.1'),
-                                                 (ldap.MOD_ADD,
-                                                  'rootdn-deny-ip',
-                                                  '::1')])
+                                                     'rootdn-deny-ip',
+                                                     '127.0.0.1'),
+                                                    (ldap.MOD_ADD,
+                                                     'rootdn-deny-ip',
+                                                     '::1')])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_ip: Failed to set rootDN plugin config: error ' +
                   e.message['desc'])
@@ -346,11 +340,11 @@ def test_rootdn_access_denied_host(topology_st):
     localhost = DirSrvTools.getLocalhost()
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                  'rootdn-deny-host',
-                                                  hostname)])
+                                                     'rootdn-deny-host',
+                                                     hostname)])
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                  'rootdn-deny-host',
-                                                  localhost)])
+                                                     'rootdn-deny-host',
+                                                     localhost)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_host: Failed to set deny host: error ' +
                   e.message['desc'])
@@ -453,7 +447,7 @@ def test_rootdn_access_allowed_ip(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-ip', '127.0.0.1'),
-                                  (ldap.MOD_ADD, 'rootdn-allow-ip', '::1')])
+                                                    (ldap.MOD_ADD, 'rootdn-allow-ip', '::1')])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_allowed_ip: Failed to set allowed host: error ' +
                   e.message['desc'])
@@ -529,11 +523,11 @@ def test_rootdn_access_allowed_host(topology_st):
     localhost = DirSrvTools.getLocalhost()
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                  'rootdn-allow-host',
-                                                  localhost)])
+                                                     'rootdn-allow-host',
+                                                     localhost)])
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                  'rootdn-allow-host',
-                                                  hostname)])
+                                                     'rootdn-allow-host',
+                                                     hostname)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_allowed_host: Failed to set allowed host: error ' +
                   e.message['desc'])
@@ -590,7 +584,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-open-time', '0000'),
-                                  (ldap.MOD_ADD, 'rootdn-open-time', '0001')])
+                                                    (ldap.MOD_ADD, 'rootdn-open-time', '0001')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add multiple "rootdn-open-time"')
         assert False
     except ldap.LDAPError:
@@ -598,7 +592,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', '-1'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-open-time: -1"')
         assert False
     except ldap.LDAPError:
@@ -606,7 +600,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', '2400'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-open-time: 2400"')
         assert False
     except ldap.LDAPError:
@@ -614,7 +608,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', 'aaaaa'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-open-time: aaaaa"')
         assert False
     except ldap.LDAPError:
@@ -632,7 +626,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-close-time', '0000'),
-                                  (ldap.MOD_ADD, 'rootdn-close-time', '0001')])
+                                                    (ldap.MOD_ADD, 'rootdn-close-time', '0001')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add multiple "rootdn-open-time"')
         assert False
     except ldap.LDAPError:
@@ -640,7 +634,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', '0000'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', '-1')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', '-1')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-close-time: -1"')
         assert False
     except ldap.LDAPError:
@@ -648,7 +642,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', '0000'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', '2400')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', '2400')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-close-time: 2400"')
         assert False
     except ldap.LDAPError:
@@ -656,7 +650,7 @@ def test_rootdn_config_validate(topology_st):
 
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', '0000'),
-                                  (ldap.MOD_REPLACE, 'rootdn-close-time', 'aaaaa')])
+                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', 'aaaaa')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-close-time: aaaaa"')
         assert False
     except ldap.LDAPError:
@@ -667,7 +661,7 @@ def test_rootdn_config_validate(topology_st):
     #
     try:
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-days-allowed', 'Mon'),
-                                  (ldap.MOD_ADD, 'rootdn-days-allowed', 'Tue')])
+                                                    (ldap.MOD_ADD, 'rootdn-days-allowed', 'Tue')])
         log.fatal('test_rootdn_config_validate: Incorrectly allowed to add two "rootdn-days-allowed"')
         assert False
     except ldap.LDAPError:

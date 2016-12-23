@@ -6,61 +6,17 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import time
-import ldap
-import ldap.sasl
 import logging
+
+import ldap.sasl
 import pytest
-from lib389 import DirSrv, Entry
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
 USER_DN = 'uid=user1,%s' % (DEFAULT_SUFFIX)
 SCHEMA_RELOAD_COUNT = 10
-
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
 
 
 def task_complete(conn, task_dn):
@@ -81,7 +37,7 @@ def task_complete(conn, task_dn):
     return finished
 
 
-def test_ticket47973(topology):
+def test_ticket47973(topology_st):
     """
         During the schema reload task there is a small window where the new schema is not loaded
         into the asi hashtables - this results in searches not returning entries.
@@ -93,10 +49,10 @@ def test_ticket47973(topology):
     # Add a user
     #
     try:
-        topology.standalone.add_s(Entry((USER_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+        topology_st.standalone.add_s(Entry((USER_DN, {
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add user1: error ' + e.message['desc'])
         assert False
@@ -113,10 +69,10 @@ def test_ticket47973(topology):
 
         TASK_DN = 'cn=task-' + str(task_count) + ',cn=schema reload task, cn=tasks, cn=config'
         try:
-            topology.standalone.add_s(Entry((TASK_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'task-' + str(task_count)
-                          })))
+            topology_st.standalone.add_s(Entry((TASK_DN, {
+                'objectclass': 'top extensibleObject'.split(),
+                'cn': 'task-' + str(task_count)
+            })))
         except ldap.LDAPError as e:
             log.error('Failed to add task entry: error ' + e.message['desc'])
             assert False
@@ -130,9 +86,9 @@ def test_ticket47973(topology):
             # Now check the user is still being returned
             #
             try:
-                entries = topology.standalone.search_s(DEFAULT_SUFFIX,
-                                                      ldap.SCOPE_SUBTREE,
-                                                      '(uid=user1)')
+                entries = topology_st.standalone.search_s(DEFAULT_SUFFIX,
+                                                          ldap.SCOPE_SUBTREE,
+                                                          '(uid=user1)')
                 if not entries or not entries[0]:
                     log.fatal('User was not returned from search!')
                     assert False
@@ -143,7 +99,7 @@ def test_ticket47973(topology):
             #
             # Check if task is complete
             #
-            if task_complete(topology.standalone, TASK_DN):
+            if task_complete(topology_st.standalone, TASK_DN):
                 break
 
             search_count += 1

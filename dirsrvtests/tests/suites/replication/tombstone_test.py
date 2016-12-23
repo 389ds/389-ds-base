@@ -27,9 +27,9 @@ def test_purge_success(topology_st):
     log.info("Add and then delete an entry to create a tombstone...")
     try:
         topology_st.standalone.add_s(Entry(('cn=entry1,dc=example,dc=com', {
-                                  'objectclass': 'top person'.split(),
-                                  'sn': 'user',
-                                  'cn': 'entry1'})))
+            'objectclass': 'top person'.split(),
+            'sn': 'user',
+            'cn': 'entry1'})))
     except ldap.LDAPError as e:
         log.error('Failed to add entry: {}'.format(e.message['desc']))
         assert False
@@ -43,7 +43,7 @@ def test_purge_success(topology_st):
     log.info('Search for tombstone entries...')
     try:
         entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                               '(objectclass=nsTombstone)')
+                                                  '(objectclass=nsTombstone)')
         assert entries
     except ldap.LDAPError as e:
         log.fatal('Search failed: {}'.format(e.message['desc']))
@@ -55,4 +55,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

@@ -11,16 +11,8 @@ Created on Dec 09, 2014
 
 @author: mreynolds
 '''
-import os
-import sys
-import time
-import ldap
 import logging
-import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
+
 from lib389.tasks import *
 
 log = logging.getLogger(__name__)
@@ -146,16 +138,16 @@ def test_acctpolicy(inst, args=None):
     # Add the config entry
     try:
         inst.add_s(Entry((CONFIG_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'config',
-                          'alwaysrecordlogin': 'yes',
-                          'stateattrname': 'lastLoginTime'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'config',
+            'alwaysrecordlogin': 'yes',
+            'stateattrname': 'lastLoginTime'
+        })))
     except ldap.ALREADY_EXISTS:
         try:
             inst.modify_s(CONFIG_DN,
-                      [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes'),
-                       (ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime')])
+                          [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes'),
+                           (ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime')])
         except ldap.LDAPError as e:
             log.fatal('test_acctpolicy: Failed to modify config entry: error ' + e.message['desc'])
             assert False
@@ -171,10 +163,10 @@ def test_acctpolicy(inst, args=None):
     time.sleep(1)
     try:
         inst.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '1',
-                                 'cn': 'user 1',
-                                 'uid': 'user1',
-                                 'userpassword': 'password'})))
+                                     'sn': '1',
+                                     'cn': 'user 1',
+                                     'uid': 'user1',
+                                     'userpassword': 'password'})))
     except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
         assert False
@@ -308,7 +300,7 @@ def test_attruniq(inst, args=None):
                                      'cn': 'user 1',
                                      'uid': 'user1',
                                      'mail': 'user1@example.com',
-                                     'mailAlternateAddress' : 'user1@alt.example.com',
+                                     'mailAlternateAddress': 'user1@alt.example.com',
                                      'userpassword': 'password'})))
     except ldap.LDAPError as e:
         log.fatal('test_attruniq: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
@@ -347,11 +339,11 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mail': 'user1@example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mail': 'user1@example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -369,7 +361,8 @@ def test_attruniq(inst, args=None):
                         'mailAlternateAddress')])
 
     except ldap.LDAPError as e:
-        log.error('test_attruniq: Failed to reconfigure plugin for "mail mailAlternateAddress": error ' + e.message['desc'])
+        log.error(
+            'test_attruniq: Failed to reconfigure plugin for "mail mailAlternateAddress": error ' + e.message['desc'])
         assert False
 
     ############################################################################
@@ -378,11 +371,11 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mail': 'user1@example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mail': 'user1@example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -395,11 +388,11 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mailAlternateAddress': 'user1@alt.example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mailAlternateAddress': 'user1@alt.example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -412,11 +405,11 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mail': 'user1@alt.example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mail': 'user1@alt.example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -429,11 +422,11 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mailAlternateAddress': 'user1@example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mailAlternateAddress': 'user1@example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -488,9 +481,9 @@ def test_automember(inst, args=None):
     # Add the automember group
     try:
         inst.add_s(Entry((GROUP_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'group'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'group'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add group: error ' + e.message['desc'])
         assert False
@@ -498,9 +491,9 @@ def test_automember(inst, args=None):
     # Add ou=branch1
     try:
         inst.add_s(Entry((BRANCH1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'ou': 'branch1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'ou': 'branch1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add branch1: error ' + e.message['desc'])
         assert False
@@ -508,9 +501,9 @@ def test_automember(inst, args=None):
     # Add ou=branch2
     try:
         inst.add_s(Entry((BRANCH2_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'ou': 'branch2'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'ou': 'branch2'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add branch2: error ' + e.message['desc'])
         assert False
@@ -518,13 +511,13 @@ def test_automember(inst, args=None):
     # Add the automember config entry
     try:
         inst.add_s(Entry((CONFIG_DN, {
-                          'objectclass': 'top autoMemberDefinition'.split(),
-                          'cn': 'config',
-                          'autoMemberScope': 'ou=branch1,' + DEFAULT_SUFFIX,
-                          'autoMemberFilter': 'objectclass=top',
-                          'autoMemberDefaultGroup': 'cn=group,' + DEFAULT_SUFFIX,
-                          'autoMemberGroupingAttr': 'member:dn'
-                          })))
+            'objectclass': 'top autoMemberDefinition'.split(),
+            'cn': 'config',
+            'autoMemberScope': 'ou=branch1,' + DEFAULT_SUFFIX,
+            'autoMemberFilter': 'objectclass=top',
+            'autoMemberDefaultGroup': 'cn=group,' + DEFAULT_SUFFIX,
+            'autoMemberGroupingAttr': 'member:dn'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add config entry: error ' + e.message['desc'])
         assert False
@@ -536,9 +529,9 @@ def test_automember(inst, args=None):
     # Add a user that should get added to the group
     try:
         inst.add_s(Entry((BUSER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add user: error ' + e.message['desc'])
         assert False
@@ -574,9 +567,9 @@ def test_automember(inst, args=None):
     # Add a user that should get added to the group
     try:
         inst.add_s(Entry((BUSER2_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user2'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user2'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to user to branch2: error ' + e.message['desc'])
         assert False
@@ -602,9 +595,9 @@ def test_automember(inst, args=None):
     # Add an entry that should be picked up by automember - verify it is not(yet)
     try:
         inst.add_s(Entry((BUSER3_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user3'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user3'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to user3 to branch2: error ' + e.message['desc'])
         assert False
@@ -627,9 +620,9 @@ def test_automember(inst, args=None):
     # Add the task
     try:
         inst.add_s(Entry((TASK_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': 'ou=branch2,' + DEFAULT_SUFFIX,
-                          'filter': 'objectclass=top'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'basedn': 'ou=branch2,' + DEFAULT_SUFFIX,
+            'filter': 'objectclass=top'})))
     except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add task: error ' + e.message['desc'])
         assert False
@@ -730,15 +723,15 @@ def test_dna(inst, args=None):
 
     try:
         inst.add_s(Entry((CONFIG_DN, {
-                          'objectclass': 'top dnaPluginConfig'.split(),
-                          'cn': 'config',
-                          'dnatype': 'uidNumber',
-                          'dnafilter': '(objectclass=top)',
-                          'dnascope': DEFAULT_SUFFIX,
-                          'dnaMagicRegen': '-1',
-                          'dnaMaxValue': '50000',
-                          'dnaNextValue': '1'
-                          })))
+            'objectclass': 'top dnaPluginConfig'.split(),
+            'cn': 'config',
+            'dnatype': 'uidNumber',
+            'dnafilter': '(objectclass=top)',
+            'dnascope': DEFAULT_SUFFIX,
+            'dnaMagicRegen': '-1',
+            'dnaMaxValue': '50000',
+            'dnaNextValue': '1'
+        })))
     except ldap.ALREADY_EXISTS:
         try:
             inst.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaNextValue', '1'),
@@ -756,9 +749,9 @@ def test_dna(inst, args=None):
 
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to user1: error ' + e.message['desc'])
         assert False
@@ -872,18 +865,18 @@ def test_linkedattrs(inst, args=None):
     # Add test entries
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to user1: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((USER2_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user2'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user2'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to user1: error ' + e.message['desc'])
         assert False
@@ -891,11 +884,11 @@ def test_linkedattrs(inst, args=None):
     # Add the linked attrs config entry
     try:
         inst.add_s(Entry((CONFIG_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'config',
-                          'linkType': 'directReport',
-                          'managedType': 'manager'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'config',
+            'linkType': 'directReport',
+            'managedType': 'manager'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add config entry: error ' + e.message['desc'])
         assert False
@@ -1033,9 +1026,9 @@ def test_linkedattrs(inst, args=None):
     TASK_DN = 'cn=task-' + str(int(time.time())) + ',cn=fixup linked attributes,cn=tasks,cn=config'
     try:
         inst.add_s(Entry(('cn=task-' + str(int(time.time())) + ',cn=fixup linked attributes,cn=tasks,cn=config', {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': DEFAULT_SUFFIX,
-                          'filter': 'objectclass=top'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'basedn': DEFAULT_SUFFIX,
+            'filter': 'objectclass=top'})))
     except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add task: error ' + e.message['desc'])
         assert False
@@ -1123,29 +1116,29 @@ def test_memberof(inst, args=None):
     # Add our test entries
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add user1: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((GROUP_DN, {
-                          'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
-                          'cn': 'group',
-                          'member': USER1_DN
-                          })))
+            'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
+            'cn': 'group',
+            'member': USER1_DN
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add group: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((SHARED_CONFIG_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'memberofgroupattr': 'member',
-                          'memberofattr': 'memberof'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'memberofgroupattr': 'member',
+            'memberofattr': 'memberof'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to shared config entry: error ' + e.message['desc'])
         assert False
@@ -1250,19 +1243,19 @@ def test_memberof(inst, args=None):
 
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add user1: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((GROUP_DN, {
-                          'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
-                          'cn': 'group',
-                          'member': USER1_DN
-                          })))
+            'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
+            'cn': 'group',
+            'member': USER1_DN
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add group: error ' + e.message['desc'])
         assert False
@@ -1303,7 +1296,7 @@ def test_memberof(inst, args=None):
         inst.modify_s(SHARED_CONFIG_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to set shared plugin entry(uniquemember): error '
-            + e.message['desc'])
+                  + e.message['desc'])
         assert False
 
     try:
@@ -1433,9 +1426,9 @@ def test_memberof(inst, args=None):
     TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
     try:
         inst.add_s(Entry((TASK_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': DEFAULT_SUFFIX + "bad",
-                          'filter': 'objectclass=top'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'basedn': DEFAULT_SUFFIX + "bad",
+            'filter': 'objectclass=top'})))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add task(bad dn): error ' +
                   e.message['desc'])
@@ -1453,9 +1446,9 @@ def test_memberof(inst, args=None):
     TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
     try:
         inst.add_s(Entry((TASK_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': "bad",
-                          'filter': 'objectclass=top'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'basedn': "bad",
+            'filter': 'objectclass=top'})))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add task(invalid dn syntax): ' +
                   e.message['desc'])
@@ -1474,9 +1467,9 @@ def test_memberof(inst, args=None):
     TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
     try:
         inst.add_s(Entry((TASK_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': DEFAULT_SUFFIX,
-                          'filter': '(objectclass=top'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'basedn': DEFAULT_SUFFIX,
+            'filter': '(objectclass=top'})))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add task(bad filter: error ' +
                   e.message['desc'])
@@ -1499,9 +1492,9 @@ def test_memberof(inst, args=None):
     TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
     try:
         inst.add_s(Entry((TASK_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': DEFAULT_SUFFIX,
-                          'filter': 'objectclass=top'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'basedn': DEFAULT_SUFFIX,
+            'filter': 'objectclass=top'})))
     except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add task: error ' + e.message['desc'])
         assert False
@@ -1585,8 +1578,8 @@ def test_mep(inst, args=None):
     # Add our org units
     try:
         inst.add_s(Entry((PEOPLE_OU, {
-                   'objectclass': 'top extensibleObject'.split(),
-                   'ou': 'people'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
@@ -1595,8 +1588,8 @@ def test_mep(inst, args=None):
 
     try:
         inst.add_s(Entry((GROUP_OU, {
-                   'objectclass': 'top extensibleObject'.split(),
-                   'ou': 'people'})))
+            'objectclass': 'top extensibleObject'.split(),
+            'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
@@ -1606,12 +1599,12 @@ def test_mep(inst, args=None):
     # Add the template entry
     try:
         inst.add_s(Entry((TEMPLATE_DN, {
-                   'objectclass': 'top mepTemplateEntry extensibleObject'.split(),
-                   'cn': 'MEP Template',
-                   'mepRDNAttr': 'cn',
-                   'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
-                   'mepMappedAttr': 'cn: $cn|uid: $cn|gidNumber: $uidNumber'.split('|')
-                   })))
+            'objectclass': 'top mepTemplateEntry extensibleObject'.split(),
+            'cn': 'MEP Template',
+            'mepRDNAttr': 'cn',
+            'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
+            'mepMappedAttr': 'cn: $cn|uid: $cn|gidNumber: $uidNumber'.split('|')
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add template entry: error ' + e.message['desc'])
         assert False
@@ -1619,13 +1612,13 @@ def test_mep(inst, args=None):
     # Add the config entry
     try:
         inst.add_s(Entry((CONFIG_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'config',
-                          'originScope': PEOPLE_OU,
-                          'originFilter': 'objectclass=posixAccount',
-                          'managedBase': GROUP_OU,
-                          'managedTemplate': TEMPLATE_DN
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'config',
+            'originScope': PEOPLE_OU,
+            'originFilter': 'objectclass=posixAccount',
+            'managedBase': GROUP_OU,
+            'managedTemplate': TEMPLATE_DN
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add config entry: error ' + e.message['desc'])
         assert False
@@ -1637,13 +1630,13 @@ def test_mep(inst, args=None):
     # Add an entry that meets the MEP scope
     try:
         inst.add_s(Entry((USER_DN, {
-                          'objectclass': 'top posixAccount extensibleObject'.split(),
-                          'uid': 'user1',
-                          'cn': 'user1',
-                          'uidNumber': '1',
-                          'gidNumber': '1',
-                          'homeDirectory': '/home/user1'
-                          })))
+            'objectclass': 'top posixAccount extensibleObject'.split(),
+            'uid': 'user1',
+            'cn': 'user1',
+            'uidNumber': '1',
+            'gidNumber': '1',
+            'homeDirectory': '/home/user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to user1: error ' + e.message['desc'])
         assert False
@@ -1662,12 +1655,12 @@ def test_mep(inst, args=None):
     # Add a new template entry
     try:
         inst.add_s(Entry((TEMPLATE_DN2, {
-                   'objectclass': 'top mepTemplateEntry extensibleObject'.split(),
-                   'cn': 'MEP Template2',
-                   'mepRDNAttr': 'uid',
-                   'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
-                   'mepMappedAttr': 'cn: $uid|uid: $cn|gidNumber: $gidNumber'.split('|')
-                   })))
+            'objectclass': 'top mepTemplateEntry extensibleObject'.split(),
+            'cn': 'MEP Template2',
+            'mepRDNAttr': 'uid',
+            'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
+            'mepMappedAttr': 'cn: $uid|uid: $cn|gidNumber: $gidNumber'.split('|')
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add template entry2: error ' + e.message['desc'])
         assert False
@@ -1686,13 +1679,13 @@ def test_mep(inst, args=None):
     # Add an entry that meets the MEP scope
     try:
         inst.add_s(Entry((USER_DN2, {
-                          'objectclass': 'top posixAccount extensibleObject'.split(),
-                          'uid': 'user 1',
-                          'cn': 'user 1',
-                          'uidNumber': '1',
-                          'gidNumber': '1',
-                          'homeDirectory': '/home/user2'
-                          })))
+            'objectclass': 'top posixAccount extensibleObject'.split(),
+            'uid': 'user 1',
+            'cn': 'user 1',
+            'uidNumber': '1',
+            'gidNumber': '1',
+            'homeDirectory': '/home/user2'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to user2: error ' + e.message['desc'])
         assert False
@@ -1800,8 +1793,8 @@ def test_passthru(inst, args=None):
     # Create the top of the tree
     try:
         passthru_inst.add_s(Entry((PASS_SUFFIX2, {
-                          'objectclass': 'top domain'.split(),
-                          'dc': 'pass2'})))
+            'objectclass': 'top domain'.split(),
+            'dc': 'pass2'})))
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
@@ -1812,10 +1805,10 @@ def test_passthru(inst, args=None):
     # Add user to suffix1
     try:
         passthru_inst.add_s(Entry((PASSTHRU_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'admin',
-                          'userpassword': 'password'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'admin',
+            'userpassword': 'password'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to admin1: error ' + e.message['desc'])
         passthru_inst.delete()
@@ -1824,10 +1817,10 @@ def test_passthru(inst, args=None):
     # Add user to suffix 2
     try:
         passthru_inst.add_s(Entry((PASSTHRU_DN2, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'admin2',
-                          'userpassword': 'password'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'admin2',
+            'userpassword': 'password'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to admin2 : error ' + e.message['desc'])
         passthru_inst.delete()
@@ -1952,29 +1945,29 @@ def test_referint(inst, args=None):
     # Add some users and a group
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user1: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((USER2_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user2'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user2'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user2: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((GROUP_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'group',
-                          'member': USER1_DN,
-                          'uniquemember': USER2_DN
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'group',
+            'member': USER1_DN,
+            'uniquemember': USER2_DN
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add group: error ' + e.message['desc'])
         assert False
@@ -1991,12 +1984,12 @@ def test_referint(inst, args=None):
     # Add shared config entry
     try:
         inst.add_s(Entry((SHARED_CONFIG_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'referint-membership-attr': 'member',
-                          'referint-update-delay': '0',
-                          'referint-logfile': REFERINT_LOGFILE,
-                          'referint-logchanges': '0'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'referint-membership-attr': 'member',
+            'referint-update-delay': '0',
+            'referint-logfile': REFERINT_LOGFILE,
+            'referint-logchanges': '0'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to shared config entry: error ' + e.message['desc'])
         assert False
@@ -2069,29 +2062,29 @@ def test_referint(inst, args=None):
 
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user1: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((USER2_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user2'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user2'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user2: error ' + e.message['desc'])
         assert False
 
     try:
         inst.add_s(Entry((GROUP_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'group',
-                          'member': USER1_DN,
-                          'uniquemember': USER2_DN
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'group',
+            'member': USER1_DN,
+            'uniquemember': USER2_DN
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add group: error ' + e.message['desc'])
         assert False
@@ -2121,7 +2114,7 @@ def test_referint(inst, args=None):
         inst.modify_s(SHARED_CONFIG_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'uniquemember')])
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to set shared plugin entry(uniquemember): error '
-            + e.message['desc'])
+                  + e.message['desc'])
         assert False
 
     # Delete a user
@@ -2162,9 +2155,9 @@ def test_referint(inst, args=None):
     # Add test user
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user1: error ' + e.message['desc'])
         assert False
@@ -2259,9 +2252,9 @@ def test_retrocl(inst, args=None):
     # Add a user
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_retrocl: Failed to add user1: error ' + e.message['desc'])
         assert False
@@ -2299,7 +2292,7 @@ def test_retrocl(inst, args=None):
         entry = inst.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE, '(changenumber=*)')
         if len(entry) != entry_count:
             log.fatal('test_retrocl: changelog incorrectly updated - change count: '
-                + str(len(entry)) + ' - expected 1')
+                      + str(len(entry)) + ' - expected 1')
             assert False
     except ldap.LDAPError as e:
         log.fatal('test_retrocl: Unable to search retro changelog: ' + e.message['desc'])
@@ -2351,10 +2344,10 @@ def test_rootdn(inst, args=None):
     # Add an user and aci to open up cn=config
     try:
         inst.add_s(Entry((USER1_DN, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'user1',
-                          'userpassword': 'password'
-                          })))
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'user1',
+            'userpassword': 'password'
+        })))
     except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to add user1: error ' + e.message['desc'])
         assert False
@@ -2480,4 +2473,3 @@ def test_all_plugins(inst, args=None):
         func(inst, args)
 
     return
-

@@ -6,59 +6,16 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
-import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
 
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket47640(topology):
+def test_ticket47640(topology_st):
     '''
     Linked Attrs Plugins - verify that if the plugin fails to update the link entry
     that the entire operation is aborted
@@ -66,25 +23,25 @@ def test_ticket47640(topology):
 
     # Enable Dynamic plugins, and the linked Attrs plugin
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     try:
-        topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
+        topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
     except ValueError as e:
         ldap.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
         assert False
 
     # Add the plugin config entry
     try:
-        topology.standalone.add_s(Entry(('cn=manager link,cn=Linked Attributes,cn=plugins,cn=config', {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'cn': 'Manager Link',
-                          'linkType': 'seeAlso',
-                          'managedType': 'seeAlso'
-                          })))
+        topology_st.standalone.add_s(Entry(('cn=manager link,cn=Linked Attributes,cn=plugins,cn=config', {
+            'objectclass': 'top extensibleObject'.split(),
+            'cn': 'Manager Link',
+            'linkType': 'seeAlso',
+            'managedType': 'seeAlso'
+        })))
     except ldap.LDAPError as e:
         log.fatal('Failed to add linked attr config entry: error ' + e.message['desc'])
         assert False
@@ -92,11 +49,11 @@ def test_ticket47640(topology):
     # Add an entry who has a link to an entry that does not exist
     OP_REJECTED = False
     try:
-        topology.standalone.add_s(Entry(('uid=manager,' + DEFAULT_SUFFIX, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'uid': 'manager',
-                          'seeAlso': 'uid=user,dc=example,dc=com'
-                          })))
+        topology_st.standalone.add_s(Entry(('uid=manager,' + DEFAULT_SUFFIX, {
+            'objectclass': 'top extensibleObject'.split(),
+            'uid': 'manager',
+            'seeAlso': 'uid=user,dc=example,dc=com'
+        })))
     except ldap.UNWILLING_TO_PERFORM:
         # Success
         log.info('Add operation correctly rejected.')
@@ -117,5 +74,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
-

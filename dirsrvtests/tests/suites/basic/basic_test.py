@@ -6,19 +6,10 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
-import time
-import ldap
-import ldap.sasl
-import logging
-import pytest
-import shutil
 from subprocess import check_output
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
-from lib389._constants import *
-from lib389.properties import *
+
+import ldap.sasl
+import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st

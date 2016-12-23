@@ -6,65 +6,24 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import time
-import ldap
-import logging
 import pytest
-from lib389 import DirSrv, Entry
-from lib389._constants import *
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
-installation1_prefix = None
 
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_ticket48026(topology):
+def test_ticket48026(topology_st):
     '''
     Test that multiple attribute uniqueness works correctly.
     '''
     # Configure the plugin
-    inst = topology.standalone
+    inst = topology_st.standalone
     inst.plugins.enable(name=PLUGIN_ATTR_UNIQUENESS)
 
     try:
@@ -73,7 +32,7 @@ def test_ticket48026(topology):
                       [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'),
                        (ldap.MOD_ADD, 'uniqueness-attribute-name',
                         'mailAlternateAddress'),
-                      ])
+                       ])
     except ldap.LDAPError as e:
         log.fatal('test_ticket48026: Failed to configure plugin for "mail": error ' + e.message['desc'])
         assert False
@@ -87,7 +46,7 @@ def test_ticket48026(topology):
                                      'cn': 'user 1',
                                      'uid': 'user1',
                                      'mail': 'user1@example.com',
-                                     'mailAlternateAddress' : 'user1@alt.example.com',
+                                     'mailAlternateAddress': 'user1@alt.example.com',
                                      'userpassword': 'password'})))
     except ldap.LDAPError as e:
         log.fatal('test_ticket48026: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
@@ -95,11 +54,11 @@ def test_ticket48026(topology):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mail': 'user1@example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mail': 'user1@example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -108,24 +67,25 @@ def test_ticket48026(topology):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mailAlternateAddress': 'user1@alt.example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mailAlternateAddress': 'user1@alt.example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
-        log.error('test_ticket48026: Adding of 2nd entry(mailAlternateAddress v mailAlternateAddress) incorrectly succeeded')
+        log.error(
+            'test_ticket48026: Adding of 2nd entry(mailAlternateAddress v mailAlternateAddress) incorrectly succeeded')
         assert False
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mail': 'user1@alt.example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mail': 'user1@alt.example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:
@@ -134,11 +94,11 @@ def test_ticket48026(topology):
 
     try:
         inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
-                                 'sn': '2',
-                                 'cn': 'user 2',
-                                 'uid': 'user2',
-                                 'mailAlternateAddress': 'user1@example.com',
-                                 'userpassword': 'password'})))
+                                     'sn': '2',
+                                     'cn': 'user 2',
+                                     'uid': 'user2',
+                                     'mailAlternateAddress': 'user1@example.com',
+                                     'userpassword': 'password'})))
     except ldap.CONSTRAINT_VIOLATION:
         pass
     else:

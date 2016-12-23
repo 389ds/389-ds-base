@@ -6,11 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import ldap
-import logging
-import pytest
 from random import sample
-from lib389.properties import *
+
+import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
@@ -34,15 +32,15 @@ def add_users(topology_st, users_num):
         users_list.append(USER_DN)
         try:
             topology_st.standalone.add_s(Entry((USER_DN, {
-                                             'objectclass': 'top person'.split(),
-                                             'objectclass': 'organizationalPerson',
-                                             'objectclass': 'inetorgperson',
-                                             'cn': USER_NAME,
-                                             'sn': USER_NAME,
-                                             'userpassword': 'pass%s' % num_ran,
-                                             'mail': '%s@redhat.com' % USER_NAME,
-                                             'uid': USER_NAME
-                                              })))
+                'objectclass': 'top person'.split(),
+                'objectclass': 'organizationalPerson',
+                'objectclass': 'inetorgperson',
+                'cn': USER_NAME,
+                'sn': USER_NAME,
+                'userpassword': 'pass%s' % num_ran,
+                'mail': '%s@redhat.com' % USER_NAME,
+                'uid': USER_NAME
+            })))
         except ldap.LDAPError as e:
             log.error('Failed to add user (%s): error (%s)' % (USER_DN,
                                                                e.message['desc']))
@@ -50,15 +48,15 @@ def add_users(topology_st, users_num):
 
 
 def search_users(topology_st):
-        try:
-            entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)', ['cn'])
-            for entry in entries:
-                if 'user1' in entry.data['cn']:
-                    log.info('Search found "user1"')
+    try:
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)', ['cn'])
+        for entry in entries:
+            if 'user1' in entry.data['cn']:
+                log.info('Search found "user1"')
 
-        except ldap.LDAPError as e:
-            log.fatal('Search failed, error: ' + e.message['desc'])
-            raise e
+    except ldap.LDAPError as e:
+        log.fatal('Search failed, error: ' + e.message['desc'])
+        raise e
 
 
 def test_check_default(topology_st):
@@ -72,7 +70,7 @@ def test_check_default(topology_st):
     default = topology_st.standalone.config.get_attr_val(PLUGIN_TIMESTAMP)
 
     # Now check it should be ON by default
-    assert(default == "on")
+    assert (default == "on")
     log.debug(default)
 
 
@@ -81,7 +79,7 @@ def test_plugin_set_invalid(topology_st):
 
     log.info('test_plugin_set_invalid - Expect to fail with junk value')
     with pytest.raises(ldap.OPERATIONS_ERROR):
-        result = topology_st.standalone.config.set(PLUGIN_TIMESTAMP,'JUNK')
+        result = topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'JUNK')
 
 
 def test_log_plugin_on(topology_st):
@@ -125,6 +123,7 @@ def test_log_plugin_off(topology_st):
     access_log_lines = topology_st.standalone.ds_access_log.readlines()
     assert len(access_log_lines) > 0
     assert not topology_st.standalone.ds_access_log.match('^\[.+\d{9}.+\].+')
+
 
 if __name__ == '__main__':
     # Run isolated
