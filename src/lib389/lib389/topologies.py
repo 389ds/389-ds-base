@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import sys
 import time
 import logging
@@ -14,7 +15,7 @@ from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 
-DEBUGGING = False
+DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 else:
