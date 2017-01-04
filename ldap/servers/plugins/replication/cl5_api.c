@@ -6983,7 +6983,6 @@ cl5CleanRUV(ReplicaId rid){
 static void free_purge_data(cleanruv_purge_data *purge_data)
 {
     slapi_ch_free_string(&purge_data->replGen);
-    slapi_ch_free_string(&purge_data->replName);
     slapi_ch_free((void **)&purge_data);
 }
 
