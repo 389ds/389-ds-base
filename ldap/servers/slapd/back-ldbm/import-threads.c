@@ -1465,7 +1465,7 @@ upgradedn_producer(void *param)
 
     if (!chk_dn_norm && !chk_dn_norm_sp) {
         /* Nothing to do... */
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
+        slapi_log_err(SLAPI_LOG_INFO, "upgradedn_producer",
                 "UpgradeDnFormat is not required.\n");
         info->state = FINISHED;
         goto done;
@@ -1526,7 +1526,7 @@ upgradedn_producer(void *param)
         
         if (0 != db_rval) {
             if (DB_NOTFOUND == db_rval) {
-                slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
+                slapi_log_err(SLAPI_LOG_INFO, "upgradedn_producer",
                         "%s: Finished reading database\n", inst->inst_name);
                 if (job->task) {
                     slapi_task_log_notice(job->task,
@@ -1604,7 +1604,7 @@ upgradedn_producer(void *param)
                                                  pid, &id, &psrdn, &curr_entry);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                   "uptradedn: Failed to compose dn for "
+                                   "upgradedn: Failed to compose dn for "
                                    "(rdn: %s, ID: %d)\n", rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
@@ -2101,9 +2101,10 @@ upgradedn_producer(void *param)
 
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
         if (import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
-            import_log_notice(job, SLAPI_LOG_ERR, "upgradedn_producer", "Skipping entry \"%s\"",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "upgradedn_producer", "Skipping entry \"%s\"",
                     slapi_entry_get_dn(e));
-            import_log_notice(job, SLAPI_LOG_ERR, "upgradedn_producer", "REASON: entry too large (%lu bytes) for "
+            import_log_notice(job, SLAPI_LOG_NOTICE, "upgradedn_producer",
+                    "REASON: entry too large (%lu bytes) for "
                     "the buffer size (%lu bytes), and we were UNABLE to expand buffer.",
                     (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
             backentry_free(&ep);

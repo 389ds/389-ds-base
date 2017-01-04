@@ -249,9 +249,9 @@ ldbm_instance_start(backend *be)
 
     if (be->be_state != BE_STATE_STOPPED &&
         be->be_state != BE_STATE_DELETED) {
-        slapi_log_err(SLAPI_LOG_TRACE, 
-                   "ldbm_instance_start", "Warning - backend is in a wrong state - %d\n", 
-                   be->be_state);
+        slapi_log_err(SLAPI_LOG_TRACE, "ldbm_instance_start",
+                      "Warning - backend is in a wrong state - %d\n",
+                      be->be_state);
         PR_Unlock (be->be_state_lock);
         return 0;
     }
@@ -370,8 +370,9 @@ ldbm_instance_destructor(void **arg)
 {
     ldbm_instance *inst = (ldbm_instance *) *arg;
 
-    slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_destructor", "Destructor for instance %s called\n", 
-              inst->inst_name);
+    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_instance_destructor",
+                  "Destructor for instance %s called\n",
+                  inst->inst_name);
 
     slapi_counter_destroy(&(inst->inst_ref_count));
     slapi_ch_free_string(&inst->inst_name);

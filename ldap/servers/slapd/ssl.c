@@ -25,6 +25,7 @@
 
 #define NEED_TOK_PBE /* defines tokPBE and ptokPBE - see slap.h */
 #include "slap.h"
+#include <unistd.h>
 
 #include "svrcore.h"
 #include "fe.h"
@@ -1288,27 +1289,39 @@ slapd_nss_init(int init_ssl, int config_available)
         secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
         pkcs11txt_file_name = slapi_ch_smprintf("%s/pkcs11.txt", certdir);
 
-        if(chmod(cert8db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+        if(access(cert8db_file_name, F_OK) == 0 &&
+           chmod(cert8db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP ))
+        {
             slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
                     cert8db_file_name, errno, slapd_system_strerror(errno));
         }
-        if(chmod(cert9db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+        if(access(cert9db_file_name, F_OK) == 0 &&
+           chmod(cert9db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP ))
+        {
             slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
                     cert9db_file_name, errno, slapd_system_strerror(errno));
         }
-        if(chmod(key3db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+        if(access(key3db_file_name, F_OK) == 0 &&
+           chmod(key3db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP ))
+        {
             slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
                     key3db_file_name, errno, slapd_system_strerror(errno));
         }
-        if(chmod(key4db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+        if(access(key4db_file_name, F_OK) == 0 &&
+           chmod(key4db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP ))
+        {
             slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
                     key4db_file_name, errno, slapd_system_strerror(errno));
         }
-        if(chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+        if(access(secmoddb_file_name, F_OK) == 0 &&
+           chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP ))
+        {
             slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
                     secmoddb_file_name, errno, slapd_system_strerror(errno));
         }
-        if(chmod(pkcs11txt_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+        if(access(pkcs11txt_file_name, F_OK) == 0 &&
+           chmod(pkcs11txt_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP ))
+        {
             slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
                     pkcs11txt_file_name, errno, slapd_system_strerror(errno));
         }

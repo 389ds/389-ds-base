@@ -159,7 +159,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
         {
             if (verbose)
             {
-                slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+                slapi_log_err(SLAPI_LOG_INFO, "dbverify_ext",
                                                  "%s: ok\n", dbdir);
             }
         }

@@ -1473,11 +1473,11 @@ dblayer_start(struct ldbminfo *li, int dbmode)
          (priv->dblayer_lock_config != priv->dblayer_previous_lock_config)) &&
         !(dbmode & (DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE)) ) {
         if (priv->dblayer_cachesize != priv->dblayer_previous_cachesize) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_start", "Resizing db cache size: %lu -> %lu\n",
+            slapi_log_err(SLAPI_LOG_INFO, "dblayer_start", "Resizing db cache size: %lu -> %lu\n",
                       priv->dblayer_previous_cachesize, priv->dblayer_cachesize);
         }
         if (priv->dblayer_ncache != priv->dblayer_previous_ncache) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_start", "Resizing db cache count: %d -> %d\n",
+            slapi_log_err(SLAPI_LOG_INFO, "dblayer_start", "Resizing db cache count: %d -> %d\n",
                       priv->dblayer_previous_ncache, priv->dblayer_ncache);
         }
         if (priv->dblayer_lock_config != priv->dblayer_previous_lock_config) {
@@ -1989,7 +1989,7 @@ int dblayer_instance_start(backend *be, int mode)
              * but nsslapd-db-private-import-mem should work with import,
              * as well */
             if (priv->dblayer_private_import_mem) {
-                slapi_log_err(SLAPI_LOG_WARNING,
+                slapi_log_err(SLAPI_LOG_INFO,
                   "dblayer_instance_start", "Import is running with "
                   "nsslapd-db-private-import-mem on; "
                   "No other process is allowed to access the database\n");
@@ -5656,7 +5656,7 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
                        destination, strerror(errno));
         goto error;
     }
-    slapi_log_err(SLAPI_LOG_BACKLDBM,
+    slapi_log_err(SLAPI_LOG_INFO,
                    "dblayer_copyfile", "Copying %s to %s\n", source, destination);
     /* Loop round reading data and writing it */
     while (1)
