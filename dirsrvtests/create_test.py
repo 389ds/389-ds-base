@@ -8,13 +8,13 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import sys
 import optparse
+import sys
+from lib389 import topologies
 
 """This script generates a template test script that handles the
 non-interesting parts of a test script:
-- topology fixture (only for tickets),
-  for suites we have predefined fixtures in lib389/topologies.py
+- topology fixture that doesn't exist in in lib389/topologies.py
 - test function (to be completed by the user),
 - run-isolated function
 """
@@ -81,6 +81,38 @@ def writeFinalizer():
     TEST.write('\n\n')
 
 
+def get_existing_topologies(inst, masters, hubs, consumers):
+    """Check if the requested topology exists"""
+
+    if inst:
+        if inst == 1:
+            i = 'st'
+        else:
+            i = 'i{}'.format(inst)
+    else:
+        i = ''
+    if masters:
+        ms = 'm{}'.format(masters)
+    else:
+        ms = ''
+    if hubs:
+        hs = 'h{}'.format(hubs)
+    else:
+        hs = ''
+    if consumers:
+        cs = 'c{}'.format(consumers)
+    else:
+        cs = ''
+
+    my_topology = 'topology_{}{}{}{}'.format(i, ms, hs, cs)
+
+    # Returns True in the first element of a list, if topology was found
+    if my_topology in dir(topologies):
+        return [True, my_topology]
+    else:
+        return [False, my_topology]
+
+
 desc = 'Script to generate an initial lib389 test script.  ' + \
        'This generates the topology, test, final, and run-isolated functions.'
 
@@ -90,7 +122,7 @@ if len(sys.argv) > 0:
     # Script options
     parser.add_option('-t', '--ticket', dest='ticket', default=None)
     parser.add_option('-s', '--suite', dest='suite', default=None)
-    parser.add_option('-i', '--instances', dest='inst', default=None)
+    parser.add_option('-i', '--instances', dest='inst', default='0')
     parser.add_option('-m', '--masters', dest='masters', default='0')
     parser.add_option('-h', '--hubs', dest='hubs', default='0')
     parser.add_option('-c', '--consumers', dest='consumers', default='0')
@@ -139,27 +171,29 @@ if len(sys.argv) > 0:
     if args.inst:
         if not args.inst.isdigit() or \
                int(args.inst) > 99 or \
-               int(args.inst) < 1:
+               int(args.inst) < 0:
             print('Invalid value for "--instances", it must be a number ' +
                   'greater than 0 and not greater than 99')
             displayUsage()
         if int(args.inst) > 0:
             if int(args.masters) > 0 or \
-               int(args.hubs) > 0 or \
-               int(args.consumers) > 0:
+                            int(args.hubs) > 0 or \
+                            int(args.consumers) > 0:
                 print('You can not mix "--instances" with replication.')
                 displayUsage()
 
     # Extract usable values
-    masters = int(args.masters)
-    hubs = int(args.hubs)
-    consumers = int(args.consumers)
     ticket = args.ticket
     suite = args.suite
-    if not args.inst:
+    if not args.inst and not args.masters and not args.hubs and not args.consumers:
         instances = 1
+        my_topology = [True, 'topology_st']
     else:
         instances = int(args.inst)
+        masters = int(args.masters)
+        hubs = int(args.hubs)
+        consumers = int(args.consumers)
+        my_topology = get_existing_topologies(instances, masters, hubs, consumers)
     filename = args.filename
 
     # Create/open the new test script file
@@ -176,23 +210,28 @@ if len(sys.argv) > 0:
         exit(1)
 
     # Write the imports
-    TEST.write('import os\nimport sys\nimport time\nimport ldap\n' +
+    if my_topology[0]:
+        topology_import = 'from lib389.topologies import {}\n'.format(my_topology[1])
+    else:
+        topology_import = ''
+
+    TEST.write('import time\nimport ldap\n' +
                'import logging\nimport pytest\n')
     TEST.write('from lib389 import DirSrv, Entry, tools, tasks\nfrom ' +
                'lib389.tools import DirSrvTools\nfrom lib389._constants ' +
                'import *\nfrom lib389.properties import *\n' +
-               'from lib389.tasks import *\nfrom lib389.utils import *\n\n')
+               'from lib389.tasks import *\nfrom lib389.utils import *\n' +
+               '{}\n'.format(topology_import))
 
-    # Add topology function for a ticket only.
-    # Suites have presetuped fixtures in lib389/topologies.py
-    if ticket:
-        TEST.write('DEBUGGING = False\n\n')
-        TEST.write('if DEBUGGING:\n')
-        TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
-        TEST.write('else:\n')
-        TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
-        TEST.write('log = logging.getLogger(__name__)\n\n\n')
+    TEST.write('DEBUGGING = os.getenv("DEBUGGING", default=False)\n')
+    TEST.write('if DEBUGGING:\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
+    TEST.write('else:\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
+    TEST.write('log = logging.getLogger(__name__)\n\n\n')
 
+    # Add topology function for non existing (in lib389/topologies.py) topologies only
+    if not my_topology[0]:
         # Write the replication or standalone classes
         repl_deployment = False
 
@@ -247,7 +286,7 @@ if len(sys.argv) > 0:
 
         # Write the 'topology function'
         TEST.write('@pytest.fixture(scope="module")\n')
-        TEST.write('def topology(request):\n')
+        TEST.write('def {}(request):\n'.format(my_topology[1]))
 
         if repl_deployment:
             TEST.write('    """Create Replication Deployment"""\n')
@@ -363,9 +402,9 @@ if len(sys.argv) > 0:
                                "defaultProperties[REPLICATION_TRANSPORT]}\n")
                     TEST.write('    m' + str(master_idx) + '_m' + str(idx) +
                                '_agmt = master' + str(master_idx) +
-                                '.agreement.create(suffix=SUFFIX, host=master' +
-                                str(idx) + '.host, port=master' + str(idx) +
-                                '.port, properties=properties)\n')
+                               '.agreement.create(suffix=SUFFIX, host=master' +
+                               str(idx) + '.host, port=master' + str(idx) +
+                               '.port, properties=properties)\n')
                     TEST.write('    if not m' + str(master_idx) + '_m' + str(idx) +
                                '_agmt:\n')
                     TEST.write('        log.fatal("Fail to create a master -> ' +
@@ -504,7 +543,7 @@ if len(sys.argv) > 0:
             for idx in range(hubs):
                 idx += 1
                 TEST.write('    master1.agreement.init(SUFFIX, HOST_HUB_' +
-                       str(idx) + ', PORT_HUB_' + str(idx) + ')\n')
+                           str(idx) + ', PORT_HUB_' + str(idx) + ')\n')
                 TEST.write('    master1.waitForReplInit(m1_h' + str(idx) +
                            '_agmt)\n')
                 for idx in range(consumers):
@@ -561,7 +600,7 @@ if len(sys.argv) > 0:
                 TEST.write(', hub' + str(idx + 1))
             for idx in range(consumers):
                 TEST.write(', consumer' + str(idx + 1))
-            TEST.write(')\n\n')
+            TEST.write(')\n\n\n')
 
         # Standalone servers
         else:
@@ -612,12 +651,11 @@ if len(sys.argv) > 0:
                 if idx == 1:
                     continue
                 TEST.write(', standalone' + str(idx))
-            TEST.write(')\n\n')
-    TEST.write('\n')
+            TEST.write(')\n\n\n')
 
     # Write the test function
     if ticket:
-        TEST.write('def test_ticket' + ticket + '(topology):\n')
+        TEST.write('def test_ticket{}({}):\n'.format(ticket, my_topology[1]))
         if repl_deployment:
             TEST.write('    """Write your replication test here.\n\n')
             TEST.write('    To access each DirSrv instance use:  ' +
@@ -626,7 +664,7 @@ if len(sys.argv) > 0:
                        ',...\n\n')
             TEST.write('    Also, if you need any testcase initialization,\n')
             TEST.write('    please, write additional fixture for that' +
-                       '(include ' + 'finalizer).\n')
+                       '(including finalizer).\n')
         else:
             TEST.write('    """Write your testcase here...\n\n')
             TEST.write('    Also, if you need any testcase initialization,\n')
@@ -634,20 +672,11 @@ if len(sys.argv) > 0:
                        '(include finalizer).\n')
         TEST.write('    """\n\n')
     else:
-        TEST.write('def test_something(topology_XX):\n')
+        TEST.write('def test_something({}):\n'.format(my_topology[1]))
         TEST.write('    """Write a single test here...\n\n')
         TEST.write('    Also, if you need any test suite initialization,\n')
-        TEST.write('    please, write additional fixture for that(include finalizer).\n' +
-                   '    Topology for suites are predefined in lib389/topologies.py.\n\n'
-                   '    Choose one of the options:\n'
-                   '    1) topology_st for standalone\n'
-                   '        topology.standalone\n'
-                   '    2) topology_m2 for two masters\n'
-                   '        topology.ms["master{1,2}"]\n'
-                   '        each master has agreements\n'
-                   '        topology.ms["master{1,2}_agmts"][m{1,2}_m{2,1}]\n'
-                   '    3) topology_m4 for four masters\n'
-                   '        the same as topology_m2 but has more masters and agreements\n'
+        TEST.write('    please, write additional fixture for that (including finalizer).\n'
+                   '    Topology for suites are predefined in lib389/topologies.py.\n'
                    '    """\n\n')
 
     TEST.write('    if DEBUGGING:\n')
