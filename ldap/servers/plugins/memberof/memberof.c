@@ -34,6 +34,8 @@
 #  include <config.h>
 #endif
 
+#include <ctype.h>
+#include <time.h>
 #include "slapi-plugin.h"
 #include "string.h"
 #include "nspr.h"
@@ -53,6 +55,7 @@ static int usetxn = 0;
 static int premodfn = 0;
 #define MEMBEROF_HASHTABLE_SIZE 1000
 static PLHashTable *fixup_entry_hashtable = NULL; /* global hash table protected by memberof_lock (memberof_operation_lock) */
+static PLHashTable *group_ancestors_hashtable = NULL; /* global hash table protected by memberof_lock (memberof_operation_lock) */
 
 typedef struct _memberofstringll
 {
@@ -66,7 +69,36 @@ typedef struct _memberof_get_groups_data
         Slapi_Value *memberdn_val;
         Slapi_ValueSet **groupvals;
         Slapi_ValueSet **group_norm_vals;
+        Slapi_ValueSet **already_seen_ndn_vals;
+        PRBool use_cache;
 } memberof_get_groups_data;
+
+/* The key to access the hash table is the normalized DN
+ * The normalized DN is stored in the value because:
+ *  - It is used in slapi_valueset_find
+ *  - It is used to fill the memberof_get_groups_data.group_norm_vals
+ */
+typedef struct _memberof_cached_value
+{
+	char *key;
+	char *group_dn_val;
+        char *group_ndn_val;
+	int valid;
+} memberof_cached_value;
+struct cache_stat
+{
+	int total_lookup;
+	int successfull_lookup;
+	int total_add;
+	int total_remove;
+	int total_enumerate;
+	int cumul_duration_lookup;
+	int cumul_duration_add;
+	int cumul_duration_remove;
+	int cumul_duration_enumerate;
+};
+static struct cache_stat cache_stat;
+#define MEMBEROF_CACHE_DEBUG	0
 
 typedef struct _task_data
 {
@@ -127,7 +159,7 @@ static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
 static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn);
 static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn, MemberOfConfig *config,
-	char **types, plugin_search_entry_callback callback,  void *callback_data);
+	char **types, plugin_search_entry_callback callback,  void *callback_data, int *cached);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	Slapi_Value *memberdn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
@@ -159,6 +191,12 @@ static int memberof_add_objectclass(char *auto_add_oc, const char *dn);
 static int memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc);
 static PLHashTable *hashtable_new();
 static void fixup_hashtable_empty(char *msg);
+static PLHashTable *hashtable_new();
+static void ancestor_hashtable_empty(char *msg);
+static void ancestor_hashtable_entry_free(memberof_cached_value *entry);
+static memberof_cached_value *ancestors_cache_lookup(const char *ndn);
+static PRBool ancestors_cache_remove(const char *ndn);
+static PLHashEntry *ancestors_cache_add(const void *key, void *value);
 
 /*** implementation ***/
 
@@ -351,6 +389,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 	}
 
 	fixup_entry_hashtable = hashtable_new();
+	group_ancestors_hashtable = hashtable_new();
 
 	/* Set the alternate config area if one is defined. */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
@@ -451,6 +490,10 @@ int memberof_postop_close(Slapi_PBlock *pb)
 		PL_HashTableDestroy(fixup_entry_hashtable);
 	}
 
+	if (group_ancestors_hashtable) {
+		ancestor_hashtable_empty("memberof_postop_close empty group_ancestors_hashtable");
+		PL_HashTableDestroy(group_ancestors_hashtable);
+	}
 	slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_close\n" );
 	return 0;
@@ -602,6 +645,7 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
 	int i = 0;
 	char *groupattrs[2] = {0, 0};
 	int rc = LDAP_SUCCESS;
+	int cached = 0;
 
 	/* Loop through each grouping attribute to find groups that have
 	 * dn as a member.  For any matches, delete the dn value from the
@@ -613,8 +657,9 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
 
 		groupattrs[0] = config->groupattrs[i];
 
+		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_del_dn_from_groups: Ancestors of %s\n", slapi_sdn_get_dn(sdn));
 		rc = memberof_call_foreach_dn(pb, sdn, config, groupattrs,
-		                              memberof_del_dn_type_callback, &data);
+		                              memberof_del_dn_type_callback, &data, &cached);
 	}
 
 	return rc;
@@ -677,6 +722,53 @@ memberof_scope_is_child_of_dn(MemberOfConfig *config, Slapi_DN *sdn)
 	}
 	return NULL;
 }
+
+static void
+add_ancestors_cbdata(memberof_cached_value *ancestors, void *callback_data)
+{
+	Slapi_Value *sval;
+	int val_index;
+	Slapi_ValueSet *group_norm_vals_cbdata = *((memberof_get_groups_data*) callback_data)->group_norm_vals;
+	Slapi_ValueSet *group_vals_cbdata = *((memberof_get_groups_data*) callback_data)->groupvals;
+	Slapi_Value *memberdn_val = ((memberof_get_groups_data*) callback_data)->memberdn_val;
+	int added_group;
+	PRBool empty_ancestor = PR_FALSE;
+
+	for (val_index = 0, added_group = 0; ancestors[val_index].valid; val_index++) {
+		/* For each of its ancestor (not already present) add it to callback_data */
+
+		if (ancestors[val_index].group_ndn_val == NULL) {
+			/* This is a node with no ancestor
+			 * ancestors should only contains this empty valid value
+			 * but just in case let the loop continue instead of a break
+			 */
+			empty_ancestor = PR_TRUE;
+			continue;
+		}
+
+		sval = slapi_value_new_string(ancestors[val_index].group_ndn_val);
+		if (sval) {
+			if (!slapi_valueset_find(
+				((memberof_get_groups_data*) callback_data)->config->group_slapiattrs[0], group_norm_vals_cbdata, sval)) {
+				/* This ancestor was not already present in the callback data
+				 * => Add it to the callback_data
+				 * Using slapi_valueset_add_value it consumes sval
+				 * so do not free sval
+				 */
+				slapi_valueset_add_value_ext(group_norm_vals_cbdata, sval, SLAPI_VALUE_FLAG_PASSIN);
+				sval = slapi_value_new_string(ancestors[val_index].group_dn_val);
+				slapi_valueset_add_value_ext(group_vals_cbdata, sval, SLAPI_VALUE_FLAG_PASSIN);
+				added_group++;
+			} else {
+				/* This ancestor was already present, free sval that will not be consumed */
+				slapi_value_free(&sval);
+			}
+		}
+	}
+	slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "add_ancestors_cbdata: Ancestors of %s contained %d groups. %d added. %s\n",
+		slapi_value_get_string(memberdn_val), val_index, added_group, empty_ancestor ? "no ancestors" : "");
+}
+
 /*
  * Does a callback search of "type=dn" under the db suffix that "dn" is in,
  * unless all_backends is set, then we look at all the backends.  If "dn"
@@ -685,7 +777,7 @@ memberof_scope_is_child_of_dn(MemberOfConfig *config, Slapi_DN *sdn)
  */
 int
 memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
-	MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data)
+	MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached)
 {
 	Slapi_PBlock *search_pb = NULL;
 	Slapi_DN *base_sdn = NULL;
@@ -700,11 +792,36 @@ memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	int free_it = 0;
 	int rc = 0;
 	int i = 0;
+	memberof_cached_value *ht_grp = NULL;
+	memberof_get_groups_data *data = (memberof_get_groups_data*) callback_data;
+	const char *ndn = slapi_sdn_get_ndn(sdn);
+
+	*cached = 0;
 
 	if (!memberof_entry_in_scope(config, sdn)) {
 		return (rc);
 	}
 
+	/* Here we will retrieve the ancestor of sdn.
+	 * The key access is the normalized sdn
+	 * This is done through recursive internal searches of parents
+	 * If the ancestors of sdn are already cached, just use
+	 * this value
+	 */
+	if (data && data->use_cache) {
+		ht_grp = ancestors_cache_lookup((const void *) ndn);
+		if (ht_grp) {
+#if MEMBEROF_CACHE_DEBUG
+		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s already cached (%x)\n", ndn, ht_grp);
+#endif
+			add_ancestors_cbdata(ht_grp, callback_data);
+			*cached = 1;
+			return (rc);
+		}
+	}
+#if MEMBEROF_CACHE_DEBUG
+	slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s not cached\n", ndn);
+#endif
 	/* Count the number of types. */
 	for (num_types = 0; types && types[num_types]; num_types++)
 	{
@@ -971,6 +1088,7 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	int i = 0;
 	char *groupattrs[2] = {0, 0};
 	int ret = LDAP_SUCCESS;
+	int cached = 0;
 
 	/* Loop through each grouping attribute to find groups that have
 	 * pre_dn as a member.  For any matches, replace pre_dn with post_dn
@@ -985,9 +1103,10 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 
 		groupattrs[0] = config->groupattrs[i];
 
+		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_replace_dn_from_groups: Ancestors of %s\n", slapi_sdn_get_dn(post_sdn));
 		if((ret = memberof_call_foreach_dn(pb, pre_sdn, config, groupattrs,
 		                                   memberof_replace_dn_type_callback,
-		                                   &data)))
+		                                   &data, &cached)))
 		{
 			break;
 		}
@@ -2046,28 +2165,236 @@ memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
 {
 	Slapi_ValueSet *groupvals = slapi_valueset_new();
 	Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
+	Slapi_ValueSet *already_seen_ndn_vals = slapi_valueset_new();
 	Slapi_Value *memberdn_val = 
 	                      slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
 	slapi_value_set_flags(memberdn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
-	memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals};
+	memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals, &already_seen_ndn_vals, PR_TRUE};
 
 	memberof_get_groups_r(config, member_sdn, &data);
 
 	slapi_value_free(&memberdn_val);
 	slapi_valueset_free(group_norm_vals);
+	slapi_valueset_free(already_seen_ndn_vals);
 
 	return groupvals;
+}
+
+void
+dump_cache_entry(memberof_cached_value *double_check, const char *msg)
+{
+	int i;
+	for(i = 0; double_check[i].valid; i++) {
+		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "dump_cache_entry: %s -> %s\n",
+			msg ? msg : "<no key>",
+			double_check[i].group_dn_val ? double_check[i].group_dn_val : "NULL");
+	}
+}
+/*
+ * A cache value consist of an array of all dn/ndn of the groups member_ndn_val belongs to
+ * The last element of the array has 'valid=0'
+ * the firsts elements of the array has 'valid=1' and the dn/ndn of group it belong to
+ */
+static void
+cache_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *groups)
+{
+	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)groups)->groupvals;
+	Slapi_Value *sval;
+	Slapi_DN *sdn = 0;
+	const char *dn;
+	const char *ndn;
+	const char *key;
+	char *key_copy;
+	int hint = 0;
+	int count;
+	int index;
+	memberof_cached_value *cache_entry;
+#if MEMBEROF_CACHE_DEBUG
+	memberof_cached_value *double_check;
+#endif
+
+	if ((member_ndn_val == NULL) || (*member_ndn_val == NULL)) {
+		slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: Fail to cache groups ancestor of unknown member\n");
+		return;
+	}
+
+	/* Allocate the cache entry and fill it */
+	count = slapi_valueset_count(groupvals);
+	if (count == 0) {
+		/* There is no group containing member_ndn_val
+		 * so cache the NULL value
+		 */
+		cache_entry = (memberof_cached_value *) slapi_ch_calloc(2, sizeof(memberof_cached_value));
+		if (!cache_entry) {
+			slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: Fail to cache no group are ancestor of %s\n",
+				slapi_value_get_string(*member_ndn_val));
+			return;
+		}
+		index = 0;
+		cache_entry[index].key = NULL; /* only the last element (valid=0) contains the key */
+		cache_entry[index].group_dn_val  = NULL;
+		cache_entry[index].group_ndn_val = NULL;
+		cache_entry[index].valid = 1; /* this entry is valid and indicate no group contain member_ndn_val */
+#if MEMBEROF_CACHE_DEBUG
+		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: For %s cache %s\n",
+				slapi_value_get_string(*member_ndn_val), cache_entry[index].group_dn_val ? cache_entry[index].group_dn_val : "<empty>");
+#endif
+		index++;
+
+	} else {
+		cache_entry = (memberof_cached_value *) slapi_ch_calloc(count + 1, sizeof (memberof_cached_value));
+		if (!cache_entry) {
+			slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: Fail to cache groups ancestor of %s\n",
+				slapi_value_get_string(*member_ndn_val));
+			return;
+		}
+
+		/* Store the dn/ndn into the cache_entry */
+		index = 0;
+		hint = slapi_valueset_first_value(groupvals, &sval);
+		while (sval) {
+                        /* In case of recursion the member_ndn can be present
+			 * in its own ancestors. Skip it
+			 */
+			if (memberof_compare(groups->config, member_ndn_val, &sval)) {
+                                /* add this dn/ndn even if it is NULL
+                                 * in fact a node belonging to no group needs to be cached
+                                 */
+                                dn = slapi_value_get_string(sval);
+                                sdn = slapi_sdn_new_dn_byval(dn);
+                                ndn = slapi_sdn_get_ndn(sdn);
+
+                                cache_entry[index].key = NULL; /* only the last element (valid=0) contains the key */
+                                cache_entry[index].group_dn_val = slapi_ch_strdup(dn);
+                                cache_entry[index].group_ndn_val = slapi_ch_strdup(ndn);
+                                cache_entry[index].valid = 1;
+#if MEMBEROF_CACHE_DEBUG
+                                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors:    %s\n",
+                                        cache_entry[index].group_dn_val ? cache_entry[index].group_dn_val : "<empty>");
+#endif
+                                index++;
+                                slapi_sdn_free(&sdn);
+                        }
+
+			hint = slapi_valueset_next_value(groupvals, hint, &sval);
+		}
+	}
+	/* This is marking the end of the cache_entry */
+	key = slapi_value_get_string(*member_ndn_val);
+	key_copy = slapi_ch_strdup(key);
+	cache_entry[index].key = key_copy;
+	cache_entry[index].group_dn_val  = NULL;
+	cache_entry[index].group_ndn_val = NULL;
+	cache_entry[index].valid = 0;
+
+	/* Cache the ancestor of member_ndn_val using the
+	 * normalized DN key
+	 */
+#if MEMBEROF_CACHE_DEBUG
+	dump_cache_entry(cache_entry, key);
+#endif
+	if (ancestors_cache_add((const void*) key_copy, (void *) cache_entry) == NULL) {
+		slapi_log_err( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: Failed to cache ancestor of %s\n", key);
+		ancestor_hashtable_entry_free(cache_entry);
+		slapi_ch_free ((void**)&cache_entry);
+		return;
+	}
+#if MEMBEROF_CACHE_DEBUG
+	if (double_check = ancestors_cache_lookup((const void*) key)) {
+		dump_cache_entry(double_check, "read back");
+	}
+#endif
+}
+/*
+ * Add in v2 the values that are in v1
+ * If the values are already present in v2, they are skipped
+ * It does not consum the values in v1
+ */
+static void
+merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memberof_get_groups_data *v2)
+{
+	Slapi_Value *sval_dn = 0;
+	Slapi_Value *sval_ndn = 0;
+	Slapi_Value *sval;
+	Slapi_DN *val_sdn = 0;
+	int hint = 0;
+        MemberOfConfig *config = ((memberof_get_groups_data*)v2)->config;
+	Slapi_ValueSet *v1_groupvals = *((memberof_get_groups_data*)v1)->groupvals;
+	Slapi_ValueSet *v2_groupvals = *((memberof_get_groups_data*)v2)->groupvals;
+	Slapi_ValueSet *v2_group_norm_vals = *((memberof_get_groups_data*)v2)->group_norm_vals;
+	int merged_cnt = 0;
+
+	hint = slapi_valueset_first_value(v1_groupvals, &sval);
+	while (sval) {
+                if (memberof_compare(config, member_ndn_val, &sval)) {
+                        sval_dn = slapi_value_new_string(slapi_value_get_string(sval));
+                        if (sval_dn) {
+                                /* Use the normalized dn from v1 to search it
+                                 * in v2
+                                 */
+                                val_sdn = slapi_sdn_new_dn_byval(slapi_value_get_string(sval_dn));
+                                sval_ndn = slapi_value_new_string(slapi_sdn_get_ndn(val_sdn));
+                                if (!slapi_valueset_find(
+                                        ((memberof_get_groups_data*) v2)->config->group_slapiattrs[0], v2_group_norm_vals, sval_ndn)) {
+                                        /* This ancestor was not already present in v2 => Add it
+                                         * Using slapi_valueset_add_value it consumes val
+                                         * so do not free sval
+                                         */
+#if MEMBEROF_CACHE_DEBUG
+                                        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "merge_ancestors: add %s\n", slapi_value_get_string(sval_ndn));
+#endif
+                                        slapi_valueset_add_value_ext(v2_groupvals, sval_dn, SLAPI_VALUE_FLAG_PASSIN);
+                                        slapi_valueset_add_value_ext(v2_group_norm_vals, sval_ndn, SLAPI_VALUE_FLAG_PASSIN);
+                                        merged_cnt++;
+                                } else {
+                                        /* This ancestor was already present, free sval_ndn/sval_dn that will not be consumed */
+#if MEMBEROF_CACHE_DEBUG
+                                        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "merge_ancestors: skip (already present) %s\n", slapi_value_get_string(sval_ndn));
+#endif
+                                        slapi_value_free(&sval_dn);
+                                        slapi_value_free(&sval_ndn);
+                                }
+                                slapi_sdn_free(&val_sdn);
+                        }
+                }
+		hint = slapi_valueset_next_value(v1_groupvals, hint, &sval);
+	}
 }
 
 int
 memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn,
                       memberof_get_groups_data *data)
 {
+	Slapi_ValueSet *groupvals = slapi_valueset_new();
+	Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
+	Slapi_Value *member_ndn_val =
+	                      slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
+	int rc;
+	int cached = 0;
+
+	slapi_value_set_flags(member_ndn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
+
+	memberof_get_groups_data member_data = {config, member_ndn_val, &groupvals, &group_norm_vals, data->already_seen_ndn_vals, data->use_cache};
+
 	/* Search for any grouping attributes that point to memberdn.
 	 * For each match, add it to the list, recurse and do same search */
-	return memberof_call_foreach_dn(NULL, member_sdn, config, config->groupattrs,
-		memberof_get_groups_callback, data);
+#if MEMBEROF_CACHE_DEBUG
+	slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_get_groups_r: Ancestors of %s\n", slapi_sdn_get_dn(member_sdn));
+#endif
+	rc = memberof_call_foreach_dn(NULL, member_sdn, config, config->groupattrs,
+		memberof_get_groups_callback, &member_data, &cached);
+
+	merge_ancestors(&member_ndn_val, &member_data, data);
+	if (!cached && member_data.use_cache)
+		cache_ancestors(&member_ndn_val, &member_data);
+
+
+	slapi_value_free(&member_ndn_val);
+	slapi_valueset_free(groupvals);
+	slapi_valueset_free(group_norm_vals);
+
+	return rc;
 }
 
 /* memberof_get_groups_callback()
@@ -2081,8 +2408,10 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	char *group_dn = slapi_entry_get_dn(e);
 	Slapi_Value *group_ndn_val = 0;
 	Slapi_Value *group_dn_val = 0;
+	Slapi_Value *already_seen_ndn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
 	Slapi_ValueSet *group_norm_vals = *((memberof_get_groups_data*)callback_data)->group_norm_vals;
+	Slapi_ValueSet *already_seen_ndn_vals = *((memberof_get_groups_data*)callback_data)->already_seen_ndn_vals;
 	MemberOfConfig *config = ((memberof_get_groups_data*)callback_data)->config;
 	int rc = 0;
 
@@ -2115,6 +2444,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 			"memberof_get_groups_callback - Group recursion"
 			" detected in %s\n" ,group_ndn);
 		slapi_value_free(&group_ndn_val);
+		((memberof_get_groups_data*)callback_data)->use_cache = PR_FALSE;
 		goto bail;
 
 	}
@@ -2124,7 +2454,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	 * performed.  Since all of the grouping attributes are validated to use the Dinstinguished
 	 * Name syntax, we can safely just use the first group_slapiattr. */
 	if (slapi_valueset_find(
-		((memberof_get_groups_data*)callback_data)->config->group_slapiattrs[0], group_norm_vals, group_ndn_val))
+		((memberof_get_groups_data*)callback_data)->config->group_slapiattrs[0], already_seen_ndn_vals, group_ndn_val))
 	{
 		/* we either hit a recursive grouping, or an entry is
 		 * a member of a group through multiple paths.  Either
@@ -2134,6 +2464,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 			"memberof_get_groups_callback - Possible group recursion"
 			" detected in %s\n" ,group_ndn);
 		slapi_value_free(&group_ndn_val);
+		((memberof_get_groups_data*)callback_data)->use_cache = PR_FALSE;
 		goto bail;
 	}
 
@@ -2141,12 +2472,17 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	if (memberof_entry_in_scope(config, group_sdn)) {
 			/* Push group_dn_val into the valueset.  This memory is now owned
 			 * by the valueset. */
+			slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+
 			group_dn_val = slapi_value_new_string(group_dn);
 			slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
-			slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+
+			/* push this ndn to detect group recursion */
+			already_seen_ndn_val = slapi_value_new_string(group_ndn);
+			slapi_valueset_add_value_ext(already_seen_ndn_vals, already_seen_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
 	}
 	if(!config->skip_nested || config->fixup_task){
-		/* now recurse to find parent groups of e */
+		/* now recurse to find ancestors groups of e */
 		memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
 			group_sdn, callback_data);
 	}
@@ -2239,9 +2575,10 @@ memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config,
                          Slapi_DN *group_sdn)
 {
 	char *attrs[2] = {config->memberof_attr, 0};
+	int cached = 0;
 
 	return memberof_call_foreach_dn(pb, group_sdn, config, attrs,
-		memberof_test_membership_callback, config);
+		memberof_test_membership_callback, config, &cached);
 }
 
 /*
@@ -2286,10 +2623,12 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 
 			candidate_array =
 				(Slapi_Value**)
-				slapi_ch_calloc(1, sizeof(Slapi_Value*)*total);
+				slapi_ch_malloc(sizeof(Slapi_Value*)*total);
+			memset(candidate_array, 0, sizeof(Slapi_Value*)*total);
 			member_array =
 				(Slapi_Value**)
-				slapi_ch_calloc(1, sizeof(Slapi_Value*)*total);
+				slapi_ch_malloc(sizeof(Slapi_Value*)*total);
+			memset(member_array, 0, sizeof(Slapi_Value*)*total);
 
 			hint = slapi_attr_first_value(attr, &val);
 
@@ -2636,10 +2975,25 @@ void memberof_lock()
 	if (fixup_entry_hashtable) {
 		fixup_hashtable_empty("memberof_lock");
 	}
+	if (group_ancestors_hashtable) {
+		ancestor_hashtable_empty("memberof_lock empty group_ancestors_hashtable");
+		memset(&cache_stat, 0, sizeof(cache_stat));
+	}
 }
 
 void memberof_unlock()
 {
+	if (group_ancestors_hashtable) {
+		ancestor_hashtable_empty("memberof_unlock empty group_ancestors_hashtable");
+#if MEMBEROF_CACHE_DEBUG
+		slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache statistics: total lookup %d (success %d), add %d, remove %d, enum %d\n",
+			cache_stat.total_lookup, cache_stat.successfull_lookup,
+			cache_stat.total_add, cache_stat.total_remove, cache_stat.total_enumerate);
+		slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache statistics duration: lookup %ld, add %ld, remove %ld, enum %ld\n",
+			cache_stat.cumul_duration_lookup, cache_stat.cumul_duration_add,
+			cache_stat.cumul_duration_remove, cache_stat.cumul_duration_enumerate);
+#endif
+	}
 	if (fixup_entry_hashtable) {
 		fixup_hashtable_empty("memberof_lock");
 	}
@@ -2881,6 +3235,101 @@ int memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *t
 	return rc;
 }
 
+static memberof_cached_value *
+ancestors_cache_lookup(const char *ndn)
+{
+	memberof_cached_value *e;
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	long int start;
+	struct timespec tsnow;
+#endif
+
+	cache_stat.total_lookup++;
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+		start = 0;
+        } else {
+		start = tsnow.tv_nsec;
+	}
+#endif
+
+	e = (memberof_cached_value *) PL_HashTableLookupConst(group_ancestors_hashtable, (const void *) ndn);
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	if (start) {
+		if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
+			cache_stat.cumul_duration_lookup += (tsnow.tv_nsec - start);
+		}
+	}
+#endif
+	
+	if (e)
+		cache_stat.successfull_lookup++;
+	return e;
+	
+}
+static PRBool
+ancestors_cache_remove(const char *ndn)
+{
+	PRBool rc;
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	long int start;
+	struct timespec tsnow;
+#endif
+
+	cache_stat.total_remove++;
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+		start = 0;
+        } else {
+		start = tsnow.tv_nsec;
+	}
+#endif
+
+	rc = PL_HashTableRemove(group_ancestors_hashtable, (const void *) ndn);
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	if (start) {
+		if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
+			cache_stat.cumul_duration_remove += (tsnow.tv_nsec - start);
+		}
+	}
+#endif
+	return rc;
+}
+
+static PLHashEntry *
+ancestors_cache_add(const void *key, void *value)
+{
+	PLHashEntry *e;
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	long int start;
+	struct timespec tsnow;
+#endif
+	cache_stat.total_add++;
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+		start = 0;
+        } else {
+		start = tsnow.tv_nsec;
+	}
+#endif
+
+	e = PL_HashTableAdd(group_ancestors_hashtable, key, value);
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	if (start) {
+		if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
+			cache_stat.cumul_duration_add += (tsnow.tv_nsec - start);
+		}
+	}
+#endif
+	return e;
+}
+
 /* memberof_fix_memberof_callback()
  * Add initial and/or fix up broken group list in entry
  *
@@ -2910,13 +3359,43 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
         /* Check if the entry has not already been fixed */
 	ndn = slapi_sdn_get_ndn(sdn);
 	if (ndn && fixup_entry_hashtable && PL_HashTableLookupConst(fixup_entry_hashtable, (void*) ndn)) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "Entry %s already fixed up\n", ndn);
+		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Entry %s already fixed up\n", ndn);
 		goto bail;
 	}
 
 	/* get a list of all of the groups this user belongs to */
 	groups = memberof_get_groups(config, sdn);
 
+	if(config->group_filter) {
+		if (slapi_filter_test_simple(e, config->group_filter)) {
+			const char *ndn;
+			memberof_cached_value *ht_grp;
+
+			/* This entry is not a group
+			 * if (likely) we cached its ancestor it is useless 
+			 * so free this memory
+			 */
+			ndn = slapi_sdn_get_ndn(sdn);
+#if MEMBEROF_CACHE_DEBUG
+			slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: This is NOT a group %s\n", ndn);
+#endif
+			ht_grp = ancestors_cache_lookup((const void *) ndn);
+			if (ht_grp) {
+				if (ancestors_cache_remove((const void *) ndn)) {
+					slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: free cached values for %s\n", ndn);
+					ancestor_hashtable_entry_free(ht_grp);
+					slapi_ch_free((void **) &ht_grp);
+				} else {
+					slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Fail to remove that leaf node %s\n", ndn);
+				}
+			} else {
+				/* This is quite unexpected, after a call to memberof_get_groups
+				 * ndn ancestors should be in the cache
+				 */
+				slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Weird, %s is not in the cache\n", ndn);
+			}
+		}
+	}
 	/* If we found some groups, replace the existing memberOf attribute
 	 * with the found values.  */
 	if (groups && slapi_valueset_count(groups))
@@ -2959,7 +3438,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	if (fixup_entry_hashtable) {
 		dn_copy = slapi_ch_strdup(ndn);
 		if (PL_HashTableAdd(fixup_entry_hashtable, dn_copy, dn_copy) == NULL) {
-			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: "
+			slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: "
 				"failed to add dn (%s) in the fixup hashtable; NSPR error - %d\n",
 				dn_copy, PR_GetError());
 			slapi_ch_free((void **) &dn_copy);
@@ -3134,3 +3613,72 @@ static void fixup_hashtable_empty(char *msg)
 		PL_HashTableEnumerateEntries(fixup_entry_hashtable, fixup_hashtable_remove, msg);
 	}
 }
+
+
+/* allocates the plugin hashtable
+ * This hash table is used by operation and is protected from
+ * concurrent operations with the memberof_lock (if not usetxn, memberof_lock
+ * is not implemented and the hash table will be not used.
+ *
+ * The hash table contains all the DN of the entries for which the memberof
+ * attribute has been computed/updated during the current operation
+ *
+ * hash table should be empty at the beginning and end of the plugin callback
+ */
+
+static
+void ancestor_hashtable_entry_free(memberof_cached_value *entry)
+{
+	int i;
+	for (i = 0; entry[i].valid; i++) {
+		slapi_ch_free((void **) &entry[i].group_dn_val);
+		slapi_ch_free((void **) &entry[i].group_ndn_val);
+	}
+	/* Here we are at the ending element containing the key */
+	slapi_ch_free((void**) &entry[i].key);
+}
+/* this function called for each hash node during hash destruction */
+static PRIntn ancestor_hashtable_remove(PLHashEntry *he, PRIntn index, void *arg)
+{
+	memberof_cached_value *group_ancestor_array;
+
+	if (he == NULL)
+		return HT_ENUMERATE_NEXT;
+
+
+	group_ancestor_array = (memberof_cached_value *) he->value;
+	ancestor_hashtable_entry_free(group_ancestor_array);
+	slapi_ch_free((void **)&group_ancestor_array);
+
+	return HT_ENUMERATE_REMOVE;
+}
+
+static void ancestor_hashtable_empty(char *msg)
+{
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+	long int start;
+	struct timespec tsnow;
+#endif
+
+	if (group_ancestors_hashtable) {
+		cache_stat.total_enumerate++;
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+		if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+			start = 0;
+		} else {
+			start = tsnow.tv_nsec;
+		}
+#endif
+		PL_HashTableEnumerateEntries(group_ancestors_hashtable, ancestor_hashtable_remove, msg);
+
+#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+		if (start) {
+			if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
+				cache_stat.cumul_duration_enumerate += (tsnow.tv_nsec - start);
+			}
+		}
+#endif
+	}
+
+}
+
