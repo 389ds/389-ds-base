@@ -111,6 +111,13 @@ class Paths(object):
         self._instance = instance
 
     def _get_defaults_loc(self, search_paths):
+        prefix = os.getenv('PREFIX')
+        if prefix is not None:
+            spath = os.path.join(prefix, 'share/dirsrv/inf/defaults.inf')
+            if os.path.isfile(spath):
+                return spath
+            else:
+                raise IOError('defaults.inf not found in prefixed location %s' % spath)
         for spath in search_paths:
             if os.path.isfile(spath):
                 return spath
