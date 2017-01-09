@@ -420,7 +420,11 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         /* Stop the user configuring a stupidly small cache */
         /* min: 8KB (page size) * def thrd cnts (threadnumber==20). */
 #define DBDEFMINSIZ     500000
-        if (val < DBDEFMINSIZ) {
+        /* We allow a value of 0, because the autotuting in start.c will
+         * register that, and trigger the recalculation of the dbcachesize as
+         * needed on the next start up.
+         */
+        if (val < DBDEFMINSIZ && val > 0) {
             slapi_log_err(SLAPI_LOG_NOTICE,"ldbm_config_dbcachesize_set", "cache too small, increasing to %dK bytes\n",
                     DBDEFMINSIZ/1000);
             val = DBDEFMINSIZ;
@@ -435,14 +439,17 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         }
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbcachesize = val;
-            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_dbcachesize_set",
-            	"New db cache size will not take affect until the server is restarted\n");
+            if (val == 0) {
+                slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_dbcachesize_set", "cache size reset to 0, will be autosized on next startup.\n");
+            } else {
+                slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_dbcachesize_set", "New db cache size will not take affect until the server is restarted\n");
+            }
         } else {
             li->li_new_dbcachesize = val;
             li->li_dbcachesize = val;
         }
     }
-    
+
     return retval;
 }
 
@@ -1501,7 +1508,7 @@ static config_info ldbm_config[] = {
     {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE|CONFIG_FLAG_SKIP_DEFAULT_SETTING},
-    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, DEFAULT_DBCACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, DEFAULT_CACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBNCACHE, CONFIG_TYPE_INT, "0", &ldbm_config_dbncache_get, &ldbm_config_dbncache_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
     
@@ -1536,7 +1543,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_HOME_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_db_home_directory_get, &ldbm_config_db_home_directory_set, 0},
     {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "0", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, 0},
-    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "50", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, 0},
+    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "40", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, 0},
     {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "20000000", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_IDL_UPDATE, CONFIG_TYPE_ONOFF, "on", &ldbm_config_idl_get_update, &ldbm_config_idl_set_update, 0},
@@ -1616,7 +1623,7 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
     return rc;
 }
 
-/* Reads in any config information held in the dse for the ldbm plugin.  
+/* Reads in any config information held in the dse for the ldbm plugin.
  * Creates dse entries used to configure the ldbm plugin and dblayer
  * if they don't already exist.  Registers dse callback functions to
  * maintain those dse entries.  Returns 0 on success.

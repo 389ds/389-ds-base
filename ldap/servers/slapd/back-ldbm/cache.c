@@ -21,8 +21,6 @@
 /* #define CACHE_DEBUG * causes slowdown */
 #endif
 
-/* cache can't get any smaller than this (in bytes) */
-#define MINCACHESIZE       (size_t)512000
 
 /* don't let hash be smaller than this # of slots */
 #define MINHASHSIZE       1024
@@ -657,10 +655,13 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
     struct backentry *eflushtemp = NULL;
 
     if (bytes < MINCACHESIZE) {
-       bytes = MINCACHESIZE;
-       slapi_log_err(SLAPI_LOG_WARNING,
-                "entrycache_set_max_size", "Minimum cache size is %lu -- rounding up\n",
-                MINCACHESIZE);
+        /* During startup, this value can be 0 to indicate an autotune is about
+         * to happen. In that case, suppress this warning.
+         */
+        if (bytes > 0) {
+            slapi_log_err(SLAPI_LOG_WARNING, "entrycache_set_max_size", "Minimum cache size is %lu -- rounding up\n", MINCACHESIZE);
+        }
+        bytes = MINCACHESIZE;
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;

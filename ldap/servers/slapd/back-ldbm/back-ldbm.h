@@ -160,8 +160,11 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION_31          "Netscape-ldbm/3.1"
 #define LDBM_FILENAME_SUFFIX     LDBM_SUFFIX
 #define    DBVERSION_FILENAME    "DBVERSION"
-#define DEFAULT_CACHE_SIZE       (size_t)33554432
-#define DEFAULT_CACHE_SIZE_STR   "33554432"
+/* 0 here means to let the autotuning reset the value on first run */
+/* cache can't get any smaller than this (in bytes) */
+#define MINCACHESIZE             (size_t)512000
+#define DEFAULT_CACHE_SIZE       (size_t)0
+#define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1        /* no limit */
 #define DEFAULT_DNCACHE_SIZE     (size_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
