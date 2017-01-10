@@ -25,9 +25,11 @@ def test_ticket48665(topology_st):
                                         modlist)
     except:
         pass
+
     # Check the server has not commited seppuku.
-    result = topology_st.standalone.whoami_s()
-    assert (DN_DM.lower() in result.lower())
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)')
+    assert len(entries) > 0
+    log.info('{} entries are returned from the server.'.format(len(entries)))
 
     # This has a magic hack to determine if we are in cn=config.
     try:
@@ -37,17 +39,20 @@ def test_ticket48665(topology_st):
         log.fatal('Failed to change nsslapd-cachememsize ' + e.message['desc'])
 
     # Check the server has not commited seppuku.
-    result = topology_st.standalone.whoami_s()
-    assert (DN_DM.lower() in result.lower())
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)')
+    assert len(entries) > 0
+    log.info('{} entries are returned from the server.'.format(len(entries)))
 
     # Now try with mod_replace. This should be okay.
 
     modlist = [(ldap.MOD_REPLACE, 'nsslapd-cachememsize', '1')]
     topology_st.standalone.modify_s("cn=%s,cn=ldbm database,cn=plugins,cn=config" % DEFAULT_BENAME,
                                     modlist)
+
     # Check the server has not commited seppuku.
-    result = topology_st.standalone.whoami_s()
-    assert (DN_DM.lower() in result.lower())
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)')
+    assert len(entries) > 0
+    log.info('{} entries are returned from the server.'.format(len(entries)))
 
     log.info('Test complete')
 
