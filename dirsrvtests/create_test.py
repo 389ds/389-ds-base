@@ -185,7 +185,8 @@ if len(sys.argv) > 0:
     # Extract usable values
     ticket = args.ticket
     suite = args.suite
-    if not args.inst and not args.masters and not args.hubs and not args.consumers:
+    if args.inst == '0' and args.masters == '0' and args.hubs == '0' \
+       and args.consumers == '0':
         instances = 1
         my_topology = [True, 'topology_st']
     else:
@@ -656,20 +657,10 @@ if len(sys.argv) > 0:
     # Write the test function
     if ticket:
         TEST.write('def test_ticket{}({}):\n'.format(ticket, my_topology[1]))
-        if repl_deployment:
-            TEST.write('    """Write your replication test here.\n\n')
-            TEST.write('    To access each DirSrv instance use:  ' +
-                       'topology.master1, topology.master2,\n' +
-                       '        ..., topology.hub1, ..., topology.consumer1' +
-                       ',...\n\n')
-            TEST.write('    Also, if you need any testcase initialization,\n')
-            TEST.write('    please, write additional fixture for that' +
-                       '(including finalizer).\n')
-        else:
-            TEST.write('    """Write your testcase here...\n\n')
-            TEST.write('    Also, if you need any testcase initialization,\n')
-            TEST.write('    please, write additional fixture for that' +
-                       '(include finalizer).\n')
+        TEST.write('    """Write your testcase here...\n\n')
+        TEST.write('    Also, if you need any testcase initialization,\n')
+        TEST.write('    please, write additional fixture for that' +
+                   '(include finalizer).\n')
         TEST.write('    """\n\n')
     else:
         TEST.write('def test_something({}):\n'.format(my_topology[1]))
