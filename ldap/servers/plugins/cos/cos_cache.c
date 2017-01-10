@@ -111,7 +111,9 @@ void * cos_get_plugin_identity(void);
 /* the global plugin handle */
 static volatile vattr_sp_handle *vattr_handle = NULL;
 
+/* both variables are protected by change_lock */
 static int cos_cache_notify_flag = 0;
+static PRBool cos_cache_at_work = PR_FALSE;
 
 /* service definition cache structs */
 
@@ -199,7 +201,8 @@ typedef struct _cos_cache cosCache;
 static cosCache *pCache; /* always the current global cache, only use getref to get */
 
 /* the place to start if you want a new cache */
-static int cos_cache_create(void);
+static int cos_cache_create_unlock(void);
+static int cos_cache_creation_lock(void);
 
 /* cache index related functions */
 static int cos_cache_index_all(cosCache *pCache);
@@ -386,7 +389,7 @@ static void cos_cache_wait_on_change(void *arg)
 	pCache = 0;
 
 	/* create initial cache */
-	cos_cache_create();
+	cos_cache_creation_lock();
 
         slapi_lock_mutex(start_lock);
         started = 1;
@@ -419,7 +422,7 @@ static void cos_cache_wait_on_change(void *arg)
 		 * before we go running off doing lots of stuff lets check if we should stop
 		*/
 		if(keeprunning) {
-			cos_cache_create();				
+			cos_cache_creation_lock();
 		}
 		cos_cache_notify_flag = 0; /* Dealt with it */
 	}/* while */
@@ -431,22 +434,25 @@ static void cos_cache_wait_on_change(void *arg)
 	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_wait_on_change thread exit\n");
 }
 
+
 /*
-	cos_cache_create
+	cos_cache_create_unlock
 	---------------------
 	Walks the definitions in the DIT and creates the cache.
 	Once created, it swaps the new cache for the old one,
 	releasing its refcount to the old cache and allowing it
 	to be destroyed.
+
+        called while change_lock is NOT held
 */
-static int cos_cache_create(void)
+static int cos_cache_create_unlock(void)
 {
 	int ret = -1;
 	cosCache *pNewCache;
 	static int firstTime = 1;
 	int cache_built = 0;
 
-	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_create\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_create_unlock\n");
 
 	pNewCache = (cosCache*)slapi_ch_malloc(sizeof(cosCache));
 	if(pNewCache)
@@ -509,21 +515,21 @@ static int cos_cache_create(void)
 				{
 					/* we should not go on without proper schema checking */
 					cos_cache_release(pNewCache);
-					slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - Failed to cache the schema\n");			
+					slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create_unlock - Failed to cache the schema\n");
 				}
 			}
 			else
 			{
 				/* currently we cannot go on without the indexes */
 				cos_cache_release(pNewCache);
-				slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - Failed to index cache\n");			
+				slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create_unlock - Failed to index cache\n");
 			}
 		}
 		else
 		{
 			if(firstTime)
 			{
-				slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - cos disabled\n");
+				slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_create_unlock - cos disabled\n");
 				firstTime = 0;
 			}
 
@@ -531,7 +537,7 @@ static int cos_cache_create(void)
 		}
 	}
 	else
-		slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - Memory allocation failure\n");
+		slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create_unlock - Memory allocation failure\n");
 
 
 	/* make sure we have a new cache */
@@ -563,10 +569,53 @@ static int cos_cache_create(void)
 		
 	}
 
-	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_create\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_create_unlock\n");
 	return ret;
 }
 
+/* cos_cache_creation_lock is called with change_lock being hold:
+ *    slapi_lock_mutex(change_lock)
+ *
+ * To rebuild the cache cos_cache_creation gets cos definitions from backend, that
+ * means change_lock is held then cos_cache_creation will acquire some backend pages.
+ *
+ * A deadlock can happen if cos_post_op is called while backend is locked. 
+ * For example if a bepreop (urp) does an internal update on a cos definition,
+ * the thread holds backend pages that will be needed by cos_cache_creation.
+ *
+ * A solution is to use a flag 'cos_cache_at_work' protected by change_lock,
+ * release change_lock, recreate the cos_cache, acquire change_lock reset the flag.
+ *
+ * returned value: result of cos_cache_create_unlock
+ *
+ */
+static int cos_cache_creation_lock(void)
+{
+	int ret = -1;
+	int max_tries = 10;
+
+	for (; max_tries != 0; max_tries--) {
+		/* if the cos_cache is already under work (cos_cache_create_unlock)
+		 * wait 1 second
+		 */
+		if (cos_cache_at_work) {
+			slapi_log_err(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_creation_lock already rebuilding cos_cache... retry\n");
+			DS_Sleep (PR_MillisecondsToInterval(1000));
+			continue;
+		}
+		cos_cache_at_work = PR_TRUE;
+		slapi_unlock_mutex(change_lock);
+		ret = cos_cache_create_unlock();
+		slapi_lock_mutex(change_lock);
+		cos_cache_at_work = PR_FALSE;
+		break;
+	}
+	if (!max_tries) {
+		slapi_log_err(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_creation_lock  rebuilt was to long, skip this rebuild\n");
+	}
+
+	return ret;
+}
 
 /*
 	cos_cache_build_definition_list
@@ -1648,7 +1697,7 @@ int cos_cache_getref(cos_cache **pptheCache)
 		slapi_lock_mutex(change_lock);
 		if(pCache == NULL)
 		{
-			if(cos_cache_create())
+			if(cos_cache_creation_lock())
 			{
 				/* there was a problem or no COS definitions were found */
 				slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_getref - No cos cache created\n");
