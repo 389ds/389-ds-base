@@ -2824,7 +2824,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     const char *dn = NULL;
     passwdPolicy *pwpolicy = NULL;
     long long shadowval = 0;
-    long long exptime = 0;
     Slapi_Mods *smods = NULL;
     LDAPMod **mods;
     long long sval;
@@ -2832,7 +2831,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     char *shmin = NULL;
     char *shmax = NULL;
     char *shwarn = NULL;
-    char *shexp = NULL;
     int rc = 0;
 
     if (!e || !*e) {
@@ -2882,7 +2880,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     /* shadowMax - the maximum number of days for which the user password remains valid. */
     if (pwpolicy->pw_maxage > 0) {
         shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
-        exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
         if (shadowval > _MAX_SHADOW) {
             shadowval = _MAX_SHADOW;
         }
@@ -2924,22 +2921,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         shwarn = slapi_ch_smprintf("%lld", shadowval);
     }
 
-    /* shadowExpire - the date on which the user login will be disabled. */
-    if (exptime) {
-        shexp = slapi_entry_attr_get_charptr(*e, "shadowExpire");
-        exptime /= _SEC_PER_DAY;
-        if (shexp) {
-            sval = strtoll(shexp, NULL, 0);
-            if (sval != exptime) {
-                slapi_ch_free_string(&shexp);
-                shexp = slapi_ch_smprintf("%lld", exptime);
-                mod_num++;
-            }
-        } else {
-            mod_num++;
-            shexp = slapi_ch_smprintf("%lld", exptime);
-        }
-    }
     smods = slapi_mods_new();
     slapi_mods_init(smods, mod_num);
     if (shmin) {
@@ -2954,10 +2935,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowWarning", strlen(shwarn), shwarn);
         slapi_ch_free_string(&shwarn);
     }
-    if (shexp) {
-        slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowExpire", strlen(shexp), shexp);
-        slapi_ch_free_string(&shexp);
-    }
     /* Apply the  mods to create the resulting entry. */
     mods = slapi_mods_get_ldapmods_byref(smods);
     if (mods) {
@@ -2968,10 +2945,14 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     }
     slapi_mods_free(&smods);
 
-#if 0 /* These 2 attributes are no need (or not able) to auto-fill. */
+#if 0 /* These 3 attributes are no need (or not able) to auto-fill. */
     /* 
      * shadowInactive - the number of days of inactivity allowed for the user.
      * Password Policy does not have the corresponding parameter.
+     * 
+     * shadowExpire - the number of days since Jan 1, 1970 after which the
+     * account, not the password, will expire.  This is not affected by the
+     * Password Policy.
      * 
      * shadowFlag - not currently in use.
      */
