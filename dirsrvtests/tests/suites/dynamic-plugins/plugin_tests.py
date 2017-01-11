@@ -1783,6 +1783,8 @@ def test_passthru(inst, args=None):
     args_instance[SER_CREATION_SUFFIX] = PASS_SUFFIX1
     args_passthru_inst = args_instance.copy()
     passthru_inst.allocate(args_passthru_inst)
+    if passthru_inst.exists():
+        passthru_inst.delete()
     passthru_inst.create()
     passthru_inst.open()
 

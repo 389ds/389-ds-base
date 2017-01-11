@@ -79,6 +79,10 @@ def test_ticket48272(topology_st):
     # Add a user
     _create_user(topology_st.standalone, USER1, USER1_DN)
 
+    if DEBUGGING is not False:
+        print("Attach now")
+        time.sleep(20)
+
     # Make sure our binds still work.
     assert (_bind(USER1_DN, PW))
     # Test an anonymous bind

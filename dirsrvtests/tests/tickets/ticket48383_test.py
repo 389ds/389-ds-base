@@ -66,15 +66,15 @@ def test_ticket48383(topology_st):
     # Given the formula, by default, this means DS will make the buffsize 400k
     # So an object with a 1MB attribute should break indexing
 
+    ldifpath = os.path.join(topology_st.standalone.get_ldif_dir(), "%s.ldif" % SERVERID_STANDALONE)
+
     # stop the server
     topology_st.standalone.stop(timeout=30)
     # Now export and import the DB. It's easier than db2index ...
     topology_st.standalone.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[],
-                                   encrypt=False, repl_data=True,
-                                   outputfile='{}/{}.ldif'.format(topology_st.standalone.ldifdir, SERVERID_STANDALONE))
+                                   encrypt=False, repl_data=True, outputfile=ldifpath)
 
-    result = topology_st.standalone.ldif2db(DEFAULT_BENAME, None, None, False,
-                                            '{}/{}.ldif'.format(topology_st.standalone.ldifdir, SERVERID_STANDALONE))
+    result = topology_st.standalone.ldif2db(DEFAULT_BENAME, None, None, False, ldifpath)
 
     assert (result)
 

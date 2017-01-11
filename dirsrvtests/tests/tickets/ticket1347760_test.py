@@ -420,8 +420,8 @@ def test_ticket1347760(topology_st):
     check_op_result(topology_st.standalone, 'delete', BOGUSDN, None, exists, rc)
 
     log.info('Inactivate %s' % BINDDN)
-    nsinactivate = '%s/sbin/ns-inactivate.pl' % topology_st.standalone.prefix
-    p = Popen([nsinactivate, '-Z', 'standalone', '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN])
+    nsinactivate = os.path.join(topology_st.standalone.get_sbin_dir(), 'ns-inactivate.pl')
+    p = Popen([nsinactivate, '-Z', topology_st.standalone.serverid, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN])
     assert (p.wait() == 0)
 
     log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, BUID, ldap.UNWILLING_TO_PERFORM.__name__))

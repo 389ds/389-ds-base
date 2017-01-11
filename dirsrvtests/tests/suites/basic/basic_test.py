@@ -8,6 +8,7 @@
 #
 from subprocess import check_output
 
+import time
 import ldap.sasl
 import pytest
 from lib389.tasks import *
@@ -659,6 +660,8 @@ def test_basic_dse(topology_st, import_example_ldif):
     log.info('dse.ldif was not corrupted, and the server was restarted')
 
     log.info('test_basic_dse: PASSED')
+    # Give the server time to startup, in some conditions this can be racey without systemd notification. Only affects this one test though...
+    time.sleep(10)
 
 
 @pytest.mark.parametrize("rootdse_attr_name", ROOTDSE_DEF_ATTR_LIST)

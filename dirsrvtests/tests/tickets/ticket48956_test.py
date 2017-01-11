@@ -27,21 +27,18 @@ log = logging.getLogger(__name__)
 
 
 def _check_status(topology_st, user, expected):
-    nsaccountstatus = '%s/sbin/ns-accountstatus.pl' % topology_st.standalone.prefix
-    proc = subprocess.Popen(
-        [nsaccountstatus, '-Z', 'standalone', '-D', DN_DM, '-w', PASSWORD, '-p', str(topology_st.standalone.port), '-I',
-         user], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    nsaccountstatus = os.path.join(topology_st.standalone.ds_paths.sbin_dir, "ns-accountstatus.pl")
 
-    found = False
-    while True:
-        l = proc.stdout.readline()
-        log.info("output: %s" % l)
-        if l == "":
-            break
-        if expected in l:
-            found = True
-            break
-    return found
+    try:
+        output = subprocess.check_output( [nsaccountstatus, '-Z', topology_st.standalone.serverid, '-D', DN_DM, '-w', PASSWORD, '-p', str(topology_st.standalone.port), '-I', user])
+    except subprocess.CalledProcessError as err:
+        output = err.output
+
+    log.info("output: %s" % output)
+
+    if expected in output:
+        return True
+    return False
 
 
 def _check_inactivity(topology_st, mysuffix):
