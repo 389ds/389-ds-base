@@ -567,7 +567,11 @@ static void op_shared_add (Slapi_PBlock *pb)
 				valuearray_add_valuearray(&unhashed_password_vals,
 				                          present_values, 0);
 				valuearray_add_valuearray(&vals, present_values, 0);
-				pw_encodevals_ext(pb, slapi_entry_get_sdn (e), vals);
+				if (pw_encodevals_ext(pb, slapi_entry_get_sdn (e), vals) != 0) {
+					slapi_log_err(SLAPI_LOG_CRIT, "op_shared_add", "Unable to hash userPassword attribute for %s.\n", slapi_entry_get_dn_const(e));
+					send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to store attribute \"userPassword\" correctly\n", 0, NULL);
+					goto done;
+				}
 				add_password_attrs(pb, operation, e);
 				slapi_entry_attr_replace_sv(e, SLAPI_USERPWD_ATTR, vals);
 				valuearray_free(&vals);
