@@ -2823,7 +2823,7 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
 {
     const char *dn = NULL;
     passwdPolicy *pwpolicy = NULL;
-    long long shadowval = 0;
+    long long shadowval = -1;
     Slapi_Mods *smods = NULL;
     LDAPMod **mods;
     long long sval;
@@ -2861,64 +2861,66 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         if (shadowval > _MAX_SHADOW) {
             shadowval = _MAX_SHADOW;
         }
-    } else {
-        shadowval = 0;
     }
-    shmin = slapi_entry_attr_get_charptr(*e, "shadowMin");
-    if (shmin) {
-        sval = strtoll(shmin, NULL, 0);
-        if (sval != shadowval) {
-            slapi_ch_free_string(&shmin);
-            shmin = slapi_ch_smprintf("%lld", shadowval);
+    if (shadowval > 0) {
+        shmin = slapi_entry_attr_get_charptr(*e, "shadowMin");
+        if (shmin) {
+            sval = strtoll(shmin, NULL, 0);
+            if (sval != shadowval) {
+                slapi_ch_free_string(&shmin);
+                shmin = slapi_ch_smprintf("%lld", shadowval);
+                mod_num++;
+            }
+        } else {
             mod_num++;
+            shmin = slapi_ch_smprintf("%lld", shadowval);
         }
-    } else {
-        mod_num++;
-        shmin = slapi_ch_smprintf("%lld", shadowval);
     }
 
     /* shadowMax - the maximum number of days for which the user password remains valid. */
-    if (pwpolicy->pw_maxage > 0) {
+    shadowval = -1;
+    if (pwpolicy->pw_exp == 1 && pwpolicy->pw_maxage > 0) {
         shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
         if (shadowval > _MAX_SHADOW) {
             shadowval = _MAX_SHADOW;
         }
-    } else {
-        shadowval = _MAX_SHADOW;
     }
-    shmax = slapi_entry_attr_get_charptr(*e, "shadowMax");
-    if (shmax) {
-        sval = strtoll(shmax, NULL, 0);
-        if (sval != shadowval) {
-            slapi_ch_free_string(&shmax);
-            shmax = slapi_ch_smprintf("%lld", shadowval);
+    if (shadowval > 0) {
+        shmax = slapi_entry_attr_get_charptr(*e, "shadowMax");
+        if (shmax) {
+            sval = strtoll(shmax, NULL, 0);
+            if (sval != shadowval) {
+                slapi_ch_free_string(&shmax);
+                shmax = slapi_ch_smprintf("%lld", shadowval);
+                mod_num++;
+            }
+        } else {
             mod_num++;
+            shmax = slapi_ch_smprintf("%lld", shadowval);
         }
-    } else {
-        mod_num++;
-        shmax = slapi_ch_smprintf("%lld", shadowval);
     }
 
     /* shadowWarning - the number of days of advance warning given to the user before the user password expires. */
-    if (pwpolicy->pw_warning > 0) {
+    shadowval = -1;
+    if (pwpolicy->pw_exp == 1 && pwpolicy->pw_warning > 0) {
         shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
         if (shadowval > _MAX_SHADOW) {
             shadowval = _MAX_SHADOW;
         }
-    } else {
-        shadowval = 0;
     }
-    shwarn = slapi_entry_attr_get_charptr(*e, "shadowWarning");
-    if (shwarn) {
-        sval = strtoll(shwarn, NULL, 0);
-        if (sval != shadowval) {
-            slapi_ch_free_string(&shwarn);
-            shwarn = slapi_ch_smprintf("%lld", shadowval);
+    if (shadowval > 0) {
+        shwarn = slapi_entry_attr_get_charptr(*e, "shadowWarning");
+        if (shwarn) {
+            sval = strtoll(shwarn, NULL, 0);
+            if (sval != shadowval) {
+                slapi_ch_free_string(&shwarn);
+                shwarn = slapi_ch_smprintf("%lld", shadowval);
+                mod_num++;
+            }
+        } else {
             mod_num++;
+            shwarn = slapi_ch_smprintf("%lld", shadowval);
         }
-    } else {
-        mod_num++;
-        shwarn = slapi_ch_smprintf("%lld", shadowval);
     }
 
     smods = slapi_mods_new();
