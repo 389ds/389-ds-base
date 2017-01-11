@@ -54,6 +54,13 @@ def set_global_pwpolicy(topology_st, min_=1, max_=10, warn=3):
         log.error('Failed to set passwordMinAge: error ' + e.message['desc'])
         assert False
 
+    log.info("		Set global password Expiration -- on\n")
+    try:
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordExp', 'on')])
+    except ldap.LDAPError as e:
+        log.error('Failed to set passwordExp: error ' + e.message['desc'])
+        assert False
+
     log.info("		Set global password Max Age -- %s days\n" % max_)
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordMaxAge', '%s' % max_secs)])
