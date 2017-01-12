@@ -85,7 +85,9 @@ DIRSRV_STATE_OFFLINE = 3
 DIRSRV_STATE_RUNNING = 4
 DIRSRV_STATE_ONLINE = 5
 
-LOCALHOST = "localhost.localdomain"
+# So uh  .... localhost.localdomain doesn't always exist. Stop. Using. It.
+# LOCALHOST = "localhost.localdomain"
+LOCALHOST = "localhost"
 LOCALHOST_SHORT = "localhost"
 DEFAULT_PORT = 389
 DEFAULT_SECURE_PORT = 636

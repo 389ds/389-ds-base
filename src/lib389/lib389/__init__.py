@@ -1149,7 +1149,6 @@ class DirSrv(SimpleLDAPObject, object):
                 count -= 1
             if not pid_exists(pid):
                 raise Exception("Failed to start DS")
-
         self.open()
 
     def stop(self, timeout=120):
@@ -2532,7 +2531,7 @@ class DirSrv(SimpleLDAPObject, object):
         @return - True if import succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = os.path.join(self.ds_paths.sbin_dir, LDIF2DB)
+        prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if not bename and not suffixes:
             log.error("ldif2db: backend name or suffix missing")
@@ -2543,7 +2542,7 @@ class DirSrv(SimpleLDAPObject, object):
                 log.error("ldif2db: Can't find file: %s" % ldif)
                 return False
 
-        cmd = '%s -Z %s' % (prog, self.serverid)
+        cmd = '%s ldif2db -D %s' % (prog, self.get_config_dir())
         if bename:
             cmd = cmd + ' -n ' + bename
         if suffixes:
@@ -2581,13 +2580,15 @@ class DirSrv(SimpleLDAPObject, object):
         @return - True if export succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = os.path.join(self.ds_paths.sbin_dir, DB2LDIF)
+        prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if not bename and not suffixes:
             log.error("db2ldif: backend name or suffix missing")
             return False
 
-        cmd = '%s -Z %s' % (prog, self.serverid)
+        # The shell wrapper is not always reliable, so bypass it. We want to
+        # kill it off anyway!
+        cmd = '%s db2ldif -D %s' % (prog, self.get_config_dir())
         if bename:
             cmd = cmd + ' -n ' + bename
         if suffixes:
@@ -2598,10 +2599,10 @@ class DirSrv(SimpleLDAPObject, object):
                 cmd = cmd + ' -x ' + excludeSuffix
         if encrypt:
             cmd = cmd + ' -E'
-        if outputfile:
-            cmd = cmd + ' -a ' + outputfile
         if repl_data:
             cmd = cmd + ' -r'
+        if outputfile:
+            cmd = cmd + ' -a ' + outputfile
 
         self.stop(timeout=10)
         log.info('Running script: %s' % cmd)
@@ -2611,7 +2612,8 @@ class DirSrv(SimpleLDAPObject, object):
         except:
             log.error("db2ldif: error executing %s" % cmd)
             result = False
-        self.start(timeout=10)
+        # Why are we implicitly starting this?!
+        # self.start(timeout=10)
 
         return result
 
