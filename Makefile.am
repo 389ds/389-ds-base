@@ -1182,7 +1182,7 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
 libacl_plugin_la_LIBADD = libslapd.la libns-dshttpd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
-libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
+# libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
 
 #------------------------
 # libaddn-plugin
@@ -1276,7 +1276,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
 libcollation_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@
 libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
-libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
+# libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
 
 #------------------------
 # libcos-plugin
