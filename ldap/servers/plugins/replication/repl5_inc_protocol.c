@@ -1709,13 +1709,14 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				"%s: Data required to update replica has been purged. "
 				"The replica must be reinitialized.\n",
 				agmt_get_long_name(prp->agmt));
-			return_value = UPDATE_FATAL_ERROR;
+			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_MISSING_DATA:   /* data should be in the changelog, but is missing */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Missing data encountered\n",
+				"send_updates - %s: Missing data encountered. "
+				"If the error persists the replica must be reinitialized.\n",
 				agmt_get_long_name(prp->agmt));
-			return_value = UPDATE_FATAL_ERROR;
+			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_UNKNOWN_ERROR:   /* unclassified error */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,

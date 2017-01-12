@@ -175,6 +175,7 @@ extern const char *type_nsds5ReplicaCleanRUVnotified;
 extern const char *type_nsds5ReplicaFlowControlWindow;
 extern const char *type_nsds5ReplicaFlowControlPause;
 extern const char *type_replicaReleaseTimeout;
+extern const char *type_replicaIgnoreMissingChange;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -321,6 +322,7 @@ long agmt_get_busywaittime(const Repl_Agmt *ra);
 long agmt_get_pausetime(const Repl_Agmt *ra);
 long agmt_get_flowcontrolwindow(const Repl_Agmt *ra);
 long agmt_get_flowcontrolpause(const Repl_Agmt *ra);
+long agmt_get_ignoremissing(const Repl_Agmt *ra);
 int agmt_start(Repl_Agmt *ra);
 int windows_agmt_start(Repl_Agmt *ra); 
 int agmt_stop(Repl_Agmt *ra);
@@ -343,6 +345,7 @@ int agmt_set_schedule_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_timeout_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_flowcontrolwindow_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_flowcontrolpause_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
+int agmt_set_ignoremissing_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_busywaittime_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_pausetime_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_credentials_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
@@ -388,6 +391,7 @@ int agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext)
 char **agmt_get_attrs_to_strip(Repl_Agmt *ra);
 int agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e);
 int agmt_set_timeout(Repl_Agmt *ra, long timeout);
+int agmt_set_ignoremissing(Repl_Agmt *ra, long ignoremissing);
 void agmt_update_done(Repl_Agmt *ra, int is_total);
 
 typedef struct replica Replica;

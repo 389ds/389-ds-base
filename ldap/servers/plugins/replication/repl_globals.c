@@ -135,6 +135,7 @@ const char *type_nsds5ReplicaCleanRUVnotified = "nsds5ReplicaCleanRUVNotified";
 const char* type_nsds5ReplicaFlowControlWindow = "nsds5ReplicaFlowControlWindow";
 const char* type_nsds5ReplicaFlowControlPause = "nsds5ReplicaFlowControlPause";
 
+const char* type_replicaIgnoreMissingChange = "nsds5ReplicaIgnoreMissingChange";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
