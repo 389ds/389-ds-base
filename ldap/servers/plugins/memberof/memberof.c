@@ -2282,9 +2282,10 @@ void memberof_fixup_task_thread(void *arg)
 {
 	MemberOfConfig configCopy = {0, 0, 0, 0};
 	Slapi_Task *task = (Slapi_Task *)arg;
+	Slapi_DN *sdn;
+	Slapi_Backend *be;
 	task_data *td = NULL;
 	int rc = 0;
-
 
 	if (!task) {
 		return; /* no task */
@@ -2301,6 +2302,20 @@ void memberof_fixup_task_thread(void *arg)
 	                      td->filter_str);
 	slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 	                "Memberof task starts (filter: \"%s\") ...\n", td->filter_str);
+
+	/* Validate the search base */
+	sdn = slapi_sdn_new_dn_byref(td->dn);
+	be = slapi_be_select_exact(sdn);
+	slapi_sdn_free(&sdn);
+	if (be == NULL) {
+		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_fixup_task_thread - Failed to get be backend from (%s)\n",
+			td->dn);
+		slapi_task_log_notice(task, "Memberof task - Failed to get be backend from (%s)\n",
+			td->dn);
+		rc = -1;
+		goto done;
+	}
 
 	/* We need to get the config lock first.  Trying to get the
 	 * config lock after we already hold the op lock can cause
@@ -2324,6 +2339,7 @@ void memberof_fixup_task_thread(void *arg)
 
 	memberof_free_config(&configCopy);
 
+done:
 	slapi_task_log_notice(task, "Memberof task finished.");
 	slapi_task_log_status(task, "Memberof task finished.");
 	slapi_task_inc_progress(task);
