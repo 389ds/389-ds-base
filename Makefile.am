@@ -1140,6 +1140,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/vlv_srch.c
 
 libback_ldbm_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@
+libback_ldbm_la_DEPENDENCIES = libslapd.la
 libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version
 
@@ -1153,6 +1154,7 @@ libacctpolicy_plugin_la_SOURCES = ldap/servers/plugins/acctpolicy/acct_config.c 
 
 libacctpolicy_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libacctpolicy_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libacctpolicy_plugin_la_DEPENDENCIES = libslapd.la
 libacctpolicy_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1162,6 +1164,7 @@ libacctusability_plugin_la_SOURCES = ldap/servers/plugins/acct_usability/acct_us
 
 libacctusability_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libacctusability_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libacctusability_plugin_la_DEPENDENCIES = libslapd.la
 libacctusability_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1180,6 +1183,7 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 	ldap/servers/plugins/acl/aclutil.c
 
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
+libacl_plugin_la_DEPENDENCIES = libslapd.la libns-dshttpd.la
 libacl_plugin_la_LIBADD = libslapd.la libns-dshttpd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
 # libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
@@ -1191,6 +1195,7 @@ libaddn_plugin_la_SOURCES = ldap/servers/plugins/addn/addn.c
 
 libaddn_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libaddn_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libaddn_plugin_la_DEPENDENCIES = libslapd.la
 libaddn_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1201,6 +1206,7 @@ librootdn_access_plugin_la_SOURCES = ldap/servers/plugins/rootdn_access/rootdn_a
 
 librootdn_access_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 librootdn_access_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+librootdn_access_plugin_la_DEPENDENCIES = libslapd.la
 librootdn_access_plugin_la_LDFLAGS = -avoid-version
 
 
@@ -1211,6 +1217,7 @@ libautomember_plugin_la_SOURCES = ldap/servers/plugins/automember/automember.c
 
 libautomember_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libautomember_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libautomember_plugin_la_DEPENDENCIES = libslapd.la
 libautomember_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1222,6 +1229,7 @@ libattr_unique_plugin_la_SOURCES = ldap/servers/plugins/uiduniq/7bit.c \
 
 libattr_unique_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libattr_unique_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libattr_unique_plugin_la_DEPENDENCIES = libslapd.la
 libattr_unique_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1231,6 +1239,7 @@ libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
 
 libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libbitwise_plugin_la_LIBADD = libslapd.la
+libbitwise_plugin_la_DEPENDENCIES = libslapd.la
 libbitwise_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1264,6 +1273,7 @@ libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
 
 libchainingdb_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libchainingdb_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libchainingdb_plugin_la_DEPENDENCIES = libslapd.la
 libchainingdb_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1275,6 +1285,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
 
 libcollation_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@
 libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
+libcollation_plugin_la_DEPENDENCIES = libslapd.la
 libcollation_plugin_la_LDFLAGS = -avoid-version
 # libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
 
@@ -1286,6 +1297,7 @@ libcos_plugin_la_SOURCES = ldap/servers/plugins/cos/cos.c \
 
 libcos_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libcos_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libcos_plugin_la_DEPENDENCIES = libslapd.la
 libcos_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1295,6 +1307,7 @@ libderef_plugin_la_SOURCES = ldap/servers/plugins/deref/deref.c
 
 libderef_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libderef_plugin_la_DEPENDENCIES = libslapd.la
 libderef_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1305,6 +1318,7 @@ libpbe_plugin_la_SOURCES = ldap/servers/plugins/rever/pbe.c \
 
 libpbe_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
 libpbe_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
+libpbe_plugin_la_DEPENDENCIES = libslapd.la
 libpbe_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1314,6 +1328,7 @@ libdistrib_plugin_la_SOURCES = ldap/servers/plugins/distrib/distrib.c
 
 libdistrib_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libdistrib_plugin_la_LIBADD = libslapd.la
+libdistrib_plugin_la_DEPENDENCIES = libslapd.la
 libdistrib_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1323,6 +1338,7 @@ libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
 
 libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libdna_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libdna_plugin_la_DEPENDENCIES = libslapd.la
 libdna_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1333,6 +1349,7 @@ libhttp_client_plugin_la_SOURCES = ldap/servers/plugins/http/http_client.c \
 
 libhttp_client_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libhttp_client_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK)
+libhttp_client_plugin_la_DEPENDENCIES = libslapd.la
 libhttp_client_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1343,6 +1360,7 @@ liblinkedattrs_plugin_la_SOURCES = ldap/servers/plugins/linkedattrs/fixup_task.c
 
 liblinkedattrs_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 liblinkedattrs_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+liblinkedattrs_plugin_la_DEPENDENCIES = libslapd.la
 liblinkedattrs_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1352,6 +1370,7 @@ libmanagedentries_plugin_la_SOURCES = ldap/servers/plugins/mep/mep.c
 
 libmanagedentries_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libmanagedentries_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libmanagedentries_plugin_la_DEPENDENCIES = libslapd.la
 libmanagedentries_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1362,6 +1381,7 @@ libmemberof_plugin_la_SOURCES= ldap/servers/plugins/memberof/memberof.c \
 
 libmemberof_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libmemberof_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libmemberof_plugin_la_DEPENDENCIES = libslapd.la
 libmemberof_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1374,6 +1394,7 @@ libpam_passthru_plugin_la_SOURCES = ldap/servers/plugins/pam_passthru/pam_ptconf
 
 libpam_passthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpam_passthru_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(PAM_LINK)
+libpam_passthru_plugin_la_DEPENDENCIES = libslapd.la
 libpam_passthru_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1388,6 +1409,7 @@ libpassthru_plugin_la_SOURCES = ldap/servers/plugins/passthru/ptbind.c \
 
 libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpassthru_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libpassthru_plugin_la_DEPENDENCIES = libslapd.la
 libpassthru_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1401,6 +1423,7 @@ libposix_winsync_plugin_la_SOURCES = ldap/servers/plugins/posix-winsync/posix-wi
 libposix_winsync_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) -DWINSYNC_TEST_POSIX \
 	-I$(srcdir)/ldap/servers/plugins/replication
 libposix_winsync_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libposix_winsync_plugin_la_DEPENDENCIES = libslapd.la
 libposix_winsync_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1410,6 +1433,7 @@ libpresence_plugin_la_SOURCES = ldap/servers/plugins/presence/presence.c
 
 libpresence_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/http $(PLUGIN_CPPFLAGS)
 libpresence_plugin_la_LIBADD = libslapd.la
+libpresence_plugin_la_DEPENDENCIES = libslapd.la
 libpresence_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1429,6 +1453,7 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 
 libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpwdstorage_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
+libpwdstorage_plugin_la_DEPENDENCIES = libslapd.la
 libpwdstorage_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1441,6 +1466,7 @@ libcontentsync_plugin_la_SOURCES = ldap/servers/plugins/sync/sync_init.c \
 
 libcontentsync_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libcontentsync_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
+libcontentsync_plugin_la_DEPENDENCIES = libslapd.la
 libcontentsync_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1450,6 +1476,7 @@ libreferint_plugin_la_SOURCES = ldap/servers/plugins/referint/referint.c
 
 libreferint_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libreferint_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libreferint_plugin_la_DEPENDENCIES = libslapd.la
 libreferint_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1514,6 +1541,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 
 libreplication_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@ @db_inc@
 libreplication_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LINK) $(DB_LINK)
+libreplication_plugin_la_DEPENDENCIES = libslapd.la
 libreplication_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1528,6 +1556,7 @@ libretrocl_plugin_la_SOURCES = ldap/servers/plugins/retrocl/retrocl.c \
 
 libretrocl_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libretrocl_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libretrocl_plugin_la_DEPENDENCIES = libslapd.la
 libretrocl_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1538,6 +1567,7 @@ libroles_plugin_la_SOURCES = ldap/servers/plugins/roles/roles_cache.c \
 
 libroles_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libroles_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libroles_plugin_la_DEPENDENCIES = libslapd.la
 libroles_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1547,6 +1577,7 @@ libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_re
 
 libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libschemareload_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libschemareload_plugin_la_DEPENDENCIES = libslapd.la
 libschemareload_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1556,6 +1587,7 @@ libstatechange_plugin_la_SOURCES = ldap/servers/plugins/statechange/statechange.
 
 libstatechange_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libstatechange_plugin_la_LIBADD = libslapd.la
+libstatechange_plugin_la_DEPENDENCIES = libslapd.la
 libstatechange_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1586,6 +1618,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 
 libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libsyntax_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libsyntax_plugin_la_DEPENDENCIES = libslapd.la
 libsyntax_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1596,6 +1629,7 @@ libusn_plugin_la_SOURCES = ldap/servers/plugins/usn/usn.c \
 
 libusn_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libusn_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libusn_plugin_la_DEPENDENCIES = libslapd.la
 libusn_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1605,6 +1639,7 @@ libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libviews_plugin_la_DEPENDENCIES = libslapd.la
 libviews_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1614,6 +1649,7 @@ libwhoami_plugin_la_SOURCES = ldap/servers/plugins/whoami/whoami.c
 
 libwhoami_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libwhoami_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libwhoami_plugin_la_DEPENDENCIES = libslapd.la
 libwhoami_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1698,6 +1734,7 @@ migratecred_bin_SOURCES = ldap/servers/slapd/tools/migratecred.c
 
 migratecred_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+migratecred_bin_DEPENDENCIES = libslapd.la
 
 #------------------------
 # mmldif
@@ -1706,6 +1743,7 @@ mmldif_bin_SOURCES = ldap/servers/slapd/tools/mmldif.c
 
 mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
+mmldif_bin_DEPENDENCIES = libslapd.la
 
 #------------------------
 # ns-slapd
@@ -1759,6 +1797,7 @@ ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_
 	@nspr_inc@ @svrcore_inc@ @systemd_inc@
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK)
+ns_slapd_DEPENDENCIES = libslapd.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
 if HPUX
@@ -1774,6 +1813,7 @@ pwdhash_bin_SOURCES = ldap/servers/slapd/tools/pwenc.c
 
 pwdhash_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 pwdhash_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+pwdhash_bin_DEPENDENCIES = libslapd.la
 
 #------------------------
 # rsearch
