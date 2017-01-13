@@ -249,6 +249,7 @@ for i in range(port_start, port_start + number_of_instances):
     exec("PORT_STANDALONE{0} = {1}".format(N, i))
     exec("SECUREPORT_STANDALONE{0} = {1}".format(N, i + 24700))
     exec("SERVERID_STANDALONE{0} = {1}".format(N, "\"standalone_{0}\"".format(N)))
+    exec("REPLICAID_STANDALONE_{0} = {1}".format(N, 65535))
 
 # For compatibility
 HOST_STANDALONE = HOST_STANDALONE1

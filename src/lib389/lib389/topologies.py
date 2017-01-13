@@ -6,11 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
+import logging
 import sys
 import time
-import logging
+
 import pytest
+
 from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
@@ -24,10 +25,13 @@ log = logging.getLogger(__name__)
 
 
 class TopologyMain(object):
-    def __init__(self, standalone=None, masters=None,
+    def __init__(self, standalones=None, masters=None,
                  consumers=None, hubs=None):
-        if standalone:
-            self.standalone = standalone
+        if standalones:
+            if isinstance(standalones, dict):
+                self.ins = standalones
+            else:
+                self.standalone = standalones
         if masters:
             self.ms = masters
         if consumers:
@@ -44,9 +48,9 @@ def topology_st(request):
         standalone = DirSrv(verbose=True)
     else:
         standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
+    args_instance[SER_HOST] = HOST_STANDALONE1
+    args_instance[SER_PORT] = PORT_STANDALONE1
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE1
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
     args_standalone = args_instance.copy()
     standalone.allocate(args_standalone)
@@ -64,7 +68,125 @@ def topology_st(request):
 
     request.addfinalizer(fin)
 
-    return TopologyMain(standalone=standalone)
+    return TopologyMain(standalones=standalone)
+
+
+@pytest.fixture(scope="module")
+def topology_i2(request):
+    """Create two instance DS deployment"""
+
+    if DEBUGGING:
+        standalone1 = DirSrv(verbose=True)
+    else:
+        standalone1 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_STANDALONE1
+    args_instance[SER_PORT] = PORT_STANDALONE1
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE1
+    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+    args_standalone1 = args_instance.copy()
+    standalone1.allocate(args_standalone1)
+    instance_standalone1 = standalone1.exists()
+    if instance_standalone1:
+        standalone1.delete()
+    standalone1.create()
+    standalone1.open()
+
+    if DEBUGGING:
+        standalone2 = DirSrv(verbose=True)
+    else:
+        standalone2 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_STANDALONE2
+    args_instance[SER_PORT] = PORT_STANDALONE2
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE2
+    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+    args_standalone2 = args_instance.copy()
+    standalone2.allocate(args_standalone2)
+    instance_standalone2 = standalone2.exists()
+    if instance_standalone2:
+        standalone2.delete()
+    standalone2.create()
+    standalone2.open()
+
+    def fin():
+        if DEBUGGING:
+            standalone1.stop()
+            standalone2.stop()
+        else:
+            standalone1.delete()
+            standalone2.delete()
+
+    request.addfinalizer(fin)
+
+    return TopologyMain(standalones={"standalone1": standalone1, "standalone2": standalone2})
+
+
+@pytest.fixture(scope="module")
+def topology_i3(request):
+    """Create three instance DS deployment"""
+
+    if DEBUGGING:
+        standalone1 = DirSrv(verbose=True)
+    else:
+        standalone1 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_STANDALONE1
+    args_instance[SER_PORT] = PORT_STANDALONE1
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE1
+    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+    args_standalone1 = args_instance.copy()
+    standalone1.allocate(args_standalone1)
+    instance_standalone1 = standalone1.exists()
+    if instance_standalone1:
+        standalone1.delete()
+    standalone1.create()
+    standalone1.open()
+
+    if DEBUGGING:
+        standalone2 = DirSrv(verbose=True)
+    else:
+        standalone2 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_STANDALONE2
+    args_instance[SER_PORT] = PORT_STANDALONE2
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE2
+    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+    args_standalone2 = args_instance.copy()
+    standalone2.allocate(args_standalone2)
+    instance_standalone2 = standalone2.exists()
+    if instance_standalone2:
+        standalone2.delete()
+    standalone2.create()
+    standalone2.open()
+
+    if DEBUGGING:
+        standalone3 = DirSrv(verbose=True)
+    else:
+        standalone3 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_STANDALONE3
+    args_instance[SER_PORT] = PORT_STANDALONE3
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE3
+    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+    args_standalone3 = args_instance.copy()
+    standalone3.allocate(args_standalone3)
+    instance_standalone3 = standalone3.exists()
+    if instance_standalone3:
+        standalone3.delete()
+    standalone3.create()
+    standalone3.open()
+
+    def fin():
+        if DEBUGGING:
+            standalone1.stop()
+            standalone2.stop()
+            standalone3.stop()
+        else:
+            standalone1.delete()
+            standalone2.delete()
+            standalone3.delete()
+
+    request.addfinalizer(fin)
+
+    return TopologyMain(standalones={"standalone1": standalone1,
+                                     "standalone2": standalone2,
+                                     "standalone3": standalone3})
 
 
 @pytest.fixture(scope="module")
