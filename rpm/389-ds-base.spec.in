@@ -385,24 +385,21 @@ if [ -n "$DEBUGPOSTTRANS" ] ; then
    output2=${DEBUGPOSTTRANS}.upgrade
 fi
 
-has_dirsrv=`/usr/bin/egrep -i "^dirsrv\>" /etc/passwd` || :
-if [ "$has_dirsrv" = "" ]; then
-  dirsrv_uid=389
-    while [ "`getent passwd | awk -F: '{print $3}' | grep $dirsrv_uid`" != "" ]; do
-    dirsrv_uid=`expr $dirsrv_uid + 1`
-  done
-    echo "User dirsrv does not exist, create it with uid %dirsrv_uid." >> $output 2>&1 || :
-  /usr/sbin/useradd -c "389-ds-base" -u $dirsrv_uid \
-      -s /sbin/nologin -r -d /usr/share/dirsrv dirsrv 2> /dev/null || :
-  fi
-  has_dirsrv=`/usr/bin/egrep -i "^dirsrv\>" /etc/group` || :
-  if [ "$has_dirsrv" = "" ]; then
-    dirsrv_gid=389
-  while [ "`getent group | grep $dirsrv_gid`" != "" ]; do
-      dirsrv_gid=`expr $dirsrv_gid + 1`
-    done
-  echo "Group dirsrv does not exist, create it with uid %dirsrv_gid." >> $output 2>&1 || :
-    /usr/sbin/groupadd -g $dirsrv_gid -r dirsrv 2> /dev/null || :
+# https://fedoraproject.org/wiki/Packaging:UsersAndGroups#Soft_static_allocation
+# Soft static allocation for UID and GID
+USERNAME="dirsrv"
+ALLOCATED_UID=389
+GROUPNAME="dirsrv"
+ALLOCATED_GID=389
+HOMEDIR="/usr/share/dirsrv"
+
+getent group $GROUPNAME >/dev/null || groupadd -f -g $ALLOCATED_GID -r $GROUPNAME
+if ! getent passwd $USERNAME >/dev/null ; then
+    if ! getent passwd $ALLOCATED_UID >/dev/null ; then
+      useradd -r -u $ALLOCATED_UID -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
+    else
+      useradd -r -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
+    fi
 fi
 
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
