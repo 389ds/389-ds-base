@@ -212,7 +212,7 @@ if len(sys.argv) > 0:
 
     # Write the imports
     if my_topology[0]:
-        topology_import = 'from lib389.topologies import {}\n'.format(my_topology[1])
+        topology_import = 'from lib389.topologies import {} as topo\n'.format(my_topology[1])
     else:
         topology_import = ''
 
@@ -287,7 +287,7 @@ if len(sys.argv) > 0:
 
         # Write the 'topology function'
         TEST.write('@pytest.fixture(scope="module")\n')
-        TEST.write('def {}(request):\n'.format(my_topology[1]))
+        TEST.write('def topo(request):\n')
 
         if repl_deployment:
             TEST.write('    """Create Replication Deployment"""\n')
@@ -656,14 +656,14 @@ if len(sys.argv) > 0:
 
     # Write the test function
     if ticket:
-        TEST.write('def test_ticket{}({}):\n'.format(ticket, my_topology[1]))
+        TEST.write('def test_ticket{}(topo):\n'.format(ticket))
         TEST.write('    """Write your testcase here...\n\n')
         TEST.write('    Also, if you need any testcase initialization,\n')
         TEST.write('    please, write additional fixture for that' +
                    '(include finalizer).\n')
         TEST.write('    """\n\n')
     else:
-        TEST.write('def test_something({}):\n'.format(my_topology[1]))
+        TEST.write('def test_something(topo):\n')
         TEST.write('    """Write a single test here...\n\n')
         TEST.write('    Also, if you need any test suite initialization,\n')
         TEST.write('    please, write additional fixture for that (including finalizer).\n'
