@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
+import re
 
 import ldap.sasl
 import pytest
@@ -105,6 +106,114 @@ def test_ticket47973(topology_st):
             search_count += 1
 
         task_count += 1
+
+
+def test_ticket47973_case(topology_st):
+    log.info('Testing Ticket 47973 (case) - Test the cases in the original schema are preserved.')
+
+    log.info('case 1 - Test the cases in the original schema are preserved.')
+
+    tsfile = topology_st.standalone.schemadir + '/98test.ldif'
+    tsfd = open(tsfile, "w")
+    Mozattr0 = "MoZiLLaaTTRiBuTe"
+    testschema = "dn: cn=schema\nattributetypes: ( 8.9.10.11.12.13.14 NAME 'MozillaAttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Mozilla Dummy Schema' )\nobjectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' SUP top MUST ( objectclass $ cn ) MAY ( " + Mozattr0 + " ) X-ORIGIN 'user defined' )"
+    tsfd.write(testschema)
+    tsfd.close()
+
+    try:
+        # run the schema reload task with the default schemadir
+        topology_st.standalone.tasks.schemaReload(schemadir=topology_st.standalone.schemadir,
+                                                  args={TASK_WAIT: False})
+    except ValueError:
+        log.error('Schema Reload task failed.')
+        assert False
+
+    time.sleep(5)
+
+    try:
+        schemaentry = topology_st.standalone.search_s("cn=schema", ldap.SCOPE_BASE,
+                                             'objectclass=top',
+                                             ["objectclasses"])
+        oclist = schemaentry[0].data.get("objectclasses")
+    except ldap.LDAPError as e:
+        log.error('Failed to get schema entry: error (%s)' % e.message['desc'])
+        raise e
+
+    found = 0
+    for oc in oclist:
+        log.info('OC: %s' % oc)
+        moz = re.findall(Mozattr0, oc)
+        if moz:
+            found = 1
+            log.info('case 1: %s is in the objectclasses list -- PASS' % Mozattr0)
+
+    if found == 0:
+        log.error('case 1: %s is not in the objectclasses list -- FAILURE' % Mozattr0)
+        assert False
+
+    log.info('case 2 - Duplicated schema except cases are not loaded.')
+
+    tsfile = topology_st.standalone.schemadir + '/97test.ldif'
+    tsfd = open(tsfile, "w")
+    Mozattr1 = "MOZILLAATTRIBUTE"
+    testschema = "dn: cn=schema\nattributetypes: ( 8.9.10.11.12.13.14 NAME 'MozillaAttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Mozilla Dummy Schema' )\nobjectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' SUP top MUST ( objectclass $ cn ) MAY ( " + Mozattr1 + " ) X-ORIGIN 'user defined' )"
+    tsfd.write(testschema)
+    tsfd.close()
+
+    try:
+        # run the schema reload task with the default schemadir
+        topology_st.standalone.tasks.schemaReload(schemadir=topology_st.standalone.schemadir,
+                                                  args={TASK_WAIT: False})
+    except ValueError:
+        log.error('Schema Reload task failed.')
+        assert False
+
+    time.sleep(5)
+
+    try:
+        schemaentry = topology_st.standalone.search_s("cn=schema", ldap.SCOPE_BASE,
+                                             'objectclass=top',
+                                             ["objectclasses"])
+        oclist = schemaentry[0].data.get("objectclasses")
+    except ldap.LDAPError as e:
+        log.error('Failed to get schema entry: error (%s)' % e.message['desc'])
+        raise e
+
+    for oc in oclist:
+        log.info('OC: %s' % oc)
+        moz = re.findall(Mozattr1, oc)
+        if moz:
+            log.error('case 2: %s is in the objectclasses list -- FAILURE' % Mozattr1)
+            assert False
+
+    log.info('case 2: %s is not in the objectclasses list -- PASS' % Mozattr1)
+
+    Mozattr2 = "mozillaattribute"
+    log.info('case 2-1: Use the custom schema with %s' % Mozattr2)
+    name = "test user"
+    try:
+        topology_st.standalone.add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
+                                            'objectclass': "top person MozillaObject".split(),
+                                                            'sn': name,
+                                                            'cn': name,
+                                                            Mozattr2: name})))
+    except ldap.LDAPError as e:
+        log.error('Failed to add a test entry: error (%s)' % e.message['desc'])
+        raise e
+
+    try:
+        testentry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE,
+                                                    'objectclass=mozillaobject',
+                                                    [Mozattr2])
+    except ldap.LDAPError as e:
+        log.error('Failed to get schema entry: error (%s)' % e.message['desc'])
+        raise e
+
+    mozattrval = testentry[0].data.get(Mozattr2)
+    if mozattrval[0] == name:
+        log.info('case 2-1: %s: %s found-- PASS' % (Mozattr2, name))
+    else:
+        log.info('case 2-1: %s: %s not found-- FAILURE' % (Mozattr2, mozattrval[0]))
 
 
 if __name__ == '__main__':
