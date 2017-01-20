@@ -5386,11 +5386,19 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 
 	if (rc && !(schema_flags & DSE_SCHEMA_NO_BACKEND))
 	{
-		/* make sure the schema is normalized */
-		if (schema_flags & DSE_SCHEMA_LOCKED)
-			normalize_oc_nolock();
-		else
+		if (schema_flags & DSE_SCHEMA_LOCKED) {
+			/* 
+			 * Code path for schema reload.
+			 * To fix the side effect which lowers the case of the
+			 * reloaded new schema, eliminating normalize_oc_nolock().
+			 * Note that the normalization is not needed since all
+			 * the checks are done by strcasecmp.
+			 */
+			;
+		} else {
+			/* make sure the schema is normalized */
 			normalize_oc();
+		}
 
 		/* register callbacks */
 		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_SEARCH,
