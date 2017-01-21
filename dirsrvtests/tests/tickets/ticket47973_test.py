@@ -116,7 +116,7 @@ def test_ticket47973_case(topology_st):
     tsfile = topology_st.standalone.schemadir + '/98test.ldif'
     tsfd = open(tsfile, "w")
     Mozattr0 = "MoZiLLaaTTRiBuTe"
-    testschema = "dn: cn=schema\nattributetypes: ( 8.9.10.11.12.13.14 NAME 'MozillaAttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Mozilla Dummy Schema' )\nobjectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' SUP top MUST ( objectclass $ cn ) MAY ( " + Mozattr0 + " ) X-ORIGIN 'user defined' )"
+    testschema = "dn: cn=schema\nattributetypes: ( 8.9.10.11.12.13.14 NAME '" + Mozattr0 + "' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Mozilla Dummy Schema' )\nobjectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' SUP top MUST ( objectclass $ cn ) MAY ( " + Mozattr0 + " ) X-ORIGIN 'user defined' )"
     tsfd.write(testschema)
     tsfd.close()
 
@@ -156,7 +156,7 @@ def test_ticket47973_case(topology_st):
     tsfile = topology_st.standalone.schemadir + '/97test.ldif'
     tsfd = open(tsfile, "w")
     Mozattr1 = "MOZILLAATTRIBUTE"
-    testschema = "dn: cn=schema\nattributetypes: ( 8.9.10.11.12.13.14 NAME 'MozillaAttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Mozilla Dummy Schema' )\nobjectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' SUP top MUST ( objectclass $ cn ) MAY ( " + Mozattr1 + " ) X-ORIGIN 'user defined' )"
+    testschema = "dn: cn=schema\nattributetypes: ( 8.9.10.11.12.13.14 NAME '" + Mozattr1 + "' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Mozilla Dummy Schema' )\nobjectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' SUP top MUST ( objectclass $ cn ) MAY ( " + Mozattr1 + " ) X-ORIGIN 'user defined' )"
     tsfd.write(testschema)
     tsfd.close()
 
