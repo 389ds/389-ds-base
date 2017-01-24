@@ -895,7 +895,7 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 					}
 				}
 				/* Update max csn for local and remote replicas */
-				rc = ruv_update_ruv (ruv, updated_csn, replica_purl, rid == r->repl_rid);
+				rc = ruv_update_ruv (ruv, updated_csn, replica_purl, r->repl_rid);
 				if (RUV_COVERS_CSN == rc)
 				{
 					slapi_log_err(SLAPI_LOG_REPL,
@@ -3618,7 +3618,7 @@ assign_csn_callback(const CSN *csn, void *data)
 	
     if (NULL != r->min_csn_pl)
     {
-        if (csnplInsert(r->min_csn_pl, csn) != 0)
+        if (csnplInsert(r->min_csn_pl, csn, NULL) != 0)
         {
             char csn_str[CSN_STRSIZE]; /* For logging only */
             /* Ack, we can't keep track of min csn. Punt. */
@@ -3666,7 +3666,7 @@ abort_csn_callback(const CSN *csn, void *data)
         }
     }
 
-    ruv_cancel_csn_inprogress (ruv, csn);
+    ruv_cancel_csn_inprogress (ruv, csn, replica_get_rid(r));
     replica_unlock(r->repl_lock);
 
     object_release (ruv_obj);

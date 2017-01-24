@@ -1033,9 +1033,11 @@ static int
 write_changelog_and_ruv (Slapi_PBlock *pb)
 {
 	Slapi_Operation *op = NULL;
+	CSN *opcsn;
+	CSN *prim_csn;
 	int rc;
 	slapi_operation_parameters *op_params = NULL;
-	Object *repl_obj;
+	Object *repl_obj = NULL;
 	int return_value = SLAPI_PLUGIN_SUCCESS;
 	Replica *r;
 	Slapi_Backend *be;
@@ -1063,17 +1065,17 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	{
 		return return_value;
 	}
-
-	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
-	if (rc) { /* op failed - just return */
-		return return_value;
-	}
-
 	/* we only log changes for operations applied to a replica */
 	repl_obj = replica_get_replica_for_op (pb);
 	if (repl_obj == NULL)
 		return return_value;
- 
+
+	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+	if (rc) { /* op failed - just return */
+		cancel_opcsn(pb);
+		goto common_return;
+	}
+
 	r = (Replica*)object_get_data (repl_obj);
 	PR_ASSERT (r);
 
@@ -1108,7 +1110,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 
 			slapi_pblock_get (pb, SLAPI_OPERATION_PARAMETERS, &op_params);
 			if (NULL == op_params) {
-				return return_value;
+				goto common_return;
 			}
 
 			/* need to set uniqueid operation parameter */
@@ -1127,19 +1129,18 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 				slapi_pblock_get (pb, SLAPI_ENTRY_PRE_OP, &e);
 			}
 			if (NULL == e) {
-				return return_value;
+				goto common_return;
 			}
 			uniqueid = slapi_entry_get_uniqueid (e);
 			if (NULL == uniqueid) {
-				return return_value;
+				goto common_return;
 			}
 			op_params->target_address.uniqueid = slapi_ch_strdup (uniqueid);
 		} 
 
 		if( op_params->csn && is_cleaned_rid(csn_get_replicaid(op_params->csn))){
 			/* this RID has been cleaned */
-			object_release (repl_obj);
-			return return_value;
+			goto common_return;
 		}
 
 		/* we might have stripped all the mods - in that case we do not
@@ -1152,7 +1153,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			{
 				slapi_log_err(SLAPI_LOG_CRIT, repl_plugin_name,
 								"write_changelog_and_ruv - Skipped due to DISKFULL\n");
-				return return_value;
+				goto common_return;
 			}
 			slapi_pblock_get(pb, SLAPI_TXN, &txn);
 			rc = cl5WriteOperationTxn(repl_name, repl_gen, op_params, 
@@ -1188,7 +1189,6 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	*/
 	if (0 == return_value) {
 		char csn_str[CSN_STRSIZE] = {'\0'};
-		CSN *opcsn;
 		int rc;
 		const char *dn = op_params ? REPL_GET_DN(&op_params->target_address) : "unknown";
 		Slapi_DN *sdn = op_params ? (&op_params->target_address)->sdn : NULL;
@@ -1220,7 +1220,15 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		}
 	}
 
-	object_release (repl_obj);
+common_return:
+	opcsn = operation_get_csn(op);
+	prim_csn = get_thread_primary_csn();
+	if (csn_is_equal(opcsn, prim_csn)) {
+		set_thread_primary_csn(NULL);
+	}
+	if (repl_obj) {
+		object_release (repl_obj);
+	}
 	return return_value;
 }
 
@@ -1417,7 +1425,7 @@ cancel_opcsn (Slapi_PBlock *pb)
 
             ruv_obj = replica_get_ruv (r);
             PR_ASSERT (ruv_obj);
-            ruv_cancel_csn_inprogress ((RUV*)object_get_data (ruv_obj), opcsn);
+            ruv_cancel_csn_inprogress ((RUV*)object_get_data (ruv_obj), opcsn, replica_get_rid(r));
             object_release (ruv_obj);
         }
 

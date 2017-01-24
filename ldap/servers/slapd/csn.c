@@ -268,6 +268,21 @@ csn_as_attr_option_string(CSNType t,const CSN *csn,char *ss)
 	return s;
 }
 
+int
+csn_is_equal(const CSN *csn1, const CSN *csn2)
+{
+	int retval = 0;
+	if ((csn1 == NULL && csn2 == NULL) ||
+		(csn1 && csn2 &&
+		 csn1->tstamp == csn2->tstamp &&
+		 csn1->seqnum == csn2->seqnum &&
+		 csn1->rid == csn2->rid &&
+		 csn1->subseqnum == csn2->subseqnum)) {
+		retval = 1;
+	}
+	return retval;
+}
+
 int 
 csn_compare_ext(const CSN *csn1, const CSN *csn2, unsigned int flags)
 {

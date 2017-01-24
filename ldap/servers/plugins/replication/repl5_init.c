@@ -136,6 +136,7 @@ static int multimaster_started_flag = 0;
 /* Thread private data and interface */
 static PRUintn thread_private_agmtname;	/* thread private index for logging*/
 static PRUintn thread_private_cache;
+static PRUintn thread_primary_csn;
 
 char*
 get_thread_private_agmtname()
@@ -151,6 +152,26 @@ set_thread_private_agmtname(const char *agmtname)
 {
 	if (thread_private_agmtname)
 		PR_SetThreadPrivate(thread_private_agmtname, (void *)agmtname);
+}
+
+CSN*
+get_thread_primary_csn(void)
+{
+	CSN *prim_csn = NULL;
+	if (thread_primary_csn)
+		prim_csn = (CSN *)PR_GetThreadPrivate(thread_primary_csn);
+	return prim_csn;
+}
+void
+set_thread_primary_csn(const CSN *prim_csn)
+{
+	if (thread_primary_csn) {
+		if (prim_csn) {
+			PR_SetThreadPrivate(thread_primary_csn, (void *)csn_dup(prim_csn));
+		} else {
+			PR_SetThreadPrivate(thread_primary_csn, NULL);
+		}
+	}
 }
 
 void*
@@ -719,6 +740,7 @@ multimaster_start( Slapi_PBlock *pb )
 		/* Initialize thread private data for logging. Ignore if fails */
 		PR_NewThreadPrivateIndex (&thread_private_agmtname, NULL);
 		PR_NewThreadPrivateIndex (&thread_private_cache, NULL);
+		PR_NewThreadPrivateIndex (&thread_primary_csn, csnplFreeCSN);
 
 		/* Decode the command line args to see if we're dumping to LDIF */
 		is_ldif_dump = check_for_ldif_dump(pb);

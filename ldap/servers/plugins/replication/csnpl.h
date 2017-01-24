@@ -22,10 +22,13 @@ typedef struct csnpl CSNPL;
 
 CSNPL* csnplNew(void);
 void csnplFree (CSNPL **csnpl);
-int csnplInsert (CSNPL *csnpl, const CSN *csn);
+int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSN *prim_csn);
 int csnplRemove (CSNPL *csnpl, const CSN *csn);
+int csnplRemoveAll (CSNPL *csnpl, const CSN *csn);
+int csnplCommitAll (CSNPL *csnpl, const CSN *csn);
 CSN* csnplGetMinCSN (CSNPL *csnpl, PRBool *committed);
 int csnplCommit (CSNPL *csnpl, const CSN *csn);
 CSN *csnplRollUp(CSNPL *csnpl, CSN ** first);
 void csnplDumpContent(CSNPL *csnpl, const char *caller); 
+
 #endif

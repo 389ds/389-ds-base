@@ -77,6 +77,7 @@ static char *get_replgen_from_berval(const struct berval *bval);
 static const char * const prefix_replicageneration = "{replicageneration}";
 static const char * const prefix_ruvcsn = "{replica "; /* intentionally missing '}' */
 
+static int ruv_update_ruv_element (RUV *ruv, RUVElement *replica, const CSN *csn, const char *replica_purl, PRBool isLocal);
 
 /* API implementation */
 
@@ -1604,6 +1605,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     char csn_str[CSN_STRSIZE];
     int rc = RUV_SUCCESS;
     int rid = csn_get_replicaid (csn);
+    CSN *prim_csn;
 
     PR_ASSERT (ruv && csn);
 
@@ -1641,8 +1643,12 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
         rc = RUV_COVERS_CSN;
         goto done;
     }
-
-    rc = csnplInsert (replica->csnpl, csn);
+    prim_csn = get_thread_primary_csn();
+    if (prim_csn == NULL) {
+        set_thread_primary_csn(csn);
+        prim_csn = get_thread_primary_csn();
+    }
+    rc = csnplInsert (replica->csnpl, csn, prim_csn);
     if (rc == 1)    /* we already seen this csn */
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -1650,6 +1656,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
                             "The csn %s has already be seen - ignoring\n",
                             csn_as_string (csn, PR_FALSE, csn_str));
         }
+        set_thread_primary_csn(NULL);
         rc = RUV_COVERS_CSN;    
     }
     else if(rc != 0)
@@ -1674,24 +1681,36 @@ done:
     return rc;
 }
 
-int ruv_cancel_csn_inprogress (RUV *ruv, const CSN *csn)
+int ruv_cancel_csn_inprogress (RUV *ruv, const CSN *csn, ReplicaId local_rid)
 {
     RUVElement* replica;
     int rc = RUV_SUCCESS;
+    CSN *prim_csn = NULL;
+
 
     PR_ASSERT (ruv && csn);
 
+    prim_csn = get_thread_primary_csn();
     /* locate ruvElement */
     slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
-    if (replica == NULL)
-    {
+    if (replica == NULL) {
         /* ONREPL - log error */
-        rc = RUV_NOTFOUND;
-        goto done;
-    } 
-
-    rc = csnplRemove (replica->csnpl, csn);
+	rc = RUV_NOTFOUND;
+	goto done;
+    }
+    if (csn_is_equal(csn, prim_csn)) {
+	/* the prim csn is cancelled, lets remove all dependent csns */
+	ReplicaId prim_rid = csn_get_replicaid (csn);
+	replica = ruvGetReplica (ruv, prim_rid);
+	rc = csnplRemoveAll (replica->csnpl, prim_csn);
+	if (prim_rid != local_rid) {
+		replica = ruvGetReplica (ruv, local_rid);
+		rc = csnplRemoveAll (replica->csnpl, prim_csn);
+	}
+    } else {
+	rc = csnplRemove (replica->csnpl, csn);
+    }
     if (rc != 0)
         rc = RUV_NOTFOUND;
     else
@@ -1702,19 +1721,37 @@ done:
     return rc;
 }
 
-int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool isLocal)
+int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, ReplicaId local_rid)
+{
+    int rc=RUV_SUCCESS;
+    RUVElement *replica;
+    ReplicaId prim_rid;
+
+    CSN *prim_csn = get_thread_primary_csn();
+
+    if (! csn_is_equal(csn, prim_csn)) {
+	/* not a primary csn, nothing to do */
+	return rc;
+    }
+    slapi_rwlock_wrlock (ruv->lock);
+    prim_rid = csn_get_replicaid (csn);
+    replica = ruvGetReplica (ruv, local_rid);
+    rc = ruv_update_ruv_element(ruv, replica, csn, replica_purl, PR_TRUE);
+    if ( rc || local_rid == prim_rid) goto done;
+    replica = ruvGetReplica (ruv, prim_rid);
+    rc = ruv_update_ruv_element(ruv, replica, csn, replica_purl, PR_FALSE);
+done:
+    slapi_rwlock_unlock (ruv->lock);
+    return rc;
+}
+static int
+ruv_update_ruv_element (RUV *ruv, RUVElement *replica, const CSN *csn, const char *replica_purl, PRBool isLocal)
 {
     int rc=RUV_SUCCESS;
     char csn_str[CSN_STRSIZE];
     CSN *max_csn;
     CSN *first_csn = NULL;
-    RUVElement *replica;
     
-    PR_ASSERT (ruv && csn);
-
-    slapi_rwlock_wrlock (ruv->lock);
-
-    replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
     if (replica == NULL)
     {
         /* we should have a ruv element at this point because it would have
@@ -1724,7 +1761,7 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
         goto done;
     } 
 
-	if (csnplCommit(replica->csnpl, csn) != 0)
+	if (csnplCommitAll(replica->csnpl, csn) != 0)
 	{
 		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "ruv_update_ruv - Cannot commit csn %s\n",
 			            csn_as_string(csn, PR_FALSE, csn_str));
@@ -1765,7 +1802,6 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
 	}
 
 done:
-    slapi_rwlock_unlock (ruv->lock);
 
     return rc;
 }
