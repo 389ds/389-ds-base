@@ -24,8 +24,9 @@ struct csnpl
 
 typedef struct _csnpldata
 {
-	PRBool		committed;  /* True if CSN committed */
-	CSN			*csn;       /* The actual CSN */
+	PRBool	committed;  /* True if CSN committed */
+	CSN	*csn;       /* The actual CSN */
+	const CSN *prim_csn;  /* The primary CSN of an operation consising of multiple sub ops*/
 } csnpldata;
 
 /* forward declarations */
@@ -103,7 +104,7 @@ void csnplFree (CSNPL **csnpl)
  *          1 if the csn has already been seen
  *         -1 for any other kind of errors
  */
-int csnplInsert (CSNPL *csnpl, const CSN *csn)
+int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSN *prim_csn)
 {
 	int rc;
 	csnpldata *csnplnode;
@@ -131,6 +132,7 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
 	csnplnode = (csnpldata *)slapi_ch_malloc(sizeof(csnpldata));
 	csnplnode->committed = PR_FALSE;
 	csnplnode->csn = csn_dup(csn);
+	csnplnode->prim_csn = prim_csn;
 	csn_as_string(csn, PR_FALSE, csn_str);
 	rc = llistInsertTail (csnpl->csnList, csn_str, csnplnode);
 
@@ -183,6 +185,57 @@ int csnplRemove (CSNPL *csnpl, const CSN *csn)
 
 	slapi_rwlock_unlock (csnpl->csnLock);
 
+	return 0;
+}
+
+int csnplRemoveAll (CSNPL *csnpl, const CSN *csn)
+{
+	csnpldata *data;
+	void *iterator;
+
+	slapi_rwlock_wrlock (csnpl->csnLock);
+	data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
+	while (NULL != data)
+	{
+		if (csn_is_equal(data->csn, csn) ||
+		    csn_is_equal(data->prim_csn, csn)) {
+			csnpldata_free(&data);
+			data = (csnpldata *)llistRemoveCurrentAndGetNext(csnpl->csnList, &iterator);
+		} else {
+			data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
+		}
+	}
+#ifdef DEBUG
+    _csnplDumpContentNoLock(csnpl, "csnplRemoveAll");
+#endif
+	slapi_rwlock_unlock (csnpl->csnLock);
+	return 0;
+}
+
+
+int csnplCommitAll (CSNPL *csnpl, const CSN *csn)
+{
+	csnpldata *data;
+	void *iterator;
+	char csn_str[CSN_STRSIZE];
+
+	csn_as_string(csn, PR_FALSE, csn_str);
+	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+		            "csnplCommitALL: committing all csns for csn %s\n", csn_str);
+	slapi_rwlock_wrlock (csnpl->csnLock);
+	data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
+	while (NULL != data)
+	{
+		csn_as_string(data->csn, PR_FALSE, csn_str);
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+				"csnplCommitALL: processing data csn %s\n", csn_str);
+		if (csn_is_equal(data->csn, csn) ||
+		    csn_is_equal(data->prim_csn, csn)) {
+			data->committed = PR_TRUE;
+		}
+		data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
+	}
+	slapi_rwlock_unlock (csnpl->csnLock);
 	return 0;
 }
 
@@ -276,13 +329,12 @@ csnplRollUp(CSNPL *csnpl, CSN **first_commited)
 	  *first_commited = NULL;
 	}
 	data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
-	while (NULL != data)
+	while (NULL != data && data->committed)
 	{
 		if (NULL != largest_committed_csn && freeit)
 		{
 			csn_free(&largest_committed_csn);
 		}
-		if (data->committed) {
 			freeit = PR_TRUE;
 			largest_committed_csn = data->csn; /* Save it */
 			if (first_commited && (*first_commited == NULL)) {
@@ -294,9 +346,6 @@ csnplRollUp(CSNPL *csnpl, CSN **first_commited)
 			data->csn = NULL;
 			csnpldata_free(&data);
 			data = (csnpldata *)llistRemoveCurrentAndGetNext(csnpl->csnList, &iterator);
-		} else {
-			data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
-		}
 	} 
 
 #ifdef DEBUG
@@ -326,6 +375,7 @@ static void _csnplDumpContentNoLock(CSNPL *csnpl, const char *caller)
     csnpldata *data;
     void *iterator;
     char csn_str[CSN_STRSIZE];
+    char primcsn_str[CSN_STRSIZE];
     
     data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
 	if (data) {
@@ -334,11 +384,18 @@ static void _csnplDumpContentNoLock(CSNPL *csnpl, const char *caller)
 	}
     while (data)
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s, %s\n",                        
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s,(prim %s), %s\n",
                         csn_as_string(data->csn, PR_FALSE, csn_str),
+			data->prim_csn ? csn_as_string(data->prim_csn, PR_FALSE, primcsn_str) : " ",
                         data->committed ? "committed" : "not committed");
         data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
     }
 }
 #endif
 
+/* wrapper around csn_free, to satisfy NSPR thread context API */
+void
+csnplFreeCSN (void *arg)
+{
+	csn_free((CSN **)&arg);
+}

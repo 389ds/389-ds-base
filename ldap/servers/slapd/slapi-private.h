@@ -166,6 +166,7 @@ time_t csn_get_time(const CSN *csn);
 PRUint16 csn_get_seqnum(const CSN *csn);
 PRUint16 csn_get_subseqnum(const CSN *csn);
 char *csn_as_string(const CSN *csn, PRBool replicaIdOrder, char *ss); /* WARNING: ss must be CSN_STRSIZE bytes, or NULL. */
+int csn_is_equal(const CSN *csn1, const CSN *csn2);
 int csn_compare(const CSN *csn1, const CSN *csn2);
 int csn_compare_ext(const CSN *csn1, const CSN *csn2, unsigned int flags);
 #define CSN_COMPARE_SKIP_SUBSEQ 0x1
@@ -181,6 +182,7 @@ const CSN *csn_max(const CSN *csn1,const CSN *csn2);
    a csn from the set.*/
 int csn_increment_subsequence (CSN *csn);
 
+void csnplFreeCSN (void *arg);
 /*
  * csnset.c
  */

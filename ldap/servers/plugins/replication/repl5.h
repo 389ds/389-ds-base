@@ -232,6 +232,8 @@ int multimaster_be_betxnpostop_modify (Slapi_PBlock *pb);
 extern int repl5_is_betxn;
 char* get_thread_private_agmtname ();
 void  set_thread_private_agmtname (const char *agmtname);
+void  set_thread_primary_csn (const CSN *prim_csn);
+CSN*  get_thread_primary_csn(void);
 void* get_thread_private_cache ();
 void  set_thread_private_cache (void *buf);
 char* get_repl_session_id (Slapi_PBlock *pb, char *id, CSN **opcsn);
