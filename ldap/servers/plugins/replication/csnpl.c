@@ -220,14 +220,14 @@ int csnplCommitAll (CSNPL *csnpl, const CSN *csn)
 	char csn_str[CSN_STRSIZE];
 
 	csn_as_string(csn, PR_FALSE, csn_str);
-	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 		            "csnplCommitALL: committing all csns for csn %s\n", csn_str);
 	slapi_rwlock_wrlock (csnpl->csnLock);
 	data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
 	while (NULL != data)
 	{
 		csn_as_string(data->csn, PR_FALSE, csn_str);
-		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 				"csnplCommitALL: processing data csn %s\n", csn_str);
 		if (csn_is_equal(data->csn, csn) ||
 		    csn_is_equal(data->prim_csn, csn)) {
