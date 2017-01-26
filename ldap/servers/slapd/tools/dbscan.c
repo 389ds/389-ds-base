@@ -202,6 +202,7 @@ static char *format_raw(unsigned char *s, int len, int flags,
         return NULL;
 
     for (p = s, o = buf, i = 0; i < len && o < bufend; p++, i++) {
+        int ishex = 0;
         if ((*p == '%') || (*p <= ' ') || (*p >= 126)) {
             /* index keys are stored with their trailing NUL */
             if ((*p == 0) && (i == len-1))
@@ -215,18 +216,32 @@ static char *format_raw(unsigned char *s, int len, int flags,
                 *o++ = '%';
                 *o++ = hex[*p / 16];
                 *o++ = hex[*p % 16];
+                ishex = 1;
             }
         } else {
             *o++ = *p;
         }
         if (truncatesiz > 0 && o > bufend - 5) {
             /* truncate it */
+            /*
+             * Padding " ...\0" at the end of the buf.
+             * If dumped as %##, truncate the partial value if any.
+             */
+            o = bufend - 5;
+            if (ishex) {
+                if ((o > buf) && *(o-1) == '%') {
+                    o -= 1;
+                } else if ((o > buf + 1) && *(o-2) == '%') {
+                    o -= 2;
+                }
+            }
             strcpy((char *)o, " ...");
             i = len;
             o += 4;
+            break;
         }
     }
-    *o = 0;
+    *o = '\0';
     return (char *)buf;
 }
 
