@@ -2773,12 +2773,14 @@ class DirSrv(SimpleLDAPObject, object):
 
         return result
 
-    def dbscan(self, bename=None, index=None, key=None):
+    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """
         @param bename - The backend name to scan
         @param index - index name (e.g., cn or cn.db) to scan
         @param key - index key to dump
         @param id - entry id to dump
+        @param width - entry truncate size (bytes)
+        @param isRaw - dump as raw data
         @return - dumped string
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
@@ -2794,7 +2796,7 @@ class DirSrv(SimpleLDAPObject, object):
         elif '.db' in index:
             indexfile = os.path.join(self.dbdir, bename, index)
         else:
-            indexfile = os.path.join(self.dbdir, bename, index)
+            indexfile = os.path.join(self.dbdir, bename, index + '.db')
 
         option = ''
         if 'id2entry' in index:
@@ -2803,6 +2805,12 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             if key:
                 option = ' -k %s' % key
+
+        if width:
+            option = option + ' -t %d' % width
+
+        if isRaw:
+            option = option + ' -R'
 
         cmd = '%s -f %s' % (prog, indexfile)
 
