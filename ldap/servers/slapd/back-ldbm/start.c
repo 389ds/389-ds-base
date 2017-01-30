@@ -150,27 +150,29 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
         db_pages = (512 * MEGABYTE) / pagesize;
     }
 
-    /* Number of entry cache pages per backend. */
-    entry_pages = (zone_pages - db_pages) / backend_count;
-    /* Now, clamp this value to a 64mb boundary. */
-    /* How many pages are in 64mb? */
-    clamp_pages = (64 * MEGABYTE) / pagesize;
-    /* Now divide the entry pages by this, and also mod. If mod != 0, we need
-     * to add 1 to the diveded number. This should give us:
-     * 510 * 1024 * 1024 == 510MB
-     * 534773760 bytes
-     * 130560 pages at 4096 pages.
-     * 16384 pages for 64Mb
-     * 130560 / 16384 = 7
-     * 130560 % 16384 = 15872 which is != 0
-     * therfore 7 + 1, aka 8 * 16384 = 131072 pages = 536870912 bytes = 512MB.
-     */
-    clamp_div = entry_pages / clamp_pages;
-    clamp_mod = entry_pages % clamp_pages;
-    if (clamp_mod != 0) {
-        /* If we want to clamp down, remove this line. This would change the above from 510mb -> 448mb. */
-        clamp_div += 1;
-        entry_pages = clamp_div * clamp_pages;
+    if (backend_count > 0 ) {
+        /* Number of entry cache pages per backend. */
+        entry_pages = (zone_pages - db_pages) / backend_count;
+        /* Now, clamp this value to a 64mb boundary. */
+        /* How many pages are in 64mb? */
+        clamp_pages = (64 * MEGABYTE) / pagesize;
+        /* Now divide the entry pages by this, and also mod. If mod != 0, we need
+         * to add 1 to the diveded number. This should give us:
+         * 510 * 1024 * 1024 == 510MB
+         * 534773760 bytes
+         * 130560 pages at 4096 pages.
+         * 16384 pages for 64Mb
+         * 130560 / 16384 = 7
+         * 130560 % 16384 = 15872 which is != 0
+         * therfore 7 + 1, aka 8 * 16384 = 131072 pages = 536870912 bytes = 512MB.
+         */
+        clamp_div = entry_pages / clamp_pages;
+        clamp_mod = entry_pages % clamp_pages;
+        if (clamp_mod != 0) {
+            /* If we want to clamp down, remove this line. This would change the above from 510mb -> 448mb. */
+            clamp_div += 1;
+            entry_pages = clamp_div * clamp_pages;
+        }
     }
 
     slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk physical memory\n", pages*(pagesize/1024));
@@ -202,7 +204,9 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
 
     /* For each backend */
     /*   apply the appropriate cache size if 0 */
-    li->li_cache_autosize_ec = (unsigned long)entry_pages * pagesize;
+    if (backend_count > 0 ) {
+        li->li_cache_autosize_ec = (unsigned long)entry_pages * pagesize;
+    }
 
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
