@@ -51,6 +51,7 @@ setup(
 
     # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
     data_files=[
+        ('/usr/share/lib389/examples/', ['examples/ds-setup.inf']),
         ('/usr/sbin/', [
             # 'lib389/clitools/ds_setup',
             'cli/dsadm',

@@ -520,21 +520,23 @@ class DirSrv(SimpleLDAPObject, object):
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
         self.bindpw = args.get(SER_ROOT_PW, PW_DM)
         self.creation_suffix = args.get(SER_CREATION_SUFFIX, DEFAULT_SUFFIX)
-        self.userid = args.get(SER_USER_ID)
-        if not self.userid:
-            if os.getuid() == 0:
-                # as root run as default user
-                self.userid = DEFAULT_USER
-            else:
-                self.userid = pwd.getpwuid(os.getuid())[0]
+        # These settings are only needed on a local connection.
+        if self.isLocal:
+            self.userid = args.get(SER_USER_ID)
+            if not self.userid:
+                if os.getuid() == 0:
+                    # as root run as default user
+                    self.userid = DEFAULT_USER
+                else:
+                    self.userid = pwd.getpwuid(os.getuid())[0]
 
-        # Settings from args of server attributes
-        self.serverid = args.get(SER_SERVERID_PROP, None)
-        self.groupid = args.get(SER_GROUP_ID, self.userid)
-        self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
-        # Allocate from the args, or use our env, or use /
-        if args.get(SER_DEPLOYED_DIR, self.prefix) is not None:
-            self.prefix = args.get(SER_DEPLOYED_DIR, self.prefix)
+            # Settings from args of server attributes
+            self.serverid = args.get(SER_SERVERID_PROP, None)
+            self.groupid = args.get(SER_GROUP_ID, self.userid)
+            self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
+            # Allocate from the args, or use our env, or use /
+            if args.get(SER_DEPLOYED_DIR, self.prefix) is not None:
+                self.prefix = args.get(SER_DEPLOYED_DIR, self.prefix)
         self.realm = args.get(SER_REALM, None)
         if self.realm is not None:
             self.krb5_realm = MitKrb5(realm=self.realm, debug=self.verbose)

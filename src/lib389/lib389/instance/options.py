@@ -242,7 +242,7 @@ class Slapd2Base(Options2):
     def _format(self, d):
         new_d = {}
         ks = d.keys()
-        no_format_keys = ks - format_keys
+        no_format_keys = set(ks) - set(format_keys)
 
         for k in no_format_keys:
             new_d[k] = d[k]

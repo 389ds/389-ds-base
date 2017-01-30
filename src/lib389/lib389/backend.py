@@ -435,7 +435,6 @@ class Backend(DSLdapObject):
 
     def create(self, dn=None, properties=None, basedn=None):
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
-        print(properties)
         # Okay, now try to make the backend.
         super(Backend, self).create(dn, properties, basedn)
         # We check if the mapping tree exists in create, so do this *after*
