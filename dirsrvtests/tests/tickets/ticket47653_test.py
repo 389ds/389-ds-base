@@ -16,6 +16,10 @@ from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
+from lib389.utils import *
+
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.2'), reason="Not implemented")
 OC_NAME = 'OCticket47653'
 MUST = "(postalAddress $ postalCode)"
 MAY = "(member $ street)"

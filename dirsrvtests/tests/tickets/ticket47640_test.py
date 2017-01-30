@@ -11,6 +11,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -25,13 +28,13 @@ def test_ticket47640(topology_st):
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
-        ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     try:
         topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
     except ValueError as e:
-        ldap.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
+        log.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
         assert False
 
     # Add the plugin config entry

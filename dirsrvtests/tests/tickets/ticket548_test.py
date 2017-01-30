@@ -11,6 +11,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+
 log = logging.getLogger(__name__)
 
 # Assuming DEFAULT_SUFFIX is "dc=example,dc=com", otherwise it does not work... :(

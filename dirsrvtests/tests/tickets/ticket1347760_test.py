@@ -176,10 +176,11 @@ def test_ticket1347760(topology_st):
     log.info('Deleting aci in %s.' % DEFAULT_SUFFIX)
     topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', None)])
 
-    log.info('While binding as DM, acquire an access log path')
+    log.info('While binding as DM, acquire an access log path and instance dir')
     ds_paths = Paths(serverid=topology_st.standalone.serverid,
                      instance=topology_st.standalone)
     file_path = ds_paths.access_log
+    inst_dir = ds_paths.inst_dir
 
     log.info('Bind case 1. the bind user has no rights to read the entry itself, bind should be successful.')
     log.info('Bind as {%s,%s} who has no access rights.' % (BINDDN, BINDPW))
@@ -420,8 +421,14 @@ def test_ticket1347760(topology_st):
     check_op_result(topology_st.standalone, 'delete', BOGUSDN, None, exists, rc)
 
     log.info('Inactivate %s' % BINDDN)
-    nsinactivate = os.path.join(topology_st.standalone.get_sbin_dir(), 'ns-inactivate.pl')
-    p = Popen([nsinactivate, '-Z', topology_st.standalone.serverid, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN])
+    if ds_paths.version < '1.3':
+        nsinactivate = '%s/ns-inactivate.pl' % inst_dir
+        nsinactivate_cmd = [nsinactivate, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN]
+    else:
+        nsinactivate = '%s/ns-inactivate.pl' % ds_paths.sbin_dir
+        nsinactivate_cmd = [nsinactivate, '-Z', SERVERID_STANDALONE, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN]
+    log.info(nsinactivate_cmd)
+    p = Popen(nsinactivate_cmd)
     assert (p.wait() == 0)
 
     log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, BUID, ldap.UNWILLING_TO_PERFORM.__name__))

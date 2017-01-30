@@ -5,6 +5,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -66,7 +69,7 @@ def test_ticket47931(topology_st):
                                           'nsslapd-dynamic-plugins',
                                           'on')])
     except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugins! ' + e.message['desc'])
+        log.error('Failed to enable dynamic plugins! ' + e.message['desc'])
         assert False
 
     # Enable the plugins
@@ -93,7 +96,7 @@ def test_ticket47931(topology_st):
                                           'nsslapd-include-suffix',
                                           DEFAULT_SUFFIX)])
     except ldap.LDAPError as e:
-        ldap.error('Failed to configure retrocl plugin: ' + e.message['desc'])
+        log.error('Failed to configure retrocl plugin: ' + e.message['desc'])
         assert False
 
     # Configure memberOf group attribute

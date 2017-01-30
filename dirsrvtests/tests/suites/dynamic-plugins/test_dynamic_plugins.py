@@ -67,14 +67,14 @@ def test_dynamic_plugins(topology_st):
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
-        ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     # Test that critical plugins can be updated even though the change might not be applied
     try:
         topology_st.standalone.modify_s(DN_LDBM, [(ldap.MOD_REPLACE, 'description', 'test')])
     except ldap.LDAPError as e:
-        ldap.fatal('Failed to apply change to critical plugin' + e.message['desc'])
+        log.fatal('Failed to apply change to critical plugin' + e.message['desc'])
         assert False
 
     while 1:

@@ -13,6 +13,10 @@ import shutil
 import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
+from lib389.utils import *
+
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
 
 log = logging.getLogger(__name__)
 

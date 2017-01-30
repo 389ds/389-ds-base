@@ -11,6 +11,9 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+
 log = logging.getLogger(__name__)
 
 

@@ -18,6 +18,10 @@ from lib389.topologies import topology_st
 log = logging.getLogger(__name__)
 
 CONFIG_DN = 'cn=config'
+from lib389.utils import *
+
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 MY_SECURE_PORT = '36363'
 RSA = 'RSA'

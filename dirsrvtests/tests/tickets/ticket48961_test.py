@@ -11,6 +11,9 @@ else:
 
 log = logging.getLogger(__name__)
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+
 
 def test_ticket48961_storagescheme(topology_st):
     """

@@ -17,6 +17,10 @@ log = logging.getLogger(__name__)
 
 def test_ticket47819(topology_st):
     """
+from lib389.utils import *
+
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
         Testing precise tombstone purging:
             [1]  Make sure "nsTombstoneCSN" is added to new tombstones
             [2]  Make sure an import of a replication ldif adds "nsTombstoneCSN"

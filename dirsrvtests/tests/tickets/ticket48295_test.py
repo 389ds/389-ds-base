@@ -72,13 +72,13 @@ def test_48295_init(topology_st):
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
-        ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     try:
         topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
     except ValueError as e:
-        ldap.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
+        log.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
         assert False
 
     log.info('Add the plugin config entry')

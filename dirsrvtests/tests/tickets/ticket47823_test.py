@@ -19,7 +19,10 @@ from lib389._constants import *
 from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
+from lib389.utils import *
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
 PROVISIONING_CN = "provisioning"
 PROVISIONING_DN = "cn=%s,%s" % (PROVISIONING_CN, SUFFIX)
 

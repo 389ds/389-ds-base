@@ -19,6 +19,9 @@ SCOPE_OUT_DN = 'cn=%s,%s' % (SCOPE_OUT_CN, SUFFIX)
 PROVISIONING_CN = "provisioning"
 PROVISIONING_DN = "cn=%s,%s" % (PROVISIONING_CN, SCOPE_IN_DN)
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
+
 ACTIVE_CN = "accounts"
 STAGE_CN = "staged users"
 DELETE_CN = "deleted users"

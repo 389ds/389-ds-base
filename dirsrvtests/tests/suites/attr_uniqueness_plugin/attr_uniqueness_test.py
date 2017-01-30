@@ -25,7 +25,7 @@ def test_attr_uniqueness_init(topology_st):
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
-        ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     topology_st.standalone.plugins.enable(name=PLUGIN_ATTR_UNIQUENESS)

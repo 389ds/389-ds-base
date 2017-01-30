@@ -17,6 +17,10 @@ from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
+from lib389.utils import *
+
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")
 PROXY_USER_DN = 'cn=proxy,ou=people,%s' % SUFFIX
 TEST_USER_DN = 'cn=test,ou=people,%s' % SUFFIX
 USER_PW = 'password'
