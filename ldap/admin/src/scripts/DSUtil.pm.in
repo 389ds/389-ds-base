@@ -965,7 +965,7 @@ sub createInfFromConfig {
     $inf->{slapd}->{ServerPort} = $ent->getValues('nsslapd-port');
     $inf->{slapd}->{ServerIdentifier} = $id;
 
-    my $suffix;
+    my $suffix = "";
     $ent = $conn->search("cn=ldbm database,cn=plugins,cn=config",
                          "one", "(objectclass=*)");
     if (!$ent) {
@@ -980,6 +980,12 @@ sub createInfFromConfig {
         }
         last if ($ent->hasValue('cn', 'userRoot', 1));
         $ent = $conn->nextEntry();
+    }
+    if ( "" eq "$suffix" )
+    {
+        push @{$errs}, "error_opening_dseldif", $fname, $!;
+        $conn->close();
+        return 0;
     }
 
     # we also need the instance dir
