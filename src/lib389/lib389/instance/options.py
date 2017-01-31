@@ -10,6 +10,7 @@ import socket
 import sys
 import os
 from lib389.paths import Paths
+from lib389._constants import INSTALL_LATEST_CONFIG
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -118,9 +119,13 @@ class General2Base(Options2):
         self._type['selinux'] = bool
         self._helptext['selinux'] = "Enable SELinux detection and integration. Normally, this should always be True, and will correctly detect when SELinux is not present."
 
-        self._options['defaults'] = '99999'
+        self._options['systemd'] = ds_paths.with_systemd
+        self._type['systemd'] = bool
+        self._helptext['systemd'] = "Enable systemd platform features. This is autodetected on your platform. You should not alter this value without good reason."
+
+        self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str
-        self._helptext['defaults'] = "Set the configuration defaults version. If set to 99999, always use the latest values available for the slapd section. This allows pinning default values in cn=config to specific Directory Server releases."
+        self._helptext['defaults'] = "Set the configuration defaults version. If set to %{LATEST}, always use the latest values available for the slapd section. This allows pinning default values in cn=config to specific Directory Server releases. This maps to our versions such as 1.3.5 -> 001003005 -> 1003005".format(LATEST=INSTALL_LATEST_CONFIG)
 
 
 #
@@ -258,7 +263,4 @@ class Slapd2Base(Options2):
         # This does the final format and return of options.
         return self._format(self._options)
 
-# We use inheritence to "overlay" from base types and options, and we can then
-# stack progressive versions "options" on top.
-# This class is for 
 

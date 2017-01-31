@@ -49,8 +49,6 @@ def topology(request):
     return TopologyInstance(instance)
 
 def test_setup_ds_minimal_dry(topology):
-    if MAJOR < 3:
-        return
     # Create the setupDs
     lc = LogCapture()
     # Give it the right types.
@@ -78,8 +76,6 @@ def test_setup_ds_minimal_dry(topology):
     assert(len(insts) == 0)
 
 def test_setup_ds_minimal(topology):
-    if MAJOR < 3:
-        return
     # Create the setupDs
     lc = LogCapture()
     # Give it the right types.

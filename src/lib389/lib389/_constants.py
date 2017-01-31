@@ -15,6 +15,8 @@ from lib389.properties import *
     LEAF_TYPE
 ) = list(range(3))
 
+INSTALL_LATEST_CONFIG = '999999999'
+
 REPLICAROLE_MASTER = "master"
 REPLICAROLE_HUB = "hub"
 REPLICAROLE_CONSUMER = "consumer"

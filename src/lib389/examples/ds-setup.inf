@@ -29,12 +29,11 @@ secure_port=636
 root_dn=cn=Directory Manager
 root_password=password
 prefix=/opt/dirsrv
-defaults=latest
 
 [backend-userRoot]
 suffix=dc=example,dc=com
 ; this is controlled by slapd.InstallLdifFile == none, suggest or path in setup-ds.pl
-sample_entries=yes
+sample_entries=999999999
 
 
 

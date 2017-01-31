@@ -775,23 +775,20 @@ def socket_check_open(host, port):
 
 
 def ensure_bytes(val):
-    if MAJOR >= 3 and val != None and type(val) != bytes:
+    if val != None and type(val) != bytes:
         return val.encode()
     return val
 
 
 def ensure_str(val):
-    if MAJOR >= 3 and val != None and type(val) != str:
+    if val != None and type(val) != str:
         return val.decode('utf-8')
     return val
 
 
 def ensure_list_bytes(val):
-    if MAJOR >= 3:
-        return [ensure_bytes(v) for v in val]
-    return val
+    # if MAJOR >= 3:
+    return [ensure_bytes(v) for v in val]
 
 def ensure_list_str(val):
-    if MAJOR >= 3:
-        return [ensure_str(v) for v in val]
-    return val
+    return [ensure_str(v) for v in val]

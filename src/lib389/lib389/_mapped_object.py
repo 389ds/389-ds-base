@@ -265,6 +265,13 @@ class DSLdapObject(DSLogging):
     def set_values(self, values, action=ldap.MOD_REPLACE):
         pass
 
+    # If the account can be bound to, this will attempt to do so. We don't check
+    # for exceptions, just pass them back!
+    def bind(self, password=None):
+        conn = self._instance.openConnection()
+        conn.simple_bind_s(self.dn, password)
+        return conn
+
     def delete(self):
         """
         Deletes the object defined by self._dn.

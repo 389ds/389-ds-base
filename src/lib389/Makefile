@@ -9,7 +9,7 @@ build:
 	$(PYTHON) setup.py build
 
 install:
-	$(PYTHON) setup.py install --force --root=/
+	$(PYTHON) setup.py install --skip-build --force --root=/
 
 rpmbuild-prep:
 	mkdir -p ./dist/

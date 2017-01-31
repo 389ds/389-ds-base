@@ -71,20 +71,26 @@ and configuring the 389 Directory Server.
 %autosetup -n %{name}-%{tarver}
 
 %build
-%py2_build
+# JFC you need epel only devel packages for this, python 3 is the worst
 %if 0%{?rhel} >= 8 || 0%{?fedora}
+%py2_build
 %py3_build
+%else
+%{__python} setup.py build
 %endif
 
 %install
-%py2_install
 %if 0%{?rhel} >= 8 || 0%{?fedora}
+%py2_install
 %py3_install
+%else
+%{__python} setup.py install -O1 --skip-build --root %{buildroot}
 %endif
 
 %files -n python2-%{srcname}
 %license LICENSE
 %doc README
+%doc %{_datadir}/%{srcname}/examples/*
 %{python2_sitelib}/*
 # We don't provide the cli tools for python2
 %exclude %{_sbindir}/*
@@ -93,6 +99,7 @@ and configuring the 389 Directory Server.
 %files -n python%{python3_pkgversion}-%{srcname}
 %license LICENSE
 %doc README
+%doc %{_datadir}/%{srcname}/examples/*
 %{python3_sitelib}/*
 %{_sbindir}/*
 %endif

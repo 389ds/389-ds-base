@@ -14,6 +14,7 @@ import pwd
 import grp
 import re
 import socket
+import subprocess
 
 from lib389 import _ds_shutil_copytree
 from lib389._constants import *
@@ -136,7 +137,7 @@ class SetupDs(object):
                 # TODO: Add the other BACKEND_ types
                 be[BACKEND_NAME] = section.replace('backend-', '')
                 be[BACKEND_SUFFIX] = config.get(section, 'suffix')
-                be[BACKEND_SAMPLE_ENTRIES] = config.getboolean(section, 'sample_entries')
+                be[BACKEND_SAMPLE_ENTRIES] = config.get(section, 'sample_entries')
                 backends.append(be)
 
         if self.verbose:
@@ -263,8 +264,10 @@ class SetupDs(object):
 
         assert(slapd['port'] is not None)
         assert(socket_check_open('::1', slapd['port']) is False)
-        assert(slapd['secure_port'] is not None)
-        assert(socket_check_open('::1', slapd['secure_port']) is False)
+        ## This causes some problems in tests :(
+        # assert(slapd['secure_port'] is not None)
+        if slapd['secure_port'] is not None:
+            assert(socket_check_open('::1', slapd['secure_port']) is False)
         if self.verbose:
             self.log.info("PASSED: network avaliability checking")
 
@@ -279,13 +282,13 @@ class SetupDs(object):
         # Check we have privs to run
 
         if self.verbose:
-            self.log.info("READY: preparing installation")
+            self.log.info("READY: preparing installation for %s" % slapd['instance_name'])
         self._prepare_ds(general, slapd, backends)
         # Call our child api to prepare itself.
         self._prepare(extra)
 
         if self.verbose:
-            self.log.info("READY: beginning installation")
+            self.log.info("READY: beginning installation for %s" % slapd['instance_name'])
 
         if self.dryrun:
             self.log.info("NOOP: dry run requested")
@@ -294,7 +297,7 @@ class SetupDs(object):
             self._install_ds(general, slapd, backends)
             # Call the child api to do anything it needs.
             self._install(extra)
-        self.log.info("FINISH: completed installation")
+        self.log.info("FINISH: completed installation for %s" % slapd['instance_name'])
 
     def _install_ds(self, general, slapd, backends):
         """
@@ -345,14 +348,19 @@ class SetupDs(object):
         shutil.copy2(srcfile, dstfile)
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
 
-        # Selinux fixups?
-        # Restorecon of paths?
+        # If we are on the correct platform settings, systemd
+        if general['systemd'] and not self.containerised:
+            # Should create the symlink we need, but without starting it.
+            subprocess.check_call(["/usr/bin/systemctl",
+                                    "enable",
+                                    "dirsrv@%s" % slapd['instance_name']])
+        # Else we need to detect other init scripts?
+
         # Bind sockets to our type?
 
         # Create certdb in sysconfidir
         if self.verbose:
             self.log.info("ACTION: Creating certificate database is %s" % slapd['cert_dir'])
-        # nss_create_new_database(slapd['cert_dir'])
 
         # Create dse.ldif with a temporary root password.
         # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
@@ -404,6 +412,14 @@ class SetupDs(object):
         ds_instance.allocate(args)
         # Does this work?
         assert(ds_instance.exists())
+        # Create the nssdb
+        assert(ds_instance.nss_ssl.reinit())
+        # Do we want to selfsign a CA and cert?
+
+        ## LAST CHANCE, FIX PERMISSIONS.
+        # Selinux fixups?
+        # Restorecon of paths?
+
         # Start the server
         ds_instance.start(timeout=60)
         ds_instance.open()
@@ -430,3 +446,4 @@ class SetupDs(object):
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
                      'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             print(path)
+

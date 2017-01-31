@@ -111,6 +111,7 @@ class Paths(object):
         self._instance = instance
 
     def _get_defaults_loc(self, search_paths):
+        ## THIS IS HOW WE HANDLE A PREFIX INSTALL
         prefix = os.getenv('PREFIX')
         if prefix is not None:
             spath = os.path.join(prefix, 'share/dirsrv/inf/defaults.inf')

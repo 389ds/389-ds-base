@@ -39,8 +39,8 @@ class NssSsl(object):
 
     @property
     def _certdb(self):
-        # return "sql:%s" % self.dirsrv.confdir
-        return self.dirsrv.confdir
+        # return "sql:%s" % self.dirsrv.get_cert_dir()
+        return self.dirsrv.get_cert_dir()
 
     def _generate_noise(self, fpath):
         noise = password_generate(256)
@@ -56,23 +56,23 @@ class NssSsl(object):
         for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
             try:
                 # Perhaps we should be backing these up instead ...
-                os.remove("%s/%s" % (self.dirsrv.confdir, f ))
+                os.remove("%s/%s" % (self.dirsrv.get_cert_dir(), f ))
             except:
                 pass
 
         # In the future we may add the needed option to avoid writing the pin
         # files.
         # Write the pin.txt, and the pwdfile.txt
-        if not os.path.exists('%s/%s' % (self.dirsrv.confdir, PIN_TXT)):
-            with open('%s/%s' % (self.dirsrv.confdir, PIN_TXT), 'w') as f:
+        if not os.path.exists('%s/%s' % (self.dirsrv.get_cert_dir(), PIN_TXT)):
+            with open('%s/%s' % (self.dirsrv.get_cert_dir(), PIN_TXT), 'w') as f:
                 f.write('Internal (Software) Token:%s' % self.dbpassword)
-        if not os.path.exists('%s/%s' % (self.dirsrv.confdir, PWD_TXT)):
-            with open('%s/%s' % (self.dirsrv.confdir, PWD_TXT), 'w') as f:
+        if not os.path.exists('%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT)):
+            with open('%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT), 'w') as f:
                 f.write('%s' % self.dbpassword)
 
         # Init the db.
         # 48886; This needs to be sql format ...
-        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self.dirsrv.confdir, PWD_TXT)]
+        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT)]
         self.dirsrv.log.debug("nss cmd: %s" % cmd)
         result = check_output(cmd)
         self.dirsrv.log.debug("nss output: %s" % result)
@@ -82,12 +82,12 @@ class NssSsl(object):
         """
         Check that a nss db exists at the certpath
         """
-        key3 = os.path.exists("%s/key3.db" % (self.dirsrv.confdir))
-        cert8 = os.path.exists("%s/cert8.db" % (self.dirsrv.confdir))
-        key4 = os.path.exists("%s/key4.db" % (self.dirsrv.confdir))
-        cert9 = os.path.exists("%s/cert9.db" % (self.dirsrv.confdir))
-        secmod = os.path.exists("%s/secmod.db" % (self.dirsrv.confdir))
-        pkcs11 = os.path.exists("%s/pkcs11.txt" % (self.dirsrv.confdir))
+        key3 = os.path.exists("%s/key3.db" % (self.dirsrv.get_cert_dir()))
+        cert8 = os.path.exists("%s/cert8.db" % (self.dirsrv.get_cert_dir()))
+        key4 = os.path.exists("%s/key4.db" % (self.dirsrv.get_cert_dir()))
+        cert9 = os.path.exists("%s/cert9.db" % (self.dirsrv.get_cert_dir()))
+        secmod = os.path.exists("%s/secmod.db" % (self.dirsrv.get_cert_dir()))
+        pkcs11 = os.path.exists("%s/pkcs11.txt" % (self.dirsrv.get_cert_dir()))
 
         if ((key3 and cert8 and secmod) or (key4 and cert9 and pkcs11)):
             return True
@@ -99,7 +99,7 @@ class NssSsl(object):
         """
 
         # Create noise.
-        self._generate_noise('%s/noise.txt' % self.dirsrv.confdir)
+        self._generate_noise('%s/noise.txt' % self.dirsrv.get_cert_dir())
         # Now run the command. Can we do this with NSS native?
         cmd = [
             '/usr/bin/certutil',
@@ -118,9 +118,9 @@ class NssSsl(object):
             '-d',
             self._certdb,
             '-z',
-            '%s/noise.txt' % self.dirsrv.confdir,
+            '%s/noise.txt' % self.dirsrv.get_cert_dir(),
             '-f',
-            '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
+            '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT),
         ]
         result = check_output(cmd)
         self.dirsrv.log.debug("nss output: %s" % result)
@@ -135,10 +135,10 @@ class NssSsl(object):
             '-a',
         ]
         certdetails = check_output(cmd)
-        with open('%s/ca.crt' % self.dirsrv.confdir, 'w') as f:
+        with open('%s/ca.crt' % self.dirsrv.get_cert_dir(), 'w') as f:
             f.write(certdetails)
         if os.path.isfile('/usr/sbin/cacertdir_rehash'):
-            check_output(['/usr/sbin/cacertdir_rehash', self.dirsrv.confdir])
+            check_output(['/usr/sbin/cacertdir_rehash', self.dirsrv.get_cert_dir()])
         return True
 
     def _rsa_cert_list(self):
@@ -148,7 +148,7 @@ class NssSsl(object):
             '-d',
             self._certdb,
             '-f',
-            '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
+            '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT),
         ]
         result = check_output(cmd)
 
@@ -175,7 +175,7 @@ class NssSsl(object):
             '-d',
             self._certdb,
             '-f',
-            '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
+            '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT),
         ]
         result = check_output(cmd)
 
@@ -224,7 +224,7 @@ class NssSsl(object):
         """
 
         # Create noise.
-        self._generate_noise('%s/noise.txt' % self.dirsrv.confdir)
+        self._generate_noise('%s/noise.txt' % self.dirsrv.get_cert_dir())
         # Now run the command. Can we do this with NSS native?
         cmd = [
             '/usr/bin/certutil',
@@ -244,9 +244,9 @@ class NssSsl(object):
             '-d',
             self._certdb,
             '-z',
-            '%s/noise.txt' % self.dirsrv.confdir,
+            '%s/noise.txt' % self.dirsrv.get_cert_dir(),
             '-f',
-            '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
+            '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT),
         ]
 
         result = check_output(cmd)

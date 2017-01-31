@@ -21,6 +21,8 @@ from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
 
+# This is for sample entry creation.
+from lib389.configurations import get_sample_entries
 
 class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
@@ -392,8 +394,14 @@ class Backend(DSLdapObject):
         # Check if a mapping tree for this suffix exists.
         self._mts = MappingTrees(self._instance)
 
-    def create_sample_entries(self):
-        self._log.debug('Creating sample entries ....')
+    def create_sample_entries(self, version):
+        self._log.debug('Creating sample entries at version %s....' % version)
+        # Grab the correct sample entry config
+        centries = get_sample_entries(version)
+        # apply it.
+        basedn = self.get_attr_val('nsslapd-suffix')
+        cent = centries(self._instance, basedn)
+        cent.apply()
 
     def _validate(self, rdn, properties, basedn):
         # We always need to call the super validate first. This way we can
@@ -443,8 +451,8 @@ class Backend(DSLdapObject):
             'nsslapd-state' : 'backend',
             'nsslapd-backend' : self._nprops_stash['cn'] ,
         })
-        if sample_entries is True:
-            self.create_sample_entries()
+        if sample_entries is not False:
+            self.create_sample_entries(sample_entries)
         return self
 
     def delete(self):

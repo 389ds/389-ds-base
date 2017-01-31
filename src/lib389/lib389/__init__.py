@@ -880,7 +880,7 @@ class DirSrv(SimpleLDAPObject, object):
             # This may conflict in some tests, we may need to use /etc/host
             # aliases or we may need to use server id
             self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
-            ktab = '%s/etc/dirsrv/slapd-%s/ldap.keytab' % (self.prefix, self.serverid)
+            ktab = '%s/ldap.keytab' % (self.ds_paths.config_dir)
             self.krb5_realm.create_keytab(principal='ldap/%s' % self.host, keytab=ktab)
             with open('%s/dirsrv-%s' % (self.ds_paths.initconfig_dir, self.serverid), 'a') as sfile:
                 sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/"
@@ -890,7 +890,57 @@ class DirSrv(SimpleLDAPObject, object):
 
             # Restart the instance
 
-    def create(self):
+    def _createPythonDirsrv(self, version):
+        """
+        Create a new dirsrv instance based on the new python installer, rather
+        than setup-ds.pl
+
+        version represents the config default and sample entry version to use.
+        """
+        from lib389.instance.setup import SetupDs
+        from lib389.instance.options import General2Base, Slapd2Base
+        # Import the new setup ds library.
+        sds = SetupDs(verbose=self.verbose, dryrun=False, log=self.log)
+        # Configure the options.
+        general_options = General2Base(self.log)
+        general_options.set('strict_host_checking', False)
+        general_options.verify()
+        general = general_options.collect()
+
+        slapd_options = Slapd2Base(self.log)
+        slapd_options.set('instance_name', self.serverid)
+        slapd_options.set('port', self.port)
+        slapd_options.set('secure_port', self.sslport)
+        slapd_options.set('root_password', self.bindpw)
+        slapd_options.set('root_dn', self.binddn)
+        slapd_options.set('defaults', version)
+
+        slapd_options.verify()
+        slapd = slapd_options.collect()
+
+        # In order to work by "default" for tests, we need to create a backend.
+        userroot = {
+            'cn': 'userRoot',
+            'nsslapd-suffix': self.creation_suffix,
+            BACKEND_SAMPLE_ENTRIES: version,
+        }
+        backends = [userroot,]
+
+        # Go!
+        sds.create_from_args(general, slapd, backends, None)
+        if self.realm is not None:
+            # This may conflict in some tests, we may need to use /etc/host
+            # aliases or we may need to use server id
+            self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
+            ktab = '%s/ldap.keytab' % (self.ds_paths.config_dir)
+            self.krb5_realm.create_keytab(principal='ldap/%s' % self.host, keytab=ktab)
+            with open('%s/dirsrv-%s' % (self.ds_paths.initconfig_dir, self.serverid), 'a') as sfile:
+                sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/"
+                            "ldap.keytab\nexport KRB5_KTNAME\n" %
+                            (self.prefix, self.serverid))
+            self.restart()
+
+    def create(self, pyinstall=False, version=INSTALL_LATEST_CONFIG):
         """
             Creates an instance with the parameters sets in dirsrv
             The state change from  DIRSRV_STATE_ALLOCATED ->
@@ -918,8 +968,16 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError("SER_SERVERID_PROP is missing, " +
                              "it is required to create an instance")
 
+        # Check how we want to be installed.
+        env_pyinstall = False
+        if os.getenv('PYINSTALL', False) is not False:
+            env_pyinstall = True
         # Time to create the instance and retrieve the effective sroot
-        self._createDirsrv()
+
+        if (env_pyinstall or pyinstall):
+            self._createPythonDirsrv(version)
+        else:
+            self._createDirsrv()
 
         # Retrieve sroot from the sys/priv config file
         props = self.list()
@@ -1543,6 +1601,9 @@ class DirSrv(SimpleLDAPObject, object):
 
     def get_config_dir(self):
         return self.ds_paths.config_dir
+
+    def get_cert_dir(self):
+        return self.ds_paths.cert_dir
 
     def get_sysconf_dir(self):
         return self.ds_paths.sysconf_dir

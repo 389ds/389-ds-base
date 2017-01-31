@@ -160,5 +160,3 @@ class FakeArgs(object):
     def __init__(self):
         pass
 
-
-# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
