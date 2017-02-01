@@ -38,6 +38,14 @@ else
 WITH_SYSTEMD = 0
 endif
 
+if WITH_CMOCKA
+CMOCKA_INCLUDES = @cmocka_inc@
+CMOCKA_LINKS = @cmocka_lib@
+else
+CMOCKA_INCLUDES =
+CMOCKA_LINKS =
+endif
+
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
 # values prior to their being defined.  Defining them here ensures that they are properly
@@ -54,7 +62,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" \
 	-DTEMPLATEDIR="\"$(sampledatadir)\"" -DSYSTEMSCHEMADIR="\"$(systemschemadir)\""
 
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(CMOCKA_INCLUDES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@ @systemd_inc@
 # We need to make sure that libpthread is linked before libc on HP-UX.
 if HPUX
@@ -1825,6 +1833,27 @@ rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 
 rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
+
+#-------------------------
+# CMOCKA TEST PROGRAMS
+#-------------------------
+if WITH_CMOCKA
+
+check_PROGRAMS = test_slapd
+
+test_slapd_SOURCES = test/main.c \
+					test/libslapd/test.c \
+					test/libslapd/pblock/analytics.c
+test_slapd_LDADD = libslapd.la
+test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
+test_slapd_CPPFLAGS = $(AM_CPPFLAGS) @nspr_inc@
+
+
+
+endif
+#------------------------
+# end cmocka tests
+#------------------------
 
 # these are for the config files and scripts that we need to generate and replace
 # the paths and other tokens with the real values set during configure/make

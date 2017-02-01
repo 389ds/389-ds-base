@@ -688,6 +688,7 @@ m4_include(m4/pcre.m4)
 m4_include(m4/selinux.m4)
 m4_include(m4/nunc-stans.m4)
 m4_include(m4/systemd.m4)
+m4_include(m4/cmocka.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
