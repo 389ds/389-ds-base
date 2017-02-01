@@ -129,7 +129,7 @@ def test_mail_attr_repl(topo_r, test_user):
     assert entries, "User {} wasn't replicated successfully".format(TEST_USER_NAME)
 
 
-def test_mail_attr_repl(topo_nr, replica_without_init):
+def test_lastupdate_attr_before_init(topo_nr, replica_without_init):
     """Check that LastUpdate replica attributes show right values
 
     :Feature: Single master replication
