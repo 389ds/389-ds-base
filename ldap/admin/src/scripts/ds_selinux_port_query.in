@@ -5,13 +5,12 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # END COPYRIGHT BLOCK
 #
 
 import sys
-import selinux
-import semanage
+import sepolicy
 
 # These are python 3 capable, but el7 doesn't have libsemanage-python3
 
@@ -22,6 +21,8 @@ import semanage
 # or if a lable is given, exists AND inside of label type.
 # 2 means port exists but belongs to a different type.
 
+# Get the arguments
+# Fail if they are not set correctly.
 if len(sys.argv) <= 1:
     sys.stderr.write("Must provide port to query\n")
     sys.exit(512)
@@ -33,37 +34,28 @@ try:
 except:
     pass
 
-# Get the arguments
+# Get all defined ports from the policy
+portrecs, portrecsbynum = sepolicy.gen_port_dict()
+all_ports = []
+for i in portrecs:
+    if i[0] not in all_ports:
+        all_ports.append(i[0])
+all_ports.sort()
 
-# Fail if they are not set correctly.
-
-# Check the port in policy
-h = semanage.semanage_handle_create()
-semanage.semanage_connect(h)
-# This could check high / low values, but eh.
-(r, k) = semanage.semanage_port_key_create(h, port, port, semanage.SEMANAGE_PROTO_TCP)
-
-# Do I need to check _local too?
-(t, e) = semanage.semanage_port_exists(h, k)
-
-if label is None:
-    sys.exit(e)
-
-# See if it has a specifc label
-
-if (e == 0):
-    # No point checking the label, it doesn't exist
-    sys.exit(e)
-
-(t, sp) = semanage.semanage_port_query(h, k)
-
-# do we need to check if this is none? We already know that the port exists, so it must have a context ...
-r = semanage.semanage_port_get_con(sp)
-
-if label == semanage.semanage_context_get_type(r):
-    sys.exit(1)
-
-else:
-    sys.stderr.write('Port belongs to %s\n' % semanage.semanage_context_get_type(r))
-    sys.exit(2)
-
+found = False
+for i in portrecsbynum:
+    # Check if the port is in range
+    if i[0] <= port and port <= i[1] and 'tcp' == i[2]:
+        # See if it has a specific label
+        # Ignore default label types
+        if portrecsbynum[i][0] not in ['unreserved_port_t', 'reserved_port_t',
+                                       'ephemeral_port_t']:
+            # Port exists within our label type or exists if none is given
+            if label == portrecsbynum[i][0] or label == None:
+                found = True
+                sys.exit(1)
+            else:
+                sys.stderr.write("Port belongs to {}\n".format(portrecsbynum[i][0]))
+                sys.exit(2)
+if not found:
+        sys.exit(0)
