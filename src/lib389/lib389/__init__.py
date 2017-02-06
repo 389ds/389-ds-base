@@ -2612,8 +2612,7 @@ class DirSrv(SimpleLDAPObject, object):
         except:
             log.error("db2ldif: error executing %s" % cmd)
             result = False
-        # Why are we implicitly starting this?!
-        # self.start(timeout=10)
+        self.start(timeout=10)
 
         return result
 
