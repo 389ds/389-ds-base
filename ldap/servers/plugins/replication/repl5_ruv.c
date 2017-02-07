@@ -1703,8 +1703,14 @@ int ruv_cancel_csn_inprogress (RUV *ruv, const CSN *csn, ReplicaId local_rid)
 	replica = ruvGetReplica (ruv, prim_rid);
 	rc = csnplRemoveAll (replica->csnpl, prim_csn);
 	if (prim_rid != local_rid) {
-		replica = ruvGetReplica (ruv, local_rid);
-		rc = csnplRemoveAll (replica->csnpl, prim_csn);
+		if( local_rid != READ_ONLY_REPLICA_ID) {
+			replica = ruvGetReplica (ruv, local_rid);
+			if (replica) {
+				rc = csnplRemoveAll (replica->csnpl, prim_csn);
+			} else {
+				rc = RUV_NOTFOUND;
+			}
+		}
 	}
     } else {
 	rc = csnplRemove (replica->csnpl, csn);
