@@ -12,13 +12,122 @@
 #  include <config.h>
 #endif
 
-
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include "slap.h"
 #include "cert.h"
+
+#ifdef PBLOCK_ANALYTICS
+
+#define NUMBER_SLAPI_ATTRS 320
+#define ANALYTICS_MAGIC 0x7645
+
+static PRLock *pblock_analytics_lock = NULL;
+
+static PLHashNumber
+hash_int_func(const void *key) {
+    uint64_t ik = (uint64_t)key;
+    return ik % NUMBER_SLAPI_ATTRS;
+}
+
+static PRIntn
+hash_key_compare(const void *a, const void *b) {
+    uint64_t ia = (uint64_t)a;
+    uint64_t ib = (uint64_t)b;
+    return ia == ib;
+}
+
+static PRIntn
+hash_value_compare(const void *a, const void *b) {
+    uint64_t ia = (uint64_t)a;
+    uint64_t ib = (uint64_t)b;
+    return ia == ib;
+}
+
+static void
+pblock_analytics_init( Slapi_PBlock *pb ) {
+    if (pblock_analytics_lock == NULL) {
+        pblock_analytics_lock = PR_NewLock();
+    }
+    /* Create an array of values for us to use. */
+    if (pb->analytics == NULL) {
+        pb->analytics = PL_NewHashTable(NUMBER_SLAPI_ATTRS, hash_int_func, hash_key_compare, hash_value_compare, NULL, NULL);
+    }
+    pb->analytics_init = ANALYTICS_MAGIC;
+}
+
+static void
+pblock_analytics_destroy( Slapi_PBlock *pb ) {
+    /* Some parts of DS re-use or double free pblocks >.< */
+    if (pb->analytics_init != ANALYTICS_MAGIC) {
+        return;
+    }
+    /* Free the array of values */
+    PL_HashTableDestroy(pb->analytics);
+    pb->analytics_init = 0;
+}
+
+static void
+pblock_analytics_record( Slapi_PBlock *pb, int access_type ) {
+    if (pb->analytics_init != ANALYTICS_MAGIC) {
+        pblock_analytics_init(pb);
+    }
+    /* record an access of type to the values */
+    /* Is the value there? */
+    uint64_t uact = (uint64_t)access_type;
+    uint64_t value = (uint64_t)PL_HashTableLookup(pb->analytics, (void *)uact);
+    if (value == 0) {
+        PL_HashTableAdd(pb->analytics, (void *)uact, (void *)1);
+    } else {
+        /* If not, increment it. */
+        PL_HashTableAdd(pb->analytics, (void *)uact, (void *)(value + 1));
+    }
+}
+
+static PRIntn
+pblock_analytics_report_entry(PLHashEntry *he, PRIntn index, void *arg) {
+    FILE *fp = (FILE *)arg;
+    /* Print a pair of values */
+    fprintf(fp, "%"PRIu64":%"PRIu64",", (uint64_t)he->key, (uint64_t)he->value);
+
+    return HT_ENUMERATE_NEXT;
+}
+
+static void
+pblock_analytics_report( Slapi_PBlock *pb ) {
+    /* Some parts of DS re-use or double free pblocks >.< */
+    if (pb->analytics_init != ANALYTICS_MAGIC) {
+        return;
+    }
+    /* Write the report to disk. */
+    /* Take the write lock. */
+    PR_Lock(pblock_analytics_lock);
+
+    FILE *fp = NULL;
+    fp = fopen("/tmp/pblock_stats.csv", "a");
+    if (fp == NULL) {
+        int errsv = errno;
+        printf("%d\n", errsv);
+        abort();
+    }
+    /* Map over the hashmap */
+    PL_HashTableEnumerateEntries(pb->analytics, pblock_analytics_report_entry, fp);
+    /* Printf the new line */
+    fprintf(fp, "\n");
+    fclose(fp);
+    /* Unlock */
+    PR_Unlock(pblock_analytics_lock);
+}
+
+uint64_t
+pblock_analytics_query( Slapi_PBlock *pb, int access_type) {
+    uint64_t uact = (uint64_t)access_type;
+    /* For testing, allow querying of the stats we have taken. */
+    return (uint64_t)PL_HashTableLookup(pb->analytics, (void *)uact);
+}
+
+#endif
 
 void
 pblock_init( Slapi_PBlock *pb )
@@ -35,54 +144,72 @@ pblock_init_common(
 )
 {
     PR_ASSERT( NULL != pb );
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_init(pb);
+#endif
     /* No need to memset, this is only called in backend_manager, and it uses {0} */
     pb->pb_backend = be;
     pb->pb_conn = conn;
     pb->pb_op = op;
 }
 
-void
+/* NO LONGER USED!!! */
+static void
 slapi_pblock_get_common(
-    Slapi_PBlock	*pb,
-    Slapi_Backend	**be,
-    Connection	**conn,
-    Operation	**op
+    Slapi_PBlock    *pb,
+    Slapi_Backend   **be,
+    Connection  **conn,
+    Operation   **op
 )
 {
-	PR_ASSERT( NULL != pb );
-	PR_ASSERT( NULL != be );
-	PR_ASSERT( NULL != conn );
-	PR_ASSERT( NULL != op );
-	*be = pb->pb_backend;
-	*conn = pb->pb_conn;
-	*op = pb->pb_op;
+    PR_ASSERT( NULL != pb );
+    PR_ASSERT( NULL != be );
+    PR_ASSERT( NULL != conn );
+    PR_ASSERT( NULL != op );
+    *be = pb->pb_backend;
+    *conn = pb->pb_conn;
+    *op = pb->pb_op;
 }
 
 Slapi_PBlock *
 slapi_pblock_new()
 {
-	Slapi_PBlock	*pb;
+    Slapi_PBlock    *pb;
 
-	pb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) );
-	return pb;
+    pb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) );
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_init(pb);
+#endif
+    return pb;
 }
 
 void
 slapi_pblock_init( Slapi_PBlock *pb )
 {
-	if(pb!=NULL)
-	{
-		pblock_done(pb);
-		pblock_init(pb);
-	}
+    if(pb!=NULL)
+    {
+        pblock_done(pb);
+        pblock_init(pb);
+#ifdef PBLOCK_ANALYTICS
+        pblock_analytics_init(pb);
+#endif
+    }
 }
 
+/*
+ * THIS FUNCTION IS AWFUL, WE SHOULD NOT REUSE PBLOCKS
+ */
 void
 pblock_done( Slapi_PBlock *pb )
 {
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_report(pb);
+    pblock_analytics_destroy(pb);
+#endif
     if(pb->pb_op!=NULL)
     {
         operation_free(&pb->pb_op,pb->pb_conn);
+        pb->pb_op = NULL;
     }
     delete_passwdPolicy(&pb->pwdpolicy);
     slapi_ch_free((void**)&(pb->pb_vattr_context));
@@ -92,11 +219,11 @@ pblock_done( Slapi_PBlock *pb )
 void
 slapi_pblock_destroy( Slapi_PBlock* pb )
 {
-	if(pb!=NULL)
-	{
-		pblock_done(pb);
-	    slapi_ch_free((void**)&pb);
-	}
+    if(pb!=NULL)
+    {
+        pblock_done(pb);
+        slapi_ch_free((void**)&pb);
+    }
 }
 
 /* JCM - when pb_o_params is used, check the operation type. */
@@ -129,6 +256,11 @@ __attribute__((no_sanitize("address")))
 #  endif
 #endif
 {
+
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pblock, arg);
+#endif
+
 	char *authtype;
 	Slapi_Backend		*be;
 
@@ -1162,7 +1294,7 @@ __attribute__((no_sanitize("address")))
 			return( -1 );
 		}
 		break;
-	case SLAPI_TARGET_SDN:
+	case SLAPI_TARGET_SDN: /* Alias from SLAPI_ADD_TARGET_SDN */
 		if(pblock->pb_op!=NULL)
 		{
 			(*(Slapi_DN **)value) = pblock->pb_op->o_params.target_address.sdn;
@@ -2013,6 +2145,9 @@ __attribute__((no_sanitize("address")))
 #  endif
 #endif
 {
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pblock, arg);
+#endif
 	char *authtype;
 
 	PR_ASSERT( NULL != pblock );
@@ -2890,20 +3025,19 @@ __attribute__((no_sanitize("address")))
 		 * the address using slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn). */
 		if(pblock->pb_op!=NULL)
 		{
-			Slapi_DN *sdn = pblock->pb_op->o_params.target_address.sdn;
-			slapi_sdn_free(&sdn);
-			pblock->pb_op->o_params.target_address.sdn =
-			                              slapi_sdn_new_dn_byval((char *)value);
+            Slapi_DN *sdn = pblock->pb_op->o_params.target_address.sdn;
+            slapi_sdn_free(&sdn);
+            pblock->pb_op->o_params.target_address.sdn = slapi_sdn_new_dn_byval((char *)value);
 		}
 		else
 		{
 			return( -1 );
 		}
 		break;
-	case SLAPI_TARGET_SDN:
+	case SLAPI_TARGET_SDN: /* alias from SLAPI_ADD_TARGET_SDN */
 		if(pblock->pb_op!=NULL)
 		{
-			pblock->pb_op->o_params.target_address.sdn = (Slapi_DN *)value;
+            pblock->pb_op->o_params.target_address.sdn = (Slapi_DN *)value;
 		}
 		else
 		{
@@ -3634,6 +3768,10 @@ __attribute__((no_sanitize("address")))
 int
 slapi_is_ldapi_conn(Slapi_PBlock *pb)
 {
+#ifdef PBLOCK_ANALYTICS
+    // MAKE THIS BETTER.
+    pblock_analytics_record(pb, SLAPI_CONNECTION);
+#endif
     if(pb && pb->pb_conn){
     	return pb->pb_conn->c_unix_local;
     } else {

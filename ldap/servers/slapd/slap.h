@@ -134,6 +134,12 @@ typedef struct symbol_t {
 #include <systemd/sd-daemon.h>
 #endif
 
+#ifdef DEBUG
+ // #define PBLOCK_ANALYTICS 1
+#else
+#undef PBLOCK_ANALYTICS
+#endif
+
 #if defined(OS_solaris)
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
@@ -1913,6 +1919,10 @@ typedef struct slapi_pblock {
 	int pb_aci_target_check; /* this flag prevents duplicate checking of ACI's target existence */
 
     struct slapi_entry *pb_pw_entry; /* stash dup'ed entry that shadow info is added/replaced */
+#ifdef PBLOCK_ANALYTICS
+    uint32_t analytics_init;
+    PLHashTable *analytics;
+#endif
 } slapi_pblock;
 
 /* index if substrlens */

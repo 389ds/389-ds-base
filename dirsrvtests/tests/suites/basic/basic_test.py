@@ -259,6 +259,8 @@ def test_basic_import_export(topology_st, import_example_ldif):
         log.fatal('test_basic_import_export: Failed to run offline db2ldif')
         assert False
 
+    topology_st.standalone.start()
+
     #
     # Cleanup - Import the Example LDIF for the other tests in this suite
     #

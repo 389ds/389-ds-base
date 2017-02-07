@@ -1936,6 +1936,7 @@ plugin_dependency_closeall(void)
 				plugin_call_one( global_plugin_shutdown_order[index].plugin, SLAPI_PLUGIN_CLOSE_FN, &pb);
 				/* set plg_closed to 1 to prevent any further plugin pre/post op function calls */
 				global_plugin_shutdown_order[index].plugin->plg_closed = 1;
+				pblock_done(&pb);
 			}
 			plugins_closed++;
 
@@ -3142,6 +3143,7 @@ PLUGIN_CLEANUP:
 		plugin_free(plugin);
     }
 	slapi_ch_free((void **)&configdir);
+	pblock_done(&pb);
 
 	return status;
 }
