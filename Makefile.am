@@ -1843,10 +1843,14 @@ check_PROGRAMS = test_slapd
 
 test_slapd_SOURCES = test/main.c \
 					test/libslapd/test.c \
-					test/libslapd/pblock/analytics.c
+					test/libslapd/pblock/analytics.c \
+					test/libslapd/pblock/v3_compat.c \
+					test/libslapd/operation/v3_compat.c
 test_slapd_LDADD = libslapd.la
 test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
-test_slapd_CPPFLAGS = $(AM_CPPFLAGS) @nspr_inc@
+### WARNING: Slap.h needs cert.h, which requires the -I/lib/ldaputil!!!
+### WARNING: Slap.h pulls ssl.h, which requires nss!!!!
+test_slapd_CPPFLAGS = $(AM_CPPFLAGS) @nspr_inc@ @nss_inc@ -I$(srcdir)/include/ldaputil
 
 
 
