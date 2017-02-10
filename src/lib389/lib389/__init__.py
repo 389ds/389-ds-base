@@ -522,6 +522,9 @@ class DirSrv(SimpleLDAPObject, object):
         self.creation_suffix = args.get(SER_CREATION_SUFFIX, DEFAULT_SUFFIX)
         # These settings are only needed on a local connection.
         if self.isLocal:
+            # For compatibility keep self.inst but should be removed
+            self.inst = self.serverid
+
             self.userid = args.get(SER_USER_ID)
             if not self.userid:
                 if os.getuid() == 0:
@@ -545,9 +548,6 @@ class DirSrv(SimpleLDAPObject, object):
         # self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
         # self.errlog    = os.path.join(self.prefix,
         #                     "var/log/dirsrv/slapd-%s/errors" % self.serverid)
-
-        # For compatibility keep self.inst but should be removed
-        self.inst = self.serverid
 
         # additional settings
         self.suffixes = {}
