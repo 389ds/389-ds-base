@@ -270,12 +270,25 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 */
 			if ((e = find_entry2modify(pb, be, addr, &txn, &result_sent)) == NULL)
 			{
-				ldap_result_code= LDAP_NO_SUCH_OBJECT; 
+				ldap_result_code= LDAP_NO_SUCH_OBJECT;
 				retval = -1;
 				slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "Deleting entry is already deleted.\n");
 				goto error_return; /* error result sent by find_entry2modify() */
 			}
 			ep_id = e->ep_id;
+
+			/* JCMACL - Shouldn't the access check be before the has children check...
+			 * otherwise we're revealing the fact that an entry exists and has children */
+			/* Before has children to mask the presence of children disclosure. */
+			ldap_result_code = plugin_call_acl_plugin (pb, e->ep_entry, NULL, NULL, SLAPI_ACL_DELETE, 
+							ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
+			if ( ldap_result_code != LDAP_SUCCESS )
+			{
+				ldap_result_message= errbuf;
+				retval = -1;
+				goto error_return;
+			}
+
 			retval = slapi_entry_has_children(e->ep_entry);
 			if (retval) {
 				ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
@@ -285,7 +298,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				retval = -1;
 				goto error_return;
 			}
-		
+
 			/* Don't call pre-op for Tombstone entries */
 			if (!delete_tombstone_entry)
 			{
@@ -438,17 +451,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 			/* Save away a copy of the entry, before modifications */
 			slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
-
-			/* JCMACL - Shouldn't the access check be before the has children check...
-			 * otherwise we're revealing the fact that an entry exists and has children */
-			ldap_result_code = plugin_call_acl_plugin (pb, e->ep_entry, NULL, NULL, SLAPI_ACL_DELETE, 
-							ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
-			if ( ldap_result_code != LDAP_SUCCESS )
-			{
-				ldap_result_message= errbuf;
-				retval = -1;
-				goto error_return;
-			}
 
 			/*
 			 * Get the entry's parent. We do this here because index_read

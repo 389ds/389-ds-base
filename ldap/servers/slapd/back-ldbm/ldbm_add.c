@@ -315,6 +315,15 @@ ldbm_back_add( Slapi_PBlock *pb )
 					ldap_result_code = get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_PARENT_ENTRY, !is_replicated_operation);
 				}
 
+				ldap_result_code = plugin_call_acl_plugin(pb, e, NULL, NULL, SLAPI_ACL_ADD, 
+				                                          ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
+				if ( ldap_result_code != LDAP_SUCCESS )
+				{
+					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "no access to parent, pdn = %s\n",
+					              slapi_sdn_get_dn(&parentsdn));
+					ldap_result_message= errbuf;
+					goto error_return;
+				}
 				/* Call the Backend Pre Add plugins */
 				ldap_result_code = LDAP_SUCCESS;
 				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -732,15 +741,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 					ldap_result_matcheddn= 
 					    slapi_ch_strdup((char *)slapi_sdn_get_dn(&ancestorsdn)); /* jcm - cast away const. */
 					slapi_sdn_done(&ancestorsdn);
-					goto error_return;
-				}
-				ldap_result_code = plugin_call_acl_plugin(pb, e, NULL, NULL, SLAPI_ACL_ADD, 
-				                                          ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
-				if ( ldap_result_code != LDAP_SUCCESS )
-				{
-					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "no access to parent, pdn = %s\n",
-					              slapi_sdn_get_dn(&parentsdn));
-					ldap_result_message= errbuf;
 					goto error_return;
 				}
 				pid = parententry->ep_id;
