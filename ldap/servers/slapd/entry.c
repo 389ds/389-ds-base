@@ -1470,7 +1470,8 @@ bail:
 }
 
 static size_t
-entry2str_internal_size_valueset( const char *attrtype, const Slapi_ValueSet *vs, int entry2str_ctrl, int attribute_state, int value_state )
+entry2str_internal_size_valueset( const Slapi_Attr *a, const char *attrtype, const Slapi_ValueSet *vs,
+                                  int entry2str_ctrl, int attribute_state, int value_state )
 {
 	size_t elen= 0;
 	if(!valueset_isempty(vs))
@@ -1481,6 +1482,12 @@ entry2str_internal_size_valueset( const char *attrtype, const Slapi_ValueSet *vs
 	    {
 			elen+= entry2str_internal_size_value(attrtype, va[i], entry2str_ctrl,
 												 attribute_state, value_state );
+		}
+	}
+	if(entry2str_ctrl & SLAPI_DUMP_STATEINFO) {
+		/* ";adcsn-" + a->a_deletioncsn */
+		if ( a && a->a_deletioncsn ) {
+			elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
 		}
 	}
 	return elen;
@@ -1499,30 +1506,34 @@ entry2str_internal_size_attrlist( const Slapi_Attr *attrlist, int entry2str_ctrl
 			continue;
 
 		/* Count the space required for the present and deleted values */
-		elen+= entry2str_internal_size_valueset(a->a_type, &a->a_present_values,
-												entry2str_ctrl, attribute_state,
-												VALUE_PRESENT);
-		if(entry2str_ctrl & SLAPI_DUMP_STATEINFO)
-		{
-			elen+= entry2str_internal_size_valueset(a->a_type, &a->a_deleted_values,
-													entry2str_ctrl, attribute_state,
-													VALUE_DELETED);
-			/* ";adcsn-" + a->a_deletioncsn */
-			if ( a->a_deletioncsn )
-			{
-				elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
-			}
-			if ( valueset_isempty(&a->a_deleted_values)) {
+		elen += entry2str_internal_size_valueset(a, a->a_type, &a->a_present_values,
+		                                         entry2str_ctrl, attribute_state, VALUE_PRESENT);
+		if (entry2str_ctrl & SLAPI_DUMP_STATEINFO) {
+			elen += entry2str_internal_size_valueset(a, a->a_type, &a->a_deleted_values,
+			                                         entry2str_ctrl, attribute_state, VALUE_DELETED);
+			if (valueset_isempty(&a->a_deleted_values) && valueset_isempty(&a->a_present_values)) {
 				/* this means the entry is deleted and has no more attributes,
 				 * when writing the attr to disk we would loose the AD-csn.
-				 * Add an empty value to the set of deleted values. This will 
-				 * never be seen by any client. It will never be moved to the 
+				 * Add an empty value to the set of deleted values. This will
+				 * never be seen by any client. It will never be moved to the
 				 * present values and is only used to preserve the AD-csn
 				 * We need to add the size for that.
 				 */
 				elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
-                                /* need also space for ";deletedattribute;deleted" */
-                                elen += DELETED_ATTR_STRSIZE + DELETED_VALUE_STRSIZE;
+				/* need also space for ";deletedattribute;deleted" */
+				elen += DELETED_ATTR_STRSIZE + DELETED_VALUE_STRSIZE;
+				/*
+				 * If a_deleted_values is empty && if a_deletioncsn is NULL,
+				 * a_deletioncsn is initialized via valueset_add_string.
+				 * The size needs to be added.
+				 */
+				/* ";adcsn-" + a->a_deletioncsn */
+				elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
+				/*
+				 * When both a_present_values & a_deleted_values are empty,
+				 * the type size is not added.
+				 */
+				elen += PL_strlen(a->a_type);
 			}
 		}
 	}
@@ -1809,10 +1820,8 @@ entry2str_internal_ext( Slapi_Entry *e, int *len, int entry2str_ctrl)
         if (NULL != slapi_entry_get_rdn_const(e))
         {
             slapi_value_set_string(&rdnvalue, slapi_entry_get_rdn_const(e));
-            elen += entry2str_internal_size_value("rdn", &rdnvalue,
-                                                  entry2str_ctrl,
-                                                  ATTRIBUTE_PRESENT,
-                                                  VALUE_PRESENT);
+            elen += entry2str_internal_size_value("rdn", &rdnvalue, entry2str_ctrl,
+                                                  ATTRIBUTE_PRESENT, VALUE_PRESENT);
         }
     
         /* Count the space required for the present attributes */
