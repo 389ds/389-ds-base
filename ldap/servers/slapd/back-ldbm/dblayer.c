@@ -3374,6 +3374,8 @@ dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn,
 
     if (priv->dblayer_enable_transactions)
     {
+        int txn_begin_flags;
+
         dblayer_private_env *pEnv = priv->dblayer_env;
         if(use_lock) slapi_rwlock_rdlock(pEnv->dblayer_env_lock);
         if (!parent_txn)
@@ -3383,11 +3385,16 @@ dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn,
             if (par_txn_txn) {
                 parent_txn = par_txn_txn->back_txn_txn;
             }
+                }
+        if (priv->dblayer_txn_wait) {
+                txn_begin_flags = 0;
+        } else {
+                txn_begin_flags = DB_TXN_NOWAIT;
         }
         return_value = TXN_BEGIN(pEnv->dblayer_DB_ENV,
                                  (DB_TXN*)parent_txn,
                                  &new_txn.back_txn_txn,
-                                 DB_TXN_NOWAIT);
+                                 txn_begin_flags);
         if (0 != return_value) 
         {
             if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);

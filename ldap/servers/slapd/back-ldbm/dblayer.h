@@ -104,6 +104,9 @@ struct dblayer_private
                                         * the mpool */
     int dblayer_recovery_required;
     int dblayer_enable_transactions;
+    int dblayer_txn_wait;           /* Default is "off" (DB_TXN_NOWAIT) but for
+                                     * support purpose it could be helpful to set
+                                     * "on" so that backend hang on deadlock */
     int dblayer_durable_transactions;
     int dblayer_checkpoint_interval;
     int dblayer_circular_logging;
