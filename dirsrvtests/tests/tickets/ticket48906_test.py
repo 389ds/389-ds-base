@@ -37,7 +37,6 @@ DBLOCK_ATTR_CONFIG = "nsslapd-db-locks"
 DBLOCK_ATTR_MONITOR = "nsslapd-db-configured-locks"
 DBLOCK_ATTR_GUARDIAN = "locks"
 
-DBCACHE_DEFAULT = "33554432"
 DBCACHE_LDAP_UPDATE = "20000000"
 DBCACHE_EDIT_UPDATE = "40000000"
 DBCACHE_ATTR_CONFIG = "nsslapd-dbcachesize"
@@ -151,7 +150,6 @@ def test_ticket48906_dblock_default(topology_st):
     topology_st.standalone.log.info('###################################')
     _check_monitored_value(topology_st, DBLOCK_DEFAULT)
     _check_configured_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value=DBLOCK_DEFAULT, required=False)
-    _check_configured_value(topology_st, attr=DBCACHE_ATTR_CONFIG, expected_value=DBCACHE_DEFAULT, required=False)
 
 
 def test_ticket48906_dblock_ldap_update(topology_st):
