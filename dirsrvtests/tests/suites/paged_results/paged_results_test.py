@@ -370,9 +370,6 @@ def test_search_limits_fail(topology_st, test_user, page_size, users_num,
             else:
                 break
     finally:
-        if expected_err == ldap.UNAVAILABLE_CRITICAL_EXTENSION:
-            topology_st.standalone.open()
-
         log.info('Set Directory Manager bind back (test_search_limits_fail)')
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology_st, users_list)

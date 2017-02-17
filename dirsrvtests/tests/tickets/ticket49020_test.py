@@ -10,6 +10,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m3 as T
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -60,9 +63,6 @@ def test_ticket49020(T):
 
     assert len(A_entries) == len(C_entries)
     assert len(B_entries) == len(A_entries) - 11
-    if DEBUGGING:
-        # Add debugging steps(if any)...
-        pass
 
 
 if __name__ == '__main__':

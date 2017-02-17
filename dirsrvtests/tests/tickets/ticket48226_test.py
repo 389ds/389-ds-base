@@ -71,67 +71,61 @@ def test_ticket48226_1(topology_m2):
     # Get the sbin directory so we know where to replace 'ns-slapd'
     sbin_dir = topology_m2.ms["master2"].get_sbin_dir()
 
-    # Enable valgrind
-    if not topology_m2.ms["master2"].has_asan():
-        valgrind_enable(sbin_dir)
+    # Wrap valgrind in the try-finally block to make sure it is teared down
+    try:
+        if not topology_m2.ms["master2"].has_asan():
+            valgrind_enable(sbin_dir)
 
-    # start M2 to do the next updates
-    topology_m2.ms["master2"].start()
+        # start M2 to do the next updates
+        topology_m2.ms["master2"].start()
 
-    # ADD 'description' by '5'
-    mods = [(ldap.MOD_DELETE, 'description', '5')]
-    topology_m2.ms["master2"].modify_s(dn, mods)
+        # ADD 'description' by '5'
+        mods = [(ldap.MOD_DELETE, 'description', '5')]
+        topology_m2.ms["master2"].modify_s(dn, mods)
 
-    # DEL 'description' by '5'
-    mods = [(ldap.MOD_ADD, 'description', '5')]
-    topology_m2.ms["master2"].modify_s(dn, mods)
+        # DEL 'description' by '5'
+        mods = [(ldap.MOD_ADD, 'description', '5')]
+        topology_m2.ms["master2"].modify_s(dn, mods)
 
-    # sleep of purge delay so that the next update will purge the CSN_7
-    time.sleep(6)
+        # sleep of purge delay so that the next update will purge the CSN_7
+        time.sleep(6)
 
-    # ADD 'description' by '6' that purge the state info
-    mods = [(ldap.MOD_ADD, 'description', '6')]
-    topology_m2.ms["master2"].modify_s(dn, mods)
+        # ADD 'description' by '6' that purge the state info
+        mods = [(ldap.MOD_ADD, 'description', '6')]
+        topology_m2.ms["master2"].modify_s(dn, mods)
 
-    # Restart master1
-    # topology_m2.ms["master1"].start(30)
+        # Restart master1
+        # topology_m2.ms["master1"].start(30)
 
-    if not topology_m2.ms["master2"].has_asan():
-        results_file = valgrind_get_results_file(topology_m2.ms["master2"])
+        if not topology_m2.ms["master2"].has_asan():
+            results_file = valgrind_get_results_file(topology_m2.ms["master2"])
 
-    # Stop master2
-    topology_m2.ms["master2"].stop(30)
+        # Stop master2
+        topology_m2.ms["master2"].stop(30)
 
-    # Check for leak
-    if not topology_m2.ms["master2"].has_asan():
-        if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
-            log.info('Valgrind reported leak in csnset_dup!')
-            valgrind_disable(sbin_dir)
-            assert False
-        else:
-            log.info('Valgrind is happy!')
+        # Check for leak
+        if not topology_m2.ms["master2"].has_asan():
+            if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
+                log.info('Valgrind reported leak in csnset_dup!')
+                assert False
+            else:
+                log.info('Valgrind is happy!')
 
-        # Check for invalid read/write
-        if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_dup'):
-            log.info('Valgrind reported invalid!')
-            valgrind_disable(sbin_dir)
-            assert False
-        else:
-            log.info('Valgrind is happy!')
+            # Check for invalid read/write
+            if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_dup'):
+                log.info('Valgrind reported invalid!')
+                assert False
+            else:
+                log.info('Valgrind is happy!')
 
-        # Check for invalid read/write
-        if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_free'):
-            log.info('Valgrind reported invalid!')
-            valgrind_disable(sbin_dir)
-            assert False
-        else:
-            log.info('Valgrind is happy!')
-
-    # Disable valgrind
-    if not topology_m2.ms["master2"].has_asan():
+            # Check for invalid read/write
+            if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_free'):
+                log.info('Valgrind reported invalid!')
+                assert False
+            else:
+                log.info('Valgrind is happy!')
+    finally:
         valgrind_disable(sbin_dir)
-
-    log.info('Testcase PASSED')
 
 
 if __name__ == '__main__':

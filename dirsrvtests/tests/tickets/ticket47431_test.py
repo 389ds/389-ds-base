@@ -28,7 +28,6 @@ def test_ticket47431_0(topology_st):
     log.info("Ticket 47431 - 0: Enable 7bit plugin...")
     topology_st.standalone.plugins.enable(name=PLUGIN_7_BIT_CHECK)
 
-
 def test_ticket47431_1(topology_st):
     '''
     nsslapd-pluginarg0: uid
@@ -43,7 +42,7 @@ def test_ticket47431_1(topology_st):
     '''
 
     log.info("Ticket 47431 - 1: Check 26 duplicate values are treated as one...")
-    expected = "str2entry_dupcheck - .* duplicate values for attribute type nsslapd-pluginarg2 detected in entry cn=7-bit check,cn=plugins,cn=config."
+    expected = "str2entry_dupcheck.* duplicate values for attribute type nsslapd-pluginarg2 detected in entry cn=7-bit check,cn=plugins,cn=config."
 
     log.debug('modify_s %s' % DN_7BITPLUGIN)
     try:

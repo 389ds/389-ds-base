@@ -620,7 +620,7 @@ def test_ticket47823_invalid_config_1(topology_st):
         pass
 
     # Check the expected error message
-    regex = re.compile("Unable to parse old style")
+    regex = re.compile("[U|u]nable to parse old style")
     res = _pattern_errorlog(topology_st.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -728,7 +728,7 @@ def test_ticket47823_invalid_config_3(topology_st):
         pass
 
     # Check the expected error message
-    regex = re.compile("Unable to parse old style")
+    regex = re.compile("[U|u]nable to parse old style")
     res = _pattern_errorlog(topology_st.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -835,7 +835,7 @@ def test_ticket47823_invalid_config_5(topology_st):
         pass
 
     # Check the expected error message
-    regex = re.compile("Attribute name not defined")
+    regex = re.compile("[A|a]ttribute name not defined")
     res = _pattern_errorlog(topology_st.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -888,7 +888,7 @@ def test_ticket47823_invalid_config_6(topology_st):
         pass
 
     # Check the expected error message
-    regex = re.compile("Objectclass for subtree entries is not defined")
+    regex = re.compile("[O|o]bjectclass for subtree entries is not defined")
     res = _pattern_errorlog(topology_st.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert

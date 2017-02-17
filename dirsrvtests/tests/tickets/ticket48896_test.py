@@ -11,6 +11,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -51,7 +54,7 @@ def replace_pw(server, curpw, newpw, expstr, rc):
         assert isinstance(e, rc)
 
     if (0 != rc) and (0 == hit):
-        log.info('Expected to fail with %d, but passed' % rc)
+        log.info('Expected to fail with %s, but passed' % rc.__name__)
         assert False
 
     log.info('PASSED')

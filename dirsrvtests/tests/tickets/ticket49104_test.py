@@ -11,8 +11,11 @@ import subprocess
 
 import pytest
 from lib389.tasks import *
+from lib389.utils import *
 from lib389.topologies import topology_st
 
+# Skip on older versions
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
 log = logging.getLogger(__name__)
 
 def test_ticket49104_setup(topology_st):
