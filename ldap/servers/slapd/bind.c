@@ -626,6 +626,7 @@ do_bind( Slapi_PBlock *pb )
         rc = 0;
 
         /* Check if a pre_bind plugin mapped the DN to another backend */
+        Slapi_DN *target_spec_sdn = operation_get_target_spec(pb->pb_op);
         Slapi_DN *pb_sdn;
         slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
         if (!pb_sdn) {
@@ -643,6 +644,14 @@ do_bind( Slapi_PBlock *pb )
             send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
             goto free_and_return;
         }
+
+        /* pagure 49086, it's too hard to actually try and merge the two SDN values
+         * without corrupting them. As a result, we need to update the target spec instead.
+         *
+         * It's really important that when we start to rethink pblock, that we kill this with fire.
+         */
+        slapi_sdn_free(&target_spec_sdn);
+        operation_set_target_spec(pb->pb_op, pb_sdn);
 
         /* We could be serving multiple database backends.  Select the appropriate one */
         /* pw_verify_be_dn will select the backend we need for us. */
