@@ -115,6 +115,8 @@ Requires:         nss-tools
 # they are required to support the mandatory LDAP SASL mechs
 Requires:         cyrus-sasl-gssapi
 Requires:         cyrus-sasl-md5
+# This is optionally supported by us, as we use it in our tests
+Requires:         cyrus-sasl-plain
 
 # this is needed for verify-db.pl
 %if %{use_db4}
