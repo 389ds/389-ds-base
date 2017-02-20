@@ -153,24 +153,6 @@ pblock_init_common(
     pb->pb_op = op;
 }
 
-/* NO LONGER USED!!! */
-static void
-slapi_pblock_get_common(
-    Slapi_PBlock    *pb,
-    Slapi_Backend   **be,
-    Connection  **conn,
-    Operation   **op
-)
-{
-    PR_ASSERT( NULL != pb );
-    PR_ASSERT( NULL != be );
-    PR_ASSERT( NULL != conn );
-    PR_ASSERT( NULL != op );
-    *be = pb->pb_backend;
-    *conn = pb->pb_conn;
-    *op = pb->pb_op;
-}
-
 Slapi_PBlock *
 slapi_pblock_new()
 {
