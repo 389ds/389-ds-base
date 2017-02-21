@@ -14,7 +14,7 @@ UIDNUMBERDN = "cn=uidnumber,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=
 def runDbVerify(topology_st):
     topology_st.standalone.log.info("\n\n	+++++ dbverify +++++\n")
     sbin_dir = get_sbin_dir(prefix=topology_st.standalone.prefix)
-    dbverifyCMD = sbin_dir + "/dbverify -Z " + topology_st.standalone.inst + " -V"
+    dbverifyCMD = sbin_dir + "/dbverify -Z " + topology_st.standalone.serverid + " -V"
     dbverifyOUT = os.popen(dbverifyCMD, "r")
     topology_st.standalone.log.info("Running %s" % dbverifyCMD)
     running = True
@@ -42,7 +42,7 @@ def runDbVerify(topology_st):
 def reindexUidNumber(topology_st):
     topology_st.standalone.log.info("\n\n	+++++ reindex uidnumber +++++\n")
     sbin_dir = get_sbin_dir(prefix=topology_st.standalone.prefix)
-    indexCMD = sbin_dir + "/db2index.pl -Z " + topology_st.standalone.inst + " -D \"" + DN_DM + "\" -w \"" + PASSWORD + "\" -n " + MYSUFFIXBE + " -t uidnumber"
+    indexCMD = sbin_dir + "/db2index.pl -Z " + topology_st.standalone.serverid + " -D \"" + DN_DM + "\" -w \"" + PASSWORD + "\" -n " + MYSUFFIXBE + " -t uidnumber"
 
     indexOUT = os.popen(indexCMD, "r")
     topology_st.standalone.log.info("Running %s" % indexCMD)
