@@ -106,6 +106,7 @@ def test_ticket48226_1(topology_m2):
     if not topology_m2.ms["master2"].has_asan():
         if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
             log.info('Valgrind reported leak in csnset_dup!')
+            valgrind_disable(sbin_dir)
             assert False
         else:
             log.info('Valgrind is happy!')
@@ -113,6 +114,7 @@ def test_ticket48226_1(topology_m2):
         # Check for invalid read/write
         if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_dup'):
             log.info('Valgrind reported invalid!')
+            valgrind_disable(sbin_dir)
             assert False
         else:
             log.info('Valgrind is happy!')
@@ -120,9 +122,14 @@ def test_ticket48226_1(topology_m2):
         # Check for invalid read/write
         if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_free'):
             log.info('Valgrind reported invalid!')
+            valgrind_disable(sbin_dir)
             assert False
         else:
             log.info('Valgrind is happy!')
+
+    # Disable valgrind
+    if not topology_m2.ms["master2"].has_asan():
+        valgrind_disable(sbin_dir)
 
     log.info('Testcase PASSED')
 
