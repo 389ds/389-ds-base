@@ -6,19 +6,17 @@
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-// For now, we define these manually....
-// Is there a way to detect this!
-#define ARCH_HAVE_SSE4_2
-#define BITS_PER_LONG 64
+#ifdef HAVE_SSE4_2
 
-
-#ifdef ARCH_HAVE_SSE4_2
-
-#if BITS_PER_LONG == 64
+#if CPU_x86_64
 #define REX_PRE "0x48, "
 #define SCALE_F 8
 #else

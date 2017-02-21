@@ -8,8 +8,6 @@ PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
-NUNC_STANS_URL ?= $(shell rpmspec -P -D 'use_nunc_stans 1' $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
-NUNC_STANS_TARBALL ?= $(shell basename "$(NUNC_STANS_URL)")
 NUNC_STANS_ON = 1
 ASAN_ON = 0
 
@@ -26,9 +24,6 @@ tarballs: local-archive
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
-	if [ $(NUNC_STANS_ON) -eq 1 ]; then \
-	    wget $(NUNC_STANS_URL) ; \
-	fi ; \
 
 rpmroot:
 	rm -rf $(RPMBUILD)
@@ -51,9 +46,6 @@ srpmdistdir:
 
 rpmbuildprep:
 	cp dist/sources/$(TARBALL) $(RPMBUILD)/SOURCES/
-	if [ $(NUNC_STANS_ON) -eq 1 ]; then \
-		cp dist/sources/$(NUNC_STANS_TARBALL) $(RPMBUILD)/SOURCES/ ; \
-	fi
 	cp rpm/$(PACKAGE)-* $(RPMBUILD)/SOURCES/
 
 

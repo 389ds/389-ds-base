@@ -8,8 +8,10 @@
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
 if test -z "$DOXYGEN";
-   then AC_MSG_WARN([Doxygen not found - continuing without Doxygen support])
+    then AC_MSG_ERROR([Doxygen not found - continuing without Doxygen support])
 fi
+
+AC_MSG_RESULT([using system dokygen])
 
 AM_CONDITIONAL([HAVE_DOXYGEN], [test -n "$DOXYGEN"])AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([docs/slapi.doxy])])
 

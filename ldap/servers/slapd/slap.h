@@ -124,7 +124,7 @@ typedef struct symbol_t {
 #include <pwd.h>
 
 #ifdef ENABLE_NUNC_STANS
-#include <nunc-stans/nunc-stans.h>
+#include <nunc-stans.h>
 #endif
 
 #ifdef WITH_SYSTEMD

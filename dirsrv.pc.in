@@ -1,7 +1,0 @@
-ldaplib=@ldaplib@
-
-Name: dirsrv
-Description: 389 Directory Server
-Version: @PACKAGE_VERSION@
-Libs: -L@serverdir@ -lslapd
-Cflags: @ldaplib_defs@ -I@serverincdir@

@@ -39,7 +39,7 @@ AC_PROG_LIBTOOL
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h unistd.h inttypes.h mntent.h sys/sysinfo.h])
+AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h inttypes.h mntent.h sys/sysinfo.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
@@ -112,6 +112,24 @@ AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc 
 ])
 AC_SUBST([gccsec_defs])
 
+# Pull in profiling.
+AC_MSG_CHECKING(for --enable-profiling)
+AC_ARG_ENABLE(profiling, AS_HELP_STRING([--enable-profiling], [Enable gcov profiling features (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -O0"
+  profiling_links="-lgcov --coverage"
+],
+[
+  AC_MSG_RESULT(no)
+  profiling_defs=""
+  profiling_links=""
+])
+AC_SUBST([profiling_defs])
+AC_SUBST([profiling_links])
+
+
+
 # Used for legacy style packaging where we bundle all of the dependencies.
 AC_MSG_CHECKING(for --enable-bundle)
 AC_ARG_ENABLE(bundle, AS_HELP_STRING([--enable-bundle], [Enable bundled dependencies (default: no)]),
@@ -174,7 +192,7 @@ fi
 AM_CONDITIONAL(enable_ldapi,test "$enable_ldapi" = "yes")
 
 if test -z "$enable_autobind" ; then
-   enable_autobind=no # if not set on cmdline, set default
+   enable_autobind=yes # if not set on cmdline, set default
 fi
 AC_MSG_CHECKING(for --enable-autobind)
 AC_ARG_ENABLE(autobind,
@@ -263,6 +281,9 @@ else
 fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
 
+if test -z "$enable_nunc_stans" ; then
+   enable_nunc_stans=yes # if not set on cmdline, set default
+fi
 AC_MSG_CHECKING(for --enable-nunc-stans)
 AC_ARG_ENABLE(nunc_stans,
         AS_HELP_STRING([--enable-nunc-stans],
@@ -274,6 +295,7 @@ else
   AC_MSG_RESULT(no)
 fi
 AM_CONDITIONAL(enable_nunc_stans,test "$enable_nunc_stans" = "yes")
+
 
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
@@ -505,6 +527,10 @@ else
   pythonexec='/usr/bin/env python2'
 fi
 
+# Default to no atomic queue operations.
+with_atomic_queue="no"
+with_xsixfour="no"
+
 # we use stty in perl scripts to disable password echo
 # this doesn't work unless the full absolute path of the
 # stty command is used e.g. system("stty -echo") does not
@@ -531,8 +557,30 @@ case $host in
         AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
         ;;
       x86_64-*-linux*)
-        AC_DEFINE([CPU_x86_64], [], [cpu type x86_64])
+        with_xsixfour="yes"
+        AC_DEFINE([CPU_x86_64], [1], [cpu type x86_64])
+
+        # This turns on and off LFDS inside of libsds
+        # wibrown -- 2017-02-21 disabled temporarily
+        # with_atomic_queue="yes"
+        # AC_DEFINE([ATOMIC_QUEUE_OPERATIONS], [1], [enabling atomic queue operations])
         AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
+
+        AC_MSG_CHECKING([for SSE4.2 features ...])
+        save_CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS -msse4.2"
+        AC_TRY_COMPILE(
+            [],
+            [return 0;],
+            [
+                AC_DEFINE([HAVE_SSE4_2], [1], [Have sss4.2 on this platform arch])
+                AC_MSG_RESULT([SSE4.2 avaliable on this platform])
+            ],
+            [
+                AC_MSG_RESULT([SSE4.2 not avaliable on this platform])
+            ]
+        )
+        CFLAGS="$save_CFLAGS"
         ;;
       aarch64-*-linux*)
         AC_DEFINE([CPU_arm], [], [cpu type arm])
@@ -551,6 +599,7 @@ case $host in
                                     [[long long ptrval = 0, val = 0; (void)__sync_add_and_fetch_8(&ptrval, val);]])],
                    [AC_DEFINE([HAVE_64BIT_ATOMIC_OP_FUNCS], [1], [have 64-bit atomic operation functions provided by gcc])AC_MSG_RESULT([yes])],
                    [AC_MSG_RESULT([no])])
+
     # some programs use the native thread library directly
     THREADLIB=-lpthread
     AC_SUBST([THREADLIB], [$THREADLIB])
@@ -645,6 +694,7 @@ dnl includes some assembler stuff in counter.o
     ;;
 esac
 
+
 # cmd line overrides default setting above
 if test -n "$with_initddir" ; then
    initdir="$with_initddir"
@@ -669,6 +719,8 @@ if test -z "$initconfigdir" ; then
 fi
 AC_SUBST(initconfigdir)
 
+# Conditionals for makefile.am
+AM_CONDITIONAL([ATOMIC_QUEUE_OPERATIONS], [test "$with_atomic_queue" = "yes"])
 AM_CONDITIONAL([HPUX],[test "$platform" = "hpux"])
 AM_CONDITIONAL([SOLARIS],[test "$platform" = "solaris"])
 AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])
@@ -686,10 +738,11 @@ m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
 m4_include(m4/pcre.m4)
 m4_include(m4/selinux.m4)
-m4_include(m4/nunc-stans.m4)
 m4_include(m4/systemd.m4)
 m4_include(m4/cmocka.m4)
 m4_include(m4/tcmalloc.m4)
+m4_include(m4/doxygen.m4)
+m4_include(m4/event.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
@@ -789,6 +842,9 @@ if test "$GCC" != yes ; then
    rm -f libtool.tmp
 fi
 
-AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec])
+# Build our pkgconfig files
+AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc])
+
+AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
 
 AC_OUTPUT
