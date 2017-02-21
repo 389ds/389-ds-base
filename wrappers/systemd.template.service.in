@@ -19,6 +19,9 @@ After=chronyd.service ntpd.service network-online.target syslog.target
 
 [Service]
 Type=notify
+NotifyAccess=all
+TimeoutStartSec=0
+TimeoutStopSec=600
 EnvironmentFile=@initconfigdir@/@package_name@
 EnvironmentFile=@initconfigdir@/@package_name@-%i
 PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid

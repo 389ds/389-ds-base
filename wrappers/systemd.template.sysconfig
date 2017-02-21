@@ -1,6 +1,4 @@
 [Service]
-TimeoutStartSec=10m
-NotifyAccess=all
 
 # uncomment this line to raise the file descriptor limit
 # LimitNOFILE=8192
