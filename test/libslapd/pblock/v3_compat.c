@@ -56,6 +56,9 @@ test_libslapd_pblock_v3c_target_dn(void **state __attribute__((unused))) {
     assert_int_equal(slapi_pblock_get(pb, SLAPI_TARGET_UNIQUEID, &dn), 0);
     assert_null(dn);
 
+    /* pblock currently DOES NOT free the target_dn, so we must do this */
+    slapi_sdn_free(&sdn);
+
     /* A property we cannot easily test is that setting a new DN frees the
      * OLD sdn. But, we can test in SDN that setting via SDN does NOT free.
      *

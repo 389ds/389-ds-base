@@ -1,0 +1,86 @@
+lib-y :=
+
+lib-y += ../../src/lfds710_btree_addonly_unbalanced/lfds710_btree_addonly_unbalanced_cleanup.o
+lib-y += ../../src/lfds710_btree_addonly_unbalanced/lfds710_btree_addonly_unbalanced_get.o
+lib-y += ../../src/lfds710_btree_addonly_unbalanced/lfds710_btree_addonly_unbalanced_init.o
+lib-y += ../../src/lfds710_btree_addonly_unbalanced/lfds710_btree_addonly_unbalanced_insert.o
+lib-y += ../../src/lfds710_btree_addonly_unbalanced/lfds710_btree_addonly_unbalanced_query.o
+
+lib-y += ../../src/lfds710_freelist/lfds710_freelist_cleanup.o
+lib-y += ../../src/lfds710_freelist/lfds710_freelist_init.o
+lib-y += ../../src/lfds710_freelist/lfds710_freelist_pop.o
+lib-y += ../../src/lfds710_freelist/lfds710_freelist_push.o
+lib-y += ../../src/lfds710_freelist/lfds710_freelist_query.o
+
+lib-y += ../../src/lfds710_hash_addonly/lfds710_hash_addonly_cleanup.o
+lib-y += ../../src/lfds710_hash_addonly/lfds710_hash_addonly_get.o
+lib-y += ../../src/lfds710_hash_addonly/lfds710_hash_addonly_init.o
+lib-y += ../../src/lfds710_hash_addonly/lfds710_hash_addonly_insert.o
+lib-y += ../../src/lfds710_hash_addonly/lfds710_hash_addonly_iterate.o
+lib-y += ../../src/lfds710_hash_addonly/lfds710_hash_addonly_query.o
+
+lib-y += ../../src/lfds710_list_addonly_singlylinked_ordered/lfds710_list_addonly_singlylinked_ordered_cleanup.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_ordered/lfds710_list_addonly_singlylinked_ordered_get.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_ordered/lfds710_list_addonly_singlylinked_ordered_init.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_ordered/lfds710_list_addonly_singlylinked_ordered_insert.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_ordered/lfds710_list_addonly_singlylinked_ordered_query.o
+
+lib-y += ../../src/lfds710_list_addonly_singlylinked_unordered/lfds710_list_addonly_singlylinked_unordered_cleanup.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_unordered/lfds710_list_addonly_singlylinked_unordered_get.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_unordered/lfds710_list_addonly_singlylinked_unordered_init.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_unordered/lfds710_list_addonly_singlylinked_unordered_insert.o
+lib-y += ../../src/lfds710_list_addonly_singlylinked_unordered/lfds710_list_addonly_singlylinked_unordered_query.o
+
+lib-y += ../../src/lfds710_misc/lfds710_misc_internal_backoff_init.o
+lib-y += ../../src/lfds710_misc/lfds710_misc_globals.o
+lib-y += ../../src/lfds710_misc/lfds710_misc_query.o
+
+lib-y += ../../src/lfds710_prng/lfds710_prng_init.o
+
+lib-y += ../../src/lfds710_queue_bounded_manyproducer_manyconsumer/lfds710_queue_bounded_manyproducer_manyconsumer_cleanup.o
+lib-y += ../../src/lfds710_queue_bounded_manyproducer_manyconsumer/lfds710_queue_bounded_manyproducer_manyconsumer_dequeue.o
+lib-y += ../../src/lfds710_queue_bounded_manyproducer_manyconsumer/lfds710_queue_bounded_manyproducer_manyconsumer_enqueue.o
+lib-y += ../../src/lfds710_queue_bounded_manyproducer_manyconsumer/lfds710_queue_bounded_manyproducer_manyconsumer_init.o
+lib-y += ../../src/lfds710_queue_bounded_manyproducer_manyconsumer/lfds710_queue_bounded_manyproducer_manyconsumer_query.o
+
+lib-y += ../../src/lfds710_queue_bounded_singleproducer_singleconsumer/lfds710_queue_bounded_singleproducer_singleconsumer_cleanup.o
+lib-y += ../../src/lfds710_queue_bounded_singleproducer_singleconsumer/lfds710_queue_bounded_singleproducer_singleconsumer_dequeue.o
+lib-y += ../../src/lfds710_queue_bounded_singleproducer_singleconsumer/lfds710_queue_bounded_singleproducer_singleconsumer_enqueue.o
+lib-y += ../../src/lfds710_queue_bounded_singleproducer_singleconsumer/lfds710_queue_bounded_singleproducer_singleconsumer_init.o
+lib-y += ../../src/lfds710_queue_bounded_singleproducer_singleconsumer/lfds710_queue_bounded_singleproducer_singleconsumer_query.o
+
+lib-y += ../../src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_cleanup.o
+lib-y += ../../src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_dequeue.o
+lib-y += ../../src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_enqueue.o
+lib-y += ../../src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_init.o
+lib-y += ../../src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_query.o
+
+lib-y += ../../src/lfds710_ringbuffer/lfds710_ringbuffer_cleanup.o
+lib-y += ../../src/lfds710_ringbuffer/lfds710_ringbuffer_init.o
+lib-y += ../../src/lfds710_ringbuffer/lfds710_ringbuffer_query.o
+lib-y += ../../src/lfds710_ringbuffer/lfds710_ringbuffer_read.o
+lib-y += ../../src/lfds710_ringbuffer/lfds710_ringbuffer_write.o
+
+lib-y += ../../src/lfds710_stack/lfds710_stack_cleanup.o
+lib-y += ../../src/lfds710_stack/lfds710_stack_init.o
+lib-y += ../../src/lfds710_stack/lfds710_stack_pop.o
+lib-y += ../../src/lfds710_stack/lfds710_stack_push.o
+lib-y += ../../src/lfds710_stack/lfds710_stack_query.o
+
+libs-y := ../../bin/
+
+ccflags-y := -I$(src)/../../inc
+ccflags-y += -I$(src)/../../inc/liblfds710
+ccflags-y += -DKERNEL_MODE
+ccflags-y += -DNDEBUG
+ccflags-y += -fno-strict-aliasing
+ccflags-y += -std=gnu89
+ccflags-y += -Wall
+ccflags-y += -Werror
+ccflags-y += -Wno-unknown-pragmas
+ccflags-y += -Wno-unused-but-set-variable
+ccflags-y += -Wno-uninitialized
+
+
+
+

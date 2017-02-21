@@ -49,5 +49,7 @@ test_libslapd_operation_v3c_target_spec(void **state __attribute__((unused))) {
     /* free everything */
     slapi_sdn_free(&test_a_sdn);
     slapi_sdn_free(&a_sdn);
-    slapi_sdn_free(&b_sdn);
+    /* target_spec in now the b_sdn, so operation free will free it */
+    // slapi_sdn_free(&b_sdn);
+    operation_free(&op, NULL);
 }

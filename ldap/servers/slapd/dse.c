@@ -644,17 +644,18 @@ dse_check_file(char *filename, char *backupname)
     PRFileInfo64 prfinfo;
 
     if (PR_GetFileInfo64( filename, &prfinfo ) == PR_SUCCESS) {
-        if ( prfinfo.size > 0)
+        if ( prfinfo.size > 0) {
             return (1);
-        else {
+        } else {
             rc = PR_Delete (filename);
         }
     }
 
-    if (backupname) 
+    if (backupname) {
         rc = PR_Rename (backupname, filename);
-    else 
+    } else {
         return (0);
+    }
 
     if ( PR_GetFileInfo64( filename, &prfinfo ) == PR_SUCCESS && prfinfo.size > 0 ) {
         slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
@@ -687,8 +688,9 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
     {
         /* check if the "real" file exists and cam be used, if not try tmp as backup */
         rc = dse_check_file((char *)filename, pdse->dse_tmpfile);
-        if (!rc)
+        if (!rc) {
             rc = dse_check_file((char *)filename, pdse->dse_fileback);
+        }
 
         if ( (rc = PR_GetFileInfo64( filename, &prfinfo )) != PR_SUCCESS )
         {
@@ -792,7 +794,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                         }
                         else /* free entry if not used */
                         {
-                            slapi_log_err(SLAPI_LOG_ERR,
+                            slapi_log_err(SLAPI_LOG_FATAL,
                                             "dse_read_one_file",
                                             "The entry %s in file %s "
                                             "(lineno: %d) is invalid, "

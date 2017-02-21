@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@/sds
+
+Name: Libsds
+Description: Libsds is the Slapi Data Structures Library.
+Version: @PACKAGE_VERSION@
+Requires: nspr
+Libs: -lsds -L${libdir}/@serverdir@
+Cflags: -I${includedir}/@serverincdir@
+
