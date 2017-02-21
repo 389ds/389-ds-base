@@ -40,10 +40,3 @@
 # is a problem and fail to start.
 # If using systemd, omit the "; export PID_TIME" at the end.
 #PID_TIME=600 ; export PID_TIME
-
-# The tcmalloc memory allocator has been shown to have a positive impact on
-# the Directory Server's virtual & resident memory size/growth.  tcmalloc is
-# available on RHEL/Fedora in the gperftools-libs package (this could be
-# different on other platforms).
-# If using systemd, omit the "; export LD_PRELOAD" at the end.
-#LD_PRELOAD=@libdir@/libtcmalloc.so.4 ; export LD_PRELOAD

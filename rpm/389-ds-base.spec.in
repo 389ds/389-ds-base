@@ -11,6 +11,7 @@
 # also need the relprefix field for a pre-release e.g. .0 - also comment out for official release
 #% global relprefix 0.
 
+%global use_tcmalloc 1
 %global use_openldap 1
 %global use_db4 0
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
@@ -43,7 +44,7 @@ Name:             389-ds-base
 Version:          __VERSION__
 Release:          __RELEASE__%{?dist}
 License:          GPLv3+
-URL:              http://port389.org/
+URL:              http://www.port389.org/
 Group:            System Environment/Daemons
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes:        %{name}-selinux
@@ -91,6 +92,12 @@ BuildRequires:    libasan
 BuildRequires:    autoconf
 BuildRequires:    automake
 BuildRequires:    libtool
+
+%if %{use_tcmalloc}
+BuildRequires:    gperftools-devel
+Requires:         gperftools-libs
+TCMALLOC_FLAGS="--with-tcmalloc"
+%endif
 
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python
@@ -154,7 +161,7 @@ Requires:    libasan
 Requires:    llvm
 %endif
 
-Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
+Source0:          http://www.port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
@@ -314,7 +321,7 @@ autoreconf -fiv
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} $NSSARGS $NUNC_STANS_FLAGS \
-           --with-systemd $ASAN_FLAGS
+           --with-systemd $TCMALLOC_FLAGS $ASAN_FLAGS
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
