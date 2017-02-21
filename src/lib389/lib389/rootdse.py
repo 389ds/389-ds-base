@@ -27,6 +27,9 @@ class RootDSE(DSLdapObject):
     def supports_sasl_ldapssotoken(self):
         return self.present("supportedSASLMechanisms", "LDAPSSOTOKEN")
 
+    def supports_sasl_plain(self):
+        return self.present("supportedSASLMechanisms", "PLAIN")
+
     def supports_exop_whoami(self):
         return self.present("supportedExtension", "1.3.6.1.4.1.4203.1.11.3")
 

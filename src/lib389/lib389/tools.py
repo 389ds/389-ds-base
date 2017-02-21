@@ -857,18 +857,18 @@ class DirSrvTools(object):
                 for line in hostfp.readlines():
                     if ipPattern is None:
                         words = line.split()
-                        assert(words[1] == expectedHost)
-                        return True
+                        if words[1] == expectedHost:
+                            return True
                     else:
                         if line.find(ipPattern) >= 0:
                             words = line.split()
                             # We just want to make sure it's in there somewhere
-                            assert(expectedHost in words)
-                            return True
+                            if expectedHost in words:
+                                return True
             except AssertionError:
                 raise AssertionError(
                     "Error: %s should contain '%s' host for %s" %
-                    ('/etc/hosts/', expectedHost, ipPattern))
+                    ('/etc/hosts', expectedHost, ipPattern))
             raise AssertionError(
                 "Error: /etc/hosts does not contain '%s' as a host for %s"
                 % (expectedHost, ipPattern))

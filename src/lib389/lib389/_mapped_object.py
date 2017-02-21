@@ -267,8 +267,8 @@ class DSLdapObject(DSLogging):
 
     # If the account can be bound to, this will attempt to do so. We don't check
     # for exceptions, just pass them back!
-    def bind(self, password=None):
-        conn = self._instance.openConnection()
+    def bind(self, password=None, *args, **kwargs):
+        conn = self._instance.openConnection(*args, **kwargs)
         conn.simple_bind_s(self.dn, password)
         return conn
 

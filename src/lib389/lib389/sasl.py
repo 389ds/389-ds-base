@@ -12,7 +12,7 @@ Lib389 python ldap sasl operations.
 These should be upstreamed if possible.
 """
 
-from ldap.sasl import sasl, CB_PASS
+from ldap.sasl import sasl, CB_AUTHNAME, CB_PASS
 
 class LdapSSOTokenSASL(sasl):
     """
@@ -29,6 +29,6 @@ class PlainSASL(sasl):
     """
 
     def __init__(self, authz_id, passwd):
-        auth_dict = { CB_USER:authz_id, CB_PASS:passwd }
+        auth_dict = { CB_AUTHNAME:authz_id, CB_PASS:passwd }
         sasl.__init__(self, auth_dict, "PLAIN")
 

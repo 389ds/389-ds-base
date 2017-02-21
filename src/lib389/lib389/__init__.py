@@ -98,6 +98,8 @@ if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
 RE_DBMONATTR = re.compile(r'^([a-zA-Z]+)-([1-9][0-9]*)$')
 RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 
+TRACE_LEVEL = 0
+
 # My logger
 log = logging.getLogger(__name__)
 
@@ -273,56 +275,15 @@ class DirSrv(SimpleLDAPObject, object):
         self.instdir = self.ds_paths.inst_dir
         self.dbdir = self.ds_paths.db_dir
 
-    def __localinit__(self):
-        '''
-            Establish a connection to the started instance. It binds with the
-            binddn property, then it initializes various fields from DirSrv
-            (via __initPart2)
-
-            @param - self
-
-            @return - None
-
-            @raise ldap.LDAPError - if failure during initialization
-        '''
-        uri = self.toLDAPURL()
-
-        SimpleLDAPObject.__init__(self, uri)
-
-        # see if binddn is a dn or a uid that we need to lookup
-        if self.binddn and not is_a_dn(self.binddn):
-            self.simple_bind_s("", "")  # anon
-            ent = self.getEntry(CFGSUFFIX, ldap.SCOPE_SUBTREE,
-                                "(uid=%s)" % self.binddn,
-                                ['uid'])
-            if ent:
-                self.binddn = ent.dn
-            else:
-                raise ValueError("Error: could not find %s under %s" % (
-                    self.binddn, CFGSUFFIX))
-
-        needtls = False
-        while True:
-            try:
-                if needtls:
-                    self.start_tls_s()
-                try:
-                    self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
-                except ldap.SERVER_DOWN as e:
-                    # TODO add server info in exception
-                    log.debug("Cannot connect to %r" % uri)
-                    raise e
-                break
-            except ldap.CONFIDENTIALITY_REQUIRED:
-                needtls = True
-        self.__initPart2()
-
     def rebind(self):
         """Reconnect to the DS
 
             @raise ldap.CONFIDENTIALITY_REQUIRED - missing TLS:
         """
-        SimpleLDAPObject.__init__(self, self.toLDAPURL())
+        if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
+            super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
+        else:
+            super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
         # self.start_tls_s()
         self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
 
@@ -1037,7 +998,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, saslmethod=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD):
+    def open(self, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD):
         '''
             It opens a ldap bound connection to dirsrv so that online
             administrative tasks are possible.  It binds with the binddn
@@ -1048,6 +1009,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             @param self
             @param saslmethod - None, or GSSAPI
+            @param sasltoken - The ldap.sasl token type to bind with.
             @param certdir - Certificate directory for TLS
             @return None
 
@@ -1058,22 +1020,24 @@ class DirSrv(SimpleLDAPObject, object):
         if self.verbose:
             self.log.info('open(): Connecting to uri %s' % uri)
         if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
-            super(DirSrv, self).__init__(uri, bytes_mode=False)
+            super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
         else:
-            super(DirSrv, self).__init__(uri)
+            super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
 
-        if certdir:
+        if certdir is not None:
             """
             We have a certificate directory, so lets start up TLS negotiations
             """
-            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
-            log.debug("Using ca certificate %s" % certdir)
+            self.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
+            log.debug("Using external ca certificate %s" % certdir)
+        else:
+            self.set_option(ldap.OPT_X_TLS_CACERTDIR, self.get_cert_dir())
+            log.debug("Using dirsrv ca certificate %s" % certdir)
 
         if certdir or starttls:
             try:
-                # MUST be set on ldap. not the object, because pyldap is broken
-                # and only works if you set this globally.
-                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                log.debug("Using certificate policy %s" % reqcert)
                 log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
                 self.start_tls_s()
             except ldap.LDAPError as e:
@@ -1095,6 +1059,9 @@ class DirSrv(SimpleLDAPObject, object):
                 log.debug("SASL/GSSAPI Bind Failed: %s" % str(e))
                 raise e
 
+        elif saslmethod and sasltoken is not None:
+            # Just pass the sasltoken in!
+            self.sasl_interactive_bind_s("", sasltoken)
         elif saslmethod:
             # Unknown or unsupported method
             log.debug('Unsupported SASL method: %s' % saslmethod)
@@ -1146,7 +1113,7 @@ class DirSrv(SimpleLDAPObject, object):
         # check that DirSrv was in DIRSRV_STATE_ONLINE state
         if self.state == DIRSRV_STATE_ONLINE:
             # Don't raise an error. Just move the state and return
-            SimpleLDAPObject.unbind(self)
+            self.unbind_s()
 
         self.state = DIRSRV_STATE_OFFLINE
 

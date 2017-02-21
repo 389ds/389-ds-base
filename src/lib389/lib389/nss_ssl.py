@@ -23,8 +23,8 @@ CA_NAME = 'Self-Signed-CA'
 CERT_NAME = 'Server-Cert'
 PIN_TXT = 'pin.txt'
 PWD_TXT = 'pwdfile.txt'
-ISSUER = 'CN=ca.unknown.example.com,O=testing,L=unknown,ST=Queensland,C=AU'
-SELF_ISSUER = 'CN={HOSTNAME},O=testing,L=unknown,ST=Queensland,C=AU'
+ISSUER = 'CN=ca.lib389.example.com,O=testing,L=lib389,ST=Queensland,C=AU'
+SELF_ISSUER = 'CN={HOSTNAME},O=testing,L=lib389,ST=Queensland,C=AU'
 VALID = 2
 
 
@@ -125,6 +125,7 @@ class NssSsl(object):
         result = check_output(cmd)
         self.dirsrv.log.debug("nss output: %s" % result)
         # Now extract the CAcert to a well know place.
+        # This allows us to point the cacert dir here and it "just works"
         cmd = [
             '/usr/bin/certutil',
             '-L',
@@ -233,6 +234,9 @@ class NssSsl(object):
             CERT_NAME,
             '-s',
             SELF_ISSUER.format(HOSTNAME=self.dirsrv.host),
+            # We MUST issue with SANs else ldap wont verify the name.
+            '-8',
+            self.dirsrv.host,
             '-c',
             CA_NAME,
             '-g',
