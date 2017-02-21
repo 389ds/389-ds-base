@@ -96,7 +96,6 @@ BuildRequires:    libtool
 %if %{use_tcmalloc}
 BuildRequires:    gperftools-devel
 Requires:         gperftools-libs
-TCMALLOC_FLAGS="--with-tcmalloc"
 %endif
 
 # this is needed for using semanage from our setup scripts
@@ -312,6 +311,10 @@ NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_sta
 
 %if %{use_asan}
 ASAN_FLAGS="--enable-asan --enable-debug"
+%endif
+
+%if %{use_tcmalloc}
+TCMALLOC_FLAGS="--with-tcmalloc"
 %endif
 
 # Rebuild the autotool artifacts now.
