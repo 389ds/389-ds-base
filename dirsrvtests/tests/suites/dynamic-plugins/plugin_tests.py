@@ -1789,8 +1789,10 @@ def test_passthru(inst, args=None):
     passthru_inst.open()
 
     # Create a second backend
-    passthru_inst.backend.create(PASS_SUFFIX2, {BACKEND_NAME: PASS_BE2})
-    passthru_inst.mappingtree.create(PASS_SUFFIX2, bename=PASS_BE2)
+    passthru_inst.backends.create(None, properties={
+        BACKEND_NAME: PASS_BE2,
+        'suffix': PASS_SUFFIX2,
+        })
 
     # Create the top of the tree
     try:
