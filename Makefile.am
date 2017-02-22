@@ -28,6 +28,8 @@ NSPR_INCLUDES = @nspr_inc@
 SVRCORE_INCLUDES = @svrcore_inc@
 SASL_INCLUDES = @sasl_inc@
 EVENT_INCLUDES = @event_inc@
+# Not used currently
+# TCMALLOC_INCLUDES = @tcmalloc_inc@
 
 # We can't add the lfds includes all the time as they have a "bomb" in them that
 # prevents compilation on unsupported hardware arches.
@@ -125,7 +127,7 @@ PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
-TCMALLOC_LINK = @tcmalloc_link@
+TCMALLOC_LINK = @tcmalloc_lib@
 EVENT_LINK = @event_lib@
 
 LIBSOCKET=@LIBSOCKET@
@@ -141,7 +143,8 @@ if HPUX
 AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
-AM_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS)
+# Provide the tcmalloc links if needed
+AM_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
@@ -1224,7 +1227,7 @@ libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_
 if SPARC
 libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 endif
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK) $(TCMALLOC_LINK)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK)
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 
@@ -1954,7 +1957,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) $(SVRCORE_INCLUDES)
 ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK) $(TCMALLOC_LINK)
+	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
 ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).

@@ -11,7 +11,6 @@
 # also need the relprefix field for a pre-release e.g. .0 - also comment out for official release
 #% global relprefix 0.
 
-%global use_tcmalloc 1
 %global use_openldap 1
 %global use_db4 0
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
@@ -23,7 +22,14 @@
 # This enables an ASAN build. This should not go to production, so we rename.
 %global use_asan __ASAN_ON__
 %if %{use_asan}
+%global use_tcmalloc 0
 %global variant base-asan
+%else
+%if %{_arch} != "s390x" && %{_arch} != "s390"
+%global use_tcmalloc 1
+%else
+%global use_tcmalloc 0
+%endif
 %endif
 
 # fedora 15 and later uses tmpfiles.d
