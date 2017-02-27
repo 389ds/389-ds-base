@@ -1073,6 +1073,26 @@ static int roles_cache_create_role_under(roles_cache_def** roles_cache_suffix, S
 	return(rc);
 }
 
+/*
+ * Check that we are not using nsrole in the filter
+ */
+static int roles_check_filter(Slapi_Filter *filter_list)
+{
+	Slapi_Filter  *f;
+	char *type = NULL;
+
+	for ( f = slapi_filter_list_first( filter_list );
+	          f != NULL;
+	          f = slapi_filter_list_next( filter_list, f ) )
+	{
+		slapi_filter_get_attribute_type(f, &type);
+		if (strcasecmp(type, NSROLEATTR) == 0){
+			return -1;
+		}
+	}
+
+	return 0;
+}
 
 /* roles_cache_create_object_from_entry
    ------------------------------------
@@ -1088,17 +1108,17 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 	int rc = 0;
 	int type = 0;
 	role_object *this_role = NULL;
-        char *rolescopeDN = NULL;
+	char *rolescopeDN = NULL;
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, 
 					"--> roles_cache_create_object_from_entry\n");
 
-    *result = NULL;
+	*result = NULL;
 
-    /* Do not allow circular dependencies */
-    if ( hint > MAX_NESTED_ROLES ) 
+	/* Do not allow circular dependencies */
+	if ( hint > MAX_NESTED_ROLES ) 
 	{
-        char *ndn = NULL;
+		char *ndn = NULL;
 
 		ndn = slapi_entry_get_ndn( role_entry );
 			slapi_log_error(
@@ -1111,85 +1131,83 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 		return (0);
 	}
 
-    /* Create the role cache definition */
-    this_role = (role_object*)slapi_ch_calloc(1, sizeof(role_object));
-    if (this_role == NULL ) 
+	/* Create the role cache definition */
+	this_role = (role_object*)slapi_ch_calloc(1, sizeof(role_object));
+	if (this_role == NULL ) 
 	{
-        return ENOMEM;
-    }
+		return ENOMEM;
+	}
 
-    /* Check the entry is OK */
-    /* Determine role type and assign to structure */
-    /* We determine the role type by reading the objectclass */
+	/* Check the entry is OK */
+	/* Determine role type and assign to structure */
+	/* We determine the role type by reading the objectclass */
 	if ( roles_cache_is_role_entry(role_entry) == 0 )
 	{
-        /* Bad type */
-        slapi_ch_free((void**)&this_role);
-        return SLAPI_ROLE_DEFINITION_ERROR;
-    }
+		/* Bad type */
+		slapi_ch_free((void**)&this_role);
+		return SLAPI_ROLE_DEFINITION_ERROR;
+	}
 
-    type = roles_cache_determine_class(role_entry);
+	type = roles_cache_determine_class(role_entry);
 
-    if (type != 0) 
+	if (type != 0) 
 	{
-        this_role->type = type;
-    }
+		this_role->type = type;
+	}
 	else
 	{
-        /* Bad type */
-        slapi_ch_free((void**)&this_role);
-        return SLAPI_ROLE_DEFINITION_ERROR;
-    }
+		/* Bad type */
+		slapi_ch_free((void**)&this_role);
+		return SLAPI_ROLE_DEFINITION_ERROR;
+	}
 
 	this_role->dn = slapi_sdn_new();
 	slapi_sdn_copy(slapi_entry_get_sdn(role_entry),this_role->dn);
-        
-        rolescopeDN = slapi_entry_attr_get_charptr(role_entry, ROLE_SCOPE_DN);
-        if (rolescopeDN) {
-                Slapi_DN *rolescopeSDN;
-                Slapi_DN *top_rolescopeSDN, *top_this_roleSDN;
+		
+	rolescopeDN = slapi_entry_attr_get_charptr(role_entry, ROLE_SCOPE_DN);
+	if (rolescopeDN) {
+		Slapi_DN *rolescopeSDN;
+		Slapi_DN *top_rolescopeSDN, *top_this_roleSDN;
 
-                /* Before accepting to use this scope, first check if it belongs to the same suffix */
-                rolescopeSDN = slapi_sdn_new_dn_byref(rolescopeDN);
-                if ((strlen((char *) slapi_sdn_get_ndn(rolescopeSDN)) > 0) && 
-                        (slapi_dn_syntax_check(NULL, (char *) slapi_sdn_get_ndn(rolescopeSDN), 1) == 0)) {
-                        top_rolescopeSDN = roles_cache_get_top_suffix(rolescopeSDN);
-                        top_this_roleSDN = roles_cache_get_top_suffix(this_role->dn);
-                        if (slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
-                                /* rolescopeDN belongs to the same suffix as the role, we can use this scope */
-                                this_role->rolescopedn = rolescopeSDN;
-                        } else {
-                                slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
-                                        "%s: invalid %s - %s not in the same suffix. Scope skipped.\n",
-                                        (char*) slapi_sdn_get_dn(this_role->dn),
-                                        ROLE_SCOPE_DN,
-                                        rolescopeDN);
-                                slapi_sdn_free(&rolescopeSDN);
-                        }
-                        slapi_sdn_free(&top_rolescopeSDN);
-                        slapi_sdn_free(&top_this_roleSDN);
-                } else {
-                        /* this is an invalid DN, just ignore this parameter*/
-                        slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
-                                "%s: invalid %s - %s not a valid DN. Scope skipped.\n",
-                                (char*) slapi_sdn_get_dn(this_role->dn),
-                                ROLE_SCOPE_DN,
-                                rolescopeDN);
-                        slapi_sdn_free(&rolescopeSDN);
-                }
-        }
+		/* Before accepting to use this scope, first check if it belongs to the same suffix */
+		rolescopeSDN = slapi_sdn_new_dn_byref(rolescopeDN);
+		if ((strlen((char *) slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
+			(slapi_dn_syntax_check(NULL, (char *) slapi_sdn_get_ndn(rolescopeSDN), 1) == 0)) {
+			top_rolescopeSDN = roles_cache_get_top_suffix(rolescopeSDN);
+			top_this_roleSDN = roles_cache_get_top_suffix(this_role->dn);
+			if (slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
+				/* rolescopeDN belongs to the same suffix as the role, we can use this scope */
+				this_role->rolescopedn = rolescopeSDN;
+			} else {
+				slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+					"roles_cache_create_object_from_entry - %s: invalid %s - %s not in the same suffix. Scope skipped.\n",
+					(char*) slapi_sdn_get_dn(this_role->dn),
+					ROLE_SCOPE_DN,
+					rolescopeDN);
+				slapi_sdn_free(&rolescopeSDN);
+			}
+			slapi_sdn_free(&top_rolescopeSDN);
+			slapi_sdn_free(&top_this_roleSDN);
+		} else {
+			/* this is an invalid DN, just ignore this parameter*/
+			slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+				"roles_cache_create_object_from_entry - %s: invalid %s - %s not a valid DN. Scope skipped.\n",
+				(char*) slapi_sdn_get_dn(this_role->dn),
+				ROLE_SCOPE_DN,
+				rolescopeDN);
+			slapi_sdn_free(&rolescopeSDN);
+		}
+	}
 
-    /* Depending upon role type, pull out the remaining information we need */
+	/* Depending upon role type, pull out the remaining information we need */
 	switch (this_role->type)
 	{
 		case ROLE_TYPE_MANAGED:
-
 			/* Nothing further needed */
 			break;
 
 		case ROLE_TYPE_FILTERED:
 		{
-
 			Slapi_Filter *filter = NULL;
 			char *filter_attr_value = NULL;
 			Slapi_PBlock *pb = NULL;
@@ -1203,6 +1221,7 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 				slapi_ch_free((void**)&this_role);
 				return SLAPI_ROLE_ERROR_NO_FILTER_SPECIFIED;
 			}
+
 			/* search (&(objectclass=costemplate)(filter_attr_value))*/
 			/* if found, reject it (returning SLAPI_ROLE_ERROR_FILTER_BAD) */
 			pb = slapi_pblock_new();
@@ -1211,33 +1230,33 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 				Slapi_Entry **cosentries = NULL;
 				char *costmpl_filter = NULL;
 				if ((*filter_attr_value == '(') &&
-				    (*(filter_attr_value+strlen(filter_attr_value)-1) == ')')) {
+					(*(filter_attr_value+strlen(filter_attr_value)-1) == ')')) {
 					costmpl_filter =
-					      slapi_ch_smprintf("(&(objectclass=costemplate)%s)", 
-					                        filter_attr_value);
+						  slapi_ch_smprintf("(&(objectclass=costemplate)%s)", 
+											filter_attr_value);
 				} else {
 					costmpl_filter =
-					      slapi_ch_smprintf("(&(objectclass=costemplate)(%s))", 
-					                        filter_attr_value);
+						  slapi_ch_smprintf("(&(objectclass=costemplate)(%s))", 
+											filter_attr_value);
 				}
 				slapi_search_internal_set_pb(pb, parent, LDAP_SCOPE_SUBTREE,
-				                             costmpl_filter, NULL, 0, NULL, 
-				                             NULL, roles_get_plugin_identity(),
-				                             0);
+											 costmpl_filter, NULL, 0, NULL, 
+											 NULL, roles_get_plugin_identity(),
+											 0);
 				slapi_search_internal_pb(pb);
 				slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, 
-				                 &cosentries);
+								 &cosentries);
 				slapi_ch_free_string(&costmpl_filter);
 				slapi_ch_free_string(&parent);
 				if (cosentries && *cosentries) {
 					slapi_free_search_results_internal(pb);
 					slapi_pblock_destroy(pb);
 					slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
-					    "%s: not allowed to refer virtual attribute "
-					    "in the value of %s %s. The %s is disabled.\n",
-					    (char*)slapi_sdn_get_ndn(this_role->dn),
-					    ROLE_FILTER_ATTR_NAME, filter_attr_value,
-					    ROLE_FILTER_ATTR_NAME);
+						"roles_cache_create_object_from_entry - %s: not allowed to refer virtual attribute "
+						"in the value of %s %s. The %s is disabled.\n",
+						(char*)slapi_sdn_get_ndn(this_role->dn),
+						ROLE_FILTER_ATTR_NAME, filter_attr_value,
+						ROLE_FILTER_ATTR_NAME);
 					slapi_ch_free_string(&filter_attr_value);
 					slapi_ch_free((void**)&this_role);
 					return SLAPI_ROLE_ERROR_FILTER_BAD;
@@ -1248,16 +1267,27 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 
 			/* Turn it into a slapi filter object */
 			filter = slapi_str2filter(filter_attr_value);
-			slapi_ch_free_string(&filter_attr_value);
-
-			if ( filter == NULL ) 
+			if ( filter == NULL )
 			{
 				/* An error has occured */
 				slapi_ch_free((void**)&this_role);
+				slapi_ch_free_string(&filter_attr_value);
+				return SLAPI_ROLE_ERROR_FILTER_BAD;
+			}
+			if (roles_check_filter(filter)) {
+				slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+					"roles_cache_create_object_from_entry - \"%s\": not allowed to use \"nsrole\" "
+					"in the role filter \"%s\".  %s is disabled.\n",
+					(char*)slapi_sdn_get_ndn(this_role->dn),
+					filter_attr_value,
+					ROLE_FILTER_ATTR_NAME);
+				slapi_ch_free((void**)&this_role);
+				slapi_ch_free_string(&filter_attr_value);
 				return SLAPI_ROLE_ERROR_FILTER_BAD;
 			}
 			/* Store on the object */
 			this_role->filter = filter;
+			slapi_ch_free_string(&filter_attr_value);
 
 			break;
 		}
@@ -1276,50 +1306,49 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 				int i = 0;
 				char *string = NULL;
 				Slapi_DN nested_role_dn;
-                role_object_nested *nested_role_object = NULL;
+				role_object_nested *nested_role_object = NULL;
  
-                for ( i = 0; va[i] != NULL; i++ ) 
+				for ( i = 0; va[i] != NULL; i++ ) 
 				{
-                    string = (char*)slapi_value_get_string(va[i]);
+					string = (char*)slapi_value_get_string(va[i]);
 
-                    /* Make a DN from the string */
-                    slapi_sdn_init_dn_byref(&nested_role_dn,string);
+					/* Make a DN from the string */
+					slapi_sdn_init_dn_byref(&nested_role_dn,string);
 
 					slapi_log_error(SLAPI_LOG_PLUGIN, 
 									ROLES_PLUGIN_SUBSYSTEM, "roles_cache_create_object_from_entry: dn %s, nested %s\n",
 									(char*)slapi_sdn_get_ndn(this_role->dn),string);
 
-                    /* Make a role object nested from the DN */
-                    rc = roles_cache_object_nested_from_dn(&nested_role_dn,&nested_role_object);
+					/* Make a role object nested from the DN */
+					rc = roles_cache_object_nested_from_dn(&nested_role_dn,&nested_role_object);
 
-                    /* Insert it into the nested list */
-                    if ( (rc == 0) && nested_role_object) 
+					/* Insert it into the nested list */
+					if ( (rc == 0) && nested_role_object) 
 					{
 						/* Add to the tree where avl_data is a role_object_nested struct */
-                        rc = roles_cache_insert_object_nested(&(this_role->avl_tree),nested_role_object);
-                    }
-                    slapi_sdn_done(&nested_role_dn);
-                }    
-            }
-       
+						rc = roles_cache_insert_object_nested(&(this_role->avl_tree),nested_role_object);
+					}
+					slapi_sdn_done(&nested_role_dn);
+				}    
+			}
+	   
 			break;
 		}
 
 		default:
-			slapi_log_error(SLAPI_LOG_FATAL, 
-							ROLES_PLUGIN_SUBSYSTEM, "wrong role type\n");
+			slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+					"roles_cache_create_object_from_entry - wrong role type\n");
 	}
 
-    if ( rc == 0 ) 
+	if ( rc == 0 ) 
 	{
-        *result = this_role;
-    }
+		*result = this_role;
+	}
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, 
-					"<-- roles_cache_create_object_from_entry\n");
+			"<-- roles_cache_create_object_from_entry\n");
 
-
-    return rc;
+	return rc;
 }
 
 /* roles_cache_determine_class:
