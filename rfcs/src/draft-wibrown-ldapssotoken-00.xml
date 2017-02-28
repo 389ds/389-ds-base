@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="US-ASCII"?>
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
 
+<!ENTITY RFC2078 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2078.xml">
 <!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
 <!ENTITY RFC2222 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2222.xml">
 <!ENTITY RFC4511 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.4511.xml">
@@ -15,7 +16,7 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
-<rfc category="std" docName="draft-wibrown-ldapssotoken-01" ipr="trust200902">
+<rfc category="std" docName="draft-wibrown-ldapssotoken-02" ipr="trust200902">
 
 <front>
 
@@ -90,7 +91,7 @@
      </address>
    </author>
 
-   <date year="2016"></date>
+   <date year="2017"></date>
 
 
     <area>General</area>
@@ -235,6 +236,9 @@ Date Time Until || User Unique Id
             The acquisition method for the token is discussed in section XXX.</t>
             <t>For authentication, the client MUST send the token as it was received.
             IE changes to formatting are not permitted.</t>
+            <t>The client MUST send the an appropriate authid in  <xref target="RFC2078">RFC 2078</xref>
+            form. This authid MUST internally match the User Unique Id in the token. The server
+            is responsible for this validation.</t>
             <t>The client MAY transform the token if acting in a proxy fashion.
             However this transformation must be deterministic and able to be
             reversed to satisfy the previous requirement.</t>
@@ -276,6 +280,8 @@ Date Time Until || User Unique Id
         <section title="SASL Authentication">
             <t>The client issues a SASL bind request with the mechanism name
             LDAPSSOTOKEN.</t>
+            <t>The client sends an appropriate authid in  <xref target="RFC2078">RFC 2078</xref>
+            form.</t>
             <t>The client provides the encrypted token that was provided in
             the LDAPSSOTokenResponse Token Field.</t>
             <t>The token is decrypted and authenticated based on the token
@@ -296,6 +302,10 @@ Date Time Until || User Unique Id
             invalidCredentials MUST be returned.</t>
             <t>The User Unique Id is validated to exist on the server. If the User Unique Id
             does not exist, invalidCredentials MUST be returned.</t>
+            <t>The authid provided by the SASL client is verified with the User Unique Id. For example
+            if the authid is william@EXAMPLE.COM, the server maps this to an identity. Once this
+            identity is validated, the identity is check to match the User Unique Id. If they do not
+            match, the authentication MUST fail.</t>
             <t>The DateTimeIssued field is validated against the User Unique Id object's
             attribute or related attribute that contains "Valid Not Before". If the value of
             "Valid Not Before" exceeds or is equal to DateTimeIssued,
@@ -414,6 +424,8 @@ LDAPSSOTokenResponse ::= SEQUENCE {
    </references>
 
    <references title="Informative References">
+     &RFC2078;
+
      &RFC2222;
 
      &RFC4511;

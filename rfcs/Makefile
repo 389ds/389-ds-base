@@ -1,5 +1,5 @@
 
-allrfcs: folders examplerfcs draft-wibrown-ldapssotoken-00
+allrfcs: folders draft-wibrown-ldapssotoken-00
 
 folders:
 	mkdir -p txt
