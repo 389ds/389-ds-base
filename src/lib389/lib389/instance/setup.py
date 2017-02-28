@@ -260,6 +260,7 @@ class SetupDs(object):
         self._secure_password = password_hash(self._raw_secure_password, bin_dir=slapd['bin_dir'])
 
         if self.verbose:
+            self.log.info("INFO: temp root password set to %s" % self._raw_secure_password)
             self.log.info("PASSED: root user checking")
 
         assert(slapd['port'] is not None)

@@ -1024,15 +1024,16 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
 
+        #if certdir is None and self.isLocal and self.nss_ssl._rsa_ca_exists():
+        #    certdir = self.get_cert_dir()
+        #    log.debug("Using dirsrv ca certificate %s" % certdir)
+
         if certdir is not None:
             """
             We have a certificate directory, so lets start up TLS negotiations
             """
             self.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
             log.debug("Using external ca certificate %s" % certdir)
-        else:
-            self.set_option(ldap.OPT_X_TLS_CACERTDIR, self.get_cert_dir())
-            log.debug("Using dirsrv ca certificate %s" % certdir)
 
         if certdir or starttls:
             try:
