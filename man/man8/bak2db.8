@@ -18,7 +18,7 @@
 .SH NAME 
 bak2db - Directory Server script for restoring a backup
 .SH SYNOPSIS
-bak2db archivedir [\-Z serverID] [\-n backendname] [\-q] | [\-h]
+bak2db archivedir [\-Z serverID] [\-n backendname] [\-q] [\-v] [\-h]
 .SH DESCRIPTION
 Restores the database from a archived backup.  The Directory Server must be stopped prior to running this script.
 .SH OPTIONS
@@ -37,6 +37,10 @@ The name of the LDBM database to restore.  Example: userRoot
 .B \fB\-q\fR
 .br
 Quiet mode.  Reduces output of task.
+.TP
+.B \fB\-v\fR
+Display version
+.br
 .TP
 .B \fB\-h\fR
 .br

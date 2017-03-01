@@ -18,7 +18,7 @@
 .SH NAME 
 ldif2db.pl - Directory Server perl script for importing a LDIF file
 .SH SYNOPSIS
-ldif2db.pl \-n backend [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-P protocol] {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-O] [\-c chunksize] [\-v] [\-h] [\-g [string]] [\-G namespace_id] {\-i filename}*
+ldif2db.pl \-n backend [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-P protocol] {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-O] [\-c chunksize] [\-h] [\-g [string]] [\-G namespace_id] {\-i filename}*
 .SH DESCRIPTION
 Imports LDIF file(s) into the server. Either the option '\-n' or '\-s' must be used.  This script creates an entry in the directory that launches this dynamic task.
 .SH OPTIONS
@@ -75,10 +75,6 @@ Requests that only the core database is created without attribute indexes.
 .TP
 .B \fB\-c\fR \fIChunk size\fR
 The number of entries to process before starting a fresh pass during the import.  By default this is handled internally by the server.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

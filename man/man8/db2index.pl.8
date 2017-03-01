@@ -18,7 +18,7 @@
 .SH NAME 
 db2index.pl - Directory Server perl script for indexing a database
 .SH SYNOPSIS
-db2index.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-n backendname] [\-P protocol] [\-t attributeName[:indextypes[:matchingrules]]] [\-T vlvTag] [\-v] [\-h]
+db2index.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-n backendname] [\-P protocol] [\-t attributeName[:indextypes[:matchingrules]]] [\-T vlvTag] [\-h]
 .SH DESCRIPTION
 Indexes attributes in the specified database.  If no attributes are specified, then all the attribute indexes will be regenerated.  The Directory Server must be started prior to running this script.
 .SH OPTIONS
@@ -56,10 +56,6 @@ This is the name of the vlv index entry under cn=config.
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
 If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
 available for the root user.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

@@ -19,7 +19,7 @@
 db2ldif.pl - Directory Server perl script for exporting a database to a LDIF file
 .SH SYNOPSIS
 db2ldif.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j pwfilename } [\-P protocol]
-{\-n backendname}* | {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-m] [\-M] [\-r] [\-u] [\-C] [\-N] [\-E] [\-1] [\-U] [\-a filename] [\-v] [\-h]
+{\-n backendname}* | {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-m] [\-M] [\-r] [\-u] [\-C] [\-N] [\-E] [\-1] [\-U] [\-a filename] [\-h]
 .SH DESCRIPTION
 Exports the contents of the database to LDIF. This script creates an entry in the directory that launches this dynamic task.
 .SH OPTIONS
@@ -97,10 +97,6 @@ Decrypts any encrypted data during export.
 .B \fB\-1\fR 
 .br
 Deletes, for reasons of backward compatibility, the first line of the LDIF file that gives the version of the LDIF standard. 
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

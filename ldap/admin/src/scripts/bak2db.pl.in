@@ -25,7 +25,7 @@ $i = 0;
 
 sub usage {
     print(STDERR "Usage: bak2db.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -a dirname [-t dbtype]\n");
-    print(STDERR "                 [-n backendname] [-P protocol] [-v] [-h]\n");
+    print(STDERR "                 [-n backendname] [-P protocol] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn    - Directory Manager\n");
     print(STDERR "        -w password  - Directory Manager's password\n");
@@ -36,22 +36,21 @@ sub usage {
     print(STDERR "        -t dbtype    - Database type (default: ldbm database)\n");
     print(STDERR "        -n backend   - Backend database name.  Example: userRoot\n");
     print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v           - Verbose output\n");
     print(STDERR "        -h           - Display usage\n");
 }
 
 while ($i <= $#ARGV) {
     if ("$ARGV[$i]" eq "-a") {    # backup directory
         $i++; $archivedir = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-D") {    # Directory Manager
+    } elsif ("$ARGV[$i]" eq "-D") { # Directory Manager
         $i++; $rootdn = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-w") {    # Directory Manager's password
+    } elsif ("$ARGV[$i]" eq "-w") { # Directory Manager's password
         $i++; $passwd = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-j") { # Read Directory Manager's password from a file
         $i++; $passwdfile = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-t") {    # database type
+    } elsif ("$ARGV[$i]" eq "-t") { # database type
         $i++; $dbtype = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-n") {    # backend instance name
+    } elsif ("$ARGV[$i]" eq "-n") { # backend instance name
         $i++; $instance = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-Z") { # server instance name
         $i++; $servid = $ARGV[$i];
@@ -59,8 +58,6 @@ while ($i <= $#ARGV) {
         $i++; $protocol = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-h") { # help
         &usage; exit(0);
-    } elsif ("$ARGV[$i]" eq "-v") {    # verbose
-        $verbose = 1;
     } else {
         print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);
@@ -75,11 +72,7 @@ while ($i <= $#ARGV) {
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;
-if ($verbose == 1){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 if ($archivedir eq ""){
     &usage;
     exit(1);

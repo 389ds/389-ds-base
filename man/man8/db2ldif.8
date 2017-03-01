@@ -18,7 +18,7 @@
 .SH NAME 
 db2ldif - Directory Server script for exporting the database
 .SH SYNOPSIS
-db2ldif [\-Z serverID] {\-n backend_instance}* | {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-a outputFile] [\-m] [\-M] [\-r] [\-u] [\-U] [\-C] [\-N] [\-E] [\-1] [\-q] [\-h]
+db2ldif [\-Z serverID] {\-n backend_instance}* | {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-a outputFile] [\-v] [\-m] [\-M] [\-r] [\-u] [\-U] [\-C] [\-N] [\-E] [\-1] [\-q] [\-h]
 .SH DESCRIPTION
 Exports the contents of the database to a LDIF file. This script can be executed while the server is still running, except when using the \-r option.
 .SH OPTIONS
@@ -53,6 +53,10 @@ By default, all instances are stored in the filename specified by the \-a option
 .B \fB\-r\fR 
 .br
 Export replication data(information required to initialize a replica when the LDIF is imported).
+.TP
+.B \fB\-v\fR
+Display version
+.br
 .TP
 .B \fB\-u\fR 
 .br

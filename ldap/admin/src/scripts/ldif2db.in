@@ -31,7 +31,7 @@ usage()
     echo "        -O                - Do not index the attributes"
     echo "        -E                - Encrypt attributes"
     echo "        -q                - Quiet mode - suppresses output"
-    echo "        -v                - Verbose output"
+    echo "        -v                - Display version"
     echo "        -h                - Display usage" 
 }
 

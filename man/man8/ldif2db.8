@@ -18,7 +18,7 @@
 .SH NAME 
 ldif2db - Directory Server script for importing a LDIF file
 .SH SYNOPSIS
-ldif2db [\-Z serverID] \-n backendname {\-s includesuffix}* [{\-x excludesuffix}*] [\-g [string] [\-G namespace_id]] {\-i ldiffile}* [\-c chunksize] [\-O] [\-E] [\-q] [\-h]
+ldif2db [\-Z serverID] \-n backendname {\-s includesuffix}* [{\-x excludesuffix}*] [\-g [string] [\-G namespace_id]] {\-i ldiffile}* [\-c chunksize] [\-v] [\-O] [\-E] [\-q] [\-h]
 .SH DESCRIPTION
 Imports a LDIF file.  Either the option '\-n' or '\-s' must be used.  The server instance must be stopped prior to running this command.
 .SH OPTIONS
@@ -47,6 +47,10 @@ The number of entries to process before starting a fresh pass during the import.
 .br
 Requests that only the core database is created without attribute indexes.
 .TP
+.B \fB\-v\fR
+Display version
+.br
+.TP
 .B \fB\-g\fR \fI[string]\fR
 Generates a unique ID. Type none for no unique ID to be generated and deterministic for the generated unique ID to be name-based. By default, a time-based unique ID is generated.  When using the deterministic generation to have a name-based unique ID, it is also possible to specify the namespace for the server to use, as follows:
 
@@ -63,7 +67,7 @@ Encrypts data during import. This option is used only if database encryption is 
 .TP
 .B \fB\-v\fR 
 .br
-Display verbose output
+Display version
 .TP
 .B \fB\-h\fR 
 .br

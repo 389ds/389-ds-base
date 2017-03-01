@@ -26,7 +26,7 @@ $vlv_count = 0;
 
 sub usage {
     print(STDERR "Usage: db2index.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol]\n");
-    print(STDERR "                   -n backendname [-t attributeName[:indextypes[:matchingrules]]] [-T vlvTag] [-v] [-h]\n");
+    print(STDERR "                   -n backendname [-t attributeName[:indextypes[:matchingrules]]] [-T vlvTag] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn       - Directory Manager\n");
     print(STDERR "        -w password     - Directory Manager's password\n");
@@ -42,7 +42,6 @@ sub usage {
     print(STDERR "                              Example: -t foo:eq,pres\n");
     print(STDERR "        -T vlvTag       - VLV index name\n");
     print(STDERR "        -P protocol     - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v              - Verbose\n");
     print(STDERR "        -h              - Display usage\n");
 }
 
@@ -65,8 +64,6 @@ while ($i <= $#ARGV) {
         $i++; $protocol = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-h") {    # help
         &usage; exit(0);
-    } elsif ("$ARGV[$i]" eq "-v") {    # verbose
-        $verbose = 1;
     } else {
         print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);
@@ -81,11 +78,7 @@ while ($i <= $#ARGV) {
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;
-if ($verbose){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 if ($instance eq ""){ 
     &usage; 
     exit(1);

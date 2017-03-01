@@ -18,7 +18,7 @@
 .SH NAME 
 cleanallruv.pl - Directory Server perl script for issuing a cleanAllRUV task
 .SH SYNOPSIS
-cleanallruv.pl [\-v] [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b basedn \-r rid  [\-A] [\-P protocol] [\-h]
+cleanallruv.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b basedn \-r rid  [\-A] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Creates and adds a cleanAllRUV task to the Directory Server
 .SH OPTIONS
@@ -58,10 +58,6 @@ available for the root user.
 .B \fB\-A\fR
 .br
 Abort a cleanAllRUV task that is currently running.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

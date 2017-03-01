@@ -18,7 +18,7 @@
 .SH NAME 
 db2index - Directory Server script for indexing attributes
 .SH SYNOPSIS
-db2index [\-Z serverID] [\-n backend | {\-s includeSuffix}* \-t attribute[:indextypes[:matchingrules]] \-T vlvTag] [\-h]
+db2index [\-Z serverID] [\-n backend | {\-s includeSuffix}* \-t attribute[:indextypes[:matchingrules]] \-T vlvTag] [\-v] [\-h]
 .SH DESCRIPTION
 Reindexes the database index files.  The Directory Server must be stopped prior to running this script.
 .SH OPTIONS
@@ -40,6 +40,10 @@ An optional matching rule OID can also be set.
 .TP
 .B \fB\-T\fR \fIvlvTag\fR
 This is the name of the vlv index entry under cn=config.
+.TP
+.B \fB\-v\fR
+Display version
+.br
 .TP
 .B \fB\-h\fR
 .br

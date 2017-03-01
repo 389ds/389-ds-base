@@ -34,7 +34,6 @@ sub usage {
     print(STDERR "        -r rid       - The replica id that you want to clean\n");
     print(STDERR "        -A           - Abort an existing cleanallruv task(must use with -b and -r args\n");
     print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v           - Verbose output\n");
     print(STDERR "        -h           - Display usage\n");
 }
 
@@ -64,9 +63,6 @@ while ($i <= $#ARGV)
     } elsif ("$ARGV[$i]" eq "-P"){ 
         # protocol preference
         $i++; $protocol = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-v"){    
-        # verbose
-        $verbose = 1;
     } elsif ("$ARGV[$i]" eq "-h"){    
         # help
         &usage; exit(0);
@@ -84,11 +80,7 @@ while ($i <= $#ARGV)
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;
-if ($verbose == 1){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 if ($basedn eq "" || $rid eq ""){ 
     &usage; 
     exit(1); 

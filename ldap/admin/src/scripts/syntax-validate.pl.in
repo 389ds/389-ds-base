@@ -22,7 +22,7 @@ $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 $i = 0;
 
 sub usage {
-    print(STDERR "Usage: syntax-validate.pl [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
+    print(STDERR "Usage: syntax-validate.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
     print(STDERR "                          [-P protocol] -b baseDN [-f filter] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn    - Directory Manager\n");
@@ -35,7 +35,6 @@ sub usage {
     print(STDERR "                       If omitted, all entries under the specified\n");
     print(STDERR "                       base will have their attribute values validated.\n");
     print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v           - Verbose output\n");
     print(STDERR "        -h           - Display usage\n");
 }
 
@@ -66,9 +65,6 @@ while ($i <= $#ARGV)
         # help
         &usage;
         exit(0);
-    } elsif ("$ARGV[$i]" eq "-v"){    
-        # verbose
-        $verbose = 1;
     } else {
         print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage;
@@ -84,11 +80,7 @@ while ($i <= $#ARGV)
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;
-if ($verbose == 1){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 if ( $basedn_arg eq "" ){ 
     &usage; 
     exit(1); 

@@ -23,7 +23,7 @@ $i = 0;
 
 sub usage {
     print(STDERR "Usage: fixup-memberof.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
-    print(STDERR "                         [-P protocol] -b baseDN [-f filter] [-v] [-h]\n");
+    print(STDERR "                         [-P protocol] -b baseDN [-f filter] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn    - Directory Manager\n");
     print(STDERR "        -w password  - Directory Manager's password\n");
@@ -35,7 +35,6 @@ sub usage {
     print(STDERR "                       If omitted, all entries with objectclass inetuser/inetadmin under the\n");
     print(STDERR "                       specified base will have their memberOf attribute regenerated.\n");
     print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v           - Verbose output\n");
     print(STDERR "        -h           - Display usage\n");
 }
 
@@ -65,9 +64,6 @@ while ($i <= $#ARGV)
     } elsif ("$ARGV[$i]" eq "-h"){ 
         # help
         &usage; exit(0);
-    } elsif ("$ARGV[$i]" eq "-v"){    
-        # verbose
-        $verbose = 1;
     } else {
         print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);

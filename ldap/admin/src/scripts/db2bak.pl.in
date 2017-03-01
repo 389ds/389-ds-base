@@ -37,7 +37,6 @@ sub usage {
     print(STDERR "        -a backupdir  - Backup directory\n");
     print(STDERR "        -t dbtype     - Database type (default: ldbm database)\n");
     print(STDERR "        -P protocol   - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v            - Verbose output\n");
     print(STDERR "        -h            - Display usage\n");
 }
 
@@ -45,16 +44,16 @@ $nestit = 0;
 while ($i <= $#ARGV) {
     if ("$ARGV[$i]" eq "-a") {    # backup directory
         $i++; $archivedir = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-A") {    # backup directory
+    } elsif ("$ARGV[$i]" eq "-A") { # backup directory
         $nestit = 1;
         $i++; $archivedir = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-D") {    # Directory Manager
+    } elsif ("$ARGV[$i]" eq "-D") { # Directory Manager
         $i++; $rootdn = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-w") {    # Directory Manager's password
+    } elsif ("$ARGV[$i]" eq "-w") { # Directory Manager's password
         $i++; $passwd = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-j") { # Read Directory Manager's password from a file
         $i++; $passwdfile = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-t") {    # database type
+    } elsif ("$ARGV[$i]" eq "-t") { # database type
         $i++; $dbtype = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-Z") { # Server identifier
         $i++; $servid = $ARGV[$i];    
@@ -62,8 +61,6 @@ while ($i <= $#ARGV) {
         $i++; $protocol = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-h") { # help
         &usage; exit(0);
-    } elsif ("$ARGV[$i]" eq "-v") {    # verbose
-        $verbose = 1;
     } else {
         print "ERROR - Unknown option: $ARGV[$i]\n";
         &usage; exit(1);
@@ -78,11 +75,7 @@ while ($i <= $#ARGV) {
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;
-if ($verbose == 1){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 
 $mybakdir = "@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak";
 

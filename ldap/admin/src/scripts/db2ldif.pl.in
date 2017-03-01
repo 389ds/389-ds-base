@@ -63,7 +63,6 @@ sub usage {
     print(STDERR "        -E              - Decrypt encrypted data when exporting\n");
     print(STDERR "        -1              - Do not print version line\n");
     print(STDERR "        -P protocol     - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v              - Verbose output\n");
     print(STDERR "        -h              - Display usage\n");
 }
 
@@ -148,8 +147,6 @@ while ($i <= $#ARGV) {
         &usage; exit(0);
     } elsif ("$ARGV[$i]" eq "-P") { # protocol preference
         $i++; $protocol = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-v") {    # verbose
-        $verbose = 1;
     } elsif ("$ARGV[$i]" eq "-c") {    # cwd
         $i++; $cwd = $ARGV[$i];
     } else {
@@ -167,11 +164,7 @@ while ($i <= $#ARGV) {
 $ldifdir = "@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/ldif";
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;
-if ($verbose == 1){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 if ($instances[0] eq "" && $included[0] eq ""){ 
     &usage; 
     exit(1); 

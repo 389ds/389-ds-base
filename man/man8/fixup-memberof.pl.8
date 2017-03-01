@@ -18,7 +18,7 @@
 .SH NAME 
 fixup-memberof.pl - Directory Server perl script for memberOf attributes.
 .SH SYNOPSIS
-fixup-memberof.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b baseDN [\-f filter] [\-P protocol] [\-v] [\-h]
+fixup-memberof.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b baseDN [\-f filter] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Regenerates and updates memberOf on user entries to coordinate changes in group membership. 
 .SH OPTIONS
@@ -53,10 +53,6 @@ the memberOf attribute is regenerated for every entry in the subtree that has th
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
 If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
 available for the root user.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

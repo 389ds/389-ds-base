@@ -22,7 +22,7 @@ $ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
 $i = 0;
 
 sub usage {
-    print(STDERR "Usage: schema-reload.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol] [-d schemadir] [-v] [-h]\n");
+    print(STDERR "Usage: schema-reload.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol] [-d schemadir] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn     - Directory Manager\n");
     print(STDERR "        -w password   - Directory Manager's password\n");
@@ -31,7 +31,6 @@ sub usage {
     print(STDERR "        -j filename   - Read Directory Manager's password from file\n");
     print(STDERR "        -d schemadir  - Directory where schema files are located\n");
     print(STDERR "        -P protocol   - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print(STDERR "        -v            - Verbose output\n");
     print(STDERR "        -h            - Display usage\n");
 }
 
@@ -56,9 +55,6 @@ while ($i <= $#ARGV)
         # help
         &usage;
         exit(0);
-    } elsif ("$ARGV[$i]" eq "-v"){    
-        # verbose
-        $verbose = 1;
     } elsif ("$ARGV[$i]" eq "-P") { 
         # protocol preference
         $i++; $protocol = $ARGV[$i];
@@ -77,11 +73,7 @@ while ($i <= $#ARGV)
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol; 
-if ($verbose == 1){
-    $info{args} = "-v -a";
-} else {
-    $info{args} = "-a";
-}
+$info{args} = "-a";
 
 #
 # Construct the task entry

@@ -18,7 +18,7 @@
 .SH NAME 
 fixup-linkedattrs.pl - Directory Server perl script for creating a "fixup" task for linked attributes.
 .SH SYNOPSIS
-fixup-linkedattrs.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-l linkDN] [\-P protocol] [\-v] [\-h]
+fixup-linkedattrs.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-l linkDN] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Creates the managed attributes in the user entries once the linking plug-in instance is created or updates the managed attributes to keep everything in sync after operations like replication or synchronization.
 .SH OPTIONS
@@ -49,10 +49,6 @@ Gives the target DN for which to update the linked attributes. If this is not se
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
 If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
 available for the root user.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

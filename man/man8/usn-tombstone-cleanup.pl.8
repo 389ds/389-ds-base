@@ -18,7 +18,7 @@
 .SH NAME 
 usn-tombstone-cleanup.pl - Directory Server perl script for cleaning up tombstone entries.
 .SH SYNOPSIS
-usn-tombstone-cleanup.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-s suffix \-n backend [\-m maxusn_to_delete] [\-P protocol] [\-v] [\-h]
+usn-tombstone-cleanup.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-s suffix \-n backend [\-m maxusn_to_delete] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Deletes the tombstone entries maintained by the instance if the USN Plug-in is enabled. 
 .SH OPTIONS
@@ -55,10 +55,6 @@ Sets the upper bound for entries to delete. All tombstone entries with an entryU
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
 If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
 available for the root user.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br

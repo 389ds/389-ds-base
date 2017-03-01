@@ -18,7 +18,7 @@
 .SH NAME 
 bak2db.pl - Directory Server perl script for restoring a backup
 .SH SYNOPSIS
-bak2db.pl \-a archivedir [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-t dbtype] [\-n backendname] [\-P protocol] [\-v] [\-h]
+bak2db.pl \-a archivedir [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-t dbtype] [\-n backendname] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Restores a database from a backup. The Directory Server must be started prior to running this script.
 .SH OPTIONS
@@ -55,10 +55,6 @@ The name of the LDBM database to restore.  Example: userRoot
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
 If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
 available for the root user.
-.TP
-.B \fB\-v\fR 
-.br
-Display verbose output
 .TP
 .B \fB\-h\fR 
 .br
