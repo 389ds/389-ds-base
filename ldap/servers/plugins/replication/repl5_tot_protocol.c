@@ -591,6 +591,7 @@ retry:
 		                 "\"%s\". Sent %lu entries.\n",
 		                 agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
+		agmt_set_last_update_status(prp->agmt, 0, 0, NULL);
 	}
 
 done:
