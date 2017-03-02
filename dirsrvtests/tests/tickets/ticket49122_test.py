@@ -52,7 +52,7 @@ def test_ticket49122(topo):
 
     if DEBUGGING:
         # Add debugging steps(if any)...
-        print "Attach gdb"
+        print("Attach gdb")
         time.sleep(20)
 
     # Search for the role
