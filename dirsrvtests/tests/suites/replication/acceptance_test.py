@@ -1,7 +1,15 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4 as topo
+from lib390.topologies import topology_m4 as topo
 
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
@@ -62,15 +70,13 @@ def get_repl_entries(topo, entry_name, attr_list):
 def test_add_entry(topo, test_entry):
     """Check that entries are replicated after add operation
 
-    :Feature: Multi master replication
-
-    :Setup: Four masters replication setup
-
-    :Steps: 1. Add entry to master1
+    :ID: 024250f1-5f7e-4f3b-a9f5-27741e6fd405
+    :feature: Multi master replication
+    :setup: Four masters replication setup
+    :steps: 1. Add entry to master1
             2. Wait for replication to happen
             3. Check entry on all other masters
-
-    :Assert: Entry should be replicated
+    :assert: Entry should be replicated
     """
 
     entries = get_repl_entries(topo, TEST_ENTRY_NAME, ["uid"])
@@ -80,15 +86,13 @@ def test_add_entry(topo, test_entry):
 def test_modify_entry(topo, test_entry):
     """Check that entries are replicated after modify operation
 
-    :Feature: Multi master replication
-
-    :Setup: Four masters replication setup, an entry
-
-    :Steps: 1. Modify the entry on master1 (try add, modify and delete operations)
+    :ID: 36764053-622c-43c2-a132-d7a3ab7d9aaa
+    :feature: Multi master replication
+    :setup: Four masters replication setup, an entry
+    :steps: 1. Modify the entry on master1 (try add, modify and delete operations)
             2. Wait for replication to happen
             3. Check entry on all other masters
-
-    :Assert: Entry attr should be replicated
+    :assert: Entry attr should be replicated
     """
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
@@ -134,15 +138,13 @@ def test_modify_entry(topo, test_entry):
 def test_delete_entry(topo, test_entry):
     """Check that entry deletion is replicated after delete operation
 
-    :Feature: Multi master replication
-
-    :Setup: Four masters replication setup, an entry
-
-    :Steps: 1. Delete the entry from master1
+    :ID: 18437262-9d6a-4b98-a47a-6182501ab9bc
+    :feature: Multi master replication
+    :setup: Four masters replication setup, an entry
+    :steps: 1. Delete the entry from master1
             2. Wait for replication to happen
             3. Check entry on all other masters
-
-    :Assert: Entry deletion should be replicated
+    :assert: Entry deletion should be replicated
     """
 
     log.info('Deleting entry {} during the test'.format(TEST_ENTRY_DN))
@@ -156,15 +158,13 @@ def test_delete_entry(topo, test_entry):
 def test_modrdn_entry(topo, test_entry, delold):
     """Check that entries are replicated after modrdn operation
 
-    :Feature: Multi master replication
-
-    :Setup: Four masters replication setup, an entry
-
-    :Steps: 1. Make modrdn operation on entry on master1 with both delold 1 and 0
+    :ID: 02558e6d-a745-45ae-8d88-34fe9b16adc9
+    :feature: Multi master replication
+    :setup: Four masters replication setup, an entry
+    :steps: 1. Make modrdn operation on entry on master1 with both delold 1 and 0
             2. Wait for replication to happen
             3. Check entry on all other masters
-
-    :Assert: Entry with new RDN should be replicated.
+    :assert: Entry with new RDN should be replicated.
              If delold was specified, entry with old RDN shouldn't exist
     """
 

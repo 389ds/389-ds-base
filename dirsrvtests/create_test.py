@@ -9,7 +9,10 @@
 # --- END COPYRIGHT BLOCK ---
 
 import optparse
+import os
+import re
 import sys
+import uuid
 from lib389 import topologies
 
 """This script generates a template test script that handles the
@@ -111,6 +114,24 @@ def get_existing_topologies(inst, masters, hubs, consumers):
         return [True, my_topology]
     else:
         return [False, my_topology]
+
+
+def check_id_uniqueness(id_value):
+    """Checks if ID is already present in other tests.
+    create_test.py script should exist in the directory
+    with a 'tests' dir.
+    """
+
+    tests_dir = os.path.join(os.getcwd(), 'tests')
+
+    for root, dirs, files in os.walk(tests_dir):
+        for name in files:
+            with open(os.path.join(root, name), "r") as file:
+                for line in file:
+                    if re.search(str(id_value), line):
+                        return False
+
+    return True
 
 
 desc = 'Script to generate an initial lib389 test script.  ' + \
@@ -654,6 +675,9 @@ if len(sys.argv) > 0:
                 TEST.write(', standalone' + str(idx))
             TEST.write(')\n\n\n')
 
+    tc_id = '0'
+    while not check_id_uniqueness(tc_id): tc_id = uuid.uuid4()
+
     # Write the test function
     if ticket:
         TEST.write('def test_ticket{}(topo):\n'.format(ticket))
@@ -664,11 +688,17 @@ if len(sys.argv) > 0:
         TEST.write('    """\n\n')
     else:
         TEST.write('def test_something(topo):\n')
-        TEST.write('    """Write a single test here...\n\n')
-        TEST.write('    Also, if you need any test suite initialization,\n')
-        TEST.write('    please, write additional fixture for that (including finalizer).\n'
-                   '    Topology for suites are predefined in lib389/topologies.py.\n'
-                   '    """\n\n')
+        TEST.write('    """Write one-line test case purpose (name) here\n\n')
+        TEST.write('    :ID: {}\n'.format(tc_id))
+        TEST.write('    :feature: Fill in feature name here\n')
+        TEST.write('    :setup: Fill in set up configuration here\n')
+        TEST.write('    :steps: 1. Fill in test case steps here\n')
+        TEST.write('            2. And indent them like this (RST format requirement)\n')
+        TEST.write('    :assert: Fill in the result that is expected\n')
+        TEST.write('    """\n\n')
+        TEST.write('    # If you need any test suite initialization,\n')
+        TEST.write('    # please, write additional fixture for that (including finalizer).\n'
+                   '    # Topology for suites are predefined in lib389/topologies.py.\n\n')
 
     TEST.write('    if DEBUGGING:\n')
     TEST.write('        # Add debugging steps(if any)...\n')

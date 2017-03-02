@@ -122,17 +122,17 @@ def test_change_pwd(topology_st, test_user, password_policy,
     """Verify that 'passwordChange' attr works as expected
     User should have a priority over a subtree.
 
-    :Feature: Password policy
+    :feature: Password policy
 
-    :Setup: Standalone instance, test user,
+    :setup: Standalone instance, test user,
             password policy entries for a user and a subtree
 
-    :Steps: 1. Set passwordChange on the user and the subtree
+    :steps: 1. Set passwordChange on the user and the subtree
                to various combinations
             2. Bind as test user
             3. Try to change password
 
-    :Assert: Subtree/User passwordChange - result
+    :assert: Subtree/User passwordChange - result
              off/on, on/on - success
              on/off, off/off - UNWILLING_TO_PERFORM
     """
@@ -191,20 +191,18 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
     should not allow the user to change the password within 10 seconds after
     his previous change.
 
-    :Feature: Password policy
-
-    :Setup: Standalone instance, test user,
+    :ID: 85b98516-8c82-45bd-b9ec-90bd1245e09c
+    :feature: Password policy
+    :setup: Standalone instance, test user,
             password policy entries for a user and a subtree
-
-    :Steps: 1. Set passwordMinAge to 10 on the user pwpolicy entry
+    :steps: 1. Set passwordMinAge to 10 on the user pwpolicy entry
             2. Set passwordMinAge to 10 on the subtree pwpolicy entry
             3. Set passwordMinAge to 10 on the cn=config entry
             4. Bind as test user
             5. Try to change password two times in a row
             6. Wait 12 seconds
             7. Try to change password
-
-    :Assert: User should be not allowed to change the password
+    :assert: User should be not allowed to change the password
              right after previous change - CONSTRAINT_VIOLATION
              User should be not allowed to change the password
              after 12 seconds passed

@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -7,16 +15,14 @@ from lib389.topologies import topology_st
 def test_purge_success(topology_st):
     """Verify that tombstones are created successfully
 
-    :Feature: nsTombstone
-
-    :Setup: Standalone instance
-
-    :Steps: 1. Enable replication to unexisting instance
+    :ID: adb86f50-ae76-4ed6-82b4-3cdc30ccab78
+    :feature: nsTombstone
+    :setup: Standalone instance
+    :steps: 1. Enable replication to unexisting instance
             2. Add an entry to the replicated suffix
             3. Delete the entry
             4. Check that tombstone entry exists (objectclass=nsTombstone)
-
-    :Assert: Tombstone entry exist
+    :assert: Tombstone entry exist
     """
 
     log.info('Setting up replication...')

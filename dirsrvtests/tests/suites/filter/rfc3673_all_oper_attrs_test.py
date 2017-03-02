@@ -96,13 +96,11 @@ def test_supported_features(topology_st):
     """Verify that OID 1.3.6.1.4.1.4203.1.5.1 is published
     in the supportedFeatures [RFC3674] attribute in the rootDSE.
 
-    :Feature: Filter
-
-    :Setup: Standalone instance
-
-    :Steps: 1. Search for 'supportedFeatures' at rootDSE
-
-    :Assert: Value 1.3.6.1.4.1.4203.1.5.1 is presented
+    :ID: 441b3f1f-a24b-4943-aa65-7edce460abbf
+    :feature: Filter
+    :setup: Standalone instance
+    :steps: 1. Search for 'supportedFeatures' at rootDSE
+    :assert: Value 1.3.6.1.4.1.4203.1.5.1 is presented
     """
 
     entries = topology_st.standalone.search_s('', ldap.SCOPE_BASE,
@@ -122,16 +120,14 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
     by a Search Request [RFC2251] with '+' (ASCII 43) filter.
     Please see: https://tools.ietf.org/html/rfc3673
 
-    :Feature: Filter
-
-    :Setup: Standalone instance, test user for binding,
+    :ID: 14c66bc2-28e1-4f5f-893e-508e0f720f8c
+    :feature: Filter
+    :setup: Standalone instance, test user for binding,
             deny one attribute aci for that user
-
-    :Steps: 1. Bind as regular user or Directory Manager
+    :steps: 1. Bind as regular user or Directory Manager
             2. Search with '+' filter and with additionaly
                'objectClass' and '*' attrs too
-
-    :Assert: All expected values were returned, not more
+    :assert: All expected values were returned, not more
     """
 
     if regular_user:

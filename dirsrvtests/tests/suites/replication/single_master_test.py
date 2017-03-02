@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -67,19 +75,17 @@ def replica_without_init(topo_nr):
 def test_mail_attr_repl(topo_r, test_user):
     """Check that no crash happens during mail attribute replication
 
-    :Feature: Single master replication
-
-    :Setup: Replication setup with master and consumer instances,
+    :ID: 959edc84-05be-4bf9-a541-53afae482052
+    :feature: Single master replication
+    :setup: Replication setup with master and consumer instances,
             test user on master
-
-    :Steps: 1. Check that user was replicated to consumer
+    :steps: 1. Check that user was replicated to consumer
             2. Back up mail database file
             3. Remove mail attribute from the user entry
             4. Restore mail database
             5. Search for the entry with a substring 'mail=user*'
             6. Search for the entry once again to make sure that server is alive
-
-    :Assert: No crash happens
+    :assert: No crash happens
     """
 
     master = topo_r.ms["master1"]
@@ -132,15 +138,13 @@ def test_mail_attr_repl(topo_r, test_user):
 def test_lastupdate_attr_before_init(topo_nr, replica_without_init):
     """Check that LastUpdate replica attributes show right values
 
-    :Feature: Single master replication
-
-    :Setup: Replication setup with master and consumer instances
+    :ID: bc8ce431-ff65-41f5-9331-605cbcaaa887
+    :feature: Single master replication
+    :setup: Replication setup with master and consumer instances
             without initialization
-
-    :Steps: 1. Check nsds5replicaLastUpdateStart, nsds5replicaLastUpdateEnd,
+    :steps: 1. Check nsds5replicaLastUpdateStart, nsds5replicaLastUpdateEnd,
                nsds5replicaLastUpdateStatus attrs
-
-    :Assert: nsds5replicaLastUpdateStart: 0, nsds5replicaLastUpdateEnd: 0 and
+    :assert: nsds5replicaLastUpdateStart: 0, nsds5replicaLastUpdateEnd: 0 and
              nsds5replicaLastUpdateStatus is not equal to
              "0 Replica acquired successfully: Incremental update started"
     """

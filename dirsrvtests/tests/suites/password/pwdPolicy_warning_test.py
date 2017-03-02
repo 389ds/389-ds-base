@@ -232,17 +232,15 @@ def test_different_values(topology_st, value):
     """Try to set passwordSendExpiringTime attribute
     to various values both valid and invalid
 
-    :Feature: Password Expiry Warning Time
-
-    :Setup: Standalone DS instance
-
-    :Steps: 1. Try to set valid and invalid values
+    :ID: 3e6d79fb-b4c8-4860-897e-5b207815a75d
+    :feature: Password Expiry Warning Time
+    :setup: Standalone DS instance
+    :steps: 1. Try to set valid and invalid values
                for passwordSendExpiringTime attribute
                under cn=config entry
             2. Run the search command to check the
                value of passwordSendExpiringTime attribute
-
-    :Assert: 1. Invalid values should be rejected with
+    :assert: 1. Invalid values should be rejected with
                 an OPERATIONS_ERROR
              2. Valid values should be accepted and saved
     """
@@ -276,20 +274,18 @@ def test_expiry_time(topology_st, global_policy, add_user):
     """Test whether the password expiry warning
     time for a user is returned appropriately
 
-    :Feature: Pasword Expiry Warning Time
-
-    :Setup: Standalone DS instance with,
+    :ID: 7adfd395-9b25-4cc0-9b71-14710dc1a28c
+    :feature: Pasword Expiry Warning Time
+    :setup: Standalone DS instance with,
             1. Global password policy configured as below:
                passwordExp: on
                passwordMaxAge: 172800
                passwordWarning: 86400
                passwordSendExpiringTime: on
             2. User entry for binding
-
-    :Steps: 1. Bind as the user
+    :steps: 1. Bind as the user
             2. Request the control for the user
-
-    :Assert: The password expiry warning time for the user should be
+    :assert: The password expiry warning time for the user should be
              returned
     """
 
@@ -317,28 +313,23 @@ def test_password_warning(topology_st, global_policy, add_user, attr, val):
     setting passwordSendExpiringTime to off
     and setting passwordWarning to a short value
 
-    :Feature: Password Expiry Warning Time
-
-    :Setup: Standalone DS instance with,
+    :ID: 39f54b3c-8c80-43ca-856a-174d81c56ce8
+    :feature: Password Expiry Warning Time
+    :setup: Standalone DS instance with,
            1. Global password policy configures as below:
               passwordExp: on
               passwordMaxAge: 172800
               passwordWarning: 86400
               passwordSendExpiringTime: on
            2. User entry for binding
-
-    :Steps: 1. Set passwordSendExpiringTime attribute to off
+    :steps: 1a. Set passwordSendExpiringTime attribute to off.
+            1b. In the another attempt, try to set passwordWarning
+               to a small value (for eg: 3600 seconds)
             2. Bind as the user
-            3. Request the control for the user
-
-    :Assert: Password expiry warning time should not be returned
-
-    :Steps: 1. Set passwordWarning to a small value
-               (for eg: 3600 seconds)
-            2. Bind with the user and request the password expiry warning
-               time
-
-    :Assert: Password expiry warning time should be returned
+            3a. Request the control for the user
+            3b. Request the password expiry warning time
+    :assert: a. Password expiry warning time should not be returned
+             b. Password expiry warning time should be returned
     """
 
     try:
@@ -364,24 +355,22 @@ def test_password_warning(topology_st, global_policy, add_user, attr, val):
 def test_with_different_password_states(topology_st, global_policy, add_user):
     """Test the control with different password states
 
-    :Feature: Password Expiry Warning Time
-
-    :Setup: Standalone DS instance with,
+    :ID: d297fb1a-661f-4d52-bb43-2a2a340b8b0e
+    :feature: Password Expiry Warning Time
+    :setup: Standalone DS instance with,
             1. Global password policy configured as below:
                passwordExp: on
                passwordMaxAge: 172800
                passwordWarning: 86400
                passwordSendExpiringTime: on
             2. User entry for binding to the server
-
-    :Steps: 1. Expire user's password by setting the system
+    :steps: 1. Expire user's password by setting the system
                date past the valid period for the password
             2. Try to bind to the server with the user entry
             3. Set the system date to the current day
             4. Try to bind with the user entry and request
                the control
-
-    :Assert: 1. In the first try, the bind should fail with an
+    :assert: 1. In the first try, the bind should fail with an
                 INVALID_CREDENTIALS error
              2. In the second try, the bind should be successful
                 and the password expiry warning time should be
@@ -428,20 +417,18 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
     """Test the default behavior of password
     expiry warning time
 
-    :Feature: Password Expiry Warning Time
-
-    :Setup: Standalone DS instance with,
+    :ID: c47fa824-ee08-4b78-885f-bca4c42bb655
+    :feature: Password Expiry Warning Time
+    :setup: Standalone DS instance with,
             1. Global password policy configured as follows,
                passwordExp: on
                passwordMaxAge: 86400
                passwordWarning: 86400
                passwordSendExpiringTime: off
             2. User entry for binding to the server
-
-    :Steps: 1. Bind as the user
+    :steps: 1. Bind as the user
             2. Request the control for the user
-
-    :Assert: Password expiry warning time should be returned by the
+    :assert: Password expiry warning time should be returned by the
              server by the server since passwordMaxAge and
              passwordWarning are set to the same value
     """
@@ -467,9 +454,9 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
     """Test the attribute with fine grained policy
     set for the user
 
-    :Feature: Password Expiry Warning Time
-
-    :Setup: Standalone DS instance with,
+    :ID: ab7d9f86-8cfe-48c3-8baa-739e599f006a
+    :feature: Password Expiry Warning Time
+    :setup: Standalone DS instance with,
             1. Global password policy configured as below,
                passwordExp: on
                passwordMaxAge: 172800
@@ -480,11 +467,9 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
                as below:
                ns-newpwpolicy.pl -D 'cn=Directory Manager' -w secret123
                -h localhost -p 389 -U 'uid=tuser,dc=example,dc=com'
-
-    :Steps: 1. Bind as the user
+    :steps: 1. Bind as the user
             2. Request the control for the user
-
-    :Assert: Password expiry warning time should not be returned for the
+    :assert: Password expiry warning time should not be returned for the
              user
     """
 

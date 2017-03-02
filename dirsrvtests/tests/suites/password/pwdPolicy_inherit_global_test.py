@@ -146,20 +146,18 @@ def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
     - 'passwordCheckSyntax' is 'on' for  'nsslapd-pwpolicy-inherit-global'
     equaled 'off'
 
-    :Feature: Password policy
-
-    :Setup: Standalone instance, test user,
+    :ID: 2f07ff40-76ca-45a9-a556-331c94084945
+    :feature: Password policy
+    :setup: Standalone instance, test user,
             password policy entries for a subtree
-
-    :Steps: 1. Bind as test user
+    :steps: 1. Bind as test user
             2. Set 'nsslapd-pwpolicy-inherit-global' and
                'passwordCheckSyntax' accordingly:
                a) 'off' and 'off'
                b) 'on' and 'off'
                c) 'off' and 'on'
             3. Try to add user with a short password
-
-    :Assert: No exception should occure
+    :assert: No exception should occure
     """
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, inherit_value))
@@ -210,12 +208,11 @@ def test_entry_has_restrictions(topology_st, password_policy, test_user, contain
     syntax rules work, if set them at both: cn=config and
     ou=people policy container.
 
-    :Feature: Password policy
-
-    :Setup: Standalone instance, test user,
+    :ID: 4bb0f474-17c1-40f7-aab4-4ddc17d019e8
+    :feature: Password policy
+    :setup: Standalone instance, test user,
             password policy entries for a subtree
-
-    :Steps: 1. Bind as test user
+    :steps: 1. Bind as test user
             2. Switch 'nsslapd-pwpolicy-inherit-global: on'
             3. Switch 'passwordCheckSyntax: on'
             4. Set 'passwordMinLength: 9' to:
@@ -223,8 +220,7 @@ def test_entry_has_restrictions(topology_st, password_policy, test_user, contain
                b) ou=people policy container
             5. Try to add user with a short password (<9)
             6. Try to add user with a long password (>9)
-
-    :Assert: User should be rejected
+    :assert: User should be rejected
     """
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, 'on'))

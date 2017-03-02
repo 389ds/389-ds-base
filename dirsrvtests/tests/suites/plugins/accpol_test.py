@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -107,20 +115,18 @@ def account_status(topology_st, suffix, subtre, userid, nousrs, ulimit, tochck):
 def test_actNinact_local(topology_st, accpolicy_local):
     """Verify if user account is inactivated when accountInactivityLimit is exceeded. User is created in the default suffix.
 
-    :Feature: Account Policy Plugin
-
-    :Setup: Standalone instance, Local account policy plugin configuration,
+    :ID: 470f480c-da55-47ee-9095-5ff50a6d5be1
+    :feature: Account Policy Plugin
+    :setup: Standalone instance, Local account policy plugin configuration,
             accountInactivityLimit set to 15, Inactivate account by Account policy plugin
-
-    :Steps: 1. Configure account policy plugin with accpol_local for ou=people subtree
+    :steps: 1. Configure account policy plugin with accpol_local for ou=people subtree
             2. Set accountInactivityLimit to 15
             3. Add few users to ou=people subtre in the default suffix
             4. Wait for 14 secs and run ldapsearch as normal user to check if its not inactivated, expected 0.
             5. Wait for 2 secs or till accountInactivityLimit is exceeded
             6. Run ldapsearch as normal user and check if its inactivated, expected error 19.
             7. Sleep for +14 secs to check if accounts accessed at step4 are inactivated now
-
-    :Assert: Should return error code 19
+    :assert: Should return error code 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -146,17 +152,15 @@ def test_actNinact_local(topology_st, accpolicy_local):
 def test_noinact_local(topology_st, accpolicy_local):
     """Verify if user account is inactivated when moved from ou=groups to ou=people subtree.
 
-    :Feature: Account Policy Plugin
-
-    :Setup: Standalone instance, Local account policy plugin configuration,
+    :ID: 235e3f00-db20-4166-9cfd-77e7c08cabdf
+    :feature: Account Policy Plugin
+    :setup: Standalone instance, Local account policy plugin configuration,
             accountInactivityLimit set to 15, Inactivate account by Account policy plugin
-
-    :Steps: 1. Add few users to ou=groups subtre in the default suffix, plugin configured to ou=people subtree only.
+    :steps: 1. Add few users to ou=groups subtre in the default suffix, plugin configured to ou=people subtree only.
             2. Wait for 16 secs and run ldapsearch as normal user to check account is active, expected 0.
             3. Move users from ou=groups to ou=people subtree
             4. Sleep for 16 secs and check if entries are inactivated
-
-    :Assert: Should return error code 0 and 19
+    :assert: Should return error code 0 and 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -187,18 +191,16 @@ def test_noinact_local(topology_st, accpolicy_local):
 def test_inact_local(topology_st, accpolicy_local):
     """Verify if user account is inactivated when users moved from ou=people to ou=groups subtree.
 
-    :Feature: Account Policy Plugin
-
-    :Setup: Standalone instance, Local account policy plugin configuration,
+    :ID: ffccf0fd-b684-4462-87ef-1ec6d3e40574
+    :feature: Account Policy Plugin
+    :setup: Standalone instance, Local account policy plugin configuration,
             accountInactivityLimit set to 15, Inactivate account by Account policy plugin
-
-    :Steps: 1. Add few users to ou=people subtre in the default suffix
+    :steps: 1. Add few users to ou=people subtre in the default suffix
             2. Wait for 14 secs and run ldapsearch as normal user to check if its not inactivated, expected 0.
             3. Move users from ou=people to ou=groups subtree
             4. Sleep for +2 secs and check if users are inactivated in ou=people subtree
             5. Check if users are not inactivated in ou=groups subtree
-
-    :Assert: Should return error code 0
+    :assert: Should return error code 0
     """
 
     suffix = DEFAULT_SUFFIX

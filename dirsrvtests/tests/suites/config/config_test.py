@@ -63,16 +63,14 @@ def test_user(topology_m2):
 def test_maxbersize_repl(topology_m2, test_user, big_file):
     """maxbersize is ignored in the replicated operations.
 
-    :Feature: Config
-
-    :Setup: MMR with two masters, test user,
+    :ID: ad57de60-7d56-4323-bbca-5556e5cdb126
+    :feature: Config
+    :setup: MMR with two masters, test user,
             1 MiB big value for attribute
-
-    :Steps: 1. Set 20KiB small maxbersize on master2
+    :steps: 1. Set 20KiB small maxbersize on master2
             2. Add big value to master2
             3. Add big value to master1
-
-    :Assert: Adding the big value to master2 is failed,
+    :assert: Adding the big value to master2 is failed,
              adding the big value to master1 is succeed,
              the big value is successfully replicated to master2
     """
@@ -136,9 +134,18 @@ def test_maxbersize_repl(topology_m2, test_user, big_file):
 
 
 def test_config_listen_backport_size(topology_m2):
-    """We need to check that we can search on nsslapd-listen-backlog-size,
-    and change its value: to a psoitive number and a negative number.
-    Verify invalid value is rejected.
+    """Check that nsslapd-listen-backlog-size acted as expected
+
+    :ID: a4385d58-a6ab-491e-a604-6df0e8ed91cd
+    :feature: Config
+    :setup: An instance
+    :steps: 1. Search for nsslapd-listen-backlog-size
+            2. Set nsslapd-listen-backlog-size to a valid value
+               Try positive and negative.
+            3. Set nsslapd-listen-backlog-size to an invalid value
+            4. Set nsslapd-listen-backlog-size back to a default value
+    :assert: Search and the valid modification should be a success
+             Modification with an invalid value should throw an error
     """
 
     try:
@@ -184,8 +191,19 @@ def test_config_listen_backport_size(topology_m2):
 
 
 def test_config_deadlock_policy(topology_m2):
-    """We need to check that nsslapd-db-deadlock-policy exists, that we can
-    change the value, and invalid values are rejected
+    """Check that nsslapd-db-deadlock-policy acted as expected
+
+    :ID: a24e25fd-bc15-47fa-b018-372f6a2ec59c
+    :feature: Config
+    :setup: An instance
+    :steps: 1. Search for nsslapd-db-deadlock-policy and check if
+               it contains a default value
+            2. Set nsslapd-db-deadlock-policy to a valid value
+               Try positive and negative.
+            3. Set nsslapd-db-deadlock-policy to an invalid value
+            4. Set nsslapd-db-deadlock-policy back to a default value
+    :assert: Search and the valid modification should be a success
+             Modification with invalid values should throw an error
     """
 
     LDBM_DN = 'cn=config,cn=ldbm database,cn=plugins,cn=config'
@@ -196,7 +214,7 @@ def test_config_deadlock_policy(topology_m2):
                                                    ['nsslapd-db-deadlock-policy'])
         val = entry[0].data['nsslapd-db-deadlock-policy'][0]
         assert val, 'Failed to get nsslapd-db-deadlock-policy from config'
-        assert val == default_val, 'The wrong derfualt value was present'
+        assert val == default_val, 'The wrong default value was present'
     except ldap.LDAPError as e:
         log.fatal('Failed to search config, error: ' + e.message('desc'))
         raise
