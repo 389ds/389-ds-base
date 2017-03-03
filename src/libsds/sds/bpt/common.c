@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -20,7 +21,7 @@ sds_bptree_node_create() {
     node->txn_id = 0;
 
 #ifdef DEBUG
-    printf("sds_bptree_node_create: Creating node_%p item_count=%d\n", node, node->item_count);
+    sds_log("sds_bptree_node_create", "Creating node_%p item_count=%d\n", node, node->item_count);
 #endif
 
     return node;
@@ -97,7 +98,7 @@ sds_bptree_node_node_index(sds_bptree_node *parent, sds_bptree_node *child) {
 void
 sds_bptree_node_node_replace(sds_bptree_node *target_node, sds_bptree_node *origin_node, sds_bptree_node *replace_node) {
 #ifdef DEBUG
-    printf("sds_bptree_node_node_replace: Replace node_%p to overwrite node_%p in node_%p\n", origin_node, replace_node, target_node);
+    sds_log("sds_bptree_node_node_replace", "Replace node_%p to overwrite node_%p in node_%p\n", origin_node, replace_node, target_node);
 #endif
     size_t index = sds_bptree_node_node_index(target_node, origin_node);
     target_node->values[index] = replace_node;
@@ -468,7 +469,12 @@ sds_bptree_root_insert(sds_bptree_instance *binst, sds_bptree_node *left_node, s
     sds_log("sds_bptree_root_insert", "left_node %p, key %d, right_node %p", left_node, key, right_node);
 #endif
     sds_bptree_node *root_node = sds_bptree_node_create();
-    root_node->level = left_node->level + 1;
+    /* On non debug, we only need to know if this is a leaf or not. */
+    if (left_node->level == 0) {
+        root_node->level = 1;
+    } else {
+        root_node->level = left_node->level;
+    }
 
     /* Is already duplicated */
     root_node->keys[0] = key;

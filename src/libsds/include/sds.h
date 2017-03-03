@@ -1,8 +1,9 @@
 /* BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -394,50 +395,31 @@ typedef struct _sds_bptree_transaction {
  * in the B+Tree and COW B+Tree. A signifigant amount of testing went into the
  * tuning of this value for best performance.
  */
-#define SDS_BPTREE_DEFAULT_CAPACITY 5
+#define SDS_BPTREE_DEFAULT_CAPACITY 3
 /**
  * SDS_BPTREE_HALF_CAPACITY 3 is pre-calculated as "ceiling(default capacity / 2)".
  * This is used to assert when node splits and merges should be taken.
  */
-#define SDS_BPTREE_HALF_CAPACITY 3
+#define SDS_BPTREE_HALF_CAPACITY 2
 /**
  * SDS_BPTREE_BRANCH 6 indicates that each node may potentially have up to 6 child
  * nodes. This yields a broad tree, that requires fewer cache misses to travese
  * (despite the higher number of comparisons to search).
  */
-#define SDS_BPTREE_BRANCH 6
+#define SDS_BPTREE_BRANCH 4
 
 /**
  * This is the core of the B+Tree structures. This node represents the branches
- * and leaves of the structure. It is 128 bytes, which fits on two cachelines.
- * Thanks to modern prediction strategies, this is faster than a 64 byte struct
- *, and yields the best performance in real tests.
+ * and leaves of the structure.
  */
 typedef struct _sds_bptree_node {
+#ifdef DEBUG
     /**
-     * checksum of the structure data to detect errors.
+     * checksum of the structure data to detect errors. Must be the first element
+     * in the struct.
      */
     uint32_t checksum;
-    /**
-     * The number of values currently stored in this structure.
-     */
-    uint16_t item_count;
-    /**
-     * This number of "rows" above the leaves this node is. 0 represents a true
-     * leaf node, anything greater is a branch.
-     */
-    uint64_t level;
-    /**
-     * The id of the transaction that created this node. This is used so that
-     * within a transaction, we don't double copy values if we already copied
-     * them.
-     */
-    uint64_t txn_id;
-    /**
-     * Back reference to our parent. This is faster than creating a traversal
-     * list during each insertion (by a large factor).
-     */
-    struct _sds_bptree_node *parent;
+#endif
     /**
      * Statically sized array of pointers to the keys of this structure.
      */
@@ -453,6 +435,29 @@ typedef struct _sds_bptree_node {
      * In a non-leaf, this is [link, link, link, link, link, link]
      */
     void *values[SDS_BPTREE_BRANCH];
+    /**
+     * The number of values currently stored in this structure.
+     */
+    uint32_t item_count;
+    /**
+     * This number of "rows" above the leaves this node is. 0 represents a true
+     * leaf node, anything greater is a branch.
+     */
+    uint32_t level;
+    /* Put these last because they are only used in the insert / delete path, not the search.
+     * This way the keys and values are always in the cache associated with the ptr.
+     */
+    /**
+     * The id of the transaction that created this node. This is used so that
+     * within a transaction, we don't double copy values if we already copied
+     * them.
+     */
+    uint64_t txn_id;
+    /**
+     * Back reference to our parent. This is faster than creating a traversal
+     * list during each insertion (by a large factor).
+     */
+    struct _sds_bptree_node *parent;
 } sds_bptree_node;
 
 /**

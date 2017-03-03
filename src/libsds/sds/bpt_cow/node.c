@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -10,17 +11,10 @@
 
 #ifdef DEBUG
 static sds_result
-sds_bptree_cow_node_path_verify(sds_bptree_transaction *btxn, sds_bptree_node *old_node, sds_bptree_node *node) {
+sds_bptree_cow_node_path_verify(sds_bptree_transaction *btxn, sds_bptree_node *node) {
     // Verify that the node has a valid parent path back to the root!
-    sds_bptree_node *boom = NULL;
-    uint64_t level = old_node->level;
     sds_bptree_node *target_node = node;
     while (target_node->parent != NULL) {
-        if (target_node->level != level) {
-            sds_log("sds_bptree_cow_node_path_verify", "node_%p should be level %d, is %d", target_node, level, target_node->level);
-            boom->level = 0xffffffff;
-        }
-        level = level + 1;
         target_node = target_node->parent;
     }
     if (btxn->root != target_node) {
@@ -84,8 +78,8 @@ sds_bptree_cow_node_clone(sds_bptree_transaction *btxn, sds_bptree_node *node) {
     sds_bptree_node_list_push(&(btxn->created), clone_node);
 
 #ifdef DEBUG
-    printf("sds_bptree_cow_node_clone: Cloning node_%p item_count=%d --> clone node_%p\n", node, node->item_count, clone_node);
-    printf("sds_bptree_cow_node_clone: txn_%p tentatively owns node_%p for cleaning\n", btxn->parent_txn, node);
+    sds_log("sds_bptree_cow_node_clone", "Cloning node_%p item_count=%d --> clone node_%p\n", node, node->item_count, clone_node);
+    sds_log("sds_bptree_cow_node_clone", "txn_%p tentatively owns node_%p for cleaning\n", btxn->parent_txn, node);
 #endif
 
     return clone_node;
@@ -109,7 +103,7 @@ static void
 sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origin_node, sds_bptree_node *clone_node) {
 
 #ifdef DEBUG
-    printf("sds_bptree_cow_branch_clone: Cloning branch from node_%p\n", clone_node);
+    sds_log("sds_bptree_cow_branch_clone", "Cloning branch from node_%p\n", clone_node);
 #endif
     // Right, we have now cloned the node. We need to walk up the tree and clone
     // all the branches that path to us.
@@ -129,7 +123,7 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
 
 // TODO: This probably needs to update csums of the nodes along the branch.
 #ifdef DEBUG
-            printf("sds_bptree_cow_branch_clone: Branch parent node_%p already within txn, finishing...\n", parent_node);
+            sds_log("sds_bptree_cow_branch_clone", "Branch parent node_%p already within txn, finishing...\n", parent_node);
             if (btxn->bi->offline_checksumming) {
                 // Update this becuase we are updating the owned node lists.
                 sds_bptree_crc32c_update_node(parent_node);
@@ -141,7 +135,7 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
             // Is the parent node NOT in this txn?
             // We need to clone the parent, and then replace ourselves in it ....
 #ifdef DEBUG
-            printf("sds_bptree_cow_branch_clone: Branch parent node_%p NOT within txn, cloning...\n", parent_node);
+            sds_log("sds_bptree_cow_branch_clone", "Branch parent node_%p NOT within txn, cloning...\n", parent_node);
 #endif
             // This is actually the important part!
             parent_clone_node = sds_bptree_cow_node_clone(btxn, parent_node);
@@ -167,7 +161,7 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
     // We have hit the root, update the root.
     // Origin is root, update the txn root.
 #ifdef DEBUG
-    printf("sds_bptree_cow_branch_clone: Updating txn_%p root from node_%p to node_%p\n", btxn, btxn->root, former_clone_node);
+    sds_log("sds_bptree_cow_branch_clone", "Updating txn_%p root from node_%p to node_%p\n", btxn, btxn->root, former_clone_node);
 #endif
     btxn->root = former_clone_node;
 }
@@ -201,7 +195,7 @@ sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node)
         result_node = clone_node;
     }
 #ifdef DEBUG
-    if (sds_bptree_cow_node_path_verify(btxn, node, result_node)!= SDS_SUCCESS) {
+    if (sds_bptree_cow_node_path_verify(btxn, result_node)!= SDS_SUCCESS) {
         sds_log("sds_bptree_cow_node_prepare", "!!! Invalid path from cow_node to root!");
         return NULL;
     }
@@ -216,7 +210,8 @@ sds_bptree_cow_node_create(sds_bptree_transaction *btxn) {
     sds_bptree_node *node = sds_memalign(sizeof(sds_bptree_node), SDS_CACHE_ALIGNMENT);
     // Without memset, we need to null the max link in a value
     node->values[SDS_BPTREE_DEFAULT_CAPACITY] = NULL;
-    node->level = 0xFFFFFFFF;
+    /* On cow, this value is over-written */
+    node->level = 0xFFFF;
     node->item_count = 0;
     node->parent = NULL;
     node->txn_id = btxn->txn_id;
@@ -228,7 +223,7 @@ sds_bptree_cow_node_create(sds_bptree_transaction *btxn) {
         // Update this becuase we are updating the created node lists.
         sds_bptree_crc32c_update_btxn(btxn);
     }
-    printf("sds_bptree_cow_node_create: Creating node_%p item_count=%d\n", node, node->item_count);
+    sds_log("sds_bptree_cow_node_create", "Creating node_%p item_count=%d\n", node, node->item_count);
 #endif
 
     return node;

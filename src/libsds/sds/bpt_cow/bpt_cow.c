@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -511,7 +512,7 @@ sds_node_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bptree_n
         return SDS_INVALID_NODE;
     }
     // Given the node write it out as:
-    fprintf(fp, "subgraph c%"PRIu64" { \n    rank=\"same\";\n", node->level);
+    fprintf(fp, "subgraph c%"PRIu32" { \n    rank=\"same\";\n", node->level);
     fprintf(fp, "    node_%p [label =\" {  node=%p items=%d txn=%"PRIu64" parent=%p | { <f0> ", node, node, node->item_count, node->txn_id, node->parent );
     for (size_t i  = 0; i < SDS_BPTREE_DEFAULT_CAPACITY; i++) {
         fprintf(fp, "| %" PRIu64 " | <f%"PRIu64"> ", (uint64_t)node->keys[i], i + 1 );

@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -77,7 +78,7 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
     for (size_t i = 0; i < node->item_count; i++) {
         if (node->keys[i] == NULL)
         {
-            printf("%d \n", node->item_count);
+            sds_log("sds_bptree_cow_verify_node", "%d \n", node->item_count);
             return SDS_INVALID_KEY;
         }
 
@@ -172,9 +173,6 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                     return SDS_INVALID_POINTER;
                 }
 
-                if (lnode->level != node->level - 1 || rnode->level != node->level - 1) {
-                    return SDS_INVALID_NODE;
-                }
                 // Check that all left keys are LESS.
                 sds_bptree_node_list *path = NULL;
                 size_t j = 0;

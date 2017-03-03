@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -189,8 +190,10 @@ test_11_tamper_with_node(void **state __attribute__((unused))) {
 
     binst->root->keys[0] = (void *)1;
 
+#ifdef DEBUG
     result = sds_bptree_verify(binst);
     assert_int_equal(result, SDS_CHECKSUM_FAILURE);
+#endif
 
     result = sds_bptree_destroy(binst);
     assert_int_equal(result, SDS_SUCCESS);
@@ -444,17 +447,10 @@ test_21_delete_redist_left_leaf(void **state)
 
     // I is increment 1 extra, so decrement it ....
     i--;
-
-#ifdef DEBUG
-    printf("Deleting %" PRIu64 "\n", i);
-#endif
     result = sds_bptree_delete(binst, (void *)&i);
     assert_int_equal(result, SDS_KEY_PRESENT);
 
     i--;
-#ifdef DEBUG
-    printf("Deleting %" PRIu64 "\n", i);
-#endif
     result = sds_bptree_delete(binst, (void *)&i);
     assert_int_equal(result, SDS_KEY_PRESENT);
 
@@ -539,9 +535,6 @@ test_22_5_redist_left_borrow(void **state)
     assert_int_equal(result, SDS_SUCCESS);
 
     for (uint64_t i = SDS_BPTREE_DEFAULT_CAPACITY; i > 2 ; i--) {
-#ifdef DEBUG
-        printf("Deleting %" PRIu64 "\n ", i);
-#endif
         key = i + 1;
         result = sds_bptree_delete(binst, (void *)&key);
         assert_int_equal(result, SDS_KEY_PRESENT);
@@ -625,9 +618,6 @@ test_24_delete_left_merge(void **state)
 
     for (i = SDS_BPTREE_DEFAULT_CAPACITY; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 2) ; i++) {
         // Add two to guarantee we don't conflict
-#ifdef DEBUG
-        printf("Deleting %" PRIu64 "\n ", i);
-#endif
         result = sds_bptree_delete(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
@@ -651,9 +641,6 @@ test_25_delete_all_compress_root(void **state)
 
     for (i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-#ifdef DEBUG
-        printf("Deleting %" PRIu64 "\n ", i);
-#endif
         result = sds_bptree_delete(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
@@ -741,9 +728,6 @@ test_27_delete_left_branch_merge(void **state)
     // And A should be removed too.
     for (i = SDS_BPTREE_DEFAULT_CAPACITY * 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 6) ; i++) {
         // Add two to guarantee we don't conflict
-#ifdef DEBUG
-        printf("Deleting %" PRIu64 "\n ", i);
-#endif
         result = sds_bptree_delete(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
         result = sds_bptree_verify(binst);

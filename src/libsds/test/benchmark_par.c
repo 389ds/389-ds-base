@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -111,25 +112,25 @@ batch_random(struct thread_info *info) {
         current_step = step + fill_pattern[step % 2048];
         size_t mod = current_step % 10;
         cf = step % max_factors;
-        void *target = (void *)(fill_pattern[step % 2048] + (2048 << cf) + baseid);
+        uint64_t target = fill_pattern[step % 2048] + (2048 << cf) + baseid;
 
         if (mod >= 8) {
             info->ds->write_begin(&(info->ds->inst), &write_txn);
-            info->ds->delete(&(info->ds->inst), write_txn, target);
+            info->ds->delete(&(info->ds->inst), write_txn, &target);
             if (info->write_delay != 0) {
                 usleep(info->write_delay);
             }
             info->ds->write_commit(&(info->ds->inst), write_txn);
         } else if (mod >= 6) {
             info->ds->write_begin(&(info->ds->inst), &write_txn);
-            info->ds->add(&(info->ds->inst), write_txn, target, NULL);
+            info->ds->add(&(info->ds->inst), write_txn, &target, NULL);
             if (info->write_delay != 0) {
                 usleep(info->write_delay);
             }
             info->ds->write_commit(&(info->ds->inst), write_txn);
         } else {
             info->ds->read_begin(&(info->ds->inst), &read_txn);
-            info->ds->search(&(info->ds->inst), read_txn, target, &output);
+            info->ds->search(&(info->ds->inst), read_txn, &target, &output);
             if (info->read_delay != 0) {
                 usleep(info->read_delay);
             }
@@ -152,9 +153,9 @@ batch_search(struct thread_info *info) {
         info->ds->read_begin(&(info->ds->inst), &read_txn);
         for (size_t j = 0; j < info->batchsize; j++) {
             cf = (step * info->tid) % 2048;
-            void *target = (void *)(fill_pattern[cf] + j);
+            uint64_t target = fill_pattern[cf] + j;
 
-            info->ds->search(&(info->ds->inst), read_txn, target, &output);
+            info->ds->search(&(info->ds->inst), read_txn, &target, &output);
         }
         if (info->read_delay != 0) {
             usleep(info->read_delay);
@@ -180,8 +181,8 @@ batch_insert(struct thread_info *info) {
         info->ds->write_begin(&(info->ds->inst), &write_txn);
         for (size_t j = 0; j < 10; j++) {
             cf = step % max_factors;
-            void *target = (void *)(fill_pattern[step % 2048] + (2048 << cf) + baseid);
-            info->ds->add(&(info->ds->inst), write_txn, target, NULL);
+            uint64_t target = fill_pattern[step % 2048] + (2048 << cf) + baseid;
+            info->ds->add(&(info->ds->inst), write_txn, &target, NULL);
 
         }
         if (info->write_delay != 0) {
@@ -208,8 +209,8 @@ batch_delete(struct thread_info *info) {
         info->ds->write_begin(&(info->ds->inst), &write_txn);
         for (size_t j = 0; j < 10; j++) {
             cf = step % max_factors;
-            void *target = (void *)(fill_pattern[step % 2048] + (2048 << cf) + baseid);
-            info->ds->delete(&(info->ds->inst), write_txn, target);
+            uint64_t target = fill_pattern[step % 2048] + (2048 << cf) + baseid;
+            info->ds->delete(&(info->ds->inst), write_txn, &target);
 
         }
         if (info->write_delay != 0) {
@@ -287,7 +288,8 @@ populate_ds(struct b_tree_cow_cb *ds, uint64_t iter) {
     ds->write_begin(&(ds->inst), &write_txn);
     for (size_t j = 0; j < max_factors; j++) {
         for (size_t i = 0; i < 2048 ; i++) {
-            ds->add(&(ds->inst), write_txn, (void *)(fill_pattern[i] + (2048 * j)), NULL);
+            uint64_t target = fill_pattern[i] + (2048 * j);
+            ds->add(&(ds->inst), write_txn, &target, NULL);
             count++;
         }
     }
@@ -313,7 +315,7 @@ bench_insert_search_delete_batch(struct b_tree_cow_cb *ds, uint64_t iter) {
         info[i].op = batch_insert;
         info[i].batchsize = 10;
     }
-    for (; i < 2; i++) {
+    for (; i < 5; i++) {
         info[i].iter = iter;
         info[i].tid = i;
         info[i].ds = ds;
@@ -567,11 +569,11 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
     uint64_t test_arrays[] = {5000, 10000, 100000, 500000, 1000000, 2500000, 5000000, 10000000};
 
-    for (size_t i = 0; i < 3; i++) {
+    for (size_t i = 0; i < 1; i++) {
         /*
         bench_insert_search_delete_batch(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_insert_search_delete_batch(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_insert_search_delete_batch(&hash_large_cb_test, test_arrays[i]);
         bench_insert_search_delete_batch(&bptree_test, test_arrays[i]);
         bench_insert_search_delete_batch(&bptree_cow_test, test_arrays[i]);
@@ -579,8 +581,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_isd_write_delay(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_isd_write_delay(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_isd_write_delay(&hash_large_cb_test, test_arrays[i]);
         bench_isd_write_delay(&bptree_test, test_arrays[i]);
         bench_isd_write_delay(&bptree_cow_test, test_arrays[i]);
@@ -588,8 +590,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_isd_read_delay(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_isd_read_delay(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_isd_read_delay(&hash_large_cb_test, test_arrays[i]);
         bench_isd_read_delay(&bptree_test, test_arrays[i]);
         bench_isd_read_delay(&bptree_cow_test, test_arrays[i]);
@@ -597,8 +599,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_high_thread_small_batch_read(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_high_thread_small_batch_read(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_high_thread_small_batch_read(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_small_batch_read(&bptree_test, test_arrays[i]);
         bench_high_thread_small_batch_read(&bptree_cow_test, test_arrays[i]);
@@ -606,8 +608,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_high_thread_large_batch_read(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_high_thread_large_batch_read(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_high_thread_large_batch_read(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_large_batch_read(&bptree_test, test_arrays[i]);
         bench_high_thread_large_batch_read(&bptree_cow_test, test_arrays[i]);
@@ -615,8 +617,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_high_thread_small_batch_write(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_high_thread_small_batch_write(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_high_thread_small_batch_write(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_small_batch_write(&bptree_test, test_arrays[i]);
         bench_high_thread_small_batch_write(&bptree_cow_test, test_arrays[i]);
@@ -624,8 +626,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_high_thread_large_batch_write(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_high_thread_large_batch_write(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_high_thread_large_batch_write(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_large_batch_write(&bptree_test, test_arrays[i]);
         bench_high_thread_large_batch_write(&bptree_cow_test, test_arrays[i]);
@@ -633,8 +635,8 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
         /*
         bench_insert_search_delete_random(&hash_small_cb_test, test_arrays[i]);
-        */
         bench_insert_search_delete_random(&hash_med_cb_test, test_arrays[i]);
+        */
         bench_insert_search_delete_random(&hash_large_cb_test, test_arrays[i]);
         bench_insert_search_delete_random(&bptree_test, test_arrays[i]);
         bench_insert_search_delete_random(&bptree_cow_test, test_arrays[i]);

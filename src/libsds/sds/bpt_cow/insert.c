@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -16,10 +17,11 @@ sds_bptree_cow_root_insert(sds_bptree_transaction *btxn, sds_bptree_node *left_n
 #endif
     // Just make the new root, add the nodes, and update the root in the txn.
     sds_bptree_node *root_node = sds_bptree_cow_node_create(btxn);
-    root_node->level = left_node->level + 1;
-#ifdef DEBUG
-    sds_log("sds_bptree_cow_root_insert", "New root level %d", root_node->level);
-#endif
+    if (left_node->level == 0) {
+        root_node->level = 1;
+    } else {
+        root_node->level = left_node->level;
+    }
     root_node->keys[0] = key;
     root_node->values[0] = (void *)left_node;
     root_node->values[1] = (void *)right_node;

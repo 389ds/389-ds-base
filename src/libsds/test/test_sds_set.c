@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details. 
  * END COPYRIGHT BLOCK **/
 
@@ -16,9 +17,6 @@ static int32_t cb_count = 0;
 
 static void
 test_31_map_cb(void *k, void *v) {
-#ifdef DEBUG
-    printf("mapping %" PRIu64 ":%s\n", (uint64_t)k, (char *)v);
-#endif
     cb_count++;
 }
 
@@ -273,9 +271,6 @@ test_38_set_compliment_2(void **state) {
 
 static int64_t
 test_39_filter_cb(void *k, void *v) {
-#ifdef DEBUG
-    printf("filtering %" PRIu64 ":%s\n", *(uint64_t *)k, (char *)v);
-#endif
     if (*(uint64_t *)k % 2 == 0) {
         return 1;
     }

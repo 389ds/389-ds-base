@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -27,9 +28,9 @@ avl_intcmp(uint64_t *a, uint64_t *b) {
 }
 
 uint64_t *
-avl_intdup(uint64_t a) {
+avl_intdup(uint64_t *a) {
     uint64_t *b = malloc(sizeof(uint64_t));
-    *b = a;
+    *b = *a;
     return b;
 }
 
@@ -41,24 +42,15 @@ avl_init_wrapper(void **inst) {
 }
 
 int64_t
-avl_add_wrapper(void **inst, void *key, void *value __attribute__((unused))) {
+avl_add_wrapper(void **inst, uint64_t *key, void *value __attribute__((unused))) {
     Avlnode **tree = (Avlnode **)inst;
-    uint64_t ukey = (uint64_t)key;
-    if (ukey == 0) {
-        return 1;
-    }
-    return avl_insert(tree, avl_intdup(ukey), avl_intcmp, avl_dup_error);
+    return avl_insert(tree, avl_intdup(key), avl_intcmp, avl_dup_error);
 }
 
 int64_t
-avl_search_wrapper(void **inst, void *key, void **value_out) {
+avl_search_wrapper(void **inst, uint64_t *key, void **value_out) {
     Avlnode **tree = (Avlnode **)inst;
-    uint64_t *ukey = avl_intdup((uint64_t)key);
-    if (ukey == 0) {
-        return 1;
-    }
-    *value_out = avl_find(*tree, ukey, avl_intcmp);
-    free(ukey);
+    *value_out = avl_find(*tree, key, avl_intcmp);
     if (*value_out == NULL) {
         return 1;
     }
@@ -66,16 +58,11 @@ avl_search_wrapper(void **inst, void *key, void **value_out) {
 }
 
 int64_t
-avl_delete_wrapper(void **inst, void *key) {
+avl_delete_wrapper(void **inst, uint64_t *key) {
     void *value_out = NULL;
     Avlnode **tree = (Avlnode **)inst;
-    uint64_t *ukey = avl_intdup((uint64_t)key);
-    if (ukey == 0) {
-        return 1;
-    }
     /* delete is broken :(  */
-    value_out = avl_find(*tree, ukey, avl_intcmp);
-    free(ukey);
+    value_out = avl_find(*tree, key, avl_intcmp);
     if (value_out == NULL) {
         return 1;
     }
@@ -110,26 +97,26 @@ avl_destroy_wrapper(void **inst) {
 
 PLHashNumber
 hash_func_large(const void *key) {
-    uint64_t ik = (uint64_t)key;
+    uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_LARGE;
 }
 
 PLHashNumber
 hash_func_med(const void *key) {
-    uint64_t ik = (uint64_t)key;
+    uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_MED;
 }
 
 PLHashNumber
 hash_func_small(const void *key) {
-    uint64_t ik = (uint64_t)key;
+    uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_SMALL;
 }
 
 PRIntn
 hash_key_compare (const void *a, const void *b) {
-    uint64_t ia = (uint64_t)a;
-    uint64_t ib = (uint64_t)b;
+    uint64_t ia = *(uint64_t *)a;
+    uint64_t ib = *(uint64_t* )b;
     return ia == ib;
 }
 
@@ -164,17 +151,18 @@ hash_large_init_wrapper(void **inst) {
 }
 
 int64_t
-hash_add_wrapper(void **inst, void *key, void *value __attribute__((unused))) {
+hash_add_wrapper(void **inst, uint64_t *key, void *value __attribute__((unused))) {
     PLHashTable **table = (PLHashTable **)inst;
     // WARNING: We have to add key as value too else hashmap won't add it!!!
-    PL_HashTableAdd(*table, key, key);
+    uint64_t *i = avl_intdup(key);
+    PL_HashTableAdd(*table, (void *)i, (void *)i);
     return 0;
 }
 
 int64_t
-hash_search_wrapper(void **inst, void *key, void **value_out) {
+hash_search_wrapper(void **inst, uint64_t *key, void **value_out) {
     PLHashTable **table = (PLHashTable **)inst;
-    *value_out = PL_HashTableLookup(*table, key);
+    *value_out = PL_HashTableLookup(*table, (void *)key);
     if (*value_out == NULL) {
         return 1;
     }
@@ -182,9 +170,9 @@ hash_search_wrapper(void **inst, void *key, void **value_out) {
 }
 
 int64_t
-hash_delete_wrapper(void **inst, void *key) {
+hash_delete_wrapper(void **inst, uint64_t *key) {
     PLHashTable **table = (PLHashTable **)inst;
-    PL_HashTableRemove(*table, key);
+    PL_HashTableRemove(*table, (void *)key);
     return 0;
 }
 
@@ -209,16 +197,16 @@ int64_t bptree_init_wrapper(void **inst) {
     return 0;
 }
 
-int64_t bptree_add_wrapper(void **inst, void *key, void *value) {
+int64_t bptree_add_wrapper(void **inst, uint64_t *key, void *value) {
     // THIS WILL BREAK SOMETIME!
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_bptree_insert(*binst, key, value);
+    sds_bptree_insert(*binst, (void *)key, value);
     return 0;
 }
 
-int64_t bptree_search_wrapper(void **inst, void *key, void **value_out __attribute__((unused))) {
+int64_t bptree_search_wrapper(void **inst, uint64_t *key, void **value_out __attribute__((unused))) {
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_result result = sds_bptree_search(*binst, key);
+    sds_result result = sds_bptree_search(*binst, (void *)key);
     if (result != SDS_KEY_PRESENT) {
         // printf("search result is %d\n", result);
         return 1;
@@ -226,9 +214,9 @@ int64_t bptree_search_wrapper(void **inst, void *key, void **value_out __attribu
     return 0;
 }
 
-int64_t bptree_delete_wrapper(void **inst, void *key) {
+int64_t bptree_delete_wrapper(void **inst, uint64_t *key) {
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_result result = sds_bptree_delete(*binst, key);
+    sds_result result = sds_bptree_delete(*binst, (void *)key);
 
     if (result != SDS_KEY_PRESENT) {
         // printf("delete result is %d\n", result);
@@ -252,16 +240,16 @@ int64_t bptree_cow_init_wrapper(void **inst) {
     return 0;
 }
 
-int64_t bptree_cow_add_wrapper(void **inst, void *key, void *value) {
+int64_t bptree_cow_add_wrapper(void **inst, uint64_t *key, void *value) {
     // THIS WILL BREAK SOMETIME!
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
-    sds_bptree_cow_insert_atomic(*binst, key, value);
+    sds_bptree_cow_insert_atomic(*binst, (void *)key, value);
     return 0;
 }
 
-int64_t bptree_cow_search_wrapper(void **inst, void *key, void **value_out __attribute__((unused))) {
+int64_t bptree_cow_search_wrapper(void **inst, uint64_t *key, void **value_out __attribute__((unused))) {
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
-    sds_result result = sds_bptree_cow_search_atomic(*binst, key);
+    sds_result result = sds_bptree_cow_search_atomic(*binst, (void *)key);
     if (result != SDS_KEY_PRESENT) {
         // printf("search result is %d\n", result);
         return 1;
@@ -269,9 +257,9 @@ int64_t bptree_cow_search_wrapper(void **inst, void *key, void **value_out __att
     return 0;
 }
 
-int64_t bptree_cow_delete_wrapper(void **inst, void *key) {
+int64_t bptree_cow_delete_wrapper(void **inst, uint64_t *key) {
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
-    sds_result result = sds_bptree_cow_delete_atomic(*binst, key);
+    sds_result result = sds_bptree_cow_delete_atomic(*binst, (void *)key);
     if (result != SDS_KEY_PRESENT) {
         // printf("delete result is %d\n", result);
         return 1;
@@ -301,7 +289,7 @@ bench_1_insert_seq(struct b_tree_cb *ds, uint64_t iter) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (uint64_t i = 1; i < iter ; i++) {
-        if (ds->add(&(ds->inst), (void *)(i + 1), NULL) != 0) {
+        if (ds->add(&(ds->inst), &i, NULL) != 0) {
             printf("FAIL: Error inserting %" PRIu64 " to %s\n", i, ds->name);
             break;
         }
@@ -340,7 +328,7 @@ bench_2_search_seq(struct b_tree_cb *ds, uint64_t iter) {
     printf("BENCH: Start ...\n");
 
     for (uint64_t i = 1; i < iter ; i++) {
-        if (ds->add(&(ds->inst), (void *)(i + 1), NULL) != 0) {
+        if (ds->add(&(ds->inst), &i, NULL) != 0) {
             printf("FAIL: Error inserting %" PRIu64 " to %s\n", i, ds->name);
             break;
         }
@@ -351,7 +339,7 @@ bench_2_search_seq(struct b_tree_cb *ds, uint64_t iter) {
     void *output;
     for (uint64_t j = 0; j < 100; j++) {
         for (uint64_t i = 1; i < iter ; i++) {
-            if (ds->search(&(ds->inst), (void *)(i + 1), &output) != 0) {
+            if (ds->search(&(ds->inst), &i, &output) != 0) {
                 printf("FAIL: Error finding %" PRIu64 " in %s\n", i, ds->name);
                 break;
             }
@@ -390,7 +378,7 @@ bench_3_delete_seq(struct b_tree_cb *ds, uint64_t iter) {
 
 
     for (uint64_t i = 1; i < iter ; i++) {
-        if (ds->add(&(ds->inst), (void *)(i + 1), NULL) != 0) {
+        if (ds->add(&(ds->inst), &i, NULL) != 0) {
             printf("FAIL: Error inserting %" PRIu64 " to %s\n", i, ds->name);
             break;
         }
@@ -400,7 +388,7 @@ bench_3_delete_seq(struct b_tree_cb *ds, uint64_t iter) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (uint64_t i = 1; i < iter ; i++) {
-        if (ds->delete(&(ds->inst), (void *)(i + 1)) != 0) {
+        if (ds->delete(&(ds->inst), &i) != 0) {
             printf("FAIL: Error deleting %" PRIu64 " from %s\n", i, ds->name);
             break;
         }
@@ -448,7 +436,8 @@ bench_4_insert_search_delete_random(struct b_tree_cb *ds, uint64_t iter) {
 
     for (size_t j = 0; j < max_factors; j++) {
         for (size_t i = 0; i < 2048 ; i++) {
-            ds->add(&(ds->inst), (void *)(fill_pattern[i] + (2048 << j)), NULL);
+            uint64_t x = fill_pattern[i] + (2048 << j);
+            ds->add(&(ds->inst), &x, NULL);
         }
     }
 
@@ -458,12 +447,13 @@ bench_4_insert_search_delete_random(struct b_tree_cb *ds, uint64_t iter) {
         int mod = current_step % 10;
         cf = step % max_factors;
 
+        uint64_t x = fill_pattern[step % 2048] + (2048 << cf);
         if (mod >= 8) {
-            ds->delete(&(ds->inst), (void *)(fill_pattern[step % 2048] + (2048 << cf) ));
+            ds->delete(&(ds->inst), &x);
         } else if (mod >= 6) {
-            ds->add(&(ds->inst), (void *)(fill_pattern[step % 2048] + (2048 << cf)), NULL);
+            ds->add(&(ds->inst), &x, NULL);
         } else {
-            ds->search(&(ds->inst), (void *)(fill_pattern[step % 2048] + (2048 << cf)), &output);
+            ds->search(&(ds->inst), &x, &output);
         }
 
     }
@@ -548,7 +538,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
     uint64_t test_arrays[] = {5000, 10000, 100000, 500000, 1000000, 2500000, 5000000, 10000000};
 
-    for (size_t i = 0; i < 2; i++) {
+    for (size_t i = 0; i < 3; i++) {
         bench_1_insert_seq(&avl_test, test_arrays[i]);
         bench_1_insert_seq(&hash_small_test, test_arrays[i]);
         bench_1_insert_seq(&hash_med_test, test_arrays[i]);

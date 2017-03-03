@@ -1,8 +1,9 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (c) 2016, William Brown <william at blackhats dot net dot au>
+ * Copyright (c) 2017, Red Hat, Inc
  * All rights reserved.
  *
- * License: License: GPL (version 3 or any later version).
+ * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
@@ -69,16 +70,16 @@ int64_t bptree_init_wrapper(void **inst) {
     return 0;
 }
 
-int64_t bptree_add_wrapper(void **inst, void *txn __attribute__((unused)), void *key, void *value) {
+int64_t bptree_add_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void *value) {
     // THIS WILL BREAK SOMETIME!
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_bptree_insert(*binst, key, value);
+    sds_bptree_insert(*binst, (void*)key, value);
     return 0;
 }
 
-int64_t bptree_search_wrapper(void **inst, void *txn __attribute__((unused)), void *key, void **value_out __attribute__((unused))) {
+int64_t bptree_search_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void **value_out __attribute__((unused))) {
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_result result = sds_bptree_search(*binst, key);
+    sds_result result = sds_bptree_search(*binst, (void *)key);
     if (result != SDS_KEY_PRESENT) {
         // printf("search result is %d\n", result);
         return 1;
@@ -86,9 +87,9 @@ int64_t bptree_search_wrapper(void **inst, void *txn __attribute__((unused)), vo
     return 0;
 }
 
-int64_t bptree_delete_wrapper(void **inst, void *txn __attribute__((unused)), void *key) {
+int64_t bptree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key) {
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_result result = sds_bptree_delete(*binst, key);
+    sds_result result = sds_bptree_delete(*binst, (void *)key);
 
     if (result != SDS_KEY_PRESENT) {
         // printf("delete result is %d\n", result);
@@ -148,26 +149,26 @@ int64_t bptree_cow_write_commit(void **inst __attribute__((unused)), void *write
     return 0;
 }
 
-int64_t bptree_cow_add_wrapper(void **inst __attribute__((unused)), void *write_txn, void *key, void *value) {
+int64_t bptree_cow_add_wrapper(void **inst __attribute__((unused)), void *write_txn, uint64_t *key, void *value) {
     // THIS WILL BREAK SOMETIME!
     sds_bptree_transaction *txn = (sds_bptree_transaction *)write_txn;
-    sds_bptree_cow_insert(txn, key, value);
+    sds_bptree_cow_insert(txn, (void *)key, value);
     return 0;
 }
 
-int64_t bptree_cow_search_wrapper(void **inst __attribute__((unused)), void *read_txn, void *key, void **value_out __attribute__((unused))) {
+int64_t bptree_cow_search_wrapper(void **inst __attribute__((unused)), void *read_txn, uint64_t *key, void **value_out __attribute__((unused))) {
     sds_bptree_transaction *txn = (sds_bptree_transaction *)read_txn;
-    sds_result result = sds_bptree_cow_search(txn, key);
+    sds_result result = sds_bptree_cow_search(txn, (void *)key);
     if (result != SDS_KEY_PRESENT) {
         return 1;
     }
     return 0;
 }
 
-int64_t bptree_cow_delete_wrapper(void **inst __attribute__((unused)), void *write_txn, void *key) {
+int64_t bptree_cow_delete_wrapper(void **inst __attribute__((unused)), void *write_txn, uint64_t *key) {
     // sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction *txn = (sds_bptree_transaction *)write_txn;
-    sds_result result = sds_bptree_cow_delete(txn, key);
+    sds_result result = sds_bptree_cow_delete(txn, (void *)key);
     if (result != SDS_KEY_PRESENT) {
         return 1;
     }
@@ -204,26 +205,26 @@ int64_t bptree_cow_destroy_wrapper(void **inst) {
 
 PLHashNumber
 hash_func_large(const void *key) {
-    uint64_t ik = (uint64_t)key;
+    uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_LARGE;
 }
 
 PLHashNumber
 hash_func_med(const void *key) {
-    uint64_t ik = (uint64_t)key;
+    uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_MED;
 }
 
 PLHashNumber
 hash_func_small(const void *key) {
-    uint64_t ik = (uint64_t)key;
+    uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_SMALL;
 }
 
 PRIntn
 hash_key_compare (const void *a, const void *b) {
-    uint64_t ia = (uint64_t)a;
-    uint64_t ib = (uint64_t)b;
+    uint64_t ia = *(uint64_t *)a;
+    uint64_t ib = *(uint64_t *)b;
     return ia == ib;
 }
 
@@ -273,15 +274,16 @@ hash_large_init_wrapper(void **inst) {
 }
 
 int64_t
-hash_add_wrapper(void **inst, void *write_txn __attribute__((unused)), void *key, void *value __attribute__((unused))) {
+hash_add_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t *key, void *value __attribute__((unused))) {
     PLHashTable **table = (PLHashTable **)inst;
     // WARNING: We have to add key as value too else hashmap won't add it!!!
-    PL_HashTableAdd(*table, key, key);
+    uint64_t *i = sds_uint64_t_dup(key);
+    PL_HashTableAdd(*table, i, i);
     return 0;
 }
 
 int64_t
-hash_search_wrapper(void **inst, void *read_txn __attribute__((unused)), void *key, void **value_out) {
+hash_search_wrapper(void **inst, void *read_txn __attribute__((unused)), uint64_t *key, void **value_out) {
     PLHashTable **table = (PLHashTable **)inst;
     *value_out = PL_HashTableLookup(*table, key);
     if (*value_out == NULL) {
@@ -291,7 +293,7 @@ hash_search_wrapper(void **inst, void *read_txn __attribute__((unused)), void *k
 }
 
 int64_t
-hash_delete_wrapper(void **inst, void *write_txn __attribute__((unused)), void *key) {
+hash_delete_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t *key) {
     PLHashTable **table = (PLHashTable **)inst;
     PL_HashTableRemove(*table, key);
     return 0;
