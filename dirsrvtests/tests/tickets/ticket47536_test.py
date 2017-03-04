@@ -405,7 +405,7 @@ def test_ticket47536(topology_m2):
     entries = topology_m2.ms["master2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 20 == len(entries)
 
-    db2ldifpl = '%s/sbin/db2ldif.pl' % topology_m2.ms["master1"].prefix
+    db2ldifpl = '%s/db2ldif.pl' % topology_m2.ms["master1"].get_sbin_dir()
     cmdline = [db2ldifpl, '-n', 'userRoot', '-Z', SERVERID_MASTER_1, '-D', DN_DM, '-w', PASSWORD]
     log.info("##### db2ldif.pl -- %s" % (cmdline))
     doAndPrintIt(cmdline)
