@@ -626,11 +626,9 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 			}
 
 			/*
-			** build a dummy entry on the fly with a ref attribute
-			*/
-
+			 * build a dummy entry on the fly with a ref attribute
+			 */
 			{
-
 				struct  berval          bv;
 				int 			i;
 				struct  berval          *bvals[2];
@@ -644,7 +642,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 				bv.bv_len=strlen(bv.bv_val);
 				slapi_entry_add_values( anEntry, "objectclass", bvals);
 
-				for (i=0;referrals[i] != NULL; i++) {
+				for (i=0; referrals && referrals[i] != NULL; i++) {
 					bv.bv_val=referrals[i];
 					bv.bv_len=strlen(bv.bv_val);
 					slapi_entry_add_values( anEntry, "ref", bvals);
@@ -654,10 +652,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 				slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,anEntry);
 				cb_set_acl_policy(pb);
 			}
-
-			if (referrals != NULL) {
-				   slapi_ldap_value_free( referrals );
-			}
+			slapi_ldap_value_free( referrals );
 			
 			return 0;
 
