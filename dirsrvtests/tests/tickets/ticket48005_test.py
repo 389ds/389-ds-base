@@ -54,7 +54,7 @@ def test_ticket48005_setup(topology_st):
     if hasattr(topology_st.standalone, 'prefix'):
         prefix = topology_st.standalone.prefix
     else:
-        prefix = None
+        prefix = ""
     dbgen_prog = prefix + '/bin/dbgen.pl'
     log.info('dbgen_prog: %s' % dbgen_prog)
     os.system('%s -s %s -o %s -u -n 10000' % (dbgen_prog, SUFFIX, ldif_file))

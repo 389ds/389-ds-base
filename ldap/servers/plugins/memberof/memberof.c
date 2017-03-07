@@ -605,7 +605,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 			Slapi_Attr *attr = 0;
 
 			/* Loop through to find each grouping attribute separately. */
-			for (i = 0; configCopy.groupattrs[i] && ret == LDAP_SUCCESS; i++)
+			for (i = 0; configCopy.groupattrs && configCopy.groupattrs[i] && ret == LDAP_SUCCESS; i++)
 			{
 				if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
@@ -995,7 +995,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 
 			/* get a list of member attributes present in the group
 			 * entry that is being renamed. */
-			for (i = 0; configCopy.groupattrs[i]; i++)
+			for (i = 0; configCopy.groupattrs && configCopy.groupattrs[i]; i++)
 			{
 				if(0 == slapi_entry_attr_find(post_e, configCopy.groupattrs[i], &attr))
 				{
@@ -1029,7 +1029,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 					Slapi_Attr *attr = 0;
 
 					/* Loop through to find each grouping attribute separately. */
-					for (i = 0; configCopy.groupattrs[i] && ret == LDAP_SUCCESS; i++) {
+					for (i = 0; configCopy.groupattrs && configCopy.groupattrs[i] && ret == LDAP_SUCCESS; i++) {
 						if (0 == slapi_entry_attr_find(pre_e, configCopy.groupattrs[i], &attr)) {
 							if((ret = memberof_del_attr_list(pb, &configCopy, pre_sdn, attr))){
 								slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -1779,7 +1779,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		ll->next = stack;
 		
 		/* Go through each grouping attribute one at a time. */
-		for (i = 0; config->groupattrs[i]; i++)
+		for (i = 0; config->groupattrs && config->groupattrs[i]; i++)
 		{
 			slapi_entry_attr_find( e, config->groupattrs[i], &members );
 			if(members)
@@ -2513,7 +2513,7 @@ int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	if(group_e)
 	{
 		/* See if memberdn is referred to by any of the group attributes. */
-		for (i = 0; config->groupattrs[i]; i++)
+		for (i = 0; config->groupattrs && config->groupattrs[i]; i++)
 		{
 			slapi_entry_attr_find(group_e, config->groupattrs[i], &attr );
 			if(attr && (0 == slapi_attr_value_find(attr, slapi_value_get_berval(memberdn))))
@@ -2542,7 +2542,7 @@ static int memberof_is_grouping_attr(char *type, MemberOfConfig *config)
 	int match = 0;
 	int i = 0;
 
-	for (i = 0; config && config->groupattrs[i]; i++)
+	for (i = 0; config && config->groupattrs && config->groupattrs[i]; i++)
 	{
 		match = slapi_attr_types_equivalent(type, config->groupattrs[i]);
 		if (match)
@@ -2768,7 +2768,7 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &pre_e );
 	slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &post_e );
 		
-	for (i = 0; config && config->groupattrs[i]; i++)
+	for (i = 0; config && config->groupattrs && config->groupattrs[i]; i++)
 	{
 		if(pre_e && post_e)
 		{
