@@ -127,11 +127,10 @@ def test_schema_comparewithfiles(topology_st):
     ldschema = schemainst.schema.get_subschema()
     assert ldschema
     for fn in schemainst.schema.list_files():
-        fschema = schemainst.schema.file_to_subschema(fn)
-        if not fschema:
+        try:
+            fschema = schemainst.schema.file_to_subschema(fn)
+        except:
             log.warn("Unable to parse %s as a schema file - skipping" % fn)
-            continue
-        assert fschema
         for oid in fschema.listall(occlass):
             se = fschema.get_obj(occlass, oid)
             assert se
