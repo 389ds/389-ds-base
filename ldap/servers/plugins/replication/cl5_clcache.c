@@ -401,8 +401,8 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 #endif
 
 	if (NULL == buf) {
-		slapi_log_error ( SLAPI_LOG_FATAL, "clcache_load_buffer_bulk",
-		                  "NULL buf\n" );
+		slapi_log_error (SLAPI_LOG_FATAL, get_thread_private_agmtname(),
+				"clcache_load_buffer_bulk - NULL buf\n" );
 		return rc;
 	}
 	if (NULL == buf->buf_busy_list) {
