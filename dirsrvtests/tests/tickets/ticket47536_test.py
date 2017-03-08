@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import base64
-
+import os
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -28,8 +28,8 @@ M1SERVERCERT = 'Server-Cert1'
 M2SERVERCERT = 'Server-Cert2'
 M1LDAPSPORT = '41636'
 M2LDAPSPORT = '42636'
-M1SUBJECT = 'CN={},OU=389 Directory Server'.format(HOST_MASTER_1)
-M2SUBJECT = 'CN={},OU=390 Directory Server'.format(HOST_MASTER_2)
+M1SUBJECT = 'CN=' + os.uname()[1] + ',OU=389 Directory Server'
+M2SUBJECT = 'CN=' + os.uname()[1] + ',OU=390 Directory Server'
 
 
 def add_entry(server, name, rdntmpl, start, num):
