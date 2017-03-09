@@ -247,14 +247,12 @@ def test_search_success(topology_st, test_user, page_size, users_num):
     """Verify that search with a simple paged results control
     returns all entries it should without errors.
 
-     :feature: Simple paged results
-
+    :id: ddd15b70-64f1-4a85-a793-b24761e50354
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
-
     :assert: All users should be found
     """
 
@@ -296,16 +294,14 @@ def test_search_limits_fail(topology_st, test_user, page_size, users_num,
     throws expected exceptoins when corresponding limits are
     exceeded.
 
-     :feature: Simple paged results
-
+    :id: e3067107-bd6d-493d-9989-3e641a9337b0
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Set limit attribute to the value that will cause
                an expected exception
             3. Search through added users with a simple paged control
-
     :assert: Should fail with appropriate exception
     """
 
@@ -381,15 +377,13 @@ def test_search_sort_success(topology_st, test_user):
     and a server side sort control returns all entries
     it should without errors.
 
-     :feature: Simple paged results
-
+    :id: 17d8b150-ed43-41e1-b80f-ee9b4ce45155
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
                and a server side sort control
-
     :assert: All users should be found and sorted
     """
 
@@ -427,15 +421,13 @@ def test_search_abandon(topology_st, test_user):
     """Verify that search with simple paged results control
     can be abandon
 
-     :feature: Simple paged results
-
+    :id: 0008538b-7585-4356-839f-268828066978
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
             3. Abandon the search
-
     :assert: It will throw an ldap.TIMEOUT exception, while trying
              to get the rest of the search results
     """
@@ -477,17 +469,15 @@ def test_search_with_timelimit(topology_st, test_user):
     to completion, each with a timelimit, it wouldn't fail, if we sleep
     for a time more than the timelimit.
 
-     :feature: Simple paged results
-
+    :id: 6cd7234b-136c-419f-bf3e-43aa73592cff
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
                and timelimit set to 5
             3. When the returned cookie is empty, wait 10 seconds
             4. Perform steps 2 and 3 three times in a row
-
     :assert: No error happens
     """
 
@@ -557,11 +547,10 @@ def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI
 
-     :feature: Simple paged results
-
+    :id: bbfddc46-a8c8-49ae-8c90-7265d05b22a9
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Back up and remove all previous ACI from suffix
             2. Add an anonymous ACI for DNS check
             3. Bind as test user
@@ -570,7 +559,6 @@ def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
             6. Return ACI to the initial state
             7. Go through all steps onece again, but use IP subjectdn
                insted of DNS
-
     :assert: No error happens, all users should be found and sorted
     """
 
@@ -631,16 +619,14 @@ def test_search_multiple_paging(topology_st, test_user):
     """Verify that after performing multiple simple paged searches
     on a single connection without a complition, it wouldn't fail.
 
-     :feature: Simple paged results
-
+    :id: 628b29a6-2d47-4116-a88d-00b87405ef7f
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Initiate the search with a simple paged control
             3. Acquire the returned cookie only one time
             4. Perform steps 2 and 3 three times in a row
-
     :assert: No error happens
     """
 
@@ -691,16 +677,14 @@ def test_search_invalid_cookie(topology_st, test_user, invalid_cookie):
     search with the simple paged results control throws
     a TypeError exception
 
-     :feature: Simple paged results
-
+    :id: 107be12d-4fe4-47fe-ae86-f3e340a56f42
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Initiate the search with a simple paged control
             3. Put an invalid cookie (-1, 1000) to the control
             4. Continue the search
-
     :assert: It will throw an TypeError exception
     """
 
@@ -744,15 +728,13 @@ def test_search_abandon_with_zero_size(topology_st, test_user):
     """Verify that search with simple paged results control
     can be abandon using page_size = 0
 
-     :feature: Simple paged results
-
+    :id: d2fd9a10-84e1-4b69-a8a7-36ca1427c171
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
                and page_size = 0
-
     :assert: No cookie should be returned at all
     """
 
@@ -793,16 +775,14 @@ def test_search_pagedsizelimit_success(topology_st, test_user):
     returns all entries it should without errors while
     valid value set to nsslapd-pagedsizelimit.
 
-     :feature: Simple paged results
-
+    :id: 88193f10-f6f0-42f5-ae9c-ff34b8f9ee8c
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             10 users for the search base
-
     :steps: 1. Set nsslapd-pagedsizelimit: 20
             2. Bind as test user
             3. Search through added users with a simple paged control
                using page_size = 10
-
     :assert: All users should be found
     """
 
@@ -845,11 +825,10 @@ def test_search_nspagedsizelimit(topology_st, test_user,
     nsslapd-pagedsizelimit while performing search with
     the simple paged results control.
 
-     :feature: Simple paged results
-
+    :id: b08c6ad2-ba28-447a-9f04-5377c3661d0d
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             10 users for the search base
-
     :steps: 1. Set nsslapd-pagedsizelimit: 5
             2. Set nsPagedSizeLimit: 15
             3. Bind as test user
@@ -862,7 +841,6 @@ def test_search_nspagedsizelimit(topology_st, test_user,
             9. Bind as test user
             10. Search through added users with a simple paged control
                 using page_size = 10
-
     :assert: After the steps 1-4, it should PASS.
              After the steps 7-10, it should throw
              SIZELIMIT_EXCEEDED exception
@@ -915,11 +893,10 @@ def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_
     nsslapd-lookthroughlimit can limit the administrator
     search abilities.
 
-     :feature: Simple paged results
-
+    :id: e0f8b916-7276-4bd3-9e73-8696a4468811
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             10 users for the search base
-
     :steps: 1. Set nsslapd-sizelimit and nsslapd-pagedsizelimit to 5000
             2. Set nsslapd-idlistscanlimit: 120
             3. Set nsslapd-lookthroughlimit: 122
@@ -932,7 +909,6 @@ def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_
             9. Bind as test user
             10. Search through added users with a simple paged control
                 using page_size = 10
-
     :assert: After the steps 1-4, it should PASS.
              After the steps 7-10, it should throw
              ADMINLIMIT_EXCEEDED exception
@@ -992,11 +968,10 @@ def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expe
     override nsslapd-idlistscanlimit and nsslapd-lookthroughlimit
     while performing search with the simple paged results control.
 
-     :feature: Simple paged results
-
+    :id: 69e393e9-1ab8-4f4e-b4a1-06ca63dc7b1b
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             10 users for the search base
-
     :steps: 1. Set nsslapd-idlistscanlimit: 1000
             2. Set nsslapd-lookthroughlimit: 1000
             3. Set nsPagedIDListScanLimit: 120
@@ -1010,7 +985,6 @@ def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expe
             10. Bind as test user
             11. Search through added users with a simple paged control
                 using page_size = 10
-
     :assert: After the steps 1-4, it should PASS.
              After the steps 8-11, it should throw
              ADMINLIMIT_EXCEEDED exception
@@ -1067,14 +1041,12 @@ def test_ger_basic(topology_st, test_user):
     and get effective rights control returns all entries
     it should without errors.
 
-     :feature: Simple paged results
-
+    :id: 7b0bdfc7-a2f2-4c1a-bcab-f1eb8b330d45
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             variated number of users for the search base
-
     :steps: 1. Search through added users with a simple paged control
                and get effective rights control
-
     :assert: All users should be found, every found entry should have
              an 'attributeLevelRights' returned
     """
@@ -1107,18 +1079,16 @@ def test_multi_suffix_search(topology_st, test_user, new_suffixes):
     """Verify that page result search returns empty cookie
     if there is no returned entry.
 
-     :feature: Simple paged results
-
+    :id: 9712345b-9e38-4df6-8794-05f12c457d39
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             two suffixes with backends, one is inserted into another,
             10 users for the search base within each suffix
-
     :steps: 1. Bind as test user
             2. Search through all 20 added users with a simple paged control
                using page_size = 4
             3. Wait some time logs to be updated
             3. Check access log
-
     :assert: All users should be found, the access log should contain
              the pr_cookie for each page request and it should be equal 0,
              except the last one should be equal -1
@@ -1167,16 +1137,14 @@ def test_multi_suffix_search(topology_st, test_user, new_suffixes):
 def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value):
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
-     :feature: Simple paged results
-
+    :id: 192e2f25-04ee-4ff9-9340-d875dcbe8011
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             20 users for the search base
-
     :steps: 1. Set nsslapd-maxsimplepaged-per-conn in cn=config
                to the next values: no value, -1, some positive
             2. Search through the added users with a simple paged control
                using page size = 4
-
     :assert: If no value or value = -1 - all users should be found,
              default behaviour;
              If the value is positive, the value is the max simple paged
@@ -1216,18 +1184,16 @@ def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value
 def test_maxsimplepaged_per_conn_failure(topology_st, test_user, conf_attr_value):
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
-     :feature: Simple paged results
-
+    :id: eb609e63-2829-4331-8439-a35f99694efa
+    :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             20 users for the search base
-
     :steps: 1. Set nsslapd-maxsimplepaged-per-conn = 0 in cn=config
             2. Search through the added users with a simple paged control
                using page size = 4
             3. Set nsslapd-maxsimplepaged-per-conn = 1 in cn=config
             4. Search through the added users with a simple paged control
                using page size = 4 two times, but don't close the connections
-
     :assert: During the searches UNWILLING_TO_PERFORM should be throwned
     """
 
