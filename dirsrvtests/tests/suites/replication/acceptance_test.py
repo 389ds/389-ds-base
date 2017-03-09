@@ -9,7 +9,7 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib390.topologies import topology_m4 as topo
+from lib389.topologies import topology_m4 as topo
 
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
