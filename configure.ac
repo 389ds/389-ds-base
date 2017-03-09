@@ -289,6 +289,7 @@ AC_ARG_ENABLE(nunc_stans,
         AS_HELP_STRING([--enable-nunc-stans],
                        [enable support for nunc-stans event framework (default: no)]))
 if test "$enable_nunc_stans" = yes ; then
+  m4_include(m4/event.m4)
   AC_MSG_RESULT(yes)
   AC_DEFINE([ENABLE_NUNC_STANS], [1], [enable support for nunc-stans event framework])
 else
@@ -752,7 +753,6 @@ m4_include(m4/selinux.m4)
 m4_include(m4/systemd.m4)
 m4_include(m4/cmocka.m4)
 m4_include(m4/doxygen.m4)
-m4_include(m4/event.m4)
 m4_include(m4/tcmalloc.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
