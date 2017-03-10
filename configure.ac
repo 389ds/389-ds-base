@@ -765,7 +765,6 @@ else
   sasl_path="$sasl_libdir/sasl2"
 fi
 
-AM_CONDITIONAL(SELINUX,test "$with_selinux" = "yes")
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
 AM_CONDITIONAL(SPARC,test "x$TARGET" = xSPARC)

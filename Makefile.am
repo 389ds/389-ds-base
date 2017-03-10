@@ -240,18 +240,11 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 
 clean-local:
 	-rm -rf dist
-	-rm -rf selinux-built
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man
 
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
-
-selinux-built:
-	cp -r $(srcdir)/selinux $@
-
-selinux-built/dirsrv.fc: selinux-built
-	$(fixupcmd) selinux-built/dirsrv.fc.in > $@
 
 
 #------------------------
@@ -314,10 +307,6 @@ LIBPRESENCE_SCHEMA = $(srcdir)/ldap/schema/10presence.ldif
 enable_presence = on
 else
 enable_presence = off
-endif
-
-if SELINUX
-POLICY_FC = selinux-built/dirsrv.fc
 endif
 
 if enable_acctpolicy
@@ -591,7 +580,6 @@ dist_noinst_DATA = \
 	$(srcdir)/rpm/389-ds-base.spec.in \
 	$(srcdir)/rpm/389-ds-base-devel.README \
 	$(srcdir)/rpm/389-ds-base-git.sh \
-	$(srcdir)/selinux \
 	$(srcdir)/README \
 	$(srcdir)/LICENSE \
 	$(srcdir)/LICENSE.* \
