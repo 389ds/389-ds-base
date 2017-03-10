@@ -1,25 +1,26 @@
 %global srcname lib389
 %global sum A library for accessing, testing, and configuring the 389 Directory Server
-%global vers 1.0.3
+%global vers 1.0.4
 
 Name: python-%{srcname}
 Summary:%{sum}
 Version: %{vers}
-Release: 1%{?dist}
+# RESET THIS TO 0 ON VERSION CHANGE
+Release: 3%{?dist}
 %global tarver %{version}-1
 Source0: http://www.port389.org/binaries/%{name}-%{tarver}.tar.bz2
 License: GPLv3+
 Group: Development/Libraries
 BuildArch: noarch
 Url: http://port389.org/docs/389ds/FAQ/upstream-test-framework.html
-%if 0%{?rhel}
-BuildRequires: python-devel
-BuildRequires: python-setuptools
-%else
+%if 0%{?rhel} >= 8 || 0%{?fedora}
 BuildRequires: python2-devel
 BuildRequires: python2-setuptools
 BuildRequires: python%{python3_pkgversion}-devel
 BuildRequires: python%{python3_pkgversion}-setuptools
+%else
+BuildRequires: python-devel
+BuildRequires: python-setuptools
 %endif
 %description
 This module contains tools and libraries for accessing, testing, 
@@ -32,18 +33,20 @@ Requires: python-ldap
 Requires: krb5-workstation
 Requires: krb5-server
 # Conditional will need to change later.
-%if 0%{?rhel}
-Requires: pytest
-Requires: python-six
-Requires: python-pyasn1
-Requires: python-pyasn1-modules
-Requires: python-dateutil
-%else
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+Requires: python2
 Requires: python2-pytest
 Requires: python2-six
 Requires: python2-pyasn1
 Requires: python2-pyasn1-modules
 Requires: python2-dateutil
+%else
+Requires: python
+Requires: pytest
+Requires: python-six
+Requires: python-pyasn1
+Requires: python-pyasn1-modules
+Requires: python-dateutil
 %endif
 %{?python_provide:%python_provide python2-%{srcname}}
 %description -n python2-%{srcname}
@@ -55,6 +58,7 @@ and configuring the 389 Directory Server.
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 %package -n python%{python3_pkgversion}-%{srcname}
 Summary:    %{sum}
+Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-pyldap
 Requires: python%{python3_pkgversion}-six
@@ -90,21 +94,57 @@ and configuring the 389 Directory Server.
 %files -n python2-%{srcname}
 %license LICENSE
 %doc README
-%doc %{_datadir}/%{srcname}/examples/*
 %{python2_sitelib}/*
-# We don't provide the cli tools for python2
+%if 0%{?rhel} >= 8 || 0%{?fedora}
 %exclude %{_sbindir}/*
+%else
+%{_sbindir}/*
+%endif
 
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 %files -n python%{python3_pkgversion}-%{srcname}
 %license LICENSE
 %doc README
-%doc %{_datadir}/%{srcname}/examples/*
 %{python3_sitelib}/*
 %{_sbindir}/*
 %endif
 
 %changelog
+* Thu Mar 9 2017 William Brown <wibrown@redhat.com> - 1.0.4-1
+- Bump version to 1.0.4
+- Ticket 4 - Cert detection breaks some tests
+- Ticket 49137 - Add sasl plain tests, lib389 support
+- Ticket 2 -  pytest mark with version relies on root
+- Ticket 49126 - DIT management tool
+- dbscan - Support additional options (-t truncate -R)
+- Ticket 49101 - Python 2 generate example entries
+- Ticket 49103 - python 2 support for installer
+- Fixed regression with offline db2ldif
+- Ticket 47747 - Add topology_i2 and topology_i3
+- Ticket 49087 - lib389 resolve jenkins issues
+- Ticket 48413 - Improvements to lib389 for rest
+- Ticket 49083 - Support prefix for discovery of the defaults.inf file.
+- Ticket 49055 - Fix debugging mode issue
+- Ticket 49060 - Increase number of masters, hubs and consumers in topology
+- Ticket 47747 - Add more topology fixtures
+- Ticket 47840 - Add InstScriptsEnabled argument
+- Ticket 47747 - Add topology fixtures module
+- Ticket 48707 - Implement draft-wibrown-ldapssotoken-01
+- Ticket 49022 - Lib389, py3 installer cannot create entries in backend
+- Ticket 49024 - Fix paths to the dbdir parent
+- Ticket 49024 - Fix db_dir paths
+- Ticket 49024 - Fix paths in tools module
+- Ticket 48961 - Fix lib389 minor issues shown by 48961 test
+- Fix runUpgrade tool issues
+- Ticket 49010 - Lib389 fails to start with systemctl changes
+- Ticket 49007 - lib389 fixes for paths to use online values
+- Ticket 49005 - Update lib389 to work in containers correctly.
+- Ticket 48991 - Fix lib389 spec for python2 and python3
+- Ticket 48984 - Add lib389 paths module
+- Ticket 48951 - dsadm dsconfig status and plugin
+- Ticket 47957 - Update the replication "idle" status string
+- Ticket 48951 - dsadm and dsconf base files
+
 * Thu Sep 22 2016 William Brown <wibrown@redhat.com> - 1.0.3-1
 - Bump version to 1.0.3 pre-release
 - Ticket 48952 - Restart command needs a sleep
