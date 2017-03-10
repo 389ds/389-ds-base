@@ -35,35 +35,8 @@
  * removal, timers, and more.
  */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
-/* For cmocka */
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <cmocka.h>
-
-/*
-#include <nspr.h>
-#include <plstr.h>
-#include <prlog.h>
-*/
-
-#include <nunc-stans.h>
-
-#include <stdio.h>
-#include <signal.h>
-
-#include <syslog.h>
-#include <string.h>
-#include <inttypes.h>
-
-#include <time.h>
-#include <sys/time.h>
-
-#include <assert.h>
+/* Our local stress test header */
+#include "test_nuncstans_stress.h"
 
 struct conn_ctx {
     size_t offset; /* current offset into buffer for reading or writing */
@@ -84,11 +57,13 @@ int32_t server_success_count = 0;
 int32_t client_fail_count = 0;
 int32_t client_timeout_count = 0;
 int32_t server_fail_count = 0;
-int32_t job_count = 0;
-int32_t client_thread_count = 80;
-int32_t server_thread_count = 20;
-int32_t jobs = 200;
-int32_t test_timeout = 70;
+
+int
+ns_stress_teardown(void **state) {
+    struct test_params *tparams = (struct test_params *)*state;
+    free(tparams);
+    return 0;
+}
 
 #define PR_WOULD_BLOCK(iii) (iii == PR_PENDING_INTERRUPT_ERROR) || (iii == PR_WOULD_BLOCK_ERROR)
 
@@ -320,7 +295,7 @@ static void
 test_client_shutdown(struct ns_job_t *job)
 {
     do_logging(LOG_DEBUG, "Received shutdown signal\n");
-    do_logging(LOG_DEBUG, "status .... job_count: %d fail_count: %d success_count: %d\n", job_count, client_fail_count, client_success_count);
+    do_logging(LOG_DEBUG, "status .... fail_count: %d success_count: %d\n", client_fail_count, client_success_count);
     ns_thrpool_shutdown(ns_job_get_tp(job));
     /* This also needs to start the thrpool shutdown for the server. */
     ns_thrpool_shutdown(ns_job_get_data(job));
@@ -377,7 +352,9 @@ client_initiate_connection_cb(struct ns_job_t *job)
 
     sock = PR_OpenTCPSocket(PR_AF_INET6);
     if (sock == NULL) {
-        do_logging(LOG_ERR, "Socket failed\n");
+        char *err = NULL;
+        PR_GetErrorText(err);
+        do_logging(LOG_ERR, "FAIL: Socket failed, %d -> %s\n", PR_GetError(), err);
         PR_AtomicAdd(&client_fail_count, 1);
         goto done;
     }
@@ -411,11 +388,13 @@ done:
 static void
 client_create_work(struct ns_job_t *job)
 {
+    struct test_params *tparams = ns_job_get_data(job);
+
     struct timespec ts;
     PR_Sleep(PR_SecondsToInterval(1));
     clock_gettime(CLOCK_MONOTONIC, &ts);
     printf("BEGIN: %ld.%ld\n", ts.tv_sec, ts.tv_nsec);
-    for (int32_t i = 0; i < jobs; i++) {
+    for (int32_t i = 0; i < tparams->jobs; i++) {
         assert_int_equal(ns_add_job(ns_job_get_tp(job), NS_JOB_NONE|NS_JOB_THREAD, client_initiate_connection_cb, NULL, NULL), 0);
     }
     assert_int_equal(ns_job_done(job), 0);
@@ -423,15 +402,17 @@ client_create_work(struct ns_job_t *job)
     printf("Create work thread complete!\n");
 }
 
-static void
-ns_stress_test(void **state __attribute__((unused)))
+void
+ns_stress_test(void **state)
 {
+
+    struct test_params *tparams = *state;
 
     /* Setup both thread pools. */
 
     /* Client first */
 
-    int32_t job_count = jobs * client_thread_count;
+    int32_t job_count = tparams->jobs * tparams->client_thread_count;
     struct ns_thrpool_t *ctp;
     struct ns_thrpool_config client_ns_config;
     struct ns_job_t *sigterm_job = NULL;
@@ -442,12 +423,12 @@ ns_stress_test(void **state __attribute__((unused)))
     struct ns_job_t *sigusr2_job = NULL;
     struct ns_job_t *final_job = NULL;
 
-    struct timeval timeout = { test_timeout, 0 };
+    struct timeval timeout = { tparams->test_timeout, 0 };
 
     setup_logging();
 
     ns_thrpool_config_init(&client_ns_config);
-    client_ns_config.max_threads = client_thread_count;
+    client_ns_config.max_threads = tparams->client_thread_count;
     client_ns_config.log_fct = do_vlogging;
     ctp = ns_thrpool_new(&client_ns_config);
 
@@ -458,7 +439,7 @@ ns_stress_test(void **state __attribute__((unused)))
     struct ns_job_t *listen_job = NULL;
 
     ns_thrpool_config_init(&server_ns_config);
-    server_ns_config.max_threads = server_thread_count;
+    server_ns_config.max_threads = tparams->server_thread_count;
     server_ns_config.log_fct = do_vlogging;
     stp = ns_thrpool_new(&server_ns_config);
 
@@ -493,8 +474,8 @@ ns_stress_test(void **state __attribute__((unused)))
     assert_int_equal(ns_add_timeout_job(ctp, &timeout, NS_JOB_NONE|NS_JOB_THREAD, test_client_shutdown, stp, &final_job), 0);
 
     /* While true, add connect / write jobs */
-    for (PRInt32 i = 0; i < client_thread_count; i++) {
-        assert_int_equal(ns_add_job(ctp, NS_JOB_NONE|NS_JOB_THREAD, client_create_work, NULL, NULL), 0);
+    for (PRInt32 i = 0; i < tparams->client_thread_count; i++) {
+        assert_int_equal(ns_add_job(ctp, NS_JOB_NONE|NS_JOB_THREAD, client_create_work, tparams, NULL), 0);
     }
 
     /* Wait for all the clients to be done dispatching jobs to the server */
@@ -542,17 +523,9 @@ ns_stress_test(void **state __attribute__((unused)))
     assert_int_equal(client_success_count, job_count);
     */
     assert_int_equal(server_success_count, client_success_count);
+    int32_t job_threshold = (tparams->jobs * tparams->client_thread_count) * 0.95;
+    assert_true(client_success_count >= job_threshold);
 
     PR_Cleanup();
-}
-
-
-int
-main (void)
-{
-    const struct CMUnitTest tests[] = {
-        cmocka_unit_test(ns_stress_test),
-    };
-    return cmocka_run_group_tests(tests, NULL, NULL);
 }
 

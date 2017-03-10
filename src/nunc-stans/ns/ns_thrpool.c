@@ -165,7 +165,6 @@ os_free(void *ptr)
 int32_t
 ns_thrpool_is_shutdown(struct ns_thrpool_t *tp)
 {
-    /* We need to barrier this somehow? */
     int32_t result = 0;
     __atomic_load(&(tp->shutdown), &result, __ATOMIC_SEQ_CST);
     return result;
@@ -174,7 +173,6 @@ ns_thrpool_is_shutdown(struct ns_thrpool_t *tp)
 int32_t
 ns_thrpool_is_event_shutdown(struct ns_thrpool_t *tp)
 {
-    /* We need to barrier this somehow? */
     int32_t result = 0;
     __atomic_load(&(tp->shutdown_event_loop), &result, __ATOMIC_SEQ_CST);
     return result;
@@ -239,6 +237,8 @@ internal_ns_job_rearm(ns_job_t *job)
 #endif
     job->state = NS_JOB_ARMED;
 
+    /* I think we need to check about is_shutdown here? */
+
     if (NS_JOB_IS_IO(job->job_type) || NS_JOB_IS_TIMER(job->job_type) || NS_JOB_IS_SIGNAL(job->job_type)) {
         event_q_notify(job);
     } else {
@@ -274,21 +274,7 @@ work_job_execute(ns_job_t *job)
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "work_job_execute PERSIST and RUNNING, remarking %x as NS_JOB_NEEDS_ARM\n", job);
 #endif
-        /*
-         * So at this point, if this is an IO or a SIGNAL job then, we are 
-         * still in the event framework's io event queue. So we actually
-         * are already rearmed!!!
-         *
-         * This is *exactly* why it's impossible to disarm a persist IO job
-         * once we start it from external threads! Too many dangers abound!
-         */
-        if (NS_JOB_IS_IO(job->job_type) || NS_JOB_IS_SIGNAL(job->job_type)) {
-            job->state = NS_JOB_ARMED;
-            pthread_mutex_unlock(job->monitor);
-            return;
-        } else {
-            job->state = NS_JOB_NEEDS_ARM;
-        }
+        job->state = NS_JOB_NEEDS_ARM;
     }
 
     if (job->state == NS_JOB_NEEDS_DELETE) {
@@ -360,6 +346,8 @@ worker_thread_func(void *arg)
 {
     ns_thread_t *thr = (ns_thread_t *)arg;
     ns_thrpool_t *tp = thr->tp;
+    sds_result result = SDS_SUCCESS;
+    int32_t is_shutdown = ns_thrpool_is_shutdown(tp);
 
     /* Get ready to use lock free ds */
     sds_lqueue_tprep(tp->work_q);
@@ -367,18 +355,23 @@ worker_thread_func(void *arg)
     /*
      * Execute jobs until shutdown is set and the queues are empty.
      */
-    while (!ns_thrpool_is_shutdown(tp)) {
+    while (!is_shutdown) {
         ns_job_t *job = NULL;
+        result = sds_lqueue_dequeue(tp->work_q, (void **)&job);
         /* Don't need monitor here, job_dequeue barriers the memory for us. Job will be valid */
-        while(sds_lqueue_dequeue(tp->work_q, (void **)&job) == SDS_LIST_EXHAUSTED && !ns_thrpool_is_shutdown(tp))
-        {
+        /* Is it possible for a worker thread to get stuck here during shutdown? */
+        if (result == SDS_LIST_EXHAUSTED && !is_shutdown) {
             work_q_wait(tp);
-        }
-
-        if (job) {
+        } else if (result == SDS_SUCCESS && job != NULL) {
+            /* Even if we are shutdown here, we can process a job. */
+            /* Should we just keep dequeing until we exhaust the list? */
             work_job_execute(job);
             /* MUST NOT ACCESS JOB FROM THIS POINT */
+        } else {
+            ns_log(LOG_ERR, "worker_thread_func encountered a recoverable issue during processing of the queue\n");
         }
+
+        is_shutdown = ns_thrpool_is_shutdown(tp);
     }
 
     /* With sds, it cleans the thread on join automatically. */
@@ -480,8 +473,7 @@ event_q_wake(ns_thrpool_t *tp)
 }
 
 static void
-event_q_notify(ns_job_t *job)
-{
+event_q_notify(ns_job_t *job) {
     ns_thrpool_t *tp = job->tp;
     /* if we are being called from a thread other than the
        event loop thread, we have to notify that thread to
@@ -1133,6 +1125,11 @@ ns_job_rearm(ns_job_t *job)
     PR_ASSERT(job);
     pthread_mutex_lock(job->monitor);
     PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
+
+    if (ns_thrpool_is_shutdown(job->tp)) {
+        return PR_FAILURE;
+    }
+
     if (job->state == NS_JOB_WAITING) {
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_rearm_job %x state %d moving to NS_JOB_NEEDS_ARM\n", job, job->state);
@@ -1494,6 +1491,7 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
     __atomic_add_fetch(&(tp->shutdown), 1, __ATOMIC_SEQ_CST);
 
     /* Wake up the idle worker threads so they can exit. */
+    /* Do we need this to be run in conjuction with our thread join loop incase threads are still active? */
     pthread_mutex_lock(&(tp->work_q_lock));
     pthread_cond_broadcast(&(tp->work_q_cv));
     pthread_mutex_unlock(&(tp->work_q_lock));
@@ -1510,6 +1508,12 @@ ns_thrpool_wait(ns_thrpool_t *tp)
 
     while (sds_queue_dequeue(tp->thread_stack, (void **)&thr) == SDS_SUCCESS)
     {
+        /* LAST CHANCE! Really make sure the thread workers are ready to go! */
+        /* In theory, they could still be blocked up here, but we hope not ... */
+        pthread_mutex_lock(&(tp->work_q_lock));
+        pthread_cond_broadcast(&(tp->work_q_cv));
+        pthread_mutex_unlock(&(tp->work_q_lock));
+
         void *retval = NULL;
         int32_t rc = pthread_join(thr->thr, &retval);
 #ifdef DEBUG

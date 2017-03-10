@@ -553,7 +553,8 @@ dist_noinst_HEADERS += \
 	test/test_slapd.h \
 	src/libsds/test/test_sds.h \
 	src/libsds/test/benchmark.h \
-	src/libsds/test/benchmark_par.h
+	src/libsds/test/benchmark_par.h \
+	src/nunc-stans/test/test_nuncstans_stress.h
 endif
 
 dist_noinst_DATA = \
@@ -1985,12 +1986,13 @@ check_PROGRAMS = test_slapd \
 	benchmark_sds \
 	benchmark_par_sds \
 	test_nuncstans \
-	test_nuncstans_stress
+	test_nuncstans_stress_small \
+	test_nuncstans_stress_large
 # Mark all check programs for testing
 TESTS = test_slapd \
 	test_libsds \
 	test_nuncstans \
-	test_nuncstans_stress
+	test_nuncstans_stress_small
 
 test_slapd_SOURCES = test/main.c \
 	test/libslapd/test.c \
@@ -2034,10 +2036,15 @@ test_nuncstans_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS
 test_nuncstans_LDADD = libnunc-stans.la libsds.la
 test_nuncstans_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
-test_nuncstans_stress_SOURCES = src/nunc-stans/test/test_nuncstans.c
-test_nuncstans_stress_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_stress_LDADD = libnunc-stans.la libsds.la
-test_nuncstans_stress_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_stress_large_SOURCES = src/nunc-stans/test/test_nuncstans_stress_large.c src/nunc-stans/test/test_nuncstans_stress_core.c
+test_nuncstans_stress_large_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
+test_nuncstans_stress_large_LDADD = libnunc-stans.la libsds.la
+test_nuncstans_stress_large_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+
+test_nuncstans_stress_small_SOURCES = src/nunc-stans/test/test_nuncstans_stress_small.c src/nunc-stans/test/test_nuncstans_stress_core.c
+test_nuncstans_stress_small_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
+test_nuncstans_stress_small_LDADD = libnunc-stans.la libsds.la
+test_nuncstans_stress_small_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 
 endif
