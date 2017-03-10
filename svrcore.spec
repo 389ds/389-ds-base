@@ -80,6 +80,13 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 %{_includedir}/svrcore.h
 
 %changelog
+* Fri Mar 10 2017 Mark Reynolds <mreynolds@redhat.com> - 4.1.3
+- Bump version to 4.1.3
+- Ticket 18 - Remove configure outputs
+- Ticket 17 - update stdc to c99 to match other projects
+- Ticket 16 - with systemd should unset have systemd if pkgconfig not found
+- Ticket 14 - svrcore does not detect tty
+
 * Thu Apr 21 2016 Noriko Hosoi <nhosoi@redhat.com> - 4.1.2
 - Code quality improvements
 
