@@ -103,6 +103,9 @@ def instance_example(inst, log, args):
 ; However, there are some differences that I envision
 ; For example, note the split backend section.
 ; You should be able to create, one, many or no backends in an install
+;
+; The special value {instance_name} is substituted at installation time.
+;
 
     """)
     g2b = General2Base(log)

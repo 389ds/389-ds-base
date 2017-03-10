@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
 # All rights reserved.

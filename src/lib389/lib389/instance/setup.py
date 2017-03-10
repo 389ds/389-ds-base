@@ -437,6 +437,10 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-rootpw',
                                ensure_str(slapd['root_password']))
 
+        # In a container build we need to stop DirSrv at the end
+        if self.containerised:
+            ds_instance.stop()
+
     def _remove_ds(self):
         """
         The opposite of install: Removes an instance from the system.
