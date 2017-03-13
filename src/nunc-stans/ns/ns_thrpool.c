@@ -166,7 +166,7 @@ int32_t
 ns_thrpool_is_shutdown(struct ns_thrpool_t *tp)
 {
     int32_t result = 0;
-    __atomic_load(&(tp->shutdown), &result, __ATOMIC_SEQ_CST);
+    __atomic_load(&(tp->shutdown), &result, __ATOMIC_ACQUIRE);
     return result;
 }
 
@@ -174,7 +174,7 @@ int32_t
 ns_thrpool_is_event_shutdown(struct ns_thrpool_t *tp)
 {
     int32_t result = 0;
-    __atomic_load(&(tp->shutdown_event_loop), &result, __ATOMIC_SEQ_CST);
+    __atomic_load(&(tp->shutdown_event_loop), &result, __ATOMIC_ACQUIRE);
     return result;
 }
 
@@ -1399,7 +1399,7 @@ ns_thrpool_destroy(struct ns_thrpool_t *tp)
 #endif
     if (tp) {
         /* Set the flag to shutdown the event loop. */
-        __atomic_add_fetch(&(tp->shutdown_event_loop), 1, __ATOMIC_SEQ_CST);
+        __atomic_add_fetch(&(tp->shutdown_event_loop), 1, __ATOMIC_RELEASE);
 
         /* Finish the event queue wakeup job.  This has the
          * side effect of waking up the event loop thread, which
@@ -1488,7 +1488,7 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
     }
     /* Set the shutdown flag.  This will cause the worker
      * threads to exit after they finish all remaining work. */
-    __atomic_add_fetch(&(tp->shutdown), 1, __ATOMIC_SEQ_CST);
+    __atomic_add_fetch(&(tp->shutdown), 1, __ATOMIC_RELEASE);
 
     /* Wake up the idle worker threads so they can exit. */
     /* Do we need this to be run in conjuction with our thread join loop incase threads are still active? */
