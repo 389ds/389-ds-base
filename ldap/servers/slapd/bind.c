@@ -656,7 +656,12 @@ do_bind( Slapi_PBlock *pb )
         /* We could be serving multiple database backends.  Select the appropriate one */
         /* pw_verify_be_dn will select the backend we need for us. */
 
-        rc = pw_verify_be_dn(pb, &referral);
+        if (auto_bind) {
+            /* We have no password material. We should just check who we are binding as. */
+            rc = pw_validate_be_dn(pb, &referral);
+        } else {
+            rc = pw_verify_be_dn(pb, &referral);
+        }
 
         if (rc == SLAPI_BIND_NO_BACKEND) {
             send_nobackend_ldap_result( pb );
@@ -715,7 +720,7 @@ do_bind( Slapi_PBlock *pb )
                  *
                  */
                 slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-                if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+                if (!isroot && !slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                     bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
                     myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
                     if (1 == myrc) { /* account is locked */

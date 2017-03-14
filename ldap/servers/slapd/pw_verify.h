@@ -11,5 +11,6 @@
 
 int pw_verify_root_dn(const char *dn, const Slapi_Value *cred);
 int pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral);
+int pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral);
 
 #endif /* _SLAPD_PW_VERIFY_H_ */

@@ -1738,6 +1738,11 @@ slapi_dn_isroot( const char *dn )
 	return( rc );
 }
 
+int32_t
+slapi_sdn_isroot(const Slapi_DN *sdn) {
+    return slapi_dn_isroot(slapi_sdn_get_ndn(sdn));
+}
+
 int
 slapi_is_rootdse( const char *dn )
 {

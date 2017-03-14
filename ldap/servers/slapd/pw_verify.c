@@ -88,8 +88,61 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     return rc;
 }
 
+/*
+ * Resolve the dn we have been requested to bind with and verify it's
+ * valid, and has a backend.
+ *
+ * We are checking:
+ * * is this anonymous?
+ * * is this the rootdn?
+ * * is this a real dn, which associates to a real backend.
+ *
+ * This is used in SASL autobinds, so we need to handle this validation.
+ */
+
 int
-pw_verify_dn()
+pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 {
-    return LDAP_OPERATIONS_ERROR;
+    int rc = 0;
+    Slapi_Backend *be = NULL;
+    Slapi_DN *pb_sdn;
+    struct berval *cred;
+    ber_tag_t method;
+
+
+    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
+    slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
+    slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
+
+    if (pb_sdn != NULL || cred != NULL) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (*referral) {
+        return SLAPI_BIND_REFERRAL;
+    }
+
+    /* We need a slapi_sdn_isanon? */
+    if (method == LDAP_AUTH_SIMPLE && cred->bv_len == 0) {
+        return SLAPI_BIND_ANONYMOUS;
+    }
+
+    if (slapi_sdn_isroot(pb_sdn)) {
+        /* This is a real identity */
+        return SLAPI_BIND_SUCCESS;
+    }
+
+    if (slapi_mapping_tree_select(pb, &be, referral, NULL, 0) != LDAP_SUCCESS) {
+        return SLAPI_BIND_NO_BACKEND;
+    }
+    slapi_be_Unlock(be);
+
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
+    /* Make sure the result handlers are setup */
+    set_db_default_result_handlers(pb);
+
+    /* The backend associated with this identity is real. */
+
+    return SLAPI_BIND_SUCCESS;
 }

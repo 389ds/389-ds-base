@@ -3800,6 +3800,15 @@ int slapi_dn_isparent( const char *parentdn, const char *childdn );
 int slapi_dn_isroot( const char *dn );
 
 /**
+ * Determines if an SDN is the root DN.
+ *
+ * \param sdn The DN to check
+ * \return \c 1 if the DN is the root DN.
+ * \return \c 0 if the DN is not the root DN.
+ */
+int32_t slapi_sdn_isroot( const Slapi_DN *sdn );
+
+/**
  * Checks if a DN is the backend suffix.
  *
  * \param pb A parameter block with the backend set.
