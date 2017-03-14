@@ -579,14 +579,14 @@ sync_send_results( void *arg )
 		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
 						connid, opid);
-		return;
+		goto done;
 	}
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
 		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
 						connid, opid);
-		return;
+		goto done;
 	}
 
 	PR_Lock( sync_request_list->sync_req_cvarlock );
@@ -687,15 +687,14 @@ sync_send_results( void *arg )
 		}
 	}
 	PR_Unlock( sync_request_list->sync_req_cvarlock );
-	sync_remove_request( req );
 
 	/* indicate the end of search */
-
 	sync_release_connection(req->req_pblock, conn, op, conn_acq_flag == 0);
 
+done:
+	sync_remove_request( req );
 	PR_DestroyLock ( req->req_lock );
 	req->req_lock = NULL;
-
 	slapi_ch_free((void **) &req->req_pblock );
 	slapi_ch_free((void **) &req->req_orig_base );
 	slapi_filter_free(req->req_filter, 1);
