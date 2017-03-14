@@ -548,16 +548,16 @@ sync_send_results( void *arg )
 	slapi_pblock_get(req->req_pblock, SLAPI_CONNECTION, &conn);
 	if (NULL == conn) {
 		slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
-						"sync_send_results - conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
-						connid, opid);
-		return;
+			"sync_send_results - conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
+			connid, opid);
+		goto done;
 	}
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
 		slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
-						"sync_send_results - conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
-						connid, opid);
-		return;
+			"sync_send_results - conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
+			connid, opid);
+		goto done;
 	}
 
 	PR_Lock( sync_request_list->sync_req_cvarlock );
@@ -658,15 +658,14 @@ sync_send_results( void *arg )
 		}
 	}
 	PR_Unlock( sync_request_list->sync_req_cvarlock );
-	sync_remove_request( req );
 
 	/* indicate the end of search */
-
 	sync_release_connection(req->req_pblock, conn, op, conn_acq_flag == 0);
 
+done:
+	sync_remove_request( req );
 	PR_DestroyLock ( req->req_lock );
 	req->req_lock = NULL;
-
 	slapi_ch_free((void **) &req->req_pblock );
 	slapi_ch_free((void **) &req->req_orig_base );
 	slapi_filter_free(req->req_filter, 1);
