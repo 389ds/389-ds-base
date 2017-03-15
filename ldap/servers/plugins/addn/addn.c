@@ -415,7 +415,9 @@ addn_start(Slapi_PBlock *pb)
     domain = slapi_entry_attr_get_charptr(plugin_entry, "addn_default_domain");
 
     if (domain == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_start: CRITICAL: No default domain in configuration, you must set addn_default_domain!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                "addn_start: CRITICAL: No default domain in configuration, you must set addn_default_domain!\n");
+        slapi_ch_free((void**)&config);
         return SLAPI_PLUGIN_FAILURE;
     }
 

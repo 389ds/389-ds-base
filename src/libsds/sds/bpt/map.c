@@ -19,6 +19,7 @@ sds_bptree_map_nodes(sds_bptree_instance *binst, sds_bptree_node *root, sds_resu
     sds_bptree_node_list *tail = cur;
 
     if (binst == NULL) {
+        sds_free(cur);
         return SDS_NULL_POINTER;
     }
 

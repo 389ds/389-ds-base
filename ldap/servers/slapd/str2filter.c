@@ -344,6 +344,7 @@ str2simple( char *str , int unescape_filter)
 			*endp = '\0';
 			rc = _parse_ext_filter(str, extp, &f->f_mr_type, &f->f_mr_oid, &f->f_mr_dnAttrs);
 			if (rc) {
+				slapi_filter_free(f, 1);
 				return NULL; /* error */
 			} else {
 				f->f_choice = LDAP_FILTER_EXTENDED;

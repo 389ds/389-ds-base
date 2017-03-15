@@ -103,7 +103,6 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 int
 pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 {
-    int rc = 0;
     Slapi_Backend *be = NULL;
     Slapi_DN *pb_sdn;
     struct berval *cred;

@@ -1418,12 +1418,10 @@ slapd_ssl_init()
       errorCode = PR_GetError();
       slapd_SSL_error("Failed to retrieve SSL "
                      "configuration information ("
-                     SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
+                     SLAPI_COMPONENT_NAME_NSPR " error %d - not found): "
                      "nssslSessionTimeout: %s ",
-                     errorCode, slapd_pr_strerror(errorCode),
-             (val ? "found" : "not found"));
-      slapi_ch_free((void **) &val);
-      slapi_ch_free((void **) &ciphers);
+                     errorCode, slapd_pr_strerror(errorCode));
+      slapi_ch_free((void **)&ciphers);
       freeConfigEntry( &entry );
       return -1;
     }

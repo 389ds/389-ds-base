@@ -2389,7 +2389,6 @@ task_fixup_tombstones_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         slapi_task_finish(task, *returncode);
         slapi_ch_array_free(base);
         slapi_ch_free((void **)&task_data);
-        return SLAPI_DSE_CALLBACK_ERROR;
     }
 
 done:
@@ -2507,9 +2506,9 @@ task_des2aes(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
 error:
     if (rc == SLAPI_DSE_CALLBACK_ERROR){
         slapi_ch_array_free(bases);
-        slapi_ch_array_free(suffix);
         slapi_ch_free((void **)&task_data);
     }
+    slapi_ch_array_free(suffix);
     return rc;
 }
 

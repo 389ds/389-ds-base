@@ -1647,6 +1647,7 @@ upgradedn_producer(void *param)
                 }
                 e = slapi_str2entry_ext(normdn, NULL, data.dptr, 
                                         SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+                slapi_ch_free_string(&rdn);
             }
         } else {
             e = 

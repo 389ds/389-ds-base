@@ -1669,6 +1669,8 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
             /* Bail out if the plug-in close function was just called. */
             if (!slapi_plugin_running(pb)) {
                 linked_attrs_unlock();
+                slapi_mod_free(&next_mod);
+                slapi_mods_free(&smods);
                 return SLAPI_PLUGIN_SUCCESS;
             }
 

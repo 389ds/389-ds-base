@@ -161,6 +161,7 @@ pbkdf2_sha256_pw_enc(const char *pwd)
      */
     if ( pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, PBKDF2_ITERATIONS) != SECSuccess ) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Could not generate pbkdf2_sha256_hash!\n");
+        slapi_ch_free_string(&enc);
         return NULL;
     }
 

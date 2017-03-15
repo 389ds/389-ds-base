@@ -533,7 +533,11 @@ create_filter(const char **attributes, const struct berval *value, const char *r
 
           /* Place value in filter */
           if (ldap_quote_filter_value(value->bv_val, value->bv_len,
-            fp, max-fp, &valueLen)) { slapi_ch_free((void**)&filter); return 0; }
+                                      fp, max-fp, &valueLen)) {
+              slapi_ch_free((void**)&filter);
+              slapi_ch_free((void**)&attrLen);
+              return 0;
+          }
           fp += valueLen;
 
           strcpy(fp, ")");

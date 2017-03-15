@@ -1512,6 +1512,7 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 			ep = sp + strlen(sp);
 			ep = ldap_utf8prevn(sp, ep, toklen);
 			if (!ep || (sp >= ep)) {
+				slapi_ch_free_string(&sp);
 				continue;
 			}
 			/* See if the password contains the value */
