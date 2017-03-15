@@ -71,18 +71,22 @@ event_logger_cb(int severity, const char *msg)
 static ns_job_type_t
 event_flags_to_type(short events)
 {
-    ns_job_type_t job_type = 0;
-    if (events & EV_READ) {
-        job_type |= NS_JOB_READ;
-    }
-    if (events & EV_WRITE) {
-        job_type |= NS_JOB_WRITE;
-    }
-    if (events & EV_TIMEOUT) {
-        job_type |= NS_JOB_TIMER;
-    }
-    if (events & EV_SIGNAL) {
-        job_type |= NS_JOB_SIGNAL;
+    /* The volatile here prevents gcc rearranging this code within the thread. */
+    volatile ns_job_type_t job_type = 0;
+
+    /* Either we timeout *or* we are a real event */
+    if (!(events & EV_TIMEOUT)) {
+        if (events & EV_READ) {
+            job_type |= NS_JOB_READ;
+        }
+        if (events & EV_WRITE) {
+            job_type |= NS_JOB_WRITE;
+        }
+        if (events & EV_SIGNAL) {
+            job_type |= NS_JOB_SIGNAL;
+        }
+    } else {
+        job_type = NS_JOB_TIMER;
     }
     return job_type;
 }

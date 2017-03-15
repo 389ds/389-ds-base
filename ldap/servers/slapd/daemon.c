@@ -1970,11 +1970,18 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 	connection_release_nolock_ext(c, 1); /* release ref acquired when job was added */
 	if (CONN_NEEDS_CLOSING(c)) {
 		ns_handle_closure_nomutex(c);
+		/* We shouldn't need the c_idletimeout check here because of how libevent works.
+		 * consider testing this and removing it oneday.
+		 */
 	} else if (NS_JOB_IS_TIMER(ns_job_get_output_type(job))) {
-		/* idle timeout */
-		disconnect_server_nomutex_ext(c, c->c_connid, -1,
-					      SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN,
-				              0 /* do not schedule closure, do it next */);
+		if (c->c_idletimeout > 0) {
+			/* idle timeout */
+			disconnect_server_nomutex_ext(c, c->c_connid, -1,
+							  SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN,
+								  0 /* do not schedule closure, do it next */);
+		} else {
+			slapi_log_err(SLAPI_LOG_WARN, "ns_handle_pr_read_ready", "Received idletime out with c->c_idletimeout as 0. Ignoring.\n");
+		}
 		ns_handle_closure_nomutex(c);
 	} else if ((connection_activity(c, maxthreads)) == -1) {
 		/* This might happen as a result of
