@@ -754,9 +754,9 @@ slapi_vattr_values_get_sp(vattr_context *c,
   if (use_local_ctx) {
     /* slapi_pblock_destroy cleans up pb_vattr_context, as well */
 	slapi_pblock_destroy(local_pb);
-	ctx->pb = NULL;
+  } else {
+	vattr_context_ungrok(&c);
   }
-  vattr_context_ungrok(&ctx);
   return rc;
 }
 
