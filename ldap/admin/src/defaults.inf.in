@@ -36,6 +36,7 @@ run_dir = @localstatedir@/run/dirsrv
 pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
 inst_dir = @serverdir@
 plugin_dir = @serverplugindir@
+system_schema_dir = @systemschemadir@
 
 ; These values can be altered in an installation of ds
 user = dirsrv

@@ -129,8 +129,12 @@ def test_schema_comparewithfiles(topology_st):
     for fn in schemainst.schema.list_files():
         try:
             fschema = schemainst.schema.file_to_subschema(fn)
+            if fschema is None:
+                raise Exception("Empty schema file %s" % fn)
         except:
             log.warn("Unable to parse %s as a schema file - skipping" % fn)
+            continue
+        log.info("Parsed %s as a schema file - checking" % fn)
         for oid in fschema.listall(occlass):
             se = fschema.get_obj(occlass, oid)
             assert se
