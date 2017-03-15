@@ -14,6 +14,7 @@ import glob
 import ldap
 from ldap.schema.models import AttributeType, ObjectClass, MatchingRule
 from lib389._constants import *
+from lib389.utils import ds_is_newer
 
 
 class Schema(object):
@@ -35,7 +36,11 @@ class Schema(object):
 
     def list_files(self):
         """return a list of the schema files in the instance schemadir"""
-        return glob.glob(self.conn.schemadir + "/*.ldif")
+        file_list = []
+        file_list += glob.glob(self.conn.schemadir + "/*.ldif")
+        if ds_is_newer(1.3.6.0):
+            file_list += glob.glob(self.conn.ds_paths.system_schema_dir + "/*.ldif")
+        return file_list
 
     def file_to_ldap(self, filename):
         """convert the given schema file name to its python-ldap format

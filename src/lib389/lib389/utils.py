@@ -756,6 +756,8 @@ def ds_is_older(ver):
     version"""
     return get_ds_version() < ver
 
+def ds_is_newer(ver):
+    return get_ds_version() >= ver
 
 def getDateTime():
     """
