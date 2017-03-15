@@ -1980,7 +1980,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 							  SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN,
 								  0 /* do not schedule closure, do it next */);
 		} else {
-			slapi_log_err(SLAPI_LOG_WARN, "ns_handle_pr_read_ready", "Received idletime out with c->c_idletimeout as 0. Ignoring.\n");
+			slapi_log_err(SLAPI_LOG_WARNING, "ns_handle_pr_read_ready", "Received idletime out with c->c_idletimeout as 0. Ignoring.\n");
 		}
 		ns_handle_closure_nomutex(c);
 	} else if ((connection_activity(c, maxthreads)) == -1) {
