@@ -6226,9 +6226,10 @@ out:
 	}
 
     (*dbFile)->db = db;
-    (*dbFile)->name = name;  
-    (*dbFile)->replName = slapi_ch_strdup (replName);  
-    (*dbFile)->replGen = slapi_ch_strdup (replGen);  
+    (*dbFile)->name = name;
+    name = NULL; /* transfer ownership to dbFile struct */
+    (*dbFile)->replName = slapi_ch_strdup (replName);
+    (*dbFile)->replGen = slapi_ch_strdup (replGen);
 
 	/*
 	 * Considerations for setting up cl semaphore:
