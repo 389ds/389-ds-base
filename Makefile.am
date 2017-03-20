@@ -156,6 +156,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/ds_selinux_port_query ldap/admin/src/scripts/ds_selinux_enabled \
 	ldap/admin/src/scripts/dbverify ldap/admin/src/scripts/readnsstate \
+	ldap/admin/src/scripts/dbmon.sh \
 	$(NULL)
 
 clean-local:
