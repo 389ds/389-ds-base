@@ -262,7 +262,8 @@ def parse_options():
 
 options, logfname = parse_options()
 
-if options.debug: debug = True
+if options.debug:
+    debug = True
 
 if len(plgfuncs) == 0:
     plgfuncs.append(defaultplugin)
@@ -270,9 +271,15 @@ if len(plgpostfuncs) == 0:
     plgpostfuncs.append(defaultpost)
 
 if options.user:
-    try: userid = int(options.user)
-    except ValueError: # not a numeric userid - look it up
-        userid = pwd.getpwnam(options.user)[2]
+    try:
+        userid = int(options.user)
+    except ValueError:  # not a numeric userid - look it up
+        try:
+            userid = pwd.getpwnam(options.user)[2]
+        except Exception as e:
+            print("Failed to lookup name (%s) error: %s" %
+                  (options.user, str(e)))
+            sys.exit(1)
     os.seteuid(userid)
 
 if options.scriptpidfile:
@@ -298,8 +305,12 @@ except OSError as e:
     if e.errno == errno.ENOENT:
         if debug:
             print("Creating log pipe", logfname)
-        os.mkfifo(logfname)
-        os.chmod(logfname, 0o600)
+        try:
+            os.mkfifo(logfname)
+            os.chmod(logfname, 0o600)
+        except Exception as e:
+            print("Failed to create log pipe: " + str(e))
+            sys.exit(1)
     else:
         raise Exception("%s [%d]" % (e.strerror, e.errno))
 
@@ -393,7 +404,7 @@ while not done:
         else: # we read something
             # pipe closed - usually when server shuts down
             done = True
-            
+
     if not done and debug:
         print("log pipe", logfname, "closed - reopening - read", totallines, "total lines")
 
