@@ -22,9 +22,6 @@ AC_ARG_ENABLE(tcmalloc, AS_HELP_STRING([--enable-tcmalloc], [Enable tcmalloc bas
       s390-*-linux*)
         AC_MSG_ERROR([tcmalloc not support on s390])
         ;;
-      s390x-*-linux*)
-        AC_MSG_ERROR([tcmalloc not support on s390x])
-        ;;
       *)
         AC_MSG_CHECKING(for tcmalloc)
         if $PKG_CONFIG --exists libtcmalloc; then
