@@ -3407,19 +3407,19 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 	}
 
 	/* this assumes that str and the filter components are already
-	 * normalized. If not, it shoul be done
+	 * normalized. If not, it should be done
 	 */
 	if ( initial != NULL) {
 		len = strlen(initial);
 		if (exact_match) {
-			int rc = strncmp(p, initial, len);
+			int rc = strncasecmp(p, initial, len);
 			if (rc) {
 				return ACL_FALSE;
 			} else {
 				p += len;
 			}  
 		} else {
-			p = strstr(p, initial);
+			p = strcasestr(p, initial);
 			if (p) {
 				p += len;
 			} else {
@@ -3430,7 +3430,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 
 	if ( any != NULL) {
 		for (i = 0;  any && any[i] != NULL; i++) {
-			p = strstr(p, any[i]);
+			p = strcasestr(p, any[i]);
 			if (p) {
 				p += strlen(any[i]);
 			} else {
@@ -3444,7 +3444,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 		len = strlen(final);
 		tlen = strlen(p);
 		if (len > tlen) return ACL_FALSE;
-		if (strcmp(p+tlen-len, final)) return ACL_FALSE;
+		if (strcasecmp(p+tlen-len, final)) return ACL_FALSE;
 	}
 
 	return ACL_TRUE;
