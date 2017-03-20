@@ -8,10 +8,11 @@
 # END COPYRIGHT BLOCK
 #
 
+. @datadir@/@package_name@/data/DSSharedLib
+
 DURATION=${DURATION:-0}
 INCR=${INCR:-1}
-HOST=${HOST:-localhost}
-PORT=${PORT:-389}
+SERVID=${SERVID}
 BINDDN=${BINDDN:-"cn=directory manager"}
 BINDPW=${BINDPW:-"secret"}
 DBLIST=${DBLIST:-all}
@@ -180,10 +181,63 @@ parseldif() {
 }
 
 dodbmon() {
+    initfile=$(get_init_file "@initconfigdir@" $SERVID)
+    if [ $? -eq 1 ]
+    then
+        echo "You must supply a valid server instance identifier (via SERVID)."
+        echo "Available instances: $initfile"
+        exit 1
+    fi
+
+    . $initfile
+
+    process_dse $CONFIG_DIR $$
+    file="/tmp/DSSharedLib.$$"
+    port=$(grep -i 'nsslapd-port' $file | awk '{print $2}' )
+    host=$(grep -i 'nsslapd-localhost' $file | awk '{print $2}' )
+    security=$(grep -i 'nsslapd-security' $file | awk '{print $2}' )
+    certdir=$(grep -i 'nsslapd-certdir' $file | awk '{print $2}' )
+    rm $file
+
+    if [ -n "$ldapiURL" ]
+    then
+        ldapiURL=`echo "$ldapiURL" | sed -e 's/\//%2f/g'`
+        ldapiURL="ldapi://"$ldapiURL
+    fi
+
+    client_type=`ldapsearch -V 2>&1`;
+    echo "$client_type" | grep -q "OpenLDAP"
+    if  [ $? -eq 0 ]
+    then
+        openldap="yes"
+        export LDAPTLS_CACERTDIR=$certdir
+    fi
+
+    if [ -z $security ]; then
+        security="off"
+    fi
+
     while [ 1 ] ; do
         date
-        ldapsearch -xLLL -h $HOST -p $PORT -D "$BINDDN" -w "$BINDPW" -b "$ldbmdn" '(|(cn=config)(cn=database)(cn=monitor))' \
-        | parseldif
+        if [ "$security" = "on" ]; then
+            # STARTTLS
+	    if [ "$openldap" = "yes" ]; then
+	        ldapsearch -x -LLL -ZZ -h $host -p $port -D "$BINDDN" -w "$BINDPW" -b "$ldbmdn" '(|(cn=config)(cn=database)(cn=monitor))' \
+                | parseldif
+	    else
+	        ldapsearch -ZZZ -P $certdir  -h $host -p $port -D "$BINDDN" -w "$BINDPW" -b "$ldbmdn" '(|(cn=config)(cn=database)(cn=monitor))' \
+                | parseldif
+	    fi
+        else
+            # LDAP
+            if [ "$openldap" = "yes" ]; then
+	        ldapsearch -x -LLL -h $host -p $port -D "$BINDDN" -w "$BINDPW" -b "$ldbmdn" '(|(cn=config)(cn=database)(cn=monitor))' \
+                | parseldif
+            else
+	        ldapsearch -h $host -p $port -D "$BINDDN" -w "$BINDPW" -b "$ldbmdn" '(|(cn=config)(cn=database)(cn=monitor))' \
+                | parseldif
+            fi
+        fi
         echo ""
         sleep $INCR
     done
