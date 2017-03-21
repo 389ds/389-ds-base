@@ -27,6 +27,8 @@ log = logging.getLogger(__name__)
 class TopologyMain(object):
     def __init__(self, standalones=None, masters=None,
                  consumers=None, hubs=None):
+        insts_with_agreements = {}
+
         if standalones:
             if isinstance(standalones, dict):
                 self.ins = standalones
@@ -34,10 +36,29 @@ class TopologyMain(object):
                 self.standalone = standalones
         if masters:
             self.ms = masters
+            insts_with_agreements.update(self.ms)
         if consumers:
             self.cs = consumers
+            insts_with_agreements.update(self.cs)
         if hubs:
             self.hs = hubs
+            insts_with_agreements.update(self.hs)
+
+        self._insts = {name: inst for name, inst in insts_with_agreements.items() if not name.endswith('agmts')}
+
+    def pause_all_replicas(self):
+        """Pause all agreements in the class instance"""
+
+        for inst in self._insts.values():
+            for agreement in inst.agreement.list(suffix=DEFAULT_SUFFIX):
+                inst.agreement.pause(agreement.dn)
+
+    def resume_all_replicas(self):
+        """Resume all agreements in the class instance"""
+
+        for inst in self._insts.values():
+            for agreement in inst.agreement.list(suffix=DEFAULT_SUFFIX):
+                inst.agreement.resume(agreement.dn)
 
 
 @pytest.fixture(scope="module")
