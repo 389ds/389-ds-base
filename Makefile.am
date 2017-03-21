@@ -110,14 +110,12 @@ if OPENLDAP
 # shared lib _fini for one will stomp on the other, and the program will crash
 LDAPSDK_LINK_NOTHR = @openldap_lib@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
-ldaplib = openldap
-ldaplib_defs = -DUSE_OPENLDAP
 else
 LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
 LDAPSDK_LINK_NOTHR = $(LDAPSDK_LINK)
-ldaplib = mozldap
-ldaplib_defs =
 endif
+ldaplib = @ldaplib@
+ldaplib_defs = @ldaplib_defs@
 
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
@@ -2233,10 +2231,6 @@ if SYSTEMD
 else
 	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d;}' -e '/^$$/{p;d;}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
 endif
-
-%/$(PACKAGE_NAME).pc: %/dirsrv.pc.in
-	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi

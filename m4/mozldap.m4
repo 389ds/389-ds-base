@@ -15,6 +15,8 @@ AC_ARG_WITH(ldapsdk, AS_HELP_STRING([--with-ldapsdk@<:@=PATH@:>@],[Mozilla LDAP 
   if test "$withval" = yes
   then
     AC_MSG_RESULT(yes)
+    ldaplib="mozldap"
+    ldaplib_defs=""
   elif test "$withval" = no
   then
     AC_MSG_RESULT(no)
@@ -22,6 +24,8 @@ AC_ARG_WITH(ldapsdk, AS_HELP_STRING([--with-ldapsdk@<:@=PATH@:>@],[Mozilla LDAP 
   then
     AC_MSG_RESULT([using $withval])
     LDAPSDKDIR=$withval
+    ldaplib="mozldap"
+    ldaplib_defs=""
     ldapsdk_inc="-I$LDAPSDKDIR/include"
     ldapsdk_lib="-L$LDAPSDKDIR/lib"
     ldapsdk_libdir="$LDAPSDKDIR/lib"

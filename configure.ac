@@ -784,6 +784,8 @@ AC_SUBST(openldap_inc)
 AC_SUBST(openldap_lib)
 AC_SUBST(openldap_libdir)
 AC_SUBST(openldap_bindir)
+AC_SUBST(ldaplib)
+AC_SUBST(ldaplib_defs)
 AC_SUBST(ldaptool_bindir)
 AC_SUBST(ldaptool_opts)
 AC_SUBST(plainldif_opts)
@@ -852,6 +854,7 @@ if test "$GCC" != yes ; then
 fi
 
 # Build our pkgconfig files
+# This currently conflicts with %.in: rule in Makefile.am, which should be removed eventually.
 AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc])
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])

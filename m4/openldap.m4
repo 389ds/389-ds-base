@@ -15,6 +15,8 @@ AC_ARG_WITH(openldap, AS_HELP_STRING([--with-openldap@<:@=PATH@:>@],[Use OpenLDA
   if test "$withval" = yes
   then
     AC_MSG_RESULT([using system OpenLDAP])
+    ldaplib="openldap"
+    ldaplib_defs="-DUSE_OPENLDAP"
   elif test "$withval" = no
   then
     AC_MSG_RESULT(no)
@@ -22,6 +24,8 @@ AC_ARG_WITH(openldap, AS_HELP_STRING([--with-openldap@<:@=PATH@:>@],[Use OpenLDA
   then
     AC_MSG_RESULT([using $withval])
     OPENLDAPDIR=$withval
+    ldaplib="openldap"
+    ldaplib_defs="-DUSE_OPENLDAP"
     openldap_incdir="$OPENLDAPDIR/include"
     openldap_inc="-I$openldap_incdir"
     openldap_lib="-L$OPENLDAPDIR/lib"
