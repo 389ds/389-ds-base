@@ -2235,11 +2235,11 @@ vslapd_log_error(
 {
     char      buffer[SLAPI_LOG_BUFSIZ];
     int       blen = TBUFSIZE;
-    char      *vbuf;
+    char      *vbuf = NULL;
     int       header_len = 0;
     int       err = 0;
 
-    if ((vbuf = PR_vsmprintf(fmt, ap)) == NULL) {
+    if (vasprintf(&vbuf, fmt, ap) == -1) {
         log__error_emergency("CRITICAL: vslapd_log_error, Unable to format message", 1 , locked);
         return -1;
     }
@@ -2289,9 +2289,9 @@ vslapd_log_error(
     /* blen = strlen(buffer); */
     /* This truncates again .... But we have the nice smprintf above! */
     if (subsystem == NULL) {
-        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
+        snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
     } else {
-        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s", subsystem, vbuf);
+        snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s", subsystem, vbuf);
     }
 
     buffer[sizeof(buffer)-1] = '\0';
@@ -2324,7 +2324,7 @@ vslapd_log_error(
         g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
     }
 
-    PR_smprintf_free (vbuf);
+    slapi_ch_free_string(&vbuf);
     return( 0 );
 }
 
@@ -2420,8 +2420,7 @@ static int vslapd_log_access(char *fmt, va_list ap)
     time_t tnl;
 
     /* We do this sooner, because that we we can use the message in other calls */
-    vlen = PR_vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap);
-    if (! vlen) {
+    if ((vlen = vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap)) == -1){
         log__error_emergency("CRITICAL: vslapd_log_access, Unable to format message", 1 ,0);
         return -1;
     }

@@ -857,7 +857,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	 * the session's conn id and op id to identify the the supplier.
 	 */
 	/* junkrc = ruv_get_first_id_and_purl(supplier_ruv, &junkrid, &locking_purl); */
-	PR_snprintf(locking_session, sizeof(locking_session), "conn=%" NSPRIu64 " id=%d",
+	snprintf(locking_session, sizeof(locking_session), "conn=%" NSPRIu64 " id=%d",
 			connid, opid);
 	locking_purl = &locking_session[0];
 	if (replica_get_exclusive_access(replica, &isInc, connid, opid,

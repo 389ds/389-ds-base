@@ -1950,7 +1950,7 @@ void slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long 
  * \param type Attribute type in which you want to set the value.
  * \param l Unsigned long value that you want to assign to the attribute.
  */
-void slapi_entry_attr_set_ulong(Slapi_Entry* e, const char *type, unsigned long l);
+void slapi_entry_attr_set_ulong(Slapi_Entry* e, const char *type, uint64_t l);
 
 /**
  * Check if an attribute is set in the entry
@@ -6712,12 +6712,12 @@ void slapi_destroy_task(void *arg);
 Slapi_Counter *slapi_counter_new(void);
 void slapi_counter_init(Slapi_Counter *counter);
 void slapi_counter_destroy(Slapi_Counter **counter);
-PRUint64 slapi_counter_increment(Slapi_Counter *counter);
-PRUint64 slapi_counter_decrement(Slapi_Counter *counter);
-PRUint64 slapi_counter_add(Slapi_Counter *counter, PRUint64 addvalue);
-PRUint64 slapi_counter_subtract(Slapi_Counter *counter, PRUint64 subvalue);
-PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue);
-PRUint64 slapi_counter_get_value(Slapi_Counter *counter);
+uint64_t slapi_counter_increment(Slapi_Counter *counter);
+uint64_t slapi_counter_decrement(Slapi_Counter *counter);
+uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue);
+uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue);
+uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue);
+uint64_t slapi_counter_get_value(Slapi_Counter *counter);
 
 /* Binder-based (connection centric) resource limits */
 /*

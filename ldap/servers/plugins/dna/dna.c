@@ -2496,7 +2496,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
     if ((config_entry->maxval == -1) ||
         (nextval <= (config_entry->maxval + config_entry->interval))) {
         /* try to set the new next value in the config entry */
-        PR_snprintf(next_value, sizeof(next_value),"%" NSPRIu64, nextval);
+        snprintf(next_value, sizeof(next_value),"%" NSPRIu64, nextval);
 
         /* set up our replace modify operation */
         replace_val[0] = next_value;
@@ -2564,13 +2564,13 @@ dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, cha
             if(slapi_sdn_compare(server->sdn, server_sdn) == 0){
                 if(strcmp(attr, DNA_REMOTE_BIND_METHOD) == 0){
                     if (server->remote_bind_method) {
-                        PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_bind_method);
+                        snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_bind_method);
                         found = 1;
                     }
                     break;
                 } else if(strcmp(attr, DNA_REMOTE_CONN_PROT) == 0){
                     if (server->remote_conn_prot) {
-                        PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_conn_prot);
+                        snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_conn_prot);
                         found = 1;
                     }
                     break;
@@ -2608,7 +2608,7 @@ dna_update_shared_config(struct configEntry *config_entry)
 
         /* We store the number of remaining assigned values
          * in the shared config entry. */
-        PR_snprintf(remaining_vals, sizeof(remaining_vals),"%" NSPRIu64,
+        snprintf(remaining_vals, sizeof(remaining_vals),"%" NSPRIu64,
                 config_entry->remaining);
 
         /* set up our replace modify operation */
@@ -2708,7 +2708,7 @@ dna_update_next_range(struct configEntry *config_entry,
     int ret = 0;
 
     /* Try to set the new next range in the config entry. */
-    PR_snprintf(nextrange_value, sizeof(nextrange_value), "%" NSPRIu64 "-%" NSPRIu64,
+    snprintf(nextrange_value, sizeof(nextrange_value), "%" NSPRIu64 "-%" NSPRIu64,
     		lower, upper);
 
     /* set up our replace modify operation */
@@ -2777,8 +2777,8 @@ dna_activate_next_range(struct configEntry *config_entry)
     int ret = 0;
 
     /* Setup the modify operation for the config entry */
-    PR_snprintf(maxval_val, sizeof(maxval_val),"%" NSPRIu64, config_entry->next_range_upper);
-    PR_snprintf(nextval_val, sizeof(nextval_val),"%" NSPRIu64, config_entry->next_range_lower);
+    snprintf(maxval_val, sizeof(maxval_val),"%" NSPRIu64, config_entry->next_range_upper);
+    snprintf(nextval_val, sizeof(nextval_val),"%" NSPRIu64, config_entry->next_range_lower);
 
     maxval_vals[0] = maxval_val;
     maxval_vals[1] = 0;
@@ -4410,8 +4410,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         char highstr[16];
 
         /* Create the exop response */
-        PR_snprintf(lowstr, sizeof(lowstr), "%" NSPRIu64, lower);
-        PR_snprintf(highstr, sizeof(highstr), "%" NSPRIu64, upper);
+        snprintf(lowstr, sizeof(lowstr), "%" NSPRIu64, lower);
+        snprintf(highstr, sizeof(highstr), "%" NSPRIu64, upper);
         range_low.bv_val = lowstr;
         range_low.bv_len = strlen(range_low.bv_val);
         range_high.bv_val = highstr;
@@ -4587,7 +4587,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 *lower = *upper - release + 1;
 
                 /* try to set the new maxval in the config entry */
-                PR_snprintf(max_value, sizeof(max_value),"%" NSPRIu64, (*lower - 1));
+                snprintf(max_value, sizeof(max_value),"%" NSPRIu64, (*lower - 1));
 
                 /* set up our replace modify operation */
                 replace_val[0] = max_value;

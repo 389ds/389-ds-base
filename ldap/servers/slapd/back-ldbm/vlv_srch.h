@@ -92,7 +92,7 @@ struct vlvIndex
     time_t vlv_lastchecked;
 
     /* The number of uses this search has received since start up */
-    PRUint32 vlv_uses;
+    uint64_t vlv_uses;
 
 	struct backend* vlv_be; /* need backend to remove the index when done */
 

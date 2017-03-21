@@ -234,7 +234,7 @@ sync_acct_disable(void *cbdata, /* the usual domain config data */
 {
     int ds_is_enabled = 1; /* default to true */
     int ad_is_enabled = 1; /* default to true */
-    unsigned long adval = 0; /* raw account val from ad entry */
+    uint64_t adval = 0; /* raw account val from ad entry */
     int isvirt = 0;
 
     /* get the account lock state of the ds entry */
@@ -270,9 +270,8 @@ sync_acct_disable(void *cbdata, /* the usual domain config data */
         if (update_entry) {
             slapi_entry_attr_set_ulong(update_entry, "userAccountControl", adval);
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "<-- sync_acct_disable - %s AD account [%s] - "
-                                "new value is [%ld]\n", (ds_is_enabled) ? "enabled" : "disabled",
-                            slapi_entry_get_dn_const(update_entry), adval);
+                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" NSPRIu64 "]\n",
+				(ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(update_entry), adval);
         } else {
             /* iterate through the mods - if there is already a mod
              for userAccountControl, change it - otherwise, add it */
@@ -327,9 +326,8 @@ sync_acct_disable(void *cbdata, /* the usual domain config data */
                 mod_bval->bv_len = strlen(acctvalstr);
             }
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "<-- sync_acct_disable - %s AD account [%s] - "
-                                "new value is [%ld]\n", (ds_is_enabled) ? "enabled" : "disabled",
-                            slapi_entry_get_dn_const(ad_entry), adval);
+                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" NSPRIu64 "]\n",
+				(ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(ad_entry), adval);
         }
     }
 
