@@ -49,7 +49,7 @@
 
 static void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env);
 static void perfctr_add_to_entry( Slapi_Entry *e, char *type,
-	PRUint32 countervalue );
+	uint64_t countervalue );
 
 /* Init perf ctrs */
 void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
@@ -304,17 +304,13 @@ perfctrs_as_entry( Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env )
      */
     for ( i = 0; i < SLAPI_LDBM_PERFCTR_AT_MAP_COUNT; ++i ) {
         perfctr_add_to_entry( e, perfctr_at_map[i].pam_type,
-            *((PRUint32 *)((char *)perf + perfctr_at_map[i].pam_offset)));
+            *((uint64_t *)((char *)perf + perfctr_at_map[i].pam_offset)));
     }
 }
 
 
 static void
-perfctr_add_to_entry( Slapi_Entry *e, char *type, PRUint32 countervalue )
+perfctr_add_to_entry( Slapi_Entry *e, char *type, uint64_t countervalue )
 {
-	/*
-	 * XXXmcs: the following line assumes that long's are 32 bits or larger,
-	 * which we assume in other places too I am sure.
-	 */
-	slapi_entry_attr_set_ulong( e, type, (unsigned long)countervalue );
+	slapi_entry_attr_set_ulong( e, type, countervalue );
 }

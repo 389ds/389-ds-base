@@ -54,25 +54,25 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	attrlist_replace( &e->e_attrs, "version", vals );
 	slapi_ch_free( (void **) &val.bv_val );
 
-	val.bv_len = PR_snprintf( buf, sizeof(buf), "%d", g_get_active_threadcnt() );
+	val.bv_len = snprintf( buf, sizeof(buf), "%d", g_get_active_threadcnt() );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "threads", vals );
 
 	connection_table_as_entry(the_connection_table, e);
 
-	val.bv_len = PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(ops_initiated) );
+	val.bv_len = snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(ops_initiated) );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "opsinitiated", vals );
 
-	val.bv_len = PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(ops_completed) );
+	val.bv_len = snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(ops_completed) );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "opscompleted", vals );
 
-	val.bv_len = PR_snprintf ( buf, sizeof(buf), "%" NSPRIu64, g_get_num_entries_sent() );
+	val.bv_len = snprintf ( buf, sizeof(buf), "%" NSPRIu64, g_get_num_entries_sent() );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "entriessent", vals );
 
-	val.bv_len = PR_snprintf ( buf, sizeof(buf), "%" NSPRIu64, g_get_num_bytes_sent() );
+	val.bv_len = snprintf ( buf, sizeof(buf), "%" NSPRIu64, g_get_num_bytes_sent() );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "bytessent", vals );
 
@@ -88,12 +88,12 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "starttime", vals );
 
-	val.bv_len = PR_snprintf( buf, sizeof(buf), "%d", be_nbackends_public() );
+	val.bv_len = snprintf( buf, sizeof(buf), "%d", be_nbackends_public() );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "nbackends", vals );
 
 #ifdef THREAD_SUNOS5_LWP
-	val.bv_len = PR_snprintf( buf, sizeof(buf), "%d", thr_getconcurrency() );
+	val.bv_len = snprintf( buf, sizeof(buf), "%d", thr_getconcurrency() );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "concurrency", vals );
 #endif

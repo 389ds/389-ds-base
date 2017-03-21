@@ -26,7 +26,7 @@
 
 #define MSETF(_attr, _x) do { \
     char tmp_atype[37]; \
-    PR_snprintf(tmp_atype, sizeof(tmp_atype), _attr, _x); \
+    snprintf(tmp_atype, sizeof(tmp_atype), _attr, _x); \
     MSET(tmp_atype); \
 } while (0)
 
@@ -86,7 +86,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     MSET("entryCacheHits");
     sprintf(buf, "%lu", (long unsigned int)tries);
     MSET("entryCacheTries");
-    sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
+    sprintf(buf, "%lu", (long unsigned int)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
     MSET("entryCacheHitRatio");
     sprintf(buf, "%lu", (long unsigned int)size);
     MSET("currentEntryCacheSize");

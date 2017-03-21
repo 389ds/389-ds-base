@@ -11,46 +11,48 @@
 #  include <config.h>
 #endif
 
+#include <inttypes.h>
+
 /* Structure definition for performance data */
 /* This stuff goes in shared memory, so make sure the packing is consistent */
 
 struct _performance_counters {
-	PRUint32	sequence_number;
-	PRUint32    lock_region_wait_rate;
-	PRUint32    deadlock_rate;
-	PRUint32    configured_locks;
-	PRUint32    current_locks;
-	PRUint32    max_locks;
-	PRUint32    lockers;
-	PRUint32    current_lock_objects;
-	PRUint32    max_lock_objects;
-	PRUint32    lock_conflicts;
-	PRUint32    lock_request_rate;
-	PRUint32    log_region_wait_rate;
-	PRUint32    log_write_rate;
-	PRUint32    log_bytes_since_checkpoint;
-	PRUint32    cache_size_bytes;
-	PRUint32    page_access_rate;
-	PRUint32    cache_hit;
-	PRUint32    cache_try;
-	PRUint32    page_create_rate;
-	PRUint32    page_read_rate;
-	PRUint32    page_write_rate;
-	PRUint32    page_ro_evict_rate;
-	PRUint32    page_rw_evict_rate;
-	PRUint32    hash_buckets;
-	PRUint32    hash_search_rate;
-	PRUint32    longest_chain_length;
-	PRUint32    hash_elements_examine_rate;
-	PRUint32    pages_in_use;
-	PRUint32    dirty_pages;
-	PRUint32    clean_pages;
-	PRUint32    page_trickle_rate;
-	PRUint32    cache_region_wait_rate;
-	PRUint32    active_txns;
-	PRUint32    commit_rate;
-	PRUint32    abort_rate;
-	PRUint32    txn_region_wait_rate;
+	uint64_t	sequence_number;
+	uint64_t    lock_region_wait_rate;
+	uint64_t    deadlock_rate;
+	uint64_t    configured_locks;
+	uint64_t    current_locks;
+	uint64_t    max_locks;
+	uint64_t    lockers;
+	uint64_t    current_lock_objects;
+	uint64_t    max_lock_objects;
+	uint64_t    lock_conflicts;
+	uint64_t    lock_request_rate;
+	uint64_t    log_region_wait_rate;
+	uint64_t    log_write_rate;
+	uint64_t    log_bytes_since_checkpoint;
+	uint64_t    cache_size_bytes;
+	uint64_t    page_access_rate;
+	uint64_t    cache_hit;
+	uint64_t    cache_try;
+	uint64_t    page_create_rate;
+	uint64_t    page_read_rate;
+	uint64_t    page_write_rate;
+	uint64_t    page_ro_evict_rate;
+	uint64_t    page_rw_evict_rate;
+	uint64_t    hash_buckets;
+	uint64_t    hash_search_rate;
+	uint64_t    longest_chain_length;
+	uint64_t    hash_elements_examine_rate;
+	uint64_t    pages_in_use;
+	uint64_t    dirty_pages;
+	uint64_t    clean_pages;
+	uint64_t    page_trickle_rate;
+	uint64_t    cache_region_wait_rate;
+	uint64_t    active_txns;
+	uint64_t    commit_rate;
+	uint64_t    abort_rate;
+	uint64_t    txn_region_wait_rate;
 };
 typedef struct _performance_counters performance_counters;
 

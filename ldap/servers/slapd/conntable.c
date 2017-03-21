@@ -395,7 +395,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 			 * 3 = The number of operations attempted that were blocked
 			 *     by max threads.
 			 */
-			PR_snprintf(maxthreadbuf, sizeof(maxthreadbuf), "%d:%"NSPRIu64":%"NSPRIu64"",
+			snprintf(maxthreadbuf, sizeof(maxthreadbuf), "%d:%"NSPRIu64":%"NSPRIu64"",
 				maxthreadstate, ct->c[i].c_maxthreadscount,
 				ct->c[i].c_maxthreadsblocked);
 
@@ -426,32 +426,32 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 		PR_ExitMonitor(ct->c[i].c_mutex);
 	}
 
-	PR_snprintf( buf, sizeof(buf), "%d", nconns );
+	snprintf( buf, sizeof(buf), "%d", nconns );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currentconnections", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(num_conns));
+	snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(num_conns));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "totalconnections", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(conns_in_maxthreads));
+	snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(conns_in_maxthreads));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currentconnectionsatmaxthreads", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(max_threads_count));
+	snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(max_threads_count));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "maxthreadsperconnhits", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%d", (ct!=NULL?ct->size:0) );
+	snprintf( buf, sizeof(buf), "%d", (ct!=NULL?ct->size:0) );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "dtablesize", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%d", nreadwaiters );
+	snprintf( buf, sizeof(buf), "%d", nreadwaiters );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "readwaiters", vals );
