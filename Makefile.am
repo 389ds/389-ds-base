@@ -34,7 +34,7 @@ EVENT_INCLUDES = @event_inc@
 # We can't add the lfds includes all the time as they have a "bomb" in them that
 # prevents compilation on unsupported hardware arches.
 if ATOMIC_QUEUE_OPERATIONS
-SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/ -I$(srcdir)/src/libsds/external/liblfds710/inc/
+SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/ -I$(srcdir)/src/libsds/external/liblfds711/inc/
 else
 SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/
 endif
@@ -534,16 +534,16 @@ dist_noinst_HEADERS = \
 
 if ATOMIC_QUEUE_OPERATIONS
 dist_noinst_HEADERS += \
-	src/libsds/external/liblfds710/inc/liblfds710.h \
-	src/libsds/external/liblfds710/inc/liblfds710/lfds710_porting_abstraction_layer_compiler.h \
-	src/libsds/external/liblfds710/inc/liblfds710/lfds710_porting_abstraction_layer_processor.h \
-	src/libsds/external/liblfds710/inc/liblfds710/lfds710_porting_abstraction_layer_operating_system.h \
-	src/libsds/external/liblfds710/inc/liblfds710/lfds710_prng.h \
-	src/libsds/external/liblfds710/inc/liblfds710/lfds710_misc.h \
-	src/libsds/external/liblfds710/inc/liblfds710/lfds710_queue_unbounded_manyproducer_manyconsumer.h \
-	src/libsds/external/liblfds710/src/liblfds710_internal.h \
-	src/libsds/external/liblfds710/src/lfds710_misc/lfds710_misc_internal.h \
-	src/libsds/external/liblfds710/src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_internal.h
+	src/libsds/external/liblfds711/inc/liblfds711.h \
+	src/libsds/external/liblfds711/inc/liblfds711/lfds711_porting_abstraction_layer_compiler.h \
+	src/libsds/external/liblfds711/inc/liblfds711/lfds711_porting_abstraction_layer_processor.h \
+	src/libsds/external/liblfds711/inc/liblfds711/lfds711_porting_abstraction_layer_operating_system.h \
+	src/libsds/external/liblfds711/inc/liblfds711/lfds711_prng.h \
+	src/libsds/external/liblfds711/inc/liblfds711/lfds711_misc.h \
+	src/libsds/external/liblfds711/inc/liblfds711/lfds711_queue_unbounded_manyproducer_manyconsumer.h \
+	src/libsds/external/liblfds711/src/liblfds711_internal.h \
+	src/libsds/external/liblfds711/src/lfds711_misc/lfds711_misc_internal.h \
+	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_internal.h
 endif
 
 if WITH_CMOCKA
@@ -1030,13 +1030,13 @@ libsds_la_SOURCES = src/libsds/sds/core/utils.c \
 	src/libsds/sds/queue/lqueue.c
 if ATOMIC_QUEUE_OPERATIONS
 libsds_la_SOURCES += \
-	src/libsds/external/liblfds710/src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_cleanup.c \
-	src/libsds/external/liblfds710/src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_dequeue.c \
-	src/libsds/external/liblfds710/src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_enqueue.c \
-	src/libsds/external/liblfds710/src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_init.c \
-	src/libsds/external/liblfds710/src/lfds710_queue_unbounded_manyproducer_manyconsumer/lfds710_queue_unbounded_manyproducer_manyconsumer_query.c \
-	src/libsds/external/liblfds710/src/lfds710_misc/lfds710_misc_internal_backoff_init.c \
-	src/libsds/external/liblfds710/src/lfds710_misc/lfds710_misc_globals.c
+	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_cleanup.c \
+	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_dequeue.c \
+	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_enqueue.c \
+	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_init.c \
+	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_query.c \
+	src/libsds/external/liblfds711/src/lfds711_misc/lfds711_misc_internal_backoff_init.c \
+	src/libsds/external/liblfds711/src/lfds711_misc/lfds711_misc_globals.c
 endif
 
 # EDIT THESE AT THE TOP OF THE MAKE FILE!!!

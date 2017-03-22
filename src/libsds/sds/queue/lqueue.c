@@ -15,7 +15,7 @@
 
 #ifdef ATOMIC_QUEUE_OPERATIONS
 
-#include <liblfds710.h>
+#include <liblfds711.h>
 
 #define GC_HISTORY 32
 
@@ -24,7 +24,7 @@ struct _sds_lqueue {
     /**
      * The lfds queue state.
      */
-    struct lfds710_queue_umm_state queue;
+    struct lfds711_queue_umm_state queue;
     /**
      * Function pointer that can free enqueued values.
      */
@@ -38,13 +38,13 @@ struct _sds_lqueue {
 
 typedef struct _sds_lqueue_gc {
     uint64_t current_generation;
-    struct lfds710_queue_umm_element *garbage[GC_HISTORY];
+    struct lfds711_queue_umm_element *garbage[GC_HISTORY];
 } sds_lqueue_gc;
 
 /* Thread local storage for last dequeued element */
 /*
  * How and why does this work?
- * LFDS710 claims:
+ * LFDS711 claims:
  * "Unusually, once a queue element has been dequeued, it can be deallocated. "
  * http://liblfds.org/mediawiki/index.php?title=r7.1.0:Queue_%28unbounded,_many_producer,_many_consumer%29#Lock-free_Specific_Behaviour
  *
@@ -108,9 +108,9 @@ sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
 #endif
         return SDS_NULL_POINTER;
     }
-    struct lfds710_queue_umm_element *qe_dummy = sds_malloc(sizeof(struct lfds710_queue_umm_element));
-    *q_ptr = sds_memalign(sizeof(sds_lqueue), LFDS710_PAL_ATOMIC_ISOLATION_IN_BYTES);
-    lfds710_queue_umm_init_valid_on_current_logical_core(&((*q_ptr)->queue), qe_dummy, NULL);
+    struct lfds711_queue_umm_element *qe_dummy = sds_malloc(sizeof(struct lfds711_queue_umm_element));
+    *q_ptr = sds_memalign(sizeof(sds_lqueue), LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES);
+    lfds711_queue_umm_init_valid_on_current_logical_core(&((*q_ptr)->queue), qe_dummy, NULL);
 
     /* Create the thread local storage for GC */
     if (PR_NewThreadPrivateIndex(&((*q_ptr)->gc_index), sds_lqueue_tprivate_cleanup) != PR_SUCCESS) {
@@ -128,7 +128,7 @@ sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
 sds_result
 sds_lqueue_tprep(sds_lqueue *q) {
     /* Get ready to run on this core. It's essentially a load barrier or full barrier */
-    LFDS710_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE;
+    LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE;
     sds_lqueue_gc *gc = NULL;
     /* Check if we have been initialised. */
     gc = PR_GetThreadPrivate(q->gc_index);
@@ -151,9 +151,9 @@ sds_lqueue_enqueue(sds_lqueue *q, void *elem) {
 #ifdef DEBUG
         sds_log("sds_lqueue_enqueue", "<== lf Queue %p elem %p", q, elem);
 #endif
-    struct lfds710_queue_umm_element *qe = sds_malloc(sizeof(struct lfds710_queue_umm_element));
-    LFDS710_QUEUE_UMM_SET_VALUE_IN_ELEMENT(*qe, elem);
-    lfds710_queue_umm_enqueue(&(q->queue), qe);
+    struct lfds711_queue_umm_element *qe = sds_malloc(sizeof(struct lfds711_queue_umm_element));
+    LFDS711_QUEUE_UMM_SET_VALUE_IN_ELEMENT(*qe, elem);
+    lfds711_queue_umm_enqueue(&(q->queue), qe);
     return SDS_SUCCESS;
 }
 
@@ -165,13 +165,13 @@ sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
     if (elem == NULL) {
         return SDS_NULL_POINTER;
     }
-    struct lfds710_queue_umm_element *qe = NULL;
+    struct lfds711_queue_umm_element *qe = NULL;
     sds_lqueue_gc *gc = PR_GetThreadPrivate(q->gc_index);
     if (gc == NULL) {
         return SDS_UNKNOWN_ERROR;
     }
-    if (lfds710_queue_umm_dequeue(&(q->queue), &qe) && qe) {
-        *elem = LFDS710_QUEUE_UMM_GET_VALUE_FROM_ELEMENT( *qe );
+    if (lfds711_queue_umm_dequeue(&(q->queue), &qe) && qe) {
+        *elem = LFDS711_QUEUE_UMM_GET_VALUE_FROM_ELEMENT( *qe );
         if (gc->garbage[gc->current_generation] != NULL) {
             sds_free(gc->garbage[gc->current_generation]);
         }
@@ -183,7 +183,7 @@ sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
 }
 
 void
-sds_lqueue_dummy_cleanup(struct lfds710_queue_umm_state *qs __attribute__((unused)), struct lfds710_queue_umm_element *qe, enum lfds710_misc_flag dummy_element_flag __attribute__((unused))) {
+sds_lqueue_dummy_cleanup(struct lfds711_queue_umm_state *qs __attribute__((unused)), struct lfds711_queue_umm_element *qe, enum lfds711_misc_flag dummy_element_flag __attribute__((unused))) {
     /* Should only be the dummy! */
     sds_free(qe);
 }
@@ -203,7 +203,7 @@ sds_lqueue_destroy(sds_lqueue *q) {
     }
     /* The final GC will be triggered on thread delete */
     /* Finally, use the lfds cleanup to free the dummy */
-    lfds710_queue_umm_cleanup(&(q->queue), sds_lqueue_dummy_cleanup);
+    lfds711_queue_umm_cleanup(&(q->queue), sds_lqueue_dummy_cleanup);
     sds_free(q);
 
     return SDS_SUCCESS;
