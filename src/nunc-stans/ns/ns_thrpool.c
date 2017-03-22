@@ -73,6 +73,7 @@ struct ns_thrpool_t {
     pthread_cond_t work_q_cv;
     pthread_mutex_t work_q_lock;
     sds_queue *thread_stack;
+    uint32_t thread_count;
     pthread_t event_thread;
     PRFileDesc *event_q_wakeup_pipe_read;
     PRFileDesc *event_q_wakeup_pipe_write;
@@ -355,7 +356,7 @@ worker_thread_func(void *arg)
     ns_thread_t *thr = (ns_thread_t *)arg;
     ns_thrpool_t *tp = thr->tp;
     sds_result result = SDS_SUCCESS;
-    int32_t is_shutdown = ns_thrpool_is_shutdown(tp);
+    int_fast32_t is_shutdown = 0;
 
     /* Get ready to use lock free ds */
     sds_lqueue_tprep(tp->work_q);
@@ -368,20 +369,25 @@ worker_thread_func(void *arg)
         result = sds_lqueue_dequeue(tp->work_q, (void **)&job);
         /* Don't need monitor here, job_dequeue barriers the memory for us. Job will be valid */
         /* Is it possible for a worker thread to get stuck here during shutdown? */
-        if (result == SDS_LIST_EXHAUSTED && !is_shutdown) {
+        if (result == SDS_LIST_EXHAUSTED) {
             work_q_wait(tp);
         } else if (result == SDS_SUCCESS && job != NULL) {
             /* Even if we are shutdown here, we can process a job. */
             /* Should we just keep dequeing until we exhaust the list? */
-            work_job_execute(job);
+            if (NS_JOB_IS_SHUTDOWN_WORKER(job->job_type)) {
+                ns_log(LOG_INFO, "worker_thread_func notified to shutdown!\n");
+                internal_ns_job_done(job);
+                is_shutdown = 1;
+            } else {
+                work_job_execute(job);
+            }
             /* MUST NOT ACCESS JOB FROM THIS POINT */
         } else {
             ns_log(LOG_ERR, "worker_thread_func encountered a recoverable issue during processing of the queue\n");
         }
-
-        is_shutdown = ns_thrpool_is_shutdown(tp);
     }
 
+    ns_log(LOG_INFO, "worker_thread_func shutdown complete!\n");
     /* With sds, it cleans the thread on join automatically. */
     return NULL;
 }
@@ -1011,6 +1017,18 @@ ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *d
     return PR_SUCCESS;
 }
 
+PRStatus
+ns_add_shutdown_job(ns_thrpool_t *tp) {
+    ns_job_t *_job = NULL;
+    _job = new_ns_job(tp, NULL, NS_JOB_SHUTDOWN_WORKER, NULL, NULL);
+    if (!_job) {
+        return PR_FAILURE;
+    }
+    _job->state = NS_JOB_NEEDS_ARM;
+    internal_ns_job_rearm(_job);
+    return PR_SUCCESS;
+}
+
 /*
  * Because of the design of work_job_execute, when we are in RUNNING
  * we hold the monitor. As a result, we don't need to assert the current thread
@@ -1388,6 +1406,7 @@ ns_thrpool_new(struct ns_thrpool_config *tp_config)
     }
 
     for (ii = 0; ii < tp_config->max_threads; ++ii) {
+        tp->thread_count += 1;
         thr = ns_calloc(1, sizeof(ns_thread_t));
         PR_ASSERT(thr);
         thr->tp = tp;
@@ -1502,15 +1521,19 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
         /* Already done! */
         return;
     }
+
     /* Set the shutdown flag.  This will cause the worker
      * threads to exit after they finish all remaining work. */
     __atomic_add_fetch(&(tp->shutdown), 1, __ATOMIC_RELEASE);
 
-    /* Wake up the idle worker threads so they can exit. */
-    /* Do we need this to be run in conjuction with our thread join loop incase threads are still active? */
-    pthread_mutex_lock(&(tp->work_q_lock));
-    pthread_cond_broadcast(&(tp->work_q_cv));
-    pthread_mutex_unlock(&(tp->work_q_lock));
+    /* Send worker shutdown jobs into the queues. This allows
+     * currently queued jobs to complete.
+     */
+    for (size_t i = 0; i < tp->thread_count; i++) {
+        PRStatus result = ns_add_shutdown_job(tp);
+        PR_ASSERT(result == PR_SUCCESS);
+    }
+
 }
 
 PRStatus
@@ -1524,8 +1547,8 @@ ns_thrpool_wait(ns_thrpool_t *tp)
 
     while (sds_queue_dequeue(tp->thread_stack, (void **)&thr) == SDS_SUCCESS)
     {
-        /* LAST CHANCE! Really make sure the thread workers are ready to go! */
-        /* In theory, they could still be blocked up here, but we hope not ... */
+
+        /* Make sure all threads are woken up to their shutdown jobs. */
         pthread_mutex_lock(&(tp->work_q_lock));
         pthread_cond_broadcast(&(tp->work_q_cv));
         pthread_mutex_unlock(&(tp->work_q_lock));

@@ -220,6 +220,16 @@ typedef void (*ns_job_func_t)(struct ns_job_t *);
  */
 #define NS_JOB_PRESERVE_FD 0x100
 /**
+ * Internal flag to shutdown a worker thread.
+ *
+ * If you assign this to a job it will cause the worker thread that dequeues it to be
+ * shutdown, ready for pthread_join() to be called on it.
+ *
+ * You probably DON'T want to use this ever, as it really will shutdown threads
+ * and you can't get them back .... you have been warned.
+ */
+#define NS_JOB_SHUTDOWN_WORKER 0x200
+/**
  * Bitflag type for job types
  *
  * This is the job_type bitfield argument used when adding jobs, and the return
@@ -237,7 +247,7 @@ typedef void (*ns_job_func_t)(struct ns_job_t *);
  * \endcode
  * \sa ns_add_io_job, ns_add_io_timeout_job, ns_add_job, ns_add_signal_job, ns_add_timeout_job, ns_job_get_type, ns_job_get_output_type
  */
-typedef unsigned short ns_job_type_t;
+typedef uint_fast16_t ns_job_type_t;
 
 /**
  * Used to test an #ns_job_type_t value for #NS_JOB_ACCEPT
@@ -274,6 +284,10 @@ typedef unsigned short ns_job_type_t;
  * \sa NS_JOB_PERSIST, ns_job_get_type, ns_job_get_output_type
  */
 #define NS_JOB_IS_PERSIST(eee) ((eee)&NS_JOB_PERSIST)
+/**
+ * Used to test if an #ns_job_type_t is to shutdown the worker thread.
+ */
+#define NS_JOB_IS_SHUTDOWN_WORKER(eee) ((eee)&NS_JOB_SHUTDOWN_WORKER)
 /**
  * Used to test an #ns_job_type_t value to see if it is any sort of I/O job
  * \sa NS_JOB_IS_ACCEPT, NS_JOB_IS_READ, NS_JOB_IS_CONNECT, NS_JOB_IS_WRITE, ns_job_get_type, ns_job_get_output_type
