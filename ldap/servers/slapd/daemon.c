@@ -1891,15 +1891,32 @@ ns_connection_post_io_or_closing(Connection *conn)
 			tv.tv_usec = slapd_wakeup_timer * 1000;
 			conn->c_ns_close_jobs++; /* now 1 active closure job */
 			connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
-			ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
+			PRStatus job_result = ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
 					   ns_handle_closure, conn, NULL);
-			slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post closure job "
-				"for conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+#ifdef DEBUG
+			PR_ASSERT(job_result == PR_SUCCESS);
+#endif
+			if (job_result != PR_SUCCESS) {
+				slapi_log_err(SLAPI_LOG_WARNING, "ns_connection_post_io_or_closing", "post closure job "
+					"for conn %" NSPRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
+			} else {
+				slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post closure job "
+					"for conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+			}
 			
 		}
 	} else {
 		/* process event normally - wait for I/O until idletimeout */
-		tv.tv_sec = conn->c_idletimeout;
+		/* With nunc-stans there is a quirk. When we have idleTimeout of -1
+		 * which is set on some IPA bind dns for infinite, this causes libevent 
+		 * to *instantly* timeout. So if we detect < 0, we set 0 to this timeout, to
+		 * catch all possible times that an admin could set.
+		 */
+		if (conn->c_idletimeout < 0) {
+			tv.tv_sec = 0;
+		} else {
+			tv.tv_sec = conn->c_idletimeout;
+		}
 		tv.tv_usec = 0;
 #ifdef DEBUG
 		PR_ASSERT(0 == connection_acquire_nolock(conn));
@@ -1913,11 +1930,19 @@ ns_connection_post_io_or_closing(Connection *conn)
 			return;
 		}
 #endif
-		ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
+		PRStatus job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
 				      NS_JOB_READ|NS_JOB_PRESERVE_FD,
 				      ns_handle_pr_read_ready, conn, NULL);
-		slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post I/O job for "
-			"conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+#ifdef DEBUG
+		PR_ASSERT(job_result == PR_SUCCESS);
+#endif
+		if (job_result != PR_SUCCESS) {
+			slapi_log_err(SLAPI_LOG_WARNING, "ns_connection_post_io_or_closing", "post I/O job for "
+				"conn %" NSPRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
+		} else {
+			slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post I/O job for "
+				"conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+		}
 	}
 #endif
 }

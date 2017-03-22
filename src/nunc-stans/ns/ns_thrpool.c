@@ -178,6 +178,14 @@ ns_thrpool_is_event_shutdown(struct ns_thrpool_t *tp)
     return result;
 }
 
+static int32_t
+validate_event_timeout(struct timeval *tv) {
+    if (tv->tv_sec < 0 || tv->tv_usec < 0) {
+        /* If we get here, you have done something WRONG */
+        return 1;
+    }
+    return 0;
+}
 
 static void
 job_queue_cleanup(void *arg) {
@@ -856,6 +864,10 @@ ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
         return PR_FAILURE;
     }
 
+    if (validate_event_timeout(tv)) {
+        return PR_FAILURE;
+    }
+
     /* get an event context for a timer job */
     _job = alloc_timeout_context(tp, tv, job_type, func, data);
     if (!_job) {
@@ -889,6 +901,10 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
 
     /* Don't allow a job to be added if the threadpool is being shut down. */
     if (ns_thrpool_is_shutdown(tp)) {
+        return PR_FAILURE;
+    }
+
+    if (validate_event_timeout(tv)) {
         return PR_FAILURE;
     }
 

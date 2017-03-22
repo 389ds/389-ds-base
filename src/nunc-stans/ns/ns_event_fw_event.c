@@ -48,7 +48,6 @@ typedef struct event ns_event_fw_sig_t;
 #include "ns_event_fw.h"
 #include <syslog.h>
 
-
 static void
 event_logger_cb(int severity, const char *msg)
 {
@@ -248,13 +247,6 @@ ns_event_fw_mod_io(
     }
     if (events) {
         job->ns_event_fw_fd->ev_events = events;
-
-#ifdef DEBUG_FSM
-        /* REALLY make sure that we aren't being re-added */
-        if (event_pending(job->ns_event_fw_fd, events, tv)) {
-            abort();
-        }
-#endif
         event_add(job->ns_event_fw_fd, tv);
     } else {
         /* setting the job_type to remove IO events will remove it from the event system */

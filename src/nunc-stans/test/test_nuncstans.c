@@ -385,6 +385,23 @@ ns_job_signal_cb_test(void **state)
     assert_int_equal(ns_job_done(job), 0);
 }
 
+/*
+ * Test that given a timeout of -1, we fail to create a job.
+ */
+
+static void
+ns_job_neg_timeout_test(void **state)
+{
+    struct ns_thrpool_t *tp = *state;
+
+    struct timeval tv = { -1, 0 };
+
+    PR_ASSERT(PR_FAILURE == ns_add_io_timeout_job(tp, 0, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
+
+    PR_ASSERT(PR_FAILURE == ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
+
+}
+
 int
 main(void)
 {
@@ -408,6 +425,9 @@ main(void)
                                         ns_test_setup,
                                         ns_test_teardown),
         cmocka_unit_test_setup_teardown(ns_job_signal_cb_test,
+                                        ns_test_setup,
+                                        ns_test_teardown),
+        cmocka_unit_test_setup_teardown(ns_job_neg_timeout_test,
                                         ns_test_setup,
                                         ns_test_teardown),
     };
