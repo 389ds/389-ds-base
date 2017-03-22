@@ -470,8 +470,8 @@ static int retrocl_start (Slapi_PBlock *pb)
 
         retrocl_nattributes = n;
 
-        retrocl_attributes = (char **)slapi_ch_calloc(n, sizeof(char *));
-        retrocl_aliases = (char **)slapi_ch_calloc(n, sizeof(char *));
+        retrocl_attributes = (char **)slapi_ch_calloc(n + 1, sizeof(char *));
+        retrocl_aliases = (char **)slapi_ch_calloc(n + 1, sizeof(char *));
 
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - Attributes:\n");
 
