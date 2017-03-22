@@ -19324,17 +19324,16 @@ $as_echo "#define _GNU_SOURCE 1" >>confdefs.h
 
 $as_echo "#define CPU_x86 /**/" >>confdefs.h
 
-
-$as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
-
         ;;
       x86_64-*-linux*)
 
-$as_echo "#define CPU_x86_64 /**/" >>confdefs.h
+$as_echo "#define CPU_x86_64 1" >>confdefs.h
 
 
-$as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
-
+        # This turns on and off LFDS inside of libsds
+        # wibrown -- 2017-02-21 disabled temporarily
+        # with_atomic_queue="yes"
+        # AC_DEFINE([ATOMIC_QUEUE_OPERATIONS], [1], [enabling atomic queue operations])
         ;;
       aarch64-*-linux*)
 
@@ -19347,54 +19346,6 @@ $as_echo "#define CPU_arm /**/" >>confdefs.h
 
         ;;
     esac
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for GCC provided 64-bit atomic bool cas function ..." >&5
-$as_echo_n "checking for GCC provided 64-bit atomic bool cas function ...... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-long long ptrval = 0, val = 0, newval = 1; (void)__sync_bool_compare_and_swap_8(&ptrval, val, newval);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-
-$as_echo "#define HAVE_64BIT_ATOMIC_CAS_FUNC 1" >>confdefs.h
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for GCC provided 64-bit atomic ops functions ..." >&5
-$as_echo_n "checking for GCC provided 64-bit atomic ops functions ...... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-long long ptrval = 0, val = 0; (void)__sync_add_and_fetch_8(&ptrval, val);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-
-$as_echo "#define HAVE_64BIT_ATOMIC_OP_FUNCS 1" >>confdefs.h
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
     # some programs use the native thread library directly
     THREADLIB=-lpthread
     THREADLIB=$THREADLIB
@@ -19469,9 +19420,6 @@ $as_echo "#define _HPUX_SOURCE 1" >>confdefs.h
 
 $as_echo "#define _INCLUDE_STDC__SOURCE_199901 1" >>confdefs.h
 
-
-$as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
-
     # assume 64 bit
     initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
@@ -19535,9 +19483,6 @@ $as_echo "#define HAVE_GETPEERUCRED 1" >>confdefs.h
         ;;
       sparc-*-solaris*)
 
-$as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
-
-
 $as_echo "#define CPU_sparc /**/" >>confdefs.h
 
         TARGET='SPARC'
@@ -19548,6 +19493,49 @@ $as_echo "#define CPU_sparc /**/" >>confdefs.h
     platform=""
     ;;
 esac
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GCC provided 64-bit atomic operations" >&5
+$as_echo_n "checking for GCC provided 64-bit atomic operations... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <inttypes.h>
+
+int
+main ()
+{
+
+    uint64_t t_counter = 0;
+    uint64_t t_oldval = 0;
+    uint64_t t_newval = 1;
+
+    __atomic_compare_exchange_8(&t_counter, &t_oldval, t_newval, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    __atomic_add_fetch_8(&t_counter, t_newval, __ATOMIC_SEQ_CST);
+    __atomic_sub_fetch_8(&t_counter, t_newval, __ATOMIC_SEQ_CST);
+    __atomic_load(&t_counter, &t_oldval, __ATOMIC_SEQ_CST);
+    return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+
+$as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 
 # cmd line overrides default setting above
 if test -n "$with_initddir" ; then

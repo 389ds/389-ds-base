@@ -1,6 +1,6 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* enabling atomic counter */
+/* have 64-bit atomic operation functions provided by gcc */
 #undef ATOMIC_64BIT_OPERATIONS
 
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
@@ -65,12 +65,6 @@
 
 /* enable the presence plugin */
 #undef ENABLE_PRESENCE
-
-/* have 64-bit atomic bool compare and swap function provided by gcc */
-#undef HAVE_64BIT_ATOMIC_CAS_FUNC
-
-/* have 64-bit atomic operation functions provided by gcc */
-#undef HAVE_64BIT_ATOMIC_OP_FUNCS
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H

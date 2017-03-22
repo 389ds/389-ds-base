@@ -1059,9 +1059,6 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
-if SPARC
-libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
-endif
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NUNC_STANS_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK)
 
 
