@@ -136,7 +136,7 @@ static const uint32_t crc32c_table[256] = {
     0xBE2DA0A5L, 0x4C4623A6L, 0x5F16D052L, 0xAD7D5351L
 };
 
-uint32_t __attribute_pure__
+uint32_t __attribute__((pure))
 sds_crc32c(uint32_t crc, const unsigned char *data, size_t length)
 {
     while (length--) {
