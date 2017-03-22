@@ -1153,10 +1153,10 @@ main( int argc, char **argv)
 	}
 	slapi_log_err(SLAPI_LOG_INFO, "main", "slapd stopped.\n");
 	reslimit_cleanup();
-	compute_terminate();
 	vattr_cleanup();
 	sasl_map_done();
 cleanup:
+	compute_terminate();
 	SSL_ShutdownServerSessionIDCache();
 	SSL_ClearSessionCache();
 	ndn_cache_destroy();
