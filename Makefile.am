@@ -1211,9 +1211,6 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ $(SVRCORE_INCLUDES) @kerberos_inc@ @pcre_inc@
-if SPARC
-libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
-endif
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK)
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
@@ -1994,6 +1991,7 @@ TESTS = test_slapd \
 
 test_slapd_SOURCES = test/main.c \
 	test/libslapd/test.c \
+	test/libslapd/counters/atomic.c \
 	test/libslapd/pblock/analytics.c \
 	test/libslapd/pblock/v3_compat.c \
 	test/libslapd/operation/v3_compat.c

@@ -200,49 +200,7 @@ uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
     }
 
 #ifndef HPUX
-/* Use our own inline assembly for an atomic set if
- * the builtins aren't available. */
-#if !HAVE_64BIT_ATOMIC_CAS_FUNC
-    /*
-     * %0 = counter->value
-     * %1 = newvalue
-     */
-    __asm__ __volatile__(
-#ifdef CPU_x86
-        /* Save the PIC register */
-        " pushl %%ebx;"
-#endif /* CPU_x86 */
-        /* Put value of counter->value in EDX:EAX */
-        "retryset: movl %0, %%eax;"
-        " movl 4%0, %%edx;"
-        /* Put newval in ECX:EBX */
-        " movl %1, %%ebx;"
-        " movl 4+%1, %%ecx;"
-        /* If EDX:EAX and counter-> are the same,
-         * replace *ptr with ECX:EBX */
-        " lock; cmpxchg8b %0;"
-        " jnz retryset;"
-#ifdef CPU_x86
-        /* Restore the PIC register */
-        " popl %%ebx"
-#endif /* CPU_x86 */
-        : "+o" (counter->value)
-        : "m" (newvalue)
-#ifdef CPU_x86
-        : "memory", "eax", "ecx", "edx", "cc");
-#else
-        : "memory", "eax", "ebx", "ecx", "edx", "cc");
-#endif
-
-    return newvalue;
-#else /* HAVE_64BIT_ATOMIC_CAS_FUNC */
-    while (1) {
-        value = __atomic_load_8(&(counter->value), __ATOMIC_SEQ_CST);
-        if (__atomic_compare_exchange_8(&(counter->value), &value, newvalue, PR_FALSE, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)){
-            return newvalue;
-        }
-    }
-#endif
+    __atomic_store_8(&(counter->value), newvalue, __ATOMIC_SEQ_CST);
 #else /* HPUX */
     do {
         value = counter->value;
@@ -267,50 +225,7 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter)
     }
 
 #ifndef HPUX
-/* Use our own inline assembly for an atomic get if
- * the builtins aren't available. */
-#if !HAVE_64BIT_ATOMIC_CAS_FUNC
-    /*
-     * %0 = counter->value
-     * %1 = value
-     */
-    __asm__ __volatile__(
-#ifdef CPU_x86
-        /* Save the PIC register */
-        " pushl %%ebx;"
-#endif /* CPU_x86 */
-        /* Put value of counter->value in EDX:EAX */
-        "retryget: movl %0, %%eax;"
-        " movl 4%0, %%edx;"
-        /* Copy EDX:EAX to ECX:EBX */
-        " movl %%eax, %%ebx;"
-        " movl %%edx, %%ecx;"
-        /* If EDX:EAX and counter->value are the same,
-         * replace *ptr with ECX:EBX */
-        " lock; cmpxchg8b %0;"
-        " jnz retryget;"
-        /* Put retrieved value into value */
-        " movl %%ebx, %1;"
-        " movl %%ecx, 4%1;"
-#ifdef CPU_x86
-        /* Restore the PIC register */
-        " popl %%ebx"
-#endif /* CPU_x86 */
-        : "+o" (counter->value), "=m" (value)
-        : 
-#ifdef CPU_x86
-        : "memory", "eax", "ecx", "edx", "cc");
-#else
-        : "memory", "eax", "ebx", "ecx", "edx", "cc");
-#endif
-#else  /* HAVE_64BIT_ATOMIC_CAS_FUNC */
-    while (1) {
-        value = __atomic_load_8(&(counter->value), __ATOMIC_SEQ_CST);
-        if (__atomic_compare_exchange_8(&(counter->value), &value, value, PR_FALSE, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)){
-            break;
-        }
-    }
-#endif
+    value = __atomic_load_8(&(counter->value), __ATOMIC_SEQ_CST);
 #else  /* HPUX */
     do {
         value = counter->value;

@@ -24,6 +24,8 @@ run_libslapd_tests (void) {
         cmocka_unit_test(test_libslapd_pblock_v3c_original_target_dn),
         cmocka_unit_test(test_libslapd_pblock_v3c_target_uniqueid),
         cmocka_unit_test(test_libslapd_operation_v3c_target_spec),
+        cmocka_unit_test(test_libslapd_counters_atomic_usage),
+        cmocka_unit_test(test_libslapd_counters_atomic_overflow),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

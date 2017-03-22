@@ -37,4 +37,8 @@ void test_libslapd_pblock_v3c_target_uniqueid(void **state);
 /* libslapd-operation-v3_compat */
 void test_libslapd_operation_v3c_target_spec(void **state);
 
+/* libslapd-counters-atomic */
+
+void test_libslapd_counters_atomic_usage(void **state);
+void test_libslapd_counters_atomic_overflow(void **state);
 
