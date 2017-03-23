@@ -207,8 +207,8 @@ uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
         /* Put value in a register for cmpxchg to compare against */
         _Asm_mov_to_ar(_AREG_CCV, value);
     } while (value != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), newvalue, _LDHINT_NONE));
-    return newvalue;
 #endif
+    return newvalue;
 }
 
 /*
