@@ -30,13 +30,14 @@ def instance_list(inst, log, args):
         log.info(e)
         log.info("Perhaps you need to be a different user?")
 
+def instance_restart(inst, log, args):
+    inst.restart(post_open=False)
+
 def instance_start(inst, log, args):
-    if inst.status() is False:
-        inst.start()
+    inst.start(post_open=False)
 
 def instance_stop(inst, log, args):
-    if inst.status() is True:
-        inst.stop()
+    inst.stop()
 
 def instance_status(inst, log, args):
     if inst.status() is True:
@@ -113,40 +114,20 @@ def instance_example(inst, log, args):
     print(g2b.collect_help())
     print(s2b.collect_help())
 
-def create_parser(subparsers):
-    instance_parser = subparsers.add_parser('instance', help="Manager instances of Directory Server")
-
-    subcommands = instance_parser.add_subparsers(help="action")
-
-    list_parser = subcommands.add_parser('list', help="List installed instances of Directory Server")
-    list_parser.set_defaults(func=instance_list)
-    list_parser.set_defaults(noinst=True)
+def create_parser(subcommands):
+    # list_parser = subcommands.add_parser('list', help="List installed instances of Directory Server")
+    # list_parser.set_defaults(func=instance_list)
+    # list_parser.set_defaults(noinst=True)
+    restart_parser = subcommands.add_parser('restart', help="Restart an instance of Directory Server, if it is running: else start it.")
+    restart_parser.set_defaults(func=instance_restart)
 
     start_parser = subcommands.add_parser('start', help="Start an instance of Directory Server, if it is not currently running")
-    # start_parser.add_argument('instance', nargs=1, help="The name of the instance to start.")
     start_parser.set_defaults(func=instance_start)
 
     stop_parser = subcommands.add_parser('stop', help="Stop an instance of Directory Server, if it is currently running")
-    # stop_parser.add_argument('instance', nargs=1, help="The name of the instance to stop.")
     stop_parser.set_defaults(func=instance_stop)
 
     status_parser = subcommands.add_parser('status', help="Check running status of an instance of Directory Server")
-    # status_parser.add_argument('instance', nargs=1, help="The name of the instance to check.")
     status_parser.set_defaults(func=instance_status)
 
-    create_parser = subcommands.add_parser('create', help="Create an instance of Directory Server. Can be interactive or silent with an inf answer file")
-    create_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.", action='store_true', default=False)
-    create_parser.add_argument('-f', '--file', help="Inf file to use with prepared answers")
-    create_parser.add_argument('--IsolemnlyswearthatIamuptonogood', dest="ack",
-                        help="""You are here likely here by mistake! You want setup-ds.pl!
-By setting this value you acknowledge and take responsibility for the fact this command is UNTESTED and NOT READY. You are ON YOUR OWN!
-""",
-                        action='store_true', default=False)
-    create_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.", action='store_true', default=False)
-    create_parser.set_defaults(func=instance_create)
-    create_parser.set_defaults(noinst=True)
-
-    example_parser = subcommands.add_parser('example', help="Display an example ini answer file, with comments")
-    example_parser.set_defaults(func=instance_example)
-    example_parser.set_defaults(noinst=True)
 

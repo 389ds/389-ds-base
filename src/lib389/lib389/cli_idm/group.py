@@ -7,9 +7,10 @@
 # --- END COPYRIGHT BLOCK ---
 
 import argparse
-from lib389.idm.group import Group, Groups
+from lib389.idm.group import Group, Groups, MUST_ATTRIBUTES
 
 from lib389.cli_base import (
+    populate_attr_arguments,
     _generic_list,
     _generic_get,
     _generic_get_dn,
@@ -65,9 +66,7 @@ def create_parser(subparsers):
 
     create_parser = subcommands.add_parser('create', help='create')
     create_parser.set_defaults(func=create)
-    create_parser.add_argument('extra', nargs=argparse.REMAINDER,
-            help='A create may take one or more extra arguments. This parameter provides them'
-        )
+    populate_attr_arguments(create_parser, MUST_ATTRIBUTES)
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=delete)

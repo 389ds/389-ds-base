@@ -13,6 +13,9 @@ import argparse
 # import argcomplete
 import logging
 
+# This has to happen before we import  DirSrv else it tramples our config ... :(
+logging.basicConfig(format='%(message)s')
+
 from lib389.cli_idm import organisationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
@@ -20,7 +23,6 @@ from lib389.cli_idm import user as cli_user
 
 from lib389.cli_base import connect_instance, disconnect_instance
 
-logging.basicConfig()
 log = logging.getLogger("dsidm")
 
 if __name__ == '__main__':
@@ -29,17 +31,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     # First, add the LDAP options
-    parser.add_argument('-D', '--binddn',
-            help="The account to bind as for executing operations",
-            default=None,
-        )
-    parser.add_argument('-H', '--ldapurl',
-            help="The LDAP url to connect to, IE ldap://mai.example.com:389",
-            default=None,
-        )
-    parser.add_argument('-Z', '--starttls',
-            help="Connect with StartTLS",
-            default=False, action='store_true'
+
+    parser.add_argument('instance',
+            help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
         )
     parser.add_argument('-b', '--basedn',
             help="Basedn (root naming context) of the instance to manage",
@@ -48,6 +42,14 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose',
             help="Display verbose operation tracing during command execution",
             action='store_true', default=False
+        )
+    parser.add_argument('-D', '--binddn',
+            help="The account to bind as for executing operations",
+            default='cn=Directory Manager',
+        )
+    parser.add_argument('-Z', '--starttls',
+            help="Connect with StartTLS",
+            default=False, action='store_true'
         )
 
     subparsers = parser.add_subparsers(help="resources to act upon")
@@ -74,14 +76,16 @@ if __name__ == '__main__':
 
     log.debug("Called with: %s", args)
 
+    ldapurl = args.instance
+
     # Connect
     inst = None
     if args.verbose:
-        inst = connect_instance(args.ldapurl, args.binddn, args.verbose, args.starttls)
+        inst = connect_instance(ldapurl=ldapurl, binddn=args.binddn, verbose=args.verbose, starttls=args.starttls)
         args.func(inst, args.basedn, log, args)
     else:
         try:
-            inst = connect_instance(args.ldapurl, args.binddn, args.verbose, args.starttls)
+            inst = connect_instance(ldapurl=ldapurl, binddn=args.binddn, verbose=args.verbose, starttls=args.starttls)
             args.func(inst, args.basedn, log, args)
         except Exception as e:
             log.debug(e, exc_info=True)

@@ -21,7 +21,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'VERSION'), 'r') as version_file:
     version = version_file.read().strip()
 
-with open(path.join(here, 'README'), 'r') as f:
+with open(path.join(here, 'README.md'), 'r') as f:
     long_description = f.read()
 
 setup(
@@ -55,6 +55,7 @@ setup(
             # 'lib389/clitools/ds_setup',
             'cli/dsadm',
             'cli/dsconf',
+            'cli/dscreate',
             'cli/dsidm',
             ]),
     ],

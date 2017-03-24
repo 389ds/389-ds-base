@@ -50,8 +50,8 @@ def _get_args(args, kws):
 def _get_attributes(args, attrs):
     kwargs = {}
     for attr in attrs:
-        if args is not None and len(args) > 0:
-            kwargs[attr] = args.pop(0)
+        if args is not None and hasattr(args, attr) and getattr(args, attr) is not None:
+            kwargs[attr] = getattr(args, attr)
         else:
             if attr.lower() == 'userpassword':
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
@@ -87,6 +87,10 @@ def connect_instance(ldapurl, binddn, verbose, starttls):
 def disconnect_instance(inst):
     if inst is not None:
         inst.close()
+
+def populate_attr_arguments(parser, attributes):
+    for attr in attributes:
+        parser.add_argument('--%s' % attr, nargs='?', help="Value of %s" % attr)
 
 def _generic_list(inst, basedn, log, manager_class, **kwargs):
     mc = manager_class(inst, basedn)

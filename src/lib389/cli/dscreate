@@ -15,13 +15,10 @@ import sys
 # This has to happen before we import  DirSrv else it tramples our config ... :(
 logging.basicConfig(format='%(message)s')
 
-from lib389.cli_base import _get_arg
 from lib389 import DirSrv
 from lib389.cli_adm import instance as cli_instance
-from lib389.cli_adm import dbtasks as cli_dbtasks
-from lib389.cli_base import disconnect_instance
 
-log = logging.getLogger("dsadm")
+log = logging.getLogger("dscreate")
 
 if __name__ == '__main__':
 
@@ -31,18 +28,22 @@ if __name__ == '__main__':
             help="Display verbose operation tracing during command execution",
             action='store_true', default=False
         )
-    parser.add_argument('instance',
-            help="The name of the instance to act upon",
-        )
 
     subparsers = parser.add_subparsers(help="action")
 
-    # We stack our needed options in via submodules.
+    fromfile_parser = subparsers.add_parser('fromfile', help="Create an instance of Directory Server from an inf answer file")
+    fromfile_parser.add_argument('file', help="Inf file to use with prepared answers. You can generate an example of this with 'dscreate example'")
+    fromfile_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.", action='store_true', default=False)
+    fromfile_parser.add_argument('--IsolemnlyswearthatIamuptonogood', dest="ack",
+                        help="""You are here likely here by mistake! You want setup-ds.pl!
+By setting this value you acknowledge and take responsibility for the fact this command is UNTESTED and NOT READY. You are ON YOUR OWN!
+""",
+                        action='store_true', default=False)
+    fromfile_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.", action='store_true', default=False)
+    fromfile_parser.set_defaults(func=cli_instance.instance_create)
 
-    cli_instance.create_parser(subparsers)
-    cli_dbtasks.create_parser(subparsers)
-
-    # Then we tell it to execute.
+    example_parser = subparsers.add_parser('example', help="Display an example ini answer file, with comments")
+    example_parser.set_defaults(func=cli_instance.instance_example)
 
     args = parser.parse_args()
 
@@ -51,32 +52,16 @@ if __name__ == '__main__':
     else:
         log.setLevel(logging.INFO)
 
-    log.debug("The 389 Directory Server Administration Tool")
+    log.debug("The 389 Directory Server Creation Tool")
     # Leave this comment here: UofA let me take this code with me provided
     # I gave attribution. -- wibrown
     log.debug("Inspired by works of: ITS, The University of Adelaide")
 
     log.debug("Called with: %s", args)
 
-    # Assert we have a resources to work on.
-    if not hasattr(args, 'func'):
-        log.error("No action provided")
-        log.error("USAGE: dsadm [options] <resource> <action> [action options]")
-        sys.exit(1)
-
-    # Connect
-    # inst = None
     inst = DirSrv(verbose=args.verbose)
 
-    result = True
-
-    # Allocate the instance based on name
-    insts = inst.list(serverid=args.instance)
-    if len(insts) != 1:
-        raise ValueError("No such instance %s" % args.instance)
-
-    inst.allocate(insts[0])
-    log.debug('Instance allocated')
+    result = False
 
     if args.verbose:
         result = args.func(inst, log, args)
@@ -86,7 +71,6 @@ if __name__ == '__main__':
         except Exception as e:
             log.debug(e, exc_info=True)
             log.error("Error: %s" % e.message)
-    disconnect_instance(inst)
 
     if result is True:
         log.info('FINISH: Command succeeded')
@@ -94,8 +78,7 @@ if __name__ == '__main__':
         log.info('FAIL: Command failed. See output for details.')
 
     # Done!
-    log.debug("dsadm is brought to you by the letter R and the number 27.")
+    log.debug("dscreate is brought to you by the letter S and the number 22.")
 
     if result is False:
         sys.exit(1)
-

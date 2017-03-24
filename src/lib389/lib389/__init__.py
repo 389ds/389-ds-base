@@ -433,7 +433,7 @@ class DirSrv(SimpleLDAPObject, object):
                              self.state)
 
         if SER_SERVERID_PROP not in args:
-            self.log.debug('SER_SERVERID_PROP not provided')
+            self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
             # The lack of this value basically rules it out in most cases
             self.isLocal = False
             self.ds_paths = Paths(instance=self)
@@ -1118,7 +1118,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_OFFLINE
 
-    def start(self, timeout=120):
+    def start(self, timeout=120, post_open=True):
         '''
             It starts an instance and rebind it. Its final state after rebind
             (open) is DIRSRV_STATE_ONLINE
@@ -1174,7 +1174,8 @@ class DirSrv(SimpleLDAPObject, object):
                 count -= 1
             if not pid_exists(pid):
                 raise Exception("Failed to start DS")
-        self.open()
+        if post_open:
+            self.open()
 
     def stop(self, timeout=120):
         '''
@@ -1241,7 +1242,7 @@ class DirSrv(SimpleLDAPObject, object):
             # Wait
             return pid_exists(pid)
 
-    def restart(self, timeout=120):
+    def restart(self, timeout=120, post_open=True):
         '''
             It restarts an instance and rebind it. Its final state after rebind
             (open) is DIRSRV_STATE_ONLINE.
@@ -1255,7 +1256,7 @@ class DirSrv(SimpleLDAPObject, object):
         '''
         self.stop(timeout)
         time.sleep(1)
-        self.start(timeout)
+        self.start(timeout, post_open)
 
     def _infoBackupFS(self):
         """
