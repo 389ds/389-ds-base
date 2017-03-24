@@ -339,7 +339,7 @@ multimaster_bepreop_init( Slapi_PBlock *pb )
  * betxnpreop: if betxn is on, call preop urp at betxnpreop.
  */
 int
-multimaster_betxnpreop_init( Slapi_PBlock *pb )
+multimaster_betxnpreop_init( Slapi_PBlock *pb __attribute__((unused)))
 {
     int rc= 0; /* OK */
 	
@@ -811,7 +811,7 @@ out:
 }
 
 int
-multimaster_stop( Slapi_PBlock *pb )
+multimaster_stop( Slapi_PBlock *pb __attribute__((unused)))
 {
     int rc= 0; /* OK */
 

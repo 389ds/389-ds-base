@@ -551,7 +551,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	/* identify userID field by tags */
 	if (tag == LDAP_EXTOP_PASSMOD_TAG_USERID )
 	{
-		int rc = 0;
+		rc = 0;
 		if ( ber_scanf( ber, "a", &rawdn) == LBER_ERROR ) {
 			slapi_ch_free_string(&rawdn);
 			slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
@@ -804,7 +804,7 @@ parse_req_done:
 		goto free_and_return;
 	}
 
-	if (gen_passwd && (gen_passwd->bv_val != '\0')) {
+	if (gen_passwd && (gen_passwd->bv_val[0] != '\0')) {
 		/* Set the reponse to let the user know the generated password */
 		slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, gen_passwd);
 	}

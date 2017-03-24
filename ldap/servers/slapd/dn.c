@@ -450,7 +450,7 @@ substr_dn_normalize_orig( char *dn, char *end )
 }
 
 char *
-substr_dn_normalize( char *dn, char *end )
+substr_dn_normalize( char *dn __attribute__((unused)), char *end )
 {
 	/* no op */
 	return end;

@@ -26,7 +26,7 @@
 /* ***** Consumer side ***** */
 
 /* consumer connection extension constructor */
-void* consumer_connection_extension_constructor (void *object, void *parent)
+void* consumer_connection_extension_constructor (void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	consumer_connection_extension *ext = (consumer_connection_extension*) slapi_ch_malloc (sizeof (consumer_connection_extension));
 	if (ext == NULL)
@@ -58,7 +58,7 @@ void* consumer_connection_extension_constructor (void *object, void *parent)
 }
 
 /* consumer connection extension destructor */
-void consumer_connection_extension_destructor (void *ext, void *object, void *parent)
+void consumer_connection_extension_destructor (void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	PRUint64 connid = 0;
 	if (ext)

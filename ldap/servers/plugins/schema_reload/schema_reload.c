@@ -102,7 +102,7 @@ schemareload_start(Slapi_PBlock *pb)
 }
 
 static int
-schemareload_close(Slapi_PBlock *pb)
+schemareload_close(Slapi_PBlock *pb __attribute__((unused)))
 {
 
     slapi_plugin_task_unregister_handler("schema reload task", schemareload_add);
@@ -230,9 +230,12 @@ schemareload_destructor(Slapi_Task *task)
  * the task.
  */
 static int
-schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                    Slapi_Entry *eAfter, int *returncode, char *returntext,
-                    void *arg)
+schemareload_add(Slapi_PBlock *pb,
+                 Slapi_Entry *e,
+                 Slapi_Entry *eAfter __attribute__((unused)),
+                 int *returncode,
+                 char *returntext __attribute__((unused)),
+                 void *arg)
 {
     PRThread *thread = NULL;
     const char *schemadir = NULL;

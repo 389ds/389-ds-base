@@ -728,7 +728,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 }
 
 int
-chaining_back_entry_release ( Slapi_PBlock *pb ) {
+chaining_back_entry_release ( Slapi_PBlock *pb __attribute__((unused))) {
 	slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, "chaining_back_entry_release\n");
 	return 0;
 }

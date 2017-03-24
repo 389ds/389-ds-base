@@ -1024,7 +1024,7 @@ vattr_test_filter_list_and(
     Slapi_PBlock		*pb,
     Slapi_Entry		*e,
     struct slapi_filter	*flist,
-    int			ftype,
+    int			ftype __attribute__((unused)),
     int			verify_access,
 	int			only_check_access,
 	int			*access_check_done
@@ -1066,7 +1066,7 @@ vattr_test_filter_list_or(
     Slapi_PBlock		*pb,
     Slapi_Entry		*e,
     struct slapi_filter	*flist,
-    int			ftype,
+    int			ftype __attribute__((unused)),
     int			verify_access,
 	int			only_check_access,
 	int			*access_check_done

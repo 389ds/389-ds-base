@@ -231,7 +231,7 @@ int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule)
     return(LDAP_SUCCESS);
 }
 
-int slapi_matchingrule_unregister(char *oid)
+int slapi_matchingrule_unregister(char *oid __attribute__((unused)))
 {
     /* 
      * Currently, not implemented.

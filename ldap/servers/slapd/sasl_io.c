@@ -69,7 +69,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
              PRIntervalTime timeout);
 
 static void
-debug_print_layers(PRFileDesc *fd)
+debug_print_layers(PRFileDesc *fd __attribute__((unused)))
 {
 #if 0
     PR_ASSERT(fd->higher == NULL); /* this is the topmost layer */
@@ -752,7 +752,7 @@ initialize(void)
  * no other threads are accessing conn->c_prfd
  */
 int
-sasl_io_enable(Connection *c, void *data /* UNUSED */)
+sasl_io_enable(Connection *c, void *data __attribute__((unused)))
 {
     PRStatus rv = PR_CallOnce(&sasl_callOnce, initialize);
     if (PR_SUCCESS == rv) {
@@ -789,7 +789,7 @@ sasl_io_enable(Connection *c, void *data /* UNUSED */)
  * called while the connection (c_prfd) is not being referenced by another thread.
  */
 int
-sasl_io_cleanup(Connection *c, void *data /* UNUSED */)
+sasl_io_cleanup(Connection *c, void *data __attribute__((unused)))
 {
     int ret = 0;
 

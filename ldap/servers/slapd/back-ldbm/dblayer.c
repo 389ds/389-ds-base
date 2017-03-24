@@ -301,7 +301,7 @@ int dblayer_db_uses_logging(DB_ENV *db_env) {
 */
 
 int
-dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply) {
+dblayer_set_batch_transactions(void *arg __attribute__((unused)), void *value, char *errorbuf __attribute__((unused)), int phase, int apply) {
     int val = (int)((uintptr_t)value);
     int retval = LDAP_SUCCESS;
 
@@ -336,7 +336,7 @@ dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase
 }
 
 int
-dblayer_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply) {
+dblayer_set_batch_txn_min_sleep(void *arg __attribute__((unused)), void *value, char *errorbuf __attribute__((unused)), int phase, int apply) {
     int val = (int)((uintptr_t)value);
     int retval = LDAP_SUCCESS;
 
@@ -367,7 +367,7 @@ dblayer_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phas
 }
 
 int
-dblayer_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phase, int apply) {
+dblayer_set_batch_txn_max_sleep(void *arg __attribute__((unused)), void *value, char *errorbuf __attribute__((unused)), int phase, int apply) {
     int val = (int)((uintptr_t)value);
     int retval = LDAP_SUCCESS;
 
@@ -399,17 +399,17 @@ dblayer_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phas
 }
 
 void *
-dblayer_get_batch_transactions(void *arg) {
+dblayer_get_batch_transactions(void *arg __attribute__((unused))) {
     return (void *)((uintptr_t)trans_batch_limit);
 }
 
 void *
-dblayer_get_batch_txn_min_sleep(void *arg) {
+dblayer_get_batch_txn_min_sleep(void *arg __attribute__((unused))) {
     return (void *)((uintptr_t)trans_batch_txn_min_sleep);
 }
 
 void *
-dblayer_get_batch_txn_max_sleep(void *arg) {
+dblayer_get_batch_txn_max_sleep(void *arg __attribute__((unused))) {
     return (void *)((uintptr_t)trans_batch_txn_max_sleep);
 }
 
@@ -424,7 +424,7 @@ dblayer_get_batch_txn_max_sleep(void *arg) {
 
 static int
 dblayer_txn_checkpoint(struct ldbminfo *li, struct dblayer_private_env *env,
-                       PRBool use_lock, PRBool busy_skip, PRBool db_force)
+                       PRBool use_lock __attribute__((unused)), PRBool busy_skip, PRBool db_force)
 {
     int ret = 0;
     if (busy_skip && is_anyinstance_busy(li))
@@ -504,10 +504,10 @@ static void dblayer_reset_env(struct ldbminfo *li)
 
 /* Callback function for libdb to spit error info into our log */
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-void dblayer_log_print(const DB_ENV *dbenv, const char* prefix,
+void dblayer_log_print(const DB_ENV *dbenv __attribute__((unused)), const char* prefix __attribute__((unused)),
                        const char *buffer)
 #else
-void dblayer_log_print(const char* prefix, char *buffer)
+void dblayer_log_print(const char* prefix __attribute__((unused)), char *buffer)
 #endif
 {
     /* We ignore the prefix since we know who we are anyway */
@@ -600,7 +600,7 @@ static int dblayer_seek24_large(int fd, size_t pgsize, db_pgno_t pageno,
  *    off64_t        st_size;
  *      long        st_blksize;
  */
-static int dblayer_ioinfo_large(const char *path, int fd, u_int32_t *mbytesp,
+static int dblayer_ioinfo_large(const char *path __attribute__((unused)), int fd, u_int32_t *mbytesp,
                 u_int32_t *bytesp, u_int32_t *iosizep)
 {
     struct stat64 sb;
@@ -644,7 +644,7 @@ int dblayer_open_huge_file(const char *path, int oflag, int mode)
 #endif  /* DB_USE_64LFS */
 
 
-static int dblayer_override_libdb_functions(DB_ENV *pEnv, dblayer_private *priv)
+static int dblayer_override_libdb_functions(DB_ENV *pEnv __attribute__((unused)), dblayer_private *priv __attribute__((unused)))
 {
 #ifdef DB_USE_64LFS
     int major = 0;
@@ -997,7 +997,7 @@ static int dblayer_grok_directory(char *directory, int flags)
 }
 
 static void
-dblayer_set_data_dir(dblayer_private *priv, struct dblayer_private_env *pEnv,
+dblayer_set_data_dir(dblayer_private *priv __attribute__((unused)), struct dblayer_private_env *pEnv,
                      char **data_directories)
 {
     char **dirp;
@@ -2217,7 +2217,7 @@ int dblayer_get_id2entry(backend *be, DB **ppDB)
     return 0;
 }
 
-int dblayer_release_id2entry(backend *be, DB *pDB)
+int dblayer_release_id2entry(backend *be __attribute__((unused)), DB *pDB __attribute__((unused)))
 {
     return 0;
 }
@@ -2750,7 +2750,7 @@ int dblayer_close(struct ldbminfo *li, int dbmode)
  * to write a checkpoint.
  */
 int
-dblayer_flush(struct ldbminfo *li)
+dblayer_flush(struct ldbminfo *li __attribute__((unused)))
 {
     return 0;
 }
@@ -3147,7 +3147,7 @@ int dblayer_get_index_file(backend *be, struct attrinfo *a, DB** ppDB, int open_
 /*
  * Unlock the db lib mutex here if we need to.
  */
-int dblayer_release_index_file(backend *be,struct attrinfo *a, DB* pDB)
+int dblayer_release_index_file(backend *be __attribute__((unused)), struct attrinfo *a, DB* pDB __attribute__((unused)))
 {
     PR_AtomicDecrement(&a->ai_dblayer_count);
     return 0;
@@ -3335,7 +3335,7 @@ int dblayer_erase_index_file(backend *be, struct attrinfo *a, int no_force_chkpt
  * The lower levels of the back-end look into this structure, and
  * take out the DB_TXN they need.
  */
-int dblayer_txn_init(struct ldbminfo *li, back_txn *txn)
+int dblayer_txn_init(struct ldbminfo *li __attribute__((unused)), back_txn *txn)
 {
     back_txn *cur_txn = dblayer_get_pvt_txn();
     PR_ASSERT(NULL != txn);
@@ -5628,7 +5628,7 @@ static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
  */
 
 int
-dblayer_copyfile(char *source, char *destination, int overwrite, int mode) 
+dblayer_copyfile(char *source, char *destination, int overwrite __attribute__((unused)), int mode)
 {
 #ifdef DB_USE_64LFS
 #define OPEN_FUNCTION dblayer_open_large

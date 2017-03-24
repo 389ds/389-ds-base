@@ -75,16 +75,19 @@ syntax_validate_task_init(Slapi_PBlock *pb)
 }
 
 static int
-syntax_validate_task_start(Slapi_PBlock *pb)
+syntax_validate_task_start(Slapi_PBlock *pb __attribute__((unused)))
 {
 	int rc = slapi_task_register_handler("syntax validate", syntax_validate_task_add);
 	return rc;
 }
 
 static int
-syntax_validate_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                Slapi_Entry *eAfter, int *returncode,
-                char *returntext, void *arg)
+syntax_validate_task_add(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry *e,
+                         Slapi_Entry *eAfter __attribute__((unused)),
+                         int *returncode,
+                         char *returntext __attribute__((unused)),
+                         void *arg __attribute__((unused)))
 {
 	PRThread *thread = NULL;
 	int rv = SLAPI_DSE_CALLBACK_OK;

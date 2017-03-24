@@ -3048,7 +3048,7 @@ slapi_entry_attr_set_int( Slapi_Entry* e, const char *type, int l)
 void
 slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l)
 {
-    char value[16];
+    char value[16] = {0};
 	struct berval bv;
 	struct berval *bvals[2];
 	bvals[0] = &bv;
@@ -3062,7 +3062,7 @@ slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l)
 void
 slapi_entry_attr_set_long( Slapi_Entry* e, const char *type, long l)
 {
-    char value[16];
+    char value[22] = {0};
 	struct berval bv;
 	struct berval *bvals[2];
 	bvals[0] = &bv;
@@ -3076,7 +3076,7 @@ slapi_entry_attr_set_long( Slapi_Entry* e, const char *type, long l)
 void
 slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long l)
 {
-    char value[20];
+    char value[22] = {0};
     struct berval bv;
     struct berval *bvals[2];
     bvals[0] = &bv;
@@ -3090,7 +3090,7 @@ slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long l)
 void
 slapi_entry_attr_set_ulong( Slapi_Entry* e, const char *type, uint64_t l)
 {
-    char value[16];
+    char value[22] = {0};
 	struct berval bv;
 	struct berval *bvals[2];
 	bvals[0] = &bv;

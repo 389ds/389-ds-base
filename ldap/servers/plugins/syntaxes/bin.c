@@ -260,7 +260,7 @@ fax_init( Slapi_PBlock *pb )
 
 
 static int
-bin_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
+bin_filter_ava( Slapi_PBlock *pb __attribute__((unused)), struct berval *bvfilter,
     Slapi_Value **bvals, int ftype, Slapi_Value **retVal )
 {
     int	i;
@@ -304,7 +304,7 @@ bin_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 }
 
 static int
-bin_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
+bin_values2keys( Slapi_PBlock *pb __attribute__((unused)), Slapi_Value **bvals,
 					Slapi_Value ***ivals, int ftype )
 {
 	int	i;
@@ -337,7 +337,7 @@ bin_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 }
 
 static int
-bin_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *bval,
+bin_assertion2keys_ava( Slapi_PBlock *pb __attribute__((unused)), Slapi_Value *bval,
     Slapi_Value ***ivals, int ftype )
 {
     Slapi_Value *tmpval=NULL;

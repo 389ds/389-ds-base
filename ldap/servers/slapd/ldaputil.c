@@ -488,7 +488,7 @@ slapi_ldap_count_values( char **vals )
 
 int
 slapi_ldap_create_proxyauth_control (
-    LDAP *ld, /* only used to get current ber options */
+    LDAP *ld __attribute__((unused)), /* only used to get current ber options */
     const char *dn, /* proxy dn */
     const char ctl_iscritical,
     int usev2, /* use the v2 (.18) control instead */
@@ -683,7 +683,7 @@ slapi_ldap_init_ext(
     int port, /* can also use this to override port in url */
     int secure, /* 0 for ldap, 1 for ldaps, 2 for starttls -
                    override proto in url */
-    int shared, /* if true, LDAP* will be shared among multiple threads */
+    int shared __attribute__((unused)), /* if true, LDAP* will be shared among multiple threads */
     const char *ldapi_socket /* for ldapi */
 )
 {
@@ -1525,7 +1525,7 @@ ldap_sasl_free_interact_vals(void *defaults)
 }
 
 static int 
-ldap_sasl_get_val(ldapSaslInteractVals *vals, sasl_interact_t *interact, unsigned flags)
+ldap_sasl_get_val(ldapSaslInteractVals *vals, sasl_interact_t *interact, unsigned flags __attribute__((unused)))
 {
     const char	*defvalue = interact->defresult;
     int authtracelevel = SLAPI_LOG_SHELL; /* special auth tracing */
@@ -1569,7 +1569,7 @@ ldap_sasl_get_val(ldapSaslInteractVals *vals, sasl_interact_t *interact, unsigne
 }
 
 static int
-ldap_sasl_interact_cb(LDAP *ld, unsigned flags, void *defaults, void *prompts)
+ldap_sasl_interact_cb(LDAP *ld __attribute__((unused)), unsigned flags, void *defaults, void *prompts)
 {
     sasl_interact_t *interact = NULL;
     ldapSaslInteractVals *sasldefaults = defaults;
@@ -1592,8 +1592,12 @@ ldap_sasl_interact_cb(LDAP *ld, unsigned flags, void *defaults, void *prompts)
 /* figure out from the context and this error if we should
    attempt to retry the bind */
 static int
-can_retry_bind(LDAP *ld, const char *mech, const char *bindid,
-               const char *creds, int rc, const char *errmsg)
+can_retry_bind(LDAP *ld __attribute__((unused)),
+               const char *mech __attribute__((unused)),
+               const char *bindid __attribute__((unused)),
+               const char *creds __attribute__((unused)),
+               int rc __attribute__((unused)),
+               const char *errmsg)
 {
     int localrc = 0;
     if (errmsg && strstr(errmsg, "Ticket expired")) {
@@ -1610,8 +1614,8 @@ slapd_ldap_sasl_interactive_bind(
     const char *creds, /* usually a password for simple bind */
     const char *mech, /* name of mechanism */
     LDAPControl **serverctrls, /* additional controls to send */
-    LDAPControl ***returnedctrls, /* returned controls */
-    int *msgidp /* pass in non-NULL for async handling */
+    LDAPControl ***returnedctrls __attribute__((unused)), /* returned controls */
+    int *msgidp __attribute__((unused)) /* pass in non-NULL for async handling */
 )
 {
     int rc = LDAP_SUCCESS;
@@ -1900,10 +1904,10 @@ internal_krb5_init(void)
  */
 static void
 set_krb5_creds(
-    const char *authid,
+    const char *authid __attribute__((unused)),
     const char *username,
-    const char *passwd,
-    const char *realm,
+    const char *passwd __attribute__((unused)),
+    const char *realm __attribute__((unused)),
     ldapSaslInteractVals *vals
 )
 {

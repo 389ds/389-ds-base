@@ -97,15 +97,15 @@ static Slapi_ComponentId *sasl_get_component_id(void)
  * properties we need - it's more efficient that way.
  */
 #if SASL_AUXPROP_PLUG_VERSION > 4
-static int ids_auxprop_lookup(
+static int ids_auxprop_lookup
 #else
-static void ids_auxprop_lookup(
+static void ids_auxprop_lookup
 #endif
-				  void *glob_context,
-				  sasl_server_params_t *sparams,
-				  unsigned flags,
-				  const char *user,
-				  unsigned ulen) 
+				  ( void *glob_context __attribute__((unused)),
+				    sasl_server_params_t *sparams __attribute__((unused)),
+				    unsigned flags __attribute__((unused)),
+				    const char *user __attribute__((unused)),
+				    unsigned ulen __attribute__((unused)) )
 {
     /* do nothing - we don't need auxprops - we just do this to avoid
        sasldb_auxprop_lookup */
@@ -124,11 +124,11 @@ static sasl_auxprop_plug_t ids_auxprop_plugin = {
     NULL	/* auxprop_store */
 };
 
-int ids_auxprop_plug_init(const sasl_utils_t *utils,
+int ids_auxprop_plug_init(const sasl_utils_t *utils __attribute__((unused)),
                           int max_version,
                           int *out_version,
                           sasl_auxprop_plug_t **plug,
-                          const char *plugname) 
+                          const char *plugname __attribute__((unused)))
 {
     if(!out_version || !plug) return SASL_BADPARAM;
 
@@ -142,7 +142,7 @@ int ids_auxprop_plug_init(const sasl_utils_t *utils,
 }
 
 static int ids_sasl_getopt(
-    void *context, 
+    void *context __attribute__((unused)),
     const char *plugin_name,
     const char *option,
     const char **result, 
@@ -179,7 +179,7 @@ static int ids_sasl_getopt(
 }
 
 static int ids_sasl_log(
-    void       *context,
+    void       *context __attribute__((unused)),
     int        level,
     const char *message
 )
@@ -275,8 +275,8 @@ static void ids_sasl_user_search(
  * Search for an entry representing the sasl user.
  */
 static Slapi_Entry *ids_sasl_user_to_entry(
-    sasl_conn_t *conn,
-    void *context,
+    sasl_conn_t *conn __attribute__((unused)),
+    void *context __attribute__((unused)),
     const char *user,
     const char *user_realm
 )
@@ -364,8 +364,11 @@ static int ids_sasl_canon_user(
     sasl_conn_t *conn,
     void *context,
     const char *userbuf, unsigned ulen,
-    unsigned flags, const char *user_realm,
-    char *out_user, unsigned out_umax, unsigned *out_ulen
+    unsigned flags __attribute__((unused)),
+    const char *user_realm,
+    char *out_user,
+    unsigned out_umax,
+    unsigned *out_ulen
 )
 {
     struct propctx *propctx = sasl_auxprop_getctx(conn);
@@ -496,7 +499,7 @@ fail:
     return returnvalue;
 }
 
-static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
+static int ids_sasl_getpluginpath(sasl_conn_t *conn __attribute__((unused)), const char **path)
 {
     /* Try to get path from config, otherwise check for SASL_PATH environment
      * variable.  If neither of these are set, default to /usr/lib64/sasl2 on
@@ -511,7 +514,13 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
     return SASL_OK;
 }
 
-static int ids_sasl_userdb_checkpass(sasl_conn_t *conn, void *context, const char *user, const char *pass, unsigned passlen, struct propctx *propctx) {
+static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
+                                     void *context __attribute__((unused)),
+                                     const char *user,
+                                     const char *pass,
+                                     unsigned passlen,
+                                     struct propctx *propctx __attribute__((unused)))
+{
     /*
      * Based on the mech
      */

@@ -311,6 +311,7 @@ str2simple( char *str , int unescape_filter)
 	struct slapi_filter	*f;
 	char		*s;
 	char		*value, savechar;
+	char *extp = NULL;
 
 	slapi_log_err(SLAPI_LOG_FILTER, "str2simple", "\"%s\"\n", str);
 
@@ -326,7 +327,6 @@ str2simple( char *str , int unescape_filter)
 	f = (struct slapi_filter *) slapi_ch_calloc( 1, sizeof(struct slapi_filter) );
 
 	switch ( *s ) {
-	char *extp = NULL;
 	case '<':
 		f->f_choice = LDAP_FILTER_LE;
 		break;

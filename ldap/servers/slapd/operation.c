@@ -594,7 +594,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
 }
 
 int
-slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release)
+slapi_connection_remove_operation( Slapi_PBlock *pb __attribute__((unused)), Slapi_Connection *conn, Slapi_Operation *op, int release)
 {
 	int rc = 0;
 	Slapi_Operation **olist= &conn->c_ops;

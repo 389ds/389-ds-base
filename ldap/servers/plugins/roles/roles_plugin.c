@@ -165,7 +165,7 @@ bailout:
    -----------
    kexcoff: cache build at init or at startup ? 
  */
-static int roles_start( Slapi_PBlock *pb )
+static int roles_start( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int rc = 0;
 	void **statechange_api;
@@ -202,7 +202,7 @@ static int roles_start( Slapi_PBlock *pb )
    -----------
    kexcoff: ??
  */
-static int roles_close( Slapi_PBlock *pb )
+static int roles_close( Slapi_PBlock *pb __attribute__((unused)))
 {
 	void **statechange_api;
 	int rc = 0;
@@ -232,16 +232,16 @@ static int roles_close( Slapi_PBlock *pb )
 	Then we iterate over the in-scope roles calling Slapi_Role_Check(). 
 	For those which pass the check, we add their DN to the attribute's value set.
 */
-int roles_sp_get_value(vattr_sp_handle *handle, 
+int roles_sp_get_value(vattr_sp_handle *handle __attribute__((unused)),
 						vattr_context *c, 
 						Slapi_Entry *e, 
-						char *type, 
+						char *type __attribute__((unused)),
 						Slapi_ValueSet** results,
 						int *type_name_disposition, 
 						char** actual_type_name, 
-						int flags, 
+						int flags __attribute__((unused)),
 						int *free_flags, 
-						void *hint)
+						void *hint __attribute__((unused)))
 {
 	int rc = -1;
 
@@ -270,7 +270,14 @@ int roles_sp_get_value(vattr_sp_handle *handle,
 	Return true or false to the client.
  */
 
-int roles_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result,int flags, void *hint)
+int roles_sp_compare_value(vattr_sp_handle *handle __attribute__((unused)),
+                           vattr_context *c __attribute__((unused)),
+                           Slapi_Entry *e,
+                           char *type __attribute__((unused)),
+                           Slapi_Value *test_this,
+                           int* result,
+                           int flags __attribute__((unused)),
+                           void *hint __attribute__((unused)))
 {
 	int rv;
 	Slapi_DN the_dn;
@@ -288,7 +295,10 @@ int roles_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entr
 	return rv;
 }
 
-int roles_sp_list_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags)
+int roles_sp_list_types(vattr_sp_handle *handle __attribute__((unused)),
+                        Slapi_Entry *e,
+                        vattr_type_list_context *type_context,
+                        int flags)
 {
 	static char* test_type_name = NSROLEATTR; 
 	int ret =0;

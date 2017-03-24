@@ -15,16 +15,16 @@
 
 /*
 ** cLeanup a chaining backend instance
-*/ 
- 
-int cb_back_cleanup( Slapi_PBlock *pb )
+*/
+
+int cb_back_cleanup( Slapi_PBlock *pb __attribute__((unused)))
 {
 
-	/* 
-	** Connections have been closed in cb_back_close()
-	** For now, don't do more
-	*/
+    /*
+    ** Connections have been closed in cb_back_close()
+    ** For now, don't do more
+    */
 
-        return 0;
+    return 0;
 }
 

@@ -575,7 +575,7 @@ retrocl_entry_in_scope(Slapi_Entry *e)
  *
  */
 
-static int retrocl_stop (Slapi_PBlock *pb)
+static int retrocl_stop (Slapi_PBlock *pb __attribute__((unused)))
 {
     int rc = 0;
     int i = 0;

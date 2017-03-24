@@ -93,9 +93,14 @@ static void clean_agmts(cleanruv_data *data);
 static PRLock *s_configLock;
 
 static int
-dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* entryBefore __attribute__((unused)),
+                Slapi_Entry* e __attribute__((unused)),
+                int *returncode,
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
 {
-	*returncode = LDAP_UNWILLING_TO_PERFORM;
+    *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
@@ -185,8 +190,12 @@ replica_config_destroy ()
 }
 
 static int
-replica_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
-					   int *returncode, char *errorbuf, void *arg)
+replica_config_add (Slapi_PBlock *pb __attribute__((unused)),
+                    Slapi_Entry* e,
+                    Slapi_Entry* entryAfter __attribute__((unused)),
+                    int *returncode,
+                    char *errorbuf,
+                    void *arg __attribute__((unused)))
 {
 	Replica *r = NULL;
     multimaster_mtnode_extension *mtnode_ext;
@@ -257,8 +266,12 @@ done:
 }
 
 static int
-replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-					   int *returncode, char *returntext, void *arg)
+replica_config_modify (Slapi_PBlock *pb,
+                       Slapi_Entry* entryBefore __attribute__((unused)),
+                       Slapi_Entry* e,
+                       int *returncode,
+                       char *returntext,
+                       void *arg __attribute__((unused)))
 {
     int rc= 0;
    	LDAPMod **mods;
@@ -662,11 +675,11 @@ done:
 
 static int
 replica_config_post_modify(Slapi_PBlock *pb,
-                           Slapi_Entry* entryBefore,
+                           Slapi_Entry* entryBefore __attribute__((unused)),
                            Slapi_Entry* e,
                            int *returncode,
                            char *returntext,
-                           void *arg)
+                           void *arg __attribute__((unused)))
 {
     int rc= 0;
     LDAPMod **mods;
@@ -801,8 +814,12 @@ done:
 }
 
 static int
-replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
-					   int *returncode, char *returntext, void *arg)
+replica_config_delete (Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* e,
+                       Slapi_Entry* entryAfter __attribute__((unused)),
+                       int *returncode,
+                       char *returntext __attribute__((unused)),
+                       void *arg __attribute__((unused)))
 {
     multimaster_mtnode_extension *mtnode_ext;
     Replica *r;
@@ -835,7 +852,7 @@ replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 }
 
 static void
-replica_config_search_last_modified(Slapi_PBlock *pb, Slapi_Entry* e, Replica *replica) 
+replica_config_search_last_modified(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry* e, Replica *replica) 
 {
         Object *ruv_obj = NULL;
         RUV *ruv = NULL;
@@ -856,7 +873,7 @@ replica_config_search_last_modified(Slapi_PBlock *pb, Slapi_Entry* e, Replica *r
 }
 
 static void
-replica_config_search_ruv(Slapi_PBlock *pb, Slapi_Entry* e, Replica *replica) 
+replica_config_search_ruv(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry* e, Replica *replica) 
 {
         Object *ruv_obj = NULL;
         RUV *ruv = NULL;
@@ -900,8 +917,12 @@ search_requested_attr(Slapi_PBlock *pb, const char *attr)
 }
 
 static int
-replica_config_search (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode,
-                       char *returntext, void *arg)
+replica_config_search (Slapi_PBlock *pb,
+                       Slapi_Entry* e,
+                       Slapi_Entry* entryAfter __attribute__((unused)),
+                       int *returncode __attribute__((unused)),
+                       char *returntext __attribute__((unused)),
+                       void *arg __attribute__((unused)))
 {
     multimaster_mtnode_extension *mtnode_ext;
     int changeCount = 0;
@@ -1053,7 +1074,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
 }
 
 static int
-replica_config_change_updatedn (Replica *r, const LDAPMod *mod, char *returntext,
+replica_config_change_updatedn (Replica *r, const LDAPMod *mod, char *returntext __attribute__((unused)),
                                 int apply_mods)
 {
     PR_ASSERT (r);
@@ -1073,7 +1094,7 @@ replica_config_change_updatedn (Replica *r, const LDAPMod *mod, char *returntext
 }
 
 static int
-replica_config_change_updatedngroup (Replica *r, const LDAPMod *mod, char *returntext,
+replica_config_change_updatedngroup (Replica *r, const LDAPMod *mod, char *returntext __attribute__((unused)),
                                 int apply_mods)
 {
     PR_ASSERT (r);
@@ -1093,7 +1114,7 @@ replica_config_change_updatedngroup (Replica *r, const LDAPMod *mod, char *retur
 }
 
 static int replica_config_change_flags (Replica *r, const char *new_flags,
-                                        char *returntext, int apply_mods)
+                                        char *returntext __attribute__((unused)), int apply_mods)
 {
     PR_ASSERT (r);
 
@@ -1173,7 +1194,7 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
 }
 
 static int
-replica_cleanup_task (Object *r, const char *task_name, char *returntext,
+replica_cleanup_task (Object *r, const char *task_name __attribute__((unused)), char *returntext __attribute__((unused)),
                       int apply_mods)
 {
     int rc = LDAP_SUCCESS;
@@ -1432,7 +1453,7 @@ replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid)
 }
 
 static int
-replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not used */)
+replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext __attribute__((unused)))
 {
 	Object *RUVObj;
 	RUV *local_ruv = NULL;
@@ -1500,8 +1521,12 @@ fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
 }
 
 static int
-replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-		                      int *returncode, char *returntext, void *arg)
+replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry *e,
+                          Slapi_Entry *eAfter __attribute__((unused)),
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
 {
     Slapi_Task *task = NULL;
     const Slapi_DN *task_dn;
@@ -1611,7 +1636,7 @@ out:
  *
  */
 static int
-replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, const char* force_cleaning, char *returntext)
+replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, const char* force_cleaning, char *returntext __attribute__((unused)))
 {
     struct berval *payload = NULL;
     Slapi_Task *pre_task = NULL; /* this is supposed to be null for logging */
@@ -2203,7 +2228,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
  *  an entry, we know it has finished cleaning.
  */
 static int
-replica_cleanallruv_is_finished(Repl_Agmt *agmt, char *filter, Slapi_Task *task)
+replica_cleanallruv_is_finished(Repl_Agmt *agmt, char *filter, Slapi_Task *task __attribute__((unused)))
 {
     Repl_Connection *conn = NULL;
     ConnResult crc = 0;
@@ -2241,8 +2266,9 @@ replica_cleanallruv_is_finished(Repl_Agmt *agmt, char *filter, Slapi_Task *task)
         }
     }
     conn_delete_internal_ext(conn);
-    if(payload)
-    	ber_bvfree(payload);
+    if(payload) {
+        ber_bvfree(payload);
+    }
 
     return rc;
 }
@@ -2922,8 +2948,12 @@ remove_cleaned_rid(ReplicaId rid)
  *  Abort the CLEANALLRUV task
  */
 int
-replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-        int *returncode, char *returntext, void *arg)
+replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry *e,
+                           Slapi_Entry *eAfter __attribute__((unused)),
+                           int *returncode,
+                           char *returntext,
+                           void *arg __attribute__((unused)))
 {
     struct berval *payload = NULL;
     cleanruv_data *data = NULL;
@@ -3528,7 +3558,7 @@ replica_cleanallruv_replica_alive(Repl_Agmt *agmt)
 }
 
 static int
-replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, Slapi_Task *task, char *force)
+replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, Slapi_Task *task __attribute__((unused)), char *force)
 {
     Repl_Connection *conn = NULL;
     ConnResult crc = 0;

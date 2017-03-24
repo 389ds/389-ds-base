@@ -24,7 +24,7 @@ static int
 dblayer_copy_file_keybykey(DB_ENV *env,
                            char *source_file_name,
                            char *destination_file_name,
-                           int overwrite,
+                           int overwrite __attribute__((unused)),
                            dblayer_private *priv,
                            ldbm_instance *inst)
 {

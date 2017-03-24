@@ -160,7 +160,7 @@ entryrdn_get_noancestorid()
  * returned.
  */
 int
-entryrdn_compare_dups(DB *db, const DBT *a, const DBT *b)
+entryrdn_compare_dups(DB *db __attribute__((unused)), const DBT *a, const DBT *b)
 {   
     rdn_elem *elem_a = NULL;
     rdn_elem *elem_b = NULL;
@@ -3417,7 +3417,7 @@ bail:
 
 static int
 _entryrdn_append_childidl(DBC *cursor,
-                          const char *nrdn,
+                          const char *nrdn __attribute__((unused)),
                           ID id,
                           IDList **affectedidl,
                           DB_TXN *db_txn)

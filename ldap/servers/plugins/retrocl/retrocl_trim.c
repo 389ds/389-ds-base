@@ -324,7 +324,7 @@ static int retrocl_active_threads;
  */
  
 static void
-changelog_trim_thread_fn( void *arg )
+changelog_trim_thread_fn( void *arg __attribute__((unused)))
 {
     PR_AtomicIncrement(&retrocl_active_threads);
     trim_changelog();
@@ -343,7 +343,7 @@ changelog_trim_thread_fn( void *arg )
  *              the database.  
  */
 
-void retrocl_housekeeping ( time_t cur_time, void *noarg )
+void retrocl_housekeeping ( time_t cur_time, void *noarg __attribute__((unused)))
 {
     int			ldrc;
 

@@ -629,13 +629,19 @@ attr_syntax_exists(const char *attr_name)
 static void default_dirstring_normalize_int(char *s, int trim_spaces);
 
 static
-int default_dirstring_filter_ava( struct berval *bvfilter, Slapi_Value **bvals,int ftype, Slapi_Value **retVal )
+int default_dirstring_filter_ava( struct berval *bvfilter __attribute__((unused)),
+                                  Slapi_Value **bvals __attribute__((unused)),
+                                  int ftype __attribute__((unused)),
+                                  Slapi_Value **retVal __attribute__((unused)))
 {
 	return(0);
 }
 
 static
-int default_dirstring_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,Slapi_Value ***ivals, int ftype )
+int default_dirstring_values2keys( Slapi_PBlock *pb __attribute__((unused)),
+                                   Slapi_Value **bvals,
+                                   Slapi_Value ***ivals,
+                                   int ftype)
 {
 	int		numbvals = 0;
 	Slapi_Value	**nbvals, **nbvlp;
@@ -679,19 +685,27 @@ int default_dirstring_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,Slapi_V
 }
 
 static
-int default_dirstring_assertion2keys_ava(Slapi_PBlock *pb,Slapi_Value *val,Slapi_Value ***ivals,int ftype  )
+int default_dirstring_assertion2keys_ava(Slapi_PBlock *pb __attribute__((unused)),
+                                         Slapi_Value *val __attribute__((unused)),
+                                         Slapi_Value ***ivals __attribute__((unused)),
+                                         int ftype __attribute__((unused)) )
 {
 	return(0);
 }
 
 static
-int default_dirstring_cmp(struct berval	*v1,struct berval *v2, int normalize)
+int default_dirstring_cmp(struct berval *v1 __attribute__((unused)),
+                          struct berval *v2 __attribute__((unused)),
+                          int normalize __attribute__((unused)))
 {
 	return(0);
 }
 
 static
-void default_dirstring_normalize(Slapi_PBlock *pb, char *s, int trim_spaces, char **alt)
+void default_dirstring_normalize(Slapi_PBlock *pb __attribute__((unused)),
+                                 char *s,
+                                 int trim_spaces,
+                                 char **alt __attribute__((unused)))
 {
 	default_dirstring_normalize_int(s, trim_spaces);
 }

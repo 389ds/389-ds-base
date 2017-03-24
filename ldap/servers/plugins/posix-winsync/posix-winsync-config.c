@@ -222,8 +222,12 @@ posix_winsync_config_free()
 
 
 static int
-posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-    int *returncode, char *returntext, void *arg)
+posix_winsync_apply_config(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry* entryBefore __attribute__((unused)),
+                           Slapi_Entry* e,
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg __attribute__((unused)))
 {
     PRBool mssfuSchema = PR_FALSE;
     PRBool mapMemberUID = PR_TRUE;

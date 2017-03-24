@@ -302,11 +302,11 @@ _ger_release_gerpb (
 static int
 _ger_new_gerpb (
 	Slapi_PBlock    *pb,
-	Slapi_Entry	    *e,
+	Slapi_Entry	    *e __attribute__((unused)),
 	const char 		*subjectndn,
 	Slapi_PBlock	**gerpb,
 	void			**aclcb,	/* original aclcb */
-	char			**errbuf
+	char			**errbuf __attribute__((unused))
 	)
 {
 	Connection *conn;
@@ -389,11 +389,11 @@ unsigned long
 _ger_get_entry_rights (
 	Slapi_PBlock *gerpb,
 	Slapi_Entry *e,
-	const char *subjectndn,
+	const char *subjectndn __attribute__((unused)),
 	char **gerstr,
 	size_t *gerstrsize,
 	size_t *gerstrcap,
-	char **errbuf
+	char **errbuf __attribute__((unused))
 	)
 {
 	unsigned long entryrights = 0;
@@ -1015,8 +1015,8 @@ acl_get_effective_rights (
 	Slapi_PBlock    *pb,
 	Slapi_Entry	    *e,			/* target entry */
 	char			**attrs,	/* Attribute of	the entry */
-	struct berval   *val,		/* value of attr. NOT USED */
-	int		    	access,		/* requested access rights */
+	struct berval   *val __attribute__((unused)),		/* value of attr. NOT USED */
+	int		    	access __attribute__((unused)),		/* requested access rights */
 	char			**errbuf
 	)
 {

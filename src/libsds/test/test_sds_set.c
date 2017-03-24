@@ -16,7 +16,7 @@
 static int32_t cb_count = 0;
 
 static void
-test_31_map_cb(void *k, void *v) {
+test_31_map_cb(void *k __attribute__((unused)), void *v __attribute__((unused))) {
     cb_count++;
 }
 
@@ -270,7 +270,7 @@ test_38_set_compliment_2(void **state) {
 }
 
 static int64_t
-test_39_filter_cb(void *k, void *v) {
+test_39_filter_cb(void *k, void *v __attribute__((unused))) {
     if (*(uint64_t *)k % 2 == 0) {
         return 1;
     }

@@ -31,7 +31,7 @@ static char *readonly_attributes[] = {
     "ref",
     "vendorName",
     "vendorVersion",
-	ATTR_NETSCAPEMDSUFFIX,
+    ATTR_NETSCAPEMDSUFFIX,
     NULL
 };
 
@@ -93,7 +93,12 @@ rootdse_is_readonly_attr( char *attr )
  * before calling slapi_entry_free().
  */
 int
-read_root_dse( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg )
+read_root_dse( Slapi_PBlock *pb,
+               Slapi_Entry *e,
+               Slapi_Entry *entryAfter __attribute__((unused)),
+               int *returncode,
+               char *returntext __attribute__((unused)),
+               void *arg __attribute__((unused)))
 {
 	int			i;
 	struct berval		*vals[2];
@@ -321,7 +326,12 @@ read_root_dse( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *r
  * case LDAP_INSUFFICIENT_ACCESS is returned.
  */
 int
-modify_root_dse( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg )
+modify_root_dse( Slapi_PBlock *pb,
+                 Slapi_Entry *entryBefore __attribute__((unused)),
+                 Slapi_Entry *e __attribute__((unused)),
+                 int *returncode,
+                 char *returntext,
+                 void *arg __attribute__((unused)))
 {
     LDAPMod		**mods;
 

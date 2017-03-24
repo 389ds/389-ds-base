@@ -120,7 +120,7 @@ static void *ldbm_config_lookthroughlimit_get(void *arg)
     return (void *) ((uintptr_t)(li->li_lookthroughlimit));
 }
 
-static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -142,7 +142,7 @@ static void *ldbm_config_pagedlookthroughlimit_get(void *arg)
     return (void *) ((uintptr_t)(li->li_pagedlookthroughlimit));
 }
 
-static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -164,7 +164,7 @@ static void *ldbm_config_rangelookthroughlimit_get(void *arg)
     return (void *) ((uintptr_t)(li->li_rangelookthroughlimit));
 }
 
-static int ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -186,7 +186,7 @@ static void *ldbm_config_backend_opt_level_get(void *arg)
     return (void *) ((uintptr_t)(li->li_backend_opt_level));
 }
 
-static int ldbm_config_backend_opt_level_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_backend_opt_level_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -207,7 +207,7 @@ static void *ldbm_config_mode_get(void *arg)
     return (void *) ((uintptr_t)(li->li_mode));
 }
 
-static int ldbm_config_mode_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_mode_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -229,7 +229,7 @@ static void *ldbm_config_allidsthreshold_get(void *arg)
     return (void *) ((uintptr_t)(li->li_allidsthreshold));
 }
 
-static int ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -256,7 +256,7 @@ static void *ldbm_config_pagedallidsthreshold_get(void *arg)
     return (void *) ((uintptr_t)(li->li_pagedallidsthreshold));
 }
 
-static int ldbm_config_pagedallidsthreshold_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_pagedallidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -460,7 +460,7 @@ static void *ldbm_config_maxpassbeforemerge_get(void *arg)
     return (void *) ((uintptr_t)(li->li_maxpassbeforemerge));
 }
 
-static int ldbm_config_maxpassbeforemerge_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_maxpassbeforemerge_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -487,7 +487,7 @@ static void *ldbm_config_dbncache_get(void *arg)
     return (void *) ((uintptr_t)(li->li_new_dbncache));
 }
 
-static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -536,7 +536,7 @@ void *ldbm_config_db_logdirectory_get_ext(void *arg)
         return (void *)li->li_new_directory;
 }
 
-static int ldbm_config_db_logdirectory_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_logdirectory_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -557,7 +557,7 @@ static void *ldbm_config_db_durable_transactions_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_durable_transactions);
 }
 
-static int ldbm_config_db_durable_transactions_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_durable_transactions_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -580,8 +580,8 @@ static void *ldbm_config_db_lockdown_get(void *arg)
 static int ldbm_config_db_lockdown_set(
     void *arg, 
     void *value, 
-    char *errorbuf, 
-    int phase, 
+    char *errorbuf __attribute__((unused)), 
+    int phase __attribute__((unused)), 
     int apply
 ) 
 {
@@ -603,7 +603,11 @@ static void *ldbm_config_db_circular_logging_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_circular_logging);
 }
 
-static int ldbm_config_db_circular_logging_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_circular_logging_set(void *arg,
+                                               void *value,
+                                               char *errorbuf __attribute__((unused)),
+                                               int phase __attribute__((unused)),
+                                               int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -623,7 +627,11 @@ static void *ldbm_config_db_transaction_logging_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_enable_transactions);
 }
 
-static int ldbm_config_db_transaction_logging_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_transaction_logging_set(void *arg,
+                                                  void *value,
+                                                  char *errorbuf __attribute__((unused)),
+                                                  int phase __attribute__((unused)),
+                                                  int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -644,7 +652,11 @@ static void *ldbm_config_db_transaction_wait_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_txn_wait);
 }
 
-static int ldbm_config_db_transaction_wait_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int ldbm_config_db_transaction_wait_set(void *arg,
+                                               void *value,
+                                               char *errorbuf __attribute__((unused)),
+                                               int phase __attribute__((unused)),
+                                               int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -664,7 +676,11 @@ static void *ldbm_config_db_logbuf_size_get(void *arg)
     return (void *) li->li_dblayer_private->dblayer_logbuf_size;
 }
 
-static int ldbm_config_db_logbuf_size_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_logbuf_size_set(void *arg,
+                                          void *value,
+                                          char *errorbuf __attribute__((unused)),
+                                          int phase __attribute__((unused)),
+                                          int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -684,7 +700,11 @@ static void *ldbm_config_db_checkpoint_interval_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_checkpoint_interval);
 }
 
-static int ldbm_config_db_checkpoint_interval_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_checkpoint_interval_set(void *arg,
+                                                  void *value,
+                                                  char *errorbuf __attribute__((unused)),
+                                                  int phase __attribute__((unused)),
+                                                  int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -704,7 +724,11 @@ static void *ldbm_config_db_compactdb_interval_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_compactdb_interval);
 }
 
-static int ldbm_config_db_compactdb_interval_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_compactdb_interval_set(void *arg,
+                                                 void *value,
+                                                 char *errorbuf __attribute__((unused)),
+                                                 int phase __attribute__((unused)),
+                                                 int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -724,7 +748,11 @@ static void *ldbm_config_db_page_size_get(void *arg)
     return (void *) li->li_dblayer_private->dblayer_page_size;
 }
 
-static int ldbm_config_db_page_size_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_page_size_set(void *arg,
+                                        void *value,
+                                        char *errorbuf __attribute__((unused)),
+                                        int phase __attribute__((unused)),
+                                        int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -744,7 +772,11 @@ static void *ldbm_config_db_index_page_size_get(void *arg)
     return (void *) li->li_dblayer_private->dblayer_index_page_size;
 }
 
-static int ldbm_config_db_index_page_size_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_index_page_size_set(void *arg,
+                                              void *value,
+                                              char *errorbuf __attribute__((unused)),
+                                              int phase __attribute__((unused)),
+                                              int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -764,7 +796,11 @@ static void *ldbm_config_db_idl_divisor_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_idl_divisor);
 }
 
-static int ldbm_config_db_idl_divisor_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_idl_divisor_set(void *arg,
+                                          void *value,
+                                          char *errorbuf __attribute__((unused)),
+                                          int phase __attribute__((unused)),
+                                          int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -784,7 +820,11 @@ static void *ldbm_config_db_old_idl_maxids_get(void *arg)
     return (void *) ((uintptr_t)li->li_old_idl_maxids);
 }
 
-static int ldbm_config_db_old_idl_maxids_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int ldbm_config_db_old_idl_maxids_set(void *arg,
+                                             void *value,
+                                             char *errorbuf,
+                                             int phase __attribute__((unused)),
+                                             int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -811,7 +851,11 @@ static void *ldbm_config_db_logfile_size_get(void *arg)
     return (void *) li->li_dblayer_private->dblayer_logfile_size;
 }
 
-static int ldbm_config_db_logfile_size_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_logfile_size_set(void *arg,
+                                           void *value,
+                                           char *errorbuf __attribute__((unused)),
+                                           int phase __attribute__((unused)),
+                                           int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -831,7 +875,11 @@ static void *ldbm_config_db_spin_count_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_spin_count);
 }
 
-static int ldbm_config_db_spin_count_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_spin_count_set(void *arg,
+                                         void *value,
+                                         char *errorbuf __attribute__((unused)),
+                                         int phase __attribute__((unused)),
+                                         int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -851,7 +899,11 @@ static void *ldbm_config_db_trickle_percentage_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_trickle_percentage);
 }
 
-static int ldbm_config_db_trickle_percentage_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_trickle_percentage_set(void *arg,
+                                                 void *value,
+                                                 char *errorbuf,
+                                                 int phase __attribute__((unused)),
+                                                 int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -880,7 +932,11 @@ static void *ldbm_config_db_verbose_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_verbose);
 }
 
-static int ldbm_config_db_verbose_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_verbose_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -900,7 +956,11 @@ static void *ldbm_config_db_debug_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_debug);
 }
 
-static int ldbm_config_db_debug_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_debug_set(void *arg,
+                                    void *value,
+                                    char *errorbuf __attribute__((unused)),
+                                    int phase __attribute__((unused)),
+                                    int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -920,7 +980,11 @@ static void *ldbm_config_db_named_regions_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_named_regions);
 }
 
-static int ldbm_config_db_named_regions_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_named_regions_set(void *arg,
+                                            void *value,
+                                            char *errorbuf __attribute__((unused)),
+                                            int phase __attribute__((unused)),
+                                            int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -940,7 +1004,11 @@ static void *ldbm_config_db_private_mem_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_private_mem);
 }
 
-static int ldbm_config_db_private_mem_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_private_mem_set(void *arg,
+                                          void *value,
+                                          char *errorbuf __attribute__((unused)),
+                                          int phase __attribute__((unused)),
+                                          int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -960,7 +1028,11 @@ static void *ldbm_config_db_online_import_encrypt_get(void *arg)
     return (void *) ((uintptr_t)li->li_online_import_encrypt);
 }
 
-static int ldbm_config_db_online_import_encrypt_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_online_import_encrypt_set(void *arg,
+                                                    void *value,
+                                                    char *errorbuf __attribute__((unused)),
+                                                    int phase __attribute__((unused)),
+                                                    int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -987,7 +1059,11 @@ static void *ldbm_config_idl_get_update(void *arg)
     return (void *) ((uintptr_t)li->li_idl_update);
 }
 
-static int ldbm_config_idl_set_update(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int ldbm_config_idl_set_update(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1000,7 +1076,11 @@ static int ldbm_config_idl_set_update(void *arg, void *value, char *errorbuf, in
     return retval;
 }
 
-static int ldbm_config_db_private_import_mem_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_private_import_mem_set(void *arg,
+                                                 void *value,
+                                                 char *errorbuf __attribute__((unused)),
+                                                 int phase __attribute__((unused)),
+                                                 int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1021,12 +1101,12 @@ static void *ldbm_config_db_shm_key_get(void *arg)
 }
 
 static int ldbm_config_db_shm_key_set(
-    void *arg, 
-    void *value, 
-    char *errorbuf, 
-    int phase, 
+    void *arg,
+    void *value,
+    char *errorbuf __attribute__((unused)),
+    int phase __attribute__((unused)),
     int apply
-) 
+)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1081,7 +1161,11 @@ static void *ldbm_config_db_cache_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_cache_config);
 }
 
-static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_cache_set(void *arg,
+                                    void *value,
+                                    char *errorbuf,
+                                    int phase __attribute__((unused)),
+                                    int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1120,7 +1204,11 @@ static void *ldbm_config_db_debug_checkpointing_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->db_debug_checkpointing);
 }
 
-static int ldbm_config_db_debug_checkpointing_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_debug_checkpointing_set(void *arg,
+                                                  void *value,
+                                                  char *errorbuf __attribute__((unused)),
+                                                  int phase __attribute__((unused)),
+                                                  int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1142,7 +1230,11 @@ static void *ldbm_config_db_home_directory_get(void *arg)
     return (void *) slapi_ch_strdup(li->li_dblayer_private->dblayer_dbhome_directory);
 }
 
-static int ldbm_config_db_home_directory_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_db_home_directory_set(void *arg,
+                                             void *value,
+                                             char *errorbuf __attribute__((unused)),
+                                             int phase __attribute__((unused)),
+                                             int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1163,8 +1255,11 @@ static void *ldbm_config_import_cache_autosize_get(void *arg)
     return (void *)((uintptr_t)(li->li_import_cache_autosize));
 }
 
-static int ldbm_config_import_cache_autosize_set(void *arg, void *value, char *errorbuf,
-                   int phase, int apply)
+static int ldbm_config_import_cache_autosize_set(void *arg,
+                                                 void *value,
+                                                 char *errorbuf __attribute__((unused)),
+                                                 int phase __attribute__((unused)),
+                                                 int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1180,8 +1275,11 @@ static void *ldbm_config_cache_autosize_get(void *arg)
     return (void *)((uintptr_t)(li->li_cache_autosize));
 }
 
-static int ldbm_config_cache_autosize_set(void *arg, void *value, char *errorbuf,
-                   int phase, int apply)
+static int ldbm_config_cache_autosize_set(void *arg,
+                                          void *value,
+                                          char *errorbuf __attribute__((unused)),
+                                          int phase __attribute__((unused)),
+                                          int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1197,8 +1295,11 @@ static void *ldbm_config_cache_autosize_split_get(void *arg)
     return (void *)((uintptr_t)(li->li_cache_autosize_split));
 }
 
-static int ldbm_config_cache_autosize_split_set(void *arg, void *value, char *errorbuf,
-                     int phase, int apply)
+static int ldbm_config_cache_autosize_split_set(void *arg,
+                                                void *value,
+                                                char *errorbuf __attribute__((unused)),
+                                                int phase __attribute__((unused)),
+                                                int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1214,8 +1315,11 @@ static void *ldbm_config_import_cachesize_get(void *arg)
     return (void *)(li->li_import_cachesize);
 }
 
-static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorbuf,
-                                     int phase, int apply)
+static int ldbm_config_import_cachesize_set(void *arg,
+                                            void *value,
+                                            char *errorbuf,
+                                            int phase __attribute__((unused)),
+                                            int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     size_t val = (size_t)value;
@@ -1244,34 +1348,42 @@ static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorb
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_index_buffer_size_get(void *arg)
+static void *ldbm_config_index_buffer_size_get(void *arg __attribute__((unused)))
 {
     return (void *)import_get_index_buffer_size();
 }
 
-static int ldbm_config_index_buffer_size_set(void *arg, void *value, char *errorbuf,
-                                     int phase, int apply)
+static int ldbm_config_index_buffer_size_set(void *arg __attribute__((unused)),
+                                             void *value,
+                                             char *errorbuf __attribute__((unused)),
+                                             int phase __attribute__((unused)),
+                                             int apply)
 {
-    if (apply)
+    if (apply) {
         import_configure_index_buffer_size((size_t)value);
+    }
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_idl_get_idl_new(void *arg)
+static void *ldbm_config_idl_get_idl_new(void *arg __attribute__((unused)))
 {
-    if (idl_get_idl_new())
+    if (idl_get_idl_new()) {
         return slapi_ch_strdup("new");
-    else
-        return slapi_ch_strdup("old");
+    }
+    return slapi_ch_strdup("old");
 }
 
-static int ldbm_config_idl_set_tune(void *arg, void *value, char *errorbuf,
-                             int phase, int apply)
+static int ldbm_config_idl_set_tune(void *arg __attribute__((unused)),
+                                    void *value,
+                                    char *errorbuf __attribute__((unused)),
+                                    int phase __attribute__((unused)),
+                                    int apply __attribute__((unused)))
 {
-    if (!strcasecmp("new", value))
+    if (!strcasecmp("new", value)) {
         idl_set_tune(4096);
-    else
+    } else {
         idl_set_tune(0);
+    }
     return LDAP_SUCCESS;
 }
 
@@ -1282,8 +1394,11 @@ static void *ldbm_config_serial_lock_get(void *arg)
     return (void *) ((uintptr_t)li->li_fat_lock);
 }
 
-static int ldbm_config_serial_lock_set(void *arg, void *value, char *errorbuf,
-                             int phase, int apply)
+static int ldbm_config_serial_lock_set(void *arg,
+                                       void *value,
+                                       char *errorbuf __attribute__((unused)),
+                                       int phase __attribute__((unused)),
+                                       int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     
@@ -1294,13 +1409,16 @@ static int ldbm_config_serial_lock_set(void *arg, void *value, char *errorbuf,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_entryrdn_switch_get(void *arg)
+static void *ldbm_config_entryrdn_switch_get(void *arg __attribute__((unused)))
 {
     return (void *)((uintptr_t)entryrdn_get_switch());
 }
 
-static int ldbm_config_entryrdn_switch_set(void *arg, void *value,
-                                           char *errorbuf, int phase, int apply)
+static int ldbm_config_entryrdn_switch_set(void *arg __attribute__((unused)),
+                                           void *value,
+                                           char *errorbuf __attribute__((unused)),
+                                           int phase __attribute__((unused)),
+                                           int apply)
 {
     if (apply) {
         entryrdn_set_switch((int)((uintptr_t)value));
@@ -1308,13 +1426,16 @@ static int ldbm_config_entryrdn_switch_set(void *arg, void *value,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_entryrdn_noancestorid_get(void *arg)
+static void *ldbm_config_entryrdn_noancestorid_get(void *arg __attribute__((unused)))
 {
     return (void *)((uintptr_t)entryrdn_get_noancestorid());
 }
 
-static int ldbm_config_entryrdn_noancestorid_set(void *arg, void *value,
-                                           char *errorbuf, int phase, int apply)
+static int ldbm_config_entryrdn_noancestorid_set(void *arg __attribute__((unused)),
+                                                 void *value,
+                                                 char *errorbuf __attribute__((unused)),
+                                                 int phase __attribute__((unused)),
+                                                 int apply)
 {
     if (apply) {
         entryrdn_set_noancestorid((int)((uintptr_t)value));
@@ -1329,8 +1450,11 @@ static void *ldbm_config_legacy_errcode_get(void *arg)
     return (void *) ((uintptr_t)li->li_legacy_errcode);
 }
 
-static int ldbm_config_legacy_errcode_set(void *arg, void *value, char *errorbuf,
-                             int phase, int apply)
+static int ldbm_config_legacy_errcode_set(void *arg,
+                                          void *value,
+                                          char *errorbuf __attribute__((unused)),
+                                          int phase __attribute__((unused)),
+                                          int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     
@@ -1342,8 +1466,11 @@ static int ldbm_config_legacy_errcode_set(void *arg, void *value, char *errorbuf
 }
 
 static int
-ldbm_config_set_bypass_filter_test(void *arg, void *value, char *errorbuf,
-                             int phase, int apply)
+ldbm_config_set_bypass_filter_test(void *arg,
+                                   void *value,
+                                   char *errorbuf __attribute__((unused)),
+                                   int phase __attribute__((unused)),
+                                   int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1382,7 +1509,11 @@ static void *ldbm_config_get_bypass_filter_test(void *arg)
     return (void *)retstr;
 }
 
-static int ldbm_config_set_use_vlv_index(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int ldbm_config_set_use_vlv_index(void *arg,
+                                         void *value,
+                                         char *errorbuf __attribute__((unused)),
+                                         int phase __attribute__((unused)),
+                                         int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int val = (int) ((uintptr_t)value);
@@ -1405,8 +1536,11 @@ static void *ldbm_config_get_use_vlv_index(void *arg)
 }
 
 static int
-ldbm_config_exclude_from_export_set( void *arg, void *value, char *errorbuf,
-        int phase, int apply)
+ldbm_config_exclude_from_export_set(void *arg,
+                                    void *value,
+                                    char *errorbuf __attribute__((unused)),
+                                    int phase __attribute__((unused)),
+                                    int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1464,10 +1598,10 @@ static void *ldbm_config_db_tx_max_get(void *arg)
 }
 
 static int ldbm_config_db_tx_max_set(
-    void *arg, 
-    void *value, 
-    char *errorbuf, 
-    int phase, 
+    void *arg,
+    void *value,
+    char *errorbuf __attribute__((unused)),
+    int phase __attribute__((unused)),
     int apply
 ) 
 {
@@ -1489,7 +1623,11 @@ static void *ldbm_config_db_deadlock_policy_get(void *arg)
     return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_deadlock_policy);
 }
 
-static int ldbm_config_db_deadlock_policy_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int ldbm_config_db_deadlock_policy_set(void *arg,
+                                              void *value,
+                                              char *errorbuf,
+                                              int phase __attribute__((unused)),
+                                              int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
@@ -1850,7 +1988,12 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
  *   SLAPI_DSE_CALLBACK_ERROR on failure
  *   SLAPI_DSE_CALLBACK_OK on success
  */
-int ldbm_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+int ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                      Slapi_Entry *e,
+                                      Slapi_Entry *entryAfter __attribute__((unused)),
+                                      int *returncode,
+                                      char *returntext,
+                                      void *arg)
 {
     char buf[BUFSIZ];
     struct berval *vals[2];

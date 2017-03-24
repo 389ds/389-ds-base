@@ -170,7 +170,7 @@ add_new_agreement(Slapi_Entry *e)
 }
 
 int
-id_extended_agreement(Repl_Agmt *agmt, LDAPMod** mods, Slapi_Entry *e)
+id_extended_agreement(Repl_Agmt *agmt __attribute__((unused)), LDAPMod** mods, Slapi_Entry *e)
 {
     Slapi_Attr *sattr = NULL;
     char *val = NULL;
@@ -221,8 +221,12 @@ id_extended_agreement(Repl_Agmt *agmt, LDAPMod** mods, Slapi_Entry *e)
 }
 
 static int
-agmtlist_add_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter,
-	int *returncode, char *returntext, void *arg)
+agmtlist_add_callback(Slapi_PBlock *pb,
+                      Slapi_Entry *e,
+                      Slapi_Entry *entryAfter __attribute__((unused)),
+                      int *returncode,
+                      char *returntext __attribute__((unused)),
+                      void *arg __attribute__((unused)))
 {
 	int rc;
 	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "agmt_add: begin\n");
@@ -241,8 +245,12 @@ agmtlist_add_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter,
 }
 
 static int
-agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e,
-	int *returncode, char *returntext, void *arg)
+agmtlist_modify_callback(Slapi_PBlock *pb,
+                         Slapi_Entry *entryBefore __attribute__((unused)),
+                         Slapi_Entry *e,
+                         int *returncode,
+                         char *returntext,
+                         void *arg __attribute__((unused)))
 {
 	int i;
 	Slapi_DN *sdn = NULL;
@@ -696,8 +704,12 @@ done:
 }
 
 static int
-agmtlist_delete_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter,
-	int *returncode, char *returntext, void *arg)
+agmtlist_delete_callback(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry *e,
+                         Slapi_Entry *entryAfter __attribute__((unused)),
+                         int *returncode,
+                         char *returntext __attribute__((unused)),
+                         void *arg __attribute__((unused)))
 {
 	Repl_Agmt *ra;
 	Object *ro;
@@ -723,8 +735,12 @@ agmtlist_delete_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
 }
 
 static int
-agmtlist_rename_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e,
-	int *returncode, char *returntext, void *arg)
+agmtlist_rename_callback(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry *entryBefore __attribute__((unused)),
+                         Slapi_Entry *e __attribute__((unused)),
+                         int *returncode,
+                         char *returntext __attribute__((unused)),
+                         void *arg __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_rename_callback - Begin\n");
 
@@ -760,9 +776,10 @@ handle_agmt_search(Slapi_Entry *e, void *callback_data)
 
 
 static void
-agmtlist_objset_destructor(void **o)
+agmtlist_objset_destructor(void **o __attribute__((unused)))
 {
 	/* XXXggood Nothing to do, I think. */
+    return;
 }
 	
 

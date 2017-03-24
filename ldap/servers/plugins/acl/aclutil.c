@@ -124,7 +124,7 @@ acl_print_acllib_err (NSErr_t *errp , char * str)
 
 }
 void
-aclutil_print_aci (aci_t *aci_item, char *type)
+aclutil_print_aci (aci_t *aci_item, char *type __attribute__((unused)))
 {
 	char	str[BUFSIZ];
 	const	char *dn; 
@@ -668,7 +668,7 @@ __aclutil_extract_dn_component ( char **e_dns,  int position, char *attrName )
 */
 
 int
-acl_dn_component_match( const char *ndn, char *match_this, int component_number) {
+acl_dn_component_match( const char *ndn __attribute__((unused)), char *match_this __attribute__((unused)), int component_number __attribute__((unused))) {
 
 	return(1);
 }
@@ -1439,7 +1439,7 @@ void acl_ht_free_all_entries_and_values( acl_ht_t *acl_ht) {
 }
 
 static PRIntn
-acl_ht_free_entry_and_value(PLHashEntry *he, PRIntn i, void *arg)
+acl_ht_free_entry_and_value(PLHashEntry *he, PRIntn i __attribute__((unused)), void *arg __attribute__((unused)))
 {	
 
 	slapi_ch_free((void **)&he->value);		/* free value */	 
@@ -1449,11 +1449,12 @@ acl_ht_free_entry_and_value(PLHashEntry *he, PRIntn i, void *arg)
 }
 
 /* Free all the values in the ht */
-void acl_ht_display_ht( acl_ht_t *acl_ht) {
+void acl_ht_display_ht( acl_ht_t *acl_ht __attribute__((unused))) {
 
 #ifdef FOR_DEBUGGING
 	PL_HashTableEnumerateEntries( acl_ht, acl_ht_display_entry, NULL);
 #endif
+    return;
 }
 
 #ifdef FOR_DEBUGGING

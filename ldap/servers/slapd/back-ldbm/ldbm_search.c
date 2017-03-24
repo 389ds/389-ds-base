@@ -137,7 +137,7 @@ berval_done(struct berval *val)
  */
 static int
 ldbm_back_search_cleanup(Slapi_PBlock *pb,
-                         struct ldbminfo *li,
+                         struct ldbminfo *li __attribute__((unused)),
                          sort_spec_thing *sort_control,
                          int ldap_result,
                          char* ldap_result_description,
@@ -197,7 +197,7 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
 }
 
 static int
-ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
+ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
 {
     int rc = SLAPI_FILTER_SCAN_CONTINUE;
     if (f->f_choice == LDAP_FILTER_SUBSTRINGS) {
@@ -275,7 +275,7 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
 }
 
 static int
-ldbm_search_free_compiled_filter(Slapi_Filter *f, void *arg)
+ldbm_search_free_compiled_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
 {
     int rc = SLAPI_FILTER_SCAN_CONTINUE;
     if ((f->f_choice == LDAP_FILTER_SUBSTRINGS) &&
@@ -1054,7 +1054,7 @@ bail:
  * Build a candidate list for a BASE scope search.
  */
 static IDList *
-base_candidates(Slapi_PBlock *pb, struct backentry *e)
+base_candidates(Slapi_PBlock *pb __attribute__((unused)), struct backentry *e)
 {
     IDList *idl= idl_alloc( 1 );
     idl_append( idl, NULL == e ? 0 : e->ep_id );
@@ -1360,7 +1360,7 @@ static int grok_filter(struct slapi_filter    *f)
 /* Routine which says whether or not the indices produced a "correct" answer */
 static int
 can_skip_filter_test(
-    Slapi_PBlock        *pb,
+    Slapi_PBlock        *pb __attribute__((unused)),
     struct slapi_filter    *f,
     int scope,
     IDList *idl

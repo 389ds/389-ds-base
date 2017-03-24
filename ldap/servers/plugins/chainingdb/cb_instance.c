@@ -114,8 +114,12 @@ struct berval *bval, char *err_buf, int phase, int apply_mod);
 
 
 int
-cb_dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-        int *returncode, char *returntext, void *arg)
+cb_dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                   Slapi_Entry* entryBefore __attribute__((unused)),
+                   Slapi_Entry* e __attribute__((unused)),
+                   int *returncode,
+                   char *returntext __attribute__((unused)),
+                   void *arg __attribute__((unused)))
 {
     *returncode=LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
@@ -263,8 +267,12 @@ void cb_instance_free(cb_backend_instance * inst) {
 ** backend instance.
 */
 
-int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-        int *returncode, char *returntext, void *arg) {
+int cb_instance_modify_config_check_callback(Slapi_PBlock *pb,
+                                             Slapi_Entry* entryBefore __attribute__((unused)),
+                                             Slapi_Entry* e __attribute__((unused)),
+                                             int *returncode,
+                                             char *returntext,
+                                             void *arg) {
 
 	cb_backend_instance * inst = (cb_backend_instance *) arg;
         LDAPMod **mods;
@@ -334,8 +342,12 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entr
 ** backend instance.
 */
 
-int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-        int *returncode, char *returntext, void *arg) {
+int cb_instance_modify_config_callback(Slapi_PBlock *pb,
+                                       Slapi_Entry* entryBefore __attribute__((unused)),
+                                       Slapi_Entry* e __attribute__((unused)),
+                                       int *returncode,
+                                       char *returntext,
+                                       void *arg) {
 
 	cb_backend_instance * inst = (cb_backend_instance *) arg;
         LDAPMod **mods;
@@ -875,7 +887,7 @@ static void *cb_instance_userpassword_get(void *arg)
 	return data;
 }
 
-static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	int rc=LDAP_SUCCESS;
@@ -907,7 +919,7 @@ static void *cb_instance_sizelimit_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -931,7 +943,7 @@ static void *cb_instance_timelimit_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_timelimit_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_timelimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -955,7 +967,7 @@ static void *cb_instance_max_test_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -977,7 +989,7 @@ static void *cb_instance_max_idle_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_max_idle_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_max_idle_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1000,7 +1012,7 @@ static void *cb_instance_hoplimit_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1022,7 +1034,7 @@ static void *cb_instance_maxbconn_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1044,7 +1056,7 @@ static void *cb_instance_maxconn_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1066,7 +1078,7 @@ static void *cb_instance_abandonto_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_abandonto_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_abandonto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 
@@ -1098,7 +1110,7 @@ static void *cb_instance_maxbconc_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1120,7 +1132,7 @@ static void *cb_instance_maxconc_get(void *arg)
 	return (void *) data;
 }
 
-static int cb_instance_maxconc_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_maxconc_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1142,7 +1154,7 @@ static void *cb_instance_imperson_get(void *arg)
         return (void *) data;
 }
 
-static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	int rc=LDAP_SUCCESS;
@@ -1183,7 +1195,7 @@ static void *cb_instance_connlife_get(void *arg)
         return (void *) data; 
 }
 
-static int cb_instance_connlife_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_connlife_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1205,7 +1217,7 @@ static void *cb_instance_bindto_get(void *arg)
         return (void *) data;   
 }
 
-static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1233,7 +1245,7 @@ static void *cb_instance_opto_get(void *arg)
         return (void *) data;   
 }
 
-static int cb_instance_opto_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_opto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
         cb_backend_instance * inst=(cb_backend_instance *) arg;
         if (apply) {
@@ -1256,7 +1268,7 @@ static void *cb_instance_ref_get(void *arg)
         return (void *) data;    
 }
 
-static int cb_instance_ref_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_ref_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1278,7 +1290,7 @@ static void *cb_instance_acl_get(void *arg)
         return (void *) data;
 }
 
-static int cb_instance_acl_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_acl_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 
@@ -1308,7 +1320,7 @@ static void *cb_instance_bindretry_get(void *arg)
         return (void *) data; 
 }
 
-static int cb_instance_bindretry_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static int cb_instance_bindretry_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
@@ -1578,8 +1590,12 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
 ** won't be taken into account until the server restarts
 */
 
-int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
-        int *returncode, char *returntext, void *arg) {
+int cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                       Slapi_Entry* e,
+                                       Slapi_Entry* entryAfter __attribute__((unused)),
+                                       int *returncode,
+                                       char *returntext __attribute__((unused)),
+                                       void *arg) {
 
         char                    buf[CB_BUFSIZE];
         struct berval           val;
@@ -1663,8 +1679,12 @@ int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 ** Ooops!!! The backend instance is being deleted
 */
 
-int cb_instance_delete_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2,
-    int *returncode, char *returntext, void *arg) {
+int cb_instance_delete_config_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                       Slapi_Entry* e __attribute__((unused)),
+                                       Slapi_Entry* e2 __attribute__((unused)),
+                                       int *returncode __attribute__((unused)),
+                                       char *returntext __attribute__((unused)),
+                                       void *arg) {
 
 	cb_backend_instance * inst = (cb_backend_instance *) arg;
 	int rc;
@@ -1710,7 +1730,7 @@ int cb_instance_delete_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 	return SLAPI_DSE_CALLBACK_OK;
 }
 
-static void cb_instance_add_monitor_later(time_t when, void *arg) {
+static void cb_instance_add_monitor_later(time_t when __attribute__((unused)), void *arg) {
 
 	cb_backend_instance * inst = (cb_backend_instance *) arg;
 
@@ -1737,8 +1757,12 @@ static void cb_instance_add_monitor_later(time_t when, void *arg) {
 }
 
 
-int cb_instance_add_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2,
-       int *returncode, char *returntext, void *arg) {
+int cb_instance_add_config_check_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                          Slapi_Entry* e,
+                                          Slapi_Entry* e2 __attribute__((unused)),
+                                          int *returncode,
+                                          char *returntext,
+                                          void *arg) {
 
        	int 			rc=LDAP_SUCCESS;
 	cb_backend_instance 	*inst;
@@ -1793,8 +1817,12 @@ int cb_instance_add_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slap
 ** <arg> : (cb_backend *)
 */
 
-int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2,
-       int *returncode, char *returntext, void *arg) {
+int cb_instance_add_config_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                    Slapi_Entry* e,
+                                    Slapi_Entry* e2 __attribute__((unused)),
+                                    int *returncode,
+                                    char *returntext,
+                                    void *arg) {
 
        	int 			rc=LDAP_SUCCESS;
 	cb_backend_instance 	*inst;

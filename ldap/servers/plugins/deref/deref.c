@@ -202,7 +202,7 @@ deref_init(Slapi_PBlock *pb)
  * Creates config lock and loads config cache.
  */
 static int
-deref_start(Slapi_PBlock * pb)
+deref_start(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_start\n");
@@ -222,7 +222,7 @@ deref_start(Slapi_PBlock * pb)
  * Cleans up the config cache.
  */
 static int
-deref_close(Slapi_PBlock * pb)
+deref_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_close\n");
@@ -386,7 +386,7 @@ deref_parse_ctrl_value(DerefSpecList *speclist, const struct berval *ctrlbv, int
 }
 
 static int
-deref_incompatible_ctrl(const char *oid)
+deref_incompatible_ctrl(const char *oid __attribute__((unused)))
 {
     return 0; /* no known incompatible ctrls yet */
 }
@@ -756,7 +756,7 @@ deref_pre_entry(Slapi_PBlock *pb)
 
 /* consumer operation extension constructor */
 static void *
-deref_operation_extension_ctor(void *object, void *parent)
+deref_operation_extension_ctor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     /* we only set the extension value explicitly if the
        client requested the control - see deref_pre_search */
@@ -765,7 +765,7 @@ deref_operation_extension_ctor(void *object, void *parent)
 
 /* consumer operation extension destructor */
 static void
-deref_operation_extension_dtor(void *ext, void *object, void *parent)
+deref_operation_extension_dtor(void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     DerefSpecList *speclist = (DerefSpecList *)ext;
     delete_DerefSpecList(&speclist);

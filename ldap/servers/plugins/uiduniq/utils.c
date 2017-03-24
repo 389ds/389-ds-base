@@ -88,7 +88,7 @@ readPblockAndEntry( Slapi_DN *baseDN, const char *filter,
  *   0 - the entry doesn't contain the object class value
  */
 int
-entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
+entryHasObjectClass(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *e,
 					const char *objectClass) {
 	Slapi_Attr *attr;
 	Slapi_Value *v;

@@ -492,7 +492,7 @@ width of long (32-bit or 64-bit), it's stored using 4bytes by the server [153306
    <0 byte modop><null terminated attr name><4 byte value count>
    <4 byte value size><value1><4 byte value size><value2>
 */
-void print_changelog(unsigned char *data, int len)
+void print_changelog(unsigned char *data, int len __attribute__((unused)))
 {
     uint8_t version;
     unsigned long operation_type;
@@ -766,7 +766,7 @@ _entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
 }
 
 static void
-display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
+display_entryrdn_self(DB *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
     DBC *cursor = NULL;
     DBT key, data;
@@ -810,7 +810,7 @@ bail:
 }
 
 static void
-display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent)
+display_entryrdn_parent(DB *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
     DBC *cursor = NULL;
     DBT key, data;
@@ -850,7 +850,7 @@ bail:
 }
 
 static void
-display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
+display_entryrdn_children(DB *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
     DBC *cursor = NULL;
     DBT key, data;

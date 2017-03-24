@@ -233,7 +233,7 @@ schedule_set(Schedule *sch, Slapi_Attr *attr)
  * Returns the schedule.
  */
 char **
-schedule_get(Schedule *sch)
+schedule_get(Schedule *sch __attribute__((unused)))
 {
 	char **return_value = NULL;
 
@@ -466,7 +466,7 @@ schedule_next_nolock (Schedule *sch, PRBool start)
  * should commence, zero if it should not.
  */
 int
-schedule_notify(Schedule *sch, Slapi_PBlock *pb)
+schedule_notify(Schedule *sch __attribute__((unused)), Slapi_PBlock *pb __attribute__((unused)))
 {
 	int return_value = 0;
 
@@ -604,7 +604,7 @@ schedule_window_state_change_event (Schedule *sch)
 /* this function is called by the even queue the next time
    the window is opened or closed */
 static void 
-window_state_changed (time_t when, void *arg)
+window_state_changed (time_t when __attribute__((unused)), void *arg)
 {
     Schedule *sch = (Schedule*)arg;
     int open;

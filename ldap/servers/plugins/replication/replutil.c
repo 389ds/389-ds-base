@@ -151,7 +151,7 @@ entry_print( Slapi_Entry *e )
    replication module. I will switch it to NSPR once that stuff works.
 */
 
-int copyfile(char* source, char * destination, int overwrite, int mode) 
+int copyfile(char* source, char * destination, int overwrite __attribute__((unused)), int mode) 
 {
 #ifdef DB_USE_64LFS
 #define OPEN_FUNCTION dblayer_open_large
@@ -739,9 +739,9 @@ repl_set_mtn_state_and_referrals(
  * 
  */
 int
-repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
+repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn __attribute__((unused)),
 					 char **mtn_be_names, int be_count,
-					 Slapi_DN * node_dn, int *mtn_be_states,
+					 Slapi_DN * node_dn __attribute__((unused)), int *mtn_be_states,
 					 int root_mode)
 {
 	char * requestor_dn;

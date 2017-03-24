@@ -100,7 +100,7 @@ typedef struct listener_info {
 #endif
 } listener_info;
 
-static int listeners = 0; /* number of listener sockets */
+static size_t listeners = 0; /* number of listener sockets */
 static listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
 
 static int enable_nunc_stans = 0; /* if nunc-stans is set to enabled, set to 1 in slapd_daemon */
@@ -137,8 +137,8 @@ get_pid_file(void)
 }
 
 static int
-accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
-	int addrlen, int secure, int local, PRFileDesc **pr_clonefd)
+accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
+	int addrlen __attribute__((unused)), int secure, int local, PRFileDesc **pr_clonefd)
 {
 	int ns = 0;
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
@@ -271,7 +271,7 @@ int daemon_pre_setuid_init(daemon_ports_t *ports)
 static int time_shutdown = 0;
 
 void * 
-time_thread(void *nothing)
+time_thread(void *nothing __attribute__((unused)))
 {
     PRIntervalTime    interval;
 
@@ -417,7 +417,7 @@ disk_mon_add_dir(char ***list, char *directory)
  *  We gather all the log, txn log, config, and db directories
  */
 void
-disk_mon_get_dirs(char ***list, int logs_critical){
+disk_mon_get_dirs(char ***list, int logs_critical __attribute__((unused))){
     slapdFrontendConfig_t *config = getFrontendConfig();
     Slapi_Backend *be = NULL;
     char *cookie = NULL;
@@ -519,7 +519,7 @@ disk_mon_check_diskspace(char **dirs, PRUint64 threshold, PRUint64 *disk_space)
  *  Future - it would be nice to be able to email an alert.
  */
 void
-disk_monitoring_thread(void *nothing)
+disk_monitoring_thread(void *nothing __attribute__((unused)))
 {
     char **dirs = NULL;
     char *dirstr = NULL;
@@ -750,7 +750,7 @@ disk_monitoring_thread(void *nothing)
 static void
 handle_listeners(Connection_Table *ct)
 {
-	int idx;
+	size_t idx;
 	for (idx = 0; idx < listeners; ++idx) {
 		int fdidx = listener_idxs[idx].idx;
 		PRFileDesc *listenfd = listener_idxs[idx].listenfd;
@@ -980,7 +980,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	PRFileDesc **n_tcps = NULL; 
 	PRFileDesc **s_tcps = NULL; 
 	PRFileDesc **i_unix = NULL;
-	PRFileDesc **fdesp = NULL; 
+	PRFileDesc **fdesp = NULL;
 	PRIntn num_poll = 0;
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
 	PRThread *time_thread_p;
@@ -1121,7 +1121,6 @@ void slapd_daemon( daemon_ports_t *ports )
 
 	/* We are now ready to accept incoming connections */
 	if ( n_tcps != NULL ) {
-		PRFileDesc **fdesp;
 		PRNetAddr  **nap = ports->n_listenaddr;
 		for (fdesp = n_tcps; fdesp && *fdesp; fdesp++, nap++) {
 			if ( PR_Listen( *fdesp, config_get_listen_backlog_size() ) == PR_FAILURE ) {
@@ -1140,7 +1139,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	}
 
 	if ( s_tcps != NULL ) {
-		PRFileDesc **fdesp;
 		PRNetAddr  **sap = ports->s_listenaddr;
 		for (fdesp = s_tcps; fdesp && *fdesp; fdesp++, sap++) {
 			if ( PR_Listen( *fdesp, config_get_listen_backlog_size() ) == PR_FAILURE ) {
@@ -1160,7 +1158,6 @@ void slapd_daemon( daemon_ports_t *ports )
 
 #if defined(ENABLE_LDAPI)
 	if( i_unix != NULL ) {
-		PRFileDesc **fdesp;
 		PRNetAddr  **iap = ports->i_listenaddr;
 		for (fdesp = i_unix; fdesp && *fdesp; fdesp++, iap++) {
 			if ( PR_Listen(*fdesp, config_get_listen_backlog_size()) == PR_FAILURE) {
@@ -1472,7 +1469,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 	PRIntn count = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	int max_threads_per_conn = config_get_maxthreadsperconn();
-	int n_listeners = 0;
+	size_t n_listeners = 0;
 
 	accept_new_connections = ((ct->size - g_get_current_conn_count())
 		> slapdFrontendConfig->reservedescriptors);
@@ -1719,7 +1716,7 @@ daemon_register_reslimits( void )
 }
 
 static void
-handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
+handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused)))
 {
 	Connection *c;
 	time_t curtime = current_time();
@@ -2084,7 +2081,7 @@ slapd_poll( void *handle, int output )
  */
 #if defined(USE_OPENLDAP)
 static int
-write_function( int ignore, void *buffer, int count, void *handle )
+write_function( int ignore __attribute__((unused)), void *buffer, int count, void *handle )
 #else
 static int
 write_function( int ignore, const void *buffer, int count, struct lextiof_socket_private *handle )
@@ -2181,14 +2178,14 @@ openldap_write_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 }
 
 static int
-openldap_io_ctrl(Sockbuf_IO_Desc *sbiod, int opt, void *arg)
+openldap_io_ctrl(Sockbuf_IO_Desc *sbiod __attribute__((unused)), int opt __attribute__((unused)), void *arg __attribute__((unused)))
 {
 	PR_ASSERT(0); /* not sure if this is needed */
 	return -1;
 }
 
 static int 
-openldap_io_close(Sockbuf_IO_Desc *sbiod)
+openldap_io_close(Sockbuf_IO_Desc *sbiod __attribute__((unused)))
 {
 	return 0; /* closing done in connection_cleanup() */
 }
@@ -2840,7 +2837,7 @@ write_pid_file(void)
 }
 
 static void
-set_shutdown (int sig)
+set_shutdown (int sig __attribute__((unused)))
 { 
     /* don't log anything from a signal handler:
      * you could be holding a lock when the signal was trapped.  more
@@ -2861,7 +2858,7 @@ set_shutdown (int sig)
 
 #ifdef ENABLE_NUNC_STANS
 static void
-ns_set_user(struct ns_job_t *job)
+ns_set_user(struct ns_job_t *job __attribute__((unused)))
 {
     /* This literally does nothing. We intercept user signals (USR1, USR2) */
     /* Could be good for a status output, or an easter egg. */
@@ -2921,7 +2918,7 @@ slapd_do_nothing (int sig)
 #endif   /* LINUX */
 
 void
-slapd_wait4child(int sig)
+slapd_wait4child(int sig __attribute__((unused)))
 {
         WAITSTATUSTYPE     status;
 
@@ -2945,7 +2942,7 @@ slapd_wait4child(int sig)
 
 static PRFileDesc **
 createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
-		int secure, int local)
+		int secure __attribute__((unused)), int local)
 {
 	PRFileDesc			**sock;
 	PRNetAddr			sa_server;

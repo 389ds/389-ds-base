@@ -128,7 +128,7 @@ int set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 {
 	char 		*timestr;
 	time_t		unlock_time;
-	char        retry_cnt[8]; /* 1-65535 */
+	char        retry_cnt[16] = {0}; /* 1-65535 */
 	const char *dn = NULL; 
 	Slapi_DN *sdn = NULL; 
 	passwdPolicy *pwpolicy = NULL;

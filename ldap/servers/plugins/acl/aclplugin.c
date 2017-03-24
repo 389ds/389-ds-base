@@ -263,7 +263,7 @@ void * aclplugin_get_identity(int plug) {
 }
 
 int
-aclplugin_init (Slapi_PBlock *pb )
+aclplugin_init (Slapi_PBlock *pb __attribute__((unused)))
 {
 
 	int rc = 0; /* OK */
@@ -273,7 +273,7 @@ aclplugin_init (Slapi_PBlock *pb )
 
 }
 int
-aclplugin_stop ( Slapi_PBlock *pb )
+aclplugin_stop ( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int rc = 0; /* OK */
 

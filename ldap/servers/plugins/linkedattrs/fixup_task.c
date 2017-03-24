@@ -29,9 +29,12 @@ static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
  * Function Implementations
  */
 int
-linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                Slapi_Entry *eAfter, int *returncode,
-                char *returntext, void *arg)
+linked_attrs_fixup_task_add(Slapi_PBlock *pb,
+                            Slapi_Entry *e,
+                            Slapi_Entry *eAfter __attribute__((unused)),
+                            int *returncode,
+                            char *returntext __attribute__((unused)),
+                            void *arg)
 {
 	PRThread *thread = NULL;
 	int rv = SLAPI_DSE_CALLBACK_OK;

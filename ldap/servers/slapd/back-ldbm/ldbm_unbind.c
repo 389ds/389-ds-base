@@ -16,7 +16,7 @@
 #include "back-ldbm.h"
 
 int
-ldbm_back_unbind( Slapi_PBlock *pb )
+ldbm_back_unbind( Slapi_PBlock *pb __attribute__((unused)))
 {
 	return( 0 );
 }

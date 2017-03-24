@@ -194,6 +194,7 @@ int ldapu_find_entire_tree (LDAP *ld, int scope,
 			(*res)[i++] = result;
 			break;
 		  }
+         /* FALLTHROUGH */
 	     case LDAPU_ERR_MULTIPLE_MATCHES:
 	          retval = rv;
 		  (*res)[i++] = result;

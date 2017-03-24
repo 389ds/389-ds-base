@@ -359,7 +359,7 @@ mep_start(Slapi_PBlock * pb)
  * Cleans up the config cache.
  */
 static int
-mep_close(Slapi_PBlock * pb)
+mep_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_close\n");

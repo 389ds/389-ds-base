@@ -181,8 +181,8 @@ ava_candidates(
     backend      *be,
     Slapi_Filter *f,
     int             ftype,
-    Slapi_Filter *nextf,
-    int             range,
+    Slapi_Filter *nextf __attribute__((unused)),
+    int             range __attribute__((unused)),
     int             *err,
     int             allidslimit
 )

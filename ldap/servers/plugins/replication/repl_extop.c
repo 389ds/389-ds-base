@@ -608,7 +608,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	PRBool isInc = PR_FALSE; /* true if incremental update */
 	char *locking_purl = NULL; /* the supplier contacting us */
 	char *current_purl = NULL; /* the supplier which already has exclusive access */
-	char locking_session[24];
+	char locking_session[42] = {0};
 	char *data_guid = NULL;
 	struct berval *data = NULL;
 	int is90 = 0;
@@ -1921,7 +1921,7 @@ free_and_return:
  * supportedextension attribute in the root DSE.
  */
 int
-extop_noop(Slapi_PBlock *pb)
+extop_noop(Slapi_PBlock *pb __attribute__((unused)))
 {
 	return SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
 }

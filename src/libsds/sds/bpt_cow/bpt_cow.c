@@ -266,8 +266,8 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                 /* Now we do borrow and merge for branches. */
 
                 /* Get siblings */
-                sds_bptree_node *left = NULL;
-                sds_bptree_node *right = NULL;
+                left = NULL;
+                right = NULL;
                 /* This updates the left and right parent paths, but does NOT cow!!! */
                 sds_bptree_cow_node_siblings(next_node, &left, &right);
                 /* Note the conditions for HALF_CAPACITY change here due to 

@@ -36,8 +36,12 @@
  */ 
 static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 										 int *returncode, char *returntext, void *arg);
-static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-								int *returncode, char *returntext, void *arg)
+static int memberof_search (Slapi_PBlock *pb __attribute__((unused)),
+                            Slapi_Entry* entryBefore __attribute__((unused)),
+                            Slapi_Entry* e __attribute__((unused)),
+                            int *returncode __attribute__((unused)),
+                            char *returntext __attribute__((unused)),
+                            void *arg __attribute__((unused)))
 {
 	return SLAPI_DSE_CALLBACK_OK;
 }
@@ -53,8 +57,12 @@ static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
 
-static int dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-						   int *returncode, char *returntext, void *arg)
+static int dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry* entryBefore __attribute__((unused)),
+                           Slapi_Entry* e __attribute__((unused)),
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg __attribute__((unused)))
 {
 	*returncode = LDAP_UNWILLING_TO_PERFORM;
 	return SLAPI_DSE_CALLBACK_ERROR;
@@ -63,7 +71,7 @@ static int dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
 static void
 memberof_free_scope(Slapi_DN **scopes, int *count)
 {
-	int i = 0;
+	size_t i = 0;
 
 	while(scopes && scopes[i]){
 		slapi_sdn_free(&scopes[i]);
@@ -169,8 +177,12 @@ memberof_release_config()
  * Validate the pending changes in the e entry.
  */
 int
-memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-	int *returncode, char *returntext, void *arg)
+memberof_validate_config (Slapi_PBlock *pb,
+                          Slapi_Entry* entryBefore __attribute__((unused)),
+                          Slapi_Entry* e,
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
 {
 	Slapi_Attr *memberof_attr = NULL;
 	Slapi_Attr *group_attr = NULL;
@@ -448,8 +460,12 @@ done:
  * memberof_validate_config()  must have already been called.
  */
 int
-memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-	int *returncode, char *returntext, void *arg)
+memberof_apply_config (Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* entryBefore __attribute__((unused)),
+                       Slapi_Entry* e,
+                       int *returncode,
+                       char *returntext,
+                       void *arg __attribute__((unused)))
 {
 	Slapi_Entry *config_entry = NULL;
 	Slapi_DN *config_sdn = NULL;

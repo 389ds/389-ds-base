@@ -66,8 +66,14 @@ dd/mm/yy | Author	| Comments
 	DESCRIPTION :
  *****************************************************************************/
 int getFdFromLdapSession (
+#ifdef SOLARIS_LIBLDAP
 	LDAP	*ld,
-	int	*fd)
+	int	*fd
+#else
+	LDAP	*ld __attribute__((unused)),
+	int	*fd __attribute__((unused))
+#endif
+)
 {
 #ifdef SOLARIS_LIBLDAP						/*JLS 19-09-00*/
   *fd = ld->ld_sb.sb_sd;

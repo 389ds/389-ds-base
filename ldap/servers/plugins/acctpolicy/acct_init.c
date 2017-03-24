@@ -206,7 +206,7 @@ acct_policy_start( Slapi_PBlock *pb )
 }
 
 int
-acct_policy_close( Slapi_PBlock *pb )
+acct_policy_close( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int rc = 0;
 

@@ -17,7 +17,7 @@
 #include "repl5.h"
 
 int
-legacy_postop( Slapi_PBlock *pb, const char *caller, int operation_type)
+legacy_postop( Slapi_PBlock *pb, const char *caller __attribute__((unused)), int operation_type)
 {
 	int rc = 0;
     Object *r_obj;
@@ -64,7 +64,7 @@ legacy_postop( Slapi_PBlock *pb, const char *caller, int operation_type)
 }
 
 int
-legacy_preop(Slapi_PBlock *pb, const char *caller, int operation_type)
+legacy_preop(Slapi_PBlock *pb, const char *caller __attribute__((unused)), int operation_type)
 {
 	int rc = 0;
 	Slapi_Operation *operation = NULL;

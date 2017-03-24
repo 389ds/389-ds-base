@@ -199,7 +199,7 @@ void views_unlock(void)
 	---------
 	This function publishes the interface for this plugin
 */
-static int views_start( Slapi_PBlock *pb )
+static int views_start( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void **statechange_api;
@@ -348,7 +348,7 @@ bail:
 	---------
 	unregisters the interface for this plugin
 */
-static int views_close( Slapi_PBlock *pb )
+static int views_close( Slapi_PBlock *pb __attribute__((unused)))
 {
     void **statechange_api;
 	slapi_log_err(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_close\n");
@@ -1362,7 +1362,8 @@ static void views_cache_add_ll_entry(void** attrval, void *theVal)
 
 	update internal view cache after state change
 */
-static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Slapi_PBlock *pb, void *caller_data )
+static void views_update_views_cache( Slapi_Entry *e, char *dn __attribute__((unused)),
+                                      int modtype, Slapi_PBlock *pb, void *caller_data __attribute__((unused)))
 {
 	char *pDn;
 	viewEntry *theView;
@@ -1861,8 +1862,8 @@ end:
  * We simply signal to rebuild the cache in this case
  *
  */
-static void views_cache_backend_state_change(void *handle, char *be_name, 
-     int old_be_state, int new_be_state) 
+static void views_cache_backend_state_change(void *handle __attribute__((unused)), char *be_name __attribute__((unused)),
+                                             int old_be_state __attribute__((unused)), int new_be_state __attribute__((unused)))
 {
 	/* we will create a thread to do this since
 	 * calling views_cache_create() directly will
@@ -1881,7 +1882,7 @@ static void views_cache_backend_state_change(void *handle, char *be_name,
 	}
 }
 
-static void views_cache_act_on_change_thread(void *arg)
+static void views_cache_act_on_change_thread(void *arg __attribute__((unused)))
 {
 	views_cache_create();
 }

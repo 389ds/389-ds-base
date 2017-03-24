@@ -225,8 +225,12 @@ bail:
 }
 
 static int
-usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-                int *returncode, char *returntext, void *arg)
+usn_cleanup_add(Slapi_PBlock *pb,
+                Slapi_Entry *e,
+                Slapi_Entry *eAfter __attribute__((unused)),
+                int *returncode,
+                char *returntext __attribute__((unused)),
+                void *arg)
 {
     PRThread *thread = NULL;
     char *cn = NULL;

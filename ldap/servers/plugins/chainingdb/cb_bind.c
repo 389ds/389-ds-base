@@ -65,9 +65,9 @@ cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
 }
 
 static int
-cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, ber_tag_t method, 
-                     char * mechanism, struct berval *creds, 
-                     LDAPControl **reqctrls, char **matcheddnp, 
+cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, ber_tag_t method __attribute__((unused)),
+                     char * mechanism __attribute__((unused)), struct berval *creds,
+                     LDAPControl **reqctrls, char **matcheddnp,
                      char **errmsgp, struct berval ***refurlsp,
                      LDAPControl ***resctrlsp , int * status )
 {

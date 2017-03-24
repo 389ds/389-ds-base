@@ -19,7 +19,6 @@
 */
 
 void cb_set_acl_policy(Slapi_PBlock *pb) {
- 
         Slapi_Backend *be;
         cb_backend_instance *cb;
         int noacl;
@@ -27,13 +26,14 @@ void cb_set_acl_policy(Slapi_PBlock *pb) {
         slapi_pblock_get( pb, SLAPI_BACKEND, &be );
         cb = cb_get_instance(be);
 
-		/* disable acl checking if the local_acl flag is not set
-		   or if the associated backend is disabled */
+        /* disable acl checking if the local_acl flag is not set
+           or if the associated backend is disabled */
         noacl=!(cb->local_acl) || cb->associated_be_is_disabled;
- 
+
+        /* These branches are identical. Can we remove the if condition? */
         if (noacl) {
                 slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NO_ACL, &noacl);
-	} else {
+        } else {
                 /* Be very conservative about acl evaluation */
                 slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NO_ACL, &noacl);
         }
@@ -45,7 +45,7 @@ int cb_access_allowed(
         char                *attr,              /* Attribute of the entry */
         struct berval       *val,               /* value of attr. NOT USED */
         int                 access,              /* access rights */
-	char 		    **errbuf
+        char                **errbuf __attribute__((unused))
         )
 
 {

@@ -46,7 +46,7 @@ int _getopt_ext_done()
 #endif
 
 static
-int _getopt_ext_find(int argc,
+int _getopt_ext_find(int argc __attribute__((unused)),
 					 char **argv,
 					 const struct opt_ext *longOpts)
 {
@@ -71,7 +71,7 @@ int _getopt_ext_find(int argc,
 }
 
 static
-int _getopt_ext_tailit(int argc,
+int _getopt_ext_tailit(int argc __attribute__((unused)),
 					   char **argv,
 					   int hasArg,
 					   int recognized)

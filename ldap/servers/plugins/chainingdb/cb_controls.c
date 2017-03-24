@@ -19,12 +19,12 @@
 
 static char * unsupported_ctrls[] = {LDAP_CONTROL_PERSISTENTSEARCH,NULL};
 
-int cb_is_control_forwardable(cb_backend * cb, char *controloid) {
+int cb_is_control_forwardable(cb_backend * cb __attribute__((unused)), char *controloid) {
     return (!(charray_inlist(unsupported_ctrls,controloid)));
 }
 
 void
-cb_register_supported_control( cb_backend * cb, char *controloid, unsigned long controlops )
+cb_register_supported_control( cb_backend * cb, char *controloid, unsigned long controlops __attribute__((unused)))
 {
     /* For now, ignore controlops */
     if ( controloid != NULL ) {

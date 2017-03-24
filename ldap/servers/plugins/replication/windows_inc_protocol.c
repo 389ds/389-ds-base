@@ -1518,7 +1518,7 @@ windows_inc_stop(Private_Repl_Protocol *prp)
 }
 
 static int
-windows_inc_status(Private_Repl_Protocol *prp)
+windows_inc_status(Private_Repl_Protocol *prp __attribute__((unused)))
 {
 	int return_value = 0;
 
@@ -1624,7 +1624,7 @@ loser:
 
 
 static void
-windows_inc_backoff_expired(time_t timer_fire_time, void *arg)
+windows_inc_backoff_expired(time_t timer_fire_time __attribute__((unused)), void *arg)
 {
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)arg;
 
@@ -1765,7 +1765,7 @@ event2name (int event)
 
 
 static void 
-periodic_dirsync(time_t when, void *arg)
+periodic_dirsync(time_t when __attribute__((unused)), void *arg)
 {
 	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> periodic_dirsync\n" );
 

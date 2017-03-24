@@ -81,7 +81,12 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
  * instance is starting up.
  */
 int 
-ldbm_index_init_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_index_init_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                               Slapi_Entry* e,
+                               Slapi_Entry* entryAfter __attribute__((unused)),
+                               int *returncode,
+                               char *returntext,
+                               void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
 
@@ -100,7 +105,12 @@ ldbm_index_init_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* en
  * Config DSE callback for index additions.
  */	
 int 
-ldbm_instance_index_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* eAfter, int *returncode, char *returntext, void *arg) 
+ldbm_instance_index_config_add_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                        Slapi_Entry* e,
+                                        Slapi_Entry* eAfter __attribute__((unused)),
+                                        int *returncode,
+                                        char *returntext,
+                                        void *arg)
 { 
     ldbm_instance *inst = (ldbm_instance *) arg;
     char *index_name;
@@ -130,7 +140,12 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_
  * Config DSE callback for index deletes.
  */
 int 
-ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg) 
+ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb,
+                                           Slapi_Entry* e,
+                                           Slapi_Entry* entryAfter __attribute__((unused)),
+                                           int *returncode,
+                                           char *returntext,
+                                           void *arg)
 { 
   ldbm_instance *inst = (ldbm_instance *) arg;
   Slapi_Attr *attr;
@@ -185,8 +200,12 @@ bail:
  * this function is huge!
  */
 int
-ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
-        Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                           Slapi_Entry *e,
+                                           Slapi_Entry *entryAfter,
+                                           int *returncode,
+                                           char *returntext,
+                                           void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     Slapi_Attr *attr;

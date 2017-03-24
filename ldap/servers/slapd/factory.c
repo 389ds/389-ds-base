@@ -385,7 +385,7 @@ factory_destroy_extension(int type,void *object,void *parent,void **extension)
  */
 int
 slapi_unregister_object_extension(
-    const char* pluginname,
+    const char* pluginname __attribute__((unused)),
     const char* objectname,
     int *objecttype,
     int *extensionhandle)

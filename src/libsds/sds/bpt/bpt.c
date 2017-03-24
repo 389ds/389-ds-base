@@ -294,8 +294,8 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
             /* Is the node less than half? */
             if (target_node != NULL && next_node->item_count < SDS_BPTREE_HALF_CAPACITY) {
                 /* Get our siblings. */
-                sds_bptree_node *left = NULL;
-                sds_bptree_node *right = NULL;
+                left = NULL;
+                right = NULL;
                 sds_bptree_node_siblings(next_node, &left, &right);
                 /* Note the conditions for HALF_CAPACITY change here due to 
                  * space requirements. we only merge if < half. IE for 7 keys

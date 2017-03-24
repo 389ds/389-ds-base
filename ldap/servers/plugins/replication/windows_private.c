@@ -324,7 +324,7 @@ windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 }
 
 void 
-windows_update_done(Repl_Agmt *agmt, int is_total)
+windows_update_done(Repl_Agmt *agmt, int is_total __attribute__((unused)))
 {
 	/* "flush" the changes made during the update to the agmt */
 	/* get the agmt entry */
@@ -2185,9 +2185,9 @@ test_winsync_api_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
 }
 
 static void
-test_winsync_dirsync_search_params_cb(void *cbdata, const char *agmt_dn,
-                                      char **base, int *scope, char **filter,
-                                      char ***attrs, LDAPControl ***serverctrls)
+test_winsync_dirsync_search_params_cb(void *cbdata __attribute__((unused)), const char *agmt_dn __attribute__((unused)),
+                                      char **base __attribute__((unused)), int *scope __attribute__((unused)), char **filter __attribute__((unused)),
+                                      char ***attrs __attribute__((unused)), LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_dirsync_search_params_cb -- begin\n");
@@ -2200,9 +2200,9 @@ test_winsync_dirsync_search_params_cb(void *cbdata, const char *agmt_dn,
 
 /* called before searching for a single entry from AD - agmt_dn will be NULL */
 static void
-test_winsync_pre_ad_search_cb(void *cbdata, const char *agmt_dn,
-                              char **base, int *scope, char **filter,
-                              char ***attrs, LDAPControl ***serverctrls)
+test_winsync_pre_ad_search_cb(void *cbdata __attribute__((unused)), const char *agmt_dn __attribute__((unused)),
+                              char **base __attribute__((unused)), int *scope __attribute__((unused)), char **filter __attribute__((unused)),
+                              char ***attrs __attribute__((unused)), LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_search_cb -- begin\n");
@@ -2215,9 +2215,9 @@ test_winsync_pre_ad_search_cb(void *cbdata, const char *agmt_dn,
 
 /* called before an internal search to get a single DS entry - agmt_dn will be NULL */
 static void
-test_winsync_pre_ds_search_entry_cb(void *cbdata, const char *agmt_dn,
-                                    char **base, int *scope, char **filter,
-                                    char ***attrs, LDAPControl ***serverctrls)
+test_winsync_pre_ds_search_entry_cb(void *cbdata __attribute__((unused)), const char *agmt_dn __attribute__((unused)),
+                                    char **base __attribute__((unused)), int *scope __attribute__((unused)), char **filter __attribute__((unused)),
+                                    char ***attrs __attribute__((unused)), LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_search_cb -- begin\n");
@@ -2230,9 +2230,9 @@ test_winsync_pre_ds_search_entry_cb(void *cbdata, const char *agmt_dn,
 
 /* called before the total update to get all entries from the DS to sync to AD */
 static void
-test_winsync_pre_ds_search_all_cb(void *cbdata, const char *agmt_dn,
-                                  char **base, int *scope, char **filter,
-                                  char ***attrs, LDAPControl ***serverctrls)
+test_winsync_pre_ds_search_all_cb(void *cbdata __attribute__((unused)), const char *agmt_dn __attribute__((unused)),
+                                  char **base __attribute__((unused)), int *scope __attribute__((unused)), char **filter,
+                                  char ***attrs __attribute__((unused)), LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_search_all_cb -- orig filter [%s] -- begin\n",
@@ -2259,9 +2259,9 @@ test_winsync_pre_ds_search_all_cb(void *cbdata, const char *agmt_dn,
 }
 
 static void
-test_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
-                                Slapi_Mods *smods, int *do_modify)
+test_winsync_pre_ad_mod_user_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                Slapi_Mods *smods __attribute__((unused)), int *do_modify __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_user_cb -- begin\n");
@@ -2273,9 +2273,9 @@ test_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
-                                Slapi_Mods *smods, int *do_modify)
+test_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                Slapi_Mods *smods __attribute__((unused)), int *do_modify __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_group_cb -- begin\n");
@@ -2287,9 +2287,9 @@ test_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
-                                Slapi_Mods *smods, int *do_modify)
+test_winsync_pre_ds_mod_user_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                Slapi_Mods *smods __attribute__((unused)), int *do_modify __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_mod_user_cb -- begin\n");
@@ -2301,9 +2301,9 @@ test_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
-                                Slapi_Mods *smods, int *do_modify)
+test_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                Slapi_Mods *smods __attribute__((unused)), int *do_modify __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_mod_group_cb -- begin\n");
@@ -2315,8 +2315,8 @@ test_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
+test_winsync_pre_ds_add_user_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_add_user_cb -- begin\n");
@@ -2328,8 +2328,8 @@ test_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
+test_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_add_group_cb -- begin\n");
@@ -2341,9 +2341,9 @@ test_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                   Slapi_Entry *ad_entry, char **new_dn_string,
-                                   const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
+test_winsync_get_new_ds_user_dn_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                   Slapi_Entry *ad_entry __attribute__((unused)), char **new_dn_string,
+                                   const Slapi_DN *ds_suffix __attribute__((unused)), const Slapi_DN *ad_suffix __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_get_new_ds_user_dn_cb -- old dn [%s] -- begin\n",
@@ -2369,9 +2369,9 @@ test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_get_new_ds_group_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                   Slapi_Entry *ad_entry, char **new_dn_string,
-                                   const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
+test_winsync_get_new_ds_group_dn_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                   Slapi_Entry *ad_entry __attribute__((unused)), char **new_dn_string __attribute__((unused)),
+                                   const Slapi_DN *ds_suffix __attribute__((unused)), const Slapi_DN *ad_suffix __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_get_new_ds_group_dn_cb -- begin\n");
@@ -2383,10 +2383,10 @@ test_winsync_get_new_ds_group_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                     const Slapi_Entry *ds_entry,
-                                     const Slapi_DN *local_dn, LDAPMod * const *origmods,
-                                     Slapi_DN *remote_dn, LDAPMod ***modstosend)
+test_winsync_pre_ad_mod_user_mods_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                     const Slapi_Entry *ds_entry __attribute__((unused)),
+                                     const Slapi_DN *local_dn __attribute__((unused)), LDAPMod * const *origmods __attribute__((unused)),
+                                     Slapi_DN *remote_dn __attribute__((unused)), LDAPMod ***modstosend __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_user_mods_cb -- begin\n");
@@ -2398,10 +2398,10 @@ test_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
-                                     const Slapi_Entry *ds_entry,
-                                     const Slapi_DN *local_dn, LDAPMod * const *origmods,
-                                     Slapi_DN *remote_dn, LDAPMod ***modstosend)
+test_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                     const Slapi_Entry *ds_entry __attribute__((unused)),
+                                     const Slapi_DN *local_dn __attribute__((unused)), LDAPMod * const *origmods __attribute__((unused)),
+                                     Slapi_DN *remote_dn __attribute__((unused)), LDAPMod ***modstosend __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_group_mods_cb -- begin\n");
@@ -2413,8 +2413,8 @@ test_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
 }
 
 static int
-test_winsync_can_add_entry_to_ad_cb(void *cbdata, const Slapi_Entry *local_entry,
-                                    const Slapi_DN *remote_dn)
+test_winsync_can_add_entry_to_ad_cb(void *cbdata __attribute__((unused)), const Slapi_Entry *local_entry __attribute__((unused)),
+                                    const Slapi_DN *remote_dn __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_can_add_entry_to_ad_cb -- begin\n");
@@ -2427,8 +2427,8 @@ test_winsync_can_add_entry_to_ad_cb(void *cbdata, const Slapi_Entry *local_entry
 }
 
 static void
-test_winsync_begin_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
-                             const Slapi_DN *ad_subtree, int is_total)
+test_winsync_begin_update_cb(void *cbdata __attribute__((unused)), const Slapi_DN *ds_subtree __attribute__((unused)),
+                             const Slapi_DN *ad_subtree __attribute__((unused)), int is_total __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_begin_update_cb -- begin\n");
@@ -2440,8 +2440,8 @@ test_winsync_begin_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
 }
 
 static void
-test_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
-                           const Slapi_DN *ad_subtree, int is_total)
+test_winsync_end_update_cb(void *cbdata __attribute__((unused)), const Slapi_DN *ds_subtree __attribute__((unused)),
+                           const Slapi_DN *ad_subtree __attribute__((unused)), int is_total __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_end_update_cb -- begin\n");
@@ -2453,8 +2453,8 @@ test_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
 }
 
 static void
-test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
-                             const Slapi_DN *ad_subtree)
+test_winsync_destroy_agmt_cb(void *cbdata __attribute__((unused)), const Slapi_DN *ds_subtree __attribute__((unused)),
+                             const Slapi_DN *ad_subtree __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_destroy_agmt_cb -- begin\n");
@@ -2468,7 +2468,9 @@ test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
 }
 
 static void
-test_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+test_winsync_post_ad_mod_user_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                 Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                 Slapi_Mods *smods __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_user_cb -- begin\n");
@@ -2486,7 +2488,9 @@ test_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slap
 }
 
 static void
-test_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+test_winsync_post_ad_mod_group_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                  Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                  Slapi_Mods *smods __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_group_cb -- begin\n");
@@ -2504,7 +2508,9 @@ test_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Sla
 }
 
 static void
-test_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+test_winsync_post_ds_mod_user_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                 Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                 Slapi_Mods *smods __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_mod_user_cb -- begin\n");
@@ -2522,7 +2528,9 @@ test_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slap
 }
 
 static void
-test_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+test_winsync_post_ds_mod_group_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                  Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                  Slapi_Mods *smods __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_mod_group_cb -- begin\n");
@@ -2540,7 +2548,9 @@ test_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Sla
 }
 
 static void
-test_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+test_winsync_post_ds_add_user_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                 Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                 int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_add_user_cb -- begin\n");
@@ -2558,7 +2568,9 @@ test_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slap
 }
 
 static void
-test_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+test_winsync_post_ds_add_group_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                  Slapi_Entry *ad_entry __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                  int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_add_group_cb -- begin\n");
@@ -2576,7 +2588,8 @@ test_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Sla
 }
 
 static void
-test_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+test_winsync_pre_ad_add_user_cb(void *cookie __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                Slapi_Entry *ad_entry __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_add_user_cb -- begin\n");
@@ -2595,7 +2608,8 @@ test_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry
 }
 
 static void
-test_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+test_winsync_pre_ad_add_group_cb(void *cookie __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                 Slapi_Entry *ad_entry __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_add_group_cb -- begin\n");
@@ -2614,7 +2628,8 @@ test_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entr
 }
 
 static void
-test_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+test_winsync_post_ad_add_user_cb(void *cookie __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                 Slapi_Entry *ad_entry __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_add_user_cb -- begin\n");
@@ -2632,7 +2647,8 @@ test_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entr
 }
 
 static void
-test_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+test_winsync_post_ad_add_group_cb(void *cookie __attribute__((unused)), Slapi_Entry *ds_entry __attribute__((unused)),
+                                  Slapi_Entry *ad_entry __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_add_group_cb -- begin\n");
@@ -2650,7 +2666,10 @@ test_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Ent
 }
 
 static void
-test_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+test_winsync_post_ad_mod_user_mods_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                      const Slapi_DN *local_dn __attribute__((unused)), const Slapi_Entry *ds_entry __attribute__((unused)),
+                                      LDAPMod * const *origmods __attribute__((unused)), Slapi_DN *remote_dn __attribute__((unused)),
+                                      LDAPMod ***modstosend __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_user_mods_cb  -- begin\n");
@@ -2668,7 +2687,10 @@ test_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry,
 }
 
 static void
-test_winsync_post_ad_mod_group_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+test_winsync_post_ad_mod_group_mods_cb(void *cookie __attribute__((unused)), const Slapi_Entry *rawentry __attribute__((unused)),
+                                       const Slapi_DN *local_dn __attribute__((unused)), const Slapi_Entry *ds_entry __attribute__((unused)),
+                                       LDAPMod * const *origmods __attribute__((unused)), Slapi_DN *remote_dn __attribute__((unused)),
+                                       LDAPMod ***modstosend __attribute__((unused)), int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_group_mods_cb  -- begin\n");
@@ -2802,7 +2824,7 @@ static void *test_winsync_api_v3[] = {
 };
 
 static int
-test_winsync_plugin_start(Slapi_PBlock *pb)
+test_winsync_plugin_start(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "--> test_winsync_plugin_start -- begin\n");
@@ -2819,7 +2841,7 @@ test_winsync_plugin_start(Slapi_PBlock *pb)
 }
 
 static int
-test_winsync_plugin_close(Slapi_PBlock *pb)
+test_winsync_plugin_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "--> test_winsync_plugin_close -- begin\n");

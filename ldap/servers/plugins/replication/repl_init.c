@@ -236,7 +236,7 @@ legacy_start( Slapi_PBlock *pb )
 
 /* Post-start function for the legacy replication plugin */
 static int
-legacy_poststart( Slapi_PBlock *pb )
+legacy_poststart( Slapi_PBlock *pb __attribute__((unused)))
 {
     int rc = 0; /* OK */
     return rc;
@@ -245,7 +245,7 @@ legacy_poststart( Slapi_PBlock *pb )
 
 /* Stop the legacy replication plugin */
 static int
-legacy_stop( Slapi_PBlock *pb )
+legacy_stop( Slapi_PBlock *pb __attribute__((unused)))
 {
     int rc= 0; /* OK */
 

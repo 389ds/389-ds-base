@@ -23,7 +23,7 @@
  */
 
 int
-chaining_back_abandon ( Slapi_PBlock *pb )
+chaining_back_abandon ( Slapi_PBlock *pb __attribute__((unused)) )
 {
     /*
      * Abandon forwarded to the farm server for scoped

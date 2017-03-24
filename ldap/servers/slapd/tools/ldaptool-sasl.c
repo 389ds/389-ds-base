@@ -149,7 +149,7 @@ ldaptool_free_defaults( void *defaults ) {
 }
 
 int
-ldaptool_sasl_interact( LDAP *ld, unsigned flags, void *defaults, void *prompts ) {
+ldaptool_sasl_interact( LDAP *ld __attribute__((unused)), unsigned flags, void *defaults, void *prompts ) {
 	sasl_interact_t		*interact = NULL;
 	ldaptoolSASLdefaults	*sasldefaults = defaults;
 	int			rc;
@@ -176,7 +176,7 @@ ldaptool_sasl_interact( LDAP *ld, unsigned flags, void *defaults, void *prompts 
 }
 
 static int 
-get_default(ldaptoolSASLdefaults *defaults, sasl_interact_t *interact, unsigned flags) {
+get_default(ldaptoolSASLdefaults *defaults, sasl_interact_t *interact, unsigned flags __attribute__((unused))) {
 	const char	*defvalue = interact->defresult;
 
 	if (defaults != NULL) {
@@ -215,7 +215,7 @@ get_default(ldaptoolSASLdefaults *defaults, sasl_interact_t *interact, unsigned 
  * value.
  */
 static int 
-get_new_value(sasl_interact_t *interact, unsigned flags) {
+get_new_value(sasl_interact_t *interact, unsigned flags __attribute__((unused))) {
 	char	*newvalue = NULL, str[1024];
 	int	len = 0;
 

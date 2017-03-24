@@ -305,7 +305,7 @@ eq_call_all(void)
 #define WORK_AVAILABLE ((NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= current_time()))
 
 static void
-eq_loop(void *arg)
+eq_loop(void *arg __attribute__((unused)))
 {
 	while (eq_running) {
 		PRIntervalTime timeout;

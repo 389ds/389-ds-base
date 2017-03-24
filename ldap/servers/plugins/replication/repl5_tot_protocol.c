@@ -664,7 +664,7 @@ repl5_tot_stop(Private_Repl_Protocol *prp)
 
 
 static int
-repl5_tot_status(Private_Repl_Protocol *prp)
+repl5_tot_status(Private_Repl_Protocol *prp __attribute__((unused)))
 {
 	int return_value = 0;
 	return return_value;
@@ -673,9 +673,10 @@ repl5_tot_status(Private_Repl_Protocol *prp)
 
 
 static void
-repl5_tot_noop(Private_Repl_Protocol *prp)
+repl5_tot_noop(Private_Repl_Protocol *prp __attribute__((unused)))
 {
 	/* noop */
+    return;
 }
 
 

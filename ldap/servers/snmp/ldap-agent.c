@@ -249,7 +249,7 @@ stats_table_find_row(unsigned long portnum)
  * be sent here.
  */
 int
-load_stats_table(netsnmp_cache *cache, void *foo)
+load_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attribute__((unused)))
 {
     server_instance *serv_p = NULL;
     stats_table_context *ctx = NULL;
@@ -379,7 +379,7 @@ load_stats_table(netsnmp_cache *cache, void *foo)
  * function for freeing the cache, so here it is.
  */
 void
-free_stats_table(netsnmp_cache *cache, void *foo)
+free_stats_table(netsnmp_cache *cache __attribute__((unused)), void *foo __attribute__((unused)))
 {
     return;
 }

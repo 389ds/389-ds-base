@@ -408,7 +408,7 @@ test_20_delete_non_branch_key(void **state)
     // Add many nodes.
     uint64_t i = 0;
 
-    for (uint64_t i = 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
+    for (i = 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
         result = sds_bptree_insert(binst, (void *)&i , NULL);
         assert_int_equal(result, SDS_SUCCESS);

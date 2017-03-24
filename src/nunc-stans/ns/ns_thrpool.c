@@ -1553,14 +1553,15 @@ ns_thrpool_wait(ns_thrpool_t *tp)
         pthread_cond_broadcast(&(tp->work_q_cv));
         pthread_mutex_unlock(&(tp->work_q_lock));
 
-        void *retval = NULL;
-        int32_t rc = pthread_join(thr->thr, &retval);
+        /* void *thread_retval = NULL; */
+        int32_t rc = pthread_join(thr->thr, NULL);
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_thrpool_wait joined thread, result %d\n", rc);
 #endif
         if (rc != 0) {
             /* NGK TODO - this is unused right now. */
             ns_log(LOG_ERR, "ns_thrpool_wait, failed to join thread %d", rc);
+            retval = PR_FAILURE;
         }
         ns_free(thr);
     }

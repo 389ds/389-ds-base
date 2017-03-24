@@ -727,7 +727,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 }
 
 int
-check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
+check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __attribute__((unused)))
 {
 	char *dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	passwdPolicy *pwpolicy=NULL;
@@ -1330,7 +1330,7 @@ int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 int
 slapi_add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
 	LDAPControl	new_ctrl;
-	char		buf[12];
+	char		buf[22] = {0};
 	
 	slapi_log_err(SLAPI_LOG_TRACE, "slapi_add_pwd_control", "=>\n");
 	
@@ -1348,7 +1348,7 @@ slapi_add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
 }
 
 void
-add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
+add_password_attrs( Slapi_PBlock *pb, Operation *op __attribute__((unused)), Slapi_Entry *e )
 {
 	struct berval   bv;
 	struct berval   *bvals[2];
@@ -2196,8 +2196,8 @@ check_pw_duration_value(const char *attr_name, char *value,
 }
 
 int
-check_pw_resetfailurecount_value(const char *attr_name, char *value,
-                                 long minval, long maxval, char *errorbuf, size_t ebuflen)
+check_pw_resetfailurecount_value(const char *attr_name __attribute__((unused)), char *value,
+                                 long minval __attribute__((unused)), long maxval __attribute__((unused)), char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
 	long duration = 0; /* in minutes */
@@ -2213,8 +2213,8 @@ check_pw_resetfailurecount_value(const char *attr_name, char *value,
 }
 
 int
-check_pw_storagescheme_value(const char *attr_name, char *value,
-                             long minval, long maxval, char *errorbuf, size_t ebuflen)
+check_pw_storagescheme_value(const char *attr_name __attribute__((unused)), char *value,
+                             long minval __attribute__((unused)), long maxval __attribute__((unused)), char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
 	struct pw_scheme *new_scheme = NULL;
@@ -2558,7 +2558,7 @@ struct slapi_pw_entry_ext {
  * constructor for the entry object extension.
  */
 static void *
-pw_entry_constructor(void *object, void *parent)
+pw_entry_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	struct slapi_pw_entry_ext *pw_extp = NULL;
 	Slapi_RWLock *rwlock;
@@ -2577,7 +2577,7 @@ pw_entry_constructor(void *object, void *parent)
  * destructor for the entry object extension.
  */
 static void
-pw_entry_destructor(void *extension, void *object, void *parent)
+pw_entry_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	struct slapi_pw_entry_ext *pw_extp = (struct slapi_pw_entry_ext *)extension;
 

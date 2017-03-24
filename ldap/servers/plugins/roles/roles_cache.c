@@ -425,7 +425,8 @@ static void roles_cache_wait_on_change(void * arg)
    This is called when a backend changes state (created|modified|deleted)
    We simply signal to update the associated role cache in this case
  */
-static void roles_cache_trigger_update_suffix(void *handle, char *be_name, int old_be_state, int new_be_state)
+static void roles_cache_trigger_update_suffix(void *handle __attribute__((unused)), char *be_name,
+                                              int old_be_state __attribute__((unused)), int new_be_state)
 {
 	roles_cache_def *current_role = roles_list;
 	const Slapi_DN *be_suffix_dn = NULL;
@@ -2209,7 +2210,7 @@ static int roles_cache_role_object_nested_free(role_object_nested *this_role)
        return 0;
 }
 
-static int roles_cache_dump( caddr_t data, caddr_t arg )
+static int roles_cache_dump( caddr_t data, caddr_t arg __attribute__((unused)))
 {
     role_object *this_role = (role_object*)data;
  

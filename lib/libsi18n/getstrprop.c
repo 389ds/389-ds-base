@@ -75,7 +75,7 @@ XP_GetStringFromMemory(const char* strLibraryName,int iToken)
 
 const char*
 XP_GetStringFromDatabase(const char* strLibraryName,
-                         const char* strLanguage,
+                         const char* strLanguage __attribute__((unused)),
                          int key)
 {
     const char *result = NULL;

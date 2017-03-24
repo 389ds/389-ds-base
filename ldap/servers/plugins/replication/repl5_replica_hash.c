@@ -208,13 +208,14 @@ void replica_enumerate_replicas (FNEnumReplica fn, void *arg)
 /* Helper functions */
 
 /* this function called for each hash node during hash destruction */
-static PRIntn replica_destroy_hash_entry (PLHashEntry *he, PRIntn index, void *arg)
+static PRIntn replica_destroy_hash_entry (PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
 {
     Object *r_obj;
     Replica *r;
     
-    if (he == NULL)
+    if (he == NULL) {
         return HT_ENUMERATE_NEXT;
+    }
 
     r_obj = (Object*)he->value;
     r = (Replica*)object_get_data (r_obj);
@@ -229,7 +230,7 @@ static PRIntn replica_destroy_hash_entry (PLHashEntry *he, PRIntn index, void *a
     return HT_ENUMERATE_REMOVE;
 }
 
-static PRIntn replica_enumerate (PLHashEntry *he, PRIntn index, void *hash_data)
+static PRIntn replica_enumerate (PLHashEntry *he, PRIntn index __attribute__((unused)), void *hash_data)
 {
     Object *r_obj;
     Replica *r;

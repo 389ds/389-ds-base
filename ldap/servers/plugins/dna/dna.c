@@ -677,7 +677,7 @@ dna_start(Slapi_PBlock * pb)
 	closes down the cache
 */
 static int
-dna_close(Slapi_PBlock * pb)
+dna_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_close\n");
@@ -1570,7 +1570,7 @@ dna_load_host_port(void)
  * config is used, and then freed.
  */
 static void
-dna_update_config_event(time_t event_time, void *arg)
+dna_update_config_event(time_t event_time __attribute__((unused)), void *arg __attribute__((unused)))
 {
     Slapi_PBlock *pb = NULL;
     struct configEntry *config_entry = NULL;
@@ -2450,7 +2450,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
     LDAPMod *mods[2];
     char *replace_val[2];
     /* 16 for max 64-bit unsigned plus the trailing '\0' */
-    char next_value[17];
+    char next_value[22] = {0};
     PRUint64 setval = 0;
     PRUint64 nextval = 0;
     int ret;
@@ -2605,7 +2605,7 @@ dna_update_shared_config(struct configEntry *config_entry)
         LDAPMod *mods[2];
         char *replace_val[2];
         /* 16 for max 64-bit unsigned plus the trailing '\0' */
-        char remaining_vals[17];
+        char remaining_vals[22];
 
         /* We store the number of remaining assigned values
          * in the shared config entry. */
@@ -2705,7 +2705,7 @@ dna_update_next_range(struct configEntry *config_entry,
     LDAPMod *mods[2];
     char *replace_val[2];
     /* 32 for the two numbers, 1 for the '-', and one for the '\0' */
-    char nextrange_value[34];
+    char nextrange_value[44];
     int ret = 0;
 
     /* Try to set the new next range in the config entry. */
@@ -2773,8 +2773,8 @@ dna_activate_next_range(struct configEntry *config_entry)
     char *nextval_vals[2];
     char *nextrange_vals[1];
     /* 16 for max 64-bit unsigned plus the trailing '\0' */
-    char maxval_val[17];
-    char nextval_val[17];
+    char maxval_val[22];
+    char nextval_val[22];
     int ret = 0;
 
     /* Setup the modify operation for the config entry */
@@ -4407,8 +4407,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         struct berval *respdata = NULL;
         struct berval range_low = {0, NULL};
         struct berval range_high = {0, NULL};
-        char lowstr[16];
-        char highstr[16];
+        char lowstr[22];
+        char highstr[22];
 
         /* Create the exop response */
         snprintf(lowstr, sizeof(lowstr), "%" NSPRIu64, lower);
@@ -4515,7 +4515,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
             LDAPMod *mods[2];
             char *replace_val[2];
             /* 16 for max 64-bit unsigned plus the trailing '\0' */
-            char max_value[17];
+            char max_value[22];
 
             /* Need to bail if we're performing a range request
              * for this range.  This is to prevent the case where two

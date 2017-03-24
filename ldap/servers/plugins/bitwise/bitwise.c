@@ -70,7 +70,7 @@ bitwise_filter_destroy(Slapi_PBlock* pb)
 #define BITWISE_OP_OR   1
 
 static int
-internal_bitwise_filter_match(void* obj, Slapi_Entry* entry, Slapi_Attr* attr, int op)
+internal_bitwise_filter_match(void* obj, Slapi_Entry* entry, Slapi_Attr* attr __attribute__((unused)), int op)
 /* returns:  0  filter matched
  *	    -1  filter did not match
  *	    >0  an LDAP error code

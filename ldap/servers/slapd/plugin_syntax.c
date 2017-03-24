@@ -58,7 +58,7 @@ slapi_get_global_syntax_plugins()
 }
 
 char *
-plugin_syntax2oid( struct slapdplugin *pi )
+plugin_syntax2oid( struct slapdplugin *pi __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_NOTICE, "plugin_syntax2oid",
 		"This function is deprecated - please use attr_get_syntax_oid() instead\n");
@@ -68,8 +68,8 @@ plugin_syntax2oid( struct slapdplugin *pi )
 
 int
 plugin_call_syntax_get_compare_fn(
-    void		*vpi,
-	value_compare_fn_type *compare_fn
+    void		*vpi __attribute__((unused)),
+	value_compare_fn_type *compare_fn __attribute__((unused))
 )
 {
 	slapi_log_err(SLAPI_LOG_NOTICE, "plugin_call_syntax_get_compare_fn", 
@@ -150,7 +150,7 @@ plugin_call_syntax_filter_ava_sv(
 			slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
 			ava_fn = a->a_plugin->plg_syntax_filter_ava;
 		}
-		/* FALL */
+		/* FALLTHROUGH */
 	case LDAP_FILTER_EQUALITY:
 	case LDAP_FILTER_APPROX:
 		if (NULL == ava_fn) {

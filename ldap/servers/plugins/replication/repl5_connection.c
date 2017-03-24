@@ -1097,7 +1097,7 @@ conn_cancel_linger(Repl_Connection *conn)
  * we close the connection.
  */
 static void
-linger_timeout(time_t event_time, void *arg)
+linger_timeout(time_t event_time __attribute__((unused)), void *arg)
 {
 	PRBool delete_now;
 	Repl_Connection *conn = (Repl_Connection *)arg;

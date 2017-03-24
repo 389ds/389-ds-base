@@ -935,7 +935,7 @@ addUserToGroupMembership(Slapi_Entry *entry)
 }
 
 int
-addGroupMembership(Slapi_Entry *entry, Slapi_Entry *ad_entry)
+addGroupMembership(Slapi_Entry *entry, Slapi_Entry *ad_entry __attribute__((unused)))
 {
     int rc = 0;
     int i;

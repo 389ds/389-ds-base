@@ -615,7 +615,7 @@ void sun_check_mu(void)
 
 #endif
 
-int check_memsize(char *a,char *b)
+int check_memsize(char *a __attribute__((unused)),char *b)
 {
     char *rp;
     int mult = 1;
@@ -645,7 +645,7 @@ int check_memsize(char *a,char *b)
     return 0;
 }
 
-int check_swapsize(char *a,char *b)
+int check_swapsize(char *a __attribute__((unused)),char *b)
 {
     char *rp,*kp;
     int used, avail;
@@ -2376,7 +2376,7 @@ static int check_fs_options(char *reqdir,char mntbuf[MAXPATHLEN])
 #endif
 }
 
-static void check_disk_quota(char mntbuf[MAXPATHLEN])
+static void check_disk_quota(char mntbuf[MAXPATHLEN] __attribute__((unused)))
 {
 #if defined(__sun)
     char qfname[MAXPATHLEN];

@@ -52,7 +52,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 	int already_present = 0;
 	int repl_op = 0;
 	Slapi_Mods *smods = NULL;
-	char value_buffer[20]; /* enough digits for 2^64 children */
+	char value_buffer[22] = {0}; /* enough digits for 2^64 children */
 
 	if (new_sub_count)
 		*new_sub_count = 0;

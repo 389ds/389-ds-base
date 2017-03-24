@@ -82,9 +82,9 @@ int
 acl_access_allowed_modrdn(
 	Slapi_PBlock	    *pb,
 	Slapi_Entry	    *e,			/* The Slapi_Entry */
-	char				*attr,		/* Attribute of	the entry */
-	struct berval	    *val,		/* value of attr. NOT USED */
-	int		    access		/* requested access rights */
+	char				*attr __attribute__((unused)),		/* Attribute of	the entry */
+	struct berval	    *val __attribute__((unused)),		/* value of attr. NOT USED */
+	int		    access __attribute__((unused))		/* requested access rights */
 	)
 {
 	int retCode ;
@@ -889,7 +889,7 @@ int
 acl_read_access_allowed_on_entry (
 	Slapi_PBlock	   *pb,
 	Slapi_Entry        *e,			/* The Slapi_Entry */	
-	char		   **attrs,
+	char		   **attrs __attribute__((unused)),
 	int                access		/* access rights */
 	)
 {
@@ -4053,7 +4053,7 @@ acl__get_attrEval ( struct acl_pblock *aclpb, char *attr )
  * 
  */
 int
-acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e, int access )
+acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e __attribute__((unused)), int access )
 {
 	int				rv, isRoot, accessCheckDisabled;
 	void			*conn = NULL;

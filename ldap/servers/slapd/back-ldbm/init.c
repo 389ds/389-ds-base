@@ -24,7 +24,7 @@ static Slapi_PluginDesc pdesc = { "ldbm-backend", VENDOR,
 
 /* pb: not used */
 int
-ldbm_back_add_schema( Slapi_PBlock *pb )
+ldbm_back_add_schema( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int rc = 0;
 	rc = slapi_add_internal_attr_syntax( LDBM_ENTRYDN_STR,

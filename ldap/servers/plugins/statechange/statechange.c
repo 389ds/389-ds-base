@@ -127,7 +127,7 @@ int statechange_init( Slapi_PBlock *pb )
 	---------
 	This function publishes the interface for this plugin
 */
-static int statechange_start( Slapi_PBlock *pb )
+static int statechange_start( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 
@@ -169,7 +169,7 @@ static int statechange_start( Slapi_PBlock *pb )
 	---------
 	unregisters the interface for this plugin
 */
-static int statechange_close( Slapi_PBlock *pb )
+static int statechange_close( Slapi_PBlock *pb __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_close\n");
 
@@ -485,7 +485,11 @@ static SCNotify *statechange_find_notify(char *dn, char *filter, notify_callback
 /* intended for use by vattr service providers
  * to deal with significant vattr state changes
  */
-static void _statechange_vattr_cache_invalidator_callback(Slapi_Entry *e, char *dn, int modtype, Slapi_PBlock *pb, void *caller_data)
+static void _statechange_vattr_cache_invalidator_callback(Slapi_Entry *e,
+                                                          char *dn __attribute__((unused)),
+                                                          int modtype __attribute__((unused)),
+                                                          Slapi_PBlock *pb __attribute__((unused)),
+                                                          void *caller_data)
 {
 	/* simply get the significance data and act */
 	switch(*(int*)caller_data)

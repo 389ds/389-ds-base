@@ -631,7 +631,7 @@ sync_send_modified_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count
 }
 
 int
-sync_send_entry_from_changelog(Slapi_PBlock *pb,int chg_req, char *uniqueid)
+sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req __attribute__((unused)), char *uniqueid)
 {
 	Slapi_Entry *db_entry = NULL;
 	int chg_type = LDAP_SYNC_ADD;
@@ -677,7 +677,7 @@ new_SyncOpInfo(int flag, PRThread *tid, Sync_Cookie *cookie) {
 }
 /* consumer operation extension constructor */
 static void *
-sync_operation_extension_ctor(void *object, void *parent)
+sync_operation_extension_ctor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     /* we only set the extension value explicitly if the
        client requested the control - see deref_pre_search */
@@ -695,7 +695,7 @@ sync_delete_SyncOpInfo(SyncOpInfo **info)
 }
 
 static void
-sync_operation_extension_dtor(void *ext, void *object, void *parent)
+sync_operation_extension_dtor(void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
    SyncOpInfo *spec = (SyncOpInfo *)ext;
     sync_delete_SyncOpInfo(&spec);

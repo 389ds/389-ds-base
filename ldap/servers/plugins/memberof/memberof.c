@@ -471,7 +471,7 @@ bail:
  * Do plugin shut down stuff
  *
  */
-int memberof_postop_close(Slapi_PBlock *pb)
+int memberof_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_close\n" );
@@ -776,7 +776,7 @@ add_ancestors_cbdata(memberof_cached_value *ancestors, void *callback_data)
  * could want type to be either "member" or "memberOf" depending on the case.
  */
 int
-memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
+memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn,
 	MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached)
 {
 	Slapi_PBlock *search_pb = NULL;
@@ -3111,9 +3111,12 @@ const char *fetch_attr(Slapi_Entry *e, const char *attrname,
 	return slapi_value_get_string(val);
 }
 
-int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                    Slapi_Entry *eAfter, int *returncode, char *returntext,
-                    void *arg)
+int memberof_task_add(Slapi_PBlock *pb,
+                      Slapi_Entry *e,
+                      Slapi_Entry *eAfter __attribute__((unused)),
+                      int *returncode,
+                      char *returntext __attribute__((unused)),
+                      void *arg)
 {
 	PRThread *thread = NULL;
 	int rv = SLAPI_DSE_CALLBACK_OK;
@@ -3594,7 +3597,7 @@ static PLHashTable *hashtable_new()
 		memberof_hash_compare_values, NULL, NULL);
 }
 /* this function called for each hash node during hash destruction */
-static PRIntn fixup_hashtable_remove(PLHashEntry *he, PRIntn index, void *arg)
+static PRIntn fixup_hashtable_remove(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
 {
 	char *dn_copy;
 
@@ -3638,19 +3641,20 @@ void ancestor_hashtable_entry_free(memberof_cached_value *entry)
 	slapi_ch_free((void**) &entry[i].key);
 }
 /* this function called for each hash node during hash destruction */
-static PRIntn ancestor_hashtable_remove(PLHashEntry *he, PRIntn index, void *arg)
+static PRIntn ancestor_hashtable_remove(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
 {
-	memberof_cached_value *group_ancestor_array;
+    memberof_cached_value *group_ancestor_array;
 
-	if (he == NULL)
-		return HT_ENUMERATE_NEXT;
+    if (he == NULL) {
+        return HT_ENUMERATE_NEXT;
+    }
 
 
-	group_ancestor_array = (memberof_cached_value *) he->value;
-	ancestor_hashtable_entry_free(group_ancestor_array);
-	slapi_ch_free((void **)&group_ancestor_array);
+    group_ancestor_array = (memberof_cached_value *) he->value;
+    ancestor_hashtable_entry_free(group_ancestor_array);
+    slapi_ch_free((void **)&group_ancestor_array);
 
-	return HT_ENUMERATE_REMOVE;
+    return HT_ENUMERATE_REMOVE;
 }
 
 static void ancestor_hashtable_empty(char *msg)

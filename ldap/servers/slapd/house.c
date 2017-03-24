@@ -28,7 +28,7 @@ static PRCondVar *housekeeping_cvar = NULL;
 
 
 static void
-housecleaning(void *cur_time)
+housecleaning(void *cur_time __attribute__((unused)))
 {
 	int interval;
 
@@ -51,7 +51,7 @@ housecleaning(void *cur_time)
 }
 
 PRThread*
-housekeeping_start(time_t cur_time, void *arg)
+housekeeping_start(time_t cur_time, void *arg __attribute__((unused)))
 {
 	static time_t	thread_start_time;
 

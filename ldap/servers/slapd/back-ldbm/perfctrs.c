@@ -52,7 +52,7 @@ static void perfctr_add_to_entry( Slapi_Entry *e, char *type,
 	uint64_t countervalue );
 
 /* Init perf ctrs */
-void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
+void perfctrs_init(struct ldbminfo *li __attribute__((unused)), perfctrs_private **ret_priv)
 {
 	perfctrs_private *priv = NULL;
 
@@ -92,7 +92,7 @@ void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 }
 
 /* Wait while checking for perfctr update requests */
-void perfctrs_wait(size_t milliseconds,perfctrs_private *priv,DB_ENV *db_env)
+void perfctrs_wait(size_t milliseconds, perfctrs_private *priv __attribute__((unused)), DB_ENV *db_env __attribute__((unused)))
 {
 	/* Just sleep */
 	PRIntervalTime    interval;   /*NSPR timeout stuffy*/

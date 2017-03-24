@@ -1650,7 +1650,12 @@ void add_easter_egg_entry(void)
 }
 
 static int
-dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* entryBefore __attribute__((unused)),
+                Slapi_Entry* e __attribute__((unused)),
+                int *returncode,
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
 {
 	*returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
@@ -1679,7 +1684,12 @@ setEntrySSLVersion(Slapi_Entry *entry, char *sslversion, char *newval)
 
 /*This function takes care of the search on the attribute nssslsupportedciphers in cn=encryption,cn=config" entry. This would get the list of supported ciphers from the table in ssl.c and always return that value */
 int
-search_encryption( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+search_encryption( Slapi_PBlock *pb __attribute__((unused)),
+                   Slapi_Entry *entry,
+                   Slapi_Entry *entryAfter __attribute__((unused)),
+                   int *returncode __attribute__((unused)),
+                   char *returntext __attribute__((unused)),
+                   void *arg __attribute__((unused)))
 {
     struct berval           *vals[2];
     struct berval           val;
@@ -1732,7 +1742,12 @@ search_encryption( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_Entry *entryAfter
  * unless you specifically ask for them.
  */
 int
-search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+search_easter_egg( Slapi_PBlock *pb,
+                   Slapi_Entry *entryBefore,
+                   Slapi_Entry *entryAfter __attribute__((unused)),
+                   int *returncode __attribute__((unused)),
+                   char *returntext __attribute__((unused)),
+                   void *arg __attribute__((unused)))
 {
     char *fstr= NULL;
 	char eggfilter[64];
@@ -1767,14 +1782,24 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 }
 
 int
-search_counters(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+search_counters(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* entryBefore,
+                Slapi_Entry* e __attribute__((unused)),
+                int *returncode __attribute__((unused)),
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
 {
 	counters_as_entry(entryBefore);
 	return SLAPI_DSE_CALLBACK_OK;
 }
 
 int
-search_snmp(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+search_snmp(Slapi_PBlock *pb __attribute__((unused)),
+            Slapi_Entry* entryBefore,
+            Slapi_Entry* e __attribute__((unused)),
+            int *returncode __attribute__((unused)),
+            char *returntext __attribute__((unused)),
+            void *arg __attribute__((unused)))
 {
 	snmp_as_entry(entryBefore);
 	return SLAPI_DSE_CALLBACK_OK;
@@ -1929,12 +1954,12 @@ int fedse_create_startOK(char *filename,  char *startokfilename, const char *con
 }
 
 static int
-check_plugin_path(Slapi_PBlock *pb,
+check_plugin_path(Slapi_PBlock *pb __attribute__((unused)),
                   Slapi_Entry* entryBefore,
                   Slapi_Entry* e,
                   int *returncode,
                   char *returntext,
-                  void *arg)
+                  void *arg __attribute__((unused)))
 {
     /* check for invalid nsslapd-pluginPath */
     char **vals = slapi_entry_attr_get_charray (e, ATTR_PLUGIN_PATH);

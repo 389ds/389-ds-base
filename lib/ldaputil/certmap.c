@@ -369,7 +369,8 @@ static int ldapu_binary_cmp_certs (void *subject_cert,
 
 
 static int ldapu_cert_verifyfn_default (void *subject_cert, LDAP *ld,
-					void *certmap_info, LDAPMessage *res,
+					void *certmap_info __attribute__((unused)),
+					LDAPMessage *res,
 					LDAPMessage **entry_out)
 {
     LDAPMessage *entry;
@@ -956,7 +957,7 @@ NSAPI_PUBLIC int ldapu_free_cert_ava_val (char **val)
     return LDAPU_SUCCESS;
 }
 
-static int ldapu_cert_mapfn_default (void *cert_in, LDAP *ld,
+static int ldapu_cert_mapfn_default (void *cert_in, LDAP *ld __attribute__((unused)),
 				     void *certmap_info_in,
 				     char **ldapDN_out, char **filter_out)
 {
@@ -1402,7 +1403,7 @@ done:
     return rv;
 }
 
-static void * ldapu_propval_free (void *propval_in, void *arg)
+static void * ldapu_propval_free (void *propval_in, void *arg __attribute__((unused)))
 {
     LDAPUPropVal_t *propval = (LDAPUPropVal_t *)propval_in;
 
@@ -1426,7 +1427,7 @@ void ldapu_certinfo_free (void *info_in)
     free(certmap_info);
 }
 
-static void * ldapu_certinfo_free_helper (void *info, void *arg)
+static void * ldapu_certinfo_free_helper (void *info, void *arg __attribute__((unused)))
 {
     ldapu_certinfo_free(info);
     return (void *)LDAPU_SUCCESS;

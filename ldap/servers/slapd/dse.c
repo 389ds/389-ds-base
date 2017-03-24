@@ -416,7 +416,7 @@ dse_new_with_filelist(char *filename, char *tmpfilename, char *backfilename, cha
 }
 
 static int
-dse_internal_delete_entry( caddr_t data, caddr_t arg )
+dse_internal_delete_entry( caddr_t data, caddr_t arg __attribute__((unused)))
 {
     struct dse_node *n = (struct dse_node *)data;
     dse_node_delete(&n);
@@ -587,7 +587,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
 		current_sub_count--;
 	}
     {
-        char value_buffer[20]; /* enough digits for 2^64 children */
+        char value_buffer[22] = {0}; /* enough digits for 2^64 children */
         struct berval *vals[2];
         struct berval val;
         vals[0] = &val;
@@ -1260,7 +1260,7 @@ entry_dn_cmp( caddr_t d1, caddr_t d2 )
 
 
 static int
-dupentry_disallow( caddr_t d1, caddr_t d2 )
+dupentry_disallow( caddr_t d1 __attribute__((unused)), caddr_t d2 __attribute__((unused)))
 {
     return -1;
 }
@@ -1541,7 +1541,7 @@ dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from thi
 }
 
 int
-dse_unbind( Slapi_PBlock *pb )
+dse_unbind( Slapi_PBlock *pb __attribute__((unused)))
 {
 	return 0;
 }

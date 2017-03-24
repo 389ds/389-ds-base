@@ -404,7 +404,7 @@ Slapi_PBlock*
 slapi_modify_internal(const char *idn, 
                       LDAPMod **mods, 
                       LDAPControl **controls,
-                      int dummy)
+                      int dummy __attribute__((unused)))
 {
     Slapi_PBlock    pb = {0};
     Slapi_PBlock    *result_pb = NULL;

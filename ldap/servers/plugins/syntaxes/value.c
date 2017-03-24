@@ -197,9 +197,9 @@ value_normalize_ext(
 
 void
 value_normalize(
-    char    *s,
-    int     syntax,
-    int     trim_spaces
+    char    *s __attribute__((unused)),
+    int     syntax __attribute__((unused)),
+    int     trim_spaces __attribute__((unused))
 )
 {
 	/* deprecated */

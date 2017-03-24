@@ -1788,7 +1788,7 @@ replica_reload_ruv (Replica *r)
    thread safe. Locking replica lock while calling changelog functions
    causes a deadlock because changelog calls replica functions that
    that lock the same lock */
-int replica_check_for_data_reload (Replica *r, void *arg)
+int replica_check_for_data_reload (Replica *r, void *arg __attribute__((unused)))
 {
     int rc = 0;
     RUV *upper_bound_ruv = NULL;
@@ -2532,7 +2532,7 @@ _replica_get_config_dn (const Slapi_DN *root)
  * Returns 0 on success, -1 on failure. If 0 is returned, the RUV is present in the replica.
  */
 static int
-_replica_configure_ruv  (Replica *r, PRBool isLocked)
+_replica_configure_ruv  (Replica *r, PRBool isLocked __attribute__((unused)))
 {
 	Slapi_PBlock *pb = NULL;
 	char *attrs[2];
@@ -2805,7 +2805,7 @@ done:
 /* NOTE - this is the only non-api function that performs locking because
    it is called by the event queue */
 void
-replica_update_state (time_t when, void *arg)
+replica_update_state (time_t when __attribute__((unused)), void *arg)
 {
 	int rc;
 	const char *replica_name = (const char *)arg;
@@ -3425,7 +3425,7 @@ done:
   that does the real work.
 */
 static void
-eq_cb_reap_tombstones(time_t when, void *arg)
+eq_cb_reap_tombstones(time_t when __attribute__((unused)), void *arg)
 {
 	const char *replica_name = (const char *)arg;
 	Object *replica_object = NULL;
@@ -4119,7 +4119,7 @@ replica_enable_replication (Replica *r)
 
 /* replica is about to be taken offline */
 void 
-replica_disable_replication (Replica *r, Object *r_obj)
+replica_disable_replication (Replica *r, Object *r_obj __attribute__((unused)))
 {
 	char *current_purl = NULL;
 	char *p_locking_purl = NULL;

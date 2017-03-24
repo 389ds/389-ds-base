@@ -225,7 +225,7 @@ reslimit_cleanup( void )
  * constructor for the connection object extension.
  */
 static void *
-reslimit_connext_constructor( void *object, void *parent )
+reslimit_connext_constructor( void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	SLAPIResLimitConnData	*rlcdp;
 	Slapi_RWLock				*rwlock;
@@ -248,7 +248,7 @@ reslimit_connext_constructor( void *object, void *parent )
  * destructor for the connection object extension.
  */
 static void
-reslimit_connext_destructor( void *extension, void *object, void *parent )
+reslimit_connext_destructor( void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	SLAPIResLimitConnData	*rlcdp = (SLAPIResLimitConnData *)extension;
 

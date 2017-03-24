@@ -1555,7 +1555,7 @@ int slapi_vattrspi_register_ex(vattr_sp_handle **h, vattr_get_ex_fn_type get_fn,
 }
 
 /* options not used yet - for future expansion */
-int slapi_vattrspi_register_internal(vattr_sp_handle **h, vattr_get_fn_type get_fn, vattr_get_ex_fn_type get_ex_fn, vattr_compare_fn_type compare_fn, vattr_types_fn_type types_fn, void *options)
+int slapi_vattrspi_register_internal(vattr_sp_handle **h, vattr_get_fn_type get_fn, vattr_get_ex_fn_type get_ex_fn, vattr_compare_fn_type compare_fn, vattr_types_fn_type types_fn, void *options __attribute__((unused)))
 {
 	vattr_sp_handle *return_to_caller = NULL;
 	vattr_sp_handle *list_handle = NULL;
@@ -1659,16 +1659,17 @@ int slapi_vattrspi_regattr(vattr_sp_handle *h,char *type_name_to_register, char*
 
 /* Functions to handle the context stucture */
 
-int slapi_vattr_context_create(vattr_context **c)
+int slapi_vattr_context_create(vattr_context **c __attribute__((unused)))
 {
 	return 0;
 }
 
-void slapi_vattr_context_destroy(vattr_context *c)
+void slapi_vattr_context_destroy(vattr_context *c __attribute__((unused)))
 {
+    return;
 }
 
-int vattr_call_sp_get_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, vattr_get_thang *my_get, char *type, Slapi_ValueSet** results,int *type_name_disposition, char** actual_type_name, int flags, int *buffer_flags, void* hint)
+int vattr_call_sp_get_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, vattr_get_thang *my_get __attribute__((unused)), char *type, Slapi_ValueSet** results,int *type_name_disposition, char** actual_type_name, int flags, int *buffer_flags, void* hint)
 {
 	int ret = -1;
 
@@ -1680,7 +1681,7 @@ int vattr_call_sp_get_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Ent
 	return ret;
 }
 
-int vattr_call_sp_get_batch_values(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, vattr_get_thang *my_get, char **type, Slapi_ValueSet*** results,int **type_name_disposition, char*** actual_type_name, int flags, int *buffer_flags, void** hint)
+int vattr_call_sp_get_batch_values(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, vattr_get_thang *my_get __attribute__((unused)), char **type, Slapi_ValueSet*** results,int **type_name_disposition, char*** actual_type_name, int flags, int *buffer_flags, void** hint)
 {
 	int ret = 0;
 
@@ -1707,7 +1708,7 @@ int vattr_call_sp_get_batch_values(vattr_sp_handle *handle, vattr_context *c, Sl
 	return ret;
 }
 
-int vattr_call_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, vattr_get_thang *my_get, const char *type, Slapi_Value* test_this,int *result, int flags, void* hint)
+int vattr_call_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, vattr_get_thang *my_get __attribute__((unused)), const char *type, Slapi_Value* test_this,int *result, int flags, void* hint)
 {
 	return ((handle->sp->sp_compare_fn)(handle,c,e,(char*)type,test_this,result,flags, hint)); 
 }
@@ -1850,7 +1851,7 @@ void vattr_map_entry_free(vattr_map_entry *vae) {
 }
 
 static PRIntn
-vattr_he_cleanup_fn(PLHashEntry *he, PRIntn index, void *arg) {
+vattr_he_cleanup_fn(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused))) {
     vattr_map_entry_free((vattr_map_entry *)he->value);
     he->value = NULL;
     return HT_ENUMERATE_NEXT;
@@ -2055,7 +2056,7 @@ objAttrValue *vattr_map_entry_build_schema(char *type_name)
 	return ret;
 }
 
-static PRIntn vattr_map_entry_rebuild_schema(PLHashEntry *he, PRIntn i, void *arg)
+static PRIntn vattr_map_entry_rebuild_schema(PLHashEntry *he, PRIntn i __attribute__((unused)), void *arg __attribute__((unused)))
 {
 	vattr_map_entry *entry = (vattr_map_entry *)(he->value);
 
@@ -2067,7 +2068,11 @@ static PRIntn vattr_map_entry_rebuild_schema(PLHashEntry *he, PRIntn i, void *ar
 	return HT_ENUMERATE_NEXT;
 }
 
-void schema_changed_callback(Slapi_Entry *e, char *dn, int modtype, Slapi_PBlock *pb, void *caller_data)
+void schema_changed_callback(Slapi_Entry *e __attribute__((unused)),
+                             char *dn __attribute__((unused)),
+                             int modtype __attribute__((unused)),
+                             Slapi_PBlock *pb __attribute__((unused)),
+                             void *caller_data __attribute__((unused)))
 {
 	/* Get the writer lock */
 	slapi_rwlock_wrlock(the_map->lock);

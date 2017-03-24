@@ -179,7 +179,7 @@ int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
  * Currenty the list of these is: numSubordinates, hasSubordinates
  */
 int
-add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
+add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep,
              int *status)
 {
     backend *be;
@@ -357,7 +357,7 @@ static int import_update_entry_subcount(backend *be, ID parentid,
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     int ret = 0;
     modify_context mc = {0};
-    char value_buffer[20]; /* enough digits for 2^64 children */
+    char value_buffer[22] = {0}; /* enough digits for 2^64 children */
     struct backentry *e = NULL;
     int isreplace = 0;
     char *numsub_str = numsubordinates;
@@ -3154,7 +3154,7 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
     return rval;
 }
 
-int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags)
+int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;

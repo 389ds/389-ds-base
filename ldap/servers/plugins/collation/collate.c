@@ -24,10 +24,11 @@
 #include <slap.h> /* for strcasecmp on non-UNIX platforms and correct debug macro */
 
 void
-collation_init( char *configpath )
+collation_init( char *configpath __attribute__((unused)))
     /* Called once per process, to initialize globals. */
 {
 	/* ICU needs no initialization? */
+    return;
 }
 
 typedef struct coll_profile_t { /* Collator characteristics */

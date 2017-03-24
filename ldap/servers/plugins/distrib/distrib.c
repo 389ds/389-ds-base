@@ -53,7 +53,7 @@
  * This example only works for a flat namespace below the node DN
  */
 int alpha_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
-	 char **mtn_be_names, int be_count, Slapi_DN * node_dn)
+	 char **mtn_be_names __attribute__((unused)), int be_count, Slapi_DN * node_dn)
 {
 	unsigned long op_type;
 	Slapi_Operation *op;
@@ -102,7 +102,7 @@ int alpha_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
  * Distribute the entries based on a simple hash algorithme
  */
 int hash_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
-	 char **mtn_be_names, int be_count, Slapi_DN * node_dn)
+	 char **mtn_be_names __attribute__((unused)), int be_count, Slapi_DN * node_dn)
 {
 	unsigned long op_type;
 	Slapi_Operation *op;
@@ -161,8 +161,8 @@ int hash_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
  * backend in the mapping tree node
  * 
  */
-int chaining_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
-	 char **mtn_be_names, int be_count, Slapi_DN * node_dn)
+int chaining_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn __attribute__((unused)),
+	 char **mtn_be_names, int be_count, Slapi_DN * node_dn __attribute__((unused)))
 {
 	char * requestor_dn;
 	unsigned long op_type;

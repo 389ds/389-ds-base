@@ -438,7 +438,7 @@ idl_nextid( IDList *idl, ID id )
 }
 
 /* Make an ID list iterator */
-idl_iterator idl_iterator_init(const IDList *idl)
+idl_iterator idl_iterator_init(const IDList *idl __attribute__((unused)))
 {
 	return (idl_iterator) 0;
 }

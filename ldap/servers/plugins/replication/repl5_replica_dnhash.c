@@ -183,12 +183,13 @@ int replica_is_being_configured (const char *dn)
 /* Helper functions */
 
 /* this function called for each hash node during hash destruction */
-static PRIntn replica_destroy_hash_entry (PLHashEntry *he, PRIntn index, void *arg)
+static PRIntn replica_destroy_hash_entry (PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
 {
 	char *dn_copy;
     
-    if (he == NULL)
+    if (he == NULL) {
         return HT_ENUMERATE_NEXT;
+    }
 
     dn_copy = (char*)he->value;
 	slapi_ch_free((void **)&dn_copy);

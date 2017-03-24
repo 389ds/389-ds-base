@@ -103,7 +103,7 @@ entry_first_deleted_attribute( const Slapi_Entry *e, Slapi_Attr **a)
  * Return -1: no deleted attributes.
  */
 int
-entry_next_deleted_attribute( const Slapi_Entry *e, Slapi_Attr **a)
+entry_next_deleted_attribute( const Slapi_Entry *e __attribute__((unused)), Slapi_Attr **a)
 {
 	*a= (*a)->a_next;
 	return( *a ? 0 : -1 );
@@ -167,7 +167,7 @@ entry_add_dncsn(Slapi_Entry *entry, const CSN *csn)
  * a str2entry, the order is not preserved unless we sort it.
  */
 int
-entry_add_dncsn_ext(Slapi_Entry *entry, const CSN *csn, PRUint32 flags)
+entry_add_dncsn_ext(Slapi_Entry *entry, const CSN *csn, PRUint32 flags __attribute__((unused)))
 {
 	PR_ASSERT(entry!=NULL);
 	csnset_update_csn(&entry->e_dncsnset, CSN_TYPE_VALUE_DISTINGUISHED, csn);
@@ -396,7 +396,7 @@ static int entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char
 static int entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags);
 
 static int
-entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
+entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags __attribute__((unused)))
 {
 	int retVal = LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
@@ -686,7 +686,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 	return retVal;
 }
 static int
-entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals)
+entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op __attribute__((unused)), struct berval **replacevals __attribute__((unused)))
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
@@ -785,7 +785,7 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 	return( retVal );
 }
 static int
-entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals)
+entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op __attribute__((unused)), struct berval **replacevals __attribute__((unused)))
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
@@ -1105,7 +1105,7 @@ entry_computed_attr_init()
 }
 
 static void
-purge_attribute_state_multi_valued(const Slapi_Attr *a, Slapi_Value *v)
+purge_attribute_state_multi_valued(const Slapi_Attr *a __attribute__((unused)), Slapi_Value *v)
 {
 	const CSN *vdcsn= value_get_csn(v,CSN_TYPE_VALUE_DELETED);
 	const CSN *vucsn= value_get_csn(v,CSN_TYPE_VALUE_UPDATED);

@@ -315,7 +315,7 @@ windows_tot_stop(Private_Repl_Protocol *prp)
 
 
 static int
-windows_tot_status(Private_Repl_Protocol *prp)
+windows_tot_status(Private_Repl_Protocol *prp __attribute__((unused)))
 {
 	int return_value = 0;
 	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_tot_status\n" );
@@ -326,7 +326,7 @@ windows_tot_status(Private_Repl_Protocol *prp)
 
 
 static void
-windows_tot_noop(Private_Repl_Protocol *prp)
+windows_tot_noop(Private_Repl_Protocol *prp __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_tot_noop\n" );
 	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_tot_noop\n" );

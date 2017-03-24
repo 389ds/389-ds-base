@@ -5836,7 +5836,7 @@ done:
 }
 
 static int 
-windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_total)
+windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_total __attribute__((unused)))
 {
 	Slapi_DN* local_sdn = NULL;
 	int rc = 0;

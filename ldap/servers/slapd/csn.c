@@ -123,8 +123,9 @@ CSN *csn_dup(const CSN *csn)
 	return newcsn;
 }
 
-void csn_done(CSN *csn)
+void csn_done(CSN *csn __attribute__((unused)))
 {
+    return;
 }
 
 void csn_free(CSN **csn)
@@ -193,7 +194,7 @@ time_t csn_get_time(const CSN *csn)
  * WARNING: memory, which must be free'd by the caller.
  */
 char *
-csn_as_string(const CSN *csn, PRBool replicaIdOrder, char *ss)
+csn_as_string(const CSN *csn, PRBool replicaIdOrder __attribute__((unused)), char *ss)
 {
 	char *s= ss;
 	if(s==NULL)

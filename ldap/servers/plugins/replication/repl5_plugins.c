@@ -136,7 +136,7 @@ multimaster_get_local_purl()
 
 
 int 
-multimaster_preop_bind (Slapi_PBlock *pb) 
+multimaster_preop_bind (Slapi_PBlock *pb __attribute__((unused)))
 {
 	return 0;
 }
@@ -600,13 +600,13 @@ multimaster_preop_modrdn (Slapi_PBlock *pb)
 }
 
 int 
-multimaster_preop_search (Slapi_PBlock *pb)
+multimaster_preop_search (Slapi_PBlock *pb __attribute__((unused)))
 {
     return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
-multimaster_preop_compare (Slapi_PBlock *pb)
+multimaster_preop_compare (Slapi_PBlock *pb __attribute__((unused)))
 {
     return SLAPI_PLUGIN_SUCCESS;
 }
@@ -839,7 +839,7 @@ multimaster_bepostop_delete (Slapi_PBlock *pb)
 
 /* postop - write to changelog */
 int 
-multimaster_postop_bind (Slapi_PBlock *pb)
+multimaster_postop_bind (Slapi_PBlock *pb __attribute__((unused)))
 {
 	return SLAPI_PLUGIN_SUCCESS;
 }
@@ -1517,7 +1517,7 @@ is_mmr_replica (Slapi_PBlock *pb)
     return mmr;
 }
 
-static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, const CSN *opcsn)
+static const char *replica_get_purl_for_op (const Replica *r __attribute__((unused)), Slapi_PBlock *pb, const CSN *opcsn)
 {
     int is_replicated_op;
     const char *purl = NULL;
@@ -1606,7 +1606,7 @@ static void strip_legacy_info (slapi_operation_parameters *op_params)
 
 /* this function is called when state of a backend changes */
 void 
-multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_state)
+multimaster_be_state_change (void *handle __attribute__((unused)), char *be_name, int old_be_state, int new_be_state)
 {
     Object *r_obj;
     Replica *r;

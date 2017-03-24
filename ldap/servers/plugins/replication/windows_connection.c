@@ -277,8 +277,8 @@ static ConnResult
 windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	LDAPMod **attrs, const char *newrdn, const char *newparent,
 	int deleteoldrdn, LDAPControl **server_controls,
-	const char *extop_oid, struct berval *extop_payload, char **retoidp,
-	struct berval **retdatap, LDAPControl ***returned_controls)
+	const char *extop_oid, struct berval *extop_payload, char **retoidp __attribute__((unused)),
+	struct berval **retdatap __attribute__((unused)), LDAPControl ***returned_controls)
 {
 	int rc = -1;
 	ConnResult return_value;
@@ -1173,7 +1173,7 @@ windows_conn_cancel_linger(Repl_Connection *conn)
  * we close the connection.
  */
 static void
-linger_timeout(time_t event_time, void *arg)
+linger_timeout(time_t event_time __attribute__((unused)), void *arg)
 {
 	PRBool delete_now;
 	Repl_Connection *conn = (Repl_Connection *)arg;

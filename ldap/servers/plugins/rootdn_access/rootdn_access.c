@@ -170,7 +170,7 @@ rootdn_preop_bind_init(Slapi_PBlock *pb)
 }
 
 static int
-rootdn_start(Slapi_PBlock *pb)
+rootdn_start(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_start\n");
 
@@ -197,7 +197,7 @@ rootdn_free(void)
 }
 
 static int
-rootdn_close(Slapi_PBlock *pb)
+rootdn_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     rootdn_free();
     return 0;

@@ -31,7 +31,7 @@
 
 #include "slapi-plugin.h"
 
-NSAPI_PUBLIC int ldapu_get_cert (void *SSLendpoint, void **cert)
+NSAPI_PUBLIC int ldapu_get_cert (void *SSLendpoint __attribute__((unused)), void **cert __attribute__((unused)))
 {
     /* TEMPORARY  -- not implemented yet*/
     return LDAPU_FAILED;

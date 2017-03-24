@@ -244,9 +244,9 @@ buildNewBindDN (
 int 
 refRebindProc(
 	LDAP       *ldapCtx,
-	const char *url,
-	ber_tag_t  request,
-	ber_int_t  msgid,
+	const char *url __attribute__((unused)),
+	ber_tag_t  request __attribute__((unused)),
+	ber_int_t  msgid __attribute__((unused)),
 	void       *arg
 )
 {
@@ -377,14 +377,14 @@ ldclt_dirname(const char *path) {
 }
 
 static char *
-ldclt_get_sec_pwd(PK11SlotInfo *slot, PRBool retry, void *arg)
+ldclt_get_sec_pwd(PK11SlotInfo *slot __attribute__((unused)), PRBool retry __attribute__((unused)), void *arg)
 {
   char *pwd = (char *)arg;
   return PL_strdup(pwd);
 }
 
 static int
-ldclt_clientauth(thread_context	*tttctx, LDAP *ld, const char *path, const char *certname, const char *pwd)
+ldclt_clientauth(thread_context	*tttctx, LDAP *ld, const char *path __attribute__((unused)), const char *certname, const char *pwd)
 {
   const char *colon = NULL;
   char *token_name = NULL;
@@ -4044,7 +4044,7 @@ ldclt_build_control( char *oid, BerElement *ber, int freeber, char iscritical,
  * returns an LDAP error code and also sets error inside LDAP 
  */ 
 int
-ldclt_alloc_ber( LDAP *ld, BerElement **berp )
+ldclt_alloc_ber( LDAP *ld __attribute__((unused)), BerElement **berp )
 {
     int    err;
     int beropt;

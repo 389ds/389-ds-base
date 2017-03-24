@@ -406,7 +406,7 @@ send_ldap_result_ext(
 			tag = LDAP_TAG_REFERRAL;
                         break;
 		}
-                /* fallthru */
+        /* FALLTHROUGH */
 
 	default:
 		tag = operation->o_tag + 1;
@@ -1328,7 +1328,7 @@ exit:
 int
 send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op,
                     Slapi_PBlock *pb, BerElement *ber, int attrsonly,
-                    int ldapversion, int real_attrs_only)
+                    int ldapversion __attribute__((unused)), int real_attrs_only)
 {
 	int i = 0;
 	int rc = 0;
@@ -1713,7 +1713,7 @@ log_and_return:
 			tag = LDAP_TAG_REFERRAL;
 			break;
 		    }
-		    /* fallthru */
+		    /* FALLTHROUGH */
 
 		default:
 		    tag = op->o_tag + 1;

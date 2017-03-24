@@ -363,7 +363,7 @@ automember_start(Slapi_PBlock * pb)
  * Cleans up the config cache.
  */
 static int
-automember_close(Slapi_PBlock * pb)
+automember_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_close\n");
@@ -2008,8 +2008,8 @@ automember_task_map_destructor(Slapi_Task *task)
  *    basedn and filter are required. If scope is omitted, the default is sub
  */
 static int
-automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-                    int *returncode, char *returntext, void *arg)
+automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attribute__((unused)),
+                    int *returncode, char *returntext __attribute__((unused)), void *arg)
 {
     int rv = SLAPI_DSE_CALLBACK_OK;
     task_data *mytaskdata = NULL;
@@ -2236,8 +2236,8 @@ out:
  *    ldif: /tmp/automem-updates.ldif
  */
 static int
-automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-                    int *returncode, char *returntext, void *arg)
+automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attribute__((unused)),
+                    int *returncode, char *returntext __attribute__((unused)), void *arg)
 {
     int rv = SLAPI_DSE_CALLBACK_OK;
     task_data *mytaskdata = NULL;
@@ -2444,8 +2444,8 @@ out:
  *    ldif_out: /tmp/automem-updates.ldif
  */
 static int
-automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-                    int *returncode, char *returntext, void *arg)
+automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attribute__((unused)),
+                    int *returncode, char *returntext __attribute__((unused)), void *arg)
 {
     int rv = SLAPI_DSE_CALLBACK_OK;
     task_data *mytaskdata = NULL;

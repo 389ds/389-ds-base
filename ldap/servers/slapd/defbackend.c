@@ -148,7 +148,7 @@ defbackend_default( Slapi_PBlock *pb )
 
 
 static int
-defbackend_noop( Slapi_PBlock *pb )
+defbackend_noop( Slapi_PBlock *pb __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_TRACE, "defbackend_noop", "<==\n");
 
@@ -157,7 +157,7 @@ defbackend_noop( Slapi_PBlock *pb )
 
 
 static int
-defbackend_abandon( Slapi_PBlock *pb )
+defbackend_abandon( Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, "defbackend_abandon", "<==\n");
 
@@ -270,7 +270,7 @@ defbackend_bind( Slapi_PBlock *pb )
 
 
 static int
-defbackend_next_search_entry( Slapi_PBlock *pb )
+defbackend_next_search_entry( Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, "defbackend_next_search_entry", "<==\n");
 

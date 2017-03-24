@@ -762,8 +762,12 @@ static void task_generic_destructor(Slapi_Task *task)
 /**********  actual task callbacks  **********/
 
 
-static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
-                     Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_deny(Slapi_PBlock *pb,
+                     Slapi_Entry *e __attribute__((unused)),
+                     Slapi_Entry *eAfter __attribute__((unused)),
+                     int *returncode,
+                     char *returntext __attribute__((unused)),
+                     void *arg __attribute__((unused)))
 {
     /* internal operations (conn=NULL) are allowed to do whatever they want */
     if (pb->pb_conn == NULL) {
@@ -775,8 +779,12 @@ static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
-static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
-                       Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_modify(Slapi_PBlock *pb,
+                       Slapi_Entry *e __attribute__((unused)),
+                       Slapi_Entry *eAfter,
+                       int *returncode,
+                       char *returntext __attribute__((unused)),
+                       void *arg)
 {
     Slapi_Task *task = (Slapi_Task *)arg;
     LDAPMod **mods;
@@ -823,8 +831,12 @@ static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
     return SLAPI_DSE_CALLBACK_OK;
 }
 
-static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry *e,
+                           Slapi_Entry *eAfter __attribute__((unused)),
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg __attribute__((unused)))
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -1121,8 +1133,12 @@ static void task_export_thread(void *arg)
     g_decr_active_threadcnt();
 }
 
-static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
-           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_export_add(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry *e,
+                           Slapi_Entry *eAfter __attribute__((unused)),
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg __attribute__((unused)))
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -1394,8 +1410,12 @@ static void task_backup_thread(void *arg)
     g_decr_active_threadcnt();
 }
 
-static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_backup_add(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry *e,
+                           Slapi_Entry *eAfter __attribute__((unused)),
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg __attribute__((unused)))
 {
     Slapi_Backend *be = NULL;
     PRThread *thread = NULL;
@@ -1530,8 +1550,12 @@ static void task_restore_thread(void *arg)
     g_decr_active_threadcnt();
 }
 
-static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                            Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_restore_add(Slapi_PBlock *pb,
+                            Slapi_Entry *e,
+                            Slapi_Entry *eAfter __attribute__((unused)),
+                            int *returncode,
+                            char *returntext __attribute__((unused)),
+                            void *arg __attribute__((unused)))
 {
     Slapi_Backend *be = NULL;
     const char *instance_name = NULL;
@@ -1665,8 +1689,12 @@ static void task_index_thread(void *arg)
     g_decr_active_threadcnt();
 }
 
-static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                          Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+static int task_index_add(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry *e,
+                          Slapi_Entry *eAfter __attribute__((unused)),
+                          int *returncode,
+                          char *returntext __attribute__((unused)),
+                          void *arg __attribute__((unused)))
 {
     const char *instance_name;
     int rv = SLAPI_DSE_CALLBACK_OK;
@@ -1788,8 +1816,12 @@ out:
 }
 
 static int
-task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-                   int *returncode, char *returntext, void *arg)
+task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
+                   Slapi_Entry *e,
+                   Slapi_Entry *eAfter __attribute__((unused)),
+                   int *returncode,
+                   char *returntext __attribute__((unused)),
+                   void *arg __attribute__((unused)))
 {
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Backend *be = NULL;
@@ -1912,8 +1944,12 @@ out:
  *    unsetenv VARIABLE
  */
 static int
-task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode,
-                   char *returntext, void *arg)
+task_sysconfig_reload_add(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry *e,
+                          Slapi_Entry *eAfter __attribute__((unused)),
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
 {
     FILE *file = NULL;
     char *filename = NULL;
@@ -2083,7 +2119,7 @@ done:
  * Add the nsTombstoneCSN attribute/value to the entry.
  */
 static int
-fixup_tombstone(Slapi_PBlock *pb, char *suffix, Slapi_Entry *e, int *fixup_count)
+fixup_tombstone(Slapi_PBlock *pb, char *suffix __attribute__((unused)), Slapi_Entry *e, int *fixup_count)
 {
     LDAPMod mod;
     LDAPMod *mods[2];
@@ -2129,7 +2165,7 @@ fixup_tombstone(Slapi_PBlock *pb, char *suffix, Slapi_Entry *e, int *fixup_count
  * solely for testing the fixup task.
  */
 static void
-strip_tombstone(Slapi_PBlock *pb, char *suffix, Slapi_Entry *e, int *strip_count)
+strip_tombstone(Slapi_PBlock *pb, char *suffix __attribute__((unused)), Slapi_Entry *e, int *strip_count)
 {
     LDAPMod mod;
     LDAPMod *mods[2];
@@ -2287,8 +2323,12 @@ bail:
  *  then run task, without the strip option, to add "nsTombstoneCSN" back.
  */
 static int
-task_fixup_tombstones_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-                          int *returncode, char *returntext, void *arg)
+task_fixup_tombstones_add(Slapi_PBlock *pb,
+                          Slapi_Entry *e,
+                          Slapi_Entry *eAfter __attribute__((unused)),
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
 {
     Slapi_Backend *be = NULL;
     Slapi_Task *task = NULL;
@@ -2440,8 +2480,12 @@ struct task_des2aes_data
 };
 
 static int
-task_des2aes(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
-             int *returncode, char *returntext, void *arg)
+task_des2aes(Slapi_PBlock *pb,
+             Slapi_Entry *e,
+             Slapi_Entry *eAfter __attribute__((unused)),
+             int *returncode,
+             char *returntext,
+             void *arg __attribute__((unused)))
 {
     struct task_des2aes_data *task_data = NULL;
     PRThread *thread = NULL;

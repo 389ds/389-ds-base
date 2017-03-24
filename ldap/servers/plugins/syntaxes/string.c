@@ -643,7 +643,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 
 int
 string_assertion2keys_ava(
-    Slapi_PBlock		*pb,
+    Slapi_PBlock		*pb __attribute__((unused)),
     Slapi_Value	*val,
     Slapi_Value	***ivals,
     int			syntax,
@@ -912,7 +912,7 @@ substring_comp_keys(
     char		*str,
     int         lenstr,
     int			prepost,
-    int			syntax,
+    int			syntax __attribute__((unused)),
 	char		*comp_buf,
 	int			*substrlens
 )

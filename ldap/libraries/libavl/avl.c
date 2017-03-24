@@ -700,7 +700,7 @@ static int	avl_nextlist = 0;
 
 /* ARGSUSED */
 static int
-avl_buildlist( caddr_t data, int arg )
+avl_buildlist( caddr_t data, int arg __attribute__((unused)))
 {
 	static int	slots = 0;
 

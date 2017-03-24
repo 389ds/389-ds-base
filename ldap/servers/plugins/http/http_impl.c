@@ -1060,7 +1060,7 @@ authCertificate(void *arg, PRFileDesc *socket,
 }
 
 SECStatus
-badCertHandler(void *arg, PRFileDesc *socket)
+badCertHandler(void *arg, PRFileDesc *socket __attribute__((unused)))
 {
 
     SECStatus   secStatus = SECFailure;
@@ -1171,7 +1171,7 @@ SECStatus
 }
 
 SECStatus
-handshakeCallback(PRFileDesc *socket, void *arg)
+handshakeCallback(PRFileDesc *socket __attribute__((unused)), void *arg __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
     	"handshakeCallback - Handshake has completed, ready to send data securely.\n");

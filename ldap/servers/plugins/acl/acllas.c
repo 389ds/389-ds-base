@@ -249,7 +249,7 @@ acllas_eval_one_target_filter( char * str, Slapi_Entry *e);
 
 int
 DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
- 		auth_info, PList_t global_auth, void *arg)
+ 		auth_info, PList_t global_auth, void *arg __attribute__((unused)))
 {
 	struct acl_pblock *aclpb = NULL;
 	PRNetAddr *client_praddr = NULL;
@@ -303,7 +303,7 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 
 int 
 DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
-           auth_info, PList_t global_auth, void *arg)
+           auth_info, PList_t global_auth, void *arg __attribute__((unused)))
 {
 	struct acl_pblock	*aclpb = NULL;
 	PRNetAddr		client_praddr;
@@ -390,10 +390,10 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 /* 									   */
 /***************************************************************************/
 int 
-DS_LASUserEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, 
-		char *attr_pattern, int *cachable, void **LAS_cookie, 
-		PList_t subject, PList_t resource, PList_t auth_info,
-		PList_t global_auth)
+DS_LASUserEval(NSErr_t *errp __attribute__((unused)), char *attr_name __attribute__((unused)), CmpOp_t comparator __attribute__((unused)),
+		char *attr_pattern __attribute__((unused)), int *cachable __attribute__((unused)), void **LAS_cookie __attribute__((unused)),
+		PList_t subject __attribute__((unused)), PList_t resource __attribute__((unused)), PList_t auth_info __attribute__((unused)),
+		PList_t global_auth __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_ERR, plugin_name, 
 			"DS_LASUserEval - User LAS is not supported in the ACL\n");
@@ -402,10 +402,10 @@ DS_LASUserEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 }
 
 int 
-DS_LASGroupEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, 
-		char *attr_pattern, int *cachable, void **LAS_cookie, 
-		PList_t subject, PList_t resource, PList_t auth_info,
-		PList_t global_auth)
+DS_LASGroupEval(NSErr_t *errp __attribute__((unused)), char *attr_name __attribute__((unused)), CmpOp_t comparator __attribute__((unused)),
+		char *attr_pattern __attribute__((unused)), int *cachable __attribute__((unused)), void **LAS_cookie __attribute__((unused)),
+		PList_t subject __attribute__((unused)), PList_t resource __attribute__((unused)), PList_t auth_info __attribute__((unused)),
+		PList_t global_auth __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_ERR, plugin_name, 
 			"DS_LASGroupEval - Group LAS is not supported in the ACL\n");
@@ -1407,10 +1407,10 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 *
 **************************************************************************/
 int 
-DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, 
-		char *attr_pattern, int *cachable, void **LAS_cookie, 
-		PList_t subject, PList_t resource, PList_t auth_info,
-		PList_t global_auth, lasInfo lasinfo)
+DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __attribute__((unused)), CmpOp_t comparator, 
+		char *attr_pattern, int *cachable __attribute__((unused)), void **LAS_cookie __attribute__((unused)),
+		PList_t subject __attribute__((unused)), PList_t resource __attribute__((unused)), PList_t auth_info __attribute__((unused)),
+		PList_t global_auth __attribute__((unused)), lasInfo lasinfo)
 {
 
 	char			*n_currEntryDn = NULL;
@@ -4148,7 +4148,7 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 */
 
 static char **
-acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
+acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo __attribute__((unused))) {
 	
 	char **a = NULL;
 	char *patched_rule = NULL;

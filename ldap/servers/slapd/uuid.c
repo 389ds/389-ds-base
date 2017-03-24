@@ -351,7 +351,7 @@ static int uuid_create_mt(guid_t *uuid)
 /* uuid_update_state -- called periodically to update generator's state
 					    (multithreaded case only) 
  */
-static void uuid_update_state (time_t when, void *arg)
+static void uuid_update_state (time_t when __attribute__((unused)), void *arg __attribute__((unused)))
 {
 	uuid_time_t timestamp;
 

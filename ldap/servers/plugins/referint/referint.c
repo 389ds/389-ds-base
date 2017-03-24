@@ -1090,8 +1090,8 @@ bail:
 
 int
 update_integrity(Slapi_DN *origSDN,
-                 char *newrDN, Slapi_DN *newsuperior, 
-                 int logChanges)
+                 char *newrDN, Slapi_DN *newsuperior,
+                 int logChanges __attribute__((unused)))
 {
     Slapi_PBlock *search_result_pb = NULL;
     Slapi_PBlock *mod_pb = slapi_pblock_new();
@@ -1354,7 +1354,7 @@ bail:
     return rc;
 }
 
-int referint_postop_close( Slapi_PBlock *pb)
+int referint_postop_close( Slapi_PBlock *pb __attribute__((unused)))
 {
     /* signal the thread to exit */
     if (NULL != keeprunning_mutex) {
@@ -1378,7 +1378,7 @@ int referint_postop_close( Slapi_PBlock *pb)
 }
 
 void
-referint_thread_func(void *arg)
+referint_thread_func(void *arg __attribute__((unused)))
 {
     PRFileDesc *prfd = NULL;
     char *logfilename = NULL;

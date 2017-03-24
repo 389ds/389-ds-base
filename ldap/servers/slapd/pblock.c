@@ -1534,8 +1534,8 @@ __attribute__((no_sanitize("address")))
 		if(pblock->pb_op!=NULL)
 		{
 			(*(entry_address **)value) = &(pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address);
-			break;
 		}
+		break;
 
 	/* search arguments */
 	case SLAPI_SEARCH_SCOPE:
@@ -3218,7 +3218,7 @@ __attribute__((no_sanitize("address")))
 		break;
 	case SLAPI_MODRDN_NEWSUPERIOR_ADDRESS:
 		PR_ASSERT (PR_FALSE);	/* can't do this */
-
+		break;
 	/* search arguments */
 	case SLAPI_SEARCH_SCOPE:
 		if(pblock->pb_op!=NULL)

@@ -32,8 +32,12 @@
 
 
 /* DSE callback to monitor stats for a particular instance */
-int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
-    Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
+                                      Slapi_Entry *e,
+                                      Slapi_Entry *entryAfter __attribute__((unused)),
+                                      int *returncode,
+                                      char *returntext __attribute__((unused)),
+                                      void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     struct ldbminfo *li = NULL;
@@ -269,8 +273,9 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR + DB_VERSION_PATCH <= 3204
         /* In DB 3.2.4 and earlier, we need to free each element */
         int i;
-        for (i = 0; mpfstat[i]; i++)
+        for (i = 0; mpfstat[i]; i++) {
             slapi_ch_free((void **)&mpfstat[i]);
+        }
 #endif
         slapi_ch_free((void **)&mpfstat);
     }
@@ -282,8 +287,12 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
 
 /* monitor global ldbm database stats */
 int
-ldbm_back_dbmonitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
-	Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_back_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry *e,
+                           Slapi_Entry *entryAfter __attribute__((unused)),
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg)
 {
 	dblayer_private		*dbpriv = NULL;
 	struct ldbminfo		*li = NULL;

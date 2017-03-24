@@ -136,7 +136,7 @@ slapi_get_supported_controls( char ***ctrloidsp, unsigned long **ctrlopsp )
 
 
 static 
-unsigned long *supported_controls_ops_dup(unsigned long *ctrlops) 
+unsigned long *supported_controls_ops_dup(unsigned long *ctrlops __attribute__((unused)))
 {
 	int i;
 	unsigned long *dup_ops = (unsigned long *)slapi_ch_calloc(

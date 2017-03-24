@@ -1799,7 +1799,7 @@ mods_remove_nsuniqueid(Slapi_Mods *smods)
  * mods contains the list of attribute change made.
  */
 static int
-modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, 
+modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)),
                                    struct backentry *e, struct backentry **ec,
                                    Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3)
 {

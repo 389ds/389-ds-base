@@ -111,7 +111,7 @@ multimaster_mtnode_construct_replicas ()
 }
 
 void *
-multimaster_mtnode_extension_constructor (void *object, void *parent)
+multimaster_mtnode_extension_constructor (void *object, void *parent __attribute__((unused)))
 {
     mapping_tree_node *node;
     const Slapi_DN *root;
@@ -141,7 +141,7 @@ multimaster_mtnode_extension_constructor (void *object, void *parent)
 }
 
 void
-multimaster_mtnode_extension_destructor (void* ext, void *object, void *parent)
+multimaster_mtnode_extension_destructor (void* ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     if (ext)
     {

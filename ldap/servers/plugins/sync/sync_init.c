@@ -139,7 +139,7 @@ sync_start(Slapi_PBlock * pb)
 	Free locks and queues allocated.
 */
 static int
-sync_close(Slapi_PBlock * pb)
+sync_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     sync_persist_terminate_all();
     sync_unregister_operation_entension();

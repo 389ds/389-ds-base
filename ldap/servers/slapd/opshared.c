@@ -1695,28 +1695,29 @@ send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize,
     }
 
     /* Iterate through the returned result set */
-    if (be->be_next_search_entry_ext != NULL)
+    /* if (be->be_next_search_entry_ext != NULL)
     {
-        /* The iterate look ahead is causing a whole mess with the ACL.
-        ** the entries are now visiting the ACL land in a random way
-        ** and not the ordered way it was before. Until we figure out
-        ** let's not change the behavior.
-        **
-        ** Don't use iterate_with_lookahead because it sends the result 
-        * in the same times as the entry and this can cause failure
-        * of the mapping tree scanning algorithme
-        * if (getFrontendConfig()->result_tweak)
-        * {
-        *    rc = iterate_with_lookahead(pb, be, send_result, nentries);
-        * }
-        * else
-        */
+    */
+    /* The iterate look ahead is causing a whole mess with the ACL.
+    ** the entries are now visiting the ACL land in a random way
+    ** and not the ordered way it was before. Until we figure out
+    ** let's not change the behavior.
+    **
+    ** Don't use iterate_with_lookahead because it sends the result 
+    * in the same times as the entry and this can cause failure
+    * of the mapping tree scanning algorithme
+    * if (getFrontendConfig()->result_tweak)
+    * {
+    *    rc = iterate_with_lookahead(pb, be, send_result, nentries);
+    * } else {
+    */
+    rc = iterate(pb, be, send_result, nentries, pagesize, pr_stat);
+    /*
+        }
+    } else { // if (be->be_next_search_entry_ext != NULL)
         rc = iterate(pb, be, send_result, nentries, pagesize, pr_stat);
     }
-    else
-    {
-        rc = iterate(pb, be, send_result, nentries, pagesize, pr_stat);
-    }
+    */
 
     switch(rc) 
     {
@@ -1726,12 +1727,12 @@ send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize,
                     /* If this happens we are dead but hopefully iterate
                      * never sends the result itself 
                      */
-                    break;    
+                    break;
 
         case 1:     /* everything is ok - don't send the result */
                     rc = 0;
     }
-    
+
     return rc;
 }
 

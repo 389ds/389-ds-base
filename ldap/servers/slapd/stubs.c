@@ -17,17 +17,17 @@
 #include "slap.h"
 
 
-int type_to_ACCESS_bit( char *p )
+int type_to_ACCESS_bit( char *p __attribute__((unused)))
 {
 	return 0;
 }
 
-void *PT_Lock( PRLock *x_mutex )
+void *PT_Lock( PRLock *x_mutex __attribute__((unused)))
 {
 	return NULL;
 }
 
-int lcache_init(LDAP *ld, void *arg)
+int lcache_init(LDAP *ld __attribute__((unused)), void *arg __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_ERR, 
 		"lcache_init", "Shouldn't have been called\n");

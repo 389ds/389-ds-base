@@ -52,7 +52,7 @@ ldbm_attrcrypt_parse_cipher(char* cipher_display_name)
 }
 
 static int 
-ldbm_attrcrypt_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
+ldbm_attrcrypt_parse_entry(ldbm_instance *inst __attribute__((unused)), Slapi_Entry *e,
                                   char **attribute_name,
 								  int *cipher)
 {
@@ -117,7 +117,12 @@ ldbm_instance_attrcrypt_disable(struct attrinfo *ai)
  * Config DSE callback for attribute encryption entry add.
  */	
 int 
-ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* eAfter, int *returncode, char *returntext, void *arg) 
+ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                            Slapi_Entry* e,
+                                            Slapi_Entry* eAfter __attribute__((unused)),
+                                            int *returncode,
+                                            char *returntext,
+                                            void *arg)
 { 
     ldbm_instance *inst = (ldbm_instance *) arg;
     char *attribute_name = NULL;
@@ -194,8 +199,13 @@ ldbm_attrcrypt_init_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry
 /*
  * Config DSE callback for attribute encryption deletes.
  */	
-int 
-ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg) 
+int
+ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                               Slapi_Entry* e,
+                                               Slapi_Entry* entryAfter __attribute__((unused)),
+                                               int *returncode,
+                                               char *returntext,
+                                               void *arg)
 { 
     ldbm_instance *inst = (ldbm_instance *) arg;
     char *attribute_name = NULL;
@@ -238,7 +248,7 @@ ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e,
  */
 int
 ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
-        Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+        Slapi_Entry *entryAfter __attribute__((unused)), int *returncode, char *returntext, void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     Slapi_Attr *attr;

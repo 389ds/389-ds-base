@@ -22,7 +22,7 @@ legacy_preop_delete( Slapi_PBlock *pb )
 }
 
 int
-legacy_bepreop_delete( Slapi_PBlock *pb )
+legacy_bepreop_delete( Slapi_PBlock *pb __attribute__((unused)))
 {
 	return 0; /* OK */
 }

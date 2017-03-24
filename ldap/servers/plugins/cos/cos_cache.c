@@ -376,7 +376,7 @@ out:
     "skipping cos definition cn=cosPointerGenerateSt,ou=People,o=cosAll--no templates found"
 	
 */
-static void cos_cache_wait_on_change(void *arg)
+static void cos_cache_wait_on_change(void *arg __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_wait_on_change thread\n");
 
@@ -2122,7 +2122,16 @@ static int cos_cache_attrval_exists(cosAttrValue *pAttrs, const char *val)
 
 
 
-static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_ValueSet** results,int *type_name_disposition, char** actual_type_name, int flags, int *free_flags, void *hint)
+static int cos_cache_vattr_get(vattr_sp_handle *handle __attribute__((unused)),
+                               vattr_context *c,
+                               Slapi_Entry *e,
+                               char *type,
+                               Slapi_ValueSet** results,
+                               int *type_name_disposition,
+                               char** actual_type_name,
+                               int flags __attribute__((unused)),
+                               int *free_flags,
+                               void *hint __attribute__((unused)))
 {
 	cos_cache *pCache = 0;
 	int indirect_cos = 0;
@@ -2159,7 +2168,14 @@ bail:
 }
 
 
-static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result, int flags, void *hint)
+static int cos_cache_vattr_compare(vattr_sp_handle *handle __attribute__((unused)),
+                                   vattr_context *c,
+                                   Slapi_Entry *e,
+                                   char *type,
+                                   Slapi_Value *test_this,
+                                   int* result,
+                                   int flags __attribute__((unused)),
+                                   void *hint __attribute__((unused)))
 {
 	int ret = -1;
 	cos_cache *pCache = 0;
@@ -2187,8 +2203,10 @@ bail:
  * this imp is damn slow 
  *
  */
-static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,
-							vattr_type_list_context *type_context,int flags)
+static int cos_cache_vattr_types(vattr_sp_handle *handle __attribute__((unused)),
+                                 Slapi_Entry *e,
+                                 vattr_type_list_context *type_context,
+                                 int flags __attribute__((unused)))
 {
 	int ret = 0;
 	int index = 0;
@@ -3610,8 +3628,10 @@ static int cos_cache_follow_pointer( vattr_context *c, const char *dn, char *typ
  * We simply signal to rebuild the cos cache in this case
  *
  */
-void cos_cache_backend_state_change(void *handle, char *be_name, 
-     int old_be_state, int new_be_state) 
+void cos_cache_backend_state_change(void *handle __attribute__((unused)),
+                                    char *be_name __attribute__((unused)),
+                                    int old_be_state __attribute__((unused)),
+                                    int new_be_state __attribute__((unused)))
 {
 	slapi_lock_mutex(change_lock);
 	slapi_notify_condvar( something_changed, 1 );

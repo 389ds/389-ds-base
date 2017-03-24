@@ -151,7 +151,7 @@ write_replog_db(
     struct berval *vals[ 2 ];
     struct berval val;
     Slapi_Entry *e;
-    char chnobuf[ 20 ];
+    char chnobuf[ 22 ] = {0};
     char *edn;
     int extensibleObject = 0;
     int	err = 0;

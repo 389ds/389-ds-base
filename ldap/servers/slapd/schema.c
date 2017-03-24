@@ -531,7 +531,12 @@ schema_dse_unlock( void )
 
 
 static int
-dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* entryBefore __attribute__((unused)),
+                Slapi_Entry* e __attribute__((unused)),
+                int *returncode,
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
 {
     *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
@@ -541,8 +546,9 @@ dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int 
 static const char *
 skipWS(const char *s)
 {
-    while (s && isascii(*s) && isspace(*s) )
+    while (s && isascii(*s) && isspace(*s) ) {
         ++s;
+    }
 
     if ((isascii(*s)) == 0) {
         return NULL;
@@ -1691,7 +1697,7 @@ struct syntax_enum_wrapper {
 };
 
 static int
-schema_syntax_enum_callback(char **names, Slapi_PluginDesc *plugindesc,
+schema_syntax_enum_callback(char **names, Slapi_PluginDesc *plugindesc __attribute__((unused)),
         void *arg)
 {
     struct syntax_enum_wrapper *sew = (struct syntax_enum_wrapper *)arg;
@@ -1815,14 +1821,14 @@ slapi_schema_list_attribute_names(unsigned long flag)
 /*
  * returntext is always at least SLAPI_DSE_RETURNTEXT_SIZE bytes in size.
  */
-int 
+int
 read_schema_dse(
     Slapi_PBlock *pb,
     Slapi_Entry *pschema_info_e,
-    Slapi_Entry *entryAfter,
+    Slapi_Entry *entryAfter __attribute__((unused)),
     int *returncode,
-    char *returntext /* not used */,
-    void *arg /* not used */ )
+    char *returntext __attribute__((unused)),
+    void *arg __attribute__((unused)))
 {
     struct berval   val;
     struct berval   *vals[2];
@@ -2045,7 +2051,7 @@ mod_free(LDAPMod *mod)
  * returntext is always at least SLAPI_DSE_RETURNTEXT_SIZE bytes in size.
  */
 int
-modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg __attribute__((unused)))
 {
   int i, rc= SLAPI_DSE_CALLBACK_OK; /* default is to apply changes to the DSE */
   char *schema_dse_attr_name;
@@ -2407,7 +2413,12 @@ dup_global_schema_csn()
  * returntext is always at least SLAPI_DSE_RETURNTEXT_SIZE bytes in size.
  */
 static int
-refresh_user_defined_schema( Slapi_PBlock *pb, Slapi_Entry *pschema_info_e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg /* not used */ )
+refresh_user_defined_schema( Slapi_PBlock *pb,
+                             Slapi_Entry *pschema_info_e,
+                             Slapi_Entry *entryAfter __attribute__((unused)),
+                             int *returncode,
+                             char *returntext,
+                             void *arg __attribute__((unused)) )
 {
     int rc;
     Slapi_PBlock *mypbptr = pb;
@@ -2471,10 +2482,14 @@ oc_add_nolock(struct objclass *newoc)
  * responsibility.
  */
 static int 
-schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
-        char *errorbuf, size_t errorbufsize, int schema_ds4x_compat, int is_internal_operation)
+schema_delete_objectclasses( Slapi_Entry *entryBefore __attribute__((unused)),
+                             LDAPMod *mod,
+                             char *errorbuf,
+                             size_t errorbufsize,
+                             int schema_ds4x_compat,
+                             int is_internal_operation)
 {
-  int i;
+  size_t i;
   int rc = LDAP_SUCCESS;    /* optimistic */
   struct objclass *poc, *poc2,  *delete_oc = NULL;
 
@@ -2584,13 +2599,15 @@ schema_return(int rc,struct sizedbuffer * psb1,struct sizedbuffer *psb2,struct s
  * responsibility.
  */
 static int 
-schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
+schema_delete_attributes ( Slapi_Entry *entryBefore __attribute__((unused)), LDAPMod *mod,
         char *errorbuf, size_t errorbufsize, int is_internal_operation)
 {
   char *attr_ldif, *oc_list_type = "";
   asyntaxinfo *a;
   struct objclass *oc = NULL;
-  int i, k, attr_in_use_by_an_oc = 0;
+  size_t i = 0;
+  size_t k = 0;
+  int attr_in_use_by_an_oc = 0;
   struct sizedbuffer *psbAttrName= sizedbuffer_construct(BUFSIZ);
   struct sizedbuffer *psbAttrOid= sizedbuffer_construct(BUFSIZ);
   struct sizedbuffer *psbAttrSyntax= sizedbuffer_construct(BUFSIZ);
@@ -4112,7 +4129,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 static int
 parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
-        int schema_ds4x_compat, int is_remote)
+        int schema_ds4x_compat, int is_remote __attribute__((unused)))
 {
     struct asyntaxinfo *tmpasip;
     struct asyntaxinfo *tmpasi;
@@ -4855,10 +4872,9 @@ schema_check_oc_attrs ( struct objclass *poc,
  */
 
 static int 
-schema_check_name(char *name, PRBool isAttribute, char *errorbuf,
-        size_t errorbufsize )
+schema_check_name(char *name, PRBool isAttribute __attribute__((unused)), char *errorbuf, size_t errorbufsize )
 {
-  int i;
+  size_t i = 0;
 
   /* allowed characters */
   static char allowed[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-";
@@ -5121,7 +5137,7 @@ stripOption(char *attr) {
  * returntext is always at least SLAPI_DSE_RETURNTEXT_SIZE bytes in size.
  */
 int
-load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
+load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored __attribute__((unused)),
                 int *returncode, char *returntext, void *arg)
 {
     Slapi_Attr *attr = 0;
@@ -6885,11 +6901,12 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
  * the matching rules should not be overwritten, even if one should, we can not allow it.
  */
 static int
-schema_at_superset_check_mr(struct asyntaxinfo *a1, struct asyntaxinfo *a2, char *info)
+schema_at_superset_check_mr(struct asyntaxinfo *a1, struct asyntaxinfo *a2, char *info __attribute__((unused)))
 {
     char *a1_mrtype[3] = { a1->asi_mr_equality, a1->asi_mr_substring, a1->asi_mr_ordering };
     char *a2_mrtype[3] = { a2->asi_mr_equality, a2->asi_mr_substring, a2->asi_mr_ordering };
-    int rc = 0, i;
+    int rc = 0;
+    size_t i = 0;
 
     /*
      * Loop over the three matching rule types

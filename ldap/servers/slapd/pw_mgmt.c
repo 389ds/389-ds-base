@@ -36,7 +36,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 	const Slapi_DN *sdn;
 	passwdPolicy *pwpolicy = NULL;
 	int	pwdGraceUserTime = 0;
-	char graceUserTime[8];
+	char graceUserTime[16] = {0};
 
 	if (NULL == e) {
 		return (-1);

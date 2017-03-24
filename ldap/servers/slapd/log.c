@@ -445,9 +445,9 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
 }
 
 int
-log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply) {
+log_set_backend(const char *attrname __attribute__((unused)), char *value, int logtype __attribute__((unused)), char *errorbuf __attribute__((unused)), int apply) {
 
-    int backend = 0;
+    int backend_flags = 0;
     char *backendstr = NULL; /* The backend we are looking at */
     char *token = NULL; /* String to tokenise, need to dup value */
     char *next = NULL; /* The next value */
@@ -469,21 +469,21 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
             /* Probably means someone did ",,"*/
             continue;
         } else if (slapi_UTF8NCASECMP(backendstr, "dirsrv-log", 10) == 0 ) {
-            backend |= LOGGING_BACKEND_INTERNAL;
+            backend_flags |= LOGGING_BACKEND_INTERNAL;
         } else if (slapi_UTF8NCASECMP(backendstr, "syslog", 6) == 0) {
-            backend |= LOGGING_BACKEND_SYSLOG;
+            backend_flags |= LOGGING_BACKEND_SYSLOG;
 #ifdef HAVE_JOURNALD
         } else if (slapi_UTF8NCASECMP(backendstr, "journald", 8) == 0 ) {
-            backend |= LOGGING_BACKEND_JOURNALD;
+            backend_flags |= LOGGING_BACKEND_JOURNALD;
 #endif
         }
     }
     slapi_ch_free_string(&token);
 
-    if ( !( backend & LOGGING_BACKEND_INTERNAL)
-         && ! (backend & LOGGING_BACKEND_SYSLOG)
+    if ( !( backend_flags & LOGGING_BACKEND_INTERNAL)
+         && ! (backend_flags & LOGGING_BACKEND_SYSLOG)
 #ifdef HAVE_JOURNALD
-         && ! (backend & LOGGING_BACKEND_JOURNALD)
+         && ! (backend_flags & LOGGING_BACKEND_JOURNALD)
 #endif
        ) {
         /* There is probably a better error here .... */
@@ -495,7 +495,7 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
          * We just need to use any lock here, doesn't matter which. 
          */
         LOG_ACCESS_LOCK_WRITE( );
-        loginfo.log_backend = backend;
+        loginfo.log_backend = backend_flags;
         slapi_ch_free_string(&(slapdFrontendConfig->logging_backend));
         slapdFrontendConfig->logging_backend = slapi_ch_strdup(value);
         LOG_ACCESS_UNLOCK_WRITE( );
@@ -5105,7 +5105,7 @@ log_reverse_convert_time(char *tbuf)
 
 int
 check_log_max_size( char *maxdiskspace_str,
-                    char *mlogsize_str,
+                    char *mlogsize_str __attribute__((unused)),
                     int maxdiskspace, /* in megabytes */
                     int mlogsize,     /* in megabytes */
                     char * returntext,

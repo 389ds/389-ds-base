@@ -35,7 +35,7 @@ static int acct_policy_entry2config( Slapi_Entry *e,
   Creates global config structure from config entry at plugin startup
 */
 int
-acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id ) {
+acct_policy_load_config_startup( Slapi_PBlock* pb __attribute__((unused)), void* plugin_id ) {
 	acctPluginCfg *newcfg;
 	Slapi_Entry *config_entry = NULL;
 	Slapi_DN *config_sdn = NULL;

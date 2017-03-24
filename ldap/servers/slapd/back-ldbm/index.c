@@ -1796,7 +1796,7 @@ static int
 addordel_values_sv(
     backend *be,
     DB			*db,
-    char		*type,
+    char		*type __attribute__((unused)),
     const char		*indextype,
     Slapi_Value 	**vals,
     ID			id,
@@ -2193,10 +2193,10 @@ index_addordel_values_ext_sv(
 
 int
 index_delete_values(
-    struct ldbminfo	*li,
-    char		*type,
-    struct berval	**vals,
-    ID			id
+    struct ldbminfo	*li __attribute__((unused)),
+    char		*type __attribute__((unused)),
+    struct berval	**vals __attribute__((unused)),
+    ID			id __attribute__((unused))
 )
 {
 	return -1;

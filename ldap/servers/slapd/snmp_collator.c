@@ -535,7 +535,7 @@ snmp_collator_sem_wait(void)
 ************************************************************************************/
 
 void
-snmp_collator_update(time_t start_time, void *arg)
+snmp_collator_update(time_t start_time __attribute__((unused)), void *arg __attribute__((unused)))
 {
     if (snmp_collator_stopped) {
         return;

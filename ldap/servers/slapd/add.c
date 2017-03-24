@@ -280,7 +280,7 @@ done:
    tree it is trying to modify. Use slapi_add_internal_pb instead 
    Beware: The entry is consumed. */
 Slapi_PBlock *
-slapi_add_entry_internal(Slapi_Entry *e, LDAPControl **controls, int dummy)
+slapi_add_entry_internal(Slapi_Entry *e, LDAPControl **controls, int dummy __attribute__((unused)))
 {
     Slapi_PBlock    pb;
     Slapi_PBlock    *result_pb = NULL;

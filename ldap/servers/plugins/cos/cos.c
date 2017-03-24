@@ -189,7 +189,7 @@ bailout:
 	and inits the cos cache.
 	It is called after cos_init.
 */
-int cos_start( Slapi_PBlock *pb )
+int cos_start( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int ret = 0;
 
@@ -217,7 +217,7 @@ int cos_start( Slapi_PBlock *pb )
 	---------
 	closes down the cache
 */
-int cos_close( Slapi_PBlock *pb )
+int cos_close( Slapi_PBlock *pb __attribute__((unused)))
 {
 	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_close\n");
 
@@ -243,7 +243,10 @@ int cos_close( Slapi_PBlock *pb )
 		1 on outright failure
 		-1 when doesn't know about attribute
 */
-int cos_compute(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_compute_output_t outputfn)
+int cos_compute(computed_attr_context *c __attribute__((unused)),
+                char* type __attribute__((unused)),
+                Slapi_Entry *e __attribute__((unused)),
+                slapi_compute_output_t outputfn __attribute__((unused)))
 {
 	int ret = -1;
 

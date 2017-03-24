@@ -366,7 +366,7 @@ sync_handle_cnum_entry(Slapi_Entry *e, void *cb_data)
  *
  */
 static char *
-sync_cookie_get_server_info(Slapi_PBlock *pb)
+sync_cookie_get_server_info(Slapi_PBlock *pb __attribute__((unused)))
 {
 	char *info_enc;
 	int rc = 0;

@@ -744,7 +744,7 @@ scalab01_unlock (
  *****************************************************************************/
 void *
 scalab01_control (
-	void	*arg)
+	void	*arg __attribute__((unused)))
 {
   isp_user	*cur;	/* Current entry */
   isp_user	*head;	/* Head of entries to process */

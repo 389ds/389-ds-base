@@ -2164,7 +2164,7 @@ config_set_localhost( const char *attrname, char *value, char *errorbuf, int app
 } 
 
 int
-config_set_listenhost( const char *attrname, char *value, char *errorbuf, int apply ) {
+config_set_listenhost( const char *attrname __attribute__((unused)), char *value, char *errorbuf __attribute__((unused)), int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2409,7 +2409,7 @@ int config_set_slapi_counters( const char *attrname, char *value, char *errorbuf
 }
 
 int
-config_set_securelistenhost( const char *attrname, char *value, char *errorbuf, int apply ) {
+config_set_securelistenhost( const char *attrname __attribute__((unused)), char *value, char *errorbuf __attribute__((unused)), int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -3192,7 +3192,7 @@ config_set_pw_is_legacy_policy( const char *attrname, char *value, char *errorbu
 }
 
 int
-config_set_pw_admin_dn( const char *attrname, char *value, char *errorbuf, int apply ) {
+config_set_pw_admin_dn( const char *attrname __attribute__((unused)), char *value, char *errorbuf __attribute__((unused)), int apply ) {
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -3731,7 +3731,7 @@ config_set_rootpw( const char *attrname, char *value, char *errorbuf, int apply 
 
 
 int
-config_set_rootpwstoragescheme( const char *attrname, char *value, char *errorbuf, int apply ) {
+config_set_rootpwstoragescheme( const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused))) {
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   struct pw_scheme *new_scheme = NULL;
@@ -4517,7 +4517,7 @@ config_set_accesslog_level( const char *attrname, char *value, char *errorbuf, i
 }
 
 /* set the referral-mode url (which puts us into referral mode) */
-int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, int apply)
+int config_set_referral_mode(const char *attrname __attribute__((unused)), char *url, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -4537,7 +4537,7 @@ int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, in
 }
 
 int
-config_set_versionstring( const char *attrname, char *version, char *errorbuf, int apply ) {
+config_set_versionstring( const char *attrname __attribute__((unused)), char *version, char *errorbuf, int apply ) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   if ((!version) || (!version[0])) {
@@ -7105,7 +7105,7 @@ config_get_allowed_sasl_mechs()
 
 /* separated list of sasl mechs to allow */
 int
-config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply )
+config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf __attribute__((unused)), int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -7146,7 +7146,7 @@ config_get_default_naming_context(void)
 }
 
 int
-config_set_default_naming_context(const char *attrname, 
+config_set_default_naming_context(const char *attrname __attribute__((unused)),
                                   char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -7692,7 +7692,7 @@ config_set_value(
 
     case CONFIG_SPECIAL_ERRORLOGLEVEL:
         if (value) {
-            int ival = *(int *)value;
+            ival = *(int *)value;
             ival &= ~LDAP_DEBUG_ANY;
             if (ival == 0) {
                 /*
@@ -7977,7 +7977,7 @@ config_get_extract_pem()
 
 #if defined(LINUX)
 int
-config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int apply)
+config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused)))
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int max = 80 * (sizeof(size_t) / 4);
@@ -8019,7 +8019,7 @@ config_get_malloc_mxfast()
 }
 
 int
-config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply)
+config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused)))
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int trim_threshold;
@@ -8061,7 +8061,7 @@ config_get_malloc_trim_threshold()
 }
 
 int
-config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply)
+config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused)))
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int max;

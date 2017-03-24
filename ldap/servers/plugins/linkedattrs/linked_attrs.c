@@ -347,7 +347,7 @@ linked_attrs_start(Slapi_PBlock * pb)
  * Cleans up the config cache.
  */
 static int
-linked_attrs_close(Slapi_PBlock * pb)
+linked_attrs_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_close\n");
@@ -1280,7 +1280,7 @@ linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
  */
 static int
 linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
-    struct configEntry *config, Slapi_Mod *smod)
+    struct configEntry *config, Slapi_Mod *smod __attribute__((unused)))
 {
     Slapi_Entry *pre_e = NULL;
     Slapi_Entry *post_e = NULL;

@@ -184,8 +184,12 @@ int cb_config_load_dse_info(Slapi_PBlock * pb) {
 
 /* Check validity of the modification */
 
-int cb_config_add_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int *returncode,
-        char *returntext, void *arg)
+int cb_config_add_check_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                 Slapi_Entry* e,
+                                 Slapi_Entry* e2 __attribute__((unused)),
+                                 int *returncode,
+                                 char *returntext __attribute__((unused)),
+                                 void *arg)
 {
         Slapi_Attr              *attr = NULL;
         Slapi_Value             *sval;
@@ -224,8 +228,12 @@ int cb_config_add_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* 
 */
 
 int 
-cb_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int *returncode, 
-	char *returntext, void *arg) 
+cb_config_add_callback(Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* e,
+                       Slapi_Entry* e2 __attribute__((unused)),
+                       int *returncode,
+                       char *returntext __attribute__((unused)),
+                       void *arg)
 {
         Slapi_Attr              *attr = NULL;
         Slapi_Value             *sval;
@@ -266,9 +274,13 @@ cb_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int *r
 	return SLAPI_DSE_CALLBACK_OK;
 }
 
-int 
-cb_config_search_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int *returncode, 
-	char *returntext, void *arg)  {
+int
+cb_config_search_callback(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry* e,
+                          Slapi_Entry* e2 __attribute__((unused)),
+                          int *returncode,
+                          char *returntext __attribute__((unused)),
+                          void *arg)  {
 
         cb_backend 	*cb = (cb_backend *) arg;
         struct berval           val;
@@ -337,9 +349,13 @@ cb_config_search_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int
 
 /* Check validity of the modification */
 
-int 
-cb_config_modify_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode,
-        char *returntext, void *arg)
+int
+cb_config_modify_check_callback(Slapi_PBlock *pb,
+                                Slapi_Entry* entryBefore __attribute__((unused)),
+                                Slapi_Entry* e __attribute__((unused)),
+                                int *returncode,
+                                char *returntext __attribute__((unused)),
+                                void *arg)
 {
         LDAPMod         **mods;
         char            *attr_name;
@@ -370,9 +386,13 @@ cb_config_modify_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slap
         return SLAPI_DSE_CALLBACK_OK;
 }
 
-int 
-cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, 
-	char *returntext, void *arg) 
+int
+cb_config_modify_callback(Slapi_PBlock *pb,
+                          Slapi_Entry* entryBefore __attribute__((unused)),
+                          Slapi_Entry* e __attribute__((unused)),
+                          int *returncode,
+                          char *returntext __attribute__((unused)),
+                          void *arg)
 {
 	LDAPMod 	**mods;
 	char 		*attr_name;
@@ -510,9 +530,13 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 ** Creation of a new backend instance
 */
 
-int 
-cb_config_add_instance_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, 
-	char *returntext, void *arg) 
+int
+cb_config_add_instance_callback(Slapi_PBlock *pb,
+                                Slapi_Entry* entryBefore,
+                                Slapi_Entry* e __attribute__((unused)),
+                                int *returncode,
+                                char *returntext,
+                                void *arg)
 {
         cb_backend      *cb=(cb_backend *)arg;
 	CB_ASSERT(cb!=NULL);
@@ -520,9 +544,13 @@ cb_config_add_instance_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slap
 	return SLAPI_DSE_CALLBACK_OK;
 }
 
-int 
-cb_config_add_instance_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, 
-	char *returntext, void *arg) 
+int
+cb_config_add_instance_check_callback(Slapi_PBlock *pb,
+                                      Slapi_Entry* entryBefore,
+                                      Slapi_Entry* e __attribute__((unused)),
+                                      int *returncode,
+                                      char *returntext,
+                                      void *arg)
 {
         cb_backend      *cb=(cb_backend *)arg;
 	CB_ASSERT(cb!=NULL);

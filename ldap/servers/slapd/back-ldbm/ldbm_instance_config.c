@@ -63,7 +63,11 @@ ldbm_instance_config_cachesize_get(void *arg)
 }
 
 static int 
-ldbm_instance_config_cachesize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+ldbm_instance_config_cachesize_set(void *arg,
+                                   void *value,
+                                   char *errorbuf __attribute__((unused)),
+                                   int phase __attribute__((unused)),
+                                   int apply)
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
@@ -87,7 +91,11 @@ ldbm_instance_config_cachememsize_get(void *arg)
 }
 
 static int 
-ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+ldbm_instance_config_cachememsize_set(void *arg,
+                                      void *value,
+                                      char *errorbuf,
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
@@ -129,7 +137,11 @@ ldbm_instance_config_dncachememsize_get(void *arg)
 }
 
 static int 
-ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+ldbm_instance_config_dncachememsize_set(void *arg,
+                                        void *value,
+                                        char *errorbuf,
+                                        int phase __attribute__((unused)),
+                                        int apply)
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
@@ -202,7 +214,11 @@ ldbm_instance_config_require_index_get(void *arg)
 }
 
 static int
-ldbm_instance_config_instance_dir_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+ldbm_instance_config_instance_dir_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
@@ -249,7 +265,11 @@ ldbm_instance_config_instance_dir_set(void *arg, void *value, char *errorbuf, in
 }
 
 static int
-ldbm_instance_config_readonly_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+ldbm_instance_config_readonly_set(void *arg,
+                                  void *value,
+                                  char *errorbuf __attribute__((unused)),
+                                  int phase,
+                                  int apply)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     uintptr_t pval = (uintptr_t)value;
@@ -278,7 +298,11 @@ ldbm_instance_config_readonly_set(void *arg, void *value, char *errorbuf, int ph
 }
 
 static int
-ldbm_instance_config_require_index_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+ldbm_instance_config_require_index_set(void *arg,
+                                       void *value,
+                                       char *errorbuf __attribute__((unused)),
+                                       int phase __attribute__((unused)),
+                                       int apply)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
@@ -487,8 +511,12 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
 }
 
 /* general-purpose callback to deny an operation */
-static int ldbm_instance_deny_config(Slapi_PBlock *pb, Slapi_Entry *e,
-    Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+static int ldbm_instance_deny_config(Slapi_PBlock *pb __attribute__((unused)),
+                                     Slapi_Entry *e __attribute__((unused)),
+                                     Slapi_Entry *entryAfter __attribute__((unused)),
+                                     int *returncode,
+                                     char *returntext __attribute__((unused)),
+                                     void *arg __attribute__((unused)))
 {
     *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
@@ -668,7 +696,12 @@ bail:
  * Config. DSE callback for instance entry searches.
  */
 int 
-ldbm_instance_search_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_instance_search_config_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                           Slapi_Entry *e,
+                                           Slapi_Entry *entryAfter __attribute__((unused)),
+                                           int *returncode,
+                                           char *returntext,
+                                           void *arg)
 {
     char buf[BUFSIZ];
     struct berval *vals[2];
@@ -744,7 +777,12 @@ add_suffix(ldbm_instance *inst, struct berval **bvals, int apply_mod, char *retu
  * Config. DSE callback for instance entry modifies.
  */        
 int 
-ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg) 
+ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb,
+                                           Slapi_Entry* entryBefore __attribute__((unused)),
+                                           Slapi_Entry* e __attribute__((unused)),
+                                           int *returncode,
+                                           char *returntext,
+                                           void *arg) 
 { 
     int i; 
     char *attr_name; 
@@ -891,7 +929,12 @@ bail:
 }
 
 int
-ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                              Slapi_Entry* entryBefore,
+                                              Slapi_Entry* entryAfter __attribute__((unused)),
+                                              int *returncode __attribute__((unused)),
+                                              char *returntext __attribute__((unused)),
+                                              void *arg)
 {
     backend *be = NULL;
     struct ldbm_instance *inst;
@@ -937,7 +980,12 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* ent
 }
 
 int
-ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg) 
+ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb,
+                                          Slapi_Entry* entryBefore,
+                                          Slapi_Entry* entryAfter __attribute__((unused)),
+                                          int *returncode,
+                                          char *returntext,
+                                          void *arg)
 {
     char *instance_name;
     struct ldbm_instance *inst= NULL;
@@ -1082,7 +1130,12 @@ bail:
 
 
 int
-ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                                  Slapi_Entry* entryBefore,
+                                                  Slapi_Entry* entryAfter __attribute__((unused)),
+                                                  int *returncode,
+                                                  char *returntext,
+                                                  void *arg)
 {
     char *instance_name;
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -1193,7 +1246,12 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
 }
 
 int
-ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                             Slapi_Entry* entryBefore,
+                                             Slapi_Entry* entryAfter __attribute__((unused)),
+                                             int *returncode,
+                                             char *returntext,
+                                             void *arg)
 {
     char *instance_name;
     struct ldbminfo *li = (struct ldbminfo *)arg;

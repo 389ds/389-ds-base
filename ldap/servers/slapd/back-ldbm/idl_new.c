@@ -768,12 +768,12 @@ error:
 }
 
 int idl_new_insert_key(
-    backend *be, 
+    backend *be __attribute__((unused)),
     DB* db, 
     DBT *key, 
     ID id, 
     DB_TXN *txn, 
-    struct attrinfo *a, 
+    struct attrinfo *a __attribute__((unused)),
     int *disposition 
 )
 {
@@ -875,12 +875,12 @@ error:
 }
 
 int idl_new_delete_key(
-    backend *be, 
+    backend *be __attribute__((unused)),
     DB *db, 
     DBT *key, 
     ID id, 
     DB_TXN *txn, 
-    struct attrinfo *a 
+    struct attrinfo *a __attribute__((unused))
 )
 {
     int ret = 0;
@@ -1006,12 +1006,12 @@ error:
 #endif
 
 int idl_new_store_block(
-    backend *be,
+    backend *be __attribute__((unused)),
     DB *db,
     DBT *key,
     IDList *idl,
     DB_TXN *txn,
-    struct attrinfo *a
+    struct attrinfo *a __attribute__((unused))
 )
 {
     int ret = 0;
@@ -1112,7 +1112,7 @@ error:
 /* idl_new_compare_dups: comparing ID, pass to libdb for callback */
 int idl_new_compare_dups(
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
-    DB *db,
+    DB *db __attribute__((unused)),
 #endif
     const DBT *a, 
     const DBT *b

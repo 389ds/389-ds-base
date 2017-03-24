@@ -78,7 +78,7 @@ static void idl_init_maxids(struct ldbminfo *li,idl_private *priv)
 }
 
 /* routine to initialize the private data used by the IDL code per-attribute */
-int idl_old_init_private(backend *be,struct attrinfo *a)
+int idl_old_init_private(backend *be __attribute__((unused)), struct attrinfo *a)
 {
 	idl_private *priv = NULL;
 
@@ -185,7 +185,7 @@ static void idl_unlock_list(idl_private *priv, DBT *key)
  */
 static IDList *
 idl_fetch_one(
-    struct ldbminfo	*li,
+    struct ldbminfo	*li __attribute__((unused)),
     DB			*db,
     DBT			*key,
     DB_TXN		*txn,
@@ -230,7 +230,7 @@ idl_old_fetch(
     DB			*db,
     DBT			*key,
     DB_TXN		*txn,
-    struct attrinfo	*a,
+    struct attrinfo	*a __attribute__((unused)),
     int			*err
 )
 {
@@ -368,7 +368,7 @@ idl_old_fetch(
 
 static int
 idl_store(
-	  backend *be,
+	  backend *be __attribute__((unused)),
 	  DB			*db,
 	  DBT			*key, 
 	  IDList		*idl,
@@ -1343,7 +1343,7 @@ idl_old_delete_key(
     DBT			*key,
     ID			id,
     DB_TXN		*txn,
-    struct attrinfo	*a 
+    struct attrinfo	*a __attribute__((unused))
 )
 {
 	struct ldbminfo	*li = (struct ldbminfo	*) be->be_database->plg_private;

@@ -62,7 +62,7 @@ struct my_pam_conv_str {
  * Get the PAM identity from the value of the leftmost RDN in the BIND DN.
  */
 static char *
-derive_from_bind_dn(Slapi_PBlock *pb, const Slapi_DN *bindsdn, MyStrBuf *pam_id)
+derive_from_bind_dn(Slapi_PBlock *pb __attribute__((unused)), const Slapi_DN *bindsdn, MyStrBuf *pam_id)
 {
 	Slapi_RDN *rdn;
 	char *type = NULL;

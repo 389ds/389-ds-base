@@ -719,7 +719,7 @@ slapi_send_ldap_search_entry( Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ec
 
 void
 slapi_set_ldap_result( Slapi_PBlock *pb, int err, char *matched, char *text,
-	int nentries, struct berval **urls )
+	int nentries __attribute__((unused)), struct berval **urls __attribute__((unused)))
 {
 	char * old_matched = NULL;
 	char * old_text = NULL;
@@ -1494,7 +1494,7 @@ plugin_get_plugin_dependencies(char *plugin_name, char ***names)
  */
 
 static int 
-plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, char** plugin_list)
+plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((unused)), int operation, char** plugin_list)
 {
 	int ret = 0;
 	Slapi_PBlock pb;
@@ -2002,7 +2002,7 @@ plugin_startall(int argc, char** argv, char **plugin_list)
  *              
  */
 void 
-plugin_closeall(int close_backends, int close_globals)
+plugin_closeall(int close_backends __attribute__((unused)), int close_globals __attribute__((unused)))
 {
 	plugin_dependency_closeall();
 }
@@ -2840,7 +2840,7 @@ add_entry - if true, the entry will be added to the DIT using the given
 ************************************/
 int
 plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
-		slapi_plugin_init_fnptr p_initfunc, int add_entry, char *returntext)
+		slapi_plugin_init_fnptr p_initfunc, int add_entry __attribute__((unused)), char *returntext)
 {
 	int ii = 0;
 	char attrname[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
@@ -3455,7 +3455,7 @@ plugin_cleanup_list(void)
  * were marked to be removed.
  */
 static int
-plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type)
+plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type __attribute__((unused)))
 {
     struct slapdplugin *plugin = NULL;
     struct slapdplugin *plugin_next = NULL;
@@ -3741,7 +3741,7 @@ plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock
 }
 
 PRBool
-plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBlock *pb, Slapi_DN *target_spec)
+plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation __attribute__((unused)), Slapi_PBlock *pb, Slapi_DN *target_spec)
 {
 	PluginTargetData *ptd;
 	PluginTargetData *excludedPtd;
@@ -3970,7 +3970,7 @@ static PRBool plugin_matches_operation (Slapi_DN *target_spec, PluginTargetData 
 }
 
 /* build operation action bitmap based on plugin configuration and actions specified for the operation */
-int plugin_build_operation_action_bitmap (int input_actions, const struct slapdplugin *plugin)
+int plugin_build_operation_action_bitmap (int input_actions __attribute__((unused)), const struct slapdplugin *plugin)
 {
 	int result_actions = 0;
 

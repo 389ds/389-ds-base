@@ -24,7 +24,7 @@ legacy_preop_modify( Slapi_PBlock *pb )
 }
 
 int
-legacy_bepreop_modify( Slapi_PBlock *pb )
+legacy_bepreop_modify( Slapi_PBlock *pb __attribute__((unused)))
 {
     int rc= 0; /* OK */
     return rc;

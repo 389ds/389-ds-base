@@ -105,7 +105,7 @@ free_and_return:;
    because it does not allow to check whether plugin has right to access part of the
    tree it is trying to modify. Use slapi_delete_internal_pb instead */
 Slapi_PBlock *
-slapi_delete_internal(const char *idn, LDAPControl **controls, int dummy)
+slapi_delete_internal(const char *idn, LDAPControl **controls, int dummy __attribute__((unused)))
 {
     Slapi_PBlock    pb = {0};
     Slapi_PBlock    *result_pb;

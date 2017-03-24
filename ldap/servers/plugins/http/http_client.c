@@ -107,7 +107,7 @@ int http_client_init(Slapi_PBlock *pb)
     return status;
 }
 
-static int http_client_start(Slapi_PBlock *pb)
+static int http_client_start(Slapi_PBlock *pb __attribute__((unused)))
 {
 	int status = HTTP_SUCCESS;
 	/**
@@ -135,7 +135,7 @@ static int http_client_start(Slapi_PBlock *pb)
 	return status;
 }
 
-static int http_client_close(Slapi_PBlock *pb)
+static int http_client_close(Slapi_PBlock *pb __attribute__((unused)))
 {
 	int status = HTTP_SUCCESS;
 	/**

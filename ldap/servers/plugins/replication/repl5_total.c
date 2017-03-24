@@ -272,7 +272,7 @@ my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
  * Send a single annotated attribute value.
  */
 static int
-my_ber_printf_value(BerElement *ber, const char *type, const Slapi_Value *value, PRBool deleted)
+my_ber_printf_value(BerElement *ber, const char *type __attribute__((unused)), const Slapi_Value *value, PRBool deleted)
 {
 	const struct berval *bval = NULL;
 	int rc = -1;

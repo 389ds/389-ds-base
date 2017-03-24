@@ -21,7 +21,7 @@
 /* ***** Supplier side ***** */
 
 /* supplier operation extension constructor */
-void* supplier_operation_extension_constructor (void *object, void *parent)
+void* supplier_operation_extension_constructor (void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	supplier_operation_extension *ext = (supplier_operation_extension*) slapi_ch_calloc (1, sizeof (supplier_operation_extension));
 	if (ext == NULL)
@@ -36,7 +36,7 @@ void* supplier_operation_extension_constructor (void *object, void *parent)
 }
 
 /* supplier operation extension destructor */
-void supplier_operation_extension_destructor (void *ext,void *object, void *parent)
+void supplier_operation_extension_destructor (void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	if (ext)
 	{
@@ -87,7 +87,7 @@ void* consumer_operation_extension_constructor (void *object, void *parent)
 }
 
 /* consumer operation extension destructor */
-void consumer_operation_extension_destructor (void *ext,void *object, void *parent)
+void consumer_operation_extension_destructor (void *ext,void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	if (NULL != ext)
 	{

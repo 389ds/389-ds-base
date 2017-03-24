@@ -21,7 +21,7 @@ static const char *extended_op_oid2string( const char *oid );
 
 /********** this stuff should probably be moved when it's done **********/
 
-static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
+static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid __attribute__((unused)),
                                       struct berval *extval)
 {
     char *orig = NULL;
@@ -150,8 +150,8 @@ out:
     return;
 }
 
-static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
-                                     struct berval *extval)
+static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid __attribute__((unused)),
+                                     struct berval *extval __attribute__((unused)))
 {
     Slapi_Backend *be;
     struct berval bv;

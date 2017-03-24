@@ -884,7 +884,7 @@ freefreelist(attrib1_t * freelist)
 }
 
 static void 
-hashname(char seed, attrib1_t * attrib, char * hashkey)
+hashname(char _seed, attrib1_t * attrib, char * hashkey)
 {
     MM_VSTRING	upper;
     PK11Context	*context;
@@ -897,7 +897,7 @@ hashname(char seed, attrib1_t * attrib, char * hashkey)
     context = PK11_CreateDigestContext(SEC_OID_MD5);
 	if (context != NULL) {
     	PK11_DigestBegin(context);
-    	PK11_DigestOp(context, (unsigned char *)&seed, 1);
+    	PK11_DigestOp(context, (unsigned char *)&_seed, 1);
     	PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
     	PK11_DigestOp(context, (unsigned char *)"=", 1);
     	if (!memcmp(upper.body, "DN", 2)) {
@@ -915,7 +915,7 @@ hashname(char seed, attrib1_t * attrib, char * hashkey)
 
 /* this creates a hash key base on all but the first line in attrib */
 static void 
-hashvalue(char seed, attrib1_t * attrib, char * fingerprint)
+hashvalue(char _seed, attrib1_t * attrib, char * fingerprint)
 {
     MM_VSTRING	upper;
     attrib1_t *	a;
@@ -925,7 +925,7 @@ hashvalue(char seed, attrib1_t * attrib, char * fingerprint)
     context = PK11_CreateDigestContext(SEC_OID_MD5);
 	if (context != NULL) {
     	PK11_DigestBegin(context);
-    	PK11_DigestOp(context, (unsigned char *)&seed, 1);
+    	PK11_DigestOp(context, (unsigned char *)&_seed, 1);
     	for (a = attrib->next; a; a = a->next) {
         	if (!stricmp(a->name, "authoritative"))
             	continue;
@@ -1204,13 +1204,13 @@ putvalue(
 {
     Enc64_t *	b64 = NULL;
     char *	lptr;
-    char	line[255];
+    char	_line[255];
     int	return_code;
     int	len;
     char *	sptr;
     int	rc;
 
-    lptr = line;
+    lptr = _line;
     if (tag != NULL) {
         sprintf(lptr, "%s: ", tag);
         lptr += strlen(lptr);
@@ -1226,41 +1226,41 @@ putvalue(
     if (!valuelen) {
         *lptr = '\n';
         *(lptr+1) = 0;
-        return_code = fputs(line, fh);
+        return_code = fputs(_line, fh);
         goto return_bit;
     }
 
     if (simpletext((unsigned char *)value, valuelen)) {
         *lptr = ' ';
-        if (valuelen + (lptr+1 - line) < 80) {
+        if (valuelen + (lptr+1 - _line) < 80) {
             strcpy(lptr+1, value);
             strcpy(lptr+1 + valuelen, "\n");
-            return_code = fputs(line, fh);
+            return_code = fputs(_line, fh);
             goto return_bit;
         }
-        len = 80 - (lptr+1 - line);
+        len = 80 - (lptr+1 - _line);
         memcpy(lptr+1, value, len);
-        line[80] = '\n';
-        line[81] = 0;
-        return_code = fputs(line, fh);
+        _line[80] = '\n';
+        _line[81] = 0;
+        return_code = fputs(_line, fh);
         if (return_code < 0)
             goto return_bit;
         sptr = value + len;
         len = valuelen - len;
-        line[0] = ' ';
+        _line[0] = ' ';
         while (len > 79) {
-            memcpy(line+1, sptr, 79);
-            return_code = fputs(line, fh);
+            memcpy(_line+1, sptr, 79);
+            return_code = fputs(_line, fh);
             if (return_code < 0)
                 goto return_bit;
             sptr += 79;
             len -= 79;
         }
         if (len) {
-            memcpy(line+1, sptr, len);
-            line[len+1] = '\n';
-            line[len+2] = 0;
-            return_code = fputs(line, fh);
+            memcpy(_line+1, sptr, len);
+            _line[len+1] = '\n';
+            _line[len+2] = 0;
+            return_code = fputs(_line, fh);
         }
         goto return_bit;
     }
@@ -1268,20 +1268,20 @@ putvalue(
     b64 = initEnc64((unsigned char *)value, valuelen);
     *lptr = ':';
     *(lptr+1) = ' ';
-    Enc64(b64, (unsigned char *)(lptr+2), 80-(lptr-line), &len);
+    Enc64(b64, (unsigned char *)(lptr+2), 80-(lptr-_line), &len);
     *(lptr+len+2) = '\n';
     *(lptr+len+3) = 0;
-    return_code = fputs(line, fh);
+    return_code = fputs(_line, fh);
     if (return_code < 0)
         goto return_bit;
     while (TRUE) {
-        line[0] = ' ';
-        rc = Enc64(b64, (unsigned char *)line+1, 79, &len);
+        _line[0] = ' ';
+        rc = Enc64(b64, (unsigned char *)_line+1, 79, &len);
         if (rc)
             break;
-        line[len+1] = '\n';
-        line[len+2] = 0;
-        return_code = fputs(line, fh);
+        _line[len+1] = '\n';
+        _line[len+2] = 0;
+        return_code = fputs(_line, fh);
         if (return_code < 0)
             goto return_bit;
     }

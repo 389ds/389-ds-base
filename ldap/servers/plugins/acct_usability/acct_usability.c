@@ -121,7 +121,7 @@ auc_init(Slapi_PBlock *pb)
  * auc_start()
  */
 static int
-auc_start(Slapi_PBlock * pb)
+auc_start(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_start\n");
@@ -139,7 +139,7 @@ auc_start(Slapi_PBlock * pb)
  * auc_close()
  */
 static int
-auc_close(Slapi_PBlock * pb)
+auc_close(Slapi_PBlock * pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_close\n");
@@ -162,7 +162,7 @@ auc_close(Slapi_PBlock * pb)
  * usability control.
  */
 static int
-auc_incompatible_ctrl(const char *oid)
+auc_incompatible_ctrl(const char *oid __attribute__((unused)))
 {
     return 0; /* no known incompatible ctrls yet */
 }

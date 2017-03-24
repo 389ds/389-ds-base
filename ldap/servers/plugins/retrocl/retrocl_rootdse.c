@@ -29,7 +29,12 @@
  */
  
 int
-retrocl_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+retrocl_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* e,
+                       Slapi_Entry* entryAfter __attribute__((unused)),
+                       int *returncode __attribute__((unused)),
+                       char *returntext __attribute__((unused)),
+                       void *arg __attribute__((unused)))
 {
 
 	struct berval val;

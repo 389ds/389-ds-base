@@ -41,7 +41,12 @@ static struct vlvSearch *vlvSearchList= NULL;
 
 /* Callback to add a new VLV Search specification. Added write lock.*/
 
-int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_AddSearchEntry(Slapi_PBlock *pb,
+                       Slapi_Entry* entryBefore,
+                       Slapi_Entry* entryAfter __attribute__((unused)),
+                       int *returncode __attribute__((unused)),
+                       char *returntext __attribute__((unused)),
+                       void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     struct vlvSearch* newVlvSearch= vlvSearch_new();
@@ -64,7 +69,12 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 
 /* Callback to add a new VLV Index specification. Added write lock.*/
 
-int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                      Slapi_Entry* entryBefore,
+                      Slapi_Entry* entryAfter __attribute__((unused)),
+                      int *returncode __attribute__((unused)),
+                      char *returntext __attribute__((unused)),
+                      void *arg)
 { 
     struct vlvSearch *parent;
     backend *be= ((ldbm_instance*)arg)->inst_be;
@@ -99,7 +109,12 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
 
 /* Callback to delete a  VLV Index specification. Added write lock.*/
  
-int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_DeleteSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry* entryBefore,
+                          Slapi_Entry* entryAfter __attribute__((unused)),
+                          int *returncode __attribute__((unused)),
+                          char *returntext __attribute__((unused)),
+                          void *arg)
 {
     struct vlvSearch* p=NULL;
     ldbm_instance *inst = (ldbm_instance*)arg;
@@ -130,7 +145,12 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
 /* Stub Callback to delete a  VLV Index specification.*/
  
-int vlv_DeleteIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_DeleteIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry* entryBefore __attribute__((unused)),
+                         Slapi_Entry* entryAfter __attribute__((unused)),
+                         int *returncode __attribute__((unused)),
+                         char *returntext __attribute__((unused)),
+                         void *arg)
 {
     ldbm_instance *inst = (ldbm_instance*)arg;
     if (inst && is_instance_busy(inst)) {
@@ -149,7 +169,12 @@ int vlv_DeleteIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 
 /* Callback to modify a  VLV Search specification. Added read lock.*/
  
-int vlv_ModifySearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_ModifySearchEntry(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry* entryBefore,
+                          Slapi_Entry* entryAfter __attribute__((unused)),
+                          int *returncode __attribute__((unused)),
+                          char *returntext __attribute__((unused)),
+                          void *arg)
 {
 	struct vlvSearch* p=NULL;
 	backend *be= ((ldbm_instance*)arg)->inst_be;
@@ -168,16 +193,26 @@ int vlv_ModifySearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
 /* Stub callback to modify a  VLV Index specification. */
 
-int vlv_ModifyIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_ModifyIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry* entryBefore __attribute__((unused)),
+                         Slapi_Entry* entryAfter __attribute__((unused)),
+                         int *returncode __attribute__((unused)),
+                         char *returntext __attribute__((unused)),
+                         void *arg __attribute__((unused)))
 {
-   	slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyIndexEntry", "Modified Virtual List View Index.\n");
+    slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyIndexEntry", "Modified Virtual List View Index.\n");
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
 
 /* Callback to rename a  VLV Search specification. Added read lock.*/
 
-int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
+                             Slapi_Entry* entryBefore,
+                             Slapi_Entry* entryAfter __attribute__((unused)),
+                             int *returncode __attribute__((unused)),
+                             char *returntext __attribute__((unused)),
+                             void *arg)
 {
 	struct vlvSearch* p=NULL;
 	backend *be= ((ldbm_instance*)arg)->inst_be;
@@ -196,18 +231,28 @@ int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_E
 
 /* Stub callback to modify a  VLV Index specification. */
 
-int vlv_ModifyRDNIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_ModifyRDNIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                            Slapi_Entry* entryBefore __attribute__((unused)),
+                            Slapi_Entry* entryAfter __attribute__((unused)),
+                            int *returncode __attribute__((unused)),
+                            char *returntext __attribute__((unused)),
+                            void *arg __attribute__((unused)))
 {   
-   	slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyRDNIndexEntry", "Modified Virtual List View Index.\n");
+    slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyRDNIndexEntry", "Modified Virtual List View Index.\n");
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
 /* Something may have just read a VLV Entry. */
 
-int vlv_SearchIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+int vlv_SearchIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry* entryBefore,
+                         Slapi_Entry* entryAfter __attribute__((unused)),
+                         int *returncode __attribute__((unused)),
+                         char *returntext __attribute__((unused)),
+                         void *arg)
 {
     char *name= slapi_entry_attr_get_charptr(entryBefore,type_vlvName);
-	backend *be= ((ldbm_instance*)arg)->inst_be;
+    backend *be= ((ldbm_instance*)arg)->inst_be;
     if (name!=NULL)
     {
         struct vlvIndex* p= vlv_find_searchname(name, be); /* lock list */
@@ -231,7 +276,12 @@ int vlv_SearchIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 /* Handle results of a search for objectclass "vlvIndex". Called by vlv_init at inittime -- no need to lock*/
 
 static int
-vlv_init_index_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+vlv_init_index_entry(Slapi_PBlock *pb __attribute__((unused)),
+                     Slapi_Entry* entryBefore,
+                     Slapi_Entry* entryAfter __attribute__((unused)),
+                     int *returncode __attribute__((unused)),
+                     char *returntext __attribute__((unused)),
+                     void *arg)
 {
     struct vlvIndex* newVlvIndex;
     struct vlvSearch* pSearch;
@@ -262,7 +312,12 @@ vlv_init_index_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* en
 /* Handle results of a search for objectclass "vlvSearch". Called by vlv_init at inittime -- no need to lock*/
 
 static int
-vlv_init_search_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+vlv_init_search_entry(Slapi_PBlock *pb,
+                      Slapi_Entry* entryBefore,
+                      Slapi_Entry* entryAfter __attribute__((unused)),
+                      int *returncode __attribute__((unused)),
+                      char *returntext __attribute__((unused)),
+                      void *arg)
 {
     struct vlvSearch* newVlvSearch= vlvSearch_new();
 	ldbm_instance *inst = (ldbm_instance*)arg;
@@ -727,7 +782,7 @@ error:
  */ 
 
 static int
-do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct vlvIndex* pIndex, struct backentry* entry, int insert)
+do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), Slapi_PBlock *pb, struct vlvIndex* pIndex, struct backentry* entry, int insert)
 {
     backend *be;
     int rc= 0;
@@ -1053,8 +1108,7 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
  * and the ending index (as an inclusive list).
  * returns 0 on success, or an LDAP error code.
  */
-int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
-		  IDList **candidates, int dosort)
+int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db __attribute__((unused)), DBC *dbc, IDList **candidates, int dosort)
 {
     IDList *idl = NULL;
     int err;
@@ -2068,7 +2122,7 @@ char *create_vlv_search_tag(const char* dn) {
 /* Builds strings from Slapi_DN similar console GUI. Uses those dns to
    delete vlvsearch's if they match. New write lock.
  */
-int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *inst)
+int vlv_delete_search_entry(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry* e, ldbm_instance *inst)
 {
 	int rc=0;
 	Slapi_PBlock *tmppb;

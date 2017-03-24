@@ -50,7 +50,7 @@ int ldbm_back_flush( Slapi_PBlock *pb )
 	return 0;
 }
 
-void ldbm_back_instance_set_destructor(void **arg)
+void ldbm_back_instance_set_destructor(void **arg __attribute__((unused)))
 {
     /*
 	Objset *instance_set = (Objset *) *arg;

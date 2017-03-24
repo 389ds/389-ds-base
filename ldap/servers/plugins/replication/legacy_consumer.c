@@ -192,8 +192,8 @@ process_legacy_cf(Slapi_PBlock *pb)
     }
 }
 
-void legacy_consumer_be_state_change (void *handle, char *be_name,
-	                                  int old_be_state, int new_be_state)
+void legacy_consumer_be_state_change (void *handle __attribute__((unused)), char *be_name,
+	                                  int old_be_state __attribute__((unused)), int new_be_state)
 {
     Object *r_obj;
     Replica *r;
@@ -217,9 +217,14 @@ void legacy_consumer_be_state_change (void *handle, char *be_name,
 	
 	   
 static int
-dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* entryBefore __attribute__((unused)),
+                Slapi_Entry* e __attribute__((unused)),
+                int *returncode,
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
 {
-	*returncode = LDAP_UNWILLING_TO_PERFORM;
+    *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
@@ -252,7 +257,12 @@ legacy_consumer_config_init()
 }
 
 static int 
-legacy_consumer_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+legacy_consumer_config_add (Slapi_PBlock *pb __attribute__((unused)),
+                            Slapi_Entry* e,
+                            Slapi_Entry* entryAfter __attribute__((unused)),
+                            int *returncode,
+                            char *returntext,
+                            void *arg __attribute__((unused)))
 {
     int rc;	
 
@@ -274,8 +284,13 @@ legacy_consumer_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entry
 
 #define config_copy_strval( s ) s ? slapi_ch_strdup (s) : NULL;
 
-static int 
-legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+static int
+legacy_consumer_config_modify (Slapi_PBlock *pb,
+                               Slapi_Entry* entryBefore __attribute__((unused)),
+                               Slapi_Entry* e,
+                               int *returncode,
+                               char *returntext,
+                               void *arg __attribute__((unused)))
 {
     int rc= 0;
    	LDAPMod **mods;
@@ -386,12 +401,18 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
 }
 
 static int 
-legacy_consumer_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+legacy_consumer_config_delete (Slapi_PBlock *pb __attribute__((unused)),
+                               Slapi_Entry* e __attribute__((unused)),
+                               Slapi_Entry* entryAfter __attribute__((unused)),
+                               int *returncode,
+                               char *returntext __attribute__((unused)),
+                               void *arg __attribute__((unused)))
 {
 	
 	slapi_rwlock_wrlock (legacy_consumer_config_lock);
-    if (legacy_consumer_replicationdn)
+    if (legacy_consumer_replicationdn) {
         slapi_sdn_free (&legacy_consumer_replicationdn);
+    }
     slapi_ch_free_string(&legacy_consumer_replicationpw);
 	legacy_consumer_replicationdn = NULL;
 	slapi_rwlock_unlock (legacy_consumer_config_lock);
@@ -404,7 +425,7 @@ legacy_consumer_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* en
  * Given the changelog configuration entry, extract the configuration directives.
  */
 static int
-legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext)
+legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext __attribute__((unused)))
 {
 	int rc = LDAP_SUCCESS; /* OK */
 	char *arg;
@@ -412,8 +433,9 @@ legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext)
   	slapi_rwlock_wrlock (legacy_consumer_config_lock);
 
     arg= slapi_entry_attr_get_charptr(entry,CONFIG_LEGACY_REPLICATIONDN_ATTRIBUTE);
-    if (arg)
+    if (arg) {
 	    legacy_consumer_replicationdn = slapi_sdn_new_dn_passin (arg);
+    }
 
     arg= slapi_entry_attr_get_charptr(entry,CONFIG_LEGACY_REPLICATIONPW_ATTRIBUTE);
     slapi_ch_free_string(&legacy_consumer_replicationpw);

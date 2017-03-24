@@ -311,7 +311,7 @@ exit:
 }
 
 static void facsimile_normalize(
-	Slapi_PBlock	*pb,
+	Slapi_PBlock	*pb __attribute__((unused)),
 	char	*s,
 	int		trim_spaces,
 	char	**alt

@@ -901,7 +901,7 @@ Send any pending updates as soon as possible, ignoring any replication
 schedules.
 */
 int
-agmt_replicate_now(Repl_Agmt *ra)
+agmt_replicate_now(Repl_Agmt *ra __attribute__((unused)))
 {
 	int return_value = 0;
 
@@ -2304,7 +2304,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 
 
 int
-agmt_is_50_mm_protocol(const Repl_Agmt *agmt)
+agmt_is_50_mm_protocol(const Repl_Agmt *agmt __attribute__((unused)))
 {
 	return 1; /* XXXggood could support > 1 protocol */
 }
@@ -2805,8 +2805,12 @@ agmt_get_changecount_string (Repl_Agmt *ra, char *buf, int bufsize)
 }
 
 static int
-get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
-	int *returncode, char *returntext, void *arg)
+get_agmt_status(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* e,
+                Slapi_Entry* entryAfter __attribute__((unused)),
+                int *returncode __attribute__((unused)),
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
 {
 	char *time_tmp = NULL;
 	char changecount_string[BUFSIZ];

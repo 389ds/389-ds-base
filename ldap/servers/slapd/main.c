@@ -69,7 +69,7 @@ union semun {
 
 /* Forward Declarations */
 static void register_objects(void);
-static void process_command_line(int argc, char **argv, char *myname, char **extraname);
+static void process_command_line(int argc, char **argv, char **extraname);
 static int slapd_exemode_ldif2db(void);
 static int slapd_exemode_db2ldif(int argc, char **argv);
 static int slapd_exemode_db2index(void);
@@ -143,7 +143,7 @@ static int init_cmd_shutdown_detect(void)
 }
 
 static void
-cmd_set_shutdown (int sig)
+cmd_set_shutdown (int sig __attribute__((unused)))
 {
     /* don't log anything from a signal handler:
      * you could be holding a lock when the signal was trapped.  more
@@ -660,7 +660,7 @@ main( int argc, char **argv)
 		myname = slapi_ch_strdup( myname + 1 );
 	}
 
-	process_command_line(argc,argv,myname,&extraname);
+	process_command_line(argc,argv,&extraname);
 
 	if (NULL == slapdFrontendConfig->configdir) {
 		usage( myname, extraname );
@@ -681,7 +681,7 @@ main( int argc, char **argv)
 	vattr_init();
 
 	if (slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
-		slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+		slapdFrontendConfig = getFrontendConfig();
 		/* make up the config stuff */
 		referral_set_defaults();
 		/*
@@ -699,7 +699,7 @@ main( int argc, char **argv)
    		register_objects();
 
 	} else {
-		slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+		slapdFrontendConfig = getFrontendConfig();
 		/* The 2 calls below have been moved to this place to make sure that
 		 * they are called before setup_internal_backends to avoid bug 524439 */
 		/*
@@ -1194,8 +1194,7 @@ register_objects(void)
 }
 
 static void
-process_command_line(int argc, char **argv, char *myname,
-					 char **extraname)
+process_command_line(int argc, char **argv, char **extraname)
 {
 	int i;
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];

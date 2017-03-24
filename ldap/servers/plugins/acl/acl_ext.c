@@ -191,7 +191,7 @@ aclext_get_lock(void)
 /* CONNECTION EXTENSION SPECIFIC											*/
 /****************************************************************************/
 void *
-acl_conn_ext_constructor ( void *object, void *parent )
+acl_conn_ext_constructor ( void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	struct acl_cblock *ext = NULL;
 	ext = (struct acl_cblock * ) slapi_ch_calloc (1, sizeof (struct acl_cblock ) );
@@ -214,7 +214,7 @@ acl_conn_ext_constructor ( void *object, void *parent )
 }
 
 void
-acl_conn_ext_destructor ( void *ext, void *object, void *parent )
+acl_conn_ext_destructor ( void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	struct acl_cblock	*aclcb  = ext;
 	PRLock				*shared_lock;
@@ -235,7 +235,7 @@ acl_conn_ext_destructor ( void *ext, void *object, void *parent )
 /* OPERATION EXTENSION SPECIFIC												*/
 /****************************************************************************/
 void *
-acl_operation_ext_constructor ( void *object, void *parent )
+acl_operation_ext_constructor ( void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 	Acl_PBlock *aclpb = NULL;
 
@@ -263,7 +263,7 @@ acl_operation_ext_constructor ( void *object, void *parent )
 }
 
 void
-acl_operation_ext_destructor ( void *ext, void *object, void *parent )
+acl_operation_ext_destructor ( void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
 
 	struct acl_cblock	*aclcb  = NULL;
@@ -432,7 +432,7 @@ acl__handle_config_entry (Slapi_Entry *e,  void *callback_data )
 }
 
 static int
-acl__handle_plugin_config_entry (Slapi_Entry *e,  void *callback_data )
+acl__handle_plugin_config_entry (Slapi_Entry *e,  void *callback_data __attribute__((unused)))
 {
     int value = slapi_entry_attr_get_int(e, ATTR_ACLPB_MAX_SELECTED_ACLS);
     if (value) {

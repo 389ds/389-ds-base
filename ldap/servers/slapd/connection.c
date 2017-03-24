@@ -251,7 +251,7 @@ connection_cleanup(Connection *conn)
  * Callers of connection_reset() must hold the conn->c_mutex lock.
  */
 void
-connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is_SSL)
+connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen __attribute__((unused)), int is_SSL)
 {
     char *pTmp = is_SSL ? "SSL " : "";
     char *str_ip = NULL, *str_destip;
@@ -1032,7 +1032,7 @@ _ber_get_len(BerElement *ber, ber_len_t *lenp)
  *      case 2) *tagp == LBER_DEFAULT: memory error or tag mismatch
  */
 static int
-get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
+get_next_from_buffer( void *buffer __attribute__((unused)), size_t buffer_size __attribute__((unused)), ber_len_t *lenp,
     ber_tag_t *tagp, BerElement *ber, Connection *conn )
 {
 	PRErrorCode		err = 0;
@@ -1462,31 +1462,20 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 		threshold_rank -= (connection_count - threshold_rank) / 5;
 	  }
 
-	  if (current_mode) {
-		/* We're currently in turbo mode */
-		/* Policy says that we stay in turbo mode provided 
-		   connection activity is still high.
-		 */
-		if (our_rank - CONN_TURBO_HYSTERESIS < threshold_rank) {
-			/* Stay in turbo mode */
+		if (current_mode && (our_rank - CONN_TURBO_HYSTERESIS) < threshold_rank) {
+			/* We're currently in turbo mode */
+			/* Policy says that we stay in turbo mode provided 
+			   connection activity is still high.
+			 */
 			new_mode = 1;
-		} else {
-			/* Exit turbo mode */
-			new_mode = 0;
-		}
-	  } else {
-		/* We're currently not in turbo mode */
-		/* Policy says that we go into turbo mode if
-		   recent connection activity is high. 
-		 */
-		if (our_rank + CONN_TURBO_HYSTERESIS < threshold_rank) {
-			/* Enter turbo mode */
+		} else if (!current_mode && (our_rank + CONN_TURBO_HYSTERESIS) < threshold_rank) {
+			/* We're currently not in turbo mode */
+			/* Policy says that we go into turbo mode if
+			   recent connection activity is high. 
+			 */
 			new_mode = 1;
-		} else {
-			/* Stay out of turbo mode */
-			new_mode = 0;
 		}
-	  }
+
 	}
 	PR_ExitMonitor(conn->c_mutex);
 	if (current_mode != new_mode) {

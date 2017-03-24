@@ -1187,7 +1187,7 @@ restrict_SSLVersionRange(void)
  * we do not need a prefix any more.
  */
 int 
-slapd_nss_init(int init_ssl, int config_available)
+slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attribute__((unused)))
 {
 	SECStatus secStatus;
 	PRErrorCode errorCode;
@@ -2663,8 +2663,8 @@ typedef struct {
 } secuPWData;
 
 static SECStatus
-listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
-          PRFileDesc *outfile, void *pwarg)
+listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot __attribute__((unused)),
+          PRFileDesc *outfile, void *pwarg __attribute__((unused)))
 {
     SECItem data;
     SECStatus rv = SECFailure;
@@ -2950,7 +2950,7 @@ bail:
  */
 SECStatus DecryptKey(
     SECKEYEncryptedPrivateKeyInfo *epki,
-    SECOidTag algTag,
+    SECOidTag algTag __attribute__((unused)),
     SECItem *pwitem,
     secuPWData *pwdata,
     SECItem *derPKI)
@@ -3023,7 +3023,7 @@ SECStatus DecryptKey(
 /* #define ENCRYPTEDKEY 1 */
 #define RAND_PASS_LEN 32
 static int
-slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
+slapd_extract_key(Slapi_Entry *entry, char *token __attribute__((unused)), PK11SlotInfo *slot)
 {
     char *KeyExtractFile = NULL;
     char *personality = NULL;

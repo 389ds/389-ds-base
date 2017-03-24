@@ -15,7 +15,7 @@
 
 #include "back-ldbm.h"
 
-int ldbm_back_abandon(Slapi_PBlock *pb)
+int ldbm_back_abandon(Slapi_PBlock *pb __attribute__((unused)))
 {
 	/* DBDB need to implement this */
 	return 0;

@@ -705,7 +705,7 @@ pagedresults_set_timelimit(Connection *conn, Operation *op,
 }
 
 int
-pagedresults_set_sizelimit(Connection *conn, Operation *op,
+pagedresults_set_sizelimit(Connection *conn __attribute__((unused)), Operation *op,
                            int sizelimit, int index)
 {
     int rc = -1;
@@ -719,7 +719,7 @@ pagedresults_set_sizelimit(Connection *conn, Operation *op,
 }
 
 int
-pagedresults_get_sizelimit(Connection *conn, Operation *op, int index)
+pagedresults_get_sizelimit(Connection *conn __attribute__((unused)), Operation *op, int index)
 {
     int sizelimit = -1;
     if (!op_is_pagedresults(op)) {

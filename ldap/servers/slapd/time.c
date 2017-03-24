@@ -179,7 +179,7 @@ time_plus_sec (time_t l, long r)
  * \return int success - 0 on correct format, >= 1 on error.
  */
 int
-format_localTime_log(time_t t, int initsize, char *buf, int *bufsize)
+format_localTime_log(time_t t, int initsize __attribute__((unused)), char *buf, int *bufsize)
 {
     
     long	tz;
@@ -231,7 +231,7 @@ format_localTime_log(time_t t, int initsize, char *buf, int *bufsize)
  * \return int success - 0 on correct format, >= 1 on error.
  */
 int
-format_localTime_hr_log(time_t t, long nsec, int initsize, char *buf, int *bufsize)
+format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)), char *buf, int *bufsize)
 {
     
     long	tz;

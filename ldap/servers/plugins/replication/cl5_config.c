@@ -145,8 +145,12 @@ void changelog5_config_free (changelog5Config **config)
 }
 
 static int 
-changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, 
-					   int *returncode, char *returntext, void *arg)
+changelog5_config_add (Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* e,
+                       Slapi_Entry* entryAfter __attribute__((unused)),
+                       int *returncode,
+                       char *returntext,
+                       void *arg __attribute__((unused)))
 {
     int rc;	
 	changelog5Config config;
@@ -252,9 +256,13 @@ done:;
 	return SLAPI_DSE_CALLBACK_ERROR;
 }
 
-static int 
-changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-						  int *returncode, char *returntext, void *arg)
+static int
+changelog5_config_modify (Slapi_PBlock *pb,
+                          Slapi_Entry* entryBefore __attribute__((unused)),
+                          Slapi_Entry* e,
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
 {
 	int rc= 0;
 	LDAPMod **mods;
@@ -600,8 +608,12 @@ done:;
 }
 
 static int 
-changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, 
-						  int *returncode, char *returntext, void *arg)
+changelog5_config_delete (Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry* e __attribute__((unused)),
+                          Slapi_Entry* entryAfter __attribute__((unused)),
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
 {
 	int rc;	
 	char *currentDir = NULL;
@@ -702,10 +714,14 @@ done:;
 	return SLAPI_DSE_CALLBACK_ERROR;
 }
 
-static int dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-						   int *returncode, char *returntext, void *arg)
+static int dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
+                           Slapi_Entry* entryBefore __attribute__((unused)),
+                           Slapi_Entry* e __attribute__((unused)),
+                           int *returncode,
+                           char *returntext __attribute__((unused)),
+                           void *arg __attribute__((unused)))
 {
-	*returncode = LDAP_UNWILLING_TO_PERFORM;
+    *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
@@ -854,7 +870,7 @@ static void replace_bslash (char *dir)
 	}	
 }
 
-static int notify_replica (Replica *r, void *arg)
+static int notify_replica (Replica *r, void *arg __attribute__((unused)))
 {
     return replica_log_ruv_elements (r);
 }

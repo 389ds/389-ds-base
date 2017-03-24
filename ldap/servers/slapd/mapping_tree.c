@@ -1044,7 +1044,12 @@ mtn_free_referral_in_node (mapping_tree_node *node)
     node->mtn_referral_entry = NULL;
 }
 
-int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg) 
+int mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
+                                       Slapi_Entry* entryBefore __attribute__((unused)),
+                                       Slapi_Entry* entryAfter,
+                                       int *returncode,
+                                       char *returntext,
+                                       void *arg __attribute__((unused)))
 {
     LDAPMod **mods;
     int i;
@@ -1431,7 +1436,12 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
     return SLAPI_DSE_CALLBACK_OK;
 }
 
-int mapping_tree_entry_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg) 
+int mapping_tree_entry_add_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                    Slapi_Entry* entryBefore,
+                                    Slapi_Entry* e __attribute__((unused)),
+                                    int *returncode,
+                                    char *returntext __attribute__((unused)),
+                                    void *arg __attribute__((unused)))
 {
     mapping_tree_node *node = NULL;
     int i;
@@ -1521,7 +1531,12 @@ static void mtn_remove_node(mapping_tree_node * node)
     node->mtn_brother = NULL;
 }
 
-int mapping_tree_entry_delete_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg) 
+int mapping_tree_entry_delete_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                       Slapi_Entry* entryBefore,
+                                       Slapi_Entry* e __attribute__((unused)),
+                                       int *returncode,
+                                       char *returntext,
+                                       void *arg __attribute__((unused)))
 {
     int result = SLAPI_DSE_CALLBACK_OK;
     mapping_tree_node *node = NULL;

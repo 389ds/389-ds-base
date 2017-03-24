@@ -3365,12 +3365,12 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     return 0;
 }
 
-void *factory_constructor(void *object, void *parent)
+void *factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     return NULL;
 }
 
-void factory_destructor(void *extension, void *object, void *parent)
+void factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     ImportJob *job = (ImportJob *)extension;
     PRThread *thread;

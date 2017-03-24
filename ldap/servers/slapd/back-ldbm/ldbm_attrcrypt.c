@@ -582,7 +582,7 @@ attrcrypt_init(ldbm_instance *li)
  * If this function succeeds, then its ok to go on to use the
  * cipher.
  */
-int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
+int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace __attribute__((unused)))
 {
 	int ret = 0;
 	slapi_log_err(SLAPI_LOG_TRACE,"attrcrypt_check_enable_cipher", "->\n");
@@ -1234,7 +1234,7 @@ bail:
 /* Initialize the structure for a single cipher */
 static int
 _back_crypt_cipher_init(Slapi_Backend *be,
-                        attrcrypt_state_private **state_priv,
+                        attrcrypt_state_private **state_priv __attribute__((unused)),
                         attrcrypt_cipher_entry *ace,
                         SECKEYPrivateKey *private_key,
                         SECKEYPublicKey *public_key,
@@ -1493,11 +1493,11 @@ _back_crypt_acs_list_add(attrcrypt_state_private **state_priv,
 
 /* Either encipher or decipher an attribute value */
 static int
-_back_crypt_crypto_op(attrcrypt_private *priv, 
+_back_crypt_crypto_op(attrcrypt_private *priv __attribute__((unused)),
                       attrcrypt_cipher_state *acs,
                       char *in_data, size_t in_size,
                       char **out_data, size_t *out_size, int encrypt,
-                      backend *be, struct attrinfo *ai /* just for debugging */)
+                      backend *be __attribute__((unused)), struct attrinfo *ai __attribute__((unused))/* just for debugging */)
 {
     int rc = -1;
     SECStatus secret = 0;

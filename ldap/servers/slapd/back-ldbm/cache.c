@@ -1553,7 +1553,7 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
 }
 
 /* the opposite of above */
-void cache_unlock_entry(struct cache *cache, struct backentry *e)
+void cache_unlock_entry(struct cache *cache __attribute__((unused)), struct backentry *e)
 {
     LOG("=> cache_unlock_entry\n");
     if (PR_ExitMonitor(e->ep_mutexp)) {

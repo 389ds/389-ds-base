@@ -59,71 +59,68 @@ static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data, p
 									    plugin_search_entry_callback psec, plugin_referral_entry_callback prec);
 
 void
-internal_getresult_callback(struct conn *unused1, 
+internal_getresult_callback(struct conn *unused1 __attribute__((unused)),
                              struct op *op,
                              int err,
-                             char *unused2, 
-                             char *unused3,
-                             int unused4, 
-                             struct berval **unused5)
+                             char *unused2 __attribute__((unused)),
+                             char *unused3 __attribute__((unused)),
+                             int unused4 __attribute__((unused)),
+                             struct berval **unused5 __attribute__((unused)))
 {
 
-    if (op != NULL) 
-	{
-	    *((int *)op->o_handler_data) = err;
-    }
-
-}
-
-void 
-internal_res_callback(struct conn *unused1, struct op *op, int err, char *unused2, 
-					  char *unused3, int unused4, struct berval **unused5)
-{
-    /* make sure the user has a callback defined, if so do it, otherwise do nothing */
-    if(  ((callback_fn_ptrs *)op->o_handler_data) != NULL 
-       && ((callback_fn_ptrs *)op->o_handler_data)->p_res_callback != NULL
-   )
-	{
-        ((callback_fn_ptrs *)op->o_handler_data)->p_res_callback
-											(err, ((callback_fn_ptrs *)op->o_handler_data)->callback_data);
-    }
-
-}
-
-int
-internal_srch_entry_callback(Slapi_Backend* be, Connection* conn, 
-                             Operation* op, Slapi_Entry* e)
-{
-    /* make sure the user has a callback defined, if so do it, otherwise do nothing */
-    if(  ((callback_fn_ptrs *)op->o_handler_data) != NULL 
-       && ((callback_fn_ptrs *)op->o_handler_data)->p_srch_entry_callback != NULL
-     )
+    if (op != NULL)
     {
-        return(((callback_fn_ptrs *)op->o_handler_data)->p_srch_entry_callback
-												(e, ((callback_fn_ptrs *)op->o_handler_data)->callback_data));
+        *((int *)op->o_handler_data) = err;
     }
 
-	return(0);
+}
+
+void
+internal_res_callback(struct conn *unused1 __attribute__((unused)),
+                      struct op *op,
+                      int err,
+                      char *unused2 __attribute__((unused)),
+                      char *unused3 __attribute__((unused)),
+                      int unused4 __attribute__((unused)),
+                      struct berval **unused5 __attribute__((unused)))
+{
+    /* make sure the user has a callback defined, if so do it, otherwise do nothing */
+    if(((callback_fn_ptrs *)op->o_handler_data) != NULL && ((callback_fn_ptrs *)op->o_handler_data)->p_res_callback != NULL )
+    {
+        ((callback_fn_ptrs *)op->o_handler_data)->p_res_callback(err, ((callback_fn_ptrs *)op->o_handler_data)->callback_data);
+    }
+
 }
 
 int
-internal_ref_entry_callback(Slapi_Backend * be, Connection *conn, 
-                            Operation *op, struct berval **ireferral)
+internal_srch_entry_callback(Slapi_Backend* be __attribute__((unused)),
+                             Connection* conn __attribute__((unused)),
+                             Operation* op,
+                             Slapi_Entry* e)
+{
+    /* make sure the user has a callback defined, if so do it, otherwise do nothing */
+    if(((callback_fn_ptrs *)op->o_handler_data) != NULL && ((callback_fn_ptrs *)op->o_handler_data)->p_srch_entry_callback != NULL)
+    {
+        return(((callback_fn_ptrs *)op->o_handler_data)->p_srch_entry_callback(e, ((callback_fn_ptrs *)op->o_handler_data)->callback_data));
+    }
+    return(0);
+}
+
+int
+internal_ref_entry_callback(Slapi_Backend * be __attribute__((unused)),
+                            Connection *conn __attribute__((unused)),
+                            Operation *op,
+                            struct berval **ireferral)
 {
 
-    int i;
 
     /* make sure the user has a callback defined, if so do it, otherwise do nothing */
-    if(  ((callback_fn_ptrs *)op->o_handler_data) != NULL 
-       && ((callback_fn_ptrs *)op->o_handler_data)->p_ref_entry_callback != NULL
-       && ireferral != NULL  	  
-   )
+    if(((callback_fn_ptrs *)op->o_handler_data) != NULL && ((callback_fn_ptrs *)op->o_handler_data)->p_ref_entry_callback != NULL && ireferral != NULL)
     {
         /* loop over referrals calling callback for each one */
-        for(i=0; ireferral[i] != NULL; i++)
+        for(size_t i=0; ireferral[i] != NULL; i++)
         {
-            ((callback_fn_ptrs *)op->o_handler_data)->p_ref_entry_callback(ireferral[i]->bv_val, 
-														((callback_fn_ptrs *)op->o_handler_data)->callback_data);
+            ((callback_fn_ptrs *)op->o_handler_data)->p_ref_entry_callback(ireferral[i]->bv_val, ((callback_fn_ptrs *)op->o_handler_data)->callback_data);
         }
     }
     return(0);
@@ -182,10 +179,10 @@ do_disconnect_server(Connection *conn, PRUint64 opconnid, int opid)
 
 
 Slapi_PBlock *
-slapi_compare_internal(char * dn, 
-                       char *attr, 
-                       char *value,
-                       LDAPControl **controls)
+slapi_compare_internal(char * dn __attribute__((unused)),
+                       char *attr __attribute__((unused)),
+                       char *value __attribute__((unused)),
+                       LDAPControl **controls __attribute__((unused)))
 {
     printf("slapi_compare_internal not yet implemented \n");
     return(0);
@@ -202,7 +199,7 @@ slapi_seq_callback( const char *ibase,
                     LDAPControl **controls,
                     plugin_result_callback res_callback, 
                     plugin_search_entry_callback srch_callback,
-                    plugin_referral_entry_callback ref_callback)								
+                    plugin_referral_entry_callback ref_callback)
 {
 	int r;
     Slapi_PBlock pb = {0};

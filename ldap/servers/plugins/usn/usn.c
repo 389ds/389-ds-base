@@ -267,7 +267,7 @@ bail:
 }
 
 static int
-usn_close(Slapi_PBlock *pb)
+usn_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "--> usn_close\n");
 
@@ -613,7 +613,7 @@ bail:
 
 /* mimic replication to turn on create_tombstone_entry */
 static int
-usn_get_attr(Slapi_PBlock *pb, const char* type, void *value)
+usn_get_attr(Slapi_PBlock *pb __attribute__((unused)), const char* type, void *value)
 {
     if (0 == strcasecmp(type, "nsds5ReplicaTombstonePurgeInterval")) {
         *(int *)value = 1;
@@ -647,8 +647,12 @@ usn_get_identity(void)
  * lastusn;testbackend: 15
  */
 static int
-usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
-                   int *returncode, char *returntext, void *arg)
+usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
+                   Slapi_Entry* e,
+                   Slapi_Entry* entryAfter __attribute__((unused)),
+                   int *returncode __attribute__((unused)),
+                   char *returntext __attribute__((unused)),
+                   void *arg __attribute__((unused)))
 {
     char *cookie = NULL;
     Slapi_Backend *be;

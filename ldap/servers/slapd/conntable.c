@@ -178,7 +178,7 @@ connection_table_get_first_active_connection (Connection_Table *ct)
 }
 
 Connection* 
-connection_table_get_next_active_connection (Connection_Table *ct, Connection *c)
+connection_table_get_next_active_connection (Connection_Table *ct __attribute__((unused)), Connection *c)
 {
     return c->c_next;
 }

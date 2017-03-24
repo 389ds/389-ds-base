@@ -308,7 +308,7 @@ void cb_set_debug(int on) {
 	    set associated_be_is_disabled
 */
 void 
-cb_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_state)
+cb_be_state_change (void *handle __attribute__((unused)), char *be_name, int old_be_state __attribute__((unused)), int new_be_state)
 {
 	const Slapi_DN *tmpsdn;
 	Slapi_DN *the_be_suffix;

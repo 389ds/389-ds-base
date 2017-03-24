@@ -344,12 +344,13 @@ replica_updatedn_list_enumerate(ReplicaUpdateDNList list, FNEnumDN fn, void *arg
 
 /* this function called for each hash node during hash destruction */
 static PRIntn
-replica_destroy_hash_entry(PLHashEntry *he, PRIntn index, void *arg)
+replica_destroy_hash_entry(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
 {
     Slapi_DN *dn = NULL;
     
-    if (he == NULL)
+    if (he == NULL) {
         return HT_ENUMERATE_NEXT;
+    }
 
     dn = (Slapi_DN *)he->value;
     PR_ASSERT (dn);
@@ -360,7 +361,7 @@ replica_destroy_hash_entry(PLHashEntry *he, PRIntn index, void *arg)
 }
 
 static PRIntn
-updatedn_list_enumerate(PLHashEntry *he, PRIntn index, void *hash_data)
+updatedn_list_enumerate(PLHashEntry *he, PRIntn index __attribute__((unused)), void *hash_data)
 {
 	Slapi_DN *dn = NULL;
 	struct repl_enum_data *data = hash_data;

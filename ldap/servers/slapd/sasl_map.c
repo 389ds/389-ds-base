@@ -434,7 +434,12 @@ sasl_map_read_config_startup(sasl_map_private *priv)
 }
 
 int 
-sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext __attribute__((unused)) , void *arg)
+sasl_map_config_add(Slapi_PBlock *pb __attribute__((unused)),
+                    Slapi_Entry* entryBefore,
+                    Slapi_Entry* e __attribute__((unused)),
+                    int *returncode,
+                    char *returntext,
+                    void *arg __attribute__((unused)))
 {
 	int ret = 0;
 	sasl_map_data *dp = NULL;
@@ -456,7 +461,12 @@ sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 }
 
 int
-sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+sasl_map_config_modify(Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* entryBefore,
+                       Slapi_Entry* e,
+                       int *returncode __attribute__((unused)),
+                       char *returntext __attribute__((unused)),
+                       void *arg __attribute__((unused)))
 {
 	sasl_map_private *priv = sasl_map_get_global_priv();
 	sasl_map_data *dp;
@@ -485,7 +495,12 @@ sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 }
 
 int
-sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext __attribute__((unused)), void *arg)
+sasl_map_config_delete(Slapi_PBlock *pb __attribute__((unused)),
+                       Slapi_Entry* entryBefore,
+                       Slapi_Entry* e __attribute__((unused)),
+                       int *returncode,
+                       char *returntext,
+                       void *arg __attribute__((unused)))
 {
 	int ret = 0;
 	sasl_map_private *priv = sasl_map_get_global_priv();

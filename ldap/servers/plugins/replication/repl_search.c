@@ -17,7 +17,7 @@
 
 /* XXXggood I think we no longer need this - the mapping tree should do it for us */
 int
-legacy_preop_search( Slapi_PBlock *pb )
+legacy_preop_search( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int return_code = 0;
 	return return_code;
@@ -26,7 +26,7 @@ legacy_preop_search( Slapi_PBlock *pb )
 
 /* XXXggood I think we no longer need this - the mapping tree should do it for us */
 int
-legacy_pre_entry( Slapi_PBlock *pb )
+legacy_pre_entry( Slapi_PBlock *pb __attribute__((unused)))
 {
 	int return_code = 0;
 	return return_code;

@@ -2157,7 +2157,7 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 }
 
 static int
-repl5_inc_status(Private_Repl_Protocol *prp)
+repl5_inc_status(Private_Repl_Protocol *prp __attribute__((unused)))
 {
 	int return_value = 0;
 
@@ -2239,7 +2239,7 @@ loser:
 }
 
 static void
-repl5_inc_backoff_expired(time_t timer_fire_time, void *arg)
+repl5_inc_backoff_expired(time_t timer_fire_time __attribute__((unused)), void *arg)
 {
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)arg;
 	PR_ASSERT(NULL != prp);

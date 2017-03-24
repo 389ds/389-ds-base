@@ -121,7 +121,12 @@ reject_attr_type(const char *attr_type)
 }
 
 int 
-read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
+read_config_dse (Slapi_PBlock *pb __attribute__((unused)),
+                 Slapi_Entry* e,
+                 Slapi_Entry* entryAfter __attribute__((unused)),
+                 int *returncode,
+                 char *returntext __attribute__((unused)),
+                 void *arg __attribute__((unused)))
 {
 	struct berval    	*vals[2];
 	struct berval     	val;
@@ -253,7 +258,12 @@ read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int 
 }
 
 int
-load_config_dse(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *returncode, char *returntext, void *arg)
+load_config_dse(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry* e,
+                Slapi_Entry* ignored __attribute__((unused)),
+                int *returncode,
+                char *returntext,
+                void *arg __attribute__((unused)))
 {
 	int retval = LDAP_SUCCESS;
 	Slapi_Attr *attr = 0;
@@ -329,7 +339,12 @@ load_config_dse(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *ret
 }
 
 int
-load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *returncode, char *returntext, void *arg)
+load_plugin_entry(Slapi_PBlock *pb __attribute__((unused)),
+                  Slapi_Entry* e,
+                  Slapi_Entry* ignored __attribute__((unused)),
+                  int *returncode,
+                  char *returntext,
+                  void *arg __attribute__((unused)))
 {
 	int retval = LDAP_SUCCESS;
 
@@ -368,7 +383,12 @@ load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *r
 }
 
 int
-modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+modify_config_dse(Slapi_PBlock *pb,
+                  Slapi_Entry* entryBefore __attribute__((unused)),
+                  Slapi_Entry* e,
+                  int *returncode,
+                  char *returntext,
+                  void *arg __attribute__((unused)))
 {
 	char *config_attr;
 	LDAPMod **mods;
@@ -498,7 +518,12 @@ finish_and_return:
 }
 
 int
-postop_modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+postop_modify_config_dse(Slapi_PBlock *pb,
+                         Slapi_Entry* entryBefore __attribute__((unused)),
+                         Slapi_Entry* e __attribute__((unused)),
+                         int *returncode,
+                         char *returntext,
+                         void *arg __attribute__((unused)))
 {
 	static int num_requires_restart = sizeof(requires_restart)/sizeof(char*);
 	LDAPMod **mods;
@@ -537,7 +562,9 @@ postop_modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 }
 
 static int 
-check_all_maxdiskspace_and_mlogsize(Slapi_PBlock *pb, LDAPMod **mods, char *returntext)
+check_all_maxdiskspace_and_mlogsize(Slapi_PBlock *pb __attribute__((unused)),
+                                    LDAPMod **mods,
+                                    char *returntext)
 { 
 	int i = 0;
 	int rc = LDAP_SUCCESS;

@@ -40,7 +40,7 @@ Slapi_PluginDesc exopdesc = { "start_tls_plugin", VENDOR, DS_PACKAGE_VERSION,
 	"Start TLS extended operation plugin" };
 
 static int
-start_tls_io_enable(Connection *c, void *data /* UNUSED */)
+start_tls_io_enable(Connection *c, void *data __attribute__((unused)))
 {
 	int secure = 1;
 	PRFileDesc *newsocket;

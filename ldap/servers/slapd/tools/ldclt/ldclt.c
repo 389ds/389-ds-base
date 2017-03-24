@@ -834,8 +834,8 @@ printGlobalStatistics (void)
 void 
 trapVector (
 	int		 sig,
-	siginfo_t	*siginfo,
-	void		*truc)
+	siginfo_t	*siginfo __attribute__((unused)),
+	void		*truc __attribute__((unused)))
 {
   printf ("\n"); /* Jump over the ^C or ^\ */
   (void) printGlobalStatistics();

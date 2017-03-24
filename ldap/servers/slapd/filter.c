@@ -124,13 +124,13 @@ filter_escape_filter_value_extended(struct slapi_filter *f)
 /* returns escaped filter string for EQ, LE, GE and APROX filters */
 
 static char *
-filter_escape_filter_value(struct slapi_filter *f, const char *fmt, size_t len) 
+filter_escape_filter_value(struct slapi_filter *f, const char *fmt, size_t len __attribute__((unused)))
 {
     char *ptr;
 
     filter_compute_hash(f);
     ptr = slapi_filter_sprintf(fmt, f->f_avtype, ESC_NEXT_VAL, f->f_avvalue.bv_val );
-    
+
     return ptr;
 }
 
@@ -432,7 +432,7 @@ get_filter_list( Connection *conn, BerElement *ber,
 
 static int
 get_substring_filter(
-    Connection		*conn,
+    Connection		*conn __attribute__((unused)),
     BerElement		*ber,
     struct slapi_filter	*f,
     char		**fstr
@@ -1011,7 +1011,7 @@ slapi_filter_list_first( struct slapi_filter *f )
 }
 
 struct slapi_filter *
-slapi_filter_list_next( struct slapi_filter *f, struct slapi_filter *fprev )
+slapi_filter_list_next( struct slapi_filter *f __attribute__((unused)), struct slapi_filter *fprev )
 {
 	return( fprev->f_next );
 }

@@ -81,7 +81,7 @@ get_attr_string_val( Slapi_Entry* target_entry, char* attr_name ) {
   not an error; the entry is simply not covered by a policy.
 */
 int
-get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
+get_acctpolicy( Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *target_entry, void *plugin_id,
 		acctPolicy **policy )
 {
 	Slapi_DN *sdn = NULL;

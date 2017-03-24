@@ -46,7 +46,12 @@ extern cb_instance_config_info cb_the_instance_config[];
 */
 
 int 
-cb_search_monitor_callback(Slapi_PBlock * pb, Slapi_Entry * e, Slapi_Entry * entryAfter, int * returnCode, char * returnText, void * arg)
+cb_search_monitor_callback(Slapi_PBlock * pb __attribute__((unused)),
+                           Slapi_Entry * e,
+                           Slapi_Entry * entryAfter __attribute__((unused)),
+                           int * returnCode,
+                           char * returnText __attribute__((unused)),
+                           void * arg)
 {
 
 	char          		buf[CB_BUFSIZE];
@@ -219,7 +224,12 @@ cb_update_monitor_info(Slapi_PBlock * pb, cb_backend_instance * inst,int op)
 			
 
 int
-cb_delete_monitor_callback(Slapi_PBlock * pb, Slapi_Entry * e, Slapi_Entry * entryAfter, int * returnCode, char * returnText, void * arg)
+cb_delete_monitor_callback(Slapi_PBlock * pb __attribute__((unused)),
+                           Slapi_Entry * e __attribute__((unused)),
+                           Slapi_Entry * entryAfter __attribute__((unused)),
+                           int * returnCode,
+                           char * returnText __attribute__((unused)),
+                           void * arg)
 {
 
 	cb_backend_instance	*inst = (cb_backend_instance *)arg;

@@ -239,7 +239,7 @@ static int at_add(AddThread *at)
         attr_audio, attr_password;
     struct berval audio_berval;
     struct berval *audio_values[2];
-    char dn[100], uid[10], telno[20], *sn, *givenname, cn[50], mail[50];
+    char dn[100], uid[22], telno[20], *sn, *givenname, cn[50], mail[50];
     char *cn_values[2], *sn_values[2], *givenname_values[2];
     char *uid_values[2], *mail_values[2], *telno_values[2];
 #if 1

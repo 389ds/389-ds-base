@@ -106,7 +106,7 @@ acllist_free(void)
  * 
 */
 
-void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
+void acl_be_state_change_fnc ( void *handle __attribute__((unused)), char *be_name, int old_state,
 															int new_state) {
 	Slapi_Backend *be=NULL;
 	const Slapi_DN *sdn;
@@ -314,7 +314,7 @@ __acllist_aciContainer_node_cmp ( caddr_t d1, caddr_t d2 )
 }
 
 static int
-__acllist_aciContainer_node_dup ( caddr_t d1, caddr_t d2 )
+__acllist_aciContainer_node_dup ( caddr_t d1 __attribute__((unused)), caddr_t d2 __attribute__((unused)))
 {
 
 	/* we allow duplicates  -- they are not exactly duplicates
@@ -605,7 +605,7 @@ free_targetattrfilters( Targetattrfilter ***attrFilterArray)
 
 /* SEARCH */
 void
-acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
+acllist_init_scan (Slapi_PBlock *pb, int scope __attribute__((unused)), const char *base)
 {
 	Acl_PBlock			*aclpb;
 	AciContainer		*root;

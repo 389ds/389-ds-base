@@ -69,7 +69,7 @@ attrinfo_delete(struct attrinfo **pp)
 }
 
 static int
-attrinfo_internal_delete( caddr_t data, caddr_t arg )
+attrinfo_internal_delete( caddr_t data, caddr_t arg __attribute__((unused)))
 {
     struct attrinfo *n = (struct attrinfo *)data;
     attrinfo_delete(&n);
@@ -644,7 +644,7 @@ attr_index_config(
     char		*fname,
     int			lineno,
     Slapi_Entry *e,
-    int			init,
+    int			init __attribute__((unused)),
     int 		indextype_none
 )
 {

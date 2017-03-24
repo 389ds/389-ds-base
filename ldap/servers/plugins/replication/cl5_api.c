@@ -2294,7 +2294,7 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 
 
 int
-cl5DBData2Entry (const char *data, PRUint32 len, CL5Entry *entry)
+cl5DBData2Entry (const char *data, PRUint32 len __attribute__((unused)), CL5Entry *entry)
 {
 	int rc;
 	PRUint8 version;
@@ -2808,7 +2808,7 @@ static void _cl5WriteBerval (struct berval *bv, char** buff)
 }
 
 /* data format: <value count> <value size> <value> <value size> <value> ..... */
-static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size)
+static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size __attribute__((unused)))
 {
     PRInt32 count;
     int i;
@@ -3430,7 +3430,7 @@ static void _cl5TrimCleanup(void)
 	memset (&s_cl5Desc.dbTrim, 0, sizeof (s_cl5Desc.dbTrim));
 }
 
-static int _cl5TrimMain (void *param)
+static int _cl5TrimMain (void *param __attribute__((unused)))
 {
 	time_t timePrev = current_time ();
 	time_t timeCompactPrev = current_time ();
@@ -5047,7 +5047,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 }
 
 static int _cl5WriteOperationTxn(const char *replName, const char *replGen, 
-                                 const slapi_operation_parameters *op, PRBool local, void *txn)
+                                 const slapi_operation_parameters *op, PRBool local __attribute__((unused)), void *txn)
 {
 	int rc;
 	int cnt;

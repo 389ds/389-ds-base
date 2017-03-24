@@ -754,7 +754,7 @@ attr_next_deleted_value( Slapi_Attr *a, int hint, Slapi_Value **v)
  * the csn related information and roll it up higher to the level of entry.
  */
 void
-attr_purge_state_information(Slapi_Entry *entry, Slapi_Attr *attr, const CSN *csnUpTo)
+attr_purge_state_information(Slapi_Entry *entry __attribute__((unused)), Slapi_Attr *attr, const CSN *csnUpTo)
 {
 	if(!valueset_isempty(&attr->a_deleted_values))
 	{
@@ -938,7 +938,7 @@ int attr_replace(Slapi_Attr *a, Slapi_Value **vals)
 }
 
 int 
-attr_check_onoff ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen )
+attr_check_onoff ( const char *attr_name, char *value, long minval __attribute__((unused)), long maxval __attribute__((unused)), char *errorbuf, size_t ebuflen )
 {
 	int retVal = LDAP_SUCCESS;
 
