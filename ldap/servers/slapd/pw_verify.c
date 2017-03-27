@@ -50,8 +50,6 @@ pw_verify_root_dn(const char *dn, const Slapi_Value *cred)
  *
  * In the future, this will use the credentials and do mfa.
  *
- * If you get SLAPI_BIND_SUCCESS or SLAPI_BIND_ANONYMOUS you need to unlock
- * the backend.
  * All other results, it's already released.
  */
 int
@@ -81,10 +79,8 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     set_db_default_result_handlers(pb);
     /* now take the dn, and check it */
     rc = (*be->be_bind)(pb);
-    /* now attempt the bind. */
-    if (rc != SLAPI_BIND_SUCCESS && rc != SLAPI_BIND_ANONYMOUS) {
-        slapi_be_Unlock(be);
-    }
+    slapi_be_Unlock(be);
+
     return rc;
 }
 
