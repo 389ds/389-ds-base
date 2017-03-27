@@ -240,9 +240,9 @@ def test_different_values(topology_st, value):
                under cn=config entry
             2. Run the search command to check the
                value of passwordSendExpiringTime attribute
-    :assert: 1. Invalid values should be rejected with
-                an OPERATIONS_ERROR
-             2. Valid values should be accepted and saved
+    :expectedresults: 1. Invalid values should be rejected with
+                      an OPERATIONS_ERROR
+                      2. Valid values should be accepted and saved
     """
 
     log.info('Get the default value')
@@ -285,8 +285,8 @@ def test_expiry_time(topology_st, global_policy, add_user):
             2. User entry for binding
     :steps: 1. Bind as the user
             2. Request the control for the user
-    :assert: The password expiry warning time for the user should be
-             returned
+    :expectedresults: The password expiry warning time for the user should be
+                      returned
     """
 
     res_ctrls = None
@@ -328,8 +328,8 @@ def test_password_warning(topology_st, global_policy, add_user, attr, val):
             2. Bind as the user
             3a. Request the control for the user
             3b. Request the password expiry warning time
-    :assert: a. Password expiry warning time should not be returned
-             b. Password expiry warning time should be returned
+    :expectedresults: a. Password expiry warning time should not be returned
+                      b. Password expiry warning time should be returned
     """
 
     try:
@@ -370,11 +370,11 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
             3. Set the system date to the current day
             4. Try to bind with the user entry and request
                the control
-    :assert: 1. In the first try, the bind should fail with an
-                INVALID_CREDENTIALS error
-             2. In the second try, the bind should be successful
-                and the password expiry warning time should be
-                returned
+    :expectedresults: 1. In the first try, the bind should fail with an
+                        INVALID_CREDENTIALS error
+                      2. In the second try, the bind should be successful
+                        and the password expiry warning time should be
+                        returned
     """
 
     res_ctrls = None
@@ -428,9 +428,9 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
             2. User entry for binding to the server
     :steps: 1. Bind as the user
             2. Request the control for the user
-    :assert: Password expiry warning time should be returned by the
-             server by the server since passwordMaxAge and
-             passwordWarning are set to the same value
+    :expectedresults: Password expiry warning time should be returned by the
+                      server by the server since passwordMaxAge and
+                      passwordWarning are set to the same value
     """
 
     res_ctrls = None
@@ -469,8 +469,8 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
                -h localhost -p 389 -U 'uid=tuser,dc=example,dc=com'
     :steps: 1. Bind as the user
             2. Request the control for the user
-    :assert: Password expiry warning time should not be returned for the
-             user
+    :expectedresults: Password expiry warning time should not be returned for the
+                      user
     """
 
     res_ctrls = None

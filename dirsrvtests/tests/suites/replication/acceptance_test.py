@@ -76,7 +76,7 @@ def test_add_entry(topo, test_entry):
     :steps: 1. Add entry to master1
             2. Wait for replication to happen
             3. Check entry on all other masters
-    :assert: Entry should be replicated
+    :expectedresults: Entry should be replicated
     """
 
     entries = get_repl_entries(topo, TEST_ENTRY_NAME, ["uid"])
@@ -92,7 +92,7 @@ def test_modify_entry(topo, test_entry):
     :steps: 1. Modify the entry on master1 (try add, modify and delete operations)
             2. Wait for replication to happen
             3. Check entry on all other masters
-    :assert: Entry attr should be replicated
+    :expectedresults: Entry attr should be replicated
     """
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
@@ -144,7 +144,7 @@ def test_delete_entry(topo, test_entry):
     :steps: 1. Delete the entry from master1
             2. Wait for replication to happen
             3. Check entry on all other masters
-    :assert: Entry deletion should be replicated
+    :expectedresults: Entry deletion should be replicated
     """
 
     log.info('Deleting entry {} during the test'.format(TEST_ENTRY_DN))
@@ -164,7 +164,7 @@ def test_modrdn_entry(topo, test_entry, delold):
     :steps: 1. Make modrdn operation on entry on master1 with both delold 1 and 0
             2. Wait for replication to happen
             3. Check entry on all other masters
-    :assert: Entry with new RDN should be replicated.
+    :expectedresults: Entry with new RDN should be replicated.
              If delold was specified, entry with old RDN shouldn't exist
     """
 

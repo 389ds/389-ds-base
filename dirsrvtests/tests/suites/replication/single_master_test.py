@@ -85,7 +85,7 @@ def test_mail_attr_repl(topo_r, test_user):
             4. Restore mail database
             5. Search for the entry with a substring 'mail=user*'
             6. Search for the entry once again to make sure that server is alive
-    :assert: No crash happens
+    :expectedresults: No crash happens
     """
 
     master = topo_r.ms["master1"]
@@ -144,7 +144,7 @@ def test_lastupdate_attr_before_init(topo_nr, replica_without_init):
             without initialization
     :steps: 1. Check nsds5replicaLastUpdateStart, nsds5replicaLastUpdateEnd,
                nsds5replicaLastUpdateStatus attrs
-    :assert: nsds5replicaLastUpdateStart: 0, nsds5replicaLastUpdateEnd: 0 and
+    :expectedresults: nsds5replicaLastUpdateStart: 0, nsds5replicaLastUpdateEnd: 0 and
              nsds5replicaLastUpdateStatus is not equal to
              "0 Replica acquired successfully: Incremental update started"
     """

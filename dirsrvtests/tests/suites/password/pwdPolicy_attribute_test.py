@@ -132,7 +132,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
             2. Bind as test user
             3. Try to change password
 
-    :assert: Subtree/User passwordChange - result
+    :expectedresults: Subtree/User passwordChange - result
              off/on, on/on - success
              on/off, off/off - UNWILLING_TO_PERFORM
     """
@@ -202,7 +202,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
             5. Try to change password two times in a row
             6. Wait 12 seconds
             7. Try to change password
-    :assert: User should be not allowed to change the password
+    :expectedresults: User should be not allowed to change the password
              right after previous change - CONSTRAINT_VIOLATION
              User should be not allowed to change the password
              after 12 seconds passed

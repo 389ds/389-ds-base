@@ -70,7 +70,7 @@ def test_maxbersize_repl(topology_m2, test_user, big_file):
     :steps: 1. Set 20KiB small maxbersize on master2
             2. Add big value to master2
             3. Add big value to master1
-    :assert: Adding the big value to master2 is failed,
+    :expectedresults: Adding the big value to master2 is failed,
              adding the big value to master1 is succeed,
              the big value is successfully replicated to master2
     """
@@ -144,7 +144,7 @@ def test_config_listen_backport_size(topology_m2):
                Try positive and negative.
             3. Set nsslapd-listen-backlog-size to an invalid value
             4. Set nsslapd-listen-backlog-size back to a default value
-    :assert: Search and the valid modification should be a success
+    :expectedresults: Search and the valid modification should be a success
              Modification with an invalid value should throw an error
     """
 
@@ -202,7 +202,7 @@ def test_config_deadlock_policy(topology_m2):
                Try positive and negative.
             3. Set nsslapd-db-deadlock-policy to an invalid value
             4. Set nsslapd-db-deadlock-policy back to a default value
-    :assert: Search and the valid modification should be a success
+    :expectedresults: Search and the valid modification should be a success
              Modification with invalid values should throw an error
     """
 

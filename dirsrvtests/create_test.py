@@ -694,7 +694,7 @@ if len(sys.argv) > 0:
         TEST.write('    :setup: Fill in set up configuration here\n')
         TEST.write('    :steps: 1. Fill in test case steps here\n')
         TEST.write('            2. And indent them like this (RST format requirement)\n')
-        TEST.write('    :assert: Fill in the result that is expected\n')
+        TEST.write('    :expectedresults: Fill in the result that is expected\n')
         TEST.write('    """\n\n')
         TEST.write('    # If you need any test suite initialization,\n')
         TEST.write('    # please, write additional fixture for that (including finalizer).\n'

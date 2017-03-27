@@ -126,7 +126,7 @@ def test_actNinact_local(topology_st, accpolicy_local):
             5. Wait for 2 secs or till accountInactivityLimit is exceeded
             6. Run ldapsearch as normal user and check if its inactivated, expected error 19.
             7. Sleep for +14 secs to check if accounts accessed at step4 are inactivated now
-    :assert: Should return error code 19
+    :expectedresults: Should return error code 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -160,7 +160,7 @@ def test_noinact_local(topology_st, accpolicy_local):
             2. Wait for 16 secs and run ldapsearch as normal user to check account is active, expected 0.
             3. Move users from ou=groups to ou=people subtree
             4. Sleep for 16 secs and check if entries are inactivated
-    :assert: Should return error code 0 and 19
+    :expectedresults: Should return error code 0 and 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -200,7 +200,7 @@ def test_inact_local(topology_st, accpolicy_local):
             3. Move users from ou=people to ou=groups subtree
             4. Sleep for +2 secs and check if users are inactivated in ou=people subtree
             5. Check if users are not inactivated in ou=groups subtree
-    :assert: Should return error code 0
+    :expectedresults: Should return error code 0
     """
 
     suffix = DEFAULT_SUFFIX

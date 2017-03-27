@@ -22,7 +22,7 @@ def test_purge_success(topology_st):
             2. Add an entry to the replicated suffix
             3. Delete the entry
             4. Check that tombstone entry exists (objectclass=nsTombstone)
-    :assert: Tombstone entry exist
+    :expectedresults: Tombstone entry exist
     """
 
     log.info('Setting up replication...')

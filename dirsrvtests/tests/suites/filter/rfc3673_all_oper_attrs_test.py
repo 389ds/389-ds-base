@@ -100,7 +100,7 @@ def test_supported_features(topology_st):
     :feature: Filter
     :setup: Standalone instance
     :steps: 1. Search for 'supportedFeatures' at rootDSE
-    :assert: Value 1.3.6.1.4.1.4203.1.5.1 is presented
+    :expectedresults: Value 1.3.6.1.4.1.4203.1.5.1 is presented
     """
 
     entries = topology_st.standalone.search_s('', ldap.SCOPE_BASE,
@@ -127,7 +127,7 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
     :steps: 1. Bind as regular user or Directory Manager
             2. Search with '+' filter and with additionaly
                'objectClass' and '*' attrs too
-    :assert: All expected values were returned, not more
+    :expectedresults: All expected values were returned, not more
     """
 
     if regular_user:

@@ -253,7 +253,7 @@ def test_search_success(topology_st, test_user, page_size, users_num):
             variated number of users for the search base
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
-    :assert: All users should be found
+    :expectedresults: All users should be found
     """
 
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
@@ -302,7 +302,7 @@ def test_search_limits_fail(topology_st, test_user, page_size, users_num,
             2. Set limit attribute to the value that will cause
                an expected exception
             3. Search through added users with a simple paged control
-    :assert: Should fail with appropriate exception
+    :expectedresults: Should fail with appropriate exception
     """
 
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
@@ -384,7 +384,7 @@ def test_search_sort_success(topology_st, test_user):
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
                and a server side sort control
-    :assert: All users should be found and sorted
+    :expectedresults: All users should be found and sorted
     """
 
     users_num = 50
@@ -428,7 +428,7 @@ def test_search_abandon(topology_st, test_user):
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
             3. Abandon the search
-    :assert: It will throw an ldap.TIMEOUT exception, while trying
+    :expectedresults: It will throw an ldap.TIMEOUT exception, while trying
              to get the rest of the search results
     """
 
@@ -478,7 +478,7 @@ def test_search_with_timelimit(topology_st, test_user):
                and timelimit set to 5
             3. When the returned cookie is empty, wait 10 seconds
             4. Perform steps 2 and 3 three times in a row
-    :assert: No error happens
+    :expectedresults: No error happens
     """
 
     users_num = 100
@@ -559,7 +559,7 @@ def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
             6. Return ACI to the initial state
             7. Go through all steps onece again, but use IP subjectdn
                insted of DNS
-    :assert: No error happens, all users should be found and sorted
+    :expectedresults: No error happens, all users should be found and sorted
     """
 
     users_num = 100
@@ -627,7 +627,7 @@ def test_search_multiple_paging(topology_st, test_user):
             2. Initiate the search with a simple paged control
             3. Acquire the returned cookie only one time
             4. Perform steps 2 and 3 three times in a row
-    :assert: No error happens
+    :expectedresults: No error happens
     """
 
     users_num = 100
@@ -685,7 +685,7 @@ def test_search_invalid_cookie(topology_st, test_user, invalid_cookie):
             2. Initiate the search with a simple paged control
             3. Put an invalid cookie (-1, 1000) to the control
             4. Continue the search
-    :assert: It will throw an TypeError exception
+    :expectedresults: It will throw an TypeError exception
     """
 
     users_num = 100
@@ -735,7 +735,7 @@ def test_search_abandon_with_zero_size(topology_st, test_user):
     :steps: 1. Bind as test user
             2. Search through added users with a simple paged control
                and page_size = 0
-    :assert: No cookie should be returned at all
+    :expectedresults: No cookie should be returned at all
     """
 
     users_num = 10
@@ -783,7 +783,7 @@ def test_search_pagedsizelimit_success(topology_st, test_user):
             2. Bind as test user
             3. Search through added users with a simple paged control
                using page_size = 10
-    :assert: All users should be found
+    :expectedresults: All users should be found
     """
 
     users_num = 10
@@ -841,7 +841,7 @@ def test_search_nspagedsizelimit(topology_st, test_user,
             9. Bind as test user
             10. Search through added users with a simple paged control
                 using page_size = 10
-    :assert: After the steps 1-4, it should PASS.
+    :expectedresults: After the steps 1-4, it should PASS.
              After the steps 7-10, it should throw
              SIZELIMIT_EXCEEDED exception
     """
@@ -909,7 +909,7 @@ def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_
             9. Bind as test user
             10. Search through added users with a simple paged control
                 using page_size = 10
-    :assert: After the steps 1-4, it should PASS.
+    :expectedresults: After the steps 1-4, it should PASS.
              After the steps 7-10, it should throw
              ADMINLIMIT_EXCEEDED exception
     """
@@ -985,7 +985,7 @@ def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expe
             10. Bind as test user
             11. Search through added users with a simple paged control
                 using page_size = 10
-    :assert: After the steps 1-4, it should PASS.
+    :expectedresults: After the steps 1-4, it should PASS.
              After the steps 8-11, it should throw
              ADMINLIMIT_EXCEEDED exception
     """
@@ -1047,7 +1047,7 @@ def test_ger_basic(topology_st, test_user):
             variated number of users for the search base
     :steps: 1. Search through added users with a simple paged control
                and get effective rights control
-    :assert: All users should be found, every found entry should have
+    :expectedresults: All users should be found, every found entry should have
              an 'attributeLevelRights' returned
     """
 
@@ -1089,7 +1089,7 @@ def test_multi_suffix_search(topology_st, test_user, new_suffixes):
                using page_size = 4
             3. Wait some time logs to be updated
             3. Check access log
-    :assert: All users should be found, the access log should contain
+    :expectedresults: All users should be found, the access log should contain
              the pr_cookie for each page request and it should be equal 0,
              except the last one should be equal -1
     """
@@ -1145,7 +1145,7 @@ def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value
                to the next values: no value, -1, some positive
             2. Search through the added users with a simple paged control
                using page size = 4
-    :assert: If no value or value = -1 - all users should be found,
+    :expectedresults: If no value or value = -1 - all users should be found,
              default behaviour;
              If the value is positive, the value is the max simple paged
              results requests per connection.
@@ -1194,7 +1194,7 @@ def test_maxsimplepaged_per_conn_failure(topology_st, test_user, conf_attr_value
             3. Set nsslapd-maxsimplepaged-per-conn = 1 in cn=config
             4. Search through the added users with a simple paged control
                using page size = 4 two times, but don't close the connections
-    :assert: During the searches UNWILLING_TO_PERFORM should be throwned
+    :expectedresults: During the searches UNWILLING_TO_PERFORM should be throwned
     """
 
     users_list = add_users(topology_st, 20, DEFAULT_SUFFIX)

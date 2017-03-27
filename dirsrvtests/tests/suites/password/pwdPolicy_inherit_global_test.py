@@ -157,7 +157,7 @@ def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
                b) 'on' and 'off'
                c) 'off' and 'on'
             3. Try to add user with a short password
-    :assert: No exception should occure
+    :expectedresults: No exception should occure
     """
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, inherit_value))
@@ -220,7 +220,7 @@ def test_entry_has_restrictions(topology_st, password_policy, test_user, contain
                b) ou=people policy container
             5. Try to add user with a short password (<9)
             6. Try to add user with a long password (>9)
-    :assert: User should be rejected
+    :expectedresults: User should be rejected
     """
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, 'on'))

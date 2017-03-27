@@ -42,12 +42,14 @@ def test_slapd_InstScriptsEnabled(config_attr):
 
     :ID: 02faac7f-c44d-4a3e-bf2d-1021e51da1ed
     :feature: Add configure option to disable instance specific scripts
-    :setup: Create directory server instance using setup-ds.pl with slapd.InstScriptsEnabled option as "True" and "False"
+    :setup: Create directory server instance using setup-ds.pl
+            with slapd.InstScriptsEnabled option as "True" and "False"
     :steps: 1. Execute setup-ds.pl with slapd.InstScriptsEnabled option as "True" and "False" one by one
             2. Check if /usr/lib64/dirsrv/slapd-instance instance script directory is created or not.
             3. The script directory should be created if slapd.InstScriptsEnabled option is "True"
             4. The script directory should not be created if slapd.InstScriptsEnabled option is "False"
-    :assert: The script directory should be created if slapd.InstScriptsEnabled option is "True" and not if it is "Fasle"
+    :expectedresults: The script directory should be created
+                      if slapd.InstScriptsEnabled option is "True" and not if it is "Fasle"
     """
 
     log.info('set SER_INST_SCRIPTS_ENABLED to {}'.format(config_attr))
