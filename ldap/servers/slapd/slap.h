@@ -257,8 +257,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL 40      /* use -1 for no limit */
 #define SLAPD_DEFAULT_MAX_SASLIO_SIZE       2097152 /* 2MB in bytes.  Use -1 for no limit */
 #define SLAPD_DEFAULT_MAX_SASLIO_SIZE_STR   "2097152"
-#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT       1800000 /* half hour in ms */
-#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR   "1800000"
+#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT       300000 /* 5 minutes in ms */
+#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR   "300000"
 #define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT  300000 /* 5 minutes in ms */
 #define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT_STR "300000"
 #define SLAPD_DEFAULT_RESERVE_FDS           64
