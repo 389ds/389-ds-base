@@ -519,11 +519,14 @@ case $host in
     case $host in
       i*86-*-linux*)
         AC_DEFINE([CPU_x86], [], [cpu type x86])
-        AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
         ;;
       x86_64-*-linux*)
-        AC_DEFINE([CPU_x86_64], [], [cpu type x86_64])
-        AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
+        AC_DEFINE([CPU_x86_64], [1], [cpu type x86_64])
+
+        # This turns on and off LFDS inside of libsds
+        # wibrown -- 2017-02-21 disabled temporarily
+        # with_atomic_queue="yes"
+        # AC_DEFINE([ATOMIC_QUEUE_OPERATIONS], [1], [enabling atomic queue operations])
         ;;
       aarch64-*-linux*)
         AC_DEFINE([CPU_arm], [], [cpu type arm])
@@ -532,16 +535,6 @@ case $host in
         AC_DEFINE([CPU_arm], [], [cpu type arm])
         ;;
     esac
-    AC_MSG_CHECKING([for GCC provided 64-bit atomic bool cas function ...])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
-                                    [[long long ptrval = 0, val = 0, newval = 1; (void)__sync_bool_compare_and_swap_8(&ptrval, val, newval);]])],
-                   [AC_DEFINE([HAVE_64BIT_ATOMIC_CAS_FUNC], [1], [have 64-bit atomic bool compare and swap function provided by gcc])AC_MSG_RESULT([yes])],
-                   [AC_MSG_RESULT([no])])
-    AC_MSG_CHECKING([for GCC provided 64-bit atomic ops functions ...])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
-                                    [[long long ptrval = 0, val = 0; (void)__sync_add_and_fetch_8(&ptrval, val);]])],
-                   [AC_DEFINE([HAVE_64BIT_ATOMIC_OP_FUNCS], [1], [have 64-bit atomic operation functions provided by gcc])AC_MSG_RESULT([yes])],
-                   [AC_MSG_RESULT([no])])
     # some programs use the native thread library directly
     THREADLIB=-lpthread
     AC_SUBST([THREADLIB], [$THREADLIB])
@@ -576,7 +569,6 @@ case $host in
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
-    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
     # assume 64 bit
     initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
@@ -611,12 +603,11 @@ dnl Cstd and Crun are required to link any C++ related code
     initdir='$(sysconfdir)/init.d'
     case $host in
       i?86-*-solaris2.1[[0-9]]*)
-dnl I dont know why i386 need this explicit
+        dnl I dont know why i386 need this explicit
         AC_DEFINE([HAVE_GETPEERUCRED], [1], [have getpeerucred])
         ;;
       sparc-*-solaris*)
-dnl includes some assembler stuff in counter.o
-        AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
+        dnl includes some assembler stuff in counter.o
         AC_DEFINE([CPU_sparc], [], [cpu type sparc])
         TARGET='SPARC'
         ;;
@@ -626,6 +617,30 @@ dnl includes some assembler stuff in counter.o
     platform=""
     ;;
 esac
+
+AC_MSG_CHECKING([for GCC provided 64-bit atomic operations])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <inttypes.h>
+    ]],
+    [[
+    uint64_t t_counter = 0;
+    uint64_t t_oldval = 0;
+    uint64_t t_newval = 1;
+
+    __atomic_compare_exchange_8(&t_counter, &t_oldval, t_newval, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    __atomic_add_fetch_8(&t_counter, t_newval, __ATOMIC_SEQ_CST);
+    __atomic_sub_fetch_8(&t_counter, t_newval, __ATOMIC_SEQ_CST);
+    __atomic_load(&t_counter, &t_oldval, __ATOMIC_SEQ_CST);
+    return 0;
+    ]])],
+    [
+        AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [have 64-bit atomic operation functions provided by gcc])
+        AC_MSG_RESULT([yes])
+    ],
+    [
+        AC_MSG_RESULT([no])
+    ]
+)
 
 # cmd line overrides default setting above
 if test -n "$with_initddir" ; then
