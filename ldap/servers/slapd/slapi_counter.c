@@ -12,10 +12,12 @@
 
 #include "slap.h"
 
-#ifdef HPUX
-#ifdef ATOMIC_64BIT_OPERATIONS
-#include <machine/sys/inline.h>
+#ifndef ATOMIC_64BIT_OPERATIONS
+#include <pthread.h>
 #endif
+
+#ifdef HPUX
+#include <machine/sys/inline.h>
 #endif
 
 /*
@@ -23,6 +25,9 @@
  */
 typedef struct slapi_counter {
     uint64_t value;
+#ifndef ATOMIC_64BIT_OPERATIONS
+    pthread_mutex_t _lock;
+#endif
 } slapi_counter;
 
 /*
@@ -53,6 +58,9 @@ void slapi_counter_init(Slapi_Counter *counter)
     if (counter != NULL) {
         /* Set the value to 0. */
         slapi_counter_set_value(counter, 0);
+#ifndef ATOMIC_64BIT_OPERATIONS
+        pthread_mutex_init(&(counter->_lock), NULL);
+#endif
     }
 }
 
@@ -65,6 +73,9 @@ void slapi_counter_init(Slapi_Counter *counter)
 void slapi_counter_destroy(Slapi_Counter **counter)
 {
     if ((counter != NULL) && (*counter != NULL)) {
+#ifndef ATOMIC_64BIT_OPERATIONS
+        pthread_mutex_destroy(&((*counter)->_lock));
+#endif
         slapi_ch_free((void **)counter);
     }
 }
@@ -99,17 +110,15 @@ uint64_t slapi_counter_decrement(Slapi_Counter *counter)
 uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
 {
     uint64_t newvalue = 0;
-#ifdef HPUX
-    uint64_t prev = 0;
-#endif
 
     if (counter == NULL) {
         return newvalue;
     }
-
-#ifndef HPUX
+#ifdef ATOMIC_64BIT_OPERATIONS
     newvalue = __atomic_add_fetch_8(&(counter->value), addvalue, __ATOMIC_SEQ_CST);
 #else
+#ifdef HPUX
+    uint64_t prev = 0;
     /* fetchadd only works with values of 1, 4, 8, and 16.  In addition, it requires
      * it's argument to be an integer constant. */
     if (addvalue == 1) {
@@ -133,6 +142,12 @@ uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
            _Asm_mov_to_ar(_AREG_CCV, prev);
         } while (prev != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), newvalue, _LDHINT_NONE));
     }
+#else
+    pthread_mutex_lock(&(counter->_lock));
+    counter->value += addvalue;
+    newvalue = counter->value;
+    pthread_mutex_unlock(&(counter->_lock));
+#endif
 #endif
 
     return newvalue;
@@ -147,17 +162,16 @@ uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
 uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
 {
     uint64_t newvalue = 0;
-#ifdef HPUX
-    uint64_t prev = 0;
-#endif
 
     if (counter == NULL) {
         return newvalue;
     }
 
-#ifndef HPUX
+#ifdef ATOMIC_64BIT_OPERATIONS
     newvalue = __atomic_sub_fetch_8(&(counter->value), subvalue, __ATOMIC_SEQ_CST);
 #else
+#ifdef HPUX
+    uint64_t prev = 0;
     /* fetchadd only works with values of -1, -4, -8, and -16.  In addition, it requires
      * it's argument to be an integer constant. */
     if (subvalue == 1) {
@@ -181,6 +195,12 @@ uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
            _Asm_mov_to_ar(_AREG_CCV, prev);
         } while (prev != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), newvalue, _LDHINT_NONE));
     }
+#else
+    pthread_mutex_lock(&(counter->_lock));
+    counter->value -= subvalue;
+    newvalue = counter->value;
+    pthread_mutex_unlock(&(counter->_lock));
+#endif
 #endif
 
     return newvalue;
@@ -199,14 +219,20 @@ uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
         return value;
     }
 
-#ifndef HPUX
+#ifdef ATOMIC_64BIT_OPERATIONS
     __atomic_store_8(&(counter->value), newvalue, __ATOMIC_SEQ_CST);
 #else /* HPUX */
+#ifdef HPUX
     do {
         value = counter->value;
         /* Put value in a register for cmpxchg to compare against */
         _Asm_mov_to_ar(_AREG_CCV, value);
     } while (value != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), newvalue, _LDHINT_NONE));
+#else
+    pthread_mutex_lock(&(counter->_lock));
+    counter->value = newvalue;
+    pthread_mutex_unlock(&(counter->_lock));
+#endif
 #endif
     return newvalue;
 }
@@ -224,14 +250,20 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter)
         return value;
     }
 
-#ifndef HPUX
+#ifdef ATOMIC_64BIT_OPERATIONS
     value = __atomic_load_8(&(counter->value), __ATOMIC_SEQ_CST);
 #else  /* HPUX */
+#ifdef HPUX
     do {
         value = counter->value;
         /* Put value in a register for cmpxchg to compare against */
         _Asm_mov_to_ar(_AREG_CCV, value);
     } while (value != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), value, _LDHINT_NONE));
+#else
+    pthread_mutex_lock(&(counter->_lock));
+    value = counter->value;
+    pthread_mutex_unlock(&(counter->_lock));
+#endif
 #endif
 
     return value;
