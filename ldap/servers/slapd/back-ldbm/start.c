@@ -265,12 +265,12 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     issane = util_is_cachesize_sane(&total_cache_size);
     if (!issane) {
         /* Right, it's time to panic */
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n");
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Total entry cache size: %lu B; dbcache size: %lu B; available memory size: %lu B; \n",
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Total entry cache size: %lu B; dbcache size: %lu B; available memory size: %lu B; \n",
                   (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
         );
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "%s\n", msg);
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "%s\n", msg);
         /* WB 2016 - This should be UNCOMMENTED in a future release */
         /* return SLAPI_FAIL_GENERAL; */
     }
