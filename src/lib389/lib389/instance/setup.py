@@ -21,6 +21,8 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
 
+from lib389.configurations import get_config
+
 from lib389.instance.options import General2Base, Slapd2Base
 
 # The poc backend api
@@ -370,7 +372,7 @@ class SetupDs(object):
         if self.verbose:
             self.log.info("ACTION: Creating dse.ldif")
         dse = ""
-        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
+        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse-minimal.ldif')) as template_dse:
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
@@ -424,6 +426,11 @@ class SetupDs(object):
         # Start the server
         ds_instance.start(timeout=60)
         ds_instance.open()
+
+        # Create the configs related to this version.
+        base_config = get_config(general['defaults'])
+        base_config_inst = base_config(ds_instance)
+        base_config_inst.apply_config(install=True)
 
         # Create the backends as listed
         # Load example data if needed.

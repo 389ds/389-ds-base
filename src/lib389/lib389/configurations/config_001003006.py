@@ -15,6 +15,8 @@ from lib389.idm.domain import Domain
 from lib389.idm.organisationalunit import OrganisationalUnits
 from lib389.idm.group import UniqueGroups, UniqueGroup
 
+from lib389.plugins import WhoamiPlugin
+
 class c001003006_sample_entries(sampleentries):
     def __init__(self, instance, basedn):
         super(c001003006_sample_entries, self).__init__(instance, basedn)
@@ -92,13 +94,47 @@ class c001003006_sample_entries(sampleentries):
 
 ### Operations to be filled in soon!
 
+class c001003006_whoami_plugin(configoperation):
+    def __init__(self, instance):
+        super(c001003006_whoami_plugin, self).__init__(instance)
+        self.install = True
+        self.upgrade = True
+        self.description = "Enable the Whoami Plugin"
+
+    def _apply(self):
+        # This needs to change from create to "ensure"?
+        whoami_plugin = WhoamiPlugin(self._instance)
+        whoami_plugin.create()
+
 class c001003006(baseconfig):
     def __init__(self, instance):
         super(c001003006, self).__init__(instance)
         self._operations = [
+            # Create plugin configs first
+            c001003006_whoami_plugin(self._instance)
             # Create our sample entries.
             # op001003006_sample_entries(self._instance),
         ]
 
 
+    # We need the following to be created and ENABLED
+    # SyntaxValidationPlugin
+    # SchemaReloadPlugin
+    # StateChangePlugin
+    # RolesPlugin
+    # ACLPlugin
+    # ACLPreoperationPlugin
+    # ClassOfServicePlugin
+    # ViewsPlugin
+    # SevenBitCheckPlugin
+    # AccountUsabilityPlugin
+    # AutoMembershipPlugin
+    # DereferencePlugin
+    # HTTPClientPlugin
+    # LinkedAttributesPlugin
+    # ManagedEntriesPlugin
+    # WhoamiPlugin
+    # LDBMBackendPlugin
+    # ChainingBackendPlugin
+    
 

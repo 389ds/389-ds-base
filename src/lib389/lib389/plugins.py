@@ -8,7 +8,6 @@
 
 import ldap
 import copy
-from lib389 import DirSrv, InvalidArgumentError
 from lib389.properties import *
 from lib389._constants import *
 
@@ -126,7 +125,113 @@ class ReferentialIntegrityPlugin(Plugin):
     # referint-membership-attr: owner
     # referint-membership-attr: seeAlso
 
+class SyntaxValidationPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Syntax Validation Task,cn=plugins,cn=config", batch=False):
+        super(SyntaxValidationPlugin, self).__init__(instance, dn, batch)
 
+class SchemaReloadPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Schema Reload,cn=plugins,cn=config", batch=False):
+        super(SchemaReloadPlugin, self).__init__(instance, dn, batch)
+
+class StateChangePlugin(Plugin):
+    def __init__(self, instance, dn="cn=State Change Plugin,cn=plugins,cn=config", batch=False):
+        super(StateChangePlugin, self).__init__(instance, dn, batch)
+
+class ACLPlugin(Plugin):
+    def __init__(self, instance, dn="cn=ACL Plugin,cn=plugins,cn=config", batch=False):
+        super(ACLPlugin, self).__init__(instance, dn, batch)
+
+class ACLPreoperationPlugin(Plugin):
+    def __init__(self, instance, dn="cn=ACL preoperation,cn=plugins,cn=config", batch=False):
+        super(ACLPreoperationPlugin, self).__init__(instance, dn, batch)
+
+class RolesPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Roles Plugin,cn=plugins,cn=config", batch=False):
+        super(RolesPlugin, self).__init__(instance, dn, batch)
+
+class MemberOfPlugin(Plugin):
+    def __init__(self, instance, dn="cn=MemberOf Plugin,cn=plugins,cn=config", batch=False):
+        super(MemberOfPlugin, self).__init__(instance, dn, batch)
+
+class RetroChangelogPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Retro Changelog Plugin,cn=plugins,cn=config", batch=False):
+        super(RetroChangelogPlugin, self).__init__(instance, dn, batch)
+
+class ClassOfServicePlugin(Plugin):
+    def __init__(self, instance, dn="cn=Class of Service,cn=plugins,cn=config", batch=False):
+        super(ClassOfServicePlugin, self).__init__(instance, dn, batch)
+
+class ViewsPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Views,cn=plugins,cn=config", batch=False):
+        super(ViewsPlugin, self).__init__(instance, dn, batch)
+
+class SevenBitCheckPlugin(Plugin):
+    def __init__(self, instance, dn="cn=7-bit check,cn=plugins,cn=config", batch=False):
+        super(SevenBitCheckPlugin, self).__init__(instance, dn, batch)
+
+class AccountUsabilityPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Account Usability Plugin,cn=plugins,cn=config", batch=False):
+        super(AccountUsabilityPlugin, self).__init__(instance, dn, batch)
+
+class AutoMembershipPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config", batch=False):
+        super(AutoMembershipPlugin, self).__init__(instance, dn, batch)
+
+class ContentSynchronizationPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config", batch=False):
+        super(ContentSynchronizationPlugin, self).__init__(instance, dn, batch)
+
+class DereferencePlugin(Plugin):
+    def __init__(self, instance, dn="cn=deref,cn=plugins,cn=config", batch=False):
+        super(DereferencePlugin, self).__init__(instance, dn, batch)
+
+class HTTPClientPlugin(Plugin):
+    def __init__(self, instance, dn="cn=HTTP Client,cn=plugins,cn=config", batch=False):
+        super(HTTPClientPlugin, self).__init__(instance, dn, batch)
+
+class LinkedAttributesPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Linked Attributes,cn=plugins,cn=config", batch=False):
+        super(LinkedAttributesPlugin, self).__init__(instance, dn, batch)
+
+class PassThroughAuthenticationPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Pass Through Authentication,cn=plugins,cn=config", batch=False):
+        super(PassThroughAuthenticationPlugin, self).__init__(instance, dn, batch)
+
+class USNPlugin(Plugin):
+    def __init__(self, instance, dn="cn=USN,cn=plugins,cn=config", batch=False):
+        super(USNPlugin, self).__init__(instance, dn, batch)
+
+class WhoamiPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'whoami',
+        'nsslapd-pluginEnabled' : 'on',
+        'nsslapd-pluginPath' : 'libwhoami-plugin',
+        'nsslapd-pluginInitfunc' : 'whoami_init',
+        'nsslapd-pluginType' : 'extendedop',
+        'nsslapd-pluginId' : 'ldapwhoami-plugin',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.6',
+        'nsslapd-pluginDescription' : 'Provides whoami extended operation',
+    }
+
+    def __init__(self, instance, dn="cn=whoami,cn=plugins,cn=config", batch=False):
+        super(WhoamiPlugin, self).__init__(instance, dn, batch)
+
+class RootDNAccessControlPlugin(Plugin):
+    def __init__(self, instance, dn="cn=RootDN Access Control,cn=plugins,cn=config", batch=False):
+        super(RootDNAccessControlPlugin, self).__init__(instance, dn, batch)
+
+class LDBMBackendPlugin(Plugin):
+    def __init__(self, instance, dn="cn=ldbm database,cn=plugins,cn=config", batch=False):
+        super(LDBMBackendPlugin, self).__init__(instance, dn, batch)
+
+class ChainingBackendPlugin(Plugin):
+    def __init__(self, instance, dn="cn=chaining database,cn=plugins,cn=config", batch=False):
+        super(ChainingBackendPlugin, self).__init__(instance, dn, batch)
+
+class AccountPolicyPlugin(Plugin):
+    def __init__(self, instance, dn="cn=Account Policy Plugin,cn=plugins,cn=config", batch=False):
+        super(AccountPolicyPlugin, self).__init__(instance, dn, batch)
 
 class Plugins(DSLdapObjects):
 
@@ -189,6 +294,7 @@ class PluginsLegacy(object):
 
     def __getattr__(self, name):
         if name in Plugins.proxied_methods:
+            from lib389 import DirSrv
             return DirSrv.__getattr__(self.conn, name)
 
     def list(self, name=None):
@@ -239,6 +345,7 @@ class PluginsLegacy(object):
         filt = "(objectclass=%s)" % PLUGINS_OBJECTCLASS_VALUE
 
         if not dn:
+            from lib389 import InvalidArgumentError
             raise InvalidArgumentError("'name' and 'plugin_dn' are missing")
 
         ents = self.conn.search_s(dn, ldap.SCOPE_BASE, filt)
@@ -269,6 +376,7 @@ class PluginsLegacy(object):
         filt = "(objectclass=%s)" % PLUGINS_OBJECTCLASS_VALUE
 
         if not dn:
+            from lib389 import InvalidArgumentError
             raise InvalidArgumentError("'name' and 'plugin_dn' are missing")
 
         ents = self.conn.search_s(dn, ldap.SCOPE_BASE, filt)

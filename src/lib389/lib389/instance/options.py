@@ -134,7 +134,7 @@ class General2Base(Options2):
 
         self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str
-        self._helptext['defaults'] = "Set the configuration defaults version. If set to %{LATEST}, always use the latest values available for the slapd section. This allows pinning default values in cn=config to specific Directory Server releases. This maps to our versions such as 1.3.5 -> 001003005 -> 1003005".format(LATEST=INSTALL_LATEST_CONFIG)
+        self._helptext['defaults'] = "Set the configuration defaults version. If set to %{LATEST}, always use the latest values available for the slapd section. This allows pinning default values in cn=config to specific Directory Server releases. This maps to our versions such as 1.3.5 -> 001003005. The leading 0's are important.".format(LATEST=INSTALL_LATEST_CONFIG)
         self._example_comment['defaults'] = True
 
 #
