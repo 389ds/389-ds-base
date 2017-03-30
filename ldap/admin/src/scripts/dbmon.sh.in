@@ -47,7 +47,7 @@ parseldif() {
         }
         /^[^ ]|^$/ {origline = $0; $0 = unwrapline; unwrapline = origline}
         /^ / {sub(/^ /, ""); unwrapline = unwrapline $0; next}
-        /^nsslapd-dbcachesize/ { dbcachesize=$2 }
+        /^nsslapd-db-cache-size-bytes/ { dbcachesize=$2 }
         /^nsslapd-db-page-size/ { pagesize=$2 }
         /^dbcachehitratio/ { dbhitratio=$2 }
         /^dbcachepagein/ { dbcachepagein=$2 }
