@@ -1,0 +1,558 @@
+dn: cn=config
+cn: config
+objectclass:top
+objectclass:extensibleObject
+objectclass:nsslapdConfig
+nsslapd-schemadir: %schema_dir%
+nsslapd-lockdir: %lock_dir%
+nsslapd-tmpdir: %tmp_dir%
+nsslapd-certdir: %cert_dir%
+nsslapd-ldifdir: %ldif_dir%
+nsslapd-bakdir: %bak_dir%
+nsslapd-rundir: %run_dir%
+nsslapd-instancedir: %inst_dir%
+nsslapd-accesslog: %log_dir%/access
+nsslapd-localhost: %fqdn%
+nsslapd-port: %ds_port%
+nsslapd-localuser: %ds_user%
+nsslapd-errorlog: %log_dir%/errors
+nsslapd-auditlog: %log_dir%/audit
+nsslapd-auditfaillog: %log_dir%/audit
+nsslapd-rootdn: %rootdn%
+nsslapd-rootpw: %ds_passwd%
+
+dn: cn=features,cn=config
+objectclass: top
+objectclass: nsContainer
+cn: features
+
+dn: oid=1.3.6.1.4.1.42.2.27.9.5.8,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.3.6.1.4.1.42.2.27.9.5.8
+cn: Account Usable Request Control
+
+dn: oid=1.3.6.1.4.1.4203.1.9.1.1,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.3.6.1.4.1.4203.1.9.1.1
+cn: Sync Request Control
+aci: (targetattr != "aci")(version 3.0; acl "Sync Request Control"; allow( read
+ , search ) userdn = "ldap:///all";)
+
+dn: cn=plugins,cn=config
+objectclass: top
+objectclass: nsContainer
+cn: plugins
+
+dn: cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsContainer
+cn: Password Storage Schemes
+
+dn: cn=SSHA,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SSHA
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: ssha_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SSHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SSHA256
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: ssha256_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SSHA384,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SSHA384
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: ssha384_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SSHA512,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SSHA512
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: ssha512_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SHA,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SHA
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: sha_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SHA256
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: sha256_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SHA384,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SHA384
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: sha384_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SHA512,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SHA512
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: sha512_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=CRYPT,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CRYPT
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: crypt_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: MD5
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: md5_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=SMD5,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SMD5
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: smd5_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=CLEAR,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CLEAR
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: clear_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=NS-MTA-MD5,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: NS-MTA-MD5
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: ns_mta_md5_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: PBKDF2_SHA256
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: AES
+nsslapd-pluginpath: libpbe-plugin
+nsslapd-plugininitfunc: aes_init
+nsslapd-plugintype: reverpwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginarg0: nsmultiplexorcredentials
+nsslapd-pluginarg1: nsds5ReplicaCredentials
+nsslapd-pluginid: aes-storage-scheme
+nsslapd-pluginprecedence: 1
+
+dn: cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: DES
+nsslapd-pluginpath: libpbe-plugin
+nsslapd-plugininitfunc: des_init
+nsslapd-plugintype: reverpwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginarg0: nsmultiplexorcredentials
+nsslapd-pluginarg1: nsds5ReplicaCredentials
+nsslapd-pluginid: des-storage-scheme
+
+dn: cn=Syntax Validation Task,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Syntax Validation Task
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: syntax_validate_task_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: on
+
+dn: cn=Case Ignore String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Case Ignore String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: cis_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Case Exact String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Case Exact String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: ces_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Space Insensitive String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Space Insensitive String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: sicis_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: @enable_presence@
+
+dn: cn=Binary Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Binary Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: bin_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Bit String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Bit String
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: bitstring_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Octet String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Octet String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: octetstring_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Boolean Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Boolean Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: boolean_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Generalized Time Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Generalized Time Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: time_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Telephone Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Telephone Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: tel_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Telex Number Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Telex Number Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: telex_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Teletex Terminal Identifier Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Teletex Terminal Identifier Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: teletex_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Enhanced Guide Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Enhanced Guide Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: enhancedguide_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Facsimile Telephone Number Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Facsimile Telephone Number Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: facsimile_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Fax Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Fax Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: fax_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Guide Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Guide Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: guide_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Delivery Method Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Delivery Method Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: delivery_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Integer Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Integer Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: int_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Distinguished Name Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Distinguished Name Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: dn_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Name And Optional UID Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Name And Optional UID Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: nameoptuid_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=OID Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: OID Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: oid_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=URI Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: URI Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: uri_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: off
+
+dn: cn=JPEG Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: JPEG Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: jpeg_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Country String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Country String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: country_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Postal Address Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Postal Address Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: postal_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Numeric String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Numeric String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: numstr_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Printable String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Printable String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: printable_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=State Change Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: State Change Plugin
+nsslapd-pluginpath: libstatechange-plugin
+nsslapd-plugininitfunc: statechange_init
+nsslapd-plugintype: betxnpostoperation
+nsslapd-pluginenabled: on
+
+dn: cn=ACL Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: ACL Plugin
+nsslapd-pluginpath: libacl-plugin
+nsslapd-plugininitfunc: acl_init
+nsslapd-plugintype: accesscontrol
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
+dn: cn=ACL preoperation,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: ACL preoperation
+nsslapd-pluginpath: libacl-plugin
+nsslapd-plugininitfunc: acl_preopInit
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
+dn: cn=Internationalization Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Internationalization Plugin
+nsslapd-pluginpath: libcollation-plugin
+nsslapd-plugininitfunc: orderingRule_init
+nsslapd-plugintype: matchingRule
+nsslapd-pluginenabled: on
+nsslapd-pluginarg0: %config_dir%/slapd-collations.conf
+
+dn: cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: ldbm database
+nsslapd-pluginpath: libback-ldbm
+nsslapd-plugininitfunc: ldbm_back_init
+nsslapd-plugintype: database
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: Syntax
+nsslapd-plugin-depends-on-type: matchingRule
+
+dn: cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: extensibleObject
+cn: config
+nsslapd-mode: 600
+nsslapd-directory: %db_dir%
+nsslapd-subtree-rename-switch: on
+
+dn: cn=monitor, cn=ldbm database, cn=plugins, cn=config
+objectclass: top
+objectclass: extensibleObject
+cn: monitor
+
+dn: cn=database, cn=monitor, cn=ldbm database, cn=plugins, cn=config
+objectclass: top
+objectclass: extensibleObject
+cn: database
+
+dn: cn=mapping tree,cn=config
+objectclass: top
+objectclass: extensibleObject
+cn: mapping tree
+
+dn: cn=tasks,cn=config
+objectclass: top
+objectclass: extensibleObject
+cn: tasks
+
