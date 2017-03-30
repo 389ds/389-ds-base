@@ -16,6 +16,7 @@ import logging
 # This has to happen before we import  DirSrv else it tramples our config ... :(
 logging.basicConfig(format='%(message)s')
 
+from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organisationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
@@ -56,8 +57,9 @@ if __name__ == '__main__':
 
     # Call all the other cli modules to register their bits
 
-    cli_ou.create_parser(subparsers)
     cli_group.create_parser(subparsers)
+    cli_init.create_parser(subparsers)
+    cli_ou.create_parser(subparsers)
     cli_posixgroup.create_parser(subparsers)
     cli_user.create_parser(subparsers)
 
@@ -75,6 +77,9 @@ if __name__ == '__main__':
     log.debug("Inspired by works of: ITS, The University of Adelaide")
 
     log.debug("Called with: %s", args)
+
+    if args.basedn is None:
+        log.error("Must provide a basedn!")
 
     ldapurl = args.instance
 

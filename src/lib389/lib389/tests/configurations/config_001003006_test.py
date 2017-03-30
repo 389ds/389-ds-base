@@ -73,7 +73,7 @@ def topology_st(request):
     instance_standalone = standalone.exists()
     if instance_standalone:
         standalone.delete()
-    standalone.create(pyinstall=True, version=INSTALL_LATEST_CONFIG)
+    standalone.create(pyinstall=True, version='001003006')
     standalone.open()
 
     def fin():
