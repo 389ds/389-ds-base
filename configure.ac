@@ -362,9 +362,9 @@ else
   # relative to datadir
   updatedir=/$PACKAGE_NAME/updates
   # relative to libdir
-  serverdir=/$PACKAGE_NAME
+  serverdir=$PACKAGE_NAME
   # relative to includedir
-  serverincdir=/$PACKAGE_NAME
+  serverincdir=$PACKAGE_NAME
   # relative to libdir
   serverplugindir=/$PACKAGE_NAME/plugins
   # relative to datadir

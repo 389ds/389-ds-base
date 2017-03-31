@@ -254,7 +254,7 @@ sampledatadir = $(datadir)@sampledatadir@
 systemschemadir = $(datadir)@systemschemadir@
 propertydir = $(datadir)@propertydir@
 schemadir = $(sysconfdir)@schemadir@
-serverdir = $(libdir)@serverdir@
+serverdir = $(libdir)/@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
 systemdsystemunitdir = @with_systemdsystemunitdir@
@@ -269,7 +269,7 @@ infdir = $(datadir)@infdir@
 mibdir = $(datadir)@mibdir@
 updatedir = $(datadir)@updatedir@
 pkgconfigdir = $(libdir)/pkgconfig
-serverincdir = $(includedir)@serverincdir@
+serverincdir = $(includedir)/@serverincdir@
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
