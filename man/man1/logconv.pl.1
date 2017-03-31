@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH LOGCONV.PL 1 "May 18, 2008"
+.TH LOGCONV.PL 1 "March 31, 2017"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -38,7 +38,7 @@ DEFAULT \-> cn=directory manager
 .B \fB\-D, \-\-data\fR <Location for temporary data files>
 DEFAULT \-> /tmp
 .br
-TIP \-> If there is not enough RAM, a RAM disk can be used instead:
+TIP \-> If there is enough RAM, a RAM disk can be used instead:
 
        mkdir /dev/shm/logconv, and use this directory for the "\-D" value.
 .TP
@@ -115,7 +115,7 @@ Examples:
 .IP
 logconv.pl \fB\-s\fR 10 \fB\-V\fR access
 .IP
-logconv.pl \fB\-d\fR "cn=directory manager" /export/server4/slapd\-host/logs/access*
+logconv.pl \fB\-d\fR "cn=directory manager" /var/log/dirsrv/slapd\-host/access*
 .IP
 logconv.pl \fB\-s\fR 50 \fB\-ibgju\fR access*
 .IP
@@ -124,11 +124,11 @@ logconv.pl \fB\-S\fR "[28/Mar/2002:13:14:22 \fB\-0800]\fR" \fB\-E\fR "[28/Mar/20
 .SH AUTHOR
 logconv.pl was written by the 389 Project.
 .SH "REPORTING BUGS"
-Report bugs to https://fedorahosted.org/389/newticket.
+Report bugs to https://pagure.io/389-ds-base/new_issue
 .SH COPYRIGHT
 Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
 .br
-Copyright \(co 2008 Red Hat, Inc.
+Copyright \(co 2017 Red Hat, Inc.
 .br
 This manual page was written by Michele Baldessari <michele@pupazzo.org>,
 for the Debian project (but may be used by others).
