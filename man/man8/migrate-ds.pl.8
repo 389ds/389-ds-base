@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH MIGRATE-DS.PL 8 "May 18, 2008"
+.TH MIGRATE-DS.PL 8 "March 31, 2017"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -121,15 +121,15 @@ for migration.  Changelog information will not be migrated, and replicas
 will need to be reinitialized (if migrating masters or hubs).  This type
 of migration requires that all of your old databases have been dumped
 to LDIF format, and the LDIF file must be in the default database directory
-(usually /opt/fedora\-ds/slapd\-instance/db), and the LDIF file must have
+(usually /var/lib/dirsrv/slapd\-instance/db), and the LDIF file must have
 the same name as the database instance directory, with a ".ldif".  For
 example, if you have
 .IP
 .ad l
 .nf
-/opt/fedora\-ds/slapd\-instance/db/userRoot/
+/var/lib/dirsrv/slapd\-instance/db/userRoot/
 and
-/opt/fedora\-ds/slapd\-instance/db/NetscapeRoot/
+/var/lib/dirsrv/slapd\-instance/db/NetscapeRoot/
 .na
 .fi
 .PP
@@ -137,9 +137,9 @@ you must first use db2ldif to export these databases to LDIF e.g.
 .IP
 .ad l
 .nf
-cd /opt/fedora\-ds/slapd\-instance
-\&./db2ldif \fB\-n\fR userRoot \fB\-a\fR /opt/fedora\-ds/slapd\-instance/db/userRoot.ldif and
-\&./db2ldif \fB\-n\fR NetscapeRoot \fB\-a\fR /opt/fedora\-ds/slapd\-instance/db/NetscapeRoot.ldif
+cd /var/lib/dirsrv/slapd\-instance
+\&./db2ldif \fB\-n\fR userRoot \fB\-a\fR /var/lib/dirsrv/slapd\-instance/ldif/userRoot.ldif and
+\&./db2ldif \fB\-n\fR NetscapeRoot \fB\-a\fR /var/lib/dirsrv/slapd\-instance/ldif/NetscapeRoot.ldif
 .fi
 .na
 .PP
@@ -151,9 +151,9 @@ directory on the destination machine.
 .SH AUTHOR
 migrate-ds.pl was written by the 389 Project.
 .SH "REPORTING BUGS"
-Report bugs to https://fedorahosted.org/389/newticket.
+Report bugs to https://pagure.io/389-ds-base/new_issue
 .SH COPYRIGHT
-Copyright \(co 2008 Red Hat, Inc.
+Copyright \(co 2017 Red Hat, Inc.
 .br
 This manual page was written by Michele Baldessari <michele@pupazzo.org>,
 for the Debian project (but may be used by others).
