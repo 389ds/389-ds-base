@@ -151,7 +151,6 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
 #endif
     // If the counter is 0 && we are the tail transaction.
     if (result == 0) {
-        pthread_mutex_lock(binst->vacuum_lock);
         while (result == 0 && btxn != NULL && btxn == binst->tail_txn) {
 #ifdef DEBUG
             sds_log("sds_bptree_txn_decrement", "    txn_%p has reached 0, and is at the tail, vacuumming!", btxn);
@@ -161,15 +160,14 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
             // Now, we need to check to see if the next txn is ready to free also ....
             // I'm not sure if this is okay, as we may not have barriered properly.
             btxn = binst->tail_txn;
-            // This isn't an atomic read, but the way that txns work is that
-            // this will always be >= 1 if this is the alive read, but never
-            // 0. So we may only "miss" freeing a now zerod txn in this case,
-            // but we never free "too much";
+            // we decrement this txn by 1 to say "there is no more parents behind this"
+            // as a result, 1 and ONLY ONE thread can be the one to cause this decrement, because
+            // * there are more parents left, so we are > 0
+            // * there are still active holders left, so we are > 0
             if (btxn != NULL) {
-                __atomic_load(&(btxn->reference_count), &result, __ATOMIC_SEQ_CST);
+                result = __atomic_sub_fetch(&(btxn->reference_count), 1, __ATOMIC_SEQ_CST);
             }
         }
-        pthread_mutex_unlock(binst->vacuum_lock);
     }
 #ifdef DEBUG
     if (btxn != NULL) {
@@ -387,8 +385,10 @@ sds_result sds_bptree_cow_wrtxn_commit(sds_bptree_transaction **btxn) {
 
     // Take the read lock now at the last possible moment.
     pthread_rwlock_wrlock((*btxn)->binst->read_lock);
-    // Say we are alive and commited.
-    __atomic_add_fetch(&((*btxn)->reference_count), 1, __ATOMIC_SEQ_CST);
+    // Say we are alive and commited - 2 means "our former transaction owns us"
+    // and "we are the active root".
+    uint32_t default_ref_count = 2;
+    __atomic_store(&((*btxn)->reference_count), &default_ref_count, __ATOMIC_SEQ_CST);
     // Set it.
     (*btxn)->binst->txn = *btxn;
     // Update our parent to reference us.

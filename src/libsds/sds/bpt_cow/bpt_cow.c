@@ -39,8 +39,6 @@ sds_result sds_bptree_cow_init(sds_bptree_cow_instance **binst_ptr, uint16_t che
     pthread_rwlock_init((*binst_ptr)->read_lock, NULL);
     (*binst_ptr)->write_lock = sds_calloc(sizeof(pthread_mutex_t));
     pthread_mutex_init((*binst_ptr)->write_lock, NULL);
-    (*binst_ptr)->vacuum_lock = sds_calloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init((*binst_ptr)->vacuum_lock, NULL);
 
     /* Take both to be sure of barriers etc. */
     pthread_mutex_lock( (*binst_ptr)->write_lock);
@@ -98,8 +96,6 @@ sds_result sds_bptree_cow_destroy(sds_bptree_cow_instance *binst) {
     sds_free(binst->read_lock);
     pthread_mutex_destroy(binst->write_lock);
     sds_free(binst->write_lock);
-    pthread_mutex_destroy(binst->vacuum_lock);
-    sds_free(binst->vacuum_lock);
     sds_free(binst->bi);
     sds_free(binst);
 

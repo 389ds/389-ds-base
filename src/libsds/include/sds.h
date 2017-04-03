@@ -549,7 +549,6 @@ typedef struct _sds_bptree_instance {
  * - read_lock
  * - write_lock
  * - tail_txn
- * - vacuum_lock
  *
  * ### Read Transaction Begin
  *
@@ -589,6 +588,9 @@ typedef struct _sds_bptree_instance {
  * previous transaction is the last point where they are valid and needed - The last transaction now must
  * clean up after itself when it's ready to GC!
  *
+ * We set our reference count to 2, to indicate that a following node (the previous active transaction)
+ * relies on us, and that we are also active.
+ *
  * We now take the write variant of the rw read_lock. This waits for all in progress read transactions to
  * begin, and we take exclusive access of this lock. We then pivot the older transaction out with our
  * transaction. The read_lock is released, and read transactions may now resume.
@@ -607,20 +609,20 @@ typedef struct _sds_bptree_instance {
  *
  * If the reference count remains positive, we complete, and continue.
  *
- * If the reference count drops to 0, we take the vacuum lock. If our reference count is 0 *and*
- * we are the oldest generation of transaction (ie tail_txn), then we free our transaction, and all
- * associated owned nodes, values and keys. We update the tail_txn to be the next oldest transaction
- * in the chain and repeat the check.
+ * If the reference count drops to 0, we take a reference to the next transaction in the series,
+ * and we free our node. We then decrement the reference counter of the next transaction and check
+ * the result.
  *
- * While the tail transaction reference count is 0, and the oldest transaction, we continue to garbage
- * collect until we find a live transaction. At this point, we release the vacuum lock and are complete.
+ * Either, the reference count is > 0 because it is the active transaction *or* there is a current
+ * read transaction.
  *
- * NOTE: Due to this design, if a reference count is dropped to 0 of the tail_txn, while someone else
- * is vacuuming there are two states. Either, the other thread does not ees the reference count drop, and will
- * release the vacuum lock, allowing us to take it and contine the garbage collection. Alternately, the other
- * thread *does* see the reference count drop, and garbage collects the transaction. In this case, we are blocked
- * on the vacuum lock, but because the ref count is 0, and the tail_txn pointer is now a newer generation than
- * our transaction id, we do *not* attempt the double free.
+ * OR, the reference count reaches 0 because there are no active transactions, so we can free this node.
+ * in the same operation, we then decrement the reference count to the next node in the series,
+ * and we repeat this til we reach a node with a positive reference count.
+ *
+ * Due to the design of this system, we are guarantee no thread races, as one and only one thread
+ * can ever set the reference count to 0: either the closing read, or the closing previous transaction.
+ * This gives us complete thread safety, but without the need for a mutex to ensure this.
  *
  * ### Usage of the memory safe properties.
  *
@@ -696,12 +698,6 @@ typedef struct _sds_bptree_cow_instance {
      * the duration to allow only a single writer.
      */
     pthread_mutex_t *write_lock;
-    /**
-     * The vacuum lock. When a transaction final hits a ref count of 0, we have
-     * to clean from the tail. To do this we need to update the tail_txn of the
-     * binst atomically.
-     */
-    pthread_mutex_t *vacuum_lock;
 } sds_bptree_cow_instance;
 
 /**
