@@ -42,3 +42,8 @@ void test_libslapd_operation_v3c_target_spec(void **state);
 void test_libslapd_counters_atomic_usage(void **state);
 void test_libslapd_counters_atomic_overflow(void **state);
 
+/* libslapd-pal-meminfo */
+
+void test_libslapd_pal_meminfo(void **state);
+void test_libslapd_util_cachesane(void **state);
+

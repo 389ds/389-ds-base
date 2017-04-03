@@ -1391,7 +1391,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
         /* Oops---looks like the admin misconfigured, let's warn them */
         slapi_log_err(SLAPI_LOG_WARNING,"dblayer_start", "Likely CONFIGURATION ERROR -"
                   "dbcachesize is configured to use more than the available "
-                  "physical memory, decreased to the largest available size (%lu bytes).\n",
+                  "physical memory, decreased to the largest available size (%"PRIu64" bytes).\n",
                   priv->dblayer_cachesize);
         li->li_dbcachesize = priv->dblayer_cachesize;
     }
@@ -1692,9 +1692,6 @@ dblayer_start(struct ldbminfo *li, int dbmode)
  *    nsslapd-import-cache-autosize: 0
  * get the nsslapd-import-cachesize.
  * Calculate the memory size left after allocating the import cache size.
- * If the size is less than the hard limit, it issues an error and quit.
- * If the size is greater than the hard limit and less than the soft limit,
- * it issues a warning, but continues the import task.
  *
  * Note: this function is called only if the import is executed as a stand
  * alone command line (ldif2db).
@@ -1702,27 +1699,17 @@ dblayer_start(struct ldbminfo *li, int dbmode)
 int
 check_and_set_import_cache(struct ldbminfo *li)
 {
-    size_t import_pages = 0;
-    size_t pagesize, pages, procpages, availpages;
-    size_t soft_limit = 0;
-    size_t hard_limit = 0;
-    size_t page_delta = 0;
+    uint64_t import_cache = 0;
     char s[64];   /* big enough to hold %ld */
+    /* Get our platform memory values. */
+    slapi_pal_meminfo *mi = spal_meminfo_get();
 
-    if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0 || 0 == pagesize || 0 == pages) {
-        slapi_log_err(SLAPI_LOG_ERR, "check_and_set_import_cache",
-                       "Failed to get pagesize: %ld or pages: %ld\n",
-                       pagesize, pages);
+    if (mi == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "check_and_set_import_cache", "Failed to get system memory infomation\n");
         return ENOENT;
     }
-    slapi_log_err(SLAPI_LOG_INFO, "check_and_set_import_cache",
-                  "pagesize: %ld, pages: %ld, procpages: %ld\n",
-                  pagesize, pages, procpages);
+    slapi_log_err(SLAPI_LOG_INFO, "check_and_set_import_cache", "pagesize: %"PRIu64", available bytes %"PRIu64", process usage %"PRIu64" \n", mi->pagesize_bytes, mi->system_available_bytes, mi->process_consumed_bytes);
 
-    /* Soft limit: pages equivalent to 1GB (defined in dblayer.h) */
-    soft_limit = (DBLAYER_IMPORTCACHESIZE_SL*1024) / (pagesize/1024);
-    /* Hard limit: pages equivalent to 100MB (defined in dblayer.h) */
-    hard_limit = (DBLAYER_IMPORTCACHESIZE_HL*1024) / (pagesize/1024);
     /*
      * default behavior for ldif2db import cache,
      * nsslapd-import-cache-autosize==-1,
@@ -1743,48 +1730,29 @@ check_and_set_import_cache(struct ldbminfo *li)
 
     if (li->li_import_cache_autosize == 0) {
         /* user specified importCache */
-        import_pages = li->li_import_cachesize / pagesize;
+        import_cache = li->li_import_cachesize;
 
     } else {
         /* autosizing importCache */
         /* ./125 instead of ./100 is for adjusting the BDB overhead. */
-#ifdef LINUX
-        /* On linux, availpages is correct so we should use it! */
-        import_pages = (li->li_import_cache_autosize * availpages) / 125;
-#else
-        import_pages = (li->li_import_cache_autosize * pages) / 125;
-#endif
+        import_cache = (li->li_import_cache_autosize * mi->system_available_bytes) / 125;
     }
 
-    page_delta = pages - import_pages;
-    if (page_delta < hard_limit) {
-        slapi_log_err(SLAPI_LOG_ERR, 
-            "check_and_set_import_cache", "After allocating import cache %ldKB, "
-            "the available memory is %ldKB, "
-            "which is less than the hard limit %ldKB. "
-            "Please decrease the import cache size and rerun import.\n",
-            import_pages*(pagesize/1024), page_delta*(pagesize/1024),
-            hard_limit*(pagesize/1024));
+    if (util_is_cachesize_sane(mi, &import_cache) == UTIL_CACHESIZE_ERROR) {
+
+        slapi_log_err(SLAPI_LOG_INFO, "check_and_set_import_cache", "Import failed to run: unable to validate system memory limits.\n");
+        spal_meminfo_destroy(mi);
         return ENOMEM;
     }
-    if (page_delta < soft_limit) {
-        slapi_log_err(SLAPI_LOG_WARNING, 
-            "check_and_set_import_cache", "After allocating import cache %ldKB, "
-            "the available memory is %ldKB, "
-            "which is less than the soft limit %ldKB. "
-            "You may want to decrease the import cache size and "
-            "rerun import.\n",
-            import_pages*(pagesize/1024), page_delta*(pagesize/1024),
-            soft_limit*(pagesize/1024));
-    }
 
-    slapi_log_err(SLAPI_LOG_INFO, "check_and_set_import_cache", "Import allocates %ldKB import cache.\n", 
-                  import_pages*(pagesize/1024));
-    if (li->li_import_cache_autosize > 0) { /* import cache autosizing */
+    slapi_log_err(SLAPI_LOG_INFO, "check_and_set_import_cache", "Import allocates %"PRIu64"KB import cache.\n", import_cache / 1024);
+    if (li->li_import_cache_autosize > 0) {
+        /* import cache autosizing */
         /* set the calculated import cache size to the config */
-        sprintf(s, "%lu", (unsigned long)(import_pages * pagesize));
+        sprintf(s, "%"PRIu64, import_cache);
         ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
     }
+    spal_meminfo_destroy(mi);
     return 0;
 }
 

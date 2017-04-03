@@ -1366,19 +1366,6 @@ long long slapi_parse_duration_longlong(const char *value);
 int slapi_is_duration_valid(const char *value);
 
 /**
- * Populate the pointers with the system memory information.
- * At this time, Linux is the only "reliable" system for returning these values
- *
- * \param pagesize Will return the system page size in bytes.
- * \param pages The total number of memory pages on the system. May include swap pages depending on OS.
- * \param procpages Number of memory pages our current process is consuming. May not be accurate on all platforms as this could be the VMSize rather than the actual number of consumed pages.
- * \param availpages Number of available pages of memory on the system. Not all operating systems set this correctly.
- *
- * \return 0 on success, non-zero on failure to determine memory sizings.
- */
-int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages);
-
-/**
  * Possible results of a cachesize check
  */
 typedef enum _util_cachesize_result {
