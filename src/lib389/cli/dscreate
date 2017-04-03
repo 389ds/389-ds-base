@@ -16,7 +16,7 @@ import sys
 logging.basicConfig(format='%(message)s')
 
 from lib389 import DirSrv
-from lib389.cli_adm import instance as cli_instance
+from lib389.cli_ctl import instance as cli_instance
 
 log = logging.getLogger("dscreate")
 

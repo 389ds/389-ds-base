@@ -53,7 +53,7 @@ setup(
     data_files=[
         ('/usr/sbin/', [
             # 'lib389/clitools/ds_setup',
-            'cli/dsadm',
+            'cli/dsctl',
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',

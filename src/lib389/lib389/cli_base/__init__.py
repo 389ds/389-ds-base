@@ -81,7 +81,6 @@ def connect_instance(ldapurl, binddn, verbose, starttls):
         raise Exception("Must provide a binddn to connect with")
     ds.allocate(dsargs)
     ds.open(starttls=starttls, connOnly=True)
-    print("")
     return ds
 
 def disconnect_instance(inst):

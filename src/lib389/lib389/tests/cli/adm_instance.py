@@ -9,7 +9,7 @@
 # Test the cli tools from the dsadm command for correct behaviour.
 
 import pytest
-from lib389.cli_adm.instance import instance_list
+from lib389.cli_ctl.instance import instance_list
 from lib389 import DirSrv
 from lib389.cli_base import LogCapture
 
