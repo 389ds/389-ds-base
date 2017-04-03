@@ -27,6 +27,9 @@
 extern "C" {
 #endif
 
+/* Provides our int types and platform specific requirements. */
+#include <slapi_pal.h>
+
 #include "prtypes.h"
 #include "ldap.h"
 #include "prprf.h"
@@ -55,17 +58,6 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
         __attribute__ ((format (printf, 2, 3)));
 #else
         ;
-#endif
-
-/* NSPR uses the print macros a bit differently than ANSI C.  We
- * need to use ll for a 64-bit integer, even when a long is 64-bit.
- */
-#if defined(HAVE_LONG_LONG) && PR_BYTES_PER_LONG == 8 && !defined(PR_ALTERNATE_INT64_TYPEDEF)
-#define NSPRIu64	"lu"
-#define NSPRI64	"l"
-#else /* just assume long long is used */
-#define NSPRIu64	"llu"
-#define NSPRI64	"ll"
 #endif
 
 /* OpenLDAP uses unsigned long for ber_tag_t and ber_len_t but mozldap uses unsigned int */

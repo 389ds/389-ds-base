@@ -548,14 +548,14 @@ sync_send_results( void *arg )
 	slapi_pblock_get(req->req_pblock, SLAPI_CONNECTION, &conn);
 	if (NULL == conn) {
 		slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
-			"sync_send_results - conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
+			"sync_send_results - conn=%" PRIu64 " op=%d Null connection - aborted\n",
 			connid, opid);
 		goto done;
 	}
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
 		slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
-			"sync_send_results - conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
+			"sync_send_results - conn=%" PRIu64 " op=%d Could not acquire the connection - aborted\n",
 			connid, opid);
 		goto done;
 	}
@@ -566,7 +566,7 @@ sync_send_results( void *arg )
 		/* Check for an abandoned operation */
 		if ( op == NULL || slapi_is_operation_abandoned( op ) ) {
 			slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
-						"sync_send_results - conn=%" NSPRIu64 " op=%d Operation no longer active - terminating\n",
+						"sync_send_results - conn=%" PRIu64 " op=%d Operation no longer active - terminating\n",
 						connid, opid);
 			break;
 		}

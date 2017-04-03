@@ -938,7 +938,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         Slapi_Operation *operation;
         slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
         slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
-                        "cleaning up sasl IO conn=%" NSPRIu64 " op=%d complete=%d continuing=%d\n",
+                        "cleaning up sasl IO conn=%" PRIu64 " op=%d complete=%d continuing=%d\n",
                         pb->pb_conn->c_connid, operation->o_opid,
                         (pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE), continuing);
         /* reset flag */

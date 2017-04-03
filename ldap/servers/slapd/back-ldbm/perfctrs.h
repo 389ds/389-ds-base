@@ -11,7 +11,7 @@
 #  include <config.h>
 #endif
 
-#include <inttypes.h>
+#include <slapi_pal.h>
 
 /* Structure definition for performance data */
 /* This stuff goes in shared memory, so make sure the packing is consistent */

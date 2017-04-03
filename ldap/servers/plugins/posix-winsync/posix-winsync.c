@@ -270,7 +270,7 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
         if (update_entry) {
             slapi_entry_attr_set_ulong(update_entry, "userAccountControl", adval);
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" NSPRIu64 "]\n",
+                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
 				(ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(update_entry), adval);
         } else {
             /* iterate through the mods - if there is already a mod
@@ -326,7 +326,7 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
                 mod_bval->bv_len = strlen(acctvalstr);
             }
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" NSPRIu64 "]\n",
+                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
 				(ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(ad_entry), adval);
         }
     }

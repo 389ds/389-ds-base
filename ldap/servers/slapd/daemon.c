@@ -616,7 +616,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          */
         if(disk_space < 4096){ /* 4 k */
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is critically low on disk (%s), "
-            	"remaining space: %" NSPRIu64 " Kb.  Signaling slapd for shutdown...\n", dirstr , (disk_space / 1024));
+            	"remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n", dirstr , (disk_space / 1024));
             g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
             return;
         }
@@ -626,7 +626,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          */
         if(verbose_logging != 0 && verbose_logging != LDAP_DEBUG_ANY){
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is low on disk (%s), remaining space: "
-            	"%" NSPRIu64 " Kb, temporarily setting error loglevel to the default level(%d).\n", dirstr,
+            	"%" PRIu64 " Kb, temporarily setting error loglevel to the default level(%d).\n", dirstr,
                 (disk_space / 1024), SLAPD_DEFAULT_ERRORLOG_LEVEL);
             /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
             config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
@@ -640,7 +640,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          */
         if(!logs_disabled && !logging_critical){
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is too low on disk (%s), remaining "
-            	"space: %" NSPRIu64 " Kb, disabling access and audit logging.\n", dirstr, (disk_space / 1024));
+            	"space: %" PRIu64 " Kb, disabling access and audit logging.\n", dirstr, (disk_space / 1024));
             config_set_accesslog_enabled(LOGGING_OFF);
             config_set_auditlog_enabled(LOGGING_OFF);
             config_set_auditfaillog_enabled(LOGGING_OFF);
@@ -653,7 +653,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          */
         if(!deleted_rotated_logs && !logging_critical){
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is too low on disk (%s), remaining "
-            	"space: %" NSPRIu64 " Kb, deleting rotated logs.\n", dirstr, (disk_space / 1024));
+            	"space: %" PRIu64 " Kb, deleting rotated logs.\n", dirstr, (disk_space / 1024));
             log__delete_rotated_logs();
             deleted_rotated_logs = 1;
             continue;
@@ -663,7 +663,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          */
         if(disk_space < previous_mark){
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is too low on disk (%s), remaining "
-            	"space: %" NSPRIu64 " Kb\n", dirstr, (disk_space / 1024));
+            	"space: %" PRIu64 " Kb\n", dirstr, (disk_space / 1024));
         }
         /*
          *
@@ -674,7 +674,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          *
          */
         if(disk_space < halfway){
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space on (%s) is too far below the threshold(%" NSPRIu64 " bytes).  "
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space on (%s) is too far below the threshold(%" PRIu64 " bytes).  "
                 "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
                 dirstr, threshold, (grace_period / 60));
             time(&start);
@@ -697,7 +697,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                      *  Excellent, we are back to acceptable levels, reset everything...
                      */
                     slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread", "Available disk space is now "
-                    	"acceptable (%" NSPRIu64 " bytes).  Aborting shutdown, and restoring the log settings.\n",
+                    	"acceptable (%" PRIu64 " bytes).  Aborting shutdown, and restoring the log settings.\n",
                     	disk_space);
                     if(logs_disabled && using_accesslog){
                         config_set_accesslog_enabled(LOGGING_ON);
@@ -721,7 +721,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                      *  Disk space is critical, log an error, and shut it down now!
                      */
                     slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is critically low "
-                    	"on disk (%s), remaining space: %" NSPRIu64 " Kb.  Signaling slapd for shutdown...\n", 
+                    	"on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n", 
                     	dirstr, (disk_space / 1024));
                     g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
                     return;
@@ -739,7 +739,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
              *  If disk space was freed up we would of detected in the above while loop.  So shut it down.
              */
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is still too low "
-            	"(%" NSPRIu64 " Kb).  Signaling slapd for shutdown...\n", (disk_space / 1024));
+            	"(%" PRIu64 " Kb).  Signaling slapd for shutdown...\n", (disk_space / 1024));
             g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
 
             return;
@@ -1782,7 +1782,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
 						 * trying to acquire a closing connection
 						 */
 						slapi_log_err(SLAPI_LOG_ERR,
-							"handle_pr_read_ready", "connection_activity: abandoning conn %" NSPRIu64 " as "
+							"handle_pr_read_ready", "connection_activity: abandoning conn %" PRIu64 " as "
 							"fd=%d is already closing\n", c->c_connid,c->c_sd);
 						/* The call disconnect_server should do nothing,
 						 * as the connection c should be already set to CLOSING */
@@ -1840,7 +1840,7 @@ ns_handle_closure(struct ns_job_t *job)
 #else
     /* This doesn't actually confirm it's in the event loop thread, but it's a start */
 	if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
-		slapi_log_err(SLAPI_LOG_ERR, "ns_handle_closure", "Attempt to close outside of event loop thread %" NSPRIu64 " for fd=%d\n",
+		slapi_log_err(SLAPI_LOG_ERR, "ns_handle_closure", "Attempt to close outside of event loop thread %" PRIu64 " for fd=%d\n",
 			c->c_connid, c->c_sd);
 		return;
 	}
@@ -1880,7 +1880,7 @@ ns_connection_post_io_or_closing(Connection *conn)
 		PR_ASSERT((conn->c_ns_close_jobs == 0) || (conn->c_ns_close_jobs == 1));
 		if (conn->c_ns_close_jobs) {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already a close "
-				"job in progress on conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+				"job in progress on conn %" PRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
 			return;
 		} else {
 			/* just make sure we schedule the event to be closed in a timely manner */
@@ -1895,10 +1895,10 @@ ns_connection_post_io_or_closing(Connection *conn)
 #endif
 			if (job_result != PR_SUCCESS) {
 				slapi_log_err(SLAPI_LOG_WARNING, "ns_connection_post_io_or_closing", "post closure job "
-					"for conn %" NSPRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
+					"for conn %" PRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
 			} else {
 				slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post closure job "
-					"for conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+					"for conn %" PRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
 			}
 			
 		}
@@ -1935,10 +1935,10 @@ ns_connection_post_io_or_closing(Connection *conn)
 #endif
 		if (job_result != PR_SUCCESS) {
 			slapi_log_err(SLAPI_LOG_WARNING, "ns_connection_post_io_or_closing", "post I/O job for "
-				"conn %" NSPRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
+				"conn %" PRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
 		} else {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post I/O job for "
-				"conn %" NSPRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+				"conn %" PRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
 		}
 	}
 #endif
@@ -1961,14 +1961,14 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 #else
     /* This doesn't actually confirm it's in the event loop thread, but it's a start */
 	if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
-		slapi_log_err(SLAPI_LOG_ERR, "ns_handle_pr_read_ready", "Attempt to handle read ready outside of event loop thread %" NSPRIu64 " for fd=%d\n",
+		slapi_log_err(SLAPI_LOG_ERR, "ns_handle_pr_read_ready", "Attempt to handle read ready outside of event loop thread %" PRIu64 " for fd=%d\n",
 			c->c_connid, c->c_sd);
 		return;
 	}
 #endif
 
 	PR_EnterMonitor(c->c_mutex);
-	slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "activity on conn %" NSPRIu64 " for fd=%d\n",
+	slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "activity on conn %" PRIu64 " for fd=%d\n",
 		       c->c_connid, c->c_sd);
 	/* if we were called due to some i/o event, see what the state of the socket is */
 	if (slapi_is_loglevel_set(SLAPI_LOG_CONNS) && !NS_JOB_IS_TIMER(ns_job_get_output_type(job)) && c && c->c_sd) {
@@ -1977,16 +1977,16 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 		ssize_t rc = recv(c->c_sd, buf, sizeof(buf), MSG_PEEK);
 		if (!rc) {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket is closed conn"
-				" %" NSPRIu64 " for fd=%d\n", c->c_connid, c->c_sd);
+				" %" PRIu64 " for fd=%d\n", c->c_connid, c->c_sd);
 		} else if (rc > 0) {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket read data available"
-				" for conn %" NSPRIu64 " for fd=%d\n", c->c_connid, c->c_sd);
+				" for conn %" PRIu64 " for fd=%d\n", c->c_connid, c->c_sd);
 		} else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket has no data available"
-				" conn %" NSPRIu64 " for fd=%d\n", c->c_connid, c->c_sd);
+				" conn %" PRIu64 " for fd=%d\n", c->c_connid, c->c_sd);
 		} else {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket has error [%d] "
-				"conn %" NSPRIu64 " for fd=%d\n", errno, c->c_connid, c->c_sd);
+				"conn %" PRIu64 " for fd=%d\n", errno, c->c_connid, c->c_sd);
 		}
 	}
 	connection_release_nolock_ext(c, 1); /* release ref acquired when job was added */
@@ -2010,7 +2010,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 		 * trying to acquire a closing connection
 		 */
 		slapi_log_err(SLAPI_LOG_ERR, "ns_handle_pr_read_ready", "connection_activity: abandoning"
-			" conn %" NSPRIu64 " as fd=%d is already closing\n", c->c_connid, c->c_sd);
+			" conn %" PRIu64 " as fd=%d is already closing\n", c->c_connid, c->c_sd);
 		/* The call disconnect_server should do nothing,
 		 * as the connection c should be already set to CLOSING */
 		disconnect_server_nomutex_ext(c, c->c_connid, -1,
@@ -2018,7 +2018,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 				              0 /* do not schedule closure, do it next */);
 		ns_handle_closure_nomutex(c);
 	} else {
-		slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "queued conn %" NSPRIu64 " for fd=%d\n",
+		slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "queued conn %" PRIu64 " for fd=%d\n",
 			       c->c_connid, c->c_sd);
 	}
 	PR_ExitMonitor(c->c_mutex);

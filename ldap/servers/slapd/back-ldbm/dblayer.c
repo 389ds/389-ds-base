@@ -1386,7 +1386,8 @@ dblayer_start(struct ldbminfo *li, int dbmode)
 
     /* Sanity check on cache size on platforms which allow us to figure out
      * the available phys mem */
-    if (!util_is_cachesize_sane(&(priv->dblayer_cachesize))) {
+    slapi_pal_meminfo *mi = spal_meminfo_get();
+    if (!util_is_cachesize_sane(mi, &(priv->dblayer_cachesize))) {
         /* Oops---looks like the admin misconfigured, let's warn them */
         slapi_log_err(SLAPI_LOG_WARNING,"dblayer_start", "Likely CONFIGURATION ERROR -"
                   "dbcachesize is configured to use more than the available "
@@ -1394,6 +1395,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                   priv->dblayer_cachesize);
         li->li_dbcachesize = priv->dblayer_cachesize;
     }
+    spal_meminfo_destroy(mi);
 
     /* fill in DB_ENV stuff from the common configuration */
     return_value = dblayer_make_env(&pEnv, li);

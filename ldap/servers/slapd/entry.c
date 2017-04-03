@@ -3095,7 +3095,7 @@ slapi_entry_attr_set_ulong( Slapi_Entry* e, const char *type, uint64_t l)
 	struct berval *bvals[2];
 	bvals[0] = &bv;
 	bvals[1] = NULL;
-    sprintf(value,"%" NSPRIu64, l);
+    sprintf(value,"%" PRIu64, l);
 	bv.bv_val = value;
 	bv.bv_len = strlen( value );
     slapi_entry_attr_replace( e, type, bvals );

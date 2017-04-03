@@ -2769,7 +2769,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short*/);
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
-			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_access_file, tbuf, 
+			PRId64 "d)\n", PREVLOGFILE, loginfo.log_access_file, tbuf, 
 			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
@@ -2907,7 +2907,7 @@ log_rotate:
 		if (type == LOG_SIZE_EXCEEDED) {
 			slapi_log_err(SLAPI_LOG_TRACE, "log__needrotation",
 				"LOGINFO:End of Log because size exceeded(Max:%" 
-				NSPRI64 "d bytes) (Is:%" NSPRI64 "d bytes)\n",
+				PRId64 "d bytes) (Is:%" PRId64 "d bytes)\n",
 				maxlogsize, f_size);
 		} else  if ( type == LOG_EXPIRED) {
 			slapi_log_err(SLAPI_LOG_TRACE, "log__needrotation",
@@ -4636,7 +4636,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 	while (logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" 
-			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_error_file, tbuf,
+			PRId64 "d)\n", PREVLOGFILE, loginfo.log_error_file, tbuf,
 			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
@@ -4763,7 +4763,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);	
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
-			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_audit_file, tbuf, 
+			PRId64 "d)\n", PREVLOGFILE, loginfo.log_audit_file, tbuf, 
 			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
@@ -4889,7 +4889,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     while ( logp) {
         log_convert_time (logp->l_ctime, tbuf, 1 /*short */);   
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
-            NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_auditfail_file, tbuf, 
+            PRId64 "d)\n", PREVLOGFILE, loginfo.log_auditfail_file, tbuf, 
             logp->l_ctime, logp->l_size);
         LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
         logp = logp->l_next;

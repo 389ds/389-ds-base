@@ -403,8 +403,8 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
-    size_t delta = (size_t)value;
+    uint64_t val = (size_t)value;
+    uint64_t delta = (size_t)value;
 
     /* There is an error here. We check the new val against our current mem-alloc 
      * Issue is that we already are using system pages, so while our value *might*
@@ -430,7 +430,13 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
             val = DBDEFMINSIZ;
         } else if (val > li->li_dbcachesize) {
             delta = val - li->li_dbcachesize;
-            if (!util_is_cachesize_sane(&delta)){
+
+            util_cachesize_result sane;
+            slapi_pal_meminfo *mi = spal_meminfo_get();
+            sane = util_is_cachesize_sane(mi, &delta);
+            spal_meminfo_destroy(mi);
+
+            if (sane != UTIL_CACHESIZE_VALID){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: nsslapd-dbcachesize value is too large.");
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_dbcachesize_set",
                         "nsslapd-dbcachesize value is too large.\n");
@@ -1170,7 +1176,7 @@ static int ldbm_config_db_cache_set(void *arg,
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
     int val = ((uintptr_t)value);
-    size_t delta = 0;
+    uint64_t delta = 0;
 
     /* There is an error here. We check the new val against our current mem-alloc 
      * Issue is that we already are using system pages, so while our value *might*
@@ -1185,7 +1191,13 @@ static int ldbm_config_db_cache_set(void *arg,
     if (apply) {
         if (val > li->li_dblayer_private->dblayer_cache_config) {
             delta = val - li->li_dblayer_private->dblayer_cache_config;
-            if (!util_is_cachesize_sane(&delta)){
+            util_cachesize_result sane;
+
+            slapi_pal_meminfo *mi = spal_meminfo_get();
+            sane = util_is_cachesize_sane(mi, &delta);
+            spal_meminfo_destroy(mi);
+
+            if (sane != UTIL_CACHESIZE_VALID){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: db cachesize value is too large");
                 slapi_log_err(SLAPI_LOG_ERR,"ldbm_config_db_cache_set", "db cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
@@ -1323,7 +1335,7 @@ static int ldbm_config_import_cachesize_set(void *arg,
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     size_t val = (size_t)value;
-    size_t delta = (size_t)value;
+    uint64_t delta = (size_t)value;
     /* There is an error here. We check the new val against our current mem-alloc 
      * Issue is that we already are using system pages, so while our value *might*
      * be valid, we may reject it here due to the current procs page usage.
@@ -1336,7 +1348,13 @@ static int ldbm_config_import_cachesize_set(void *arg,
     if (apply){
         if (val > li->li_import_cachesize) {
             delta = val - li->li_import_cachesize;
-            if (!util_is_cachesize_sane(&delta)){
+
+            util_cachesize_result sane;
+            slapi_pal_meminfo *mi = spal_meminfo_get();
+            sane = util_is_cachesize_sane(mi, &delta);
+            spal_meminfo_destroy(mi);
+
+            if (sane != UTIL_CACHESIZE_VALID){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: import cachesize value is too large.");
                 slapi_log_err(SLAPI_LOG_ERR,"ldbm_config_import_cachesize_set",
                         "Import cachesize value is too large.\n");

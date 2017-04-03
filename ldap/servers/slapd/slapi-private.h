@@ -30,6 +30,9 @@ extern "C" {
  */
 #include "slapi-plugin-compat4.h"
 
+/* slapi platform abstraction functions. */
+#include <slapi_pal.h>
+
 /* Define our internal logging macro */
 #define slapi_log_err(level, subsystem, fmt, ...)
 #ifdef LDAP_ERROR_LOGGING
@@ -1376,13 +1379,33 @@ int slapi_is_duration_valid(const char *value);
 int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages);
 
 /**
- * Determine if the requested cachesize will exceed the system memory limits causing an out of memory condition
+ * Possible results of a cachesize check
+ */
+typedef enum _util_cachesize_result {
+    /**
+     * The requested cachesize was valid and can be used.
+     */
+    UTIL_CACHESIZE_VALID = 0,
+    /**
+     * The requested cachesize may cause OOM and was reduced.
+     */
+    UTIL_CACHESIZE_REDUCED = 1,
+    /**
+     * An error occured resolving the cache size. You must stop processing.
+     */
+    UTIL_CACHESIZE_ERROR = 2,
+} util_cachesize_result;
+/**
+ * Determine if the requested cachesize will exceed the system memory limits causing an out of memory condition. You must
+ * check the result before proceeding to correctly use the cache.
  *
+ * \param mi. The system memory infomation. You should retrieve this with spal_meminfo_get(), and destroy it after use.
  * \param cachesize. The requested allocation. If this value is greater than the memory available, this value will be REDUCED to be valid.
  *
- * \return 0 if the size is "sane". 1 if the value will cause OOM and has been REDUCED
+ * \return util_cachesize_result.
+ * \sa util_cachesize_result, spal_meminfo_get
  */
-int util_is_cachesize_sane(size_t *cachesize);
+util_cachesize_result util_is_cachesize_sane(slapi_pal_meminfo *mi, size_t *cachesize);
 
 /**
  * Retrieve the number of threads the server should run with based on this hardware.

@@ -407,7 +407,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                     slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
                     slapi_log_err(SLAPI_LOG_WARNING,
-                            "ldbm_back_search", "Sort control ignored for conn=%" NSPRIu64 " op=%d\n",
+                            "ldbm_back_search", "Sort control ignored for conn=%" PRIu64 " op=%d\n",
                             conn_id, op_id);                    
                 }
             } else {
@@ -442,7 +442,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                         slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
                         slapi_log_err(SLAPI_LOG_WARNING,
-                                "ldbm_back_search", "VLV control ignored for conn=%" NSPRIu64 " op=%d\n",
+                                "ldbm_back_search", "VLV control ignored for conn=%" PRIu64 " op=%d\n",
                                 conn_id, op_id);             
                     }
 

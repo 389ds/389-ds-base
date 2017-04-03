@@ -523,7 +523,7 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 			aci_ndn = slapi_sdn_get_ndn (acl_anom_profile->anom_targetinfo[i].anom_target);
 			if (access & SLAPI_ACL_MODDN) {
 				slapi_log_err(loglevel, plugin_name, 
-					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) (from %s) to anonymous: acidn=\"%s\"\n",
+					"aclanom_match_profile - conn=%" PRIu64 " op=%d: Allow access on entry(%s).attr(%s) (from %s) to anonymous: acidn=\"%s\"\n",
 					o_connid, o_opid,
 					ndn,
 					attr ? attr:"NULL",
@@ -532,7 +532,7 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 				
 			} else {
 				slapi_log_err(loglevel, plugin_name, 
-					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
+					"aclanom_match_profile - conn=%" PRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
 					o_connid, o_opid,
 					ndn,
 					attr ? attr:"NULL",
@@ -541,13 +541,13 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 		} else {
 			if (access & SLAPI_ACL_MODDN) {
 				slapi_log_err(loglevel, plugin_name,
-					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) (from %s) to anonymous\n",
+					"aclanom_match_profile - conn=%" PRIu64 " op=%d: Deny access on entry(%s).attr(%s) (from %s) to anonymous\n",
 					o_connid, o_opid,
 					ndn, attr ? attr:"NULL" ,
 					aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL");
 			} else {
 				slapi_log_err(loglevel, plugin_name,
-					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
+					"aclanom_match_profile - conn=%" PRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
 					o_connid, o_opid,
 					ndn, attr ? attr:"NULL" );
 			}

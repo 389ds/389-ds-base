@@ -32,33 +32,24 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     Object *inst_obj = NULL;
     ldbm_instance *inst = NULL;
     /* size_t is a platform unsigned int, IE uint64_t */
-    size_t total_cache_size = 0;
-    size_t pagesize = 0;
-    size_t pages = 0;
-    size_t procpages __attribute__((unused)) = 0;
-    size_t availpages = 0;
-    size_t cache_size_to_configure = 0;
-    size_t zone_pages = 0;
-    size_t db_pages = 0;
-    size_t entry_pages = 0;
-    size_t import_pages = 0;
-    size_t zone_size = 0;
-    size_t import_size = 0;
-    size_t cache_size = 0;
-    size_t db_size = 0;
+    uint64_t total_cache_size = 0;
+    uint64_t entry_size = 0;
+    uint64_t zone_size = 0;
+    uint64_t import_size = 0;
+    uint64_t cache_size = 0;
+    uint64_t db_size = 0;
     /* For clamping the autotune value to a 64Mb boundary */
-    size_t clamp_pages = 0;
-    size_t clamp_div = 0;
-    size_t clamp_mod = 0;
+    uint64_t clamp_div = 0;
     /* Backend count */
-    size_t backend_count = 0;
+    uint64_t backend_count = 0;
 
     int_fast32_t autosize_percentage = 0;
     int_fast32_t autosize_db_percentage_split = 0;
     int_fast32_t import_percentage = 0;
-    int32_t issane = 0;
+    util_cachesize_result issane;
     char *msg = ""; /* This will be set by one of the two cache sizing paths below. */
     char size_to_str[32];    /* big enough to hold %ld */
+
 
     /* == Begin autotune == */
 
@@ -120,42 +111,34 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
         return SLAPI_FAIL_GENERAL;
     }
 
-    if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0) {
+    /* Get our platform memory values. */
+    slapi_pal_meminfo *mi = spal_meminfo_get();
+    if (mi == NULL) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Unable to determine system page limits\n");
         return SLAPI_FAIL_GENERAL;
     }
 
-    if (pagesize == 0) {
-        /* If this happens, we are in a very bad state indeed... */
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Unable to determine system page size\n");
-        return SLAPI_FAIL_GENERAL;
-    }
-
     /* calculate the needed values */
-    zone_pages = (autosize_percentage * pages) / 100;
-    zone_size = zone_pages * pagesize;
+    zone_size = (autosize_percentage * mi->system_total_bytes) / 100;
     /* This is how much we "might" use, lets check it's sane. */
     /* In the case it is not, this will *reduce* the allocation */
-    issane = util_is_cachesize_sane(&zone_size);
-    if (!issane) {
+    issane = util_is_cachesize_sane(mi, &zone_size);
+    if (issane == UTIL_CACHESIZE_REDUCED) {
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Your autosized cache values have been reduced. Likely your nsslapd-cache-autosize percentage is too high.\n");
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "%s", msg);
     }
     /* It's valid, lets divide it up and set according to user prefs */
-    zone_pages = zone_size / pagesize;
-    db_pages = (autosize_db_percentage_split * zone_pages) / 100;
+    db_size = (autosize_db_percentage_split * zone_size) / 100;
 
     /* Cap the DB size at 512MB, as this doesn't help perf much more (lkrispen's advice) */
-    if ((db_pages * pagesize) > (512 * MEGABYTE)) {
-        db_pages = (512 * MEGABYTE) / pagesize;
+    if (db_size > (512 * MEGABYTE)) {
+        db_size = (512 * MEGABYTE);
     }
 
     if (backend_count > 0 ) {
         /* Number of entry cache pages per backend. */
-        entry_pages = (zone_pages - db_pages) / backend_count;
+        entry_size = (zone_size - db_size) / backend_count;
         /* Now, clamp this value to a 64mb boundary. */
-        /* How many pages are in 64mb? */
-        clamp_pages = (64 * MEGABYTE) / pagesize;
         /* Now divide the entry pages by this, and also mod. If mod != 0, we need
          * to add 1 to the diveded number. This should give us:
          * 510 * 1024 * 1024 == 510MB
@@ -166,17 +149,15 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
          * 130560 % 16384 = 15872 which is != 0
          * therfore 7 + 1, aka 8 * 16384 = 131072 pages = 536870912 bytes = 512MB.
          */
-        clamp_div = entry_pages / clamp_pages;
-        clamp_mod = entry_pages % clamp_pages;
-        if (clamp_mod != 0) {
-            /* If we want to clamp down, remove this line. This would change the above from 510mb -> 448mb. */
-            clamp_div += 1;
-            entry_pages = clamp_div * clamp_pages;
+        if (entry_size % (64 * MEGABYTE) != 0) {
+            /* If we want to clamp down, remove the "+1". This would change the above from 510mb -> 448mb. */
+            clamp_div = (entry_size / (64 * MEGABYTE)) + 1;
+            entry_size = clamp_div * (64 * MEGABYTE);
         }
     }
 
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk physical memory\n", pages*(pagesize/1024));
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk avaliable\n", zone_pages*(pagesize/1024));
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk physical memory\n", mi->system_total_bytes / 1024);
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk avaliable\n", mi->system_available_bytes / 1024);
 
     /* We've now calculated the autotuning values. Do we need to apply it?
      * we use the logic of "if size is 0, or autosize is > 0. This way three
@@ -191,13 +172,12 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
 
     /* First, check the dbcache */
     if (li->li_dbcachesize == 0 || li->li_cache_autosize > 0) {
-        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: db cache: %luk\n", db_pages*(pagesize/1024));
-        cache_size_to_configure = (unsigned long)(db_pages * pagesize);
-        if (cache_size_to_configure < (500 * MEGABYTE)) {
-            cache_size_to_configure = (unsigned long)((db_pages * pagesize) / 1.25);
+        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: db cache: %luk\n", db_size / 1024);
+        if (db_size < (500 * MEGABYTE)) {
+            db_size = db_size / 1.25;
         }
         /* Have to set this value through text. */
-        sprintf(size_to_str, "%lu", cache_size_to_configure);
+        sprintf(size_to_str, "%" PRIu64 , db_size);
         ldbm_config_internal_set(li, CONFIG_DBCACHESIZE, size_to_str);
     }
     total_cache_size += li->li_dbcachesize;
@@ -205,7 +185,7 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     /* For each backend */
     /*   apply the appropriate cache size if 0 */
     if (backend_count > 0 ) {
-        li->li_cache_autosize_ec = (unsigned long)entry_pages * pagesize;
+        li->li_cache_autosize_ec = entry_size;
     }
 
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
@@ -220,7 +200,7 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
          * it's highly unlikely.
          */
         if (cache_size == 0 || cache_size == MINCACHESIZE || li->li_cache_autosize > 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%lu total): %luk\n", inst->inst_name, backend_count, entry_pages*(pagesize/1024));
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%lu total): %luk\n", inst->inst_name, backend_count, entry_size / 1024);
             cache_set_max_entries(&(inst->inst_cache), -1);
             cache_set_max_size(&(inst->inst_cache), li->li_cache_autosize_ec, CACHE_TYPE_ENTRY);
         }
@@ -229,8 +209,8 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
         db_size = dblayer_get_id2entry_size(inst);
         if (cache_size < db_size) {
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start",
-                  "%s: entry cache size %lu B is "
-                  "less than db size %lu B; "
+                  "%s: entry cache size %"PRIu64" B is "
+                  "less than db size %"PRIu64" B; "
                   "We recommend to increase the entry cache size "
                   "nsslapd-cachememsize.\n",
                   inst->inst_name, cache_size, db_size);
@@ -244,36 +224,35 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     /* autosizing importCache */
     if (li->li_import_cache_autosize > 0) {
         /* Use import percentage here, as it's been corrected for -1 behaviour */
-        import_pages = (import_percentage * pages) / 100;
-        import_size = import_pages * pagesize;
-        issane = util_is_cachesize_sane(&import_size);
-        if (!issane) {
+        import_size = (import_percentage * mi->system_total_bytes) / 100;
+        issane = util_is_cachesize_sane(mi, &import_size);
+        if (issane == UTIL_CACHESIZE_REDUCED) {
             slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Your autosized import cache values have been reduced. Likely your nsslapd-import-cache-autosize percentage is too high.\n");
         }
         /* We just accept the reduced allocation here. */
-        import_pages = import_size / pagesize;
-        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: import cache: %luk\n",
-        import_pages*(pagesize/1024));
+        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: import cache: %"PRIu64"k\n", import_size / 1024);
 
-        sprintf(size_to_str, "%lu", (unsigned long)(import_pages * pagesize));
+        sprintf(size_to_str, "%"PRIu64, import_size);
         ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, size_to_str);
     }
 
     /* Finally, lets check that the total result is sane. */
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "total cache size: %lu B; \n", total_cache_size);
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "total cache size: %"PRIu64" B; \n", total_cache_size);
 
-    issane = util_is_cachesize_sane(&total_cache_size);
-    if (!issane) {
+    issane = util_is_cachesize_sane(mi, &total_cache_size);
+    if (issane != UTIL_CACHESIZE_VALID) {
         /* Right, it's time to panic */
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n");
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
-        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Total entry cache size: %lu B; dbcache size: %lu B; available memory size: %lu B; \n",
-                  (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Total entry cache size: %"PRIu64" B; dbcache size: %"PRIu64" B; available memory size: %"PRIu64" B; \n",
+                    total_cache_size, (uint64_t)li->li_dbcachesize, mi->system_available_bytes
         );
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "%s\n", msg);
         /* WB 2016 - This should be UNCOMMENTED in a future release */
         /* return SLAPI_FAIL_GENERAL; */
     }
+
+    spal_meminfo_destroy(mi);
 
     /* == End autotune == */
     return 0;

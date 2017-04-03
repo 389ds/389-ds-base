@@ -84,17 +84,19 @@ static int import_fifo_init(ImportJob *job)
 int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize) {
     int result = 1;
     /* We shoot for four times as much to start with. */
-    size_t request = entrysize * 4;
-    int sane = 0;
+    uint64_t request = entrysize * 4;
+    util_cachesize_result sane;
 
     if (entrysize > job->fifo.bsize) {
         /* Check the amount of memory on the system */
-        sane = util_is_cachesize_sane(&request);
-        if (!sane && entrysize <= request) {
+        slapi_pal_meminfo *mi = spal_meminfo_get();
+        sane = util_is_cachesize_sane(mi, &request);
+        spal_meminfo_destroy(mi);
+        if (sane == UTIL_CACHESIZE_REDUCED && entrysize <= request) {
             /* Did the amount cachesize set still exceed entrysize? It'll do ... */
             job->fifo.bsize = request;
             result = 0;
-        } else if (!sane) {
+        } else if (sane != UTIL_CACHESIZE_VALID) {
             /* Can't allocate! No!!! */
             result = 1;
         } else {

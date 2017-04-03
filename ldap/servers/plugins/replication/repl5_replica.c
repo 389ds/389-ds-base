@@ -596,7 +596,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"replica_get_exclusive_access - "
-				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
+				"conn=%" PRIu64 " op=%d repl=\"%s\": "
 				"Replica in use locking_purl=%s\n",
 				connid, opid,
 				slapi_sdn_get_dn(r->repl_root),
@@ -620,7 +620,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 	{
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"replica_get_exclusive_access - "
-				"conn=%" NSPRIu64 " op=%d repl=\"%s\": Acquired replica\n",
+				"conn=%" PRIu64 " op=%d repl=\"%s\": Acquired replica\n",
 				connid, opid,
 				slapi_sdn_get_dn(r->repl_root));
 		r->repl_state_flags |= REPLICA_IN_USE;
@@ -664,13 +664,13 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 	{
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"replica_relinquish_exclusive_access - "
-				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
+				"conn=%" PRIu64 " op=%d repl=\"%s\": "
 				"Replica not in use\n",
 				connid, opid, slapi_sdn_get_dn(r->repl_root));
 	} else {
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"replica_relinquish_exclusive_access - "
-				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
+				"conn=%" PRIu64 " op=%d repl=\"%s\": "
 				"Released replica held by locking_purl=%s\n",
 				connid, opid,
 				slapi_sdn_get_dn(r->repl_root),	r->locking_purl);

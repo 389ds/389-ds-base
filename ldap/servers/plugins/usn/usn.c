@@ -320,7 +320,7 @@ _usn_add_next_usn(Slapi_Entry *e, Slapi_Backend *be)
                     "--> _usn_add_next_usn\n");
 
     /* add next USN to the entry; "be" contains the usn counter */
-    usn_berval.bv_val = slapi_ch_smprintf("%" NSPRIu64, 
+    usn_berval.bv_val = slapi_ch_smprintf("%" PRIu64, 
                                           slapi_counter_get_value(be->be_usn_counter));
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     slapi_entry_attr_find(e, SLAPI_ATTR_ENTRYUSN, &attr);
@@ -360,7 +360,7 @@ _usn_mod_next_usn(LDAPMod ***mods, Slapi_Backend *be)
 
     /* add next USN to the mods; "be" contains the usn counter */
     usn_berval.bv_val = counter_buf;
-    snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
+    snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" PRIu64,
                 slapi_counter_get_value(be->be_usn_counter));
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     bvals[0] = &usn_berval;
@@ -685,7 +685,7 @@ usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
             /* get a next USN counter from be_usn_counter; 
              * then minus 1 from it (except if be_usn_counter has value 0) */
             if (slapi_counter_get_value(be->be_usn_counter)) {
-                snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
+                snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" PRIu64,
                             slapi_counter_get_value(be->be_usn_counter)-1);
             } else {
                 snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "-1");
@@ -708,7 +708,7 @@ usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
             /* get a next USN counter from be_usn_counter; 
              * then minus 1 from it (except if be_usn_counter has value 0) */
             if (slapi_counter_get_value(be->be_usn_counter)) {
-                snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
+                snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" PRIu64,
                             slapi_counter_get_value(be->be_usn_counter)-1);
             } else {
                 snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "-1");

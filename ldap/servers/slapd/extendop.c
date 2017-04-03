@@ -247,14 +247,14 @@ do_extended( Slapi_PBlock *pb )
     if ( NULL == ( name = extended_op_oid2string( extoid ))) {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s)\n", extoid);
 
-        slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\"\n",
+        slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d EXT oid=\"%s\"\n",
                 pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
     } else {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s-%s)\n",
                 extoid, name);
 
         slapi_log_access( LDAP_DEBUG_STATS,
-            "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
+            "conn=%" PRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
             pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
     }
 

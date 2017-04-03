@@ -463,7 +463,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS,
-					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+					 "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
 					 pb->pb_conn->c_connid,
 					 pb->pb_op->o_opid,
 					 dn,
@@ -497,7 +497,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	{
 		if ( !internal_op ) {
 			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename", 
-				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
+				 "conn=%" PRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newrdn) ? "(null)" : newrdn);
@@ -531,7 +531,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 			"Syntax check of newSuperior failed\n");
 		if (!internal_op) {
 			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
+				 "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 newsuperior ? newsuperior : "(null)");

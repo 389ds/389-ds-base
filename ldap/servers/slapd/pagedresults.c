@@ -310,7 +310,7 @@ pagedresults_free_one( Connection *conn, Operation *op, int index )
         PR_EnterMonitor(conn->c_mutex);
         if (conn->c_pagedresults.prl_count <= 0) {
             slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one",
-                           "conn=%" NSPRIu64 " paged requests list count is %d\n",
+                           "conn=%" PRIu64 " paged requests list count is %d\n",
                            conn->c_connid, conn->c_pagedresults.prl_count);
         } else if (index < conn->c_pagedresults.prl_maxlen) {
             PagedResults *prp = conn->c_pagedresults.prl_list + index;

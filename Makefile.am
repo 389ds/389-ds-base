@@ -471,6 +471,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/pw_verify.h \
 	ldap/servers/slapd/secerrstrs.h \
 	ldap/servers/slapd/slap.h \
+	ldap/servers/slapd/slapi_pal.h \
 	ldap/servers/slapd/slapi-plugin-compat4.h \
 	ldap/servers/slapd/slapi-plugin.h \
 	ldap/servers/slapd/slapi-private.h \
@@ -841,6 +842,7 @@ pkgconfig_DATA = src/pkgconfig/dirsrv.pc \
 # header files
 #------------------------
 serverinc_HEADERS = ldap/servers/plugins/replication/repl-session-plugin.h \
+	ldap/servers/slapd/slapi_pal.h \
 	ldap/servers/slapd/slapi-plugin.h \
 	ldap/servers/plugins/replication/winsync-plugin.h \
 	src/nunc-stans/include/nunc-stans.h \
@@ -1210,6 +1212,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c \
+	ldap/servers/slapd/slapi_pal.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ $(SVRCORE_INCLUDES) @kerberos_inc@ @pcre_inc@
@@ -1996,7 +1999,9 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/counters/atomic.c \
 	test/libslapd/pblock/analytics.c \
 	test/libslapd/pblock/v3_compat.c \
-	test/libslapd/operation/v3_compat.c
+	test/libslapd/operation/v3_compat.c \
+	test/libslapd/spal/meminfo.c
+
 test_slapd_LDADD = libslapd.la
 test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 ### WARNING: Slap.h needs cert.h, which requires the -I/lib/ldaputil!!!

@@ -28,21 +28,8 @@
 #endif
 #endif
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-
-/* NSPR uses the print macros a bit differently than ANSI C.  We
- * need to use ll for a 64-bit integer, even when a long is 64-bit.
- */
-#undef PRIu64
-#define PRIu64  "llu"
-#undef PRI64
-#define PRI64   "ll"
-
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
+/* Provides our int types and platform specific requirements. */
+#include <slapi_pal.h>
 
 /* A bunch of random system headers taken from all the source files, no source file should #include
    any system headers now */
@@ -162,11 +149,11 @@ typedef unsigned short u_int16_t;
 #define    DBVERSION_FILENAME    "DBVERSION"
 /* 0 here means to let the autotuning reset the value on first run */
 /* cache can't get any smaller than this (in bytes) */
-#define MINCACHESIZE             (size_t)512000
-#define DEFAULT_CACHE_SIZE       (size_t)0
+#define MINCACHESIZE             (uint64_t)512000
+#define DEFAULT_CACHE_SIZE       (uint64_t)0
 #define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1        /* no limit */
-#define DEFAULT_DNCACHE_SIZE     (size_t)16777216
+#define DEFAULT_DNCACHE_SIZE     (uint64_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1        /* no limit */
 #define DEFAULT_DBCACHE_SIZE     33554432

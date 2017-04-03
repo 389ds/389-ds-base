@@ -107,7 +107,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	if (pb->pb_conn)
 	{
-		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_delete", "Enter conn=%" NSPRIu64 " op=%d\n",
+		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_delete", "Enter conn=%" PRIu64 " op=%d\n",
 				pb->pb_conn->c_connid, operation->o_opid);
 	}
 
@@ -1493,7 +1493,7 @@ diskfull_return:
 	slapi_sdn_done(&parentsdn);
 	if (pb->pb_conn)
 	{
-		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n",
+		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" PRIu64 " op=%d\n",
 				pb->pb_conn->c_connid, operation->o_opid);
 	}
 

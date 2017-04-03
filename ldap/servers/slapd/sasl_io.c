@@ -198,17 +198,17 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     /* first we need the length bytes */
     ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-            "Read sasl packet length returned %d on connection %" NSPRIu64 "\n",
+            "Read sasl packet length returned %d on connection %" PRIu64 "\n",
             ret, c->c_connid);
     if (ret <= 0) {
         *err = PR_GetError();
         if (ret == 0) {
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                    "Connection closed while reading sasl packet length on connection %" NSPRIu64 "\n",
+                    "Connection closed while reading sasl packet length on connection %" PRIu64 "\n",
                     c->c_connid );
         } else {
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                    "Error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n",
+                    "Error reading sasl packet length on connection %" PRIu64 " %d:%s\n",
                     c->c_connid, *err, slapd_pr_strerror(*err) );
         }
         return ret;
@@ -226,7 +226,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     if (sp->encrypted_buffer_offset < sizeof(buffer)) {
         slapi_log_err(SLAPI_LOG_CONNS,
                "sasl_io_start_packet", "Read only %d bytes of sasl packet "
-               "length on connection %" NSPRIu64 "\n", ret, c->c_connid );
+               "length on connection %" PRIu64 "\n", ret, c->c_connid );
 #if defined(EWOULDBLOCK)
         errno = EWOULDBLOCK;
 #elif defined(EAGAIN)
@@ -251,7 +251,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         ber_len_t ber_len = 0;
         ber_tag_t tag = 0;
 
-        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" PRIu64 " fd=%d "
                 "Sent an LDAP message that was not encrypted.\n", c->c_connid,
                 c->c_sd);
 
@@ -265,7 +265,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         /* Is the ldap operation too large? */
         if(ber_len > maxbersize){
             slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
-                    "conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable "
+                    "conn=%" PRIu64 " fd=%d Incoming BER Element was too long, max allowable "
                     "is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in "
                     "cn=config to increase.\n",
                     c->c_connid, c->c_sd, maxbersize );
@@ -305,7 +305,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
             } else if (ret > 0) {
                 slapi_log_err(SLAPI_LOG_CONNS,
                         "sasl_io_start_packet",
-                        "Continued: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
+                        "Continued: read sasl packet length returned %d on connection %" PRIu64 "\n",
                         ret, c->c_connid);
                 if((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size){
                 	sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
@@ -316,7 +316,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 *err = PR_GetError();
                 slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
                 		"Error reading sasl packet length on connection "
-                        "%" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
+                        "%" PRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
                 return ret;
             }
         }
@@ -360,7 +360,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 tag = *ber->ber_ptr++;
                 if (*ber->ber_ptr == LDAP_REQ_UNBIND){
 #endif
-                    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" PRIu64 " fd=%d "
                             "Received unencrypted UNBIND operation.\n", c->c_connid,
                             c->c_sd);
                     sp->encrypted_buffer_count = sp->encrypted_buffer_offset;
@@ -368,7 +368,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                     ber_free(ber, 1);
                     return SASL_IO_BUFFER_NOT_ENCRYPTED;
                 }
-                slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" PRIu64 " fd=%d "
                         "Error: received an LDAP message (tag 0x%lx) that was not encrypted.\n",
 #ifdef USE_OPENLDAP
                         c->c_connid, c->c_sd, (long unsigned int)tag);
@@ -380,7 +380,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
 
 done:
         /* If we got here we have garbage, or a denied LDAP operation */
-        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" PRIu64 " fd=%d "
                 "Error: received an invalid message that was not encrypted.\n",
                 c->c_connid, c->c_sd);
 
@@ -399,7 +399,7 @@ done:
     packet_length += sizeof(uint32_t);
 
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
-                    "read sasl packet length %ld on connection %" NSPRIu64 "\n", 
+                    "read sasl packet length %ld on connection %" PRIu64 "\n", 
                     packet_length, c->c_connid );
 
     /* Check if the packet length is larger than our max allowed.  A
@@ -432,17 +432,17 @@ sasl_io_read_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt3
     size_t bytes_remaining_to_read = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
 
     slapi_log_err(SLAPI_LOG_CONNS,
-               "sasl_io_read_packet", "Reading %lu bytes for connection %" NSPRIu64 "\n",
+               "sasl_io_read_packet", "Reading %lu bytes for connection %" PRIu64 "\n",
                bytes_remaining_to_read, c->c_connid );
     ret = PR_Recv(fd->lower, sp->encrypted_buffer + sp->encrypted_buffer_offset, bytes_remaining_to_read, flags, timeout);
     if (ret <= 0) {
         *err = PR_GetError();
         if (ret == 0) {
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_read_packet",
-                    "Connection closed while reading sasl packet on connection %" NSPRIu64 "\n", c->c_connid );
+                    "Connection closed while reading sasl packet on connection %" PRIu64 "\n", c->c_connid );
         } else {
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_read_packet",
-                    "Error reading sasl packet on connection %" NSPRIu64 " %d:%s\n",
+                    "Error reading sasl packet on connection %" PRIu64 " %d:%s\n",
                     c->c_connid, *err, slapd_pr_strerror(*err) );
         }
         return ret;
@@ -464,10 +464,10 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
     /* Do we have decrypted data buffered from 'before' ? */
     bytes_in_buffer = sp->decrypted_buffer_count - sp->decrypted_buffer_offset;
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-            "Connection %" NSPRIu64 " len %d bytes_in_buffer %lu\n",
+            "Connection %" PRIu64 " len %d bytes_in_buffer %lu\n",
             c->c_connid, len, bytes_in_buffer );
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-            "Connection %" NSPRIu64 " len %d encrypted buffer count %lu\n",
+            "Connection %" PRIu64 " len %d encrypted buffer count %lu\n",
             c->c_connid, len, sp->encrypted_buffer_count );
     if (0 == bytes_in_buffer) {
         /* If there wasn't buffered decrypted data, we need to get some... */
@@ -502,7 +502,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
          */
         if (!sasl_io_finished_packet(sp)) {
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-                    "Connection %" NSPRIu64 " - not finished reading packet yet\n", c->c_connid);
+                    "Connection %" PRIu64 " - not finished reading packet yet\n", c->c_connid);
 #if defined(EWOULDBLOCK)
             errno = EWOULDBLOCK;
 #elif defined(EAGAIN)
@@ -516,7 +516,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
             const char *output_buffer = NULL;
             unsigned int output_length = 0;
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-                    "Finished reading packet for connection %" NSPRIu64 "\n", c->c_connid );
+                    "Finished reading packet for connection %" PRIu64 "\n", c->c_connid );
             /* Now decode it */
             ret = sasl_decode(c->c_sasl_conn,sp->encrypted_buffer,sp->encrypted_buffer_count,&output_buffer,&output_length);
             /* even if decode fails, need re-initialize the encrypted_buffer */
@@ -524,7 +524,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
             sp->encrypted_buffer_count = 0;
             if (SASL_OK == ret) {
                 slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-                        "Decoded packet length %u for connection %" NSPRIu64 "\n", output_length, c->c_connid );
+                        "Decoded packet length %u for connection %" PRIu64 "\n", output_length, c->c_connid );
                 if (output_length) {
                     sasl_io_resize_decrypted_buffer(sp,output_length);
                     memcpy(sp->decrypted_buffer,output_buffer,output_length);
@@ -534,7 +534,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
                 }
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, "sasl_io_recv",
-                        "Failed to decode packet for connection %" NSPRIu64 "\n", c->c_connid );
+                        "Failed to decode packet for connection %" PRIu64 "\n", c->c_connid );
                 PR_SetError(PR_IO_ERROR, 0);
                 return PR_FAILURE;
             }
@@ -552,11 +552,11 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
             sp->decrypted_buffer_offset = 0;
             sp->decrypted_buffer_count = 0;
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-                    "All decrypted data returned for connection %" NSPRIu64 "\n", c->c_connid );
+                    "All decrypted data returned for connection %" PRIu64 "\n", c->c_connid );
         } else {
             sp->decrypted_buffer_offset += bytes_to_return;
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
-                    "Returning %lu bytes to caller %lu bytes left to return for connection %" NSPRIu64 "\n",
+                    "Returning %lu bytes to caller %lu bytes left to return for connection %" PRIu64 "\n",
                     bytes_to_return, sp->decrypted_buffer_count - sp->decrypted_buffer_offset, c->c_connid );
         }
         ret = bytes_to_return;
@@ -772,11 +772,11 @@ sasl_io_enable(Connection *c, void *data __attribute__((unused)))
         rv = PR_PushIOLayer(c->c_prfd, PR_TOP_IO_LAYER, layer);
         if (rv) {
             slapi_log_err(SLAPI_LOG_ERR, "sasl_io_enable",
-                    "Error enabling sasl io on connection %" NSPRIu64 " %d:%s\n",
+                    "Error enabling sasl io on connection %" PRIu64 " %d:%s\n",
                     c->c_connid, rv, slapd_pr_strerror(rv) );
         } else {
             slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_enable",
-                    "Enabled sasl io on connection %" NSPRIu64 " \n", c->c_connid);
+                    "Enabled sasl io on connection %" PRIu64 " \n", c->c_connid);
             debug_print_layers(c->c_prfd);
         }
     }
@@ -794,7 +794,7 @@ sasl_io_cleanup(Connection *c, void *data __attribute__((unused)))
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_cleanup",
-            "Connection %" NSPRIu64 "\n", c->c_connid);
+            "Connection %" PRIu64 "\n", c->c_connid);
 
     ret = sasl_pop_IO_layer(c->c_prfd, 0 /* do not close */);
 

@@ -649,7 +649,7 @@ void cache_set_max_size(struct cache *cache, size_t bytes, int type)
     }
 }
 
-static void entrycache_set_max_size(struct cache *cache, size_t bytes)
+static void entrycache_set_max_size(struct cache *cache, uint64_t bytes)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
@@ -659,16 +659,17 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
          * to happen. In that case, suppress this warning.
          */
         if (bytes > 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, "entrycache_set_max_size", "Minimum cache size is %lu -- rounding up\n", MINCACHESIZE);
+            slapi_log_err(SLAPI_LOG_WARNING, "entrycache_set_max_size", "Minimum cache size is %"PRIu64" -- rounding up\n", MINCACHESIZE);
         }
         bytes = MINCACHESIZE;
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;
-    LOG("entry cache size set to %lu\n", bytes);
+    LOG("entry cache size set to %"PRIu64"\n", bytes);
     /* check for full cache, and clear out if necessary */
-    if (CACHE_FULL(cache))
+    if (CACHE_FULL(cache)) {
        eflush = entrycache_flush(cache);
+    }
     while (eflush)
     {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
@@ -686,12 +687,11 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
     /* This may already have been called by one of the functions in
      * ldbm_instance_config
      */
-    if (! util_is_cachesize_sane(&bytes)) {
-       slapi_log_err(SLAPI_LOG_WARNING,
-                "entrycache_set_max_size", "Possible CONFIGURATION ERROR -- cachesize "
-                "(%lu) may be configured to use more than the available "
-                "physical memory.\n", bytes);
+    slapi_pal_meminfo *mi = spal_meminfo_get();
+    if (util_is_cachesize_sane(mi, &bytes) != UTIL_CACHESIZE_VALID) {
+       slapi_log_err(SLAPI_LOG_WARNING, "entrycache_set_max_size", "Cachesize (%"PRIu64") may use more than the available physical memory.\n", bytes);
     }
+    spal_meminfo_destroy(mi);
 }
 
 void cache_set_max_entries(struct cache *cache, long entries)
@@ -1597,7 +1597,7 @@ dn_same_id(const void *bdn, const void *k)
 }
 
 static void
-dncache_set_max_size(struct cache *cache, size_t bytes)
+dncache_set_max_size(struct cache *cache, uint64_t bytes)
 {
     struct backdn *dnflush = NULL;
     struct backdn *dnflushtemp = NULL;
@@ -1609,12 +1609,12 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
     if (bytes < MINCACHESIZE) {
        bytes = MINCACHESIZE;
        slapi_log_err(SLAPI_LOG_WARNING,
-                "dncache_set_max_size", "Minimum cache size is %lu -- rounding up\n",
+                "dncache_set_max_size", "Minimum cache size is %"PRIu64" -- rounding up\n",
                 MINCACHESIZE);
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;
-    LOG("entry cache size set to %lu\n", bytes);
+    LOG("entry cache size set to %"PRIu64"\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
        dnflush = dncache_flush(cache);
@@ -1636,12 +1636,12 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
     /* This may already have been called by one of the functions in
      * ldbm_instance_config
      */
-    if (! util_is_cachesize_sane(&bytes)) {
-       slapi_log_err(SLAPI_LOG_WARNING,
-                "dncache_set_max_size", "Possible CONFIGURATION ERROR -- cachesize "
-                "(%lu) may be configured to use more than the available "
-                "physical memory.\n", bytes);
+
+    slapi_pal_meminfo *mi = spal_meminfo_get();
+    if (util_is_cachesize_sane(mi, &bytes) != UTIL_CACHESIZE_VALID) {
+       slapi_log_err(SLAPI_LOG_WARNING, "dncache_set_max_size", "Cachesize (%"PRIu64") may use more than the available physical memory.\n", bytes);
     }
+    spal_meminfo_destroy(mi);
 }
 
 /* remove a dn from the cache */

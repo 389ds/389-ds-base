@@ -100,7 +100,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) value;
-    size_t delta = 0;
+    uint64_t delta = 0;
 
     /* Do whatever we can to make sure the data is ok. */
     /* There is an error here. We check the new val against our current mem-alloc 
@@ -116,7 +116,13 @@ ldbm_instance_config_cachememsize_set(void *arg,
     if (apply) {
         if (val > inst->inst_cache.c_maxsize) {
             delta = val - inst->inst_cache.c_maxsize;
-            if (!util_is_cachesize_sane(&delta)){
+
+            util_cachesize_result sane;
+            slapi_pal_meminfo *mi = spal_meminfo_get();
+            sane = util_is_cachesize_sane(mi, &delta);
+            spal_meminfo_destroy(mi);
+
+            if (sane != UTIL_CACHESIZE_VALID){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: cachememsize value is too large.");
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set", "cachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
@@ -146,7 +152,7 @@ ldbm_instance_config_dncachememsize_set(void *arg,
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t)value;
-    size_t delta = 0;
+    uint64_t delta = 0;
 
     /* Do whatever we can to make sure the data is ok. */
     /* There is an error here. We check the new val against our current mem-alloc 
@@ -162,7 +168,13 @@ ldbm_instance_config_dncachememsize_set(void *arg,
     if (apply) {
         if (val > inst->inst_dncache.c_maxsize) {
             delta = val - inst->inst_dncache.c_maxsize;
-            if (!util_is_cachesize_sane(&delta)){
+
+            util_cachesize_result sane;
+            slapi_pal_meminfo *mi = spal_meminfo_get();
+            sane = util_is_cachesize_sane(mi, &delta);
+            spal_meminfo_destroy(mi);
+
+            if (sane != UTIL_CACHESIZE_VALID){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                     "Error: dncachememsize value is too large.");
                 slapi_log_err(SLAPI_LOG_ERR,"ldbm_instance_config_dncachememsize_set",

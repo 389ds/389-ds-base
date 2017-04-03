@@ -72,13 +72,8 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
+/* Provides our int types and platform specific requirements. */
+#include <slapi_pal.h>
 
 #define LOG_INTERNAL_OP_CON_ID      "Internal"
 #define LOG_INTERNAL_OP_OP_ID       -1

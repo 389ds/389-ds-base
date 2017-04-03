@@ -204,12 +204,12 @@ syntax_validate_task_thread(void *arg)
 	slapi_pblock_destroy(search_pb);
 
 	/* Log finished message. */
-	slapi_task_log_notice(task, "Syntax validate task complete.  Found %" NSPRIu64
+	slapi_task_log_notice(task, "Syntax validate task complete.  Found %" PRIu64
 	                " invalid entries.\n", slapi_counter_get_value(td->invalid_entries));
-	slapi_task_log_status(task, "Syntax validate task complete.  Found %" NSPRIu64
+	slapi_task_log_status(task, "Syntax validate task complete.  Found %" PRIu64
 	                " invalid entries.\n", slapi_counter_get_value(td->invalid_entries));
 	slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM, "syntax_validate_task_thread - Complete."
-	                "  Found %" NSPRIu64 " invalid entries.\n",
+	                "  Found %" PRIu64 " invalid entries.\n",
 	                slapi_counter_get_value(td->invalid_entries));
 	slapi_task_inc_progress(task);
 

@@ -580,7 +580,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
     {
 	/* This may happen while other threads are still working on this connection */
         slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_acquire",
-		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
+		                "conn=%" PRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 		                conn->c_connid, conn->c_sd);
         rc = -1;
     }
@@ -606,7 +606,7 @@ slapi_connection_remove_operation( Slapi_PBlock *pb __attribute__((unused)), Sla
 	if ( *tmp == NULL ) {
 		if (op) {
 			slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
-				"Can't find op %d for conn %" NSPRIu64 "\n",
+				"Can't find op %d for conn %" PRIu64 "\n",
 			    (int)op->o_msgid, conn->c_connid);
 		} else {
 			slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
@@ -620,7 +620,7 @@ slapi_connection_remove_operation( Slapi_PBlock *pb __attribute__((unused)), Sla
 		/* connection_release_nolock(conn); */
 		if (conn->c_refcnt <= 0) {
 			slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
-			                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
+			                "conn=%" PRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 			                conn->c_connid, conn->c_sd);
 			rc = -1;
 		} else {

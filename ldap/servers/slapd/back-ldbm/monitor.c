@@ -105,9 +105,9 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         /* fetch cache statistics */
         cache_get_stats(&(inst->inst_dncache), &hits, &tries, 
                         &nentries, &maxentries, &size, &maxsize);
-        sprintf(buf, "%" NSPRIu64, hits);
+        sprintf(buf, "%" PRIu64, hits);
         MSET("dnCacheHits");
-        sprintf(buf, "%" NSPRIu64, tries);
+        sprintf(buf, "%" PRIu64, tries);
         MSET("dnCacheTries");
         sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("dnCacheHitRatio");
@@ -123,11 +123,11 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     /* normalized dn cache stats */
     if(ndn_cache_started()){
         ndn_cache_get_stats(&hits, &tries, &size, &maxsize, &count);
-        sprintf(buf, "%" NSPRIu64, tries);
+        sprintf(buf, "%" PRIu64, tries);
         MSET("normalizedDnCacheTries");
-        sprintf(buf, "%" NSPRIu64, hits);
+        sprintf(buf, "%" PRIu64, hits);
         MSET("normalizedDnCacheHits");
-        sprintf(buf, "%" NSPRIu64, (tries - hits));
+        sprintf(buf, "%" PRIu64, (tries - hits));
         MSET("normalizedDnCacheMisses");
         sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("normalizedDnCacheHitRatio");

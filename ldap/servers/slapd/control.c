@@ -335,7 +335,7 @@ get_ldapmessage_controls_ext(
                 slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL);
                 slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
                 slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
-                slapi_log_err(SLAPI_LOG_CONNS, "get_ldapmessage_controls_ext", "Warning: conn=%" NSPRIu64 " op=%d contains an empty list of controls\n",
+                slapi_log_err(SLAPI_LOG_CONNS, "get_ldapmessage_controls_ext", "Warning: conn=%" PRIu64 " op=%d contains an empty list of controls\n",
                         pb->pb_conn->c_connid, pb->pb_op->o_opid);
         } else {
                 /* len, ber_len_t is uint, not int, cannot be != -1, may be better to remove this check.  */

@@ -84,7 +84,7 @@ void consumer_connection_extension_destructor (void *ext, void *object __attribu
 					slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 							"consumer_connection_extension_destructor - "
 							"Aborting total update in progress for replicated "
-							"area %s connid=%" NSPRIu64 "\n", slapi_sdn_get_dn(repl_root_sdn), connid);
+							"area %s connid=%" PRIu64 "\n", slapi_sdn_get_dn(repl_root_sdn), connid);
 					slapi_stop_bulk_import(pb);
 				}
 				else
@@ -156,7 +156,7 @@ consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 conn
             ret = connext;
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_acquire_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Acquired consumer connection extension\n",
+                    "conn=%" PRIu64 " op=%d Acquired consumer connection extension\n",
                     connid, opid);
         }
         else if (opid == connext->in_use_opid)
@@ -164,14 +164,14 @@ consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 conn
             ret = connext;
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_acquire_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Reacquired consumer connection extension\n",
+                    "conn=%" PRIu64 " op=%d Reacquired consumer connection extension\n",
                     connid, opid);
         }
         else
         {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_acquire_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Could not acquire consumer connection extension; it is in use by op=%d\n",
+                    "conn=%" PRIu64 " op=%d Could not acquire consumer connection extension; it is in use by op=%d\n",
                     connid, opid, connext->in_use_opid);
         }
 
@@ -182,7 +182,7 @@ consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 conn
     {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"consumer_connection_extension_acquire_exclusive_access - "
-                "conn=%" NSPRIu64 " op=%d Could not acquire consumer extension, it is NULL!\n",
+                "conn=%" PRIu64 " op=%d Could not acquire consumer extension, it is NULL!\n",
                 connid, opid);
     }
     
@@ -221,7 +221,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
         {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Consumer connection extension is not in use\n",
+                    "conn=%" PRIu64 " op=%d Consumer connection extension is not in use\n",
                     connid, opid);
             ret = 2;
         }
@@ -230,7 +230,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
             /* step 4, relinquish it (normal) */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Relinquishing consumer connection extension\n",
+                    "conn=%" PRIu64 " op=%d Relinquishing consumer connection extension\n",
                     connid, opid);
             connext->in_use_opid = -1;
             ret = 1;
@@ -240,7 +240,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
             /* step 4, relinquish it (forced) */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Forced to relinquish consumer connection extension held by op=%d\n",
+                    "conn=%" PRIu64 " op=%d Forced to relinquish consumer connection extension held by op=%d\n",
                     connid, opid, connext->in_use_opid);
             connext->in_use_opid = -1;
             ret = 1;
@@ -249,7 +249,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
         {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
-                    "conn=%" NSPRIu64 " op=%d Not relinquishing consumer connection extension, it is held by op=%d!\n",
+                    "conn=%" PRIu64 " op=%d Not relinquishing consumer connection extension, it is held by op=%d!\n",
                     connid, opid, connext->in_use_opid);
         }
         
@@ -260,7 +260,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
     {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"consumer_connection_extension_relinquish_exclusive_access - "
-                "conn=%" NSPRIu64 " op=%d Could not relinquish consumer extension, it is NULL!\n",
+                "conn=%" PRIu64 " op=%d Could not relinquish consumer extension, it is NULL!\n",
                 connid, opid);
     }
     

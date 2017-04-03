@@ -1335,7 +1335,7 @@ process_postop (Slapi_PBlock *pb)
 			{
 				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 					"process_postop - Failed to apply update (%s) error (%d).  "
-					"Aborting replication session(conn=%" NSPRIu64 " op=%d)\n",
+					"Aborting replication session(conn=%" PRIu64 " op=%d)\n",
 					csn_as_string(opcsn, PR_FALSE, csn_str), retval,
 					connid, opid);
 				/*

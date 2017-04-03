@@ -411,7 +411,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen __attri
 
     /* log useful stuff to our access log */
     slapi_log_access( LDAP_DEBUG_STATS,
-        "conn=%" NSPRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
+        "conn=%" PRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
         conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip );
 
     /* initialize the remaining connection fields */
@@ -511,7 +511,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 		op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_EXTENDED)
 	{
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
 			pb->pb_conn->c_connid, pb->pb_op->o_opid,
 			"UNPROCESSED OPERATION - need new password" );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, 
@@ -562,7 +562,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	    (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
 	    (op->o_tag != LDAP_REQ_ABANDON)) {
 		slapi_log_access( LDAP_DEBUG_STATS,
-			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
+			"conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
 			" - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
 			conn->c_connid, op->o_opid, conn->c_local_ssf,
 			conn->c_sasl_ssf, conn->c_ssl_ssf );
@@ -591,7 +591,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	    (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH))))
 	{
 		slapi_log_access( LDAP_DEBUG_STATS,
-			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
+			"conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
 			" - Anonymous access not allowed\n",
 			conn->c_connid, op->o_opid );
 
@@ -650,7 +650,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
 				slapi_log_err(SLAPI_LOG_ERR, "connection_dispatch_operation",
-					"Failed to set TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid);
+					"Failed to set TCP_CORK on connection %" PRIu64 "\n",conn->c_connid);
 			}
 			pop_cork = 1;
 		}
@@ -664,7 +664,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
 				slapi_log_err(SLAPI_LOG_ERR, "connection_dispatch_operation",
-					"Failed to clear TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid);
+					"Failed to clear TCP_CORK on connection %" PRIu64 "\n",conn->c_connid);
 			}
 		}
 #endif
@@ -690,7 +690,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 
 	default:
 		slapi_log_err(SLAPI_LOG_ERR,
-		    "connection_dispatch_operation", "Ignoring unknown LDAP request (conn=%" NSPRIu64 ", tag=0x%lx)\n",
+		    "connection_dispatch_operation", "Ignoring unknown LDAP request (conn=%" PRIu64 ", tag=0x%lx)\n",
 		    conn->c_connid, op->o_tag);
 		break;
 	}
@@ -702,7 +702,7 @@ int connection_release_nolock_ext (Connection *conn, int release_only)
     if (conn->c_refcnt <= 0)
     {
         slapi_log_err(SLAPI_LOG_ERR, "connection_release_nolock_ext",
-		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
+		                "conn=%" PRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 		                conn->c_connid, conn->c_sd);
         PR_ASSERT (PR_FALSE);
         return -1;
@@ -734,7 +734,7 @@ int connection_acquire_nolock_ext (Connection *conn, int allow_when_closing)
     {
 	/* This may happen while other threads are still working on this connection */
         slapi_log_err(SLAPI_LOG_ERR, "connection_acquire_nolock_ext",
-		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
+		                "conn=%" PRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 		                conn->c_connid, conn->c_sd);
         return -1;
     }
@@ -1070,7 +1070,7 @@ get_next_from_buffer( void *buffer __attribute__((unused)), size_t buffer_size _
 		syserr = errno;
 		/* Bad stuff happened, like the client sent us some junk */
 		slapi_log_err(SLAPI_LOG_CONNS, "get_next_from_buffer",
-			"ber_get_next failed for connection %" NSPRIu64 "\n", conn->c_connid);
+			"ber_get_next failed for connection %" PRIu64 "\n", conn->c_connid);
 		/* reset private buffer */
 		conn->c_private->c_buffer_bytes = conn->c_private->c_buffer_offset = 0;
 
@@ -1232,7 +1232,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 						/* Otherwise we loop, unless we exceeded the ioblock timeout */
 						if (waits_done > ioblocktimeout_waits) {
 							slapi_log_err(SLAPI_LOG_CONNS,"connection_read_operation",
-								"ioblocktimeout expired on connection %" NSPRIu64 "\n", conn->c_connid);
+								"ioblocktimeout expired on connection %" PRIu64 "\n", conn->c_connid);
 							disconnect_server_nomutex( conn, conn->c_connid, -1,
 									SLAPD_DISCONNECT_IO_TIMEOUT, 0 );
 							ret = CONN_DONE;
@@ -1253,19 +1253,19 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					err = PR_GetError();
 					syserr = PR_GetOSError();
 					slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
-						"PR_Poll for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
+						"PR_Poll for connection %" PRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
 					disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
 					ret = CONN_DONE;
 					goto done;
 				}
 				slapi_log_err(SLAPI_LOG_CONNS,
-					   "connection_read_operation", "connection %" NSPRIu64 " waited %d times for read to be ready\n", conn->c_connid, waits_done);
+					   "connection_read_operation", "connection %" PRIu64 " waited %d times for read to be ready\n", conn->c_connid, waits_done);
 			} else {
 				/* Some other error, typically meaning bad stuff */
 					syserr = PR_GetOSError();
 					slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
-						"PR_Recv for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
+						"PR_Recv for connection %" PRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
 					disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
 					ret = CONN_DONE;
@@ -1286,7 +1286,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 				}
 			}
 			slapi_log_err(SLAPI_LOG_CONNS,
-				   "connection_read_operation", "connection %" NSPRIu64 " read %d bytes\n", conn->c_connid, ret);
+				   "connection_read_operation", "connection %" PRIu64 " read %d bytes\n", conn->c_connid, ret);
 
 			new_operation = 0;
 			ret = CONN_FOUND_WORK_TO_DO;
@@ -1307,7 +1307,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		 * We received a non-LDAP message.  Log and close connection.
 		 */
 		slapi_log_err(SLAPI_LOG_ERR,
-			"connection_read_operation", "conn=%" NSPRIu64 " received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
+			"connection_read_operation", "conn=%" PRIu64 " received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
 			conn->c_connid, *tag, LDAP_TAG_MESSAGE );
 		disconnect_server_nomutex( conn, conn->c_connid, -1,
 			SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
@@ -1319,7 +1319,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		!= LDAP_TAG_MSGID ) {
 		/* log, close and send error */
 		slapi_log_err(SLAPI_LOG_ERR,
-			"connection_read_operation", "conn=%" NSPRIu64 " unable to read tag for incoming request\n", conn->c_connid);
+			"connection_read_operation", "conn=%" PRIu64 " unable to read tag for incoming request\n", conn->c_connid);
 		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
 		ret = CONN_DONE;
 		goto done;
@@ -1337,7 +1337,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	  case LDAP_TAG_LDAPDN: /* optional username, for CLDAP */
 		/* log, close and send error */
 		slapi_log_err(SLAPI_LOG_ERR,
-			"connection_read_operation", "conn=%" NSPRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag);
+			"connection_read_operation", "conn=%" PRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag);
 		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_PEEK, EPROTO );
 		ret = CONN_DONE;
 		goto done;
@@ -1361,7 +1361,7 @@ void connection_make_readable(Connection *conn)
 void connection_make_readable_nolock(Connection *conn)
 {
 	conn->c_gettingber = 0;
-	slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" NSPRIu64 " fd=%d\n",
+	slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" PRIu64 " fd=%d\n",
 		       conn->c_connid, conn->c_sd);
 	if (!(conn->c_flags & CONN_FLAG_CLOSING)) {
 		/* if the connection is closing, try the close in connection_release_nolock */
@@ -1388,7 +1388,7 @@ void connection_check_activity_level(Connection *conn)
 	/* update the last checked time */
 	conn->c_private->previous_count_check_time = current_time();
 	PR_ExitMonitor(conn->c_mutex);
-	slapi_log_err(SLAPI_LOG_CONNS,"connection_check_activity_level", "conn %" NSPRIu64 " activity level = %d\n",conn->c_connid,delta_count); 
+	slapi_log_err(SLAPI_LOG_CONNS,"connection_check_activity_level", "conn %" PRIu64 " activity level = %d\n",conn->c_connid,delta_count); 
 }
 
 typedef struct table_iterate_info_struct {
@@ -1450,7 +1450,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	  double activet = 0.0;
 	  connection_find_our_rank(conn,&connection_count, &our_rank);
 	  slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo",
-	      "conn %" NSPRIu64 " turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
+	      "conn %" PRIu64 " turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
 	  activet = (double)g_get_active_threadcnt();
 	  threshold_rank = (int)(activet * ((double)CONN_TURBO_PERCENTILE / 100.0));
 
@@ -1480,9 +1480,9 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	PR_ExitMonitor(conn->c_mutex);
 	if (current_mode != new_mode) {
 		if (current_mode) {
-			slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo", "conn %" NSPRIu64 " leaving turbo mode\n",conn->c_connid); 
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo", "conn %" PRIu64 " leaving turbo mode\n",conn->c_connid); 
 		} else {
-			slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo", "conn %" NSPRIu64 " entering turbo mode\n",conn->c_connid); 
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo", "conn %" PRIu64 " entering turbo mode\n",conn->c_connid); 
 		}
 	}
 	*new_turbo_flag = new_mode;
@@ -1606,12 +1606,12 @@ connection_threadmain()
 		ret = connection_read_operation(conn, op, &tag, &more_data);
 		if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
 			slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-					"conn %" NSPRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
+					"conn %" PRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
 					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, ret, thread_turbo_flag, more_data,
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
 		} else if (ret == CONN_FOUND_WORK_TO_DO) {
 			slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-					"conn %" NSPRIu64 " read operation successfully - thread_turbo_flag %d more_data %d "
+					"conn %" PRIu64 " read operation successfully - thread_turbo_flag %d more_data %d "
 					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, thread_turbo_flag, more_data,
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
 		}
@@ -1637,7 +1637,7 @@ connection_threadmain()
 		if (thread_turbo_flag && !WORK_Q_EMPTY) {
 			thread_turbo_flag = 0;
 			slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain",
-				"conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",
+				"conn %" PRIu64 " leaving turbo mode - pb_q is not empty %d\n",
 			    conn->c_connid,work_q_size);
 		}
 #endif
@@ -1664,7 +1664,7 @@ connection_threadmain()
 				 * connection_make_readable(conn);
 				 */
 				slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain",
-					"conn %" NSPRIu64 " leaving turbo mode due to %d\n",
+					"conn %" PRIu64 " leaving turbo mode due to %d\n",
 					conn->c_connid,ret);
 				goto done;
 			case CONN_SHUTDOWN:
@@ -1721,7 +1721,7 @@ connection_threadmain()
 					 */
 					conn->c_idlesince = curtime;
 					connection_activity(conn, maxthreads);
-					slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain", "conn %" NSPRIu64 " queued because more_data\n",
+					slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
 					          conn->c_connid);
 				} else {
 					/* keep count of how many times maxthreads has blocked an operation */
@@ -1803,7 +1803,7 @@ done:
 			/* If we're in turbo mode, we keep our reference to the connection alive */
 			/* can't use the more_data var because connection could have changed in another thread */
 			more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
-			slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain", "conn %" NSPRIu64 " check more_data %d thread_turbo_flag %d\n",
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain", "conn %" PRIu64 " check more_data %d thread_turbo_flag %d\n",
 			          conn->c_connid,more_data,thread_turbo_flag);
 			if (!more_data) {
 				if (!thread_turbo_flag) {
@@ -1852,7 +1852,7 @@ connection_activity(Connection *conn, int maxthreads)
 
 	if (connection_acquire_nolock (conn) == -1) {
 		slapi_log_err(SLAPI_LOG_CONNS,
-		          "connection_activity", "Could not acquire lock in connection_activity as conn %" NSPRIu64 " closing fd=%d\n",
+		          "connection_activity", "Could not acquire lock in connection_activity as conn %" PRIu64 " closing fd=%d\n",
 		          conn->c_connid,conn->c_sd);
 		/* XXX how to handle this error? */
 		/* MAB: 25 Jan 01: let's return on error and pray this won't leak */
@@ -2035,7 +2035,7 @@ connection_remove_operation( Connection *conn, Operation *op )
 
 	if ( *tmp == NULL )
 	{
-		slapi_log_err(SLAPI_LOG_ERR, "connection_remove_operation", "Can't find op %d for conn %" NSPRIu64 "\n",
+		slapi_log_err(SLAPI_LOG_ERR, "connection_remove_operation", "Can't find op %d for conn %" PRIu64 "\n",
 		    (int)op->o_msgid, conn->c_connid);
 	}
 	else
@@ -2176,13 +2176,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 	}
 	if (0 == ber_len) {
 		slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",
-			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable"
+			"conn=%" PRIu64 " fd=%d Incoming BER Element was too long, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, maxbersize );
 	} else {
 		slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",
-			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
+			"conn=%" PRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, ber_len, maxbersize );
@@ -2213,7 +2213,7 @@ disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PR
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	    conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) )
 	{
-		slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Setting conn %" NSPRIu64 " fd=%d "
+		slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Setting conn %" PRIu64 " fd=%d "
 			  "to be disconnected: reason %d\n", conn->c_connid, conn->c_sd, reason);
 		/*
 		 * PR_Close must be called before anything else is done because
@@ -2237,13 +2237,13 @@ disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PR
 		 */
 		if (error && (EPIPE != error) ) {
 			slapi_log_access( LDAP_DEBUG_STATS,
-			  "conn=%" NSPRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
+			  "conn=%" PRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
 			  conn->c_connid, opid, conn->c_sd, error,
 			  slapd_system_strerror(error),
 			  slapd_pr_strerror(reason));
 		} else {
 			slapi_log_access( LDAP_DEBUG_STATS,
-			  "conn=%" NSPRIu64 " op=%d fd=%d closed - %s\n",
+			  "conn=%" PRIu64 " op=%d fd=%d closed - %s\n",
 			  conn->c_connid, opid, conn->c_sd,
 			  slapd_pr_strerror(reason));
 		}
