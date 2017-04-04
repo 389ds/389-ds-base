@@ -18,7 +18,9 @@ MUST_ATTRIBUTES = [
 ]
 RDN = 'uid'
 
+
 class UserAccount(DSLdapObject):
+
     def __init__(self, instance, dn=None, batch=False):
         super(UserAccount, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -36,6 +38,7 @@ class UserAccount(DSLdapObject):
             # Can we get this into core?
             # 'ldapPublicKey',
         ]
+        self._compare_exclude = ['nsuniqueid']
         self._protected = False
 
     def _validate(self, rdn, properties, basedn):

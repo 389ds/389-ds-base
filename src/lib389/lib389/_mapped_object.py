@@ -76,6 +76,7 @@ class DSLogging(object):
 
 
 class DSLdapObject(DSLogging):
+
     # TODO: Automatically create objects when they are requested to have properties added
     def __init__(self, instance, dn=None, batch=False):
         """
@@ -93,6 +94,8 @@ class DSLdapObject(DSLogging):
         self._create_objectclasses = []
         self._rdn_attribute = None
         self._must_attributes = None
+        # attributes, we don't want to compare
+        self._compare_exclude = []
 
     def __unicode__(self):
         val = self._dn
@@ -224,6 +227,63 @@ class DSLdapObject(DSLogging):
 
             mod_list.append((action, key, value))
         return self._instance.modify_s(self._dn, mod_list)
+
+    @classmethod
+    def compare(cls, obj1, obj2):
+        """
+        Compare if two RDN objects have same attributes and values.
+        This comparison is a loose comparison, not a strict one i.e. "this object *is* this other object"
+        It will just check if the attributes are same.
+        'nsUniqueId' attribute is not checked intentionally because we want to compare arbitrary objects
+        i.e they may have different 'nsUniqueId' but same attributes.
+        Example:
+            cn=user1,ou=a
+            cn=user1,ou=b
+        Comparision of these two objects should result in same, even though their 'nsUniqueId' attribute differs.
+        This function returns 'True' if objects have same attributes else returns 'False'
+        """
+        # ensuring both the objects are RDN objects
+        if not issubclass(type(obj1), DSLdapObject) or not issubclass(type(obj2), DSLdapObject):
+            raise ValueError("Invalid arguments: Expecting object types that inherits 'DSLdapObject' class")
+        # check if RDN of objects is same
+        if obj1.rdn != obj2.rdn:
+            return False
+        obj1_attrs = obj1.get_compare_attrs()
+        obj2_attrs = obj2.get_compare_attrs()
+        # Bail fast if the keys don't match
+        if set(obj1_attrs.keys()) != set(obj2_attrs.keys()):
+            return False
+        # Check the values of each key
+        # using obj1_attrs.keys() because obj1_attrs.iterkleys() is not supported in python3
+        for key in obj1_attrs.keys():
+            if set(obj1_attrs[key]) != set(obj2_attrs[key]):
+                return False
+        return True
+
+    def get_compare_attrs(self):
+        """
+        Get a dictionary having attributes to be compared i.e. excluding self._compare_exclude
+        """
+        self._log.debug("%s get_compare_attrs" % (self._dn))
+        all_attrs_dict = self.get_all_attrs()
+        # removing _compate_exclude attrs from all attrs
+        compare_attrs = set(all_attrs_dict.keys()) - set(self._compare_exclude)
+        compare_attrs_dict = {attr:all_attrs_dict[attr] for attr in compare_attrs}
+        return compare_attrs_dict
+
+    def get_all_attrs(self):
+        """
+        Get a dictionary having all the attributes i.e. real attributes + operational attributes
+        """
+        self._log.debug("%s get_all_attrs" % (self._dn))
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+        else:
+            # retrieving real(*) and operational attributes(+)
+            attrs_entry = self._instance.getEntry(self._dn, ldap.SCOPE_BASE, "(objectclass=*)", ["*", "+"])
+            # getting dict from 'entry' object
+            attrs_dict = attrs_entry.data
+            return attrs_dict
 
     def get_attrs_vals(self, keys):
         self._log.debug("%s get_attrs_vals(%r)" % (self._dn, keys))
@@ -498,7 +558,7 @@ class DSLdapObjects(DSLogging):
         # Create the object
         # Should we inject the rdn to properties?
         # This may not work in all cases, especially when we consider plugins.
-        # 
+        #
         co = self._entry_to_instance(dn=None, entry=None)
         # Make the rdn naming attr avaliable
         self._rdn_attribute = co._rdn_attribute
