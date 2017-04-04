@@ -385,6 +385,7 @@ class DirSrv(SimpleLDAPObject, object):
         args_instance[SER_USER_ID] = None
         args_instance[SER_GROUP_ID] = None
         args_instance[SER_REALM] = None
+        args_instance[SER_INST_SCRIPTS_ENABLED] = None
 
         # We allocate a "default" prefix here which allows an un-allocate or
         # un-instantiated DirSrv
