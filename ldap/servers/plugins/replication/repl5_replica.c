@@ -3669,7 +3669,9 @@ abort_csn_callback(const CSN *csn, void *data)
     {
         int rc = csnplRemove(r->min_csn_pl, csn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "csnplRemove failed");
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                    "abort_csn_callback - csnplRemove failed");
+            replica_unlock(r->repl_lock);
             return;
         }
     }
