@@ -63,7 +63,11 @@ static int_fast32_t
 _spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest) {
     FILE *f;
     char s[40] = {0};
-    size_t prefix_len = strlen(prefix);
+    size_t prefix_len = 0;
+
+    if (prefix != NULL) {
+        prefix_len = strlen(prefix);
+    }
 
     /* Make sure we can fit into our buffer */
     assert((prefix_len + 20) < 39);
@@ -85,8 +89,11 @@ _spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest) {
             retval = 1;
             break;
         }
-        if (strncmp(s, prefix, prefix_len) == 0) {
+        if (prefix_len > 0 && strncmp(s, prefix, prefix_len) == 0) {
             sscanf(s + prefix_len, "%"SCNu64, dest);
+            break;
+        } else if (prefix_len == 0) {
+            sscanf(s, "%"SCNu64, dest);
             break;
         }
     }
@@ -127,7 +134,7 @@ spal_meminfo_get() {
         slapi_log_err(SLAPI_LOG_ERR, "spal_meminfo_get", "Unable to retrieve memory rlimit\n");
     }
 
-    if (rl_mem_soft != 0 && rl_mem_soft > vmrss) {
+    if (rl_mem_soft != 0 && vmrss != 0 && rl_mem_soft > vmrss) {
         rl_mem_soft_avail = rl_mem_soft - vmrss;
     }
 
@@ -150,6 +157,43 @@ spal_meminfo_get() {
     memtotal = memtotal * 1024;
     memavail = memavail * 1024;
 
+    /* If it's possible, get our cgroup info */
+    uint64_t cg_mem_soft = 0;
+    uint64_t cg_mem_hard = 0;
+    uint64_t cg_mem_usage = 0;
+    uint64_t cg_mem_soft_avail = 0;
+
+    char *f_cg_soft = "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes";
+    char *f_cg_hard = "/sys/fs/cgroup/memory/memory.limit_in_bytes";
+    char *f_cg_usage = "/sys/fs/cgroup/memory/memory.usage_in_bytes";
+
+    if (_spal_uint64_t_file_get(f_cg_soft, NULL, &cg_mem_soft)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_soft);
+    }
+
+    if (_spal_uint64_t_file_get(f_cg_hard, NULL, &cg_mem_hard)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_hard);
+    }
+
+    if (_spal_uint64_t_file_get(f_cg_usage, NULL, &cg_mem_usage)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_hard);
+    }
+
+    /*
+     * In some conditions, like docker, we only have a *hard* limit set.
+     * This obviously breaks our logic, so we need to make sure we correct this
+     */
+
+    if (cg_mem_hard != 0 && cg_mem_soft != 0 && cg_mem_hard < cg_mem_soft) {
+        /* Right, we only have a hard limit. Impose a 10% watermark. */
+        cg_mem_soft = cg_mem_hard * 0.9;
+    }
+
+    if (cg_mem_soft != 0 && cg_mem_usage != 0 && cg_mem_soft > cg_mem_usage) {
+        cg_mem_soft_avail = cg_mem_soft - cg_mem_usage;
+    }
+
+
     /* Now, compare the values and make a choice to which is provided */
 
     /* Process consumed memory */
@@ -158,10 +202,20 @@ spal_meminfo_get() {
 
     /* System Total memory */
     /*                       If we have a memtotal, OR if no memtotal but rlimit */
-    if (rl_mem_hard != 0 && ((memtotal != 0 && rl_mem_hard < memtotal) || memtotal == 0)) {
+    if (rl_mem_hard != 0 &&
+            ((memtotal != 0 && rl_mem_hard < memtotal) || memtotal == 0) &&
+            ((cg_mem_hard != 0 && rl_mem_hard < cg_mem_hard) || cg_mem_hard == 0)
+        )
+    {
+        slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_total_bytes - using rlimit\n");
         mi->system_total_bytes = rl_mem_hard;
         mi->system_total_pages = rl_mem_hard / mi->pagesize_bytes;
+    } else if (cg_mem_hard != 0 && ((memtotal != 0 && cg_mem_hard < memtotal) || memtotal == 0)) {
+        slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_total_bytes - using cgroup\n");
+        mi->system_total_bytes = cg_mem_hard;
+        mi->system_total_pages = cg_mem_hard / mi->pagesize_bytes;
     } else if (memtotal != 0) {
+        slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_total_bytes - using memtotal\n");
         mi->system_total_bytes = memtotal;
         mi->system_total_pages = memtotal / mi->pagesize_bytes;
     } else {
@@ -172,13 +226,20 @@ spal_meminfo_get() {
 
     /* System Available memory */
 
-    if (rl_mem_soft_avail != 0 && ((memavail != 0 && (rl_mem_soft_avail) < memavail) || memavail == 0)) {
+    if (rl_mem_soft_avail != 0 &&
+            ((memavail != 0 && (rl_mem_soft_avail) < memavail) || memavail == 0) &&
+            ((cg_mem_soft_avail != 0 && rl_mem_soft_avail < cg_mem_soft_avail) || cg_mem_soft_avail == 0)
+        )
+    {
+        slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_available_bytes - using rlimit\n");
         mi->system_available_bytes = rl_mem_soft_avail;
         mi->system_available_pages = rl_mem_soft_avail / mi->pagesize_bytes;
-    } else if (rl_mem_soft != 0 && ((memavail != 0 && (rl_mem_soft) < memavail) || memavail == 0)) {
-        mi->system_available_bytes = rl_mem_soft;
-        mi->system_available_pages = rl_mem_soft / mi->pagesize_bytes;
+    } else if (cg_mem_soft_avail != 0 && ((memavail != 0 && (cg_mem_soft_avail) < memavail) || memavail == 0)) {
+        slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_available_bytes - using cgroup\n");
+        mi->system_available_bytes = cg_mem_soft_avail;
+        mi->system_available_pages = cg_mem_soft_avail / mi->pagesize_bytes;
     } else if (memavail != 0) {
+        slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_available_bytes - using memavail\n");
         mi->system_available_bytes = memavail;
         mi->system_available_pages = memavail / mi->pagesize_bytes;
     } else {

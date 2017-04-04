@@ -1459,37 +1459,12 @@ slapi_uniqueIDRdnSize(void)
 	return util_uniqueidlen;
 }
 
-
-/**
- * Get the virtual memory size as defined by system rlimits.
- *
- * \return size_t bytes available
- */
-static size_t util_getvirtualmemsize(void)
-{
-    struct rlimit rl;
-    /* the maximum size of a process's total available memory, in bytes */
-    if (getrlimit(RLIMIT_AS, &rl) != 0) {
-        /* We received an error condition. There are a number of possible 
-         * reasons we have have gotten here, but most likely is EINVAL, where
-         * rlim->rlim_cur was greater than rlim->rlim_max.
-         * As a result, we should return a 0, to tell the system we can't alloc
-         * memory.
-         */
-        int errsrv = errno;
-        slapi_log_err(SLAPI_LOG_ERR,"util_getvirtualmemsize",
-                "getrlimit returned non-zero. errno=%u\n", errsrv);
-        return 0;
-    }
-    return rl.rlim_cur;
-}
-
 util_cachesize_result
 util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
 {
     /* Check we have a valid meminfo struct */
     if (mi->system_available_bytes == 0) {
-        slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "");
+        slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid system memory info, can not proceed.");
         return UTIL_CACHESIZE_ERROR;
     }
 
