@@ -1326,7 +1326,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	       
 	/* check if password is within password minimum age;
 	   error result is sent directly from check_pw_minage */	
-	if (!pb->pb_conn->c_needpw &&
+	if (pb->pb_conn && !pb->pb_conn->c_needpw &&
 	    check_pw_minage(pb, &sdn, mod->mod_bvalues) == 1)
 	{
 		if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
