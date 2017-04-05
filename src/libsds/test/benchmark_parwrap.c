@@ -184,6 +184,58 @@ int64_t bptree_cow_destroy_wrapper(void **inst) {
 
 /* Hashmap structures */
 
+int64_t htree_init_wrapper(void **inst) {
+#ifdef WITH_RWLOCK
+    pthread_rwlock_init(&the_lock, NULL);
+#else
+    pthread_mutex_init(&the_lock, NULL);
+#endif
+    sds_ht_instance **binst = (sds_ht_instance **)inst;
+    sds_ht_init(binst, sds_uint64_t_compare, sds_uint64_t_free, sds_uint64_t_dup, sds_uint64_t_free, sds_uint64_t_size);
+    return 0;
+}
+
+int64_t htree_add_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void *value) {
+    // THIS WILL BREAK SOMETIME!
+    sds_ht_instance **binst = (sds_ht_instance **)inst;
+    sds_ht_insert(*binst, (void*)key, value);
+    return 0;
+}
+
+int64_t htree_search_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void **value_out __attribute__((unused))) {
+    sds_ht_instance **binst = (sds_ht_instance **)inst;
+    void *value;
+    sds_result result = sds_ht_search(*binst, (void *)key, &value);
+    if (result != SDS_KEY_PRESENT) {
+        // printf("search result is %d\n", result);
+        return 1;
+    }
+    return 0;
+}
+
+int64_t htree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key) {
+    sds_ht_instance **binst = (sds_ht_instance **)inst;
+    sds_result result = sds_ht_delete(*binst, (void *)key);
+
+    if (result != SDS_KEY_PRESENT) {
+        // printf("delete result is %d\n", result);
+        return 1;
+    }
+    return 0;
+}
+
+int64_t htree_destroy_wrapper(void **inst) {
+    sds_ht_instance **binst = (sds_ht_instance **)inst;
+    // sds_bptree_display(*binst);
+    sds_ht_destroy(*binst);
+#ifdef WITH_RWLOCK
+    pthread_rwlock_destroy(&the_lock);
+#else
+    pthread_mutex_destroy(&the_lock);
+#endif
+    return 0;
+}
+
 /* NSPR PLHash wrappers */
 
 /*

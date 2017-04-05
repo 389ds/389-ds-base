@@ -45,14 +45,16 @@ int64_t generic_write_begin(void **inst, void **txn);
 int64_t generic_write_commit(void **inst, void *txn);
 
 int64_t bptree_init_wrapper(void **inst);
-int64_t bptree_read_begin(void **inst, void **txn);
-int64_t bptree_read_complete(void **inst, void *txn);
-int64_t bptree_write_begin(void **inst, void **txn);
-int64_t bptree_write_commit(void **inst, void *txn);
 int64_t bptree_add_wrapper(void **inst, void *txn, uint64_t *key, void *value);
 int64_t bptree_search_wrapper(void **inst, void *txn, uint64_t *key, void **value_out);
 int64_t bptree_delete_wrapper(void **inst, void *txn, uint64_t *key);
 int64_t bptree_destroy_wrapper(void **inst);
+
+int64_t htree_init_wrapper(void **inst);
+int64_t htree_add_wrapper(void **inst, void *txn, uint64_t *key, void *value);
+int64_t htree_search_wrapper(void **inst, void *txn, uint64_t *key, void **value_out);
+int64_t htree_delete_wrapper(void **inst, void *txn, uint64_t *key);
+int64_t htree_destroy_wrapper(void **inst);
 
 int64_t bptree_cow_init_wrapper(void **inst);
 int64_t bptree_cow_read_begin(void **inst, void **read_txn);

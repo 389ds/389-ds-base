@@ -274,6 +274,44 @@ int64_t bptree_cow_destroy_wrapper(void **inst) {
     return 0;
 }
 
+/* sds HTree wrapper */
+
+int64_t ht_init_wrapper(void **inst) {
+    sds_ht_instance **ht = (sds_ht_instance **)inst;
+    sds_ht_init(ht, sds_uint64_t_compare, sds_uint64_t_free, sds_uint64_t_dup, sds_uint64_t_free, sds_uint64_t_size);
+    return 0;
+}
+
+int64_t ht_add_wrapper(void** inst, uint64_t *key, void *value) {
+    sds_ht_instance **ht = (sds_ht_instance **)inst;
+    sds_ht_insert(*ht, key, NULL);
+    return 0;
+}
+
+int64_t ht_search_wrapper(void **inst, uint64_t *key, void **value_out __attribute__((unused))){
+    sds_ht_instance **ht = (sds_ht_instance **)inst;
+    sds_result result = sds_ht_search(*ht, key, value_out);
+    if (result != SDS_KEY_PRESENT) {
+        return 1;
+    }
+    return 0;
+}
+
+int64_t ht_delete_wrapper(void **inst, uint64_t *key) {
+    sds_ht_instance **ht = (sds_ht_instance **)inst;
+    sds_result result = sds_ht_delete(*ht, key);
+    if (result != SDS_KEY_PRESENT) {
+        return 1;
+    }
+    return 0;
+}
+
+int64_t ht_destroy_wrapper(void **inst) {
+    sds_ht_instance **ht = (sds_ht_instance **)inst;
+    sds_ht_destroy(*ht);
+    return 0;
+}
+
 /* The benchmarks */
 
 void
@@ -536,25 +574,38 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
     bptree_cow_test.delete = bptree_cow_delete_wrapper;
     bptree_cow_test.destroy = bptree_cow_destroy_wrapper;
 
+    struct b_tree_cb htree_test = {0};
+    htree_test.name = "sds htree";
+    htree_test.inst = NULL;
+    htree_test.init = ht_init_wrapper;
+    htree_test.add = ht_add_wrapper;
+    htree_test.search = ht_search_wrapper;
+    htree_test.delete = ht_delete_wrapper;
+    htree_test.destroy = ht_destroy_wrapper;
+
     uint64_t test_arrays[] = {5000, 10000, 100000, 500000, 1000000, 2500000, 5000000, 10000000};
 
-    for (size_t i = 0; i < 3; i++) {
+    for (size_t i = 0; i < 5; i++) {
         bench_1_insert_seq(&avl_test, test_arrays[i]);
         bench_1_insert_seq(&hash_small_test, test_arrays[i]);
         bench_1_insert_seq(&hash_med_test, test_arrays[i]);
         bench_1_insert_seq(&hash_large_test, test_arrays[i]);
         bench_1_insert_seq(&bptree_test, test_arrays[i]);
         bench_1_insert_seq(&bptree_cow_test, test_arrays[i]);
+        bench_1_insert_seq(&htree_test, test_arrays[i]);
         printf("---\n");
 
         bench_2_search_seq(&avl_test, test_arrays[i]);
-        if (test_arrays[i] < 5000000) {
+        if (test_arrays[i] < 500000) {
             bench_2_search_seq(&hash_small_test, test_arrays[i]);
         }
-        bench_2_search_seq(&hash_med_test, test_arrays[i]);
+        if (test_arrays[i] < 1000000) {
+            bench_2_search_seq(&hash_med_test, test_arrays[i]);
+        }
         bench_2_search_seq(&hash_large_test, test_arrays[i]);
         bench_2_search_seq(&bptree_test, test_arrays[i]);
         bench_2_search_seq(&bptree_cow_test, test_arrays[i]);
+        bench_2_search_seq(&htree_test, test_arrays[i]);
         printf("---\n");
 
         bench_3_delete_seq(&avl_test, test_arrays[i]);
@@ -563,14 +614,20 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_3_delete_seq(&hash_large_test, test_arrays[i]);
         bench_3_delete_seq(&bptree_test, test_arrays[i]);
         bench_3_delete_seq(&bptree_cow_test, test_arrays[i]);
+        bench_3_delete_seq(&htree_test, test_arrays[i]);
         printf("---\n");
 
         bench_4_insert_search_delete_random(&avl_test, test_arrays[i]);
-        bench_4_insert_search_delete_random(&hash_small_test, test_arrays[i]);
-        bench_4_insert_search_delete_random(&hash_med_test, test_arrays[i]);
+        if (test_arrays[i] < 500000) {
+            bench_4_insert_search_delete_random(&hash_small_test, test_arrays[i]);
+        }
+        if (test_arrays[i] < 1000000) {
+            bench_4_insert_search_delete_random(&hash_med_test, test_arrays[i]);
+        }
         bench_4_insert_search_delete_random(&hash_large_test, test_arrays[i]);
         bench_4_insert_search_delete_random(&bptree_test, test_arrays[i]);
         bench_4_insert_search_delete_random(&bptree_cow_test, test_arrays[i]);
+        bench_4_insert_search_delete_random(&htree_test, test_arrays[i]);
         printf("---\n");
 
         printf("======\n");

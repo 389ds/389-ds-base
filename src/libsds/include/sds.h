@@ -233,6 +233,19 @@ void sds_free(void *ptr);
 uint32_t sds_crc32c(uint32_t crc, const unsigned char *data, size_t length);
 
 /**
+ * sds_siphash13 provides an implementation of the siphash algorithm for use in
+ * hash based datastructures. It is chosen due to is resilance against hash
+ * attacks, such that it makes it higly secure as a choice for a hashmap.
+ *
+ * \param src The data to hash
+ * \param src_sz The size of the data to hash
+ * \param key The security key to mix with the hash. This should be randomised once
+ * at startup and stored for use with further operations.
+ * \retval The uint64_t representing the hash of the data.
+ */
+uint64_t sds_siphash13(const void *src, size_t src_sz, const char key[16]);
+
+/**
  * sds_uint64_t_compare takes two void *, and treats them as uint64_t *.
  *
  * \param a The first uint64_t *.
@@ -1326,4 +1339,68 @@ sds_result sds_bptree_cow_insert_atomic(sds_bptree_cow_instance *binst, void *ke
  * @}
  */
 /* end sds_bptree_cow */
+
+#define HT_SLOTS 16
+
+typedef enum _sds_ht_slot_state {
+    SDS_HT_EMPTY = 0,
+    SDS_HT_VALUE = 1,
+    SDS_HT_BRANCH = 2,
+} sds_ht_slot_state;
+
+typedef struct _sds_ht_value {
+    uint32_t checksum;
+    void *key;
+    void *value;
+    // may make this a LL of values later for collisions
+} sds_ht_value;
+
+typedef struct _sds_ht_slot {
+    sds_ht_slot_state state;
+    union {
+        sds_ht_value *value;
+        struct _sds_ht_node *node;
+    } slot;
+} sds_ht_slot;
+
+typedef struct _sds_ht_node {
+    uint32_t checksum;
+    uint64_t txn_id;
+    uint_fast32_t count;
+#ifdef DEBUG
+    uint64_t depth;
+#endif
+    struct _sds_ht_node *parent;
+    size_t parent_slot;
+    sds_ht_slot slots[HT_SLOTS];
+} sds_ht_node;
+
+typedef struct _sds_ht_instance {
+    uint32_t checksum;
+    char hkey[16];
+    sds_ht_node *root;
+    int64_t (*key_cmp_fn)(void *a, void *b);
+    uint64_t (*key_size_fn)(void *key);
+    void *(*key_dup_fn)(void *key);
+    void (*key_free_fn)(void *key);
+    void *(*value_dup_fn)(void *value);
+    void (*value_free_fn)(void *value);
+} sds_ht_instance;
+
+uint64_t sds_uint64_t_size(void *key);
+
+sds_result
+sds_ht_init(sds_ht_instance **ht_ptr,
+            int64_t (*key_cmp_fn)(void *a, void *b),
+            void (*value_free_fn)(void *value),
+            void *(*key_dup_fn)(void *key),
+            void (*key_free_fn)(void *key),
+            uint64_t (*key_size_fn)(void *key)
+            );
+
+sds_result sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value);
+sds_result sds_ht_search(sds_ht_instance *ht_ptr, void *key, void **value);
+sds_result sds_ht_delete(sds_ht_instance *ht_ptr, void *key);
+sds_result sds_ht_verify(sds_ht_instance *ht_ptr);
+sds_result sds_ht_destroy(sds_ht_instance *ht_ptr);
 

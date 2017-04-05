@@ -12,12 +12,16 @@
 int
 main ( int argc __attribute__((unused)), char **argv __attribute__((unused))) {
     int result = 0;
+    /*
     result += run_bpt_tests();
     result += run_set_tests();
     result += run_cow_tests();
     result += run_queue_tests();
     result += run_tqueue_tests();
     result += run_lqueue_tests();
+    */
+    result += run_siphash_tests();
+    result += run_ht_tests();
     return result;
 }
 

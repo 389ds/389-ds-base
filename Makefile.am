@@ -531,6 +531,7 @@ dist_noinst_HEADERS = \
 	src/libsds/sds/bpt/bpt.h \
 	src/libsds/sds/bpt_cow/bpt_cow.h \
 	src/libsds/sds/queue/queue.h \
+	src/libsds/sds/ht/ht.h \
 	src/nunc-stans/ns/ns_event_fw.h \
 	src/nunc-stans/ns/ns_private.h
 
@@ -1031,7 +1032,13 @@ libsds_la_SOURCES = src/libsds/sds/core/utils.c \
 	src/libsds/sds/bpt_cow/verify.c \
 	src/libsds/sds/queue/queue.c \
 	src/libsds/sds/queue/tqueue.c \
-	src/libsds/sds/queue/lqueue.c
+	src/libsds/sds/queue/lqueue.c \
+	src/libsds/external/csiphash/csiphash.c \
+	src/libsds/sds/ht/ht.c \
+	src/libsds/sds/ht/node.c \
+	src/libsds/sds/ht/map.c \
+	src/libsds/sds/ht/op.c \
+	src/libsds/sds/ht/verify.c
 if ATOMIC_QUEUE_OPERATIONS
 libsds_la_SOURCES += \
 	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_cleanup.c \
@@ -2015,6 +2022,8 @@ test_libsds_SOURCES =  src/libsds/test/test_sds.c \
 	src/libsds/test/test_sds_queue.c \
 	src/libsds/test/test_sds_tqueue.c \
 	src/libsds/test/test_sds_lqueue.c \
+	src/libsds/test/test_sds_csiphash.c \
+	src/libsds/test/test_sds_ht.c \
 	src/libsds/test/test_fixtures.c
 
 test_libsds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)

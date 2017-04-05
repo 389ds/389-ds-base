@@ -29,6 +29,20 @@ struct b_tree_cow_cb bptree_test = {
     bptree_destroy_wrapper, /* destroy inst */
 };
 
+struct b_tree_cow_cb htree_test = {
+    "sds htree", /* name */
+    NULL, /* inst */
+    htree_init_wrapper, /* init */
+    generic_read_begin, /* read_begin */
+    generic_read_complete, /* read_complete */
+    generic_write_begin, /* write_begin */
+    generic_write_commit, /* write commit */
+    htree_add_wrapper, /* add */
+    htree_search_wrapper, /* search */
+    htree_delete_wrapper, /* delete */
+    htree_destroy_wrapper, /* destroy inst */
+};
+
 struct b_tree_cow_cb bptree_cow_test = {
     "sds b+tree with copy on write", /* name */
     NULL, /* inst */
@@ -577,6 +591,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_insert_search_delete_batch(&hash_large_cb_test, test_arrays[i]);
         bench_insert_search_delete_batch(&bptree_test, test_arrays[i]);
         bench_insert_search_delete_batch(&bptree_cow_test, test_arrays[i]);
+        bench_insert_search_delete_batch(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -586,6 +601,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_isd_write_delay(&hash_large_cb_test, test_arrays[i]);
         bench_isd_write_delay(&bptree_test, test_arrays[i]);
         bench_isd_write_delay(&bptree_cow_test, test_arrays[i]);
+        bench_isd_write_delay(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -595,6 +611,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_isd_read_delay(&hash_large_cb_test, test_arrays[i]);
         bench_isd_read_delay(&bptree_test, test_arrays[i]);
         bench_isd_read_delay(&bptree_cow_test, test_arrays[i]);
+        bench_isd_read_delay(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -604,6 +621,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_high_thread_small_batch_read(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_small_batch_read(&bptree_test, test_arrays[i]);
         bench_high_thread_small_batch_read(&bptree_cow_test, test_arrays[i]);
+        bench_high_thread_small_batch_read(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -613,6 +631,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_high_thread_large_batch_read(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_large_batch_read(&bptree_test, test_arrays[i]);
         bench_high_thread_large_batch_read(&bptree_cow_test, test_arrays[i]);
+        bench_high_thread_large_batch_read(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -622,6 +641,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_high_thread_small_batch_write(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_small_batch_write(&bptree_test, test_arrays[i]);
         bench_high_thread_small_batch_write(&bptree_cow_test, test_arrays[i]);
+        bench_high_thread_small_batch_write(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -631,6 +651,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_high_thread_large_batch_write(&hash_large_cb_test, test_arrays[i]);
         bench_high_thread_large_batch_write(&bptree_test, test_arrays[i]);
         bench_high_thread_large_batch_write(&bptree_cow_test, test_arrays[i]);
+        bench_high_thread_large_batch_write(&htree_test, test_arrays[i]);
         printf("---\n");
 
         /*
@@ -640,6 +661,7 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_insert_search_delete_random(&hash_large_cb_test, test_arrays[i]);
         bench_insert_search_delete_random(&bptree_test, test_arrays[i]);
         bench_insert_search_delete_random(&bptree_cow_test, test_arrays[i]);
+        bench_insert_search_delete_random(&htree_test, test_arrays[i]);
         printf("---\n");
 
     }

@@ -200,3 +200,26 @@ lqueue_test_teardown(void **state) {
     assert_int_equal(result, SDS_SUCCESS);
     return 0;
 }
+
+int
+ht_test_setup(void **state)
+{
+    sds_ht_instance *ht = NULL;
+    sds_result result = SDS_SUCCESS;
+    result = sds_ht_init(&ht, sds_uint64_t_compare, sds_uint64_t_free, sds_uint64_t_dup, sds_uint64_t_free, sds_uint64_t_size);
+    assert_true(result == SDS_SUCCESS);
+    *state = ht;
+    return 0;
+}
+
+int
+ht_test_teardown(void **state)
+{
+    sds_ht_instance *ht = *state;
+    sds_result result = SDS_SUCCESS;
+    result = sds_ht_verify(ht);
+    assert_true(result == SDS_SUCCESS);
+    result = sds_ht_destroy(ht);
+    assert_true(result == SDS_SUCCESS);
+    return 0;
+}

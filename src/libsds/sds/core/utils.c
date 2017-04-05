@@ -44,6 +44,11 @@ sds_uint64_t_free(void *key) {
     return;
 }
 
+uint64_t
+sds_uint64_t_size(void *key __attribute__((unused))) {
+    return sizeof(uint64_t);
+}
+
 /* We have to provide some wrappers to strcmp and such for casting */
 int64_t
 sds_strcmp(void *a, void *b) {

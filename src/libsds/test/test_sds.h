@@ -239,6 +239,8 @@ int run_cow_tests(void);
 int run_queue_tests (void);
 int run_tqueue_tests (void);
 int run_lqueue_tests (void);
+int run_siphash_tests (void);
+int run_ht_tests (void);
 
 /* fixtures */
 int bptree_test_setup(void **state);
@@ -259,5 +261,8 @@ int tqueue_test_teardown(void **state);
 
 int lqueue_test_setup(void **state);
 int lqueue_test_teardown(void **state);
+
+int ht_test_setup(void **state);
+int ht_test_teardown(void **state);
 
 
