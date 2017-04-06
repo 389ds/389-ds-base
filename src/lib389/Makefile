@@ -2,6 +2,7 @@
 
 LIB389_VERS ?= $(shell cat ./VERSION | head -n 1)
 PYTHON ?= /usr/bin/python
+RPMBUILD ?= $(shell pwd)/rpmbuild
 
 all: build
 
@@ -13,17 +14,16 @@ install:
 
 rpmbuild-prep:
 	mkdir -p ./dist/
-	mkdir -p ~/rpmbuild/SOURCES
-	mkdir -p ~/rpmbuild/SPECS
+	mkdir -p $(RPMBUILD)/SOURCES
+	mkdir -p $(RPMBUILD)/SPECS
 	git archive --prefix=python-lib389-$(LIB389_VERS)-1/ HEAD | bzip2 > ./dist/python-lib389-$(LIB389_VERS)-1.tar.bz2
-	cp ./dist/python-lib389-$(LIB389_VERS)-1.tar.bz2 ~/rpmbuild/SOURCES/
+	cp ./dist/python-lib389-$(LIB389_VERS)-1.tar.bz2 $(RPMBUILD)/SOURCES/
 
 srpm: rpmbuild-prep
-	rpmbuild -bs python-lib389.spec
-	cp ~/rpmbuild/SRPMS/python-lib389*.src.rpm ./dist/
+	rpmbuild --define "_topdir $(RPMBUILD)" -bs python-lib389.spec
 
 rpm: rpmbuild-prep
-	rpmbuild -bb python-lib389.spec
+	rpmbuild --define "_topdir $(RPMBUILD)" -bb python-lib389.spec
 
 pep8:
 	pep8 --max-line-length=160 ./lib389

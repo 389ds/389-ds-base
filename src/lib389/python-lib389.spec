@@ -93,7 +93,7 @@ and configuring the 389 Directory Server.
 
 %files -n python2-%{srcname}
 %license LICENSE
-%doc README
+%doc README.md
 %{python2_sitelib}/*
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 %exclude %{_sbindir}/*
