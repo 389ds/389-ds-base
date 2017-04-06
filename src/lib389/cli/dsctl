@@ -1,0 +1,101 @@
+#!/usr/bin/python
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+import argparse
+import logging
+import sys
+
+# This has to happen before we import  DirSrv else it tramples our config ... :(
+logging.basicConfig(format='%(message)s')
+
+from lib389.cli_base import _get_arg
+from lib389 import DirSrv
+from lib389.cli_ctl import instance as cli_instance
+from lib389.cli_ctl import dbtasks as cli_dbtasks
+from lib389.cli_base import disconnect_instance
+
+log = logging.getLogger("dsadm")
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-v', '--verbose',
+            help="Display verbose operation tracing during command execution",
+            action='store_true', default=False
+        )
+    parser.add_argument('instance',
+            help="The name of the instance to act upon",
+        )
+
+    subparsers = parser.add_subparsers(help="action")
+
+    # We stack our needed options in via submodules.
+
+    cli_instance.create_parser(subparsers)
+    cli_dbtasks.create_parser(subparsers)
+
+    # Then we tell it to execute.
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
+
+    log.debug("The 389 Directory Server Administration Tool")
+    # Leave this comment here: UofA let me take this code with me provided
+    # I gave attribution. -- wibrown
+    log.debug("Inspired by works of: ITS, The University of Adelaide")
+
+    log.debug("Called with: %s", args)
+
+    # Assert we have a resources to work on.
+    if not hasattr(args, 'func'):
+        log.error("No action provided")
+        log.error("USAGE: dsadm [options] <resource> <action> [action options]")
+        sys.exit(1)
+
+    # Connect
+    # inst = None
+    inst = DirSrv(verbose=args.verbose)
+
+    result = True
+
+    # Allocate the instance based on name
+    insts = inst.list(serverid=args.instance)
+    if len(insts) != 1:
+        raise ValueError("No such instance %s" % args.instance)
+
+    inst.allocate(insts[0])
+    log.debug('Instance allocated')
+
+    if args.verbose:
+        result = args.func(inst, log, args)
+    else:
+        try:
+            result = args.func(inst, log, args)
+        except Exception as e:
+            log.debug(e, exc_info=True)
+            log.error("Error: %s" % e.message)
+    disconnect_instance(inst)
+
+    if result is True:
+        log.info('FINISH: Command succeeded')
+    elif result is False:
+        log.info('FAIL: Command failed. See output for details.')
+
+    # Done!
+    log.debug("dsadm is brought to you by the letter R and the number 27.")
+
+    if result is False:
+        sys.exit(1)
+
