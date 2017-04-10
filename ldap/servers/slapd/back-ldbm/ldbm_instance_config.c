@@ -101,6 +101,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) value;
     uint64_t delta = 0;
+    uint64_t delta_original = 0;
 
     /* Do whatever we can to make sure the data is ok. */
     /* There is an error here. We check the new val against our current mem-alloc 
@@ -116,17 +117,33 @@ ldbm_instance_config_cachememsize_set(void *arg,
     if (apply) {
         if (val > inst->inst_cache.c_maxsize) {
             delta = val - inst->inst_cache.c_maxsize;
+            delta_original = delta;
 
             util_cachesize_result sane;
             slapi_pal_meminfo *mi = spal_meminfo_get();
             sane = util_is_cachesize_sane(mi, &delta);
             spal_meminfo_destroy(mi);
 
-            if (sane != UTIL_CACHESIZE_VALID){
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: cachememsize value is too large.");
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set", "cachememsize value is too large.\n");
+            if (sane == UTIL_CACHESIZE_ERROR){
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: unable to determine system memory limits.");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set", "Enable to determine system memory limits.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
+            } else if (sane == UTIL_CACHESIZE_REDUCED) {
+                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_config_cachememsize_set", "delta +%"PRIu64" of request %"PRIu64" reduced to %"PRIu64"\n", delta_original, val, delta);
+                /*
+                 * This works as: value = 100
+                 * delta_original to inst, 20;
+                 * delta reduced to 5:
+                 * 100 - (20 - 5) == 85;
+                 * so if you recalculated delta now (val - inst), it would be 5.
+                 */
+                val = val - (delta_original - delta);
             }
+        }
+        if (inst->inst_cache.c_maxsize < MINCACHESIZE || val < MINCACHESIZE) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set", "force a minimal value %"PRIu64"\n", MINCACHESIZE);
+            /* This value will trigger an autotune next start up, but it should increase only */
+            val = MINCACHESIZE;
         }
         cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
     }

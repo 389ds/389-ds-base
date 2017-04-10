@@ -1468,16 +1468,26 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
         return UTIL_CACHESIZE_ERROR;
     }
 
+    util_cachesize_result result = UTIL_CACHESIZE_VALID;
     slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Available bytes %"PRIu64", requested bytes %"PRIu64"\n", mi->system_available_bytes, *cachesize);
     if (*cachesize > mi->system_available_bytes) {
-        /* Since we are ask for more than what's available, we give 3/4 of the remaining.
+        /* Since we are ask for more than what's available, we give 1/2 of the remaining.
          * the remaining system mem to the cachesize instead, and log a warning
          */
-        *cachesize = (mi->system_available_bytes * 0.75);
-        slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Adjusted cachesize to %"PRIu64"\n", *cachesize);
-        return UTIL_CACHESIZE_REDUCED;
+        uint64_t adjust_cachesize = (mi->system_available_bytes * 0.5);
+        if (adjust_cachesize > *cachesize) {
+            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %"PRIu64, adjust_cachesize);
+            return UTIL_CACHESIZE_ERROR;
+        }
+        if (adjust_cachesize < (16 * mi->pagesize_bytes)) {
+            /* At minimum respond with 16 pages - that's 64k on x86_64 */
+            adjust_cachesize = 16 * mi->pagesize_bytes;
+        }
+        *cachesize = adjust_cachesize;
+        slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Adjusted cachesize down to %"PRIu64"\n", *cachesize);
+        result = UTIL_CACHESIZE_REDUCED;
     }
-    return UTIL_CACHESIZE_VALID;
+    return result;
 }
 
 long

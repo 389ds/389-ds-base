@@ -1387,12 +1387,17 @@ dblayer_start(struct ldbminfo *li, int dbmode)
     /* Sanity check on cache size on platforms which allow us to figure out
      * the available phys mem */
     slapi_pal_meminfo *mi = spal_meminfo_get();
-    if (!util_is_cachesize_sane(mi, &(priv->dblayer_cachesize))) {
+    util_cachesize_result result = util_is_cachesize_sane(mi, &(priv->dblayer_cachesize));
+    if (result == UTIL_CACHESIZE_ERROR) {
+        slapi_log_err(SLAPI_LOG_CRIT, "dblayer_start", "Unable to determine if cachesize was valid!!!");
+    } else if (result == UTIL_CACHESIZE_REDUCED) {
+        /* In some cases we saw this go to 0, prevent this. */
+        if (priv->dblayer_cachesize < MINCACHESIZE) {
+            priv->dblayer_cachesize = MINCACHESIZE;
+        }
         /* Oops---looks like the admin misconfigured, let's warn them */
-        slapi_log_err(SLAPI_LOG_WARNING,"dblayer_start", "Likely CONFIGURATION ERROR -"
-                  "dbcachesize is configured to use more than the available "
-                  "physical memory, decreased to the largest available size (%"PRIu64" bytes).\n",
-                  priv->dblayer_cachesize);
+        slapi_log_err(SLAPI_LOG_WARNING, "dblayer_start", "Likely CONFIGURATION ERROR - dbcachesize is configured to use more than the available "
+                  "memory, decreased to (%"PRIu64" bytes).\n", priv->dblayer_cachesize);
         li->li_dbcachesize = priv->dblayer_cachesize;
     }
     spal_meminfo_destroy(mi);
