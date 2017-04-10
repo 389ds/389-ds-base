@@ -6,7 +6,7 @@ Name: python-%{srcname}
 Summary:%{sum}
 Version: %{vers}
 # RESET THIS TO 0 ON VERSION CHANGE
-Release: 3%{?dist}
+Release: 4%{?dist}
 %global tarver %{version}-1
 Source0: http://www.port389.org/binaries/%{name}-%{tarver}.tar.bz2
 License: GPLv3+
@@ -104,7 +104,7 @@ and configuring the 389 Directory Server.
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 %files -n python%{python3_pkgversion}-%{srcname}
 %license LICENSE
-%doc README
+%doc README.md
 %{python3_sitelib}/*
 %{_sbindir}/*
 %endif
