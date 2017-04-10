@@ -130,6 +130,7 @@ do
     esac
 done
 
+ARGS=$@
 shift $(($OPTIND - 1))
 if [ $1 ]
 then
@@ -156,7 +157,7 @@ fi
 servid=`normalize_server_id $initfile`
 . $initfile
 
-ldif_file=`make_ldiffile $@`
+ldif_file=`make_ldiffile $ARGS`
 rn=$?
 
 echo "Exported ldif file: $ldif_file"

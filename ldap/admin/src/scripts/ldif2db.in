@@ -87,6 +87,7 @@ then
     exit 1
 fi
 
+ARGS=$@
 shift $(($OPTIND - 1))
 if [ $1 ]
 then
@@ -106,7 +107,7 @@ fi
 
 . $initfile
 
-handleopts $@
+handleopts $ARGS
 quiet=$?
 if [ $quiet -eq 0 ]; then
     echo importing data ...
