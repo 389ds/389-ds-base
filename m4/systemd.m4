@@ -123,3 +123,9 @@ AM_CONDITIONAL([with_systemd],[test -n "$with_systemd"])
 AM_CONDITIONAL([JOURNALD],[test -n "$with_journald"])
 AM_CONDITIONAL([with_systemd_journald],[test -n "$with_journald"])
 
+
+AC_SUBST(systemd_inc)
+AC_SUBST(systemd_lib)
+AC_SUBST(systemd_defs)
+
+

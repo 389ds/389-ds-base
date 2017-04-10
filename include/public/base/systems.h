@@ -56,7 +56,7 @@
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
 
-#elif defined(Linux)
+#elif defined(LINUX)
 
 #define FILE_UNIX
 #define FILE_UNIX_MMAP

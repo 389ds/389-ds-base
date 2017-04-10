@@ -11,13 +11,8 @@
 # also need the relprefix field for a pre-release e.g. .0 - also comment out for official release
 #% global relprefix 0.
 
-%global use_openldap 1
-%global use_db4 0
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
 %global use_Socket6 0
-# nunc-stans only builds on x86_64 for now
-# To build without nunc-stans, set use_nunc_stans to 0.
-%global use_nunc_stans __NUNC_STANS_ON__
 
 # This enables an ASAN build. This should not go to production, so we rename.
 %global use_asan __ASAN_ON__
@@ -61,16 +56,8 @@ Provides:         ldif2ldbm
 BuildRequires:    nspr-devel
 BuildRequires:    nss-devel
 BuildRequires:    svrcore-devel >= 4.1.2
-%if %{use_openldap}
 BuildRequires:    openldap-devel
-%else
-BuildRequires:    mozldap-devel
-%endif
-%if %{use_db4}
-BuildRequires:    db4-devel
-%else
 BuildRequires:    libdb-devel
-%endif
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    icu
 BuildRequires:    libicu-devel
@@ -78,9 +65,6 @@ BuildRequires:    pcre-devel
 BuildRequires:    gcc-c++
 # The following are needed to build the snmp ldap-agent
 BuildRequires:    net-snmp-devel
-%ifnarch sparc sparc64 ppc ppc64 s390 s390x
-BuildRequires:    lm_sensors-devel
-%endif
 BuildRequires:    bzip2-devel
 BuildRequires:    zlib-devel
 BuildRequires:    openssl-devel
@@ -100,9 +84,7 @@ BuildRequires:    libtool
 BuildRequires:    doxygen
 # For tests!
 BuildRequires:    libcmocka-devel
-%if %{use_nunc_stans}
 BuildRequires:    libevent-devel
-%endif
 
 %if %{use_tcmalloc}
 BuildRequires:    gperftools-devel
@@ -121,11 +103,7 @@ Requires:         policycoreutils-python
 # This is needed for our future move to python selinux interaction.
 Requires:         libsemanage-python
 # the following are needed for some of our scripts
-%if %{use_openldap}
 Requires:         openldap-clients
-%else
-Requires:         mozldap-tools
-%endif
 # use_openldap assumes perl-Mozilla-LDAP is built with openldap support
 Requires:         perl-Mozilla-LDAP
 # this is needed to setup SSL if you are not using the
@@ -138,13 +116,8 @@ Requires:         cyrus-sasl-md5
 # This is optionally supported by us, as we use it in our tests
 Requires:         cyrus-sasl-plain
 # this is needed for verify-db.pl and backldbm
-%if %{use_db4}
-Requires:         db4
-Requires:         db4-utils
-%else
 Requires:         libdb-utils
 Requires:         libdb
-%endif
 # This picks up libperl.so as a Requires, so we add this versioned one
 Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # Needed by logconv.pl
@@ -187,16 +160,8 @@ Group:            System Environment/Daemons
 # isolation.
 Requires:         nss
 Requires:         nspr
-%if %{use_openldap}
 Requires:         openldap
-%else
-# What does mozldap need?
-Requires:         mozldap-tools
-%endif
-
-%if %{use_nunc_stans}
 Requires:         libevent
-%endif
 Requires:         systemd-libs
 # Pull in sasl
 Requires:         cyrus-sasl-lib
@@ -221,11 +186,7 @@ Requires:         pkgconfig
 Requires:         nspr-devel
 Requires:         nss-devel
 Requires:         svrcore-devel
-%if %{use_openldap}
 Requires:         openldap-devel
-%else
-Requires:         mozldap-devel
-%endif
 # systemd-libs contains the headers iirc.
 Requires:         systemd-libs
 
@@ -280,9 +241,6 @@ BuildRequires:    python%{python3_pkgversion}-setuptools
 The lib389 CI tests that can be run against the Directory Server.
 %endif
 
-
-
-
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
 
@@ -290,16 +248,9 @@ cp %{SOURCE2} README.devel
 
 %build
 
-%if %{use_openldap}
-OPENLDAP_FLAG="--with-openldap"
-%endif
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
 # hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529
 NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
-
-%if %{use_nunc_stans}
-NUNC_STANS_FLAGS="--enable-nunc-stans"
-%endif
 
 %if %{use_asan}
 ASAN_FLAGS="--enable-asan --enable-debug"
@@ -312,19 +263,16 @@ TCMALLOC_FLAGS="--with-tcmalloc"
 # Rebuild the autotool artifacts now.
 autoreconf -fiv
 
-%configure --enable-autobind --with-selinux $OPENLDAP_FLAG $TMPFILES_FLAG \
+%configure --with-selinux $TMPFILES_FLAG \
+           --with-systemd \
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
-           --with-systemdgroupname=%{groupname} $NSSARGS $NUNC_STANS_FLAGS \
-           --with-systemd $TCMALLOC_FLAGS $ASAN_FLAGS \
+           --with-systemdgroupname=%{groupname} \
+           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS \
            --enable-cmocka
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
-
-%ifarch x86_64 ppc64 ia64 s390x sparc64
-export USE_64=1
-%endif
 
 make %{?_smp_mflags}
 
@@ -553,10 +501,8 @@ fi
 %{_libdir}/%{pkgname}/libslapd.so
 %{_libdir}/%{pkgname}/libns-dshttpd.so
 %{_mandir}/man3/*
-%if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
-%endif
 %{_libdir}/pkgconfig/*
 
 %files libs
@@ -565,10 +511,8 @@ fi
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd-*.so
-%if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so.*
 %{_libdir}/%{pkgname}/libsds.so.*
-%endif
 
 %files snmp
 %defattr(-,root,root,-)

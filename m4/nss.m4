@@ -86,3 +86,8 @@ if test -z "$nss_inc" -o -z "$nss_lib" -o -z "$nss_libdir"; then
     fi
   fi
 fi
+
+AC_SUBST(nss_inc)
+AC_SUBST(nss_lib)
+AC_SUBST(nss_libdir)
+

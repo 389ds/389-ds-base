@@ -62,7 +62,7 @@
 /* warning: mmap doesn't work under 9.04 */
 #define SHMEM_MMAP_FLAGS MAP_FILE | MAP_VARIABLE | MAP_SHARED
 
-#elif defined(Linux)
+#elif defined(LINUX)
 
 #define ACCELERATOR_CACHE
 #define DNS_CACHE

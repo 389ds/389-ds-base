@@ -107,3 +107,6 @@ if test -z "$svrcore_inc" -o -z "$svrcore_lib"; then
     AC_MSG_ERROR([SVRCORE not found, specify with --with-svrcore.])
   fi
 fi
+
+AC_SUBST(svrcore_inc)
+AC_SUBST(svrcore_lib)

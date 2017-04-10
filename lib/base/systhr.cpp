@@ -59,7 +59,7 @@ NSPR_BEGIN_EXTERN_C
 NSAPI_PUBLIC SYS_THREAD
 systhread_start(int prio, int stksz, void (*fn)(void *), void *arg)
 {
-#if defined(Linux) && !defined(USE_PTHREADS)
+#if defined(LINUX) && !defined(USE_PTHREADS)
     prio /= 8; /* quick and dirty fix for user thread priority scale problem */
     if (prio > 3) prio = 3;
 #endif

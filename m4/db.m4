@@ -124,3 +124,12 @@ if  test -n "$PKG_CONFIG"; then
 else
   db_bindir=/usr/bin
 fi
+
+
+AC_SUBST(db_inc)
+AC_SUBST(db_incdir)
+AC_SUBST(db_lib)
+AC_SUBST(db_libdir)
+AC_SUBST(db_bindir)
+AC_SUBST(db_libver)
+

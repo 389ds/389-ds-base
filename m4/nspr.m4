@@ -86,3 +86,8 @@ if test -z "$nspr_inc" -o -z "$nspr_lib" -o -z "$nspr_libdir"; then
     fi
   fi
 fi
+
+AC_SUBST(nspr_inc)
+AC_SUBST(nspr_lib)
+AC_SUBST(nspr_libdir)
+

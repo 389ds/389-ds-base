@@ -8,6 +8,10 @@
 
 AC_CHECKING(for OpenLDAP)
 
+if test -z "$with_openldap"; then
+    with_openldap=yes # Set default to yes
+fi
+
 # check for --with-openldap
 AC_MSG_CHECKING(for --with-openldap)
 AC_ARG_WITH(openldap, AS_HELP_STRING([--with-openldap@<:@=PATH@:>@],[Use OpenLDAP - optional PATH is path to OpenLDAP SDK]),
@@ -153,3 +157,11 @@ if test "$with_openldap" = yes ; then
   # get plain output from ldapsearch - no version, no comments
   plainldif_opts=-LLL
 fi
+
+
+AC_SUBST(openldap_inc)
+AC_SUBST(openldap_lib)
+AC_SUBST(openldap_libdir)
+AC_SUBST(openldap_bindir)
+AC_SUBST(ol_libver)
+

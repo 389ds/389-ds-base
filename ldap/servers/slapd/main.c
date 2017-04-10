@@ -58,10 +58,6 @@ union semun {
 #include "fe.h"
 #include <nss.h>
 
-#ifndef LDAP_DONT_USE_SMARTHEAP
-#include "smrtheap.h"
-#endif
-
 #ifdef LINUX
 /* For mallopt. Should be removed soon. */
 #include <malloc.h>
@@ -671,10 +667,6 @@ main( int argc, char **argv)
 	if ( 0 != ( slapd_ldap_debug & ~LDAP_DEBUG_ANY )) {
 		slapd_debug_level_log( slapd_ldap_debug );
 	}
-
-#ifndef LDAP_DONT_USE_SMARTHEAP
-	MemRegisterTask();
-#endif
 
 	slapd_init();
 	g_log_init();

@@ -92,3 +92,9 @@ if test -z "$icu_lib"; then
     AC_MSG_ERROR([ICU not found, specify with --with-icu.])
   fi
 fi
+
+
+AC_SUBST(icu_lib)
+AC_SUBST(icu_inc)
+AC_SUBST(icu_bin)
+

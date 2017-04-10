@@ -124,7 +124,7 @@
  * Are sys_errlist and sys_nerr declared in stdio.h?
  */
 #ifndef SYSERRLIST_IN_STDIO
-#if defined( __FreeBSD__ ) || defined(Linux)
+#if defined( __FreeBSD__ ) || defined(LINUX)
 #define SYSERRLIST_IN_STDIO
 #endif
 #endif
@@ -133,7 +133,7 @@
  * for select()
  */
 #if !defined(WINSOCK) && !defined(_WINDOWS) && !defined(macintosh)
-#if defined(hpux) || defined(LINUX2_0)
+#if defined(hpux) || defined(LINUX)
 #include <sys/time.h>
 #else
 #include <sys/select.h>
@@ -250,7 +250,7 @@ int strncasecmp(const char *, const char *, size_t);
     defined(UNIXWARE) || defined(SUNOS4) || defined(SNI) || defined(BSDI) || \
     defined(NCR) || defined(OSF1) || defined(NEC) || \
     ( defined(HPUX10) && !defined(_REENTRANT)) || defined(HPUX11) || \
-    defined(UnixWare) || defined(LINUX2_0) || defined (__FreeBSD__)
+    defined(UnixWare) || defined(LINUX) || defined (__FreeBSD__)
 #define GETHOSTBYNAME( n, r, b, l, e )  gethostbyname( n )
 #elif defined(AIX)
 #define GETHOSTBYNAME_BUF_T struct hostent_data
@@ -297,7 +297,7 @@ typedef char GETHOSTBYADDR_buf_t [BUFSIZ];
 #endif
 #if defined(hpux9) || defined(LINUX1_2) || defined(SUNOS4) || defined(SNI) || \
     defined(SCOOS) || defined(BSDI) || defined(NCR) || \
-    defined(NEC) || defined(LINUX2_0)
+    defined(NEC) || defined(LINUX)
 /* strtok() is not MT safe, but it is okay to call here because used in mmt_protocol.xs which 
    has been moved in the tetframewrok */
 #define STRTOK( s1, s2, l )		strtok( s1, s2 )

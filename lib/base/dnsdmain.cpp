@@ -35,12 +35,12 @@ extern "C" {
 #define _PATH_RESCONF "/etc/resolv.conf"
 
 NSPR_BEGIN_EXTERN_C
-#ifdef Linux
+#ifdef LINUX
 extern int getdomainname(char *, size_t);
 #else 
 extern int getdomainname(char *, int);
 #endif /* Linux */
-#if defined(HPUX) || defined(Linux) || defined(SOLARIS_GCC) || defined(__FreeBSD__)
+#if defined(HPUX) || defined(LINUX) || defined(SOLARIS_GCC) || defined(__FreeBSD__)
 extern int gethostname (char *name, size_t namelen);
 #else
 extern int gethostname (char *name, int namelen);

@@ -128,21 +128,6 @@ AC_ARG_ENABLE(profiling, AS_HELP_STRING([--enable-profiling], [Enable gcov profi
 AC_SUBST([profiling_defs])
 AC_SUBST([profiling_links])
 
-
-
-# Used for legacy style packaging where we bundle all of the dependencies.
-AC_MSG_CHECKING(for --enable-bundle)
-AC_ARG_ENABLE(bundle, AS_HELP_STRING([--enable-bundle], [Enable bundled dependencies (default: no)]),
-[
-  AC_MSG_RESULT(yes)
-  bundle="1";
-],
-[
-  AC_MSG_RESULT(no)
-  bundle="";
-])
-AM_CONDITIONAL(BUNDLE,test "$bundle" = "1")
-
 # these enables are for optional or experimental features
 if test -z "$enable_pam_passthru" ; then
    enable_pam_passthru=yes # if not set on cmdline, set default
@@ -530,7 +515,6 @@ fi
 
 # Default to no atomic queue operations.
 with_atomic_queue="no"
-with_xsixfour="no"
 
 # we use stty in perl scripts to disable password echo
 # this doesn't work unless the full absolute path of the
@@ -543,11 +527,7 @@ with_xsixfour="no"
 sttyexec=/bin/stty
 case $host in
   *-*-linux*)
-    AC_DEFINE([Linux], [1], [Linux])
     AC_DEFINE([LINUX], [1], [Linux])
-    AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
-    AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
-    AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
     AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
     platform="linux"
     initdir='$(sysconfdir)/rc.d/init.d'
@@ -558,7 +538,6 @@ case $host in
         AC_DEFINE([CPU_x86], [], [cpu type x86])
         ;;
       x86_64-*-linux*)
-        with_xsixfour="yes"
         AC_DEFINE([CPU_x86_64], [1], [cpu type x86_64])
 
         # This turns on and off LFDS inside of libsds
@@ -744,6 +723,7 @@ AM_CONDITIONAL([ATOMIC_QUEUE_OPERATIONS], [test "$with_atomic_queue" = "yes"])
 AM_CONDITIONAL([HPUX],[test "$platform" = "hpux"])
 AM_CONDITIONAL([SOLARIS],[test "$platform" = "solaris"])
 AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])
+AM_CONDITIONAL([SPARC],[test "x$TARGET" = xSPARC])
 
 # Check for library dependencies
 m4_include(m4/nspr.m4)
@@ -774,49 +754,21 @@ else
 fi
 
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
-AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
-AM_CONDITIONAL(SPARC,test "x$TARGET" = xSPARC)
 
 # write out paths for binary components
-AC_SUBST(nspr_inc)
-AC_SUBST(nspr_lib)
-AC_SUBST(nspr_libdir)
-AC_SUBST(nss_inc)
-AC_SUBST(nss_lib)
-AC_SUBST(nss_libdir)
 AC_SUBST(ldapsdk_inc)
 AC_SUBST(ldapsdk_lib)
 AC_SUBST(ldapsdk_libdir)
 AC_SUBST(ldapsdk_bindir)
-AC_SUBST(openldap_inc)
-AC_SUBST(openldap_lib)
-AC_SUBST(openldap_libdir)
-AC_SUBST(openldap_bindir)
 AC_SUBST(ldaplib)
 AC_SUBST(ldaplib_defs)
 AC_SUBST(ldaptool_bindir)
 AC_SUBST(ldaptool_opts)
 AC_SUBST(plainldif_opts)
-AC_SUBST(ol_libver)
-AC_SUBST(db_inc)
-AC_SUBST(db_incdir)
-AC_SUBST(db_lib)
-AC_SUBST(db_libdir)
-AC_SUBST(db_bindir)
-AC_SUBST(db_libver)
 AC_SUBST(sasl_inc)
 AC_SUBST(sasl_lib)
 AC_SUBST(sasl_libdir)
 AC_SUBST(sasl_path)
-AC_SUBST(svrcore_inc)
-AC_SUBST(svrcore_lib)
-AC_SUBST(icu_lib)
-AC_SUBST(icu_inc)
-AC_SUBST(icu_bin)
-AC_SUBST(netsnmp_inc)
-AC_SUBST(netsnmp_lib)
-AC_SUBST(netsnmp_libdir)
-AC_SUBST(netsnmp_link)
 AC_SUBST(pcre_inc)
 AC_SUBST(pcre_lib)
 AC_SUBST(pcre_libdir)
@@ -824,9 +776,6 @@ AC_SUBST(nunc_stans_inc)
 AC_SUBST(nunc_stans_lib)
 AC_SUBST(nunc_stans_libdir)
 AC_SUBST(localrundir)
-AC_SUBST(systemd_inc)
-AC_SUBST(systemd_lib)
-AC_SUBST(systemd_defs)
 
 AC_SUBST(brand)
 AC_SUBST(capbrand)
@@ -838,33 +787,13 @@ AC_SUBST(vendor)
 # which gives us the option to do performance testing without the presence of
 # logging.  To remove the presence of error logging undefine LDAP_ERROR_LOGGING.
 AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
-AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
-
-# libtool on fedora/rhel contains some gcc-isms which cause problems
-# if not using gcc (e.g. Forte on Solaris, aCC on HP-UX)
-# we remove them here
-if test "$GCC" != yes ; then
-   AC_MSG_NOTICE([Not using gcc - fixing libtool to remove gcc-isms . . .])
-   cp -p libtool libtool.orig
-   cp -p libtool libtool.tmp
-   # dnl note the special chars @<:@ and @:>@ - since m4 treats [ and ] specially,
-   # we have to use the quadrigraph @<:@ for [ and @:>@ for ] - and you thought
-   # perl produced write-only code . . .
-   sed -e '/^gcc_dir/ d' \
-       -e '/^gcc_ver/ d' \
-       -e 's/^predep_objects=.*echo \("@<:@^"@:>@*"\).*$/predep_objects=\1/' \
-       -e 's/^postdep_objects=.*echo \("@<:@^"@:>@*"\).*$/postdep_objects=\1/' \
-       -e 's/^compiler_lib_search_path=.*echo \("@<:@^"@:>@*"\).*$/compiler_lib_search_path=\1/' \
-       -e 's/^sys_lib_search_path_spec=.*echo \("@<:@^"@:>@*"\).*$/sys_lib_search_path_spec=\1/' \
-       libtool > libtool.tmp
-   cp -p libtool.tmp libtool
-   rm -f libtool.tmp
-fi
 
 # Build our pkgconfig files
 # This currently conflicts with %.in: rule in Makefile.am, which should be removed eventually.
+
 AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc])
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
 
 AC_OUTPUT
+

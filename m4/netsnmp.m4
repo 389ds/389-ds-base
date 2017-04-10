@@ -94,3 +94,9 @@ if test -n "$netsnmp_inc"; then
 else
   AC_MSG_ERROR([Net-SNMP not found, specify with --with-netsnmp.])
 fi
+
+AC_SUBST(netsnmp_inc)
+AC_SUBST(netsnmp_lib)
+AC_SUBST(netsnmp_libdir)
+AC_SUBST(netsnmp_link)
+
