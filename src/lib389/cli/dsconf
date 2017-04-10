@@ -17,7 +17,7 @@ import sys
 logging.basicConfig(format='%(message)s')
 
 from lib389 import DirSrv
-from lib389._constants import DN_CONFIG
+from lib389._constants import DN_CONFIG, DN_DM
 from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import plugin as cli_plugin
 from lib389.cli_conf import schema as cli_schema
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default='cn=Directory Manager',
+            default=DN_DM,
         )
     parser.add_argument('-Z', '--starttls',
             help="Connect with StartTLS",

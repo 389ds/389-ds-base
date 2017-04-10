@@ -16,6 +16,7 @@ import logging
 # This has to happen before we import  DirSrv else it tramples our config ... :(
 logging.basicConfig(format='%(message)s')
 
+from lib389._constants import DN_DM
 from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organisationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
@@ -46,7 +47,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default='cn=Directory Manager',
+            default=DN_DM,
         )
     parser.add_argument('-Z', '--starttls',
             help="Connect with StartTLS",
