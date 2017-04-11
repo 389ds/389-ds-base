@@ -36,7 +36,7 @@ class PosixGroup(DSLdapObject):
 
 
 class PosixGroups(DSLdapObjects):
-    def __init__(self, instance, basedn, batch=False):
+    def __init__(self, instance, basedn, batch=False, rdn='ou=Groups'):
         super(PosixGroups, self).__init__(instance, batch)
         self._objectclasses = [
             'groupOfNames',
@@ -44,6 +44,6 @@ class PosixGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = PosixGroup
-        self._basedn = 'ou=Groups,%s' % basedn
+        self._basedn = '{},{}'.format(rdn, basedn)
 
 

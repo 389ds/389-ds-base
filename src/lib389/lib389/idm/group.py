@@ -36,14 +36,14 @@ class Group(DSLdapObject):
         self.remove('member', dn)
 
 class Groups(DSLdapObjects):
-    def __init__(self, instance, basedn, batch=False):
+    def __init__(self, instance, basedn, batch=False, rdn='ou=Groups'):
         super(Groups, self).__init__(instance, batch)
         self._objectclasses = [
             'groupOfNames',
         ]
         self._filterattrs = [RDN]
         self._childobject = Group
-        self._basedn = 'ou=Groups,%s' % basedn
+        self._basedn = '{},{}'.format(rdn, basedn)
 
 class UniqueGroup(DSLdapObject):
     # WARNING!!!
@@ -71,14 +71,14 @@ class UniqueGroup(DSLdapObject):
 class UniqueGroups(DSLdapObjects):
     # WARNING!!!
     # Use group, not unique group!!!
-    def __init__(self, instance, basedn, batch=False):
+    def __init__(self, instance, basedn, batch=False, rdn='ou=Groups'):
         super(UniqueGroups, self).__init__(instance, batch)
         self._objectclasses = [
             'groupOfUniqueNames',
         ]
         self._filterattrs = [RDN]
         self._childobject = UniqueGroup
-        self._basedn = 'ou=Groups,%s' % basedn
+        self._basedn = '{},{}'.format(rdn, basedn)
 
 
 

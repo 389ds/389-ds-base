@@ -48,7 +48,7 @@ class UserAccount(DSLdapObject):
     # Can't I actually just set, and it will hash?
 
 class UserAccounts(DSLdapObjects):
-    def __init__(self, instance, basedn, batch=False):
+    def __init__(self, instance, basedn, batch=False, rdn='ou=People'):
         super(UserAccounts, self).__init__(instance, batch)
         self._objectclasses = [
             'account',
@@ -59,5 +59,5 @@ class UserAccounts(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UserAccount
-        self._basedn = 'ou=People,%s' % basedn
+        self._basedn = '{},{}'.format(rdn, basedn)
 

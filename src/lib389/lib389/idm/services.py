@@ -25,12 +25,12 @@ class ServiceAccount(DSLdapObject):
         self._protected = False
 
 class ServiceAccounts(DSLdapObjects):
-    def __init__(self, instance, basedn, batch=False):
+    def __init__(self, instance, basedn, batch=False, rdn='ou=Services'):
         super(ServiceAccounts, self).__init__(instance, batch)
         self._objectclasses = [
             'netscapeServer',
         ]
         self._filterattrs = [RDN]
         self._childobject = ServiceAccount
-        self._basedn = 'ou=Services,%s' % basedn
+        self._basedn = '{},{}'.format(rdn, basedn)
 
