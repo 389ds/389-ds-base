@@ -701,15 +701,15 @@ static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn)
 
 static void modify_internal_entry(char *dn, LDAPMod **mods)
 {
-    Slapi_Operation *op;
     int ret = 0;
     int tries = 0;
     int dont_write_file = 1;
 
     do {
-        Slapi_PBlock pb = {0};
+        Slapi_Operation *op;
+        Slapi_PBlock *pb = slapi_pblock_new();
 
-        slapi_modify_internal_set_pb(&pb, dn, mods, NULL, NULL,
+        slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL,
         (void *)plugin_get_default_component_id(), 0);
 
         /* all modifications to the cn=tasks subtree are transient --
@@ -717,13 +717,13 @@ static void modify_internal_entry(char *dn, LDAPMod **mods)
          * no need to save them in the dse file.
          */
 
-        slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
+        slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
         /* Make sure these mods are not logged in audit or changelog */
-        slapi_pblock_get(&pb, SLAPI_OPERATION, &op);
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
         operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
 
-        slapi_modify_internal_pb(&pb);
-        slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+        slapi_modify_internal_pb(pb);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
         if (ret != LDAP_SUCCESS) {
             /* could be waiting for another thread to finish adding this
              * entry -- try at least 3 times before giving up.
@@ -732,14 +732,13 @@ static void modify_internal_entry(char *dn, LDAPMod **mods)
             if (tries == 3) {
                 slapi_log_err(SLAPI_LOG_WARNING, "modify_internal_entry", "Can't modify task "
                         "entry '%s'; %s (%d)\n", dn, ldap_err2string(ret), ret);
-                pblock_done(&pb);
+                slapi_pblock_destroy(pb);
                 return;
             }
             DS_Sleep(PR_SecondsToInterval(1));
         }
 
-        pblock_done(&pb);
-
+        slapi_pblock_destroy(pb);
     } while (ret != LDAP_SUCCESS);
 }
 
@@ -770,7 +769,10 @@ static int task_deny(Slapi_PBlock *pb,
                      void *arg __attribute__((unused)))
 {
     /* internal operations (conn=NULL) are allowed to do whatever they want */
-    if (pb->pb_conn == NULL) {
+    Connection *pb_conn = NULL;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    if (pb_conn == NULL) {
         *returncode = LDAP_SUCCESS;
         return SLAPI_DSE_CALLBACK_OK;
     }
@@ -791,7 +793,9 @@ static int task_modify(Slapi_PBlock *pb,
     int i;
 
     /* the connection block will be NULL for internal operations */
-    if (pb->pb_conn == NULL) {
+    Connection *pb_conn = NULL;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    if (pb_conn == NULL) {
         *returncode = LDAP_SUCCESS;
         return SLAPI_DSE_CALLBACK_OK;
     }
@@ -846,7 +850,6 @@ static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
     int idx, rv = 0;
     const char *do_attr_indexes, *uniqueid_kind_str;
     int uniqueid_kind = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
-    Slapi_PBlock mypb = {0};
     Slapi_Task *task;
     char *nameFrombe_name = NULL;
     const char *encrypt_on_import = NULL;
@@ -988,31 +991,43 @@ static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
         goto out;
     }
 
-    mypb.pb_backend = be;
-    mypb.pb_plugin = be->be_database;
-    mypb.pb_removedupvals = atoi(fetch_attr(e, "nsImportChunkSize", "0"));
-    mypb.pb_ldif2db_noattrindexes =
-        !(strcasecmp(do_attr_indexes, "true") == 0);
-    mypb.pb_ldif_generate_uniqueid = uniqueid_kind;
-    mypb.pb_ldif_namespaceid =
-        (char *)fetch_attr(e, "nsUniqueIdGeneratorNamespace", NULL);
-    mypb.pb_instance_name = (char *)instance_name;
-    mypb.pb_ldif_files = ldif_file;
-    mypb.pb_ldif_include = include;
-    mypb.pb_ldif_exclude = exclude;
-    mypb.pb_task = task;
-    mypb.pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+
+    Slapi_PBlock *mypb = slapi_pblock_new();
+    slapi_pblock_set(mypb, SLAPI_BACKEND, be);
+    slapi_pblock_set(mypb, SLAPI_PLUGIN, be->be_database);
+
+    int32_t removedupvals = atoi(fetch_attr(e, "nsImportChunkSize", "0"));
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_REMOVEDUPVALS, &removedupvals);
+
+    int32_t noattrindexes = !(strcasecmp(do_attr_indexes, "true") == 0);
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_NOATTRINDEXES, &noattrindexes);
+
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &uniqueid_kind);
+
+    char *namespaceid = (char *)fetch_attr(e, "nsUniqueIdGeneratorNamespace", NULL);
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_NAMESPACEID, namespaceid);
+
+    slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, instance_name);
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_FILE, ldif_file);
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_INCLUDE, include);
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_EXCLUDE, exclude);
+    slapi_pblock_set(mypb, SLAPI_BACKEND_TASK, task);
+    int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
+
     if (NULL != encrypt_on_import && 0 == strcasecmp(encrypt_on_import, "true") ) {
-        mypb.pb_ldif_encrypt = 1;
+        int32_t encrypt_on_import = 1;
+        slapi_pblock_set(mypb, SLAPI_LDIF2DB_ENCRYPT, &encrypt_on_import);
     }
 
-    rv = (*mypb.pb_plugin->plg_ldif2db)(&mypb);
+    rv = (be->be_database->plg_ldif2db)(mypb);
     if (rv == 0) {
         slapi_entry_attr_set_charptr(e, TASK_LOG_NAME, "");
         slapi_entry_attr_set_charptr(e, TASK_STATUS_NAME, "");
         slapi_entry_attr_set_int(e, TASK_PROGRESS_NAME, task->task_progress);
         slapi_entry_attr_set_int(e, TASK_WORK_NAME, task->task_work);
     }
+    slapi_pblock_destroy(mypb);
 
 out:
     slapi_ch_free_string(&nameFrombe_name);
@@ -1032,14 +1047,19 @@ out:
 static void task_export_thread(void *arg)
 {
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
-    char **instance_names = (char **)pb->pb_instance_name;
+    // I think someone is mis-using this point to store multiple names ...
+    char **instance_names = NULL;
     char **inp;
-    char *ldif_file = pb->pb_ldif_file;
+    char *ldif_file = NULL;
     char *this_ldif_file = NULL;
     Slapi_Backend *be = NULL;
     int rv = -1;
     int count;
-    Slapi_Task *task = pb->pb_task;
+    Slapi_Task *task = NULL;
+
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_FILE, &ldif_file);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
     g_incr_active_threadcnt();
     for (count = 0, inp = instance_names; *inp; inp++, count++)
@@ -1057,17 +1077,21 @@ static void task_export_thread(void *arg)
             continue;
         }
 
-        pb->pb_backend = be;
-        pb->pb_plugin = be->be_database;
-        pb->pb_instance_name = (char *)*inp;
+        slapi_pblock_set(pb, SLAPI_BACKEND, be);
+        slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
+        slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, *inp);
+
+        int32_t printkey = 0;
+        slapi_pblock_get(pb, SLAPI_DB2LDIF_PRINTKEY, &printkey);
 
         /* ldif_file name for each? */
-        if (pb->pb_ldif_printkey & EXPORT_APPENDMODE) {
+        if (printkey & EXPORT_APPENDMODE) {
             if (inp == instance_names) { /* first export */
-                pb->pb_ldif_printkey |= EXPORT_APPENDMODE_1;
+                printkey |= EXPORT_APPENDMODE_1;
             } else {
-                pb->pb_ldif_printkey &= ~EXPORT_APPENDMODE_1;
+                printkey &= ~EXPORT_APPENDMODE_1;
             }
+            slapi_pblock_set(pb, SLAPI_DB2LDIF_PRINTKEY, &printkey);
         } else {
             if (strcmp(ldif_file, "-")) {    /* not '-' */
                 char *p;
@@ -1087,7 +1111,7 @@ static void task_export_thread(void *arg)
                                             ldif_file, sep, *inp, q);
                     *p = sep;
                 }
-                pb->pb_ldif_file = this_ldif_file;
+                slapi_pblock_set(pb, SLAPI_DB2LDIF_FILE, &this_ldif_file);
                 release_me = 1;
             }
         }
@@ -1095,7 +1119,7 @@ static void task_export_thread(void *arg)
         slapi_task_log_notice(task, "Beginning export of '%s'", *inp);
         slapi_log_err(SLAPI_LOG_INFO, "task_export_thread", "Beginning export of '%s'\n", *inp);
 
-        rv = (*pb->pb_plugin->plg_db2ldif)(pb);
+        rv = (be->be_database->plg_db2ldif)(pb);
         if (rv != 0) {
             slapi_task_log_notice(task, "backend '%s' export failed (%d)",
                                   *inp, rv);
@@ -1117,8 +1141,12 @@ static void task_export_thread(void *arg)
     /* free the memory now */
     charray_free(instance_names);
     slapi_ch_free((void **)&ldif_file);
-    charray_free(pb->pb_ldif_include);
-    charray_free(pb->pb_ldif_exclude);
+    char **include;
+    char **exclude;
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_INCLUDE, &include);
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_EXCLUDE, &exclude);
+    charray_free(include);
+    charray_free(exclude);
     slapi_pblock_destroy(pb);
 
     if (rv == 0) {
@@ -1334,18 +1362,22 @@ static int task_export_add(Slapi_PBlock *pb __attribute__((unused)),
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    mypb->pb_ldif_include = include;
-    mypb->pb_ldif_exclude = exclude;
-    mypb->pb_ldif_printkey = ldif_printkey_flag;
-    mypb->pb_ldif_dump_replica = export_replica_flag;
-    mypb->pb_ldif_dump_uniqueid = dump_uniqueid_flag;
-    mypb->pb_ldif_file = ldif_file;
-    /* horrible hack */
-    mypb->pb_instance_name = (char *)instance_names;
-    mypb->pb_task = task;
-    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_INCLUDE, include);
+    slapi_pblock_set(mypb, SLAPI_LDIF2DB_EXCLUDE, exclude);
+    slapi_pblock_set(mypb, SLAPI_BACKEND_TASK, task);
+    slapi_pblock_set(mypb, SLAPI_DB2LDIF_PRINTKEY, &ldif_printkey_flag);
+
+    slapi_pblock_set_ldif_dump_replica(mypb, export_replica_flag);
+
+    slapi_pblock_set(mypb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &dump_uniqueid_flag);
+    slapi_pblock_set(mypb, SLAPI_DB2LDIF_FILE, ldif_file);
+    /* horrible hack, stuff a list of instance names into a field for one instance name. */
+    slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, (char **)instance_names);
+    int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
     if (NULL != decrypt_on_export && 0 == strcasecmp(decrypt_on_export, "true") ) {
-        mypb->pb_ldif_encrypt = 1;
+        int32_t decrypt_on_export = 1;
+        slapi_pblock_set(mypb, SLAPI_DB2LDIF_DECRYPT, &decrypt_on_export);
     }
 
     /* start the export as a separate thread */
@@ -1382,18 +1414,22 @@ out:
 static void task_backup_thread(void *arg)
 {
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
-    Slapi_Task *task = pb->pb_task;
+    Slapi_Task *task = NULL;
+    struct slapdplugin  *pb_plugin;
     int rv;
+
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+    slapi_pblock_get(pb, SLAPI_PLUGIN, &pb_plugin);
 
     g_incr_active_threadcnt();
     slapi_task_begin(task, 1);
 
     slapi_task_log_notice(task, "Beginning backup of '%s'",
-                          pb->pb_plugin->plg_name);
+                          pb_plugin->plg_name);
     slapi_log_err(SLAPI_LOG_INFO, "task_backup_thread", "Beginning backup of '%s'\n",
-              pb->pb_plugin->plg_name);
+              pb_plugin->plg_name);
 
-    rv = (*pb->pb_plugin->plg_db2archive)(pb);
+    rv = (*pb_plugin->plg_db2archive)(pb);
     if (rv != 0) {
         slapi_task_log_notice(task, "Backup failed (error %d)", rv);
         slapi_task_log_status(task, "Backup failed (error %d)", rv);
@@ -1405,7 +1441,9 @@ static void task_backup_thread(void *arg)
     }
 
     slapi_task_finish(task, rv);
-    slapi_ch_free((void **)&pb->pb_seq_val);
+    char *seq_val = NULL;
+    slapi_pblock_get(pb, SLAPI_SEQ_VAL, &seq_val);
+    slapi_ch_free((void **)&seq_val);
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
 }
@@ -1488,10 +1526,12 @@ static int task_backup_add(Slapi_PBlock *pb __attribute__((unused)),
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    mypb->pb_seq_val = slapi_ch_strdup(archive_dir);
-    mypb->pb_plugin = be->be_database;
-    mypb->pb_task = task;
-    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    char *seq_val = slapi_ch_strdup(archive_dir);
+    slapi_pblock_set(mypb, SLAPI_SEQ_VAL, seq_val);
+    slapi_pblock_set(mypb, SLAPI_PLUGIN, (be->be_database));
+    slapi_pblock_set(mypb, SLAPI_BACKEND_TASK, task);
+    int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
 
     /* start the backup as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_backup_thread,
@@ -1502,7 +1542,7 @@ static int task_backup_add(Slapi_PBlock *pb __attribute__((unused)),
                   "task_backup_add", "Unable to create backup thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
-        slapi_ch_free((void **)&mypb->pb_seq_val);
+        slapi_ch_free((void **)&seq_val);
         slapi_pblock_destroy(mypb);
         goto out;
     }
@@ -1521,18 +1561,22 @@ out:
 static void task_restore_thread(void *arg)
 {
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
-    Slapi_Task *task = pb->pb_task;
+    Slapi_Task *task = NULL;
+    struct slapdplugin  *pb_plugin;
     int rv;
+
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+    slapi_pblock_get(pb, SLAPI_PLUGIN, &pb_plugin);
 
     g_incr_active_threadcnt();
     slapi_task_begin(task, 1);
 
     slapi_task_log_notice(task, "Beginning restore to '%s'",
-                          pb->pb_plugin->plg_name);
+                          pb_plugin->plg_name);
     slapi_log_err(SLAPI_LOG_INFO, "task_restore_thread", "Beginning restore to '%s'\n",
-              pb->pb_plugin->plg_name);
+              pb_plugin->plg_name);
 
-    rv = (*pb->pb_plugin->plg_archive2db)(pb);
+    rv = (*pb_plugin->plg_archive2db)(pb);
     if (rv != 0) {
         slapi_task_log_notice(task, "Restore failed (error %d)", rv);
         slapi_task_log_status(task, "Restore failed (error %d)", rv);
@@ -1544,8 +1588,15 @@ static void task_restore_thread(void *arg)
     }
 
     slapi_task_finish(task, rv);
-    slapi_ch_free((void **)&pb->pb_seq_val);
-    slapi_ch_free_string(&pb->pb_instance_name);
+
+    char *seq_val = NULL;
+    slapi_pblock_get(pb, SLAPI_SEQ_VAL, &seq_val);
+    slapi_ch_free((void **)&seq_val);
+
+    char *instance_name = NULL;
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
+    slapi_ch_free_string(&instance_name);
+
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
 }
@@ -1633,12 +1684,17 @@ static int task_restore_add(Slapi_PBlock *pb,
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    mypb->pb_seq_val = slapi_ch_strdup(archive_dir);
-    mypb->pb_plugin = be->be_database;
-    if (NULL != instance_name)
-        mypb->pb_instance_name = slapi_ch_strdup(instance_name);
-    mypb->pb_task = task;
-    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    char *pb_instance_name = NULL;
+    char *seq_val = slapi_ch_strdup(archive_dir);
+    slapi_pblock_set(mypb, SLAPI_SEQ_VAL, seq_val);
+    slapi_pblock_set(mypb, SLAPI_PLUGIN, be->be_database);
+    if (NULL != instance_name) {
+        pb_instance_name = slapi_ch_strdup(instance_name);
+        slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, pb_instance_name);
+    }
+    slapi_pblock_set(mypb, SLAPI_BACKEND_TASK, task);
+    int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
 
     /* start the restore as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_restore_thread,
@@ -1649,8 +1705,10 @@ static int task_restore_add(Slapi_PBlock *pb,
                   "task_restore_add", "Unable to create restore thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
-        slapi_ch_free((void **)&mypb->pb_seq_val);
-        slapi_ch_free_string(&pb->pb_instance_name);
+        slapi_ch_free((void **)&seq_val);
+        if (instance_name) {
+            slapi_ch_free_string(&pb_instance_name);
+        }
         slapi_pblock_destroy(mypb);
         goto out;
     }
@@ -1669,13 +1727,21 @@ out:
 static void task_index_thread(void *arg)
 {
     Slapi_PBlock *pb = (Slapi_PBlock *)arg;
-    Slapi_Task *task = pb->pb_task;
+    char *instance_name = NULL;
+    char **db2index_attrs = NULL;
+    Slapi_Task *task = NULL;
+    struct slapdplugin  *pb_plugin;
     int rv;
+
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+    slapi_pblock_get(pb, SLAPI_PLUGIN, &pb_plugin);
+    slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &db2index_attrs);
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
 
     g_incr_active_threadcnt();
     slapi_task_begin(task, 1);
 
-    rv = (*pb->pb_plugin->plg_db2index)(pb);
+    rv = (*pb_plugin->plg_db2index)(pb);
     if (rv != 0) {
         slapi_task_log_notice(task, "Index failed (error %d)", rv);
         slapi_task_log_status(task, "Index failed (error %d)", rv);
@@ -1683,8 +1749,8 @@ static void task_index_thread(void *arg)
     }
 
     slapi_task_finish(task, rv);
-    charray_free(pb->pb_db2index_attrs);
-    slapi_ch_free((void **)&pb->pb_instance_name);
+    charray_free(db2index_attrs);
+    slapi_ch_free((void **)&instance_name);
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
 }
@@ -1782,12 +1848,14 @@ static int task_index_add(Slapi_PBlock *pb __attribute__((unused)),
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    mypb->pb_backend = be;
-    mypb->pb_plugin = be->be_database;
-    mypb->pb_instance_name = slapi_ch_strdup(instance_name);
-    mypb->pb_db2index_attrs = indexlist;
-    mypb->pb_task = task;
-    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_BACKEND, be);
+    slapi_pblock_set(mypb, SLAPI_PLUGIN, be->be_database);
+    slapi_pblock_set(mypb, SLAPI_BACKEND_TASK, task);
+    int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
+    char *copy_instance_name = slapi_ch_strdup(instance_name);
+    slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, copy_instance_name);
+    slapi_pblock_set(mypb, SLAPI_DB2INDEX_ATTRS, indexlist);
 
     /* start the db2index as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_index_thread,
@@ -1797,7 +1865,7 @@ static int task_index_add(Slapi_PBlock *pb __attribute__((unused)),
         slapi_log_err(SLAPI_LOG_ERR,
                   "task_index_add", "Unable to create index thread!\n");
         rv = SLAPI_DSE_CALLBACK_ERROR;
-        slapi_ch_free((void **)&mypb->pb_instance_name);
+        slapi_ch_free((void **)&copy_instance_name);
         slapi_pblock_destroy(mypb);
         goto out;
     }
@@ -1826,7 +1894,6 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Backend *be = NULL;
     Slapi_Task *task = NULL;
-    Slapi_PBlock mypb = {0};
     const char *archive_dir = NULL;
     const char *force = NULL;
     const char *database_type = "ldbm database";
@@ -1893,15 +1960,19 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     task->task_work = 1;
     task->task_progress = 0;
 
-    mypb.pb_backend = be;
-    mypb.pb_plugin = be->be_database;
-    if (force && 0 == strcasecmp(force, "true"))
-        mypb.pb_seq_type = SLAPI_UPGRADEDB_FORCE; /* force; reindex all regardless the dbversion */
-    mypb.pb_seq_val = slapi_ch_strdup(archive_dir);
-    mypb.pb_task = task;
-    mypb.pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    Slapi_PBlock *mypb = slapi_pblock_new();
+    slapi_pblock_set(mypb, SLAPI_BACKEND, be);
+    slapi_pblock_set(mypb, SLAPI_PLUGIN, be->be_database);
+    if (force && 0 == strcasecmp(force, "true")) {
+        int32_t seq_type = SLAPI_UPGRADEDB_FORCE; /* force; reindex all regardless the dbversion */
+        slapi_pblock_set(mypb, SLAPI_SEQ_TYPE, &seq_type);
+    }
+    char *seq_val = slapi_ch_strdup(archive_dir);
+    slapi_pblock_set(pb, SLAPI_BACKEND_TASK, task);
+    int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
 
-    rv = (mypb.pb_plugin->plg_upgradedb)(&mypb);
+    rv = (be->be_database->plg_upgradedb)(&mypb);
     if (rv == 0) {
         slapi_entry_attr_set_charptr(e, TASK_LOG_NAME, "");
         slapi_entry_attr_set_charptr(e, TASK_STATUS_NAME, "");
@@ -1910,7 +1981,7 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
 out:
-    slapi_ch_free((void **)&mypb.pb_seq_val);
+    slapi_ch_free((void **)&seq_val);
     if (rv != 0) {
         if (task)
             destroy_task(1, task);

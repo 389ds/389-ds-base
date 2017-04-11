@@ -1208,10 +1208,17 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	if((pi=vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
 	    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
 	    int pr_idx = -1;
+        Connection *pb_conn = NULL;
+        Operation *pb_op = NULL;
+
 	    slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
 	    slapi_rwlock_unlock(be->vlvSearchList_lock);
 	    slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-	    pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
+
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+	    pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
 	    rc = VLV_FIND_SEARCH_FAILED;
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
 	    slapi_rwlock_unlock(be->vlvSearchList_lock);

@@ -594,6 +594,7 @@ int
 update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 {
 	Slapi_Operation *operation = NULL;
+    Connection *pb_conn;
 	Slapi_Entry *e = NULL;
 	Slapi_DN *sdn = NULL;
 	Slapi_Mods	smods;
@@ -605,6 +606,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	int internal_op = 0;
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
@@ -666,7 +668,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	 * we stuff the actual user who initiated the password change in pb_conn.  We check
 	 * for this special case to ensure we reset the expiration date properly.
 	 */
-	if ((internal_op && pwpolicy->pw_must_change && (!pb->pb_conn || strcasecmp(target_dn, pb->pb_conn->c_dn))) ||
+	if ((internal_op && pwpolicy->pw_must_change && (!pb_conn || strcasecmp(target_dn, pb_conn->c_dn))) ||
 	    (!internal_op && pwpolicy->pw_must_change &&
 	     ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy)))) {
 		pw_exp_date = NO_TIME;
@@ -719,9 +721,9 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 
 	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
-    if (pb->pb_conn) { /* no conn for internal op */
+    if (pb_conn) { /* no conn for internal op */
         /* reset c_needpw to 0 */
-        pb->pb_conn->c_needpw = 0;
+        pb_conn->c_needpw = 0;
     }
     return 0;
 }
@@ -732,11 +734,13 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __
 	char *dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	passwdPolicy *pwpolicy=NULL;
 	int pwresponse_req = 0;
+    Operation *pb_op;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
-	if (!pb->pb_op->o_isroot && pwpolicy->pw_minage) {
+	if (!pb_op->o_isroot && pwpolicy->pw_minage) {
 
 		Slapi_Entry     *e;
 		char *passwordAllowChangeTime;
@@ -800,6 +804,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char			*p = NULL;
 	passwdPolicy	*pwpolicy = NULL;
 	Slapi_Operation *operation = NULL;
+    Connection *pb_conn;
 	char errormsg[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
 
 	/*
@@ -831,6 +836,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 		slapi_log_err(SLAPI_LOG_ERR, "check_pw_syntax_ext", "No slapi operation\n");
 		return -1;
 	}
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
 	/*
@@ -843,7 +849,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	for ( i = 0; vals[ i ] != NULL; ++i ){
 		if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
 			if (!is_replication && !config_get_allow_hashed_pw() && 
-				((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) || 
+				((internal_op && pb_conn && !slapi_dn_isroot(pb_conn->c_dn)) || 
 				(!internal_op && !pw_is_pwp_admin(pb, pwpolicy)))) {
 				PR_snprintf( errormsg, sizeof(errormsg) - 1, "invalid password syntax - passwords with storage scheme are not allowed");
 				if ( pwresponse_req == 1 ) {
@@ -1158,7 +1164,7 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	Slapi_Entry *e = NULL;
 	LDAPMod 	attribute;
 	LDAPMod 	*list_of_mods[2];
-	Slapi_PBlock 	mod_pb;
+	Slapi_PBlock *mod_pb;
 	char		*str = NULL;
 	passwdPolicy *pwpolicy = NULL;
 	const char *dn = slapi_sdn_get_dn(sdn);
@@ -1231,15 +1237,15 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	list_of_mods[0] = &attribute;
 	list_of_mods[1] = NULL;
 
-	pblock_init(&mod_pb);
-	slapi_modify_internal_set_pb_ext(&mod_pb, sdn, list_of_mods, NULL, NULL, pw_get_componentID(), 0);
-	slapi_modify_internal_pb(&mod_pb);
-	slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    mod_pb = slapi_pblock_new();
+	slapi_modify_internal_set_pb_ext(mod_pb, sdn, list_of_mods, NULL, NULL, pw_get_componentID(), 0);
+	slapi_modify_internal_pb(mod_pb);
+	slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res != LDAP_SUCCESS){
 		slapi_log_err(SLAPI_LOG_ERR, "update_pw_history",
 			"Modify error %d on entry '%s'\n", res, dn);
 	}
-	pblock_done(&mod_pb);
+    slapi_pblock_destroy(mod_pb);
 	slapi_ch_free_string(&str);
 bail:
 	slapi_ch_array_free(values_replace);
@@ -1557,8 +1563,11 @@ pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp){
 	Slapi_DN *bind_sdn = NULL;
 	int i;
 
+    int is_requestor_root = 0;
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &is_requestor_root);
+
 	/* first check if it's root */
-	if(pb->pb_requestor_isroot){
+	if(is_requestor_root){
 		return 1;
 	}
 	/* now check if it's a Password Policy Administrator */
@@ -1669,9 +1678,12 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	int optype = -1;
 
 	/* If we already allocated a pw policy, return it */
-	if(pb && pb->pwdpolicy){
-		return pb->pwdpolicy;
-	}
+    if (pb != NULL) {
+        passwdPolicy *pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
+        if (pwdpolicy != NULL) {
+            return pwdpolicy;
+        }
+    }
 
 	if (g_get_active_threadcnt() == 0){
 		/*
@@ -2006,7 +2018,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				}
 			}
 			if (pb) {
-				pb->pwdpolicy = pwdpolicy;
+                slapi_pblock_set_pwdpolicy(pb, pwdpolicy);
 			}
 			return pwdpolicy;
 		} else if ( e ) { 
@@ -2026,9 +2038,9 @@ done:
 	pwdpolicy->pw_storagescheme = pwdscheme;
 	pwdpolicy->pw_admin = slapi_sdn_dup(slapdFrontendConfig->pw_policy.pw_admin);
 	pw_get_admin_users(pwdpolicy);
-	if(pb){
-		pb->pwdpolicy = pwdpolicy;
-	}
+    if (pb) {
+        slapi_pblock_set_pwdpolicy(pb, pwdpolicy);
+    }
 
 	return pwdpolicy;
 
@@ -2822,6 +2834,7 @@ pw_get_ext_size(Slapi_Entry *entry, size_t *size)
 int
 add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
 {
+    Operation   *pb_op;
     const char *dn = NULL;
     passwdPolicy *pwpolicy = NULL;
     long long shadowval = -1;
@@ -2845,7 +2858,9 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         /* Not a shadowAccount; nothing to do. */
         return rc;
     }
-    if (operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL)) {
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    if (operation_is_flag_set(pb_op, OP_FLAG_INTERNAL)) {
         /* external only */
         return rc;
     }
@@ -2943,7 +2958,7 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     if (mods) {
         Slapi_Entry *sentry = slapi_entry_dup(*e);
         rc = slapi_entry_apply_mods(sentry, mods);
-        pb->pb_pw_entry = sentry;
+        slapi_pblock_set_pw_entry(pb, sentry);
         *e = sentry;
     }
     slapi_mods_free(&smods);

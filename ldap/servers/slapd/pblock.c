@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include "slap.h"
+#include "pblock_v3.h"
 #include "cert.h"
 
 #ifdef PBLOCK_ANALYTICS
@@ -208,6 +208,15 @@ slapi_pblock_destroy( Slapi_PBlock* pb )
     }
 }
 
+Slapi_PBlock *
+slapi_pblock_clone(Slapi_PBlock *pb)
+{
+    Slapi_PBlock *new_pb = slapi_pblock_new();
+    /* Perform a shallow copy. */
+    *new_pb = *pb;
+    return new_pb;
+}
+
 /* JCM - when pb_o_params is used, check the operation type. */
 /* JCM - when pb_o_results is used, check the operation type. */
 
@@ -222,21 +231,8 @@ if ( PBLOCK ->pb_plugin->plg_type != TYPE) return( -1 )
 #define SLAPI_PBLOCK_GET_PLUGIN_RELATED_POINTER( pb, element ) \
 		((pb)->pb_plugin == NULL ? NULL : (pb)->pb_plugin->element)
 
-/*
- * This ifdef is needed to resolve a gcc 6 issue which throws a false positive
- * here. See also: https://bugzilla.redhat.com/show_bug.cgi?id=1386445
- *
- * It's a good idea to run this in EL7 to check the overflows etc, but with
- * GCC 6 and lsan to find memory leaks ....
- */
-
 int
 slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
-#if defined(__has_feature)
-#  if __has_feature(address_sanitizer) && __GNUC__ == 6
-__attribute__((no_sanitize("address")))
-#  endif
-#endif
 {
 
 #ifdef PBLOCK_ANALYTICS
@@ -1759,7 +1755,7 @@ __attribute__((no_sanitize("address")))
 
 	/* ldif2db arguments */
 	case SLAPI_LDIF2DB_FILE:
-                (*(char ***)value) = pblock->pb_ldif_files;
+        (*(char ***)value) = pblock->pb_ldif_files;
 		break;
 	case SLAPI_LDIF2DB_REMOVEDUPVALS:
 		(*(int *)value) = pblock->pb_removedupvals;
@@ -2103,8 +2099,11 @@ __attribute__((no_sanitize("address")))
 		break;
 
 	default:
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get",
-		    "Unknown parameter block argument %d\n", arg);
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get", "Unknown parameter block argument %d\n", arg);
+#ifdef DEBUG
+        Slapi_PBlock *boom = NULL;
+        void *x = (void *)boom->pb_plugin;
+#endif
 		return( -1 );
 	}
 
@@ -2121,11 +2120,6 @@ __attribute__((no_sanitize("address")))
 
 int
 slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
-#if defined(__has_feature)
-#  if __has_feature(address_sanitizer) && __GNUC__ == 6
-__attribute__((no_sanitize("address")))
-#  endif
-#endif
 {
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pblock, arg);
@@ -3460,7 +3454,7 @@ __attribute__((no_sanitize("address")))
 
     /* ldif2db arguments */
     case SLAPI_LDIF2DB_FILE:
-        pblock->pb_ldif_file = (char *) value;
+        pblock->pb_ldif_files = (char **) value;
         break;
 	case SLAPI_LDIF2DB_REMOVEDUPVALS:
 		pblock->pb_removedupvals = *((int *)value);
@@ -3470,6 +3464,12 @@ __attribute__((no_sanitize("address")))
 		break;
 	case SLAPI_LDIF2DB_NOATTRINDEXES:
 		pblock->pb_ldif2db_noattrindexes = *((int *)value);
+		break;
+	case SLAPI_LDIF2DB_INCLUDE:
+        pblock->pb_ldif_include = (char **)value;
+		break;
+	case SLAPI_LDIF2DB_EXCLUDE:
+        pblock->pb_ldif_exclude = (char **)value;
 		break;
 	case SLAPI_LDIF2DB_GENERATE_UNIQUEID:
 		pblock->pb_ldif_generate_uniqueid = *((int *)value);
@@ -3484,6 +3484,9 @@ __attribute__((no_sanitize("address")))
 		break;
 	case SLAPI_DB2LDIF_DUMP_UNIQUEID:
 		pblock->pb_ldif_dump_uniqueid = *((int *)value);
+		break;
+	case SLAPI_DB2LDIF_FILE:
+        pblock->pb_ldif_file = (char *)value;
 		break;
 
 	/* db2ldif/ldif2db/db2bak/bak2db arguments */
@@ -3741,6 +3744,10 @@ __attribute__((no_sanitize("address")))
 	default:
 		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_set",
 		    "Unknown parameter block argument %d\n", arg);
+#ifdef DEBUG
+        Slapi_PBlock *boom = NULL;
+        void *x = (void *)boom->pb_plugin;
+#endif
 		return( -1 );
 	}
 
@@ -3814,6 +3821,55 @@ bind_credentials_clear( Connection *conn, PRBool lock_conn,
 
 }
 
+struct slapi_entry *
+slapi_pblock_get_pw_entry(Slapi_PBlock *pb) {
+    return pb->pb_pw_entry;
+}
+
+void
+slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry) {
+    pb->pb_pw_entry = entry;
+}
+
+passwdPolicy *
+slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb) {
+    return pb->pwdpolicy;
+}
+
+void
+slapi_pblock_set_pwdpolicy(Slapi_PBlock *pb, passwdPolicy *pwdpolicy) {
+    pb->pwdpolicy = pwdpolicy;
+}
+
+int32_t
+slapi_pblock_get_ldif_dump_replica(Slapi_PBlock *pb) {
+    return pb->pb_ldif_dump_replica;
+}
+
+void
+slapi_pblock_set_ldif_dump_replica(Slapi_PBlock *pb, int32_t dump_replica) {
+    pb->pb_ldif_dump_replica = dump_replica;
+}
+
+void *
+slapi_pblock_get_vattr_context(Slapi_PBlock *pb) {
+    return pb->pb_vattr_context;
+}
+
+void
+slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx) {
+    pb->pb_vattr_context = vattr_ctx;
+}
+
+void *
+slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb) {
+    return pb->op_stack_elem;
+}
+
+void
+slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem) {
+    pb->op_stack_elem = stack_elem;
+}
 
 /*
  * Clear and then set the bind DN and related credentials for the

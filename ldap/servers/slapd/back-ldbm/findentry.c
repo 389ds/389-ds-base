@@ -159,7 +159,10 @@ find_entry_internal_dn(
 		struct backentry *me;
 		Slapi_DN ancestorsdn;
 		slapi_sdn_init(&ancestorsdn);
-		me = dn2ancestor(pb->pb_backend, sdn, &ancestorsdn, txn, &err, 1 /* allow_suffix */);
+        Slapi_Backend *pb_backend;
+        slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
+
+		me = dn2ancestor(pb_backend, sdn, &ancestorsdn, txn, &err, 1 /* allow_suffix */);
 		if ( !managedsait && me != NULL ) {
 			/* if the entry is a referral send the referral */
 			if(check_entry_for_referral(pb, me->ep_entry, (char*)slapi_sdn_get_dn(&ancestorsdn), "find_entry_internal_dn"))

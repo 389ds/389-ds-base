@@ -480,7 +480,9 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
     /* this is something needed for most of the entry points */
     if (pb)
     {
-        be->be_database=pb->pb_plugin;
+        struct slapdplugin *pb_plugin = NULL;
+        slapi_pblock_get(pb, SLAPI_PLUGIN, &pb_plugin);
+        be->be_database=pb_plugin;
         return 0;
     }
  

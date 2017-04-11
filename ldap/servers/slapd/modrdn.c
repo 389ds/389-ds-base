@@ -40,6 +40,7 @@ void
 do_modrdn( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation;
+    Connection *pb_conn;
 	BerElement	*ber;
 	char		*rawdn = NULL, *rawnewsuperior = NULL;
 	const char	*dn = NULL, *newsuperior = NULL;
@@ -59,6 +60,7 @@ do_modrdn( Slapi_PBlock *pb )
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	slapi_sdn_init(&sdn);
 	slapi_sdn_init(&snewdn);
@@ -86,7 +88,7 @@ do_modrdn( Slapi_PBlock *pb )
 
 	if ( ber_peek_tag( ber, &len ) == LDAP_TAG_NEWSUPERIOR ) {
 		/* This "len" is not used... */
-		if ( pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
+		if ( pb_conn->c_ldapversion < LDAP_VERSION3 ) {
 			slapi_log_err(SLAPI_LOG_ERR, "do_modrdn",
 				"Got newSuperior in LDAPv2 modrdn op\n");
 			op_shared_log_error_access (pb, "MODRDN",
@@ -211,7 +213,7 @@ do_modrdn( Slapi_PBlock *pb )
 			   "do_modrd", "dn (%s) newrdn (%s) deloldrdn (%d)\n", dn, newrdn,
 			   deloldrdn );
 
-	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
+	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &operation->o_isroot );
 	/* dn, newrdn and newsuperior are all normalized */
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET,
 	                  (void *)slapi_sdn_get_udn(&sdn) );
@@ -245,7 +247,7 @@ slapi_modrdn_internal(const char *iodn, const char *inewrdn, int deloldrdn, LDAP
 Slapi_PBlock *
 slapi_rename_internal(const char *iodn, const char *inewrdn, const char *inewsuperior, int deloldrdn, LDAPControl **controls, int dummy __attribute__((unused)))
 {
-    Slapi_PBlock    pb = {0};
+    Slapi_PBlock    *pb = slapi_pblock_new();
     Slapi_PBlock    *result_pb = NULL;
     int             opresult= 0;
     Slapi_DN sdn;
@@ -254,20 +256,20 @@ slapi_rename_internal(const char *iodn, const char *inewrdn, const char *inewsup
     slapi_sdn_init_dn_byref(&sdn, iodn);
     slapi_sdn_init_dn_byref(&newsuperiorsdn, inewsuperior);
 
-    slapi_rename_internal_set_pb_ext(&pb, &sdn, inewrdn, &newsuperiorsdn,
+    slapi_rename_internal_set_pb_ext(pb, &sdn, inewrdn, &newsuperiorsdn,
                                      deloldrdn, controls, NULL, 
                                      plugin_get_default_component_id(), 0);
-    rename_internal_pb (&pb);
+    rename_internal_pb (pb);
 
     result_pb = slapi_pblock_new();
     if (result_pb) {
-        slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
         slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
     }
 
     slapi_sdn_done(&sdn);
     slapi_sdn_done(&newsuperiorsdn);
-    pblock_done(&pb);
+    slapi_pblock_destroy(pb);
     
     return result_pb;
 }
@@ -399,6 +401,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	char			*errtext = NULL;
 	Slapi_DN *sdn = NULL;
 	Slapi_DN *newsuperiorsdn = NULL;
+    Connection *pb_conn;
 
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
@@ -408,6 +411,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &origsdn);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	/*
 	 * If ownership has not been passed to this function, we replace the
@@ -464,8 +468,8 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		{
 			slapi_log_access(LDAP_DEBUG_STATS,
 					 "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
-					 pb->pb_conn->c_connid,
-					 pb->pb_op->o_opid,
+					 pb_conn->c_connid,
+					 operation->o_opid,
 					 dn,
 					 newrdn ? newrdn : "(null)",
 					 newsuperior ? newsuperior : "(null)",
@@ -498,8 +502,8 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		if ( !internal_op ) {
 			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename", 
 				 "conn=%" PRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
-				 pb->pb_conn->c_connid,
-				 pb->pb_op->o_opid,
+				 pb_conn->c_connid,
+				 operation->o_opid,
 				 (NULL == newrdn) ? "(null)" : newrdn);
 		} else {
 			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename", 
@@ -532,8 +536,8 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		if (!internal_op) {
 			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
 				 "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
-				 pb->pb_conn->c_connid,
-				 pb->pb_op->o_opid,
+				 pb_conn->c_connid,
+				 operation->o_opid,
 				 newsuperior ? newsuperior : "(null)");
 		} else {
 			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
@@ -553,7 +557,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	operation_set_target_spec (pb->pb_op, sdn);
+	operation_set_target_spec (operation, sdn);
 
 	/*
 	 * Construct the new DN (code sdn from backend

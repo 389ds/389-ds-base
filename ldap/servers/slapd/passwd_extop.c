@@ -118,7 +118,6 @@ static int
 passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 	LDAPControl **req_controls, LDAPControl ***resp_controls) 
 {
-	Slapi_PBlock pb;
 	LDAPControl **req_controls_copy = NULL;
 	LDAPControl **pb_resp_controls = NULL;
 	int ret=0;
@@ -133,8 +132,8 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 			slapi_add_controls(&req_controls_copy, req_controls, 1);
 		}
 
-		pblock_init(&pb);
-		slapi_modify_internal_set_pb_ext (&pb, sdn, 
+	    Slapi_PBlock *pb = slapi_pblock_new();
+		slapi_modify_internal_set_pb_ext (pb, sdn, 
 			slapi_mods_get_ldapmods_byref(mods),
 			req_controls_copy, NULL, /* UniqueID */
 			plugin_get_default_component_id(), /* PluginID */
@@ -146,19 +145,21 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 		 * that the password change was initiated by the user who
 		 * sent the extended operation instead of always assuming
 		 * that it was done by the root DN. */
-		pb.pb_conn = pb_orig->pb_conn;
+        Connection *pb_conn = NULL;
+        slapi_pblock_get(pb_orig, SLAPI_CONNECTION, &pb_conn);
+        slapi_pblock_set(pb, SLAPI_CONNECTION, pb_conn);
 
-		ret =slapi_modify_internal_pb (&pb);
+		ret =slapi_modify_internal_pb (pb);
 
 		/* We now clean up the connection that we copied into the
 		 * new pblock.  We want to leave it untouched. */
-		pb.pb_conn = NULL;
+        slapi_pblock_set(pb, SLAPI_CONNECTION, NULL);
   
-		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
 		/* Retrieve and duplicate the response controls since they will be
 		 * destroyed along with the pblock used for the internal operation. */
-		slapi_pblock_get(&pb, SLAPI_RESCONTROLS, &pb_resp_controls);
+		slapi_pblock_get(pb, SLAPI_RESCONTROLS, &pb_resp_controls);
 		if (pb_resp_controls) {
 			slapi_add_controls(resp_controls, pb_resp_controls, 1);
 		}
@@ -169,7 +170,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 				ret, slapi_sdn_get_dn(sdn));
 		}
 
-		pblock_done(&pb);
+        slapi_pblock_destroy(pb);
  	}
  
  	slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "<= %d\n", ret);
@@ -478,7 +479,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 #ifdef LDAP_EXTOP_PASSMOD_CONN_SECURE
 	/* Allow password modify only for SSL/TLS established connections and
 	 * connections using SASL privacy layers */
-	conn = pb->pb_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 	if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
 		errMesg = "Could not get SASL SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
@@ -719,9 +720,11 @@ parse_req_done:
 		leak any useful information to the client such as current password
 		wrong, etc.
 	  */
+    Operation *pb_op = NULL;
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
-	operation_set_target_spec (pb->pb_op, slapi_entry_get_sdn(targetEntry));
-	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
+	operation_set_target_spec (pb_op, slapi_entry_get_sdn(targetEntry));
+	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb_op->o_isroot );
 
 	/* In order to perform the access control check , we need to select a backend (even though
 	 * we don't actually need it otherwise).
@@ -768,7 +771,10 @@ parse_req_done:
 	/* Check if password policy allows users to change their passwords.  We need to do
 	 * this here since the normal modify code doesn't perform this check for
 	 * internal operations. */
-	if (!pb->pb_op->o_isroot && !pb->pb_conn->c_needpw && !pwpolicy->pw_change) {
+
+    Connection *pb_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	if (!pb_op->o_isroot && !pb_conn->c_needpw && !pwpolicy->pw_change) {
 		if (NULL == bindSDN) {
 			bindSDN = slapi_sdn_new_normdn_byref(bindDN);
 		}

@@ -1529,21 +1529,20 @@ static void
 internal_add_helper(Slapi_Entry *e, int dont_write_file)
 {
 	int plugin_actions = 0;
-	Slapi_PBlock newpb;
+	Slapi_PBlock *newpb = slapi_pblock_new();
 	Slapi_Operation *op;
 	
-	pblock_init(&newpb);
-	slapi_add_entry_internal_set_pb(&newpb, e, NULL,
+	slapi_add_entry_internal_set_pb(newpb, e, NULL,
 									plugin_get_default_component_id(),
 									plugin_actions);
-	slapi_pblock_set(&newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(e));
-	slapi_pblock_set(&newpb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING,
+	slapi_pblock_set(newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(e));
+	slapi_pblock_set(newpb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING,
 					 (void *)&dont_write_file);
-	slapi_pblock_get(&newpb, SLAPI_OPERATION, &op);
+	slapi_pblock_get(newpb, SLAPI_OPERATION, &op);
 	operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
 
-	slapi_add_internal_pb(&newpb);
-	pblock_done(&newpb);
+	slapi_add_internal_pb(newpb);
+    slapi_pblock_destroy(newpb);
 }
 
 /*
@@ -1558,7 +1557,6 @@ static int
 init_dse_file(const char *configdir, Slapi_DN *config)
 {
     int rc= 1; /* OK */
-    Slapi_PBlock pb = {0};
 
     if(pfedse==NULL)
     {
@@ -1567,6 +1565,7 @@ init_dse_file(const char *configdir, Slapi_DN *config)
     }
     if(rc)
     {
+        Slapi_PBlock *pb = slapi_pblock_new();
 		int dont_write = 1;
 		dse_register_callback(pfedse,DSE_OPERATION_READ,DSE_FLAG_PREOP,config,
 							  LDAP_SCOPE_SUBTREE,"(objectclass=nsslapdPlugin)",
@@ -1575,15 +1574,16 @@ init_dse_file(const char *configdir, Slapi_DN *config)
 							  LDAP_SCOPE_BASE,"(objectclass=*)",
 							  load_config_dse,NULL, NULL);
 
-		slapi_pblock_set(&pb, SLAPI_CONFIG_DIRECTORY, (void*)configdir);
+		slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, (void*)configdir);
 		/* don't write out the file when reading */
-		slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
-        if(!(rc = dse_read_file(pfedse, &pb)))
+		slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
+        if(!(rc = dse_read_file(pfedse, pb)))
         {
 			slapi_log_err(SLAPI_LOG_ERR, "init_dse_file",
 							 "Could not load config file [%s]\n",
 							 DSE_FILENAME );
         }
+        slapi_pblock_destroy(pb);
     }
     return rc;
 }

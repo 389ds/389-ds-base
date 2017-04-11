@@ -54,6 +54,7 @@ do_search( Slapi_PBlock *pb )
 	int strict = 0;
 	int minssf_exclude_rootdse = 0;
 	int filter_normalized = 0;
+    Connection *pb_conn = NULL;
 
 	slapi_log_err(SLAPI_LOG_TRACE, "do_search", "=>\n");
 
@@ -124,6 +125,8 @@ do_search( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
 	/* 
 	 * If nsslapd-minssf-exclude-rootdse is on, the minssf check has been
 	 * postponed till this moment since we need to know whether the basedn
@@ -138,9 +141,9 @@ do_search( Slapi_PBlock *pb )
 		int minssf = 0;
 		/* Check if the minimum SSF requirement has been met. */
 		minssf = config_get_minssf();
-		if ((pb->pb_conn->c_sasl_ssf < minssf) &&
-		    (pb->pb_conn->c_ssl_ssf < minssf) &&
-		    (pb->pb_conn->c_local_ssf < minssf)) {
+		if ((pb_conn->c_sasl_ssf < minssf) &&
+		    (pb_conn->c_ssl_ssf < minssf) &&
+		    (pb_conn->c_local_ssf < minssf)) {
 			op_shared_log_error_access(pb, "SRCH", rawbase?rawbase:"",
 			                           "Minimum SSF not met");
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -179,7 +182,7 @@ do_search( Slapi_PBlock *pb )
 	/* filter - returns a "normalized" version */
 	filter = NULL;
 	fstr = NULL;
-	if ( (err = get_filter( pb->pb_conn, ber, scope, &filter, &fstr )) != 0 ) {
+	if ( (err = get_filter( pb_conn, ber, scope, &filter, &fstr )) != 0 ) {
 		char	*errtxt;
 
 		if ( LDAP_UNWILLING_TO_PERFORM == err ) {
@@ -379,9 +382,13 @@ free_and_return:;
 
 static void log_search_access (Slapi_PBlock *pb, const char *base, int scope, const char *fstr, const char *msg)
 {
+    Operation *pb_op;
+    Connection *pb_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 	slapi_log_access(LDAP_DEBUG_STATS,
 					 "conn=%" PRIu64 " op=%d SRCH base=\"%s\" scope=%d filter=\"%s\", %s\n",
-					 pb->pb_conn->c_connid, pb->pb_op->o_opid,
+					 pb_conn->c_connid, pb_op->o_opid,
 					 base, scope, fstr, msg ? msg : "");
 
 }

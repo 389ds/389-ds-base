@@ -2101,13 +2101,11 @@ index_addordel_values_ext_sv(
         Slapi_Value	**esubvals = NULL;
         Slapi_Value	**substresult = NULL;
         Slapi_Value   **origvals = NULL;
-		Slapi_PBlock		pipb;
+		Slapi_PBlock *pipb = slapi_pblock_new();
 
 		/* prepare pblock to pass ai_substr_lens */
-		pblock_init( &pipb );
-		slapi_pblock_set( &pipb, SLAPI_SYNTAX_SUBSTRLENS, ai->ai_substr_lens );
-        slapi_attr_values2keys_sv_pb( &ai->ai_sattr, vals, &ivals, 
-                                          LDAP_FILTER_SUBSTRINGS, &pipb );
+		slapi_pblock_set( pipb, SLAPI_SYNTAX_SUBSTRLENS, ai->ai_substr_lens );
+        slapi_attr_values2keys_sv_pb( &ai->ai_sattr, vals, &ivals, LDAP_FILTER_SUBSTRINGS, pipb );
 
         origvals = ivals;
         /* delete only: if the attribute has multiple values,
@@ -2116,17 +2114,18 @@ index_addordel_values_ext_sv(
          * then get rid of them from the being deleted values
          */
         if ( evals != NULL ) {
-            slapi_attr_values2keys_sv_pb( &ai->ai_sattr, evals,
-							&esubvals, LDAP_FILTER_SUBSTRINGS, &pipb );
+            slapi_attr_values2keys_sv_pb( &ai->ai_sattr, evals, &esubvals, LDAP_FILTER_SUBSTRINGS, pipb );
             substresult = valuearray_minus_valuearray( &ai->ai_sattr, ivals, esubvals );
             ivals = substresult;
             valuearray_free( &esubvals );
         }
+        slapi_pblock_destroy(pipb);
         if ( ivals != NULL ) {
             err = addordel_values_sv( be, db, basetype, indextype_SUB,
                                       ivals, id, flags, txn, ai, idl_disposition, buffer_handle );
-            if ( ivals != origvals )
+            if ( ivals != origvals ) {
                 valuearray_free( &origvals );
+            }
             valuearray_free( &ivals );
             if ( err != 0 ) {
                 ldbm_nasty("index_addordel_values_ext_sv", errmsg, 1250, err);

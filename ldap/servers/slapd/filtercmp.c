@@ -85,14 +85,15 @@ static Slapi_PBlock *get_mr_normval(char *oid, char *type,
     unsigned int sort_indicator = SLAPI_PLUGIN_MR_USAGE_SORT;
     IFP mrIndex = NULL;
     
-    if (!pb)
-	return NULL;
+    if (!pb) {
+        return NULL;
+    }
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_OID, oid);
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_TYPE, type);
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_USAGE, (void *)&sort_indicator);
     if (slapi_mr_indexer_create(pb) != 0) {
-	slapi_pblock_destroy(pb);
-	return NULL;
+        slapi_pblock_destroy(pb);
+        return NULL;
     }
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrIndex) != 0) ||
 	!mrIndex) {

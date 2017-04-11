@@ -97,7 +97,8 @@ static struct attr_value_check {
 void
 do_modify( Slapi_PBlock *pb )
 {
-	Slapi_Operation	*operation;
+	Slapi_Operation *operation = NULL;
+    Connection *pb_conn = NULL;
 	Slapi_Mods	smods;
 	BerElement	*ber;
 	ber_tag_t	tag;
@@ -118,6 +119,8 @@ do_modify( Slapi_PBlock *pb )
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
+
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	/* count the modify request */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
@@ -178,9 +181,9 @@ do_modify( Slapi_PBlock *pb )
 		int minssf = 0;
 		/* Check if the minimum SSF requirement has been met. */
 		minssf = config_get_minssf();
-		if ((pb->pb_conn->c_sasl_ssf < minssf) &&
-		    (pb->pb_conn->c_ssl_ssf < minssf) &&
-		    (pb->pb_conn->c_local_ssf < minssf)) {
+		if ((pb_conn->c_sasl_ssf < minssf) &&
+		    (pb_conn->c_ssl_ssf < minssf) &&
+		    (pb_conn->c_local_ssf < minssf)) {
 			op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"",
 			                           "Minimum SSF not met");
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -190,7 +193,7 @@ do_modify( Slapi_PBlock *pb )
 		}
 	}
 
-	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
+	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &(operation->o_isroot));
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn ); 
 
 	/* collect modifications & save for later */
@@ -258,7 +261,7 @@ do_modify( Slapi_PBlock *pb )
 		}
 
 		/* check if user is allowed to modify the specified attribute */
-		if (!op_shared_is_allowed_attr (mod->mod_type, pb->pb_conn->c_isreplication_session))
+		if (!op_shared_is_allowed_attr (mod->mod_type, pb_conn->c_isreplication_session))
 		{
 			/*
 			 * For now we just ignore attributes that client is not allowed
@@ -281,7 +284,7 @@ do_modify( Slapi_PBlock *pb )
 	}
 
 	if (ignored_some_mods && (0 == smods.num_elements)) {
-		if(pb->pb_conn->c_isreplication_session){
+		if(pb_conn->c_isreplication_session){
 		   int connid, opid;
 		   slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 		   slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
@@ -349,8 +352,8 @@ do_modify( Slapi_PBlock *pb )
 		}
 	}
 
-	if (!pb->pb_conn->c_isreplication_session &&
-		pb->pb_conn->c_needpw && pw_change == 0 )
+	if (!pb_conn->c_isreplication_session &&
+		pb_conn->c_needpw && pw_change == 0 )
 	{
 		(void)slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		op_shared_log_error_access (pb, "MOD", rawdn, "need new password");
@@ -406,22 +409,22 @@ slapi_modify_internal(const char *idn,
                       LDAPControl **controls,
                       int dummy __attribute__((unused)))
 {
-    Slapi_PBlock    pb = {0};
+    Slapi_PBlock    *pb = slapi_pblock_new();
     Slapi_PBlock    *result_pb = NULL;
     int             opresult;
 
-	slapi_modify_internal_set_pb (&pb, idn, (LDAPMod**)mods, controls, NULL, 
+	slapi_modify_internal_set_pb (pb, idn, (LDAPMod**)mods, controls, NULL, 
 		(void *)plugin_get_default_component_id(), 0);
 
-	modify_internal_pb (&pb);
+	modify_internal_pb (pb);
 
     result_pb = slapi_pblock_new();
 	if (result_pb)
 	{
-		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);	
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);	
 		slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 	}
-	pblock_done(&pb);
+    slapi_pblock_destroy(pb);
 
     return result_pb;
 }
@@ -628,6 +631,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	int repl_op, internal_op, lastmod, skip_modified_attrs;
 	char *unhashed_pw_attr = NULL;
 	Slapi_Operation *operation;
+    Connection *pb_conn;
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	int err;
 	LDAPMod *lc_mod = NULL;
@@ -645,6 +649,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 	slapi_pblock_get (pb, SLAPI_SKIP_MODIFIED_ATTRS, &skip_modified_attrs);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	if (sdn) {
 		passin_sdn = 1;
@@ -664,7 +669,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	slapi_mods_init_passin (&smods, mods);
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	operation_set_target_spec (pb->pb_op, sdn);
+	operation_set_target_spec (operation, sdn);
 
 	/* get the proxy auth dn if the proxy auth control is present */
 	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
@@ -681,8 +686,8 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
-							 pb->pb_conn->c_connid,
-							 pb->pb_op->o_opid,
+							 pb_conn->c_connid,
+							 operation->o_opid,
 							 slapi_sdn_get_dn(sdn),
 							 proxystr ? proxystr : "");
 		}
@@ -1200,6 +1205,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	int rc = 0;
 	Slapi_Value **values= NULL;
 	Slapi_Operation *operation;
+    Connection *pb_conn = NULL;
 	int proxy_err = LDAP_SUCCESS;
 	char *proxydn = NULL;
 	char *proxystr = NULL;
@@ -1218,6 +1224,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get (pb, SLAPI_PWPOLICY, &pwresponse_req);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	slapi_sdn_init_dn_byref (&sdn, dn);
 	pwpolicy = new_passwdPolicy(pb, (char *)slapi_sdn_get_ndn(&sdn));
@@ -1228,7 +1235,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"\n",
-					pb->pb_conn->c_connid, pb->pb_op->o_opid,
+					pb_conn->c_connid, operation->o_opid,
 					slapi_sdn_get_dn(&sdn));
 		}
 
@@ -1268,7 +1275,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 					proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
 				}
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
-						pb->pb_conn->c_connid, pb->pb_op->o_opid,
+						pb_conn->c_connid, operation->o_opid,
 						slapi_sdn_get_dn(&sdn), proxystr ? proxystr : "");
 			}
 
@@ -1296,8 +1303,8 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		}
 
 		/* Check if password policy allows users to change their passwords.*/
-		if (!pb->pb_op->o_isroot && slapi_sdn_compare(&sdn, &pb->pb_op->o_sdn)==0 &&
-			!pb->pb_conn->c_needpw && !pwpolicy->pw_change)
+		if (!operation->o_isroot && slapi_sdn_compare(&sdn, &operation->o_sdn)==0 &&
+			!pb_conn->c_needpw && !pwpolicy->pw_change)
 		{
 			if ( pwresponse_req == 1 ) {
 				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
@@ -1313,7 +1320,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 				}
 
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-						pb->pb_conn->c_connid, pb->pb_op->o_opid,
+						pb_conn->c_connid, operation->o_opid,
 						slapi_sdn_get_dn(&sdn),
 						proxystr ? proxystr : "",
 						"user is not allowed to change password");
@@ -1326,7 +1333,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	       
 	/* check if password is within password minimum age;
 	   error result is sent directly from check_pw_minage */	
-	if (pb->pb_conn && !pb->pb_conn->c_needpw &&
+	if (pb_conn && !pb_conn->c_needpw &&
 	    check_pw_minage(pb, &sdn, mod->mod_bvalues) == 1)
 	{
 		if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
@@ -1339,8 +1346,8 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 			if ( !internal_op )
 			{
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-								 pb->pb_conn->c_connid,
-								 pb->pb_op->o_opid,
+								 pb_conn->c_connid,
+								 operation->o_opid,
 								 slapi_sdn_get_dn(&sdn),
 								 proxystr ? proxystr : "",
 								 "within password minimum age");
@@ -1382,8 +1389,8 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 					if ( !internal_op )
 					{
 						slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-										 pb->pb_conn->c_connid,
-										 pb->pb_op->o_opid,
+										 pb_conn->c_connid,
+										 operation->o_opid,
 										 slapi_sdn_get_dn(&sdn),
 										 proxystr ? proxystr : "",
 										"invalid password syntax");

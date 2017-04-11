@@ -1672,10 +1672,12 @@ slapi_dn_isbesuffix( Slapi_PBlock *pb, const char *dn )
 {
     int r;
     Slapi_DN sdn;
-	slapi_sdn_init_dn_byref(&sdn,dn);
-	r= slapi_be_issuffix( pb->pb_backend, &sdn );
-	slapi_sdn_done(&sdn);
-	return r;
+    slapi_sdn_init_dn_byref(&sdn,dn);
+    Slapi_Backend *pb_backend = NULL;
+    slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
+    r = slapi_be_issuffix( pb_backend, &sdn );
+    slapi_sdn_done(&sdn);
+    return r;
 }
 
 /*

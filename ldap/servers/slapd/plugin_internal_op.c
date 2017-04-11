@@ -202,7 +202,6 @@ slapi_seq_callback( const char *ibase,
                     plugin_referral_entry_callback ref_callback)
 {
 	int r;
-    Slapi_PBlock pb = {0};
 
 	if (ibase == NULL)
 	{
@@ -211,11 +210,13 @@ slapi_seq_callback( const char *ibase,
 		return -1;
 	}
 
-    slapi_seq_internal_set_pb(&pb, (char *)ibase, type, attrname, val, attrs, attrsonly, controls, 
+    Slapi_PBlock *pb = slapi_pblock_new();
+
+    slapi_seq_internal_set_pb(pb, (char *)ibase, type, attrname, val, attrs, attrsonly, controls, 
 		plugin_get_default_component_id(), 0);							  
 
-    r= seq_internal_callback_pb (&pb, callback_data, res_callback, srch_callback, ref_callback);
-	pblock_done(&pb);
+    r= seq_internal_callback_pb (pb, callback_data, res_callback, srch_callback, ref_callback);
+    slapi_pblock_destroy(pb);
 	return r;
 }
 
@@ -440,17 +441,15 @@ slapi_search_internal_callback(const char *ibase,
                                plugin_search_entry_callback srch_callback, 
                                plugin_referral_entry_callback ref_callback)								
 {
-    Slapi_PBlock              pb;
+    Slapi_PBlock              *pb = slapi_pblock_new();
     int                       rc = 0;
 
-    pblock_init(&pb);
-
-	slapi_search_internal_set_pb (&pb, ibase, scope, ifstr, attrs, attrsonly,
+	slapi_search_internal_set_pb (pb, ibase, scope, ifstr, attrs, attrsonly,
 				      controls, NULL, plugin_get_default_component_id(), 0);
 								   
-	rc = search_internal_callback_pb (&pb, callback_data, res_callback, 
+	rc = search_internal_callback_pb (pb, callback_data, res_callback, 
 									  srch_callback, ref_callback);
-    pblock_done(&pb);		
+    slapi_pblock_destroy(pb);
     return (rc);
 }
 
@@ -482,30 +481,34 @@ slapi_search_internal(const char *base,
 void
 slapi_free_search_results_internal(Slapi_PBlock *pb)
 {
-    int i;
-	
     if(pb == NULL)
     {
         return;
     }
 
-    if(pb->pb_plugin_internal_search_op_entries != NULL)
+    Slapi_Entry **op_entries = NULL;
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &op_entries);
+
+    if(op_entries != NULL)
     {
-        for(i=0; pb->pb_plugin_internal_search_op_entries[i] != NULL; i++)
+        for(size_t i = 0; op_entries[i] != NULL; i++)
         {
-            slapi_entry_free(pb->pb_plugin_internal_search_op_entries[i]);
+            slapi_entry_free(op_entries[i]);
         }
-        slapi_ch_free((void**)&(pb->pb_plugin_internal_search_op_entries));
+        slapi_ch_free((void**)&(op_entries));
     }
 
+    char **op_referrals = NULL;
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS, &op_referrals);
+
     /* free v3 referrals made from result handler */
-    if(pb->pb_plugin_internal_search_op_referrals != NULL)
+    if(op_referrals != NULL)
     {
-        for(i=0; pb->pb_plugin_internal_search_op_referrals[i] != NULL; i++)
+        for(size_t i = 0; op_referrals[i] != NULL; i++)
         {
-            slapi_ch_free((void**)&(pb->pb_plugin_internal_search_op_referrals[i]));
+            slapi_ch_free((void**)&(op_referrals[i]));
         }
-        slapi_ch_free((void**)&(pb->pb_plugin_internal_search_op_referrals));
+        slapi_ch_free((void**)&(op_referrals));
      }
 }
 

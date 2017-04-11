@@ -1224,12 +1224,13 @@ update_integrity(Slapi_DN *origSDN,
                             "update_integrity - Search (base=%s filter=%s) returned "
                             "error %d\n", search_base, filter, search_result);
                         rc = SLAPI_PLUGIN_FAILURE;
+                        slapi_free_search_results_internal(search_result_pb);
                         goto free_and_return;
                     }
                 }
                 slapi_ch_free_string(&filter);
+                slapi_free_search_results_internal(search_result_pb);
             }
-            slapi_free_search_results_internal(search_result_pb);
         }
         if (plugin_ContainerScope) {
             /* at the moment only a single scope is supported
@@ -1248,11 +1249,7 @@ free_and_return:
     slapi_ch_array_free(membership_attrs);
 
     slapi_pblock_destroy(mod_pb);
-    if (search_result_pb) {
-        slapi_free_search_results_internal(search_result_pb);
-        slapi_pblock_destroy(search_result_pb);
-    }
- 
+    slapi_pblock_destroy(search_result_pb);
     return(rc);
 }
 

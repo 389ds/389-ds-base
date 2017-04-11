@@ -96,6 +96,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     PRUint64 conn_id;
     int op_id;
     int result_sent = 0;
+    Connection *pb_conn = NULL;
+
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
     }
@@ -117,6 +119,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_resurect_operation = operation_is_flag_set(operation,OP_FLAG_RESURECT_ENTRY);
     is_tombstone = operation_is_flag_set(operation,OP_FLAG_TOMBSTONE_ENTRY); /* tombstone_to_glue on parent entry*/
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
     if (NULL == sdn) {
         slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
@@ -140,10 +143,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         slapi_pblock_set( pb, SLAPI_TXN, parent_txn );
     }
 
-    if (pb->pb_conn)
+    if (pb_conn)
     {
         slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modrdn", "enter conn=%" PRIu64 " op=%d\n",
-                pb->pb_conn->c_connid, operation->o_opid);
+                pb_conn->c_connid, operation->o_opid);
     }
 
     inst = (ldbm_instance *) be->be_instance_info;
@@ -575,7 +578,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 {
                     /* If the new entry is not to be a suffix, 
                      * return an error no matter who requested this modrdn */
-                    if (!slapi_be_issuffix(pb->pb_backend, &dn_newdn))
+                    if (!slapi_be_issuffix(be, &dn_newdn))
                     {
                         /* Here means that we didn't find the parent */
                         int err = 0;
@@ -621,7 +624,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             if ( parententry == NULL )
             {
                 /* If the entry a suffix, and we're root, then it's OK that the parent doesn't exist */
-                if (!(slapi_be_issuffix(pb->pb_backend, sdn)) && !isroot)
+                if (!(slapi_be_issuffix(be, sdn)) && !isroot)
                 {
                     /* Here means that we didn't find the parent */
                     ldap_result_matcheddn = "NULL";
@@ -1536,11 +1539,11 @@ common_return:
         slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, 
                          slapi_ch_strdup(slapi_sdn_get_dn(sdn)));
     }
-    if (pb->pb_conn)
+    if (pb_conn)
     {
         slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modrdn",
                 "leave conn=%" PRIu64 " op=%d\n",
-                pb->pb_conn->c_connid, operation->o_opid);
+                pb_conn->c_connid, operation->o_opid);
     }
     return retval;
 }

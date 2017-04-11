@@ -78,6 +78,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	ID ep_id = 0;
 	ID tomb_ep_id = 0;
 	int result_sent = 0;
+    Connection *pb_conn;
 
 	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
 		conn_id = 0; /* connection is NULL */
@@ -90,6 +91,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	
 	slapi_sdn_init(&nscpEntrySDN);
 	slapi_sdn_init(&parentsdn);
@@ -105,10 +107,10 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_TXN, parent_txn );
 	}
 
-	if (pb->pb_conn)
+	if (pb_conn)
 	{
 		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_delete", "Enter conn=%" PRIu64 " op=%d\n",
-				pb->pb_conn->c_connid, operation->o_opid);
+				pb_conn->c_connid, operation->o_opid);
 	}
 
 	if ((NULL == addr) || (NULL == sdnp))
@@ -457,7 +459,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * seems to deadlock the database when dblayer_txn_begin is
 			 * called.
 			 */
-			slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, pb->pb_backend, is_tombstone_entry);
+			slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, be, is_tombstone_entry);
 			if ( !slapi_sdn_isempty(&parentsdn) )
 			{
 				struct backentry *parent = NULL;
@@ -1491,10 +1493,10 @@ diskfull_return:
 	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
 	slapi_sdn_done(&parentsdn);
-	if (pb->pb_conn)
+	if (pb_conn)
 	{
 		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" PRIu64 " op=%d\n",
-				pb->pb_conn->c_connid, operation->o_opid);
+				pb_conn->c_connid, operation->o_opid);
 	}
 
 	return rc;

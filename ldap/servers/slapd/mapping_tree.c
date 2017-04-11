@@ -3338,7 +3338,6 @@ slapi_get_suffix_by_dn(const Slapi_DN *dn)
 int
 slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
 {
-    Slapi_PBlock pb = {0};
     Slapi_Mods smods;
     int rc = LDAP_SUCCESS,i = 0, j = 0;
     Slapi_DN* node_sdn;
@@ -3407,23 +3406,24 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
             valuearray_free(&svals);
         }
     }
-    
+
     if ( do_modify )
     {
-        slapi_modify_internal_set_pb_ext (&pb, node_sdn,
+        Slapi_PBlock *pb = slapi_pblock_new();
+        slapi_modify_internal_set_pb_ext (pb, node_sdn,
                                 slapi_mods_get_ldapmods_byref(&smods), NULL,
                                 NULL, (void *) plugin_get_default_component_id(), 0);
-        slapi_modify_internal_pb (&pb);
+        slapi_modify_internal_pb (pb);
 
-        slapi_pblock_get (&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-        pblock_done(&pb);
+        slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_pblock_destroy(pb);
     }
 
     slapi_mods_done(&smods);
     slapi_sdn_free(&node_sdn);
 
     return rc;
-} 
+}
 
 /*
  * Change the state of a mapping tree node entry
@@ -3435,7 +3435,6 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
 int
 slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
 {
-    Slapi_PBlock pb = {0};
     Slapi_Mods smods;
     int rc = LDAP_SUCCESS;
     Slapi_DN *node_sdn;
@@ -3461,17 +3460,18 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     }
     
     /* Otherwise, means that the state has changed, modify it */
+    Slapi_PBlock *pb = slapi_pblock_new();
     slapi_mods_init (&smods, 1);
     slapi_mods_add(&smods, LDAP_MOD_REPLACE, "nsslapd-state", strlen(state), state);
-    slapi_modify_internal_set_pb_ext (&pb, node_sdn,
+    slapi_modify_internal_set_pb_ext (pb, node_sdn,
                             slapi_mods_get_ldapmods_byref(&smods), NULL,
                             NULL, (void *) plugin_get_default_component_id(), 0);
-    slapi_modify_internal_pb (&pb);
+    slapi_modify_internal_pb (pb);
 
-    slapi_pblock_get (&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     slapi_mods_done(&smods);
-    pblock_done(&pb);
+    slapi_pblock_destroy(pb);
 bail:
     slapi_ch_free_string(&value);
     slapi_sdn_free(&node_sdn);
@@ -3484,7 +3484,7 @@ bail:
 Slapi_Attr *
 mtn_get_attr(char* node_dn, char * type)
 {
-    Slapi_PBlock pb = {0};
+    Slapi_PBlock *pb = slapi_pblock_new();
     int res = 0;
     Slapi_Entry **entries = NULL;
     Slapi_Attr *attr = NULL;
@@ -3493,17 +3493,17 @@ mtn_get_attr(char* node_dn, char * type)
 
     attrs = (char **)slapi_ch_calloc(2, sizeof(char *));
     attrs[0] = slapi_ch_strdup(type);
-    slapi_search_internal_set_pb(&pb, node_dn, LDAP_SCOPE_BASE,
+    slapi_search_internal_set_pb(pb, node_dn, LDAP_SCOPE_BASE,
         "objectclass=nsMappingTree", attrs, 0, NULL, NULL,
          (void *) plugin_get_default_component_id(), 0);
-    slapi_search_internal_pb(&pb);
-    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 
     if (res != LDAP_SUCCESS) {
         goto done;
     }
 
-    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (NULL == entries || NULL == entries[0]) {
         goto done;
     }
@@ -3514,12 +3514,12 @@ mtn_get_attr(char* node_dn, char * type)
         /* we need to make a copy here so we can free the search results */
         ret_attr = slapi_attr_dup(attr);
 
-    slapi_free_search_results_internal(&pb);
+    slapi_free_search_results_internal(pb);
 
 done:
     slapi_ch_free((void **)&attrs[0]);
     slapi_ch_free((void **)&attrs);
-    pblock_done(&pb);
+    slapi_pblock_destroy(pb);
     return ret_attr;
 }
 
@@ -3873,7 +3873,6 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
 static int
 _mtn_update_config_param(int op, char *type, char *strvalue)
 {
-    Slapi_PBlock confpb = {0};
     Slapi_DN sdn;
     Slapi_Mods smods;
     LDAPMod **mods;
@@ -3891,19 +3890,20 @@ _mtn_update_config_param(int op, char *type, char *strvalue)
     default:
         return rc;
     }
+    Slapi_PBlock *confpb = slapi_pblock_new();
     slapi_sdn_init_ndn_byref(&sdn, SLAPD_CONFIG_DN);
-    slapi_modify_internal_set_pb_ext(&confpb, &sdn,
+    slapi_modify_internal_set_pb_ext(confpb, &sdn,
                                   slapi_mods_get_ldapmods_byref(&smods),
                                   NULL, NULL,
                                   (void *)plugin_get_default_component_id(), 0);
-    slapi_modify_internal_pb(&confpb);
-    slapi_pblock_get (&confpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_modify_internal_pb(confpb);
+    slapi_pblock_get (confpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_sdn_done(&sdn);
     /* need to free passed out mods 
      * since the internal modify could realloced mods. */
-    slapi_pblock_get(&confpb, SLAPI_MODIFY_MODS, &mods);
+    slapi_pblock_get(confpb, SLAPI_MODIFY_MODS, &mods);
     ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
-    pblock_done(&confpb);
+    slapi_pblock_destroy(confpb);
 
     return rc;
 }

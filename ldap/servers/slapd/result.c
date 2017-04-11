@@ -338,7 +338,7 @@ send_ldap_result_ext(
 {
 	Slapi_Operation *operation;
 	passwdPolicy *pwpolicy = NULL;
-	Connection *conn = pb->pb_conn;
+	Connection *conn = NULL;
 	Slapi_DN *sdn = NULL;
 	const char *dn = NULL;
 	ber_tag_t	tag;
@@ -349,6 +349,7 @@ send_ldap_result_ext(
 
 	slapi_pblock_get (pb, SLAPI_BIND_METHOD, &bind_method);
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 
 	if (operation->o_status == SLAPI_OP_STATUS_RESULT_SENT) {
 		return; /* result already sent */
@@ -656,7 +657,8 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
     if (slapi_control_present(req_ctls, oid, &req_value, &iscritical))
     {
         BerElement *req_ber = NULL;
-        Operation *op = pb->pb_op;
+        Operation *op = NULL;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
         if(strcmp(oid,LDAP_CONTROL_PRE_READ_ENTRY) == 0){
             /* first verify this is the correct operation for a pre-read entry control */
@@ -811,19 +813,22 @@ send_ldapv3_referral(
     struct berval	**urls
 )
 {
-	Connection	*conn = pb->pb_conn;
+	Connection	*conn = NULL;
 	BerElement	*ber;
 	int		i, rc, logit = 0;
 	Slapi_Operation *operation;
+    Slapi_Backend *pb_backend;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
 
 	slapi_log_err(SLAPI_LOG_TRACE, "send_ldapv3_referral", "=>\n");
 	
 	if ( conn == NULL ) {
 		if ( operation->o_search_referral_handler != NULL ) {
 			if (( rc = (*operation->o_search_referral_handler)(
-			    pb->pb_backend, conn, operation, urls )) == 0 ) {
+			    pb_backend, conn, operation, urls )) == 0 ) {
 				logit = 1;
 			}
 			goto log_and_return;
@@ -904,6 +909,8 @@ send_ldap_referral (
 	char	*refAttr = "ref";
 	char	*attrs[2] = { NULL, NULL };
 
+    Connection *pb_conn;
+
 	/* count the referral */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
 
@@ -914,7 +921,7 @@ send_ldap_referral (
 	    != LDAP_SUCCESS ) {
 		return( 0 );
 	}
-	if ( pb->pb_conn && pb->pb_conn->c_ldapversion > LDAP_VERSION2 ) {
+	if ( pb_conn && pb_conn->c_ldapversion > LDAP_VERSION2 ) {
 		/*
 		 * v3 connection - send the referral(s) in a
 		 * SearchResultReference packet right now.
@@ -1473,8 +1480,7 @@ send_ldap_search_entry_ext(
     struct berval       **urls
 )
 {
-	Connection	*conn = pb->pb_conn;
-	Operation	*op = pb->pb_op;
+	Connection	*conn = NULL;
 	BerElement	*ber = NULL;
 	int		i, rc = 0, logit = 0;
 	int		alluserattrs;
@@ -1489,6 +1495,7 @@ send_ldap_search_entry_ext(
 	LDAPControl	**searchctrlp = NULL;
 	
 
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	slapi_log_err(SLAPI_LOG_TRACE, "send_ldap_search_entry_ext", "=> (%s)\n",
@@ -1515,9 +1522,12 @@ send_ldap_search_entry_ext(
 	slapi_pblock_get(pb, SLAPI_SEARCH_CTRLS, &searchctrlp);
 
 	if ( conn == NULL && e ) {
-		if ( op->o_search_entry_handler != NULL ) {
-			if (( rc = (*op->o_search_entry_handler)(
-			    pb->pb_backend, conn, op, e )) == 0 ) {
+        Slapi_Backend *pb_backend;
+        slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
+
+		if ( operation->o_search_entry_handler != NULL ) {
+			if (( rc = (*operation->o_search_entry_handler)(
+			    pb_backend, conn, operation, e )) == 0 ) {
 				logit = 1;
 				goto log_and_return;
 			} else {
@@ -1550,7 +1560,7 @@ send_ldap_search_entry_ext(
 		goto cleanup;
 	}
 
-	rc = ber_printf( ber, "{it{s{", op->o_msgid,
+	rc = ber_printf( ber, "{it{s{", operation->o_msgid,
 	    LDAP_RES_SEARCH_ENTRY, slapi_entry_get_dn_const(e) );
 
 	if ( rc == -1 ) {
@@ -1620,13 +1630,13 @@ send_ldap_search_entry_ext(
 
 	/* look through each attribute in the entry */
 	if ( alluserattrs || alloperationalattrs ) {
-		rc = send_all_attrs(e, attrs, op, pb, ber, attrsonly, conn->c_ldapversion,
+		rc = send_all_attrs(e, attrs, operation, pb, ber, attrsonly, conn->c_ldapversion,
 		                    real_attrs_only, some_named_attrs, alloperationalattrs, alluserattrs);
 	}
 	
 	/* if the client explicitly specified a list of attributes look through each attribute requested */
 	if( (rc == 0) && (attrs!=NULL) && !noattrs) {
-		rc = send_specific_attrs(e,attrs,op,pb,ber,attrsonly,conn->c_ldapversion,real_attrs_only);
+		rc = send_specific_attrs(e,attrs,operation,pb,ber,attrsonly,conn->c_ldapversion,real_attrs_only);
 	}
 
 	/* Append effective rights to the stream of attribute list */
@@ -1682,7 +1692,7 @@ send_ldap_search_entry_ext(
 	}
 
 	/* write only one pdu at a time - wait til it's our turn */
-	if ( (rc = flush_ber( pb, conn, op, ber, _LDAP_SEND_ENTRY )) == 0 ) {
+	if ( (rc = flush_ber( pb, conn, operation, ber, _LDAP_SEND_ENTRY )) == 0 ) {
 		logit = 1;
 	}
 	ber = NULL; /* flush_ber will always free the ber */
@@ -1690,12 +1700,12 @@ send_ldap_search_entry_ext(
 log_and_return:
 	if ( logit && operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
 
-	    log_entry( op, e );
+	    log_entry( operation, e );
 
 	    if (send_result) {
 		ber_tag_t	tag;
 
-		switch ( op->o_tag ) {
+		switch ( operation->o_tag ) {
 		case LBER_DEFAULT:
 		    tag = LBER_SEQUENCE;
 		    break;
@@ -1716,11 +1726,11 @@ log_and_return:
 		    /* FALLTHROUGH */
 
 		default:
-		    tag = op->o_tag + 1;
+		    tag = operation->o_tag + 1;
 		    break;
 		}	    
 
-		log_result( pb, op, LDAP_SUCCESS, tag, nentries );
+		log_result( pb, operation, LDAP_SUCCESS, tag, nentries );
 	    }
 	}
 cleanup:
@@ -1939,6 +1949,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 	char etime[ETIME_BUFSIZ];
 	int pr_idx = -1;
 	int pr_cookie = -1;
+    uint32_t operation_notes;
 
 	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
 	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_COOKIE, &pr_cookie);
@@ -1953,12 +1964,14 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 		PR_snprintf(etime, ETIME_BUFSIZ, "%ld", current_time() - op->o_time);
 	}
 
-	if ( 0 == pb->pb_operation_notes ) {
+    slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &operation_notes);
+
+	if ( 0 == operation_notes ) {
 		notes_str = "";
 	} else {
 		notes_str = notes_buf;
 		*notes_buf = ' ';
-		notes2str( pb->pb_operation_notes, notes_buf + 1, sizeof( notes_buf ) - 1 );
+		notes2str( operation_notes, notes_buf + 1, sizeof( notes_buf ) - 1 );
 	} 
 
 	csn_str[0] = '\0';
@@ -2187,8 +2200,8 @@ log_referral( Operation *op )
 static struct berval *
 encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserattrs, int attr_count)
 {
-    Slapi_Operation *op = pb->pb_op;
-    Connection*conn = pb->pb_conn;
+    Slapi_Operation *op = NULL;
+    Connection *conn = NULL;
     LDAPControl **ctrlp = NULL;
     struct berval *bv = NULL;
     BerElement *ber = NULL;
@@ -2199,6 +2212,9 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
         rc = -1;
         goto cleanup;
     }
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 
     /* Start the ber encoding with the DN */
     rc = ber_printf( ber, "t{s{", LDAP_RES_SEARCH_ENTRY, slapi_entry_get_dn_const(e) );

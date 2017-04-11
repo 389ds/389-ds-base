@@ -23,7 +23,7 @@ static int defsize = SLAPD_DEFAULT_SIZELIMIT;
 static int deftime = SLAPD_DEFAULT_TIMELIMIT;
 static int nbackends= 0;
 static Slapi_Backend **backends= NULL;
-static int maxbackends= 0;
+static size_t maxbackends = 0;
 
 Slapi_Backend *
 slapi_be_new( const char *type, const char *name, int isprivate, int logchanges )
@@ -271,8 +271,7 @@ int strtrimcasecmp(const char *s1, const char *s2)
 Slapi_Backend *
 slapi_be_select_by_instance_name( const char *name )
 {
-	int i;
-	for ( i = 0; i < maxbackends; i++ )
+	for (size_t i = 0; i < maxbackends; i++ )
 	{
 		if ( backends[i] && (backends[i]->be_state != BE_STATE_DELETED) &&
 			strtrimcasecmp( backends[i]->be_name, name ) == 0)
@@ -286,16 +285,15 @@ slapi_be_select_by_instance_name( const char *name )
 void
 be_cleanupall()
 {
-    int             i;
-    Slapi_PBlock    pb = {0};
-
-    for ( i = 0; i < maxbackends; i++ )
+    for (size_t i = 0; i < maxbackends; i++ )
     {
         if (backends[i] && (backends[i]->be_state == BE_STATE_STOPPED || backends[i]->be_state == BE_STATE_DELETED)) {
             if (backends[i]->be_cleanup != NULL) {
-                slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
-                slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
-                (*backends[i]->be_cleanup)( &pb );
+                Slapi_PBlock    *pb = slapi_pblock_new();
+                slapi_pblock_set(pb, SLAPI_PLUGIN, backends[i]->be_database );
+                slapi_pblock_set(pb, SLAPI_BACKEND, backends[i] );
+                (*backends[i]->be_cleanup)( pb );
+                slapi_pblock_destroy(pb);
             }
             slapi_be_free(&backends[i]);
         }
@@ -312,24 +310,18 @@ be_cleanupall()
  */
 void
 be_flushall()
-#if defined(__has_feature)
-#  if __has_feature(address_sanitizer) && __GNUC__ == 6
-__attribute__((no_sanitize("address")))
-#  endif
-#endif
 {
-    int i;
-    Slapi_PBlock pb = {0};
-
-    for ( i = 0; i < maxbackends; i++ )
+    for (size_t i = 0; i < maxbackends; i++ )
     {
         if ( backends[i] &&
              backends[i]->be_state == BE_STATE_STARTED &&
              backends[i]->be_flush != NULL )
         {
-            slapi_pblock_set( &pb, SLAPI_PLUGIN,  backends[i]->be_database );
-            slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
-            (*backends[i]->be_flush)( &pb );
+            Slapi_PBlock    *pb = slapi_pblock_new();
+            slapi_pblock_set(pb, SLAPI_PLUGIN,  backends[i]->be_database );
+            slapi_pblock_set(pb, SLAPI_BACKEND, backends[i] );
+            (*backends[i]->be_flush)( pb );
+            slapi_pblock_destroy(pb);
         }
     }
 }
@@ -337,30 +329,34 @@ __attribute__((no_sanitize("address")))
 void
 be_unbindall(Connection *conn, Operation *op)
 {
-    int     i;
-    Slapi_PBlock pb = {0};
-
-    for ( i = 0; i < maxbackends; i++ )
+    for (size_t i = 0; i < maxbackends; i++ )
     {
         if ( backends[i] && (backends[i]->be_unbind != NULL) )
         {
             /* This is the modern, and faster way to do pb memset(0) 
              * It also doesn't trigger the HORRIBLE stack overflows I found ...
              */
-            pblock_init_common( &pb, backends[i], conn, op );
+            Slapi_PBlock    *pb = slapi_pblock_new();
+            pblock_init_common( pb, backends[i], conn, op );
 
-            if ( plugin_call_plugins( &pb, SLAPI_PLUGIN_PRE_UNBIND_FN ) == 0 )
+            if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_UNBIND_FN ) == 0 )
             {
                 int rc = 0;
-                slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
-                if(backends[i]->be_state != BE_STATE_DELETED && 
-                   backends[i]->be_unbind!=NULL)
+                slapi_pblock_set( pb, SLAPI_PLUGIN, backends[i]->be_database );
+                if(backends[i]->be_state != BE_STATE_DELETED && backends[i]->be_unbind!=NULL)
                 {
-                    rc = (*backends[i]->be_unbind)( &pb );
+                    rc = (*backends[i]->be_unbind)( pb );
                 }
-                slapi_pblock_set( &pb, SLAPI_PLUGIN_OPRETURN, &rc );
-                (void) plugin_call_plugins( &pb, SLAPI_PLUGIN_POST_UNBIND_FN );
+                slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &rc );
+                (void) plugin_call_plugins( pb, SLAPI_PLUGIN_POST_UNBIND_FN );
             }
+            /*
+             * pblock_destroy implicitly frees operation, so we need to NULL it, else
+             * we cause a use-after-free.
+             */
+            slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
+
+            slapi_pblock_destroy(pb);
         }
     }
 }

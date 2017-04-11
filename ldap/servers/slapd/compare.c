@@ -33,7 +33,12 @@
 void
 do_compare( Slapi_PBlock *pb )
 {
-	BerElement	*ber = pb->pb_op->o_ber;
+    Operation *pb_op = NULL;
+    Connection *pb_conn = NULL;
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+	BerElement	*ber = pb_op->o_ber;
 	char		*rawdn = NULL;
 	const char	*dn = NULL;
 	struct ava	ava = {0};
@@ -105,14 +110,14 @@ do_compare( Slapi_PBlock *pb )
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	operation_set_target_spec (pb->pb_op, &sdn);
+	operation_set_target_spec (pb_op, &sdn);
 
 	slapi_log_err(SLAPI_LOG_ARGS, "do_compare: dn (%s) attr (%s)\n",
 	    rawdn, ava.ava_type, 0 );
 
 	slapi_log_access( LDAP_DEBUG_STATS,
 	    "conn=%" PRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
-	    pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, ava.ava_type );
+	    pb_conn->c_connid, pb_op->o_opid, dn, ava.ava_type );
 
 	/*
 	 * We could be serving multiple database backends.  Select the
@@ -146,7 +151,7 @@ do_compare( Slapi_PBlock *pb )
 		int		isroot;
 		    
 		slapi_pblock_set( pb, SLAPI_BACKEND, be );
-		isroot = pb->pb_op->o_isroot;
+		isroot = pb_op->o_isroot;
 
 		slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
 		/* EXCEPTION: compare target does not allocate memory. */

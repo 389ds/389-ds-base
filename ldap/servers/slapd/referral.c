@@ -475,9 +475,11 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
     return (NULL);
   }
 
+    Connection  *pb_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-  /* Fix for 310968 --- return an SSL referral to an SSL client */
-	if ( 0 != ( pb->pb_conn->c_flags & CONN_FLAG_SSL )) {
+    /* Fix for 310968 --- return an SSL referral to an SSL client */
+	if ( 0 != ( pb_conn->c_flags & CONN_FLAG_SSL )) {
 		/* SSL connection */
 		char * old_referral_string = NULL;
 		char * new_referral_string = NULL;

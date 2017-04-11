@@ -127,6 +127,7 @@ start_tls( Slapi_PBlock *pb )
 
 	char		*oid;
 	Connection      *conn;
+    Operation *pb_op;
 	int             ldaprc = LDAP_SUCCESS;
 	char            *ldapmsg = NULL;
 
@@ -171,7 +172,7 @@ start_tls( Slapi_PBlock *pb )
 
 	/* At least we know that the request was indeed an Start TLS one. */
 
-	conn = pb->pb_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 	PR_EnterMonitor(conn->c_mutex);
 	/* cannot call slapi_send_ldap_result with mutex locked - will deadlock if ber_flush returns error */
 	if ( conn->c_prfd == (PRFileDesc *) NULL ) {
@@ -182,8 +183,10 @@ start_tls( Slapi_PBlock *pb )
 		goto unlock_and_return;
 	}
 
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+
 	/* Check whether the Start TLS request can be accepted. */
-	if ( connection_operations_pending( conn, pb->pb_op,
+	if ( connection_operations_pending( conn, pb_op,
 				1 /* check for ops where result not yet sent */ )) {
 		slapi_log_err(SLAPI_LOG_PLUGIN, "start_tls", 
 				 "Other operations are still pending on the connection.\n" );
@@ -270,13 +273,14 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	struct slapdplugin  *plugin;
 	int secure = 0;
 	PRFileDesc *ssl_fd;
+    Operation *pb_op = NULL;
 
 	if ( pblock == NULL ) {
 	       pblock = slapi_pblock_new();
 	       plugin = (struct slapdplugin *) slapi_ch_calloc( 1, sizeof( struct slapdplugin ) );
-	       pblock->pb_plugin = plugin; 	       
-	       pblock->pb_conn = c;
-	       pblock->pb_op = c->c_ops;
+           slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
+           slapi_pblock_set(pb, SLAPI_CONNECTION, c);
+           slapi_pblock_set(pb, SLAPI_OPERATION, c->c_ops);
 	       set_db_default_result_handlers( pblock );
 	       if ( slapi_pblock_set( pblock, SLAPI_EXT_OP_RET_OID, START_TLS_OID ) != 0 ) {
 		       slapi_log_err(SLAPI_LOG_PLUGIN, "start_tls", 
@@ -288,10 +292,11 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	       slapi_ch_free( (void **) &plugin );
 	}
 
+    slapi_pblock_get(pblock, SLAPI_OPERATION, &pb_op);
 	/* First thing to do is to finish with whatever operation may be hanging on the
 	 * encrypted session.
 	 */
-	while ( connection_operations_pending( c, pblock->pb_op,
+	while ( connection_operations_pending( c, pb_op,
 				0 /* wait for all other ops to full complete */ )) {
 	  slapi_log_err(SLAPI_LOG_PLUGIN, "start_tls",
 			   "Still %d operations to be completed before closing the SSL connection.\n",

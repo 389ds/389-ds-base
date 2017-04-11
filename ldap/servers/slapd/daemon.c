@@ -831,20 +831,19 @@ convert_pbe_des_to_aes(void)
         for (i = 0; attrs && attrs[i]; i++){
             char *filter = PR_smprintf("%s=*", attrs[i]);
 
-            Slapi_PBlock pb = {0};
-            slapi_search_internal_set_pb(&pb, "cn=config",
+            Slapi_PBlock *pb = slapi_pblock_new();
+            slapi_search_internal_set_pb(pb, "cn=config",
                 LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL,
                 (void *)plugin_get_default_component_id(),
                 SLAPI_OP_FLAG_IGNORE_UNINDEXED);
-            slapi_search_internal_pb(&pb);
-            slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            slapi_search_internal_pb(pb);
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
             for (ii = 0; entries && entries[ii]; ii++){
                 if((val = slapi_entry_attr_get_charptr(entries[ii], attrs[i]))){
                     if(strlen(val) >= 5 && strncmp(val,"{DES}", 5) == 0){
                         /*
                          * We have a DES encoded password, convert it to AES
                          */
-                        Slapi_PBlock mod_pb = {0};
                         Slapi_Value *sval = NULL;
                         LDAPMod mod_replace;
                         LDAPMod *mods[2];
@@ -872,6 +871,7 @@ convert_pbe_des_to_aes(void)
                         }
 
                         if (rc == 0){
+                            Slapi_PBlock *mod_pb = slapi_pblock_new();
                             /* replace the attribute in the entry */
                             replace_val[0] = (char *)slapi_value_get_string(sval);
                             replace_val[1] = NULL;
@@ -881,11 +881,12 @@ convert_pbe_des_to_aes(void)
                             mods[0] = &mod_replace;
                             mods[1] = 0;
 
-                            slapi_modify_internal_set_pb(&mod_pb, slapi_entry_get_dn(entries[ii]),
+                            slapi_modify_internal_set_pb(mod_pb, slapi_entry_get_dn(entries[ii]),
                                     mods, 0, 0, (void *)plugin_get_default_component_id(), 0);
-                            slapi_modify_internal_pb(&mod_pb);
+                            slapi_modify_internal_pb(mod_pb);
 
-                            slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+                            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+                            slapi_pblock_destroy(mod_pb);
                             if (LDAP_SUCCESS != result) {
                                 slapi_log_err(SLAPI_LOG_ERR, "convert_pbe_des_to_aes",
                                         "Failed to convert password for (%s) error (%d)\n",
@@ -899,13 +900,12 @@ convert_pbe_des_to_aes(void)
                         }
                         slapi_ch_free_string(&passwd);
                         slapi_value_free(&sval);
-                        pblock_done(&mod_pb);
                     }
                     slapi_ch_free_string(&val);
                 }
             }
-            slapi_free_search_results_internal(&pb);
-            pblock_done(&pb);
+            slapi_free_search_results_internal(pb);
+            slapi_pblock_destroy(pb);
             slapi_ch_free_string(&filter);
         }
         if (!converted_des_passwd){

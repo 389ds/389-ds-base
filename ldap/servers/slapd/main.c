@@ -2008,7 +2008,6 @@ static int
 slapd_exemode_ldif2db(void)
 {
     int return_value= 0;
-    Slapi_PBlock pb = {0};
     struct slapdplugin *plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2099,27 +2098,30 @@ slapd_exemode_ldif2db(void)
     if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
         g_set_detached(1);
     }
-    pb.pb_backend = NULL;
-    pb.pb_plugin = plugin;
-    pb.pb_removedupvals = ldif2db_removedupvals;
-    pb.pb_ldif2db_noattrindexes = ldif2db_noattrindexes;
-    pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;
-    pb.pb_ldif_namespaceid = ldif2db_namespaceid;
-    pb.pb_ldif_encrypt = importexport_encrypt;
-    pb.pb_instance_name = cmd_line_instance_name;
-    pb.pb_ldif_files = ldif_file;
-    pb.pb_ldif_include = db2ldif_include;
-    pb.pb_ldif_exclude = db2ldif_exclude;
-    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_REMOVEDUPVALS, &ldif2db_removedupvals);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NOATTRINDEXES, &ldif2db_noattrindexes);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &importexport_encrypt);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_FILE, ldif_file);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_INCLUDE, db2ldif_include);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, db2ldif_exclude);
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     main_setuid(slapdFrontendConfig->localuser);
     if ( plugin->plg_ldif2db != NULL ) {
-        return_value = (*plugin->plg_ldif2db)( &pb );
+        return_value = (*plugin->plg_ldif2db)( pb );
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
                    "No ldif2db function defined for "
                    "%s\n", plugin->plg_name);
         return_value = -1;
     }
+    slapi_pblock_destroy(pb);
     slapi_ch_free((void**)&myname );
     charray_free( db2index_attrs );
     charray_free(ldif_file);
@@ -2130,7 +2132,6 @@ static int
 slapd_exemode_db2ldif(int argc, char** argv)
 {
     int return_value= 0;
-    Slapi_PBlock pb = {0};
     struct slapdplugin *plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	char *my_ldiffile;
@@ -2222,19 +2223,22 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	    if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
 	        g_set_detached(1);
 	    }
-	    pb.pb_backend = NULL;
-	    pb.pb_plugin = plugin;
-	    pb.pb_ldif_include = db2ldif_include;
-	    pb.pb_ldif_exclude = db2ldif_exclude;
-	    pb.pb_ldif_dump_replica = db2ldif_dump_replica;
-	    pb.pb_ldif_dump_uniqueid = db2ldif_dump_uniqueid;
-		pb.pb_ldif_encrypt = importexport_encrypt;
-	    pb.pb_instance_name = *instp;
-	    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-		if (is_slapd_running())
-			pb.pb_server_running = 1;
-		else
-			pb.pb_server_running = 0;
+        Slapi_PBlock *pb = slapi_pblock_new();
+        slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+        slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
+        slapi_pblock_set(pb, SLAPI_LDIF2DB_INCLUDE, db2ldif_include);
+        slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, db2ldif_exclude);
+        slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &importexport_encrypt);
+        slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, *instp);
+        slapi_pblock_set_ldif_dump_replica(pb, db2ldif_dump_replica);
+        slapi_pblock_set(pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &db2ldif_dump_uniqueid);
+        int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+        slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
+        int32_t is_running = 0;
+		if (is_slapd_running()) {
+            is_running = 1;
+        }
+        slapi_pblock_set(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &is_running);
 	
 		if (db2ldif_dump_replica) {
 			char **plugin_list = NULL;
@@ -2255,7 +2259,6 @@ slapd_exemode_db2ldif(int argc, char** argv)
 			charray_free(plugin_list);
 		}
 	  
-	    pb.pb_ldif_file = NULL;
 	    if ( archive_name ) { /* redirect stdout to this file: */
             char *p, *q;
 			char sep = '/';
@@ -2293,11 +2296,13 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	         * the backend open it (so they can do special
 	         * stuff for 64-bit fs)
 	         */
-	        pb.pb_ldif_file = my_ldiffile;
-	        pb.pb_ldif_printkey = ldif_printkey;
+            slapi_pblock_set(pb, SLAPI_DB2LDIF_FILE, my_ldiffile);
+            slapi_pblock_set(pb, SLAPI_DB2LDIF_PRINTKEY, &ldif_printkey);
 	    }
 	
-	    return_value = (plugin->plg_db2ldif)( &pb );
+	    return_value = (plugin->plg_db2ldif)( pb );
+
+        slapi_pblock_destroy(pb);
 
 		if (release_me) {
 			slapi_ch_free((void **)&my_ldiffile);
@@ -2347,7 +2352,6 @@ static int slapd_exemode_db2index(void)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
-    Slapi_PBlock pb = {0};
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     mapping_tree_init();
@@ -2417,14 +2421,17 @@ static int slapd_exemode_db2index(void)
         usage( myname, extraname );
         return 1;
     }
-    pb.pb_backend = NULL;
-    pb.pb_plugin = plugin;
-    pb.pb_db2index_attrs = db2index_attrs;
-    pb.pb_instance_name = cmd_line_instance_name;
-    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
+    slapi_pblock_set(pb, SLAPI_DB2INDEX_ATTRS, db2index_attrs);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     main_setuid(slapdFrontendConfig->localuser);
-    return_value = (*plugin->plg_db2index)( &pb );
+    return_value = (*plugin->plg_db2index)( pb );
 
+    slapi_pblock_destroy(pb);
     slapi_ch_free( (void**)&myname );
     return( return_value );
 }
@@ -2434,7 +2441,6 @@ static int
 slapd_exemode_db2archive(void)
 {
     int return_value= 0;
-	Slapi_PBlock pb = {0};
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
@@ -2471,13 +2477,15 @@ slapd_exemode_db2archive(void)
 		g_set_detached(1);
 	}
 
-	pb.pb_backend = NULL;
-	pb.pb_plugin = backend_plugin;
-	pb.pb_instance_name = NULL;
-	pb.pb_seq_val = archive_name;
-	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+	Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
 	main_setuid(slapdFrontendConfig->localuser);
-	return_value = (backend_plugin->plg_db2archive)( &pb );
+	return_value = (backend_plugin->plg_db2archive)( pb );
+    slapi_pblock_destroy(pb);
 	return return_value;
 }
 
@@ -2485,7 +2493,6 @@ static int
 slapd_exemode_archive2db(void)
 {
 	int return_value= 0;
-	Slapi_PBlock pb = {0};
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
@@ -2523,13 +2530,16 @@ slapd_exemode_archive2db(void)
 		g_set_detached(1);
 	}
 
-	pb.pb_backend = NULL;
-	pb.pb_plugin = backend_plugin;
-	pb.pb_instance_name = cmd_line_instance_name;
-	pb.pb_seq_val = archive_name;
-	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+	Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
 	main_setuid(slapdFrontendConfig->localuser);
-	return_value = (backend_plugin->plg_archive2db)( &pb );
+	return_value = (backend_plugin->plg_archive2db)( pb );
+    slapi_pblock_destroy(pb);
 	return return_value;
 }	
 
@@ -2541,7 +2551,6 @@ static int
 slapd_exemode_upgradedb(void)
 {
     int return_value= 0;
-    Slapi_PBlock pb = {0};
     struct slapdplugin *backend_plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2579,25 +2588,26 @@ slapd_exemode_upgradedb(void)
         return 1;
     }
 
-    pb.pb_backend = NULL;
-    pb.pb_plugin = backend_plugin;
-    pb.pb_seq_val = archive_name;
-    pb.pb_seq_type = upgradedb_flags;
-    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
+    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &upgradedb_flags);
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     /* borrowing import code, so need to set up the import variables */
-    pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;
-    pb.pb_ldif_namespaceid = ldif2db_namespaceid;
-    pb.pb_ldif2db_noattrindexes = 0;
-    pb.pb_removedupvals = 0;
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
     main_setuid(slapdFrontendConfig->localuser);
     if ( backend_plugin->plg_upgradedb != NULL ) {
-        return_value = (*backend_plugin->plg_upgradedb)( &pb );
+        return_value = (*backend_plugin->plg_upgradedb)( pb );
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradedb",
                    "No upgradedb function defined for "
                    "%s\n", backend_plugin->plg_name);
         return_value = -1;
     }
+    slapi_pblock_destroy(pb);
     slapi_ch_free((void**)&myname );
     return( return_value );
 }
@@ -2607,7 +2617,6 @@ static int
 slapd_exemode_upgradednformat(void)
 {
     int rc = -1; /* error, by default */
-    Slapi_PBlock pb = {0};
     struct slapdplugin *backend_plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2649,29 +2658,30 @@ slapd_exemode_upgradednformat(void)
         goto bail;
     }
 
-    pb.pb_backend = NULL;
-    pb.pb_plugin = backend_plugin;
-    pb.pb_instance_name = cmd_line_instance_name;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    int32_t seq_type = SLAPI_UPGRADEDNFORMAT;
     if (upgradednformat_dryrun) {
-        pb.pb_seq_type = SLAPI_UPGRADEDNFORMAT|SLAPI_DRYRUN;
-    } else {
-        pb.pb_seq_type = SLAPI_UPGRADEDNFORMAT;
+        seq_type = SLAPI_UPGRADEDNFORMAT|SLAPI_DRYRUN;
     }
-    pb.pb_seq_val = archive_name; /* Path to the work db instance dir */
-    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &seq_type);
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name); /* Path to the work db instance dir */
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     /* borrowing import code, so need to set up the import variables */
-    pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;
-    pb.pb_ldif_namespaceid = ldif2db_namespaceid;
-    pb.pb_ldif2db_noattrindexes = 0;
-    pb.pb_removedupvals = 0;
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
     main_setuid(slapdFrontendConfig->localuser);
     if ( backend_plugin->plg_upgradednformat != NULL ) {
-        rc  = (*backend_plugin->plg_upgradednformat)( &pb );
+        rc  = (*backend_plugin->plg_upgradednformat)( pb );
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradednformat",
                    "No upgradednformat function defined for "
                    "%s\n", backend_plugin->plg_name);
     }
+    slapi_pblock_destroy(pb);
 bail:
     slapi_ch_free((void**)&myname );
     return( rc  );
@@ -2684,7 +2694,6 @@ static int
 slapd_exemode_dbverify(void)
 {
     int return_value = 0;
-    Slapi_PBlock pb = {0};
     struct slapdplugin *backend_plugin;
 
     /* this should be the first time to be called!  if the init order
@@ -2704,21 +2713,24 @@ slapd_exemode_dbverify(void)
         return 1;
     }
 
-    pb.pb_backend = NULL;
-    pb.pb_seq_type = dbverify_verbose;
-    pb.pb_plugin = backend_plugin;
-    pb.pb_instance_name = (char *)cmd_line_instance_names;
-    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-    pb.pb_dbverify_dbdir = dbverify_dbdir;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
+    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &dbverify_verbose);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
+    slapi_pblock_set(pb, SLAPI_DBVERIFY_DBDIR, dbverify_dbdir);
 
     if ( backend_plugin->plg_dbverify != NULL ) {
-        return_value = (*backend_plugin->plg_dbverify)( &pb );
+        return_value = (*backend_plugin->plg_dbverify)( pb );
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_dbverify",
                    "No db verify function defined for "
                    "%s\n", backend_plugin->plg_name);
         return_value = -1;
     }
+    slapi_pblock_destroy(pb);
 
     return( return_value );
 }

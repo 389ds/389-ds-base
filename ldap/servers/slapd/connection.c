@@ -482,7 +482,7 @@ referral_mode_reply(Slapi_PBlock *pb)
 	    struct berval *urls[2], url;
 	    char *refer;
 	    refer = config_get_referral_mode();
-	    pb->pb_plugin = plugin;
+        slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
 	    set_db_default_result_handlers(pb);
 	    urls[0] = &url;
 	    urls[1] = NULL;
@@ -512,7 +512,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 	{
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid,
+			conn->c_connid, op->o_opid,
 			"UNPROCESSED OPERATION - need new password" );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, 
 			NULL, NULL, 0, NULL );
@@ -941,7 +941,7 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_TURBO_PERCENTILE 50 /* proportion of threads allowed to be in turbo mode */
 #define CONN_TURBO_HYSTERESIS 0 /* avoid flip flopping in and out of turbo mode */
 
-void connection_make_new_pb(Slapi_PBlock	*pb, Connection	*conn)
+void connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
 {
 	struct Slapi_op_stack *stack_obj = NULL;
 	/* we used to malloc/free the pb for each operation - now, just use a local stack pb
@@ -949,11 +949,11 @@ void connection_make_new_pb(Slapi_PBlock	*pb, Connection	*conn)
 	 */
 	/* *ppb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) ); */
 	/* *ppb = slapi_pblock_new(); */
-	pb->pb_conn = conn;
+    slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
 	stack_obj = connection_get_operation();
-	pb->pb_op = stack_obj->op;
-	pb->op_stack_elem = stack_obj;
-	connection_add_operation( conn, pb->pb_op );
+    slapi_pblock_set(pb, SLAPI_OPERATION, stack_obj->op);
+    slapi_pblock_set_op_stack_elem(pb, stack_obj);
+	connection_add_operation( conn, stack_obj->op );
 }
 
 int connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
@@ -977,9 +977,9 @@ int connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
 		ret = CONN_NOWORK;
 	} else {
 		/* make new pb */
-		pb->pb_conn = (Connection *)wqitem;
-		pb->op_stack_elem = op_stack_obj;
-		pb->pb_op = op_stack_obj->op;
+        slapi_pblock_set(pb, SLAPI_CONNECTION, wqitem);
+        slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
+        slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
 	}
 
 	PR_Unlock( work_q_lock );
@@ -1491,8 +1491,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 static void
 connection_threadmain()
 {
-	Slapi_PBlock    local_pb;
-	Slapi_PBlock	*pb = &local_pb;
+	Slapi_PBlock	*pb = slapi_pblock_new();
 	/* wait forever for new pb until one is available or shutdown */
 	PRIntervalTime	interval = PR_INTERVAL_NO_TIMEOUT; /* PR_SecondsToInterval(10); */
 	Connection	*conn = NULL;
@@ -1507,6 +1506,8 @@ connection_threadmain()
 	int maxthreads = 0;
 	int enable_nunc_stans = 0;
 	long bypasspollcnt = 0;
+    Connection *pb_conn = NULL;
+    Operation *pb_op = NULL;
 
 #ifdef ENABLE_NUNC_STANS
 	enable_nunc_stans = config_get_enable_nunc_stans();
@@ -1516,7 +1517,6 @@ connection_threadmain()
 	SIGNAL( SIGPIPE, SIG_IGN );
 #endif
 
-	pblock_init(pb);
 	while (1) {
 		int is_timedout = 0;
 		time_t curtime = 0;
@@ -1534,6 +1534,13 @@ connection_threadmain()
 			   done sending the request and wait for the response forever.
 			   [blackflag 624234] */
 			ret = connection_wait_for_new_work(pb,interval);
+
+            /*
+             * Connection wait for new work provides the conn and op for us. 
+             */
+            slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+
 			switch (ret) {
 				case CONN_NOWORK:
 					PR_ASSERT(interval != PR_INTERVAL_NO_TIMEOUT); /* this should never happen with PR_INTERVAL_NO_TIMEOUT */
@@ -1549,7 +1556,7 @@ connection_threadmain()
 					   in connection_activity when the conn is added to the
 					   work queue, setup_pr_read_pds won't add the connection prfd
 					   to the poll list */
-					if(pb->pb_conn->c_opscompleted == 0){
+					if(pb_conn->c_opscompleted == 0){
 						/*
 						 * We have a new connection, set the anonymous reslimit idletimeout
 						 * if applicable.
@@ -1559,19 +1566,19 @@ connection_threadmain()
 						/* If an anonymous limits dn is set, use it to set the limits. */
 						if (anon_dn && (strlen(anon_dn) > 0)) {
 							Slapi_DN *anon_sdn = slapi_sdn_new_normdn_byref( anon_dn );
-							reslimit_update_from_dn( pb->pb_conn, anon_sdn );
+							reslimit_update_from_dn( pb_conn, anon_sdn );
 							slapi_sdn_free( &anon_sdn );
-							if (slapi_reslimit_get_integer_limit(pb->pb_conn,
-							                                     pb->pb_conn->c_idletimeout_handle,
+							if (slapi_reslimit_get_integer_limit(pb_conn,
+							                                     pb_conn->c_idletimeout_handle,
 							                                     &idletimeout)
 								== SLAPI_RESLIMIT_STATUS_SUCCESS)
 							{
-								pb->pb_conn->c_idletimeout = idletimeout;
+								pb_conn->c_idletimeout = idletimeout;
 							}
 						}
 						slapi_ch_free_string( &anon_dn );
 					}
-					if (connection_call_io_layer_callbacks(pb->pb_conn)) {
+					if (connection_call_io_layer_callbacks(pb_conn)) {
 						slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
 							"Could not add/remove IO layers from connection\n");
 					}
@@ -1587,7 +1594,7 @@ connection_threadmain()
 
 			PR_EnterMonitor(conn->c_mutex);
 			/* Make our own pb in turbo mode */
-			connection_make_new_pb(pb,conn);
+			connection_make_new_pb(pb, conn);
 			if (connection_call_io_layer_callbacks(conn)) {
 				slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
 					"Could not add/remove IO layers from connection\n" );
@@ -1599,8 +1606,8 @@ connection_threadmain()
 			}
 		}
 		/* Once we're here we have a pb */ 
-		conn = pb->pb_conn;
-		op = pb->pb_op;
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 		maxthreads = config_get_maxthreadsperconn();
 		more_data = 0;
 		ret = connection_read_operation(conn, op, &tag, &more_data);
@@ -1771,6 +1778,7 @@ done:
 			connection_release_nolock(conn);
 			PR_ExitMonitor(conn->c_mutex);
 			signal_listner();
+            slapi_pblock_destroy(pb);
 			return;
 		}
 		/*
@@ -1785,7 +1793,7 @@ done:
 		/* total number of ops for the server */
 		slapi_counter_increment(ops_completed);
 		/* If this op isn't a persistent search, remove it */
-		if ( pb->pb_op->o_flags & OP_FLAG_PS ) {
+		if ( pb_op->o_flags & OP_FLAG_PS ) {
 			    PR_EnterMonitor(conn->c_mutex);
 			    connection_release_nolock (conn); /* psearch acquires ref to conn - release this one now */
 			    PR_ExitMonitor(conn->c_mutex);
@@ -1793,7 +1801,7 @@ done:
 			     * can't free it or init it here - just memset it to 0
 			     * ps_send_results will call connection_remove_operation_ext to free it
 			     */
-			    memset(pb, 0, sizeof(*pb));
+	            slapi_pblock_init(pb);
 		} else {
 			/* delete from connection operation queue & decr refcnt */
 			int conn_closed = 0;
@@ -1816,10 +1824,11 @@ done:
 						need_wakeup = 1;
 					}
 					if (!need_wakeup) {
-						if (conn->c_threadnumber == maxthreads)
+						if (conn->c_threadnumber == maxthreads) {
 							need_wakeup = 1;
-						else
+						} else {
 							need_wakeup = 0;
+                        }
 					}
 
 					if(conn->c_threadnumber == maxthreads){
@@ -2048,8 +2057,9 @@ void
 connection_remove_operation_ext( Slapi_PBlock *pb, Connection *conn, Operation *op )
 {
 	connection_remove_operation(conn, op);
-	connection_done_operation(conn, pb->op_stack_elem);
-	pb->pb_op = NULL;
+    void *op_stack_elem = slapi_pblock_get_op_stack_elem(pb);
+	connection_done_operation(conn, op_stack_elem);
+    slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
 	slapi_pblock_init(pb);
 }
 

@@ -879,6 +879,8 @@ vlv_bail:
         unsigned int opnote;
         int ri = 0;
         int pr_idx = -1;
+        Connection *pb_conn = NULL;
+        Operation *pb_op = NULL;
 
         /*
          * Return error if nsslapd-require-index is set and
@@ -905,7 +907,9 @@ vlv_bail:
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, NULL );
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
-        pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+        pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
     }
 
     sr->sr_candidates = candidates;
@@ -1904,7 +1908,9 @@ delete_search_result_set( Slapi_PBlock *pb, back_search_result_set **sr )
         return;
     }
     if (pb) {
-        if (op_is_pagedresults(pb->pb_op)) {
+        Operation *pb_op = NULL;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        if (op_is_pagedresults(pb_op)) {
             /* If the op is pagedresults, let the module clean up sr. */
             return;
         }

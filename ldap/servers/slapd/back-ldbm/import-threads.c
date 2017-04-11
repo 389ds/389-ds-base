@@ -3163,8 +3163,11 @@ static int bulk_import_start(Slapi_PBlock *pb)
     }
 
     job->main_thread = thread;
-    slapi_set_object_extension(li->li_bulk_import_object, pb->pb_conn,
-        li->li_bulk_import_handle, job);
+
+    Connection  *pb_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    slapi_set_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle, job);
 
     /* wait for the import_main to signal that it's ready for entries */
     /* (don't want to send the success code back to the LDAP client until
@@ -3406,7 +3409,9 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     ImportJob *job = NULL;
     PRThread *thread;
     int state;
+    Connection  *pb_conn;
 
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_wire_import",
@@ -3421,37 +3426,35 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
         int rc = bulk_import_start(pb);
         if (!rc) {
             /* job must be available since bulk_import_start was successful */
-            job =
-              (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object,
-                                                     pb->pb_conn,
-                                                     li->li_bulk_import_handle);
+            job = (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle);
             /* Get entryusn, if needed. */
             _get_import_entryusn(job, &(job->usn_value));
         }
         return rc;
     }
 
-    PR_ASSERT(pb->pb_conn != NULL);
-    if (pb->pb_conn != NULL) {
-        job = (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object, pb->pb_conn, li->li_bulk_import_handle);
+    PR_ASSERT(pb_conn != NULL);
+    if (pb_conn != NULL) {
+        job = (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle);
     }
 
-    if ((job == NULL) || (pb->pb_conn == NULL)) {
+    if ((job == NULL) || (pb_conn == NULL)) {
         /* import might be aborting */
         return -1;
     }
 
     if (state == SLAPI_BI_STATE_ADD) {
+        Slapi_Entry *pb_import_entry = NULL;
+        slapi_pblock_get(pb, SLAPI_BULK_IMPORT_ENTRY, &pb_import_entry);
         /* continuing previous import */
-        if (! import_entry_belongs_here(pb->pb_import_entry,
-                                        job->inst->inst_be)) {
+        if (! import_entry_belongs_here(pb_import_entry, job->inst->inst_be)) {
             /* silently skip */
             /* We need to consume pb->pb_import_entry on success, so we free it here. */
-            slapi_entry_free(pb->pb_import_entry);
+            slapi_entry_free(pb_import_entry);
             return 0;
         }
 
-        return bulk_import_queue(job, pb->pb_import_entry);
+        return bulk_import_queue(job, pb_import_entry);
     }
 
     thread = job->main_thread;
@@ -3465,8 +3468,7 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
          */
         /* wait for import_main to finish... */
         PR_JoinThread(thread);
-        slapi_set_object_extension(li->li_bulk_import_object, pb->pb_conn,
-            li->li_bulk_import_handle, NULL);
+        slapi_set_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle, NULL);
         return 0;
     }
 
@@ -3672,7 +3674,6 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     Slapi_Entry **backup_entries = NULL;
     Slapi_Entry **bep = NULL;
     Slapi_Entry **curr_entries = NULL;
-    Slapi_PBlock srch_pb = {0};
     
     filename = slapi_ch_smprintf("%s/%s", src_dir, file_name);
 
@@ -3745,10 +3746,12 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
     }
 
-    slapi_search_internal_set_pb(&srch_pb, search_scope,
+    Slapi_PBlock *srch_pb = slapi_pblock_new();
+
+    slapi_search_internal_set_pb(srch_pb, search_scope,
         LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL, li->li_identity, 0);
-    slapi_search_internal_pb(&srch_pb);
-    slapi_pblock_get(&srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &curr_entries);
+    slapi_search_internal_pb(srch_pb);
+    slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &curr_entries);
 
 
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
@@ -3759,12 +3762,13 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
                 "The backup is restored.\n", log_str);
     }
 
-    slapi_free_search_results_internal(&srch_pb);
-    pblock_done(&srch_pb);
+    slapi_free_search_results_internal(srch_pb);
+    slapi_pblock_destroy(srch_pb);
     import_free_ldif(&c);
 out:
-    for (bep = backup_entries; bep && *bep; bep++)
+    for (bep = backup_entries; bep && *bep; bep++) {
         slapi_entry_free(*bep);
+    }
     slapi_ch_free((void **)&backup_entries);
 
     slapi_ch_free_string(&filename);
@@ -3772,8 +3776,9 @@ out:
     slapi_ch_free_string(&search_scope);
 
 
-    if (fd > 0)
+    if (fd > 0) {
         close(fd);
+    }
 
     return rval;
 }

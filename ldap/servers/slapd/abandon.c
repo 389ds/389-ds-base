@@ -35,8 +35,14 @@ do_abandon( Slapi_PBlock *pb )
 {
 	int		err, suppressed_by_plugin = 0;
 	ber_int_t	id;
+    Connection *pb_conn = NULL;
+    Operation *pb_op = NULL;
 	Operation	*o;
-	BerElement	*ber = pb->pb_op->o_ber;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+	BerElement	*ber = pb_op->o_ber;
 
 	slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "->\n");
 
@@ -76,9 +82,9 @@ do_abandon( Slapi_PBlock *pb )
 	 * flag and abort the operation at a convenient time.
 	 */
 
-	PR_EnterMonitor(pb->pb_conn->c_mutex);
-	for ( o = pb->pb_conn->c_ops; o != NULL; o = o->o_next ) {
-		if ( o->o_msgid == id && o != pb->pb_op)
+	PR_EnterMonitor(pb_conn->c_mutex);
+	for ( o = pb_conn->c_ops; o != NULL; o = o->o_next ) {
+		if ( o->o_msgid == id && o != pb_op)
 			break;
 	}
 
@@ -94,12 +100,12 @@ do_abandon( Slapi_PBlock *pb )
 		   are applicable for the operation */
 		ts = operation_get_target_spec (o);
 		if (ts) {
-		  	operation_set_target_spec (pb->pb_op, ts);
+		  	operation_set_target_spec (pb_op, ts);
 		} else {
 		     slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "no target spec of abandoned operation\n");
 		}
 
-		operation_set_abandoned_op (pb->pb_op, o->o_abandoned_op);
+		operation_set_abandoned_op (pb_op, o->o_abandoned_op);
 		if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_ABANDON_FN ) == 0 ) {
 			int	rc = 0;
 
@@ -118,26 +124,26 @@ do_abandon( Slapi_PBlock *pb )
 		slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "op not found\n");
 	}
 
-	if ( 0 == pagedresults_free_one_msgid_nolock(pb->pb_conn, id) ) {
+	if ( 0 == pagedresults_free_one_msgid_nolock(pb_conn, id) ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 
 		    " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
-		    pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
+		    pb_conn->c_connid, pb_op->o_opid, id );
 	} else if ( NULL == o ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
 			" targetop=NOTFOUND msgid=%d\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
+			pb_conn->c_connid, pb_op->o_opid, id );
 	} else if ( suppressed_by_plugin ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
 			" targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
+			pb_conn->c_connid, pb_op->o_opid, id );
 	} else {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
 			" targetop=%d msgid=%d nentries=%d etime=%ld\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, o->o_opid, id,
+			pb_conn->c_connid, pb_op->o_opid, o->o_opid, id,
 			o->o_results.r.r_search.nentries, current_time() - o->o_time );
 	}
 
-	PR_ExitMonitor(pb->pb_conn->c_mutex);
+	PR_ExitMonitor(pb_conn->c_mutex);
 	/*
 	 * Wake up the persistent searches, so they
 	 * can notice if they've been abandoned.

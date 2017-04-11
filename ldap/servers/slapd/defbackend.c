@@ -56,9 +56,9 @@ static int defbackend_next_search_entry( Slapi_PBlock *pb );
 void
 defbackend_init( void )
 {
-    int			rc;
-    char		*errmsg;
-    Slapi_PBlock    pb = {0};
+    int         rc;
+    char        *errmsg;
+    Slapi_PBlock *pb = slapi_pblock_new();
 
     slapi_log_err(SLAPI_LOG_TRACE, "defbackend_init", "<==\n");
 
@@ -66,7 +66,7 @@ defbackend_init( void )
      * create a new backend
      */
     defbackend_backend = slapi_be_new( DEFBACKEND_TYPE , DEFBACKEND_TYPE, 1 /* Private */, 0 /* Do Not Log Changes */ );
-    if (( rc = slapi_pblock_set( &pb, SLAPI_BACKEND, defbackend_backend )) != 0 ) {
+    if (( rc = slapi_pblock_set( pb, SLAPI_BACKEND, defbackend_backend )) != 0 ) {
         errmsg = "slapi_pblock_set SLAPI_BACKEND failed";
         goto cleanup_and_return;
     }
@@ -77,7 +77,7 @@ defbackend_init( void )
      */
     defbackend_plugin.plg_type = SLAPI_PLUGIN_DATABASE;
     defbackend_backend->be_database = &defbackend_plugin;
-    if (( rc = slapi_pblock_set( &pb, SLAPI_PLUGIN, &defbackend_plugin )) != 0 ) {
+    if (( rc = slapi_pblock_set( pb, SLAPI_PLUGIN, &defbackend_plugin )) != 0 ) {
         errmsg = "slapi_pblock_set SLAPI_PLUGIN failed";
         goto cleanup_and_return;
     }
@@ -90,33 +90,35 @@ defbackend_init( void )
      * install handler functions, etc.
      */
     errmsg = "slapi_pblock_set handlers failed";
-    rc = slapi_pblock_set( &pb, SLAPI_PLUGIN_VERSION,
+    rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    (void *)SLAPI_PLUGIN_CURRENT_VERSION );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_BIND_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_BIND_FN,
 	    (void *)defbackend_bind );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_UNBIND_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_UNBIND_FN,
 	    (void *)defbackend_noop );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_SEARCH_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_SEARCH_FN,
 	    (void *)defbackend_default );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN,
 	    (void *)defbackend_next_search_entry );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_COMPARE_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_COMPARE_FN,
 	    (void *)defbackend_default );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_MODIFY_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_MODIFY_FN,
 	    (void *)defbackend_default );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_MODRDN_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_MODRDN_FN,
 	    (void *)defbackend_default );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_ADD_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ADD_FN,
 	    (void *)defbackend_default );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_DELETE_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_DELETE_FN,
 	    (void *)defbackend_default );
-    rc |= slapi_pblock_set( &pb, SLAPI_PLUGIN_DB_ABANDON_FN,
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ABANDON_FN,
 	    (void *)defbackend_abandon );
 
 cleanup_and_return:
+
+    slapi_pblock_destroy(pb);
     if ( rc != 0 ) {
-	slapi_log_err(SLAPI_LOG_ERR, "defbackend_init", "Failed (%s)\n", errmsg);
-	exit( 1 );
+        slapi_log_err(SLAPI_LOG_ERR, "defbackend_init", "Failed (%s)\n", errmsg);
+        exit( 1 );
     }
 }
 

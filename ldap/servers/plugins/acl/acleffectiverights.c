@@ -104,7 +104,9 @@ _ger_g_permission_granted (
 	else
 	{
 		slapi_ch_free_string(&proxydn); /* this could still have been set - free it */
-		requestor_sdn = &(pb->pb_op->o_sdn);
+        Operation   *pb_op;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+		requestor_sdn = &(pb_op->o_sdn);
 	}
 	if ( slapi_sdn_get_dn (requestor_sdn) == NULL )
 	{

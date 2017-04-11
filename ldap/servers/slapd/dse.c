@@ -1617,14 +1617,15 @@ do_dse_search(struct dse* pdse, Slapi_PBlock *pb, int scope, const Slapi_DN *bas
     stuff.nentries= 0;
     stuff.attrs= attrs;
     stuff.attrsonly= attrsonly;
-	stuff.ss = NULL;
+    stuff.ss = NULL;
+    Operation   *pb_op = NULL;
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
     /*
      * If this is a persistent search and the client is only interested in
 	 * entries that change, we skip looking through the DSE entries.
      */ 
-	if ( pb->pb_op == NULL
-			|| !operation_is_flag_set( pb->pb_op, OP_FLAG_PS_CHANGESONLY )) {
+	if ( pb_op == NULL || !operation_is_flag_set( pb_op, OP_FLAG_PS_CHANGESONLY )) {
 		if (pdse->dse_rwlock)
 			slapi_rwlock_rdlock(pdse->dse_rwlock);
 		dse_apply_nolock(pdse,dse_search_filter_entry,(caddr_t)&stuff);
@@ -1799,6 +1800,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int plugin_started = 0;
     int internal_op = 0;
     PRBool global_lock_owned = PR_FALSE;
+    Operation   *pb_op = NULL;
 
     PR_ASSERT(pb);
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
@@ -1815,7 +1817,8 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         return retval;
     }
 
-    internal_op = operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    internal_op = operation_is_flag_set(pb_op, OP_FLAG_INTERNAL);
 
     /* Find the entry we are about to modify. */
     ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
@@ -2680,12 +2683,18 @@ slapi_config_register_callback_plugin(int operation,
         struct dse* pdse= (struct dse*)be->be_database->plg_private;
         if (pdse!=NULL) {
             Slapi_DN dn;
-
             slapi_sdn_init_dn_byref(&dn,base);
-            /* if a pblock was passed, this is a plugin, so set the f_arg as the plugin */
-            rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn,
-                                                pb ? (void*)pb->pb_plugin : fn_arg,
-                                                pb ? pb->pb_plugin: NULL));
+            if (pb != NULL) {
+                /* if a pblock was passed, this is a plugin, so set the f_arg as the plugin */
+                struct slapdplugin  *pb_plugin = NULL;
+                slapi_pblock_get(pb, SLAPI_PLUGIN, &pb_plugin);
+                rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn,
+                                                    (void*)pb_plugin, pb_plugin));
+            } else {
+                rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn,
+                                                    fn_arg, NULL));
+            }
+
             slapi_sdn_done(&dn);
         }
     }

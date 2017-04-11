@@ -181,6 +181,7 @@ get_ldapmessage_controls_ext(
 	int			rc, maxcontrols, curcontrols;
 	char			*last;
 	int			managedsait, pwpolicy_ctrl;
+    Connection *pb_conn = NULL;
 
 	/*
 	 * Each LDAPMessage can have a set of controls appended
@@ -244,11 +245,12 @@ get_ldapmessage_controls_ext(
 	 * A sequence of controls is present.  If connection is not LDAPv3
 	 * or better, return a protocol error.  Otherwise, parse the controls.
 	 */
-	if ( pb->pb_conn != NULL
-			&& pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+	if ( pb_conn != NULL && pb_conn->c_ldapversion < LDAP_VERSION3 ) {
 		slapi_log_err(SLAPI_LOG_ERR, "get_ldapmessage_controls_ext",
 				"Received control(s) on an LDAPv%d connection\n",
-				pb->pb_conn->c_ldapversion );
+				pb_conn->c_ldapversion );
 		return( LDAP_PROTOCOL_ERROR );
 	}
 
@@ -305,10 +307,13 @@ get_ldapmessage_controls_ext(
 			    }
 		    }
 
+            Operation *pb_op = NULL;
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+
 		    if ( supported_controls == NULL ||
 			supported_controls[i] == NULL ||
 			( 0 == ( supported_controls_ops[i] &
-			operation_get_type(pb->pb_op) ))) {
+			operation_get_type(pb_op) ))) {
 			    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
 			    slapi_rwlock_unlock(supported_controls_lock);
 			    goto free_and_return;
@@ -331,12 +336,14 @@ get_ldapmessage_controls_ext(
 
         if (curcontrols == 0) {
                 int ctrl_not_found = 0; /* means that a given control is not present in the request */
+                Operation *pb_op = NULL;
+                slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
                 
                 slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL);
                 slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
                 slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
                 slapi_log_err(SLAPI_LOG_CONNS, "get_ldapmessage_controls_ext", "Warning: conn=%" PRIu64 " op=%d contains an empty list of controls\n",
-                        pb->pb_conn->c_connid, pb->pb_op->o_opid);
+                        pb_conn->c_connid, pb_op->o_opid);
         } else {
                 /* len, ber_len_t is uint, not int, cannot be != -1, may be better to remove this check.  */
                 if ((tag != LBER_END_OF_SEQORSET) && (len != -1)) {

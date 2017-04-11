@@ -293,7 +293,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 					 * If the parent is conflict, slapi_sdn_get_backend_parent does not support it.
 					 * That is, adding children to a conflict entry is not allowed.
 					 */
-					slapi_sdn_get_backend_parent(sdn, &parentsdn, pb->pb_backend);
+					slapi_sdn_get_backend_parent(sdn, &parentsdn, be);
 					/* Check if an entry with the intended DN already exists. */
 					done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
 					addr.sdn = sdn;
@@ -466,7 +466,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 						Slapi_DN ancestorsdn;
 						struct backentry *ancestorentry;
 						slapi_sdn_init(&ancestorsdn);
-						ancestorentry = dn2ancestor(pb->pb_backend, sdn, &ancestorsdn, &txn, &err, 0);
+						ancestorentry = dn2ancestor(be, sdn, &ancestorsdn, &txn, &err, 0);
 						slapi_sdn_done(&ancestorsdn);
 						if ( ancestorentry != NULL )
 						{

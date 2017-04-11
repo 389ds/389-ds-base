@@ -2422,18 +2422,17 @@ refresh_user_defined_schema( Slapi_PBlock *pb,
 {
     int rc;
     Slapi_PBlock *mypbptr = pb;
-    Slapi_PBlock mypb;
+    Slapi_PBlock *mypb = NULL;
     const CSN *schema_csn;
     PRUint32 schema_flags = DSE_SCHEMA_USER_DEFINED_ONLY;
-
-    pblock_init(&mypb);
 
     slapi_entry_attr_delete( pschema_info_e, "objectclasses");
     slapi_entry_attr_delete( pschema_info_e, "attributetypes");
 
     /* for write callbacks, no pb is supplied, so use our own */
     if (!mypbptr) {
-        mypbptr = &mypb;
+        mypb = slapi_pblock_new();
+        mypbptr = mypb;
     }
 
     slapi_pblock_set(mypbptr, SLAPI_SCHEMA_FLAGS, &schema_flags);
@@ -2445,8 +2444,9 @@ refresh_user_defined_schema( Slapi_PBlock *pb,
         csn_as_string(schema_csn, PR_FALSE, csn_str);
         slapi_entry_add_string(pschema_info_e, "nsschemacsn", csn_str);
     }
-    pblock_done(&mypb);
-
+    if (mypb != NULL) {
+        slapi_pblock_destroy(mypb);
+    }
     return rc;
 }
 
@@ -5346,15 +5346,15 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
         int dont_write = 1;
         int merge = 1;
         int dont_dup_check = 1;
-        Slapi_PBlock pb = {0};
+        Slapi_PBlock *pb = slapi_pblock_new();
         /* don't write out the file when reading */
-        slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
+        slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
         /* duplicate entries are allowed */
-        slapi_pblock_set(&pb, SLAPI_DSE_MERGE_WHEN_ADDING, (void*)&merge);
+        slapi_pblock_set(pb, SLAPI_DSE_MERGE_WHEN_ADDING, (void*)&merge);
         /* use the non duplicate checking str2entry */
-        slapi_pblock_set(&pb, SLAPI_DSE_DONT_CHECK_DUPS, (void*)&dont_dup_check);
+        slapi_pblock_set(pb, SLAPI_DSE_DONT_CHECK_DUPS, (void*)&dont_dup_check);
         /* borrow the task flag space */
-        slapi_pblock_set(&pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
+        slapi_pblock_set(pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
 
         /* add the objectclass attribute so we can do some basic schema
            checking during initialization; this will be overridden when
@@ -5388,7 +5388,8 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
                 errorbuf);
         }
 
-        rc = dse_read_file(*local_pschemadse, &pb);
+        rc = dse_read_file(*local_pschemadse, pb);
+        slapi_pblock_destroy(pb);
     }
 
     if (rc && !(schema_flags & DSE_SCHEMA_NO_BACKEND))

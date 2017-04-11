@@ -60,9 +60,11 @@ do_add( Slapi_PBlock *pb )
 	int			err;
 	int			rc;
 	PRBool  searchsubentry=PR_TRUE;
+    Connection *pb_conn = NULL;
 
 	slapi_log_err(SLAPI_LOG_TRACE, "do_add", "==>\n");
 
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
     ber = operation->o_ber;
 
@@ -164,12 +166,12 @@ do_add( Slapi_PBlock *pb )
 	
        /* for now we just ignore attributes that client is not allowed
           to modify so not to break existing clients */
-		if (op_shared_is_allowed_attr (normtype, pb->pb_conn->c_isreplication_session)){		
+		if (op_shared_is_allowed_attr (normtype, pb_conn->c_isreplication_session)){		
 			if (( rc = slapi_entry_add_values( e, normtype, vals ))
 				!= LDAP_SUCCESS ) {
 				slapi_log_access( LDAP_DEBUG_STATS, 
 					"conn=%" PRIu64 " op=%d ADD dn=\"%s\", add values for type %s failed\n",
-					pb->pb_conn->c_connid, operation->o_opid,
+					pb_conn->c_connid, operation->o_opid,
 					slapi_entry_get_dn_const(e), normtype );
 				send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
 
@@ -220,7 +222,7 @@ do_add( Slapi_PBlock *pb )
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &operation->o_isroot );
 	slapi_pblock_set( pb, SLAPI_ADD_ENTRY, e );
 
-        if (pb->pb_conn->c_flags & CONN_FLAG_IMPORT) {
+        if (pb_conn->c_flags & CONN_FLAG_IMPORT) {
             /* this add is actually part of a bulk import -- punt */
             handle_fast_add(pb, e);
         } else {
@@ -282,23 +284,21 @@ done:
 Slapi_PBlock *
 slapi_add_entry_internal(Slapi_Entry *e, LDAPControl **controls, int dummy __attribute__((unused)))
 {
-    Slapi_PBlock    pb;
+    Slapi_PBlock    *pb = slapi_pblock_new();
     Slapi_PBlock    *result_pb = NULL;
     int             opresult;
 
-	pblock_init(&pb);
-	
-	slapi_add_entry_internal_set_pb (&pb, e, controls, plugin_get_default_component_id(), 0);
+	slapi_add_entry_internal_set_pb (pb, e, controls, plugin_get_default_component_id(), 0);
 
-	add_internal_pb (&pb);
+	add_internal_pb (pb);
 	
 	result_pb = slapi_pblock_new();
 	if (result_pb)
 	{
-		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 		slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 	}
-	pblock_done(&pb);
+    slapi_pblock_destroy(pb);
 
     return result_pb;
 }
@@ -431,8 +431,10 @@ static void op_shared_add (Slapi_PBlock *pb)
 	char *errtext = NULL;
 	Slapi_DN *sdn = NULL;
 	passwdPolicy *pwpolicy;
+    Connection *pb_conn = NULL;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+    slapi_pblock_get (pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get (pb, SLAPI_ADD_ENTRY, &e);
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
 	slapi_pblock_get (pb, SLAPI_IS_LEGACY_REPLICATED_OPERATION, &legacy_op);
@@ -461,7 +463,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ADD dn=\"%s\"%s\n",
-							 pb->pb_conn->c_connid,
+							 pb_conn->c_connid,
 							 operation->o_opid,
 							 slapi_entry_get_dn_const(e),
 							 proxystr ? proxystr : "");
@@ -905,9 +907,12 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
 {
     Slapi_Backend *be;
     Slapi_Operation *operation;
+    Connection *pb_conn = NULL;
     int ret;
 
-    be = pb->pb_conn->c_bi_backend;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    be = pb_conn->c_bi_backend;
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
@@ -967,8 +972,8 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
         slapi_entry_free(entry);
 
        	/* turn off fast replica init -- import is now aborted */
-       	pb->pb_conn->c_bi_backend = NULL;
-       	pb->pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
+       	pb_conn->c_bi_backend = NULL;
+       	pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
 
         return;
     }

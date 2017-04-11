@@ -98,7 +98,6 @@ plugin_call_syntax_filter_ava_sv(
 )
 {
 	int		rc;
-	Slapi_PBlock	pipb;
 	IFP ava_fn = NULL;
 
 	slapi_log_err(SLAPI_LOG_FILTER,
@@ -118,14 +117,14 @@ plugin_call_syntax_filter_ava_sv(
 		return( LDAP_PROTOCOL_ERROR );	/* syntax unkonwn */
 	}
 
-	pblock_init( &pipb );
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
+	Slapi_PBlock *pipb = slapi_pblock_new();
+	slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
 	if (ava->ava_private) {
 		int filter_normalized = 0;
 		int f_flags = 0;
 		f_flags = *(int *)ava->ava_private;
 		filter_normalized = f_flags | SLAPI_FILTER_NORMALIZED_VALUE;
-		slapi_pblock_set( &pipb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+		slapi_pblock_set( pipb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
 	}
 
 	rc = -1;	/* does not match by default */
@@ -144,10 +143,10 @@ plugin_call_syntax_filter_ava_sv(
 		/* if the attribute has an ordering matching rule plugin, use that,
 		   otherwise, just use the syntax plugin */
 		if (a->a_mr_ord_plugin != NULL) {
-			slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_mr_ord_plugin );
+			slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_mr_ord_plugin );
 			ava_fn = a->a_mr_ord_plugin->plg_mr_filter_ava;
 		} else {
-			slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
+			slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
 			ava_fn = a->a_plugin->plg_syntax_filter_ava;
 		}
 		/* FALLTHROUGH */
@@ -157,10 +156,10 @@ plugin_call_syntax_filter_ava_sv(
 			/* if we have an equality matching rule plugin, use that,
 			   otherwise, just use the syntax plugin */
 			if (a->a_mr_eq_plugin) {
-				slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_mr_eq_plugin );
+				slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_mr_eq_plugin );
 				ava_fn = a->a_mr_eq_plugin->plg_mr_filter_ava;
 			} else {
-				slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
+				slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
 				ava_fn = a->a_plugin->plg_syntax_filter_ava;
 			}
 		}
@@ -174,7 +173,7 @@ plugin_call_syntax_filter_ava_sv(
 				va= valueset_get_valuearray(&a->a_present_values);
 			}
 			if(va!=NULL) {
-				rc = (*ava_fn)( &pipb, &ava->ava_value, va, ftype, retVal );
+				rc = (*ava_fn)( pipb, &ava->ava_value, va, ftype, retVal );
 			}
 		} else {
 			slapi_log_err(SLAPI_LOG_FILTER,
@@ -191,6 +190,7 @@ plugin_call_syntax_filter_ava_sv(
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "plugin_call_syntax_filter_ava", "<= %d\n", rc);
+    slapi_pblock_destroy(pipb);
 	return( rc );
 }
 
@@ -211,7 +211,6 @@ plugin_call_syntax_filter_sub_sv(
     struct subfilt	*fsub
 )
 {
-	Slapi_PBlock	pipb;
 	int		rc;
 	IFP sub_fn = NULL;
 	int filter_normalized = 0;
@@ -230,20 +229,20 @@ plugin_call_syntax_filter_sub_sv(
 		return( -1 );	/* syntax unkonwn - does not match */
 	}
 
-	pblock_init( &pipb );
+	Slapi_PBlock *pipb = slapi_pblock_new();
 	if (pb) {
 		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
-		slapi_pblock_set( &pipb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+		slapi_pblock_set( pipb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
 	}
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, fsub );
+	slapi_pblock_set( pipb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, fsub );
 
 	/* use the substr matching rule plugin if available, otherwise, use
 	   the syntax plugin */
 	if (a->a_mr_sub_plugin) {
-		slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_mr_sub_plugin );
+		slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_mr_sub_plugin );
 		sub_fn = a->a_mr_sub_plugin->plg_mr_filter_sub;
 	} else {
-		slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
+		slapi_pblock_set( pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
 		sub_fn = a->a_plugin->plg_syntax_filter_sub;
 	}
 
@@ -255,15 +254,18 @@ plugin_call_syntax_filter_sub_sv(
 			Operation *op = NULL;
 			/* to pass SLAPI_SEARCH_TIMELIMIT & SLAPI_OPINITATED_TIME */
 			slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-			slapi_pblock_set( &pipb, SLAPI_OPERATION, op );
+			slapi_pblock_set( pipb, SLAPI_OPERATION, op );
 		}
-		rc = (*sub_fn)( &pipb, fsub->sf_initial, fsub->sf_any, fsub->sf_final, va);
+		rc = (*sub_fn)( pipb, fsub->sf_initial, fsub->sf_any, fsub->sf_final, va);
 	} else {
 		rc = -1;
 	}
 
 	slapi_log_err(SLAPI_LOG_FILTER, "plugin_call_syntax_filter_sub_sv", "<= %d\n",
 	    rc);
+    /* Operation is owned by our caller: We need to null it now, to prevent the free */
+    slapi_pblock_set( pipb, SLAPI_OPERATION, NULL );
+    slapi_pblock_destroy(pipb);
 	return( rc );
 }
 
@@ -559,19 +561,20 @@ slapi_call_syntax_values2keys_sv(
 )
 {
 	int			rc;
-	Slapi_PBlock		pipb;
+	Slapi_PBlock *pipb = slapi_pblock_new();
 	struct slapdplugin	*pi = vpi;
 
 	slapi_log_err(SLAPI_LOG_FILTER, "slapi_call_syntax_values2keys_sv", "=>\n");
 
-	pblock_init( &pipb );
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN, vpi );
+	slapi_pblock_set( pipb, SLAPI_PLUGIN, vpi );
 
 	*ivals = NULL;
 	rc = -1;	/* means no values2keys function */
 	if ( pi != NULL && pi->plg_syntax_values2keys != NULL ) {
-		rc = pi->plg_syntax_values2keys( &pipb, vals, ivals, ftype );
+		rc = pi->plg_syntax_values2keys( pipb, vals, ivals, ftype );
 	}
+
+    slapi_pblock_destroy(pipb);
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_call_syntax_values2keys_sv", "<= %d\n", rc);
@@ -646,9 +649,11 @@ slapi_attr_values2keys_sv(
     int			ftype
 )
 {
-	Slapi_PBlock pb;
-	pblock_init(&pb);
-	return slapi_attr_values2keys_sv_pb(sattr, vals, ivals, ftype, &pb);
+    int result = 0;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    result = slapi_attr_values2keys_sv_pb(sattr, vals, ivals, ftype, pb);
+    slapi_pblock_destroy(pb);
+    return result;
 }
 
 SLAPI_DEPRECATED int
@@ -729,20 +734,20 @@ slapi_call_syntax_assertion2keys_ava_sv(
 )
 {
 	int			rc;
-	Slapi_PBlock		pipb;
+	Slapi_PBlock *pipb = slapi_pblock_new();
 	struct slapdplugin	*pi = vpi;
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_call_syntax_assertion2keys_ava_sv" , "=>\n");
 
-	pblock_init( &pipb );
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN, vpi );
+	slapi_pblock_set( pipb, SLAPI_PLUGIN, vpi );
 
 	rc = -1;	/* means no assertion2keys function */
 	if ( pi->plg_syntax_assertion2keys_ava != NULL ) {
-		rc = pi->plg_syntax_assertion2keys_ava( &pipb, val, ivals, ftype );
+		rc = pi->plg_syntax_assertion2keys_ava( pipb, val, ivals, ftype );
 	}
 
+    slapi_pblock_destroy(pipb);
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_call_syntax_assertion2keys_ava_sv", "<= %d\n", rc);
 	return( rc );
@@ -757,7 +762,6 @@ slapi_attr_assertion2keys_ava_sv(
 )
 {
 	int			rc;
-	Slapi_PBlock		pipb;
 	struct slapdplugin	*pi = NULL;
 	IFP a2k_fn = NULL;
 
@@ -787,13 +791,14 @@ slapi_attr_assertion2keys_ava_sv(
 		goto done;
 	}
 
-	pblock_init( &pipb );
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN, pi );
+	Slapi_PBlock *pipb = slapi_pblock_new();
+	slapi_pblock_set( pipb, SLAPI_PLUGIN, pi );
 
 	rc = -1;	/* means no assertion2keys function */
 	if ( a2k_fn != NULL ) {
-		rc = (*a2k_fn)( &pipb, val, ivals, ftype );
+		rc = (*a2k_fn)( pipb, val, ivals, ftype );
 	}
+    slapi_pblock_destroy(pipb);
 done:
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_attr_assertion2keys_ava_sv", "=> %d\n", rc);
@@ -846,21 +851,22 @@ slapi_call_syntax_assertion2keys_sub_sv(
 )
 {
 	int			rc;
-	Slapi_PBlock		pipb;
+	Slapi_PBlock *pipb = slapi_pblock_new();
 	struct slapdplugin	*pi = vpi;
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_call_syntax_assertion2keys_sub_sv", "=>\n");
 
-	pblock_init( &pipb );
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN, vpi );
+	slapi_pblock_set( pipb, SLAPI_PLUGIN, vpi );
 
 	rc = -1;	/* means no assertion2keys function */
 	*ivals = NULL;
 	if ( pi->plg_syntax_assertion2keys_sub != NULL ) {
-		rc = pi->plg_syntax_assertion2keys_sub( &pipb, initial, any,
+		rc = pi->plg_syntax_assertion2keys_sub( pipb, initial, any,
 		    final, ivals );
 	}
+
+    slapi_pblock_destroy(pipb);
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_call_syntax_assertion2keys_sub_sv", "<= %d\n", rc);
@@ -890,7 +896,8 @@ slapi_attr_assertion2keys_sub_sv_pb(
 )
 {
 	int			rc;
-	Slapi_PBlock		pipb;
+	Slapi_PBlock *pipb = NULL;
+    Slapi_PBlock *work_pb = NULL;
 	struct slapdplugin	*pi = NULL;
 	struct slapdplugin	*origpi = NULL;
 	IFP a2k_fn = NULL;
@@ -910,21 +917,24 @@ slapi_attr_assertion2keys_sub_sv_pb(
 		a2k_fn = sattr->a_plugin->plg_syntax_assertion2keys_sub;
 	}
 	if (NULL == pb) {
-		pblock_init( &pipb );
-		pb = &pipb;
+        pipb = slapi_pblock_new();
+        work_pb = pipb;
 	} else {
 		/* back up the original slapdplugin if any */
 		slapi_pblock_get(pb, SLAPI_PLUGIN, &origpi);
+        work_pb = pb;
 	}
-	slapi_pblock_set(pb, SLAPI_PLUGIN, pi);
+	slapi_pblock_set(work_pb, SLAPI_PLUGIN, pi);
 
 	rc = -1;	/* means no assertion2keys function */
 	*ivals = NULL;
 	if ( a2k_fn != NULL ) {
-		rc = (*a2k_fn)( pb, initial, any, final, ivals );
+		rc = (*a2k_fn)( work_pb, initial, any, final, ivals );
 	}
 
-	if (pb != &pipb) {
+	if (pb == NULL) {
+        slapi_pblock_destroy(pipb);
+    } else {
 		/* restore the original slapdplugin if pb is not local. */
 		slapi_pblock_set(pb, SLAPI_PLUGIN, origpi);
 	}

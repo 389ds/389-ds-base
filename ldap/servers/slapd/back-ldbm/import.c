@@ -1199,8 +1199,9 @@ int import_main_offline(void *arg)
     ImportWorkerInfo *producer = NULL;
     char *opstr = "Import";
 
-    if (job->task)
+    if (job->task) {
         slapi_task_inc_refcount(job->task);
+    }
 
     if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         if (job->flags & FLAG_DRYRUN) {

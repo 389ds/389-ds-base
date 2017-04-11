@@ -196,6 +196,8 @@ ava_candidates(
     Slapi_Attr    sattr;
     back_txn      txn = {NULL};
     int           pr_idx = -1;
+    Operation   *pb_op;
+    Connection  *pb_conn;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "=>\n");
 
@@ -205,6 +207,8 @@ ava_candidates(
     }
 
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_attr_init(&sattr, type);
 
 #ifdef LDAP_ERROR_LOGGING
@@ -288,7 +292,7 @@ ava_candidates(
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-            pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
+            pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
         }
 
         /* We don't use valuearray_free here since the valueset, berval
@@ -320,7 +324,7 @@ ava_candidates(
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-            pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
+            pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
         }
          valuearray_free( &ivals );
          slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
@@ -356,11 +360,17 @@ presence_candidates(
                                  NULL, &txn, err, &unindexed, allidslimit );
 
     if ( unindexed ) {
+        Operation   *pb_op;
+        Connection  *pb_conn;
+
         int pr_idx = -1;
         unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote );
         slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
-        pagedresults_set_unindexed(pb->pb_conn, pb->pb_op, pr_idx);
+        pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
     }
 
     if (idl != NULL && ALLIDS(idl) && strcasecmp(type, "nscpentrydn") == 0) {
@@ -467,14 +477,15 @@ extensible_candidates(
                             if ( unindexed ) {
                                 int pr_idx = -1;
                                 unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-                                slapi_pblock_set( glob_pb,
-                                            SLAPI_OPERATION_NOTES, &opnote );
-                                slapi_pblock_get( glob_pb,
-                                                  SLAPI_PAGED_RESULTS_INDEX,
-                                                  &pr_idx );
-                                pagedresults_set_unindexed( glob_pb->pb_conn,
-                                                            glob_pb->pb_op,
-                                                            pr_idx );
+
+                                Operation   *pb_op;
+                                Connection  *pb_conn;
+                                slapi_pblock_get(glob_pb, SLAPI_OPERATION, &pb_op);
+                                slapi_pblock_get(glob_pb, SLAPI_CONNECTION, &pb_conn);
+
+                                slapi_pblock_set( glob_pb, SLAPI_OPERATION_NOTES, &opnote );
+                                slapi_pblock_get( glob_pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
+                                pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
                             }
                             if (idl2 == NULL)
                             {
@@ -933,8 +944,12 @@ substring_candidates(
     attr_done(&sattr);
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
     if ( ivals == NULL || *ivals == NULL ) {
-        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-        pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
+        Operation   *pb_op;
+        Connection  *pb_conn;
+        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote );
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+        pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
         slapi_log_err(SLAPI_LOG_TRACE, "substring_candidates",
             "<= ALLIDS (no keys)\n");
         return( idl_allids( be ) );
@@ -947,8 +962,12 @@ substring_candidates(
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
     idl = keys2idl( pb, be, type, indextype_SUB, ivals, err, &unindexed, &txn, allidslimit );
     if ( unindexed ) {
-        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-        pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
+        Operation   *pb_op;
+        Connection  *pb_conn;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote );
+        pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
     }
     valuearray_free( &ivals );
 

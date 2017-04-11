@@ -54,13 +54,16 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
 {
     int rc = LDAP_SUCCESS;
     struct berval cookie = {0};
-    Connection *conn = pb->pb_conn;
-    Operation *op = pb->pb_op;
+    Connection *conn = NULL;
+    Operation *op = NULL;
     BerElement *ber = NULL;
     PagedResults *prp = NULL;
     time_t ctime = current_time();
     int i;
     int maxreqs = config_get_maxsimplepaged_per_conn();
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 
     slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_parse_control_value", "=>\n");
     if ( NULL == conn || NULL == op || NULL == pagesize || NULL == index ) {

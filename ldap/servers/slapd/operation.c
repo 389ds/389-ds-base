@@ -23,7 +23,7 @@
 int
 slapi_is_operation_abandoned( Slapi_Operation *op )
 {
-	if (op) {
+	if (op != NULL) {
 		return( op->o_status == SLAPI_OP_STATUS_ABANDONED );
 	}
 	return 0;
@@ -32,22 +32,25 @@ slapi_is_operation_abandoned( Slapi_Operation *op )
 int
 slapi_op_abandoned( Slapi_PBlock *pb )
 {
-	int	op_status;
-
-	if (pb && pb->pb_op) {
-		op_status = pb->pb_op->o_status;
-		return( op_status == SLAPI_OP_STATUS_ABANDONED );
-	}
-	return 0;
+    if (pb != NULL) {
+        Operation *pb_op;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        return slapi_is_operation_abandoned(pb_op);
+    }
+    return 0;
 }
 
 int
 slapi_op_internal( Slapi_PBlock *pb )
 {
-	if (pb && pb->pb_op) {
-		return operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL);
-	}
-	return 0;
+    if (pb) {
+        Operation *pb_op;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        if (pb_op) {
+            return operation_is_flag_set(pb_op, OP_FLAG_INTERNAL);
+        }
+    }
+    return 0;
 }
 
 void

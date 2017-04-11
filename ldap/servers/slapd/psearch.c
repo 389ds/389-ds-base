@@ -141,14 +141,6 @@ ps_stop_psearch_system()
 	}
 }
 
-static Slapi_PBlock *
-pblock_copy(Slapi_PBlock *src)
-{
-	Slapi_PBlock *dest = slapi_pblock_new();
-	*dest = *src;
-	return dest;
-}
-
 /*
  * Add the given pblock to the list of outstanding persistent searches.
  * Then, start a thread to send the results to the client as they
@@ -163,7 +155,7 @@ ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
     if ( PS_IS_INITIALIZED() && NULL != pb ) {
 	/* Create the new node */
 	ps = psearch_alloc();
-	ps->ps_pblock = pblock_copy(pb);
+	ps->ps_pblock = slapi_pblock_clone(pb);
 	ps->ps_changetypes = changetypes;
 	ps->ps_send_entchg_controls = send_entchg_controls;
 
@@ -272,29 +264,34 @@ ps_send_results( void *arg )
 	char **pbattrs = NULL;
 	int conn_acq_flag = 0;
 	Slapi_Connection *conn = NULL;
+    Connection *pb_conn = NULL;
+    Operation *pb_op = NULL;
     
     g_incr_active_threadcnt();
 
+    slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
+    slapi_pblock_get(ps->ps_pblock, SLAPI_OPERATION, &pb_op);
+
     /* need to acquire a reference to this connection so that it will not
        be released or cleaned up out from under us */
-    PR_EnterMonitor(ps->ps_pblock->pb_conn->c_mutex);
-    conn_acq_flag = connection_acquire_nolock(ps->ps_pblock->pb_conn);    
-    PR_ExitMonitor(ps->ps_pblock->pb_conn->c_mutex);
+    PR_EnterMonitor(pb_conn->c_mutex);
+    conn_acq_flag = connection_acquire_nolock(pb_conn);
+    PR_ExitMonitor(pb_conn->c_mutex);
 
 	if (conn_acq_flag) {
 		slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
 				"conn=%" PRIu64 " op=%d Could not acquire the connection - psearch aborted\n",
-				ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
+				pb_conn->c_connid, pb_op->o_opid);
 	}
 
     PR_Lock( psearch_list->pl_cvarlock );
 
     while ( (conn_acq_flag == 0) && !ps->ps_complete ) {
 	/* Check for an abandoned operation */
-	if ( ps->ps_pblock->pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
+	if ( pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
 		slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
 				"conn=%" PRIu64 " op=%d The operation has been abandoned\n",
-				ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
+				pb_conn->c_connid, pb_op->o_opid);
 	    break;
 	}
 	if ( NULL == ps->ps_eq_head ) {
@@ -352,8 +349,8 @@ ps_send_results( void *arg )
 			if (rc) {
 				slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
 								"conn=%" PRIu64 " op=%d Error %d sending entry %s with op status %d\n",
-								ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid,
-								rc, slapi_entry_get_dn_const(ec), ps->ps_pblock->pb_op->o_status);
+								pb_conn->c_connid, pb_op->o_opid,
+								rc, slapi_entry_get_dn_const(ec), pb_op->o_status);
 			}
 		}
 	    
@@ -395,15 +392,15 @@ ps_send_results( void *arg )
 	slapi_pblock_set(ps->ps_pblock, SLAPI_SEARCH_FILTER, NULL );
 	slapi_filter_free(filter, 1);
 
-    conn = ps->ps_pblock->pb_conn; /* save to release later - connection_remove_operation_ext will NULL the pb_conn */
+    conn = pb_conn; /* save to release later - connection_remove_operation_ext will NULL the pb_conn */
     /* Clean up the connection structure */
     PR_EnterMonitor(conn->c_mutex);
 
 	slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
 					"conn=%" PRIu64 " op=%d Releasing the connection and operation\n",
-					conn->c_connid, ps->ps_pblock->pb_op->o_opid);
+					conn->c_connid, pb_op->o_opid);
     /* Delete this op from the connection's list */
-    connection_remove_operation_ext( ps->ps_pblock, conn, ps->ps_pblock->pb_op );
+    connection_remove_operation_ext( ps->ps_pblock, conn, pb_op );
 
     /* Decrement the connection refcnt */
     if (conn_acq_flag == 0) { /* we acquired it, so release it */
@@ -524,12 +521,16 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		Slapi_DN *base = NULL;
 		Slapi_Filter	*f;
 		int		scope;
+        Connection *pb_conn = NULL;
+        Operation *pb_op = NULL;
+
+        slapi_pblock_get(ps->ps_pblock, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
 
 		/* Skip the node that doesn't meet the changetype,
 		 * or is unable to use the change in ps_send_results()
 		 */
-		if (( ps->ps_changetypes & chgtype ) == 0 ||
-				ps->ps_pblock->pb_op == NULL ||
+		if (( ps->ps_changetypes & chgtype ) == 0 || pb_op == NULL ||
 				slapi_op_abandoned( ps->ps_pblock ) ) {
 			continue;
 		}
@@ -537,8 +538,8 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		slapi_log_err(SLAPI_LOG_CONNS, "ps_service_persistent_searches",
 						"conn=%" PRIu64 " op=%d entry %s with chgtype %d "
 						"matches the ps changetype %d\n",
-						ps->ps_pblock->pb_conn->c_connid,
-						ps->ps_pblock->pb_op->o_opid,
+						pb_conn->c_connid,
+						pb_op->o_opid,
 						edn, chgtype, ps->ps_changetypes);
 
 		slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_FILTER, &f );

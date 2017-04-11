@@ -845,7 +845,7 @@ typedef struct _plugin_dep_type{
 typedef struct _plugin_dep_config {
 	char *name;
 	char *type;
-	Slapi_PBlock pb;
+	Slapi_PBlock *pb;
 	struct slapdplugin *plugin;
 	Slapi_Entry *e;
 	int entry_created;
@@ -1094,7 +1094,7 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 	plugin_dep_config *config = NULL;
 	plugin_dep_type the_plugin_type;
 	plugin_dep_type plugin_head = 0;
-	Slapi_PBlock pb;
+	Slapi_PBlock *pb;
 	Slapi_Entry *plugin_entry;
 	struct slapdplugin *plugin;
 	char *value;
@@ -1132,9 +1132,9 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 			continue;
 		}
 
-		pblock_init(&pb);
-		slapi_pblock_set( &pb, SLAPI_ARGC, &plugin->plg_argc);
-		slapi_pblock_set( &pb, SLAPI_ARGV, &plugin->plg_argv);
+        pb = slapi_pblock_new();
+		slapi_pblock_set( pb, SLAPI_ARGC, &plugin->plg_argc);
+		slapi_pblock_set( pb, SLAPI_ARGV, &plugin->plg_argv);
 
 		config[plugin_index].pb = pb;
 		config[plugin_index].e = ep->e;
@@ -1150,10 +1150,10 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 			 * because these two items are stored in the operation parameters.
 			 */
 			Operation *op = internal_operation_new(SLAPI_OPERATION_ADD, 0);
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_OPERATION, op);
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_TARGET_SDN,
+			slapi_pblock_set(config[plugin_index].pb, SLAPI_OPERATION, op);
+			slapi_pblock_set(config[plugin_index].pb, SLAPI_TARGET_SDN,
 				(void*)(slapi_entry_get_sdn_const(plugin_entry)));
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_ADD_ENTRY,
+			slapi_pblock_set(config[plugin_index].pb, SLAPI_ADD_ENTRY,
 				plugin_entry );
 
 			/* Pass the plugin alternate config area DN in SLAPI_PLUGIN_CONFIG_AREA. */
@@ -1161,7 +1161,7 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 			if(value){
 				config[plugin_index].config_area = value;
 				value = NULL;
-				slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN_CONFIG_AREA,
+				slapi_pblock_set(config[plugin_index].pb, SLAPI_PLUGIN_CONFIG_AREA,
 							config[plugin_index].config_area);
 			}
 
@@ -1251,8 +1251,9 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 						i++;
 					}
 
-					if(!satisfied)
+					if(!satisfied) {
 						continue;
+                    }
 				}
 
 				/*
@@ -1276,8 +1277,9 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 						i++;
 					}
 
-					if(!satisfied)
+					if(!satisfied) {
 						continue;
+                    }
 				}
 
 				/**** This plugins dependencies have now been satisfied ****/
@@ -1294,10 +1296,10 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 						 * Put the plugin into the temporary pblock so the startup functions have
 						 * access to the real plugin for registering callbacks, task, etc.
 						 */
-						slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN, config[plugin_index].plugin);
+						slapi_pblock_set(config[plugin_index].pb, SLAPI_PLUGIN, config[plugin_index].plugin);
 						ret = plugin_call_one( config[plugin_index].plugin, SLAPI_PLUGIN_START_FN,
-						                       &(config[plugin_index].pb));
-						pblock_done(&(config[plugin_index].pb));
+						                       config[plugin_index].pb);
+						// slapi_pblock_destroy(config[plugin_index].pb);
 
 						if(ret){
 							/*
@@ -1335,8 +1337,8 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 							index++;
 						}
 					}
-				} else {
-					pblock_done(&(config[plugin_index].pb));
+				// } else {
+				//	/slapi_pblock_destroy(config[plugin_index].pb);
 				}
 
 				/* decrement the type counter for this plugin type */
@@ -1428,7 +1430,7 @@ plugin_free_plugin_dep_config(plugin_dep_config **cfg)
 			slapi_ch_free_string(&config[index].type);
 			slapi_ch_free_string(&config[index].name);
 			slapi_ch_free_string(&config[index].config_area);
-			pblock_done(&config[index].pb);
+			slapi_pblock_destroy(config[index].pb);
 			index++;
 		}
 		slapi_ch_free((void**)&config);
@@ -1497,7 +1499,7 @@ static int
 plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((unused)), int operation, char** plugin_list)
 {
 	int ret = 0;
-	Slapi_PBlock pb;
+	Slapi_PBlock *pb;
 	int total_plugins = 0;
 	plugin_dep_config *config = 0;
 	plugin_dep_type plugin_head = 0;	
@@ -1567,9 +1569,9 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 			}
 		}
 
-		pblock_init(&pb);
-		slapi_pblock_set( &pb, SLAPI_ARGC, &argc);
-		slapi_pblock_set( &pb, SLAPI_ARGV, &argv);
+        pb = slapi_pblock_new();
+		slapi_pblock_set( pb, SLAPI_ARGC, &argc);
+		slapi_pblock_set( pb, SLAPI_ARGV, &argv);
 
 		config[plugin_index].pb = pb;
 		config[plugin_index].e = ep->e;
@@ -1591,10 +1593,10 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 			   only happens a few times at startup, this is not a very serious
 			   leak - just after the call to plugin_call_one */
 			Operation *op = internal_operation_new(SLAPI_OPERATION_ADD, 0);
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_OPERATION, op);
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_TARGET_SDN,
+			slapi_pblock_set(config[plugin_index].pb, SLAPI_OPERATION, op);
+			slapi_pblock_set(config[plugin_index].pb, SLAPI_TARGET_SDN,
 				(void*)(slapi_entry_get_sdn_const(plugin_entry)));
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_ADD_ENTRY,
+			slapi_pblock_set(config[plugin_index].pb, SLAPI_ADD_ENTRY,
 				plugin_entry );
 
 			/* Pass the plugin alternate config area DN in SLAPI_PLUGIN_CONFIG_AREA. */
@@ -1603,7 +1605,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 			{
 				config[plugin_index].config_area = value;
 				value = NULL;
-				slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN_CONFIG_AREA,
+				slapi_pblock_set(config[plugin_index].pb, SLAPI_PLUGIN_CONFIG_AREA,
 							config[plugin_index].config_area);
 			}
 
@@ -1711,8 +1713,9 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 						i++;
 					}
 
-					if(!satisfied)
+					if(!satisfied) {
 						continue;
+                    }
 				}
 
 				/* 
@@ -1743,8 +1746,9 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 						i++;
 					}
 
-					if(!satisfied)
+					if(!satisfied) {
 						continue;
+                    }
 				}
 
 				/**** This plugins dependencies have now been satisfied ****/
@@ -1759,15 +1763,15 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 				if(!config[plugin_index].entry_created)
 				{
 					int plugin_actions = 0;
-					Slapi_PBlock newpb = {0};
+					Slapi_PBlock *newpb = slapi_pblock_new();
 					Slapi_Entry *newe;
 
 					newe = slapi_entry_dup( config[plugin_index].e );
-					slapi_add_entry_internal_set_pb(&newpb, newe, NULL,
+					slapi_add_entry_internal_set_pb(newpb, newe, NULL,
 									plugin_get_default_component_id(), plugin_actions);
-					slapi_pblock_set(&newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(newe));
-					slapi_add_internal_pb(&newpb);
-					pblock_done(&newpb);
+					slapi_pblock_set(newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(newe));
+					slapi_add_internal_pb(newpb);
+					slapi_pblock_destroy(newpb);
 					config[plugin_index].entry_created = 1;
 				}
 
@@ -1787,8 +1791,8 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 					 * Put the plugin into the temporary pblock so the startup functions have
 					 * access to the real plugin for registering callbacks, tasks, etc.
 					 */
-					slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN, config[plugin_index].plugin);
-					ret = plugin_call_one( config[plugin_index].plugin, operation, &(config[plugin_index].pb));
+					slapi_pblock_set(config[plugin_index].pb, SLAPI_PLUGIN, config[plugin_index].plugin);
+					ret = plugin_call_one( config[plugin_index].plugin, operation, config[plugin_index].pb);
 
 					/* We used to call pblock done here, bet we try to restart
 					 * the plugin. If we call done on the pb here, the next attempt
@@ -1817,7 +1821,10 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 					 * because at this point we *have* started correctly, so we
 					 * can now free this.
 					 */
-					pblock_done(&(config[plugin_index].pb));
+                    /* This is freed in free_plugin_dep_config */
+                    /*
+					    slapi_pblock_destroy(config[plugin_index].pb);
+                    */
 
 					/* Add this plugin to the shutdown list */
 
@@ -1843,7 +1850,8 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 						}	
 					}
 				} else { /* if (enabled) == false */
-					pblock_done(&(config[plugin_index].pb));
+					/* slapi_pblock_destroy(config[plugin_index].pb); */
+                    /* This is freed in plugin_free_plugin_dep_config for us */
 				}
 
 				/* decrement the type counter for this plugin type */
@@ -1912,7 +1920,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg __attribute__((un
 void
 plugin_dependency_closeall(void)
 {
-	Slapi_PBlock pb;
+	Slapi_PBlock *pb;
 	int plugins_closed = 0;
 	int index = 0;
 
@@ -1930,13 +1938,13 @@ plugin_dependency_closeall(void)
 		if(global_plugin_shutdown_order[index].name)
 		{
 			if(!global_plugin_shutdown_order[index].removed){
-				pblock_init(&pb);
+                pb = slapi_pblock_new();
 				plugin_set_stopped(global_plugin_shutdown_order[index].plugin);
 				plugin_op_all_finished(global_plugin_shutdown_order[index].plugin);
-				plugin_call_one( global_plugin_shutdown_order[index].plugin, SLAPI_PLUGIN_CLOSE_FN, &pb);
+				plugin_call_one( global_plugin_shutdown_order[index].plugin, SLAPI_PLUGIN_CLOSE_FN, pb);
 				/* set plg_closed to 1 to prevent any further plugin pre/post op function calls */
 				global_plugin_shutdown_order[index].plugin->plg_closed = 1;
-				pblock_done(&pb);
+                slapi_pblock_destroy(pb);
 			}
 			plugins_closed++;
 
@@ -2851,7 +2859,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	struct slapi_componentid *cid = NULL;
 	const char *existname = 0;
 	slapi_plugin_init_fnptr initfunc = p_initfunc;
-	Slapi_PBlock pb = {0};
+	Slapi_PBlock *pb = NULL;
 	int status = 0;
 	int enabled = 1;
 	char *configdir = 0;
@@ -3074,16 +3082,18 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ++ii);
 	} while (skipped < MAXSKIPPED);
 
-	slapi_pblock_set(&pb, SLAPI_PLUGIN, plugin);
-	slapi_pblock_set(&pb, SLAPI_PLUGIN_VERSION, (void *)SLAPI_PLUGIN_CURRENT_VERSION);
+    pb = slapi_pblock_new();
+
+	slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, (void *)SLAPI_PLUGIN_CURRENT_VERSION);
 
 	cid = generate_componentid (plugin,NULL);
 	/* We take a copy of the pointer to this so we can free it correctly. */
 	plugin->plg_identity = cid;
-	slapi_pblock_set(&pb, SLAPI_PLUGIN_IDENTITY, (void*)cid);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, (void*)cid);
 
 	configdir = config_get_configdir();
-	slapi_pblock_set(&pb, SLAPI_CONFIG_DIRECTORY, configdir);
+	slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, configdir);
 
 	/* see if the plugin is enabled or not */
 	if ((value = slapi_entry_attr_get_charptr(plugin_entry,
@@ -3097,11 +3107,11 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		enabled = 1;
 	}
 
-	slapi_pblock_set(&pb, SLAPI_PLUGIN_ENABLED, &enabled);
-	slapi_pblock_set(&pb, SLAPI_PLUGIN_CONFIG_ENTRY, plugin_entry);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_ENABLED, &enabled);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_CONFIG_ENTRY, plugin_entry);
 	plugin->plg_op_counter = slapi_counter_new();
 
-	if (enabled && (*initfunc)(&pb) != 0)
+	if (enabled && (*initfunc)(pb) != 0)
 	{
         slapi_log_err(SLAPI_LOG_ERR, "plugin_setup", "Init function \"%s\" for \"%s\" plugin in library \"%s\" failed\n",
 				  plugin->plg_initfunc, plugin->plg_name, plugin->plg_libpath);
@@ -3143,7 +3153,7 @@ PLUGIN_CLEANUP:
 		plugin_free(plugin);
     }
 	slapi_ch_free((void **)&configdir);
-	pblock_done(&pb);
+	slapi_pblock_destroy(pb);
 
 	return status;
 }
@@ -3477,7 +3487,6 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type __attr
                 /*
                  * Call the close function, cleanup the hashtable & the global shutdown list
                  */
-                Slapi_PBlock pb = {0};
                 plugin_set_stopped(plugin);
                 if (slapi_counter_get_value(plugin->plg_op_counter) > 0){
                     /*
@@ -3486,7 +3495,9 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type __attr
                      */
                     return PLUGIN_BUSY;
                 }
-                plugin_call_one( plugin, SLAPI_PLUGIN_CLOSE_FN, &pb);
+                Slapi_PBlock *pb = slapi_pblock_new();
+                plugin_call_one( plugin, SLAPI_PLUGIN_CLOSE_FN, pb);
+                slapi_pblock_destroy(pb);
 
                 if(plugin_prev){
                     plugin_prev->plg_next = plugin_next;
@@ -3715,10 +3726,11 @@ static PRBool
 plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock *pb)
 {
 	Slapi_DN *target_spec;
+    Operation *pb_op = NULL;
 	PRBool rc;
 
 	PR_ASSERT (plugin);
-	PR_ASSERT (pb);	
+	PR_ASSERT (pb);
 
 	/* we always allow initialization and cleanup operations */
 	if (operation == SLAPI_PLUGIN_START_FN || 
@@ -3731,9 +3743,12 @@ plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock
 		operation == SLAPI_PLUGIN_BE_POST_BACKUP_FN)
 		return PR_TRUE;
 
-	PR_ASSERT (pb->pb_op);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
-	target_spec = operation_get_target_spec (pb->pb_op);
+    
+	PR_ASSERT (pb_op);
+
+	target_spec = operation_get_target_spec (pb_op);
 
 	rc = plugin_invoke_plugin_sdn (plugin, operation, pb, target_spec);
 
@@ -3759,6 +3774,9 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation __attribute_
 		return PR_FALSE;
 	}
 
+    Operation *pb_op;
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+
 	/* get configuration from the group plugin if necessary */
 	config = plugin_get_config (plugin);
 	slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
@@ -3768,13 +3786,14 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation __attribute_
 		int repl_op;
 
 		slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
-		if (repl_op)
+		if (repl_op) {
 			return PR_FALSE;
+        }
 	}
 
-	if (pb->pb_op)
+	if (pb_op)
 	{
-		op = operation_get_type(pb->pb_op);
+		op = operation_get_type(pb_op);
 
 		if (op == SLAPI_OPERATION_BIND || op == SLAPI_OPERATION_UNBIND)
 		{
@@ -4331,7 +4350,7 @@ bail:
 int
 slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
 {
-    Slapi_PBlock pb = {0};
+    Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Entry **entries = NULL;
     int rc = LDAP_SUCCESS;
     char **search_attrs = NULL; /* used by search */
@@ -4343,7 +4362,7 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
     charray_add(&search_attrs, slapi_ch_strdup(type));
 
     /* cn=plugin default config,cn=config */
-    slapi_search_internal_set_pb(&pb,
+    slapi_search_internal_set_pb(pb,
                     SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN (normalized) */
                     LDAP_SCOPE_BASE,
                     "(objectclass=*)",
@@ -4353,9 +4372,9 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
                     NULL, /* UniqueID */
                     (void *)plugin_get_default_component_id(),
                     0);
-    slapi_search_internal_pb(&pb);
-    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (LDAP_SUCCESS == rc && entries && *entries) {
         /* plugin default config entry exists */
         int exists = 0;
@@ -4369,8 +4388,8 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
                 exists = 1;
             }
         }
-        slapi_free_search_results_internal(&pb);
-        pblock_done(&pb);
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
 
         if (!exists) {
             /* The argument attr is not in the plugin default config.
@@ -4383,23 +4402,23 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
             slapi_mods_init(&smods, 1);
             slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va);
     
-            pblock_init(&pb);
-            slapi_modify_internal_set_pb(&pb, SLAPI_PLUGIN_DEFAULT_CONFIG,
+            pb = slapi_pblock_new();
+            slapi_modify_internal_set_pb(pb, SLAPI_PLUGIN_DEFAULT_CONFIG,
                                       slapi_mods_get_ldapmods_byref(&smods),
                                       NULL, NULL, /* UniqueID */
                                       (void *)plugin_get_default_component_id(),
                                       0 /* Flags */ );
-            slapi_modify_internal_pb(&pb);
-            slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+            slapi_modify_internal_pb(pb);
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
             slapi_mods_done(&smods);
-            pblock_done(&pb);
+            slapi_pblock_destroy(pb);
         }
     } else { /* cn=plugin default config does not exist. Let's add it. */
         Slapi_Mods smods;
         Slapi_Value *va[2];
 
-        slapi_free_search_results_internal(&pb);
-        pblock_done(&pb);
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
 
         va[0] = value;
         va[1] = NULL;
@@ -4410,15 +4429,15 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
                                                         "extensibleObject");
         slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va);
 
-        pblock_init(&pb);
-        slapi_add_internal_set_pb(&pb, SLAPI_PLUGIN_DEFAULT_CONFIG,
+        pb = slapi_pblock_new();
+        slapi_add_internal_set_pb(pb, SLAPI_PLUGIN_DEFAULT_CONFIG,
                                   slapi_mods_get_ldapmods_byref(&smods), NULL, 
                                   (void *)plugin_get_default_component_id(),
                                   0 /* Flags */ );
-        slapi_add_internal_pb(&pb);
-        slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_add_internal_pb(pb);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         slapi_mods_done(&smods);
-        pblock_done(&pb);
+        slapi_pblock_destroy(pb);
     }
     charray_free(search_attrs);
 
@@ -4434,7 +4453,6 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
 int
 slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
 {
-    Slapi_PBlock pb = {0};
     Slapi_Entry **entries = NULL;
     int rc = LDAP_PARAM_ERROR;
     char **search_attrs = NULL; /* used by search */
@@ -4445,8 +4463,10 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
 
     charray_add(&search_attrs, slapi_ch_strdup(type));
 
+    Slapi_PBlock *pb = slapi_pblock_new();
+
     /* cn=plugin default config,cn=config */
-    slapi_search_internal_set_pb(&pb,
+    slapi_search_internal_set_pb(pb,
                     SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN (normalized) */
                     LDAP_SCOPE_BASE,
                     "(objectclass=*)",
@@ -4456,9 +4476,9 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
                     NULL, /* UniqueID */
                     (void *)plugin_get_default_component_id(),
                     0);
-    slapi_search_internal_pb(&pb);
-    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (LDAP_SUCCESS == rc && entries && *entries) {
         /* default config entry exists */
         /* retrieve attribute values from the entry */
@@ -4470,8 +4490,8 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
 			rc = LDAP_NO_SUCH_ATTRIBUTE;
 		}
     }
-    slapi_free_search_results_internal(&pb);
-    pblock_done(&pb);
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
     charray_free(search_attrs);
 
     return rc;
@@ -4479,9 +4499,11 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
 
 void
 slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb){
-	struct pluginconfig *config = &pb->pb_plugin->plg_conf;
+    struct slapdplugin *plug;
+    slapi_pblock_get(pb, SLAPI_PLUGIN, &plug);
+    struct pluginconfig *config = &plug->plg_conf;
 
-	ptd_set_special_data(&(config->plgc_bind_subtrees), PLGC_DATA_BIND_ROOT);
+    ptd_set_special_data(&(config->plgc_bind_subtrees), PLGC_DATA_BIND_ROOT);
 }
 
 PRBool
@@ -4559,8 +4581,11 @@ slapi_plugin_running(Slapi_PBlock *pb)
 {
     int rc = 0;
 
-    if(pb->pb_plugin){
-        rc = pb->pb_plugin->plg_started;
+    struct slapdplugin *plugin;
+    slapi_pblock_get(pb, SLAPI_PLUGIN, &plugin);
+
+    if(plugin){
+        rc = plugin->plg_started;
     }
 
     return rc;

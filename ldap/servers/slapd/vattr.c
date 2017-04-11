@@ -272,9 +272,13 @@ static int vattr_helper_get_entry_conts_ex(Slapi_Entry *e,const char *type, vatt
 
 vattr_context *vattr_context_new( Slapi_PBlock *pb )
 {
+    void *pb_vattr_context = NULL;
+    if (pb != NULL) {
+        pb_vattr_context = slapi_pblock_get_vattr_context(pb);
+    }
 	vattr_context *c = NULL;
-	if (pb && pb->pb_vattr_context) {
-		c = (vattr_context *)pb->pb_vattr_context;
+	if (pb_vattr_context) {
+		c = (vattr_context *)pb_vattr_context;
 	} else {
 		c = (vattr_context *)slapi_ch_calloc(1, sizeof(vattr_context));
 	}
@@ -282,8 +286,8 @@ vattr_context *vattr_context_new( Slapi_PBlock *pb )
 	if ( c ) {
 		c->pb = pb;
 	}
-	if ( pb && c != (vattr_context *)pb->pb_vattr_context ) {
-		pb->pb_vattr_context = (void *)c;
+	if ( pb && c != (vattr_context *)pb_vattr_context ) {
+        slapi_pblock_set_vattr_context(pb, (void *)c);
 	}
 
 	return c;
@@ -314,7 +318,7 @@ static void  vattr_context_ungrok(vattr_context **c)
 	if (0 == vattr_context_unmark(*c)) {
 		/* If necessary, delete the structure */
 		if ((*c)->pb) {
-			(*c)->pb->pb_vattr_context = NULL;
+            slapi_pblock_set_vattr_context((*c)->pb, NULL);
 		}
 		slapi_ch_free((void **)c);
 	}

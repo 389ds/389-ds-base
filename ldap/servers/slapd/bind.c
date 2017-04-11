@@ -53,7 +53,13 @@ static void log_bind_access(
 void
 do_bind( Slapi_PBlock *pb )
 {
-    BerElement	*ber = pb->pb_op->o_ber;
+    Operation *pb_op = NULL;
+    Connection *pb_conn = NULL;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    BerElement	*ber = pb_op->o_ber;
     int		err, isroot;
     ber_tag_t 	method = LBER_DEFAULT;
     ber_int_t	version = -1;
@@ -135,7 +141,7 @@ do_bind( Slapi_PBlock *pb )
                dn?dn:"empty", method, version );
 
     /* target spec is used to decide which plugins are applicable for the operation */
-    operation_set_target_spec (pb->pb_op, sdn);
+    operation_set_target_spec (pb_op, sdn);
 
     switch ( method ) {
     case LDAP_AUTH_SASL:
@@ -222,9 +228,9 @@ do_bind( Slapi_PBlock *pb )
         slapi_pblock_get (pb, SLAPI_PWPOLICY, &pw_response_requested);
     }
 
-    PR_EnterMonitor(pb->pb_conn->c_mutex);
+    PR_EnterMonitor(pb_conn->c_mutex);
 
-    bind_credentials_clear( pb->pb_conn, PR_FALSE, /* do not lock conn */
+    bind_credentials_clear( pb_conn, PR_FALSE, /* do not lock conn */
                             PR_FALSE /* do not clear external creds. */ );
 
 #if defined(ENABLE_AUTOBIND)
@@ -236,13 +242,13 @@ do_bind( Slapi_PBlock *pb )
      */
     if((LDAP_AUTH_SASL == method) &&
        (0 == strcasecmp (saslmech, LDAP_SASL_EXTERNAL)) &&
-       (0 == dn || 0 == dn[0]) && pb->pb_conn->c_unix_local)
+       (0 == dn || 0 == dn[0]) && pb_conn->c_unix_local)
     {
-        slapd_bind_local_user(pb->pb_conn);
-        if(pb->pb_conn->c_dn)
+        slapd_bind_local_user(pb_conn);
+        if(pb_conn->c_dn)
         {
             auto_bind = 1; /* flag the bind method */
-            dn = slapi_ch_strdup(pb->pb_conn->c_dn);
+            dn = slapi_ch_strdup(pb_conn->c_dn);
             slapi_sdn_free(&sdn);
             sdn = slapi_sdn_new_dn_passin(dn);
         }
@@ -254,8 +260,8 @@ do_bind( Slapi_PBlock *pb )
      * With a new bind, the flag should be reset so that the new
      * bound user can work properly
      */
-    pb->pb_conn->c_needpw = 0;
-    PR_ExitMonitor(pb->pb_conn->c_mutex);
+    pb_conn->c_needpw = 0;
+    PR_ExitMonitor(pb_conn->c_mutex);
 
     log_bind_access(pb, dn?dn:"empty", method, version, saslmech, NULL);
 
@@ -264,7 +270,7 @@ do_bind( Slapi_PBlock *pb )
         if (method == LDAP_AUTH_SIMPLE
             && (config_get_force_sasl_external() ||
                 ((dn == NULL || *dn == '\0') && cred.bv_len == 0))
-            && pb->pb_conn->c_external_dn != NULL) {
+            && pb_conn->c_external_dn != NULL) {
             /* Treat this like a SASL EXTERNAL Bind: */
             method = LDAP_AUTH_SASL;
             saslmech = slapi_ch_strdup (LDAP_SASL_EXTERNAL);
@@ -277,7 +283,7 @@ do_bind( Slapi_PBlock *pb )
     case LDAP_VERSION3:
         if ((method == LDAP_AUTH_SIMPLE) &&
             config_get_force_sasl_external() &&
-            (pb->pb_conn->c_external_dn != NULL)) {
+            (pb_conn->c_external_dn != NULL)) {
             /* Treat this like a SASL EXTERNAL Bind: */
             method = LDAP_AUTH_SASL;
             saslmech = slapi_ch_strdup (LDAP_SASL_EXTERNAL);
@@ -296,7 +302,7 @@ do_bind( Slapi_PBlock *pb )
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_bind", "version %d method %lu dn %s\n",
                version, method, dn );
-    pb->pb_conn->c_ldapversion = version;
+    pb_conn->c_ldapversion = version;
 
     isroot = slapi_dn_isroot( slapi_sdn_get_ndn(sdn) );
     slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
@@ -311,7 +317,7 @@ do_bind( Slapi_PBlock *pb )
          * RFC2251: client may abort a sasl bind negotiation by sending
          * an authentication choice other than sasl.
          */
-        pb->pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE;
+        pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE;
     }
 
     switch ( method ) {
@@ -376,7 +382,7 @@ do_bind( Slapi_PBlock *pb )
              * if this is not an SSL connection, fail and return an
              * inappropriateAuth error.
              */
-            if ( 0 == ( pb->pb_conn->c_flags & CONN_FLAG_SSL )) {
+            if ( 0 == ( pb_conn->c_flags & CONN_FLAG_SSL )) {
                 send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                   "SASL EXTERNAL bind requires an SSL connection",
                                   0, NULL );
@@ -388,7 +394,7 @@ do_bind( Slapi_PBlock *pb )
             /*
              * Check for the client certificate.
              */
-            if( NULL == pb->pb_conn->c_client_cert){
+            if( NULL == pb_conn->c_client_cert){
                 send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                   "missing client certificate", 0, NULL );
                 /* call postop plugins */
@@ -400,7 +406,7 @@ do_bind( Slapi_PBlock *pb )
              * if the client sent us a certificate but we could not map it
              * to an LDAP DN, fail and return an invalidCredentials error.
              */
-            if ( NULL == pb->pb_conn->c_external_dn ) {
+            if ( NULL == pb_conn->c_external_dn ) {
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Client certificate mapping failed");
                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
                 /* call postop plugins */
@@ -410,7 +416,7 @@ do_bind( Slapi_PBlock *pb )
 
             if (!isroot) {
                 /* check if the account is locked */
-                bind_target_entry = get_entry(pb, pb->pb_conn->c_external_dn);
+                bind_target_entry = get_entry(pb, pb_conn->c_external_dn);
                 if ( bind_target_entry && slapi_check_account_lock(pb, bind_target_entry,
                      pw_response_requested, 1 /*check password policy*/, 1 /*send ldap result*/) == 1) {
                     /* call postop plugins */
@@ -422,12 +428,12 @@ do_bind( Slapi_PBlock *pb )
             /*
              * copy external credentials into connection structure
              */
-            bind_credentials_set( pb->pb_conn,
-                                  pb->pb_conn->c_external_authtype, 
-                                  pb->pb_conn->c_external_dn,
+            bind_credentials_set( pb_conn,
+                                  pb_conn->c_external_authtype, 
+                                  pb_conn->c_external_dn,
                                   NULL, NULL, NULL , NULL);
             if ( auth_response_requested ) {
-                slapi_add_auth_response_control( pb, pb->pb_conn->c_external_dn );
+                slapi_add_auth_response_control( pb, pb_conn->c_external_dn );
             }
             send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
             /* call postop plugins */
@@ -447,9 +453,9 @@ do_bind( Slapi_PBlock *pb )
          * there.
          */
         minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
-        if (!minssf_exclude_rootdse && (pb->pb_conn->c_sasl_ssf < minssf) &&
-            (pb->pb_conn->c_ssl_ssf < minssf) &&
-            (pb->pb_conn->c_local_ssf < minssf)) {
+        if (!minssf_exclude_rootdse && (pb_conn->c_sasl_ssf < minssf) &&
+            (pb_conn->c_ssl_ssf < minssf) &&
+            (pb_conn->c_local_ssf < minssf)) {
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Minimum SSF not met.", 0, NULL);
             /* increment BindSecurityErrorcount */
@@ -475,7 +481,7 @@ do_bind( Slapi_PBlock *pb )
             }
 
             /* set the bind credentials so anonymous limits are set */
-            bind_credentials_set( pb->pb_conn, SLAPD_AUTH_NONE,
+            bind_credentials_set( pb_conn, SLAPD_AUTH_NONE,
                                       NULL, NULL, NULL, NULL , NULL);
 
             /* call preop plugins */
@@ -525,7 +531,7 @@ do_bind( Slapi_PBlock *pb )
 
             /* Allow simple binds only for SSL/TLS established connections
              * or connections using SASL privacy layers */
-            conn = pb->pb_conn;
+            conn = pb_conn;
             if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
                 slapi_log_err(SLAPI_LOG_PLUGIN, "do_bind",
                                  "Could not get SASL SSF from connection\n" );
@@ -583,7 +589,7 @@ do_bind( Slapi_PBlock *pb )
                 /*
                  *  right dn and passwd - authorize
                  */
-                bind_credentials_set( pb->pb_conn, SLAPD_AUTH_SIMPLE, slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
+                bind_credentials_set( pb_conn, SLAPD_AUTH_SIMPLE, slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
                                       NULL, NULL, NULL , NULL);
             } else {
                 /*
@@ -626,7 +632,7 @@ do_bind( Slapi_PBlock *pb )
         rc = 0;
 
         /* Check if a pre_bind plugin mapped the DN to another backend */
-        Slapi_DN *target_spec_sdn = operation_get_target_spec(pb->pb_op);
+        Slapi_DN *target_spec_sdn = operation_get_target_spec(pb_op);
         Slapi_DN *pb_sdn;
         slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
         if (!pb_sdn) {
@@ -651,7 +657,7 @@ do_bind( Slapi_PBlock *pb )
          * It's really important that when we start to rethink pblock, that we kill this with fire.
          */
         slapi_sdn_free(&target_spec_sdn);
-        operation_set_target_spec(pb->pb_op, pb_sdn);
+        operation_set_target_spec(pb_op, pb_sdn);
 
         /* We could be serving multiple database backends.  Select the appropriate one */
         /* pw_verify_be_dn will select the backend we need for us. */
@@ -745,7 +751,7 @@ do_bind( Slapi_PBlock *pb )
                             goto free_and_return;
                         }
                     }
-                    bind_credentials_set(pb->pb_conn, authtype,
+                    bind_credentials_set(pb_conn, authtype,
                                          slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
                                          NULL, NULL, NULL, bind_target_entry);
                     if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
@@ -773,7 +779,7 @@ do_bind( Slapi_PBlock *pb )
                 } 
             } else {	/* anonymous */
                 /* set bind creds here so anonymous limits are set */
-                bind_credentials_set(pb->pb_conn, authtype, NULL, NULL, NULL, NULL, NULL);
+                bind_credentials_set(pb_conn, authtype, NULL, NULL, NULL, NULL, NULL);
 
                 if ( auth_response_requested ) {
                     slapi_add_auth_response_control(pb, "");
@@ -851,29 +857,34 @@ log_bind_access (
     const char *msg
 )
 {
+    Operation *pb_op = NULL;
+    Connection *pb_conn = NULL;
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
     if (method == LDAP_AUTH_SASL && saslmech && msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=sasl version=%d mech=%s, %s\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
+                          pb_conn->c_connid, pb_op->o_opid, dn,
                           version, saslmech, msg );
     } else if (method == LDAP_AUTH_SASL && saslmech) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=sasl version=%d mech=%s\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
+                          pb_conn->c_connid, pb_op->o_opid, dn,
                           version, saslmech );
     } else if (msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=%" BERTAG_T " version=%d, %s\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
+                          pb_conn->c_connid, pb_op->o_opid, dn,
                           method, version, msg );
     } else {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=%" BERTAG_T " version=%d\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
+                          pb_conn->c_connid, pb_op->o_opid, dn,
                           method, version );
     }
 }

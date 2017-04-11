@@ -528,7 +528,10 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * The available parameters that you can use depends on the type of plug-in function
  * you are writing.
  */
-typedef struct slapi_pblock		Slapi_PBlock;
+// Shadow pointer for pblock
+struct slapi_pblock;
+
+typedef struct slapi_pblock Slapi_PBlock;
 
 /**
  * Represents an entry in the directory.

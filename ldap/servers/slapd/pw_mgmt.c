@@ -37,6 +37,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 	passwdPolicy *pwpolicy = NULL;
 	int	pwdGraceUserTime = 0;
 	char graceUserTime[16] = {0};
+    Connection *pb_conn = NULL;
 
 	if (NULL == e) {
 		return (-1);
@@ -86,6 +87,8 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 
 	slapi_ch_free_string(&passwordExpirationTime);
 
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
 	/* Check if password has been reset */
 	if ( pw_exp_date == NO_TIME ) {
 
@@ -93,7 +96,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 		if ( pwpolicy->pw_must_change ) {
 			/* set c_needpw for this connection to be true.  this client 
 			   now can only change its own password */
-			pb->pb_conn->c_needpw = 1;
+			pb_conn->c_needpw = 1;
 			*t=0;
 			/* We need to include "changeafterreset" error in
 			 * passwordpolicy response control. So, we will not be
@@ -115,7 +118,7 @@ skip:
 	/* if password never expires, don't need to go on; return 0 */
 	if ( pwpolicy->pw_exp == 0 ) {
 		/* check for "changeafterreset" condition */
-		if (pb->pb_conn->c_needpw == 1) {
+		if (pb_conn->c_needpw == 1) {
 			if (pwresponse_req) {
 				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_CHGAFTERRESET );
 			} 
@@ -144,7 +147,7 @@ skip:
 			slapi_mods_done(&smods);
 			if (pwresponse_req) {
 				/* check for "changeafterreset" condition */
-				if (pb->pb_conn->c_needpw == 1) {
+				if (pb_conn->c_needpw == 1) {
 					slapi_pwpolicy_make_response_control( pb, -1, 
 						((pwpolicy->pw_gracelimit) - pwdGraceUserTime),
 						LDAP_PWPOLICY_CHGAFTERRESET);
@@ -155,7 +158,7 @@ skip:
 				}
 			}
 			
-			if (pb->pb_conn->c_needpw == 1) {
+			if (pb_conn->c_needpw == 1) {
 				slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 			}
 			return ( 0 );
@@ -176,10 +179,12 @@ skip:
 		   do_unbind() checking for those.   We might need to 
 		   create a pb for unbind operation.  Also do_unbind calls
 		   pre and post ops.  Maybe we don't want to call them */
-		if (pb->pb_conn && (LDAP_VERSION2 == pb->pb_conn->c_ldapversion)) {
+		if (pb_conn && (LDAP_VERSION2 == pb_conn->c_ldapversion)) {
+            Operation *pb_op = NULL;
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 			/* We close the connection only with LDAPv2 connections */
-			disconnect_server( pb->pb_conn, pb->pb_op->o_connid,
-				pb->pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+			disconnect_server( pb_conn, pb_op->o_connid,
+				pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
 		}
 		/* Apply current modifications */
 		pw_apply_mods(sdn, &smods);
@@ -202,7 +207,7 @@ skip:
 			/* reset the expiration time to current + warning time 
 			 * and set passwordExpWarned to true
 			 */
-			if (pb->pb_conn->c_needpw != 1) {
+			if (pb_conn->c_needpw != 1) {
 				pw_exp_date = time_plus_sec(cur_time, pwpolicy->pw_warning);
 			}
 			
@@ -222,7 +227,7 @@ skip:
 		slapi_mods_done(&smods);
 		if (pwresponse_req) {
 			/* check for "changeafterreset" condition */
-			if (pb->pb_conn->c_needpw == 1) {
+			if (pb_conn->c_needpw == 1) {
 					slapi_pwpolicy_make_response_control( pb, *t, -1,
 						LDAP_PWPOLICY_CHGAFTERRESET);
 				} else {
@@ -231,7 +236,7 @@ skip:
 				}
 		}
 
-		if (pb->pb_conn->c_needpw == 1) {
+		if (pb_conn->c_needpw == 1) {
 			slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		}
 		return (2);
@@ -245,7 +250,7 @@ skip:
 	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
 	/* Leftover from "changeafterreset" condition */
-	if (pb->pb_conn->c_needpw == 1) {
+	if (pb_conn->c_needpw == 1) {
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 	}
 	/* passes checking, return 0 */

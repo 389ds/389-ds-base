@@ -1092,7 +1092,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     char             **exclude_suffix = NULL;
     char             **include_suffix = NULL;
     int              decrypt = 0;
-    int              dump_replica = 0;
+    int32_t          dump_replica = 0;
     int              dump_uniqueid = 1;
     int              fd = STDOUT_FILENO;
     IDList           *idl = NULL;    /* optimization for -s include lists */
@@ -1124,7 +1124,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running );
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
-    dump_replica = pb->pb_ldif_dump_replica;
+    dump_replica = slapi_pblock_get_ldif_dump_replica(pb);
     if (run_from_cmdline) {
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         if (!dump_replica) {

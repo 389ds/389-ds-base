@@ -4125,16 +4125,16 @@ delete_subtree(Slapi_PBlock *pb, const char *dn, void *plg_id)
         Slapi_DN *rootDN = slapi_sdn_new_dn_byval(dn);
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         for (ep = entries; ep && *ep; ep++) {
-            Slapi_PBlock mypb = {0};
             const Slapi_DN *sdn = slapi_entry_get_sdn_const(*ep);
             if (slapi_sdn_compare(sdn, rootDN) == 0) {
                 continue;
             }
-            slapi_delete_internal_set_pb(&mypb, slapi_sdn_get_dn(sdn),
+            Slapi_PBlock *mypb = slapi_pblock_new();
+            slapi_delete_internal_set_pb(mypb, slapi_sdn_get_dn(sdn),
                 NULL, NULL, plg_id, 0);
-            slapi_delete_internal_pb(&mypb);
-            slapi_pblock_get(&mypb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
-            pblock_done(&mypb);
+            slapi_delete_internal_pb(mypb);
+            slapi_pblock_get(mypb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+            slapi_pblock_destroy(mypb);
         }
         slapi_sdn_free(&rootDN);
     }
@@ -4229,14 +4229,14 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                 }
                 if (0 == isfirst && force_update && testall)
                 {
-                    Slapi_PBlock pb = {0};
-                    slapi_modify_internal_set_pb_ext(&pb, 
+                    Slapi_PBlock *pb = slapi_pblock_new();
+                    slapi_modify_internal_set_pb_ext(pb, 
                                 slapi_entry_get_sdn_const(*oep),
                                 slapi_mods_get_ldapmods_byref(smods),
                                 NULL, NULL, plg_id, 0);
 
-                    slapi_modify_internal_pb(&pb);
-                    pblock_done(&pb);
+                    slapi_modify_internal_pb(pb);
+                    slapi_pblock_destroy(pb);
                 }
 
                 slapi_mods_free(&smods);
@@ -4257,14 +4257,14 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
             {
                 if (force_update)
                 {
-                    Slapi_PBlock pb = {0};
+                    Slapi_PBlock *pb = slapi_pblock_new();
                     LDAPMod **mods;
                     slapi_entry2mods(*oep, NULL, &mods);
-                    slapi_add_internal_set_pb(&pb, slapi_entry_get_dn_const(*oep),
+                    slapi_add_internal_set_pb(pb, slapi_entry_get_dn_const(*oep),
                                               mods, NULL, plg_id, 0);
-                    slapi_add_internal_pb(&pb);
+                    slapi_add_internal_pb(pb);
                     freepmods(mods);
-                    pblock_done(&pb);
+                    slapi_pblock_destroy(pb);
                 }
             }
             else
@@ -4286,9 +4286,9 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
             if (testall)
             {
                 if (force_update) {
-                    Slapi_PBlock pb = {0};
-                    delete_subtree(&pb, slapi_entry_get_dn_const(*cep), plg_id);
-                    pblock_done(&pb);
+                    Slapi_PBlock *pb = slapi_pblock_new();
+                    delete_subtree(pb, slapi_entry_get_dn_const(*cep), plg_id);
+                    slapi_pblock_destroy(pb);
                 }
             }
             else

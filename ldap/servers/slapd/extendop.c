@@ -30,6 +30,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid __attribute
     Slapi_Backend *be = NULL;
     struct berval bv;
     int ret;
+    Operation *pb_op = NULL;
+    Connection *pb_conn = NULL;
 
     if (extval == NULL || extval->bv_val == NULL) {
         slapi_log_err(SLAPI_LOG_ERR,
@@ -76,8 +78,9 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid __attribute
         goto out;
     }
 
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
-    slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
+    slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &(pb_op->o_isroot));
     
     {
         /* Access Control Check to see if the client is
@@ -132,10 +135,11 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid __attribute
     /* okay, the import is starting now -- save the backend in the
      * connection block & mark this connection as belonging to a bulk import
      */
-    PR_EnterMonitor(pb->pb_conn->c_mutex);
-    pb->pb_conn->c_flags |= CONN_FLAG_IMPORT;
-    pb->pb_conn->c_bi_backend = be;
-    PR_ExitMonitor(pb->pb_conn->c_mutex);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    PR_EnterMonitor(pb_conn->c_mutex);
+    pb_conn->c_flags |= CONN_FLAG_IMPORT;
+    pb_conn->c_bi_backend = be;
+    PR_ExitMonitor(pb_conn->c_mutex);
 
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, EXTOP_BULK_IMPORT_START_OID);
     bv.bv_val = NULL;
@@ -156,12 +160,14 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid __attribute_
     Slapi_Backend *be;
     struct berval bv;
     int ret;
+    Connection *pb_conn;
 
-    PR_EnterMonitor(pb->pb_conn->c_mutex);
-    pb->pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
-    be = pb->pb_conn->c_bi_backend;
-    pb->pb_conn->c_bi_backend = NULL;
-    PR_ExitMonitor(pb->pb_conn->c_mutex);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    PR_EnterMonitor(pb_conn->c_mutex);
+    pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
+    be = pb_conn->c_bi_backend;
+    pb_conn->c_bi_backend = NULL;
+    PR_ExitMonitor(pb_conn->c_mutex);
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
@@ -206,8 +212,13 @@ do_extended( Slapi_PBlock *pb )
     ber_len_t   len;
     ber_tag_t   tag;
     const char  *name;
+    Operation *pb_op = NULL;
+    Connection *pb_conn = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "->\n");
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
     /*
      * Parse the extended request. It looks like this:
@@ -218,7 +229,7 @@ do_extended( Slapi_PBlock *pb )
      *  }
      */
 
-    if ( ber_scanf( pb->pb_op->o_ber, "{a", &extoid )
+    if ( ber_scanf( pb_op->o_ber, "{a", &extoid )
         == LBER_ERROR ) {
         slapi_log_err(SLAPI_LOG_ERR,
             "do_extended", "ber_scanf failed (op=extended; params=OID)\n");
@@ -227,17 +238,17 @@ do_extended( Slapi_PBlock *pb )
             NULL );
         goto free_and_return;
     }
-    tag = ber_peek_tag(pb->pb_op->o_ber, &len);
+    tag = ber_peek_tag(pb_op->o_ber, &len);
 
     if (tag == LDAP_TAG_EXOP_REQ_VALUE) {
-        if ( ber_scanf( pb->pb_op->o_ber, "o}", &extval ) == LBER_ERROR ) {
+        if ( ber_scanf( pb_op->o_ber, "o}", &extval ) == LBER_ERROR ) {
             op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension value");
             send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
                               NULL );
             goto free_and_return;
         }
     } else {
-        if ( ber_scanf( pb->pb_op->o_ber, "}") == LBER_ERROR ) {
+        if ( ber_scanf( pb_op->o_ber, "}") == LBER_ERROR ) {
             op_shared_log_error_access (pb, "EXT", "???", "decoding error"); 
             send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
                               NULL );
@@ -248,20 +259,20 @@ do_extended( Slapi_PBlock *pb )
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s)\n", extoid);
 
         slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d EXT oid=\"%s\"\n",
-                pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
+                pb_conn->c_connid, pb_op->o_opid, extoid );
     } else {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s-%s)\n",
                 extoid, name);
 
         slapi_log_access( LDAP_DEBUG_STATS,
             "conn=%" PRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
-            pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
+            pb_conn->c_connid, pb_op->o_opid, extoid, name );
     }
 
     /* during a bulk import, only BULK_IMPORT_DONE is allowed! 
      * (and this is the only time it's allowed)
      */
-    if (pb->pb_conn->c_flags & CONN_FLAG_IMPORT) {
+    if (pb_conn->c_flags & CONN_FLAG_IMPORT) {
         if (strcmp(extoid, EXTOP_BULK_IMPORT_DONE_OID) != 0) {
             send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
             goto free_and_return;
@@ -280,16 +291,16 @@ do_extended( Slapi_PBlock *pb )
 
         /* If anonymous access is disabled and we haven't
          * authenticated yet, only allow startTLS. */
-        if ((config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) && ((pb->pb_op->o_authtype == NULL) ||
-                    (strcasecmp(pb->pb_op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
+        if ((config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) && ((pb_op->o_authtype == NULL) ||
+                    (strcasecmp(pb_op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
             send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                 "Anonymous access is not allowed.", 0, NULL );
             goto free_and_return;
         }
 
         /* If the minssf is not met, only allow startTLS. */
-        if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf) &&
-            (pb->pb_conn->c_local_ssf < minssf)) {
+        if ((pb_conn->c_sasl_ssf < minssf) && (pb_conn->c_ssl_ssf < minssf) &&
+            (pb_conn->c_local_ssf < minssf)) {
             send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                 "Minimum SSF not met.", 0, NULL );
             goto free_and_return;
@@ -298,8 +309,8 @@ do_extended( Slapi_PBlock *pb )
 
     /* If a password change is required, only allow the password
      * modify extended operation */
-    if (!pb->pb_conn->c_isreplication_session &&
-                pb->pb_conn->c_needpw && (strcmp(extoid, EXTOP_PASSWD_OID) != 0))
+    if (!pb_conn->c_isreplication_session &&
+                pb_conn->c_needpw && (strcmp(extoid, EXTOP_PASSWD_OID) != 0))
     {
         char *dn = NULL;
         slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
@@ -313,7 +324,7 @@ do_extended( Slapi_PBlock *pb )
     }
 
     /* decode the optional controls - put them in the pblock */
-    if ( (lderr = get_ldapmessage_controls( pb, pb->pb_op->o_ber, NULL )) != 0 )
+    if ( (lderr = get_ldapmessage_controls( pb, pb_op->o_ber, NULL )) != 0 )
     {
         char *dn = NULL;
         slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
@@ -327,7 +338,7 @@ do_extended( Slapi_PBlock *pb )
 
     slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
     slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
-    slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
+    slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb_op->o_isroot);
 
     rc = plugin_determine_exop_plugins( extoid, &p );
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Plugin_determine_exop_plugins rc %d\n", rc);

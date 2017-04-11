@@ -1410,6 +1410,10 @@ long util_get_hardware_threads(void);
  */
 void slapi_create_errormsg(char *errorbuf, size_t len, const char *fmt, ...);
 
+struct slapi_entry * slapi_pblock_get_pw_entry(Slapi_PBlock *pb);
+void slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry);
+
+
 #ifdef __cplusplus
 }
 #endif

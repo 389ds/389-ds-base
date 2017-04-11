@@ -57,7 +57,7 @@ do_delete( Slapi_PBlock *pb )
 	 *	DelRequest := DistinguishedName
 	 */
 
-	if ( ber_scanf( pb->pb_op->o_ber, "a", &rawdn ) == LBER_ERROR ) {
+	if ( ber_scanf( operation->o_ber, "a", &rawdn ) == LBER_ERROR ) {
 		slapi_log_err(SLAPI_LOG_ERR,
 		    "do_delete", "ber_scanf failed (op=Delete; params=DN)\n");
 		op_shared_log_error_access (pb, "DEL", "???", "decoding error");
@@ -91,7 +91,7 @@ do_delete( Slapi_PBlock *pb )
 
 	slapi_log_err(SLAPI_LOG_ARGS, "do_delete", "dn (%s)\n", rawdn );
 
-	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
+	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &(operation->o_isroot) );
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn);
 
 	op_shared_delete (pb);
@@ -107,21 +107,21 @@ free_and_return:;
 Slapi_PBlock *
 slapi_delete_internal(const char *idn, LDAPControl **controls, int dummy __attribute__((unused)))
 {
-    Slapi_PBlock    pb = {0};
+    Slapi_PBlock    *pb = slapi_pblock_new();
     Slapi_PBlock    *result_pb;
     int             opresult;
 
-    slapi_delete_internal_set_pb (&pb, idn, controls, NULL, plugin_get_default_component_id(), 0);
+    slapi_delete_internal_set_pb (pb, idn, controls, NULL, plugin_get_default_component_id(), 0);
 
-	delete_internal_pb (&pb);
+	delete_internal_pb (pb);
 	
 	result_pb = slapi_pblock_new();
 	if (result_pb)
 	{
-		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);	
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);	
 		slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 	}
-	pblock_done(&pb);
+    slapi_pblock_destroy(pb);
     
     return result_pb;
 }
@@ -260,9 +260,13 @@ static void op_shared_delete (Slapi_PBlock *pb)
 
 		if (!internal_op )
 		{
+            Connection *pb_conn = NULL;
+            Operation *pb_op = NULL;
+            slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d DEL dn=\"%s\"%s\n",
-							pb->pb_conn->c_connid,
-							pb->pb_op->o_opid,
+							pb_conn->c_connid,
+							pb_op->o_opid,
 							slapi_sdn_get_dn(sdn),
 							proxystr ? proxystr: "");
 		}

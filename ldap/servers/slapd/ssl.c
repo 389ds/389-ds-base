@@ -939,7 +939,7 @@ freeChildren( char **list ) {
 static void
 entrySetValue(Slapi_DN *sdn, char *type, char *value)
 {
-    Slapi_PBlock mypb = {0};
+    Slapi_PBlock *mypb = slapi_pblock_new();
     LDAPMod attr;
     LDAPMod *mods[2];
     char *values[2];
@@ -955,9 +955,9 @@ entrySetValue(Slapi_DN *sdn, char *type, char *value)
     mods[0] = &attr;
     mods[1] = NULL;
 
-    slapi_modify_internal_set_pb_ext(&mypb, sdn, mods, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
-    slapi_modify_internal_pb(&mypb);
-    pblock_done(&mypb);
+    slapi_modify_internal_set_pb_ext(mypb, sdn, mods, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
+    slapi_modify_internal_pb(mypb);
+    slapi_pblock_destroy(mypb);
 }
 
 /* Logs a warning and returns 1 if cert file doesn't exist. You

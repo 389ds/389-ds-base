@@ -35,6 +35,7 @@ void
 do_unbind( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation;
+    Connection *pb_conn;
 	BerElement	*ber;
 	int		err;
 	int ignore_criticality = 1;
@@ -42,6 +43,7 @@ do_unbind( Slapi_PBlock *pb )
 	slapi_log_err(SLAPI_LOG_TRACE, "do_unbind", "=>\n");
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	ber = operation->o_ber;
 	/*
 	 * Parse the unbind request.  It looks like this:
@@ -51,7 +53,7 @@ do_unbind( Slapi_PBlock *pb )
 	if ( ber_get_null( ber ) == LBER_ERROR ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
 				" decoding error: UnBindRequest not null\n",
-				pb->pb_conn->c_connid, operation->o_opid );
+				pb_conn->c_connid, operation->o_opid );
 		/* LDAPv3 does not allow a response to an unbind... so just return. */
 		goto free_and_return;
 	}
@@ -66,27 +68,27 @@ do_unbind( Slapi_PBlock *pb )
 	if ( (err = get_ldapmessage_controls_ext( pb, ber, NULL, ignore_criticality )) != 0 ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
 				" error processing controls - error %d (%s)\n",
-				pb->pb_conn->c_connid, operation->o_opid,
+				pb_conn->c_connid, operation->o_opid,
 				err, ldap_err2string( err ));
 		/* LDAPv3 does not allow a response to an unbind... so just return. */
 		goto free_and_return;
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	PR_EnterMonitor(pb->pb_conn->c_mutex);
-	operation_set_target_spec_str (operation, pb->pb_conn->c_dn);
-	PR_ExitMonitor(pb->pb_conn->c_mutex);
+	PR_EnterMonitor(pb_conn->c_mutex);
+	operation_set_target_spec_str (operation, pb_conn->c_dn);
+	PR_ExitMonitor(pb_conn->c_mutex);
 
 	/* ONREPL - plugins should be called and passed bind dn and, possibly, other data */
 
 	slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND\n",
-			pb->pb_conn->c_connid, operation->o_opid );
+			pb_conn->c_connid, operation->o_opid );
 
 	/* pass the unbind to all backends */
-	be_unbindall( pb->pb_conn, operation );
+	be_unbindall( pb_conn, operation );
 
 	/* close the connection to the client */
-	disconnect_server( pb->pb_conn, operation->o_connid, operation->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+	disconnect_server( pb_conn, operation->o_connid, operation->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
 
 free_and_return:;
 }
