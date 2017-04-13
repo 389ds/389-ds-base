@@ -159,7 +159,7 @@ static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
 static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn);
 static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn, MemberOfConfig *config,
-	char **types, plugin_search_entry_callback callback,  void *callback_data, int *cached);
+	char **types, plugin_search_entry_callback callback,  void *callback_data, int *cached, PRBool use_grp_cache);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	Slapi_Value *memberdn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
@@ -659,7 +659,7 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
 
 		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_del_dn_from_groups: Ancestors of %s\n", slapi_sdn_get_dn(sdn));
 		rc = memberof_call_foreach_dn(pb, sdn, config, groupattrs,
-		                              memberof_del_dn_type_callback, &data, &cached);
+		                              memberof_del_dn_type_callback, &data, &cached, PR_FALSE);
 	}
 
 	return rc;
@@ -777,7 +777,7 @@ add_ancestors_cbdata(memberof_cached_value *ancestors, void *callback_data)
  */
 int
 memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn,
-	MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached)
+	MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache)
 {
 	Slapi_PBlock *search_pb = NULL;
 	Slapi_DN *base_sdn = NULL;
@@ -792,9 +792,6 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
 	int free_it = 0;
 	int rc = 0;
 	int i = 0;
-	memberof_cached_value *ht_grp = NULL;
-	memberof_get_groups_data *data = (memberof_get_groups_data*) callback_data;
-	const char *ndn = slapi_sdn_get_ndn(sdn);
 
 	*cached = 0;
 
@@ -802,17 +799,24 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
 		return (rc);
 	}
 
-	/* Here we will retrieve the ancestor of sdn.
-	 * The key access is the normalized sdn
-	 * This is done through recursive internal searches of parents
-	 * If the ancestors of sdn are already cached, just use
-	 * this value
+	/* This flags indicates memberof_call_foreach_dn is called to retrieve ancestors (groups).
+	 * To improve performance, it can use a cache. (it will not in case of circular groups)
+	 * When this flag is true it means no circular group are detected (so far) so we can use the cache
 	 */
-	if (data && data->use_cache) {
+	if (use_grp_cache) {
+		/* Here we will retrieve the ancestor of sdn.
+		 * The key access is the normalized sdn
+		 * This is done through recursive internal searches of parents
+		 * If the ancestors of sdn are already cached, just use
+		 * this value
+		 */
+		memberof_cached_value *ht_grp = NULL;
+		const char *ndn = slapi_sdn_get_ndn(sdn);
+		
 		ht_grp = ancestors_cache_lookup((const void *) ndn);
 		if (ht_grp) {
 #if MEMBEROF_CACHE_DEBUG
-		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s already cached (%x)\n", ndn, ht_grp);
+			slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s already cached (%x)\n", ndn, ht_grp);
 #endif
 			add_ancestors_cbdata(ht_grp, callback_data);
 			*cached = 1;
@@ -1106,7 +1110,7 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 		slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_replace_dn_from_groups: Ancestors of %s\n", slapi_sdn_get_dn(post_sdn));
 		if((ret = memberof_call_foreach_dn(pb, pre_sdn, config, groupattrs,
 		                                   memberof_replace_dn_type_callback,
-		                                   &data, &cached)))
+		                                   &data, &cached, PR_FALSE)))
 		{
 			break;
 		}
@@ -2383,7 +2387,7 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn,
 	slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_get_groups_r: Ancestors of %s\n", slapi_sdn_get_dn(member_sdn));
 #endif
 	rc = memberof_call_foreach_dn(NULL, member_sdn, config, config->groupattrs,
-		memberof_get_groups_callback, &member_data, &cached);
+		memberof_get_groups_callback, &member_data, &cached, member_data.use_cache);
 
 	merge_ancestors(&member_ndn_val, &member_data, data);
 	if (!cached && member_data.use_cache)
@@ -2578,7 +2582,7 @@ memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config,
 	int cached = 0;
 
 	return memberof_call_foreach_dn(pb, group_sdn, config, attrs,
-		memberof_test_membership_callback, config, &cached);
+		memberof_test_membership_callback, config, &cached, PR_FALSE);
 }
 
 /*
