@@ -32,6 +32,11 @@ class TopologyInstance(object):
 def topology(request):
     instance = DirSrv(verbose=False)
 
+    args = {SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
+            SER_SERVERID_PROP: INSTANCE_SERVERID}
+    instance.allocate(args)
+
     if instance.exists():
         instance.delete()
 
@@ -61,15 +66,6 @@ def test_allocate(topology):
     """Test instance.allocate() function
     for correct state and arguments
     """
-
-    log.info('Check instance state is initial')
-    assert topology.instance.state == DIRSRV_STATE_INIT
-
-    log.info('Allocate the instance')
-    args = {SER_HOST: LOCALHOST,
-            SER_PORT: INSTANCE_PORT,
-            SER_SERVERID_PROP: INSTANCE_SERVERID}
-    topology.instance.allocate(args)
 
     log.info('Check instance state is allocated')
     assert topology.instance.state == DIRSRV_STATE_ALLOCATED
