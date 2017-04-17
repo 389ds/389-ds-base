@@ -435,7 +435,9 @@ sub initInfFromInst {
     my $servid = $inst;
     $servid =~ s/slapd-//;
 
-    $inf->{General}->{FullMachineName} = $entry->getValue("nsslapd-localhost");
+    if (!$inf->{General}->{FullMachineName}) {
+        $inf->{General}->{FullMachineName} = $entry->getValue("nsslapd-localhost");
+    }
     $inf->{General}->{SuiteSpotUserID} = $entry->getValue("nsslapd-localuser");
     $inf->{slapd}->{ServerPort} = $entry->getValue("nsslapd-port");
     $inf->{slapd}->{ldapifilepath} = $entry->getValue("nsslapd-ldapifilepath");
