@@ -1392,7 +1392,7 @@ typedef enum _util_cachesize_result {
  * \return util_cachesize_result.
  * \sa util_cachesize_result, spal_meminfo_get
  */
-util_cachesize_result util_is_cachesize_sane(slapi_pal_meminfo *mi, size_t *cachesize);
+util_cachesize_result util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize);
 
 /**
  * Retrieve the number of threads the server should run with based on this hardware.
