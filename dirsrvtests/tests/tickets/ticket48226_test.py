@@ -125,7 +125,8 @@ def test_ticket48226_1(topology_m2):
             else:
                 log.info('Valgrind is happy!')
     finally:
-        valgrind_disable(sbin_dir)
+        if not topology_m2.ms["master2"].has_asan():
+            valgrind_disable(sbin_dir)
 
 
 if __name__ == '__main__':

@@ -9,6 +9,7 @@
 import logging
 import time
 
+import socket
 import ldap
 import pytest
 from lib389 import Entry
@@ -39,6 +40,7 @@ NSS321 = '3.21.0'  # RHEL6
 NSS323 = '3.23.0'  # F22
 NSS325 = '3.25.0'  # F23/F24
 NSS327 = '3.27.0'  # F25
+NSS330 = '3.30.0'  # F27
 
 
 def _header(topology_st, label):
@@ -60,66 +62,9 @@ def test_47838_init(topology_st):
     global nss_version
     nss_version = onss_version.readline()
 
-    conf_dir = topology_st.standalone.confdir
-
-    log.info("\n######################### Checking existing certs ######################\n")
-    os.system('certutil -L -d %s -n "CA certificate"' % conf_dir)
-    os.system('certutil -L -d %s -n "%s"' % (conf_dir, SERVERCERT))
-
-    log.info("\n######################### Create a password file ######################\n")
-    pwdfile = '%s/pwdfile.txt' % (conf_dir)
-    opasswd = os.popen("(ps -ef ; w ) | sha1sum | awk '{print $1}'", "r")
-    passwd = opasswd.readline()
-    pwdfd = open(pwdfile, "w")
-    pwdfd.write(passwd)
-    pwdfd.close()
-
-    log.info("\n######################### Create a noise file ######################\n")
-    noisefile = '%s/noise.txt' % (conf_dir)
-    noise = os.popen("(w ; ps -ef ; date ) | sha1sum | awk '{print $1}'", "r")
-    noisewdfd = open(noisefile, "w")
-    noisewdfd.write(noise.readline())
-    noisewdfd.close()
-    time.sleep(1)
-
-    log.info("\n######################### Create key3.db and cert8.db database ######################\n")
-    os.system("ls %s" % pwdfile)
-    os.system("cat %s" % pwdfile)
-    os.system('certutil -N -d %s -f %s' % (conf_dir, pwdfile))
-
-    log.info("\n######################### Creating encryption key for CA ######################\n")
-    os.system('certutil -G -d %s -z %s -f %s' % (conf_dir, noisefile, pwdfile))
-
-    log.info("\n######################### Creating self-signed CA certificate ######################\n")
-    os.system(
-        '( echo y ; echo ; echo y ) | certutil -S -n "CA certificate" -s "cn=CAcert" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' %
-        (conf_dir, noisefile, pwdfile))
-
-    log.info("\n######################### Exporting the CA certificate to cacert.asc ######################\n")
-    cafile = '%s/cacert.asc' % conf_dir
-    catxt = os.popen('certutil -L -d %s -n "CA certificate" -a' % conf_dir)
-    cafd = open(cafile, "w")
-    while True:
-        line = catxt.readline()
-        if (line == ''):
-            break
-        cafd.write(line)
-    cafd.close()
-
-    log.info("\n######################### Generate the server certificate ######################\n")
-    ohostname = os.popen('hostname --fqdn', "r")
-    myhostname = ohostname.readline()
-    os.system(
-        'certutil -S -n "%s" -s "cn=%s,ou=389 Directory Server" -c "CA certificate" -t "u,u,u" -m 1001 -v 120 -d %s -z %s -f %s' % (
-        SERVERCERT, myhostname.rstrip(), conf_dir, noisefile, pwdfile))
-
-    log.info("\n######################### create the pin file ######################\n")
-    pinfile = '%s/pin.txt' % (conf_dir)
-    pintxt = 'Internal (Software) Token:%s' % passwd
-    pinfd = open(pinfile, "w")
-    pinfd.write(pintxt)
-    pinfd.close()
-    time.sleep(1)
+    topology_st.standalone.nss_ssl.reinit()
+    topology_st.standalone.nss_ssl.create_rsa_ca()
+    topology_st.standalone.nss_ssl.create_rsa_key_and_cert()
 
     log.info("\n######################### enable SSL in the directory server with all ciphers ######################\n")
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -336,7 +281,9 @@ def test_47838_run_4(topology_st):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    if nss_version >= NSS323:
+    if nss_version >= NSS330:
+        assert ecount == 26
+    elif nss_version >= NSS323:
         assert ecount == 29
     else:
         assert ecount == 20
@@ -377,7 +324,9 @@ def test_47838_run_5(topology_st):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    if nss_version >= NSS323:
+    if nss_version >= NSS330:
+        assert ecount == 26
+    elif nss_version >= NSS323:
         assert ecount == 29
     else:
         assert ecount == 23
@@ -488,7 +437,9 @@ def test_47838_run_8(topology_st):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    if nss_version >= NSS323:
+    if nss_version >= NSS330:
+        assert ecount == 26
+    elif nss_version >= NSS323:
         assert ecount == 29
     else:
         assert ecount == 23
@@ -531,7 +482,9 @@ def test_47838_run_9(topology_st):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    if nss_version >= NSS327:
+    if nss_version >= NSS330:
+        assert ecount == 31
+    elif nss_version >= NSS327:
         assert ecount == 34
     elif nss_version >= NSS323:
         assert ecount == 36
@@ -588,7 +541,10 @@ def test_47838_run_10(topology_st):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 9
+    if nss_version >= NSS330:
+        assert ecount == 3
+    else:
+        assert ecount == 9
     assert dcount == 0
     weak = os.popen(
         'egrep "SSL info:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology_st.standalone.errlog)

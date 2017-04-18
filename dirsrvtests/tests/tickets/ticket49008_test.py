@@ -49,7 +49,7 @@ def test_ticket49008(T):
         A.add_s(Entry((dn, {'objectclass': "top person".split(),
                             'sn': name, 'cn': name})))
 
-    time.sleep(10)
+    time.sleep(15)
 
     A_entries = A.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
                            '(objectClass=person)')
@@ -57,6 +57,10 @@ def test_ticket49008(T):
                            '(objectClass=person)')
     C_entries = C.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
                            '(objectClass=person)')
+
+    log.debug("A contains: %s", A_entries)
+    log.debug("B contains: %s", B_entries)
+    log.debug("C contains: %s", C_entries)
 
     assert len(A_entries) == len(B_entries)
     assert len(B_entries) == len(C_entries)

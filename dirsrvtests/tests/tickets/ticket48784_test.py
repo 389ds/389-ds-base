@@ -256,19 +256,10 @@ def set_ssl_Version(server, name, version):
     log.info("\n######################### Set %s on %s ######################\n" %
              (version, name))
     server.simple_bind_s(DN_DM, PASSWORD)
-    if version.startswith('SSL'):
-        server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'on'),
-                                        (ldap.MOD_REPLACE, 'nsTLS1', 'off'),
-                                        (ldap.MOD_REPLACE, 'sslVersionMin', 'SSL3'),
-                                        (ldap.MOD_REPLACE, 'sslVersionMax', 'SSL3')])
-    elif version.startswith('TLS'):
-        server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
-                                        (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
-                                        (ldap.MOD_REPLACE, 'sslVersionMin', version),
-                                        (ldap.MOD_REPLACE, 'sslVersionMax', version)])
-    else:
-        log.info("Invalid version %s", version)
-        assert False
+    server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
+                                    (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
+                                    (ldap.MOD_REPLACE, 'sslVersionMin', version),
+                                    (ldap.MOD_REPLACE, 'sslVersionMax', version)])
 
 
 def test_ticket48784(topology_m2):
@@ -277,7 +268,7 @@ def test_ticket48784(topology_m2):
         master_1 <----- startTLS -----> master_2
 
     Make sure the replication is working.
-    Then, stop the servers and set only SSLv3 on master_1 while TLS1.2 on master_2
+    Then, stop the servers and set only TLS1.0 on master_1 while TLS1.2 on master_2
     Replication is supposed to fail.
     """
     log.info("Ticket 48784 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
@@ -299,7 +290,7 @@ def test_ticket48784(topology_m2):
     assert 10 == len(entries)
 
     log.info("##### openldap client just accepts sslVersionMin not Max.")
-    set_ssl_Version(topology_m2.ms["master1"], 'master1', 'SSL3')
+    set_ssl_Version(topology_m2.ms["master1"], 'master1', 'TLS1.0')
     set_ssl_Version(topology_m2.ms["master2"], 'master2', 'TLS1.2')
 
     log.info("##### restart master[12]")

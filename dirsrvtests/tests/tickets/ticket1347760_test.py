@@ -214,19 +214,15 @@ def test_ticket1347760(topology_st):
     log.info(
         'Bind case 2-2. the bind user\'s suffix does not exist, bind should fail with error %s' % ldap.INVALID_CREDENTIALS.__name__)
     log.info('Bind as {%s,%s} who does not exist.' % (BOGUSSUFFIX, 'bogus'))
-    try:
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
         topology_st.standalone.simple_bind_s(BOGUSSUFFIX, 'bogus')
-    except ldap.LDAPError as e:
-        log.info("Exception (expected): %s" % type(e).__name__)
-        log.info('Desc ' + e.message['desc'])
-        assert isinstance(e, ldap.INVALID_CREDENTIALS)
-        regex = re.compile('No such suffix')
-        cause = pattern_accesslog(file_obj, regex)
-        if cause == None:
-            log.fatal('Cause not found - %s' % cause)
-            assert False
-        else:
-            log.info('Cause found - %s' % cause)
+    regex = re.compile('No suffix for bind')
+    cause = pattern_accesslog(file_obj, regex)
+    if cause == None:
+        log.fatal('Cause not found - %s' % cause)
+        assert False
+    else:
+        log.info('Cause found - %s' % cause)
     time.sleep(1)
 
     log.info(

@@ -52,6 +52,8 @@ def test_ticket49104(topology_st):
         os.remove(myvallog)
     prog = os.path.join(topology_st.standalone.get_bin_dir(), 'dbscan-bin')
     valcmd = 'valgrind --tool=memcheck --leak-check=yes --num-callers=40 --log-file=%s ' % myvallog
+    if topology_st.standalone.has_asan():
+        valcmd = ''
     id2entry = os.path.join(topology_st.standalone.dbdir, DEFAULT_BENAME, 'id2entry.db')
 
     for i in range(20, 30):
@@ -66,12 +68,14 @@ def test_ticket49104(topology_st):
             (cmd, e.errno, e.strerror))
             raise e
 
-        grep = 'egrep "Invalid read|Invalid write" %s' % myvallog
-        p = os.popen(grep, "r")
-        l = p.readline()
-        if 'Invalid' in l:
-            log.fatal('ERROR: valgrind reported invalid read/write: %s' % l)
-            assert False
+        # If we have asan, this fails in other spectacular ways instead
+        if not topology_st.standalone.has_asan():
+            grep = 'egrep "Invalid read|Invalid write" %s' % myvallog
+            p = os.popen(grep, "r")
+            l = p.readline()
+            if 'Invalid' in l:
+                log.fatal('ERROR: valgrind reported invalid read/write: %s' % l)
+                assert False
 
     log.info('ticket 49104 - PASSED')
 

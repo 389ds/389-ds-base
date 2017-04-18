@@ -609,14 +609,14 @@ def test_ticket47823_invalid_config_1(topology_st):
     # Check the server did not restart
     topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -629,7 +629,7 @@ def test_ticket47823_invalid_config_1(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:
@@ -662,14 +662,14 @@ def test_ticket47823_invalid_config_2(topology_st):
 
     # Check the server did not restart
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -682,7 +682,7 @@ def test_ticket47823_invalid_config_2(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:
@@ -717,14 +717,14 @@ def test_ticket47823_invalid_config_3(topology_st):
     # Check the server did not restart
     topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -737,7 +737,7 @@ def test_ticket47823_invalid_config_3(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:
@@ -771,14 +771,14 @@ def test_ticket47823_invalid_config_4(topology_st):
 
     # Check the server did not restart
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -791,7 +791,7 @@ def test_ticket47823_invalid_config_4(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:
@@ -824,14 +824,14 @@ def test_ticket47823_invalid_config_5(topology_st):
 
     # Check the server did not restart
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -844,7 +844,7 @@ def test_ticket47823_invalid_config_5(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:
@@ -877,14 +877,14 @@ def test_ticket47823_invalid_config_6(topology_st):
 
     # Check the server did not restart
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -897,7 +897,7 @@ def test_ticket47823_invalid_config_6(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:
@@ -930,14 +930,14 @@ def test_ticket47823_invalid_config_7(topology_st):
 
     # Check the server did not restart
     try:
-        topology_st.standalone.restart(timeout=5)
+        topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
                                               ALL_CONFIG_ATTRS)
         if ent:
             # be sure to restore a valid config before assert
             _config_file(topology_st, action='restore')
         assert not ent
-    except subprocess.CalledProcessError:
+    except:
         pass
 
     # Check the expected error message
@@ -950,7 +950,7 @@ def test_ticket47823_invalid_config_7(topology_st):
 
     # Check we can restart the server
     _config_file(topology_st, action='restore')
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.start()
     try:
         topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
     except ldap.NO_SUCH_OBJECT:

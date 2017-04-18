@@ -47,66 +47,9 @@ def test_init(topology_st):
     """
     _header(topology_st, 'Testing Ticket 48194 - harden the list of ciphers available by default')
 
-    conf_dir = topology_st.standalone.confdir
-
-    log.info("\n######################### Checking existing certs ######################\n")
-    os.system('certutil -L -d %s -n "CA certificate"' % conf_dir)
-    os.system('certutil -L -d %s -n "%s"' % (conf_dir, SERVERCERT))
-
-    log.info("\n######################### Create a password file ######################\n")
-    pwdfile = '%s/pwdfile.txt' % (conf_dir)
-    opasswd = os.popen("(ps -ef ; w ) | sha1sum | awk '{print $1}'", "r")
-    passwd = opasswd.readline()
-    pwdfd = open(pwdfile, "w")
-    pwdfd.write(passwd)
-    pwdfd.close()
-
-    log.info("\n######################### Create a noise file ######################\n")
-    noisefile = '%s/noise.txt' % (conf_dir)
-    noise = os.popen("(w ; ps -ef ; date ) | sha1sum | awk '{print $1}'", "r")
-    noisewdfd = open(noisefile, "w")
-    noisewdfd.write(noise.readline())
-    noisewdfd.close()
-    time.sleep(1)
-
-    log.info("\n######################### Create key3.db and cert8.db database ######################\n")
-    os.system("ls %s" % pwdfile)
-    os.system("cat %s" % pwdfile)
-    os.system('certutil -N -d %s -f %s' % (conf_dir, pwdfile))
-
-    log.info("\n######################### Creating encryption key for CA ######################\n")
-    os.system('certutil -G -d %s -z %s -f %s' % (conf_dir, noisefile, pwdfile))
-
-    log.info("\n######################### Creating self-signed CA certificate ######################\n")
-    os.system(
-        '( echo y ; echo ; echo y ) | certutil -S -n "CA certificate" -s "cn=CAcert" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' %
-        (conf_dir, noisefile, pwdfile))
-
-    log.info("\n######################### Exporting the CA certificate to cacert.asc ######################\n")
-    cafile = '%s/cacert.asc' % conf_dir
-    catxt = os.popen('certutil -L -d %s -n "CA certificate" -a' % conf_dir)
-    cafd = open(cafile, "w")
-    while True:
-        line = catxt.readline()
-        if (line == ''):
-            break
-        cafd.write(line)
-    cafd.close()
-
-    log.info("\n######################### Generate the server certificate ######################\n")
-    ohostname = os.popen('hostname --fqdn', "r")
-    myhostname = ohostname.readline()
-    os.system(
-        'certutil -S -n "%s" -s "cn=%s,ou=389 Directory Server" -c "CA certificate" -t "u,u,u" -m 1001 -v 120 -d %s -z %s -f %s' %
-        (SERVERCERT, myhostname.rstrip(), conf_dir, noisefile, pwdfile))
-
-    log.info("\n######################### create the pin file ######################\n")
-    pinfile = '%s/pin.txt' % (conf_dir)
-    pintxt = 'Internal (Software) Token:%s' % passwd
-    pinfd = open(pinfile, "w")
-    pinfd.write(pintxt)
-    pinfd.close()
-    time.sleep(1)
+    topology_st.standalone.nss_ssl.reinit()
+    topology_st.standalone.nss_ssl.create_rsa_ca()
+    topology_st.standalone.nss_ssl.create_rsa_key_and_cert()
 
     log.info("\n######################### enable SSL in the directory server with all ciphers ######################\n")
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
