@@ -970,14 +970,13 @@ warn_if_no_cert_file(const char *dir, int no_log)
     PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
     if (PR_SUCCESS != status) {
         slapi_ch_free_string(&filename);
-        filename = slapi_ch_smprintf("%s/cert7.db", dir);
+        filename = slapi_ch_smprintf("%s/cert9.db", dir);
         status = PR_Access(filename, PR_ACCESS_READ_OK);
         if (PR_SUCCESS != status) {
             ret = 1;
             if (!no_log) {
                 slapi_log_err(SLAPI_LOG_CRIT, "Security Initialization",
-                    "warn_if_no_cert_file - Certificate DB file cert8.db nor cert7.db exists in [%s] - "
-                    "SSL initialization will likely fail\n", dir);
+                    "warn_if_no_cert_file - Certificate DB file cert8.db nor cert9.db exists in [%s] - SSL initialization will likely fail\n", dir);
             }
         }
     }
@@ -992,18 +991,22 @@ static int
 warn_if_no_key_file(const char *dir, int no_log)
 {
     int ret = 0;
-	char *filename = slapi_ch_smprintf("%s/key3.db", dir);
-	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
-	if (PR_SUCCESS != status) {
-        ret = 1;
-        if (!no_log) {
-            slapi_log_err(SLAPI_LOG_CRIT, "Security Initialization",
-                "warn_if_no_key_file - Key DB file %s does not exist - SSL initialization will "
-                "likely fail\n", filename);
+    char *filename = slapi_ch_smprintf("%s/key3.db", dir);
+    PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
+    if (PR_SUCCESS != status) {
+        slapi_ch_free_string(&filename);
+        filename = slapi_ch_smprintf("%s/key4.db", dir);
+        status = PR_Access(filename, PR_ACCESS_READ_OK);
+        if (PR_SUCCESS != status) {
+            ret = 1;
+            if (!no_log) {
+                slapi_log_err(SLAPI_LOG_CRIT, "Security Initialization",
+                    "warn_if_no_key_file - Key DB file key3.db nor key4.db exists in [%s] - SSL initialization will likely fail\n", dir);
+            }
         }
-	}
+    }
 
-	slapi_ch_free_string(&filename);
+    slapi_ch_free_string(&filename);
     return ret;
 }
 
