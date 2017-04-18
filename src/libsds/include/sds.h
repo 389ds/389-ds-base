@@ -808,7 +808,7 @@ typedef struct _sds_tqueue {
     /**
      * Lock that protects queue operations.
      */
-    PRLock *trust_e_threadz;
+    pthread_mutex_t lock;
 } sds_tqueue;
 /* Thread safe queue operations. */
 

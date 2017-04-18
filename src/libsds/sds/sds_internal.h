@@ -16,8 +16,6 @@
 #include <stdarg.h> // For va_start / va_end
 #include <inttypes.h> // For PRI*
 #include <string.h> // for memset
-// From NSPR
-#include <prlock.h> // For locking in structs
 // #include <pratom.h> // For atomic increments.
 // We use gcc atomic operations instead.
 #include <prlog.h> // For pr_assert

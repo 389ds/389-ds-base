@@ -30,32 +30,32 @@ sds_tqueue_init(sds_tqueue **q_ptr, void (*value_free_fn)(void *value)) {
         sds_free(*q_ptr);
         return result;
     }
-    (*q_ptr)->trust_e_threadz = PR_NewLock();
+    pthread_mutex_init(&(*q_ptr)->lock, NULL);
     return SDS_SUCCESS;
 }
 
 sds_result
 sds_tqueue_enqueue(sds_tqueue *q, void *elem) {
-    PR_Lock(q->trust_e_threadz);
+    pthread_mutex_lock(&(q->lock));
     sds_result result = sds_queue_enqueue(q->uq, elem);
-    PR_Unlock(q->trust_e_threadz);
+    pthread_mutex_unlock(&(q->lock));
     return result;
 }
 
 sds_result
 sds_tqueue_dequeue(sds_tqueue *q, void **elem) {
-    PR_Lock(q->trust_e_threadz);
+    pthread_mutex_lock(&(q->lock));
     sds_result result = sds_queue_dequeue(q->uq, elem);
-    PR_Unlock(q->trust_e_threadz);
+    pthread_mutex_unlock(&(q->lock));
     return result;
 }
 
 sds_result
 sds_tqueue_destroy(sds_tqueue *q) {
-    PR_Lock(q->trust_e_threadz);
+    pthread_mutex_lock(&(q->lock));
     sds_result result = sds_queue_destroy(q->uq);
-    PR_Unlock(q->trust_e_threadz);
-    PR_DestroyLock(q->trust_e_threadz);
+    pthread_mutex_unlock(&(q->lock));
+    pthread_mutex_destroy(&(q->lock));
     sds_free(q);
     return result;
 }

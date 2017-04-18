@@ -39,10 +39,10 @@ sds_queue_enqueue(sds_queue *q, void *elem) {
     sds_log("sds_queue_enqueue", "Queue %p - Queueing ptr %p to %p", q, elem, node);
 #endif
     node->element = elem;
-    node->prev = NULL;
-    node->next = q->tail;
+    node->next = NULL;
+    node->prev = q->tail;
     if (q->tail != NULL) {
-        q->tail->prev = node;
+        q->tail->next = node;
     } else {
         /* If tail is null, head must ALSO be null. */
 #ifdef DEBUG
@@ -78,11 +78,13 @@ sds_queue_dequeue(sds_queue *q, void **elem) {
     }
     sds_queue_node *node = q->head;
     *elem = node->element;
-    q->head = node->prev;
+    q->head = node->next;
     sds_free(node);
     if (q->head == NULL) {
-        // If we have no head node, we also have no tail.
+        /* If we have no head node, we also have no tail. */
         q->tail = NULL;
+    } else {
+        q->head->prev = NULL;
     }
 #ifdef DEBUG
     sds_log("sds_queue_dequeue", "Queue %p - complete head: %p tail: %p", q, q->head, q->tail);
@@ -102,9 +104,9 @@ sds_queue_destroy(sds_queue *q) {
 #endif
     /* Map over the queue and free the elements. */
     sds_queue_node *node = q->head;
-    sds_queue_node *prev = NULL;
+    sds_queue_node *next = NULL;
     while (node != NULL) {
-        prev = node->prev;
+        next = node->next;
         if (q->value_free_fn != NULL) {
 #ifdef DEBUG
             sds_log("sds_queue_destroy", "Queue %p - implicitly freeing %p", q, node->element);
@@ -112,7 +114,7 @@ sds_queue_destroy(sds_queue *q) {
             q->value_free_fn(node->element);
         }
         sds_free(node);
-        node = prev;
+        node = next;
     }
     sds_free(q);
     return SDS_SUCCESS;
