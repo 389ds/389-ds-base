@@ -1237,8 +1237,8 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
     struct statvfs db_buf;
     int using_region_files = !(dbenv_flags & ( DB_PRIVATE | DB_SYSTEM_MEM));
     /* value of 10 == 10% == little more than the average overhead calculated for very large files on 64-bit system for bdb 4.7 */
-    PRUint64 expected_siz = li->li_dbcachesize + li->li_dbcachesize/10; /* dbcache + region files */
-    PRUint64 fsiz;
+    uint64_t expected_siz = li->li_dbcachesize + li->li_dbcachesize/10; /* dbcache + region files */
+    uint64_t fsiz;
     char *region_dir;
 
     if (statvfs(li->li_directory, &db_buf) < 0){
@@ -1263,7 +1263,7 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
                         li->li_dblayer_private->dblayer_dbhome_directory);
                     return 1;
                 }
-                fsiz = ((PRUint64)dbhome_buf.f_bavail) * ((PRUint64)dbhome_buf.f_bsize);
+                fsiz = ((uint64_t)dbhome_buf.f_bavail) * ((uint64_t)dbhome_buf.f_bsize);
                 region_dir = li->li_dblayer_private->dblayer_dbhome_directory;
             } else {
                 /* Shared/private memory.  No need to check disk space, return success */
@@ -3821,7 +3821,7 @@ static const u_int32_t default_flags = DB_NEXT;
 typedef struct txn_test_iter {
     DB *db;
     DBC *cur;
-    size_t cnt;
+    uint64_t cnt;
     const char *attr;
     u_int32_t flags;
     backend *be;
@@ -3943,10 +3943,10 @@ static int txn_test_threadmain(void *param)
     Object *inst_obj;
     int rc = 0;
     txn_test_iter **ttilist = NULL;
-    size_t tticnt = 0;
+    uint64_t tticnt = 0;
     DB_TXN *txn = NULL;
     txn_test_cfg cfg = {0};
-    size_t counter = 0;
+    uint64_t counter = 0;
     char keybuf[8192];
     char databuf[8192];
     int dbattempts = 0;
@@ -4067,9 +4067,9 @@ retry_txn:
         if (!rc) {
             DBT key;
             DBT data;
-            size_t ii;
-            size_t donecnt = 0;
-            size_t cnt = 0;
+            uint64_t ii;
+            uint64_t donecnt = 0;
+            uint64_t cnt = 0;
 
             /* phase 1 - open a cursor to each db */
             if (cfg.verbose) {

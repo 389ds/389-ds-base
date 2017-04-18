@@ -90,8 +90,8 @@ struct dblayer_private
     int dblayer_ncache;
     int dblayer_previous_ncache;
     int dblayer_tx_max;
-    size_t dblayer_cachesize;
-    size_t dblayer_previous_cachesize; /* Cache size when we last shut down--
+    uint64_t dblayer_cachesize;
+    uint64_t dblayer_previous_cachesize; /* Cache size when we last shut down--
                                         * used to determine if we delete 
                                         * the mpool */
     int dblayer_recovery_required;
@@ -102,15 +102,15 @@ struct dblayer_private
     int dblayer_durable_transactions;
     int dblayer_checkpoint_interval;
     int dblayer_circular_logging;
-    size_t dblayer_page_size;       /* db page size if configured,
+    uint64_t dblayer_page_size;       /* db page size if configured,
                                      * otherwise default to DBLAYER_PAGESIZE */
-    size_t dblayer_index_page_size; /* db index page size if configured,
+    uint64_t dblayer_index_page_size; /* db index page size if configured,
                                      * otherwise default to 
                                      * DBLAYER_INDEX_PAGESIZE */
     int dblayer_idl_divisor;        /* divide page size by this to get IDL 
                                      * size */
-    size_t dblayer_logfile_size;    /* How large can one logfile be ? */
-    size_t dblayer_logbuf_size;     /* how large log buffer can be */
+    uint64_t dblayer_logfile_size;    /* How large can one logfile be ? */
+    uint64_t dblayer_logbuf_size;     /* how large log buffer can be */
     int dblayer_file_mode;          /* pmode for files we create */
     int dblayer_verbose;            /* Get libdb to exhale debugging info */
     int dblayer_debug;              /* Will libdb emit debugging info into 

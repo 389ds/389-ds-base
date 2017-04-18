@@ -65,7 +65,7 @@
 
 /* static functions */
 static void entrycache_clear_int(struct cache *cache);
-static void entrycache_set_max_size(struct cache *cache, size_t bytes);
+static void entrycache_set_max_size(struct cache *cache, uint64_t bytes);
 static int entrycache_remove_int(struct cache *cache, struct backentry *e);
 static void entrycache_return(struct cache *cache, struct backentry **bep);
 static int entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry *newe);
@@ -77,7 +77,7 @@ static void entry_lru_verify(struct cache *cache, struct backentry *e, int in);
 
 static int dn_same_id(const void *bdn, const void *k);
 static void dncache_clear_int(struct cache *cache);
-static void dncache_set_max_size(struct cache *cache, size_t bytes);
+static void dncache_set_max_size(struct cache *cache, uint64_t bytes);
 static int dncache_remove_int(struct cache *cache, struct backdn *dn);
 static void dncache_return(struct cache *cache, struct backdn **bdn);
 static int dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn);
