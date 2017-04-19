@@ -917,11 +917,9 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError("invalid state for calling create: %s" %
                              self.state)
 
-        # Check that the instance does not already exist
-        props = self.list()
-        if len(props) != 0:
+        if self.exists():
             raise ValueError("Error it already exists the instance (%s)" %
-                             props[0][CONF_INST_DIR])
+                             self.list()[0][CONF_INST_DIR])
 
         if not self.serverid:
             raise ValueError("SER_SERVERID_PROP is missing, " +
@@ -939,9 +937,8 @@ class DirSrv(SimpleLDAPObject, object):
             self._createDirsrv()
 
         # Retrieve sroot from the sys/priv config file
-        props = self.list()
-        assert len(props) == 1
-        self.sroot = props[0][CONF_SERVER_DIR]
+        assert(self.exists())
+        self.sroot = self.list()[0][CONF_SERVER_DIR]
 
         # Now the instance is created but DirSrv is not yet connected to it
         self.state = DIRSRV_STATE_OFFLINE
@@ -964,9 +961,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.state == DIRSRV_STATE_ONLINE:
             self.close()
 
-        # Check that the instance does not already exist
-        props = self.list()
-        if len(props) != 1:
+        if not self.exists():
             raise ValueError("Error can not find instance %s[%s:%d]" %
                              (self.serverid, self.host, self.port))
 
@@ -1532,8 +1527,7 @@ class DirSrv(SimpleLDAPObject, object):
             @raise None
 
         '''
-        props = self.list()
-        return len(props) == 1
+        return len(self.list()) == 1
 
     def toLDAPURL(self):
         """Return the uri ldap[s]://host:[ssl]port."""
