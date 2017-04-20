@@ -47,6 +47,16 @@ main (int argc, char *argv[]) {
     pid_t               child_pid = 0;
     FILE                *pid_fp;
 
+    /* Pause for the debugger if DEBUG_SLEEP is set in the environment */
+    {
+        char *s = getenv( "DEBUG_SLEEP" );
+        if ( (s != NULL) && isdigit(*s) ) {
+            int secs = atoi(s);
+            printf("%s pid is %d\n", argv[0], getpid());
+            sleep(secs);
+        }
+    }
+
     /* Load options */
     while ((--argc > 0) && ((*++argv)[0] == '-')) {
         while ((c = *++argv[0])) {
@@ -61,8 +71,9 @@ main (int argc, char *argv[]) {
         }
     }
 
-    if (argc != 1)
+    if (argc != 1) {
         exit_usage();
+    }
 
     /* load config file */
     if ((config_file = strdup(*argv)) == NULL) {
@@ -416,15 +427,20 @@ load_config(char *conf_path)
                     printf("ldap-agent: error parsing ldif line from [%s]\n", serv_p->dse_ldif);
                 }
 
-                if ((strcmp(attr, "dn") == 0) &&
-                    (strcmp(val, "cn=config") == 0)) {
+                if ((strcmp(attr, "dn") == 0) && (strcmp(val, "cn=config") == 0)) {
                     char *dse_line = NULL;
-                    
-                    
+                    /* Free both outer values and attr */
+                    free(attr);
+                    free(val);
+                    attr = NULL;
+                    val = NULL;
+
                     /* Look for port and rundir attributes */
                     while ((dse_line = ldif_getline(&entryp)) != NULL) {
-                        ldif_parse_line(dse_line, &attr, &val, &vlen);
-                        if (strcmp(attr, "nsslapd-snmp-index") == 0) {
+                        if (ldif_parse_line(dse_line, &attr, &val, &vlen) != 0) {
+                            /* can't parse these, try next line instead */
+                            continue;
+                        } else if (strcmp(attr, "nsslapd-snmp-index") == 0) {
                             snmp_index = atol(val);
                             got_snmp_index = 1;
                         } else if (strcmp(attr, "nsslapd-port") == 0) {
@@ -447,6 +463,10 @@ load_config(char *conf_path)
                             }
                             got_rundir = 1;
                         }
+                        free(attr);
+                        free(val);
+                        attr = NULL;
+                        val = NULL;
 
                         /* Stop processing this entry if we found the
                          *  port and rundir and snmp_index settings */
@@ -458,6 +478,11 @@ load_config(char *conf_path)
                      * cn=config entry, so we can stop reading through
                      * the dse.ldif now. */
                     break;
+                } else {
+                    free(attr);
+                    free(val);
+                    attr = NULL;
+                    val = NULL;
                 }
             }
 
