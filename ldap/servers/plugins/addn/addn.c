@@ -96,7 +96,7 @@ addn_get_subconfig(Slapi_PBlock *pb, char *identifier)
     search_pblock = slapi_pblock_new();
 
     if (search_pblock == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: CRITICAL: Unable to allocate search_pblock!!!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: Unable to allocate search_pblock!!!\n");
         goto out;
     }
 
@@ -108,7 +108,7 @@ addn_get_subconfig(Slapi_PBlock *pb, char *identifier)
 
     search_result = slapi_pblock_get(search_pblock, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
     if (search_result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: CRITICAL: Internal search pblock get failed!!!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: Internal search pblock get failed!!!\n");
         goto out;
     }
 
@@ -119,7 +119,7 @@ addn_get_subconfig(Slapi_PBlock *pb, char *identifier)
 
     /* On all other errors, just fail out. */
     if (search_result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_get_subconfig: CRITICAL: Internal search error occured %d \n", search_result);
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: Internal search error occurred %d \n", search_result);
         goto out;
     }
 
@@ -127,7 +127,7 @@ addn_get_subconfig(Slapi_PBlock *pb, char *identifier)
     search_result = slapi_pblock_get(search_pblock, SLAPI_NENTRIES, &entry_count);
 
     if (search_result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: CRITICAL: Unable to retrieve number of entries from pblock!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: Unable to retrieve number of entries from pblock!\n");
         goto out;
     }
     /* If there are multiple results, we should also fail as we cannot */
@@ -135,13 +135,13 @@ addn_get_subconfig(Slapi_PBlock *pb, char *identifier)
 
     if (entry_count != 1) {
         /*  Is there a better log level for this? */
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: WARNING, multiple or no results returned. Failing to auth ...\n");
+        slapi_log_err(SLAPI_LOG_WARNING, plugin_name, "addn_get_subconfig: multiple or no results returned. Failing to auth ...\n");
         goto out;
     }
 
     search_result = slapi_pblock_get(search_pblock, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (search_result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: CRITICAL: Unable to retrieve entries from pblock!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_get_subconfig: Unable to retrieve entries from pblock!\n");
         goto out;
     }
 
@@ -209,7 +209,7 @@ addn_prebind(Slapi_PBlock *pb)
 
     result = slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
     if (result != LDAP_SUCCESS || config == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Unable to retrieve plugin configuration!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Unable to retrieve plugin configuration!\n");
         result = ADDN_FAILURE;
         goto out;
     }
@@ -267,7 +267,7 @@ addn_prebind(Slapi_PBlock *pb)
 
     /* Validate the filter_template only has one %s */
     if (addn_filter_validate(config_filter) != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Failed to validate addn_filter %s for domain %s\n", config_filter, dn_domain_escaped);
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Failed to validate addn_filter %s for domain %s\n", config_filter, dn_domain_escaped);
         result = ADDN_FAILURE;
         goto out;
     }
@@ -281,7 +281,7 @@ addn_prebind(Slapi_PBlock *pb)
     search_pblock = slapi_pblock_new();
 
     if (search_pblock == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Unable to allocate search_pblock!!!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Unable to allocate search_pblock!!!\n");
         result = ADDN_FAILURE;
         goto out;
     }
@@ -294,7 +294,7 @@ addn_prebind(Slapi_PBlock *pb)
 
     result = slapi_pblock_get(search_pblock, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
     if (result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Internal search pblock get failed!!!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Internal search pblock get failed!!!\n");
         result = ADDN_FAILURE;
         goto out;
     }
@@ -314,7 +314,7 @@ addn_prebind(Slapi_PBlock *pb)
 
     /* On all other errors, just fail out. */
     if (search_result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_prebind: CRITICAL: Internal search error occured %d \n", search_result);
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Internal search error occurred %d \n", search_result);
         result = ADDN_FAILURE;
         goto out;
     }
@@ -323,7 +323,7 @@ addn_prebind(Slapi_PBlock *pb)
     result = slapi_pblock_get(search_pblock, SLAPI_NENTRIES, &entry_count);
 
     if (result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Unable to retrieve number of entries from pblock!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Unable to retrieve number of entries from pblock!\n");
         result = ADDN_FAILURE;
         goto out;
     }
@@ -332,14 +332,14 @@ addn_prebind(Slapi_PBlock *pb)
 
     if (entry_count > 1) {
         /*  Is there a better log level for this? */
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: WARNING, multiple results returned. Failing to auth ...\n");
+        slapi_log_err(SLAPI_LOG_WARNING, plugin_name, "addn_prebind: multiple results returned. Failing to auth ...\n");
         result = ADDN_FAILURE;
         goto out;
     }
 
     result = slapi_pblock_get(search_pblock, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Unable to retrieve entries from pblock!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Unable to retrieve entries from pblock!\n");
         result = ADDN_FAILURE;
         goto out;
     }
@@ -356,7 +356,7 @@ addn_prebind(Slapi_PBlock *pb)
     /* Free the original SDN */
     result = slapi_pblock_set(pb, SLAPI_TARGET_SDN, pb_sdn_mapped);
     if (result != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: CRITICAL: Unable to set new mapped DN to pblock!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_prebind: Unable to set new mapped DN to pblock!\n");
         /* We have to free the mapped SDN here */
         slapi_sdn_free(&pb_sdn_mapped);
         result = ADDN_FAILURE;
@@ -404,7 +404,7 @@ addn_start(Slapi_PBlock *pb)
     /* It looks like we mis-use the SLAPI_ADD_ENTRY space in PB during plugin startup  */
     result = slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &plugin_entry);
     if (result != LDAP_SUCCESS || plugin_entry == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_start: CRITICAL: Failed to retrieve config entry!\n");
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "addn_start: Failed to retrieve config entry!\n");
         return SLAPI_PLUGIN_FAILURE;
     }
 
@@ -416,7 +416,7 @@ addn_start(Slapi_PBlock *pb)
 
     if (domain == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-                "addn_start: CRITICAL: No default domain in configuration, you must set addn_default_domain!\n");
+                "addn_start: No default domain in configuration, you must set addn_default_domain!\n");
         slapi_ch_free((void**)&config);
         return SLAPI_PLUGIN_FAILURE;
     }
@@ -498,7 +498,7 @@ addn_init(Slapi_PBlock *pb)
 out:
     if (result == LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_init: Success: plugin loaded.\n");
-        slapi_log_err(SLAPI_LOG_WARNING, plugin_name, "addn_init: WARNING: The use of this plugin violates the LDAPv3 specification RFC4511 section 4.2 BindDN specification. You have been warned ...\n");
+        slapi_log_err(SLAPI_LOG_WARNING, plugin_name, "addn_init: The use of this plugin violates the LDAPv3 specification RFC4511 section 4.2 BindDN specification. You have been warned ...\n");
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_init: Error: %d. \n", result);
     }

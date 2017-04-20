@@ -2255,11 +2255,11 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     if (logging_hr_timestamps_enabled == 1) {
         struct timespec tsnow;
         if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            syslog(LOG_CRIT, "CRITICAL: vslapd_log_emergency_error, Unable to determine system time for message :: %s", msg);
+            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to determine system time for message :: %s", msg);
             return;
         }
         if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_CRIT, "CRITICAL: vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
+            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
             return;
         }
     } else {
@@ -2267,14 +2267,14 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
         time_t    tnl;
         tnl = current_time();
         if (format_localTime_log(tnl, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_CRIT, "CRITICAL: vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
+            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
             return;
         }
 #ifdef HAVE_CLOCK_GETTIME
     }
 #endif
 
-    PR_snprintf( buffer, sizeof(buffer), "%s - %s", tbuf, msg);
+    PR_snprintf( buffer, sizeof(buffer), "%s - EMERG - %s", tbuf, msg);
     size = strlen(buffer);
 
     if(!locked) {
@@ -2332,7 +2332,7 @@ vslapd_log_error(
     int       err = 0;
 
     if (vasprintf(&vbuf, fmt, ap) == -1) {
-        log__error_emergency("CRITICAL: vslapd_log_error, Unable to format message", 1 , locked);
+        log__error_emergency("vslapd_log_error, Unable to format message", 1 , locked);
         return -1;
     }
 
@@ -2340,13 +2340,13 @@ vslapd_log_error(
     if (logging_hr_timestamps_enabled == 1) {
         struct timespec tsnow;
         if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_error, Unable to determine system time for message :: %s", vbuf);
+            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to determine system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,locked);
             return -1;
         }
         if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
             /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_error, Unable to format system time for message :: %s", vbuf);
+            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,locked);
             return -1;
         }
@@ -2355,7 +2355,7 @@ vslapd_log_error(
         time_t    tnl;
         tnl = current_time();
         if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
-            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_error, Unable to format system time for message :: %s", vbuf);
+            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,locked);
             return -1;
         }
@@ -2521,7 +2521,7 @@ static int vslapd_log_access(char *fmt, va_list ap)
 
     /* We do this sooner, because that we we can use the message in other calls */
     if ((vlen = vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap)) == -1){
-        log__error_emergency("CRITICAL: vslapd_log_access, Unable to format message", 1 ,0);
+        log__error_emergency("vslapd_log_access, Unable to format message", 1 ,0);
         return -1;
     }
 
@@ -2530,14 +2530,14 @@ static int vslapd_log_access(char *fmt, va_list ap)
         struct timespec tsnow;
         if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
             /* Make an error */
-            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_access, Unable to determine system time for message :: %s", vbuf);
+            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to determine system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,0);
             return -1;
         }
         tnl = tsnow.tv_sec;
         if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
             /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_access, Unable to format system time for message :: %s", vbuf);
+            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,0);
             return -1;
         }
@@ -2546,7 +2546,7 @@ static int vslapd_log_access(char *fmt, va_list ap)
         tnl = current_time();
         if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
             /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_access, Unable to format system time for message :: %s", vbuf);
+            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,0);
             return -1;
         }
