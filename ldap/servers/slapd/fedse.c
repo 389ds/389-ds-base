@@ -1542,7 +1542,7 @@ internal_add_helper(Slapi_Entry *e, int dont_write_file)
 	operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
 
 	slapi_add_internal_pb(newpb);
-    slapi_pblock_destroy(newpb);
+	slapi_pblock_destroy(newpb);
 }
 
 /*
@@ -1566,22 +1566,22 @@ init_dse_file(const char *configdir, Slapi_DN *config)
     if(rc)
     {
         Slapi_PBlock *pb = slapi_pblock_new();
-		int dont_write = 1;
-		dse_register_callback(pfedse,DSE_OPERATION_READ,DSE_FLAG_PREOP,config,
-							  LDAP_SCOPE_SUBTREE,"(objectclass=nsslapdPlugin)",
-							  load_plugin_entry, NULL, NULL);
-		dse_register_callback(pfedse,DSE_OPERATION_READ,DSE_FLAG_PREOP,config,
-							  LDAP_SCOPE_BASE,"(objectclass=*)",
-							  load_config_dse,NULL, NULL);
+        int dont_write = 1;
+        dse_register_callback(pfedse,DSE_OPERATION_READ,DSE_FLAG_PREOP,config,
+                              LDAP_SCOPE_SUBTREE,"(objectclass=nsslapdPlugin)",
+                              load_plugin_entry, NULL, NULL);
+        dse_register_callback(pfedse,DSE_OPERATION_READ,DSE_FLAG_PREOP,config,
+                              LDAP_SCOPE_BASE,"(objectclass=*)",
+                              load_config_dse,NULL, NULL);
 
-		slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, (void*)configdir);
-		/* don't write out the file when reading */
-		slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
+        slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, (void*)configdir);
+        /* don't write out the file when reading */
+        slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
         if(!(rc = dse_read_file(pfedse, pb)))
         {
-			slapi_log_err(SLAPI_LOG_ERR, "init_dse_file",
-							 "Could not load config file [%s]\n",
-							 DSE_FILENAME );
+            slapi_log_err(SLAPI_LOG_ERR, "init_dse_file",
+                             "Could not load config file [%s]\n",
+                             DSE_FILENAME );
         }
         slapi_pblock_destroy(pb);
     }

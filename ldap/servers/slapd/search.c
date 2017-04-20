@@ -54,7 +54,7 @@ do_search( Slapi_PBlock *pb )
 	int strict = 0;
 	int minssf_exclude_rootdse = 0;
 	int filter_normalized = 0;
-    Connection *pb_conn = NULL;
+	Connection *pb_conn = NULL;
 
 	slapi_log_err(SLAPI_LOG_TRACE, "do_search", "=>\n");
 
@@ -125,7 +125,7 @@ do_search( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	/* 
 	 * If nsslapd-minssf-exclude-rootdse is on, the minssf check has been

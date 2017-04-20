@@ -33,10 +33,10 @@
 void
 do_compare( Slapi_PBlock *pb )
 {
-    Operation *pb_op = NULL;
-    Connection *pb_conn = NULL;
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	Operation *pb_op = NULL;
+	Connection *pb_conn = NULL;
+	slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	BerElement	*ber = pb_op->o_ber;
 	char		*rawdn = NULL;
@@ -54,7 +54,7 @@ do_compare( Slapi_PBlock *pb )
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
 
     /* have to init this here so we can "done" it below if we short circuit */
-    slapi_sdn_init(&sdn);
+	slapi_sdn_init(&sdn);
 
 	/*
 	 * Parse the compare request.  It looks like this:
@@ -91,14 +91,14 @@ do_compare( Slapi_PBlock *pb )
 	}
 	slapi_sdn_init_dn_passin(&sdn, rawdn);
 	dn = slapi_sdn_get_dn(&sdn);
-    if (rawdn && (strlen(rawdn) > 0) && (NULL == dn)) {
-        /* normalization failed */
-        op_shared_log_error_access(pb, "CMP", rawdn, "invalid dn");
-        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
-                         "invalid dn", 0, NULL);
-        slapi_sdn_done(&sdn);
-        return;
-    }
+	if (rawdn && (strlen(rawdn) > 0) && (NULL == dn)) {
+		/* normalization failed */
+		op_shared_log_error_access(pb, "CMP", rawdn, "invalid dn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+						 "invalid dn", 0, NULL);
+		slapi_sdn_done(&sdn);
+		return;
+	}
 	/*
 	 * in LDAPv3 there can be optional control extensions on
 	 * the end of an LDAPMessage. we need to read them in and
@@ -148,8 +148,8 @@ do_compare( Slapi_PBlock *pb )
 	}
 
 	if ( be->be_compare != NULL ) {
-		int		isroot;
-		    
+		int isroot;
+		
 		slapi_pblock_set( pb, SLAPI_BACKEND, be );
 		isroot = pb_op->o_isroot;
 
@@ -181,8 +181,9 @@ do_compare( Slapi_PBlock *pb )
 	}
 
 free_and_return:;
-	if (be)
+	if (be) {
 		slapi_be_Unlock(be);
+	}
 	slapi_sdn_done(&sdn);
 	ava_done( &ava );
 }

@@ -78,7 +78,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	ID ep_id = 0;
 	ID tomb_ep_id = 0;
 	int result_sent = 0;
-    Connection *pb_conn;
+	Connection *pb_conn;
 
 	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
 		conn_id = 0; /* connection is NULL */
@@ -91,7 +91,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	
 	slapi_sdn_init(&nscpEntrySDN);
 	slapi_sdn_init(&parentsdn);

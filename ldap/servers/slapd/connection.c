@@ -949,10 +949,10 @@ void connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
 	 */
 	/* *ppb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) ); */
 	/* *ppb = slapi_pblock_new(); */
-    slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
+	slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
 	stack_obj = connection_get_operation();
-    slapi_pblock_set(pb, SLAPI_OPERATION, stack_obj->op);
-    slapi_pblock_set_op_stack_elem(pb, stack_obj);
+	slapi_pblock_set(pb, SLAPI_OPERATION, stack_obj->op);
+	slapi_pblock_set_op_stack_elem(pb, stack_obj);
 	connection_add_operation( conn, stack_obj->op );
 }
 
@@ -1506,8 +1506,8 @@ connection_threadmain()
 	int maxthreads = 0;
 	int enable_nunc_stans = 0;
 	long bypasspollcnt = 0;
-    Connection *pb_conn = NULL;
-    Operation *pb_op = NULL;
+	Connection *pb_conn = NULL;
+	Operation *pb_op = NULL;
 
 #ifdef ENABLE_NUNC_STANS
 	enable_nunc_stans = config_get_enable_nunc_stans();
@@ -1535,11 +1535,11 @@ connection_threadmain()
 			   [blackflag 624234] */
 			ret = connection_wait_for_new_work(pb,interval);
 
-            /*
-             * Connection wait for new work provides the conn and op for us. 
-             */
-            slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+			/*
+			 * Connection wait for new work provides the conn and op for us. 
+			 */
+			slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+			slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
 			switch (ret) {
 				case CONN_NOWORK:
@@ -1606,8 +1606,8 @@ connection_threadmain()
 			}
 		}
 		/* Once we're here we have a pb */ 
-        slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
-        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+		slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+		slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 		maxthreads = config_get_maxthreadsperconn();
 		more_data = 0;
 		ret = connection_read_operation(conn, op, &tag, &more_data);
@@ -2057,9 +2057,9 @@ void
 connection_remove_operation_ext( Slapi_PBlock *pb, Connection *conn, Operation *op )
 {
 	connection_remove_operation(conn, op);
-    void *op_stack_elem = slapi_pblock_get_op_stack_elem(pb);
+	void *op_stack_elem = slapi_pblock_get_op_stack_elem(pb);
 	connection_done_operation(conn, op_stack_elem);
-    slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
+	slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
 	slapi_pblock_init(pb);
 }
 
@@ -2162,9 +2162,8 @@ connection_set_ssl_ssf(Connection *conn)
 static int
 is_ber_too_big(const Connection *conn, ber_len_t ber_len)
 {
-    ber_len_t maxbersize = config_get_maxbersize();
-    if(ber_len > maxbersize)
-	{
+	ber_len_t maxbersize = config_get_maxbersize();
+	if (ber_len > maxbersize) {
 		log_ber_too_big_error(conn, ber_len, maxbersize);
 		return 1;
 	}
@@ -2220,7 +2219,7 @@ static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
 void
 disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error, int schedule_closure_job )
 {
-    if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
+	if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	    conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) )
 	{
 		slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Setting conn %" PRIu64 " fd=%d "

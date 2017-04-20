@@ -59,16 +59,16 @@ do_bind( Slapi_PBlock *pb )
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-    BerElement	*ber = pb_op->o_ber;
-    int		err, isroot;
-    ber_tag_t 	method = LBER_DEFAULT;
-    ber_int_t	version = -1;
-    int		auth_response_requested = 0;
-    int		pw_response_requested = 0;
-    char		*rawdn = NULL;
-    const char	*dn = NULL;
-    char		*saslmech = NULL;
-    struct berval	cred = {0};
+    BerElement  *ber = pb_op->o_ber;
+    int     err, isroot;
+    ber_tag_t   method = LBER_DEFAULT;
+    ber_int_t   version = -1;
+    int     auth_response_requested = 0;
+    int     pw_response_requested = 0;
+    char        *rawdn = NULL;
+    const char  *dn = NULL;
+    char        *saslmech = NULL;
+    struct berval   cred = {0};
     ber_tag_t ber_rc;
     int rc = 0;
     Slapi_DN *sdn = NULL;

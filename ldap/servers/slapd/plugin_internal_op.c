@@ -201,23 +201,22 @@ slapi_seq_callback( const char *ibase,
                     plugin_search_entry_callback srch_callback,
                     plugin_referral_entry_callback ref_callback)
 {
-	int r;
+    int r;
 
-	if (ibase == NULL)
-	{
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_seq_callback",
-			"NULL parameter\n");
-		return -1;
-	}
+    if (ibase == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_seq_callback",
+            "NULL parameter\n");
+        return -1;
+    }
 
     Slapi_PBlock *pb = slapi_pblock_new();
 
-    slapi_seq_internal_set_pb(pb, (char *)ibase, type, attrname, val, attrs, attrsonly, controls, 
-		plugin_get_default_component_id(), 0);							  
+    slapi_seq_internal_set_pb(pb, (char *)ibase, type, attrname, val, attrs, attrsonly, controls,
+        plugin_get_default_component_id(), 0);
 
     r= seq_internal_callback_pb (pb, callback_data, res_callback, srch_callback, ref_callback);
     slapi_pblock_destroy(pb);
-	return r;
+    return r;
 }
 
 
@@ -444,11 +443,11 @@ slapi_search_internal_callback(const char *ibase,
     Slapi_PBlock              *pb = slapi_pblock_new();
     int                       rc = 0;
 
-	slapi_search_internal_set_pb (pb, ibase, scope, ifstr, attrs, attrsonly,
-				      controls, NULL, plugin_get_default_component_id(), 0);
-								   
-	rc = search_internal_callback_pb (pb, callback_data, res_callback, 
-									  srch_callback, ref_callback);
+    slapi_search_internal_set_pb (pb, ibase, scope, ifstr, attrs, attrsonly,
+                      controls, NULL, plugin_get_default_component_id(), 0);
+
+    rc = search_internal_callback_pb (pb, callback_data, res_callback, 
+                                      srch_callback, ref_callback);
     slapi_pblock_destroy(pb);
     return (rc);
 }
@@ -461,19 +460,16 @@ slapi_search_internal(const char *base,
                       char **attrs, 
                       int attrsonly)
 {
-    
-	Slapi_PBlock *pb;
+    Slapi_PBlock *pb;
 
     /* initialize pb */
     pb = slapi_pblock_new();
-	if (pb)
-	{
-		slapi_search_internal_set_pb (pb, base, scope, filter, attrs, attrsonly, controls, 
-					  NULL, plugin_get_default_component_id(), 0); 
-    
-		search_internal_pb (pb);
-	}
-    
+    if (pb)
+    {
+        slapi_search_internal_set_pb (pb, base, scope, filter, attrs, attrsonly, controls, 
+                      NULL, plugin_get_default_component_id(), 0); 
+        search_internal_pb (pb);
+    }
     return pb;
 }
 

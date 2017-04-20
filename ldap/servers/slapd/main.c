@@ -2134,95 +2134,95 @@ slapd_exemode_db2ldif(int argc, char** argv)
     int return_value= 0;
     struct slapdplugin *plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	char *my_ldiffile;
-	char **instp;
+    char *my_ldiffile;
+    char **instp;
 
     /* this should be the first time this are called!  if the init order
      * is ever changed, these lines should be changed (or erased)!
      */
     mapping_tree_init();
 
-	/*
-	 * if instance is given, just pass it to the backend.
-	 * otherwise, we use included/excluded suffix list to specify a backend.
-	 */
+    /*
+     * if instance is given, just pass it to the backend.
+     * otherwise, we use included/excluded suffix list to specify a backend.
+     */
     if (NULL == cmd_line_instance_names) {
-		char **instances, **ip;
-		int counter;
+        char **instances, **ip;
+        int counter;
 
-		if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
-													&instances) < 0) {
-			slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-				"Backend instances name [-n <name>] or "
-				"included suffix [-s <suffix>] need to be specified.\n");
-			return 1;
-		}
+        if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
+                                                    &instances) < 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                "Backend instances name [-n <name>] or "
+                "included suffix [-s <suffix>] need to be specified.\n");
+            return 1;
+        }
 
-		if (instances) {
-			for (ip = instances, counter = 0; ip && *ip; ip++, counter++)
-				;
+        if (instances) {
+            for (ip = instances, counter = 0; ip && *ip; ip++, counter++)
+                ;
 
-			if (counter == 0) {
-				slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-					"There is no backend instance to export from.\n");
-				return 1;
-			} else {
-				slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_db2ldif", "db2ldif - Backend Instance(s): \n");
-				for (ip = instances, counter = 0; ip && *ip; ip++, counter++) {
-					slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_db2ldif", "db2ldif - %s\n", *ip);
-				}
-				cmd_line_instance_names = instances;
-			}
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-				"There is no backend instances to export from.\n");
-			return 1;
-		}
+            if (counter == 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                    "There is no backend instance to export from.\n");
+                return 1;
+            } else {
+                slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_db2ldif", "db2ldif - Backend Instance(s): \n");
+                for (ip = instances, counter = 0; ip && *ip; ip++, counter++) {
+                    slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_db2ldif", "db2ldif - %s\n", *ip);
+                }
+                cmd_line_instance_names = instances;
+            }
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                "There is no backend instances to export from.\n");
+            return 1;
+        }
     }
 
-	/* [622984] db2lidf -r changes database file ownership
-	 * should call setuid before "db2ldif_dump_replica" */
-	main_setuid(slapdFrontendConfig->localuser);
-	for (instp = cmd_line_instance_names; instp && *instp; instp++) {
-		int release_me = 0;
+    /* [622984] db2lidf -r changes database file ownership
+     * should call setuid before "db2ldif_dump_replica" */
+    main_setuid(slapdFrontendConfig->localuser);
+    for (instp = cmd_line_instance_names; instp && *instp; instp++) {
+        int release_me = 0;
 
-	    plugin = lookup_plugin_by_instance_name(*instp);
-	    if (plugin == NULL) {
-	        slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-	                  "Could not find backend '%s'.\n", *instp);
-	        return 1;
-	    }
-	
-		if (plugin->plg_db2ldif == NULL) {
-			slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-				"No db2ldif function defined for backend %s - cannot export\n", *instp);
-			return 1;
-		}
+        plugin = lookup_plugin_by_instance_name(*instp);
+        if (plugin == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                      "Could not find backend '%s'.\n", *instp);
+            return 1;
+        }
+    
+        if (plugin->plg_db2ldif == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                "No db2ldif function defined for backend %s - cannot export\n", *instp);
+            return 1;
+        }
 
-	    /* Make sure we aren't going to run slapd in 
-	     * a mode that is going to conflict with other
-	     * slapd processes that are currently running
-	     */
-	    if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-								   skip_db_protect_check) == -1 )  {
-	        slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-	                   "Shutting down due to possible conflicts "
-					   "with other slapd processes\n");
-	        return 1;
-	    }
-	
-	    if (! (SLAPI_PLUGIN_IS_V2(plugin))) {
-	        slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
-	                "%s is too old to do exports.\n", plugin->plg_name);
-	        return 1;
-	    }
-	
-	    if (!is_quiet) {
-	        slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
-	    }
-	    if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
-	        g_set_detached(1);
-	    }
+        /* Make sure we aren't going to run slapd in 
+         * a mode that is going to conflict with other
+         * slapd processes that are currently running
+         */
+        if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
+                                   skip_db_protect_check) == -1 )  {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                       "Shutting down due to possible conflicts "
+                       "with other slapd processes\n");
+            return 1;
+        }
+    
+        if (! (SLAPI_PLUGIN_IS_V2(plugin))) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
+                    "%s is too old to do exports.\n", plugin->plg_name);
+            return 1;
+        }
+    
+        if (!is_quiet) {
+            slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
+        }
+        if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
+            g_set_detached(1);
+        }
         Slapi_PBlock *pb = slapi_pblock_new();
         slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
         slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
@@ -2235,80 +2235,80 @@ slapd_exemode_db2ldif(int argc, char** argv)
         int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
         int32_t is_running = 0;
-		if (is_slapd_running()) {
+        if (is_slapd_running()) {
             is_running = 1;
         }
         slapi_pblock_set(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &is_running);
-	
-		if (db2ldif_dump_replica) {
-			char **plugin_list = NULL;
-			char *repl_plg_name = "Multimaster Replication Plugin";
+    
+        if (db2ldif_dump_replica) {
+            char **plugin_list = NULL;
+            char *repl_plg_name = "Multimaster Replication Plugin";
 
-			/*
-			 * Only start the necessary plugins for "db2ldif -r"
-			 *
-			 * We need replication, but replication has its own
-			 * dependencies
-			 */
-			plugin_get_plugin_dependencies(repl_plg_name, &plugin_list);
+            /*
+             * Only start the necessary plugins for "db2ldif -r"
+             *
+             * We need replication, but replication has its own
+             * dependencies
+             */
+            plugin_get_plugin_dependencies(repl_plg_name, &plugin_list);
 
-			eq_init(); /* must be done before plugins started */
-			ps_init_psearch_system(); /* must come before plugin_startall() */
-			plugin_startall(argc, argv, plugin_list);
-			eq_start(); /* must be done after plugins started */
-			charray_free(plugin_list);
-		}
-	  
-	    if ( archive_name ) { /* redirect stdout to this file: */
+            eq_init(); /* must be done before plugins started */
+            ps_init_psearch_system(); /* must come before plugin_startall() */
+            plugin_startall(argc, argv, plugin_list);
+            eq_start(); /* must be done after plugins started */
+            charray_free(plugin_list);
+        }
+      
+        if ( archive_name ) { /* redirect stdout to this file: */
             char *p, *q;
-			char sep = '/';
+            char sep = '/';
 
-			my_ldiffile = archive_name;
-			if (ldif_printkey & EXPORT_APPENDMODE) {
-				if (instp == cmd_line_instance_names) {	/* first export */
-					ldif_printkey |= EXPORT_APPENDMODE_1;
-				} else {
-					ldif_printkey &= ~EXPORT_APPENDMODE_1;
-				}
-			} else {	/* not APPENDMODE */
-				if (strcmp(archive_name, "-")) {	/* not '-' */
-            		my_ldiffile =
-                	(char *)slapi_ch_malloc((unsigned long)(strlen(archive_name)
-													+ strlen(*instp) + 2));
-            		p = strrchr(archive_name, sep);
-            		if (NULL == p) {
-                		sprintf(my_ldiffile, "%s_%s", *instp, archive_name);
-            		} else {
-                		q = p + 1;
-                		*p = '\0';
-                		sprintf(my_ldiffile, "%s%c%s_%s",
-										 archive_name, sep, *instp, q);
-                		*p = sep;
-            		}
-					release_me = 1;
-				}
-			}
+            my_ldiffile = archive_name;
+            if (ldif_printkey & EXPORT_APPENDMODE) {
+                if (instp == cmd_line_instance_names) { /* first export */
+                    ldif_printkey |= EXPORT_APPENDMODE_1;
+                } else {
+                    ldif_printkey &= ~EXPORT_APPENDMODE_1;
+                }
+            } else {    /* not APPENDMODE */
+                if (strcmp(archive_name, "-")) {    /* not '-' */
+                    my_ldiffile =
+                    (char *)slapi_ch_malloc((unsigned long)(strlen(archive_name)
+                                                    + strlen(*instp) + 2));
+                    p = strrchr(archive_name, sep);
+                    if (NULL == p) {
+                        sprintf(my_ldiffile, "%s_%s", *instp, archive_name);
+                    } else {
+                        q = p + 1;
+                        *p = '\0';
+                        sprintf(my_ldiffile, "%s%c%s_%s",
+                                         archive_name, sep, *instp, q);
+                        *p = sep;
+                    }
+                    release_me = 1;
+                }
+            }
 
-	        if (!is_quiet) {
-	            fprintf(stderr, "ldiffile: %s\n", my_ldiffile);
-	        }
-	        /* just send the filename to the backend and let
-	         * the backend open it (so they can do special
-	         * stuff for 64-bit fs)
-	         */
+            if (!is_quiet) {
+                fprintf(stderr, "ldiffile: %s\n", my_ldiffile);
+            }
+            /* just send the filename to the backend and let
+             * the backend open it (so they can do special
+             * stuff for 64-bit fs)
+             */
             slapi_pblock_set(pb, SLAPI_DB2LDIF_FILE, my_ldiffile);
             slapi_pblock_set(pb, SLAPI_DB2LDIF_PRINTKEY, &ldif_printkey);
-	    }
-	
-	    return_value = (plugin->plg_db2ldif)( pb );
+        }
+    
+        return_value = (plugin->plg_db2ldif)( pb );
 
         slapi_pblock_destroy(pb);
 
-		if (release_me) {
-			slapi_ch_free((void **)&my_ldiffile);
-		}
-	}
-	slapi_ch_free( (void**)&myname );
+        if (release_me) {
+            slapi_ch_free((void **)&my_ldiffile);
+        }
+    }
+    slapi_ch_free( (void**)&myname );
     if (db2ldif_dump_replica) {
         eq_stop();         /* event queue should be shutdown before closing
                               all plugins (especailly, replication plugin) */
@@ -2440,7 +2440,7 @@ static int slapd_exemode_db2index(void)
 static int 
 slapd_exemode_db2archive(void)
 {
-    int return_value= 0;
+	int return_value= 0;
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
@@ -2460,10 +2460,10 @@ slapd_exemode_db2archive(void)
 	 * slapd processes that are currently running
 	 */
 	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-	                           skip_db_protect_check) == -1 )  {
+							   skip_db_protect_check) == -1 )  {
 	    slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2archive",
-		       "Shutting down due to possible conflicts with other slapd processes\n");
-	    return 1;
+				"Shutting down due to possible conflicts with other slapd processes\n");
+		return 1;
 	}
 	if (compute_init()) {
 		slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2archive",
@@ -2478,14 +2478,14 @@ slapd_exemode_db2archive(void)
 	}
 
 	Slapi_PBlock *pb = slapi_pblock_new();
-    slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
-    slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
-    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
-    int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-    slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
+	slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
+	slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
+	slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
+	int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+	slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
 	main_setuid(slapdFrontendConfig->localuser);
 	return_value = (backend_plugin->plg_db2archive)( pb );
-    slapi_pblock_destroy(pb);
+	slapi_pblock_destroy(pb);
 	return return_value;
 }
 

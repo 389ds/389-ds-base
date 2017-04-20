@@ -60,11 +60,11 @@ do_add( Slapi_PBlock *pb )
 	int			err;
 	int			rc;
 	PRBool  searchsubentry=PR_TRUE;
-    Connection *pb_conn = NULL;
+	Connection *pb_conn = NULL;
 
 	slapi_log_err(SLAPI_LOG_TRACE, "do_add", "==>\n");
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
     ber = operation->o_ber;
 
@@ -284,9 +284,9 @@ done:
 Slapi_PBlock *
 slapi_add_entry_internal(Slapi_Entry *e, LDAPControl **controls, int dummy __attribute__((unused)))
 {
-    Slapi_PBlock    *pb = slapi_pblock_new();
-    Slapi_PBlock    *result_pb = NULL;
-    int             opresult;
+	Slapi_PBlock    *pb = slapi_pblock_new();
+	Slapi_PBlock    *result_pb = NULL;
+	int             opresult;
 
 	slapi_add_entry_internal_set_pb (pb, e, controls, plugin_get_default_component_id(), 0);
 
@@ -298,9 +298,9 @@ slapi_add_entry_internal(Slapi_Entry *e, LDAPControl **controls, int dummy __att
 		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 		slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 	}
-    slapi_pblock_destroy(pb);
+	slapi_pblock_destroy(pb);
 
-    return result_pb;
+	return result_pb;
 }
 
 /*  This is new style API to issue internal add operation.
@@ -431,10 +431,10 @@ static void op_shared_add (Slapi_PBlock *pb)
 	char *errtext = NULL;
 	Slapi_DN *sdn = NULL;
 	passwdPolicy *pwpolicy;
-    Connection *pb_conn = NULL;
+	Connection *pb_conn = NULL;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
-    slapi_pblock_get (pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get (pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get (pb, SLAPI_ADD_ENTRY, &e);
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
 	slapi_pblock_get (pb, SLAPI_IS_LEGACY_REPLICATED_OPERATION, &legacy_op);
@@ -446,8 +446,8 @@ static void op_shared_add (Slapi_PBlock *pb)
 
 	if ((err = slapi_entry_add_rdn_values(e)) != LDAP_SUCCESS) 
 	{
-	  send_ldap_result(pb, err, NULL, "failed to add RDN values", 0, NULL);
-	  goto done;
+		send_ldap_result(pb, err, NULL, "failed to add RDN values", 0, NULL);
+		goto done;
 	}
 
 	/* get the proxy auth dn if the proxy auth control is present */

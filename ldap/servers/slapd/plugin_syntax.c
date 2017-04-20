@@ -190,7 +190,7 @@ plugin_call_syntax_filter_ava_sv(
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "plugin_call_syntax_filter_ava", "<= %d\n", rc);
-    slapi_pblock_destroy(pipb);
+	slapi_pblock_destroy(pipb);
 	return( rc );
 }
 
@@ -263,9 +263,9 @@ plugin_call_syntax_filter_sub_sv(
 
 	slapi_log_err(SLAPI_LOG_FILTER, "plugin_call_syntax_filter_sub_sv", "<= %d\n",
 	    rc);
-    /* Operation is owned by our caller: We need to null it now, to prevent the free */
-    slapi_pblock_set( pipb, SLAPI_OPERATION, NULL );
-    slapi_pblock_destroy(pipb);
+	/* Operation is owned by our caller: We need to null it now, to prevent the free */
+	slapi_pblock_set( pipb, SLAPI_OPERATION, NULL );
+	slapi_pblock_destroy(pipb);
 	return( rc );
 }
 
@@ -798,7 +798,7 @@ slapi_attr_assertion2keys_ava_sv(
 	if ( a2k_fn != NULL ) {
 		rc = (*a2k_fn)( pipb, val, ivals, ftype );
 	}
-    slapi_pblock_destroy(pipb);
+	slapi_pblock_destroy(pipb);
 done:
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_attr_assertion2keys_ava_sv", "=> %d\n", rc);
@@ -866,7 +866,7 @@ slapi_call_syntax_assertion2keys_sub_sv(
 		    final, ivals );
 	}
 
-    slapi_pblock_destroy(pipb);
+	slapi_pblock_destroy(pipb);
 
 	slapi_log_err(SLAPI_LOG_FILTER,
 	    "slapi_call_syntax_assertion2keys_sub_sv", "<= %d\n", rc);

@@ -176,12 +176,12 @@ get_ldapmessage_controls_ext(
 {
 	LDAPControl		**ctrls, *new;
 	ber_tag_t		tag;
-    /* ber_len_t is uint, cannot be -1 */
+	/* ber_len_t is uint, cannot be -1 */
 	ber_len_t		len = LBER_ERROR;
 	int			rc, maxcontrols, curcontrols;
 	char			*last;
 	int			managedsait, pwpolicy_ctrl;
-    Connection *pb_conn = NULL;
+	Connection *pb_conn = NULL;
 
 	/*
 	 * Each LDAPMessage can have a set of controls appended

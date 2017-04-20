@@ -2022,9 +2022,8 @@ index_addordel_values_ext_sv(
     }
 
     ainfo_get( be, basetype, &ai );
-    if ( ai == NULL || ai->ai_indexmask == 0
-				|| ai->ai_indexmask == INDEX_OFFLINE ) {
-		slapi_ch_free_string( &basetmp );
+    if ( ai == NULL || ai->ai_indexmask == 0 || ai->ai_indexmask == INDEX_OFFLINE ) {
+        slapi_ch_free_string( &basetmp );
         return( 0 );
     }
     slapi_log_err(SLAPI_LOG_ARGS, "index_addordel_values_ext_sv", "indexmask 0x%x\n",
@@ -2033,7 +2032,7 @@ index_addordel_values_ext_sv(
         slapi_log_err(SLAPI_LOG_ERR,
                    "index_addordel_values_ext_sv", "index_read NULL (could not open index attr %s)\n",
                    basetype);
-		slapi_ch_free_string( &basetmp );
+        slapi_ch_free_string( &basetmp );
         if ( err != 0 ) {
             ldbm_nasty("index_addordel_values_ext_sv", errmsg, 1210, err);
         }
@@ -2101,10 +2100,10 @@ index_addordel_values_ext_sv(
         Slapi_Value	**esubvals = NULL;
         Slapi_Value	**substresult = NULL;
         Slapi_Value   **origvals = NULL;
-		Slapi_PBlock *pipb = slapi_pblock_new();
+        Slapi_PBlock *pipb = slapi_pblock_new();
 
-		/* prepare pblock to pass ai_substr_lens */
-		slapi_pblock_set( pipb, SLAPI_SYNTAX_SUBSTRLENS, ai->ai_substr_lens );
+        /* prepare pblock to pass ai_substr_lens */
+        slapi_pblock_set( pipb, SLAPI_SYNTAX_SUBSTRLENS, ai->ai_substr_lens );
         slapi_attr_values2keys_sv_pb( &ai->ai_sattr, vals, &ivals, LDAP_FILTER_SUBSTRINGS, pipb );
 
         origvals = ivals;
@@ -2154,8 +2153,8 @@ index_addordel_values_ext_sv(
                     matchrule_values_to_keys_sv(pb,vals,&keys);
                     /* the matching rule indexer owns keys now */
                     if(keys != NULL && keys[0] != NULL)
-            	    {
-            	        /* we've computed keys */
+                    {
+                        /* we've computed keys */
                         err = addordel_values_sv (be, db, basetype, officialOID, keys, id, flags, txn, ai, idl_disposition, NULL);
                         if ( err != 0 )
                         {

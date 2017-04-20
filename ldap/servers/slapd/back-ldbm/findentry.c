@@ -159,8 +159,8 @@ find_entry_internal_dn(
 		struct backentry *me;
 		Slapi_DN ancestorsdn;
 		slapi_sdn_init(&ancestorsdn);
-        Slapi_Backend *pb_backend;
-        slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
+		Slapi_Backend *pb_backend;
+		slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
 
 		me = dn2ancestor(pb_backend, sdn, &ancestorsdn, txn, &err, 1 /* allow_suffix */);
 		if ( !managedsait && me != NULL ) {

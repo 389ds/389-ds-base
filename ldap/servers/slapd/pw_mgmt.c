@@ -37,7 +37,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 	passwdPolicy *pwpolicy = NULL;
 	int	pwdGraceUserTime = 0;
 	char graceUserTime[16] = {0};
-    Connection *pb_conn = NULL;
+	Connection *pb_conn = NULL;
 
 	if (NULL == e) {
 		return (-1);
@@ -87,7 +87,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 
 	slapi_ch_free_string(&passwordExpirationTime);
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	/* Check if password has been reset */
 	if ( pw_exp_date == NO_TIME ) {
@@ -180,8 +180,8 @@ skip:
 		   create a pb for unbind operation.  Also do_unbind calls
 		   pre and post ops.  Maybe we don't want to call them */
 		if (pb_conn && (LDAP_VERSION2 == pb_conn->c_ldapversion)) {
-            Operation *pb_op = NULL;
-            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+			Operation *pb_op = NULL;
+			slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 			/* We close the connection only with LDAPv2 connections */
 			disconnect_server( pb_conn, pb_op->o_connid,
 				pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
@@ -228,12 +228,10 @@ skip:
 		if (pwresponse_req) {
 			/* check for "changeafterreset" condition */
 			if (pb_conn->c_needpw == 1) {
-					slapi_pwpolicy_make_response_control( pb, *t, -1,
-						LDAP_PWPOLICY_CHGAFTERRESET);
-				} else {
-					slapi_pwpolicy_make_response_control( pb, *t, -1,
-						-1);
-				}
+				slapi_pwpolicy_make_response_control( pb, *t, -1, LDAP_PWPOLICY_CHGAFTERRESET);
+			} else {
+				slapi_pwpolicy_make_response_control( pb, *t, -1, -1);
+			}
 		}
 
 		if (pb_conn->c_needpw == 1) {

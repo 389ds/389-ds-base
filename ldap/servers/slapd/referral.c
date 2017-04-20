@@ -408,117 +408,114 @@ dn_is_below( const char *dn_norm, const char *ancestor_norm )
 struct berval **
 get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
 {
-  int             walker;
-  struct berval **bvp;
-  struct berval  *bv;
-  int             found_it;
-  Ref_Array      *grefs = NULL;
-  Ref_Array      *the_refs = NULL;
-  Ref_Array      *cf_refs = (Ref_Array *)cfrp;
+    int             walker;
+    struct berval **bvp;
+    struct berval  *bv;
+    int             found_it;
+    Ref_Array      *grefs = NULL;
+    Ref_Array      *the_refs = NULL;
+    Ref_Array      *cf_refs = (Ref_Array *)cfrp;
 
-  /* If no Ref_Array is given, use global_referrals */
-  if (cf_refs == NULL) {
-    grefs = g_get_global_referrals();
-    the_refs = grefs;
-    GR_LOCK_READ();
-  } else {
-    the_refs = cf_refs;
-  }
-
-  /* optimization: if orc is 1 (a read), then check the readcount*/
-  if (orc && the_refs->ra_readcount == 0) {
+    /* If no Ref_Array is given, use global_referrals */
     if (cf_refs == NULL) {
-      GR_UNLOCK_READ();
+        grefs = g_get_global_referrals();
+        the_refs = grefs;
+        GR_LOCK_READ();
+    } else {
+        the_refs = cf_refs;
     }
-    return (NULL);
-  }
-  
 
-  bvp = NULL;
-  bv = NULL;
-  found_it = 0;
-
-  /* Walk down the array, testing each dn to make see if it's a parent of "dn" */
-  for (walker = 0; walker < the_refs->ra_nextindex; walker++){
-
-    if ( slapi_dn_issuffix(slapi_sdn_get_ndn(sdn), the_refs->ra_refs[walker]->ref_dn)) {
-      found_it = 1;
-      break;
-
+    /* optimization: if orc is 1 (a read), then check the readcount*/
+    if (orc && the_refs->ra_readcount == 0) {
+        if (cf_refs == NULL) {
+            GR_UNLOCK_READ();
+        }
+        return (NULL);
     }
-  }
-  
-  /* no referral, so return NULL */
-  if (!found_it) {
-    if (cf_refs == NULL) {
-      GR_UNLOCK_READ();
-    }
-    return (NULL);
-  }
 
-  /* 
-   * Gotta make sure we're returning the right one. If orc is 1, then
-   * only return a read referral. if orc is 0, then only return a
-   * write referral.
-   */
-  if (orc && the_refs->ra_refs[walker]->ref_reads != 1) {
-    if (cf_refs == NULL) {
-      GR_UNLOCK_READ();
-    }
-    return (NULL);
-  }
 
-  if (!orc && the_refs->ra_refs[walker]->ref_writes != 1) {
-    if (cf_refs == NULL) {
-      GR_UNLOCK_READ();
+    bvp = NULL;
+    bv = NULL;
+    found_it = 0;
+
+    /* Walk down the array, testing each dn to make see if it's a parent of "dn" */
+    for (walker = 0; walker < the_refs->ra_nextindex; walker++){
+        if ( slapi_dn_issuffix(slapi_sdn_get_ndn(sdn), the_refs->ra_refs[walker]->ref_dn)) {
+            found_it = 1;
+            break;
+        }
     }
-    return (NULL);
-  }
+    /* no referral, so return NULL */
+    if (!found_it) {
+        if (cf_refs == NULL) {
+            GR_UNLOCK_READ();
+        }
+        return (NULL);
+    }
+
+    /* 
+    * Gotta make sure we're returning the right one. If orc is 1, then
+    * only return a read referral. if orc is 0, then only return a
+    * write referral.
+    */
+    if (orc && the_refs->ra_refs[walker]->ref_reads != 1) {
+        if (cf_refs == NULL) {
+            GR_UNLOCK_READ();
+        }
+        return (NULL);
+    }
+
+    if (!orc && the_refs->ra_refs[walker]->ref_writes != 1) {
+        if (cf_refs == NULL) {
+            GR_UNLOCK_READ();
+        }
+        return (NULL);
+    }
 
     Connection  *pb_conn;
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
     /* Fix for 310968 --- return an SSL referral to an SSL client */
-	if ( 0 != ( pb_conn->c_flags & CONN_FLAG_SSL )) {
-		/* SSL connection */
-		char * old_referral_string = NULL;
-		char * new_referral_string = NULL;
-		char *p = NULL;
-		/* Get the basic referral */
-		bv = slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
-		old_referral_string = bv->bv_val;
-		/* Re-write it to replace ldap with ldaps, and remove the port information */
-		/* The original string will look like this: ldap://host:port */
-		/* We need to make it look like this: ldaps://host */
-		/* Potentially the ":port" part might be missing from the original */
-		new_referral_string = slapi_ch_smprintf("%s%s" , LDAPS_URL_PREFIX, old_referral_string + strlen(LDAP_URL_PREFIX) );
-		/* Go looking for the port */
-		p = new_referral_string + (strlen(LDAPS_URL_PREFIX) + 1);
-		while (*p != '\0' && *p != ':') p++;
-		if (':' == *p) {
-			/* It had a port, zap it */
-			*p = '\0';
-		}
-		/* Fix the bv to point to this new string */
-		bv->bv_val = new_referral_string;
-		/* Fix its length */
-		bv->bv_len = strlen(bv->bv_val);
-		/* Free the copy we made of the original */
-		slapi_ch_free((void**)&old_referral_string);
-	} else {
-		/* regular connection */
-		bv = (struct berval *) slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
-	}  
+    if ( 0 != ( pb_conn->c_flags & CONN_FLAG_SSL )) {
+        /* SSL connection */
+        char * old_referral_string = NULL;
+        char * new_referral_string = NULL;
+        char *p = NULL;
+        /* Get the basic referral */
+        bv = slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
+        old_referral_string = bv->bv_val;
+        /* Re-write it to replace ldap with ldaps, and remove the port information */
+        /* The original string will look like this: ldap://host:port */
+        /* We need to make it look like this: ldaps://host */
+        /* Potentially the ":port" part might be missing from the original */
+        new_referral_string = slapi_ch_smprintf("%s%s" , LDAPS_URL_PREFIX, old_referral_string + strlen(LDAP_URL_PREFIX) );
+        /* Go looking for the port */
+        p = new_referral_string + (strlen(LDAPS_URL_PREFIX) + 1);
+        while (*p != '\0' && *p != ':') p++;
+        if (':' == *p) {
+            /* It had a port, zap it */
+            *p = '\0';
+        }
+        /* Fix the bv to point to this new string */
+        bv->bv_val = new_referral_string;
+        /* Fix its length */
+        bv->bv_len = strlen(bv->bv_val);
+        /* Free the copy we made of the original */
+        slapi_ch_free((void**)&old_referral_string);
+    } else {
+        /* regular connection */
+        bv = (struct berval *) slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
+    }
 
-  /* Package it up and send that puppy. */
-  bvp = (struct berval **) slapi_ch_malloc( 2 * sizeof(struct berval *) );
-  bvp[0] = bv;
-  bvp[1] = NULL;
+    /* Package it up and send that puppy. */
+    bvp = (struct berval **) slapi_ch_malloc( 2 * sizeof(struct berval *) );
+    bvp[0] = bv;
+    bvp[1] = NULL;
 
-  if (cf_refs == NULL) {
-    GR_UNLOCK_READ();
-  }
+    if (cf_refs == NULL) {
+        GR_UNLOCK_READ();
+    }
 
-  return(bvp);
+    return(bvp);
 
 }

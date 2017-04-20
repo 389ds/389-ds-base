@@ -132,7 +132,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 			slapi_add_controls(&req_controls_copy, req_controls, 1);
 		}
 
-	    Slapi_PBlock *pb = slapi_pblock_new();
+		Slapi_PBlock *pb = slapi_pblock_new();
 		slapi_modify_internal_set_pb_ext (pb, sdn, 
 			slapi_mods_get_ldapmods_byref(mods),
 			req_controls_copy, NULL, /* UniqueID */
@@ -145,16 +145,16 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 		 * that the password change was initiated by the user who
 		 * sent the extended operation instead of always assuming
 		 * that it was done by the root DN. */
-        Connection *pb_conn = NULL;
-        slapi_pblock_get(pb_orig, SLAPI_CONNECTION, &pb_conn);
-        slapi_pblock_set(pb, SLAPI_CONNECTION, pb_conn);
+		Connection *pb_conn = NULL;
+		slapi_pblock_get(pb_orig, SLAPI_CONNECTION, &pb_conn);
+		slapi_pblock_set(pb, SLAPI_CONNECTION, pb_conn);
 
 		ret =slapi_modify_internal_pb (pb);
 
 		/* We now clean up the connection that we copied into the
 		 * new pblock.  We want to leave it untouched. */
-        slapi_pblock_set(pb, SLAPI_CONNECTION, NULL);
-  
+		slapi_pblock_set(pb, SLAPI_CONNECTION, NULL);
+
 		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
 		/* Retrieve and duplicate the response controls since they will be
@@ -170,12 +170,12 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 				ret, slapi_sdn_get_dn(sdn));
 		}
 
-        slapi_pblock_destroy(pb);
- 	}
+		slapi_pblock_destroy(pb);
+	}
  
- 	slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "<= %d\n", ret);
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "<= %d\n", ret);
  
- 	return ret;
+	return ret;
 }
 
 
@@ -772,8 +772,8 @@ parse_req_done:
 	 * this here since the normal modify code doesn't perform this check for
 	 * internal operations. */
 
-    Connection *pb_conn;
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	Connection *pb_conn;
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	if (!pb_op->o_isroot && !pb_conn->c_needpw && !pwpolicy->pw_change) {
 		if (NULL == bindSDN) {
 			bindSDN = slapi_sdn_new_normdn_byref(bindDN);

@@ -35,12 +35,12 @@ do_abandon( Slapi_PBlock *pb )
 {
 	int		err, suppressed_by_plugin = 0;
 	ber_int_t	id;
-    Connection *pb_conn = NULL;
-    Operation *pb_op = NULL;
+	Connection *pb_conn = NULL;
+	Operation *pb_op = NULL;
 	Operation	*o;
 
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	BerElement	*ber = pb_op->o_ber;
 
@@ -100,9 +100,9 @@ do_abandon( Slapi_PBlock *pb )
 		   are applicable for the operation */
 		ts = operation_get_target_spec (o);
 		if (ts) {
-		  	operation_set_target_spec (pb_op, ts);
+			operation_set_target_spec (pb_op, ts);
 		} else {
-		     slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "no target spec of abandoned operation\n");
+			slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "no target spec of abandoned operation\n");
 		}
 
 		operation_set_abandoned_op (pb_op, o->o_abandoned_op);

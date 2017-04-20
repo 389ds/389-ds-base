@@ -256,17 +256,17 @@ static void
 ps_send_results( void *arg )
 {
     PSearch *ps = (PSearch *)arg;
-	PSEQNode *peq, *peqnext;
-	struct slapi_filter *filter = 0;
-	char *base = NULL;
-	Slapi_DN *sdn = NULL;
-	char *fstr = NULL;
-	char **pbattrs = NULL;
-	int conn_acq_flag = 0;
-	Slapi_Connection *conn = NULL;
+    PSEQNode *peq, *peqnext;
+    struct slapi_filter *filter = 0;
+    char *base = NULL;
+    Slapi_DN *sdn = NULL;
+    char *fstr = NULL;
+    char **pbattrs = NULL;
+    int conn_acq_flag = 0;
+    Slapi_Connection *conn = NULL;
     Connection *pb_conn = NULL;
     Operation *pb_op = NULL;
-    
+
     g_incr_active_threadcnt();
 
     slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
@@ -278,87 +278,87 @@ ps_send_results( void *arg )
     conn_acq_flag = connection_acquire_nolock(pb_conn);
     PR_ExitMonitor(pb_conn->c_mutex);
 
-	if (conn_acq_flag) {
-		slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
-				"conn=%" PRIu64 " op=%d Could not acquire the connection - psearch aborted\n",
-				pb_conn->c_connid, pb_op->o_opid);
-	}
+    if (conn_acq_flag) {
+        slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
+                "conn=%" PRIu64 " op=%d Could not acquire the connection - psearch aborted\n",
+                pb_conn->c_connid, pb_op->o_opid);
+    }
 
     PR_Lock( psearch_list->pl_cvarlock );
 
     while ( (conn_acq_flag == 0) && !ps->ps_complete ) {
-	/* Check for an abandoned operation */
-	if ( pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
-		slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
-				"conn=%" PRIu64 " op=%d The operation has been abandoned\n",
-				pb_conn->c_connid, pb_op->o_opid);
-	    break;
-	}
-	if ( NULL == ps->ps_eq_head ) {
-	    /* Nothing to do */
-	    PR_WaitCondVar( psearch_list->pl_cvar, PR_INTERVAL_NO_TIMEOUT );
-	} else {
-	    /* dequeue the item */
-	    int		attrsonly;
-	    char	**attrs;
-	    LDAPControl	**ectrls;
-	    Slapi_Entry	*ec;
-		Slapi_Filter	*f = NULL;
-		
-	    PR_Lock( ps->ps_lock );
+    /* Check for an abandoned operation */
+    if ( pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
+        slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
+                "conn=%" PRIu64 " op=%d The operation has been abandoned\n",
+                pb_conn->c_connid, pb_op->o_opid);
+        break;
+    }
+    if ( NULL == ps->ps_eq_head ) {
+        /* Nothing to do */
+        PR_WaitCondVar( psearch_list->pl_cvar, PR_INTERVAL_NO_TIMEOUT );
+    } else {
+        /* dequeue the item */
+        int     attrsonly;
+        char    **attrs;
+        LDAPControl **ectrls;
+        Slapi_Entry *ec;
+        Slapi_Filter    *f = NULL;
+        
+        PR_Lock( ps->ps_lock );
 
-		peq = ps->ps_eq_head;
-		ps->ps_eq_head = peq->pe_next;
-	    if ( NULL == ps->ps_eq_head ) {
-			ps->ps_eq_tail = NULL;
-	    }
+        peq = ps->ps_eq_head;
+        ps->ps_eq_head = peq->pe_next;
+        if ( NULL == ps->ps_eq_head ) {
+            ps->ps_eq_tail = NULL;
+        }
 
-	    PR_Unlock( ps->ps_lock );
+        PR_Unlock( ps->ps_lock );
 
-	    /* Get all the information we need to send the result */
-	    ec = peq->pe_entry;
-	    slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_ATTRS, &attrs );
-	    slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
-	    if ( !ps->ps_send_entchg_controls || peq->pe_ctrls[0] == NULL ) {
-		ectrls = NULL;
-	    } else {
-		ectrls = peq->pe_ctrls;
-	    }
+        /* Get all the information we need to send the result */
+        ec = peq->pe_entry;
+        slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_ATTRS, &attrs );
+        slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
+        if ( !ps->ps_send_entchg_controls || peq->pe_ctrls[0] == NULL ) {
+        ectrls = NULL;
+        } else {
+        ectrls = peq->pe_ctrls;
+        }
 
-	    /*
-	     * Send the result.  Since send_ldap_search_entry can block for
-	     * up to 30 minutes, we relinquish all locks before calling it.
-	     */
-	    PR_Unlock(psearch_list->pl_cvarlock);
+        /*
+         * Send the result.  Since send_ldap_search_entry can block for
+         * up to 30 minutes, we relinquish all locks before calling it.
+         */
+        PR_Unlock(psearch_list->pl_cvarlock);
 
-		/*
-		 * The entry is in the right scope and matches the filter
-		 * but we need to redo the filter test here to check access
-		 * controls. See the comments at the slapi_filter_test()
-		 * call in ps_service_persistent_searches().		 
-		*/
-		slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_FILTER, &f );			
+        /*
+         * The entry is in the right scope and matches the filter
+         * but we need to redo the filter test here to check access
+         * controls. See the comments at the slapi_filter_test()
+         * call in ps_service_persistent_searches().         
+        */
+        slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_FILTER, &f );         
 
-		/* See if the entry meets the filter and ACL criteria */
-		if ( slapi_vattr_filter_test( ps->ps_pblock, ec, f,
-			    1 /* verify_access */ ) == 0 ) {
-			int rc = 0;
-	    	slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_RESULT_ENTRY, ec );
-	    	rc = send_ldap_search_entry( ps->ps_pblock, ec,
-										 ectrls, attrs, attrsonly );
-			if (rc) {
-				slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
-								"conn=%" PRIu64 " op=%d Error %d sending entry %s with op status %d\n",
-								pb_conn->c_connid, pb_op->o_opid,
-								rc, slapi_entry_get_dn_const(ec), pb_op->o_status);
-			}
-		}
-	    
-		PR_Lock(psearch_list->pl_cvarlock);
+        /* See if the entry meets the filter and ACL criteria */
+        if ( slapi_vattr_filter_test( ps->ps_pblock, ec, f,
+                1 /* verify_access */ ) == 0 ) {
+            int rc = 0;
+            slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_RESULT_ENTRY, ec );
+            rc = send_ldap_search_entry( ps->ps_pblock, ec,
+                                         ectrls, attrs, attrsonly );
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
+                                "conn=%" PRIu64 " op=%d Error %d sending entry %s with op status %d\n",
+                                pb_conn->c_connid, pb_op->o_opid,
+                                rc, slapi_entry_get_dn_const(ec), pb_op->o_status);
+            }
+        }
+        
+        PR_Lock(psearch_list->pl_cvarlock);
 
-		/* Deallocate our wrapper for this entry */
-		pe_ch_free( &peq );
-	}
+        /* Deallocate our wrapper for this entry */
+        pe_ch_free( &peq );
+    }
     }
     PR_Unlock( psearch_list->pl_cvarlock );
     ps_remove( ps );
@@ -366,39 +366,39 @@ ps_send_results( void *arg )
     /* indicate the end of search */
     plugin_call_plugins( ps->ps_pblock , SLAPI_PLUGIN_POST_SEARCH_FN );
 
-	/* free things from the pblock that were not free'd in do_search() */
-	/* we strdup'd this in search.c - need to free */
-	slapi_pblock_get( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, &base );
-	slapi_pblock_set( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, NULL );
-	slapi_ch_free_string(&base);
+    /* free things from the pblock that were not free'd in do_search() */
+    /* we strdup'd this in search.c - need to free */
+    slapi_pblock_get( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, &base );
+    slapi_pblock_set( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, NULL );
+    slapi_ch_free_string(&base);
 
-	/* Free SLAPI_SEARCH_* before deleting op since those are held by op */
-	slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, &sdn );
-	slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, NULL );
-	slapi_sdn_free(&sdn);
+    /* Free SLAPI_SEARCH_* before deleting op since those are held by op */
+    slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, &sdn );
+    slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, NULL );
+    slapi_sdn_free(&sdn);
 
     slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_STRFILTER, &fstr );
     slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_STRFILTER, NULL );
-	slapi_ch_free_string(&fstr);
+    slapi_ch_free_string(&fstr);
 
     slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_ATTRS, &pbattrs );
     slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_ATTRS, NULL );
-	if ( pbattrs != NULL )
-	{
-		charray_free( pbattrs );
-	}
-	
-	slapi_pblock_get(ps->ps_pblock, SLAPI_SEARCH_FILTER, &filter );
-	slapi_pblock_set(ps->ps_pblock, SLAPI_SEARCH_FILTER, NULL );
-	slapi_filter_free(filter, 1);
+    if ( pbattrs != NULL )
+    {
+        charray_free( pbattrs );
+    }
+    
+    slapi_pblock_get(ps->ps_pblock, SLAPI_SEARCH_FILTER, &filter );
+    slapi_pblock_set(ps->ps_pblock, SLAPI_SEARCH_FILTER, NULL );
+    slapi_filter_free(filter, 1);
 
     conn = pb_conn; /* save to release later - connection_remove_operation_ext will NULL the pb_conn */
     /* Clean up the connection structure */
     PR_EnterMonitor(conn->c_mutex);
 
-	slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
-					"conn=%" PRIu64 " op=%d Releasing the connection and operation\n",
-					conn->c_connid, pb_op->o_opid);
+    slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
+                    "conn=%" PRIu64 " op=%d Releasing the connection and operation\n",
+                    conn->c_connid, pb_op->o_opid);
     /* Delete this op from the connection's list */
     connection_remove_operation_ext( ps->ps_pblock, conn, pb_op );
 
@@ -413,10 +413,10 @@ ps_send_results( void *arg )
     ps->ps_lock = NULL;
 
     slapi_ch_free((void **) &ps->ps_pblock );
-	for ( peq = ps->ps_eq_head; peq; peq = peqnext) {
-		peqnext = peq->pe_next;
-		pe_ch_free( &peq );
-	}
+    for ( peq = ps->ps_eq_head; peq; peq = peqnext) {
+        peqnext = peq->pe_next;
+        pe_ch_free( &peq );
+    }
     slapi_ch_free((void **) &ps );
     g_decr_active_threadcnt();
 }
@@ -521,11 +521,11 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		Slapi_DN *base = NULL;
 		Slapi_Filter	*f;
 		int		scope;
-        Connection *pb_conn = NULL;
-        Operation *pb_op = NULL;
+		Connection *pb_conn = NULL;
+		Operation *pb_op = NULL;
 
-        slapi_pblock_get(ps->ps_pblock, SLAPI_OPERATION, &pb_op);
-        slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
+		slapi_pblock_get(ps->ps_pblock, SLAPI_OPERATION, &pb_op);
+		slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
 
 		/* Skip the node that doesn't meet the changetype,
 		 * or is unable to use the change in ps_send_results()

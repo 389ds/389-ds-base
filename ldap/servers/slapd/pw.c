@@ -594,7 +594,7 @@ int
 update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 {
 	Slapi_Operation *operation = NULL;
-    Connection *pb_conn;
+	Connection *pb_conn;
 	Slapi_Entry *e = NULL;
 	Slapi_DN *sdn = NULL;
 	Slapi_Mods	smods;
@@ -606,7 +606,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	int internal_op = 0;
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
@@ -734,11 +734,11 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __
 	char *dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	passwdPolicy *pwpolicy=NULL;
 	int pwresponse_req = 0;
-    Operation *pb_op;
+	Operation *pb_op;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+	slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
 	if (!pb_op->o_isroot && pwpolicy->pw_minage) {
 
@@ -759,7 +759,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __
 			char *cur_time_str = NULL;
 			
 			pw_allowchange_date = parse_genTime(passwordAllowChangeTime);
-        	slapi_ch_free((void **) &passwordAllowChangeTime );
+			slapi_ch_free((void **) &passwordAllowChangeTime );
 
 			/* check if allow to change the password */
 			cur_time_str = format_genTime ( current_time() );
@@ -777,7 +777,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __
 			}
         	slapi_ch_free((void **) &cur_time_str );
 		}
-        slapi_entry_free( e );
+		slapi_entry_free( e );
 	}
 	return ( 0 );
 }
@@ -1237,7 +1237,7 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	list_of_mods[0] = &attribute;
 	list_of_mods[1] = NULL;
 
-    mod_pb = slapi_pblock_new();
+	mod_pb = slapi_pblock_new();
 	slapi_modify_internal_set_pb_ext(mod_pb, sdn, list_of_mods, NULL, NULL, pw_get_componentID(), 0);
 	slapi_modify_internal_pb(mod_pb);
 	slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
@@ -1245,7 +1245,7 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 		slapi_log_err(SLAPI_LOG_ERR, "update_pw_history",
 			"Modify error %d on entry '%s'\n", res, dn);
 	}
-    slapi_pblock_destroy(mod_pb);
+	slapi_pblock_destroy(mod_pb);
 	slapi_ch_free_string(&str);
 bail:
 	slapi_ch_array_free(values_replace);
@@ -1678,12 +1678,12 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	int optype = -1;
 
 	/* If we already allocated a pw policy, return it */
-    if (pb != NULL) {
-        passwdPolicy *pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
-        if (pwdpolicy != NULL) {
-            return pwdpolicy;
-        }
-    }
+	if (pb != NULL) {
+		passwdPolicy *pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
+		if (pwdpolicy != NULL) {
+			return pwdpolicy;
+		}
+	}
 
 	if (g_get_active_threadcnt() == 0){
 		/*
@@ -2038,9 +2038,9 @@ done:
 	pwdpolicy->pw_storagescheme = pwdscheme;
 	pwdpolicy->pw_admin = slapi_sdn_dup(slapdFrontendConfig->pw_policy.pw_admin);
 	pw_get_admin_users(pwdpolicy);
-    if (pb) {
-        slapi_pblock_set_pwdpolicy(pb, pwdpolicy);
-    }
+	if (pb) {
+		slapi_pblock_set_pwdpolicy(pb, pwdpolicy);
+	}
 
 	return pwdpolicy;
 

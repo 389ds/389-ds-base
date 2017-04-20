@@ -349,7 +349,7 @@ send_ldap_result_ext(
 
 	slapi_pblock_get (pb, SLAPI_BIND_METHOD, &bind_method);
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 
 	if (operation->o_status == SLAPI_OP_STATUS_RESULT_SENT) {
 		return; /* result already sent */
@@ -817,11 +817,11 @@ send_ldapv3_referral(
 	BerElement	*ber;
 	int		i, rc, logit = 0;
 	Slapi_Operation *operation;
-    Slapi_Backend *pb_backend;
+	Slapi_Backend *pb_backend;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
-    slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+	slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
 
 	slapi_log_err(SLAPI_LOG_TRACE, "send_ldapv3_referral", "=>\n");
 	
@@ -909,7 +909,7 @@ send_ldap_referral (
 	char	*refAttr = "ref";
 	char	*attrs[2] = { NULL, NULL };
 
-    Connection *pb_conn;
+	Connection *pb_conn;
 
 	/* count the referral */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
@@ -921,6 +921,8 @@ send_ldap_referral (
 	    != LDAP_SUCCESS ) {
 		return( 0 );
 	}
+
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 	if ( pb_conn && pb_conn->c_ldapversion > LDAP_VERSION2 ) {
 		/*
 		 * v3 connection - send the referral(s) in a
@@ -1495,7 +1497,7 @@ send_ldap_search_entry_ext(
 	LDAPControl	**searchctrlp = NULL;
 	
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	slapi_log_err(SLAPI_LOG_TRACE, "send_ldap_search_entry_ext", "=> (%s)\n",
@@ -1522,8 +1524,8 @@ send_ldap_search_entry_ext(
 	slapi_pblock_get(pb, SLAPI_SEARCH_CTRLS, &searchctrlp);
 
 	if ( conn == NULL && e ) {
-        Slapi_Backend *pb_backend;
-        slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
+		Slapi_Backend *pb_backend;
+		slapi_pblock_get(pb, SLAPI_BACKEND, &pb_backend);
 
 		if ( operation->o_search_entry_handler != NULL ) {
 			if (( rc = (*operation->o_search_entry_handler)(
@@ -1949,7 +1951,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 	char etime[ETIME_BUFSIZ];
 	int pr_idx = -1;
 	int pr_cookie = -1;
-    uint32_t operation_notes;
+	uint32_t operation_notes;
 
 	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
 	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_COOKIE, &pr_cookie);
@@ -1964,7 +1966,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 		PR_snprintf(etime, ETIME_BUFSIZ, "%ld", current_time() - op->o_time);
 	}
 
-    slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &operation_notes);
+	slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &operation_notes);
 
 	if ( 0 == operation_notes ) {
 		notes_str = "";

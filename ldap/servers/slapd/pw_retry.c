@@ -230,7 +230,7 @@ pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods)
 	
 	if (mods && (slapi_mods_get_num_mods(mods) > 0)) 
 	{
-	    Slapi_PBlock *pb = slapi_pblock_new();
+		Slapi_PBlock *pb = slapi_pblock_new();
 		/* We don't want to overwrite the modifiersname, etc. attributes,
 		 * so we set a flag for this operation */
 		slapi_modify_internal_set_pb_ext (pb, sdn, 
@@ -248,7 +248,7 @@ pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods)
 					res, slapi_sdn_get_dn(sdn));
 		}
 		
-        slapi_pblock_destroy(pb);
+		slapi_pblock_destroy(pb);
 	}
 	
 	return;

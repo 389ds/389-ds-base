@@ -1198,33 +1198,32 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	backend *be;
 	int scope, rc=LDAP_SUCCESS;
 	char *fstr;
-    back_txn txn = {NULL};
+	back_txn txn = {NULL};
 
-    slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
+	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-    slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
-    slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
+	slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
+	slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
 	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	if((pi=vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
-	    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-	    int pr_idx = -1;
-        Connection *pb_conn = NULL;
-        Operation *pb_op = NULL;
+		unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+		int pr_idx = -1;
+		Connection *pb_conn = NULL;
+		Operation *pb_op = NULL;
 
-	    slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
-	    slapi_rwlock_unlock(be->vlvSearchList_lock);
-	    slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+		slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
+		slapi_rwlock_unlock(be->vlvSearchList_lock);
+		slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
 
-        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+		slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+		slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-	    pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
-	    rc = VLV_FIND_SEARCH_FAILED;
+		pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
+		rc = VLV_FIND_SEARCH_FAILED;
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
-	    slapi_rwlock_unlock(be->vlvSearchList_lock);
+		slapi_rwlock_unlock(be->vlvSearchList_lock);
 		rc = VLV_ACCESS_DENIED;
-	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,
-                                                 vlv_response_control, 1, &txn)) != LDAP_SUCCESS) {
+	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates, vlv_response_control, 1, &txn)) != LDAP_SUCCESS) {
 		rc = VLV_BLD_LIST_FAILED;
 		vlv_response_control->result=*vlv_rc;
 	}

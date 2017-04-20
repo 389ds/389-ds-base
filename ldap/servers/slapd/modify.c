@@ -98,7 +98,7 @@ void
 do_modify( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation = NULL;
-    Connection *pb_conn = NULL;
+	Connection *pb_conn = NULL;
 	Slapi_Mods	smods;
 	BerElement	*ber;
 	ber_tag_t	tag;
@@ -120,7 +120,7 @@ do_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	/* count the modify request */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
@@ -631,7 +631,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	int repl_op, internal_op, lastmod, skip_modified_attrs;
 	char *unhashed_pw_attr = NULL;
 	Slapi_Operation *operation;
-    Connection *pb_conn;
+	Connection *pb_conn;
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	int err;
 	LDAPMod *lc_mod = NULL;
@@ -649,7 +649,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 	slapi_pblock_get (pb, SLAPI_SKIP_MODIFIED_ATTRS, &skip_modified_attrs);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	if (sdn) {
 		passin_sdn = 1;

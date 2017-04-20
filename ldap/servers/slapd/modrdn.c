@@ -401,7 +401,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	char			*errtext = NULL;
 	Slapi_DN *sdn = NULL;
 	Slapi_DN *newsuperiorsdn = NULL;
-    Connection *pb_conn;
+	Connection *pb_conn;
 
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
@@ -411,7 +411,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &origsdn);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+	slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
 	/*
 	 * If ownership has not been passed to this function, we replace the

@@ -260,10 +260,10 @@ static void op_shared_delete (Slapi_PBlock *pb)
 
 		if (!internal_op )
 		{
-            Connection *pb_conn = NULL;
-            Operation *pb_op = NULL;
-            slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+			Connection *pb_conn = NULL;
+			Operation *pb_op = NULL;
+			slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+			slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d DEL dn=\"%s\"%s\n",
 							pb_conn->c_connid,
 							pb_op->o_opid,
