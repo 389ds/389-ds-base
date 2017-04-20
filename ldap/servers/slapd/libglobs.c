@@ -308,7 +308,7 @@ static struct config_get_and_set {
 	{CONFIG_LOGLEVEL_ATTRIBUTE, config_set_errorlog_level,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.errorloglevel,
-		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL, SLAPD_DEFAULT_ERRORLOG_LEVEL_STR},
+		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL, SLAPD_DEFAULT_FE_ERRORLOG_LEVEL_STR},
 	{CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_logging_enabled,
@@ -1597,7 +1597,7 @@ FrontendConfig_init(void) {
     cfg->errorlog_minfreespace = SLAPD_DEFAULT_LOG_MINFREESPACE;
     cfg->errorlog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
     cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
-    cfg->errorloglevel = SLAPD_DEFAULT_ERRORLOG_LEVEL;
+    cfg->errorloglevel = SLAPD_DEFAULT_FE_ERRORLOG_LEVEL;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
     cfg->auditlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
@@ -4474,9 +4474,10 @@ config_set_errorlog_level( const char *attrname, char *value, char *errorbuf, in
   
   if ( apply ) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
-	level |= SLAPD_DEFAULT_ERRORLOG_LEVEL; /* Always apply the new default error levels for now */
-	slapd_ldap_debug = level;
 	slapdFrontendConfig->errorloglevel = level;
+	/* Set the internal value - apply the default error level */
+	level |= SLAPD_DEFAULT_ERRORLOG_LEVEL;
+	slapd_ldap_debug = level;
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
@@ -5771,7 +5772,7 @@ config_get_errorlog_level(){
   retVal = slapdFrontendConfig->errorloglevel;
   CFG_UNLOCK_READ(slapdFrontendConfig);
   
-  return retVal; 
+  return retVal |= SLAPD_DEFAULT_ERRORLOG_LEVEL;
 }
 
 /*  return integer -- don't worry about locking similar to config_check_referral_mode 

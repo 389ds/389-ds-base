@@ -424,12 +424,12 @@ modify_config_dse(Slapi_PBlock *pb,
 						config_attr);
 					rc = LDAP_UNWILLING_TO_PERFORM;
 			} else if (ignore_attr_type(config_attr)) {
-					slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse",
+					slapi_log_err(SLAPI_LOG_CONFIG, "modify_config_dse",
 						"Modification of attribute \"%s\" is not allowed, ignoring!\n",
 						config_attr);
 			} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 				if (apply_mods) { /* log warning once */
-					slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", 
+					slapi_log_err(SLAPI_LOG_CONFIG, "modify_config_dse",
 						"Adding configuration attribute \"%s\"\n",
 						config_attr);
 				}

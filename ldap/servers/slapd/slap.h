@@ -343,7 +343,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
  *  LDAP_DEBUG_WARNING | LDAP_DEBUG_NOTICE | LDAP_DEBUG_INFO)
  */
 #define SLAPD_DEFAULT_ERRORLOG_LEVEL            266354688
-#define SLAPD_DEFAULT_ERRORLOG_LEVEL_STR        "266354688"
+#define SLAPD_DEFAULT_FE_ERRORLOG_LEVEL         16384  /* frontend log level */
+#define SLAPD_DEFAULT_FE_ERRORLOG_LEVEL_STR     "16384"
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL           256
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR       "256"
 
