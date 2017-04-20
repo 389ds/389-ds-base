@@ -286,6 +286,13 @@ AM_CONDITIONAL(enable_nunc_stans,test "$enable_nunc_stans" = "yes")
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
+# If we have no prefix specified, we need to fix the prefix variable.
+# If we don't what happens is $prefixdir ends up as NONE, and then
+# later configure changes $prefix to $ac_default_prefix underneath us.
+if test "$prefix" = "NONE"; then
+    prefix=$ac_default_prefix
+fi
+
 m4_include(m4/fhs.m4)
 
 localrundir='/run'
