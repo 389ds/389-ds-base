@@ -1007,7 +1007,7 @@ static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
     char *namespaceid = (char *)fetch_attr(e, "nsUniqueIdGeneratorNamespace", NULL);
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_NAMESPACEID, namespaceid);
 
-    slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, instance_name);
+    slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, (void *)instance_name);
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_FILE, ldif_file);
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_INCLUDE, include);
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_EXCLUDE, exclude);

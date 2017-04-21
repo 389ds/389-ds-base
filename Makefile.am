@@ -463,6 +463,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/log.h \
 	ldap/servers/slapd/mozldap.h \
 	ldap/servers/slapd/openldapber.h \
+	ldap/servers/slapd/pblock_v3.h \
 	ldap/servers/slapd/poll_using_select.h \
 	ldap/servers/slapd/prerrstrs.h \
 	ldap/servers/slapd/protect_db.h \

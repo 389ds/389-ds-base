@@ -28,7 +28,8 @@ sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *
 #ifdef DEBUG
         if (sds_ht_crc32c_verify_node(work_node) != SDS_SUCCESS) {
             sds_log("sds_ht_map_nodes", "ht_node_%p failed verification", work_node);
-            return SDS_CHECKSUM_FAILURE;
+            result = SDS_CHECKSUM_FAILURE;
+            goto out;
         }
 #endif
         // add nodes to the list
@@ -45,7 +46,7 @@ sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *
             result = internal_result;
 #ifdef DEBUG
             sds_log("sds_ht_map_nodes", "Encountered an issue with ht_node_%p: %d\n", work_node, internal_result);
-            return result;
+            goto out;
 #endif
         }
         // And get the next node for us to work on.
@@ -54,6 +55,9 @@ sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *
             work_node = NULL;
         }
     }
+
+out:
+    sds_queue_destroy(node_q);
     return result;
 
 }

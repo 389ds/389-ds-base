@@ -1753,7 +1753,7 @@ typedef struct passwordpolicyarray {
   Slapi_DN **pw_admin_user;
 } passwdPolicy;
 
-Slapi_PBlock * slapi_pblock_clone(Slapi_PBlock *pb) __attribute__((deprecated));
+Slapi_PBlock * slapi_pblock_clone(Slapi_PBlock *pb);  /* deprecated */
 
 passwdPolicy * slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb);
 void slapi_pblock_set_pwdpolicy(Slapi_PBlock *pb, passwdPolicy *pwdpolicy);

@@ -2100,7 +2100,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	default:
 		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get", "Unknown parameter block argument %d\n", arg);
-#ifdef DEBUG
+#ifdef PBLOCK_ANALYTICS
         Slapi_PBlock *boom = NULL;
         void *x = (void *)boom->pb_plugin;
 #endif
@@ -3744,7 +3744,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	default:
 		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_set",
 		    "Unknown parameter block argument %d\n", arg);
-#ifdef DEBUG
+#ifdef PBLOCK_ANALYTICS
         Slapi_PBlock *boom = NULL;
         void *x = (void *)boom->pb_plugin;
 #endif

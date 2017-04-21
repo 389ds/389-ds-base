@@ -20,6 +20,7 @@
 #include "ldap-agent.h"
 #include "ldap.h"
 #include "ldif.h"
+#include <ctype.h>
 
 static char *agentx_master = NULL;
 static char *agent_logdir = NULL;
