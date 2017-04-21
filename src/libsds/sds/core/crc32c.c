@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifdef HAVE_SSE4_2
+#ifdef __SSE4_2__
 
 #if CPU_x86_64
 #define REX_PRE "0x48, "
@@ -146,5 +146,5 @@ sds_crc32c(uint32_t crc, const unsigned char *data, size_t length)
     return crc;
 }
 
-#endif
+#endif /* __SSE4_2__ */
 

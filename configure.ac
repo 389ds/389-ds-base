@@ -654,21 +654,9 @@ dnl Cstd and Crun are required to link any C++ related code
     ;;
 esac
 
-AC_MSG_CHECKING([for SSE4.2 features ...])
-save_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -msse4.2"
-AC_TRY_COMPILE(
-    [],
-    [return 0;],
-    [
-        AC_DEFINE([HAVE_SSE4_2], [1], [Have sss4.2 on this platform arch])
-        AC_MSG_RESULT([SSE4.2 avaliable on this platform])
-    ],
-    [
-        AC_MSG_RESULT([SSE4.2 not avaliable on this platform])
-    ]
-)
-CFLAGS="$save_CFLAGS"
+### TO CHECK FOR SSE4.2!!!
+# gcc -march=native -dM -E - < /dev/null | grep SSE
+# We can just use the define in GCC instead!
 
 AC_MSG_CHECKING([for GCC provided 64-bit atomic operations])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
