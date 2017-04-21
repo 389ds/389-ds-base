@@ -2848,7 +2848,7 @@ add_entry - if true, the entry will be added to the DIT using the given
 ************************************/
 int
 plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
-		slapi_plugin_init_fnptr p_initfunc, int add_entry __attribute__((unused)), char *returntext)
+		slapi_plugin_init_fnptr p_initfunc, int add_entry, char *returntext)
 {
 	int ii = 0;
 	char attrname[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
@@ -3142,11 +3142,13 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		add_plugin_entry_dn(dn_copy);
 	}
 
-    /* make a copy of the plugin entry for our own use because it will
-       be freed later by the caller */
-    Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
-    /* new_plugin_entry(&plugin_entries, plugin_entry, plugin); */
-    new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
+	if (add_entry) {
+		/* make a copy of the plugin entry for our own use because it will
+		   be freed later by the caller */
+		Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
+		/* new_plugin_entry(&plugin_entries, plugin_entry, plugin); */
+		new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
+	}
 
 PLUGIN_CLEANUP:
 	if (status) {
