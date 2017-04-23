@@ -57,9 +57,7 @@ int alpha_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
 {
 	unsigned long op_type;
 	Slapi_Operation *op;
-	char *rdn_type;
-    char *rdn_value;
-	Slapi_RDN *rdn = NULL;
+    const char *ndn;
 	char c;
 
 	/* first check the operation type
@@ -78,11 +76,8 @@ int alpha_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 */
 
 	/* get the first char of first value of rdn */
-	rdn = slapi_rdn_new();
-	slapi_sdn_get_rdn(target_dn, rdn);
-	slapi_rdn_get_first(rdn, &rdn_type, &rdn_value);
-	c = rdn_value[0];
-	slapi_rdn_free(&rdn);
+    ndn = slapi_sdn_get_ndn(target_dn);
+    c = ndn[0];
 	
 	if (!(((c >= 'a') && (c <= 'z')) ||
 		 ((c >= 'A') && (c <= 'Z')) ))
@@ -130,6 +125,8 @@ int hash_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	rdn = slapi_rdn_new();
 	slapi_sdn_get_rdn(target_dn, rdn);
 	slapi_rdn_get_first(rdn, &rdn_type, &rdn_value);
+
+    slapi_dn_ignore_case(rdn_value);
 
 	/* compute the hash value */
 	hash_value = 0;
