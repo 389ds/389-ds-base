@@ -84,10 +84,8 @@ class CSN(object):
         return retstr
 
     def __repr__(self):
-        return time.strftime("%x %X",
-                             (time.localtime(self.ts)) +
-                             " seq: " + str(self.seq) + " rid: " +
-                             str(self.rid))
+        return ("%s seq: %s rid: %s" % (time.strftime("%x %X", time.localtime(self.ts)),
+                                        str(self.seq), str(self.rid)))
 
     def __str__(self):
         return self.__repr__()
