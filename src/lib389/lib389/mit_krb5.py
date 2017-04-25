@@ -35,16 +35,15 @@ class MitKrb5(object):
         self.realm = realm.upper()
         # For the future if we have a non-os krb install.
         self.krb_prefix = ""
-        # Probably should be using os.path.join ...
-        self.kadmin = "%s/usr/sbin/kadmin.local" % self.krb_prefix
-        self.kdb5_util = "%s/usr/sbin/kdb5_util" % self.krb_prefix
-        self.krb5kdc = "%s/usr/sbin/krb5kdc" % self.krb_prefix
-        self.kdcconf = "%s/var/kerberos/krb5kdc/kdc.conf" % self.krb_prefix
-        self.kdcpid = "%s/var/run/krb5kdc.pid" % self.krb_prefix
-        self.krb5conf = "%s/etc/krb5.conf" % (self.krb_prefix)
-        self.krb5confrealm = ("%s/etc/krb5.conf.d/%s" %
-                              (self.krb_prefix,
-                               self.realm.lower().replace('.', '-')))
+        sep = os.path.sep
+        self.kadmin = os.path.join(sep, self.krb_prefix, "usr/sbin/kadmin.local")
+        self.kdb5_util = os.path.join(sep, self.krb_prefix, "usr/sbin/kdb5_util")
+        self.krb5kdc = os.path.join(sep, self.krb_prefix, "usr/sbin/krb5kdc")
+        self.kdcconf = os.path.join(sep, self.krb_prefix, "var/kerberos/krb5kdc/kdc.conf")
+        self.kdcpid = os.path.join(sep, self.krb_prefix, "var/run/krb5kdc.pid")
+        self.krb5conf = os.path.join(sep, self.krb_prefix, "etc/krb5.conf")
+        self.krb5confrealm = os.path.join(sep, self.krb_prefix, "etc/krb5.conf.d",
+                                          self.realm.lower().replace('.', '-'))
 
         self.krb_master_password = password_generate()
 
