@@ -7,21 +7,19 @@
  * See LICENSE for details. 
  * END COPYRIGHT BLOCK **/
 
+#pragma once
+
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
-#ifndef _PWDSTORAGE_H
-#define _PWDSTORAGE_H
-
-#include "slapi-plugin.h"
-#include "slapi-private.h"
+#include <slapi-plugin.h>
+#include <slapi-private.h>
 #include <ssl.h>
-#include "nspr.h"
-#include "plbase64.h"
-#include "ldif.h"
+#include <nspr.h>
+#include <plbase64.h>
+#include <ldif.h>
 #include "md5.h"
-
 
 #define PWD_HASH_PREFIX_START   '{'
 #define PWD_HASH_PREFIX_END '}'
@@ -86,11 +84,16 @@ char *md5_pw_enc( const char *pwd );
 int smd5_pw_cmp( const char *userpwd, const char *dbpwd );
 char *smd5_pw_enc( const char *pwd );
 
+int pbkdf2_sha256_start(Slapi_PBlock *pb);
+int pbkdf2_sha256_close(Slapi_PBlock *pb);
 SECStatus pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, PRUint32 iterations);
 char * pbkdf2_sha256_pw_enc(const char *pwd);
 int pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd);
 
+/* For testing pbkdf2 only */
+uint64_t pbkdf2_sha256_benchmark_iterations();
+PRUint32 pbkdf2_sha256_calculate_iterations();
+
 /* Utility functions */
 PRUint32 pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen);
 
-#endif /* _PWDSTORAGE_H */

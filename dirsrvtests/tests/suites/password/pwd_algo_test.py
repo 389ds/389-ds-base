@@ -69,9 +69,20 @@ def test_pwd_algo_test(topology_st):
     password conditions.
     """
 
-    for algo in (
-            'CLEAR', 'CRYPT', 'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA', 'SSHA256', 'SSHA384',
-            'SSHA512'):
+    for algo in ('CLEAR',
+                 'CRYPT',
+                 'MD5',
+                 'SHA',
+                 'SHA256',
+                 'SHA384',
+                 'SHA512',
+                 'SMD5',
+                 'SSHA',
+                 'SSHA256',
+                 'SSHA384',
+                 'SSHA512',
+                 'PBKDF2_SHA256',
+                 ):
         _test_algo(topology_st.standalone, algo)
 
     log.info('Test PASSED')

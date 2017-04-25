@@ -349,6 +349,8 @@ pbkdf2_sha256_pwd_storage_scheme_init(Slapi_PBlock *pb)
 
     rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pbkdf2_sha256_pdesc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void*)&pbkdf2_sha256_start);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void*)&pbkdf2_sha256_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN, (void *)pbkdf2_sha256_pw_enc);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *)pbkdf2_sha256_pw_cmp);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, PBKDF2_SHA256_SCHEME_NAME);

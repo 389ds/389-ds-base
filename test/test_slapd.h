@@ -19,6 +19,7 @@
 
 /* Test runners */
 int run_libslapd_tests (void);
+int run_plugin_tests (void);
 
 /* == The tests == */
 
@@ -46,4 +47,16 @@ void test_libslapd_counters_atomic_overflow(void **state);
 
 void test_libslapd_pal_meminfo(void **state);
 void test_libslapd_util_cachesane(void **state);
+
+/* plugins */
+
+void test_plugin_hello(void **state);
+
+/* plugin-pwdstorage-pbkdf2 */
+
+int test_plugin_pwdstorage_nss_setup(void **state);
+int test_plugin_pwdstorage_nss_stop(void **state);
+
+void test_plugin_pwdstorage_pbkdf2_auth(void **state);
+void test_plugin_pwdstorage_pbkdf2_rounds(void **state);
 

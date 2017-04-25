@@ -44,13 +44,20 @@
  * At the same time we MUST increase this with each version of Directory Server
  * This value is written into the hash, so it's safe to change.
  */
-#define PBKDF2_ITERATIONS 30000
+
+#define PBKDF2_MILLISECONDS 40
+
+static PRUint32 PBKDF2_ITERATIONS = 30000;
 
 static const char *schemeName = PBKDF2_SHA256_SCHEME_NAME;
 static const PRUint32 schemeNameLength = PBKDF2_SHA256_NAME_LEN;
 
 /* For requesting the slot which supports these types */
 static CK_MECHANISM_TYPE mechanism_array[] = {CKM_SHA256_HMAC, CKM_PKCS5_PBKD2};
+
+/* Used in our startup benching code */
+#define PBKDF2_BENCH_ROUNDS 50000
+#define PBKDF2_BENCH_LOOP 10
 
 void
 pbkdf2_sha256_extract(char *hash_in, SECItem *salt, PRUint32 *iterations)
@@ -124,12 +131,11 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
 }
 
 char *
-pbkdf2_sha256_pw_enc(const char *pwd)
+pbkdf2_sha256_pw_enc_rounds(const char *pwd, PRUint32 iterations)
 {
     char hash[ PBKDF2_TOTAL_LENGTH ];
     size_t encsize = 3 + schemeNameLength + LDIF_BASE64_LEN(PBKDF2_TOTAL_LENGTH);
     char *enc = slapi_ch_calloc(encsize, sizeof(char));
-    PRUint32 iterations = PBKDF2_ITERATIONS;
 
     SECItem saltItem;
     SECItem passItem;
@@ -174,23 +180,23 @@ pbkdf2_sha256_pw_enc(const char *pwd)
     return enc;
 }
 
+char *
+pbkdf2_sha256_pw_enc(const char *pwd) {
+    return pbkdf2_sha256_pw_enc_rounds(pwd, PBKDF2_ITERATIONS);
+}
+
 PRInt32
 pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
 {
     PRInt32 result = 1; /* Default to fail. */
-    char dbhash[ PBKDF2_TOTAL_LENGTH ];
-    char userhash[ PBKDF2_HASH_LENGTH ];
+    char dbhash[ PBKDF2_TOTAL_LENGTH ] = {0};
+    char userhash[ PBKDF2_HASH_LENGTH ] = {0};
     PRUint32 dbpwd_len = strlen(dbpwd);
     SECItem saltItem;
     SECItem passItem;
     PRUint32 iterations = 0;
 
-    /* Our hash value is always at a known offset. */
-    char *hash = dbhash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH;
-
     slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Comparing password\n");
-
-    memset(dbhash, 0, PBKDF2_TOTAL_LENGTH);
 
     passItem.data = (unsigned char *)userpwd;
     passItem.len = strlen(userpwd);
@@ -208,10 +214,101 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to hash userpwd value\n");
         return result;
     }
+
+    /* Our hash value is always at a known offset in the decoded string. */
+    char *hash = dbhash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH;
+
     /* Now compare the result of pbkdf2_sha256_hash. */
     result = memcmp(userhash, hash, PBKDF2_HASH_LENGTH);
 
     return result;
+}
+
+uint64_t
+pbkdf2_sha256_benchmark_iterations() {
+    /* Time how long it takes to do PBKDF2_BENCH_LOOP attempts of PBKDF2_BENCH_ROUNDS rounds */
+    uint64_t time_nsec = 0;
+    char *results[PBKDF2_BENCH_LOOP] = {0};
+    struct timespec start_time;
+    struct timespec finish_time;
+
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+    for (size_t i = 0; i < PBKDF2_BENCH_LOOP; i++) {
+        results[i] = pbkdf2_sha256_pw_enc_rounds("Eequee9mutheuchiehe4", PBKDF2_BENCH_ROUNDS);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &finish_time);
+
+    for (size_t i = 0; i < PBKDF2_BENCH_LOOP; i++) {
+        slapi_ch_free((void **)&(results[i]));
+    }
+
+    /* Work out the execution time. */
+    time_nsec = (finish_time.tv_sec - start_time.tv_sec) * 1000000000;
+    if (finish_time.tv_nsec > start_time.tv_nsec) {
+        time_nsec += finish_time.tv_nsec - start_time.tv_nsec;
+    } else {
+        time_nsec += 1000000000 - (start_time.tv_nsec - finish_time.tv_nsec);
+    }
+
+    time_nsec = time_nsec / PBKDF2_BENCH_LOOP;
+
+    return time_nsec;
+}
+
+PRUint32
+pbkdf2_sha256_calculate_iterations(uint64_t time_nsec) {
+    /*
+     * So we know that we have nsec for a single round of PBKDF2_BENCH_ROUNDS now.
+     * first, we get the cost of "every 1000 rounds"
+     */
+    uint64_t number_thou_rounds = PBKDF2_BENCH_ROUNDS / 1000;
+    uint64_t thou_time_nsec = time_nsec / number_thou_rounds;
+
+    /*
+     * Now we have the cost of 1000 rounds. Now, knowing this we say
+     * we want an attacker to have to expend say ... example 8 ms of work
+     * to try a password. So this is 1,000,000 ns = 1ms, ergo
+     * 8,000,000
+     */
+    uint64_t attack_work_nsec = PBKDF2_MILLISECONDS * 1000000;
+
+    /*
+     * Knowing the attacker time and our cost, we can divide this
+     * to get how many thousands of rounds we should use.
+     */
+    uint64_t thou_rounds = (attack_work_nsec / thou_time_nsec);
+
+    /*
+     * Finally, we make the rounds in terms of thousands, and cast it.
+     */
+    PRUint32 final_rounds = thou_rounds * 1000;
+
+    if (final_rounds < 10000) {
+        final_rounds = 10000;
+    }
+
+    return final_rounds;
+}
+
+
+int
+pbkdf2_sha256_start(Slapi_PBlock *pb __attribute__((unused))) {
+    /* Run the time generator */
+    uint64_t time_nsec = pbkdf2_sha256_benchmark_iterations();
+    /* Calculate the iterations */
+    /* set it globally */
+    PBKDF2_ITERATIONS = pbkdf2_sha256_calculate_iterations(time_nsec);
+    /* Make a note of it. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Based on CPU performance, chose %"PRIu32" rounds\n", PBKDF2_ITERATIONS);
+    return 0;
+}
+
+/* Do we need the matching close function? */
+int
+pbkdf2_sha256_close(Slapi_PBlock *pb __attribute__((unused))) {
+    return 0;
 }
 
 

@@ -2008,13 +2008,19 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/pblock/analytics.c \
 	test/libslapd/pblock/v3_compat.c \
 	test/libslapd/operation/v3_compat.c \
-	test/libslapd/spal/meminfo.c
+	test/libslapd/spal/meminfo.c \
+	test/plugins/test.c \
+	test/plugins/pwdstorage/pbkdf2.c
 
-test_slapd_LDADD = libslapd.la
+# We need to link a lot of plugins for this test.
+test_slapd_LDADD = 	libslapd.la \
+					libpwdstorage-plugin.la
 test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 ### WARNING: Slap.h needs cert.h, which requires the -I/lib/ldaputil!!!
 ### WARNING: Slap.h pulls ssl.h, which requires nss!!!!
-test_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS)
+# We need to pull in plugin header paths too:
+test_slapd_CPPFLAGS = 	$(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) \
+						-I$(srcdir)/ldap/servers/plugins/pwdstorage
 
 test_libsds_SOURCES =  src/libsds/test/test_sds.c \
 	src/libsds/test/test_sds_bpt.c \

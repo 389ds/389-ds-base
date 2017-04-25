@@ -12,5 +12,8 @@ int
 main ( int argc __attribute__((unused)), char **argv __attribute__((unused))) {
     int result = 0;
     result += run_libslapd_tests();
+    result += run_plugin_tests();
+
+    PR_Cleanup();
     return result;
 }
