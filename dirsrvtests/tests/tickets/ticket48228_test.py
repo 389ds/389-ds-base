@@ -50,6 +50,7 @@ def set_global_pwpolicy(topology_st, inhistory):
     except ldap.LDAPError as e:
         log.error('Failed to set passwordInHistory: error ' + e.message['desc'])
         assert False
+    time.sleep(1)
 
 
 def set_subtree_pwpolicy(topology_st):
@@ -100,12 +101,15 @@ def set_subtree_pwpolicy(topology_st):
     except ldap.LDAPError as e:
         log.error('Failed to add COS def: error ' + e.message['desc'])
         assert False
+    time.sleep(1)
 
 
 def check_passwd_inhistory(topology_st, user, cpw, passwd):
+
     inhistory = 0
     log.info("		Bind as {%s,%s}" % (user, cpw))
     topology_st.standalone.simple_bind_s(user, cpw)
+    time.sleep(1)
     try:
         topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
     except ldap.LDAPError as e:
@@ -116,10 +120,10 @@ def check_passwd_inhistory(topology_st, user, cpw, passwd):
 
 
 def update_passwd(topology_st, user, passwd, times):
-    cpw = passwd
     for i in range(times):
         log.info("		Bind as {%s,%s}" % (user, cpw))
         topology_st.standalone.simple_bind_s(user, cpw)
+        time.sleep(1)
         cpw = 'password%d' % i
         try:
             topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', cpw)])

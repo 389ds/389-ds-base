@@ -215,10 +215,12 @@ def test_ticket47721_3(topology_m2):
     new = _add_custom_at_definition('ATtest3')
     topology_m2.ms["master1"].log.info("Update schema (M2) %s " % new)
     topology_m2.ms["master2"].schema.add_schema('attributetypes', new)
+    time.sleep(1)
 
     new = _add_custom_oc_defintion('OCtest3')
     topology_m2.ms["master1"].log.info("Update schema (M2) %s " % new)
     topology_m2.ms["master2"].schema.add_schema('objectClasses', new)
+    time.sleep(1)
 
     mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 3')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
@@ -235,7 +237,7 @@ def test_ticket47721_3(topology_m2):
         time.sleep(1)
     assert loop <= 10
 
-    time.sleep(2)
+    time.sleep(5)
     schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
     schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
     log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)

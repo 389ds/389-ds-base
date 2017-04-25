@@ -19,28 +19,43 @@ else:
 log = logging.getLogger(__name__)
 
 USER_DN = 'uid=user,dc=example,dc=com'
+CONFIG_DN = 'cn=config'
+ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
+RSA = 'RSA'
+RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
+ISSUER = 'cn=CAcert'
+CACERT = 'CAcertificate'
+SERVERCERT = 'Server-Cert'
 
 
 def ssl_init(topo):
     """ Setup TLS
     """
     topo.standalone.stop()
-    # Prepare SSL but don't enable it.
-    for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
-        try:
-            os.remove("%s/%s" % (topo.standalone.confdir, f))
-        except:
-            pass
-    assert(topo.standalone.nss_ssl.reinit() is True)
-    assert(topo.standalone.nss_ssl.create_rsa_ca() is True)
-    assert(topo.standalone.nss_ssl.create_rsa_key_and_cert() is True)
-    # Start again
+    topo.standalone.nss_ssl.reinit()
+    topo.standalone.nss_ssl.create_rsa_ca()
+    topo.standalone.nss_ssl.create_rsa_key_and_cert()
     topo.standalone.start()
-    topo.standalone.rsa.create()
-    topo.standalone.config.set('nsslapd-ssl-check-hostname', 'off')
-    topo.standalone.config.set('nsslapd-secureport', '%s' %
-                               SECUREPORT_STANDALONE1)
-    topo.standalone.config.set('nsslapd-security', 'on')
+
+    topo.standalone.modify_s(ENCRYPTION_DN,
+                             [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
+                              (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
+                              (ldap.MOD_REPLACE, 'nsSSLClientAuth', 'allowed'),
+                              (ldap.MOD_REPLACE, 'allowWeakCipher', 'on'),
+                              (ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all')])
+
+    time.sleep(1)
+    topo.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
+                                         (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
+                                         (ldap.MOD_REPLACE, 'nsslapd-secureport', '636')])
+
+    time.sleep(1)
+    topo.standalone.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
+                                          'cn': RSA,
+                                          'nsSSLPersonalitySSL': SERVERCERT,
+                                          'nsSSLToken': 'internal (software)',
+                                          'nsSSLActivation': 'on'})))
+    time.sleep(1)
     topo.standalone.restart()
 
     log.info("SSL setup complete\n")

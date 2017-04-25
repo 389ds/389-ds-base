@@ -91,7 +91,7 @@ def get_repl_entries(topo, entry_name, attr_list):
     num_of_masters = len({name: inst for name, inst in topo.ms.items() if not name.endswith('agmts')})
 
     log.info('Wait for replication to happen')
-    time.sleep(5)
+    time.sleep(10)
 
     for num in range(1, num_of_masters + 1):
         entries = topo.ms['master{}'.format(num)].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
@@ -137,6 +137,7 @@ def test_modify_entry(topo_m4, test_entry):
         log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
                                                                e.message['desc']))
         raise e
+    time.sleep(1)
 
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["mail"])
     assert all(entry["mail"] == "{}@redhat.com".format(TEST_ENTRY_NAME)
@@ -150,6 +151,7 @@ def test_modify_entry(topo_m4, test_entry):
         log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
                                                                e.message['desc']))
         raise e
+    time.sleep(1)
 
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["mail"])
     assert all(entry["mail"] == "{}@greenhat.com".format(TEST_ENTRY_NAME)
@@ -163,6 +165,7 @@ def test_modify_entry(topo_m4, test_entry):
         log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
                                                                e.message['desc']))
         raise e
+    time.sleep(1)
 
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["mail"])
     assert all(not entry["mail"] for entry in entries), "Entry attr {} wasn't replicated successfully".format(

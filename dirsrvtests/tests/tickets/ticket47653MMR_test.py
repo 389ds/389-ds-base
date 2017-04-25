@@ -269,6 +269,7 @@ def test_ticket47653_modify(topology_m2):
     # bind as bind_entry
     topology_m2.ms["master1"].log.info("M1: Bind as %s" % BIND_DN)
     topology_m2.ms["master1"].simple_bind_s(BIND_DN, BIND_PW)
+    time.sleep(1)
 
     # modify the entry and checks the value
     topology_m2.ms["master1"].log.info("M1: Try to modify  %s. It should succeeds" % ENTRY_DN)
@@ -302,6 +303,7 @@ def test_ticket47653_modify(topology_m2):
     # Now update the entry on Master2 bound as BIND_DN (update may fail if  47653 is  not fixed on M2)
     topology_m2.ms["master1"].log.info("M2: Update  %s (bound as %s)" % (ENTRY_DN, BIND_DN))
     topology_m2.ms["master2"].simple_bind_s(BIND_DN, PASSWORD)
+    time.sleep(1)
     fail = False
     try:
         mod = [(ldap.MOD_REPLACE, 'postalCode', '1929')]

@@ -1,5 +1,5 @@
 import threading
-
+import time
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -108,6 +108,7 @@ def test_ticket47931(topology_st):
     except ldap.LDAPError as e:
         log.fatal('Failed to configure memberOf plugin: error ' + e.message['desc'])
         assert False
+    time.sleep(1)
 
     # Create group
     try:
@@ -132,6 +133,7 @@ def test_ticket47931(topology_st):
     # Modify second backend (separate thread)
     mod_backend_thrd = modifySecondBackendThread(topology_st.standalone, TIME_OUT)
     mod_backend_thrd.start()
+    time.sleep(1)
 
     # Add members to the group - set timeout
     log.info('Adding members to the group...')

@@ -167,6 +167,7 @@ def test_pwp_history_test(topology_st):
     except ldap.LDAPError as e:
         log.fatal('Failed to attempt to change password: ' + str(e))
         assert False
+    time.sleep(1)
 
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
@@ -205,6 +206,7 @@ def test_pwp_history_test(topology_st):
     except ldap.LDAPError as e:
         log.fatal('Failed to attempt to reset password: ' + str(e))
         assert False
+    time.sleep(1)
 
     # Try and change the password to the previous password before the reset
     try:
@@ -212,6 +214,7 @@ def test_pwp_history_test(topology_st):
     except ldap.LDAPError as e:
         log.fatal('Failed to bind as user: ' + str(e))
         assert False
+    time.sleep(1)
 
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
