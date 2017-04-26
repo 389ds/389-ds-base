@@ -131,6 +131,33 @@ nsslapd-plugininitfunc: crypt_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
 
+dn: cn=CRYPT-MD5,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CRYPT-MD5
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: crypt_md5_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=CRYPT-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CRYPT-SHA256
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: crypt_sha256_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
+dn: cn=CRYPT-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CRYPT-SHA512
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: crypt_sha512_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
 dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

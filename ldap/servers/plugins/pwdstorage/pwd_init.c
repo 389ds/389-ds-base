@@ -36,6 +36,12 @@ static Slapi_PluginDesc ssha512_pdesc = { "ssha512-password-storage-scheme", VEN
 
 static Slapi_PluginDesc crypt_pdesc = { "crypt-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT)" };
 
+static Slapi_PluginDesc crypt_md5_pdesc = { "crypt-md5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT-MD5)" };
+
+static Slapi_PluginDesc crypt_sha256_pdesc = { "crypt-sha256-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT-SHA256)" };
+
+static Slapi_PluginDesc crypt_sha512_pdesc = { "crypt-sha512-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT-SHA512)" };
+
 static Slapi_PluginDesc clear_pdesc = { "clear-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "No encryption (CLEAR)" };
 
 static Slapi_PluginDesc ns_mta_md5_pdesc = { "NS-MTA-MD5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Netscape MD5 (NS-MTA-MD5)" };
@@ -249,6 +255,78 @@ crypt_pwd_storage_scheme_init( Slapi_PBlock *pb )
         "CRYPT" );
 
     slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_pwd_storage_scheme_init %d\n\n", rc );
+    return( rc );
+}
+
+int
+crypt_md5_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+    int rc;
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_md5_pwd_storage_scheme_init\n" );
+
+    rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+        (void *) SLAPI_PLUGIN_VERSION_01 );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+        (void *)&crypt_md5_pdesc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void*)&crypt_start);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void*)&crypt_close);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+        (void *) crypt_pw_md5_enc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+        (void *) crypt_pw_cmp );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+        "CRYPT-MD5" );
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_md5_pwd_storage_scheme_init %d\n\n", rc );
+    return( rc );
+}
+
+int
+crypt_sha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+    int rc;
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_sha256_pwd_storage_scheme_init\n" );
+
+    rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+        (void *) SLAPI_PLUGIN_VERSION_01 );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+        (void *)&crypt_sha256_pdesc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void*)&crypt_start);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void*)&crypt_close);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+        (void *) crypt_pw_sha256_enc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+        (void *) crypt_pw_cmp );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+        "CRYPT-SHA256" );
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_sha256_pwd_storage_scheme_init %d\n\n", rc );
+    return( rc );
+}
+
+int
+crypt_sha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+    int rc;
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_sha512_pwd_storage_scheme_init\n" );
+
+    rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+        (void *) SLAPI_PLUGIN_VERSION_01 );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+        (void *)&crypt_sha512_pdesc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void*)&crypt_start);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void*)&crypt_close);
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+        (void *) crypt_pw_sha512_enc );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+        (void *) crypt_pw_cmp );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+        "CRYPT-SHA512" );
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_sha512_pwd_storage_scheme_init %d\n\n", rc );
     return( rc );
 }
 

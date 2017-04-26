@@ -54,7 +54,7 @@ def _test_algo(inst, algo_name):
     assert (not _test_bind(inst, 'Alsowrong'))
     # Bind with a subset password, should fail
     assert (not _test_bind(inst, 'Secret'))
-    if algo_name != 'CRYPT':
+    if not algo_name.startswith('CRYPT'):
         # Bind with a subset password that is 1 char shorter, to detect off by 1 in clear
         assert (not _test_bind(inst, 'Secret12'))
         # Bind with a superset password, should fail
@@ -71,6 +71,9 @@ def test_pwd_algo_test(topology_st):
 
     for algo in ('CLEAR',
                  'CRYPT',
+                 'CRYPT-MD5',
+                 'CRYPT-SHA256',
+                 'CRYPT-SHA512',
                  'MD5',
                  'SHA',
                  'SHA256',
