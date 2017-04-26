@@ -348,8 +348,9 @@ slapi_str2charray_ext( char *str, char *brkstr, int allow_dups )
             }
         }
 
-        if ( !dup_found )
+        if ( !dup_found ) {
             res[i++] = slapi_ch_strdup( s );
+        }
     }
     res[i] = NULL;
 
@@ -413,10 +414,11 @@ charray_subtract(char **a, char **b, char ***c)
     char **bp, **cp, **tmp;
     char **p;
 
-    if (c)
+    if (c) {
         tmp = *c = cool_charray_dup(a);
-    else
+    } else {
         tmp = a;
+    }
 
     for (cp = tmp; cp && *cp; cp++) {
         for (bp = b; bp && *bp; bp++) {
@@ -433,12 +435,48 @@ charray_subtract(char **a, char **b, char ***c)
             for (p = cp+1; *p && *p == (char *)SUBTRACT_DEL; p++)
                 ;
             *cp = *p;    
-            if (*p == NULL)
+            if (*p == NULL) {
                 break;
-            else
+            } else {
                 *p = SUBTRACT_DEL;
+            }
         }
     }
+}
+
+/*
+ * Provides the intersection of two arrays.
+ * IE if you have:
+ * (A, B, C)
+ * (B, D, E)
+ * result is (B,)
+ * a and b are NOT consumed in the process.
+ */
+char **
+charray_intersection(char **a, char **b) {
+    char **result;
+    size_t rp = 0;
+
+    if (a == NULL || b == NULL) {
+        return NULL;
+    }
+
+    size_t a_len = 0;
+    /* Find how long A is. */
+    for (; a[a_len] != NULL; a_len++);
+
+    /* Allocate our result, it can't be bigger than A */
+    result = (char **)slapi_ch_calloc(1, sizeof(char *) * (a_len + 1));
+
+    /* For each in A, see if it's in b */
+    for (size_t i = 0; a[i] != NULL; i++) {
+        if (charray_get_index(b, a[i]) != -1) {
+            result[rp] = slapi_ch_strdup(a[i]);
+            rp++;
+        }
+    }
+
+    return result;
 }
 
 int

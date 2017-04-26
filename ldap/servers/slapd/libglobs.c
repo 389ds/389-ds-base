@@ -7091,9 +7091,30 @@ config_set_entryusn_import_init( const char *attrname, char *value,
     return retVal;
 }
 
-char *
-config_get_allowed_sasl_mechs()
+char **
+config_get_allowed_sasl_mechs_array(void)
 {
+    /*
+     * array of mechs. If is null, returns NULL thanks to ch_array_dup.
+     * Caller must free!
+     */
+    char **retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_array_dup(slapdFrontendConfig->allowed_sasl_mechs_array);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+char *
+config_get_allowed_sasl_mechs(void)
+{
+    /*
+     * Space seperated list of allowed mechs
+     * if this is NULL, means *all* mechs are allowed!
+     */
     char *retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -7114,21 +7135,34 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf 
         return LDAP_SUCCESS;
     }
 
-    /* cyrus sasl doesn't like comma separated lists */
-    remove_commas(value);
+    /* During a reset, the value is "", so we have to handle this case. */
+    if (strcmp(value, "") != 0) {
+        /* cyrus sasl doesn't like comma separated lists */
+        remove_commas(value);
 
-    if(invalid_sasl_mech(value)){
-        slapi_log_err(SLAPI_LOG_ERR,"config_set_allowed_sasl_mechs",
-                "Invalid value/character for sasl mechanism (%s).  Use ASCII "
-                "characters, upto 20 characters, that are upper-case letters, "
-                "digits, hyphens, or underscores\n", value);
-        return LDAP_UNWILLING_TO_PERFORM;
+        if(invalid_sasl_mech(value)){
+            slapi_log_err(SLAPI_LOG_ERR,"config_set_allowed_sasl_mechs",
+                    "Invalid value/character for sasl mechanism (%s).  Use ASCII "
+                    "characters, upto 20 characters, that are upper-case letters, "
+                    "digits, hyphens, or underscores\n", value);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->allowed_sasl_mechs);
+        slapi_ch_array_free(slapdFrontendConfig->allowed_sasl_mechs_array);
+        slapdFrontendConfig->allowed_sasl_mechs = slapi_ch_strdup(value);
+        slapdFrontendConfig->allowed_sasl_mechs_array = slapi_str2charray_ext(value, " ", 0);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    } else {
+        /* If this value is "", we need to set the list to *all* possible mechs */
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->allowed_sasl_mechs);
+        slapi_ch_array_free(slapdFrontendConfig->allowed_sasl_mechs_array);
+        slapdFrontendConfig->allowed_sasl_mechs = NULL;
+        slapdFrontendConfig->allowed_sasl_mechs_array = NULL;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
-
-    CFG_LOCK_WRITE(slapdFrontendConfig);
-    slapi_ch_free_string(&slapdFrontendConfig->allowed_sasl_mechs);
-    slapdFrontendConfig->allowed_sasl_mechs = slapi_ch_strdup(value);
-    CFG_UNLOCK_WRITE(slapdFrontendConfig);
 
     return LDAP_SUCCESS;
 }

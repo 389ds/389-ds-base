@@ -753,7 +753,10 @@ void ids_sasl_server_new(Connection *conn)
  */
 char **ids_sasl_listmech(Slapi_PBlock *pb)
 {
-    char **ret, **others;
+    char **ret;
+    char **config_ret;
+    char **sup_ret;
+    char **others;
     const char *str;
     char *dupstr;
     sasl_conn_t *sasl_conn;
@@ -766,32 +769,43 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
     /* hard-wired mechanisms and slapi plugin registered mechanisms */
-    ret = slapi_get_supported_saslmechanisms_copy();
+    sup_ret = slapi_get_supported_saslmechanisms_copy();
 
-    if (pb_conn == NULL) {
-        return ret;
+    /* If we have a connection, get the provided list from SASL */
+    if (pb_conn != NULL) {
+        sasl_conn = (sasl_conn_t*)pb_conn->c_sasl_conn;
+        if (sasl_conn != NULL) {
+            /* sasl library mechanisms are connection dependent */
+            PR_EnterMonitor(pb_conn->c_mutex);
+            if (sasl_listmech(sasl_conn,
+                              NULL,     /* username */
+                              "", ",", "",
+                              &str, NULL, NULL) == SASL_OK) {
+                slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "sasl library mechs: %s\n", str);
+                /* merge into result set */
+                dupstr = slapi_ch_strdup(str);
+                others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
+                charray_merge(&sup_ret, others, 1);
+                charray_free(others);
+                slapi_ch_free((void**)&dupstr);
+            }
+            PR_ExitMonitor(pb_conn->c_mutex);
+        }
     }
 
-    sasl_conn = (sasl_conn_t*)pb_conn->c_sasl_conn;
-    if (sasl_conn == NULL) {
-        return ret;
-    }
+    /* Get the servers "allowed" list */
+    config_ret = config_get_allowed_sasl_mechs_array();
 
-    /* sasl library mechanisms are connection dependent */
-    PR_EnterMonitor(pb_conn->c_mutex);
-    if (sasl_listmech(sasl_conn, 
-                      NULL,     /* username */
-                      "", ",", "",
-                      &str, NULL, NULL) == SASL_OK) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "sasl library mechs: %s\n", str);
-        /* merge into result set */
-        dupstr = slapi_ch_strdup(str);
-        others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
-        charray_merge(&ret, others, 1);
-        charray_free(others);
-        slapi_ch_free((void**)&dupstr);
+    /* Remove any content that isn't in the allowed list */
+    if (config_ret != NULL) {
+        /* Get the set of supported mechs in the insection of the two */
+        ret = charray_intersection(sup_ret, config_ret);
+        charray_free(sup_ret);
+        charray_free(config_ret);
+    } else {
+        /* The allowed list was empty, just take our supported list. */
+        ret = sup_ret;
     }
-    PR_ExitMonitor(pb_conn->c_mutex);
 
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "<=\n");
 
