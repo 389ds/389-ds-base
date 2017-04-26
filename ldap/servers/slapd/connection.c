@@ -1524,6 +1524,7 @@ connection_threadmain()
 		if( op_shutdown ) {
 			slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
 				"op_thread received shutdown signal\n");
+			slapi_pblock_destroy(pb);
 			g_decr_active_threadcnt();
 			return;
 		}
@@ -1548,6 +1549,7 @@ connection_threadmain()
 				case CONN_SHUTDOWN:
 					slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
 						"op_thread received shutdown signal\n");
+					slapi_pblock_destroy(pb);
 					g_decr_active_threadcnt();
 					return;
 				case CONN_FOUND_WORK_TO_DO:
@@ -1778,7 +1780,7 @@ done:
 			connection_release_nolock(conn);
 			PR_ExitMonitor(conn->c_mutex);
 			signal_listner();
-            slapi_pblock_destroy(pb);
+			slapi_pblock_destroy(pb);
 			return;
 		}
 		/*
@@ -1798,9 +1800,10 @@ done:
 			    connection_release_nolock (conn); /* psearch acquires ref to conn - release this one now */
 			    PR_ExitMonitor(conn->c_mutex);
 			    /* ps_add makes a shallow copy of the pb - so we
-			     * can't free it or init it here - just memset it to 0
+			     * can't free it or init it here - just set operation to NULL.
 			     * ps_send_results will call connection_remove_operation_ext to free it
 			     */
+                slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
 	            slapi_pblock_init(pb);
 		} else {
 			/* delete from connection operation queue & decr refcnt */
