@@ -97,6 +97,9 @@ class Config(DSLdapObject):
 
         self.set('nsslapd-accesslog-logbuffering', value)
 
+    def reset(self, key):
+        self.set(key, None, action=ldap.MOD_DELETE)
+
     # THIS WILL BE SPLIT OUT TO ITS OWN MODULE
     def enable_ssl(self, secport=636, secargs=None):
         """Configure SSL support into cn=encryption,cn=config.

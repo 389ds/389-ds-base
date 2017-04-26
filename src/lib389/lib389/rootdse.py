@@ -21,6 +21,9 @@ class RootDSE(DSLdapObject):
         super(RootDSE, self).__init__(instance=conn, batch=batch)
         self._dn = ""
 
+    def supported_sasl(self):
+        return self.get_attr_vals('supportedSASLMechanisms')
+
     def supports_sasl_gssapi(self):
         return self.present("supportedSASLMechanisms", 'GSSAPI')
 

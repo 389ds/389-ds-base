@@ -290,7 +290,8 @@ class DSLdapObject(DSLogging):
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
         else:
-            return self._instance.getEntry(self._dn).getValuesSet(keys)
+            entry = self._instance.search_s(self._dn, ldap.SCOPE_BASE, attrlist=keys)[0]
+            return entry.getValuesSet(keys)
 
     def get_attr_vals(self, key):
         """Get an attribute's values from the dn"""
@@ -301,7 +302,10 @@ class DSLdapObject(DSLogging):
             # In the future, I plan to add a mode where if local == true, we
             # can use get on dse.ldif to get values offline.
         else:
-            return self._instance.getEntry(self._dn).getValues(key)
+            # It would be good to prevent the entry code intercepting this ....
+            # We have to do this in this method, because else we ignore the scope base.
+            entry = self._instance.search_s(self._dn, ldap.SCOPE_BASE, attrlist=[key])[0]
+            return entry.getValues(key)
 
     def get_attr_val(self, key):
         """Get a single attribute value from the dn"""
@@ -312,7 +316,8 @@ class DSLdapObject(DSLogging):
             # In the future, I plan to add a mode where if local == true, we
             # can use get on dse.ldif to get values offline.
         else:
-            return self._instance.getEntry(self._dn).getValue(key)
+            entry = self._instance.search_s(self._dn, ldap.SCOPE_BASE, attrlist=[key])[0]
+            return entry.getValue(key)
 
     # Duplicate, but with many values. IE a dict api.
     # This
