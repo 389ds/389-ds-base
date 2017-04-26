@@ -2425,6 +2425,7 @@ typedef struct _slapdFrontendConfig {
   int pagedsizelimit;
   char *default_naming_context; /* Default naming context (normalized) */
   char *allowed_sasl_mechs;     /* comma/space separated list of allowed sasl mechs */
+  char **allowed_sasl_mechs_array;     /* Array of allow sasl mechs */
   int sasl_max_bufsize;         /* The max receive buffer size for SASL */
 
   /* disk monitoring */

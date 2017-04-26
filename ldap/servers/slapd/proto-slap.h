@@ -553,6 +553,7 @@ size_t config_get_ndn_cache_size(void);
 int config_get_ndn_cache_enabled(void);
 int config_get_return_orig_type_switch(void);
 char *config_get_allowed_sasl_mechs(void);
+char **config_get_allowed_sasl_mechs_array(void);
 int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_schemamod(void);
 int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int apply);

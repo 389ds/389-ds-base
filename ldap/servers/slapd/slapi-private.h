@@ -831,6 +831,7 @@ int charray_remove(char **a, const char *s, int freeit);
 char ** cool_charray_dup( char **a );
 void cool_charray_free( char **array );
 void charray_subtract( char **a, char **b, char ***c );
+char **charray_intersection(char **a, char **b);
 int charray_get_index(char **array, char *s);
 int charray_normdn_add(char ***chararray, char *dn, char *errstr);
 
