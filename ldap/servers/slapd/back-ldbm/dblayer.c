@@ -55,8 +55,6 @@
 
     dblayer_release_id2entry()
     dblayer_release_index_file()
-
-
 */
 
 #ifdef HAVE_CONFIG_H
@@ -69,7 +67,6 @@
 #include <sys/types.h>
 #include <sys/statvfs.h>
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
     if (((oflags) & DB_INIT_TXN) && ((oflags) & DB_INIT_LOG))                  \
@@ -81,19 +78,7 @@
         (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags), (mode)); \
     }                                                                          \
 }
-/* 608145: db4.1 and newer does not require exclusive lock for checkpointing 
- * and transactions */
-#define DB_CHECKPOINT_LOCK(use_lock, lock) ;
-#define DB_CHECKPOINT_UNLOCK(use_lock, lock) ;
-#else /* older then db 41 */
-#define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
-    (rval) = (db)->open((db), (file), (database), (type), (flags), (mode))
-#define DB_CHECKPOINT_LOCK(use_lock, lock) if(use_lock) slapi_rwlock_wrlock(lock);
-#define DB_CHECKPOINT_UNLOCK(use_lock, lock) if(use_lock) slapi_rwlock_unlock(lock);
-#endif
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
-#define DB_ENV_SET_REGION_INIT(env) (env)->set_flags((env), DB_REGION_INIT, 1)
 #define TXN_BEGIN(env, parent_txn, tid, flags) \
     (env)->txn_begin((env), (parent_txn), (tid), (flags))
 #define TXN_COMMIT(txn, flags) (txn)->commit((txn), (flags))
@@ -107,42 +92,6 @@
 #define LOG_ARCHIVE(env, listp, flags, malloc) \
     (env)->log_archive((env), (listp), (flags))
 #define LOG_FLUSH(env, lsn) (env)->log_flush((env), (lsn))
-#define LOCK_DETECT(env, flags, atype, aborted) \
-    (env)->lock_detect((env), (flags), (atype), (aborted))
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400 /* db4.4 or later */
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-    (env)->mutex_set_tas_spins((env), (tas_spins))
-#else /* < 4.4 */
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-    (env)->set_tas_spins((env), (tas_spins))
-#endif /* 4.4 or later */
-#else    /* older than db 4.0 */
-#define DB_ENV_SET_REGION_INIT(env) db_env_set_region_init(1)
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-    db_env_set_tas_spins((tas_spins))
-#define TXN_BEGIN(env, parent_txn, tid, flags) \
-    txn_begin((env), (parent_txn), (tid), (flags))
-#define TXN_COMMIT(txn, flags) txn_commit((txn), (flags))
-#define TXN_ABORT(txn) txn_abort((txn))
-#define TXN_CHECKPOINT(env, kbyte, min, flags) \
-    txn_checkpoint((env), (kbyte), (min), (flags))
-#define MEMP_TRICKLE(env, pct, nwrotep) memp_trickle((env), (pct), (nwrotep))
-#define LOG_FLUSH(env, lsn) log_flush((env), (lsn))
-#define LOCK_DETECT(env, flags, atype, aborted) \
-    lock_detect((env), (flags), (atype), (aborted))
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) memp_stat((env), (gsp), (fsp))
-#define LOG_ARCHIVE(env, listp, flags, malloc) \
-    log_archive((env), (listp), (flags))
-
-#else    /* older than db 3.3 */
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) \
-    memp_stat((env), (gsp), (fsp), (malloc))
-#define LOG_ARCHIVE(env, listp, flags, malloc) \
-    log_archive((env), (listp), (flags), (malloc))
-#endif
-#endif
 
 /* Use these macros to incr/decrement the thread count for the
    database housekeeping threads.  This ensures that the
@@ -424,16 +373,14 @@ dblayer_get_batch_txn_max_sleep(void *arg __attribute__((unused))) {
 
 static int
 dblayer_txn_checkpoint(struct ldbminfo *li, struct dblayer_private_env *env,
-                       PRBool use_lock __attribute__((unused)), PRBool busy_skip, PRBool db_force)
+                       PRBool busy_skip, PRBool db_force)
 {
     int ret = 0;
     if (busy_skip && is_anyinstance_busy(li))
     {
         return ret;
     }
-    DB_CHECKPOINT_LOCK(use_lock, env->dblayer_env_lock);
     ret = TXN_CHECKPOINT(env->dblayer_DB_ENV, db_force?DB_FORCE:0,0,0);
-    DB_CHECKPOINT_UNLOCK(use_lock, env->dblayer_env_lock);
     return ret;
 }
 
@@ -503,12 +450,7 @@ static void dblayer_reset_env(struct ldbminfo *li)
 }
 
 /* Callback function for libdb to spit error info into our log */
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-void dblayer_log_print(const DB_ENV *dbenv __attribute__((unused)), const char* prefix __attribute__((unused)),
-                       const char *buffer)
-#else
-void dblayer_log_print(const char* prefix __attribute__((unused)), char *buffer)
-#endif
+void dblayer_log_print(const DB_ENV *dbenv __attribute__((unused)), const char* prefix __attribute__((unused)), const char *buffer)
 {
     /* We ignore the prefix since we know who we are anyway */
     slapi_log_err(SLAPI_LOG_ERR,"libdb","%s\n", (char *)buffer);    
@@ -569,8 +511,6 @@ int dblayer_open_huge_file(const char *path, int oflag, int mode)
     return dblayer_open_large(path, oflag, (mode_t)mode);
 }
 
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
 /* Helper function for large seeks, db4.3 */
 static int dblayer_seek43_large(int fd, off64_t offset, int whence)
 {
@@ -580,20 +520,6 @@ static int dblayer_seek43_large(int fd, off64_t offset, int whence)
 
     return (ret < 0) ? errno : 0;
 }
-#else
-/* Helper function for large seeks, db2.4 */
-static int dblayer_seek24_large(int fd, size_t pgsize, db_pgno_t pageno,
-                u_long relative, int isrewind, int whence)
-{
-    off64_t offset = 0, ret;
-
-    offset = (off64_t)pgsize * pageno + relative;
-    if (isrewind) offset = -offset;
-    ret = lseek64(fd, offset, whence);
-
-    return (ret < 0) ? errno : 0;
-}
-#endif
 
 /* helper function for large fstat -- this depends on 'struct stat64' having
  * the following members:
@@ -659,11 +585,7 @@ static int dblayer_override_libdb_functions(DB_ENV *pEnv __attribute__((unused))
 #endif  /* !irix */
     db_env_set_func_ioinfo(dblayer_ioinfo_large);
     db_env_set_func_exists(dblayer_exists_large);
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
     db_env_set_func_seek((int (*)(int, off_t, int))dblayer_seek43_large);
-#else
-    db_env_set_func_seek((int (*)(int, off_t, int))dblayer_seek24_large);
-#endif
 
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_override_libdb_function", "Enabled 64-bit files\n");
 #endif   /* DB_USE_64LFS */
@@ -860,7 +782,6 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
     /* increase max number of active transactions */
     pEnv->set_tx_max(pEnv, priv->dblayer_tx_max);
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
     pEnv->set_alloc(pEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, dblayer_free);
 
     /* 
@@ -868,7 +789,6 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
      * increased in size from the default for a large number of files. 
      */
     pEnv->set_lg_regionmax(pEnv, 1 * 1048576); /* 1 MB */
-#endif
 }
 
 
@@ -1068,7 +988,7 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
                   ret);
     }
 
-    DB_ENV_SET_REGION_INIT(pEnv->dblayer_DB_ENV);
+    pEnv->dblayer_DB_ENV->set_flags(pEnv->dblayer_DB_ENV, DB_REGION_INIT, 1);
 
     /* Here we overide various system functions called by libdb */
     ret = dblayer_override_libdb_functions(pEnv->dblayer_DB_ENV, priv);
@@ -1077,7 +997,8 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     }
 
     if (priv->dblayer_spin_count != 0) {
-        DB_ENV_SET_TAS_SPINS(pEnv->dblayer_DB_ENV, priv->dblayer_spin_count);
+        pEnv->dblayer_DB_ENV->mutex_set_tas_spins(pEnv->dblayer_DB_ENV,
+                                                  priv->dblayer_spin_count);
     }
 
     dblayer_dump_config_tracing(priv);
@@ -1606,15 +1527,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
 
     if ((!priv->dblayer_durable_transactions) || 
         ((priv->dblayer_enable_transactions) && (trans_batch_limit > 0))){
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100 /* db4.1 and newer */
       pEnv->dblayer_DB_ENV->set_flags(pEnv->dblayer_DB_ENV, DB_TXN_WRITE_NOSYNC, 1);
-#else /* db3.3 */
-      pEnv->dblayer_DB_ENV->set_flags(pEnv->dblayer_DB_ENV, DB_TXN_NOSYNC, 1);
-#endif
-#else /* older */
-      open_flags |= DB_TXN_NOSYNC;
-#endif
     }
     /* ldbm2index uses transactions but sets the transaction flag to off - we
        need to dblayer_init_pvt_txn in that case */
@@ -2045,15 +1958,6 @@ int dblayer_instance_start(backend *be, int mode)
             goto out;
         }
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-        return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
-        if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_ERR, "dblayer_instance_start", "dbp->set_malloc failed %d\n",
-                          return_value);
-
-            goto out;
-        }
-#endif
         if ((charray_get_index(priv->dblayer_data_directories,
                                inst->inst_parent_dir_name) != 0) &&
             !dblayer_inst_exists(inst, NULL))
@@ -2083,15 +1987,6 @@ int dblayer_instance_start(backend *be, int mode)
                 goto out;
             }
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-            return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
-            if (0 != return_value) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_instance_start", "dbp->set_malloc failed %d\n",
-                              return_value);
-
-                goto out;
-            }
-#endif
             slapi_ch_free_string(&abs_id2entry_file);
         }
         DB_OPEN(mypEnv->dblayer_openflags,
@@ -2123,16 +2018,6 @@ int dblayer_instance_start(backend *be, int mode)
 
             goto out;
         }
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR == 4100
-        /* lower the buffer cache priority to avoid sleep in memp_alloc */
-        /* W/ DB_PRIORITY_LOW, the db buffer page priority is calculated as:
-         *     priority = lru_count + pages / (-1)
-         * (by default, priority = lru_count)
-         * When upgraded to db4.2, this setting may not needed, hopefully.
-         * ask sleepycat [#8301]; blackflag #619964
-         */
-        dbp->set_cache_priority(dbp, DB_PRIORITY_LOW);
-#endif
 out:
         slapi_ch_free_string(&id2entry_file);
     }
@@ -2792,11 +2677,6 @@ _dblayer_set_db_callbacks(dblayer_private *priv, DB *dbp, struct attrinfo *ai)
     if (rc)
         return rc;
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-    rc = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
-    if (rc)
-        return rc;
-#endif
     /*
      * If using the "new" idl, set the flags and the compare function.
      * If using the "old" idl, we still need to set the index DB flags
@@ -2967,16 +2847,6 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
     DB_OPEN(pENV->dblayer_openflags,
             dbp, NULL, /* txnid */ rel_path, subname, DB_BTREE,
             open_flags, priv->dblayer_file_mode, return_value);
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR == 4100
-    /* lower the buffer cache priority to avoid sleep in memp_alloc */
-    /* W/ DB_PRIORITY_LOW, the db buffer page priority is calculated as:
-     *     priority = lru_count + pages / (-1)
-     * (by default, priority = lru_count)
-     * When upgraded to db4.2, this setting may not needed, hopefully.
-     * ask sleepycat [#8301]; blackflag #619964
-     */
-    dbp->set_cache_priority(dbp, DB_PRIORITY_LOW);
-#endif
 out:
     slapi_ch_free((void**)&file_name);
     slapi_ch_free((void**)&rel_path);
@@ -4262,7 +4132,8 @@ static int deadlock_threadmain(void *param)
             if (dblayer_db_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
                 int rejected = 0;
 
-                if ((rval = LOCK_DETECT(db_env, flags, deadlock_policy, &rejected)) != 0) {
+                rval = db_env->lock_detect(db_env, flags, deadlock_policy, &rejected);
+                if (rval != 0) {
                     slapi_log_err(SLAPI_LOG_CRIT,
                               "deadlock_threadmain", "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
                               rejected, rval, dblayer_strerror(rval));
@@ -4443,9 +4314,7 @@ static int checkpoint_threadmain(void *param)
     char **list = NULL;
     char **listp = NULL;
     struct dblayer_private_env *penv = NULL;
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
     time_t time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
-#endif
     int compactdb_interval = 0;
     back_txn txn;
 
@@ -4501,62 +4370,42 @@ static int checkpoint_threadmain(void *param)
         checkpoint_debug_message(debug_checkpointing,
                                  "checkpoint_threadmain - Starting checkpoint\n");
         rval = dblayer_txn_checkpoint(li, priv->dblayer_env, 
-                                      PR_TRUE, PR_TRUE, PR_FALSE);
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-        if (DB_INCOMPLETE == rval) 
-        {
-            checkpoint_debug_message(debug_checkpointing,
-                                     "checkpoint_threadmain - Retrying checkpoint\n");
-        } else
-#endif
-        {
-            checkpoint_debug_message(debug_checkpointing,
-                                     "checkpoint_threadmain - Checkpoint Done\n");
-            if (rval != 0) {
-                /* bad error */
-                slapi_log_err(SLAPI_LOG_CRIT,
-                    "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
-                    "err=%d (%s)\n", rval, dblayer_strerror(rval));
-                if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
-                    operation_out_of_disk_space();
-                    goto error_return;
-                }
-            } else {
-                time_of_last_checkpoint_completion = current_time();
+                                      PR_TRUE, PR_FALSE);
+        checkpoint_debug_message(debug_checkpointing,
+                                 "checkpoint_threadmain - Checkpoint Done\n");
+        if (rval != 0) {
+            /* bad error */
+            slapi_log_err(SLAPI_LOG_CRIT,
+                "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
+                "err=%d (%s)\n", rval, dblayer_strerror(rval));
+            if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
+                operation_out_of_disk_space();
+                goto error_return;
             }
+        } else {
+            time_of_last_checkpoint_completion = current_time();
         }
 
         checkpoint_debug_message(debug_checkpointing,
                                  "checkpoint_threadmain - Starting checkpoint\n");
         rval = dblayer_txn_checkpoint(li, priv->dblayer_env, 
-                                      PR_TRUE, PR_TRUE, PR_FALSE);
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-        if (DB_INCOMPLETE == rval) 
-        {
-            checkpoint_debug_message(debug_checkpointing,
-                                     "checkpoint_threadmain - Retrying checkpoint\n");
-        } else
-#endif
-        {
-            checkpoint_debug_message(debug_checkpointing,
-                                     "checkpoint_threadmain - Checkpoint Done\n");
-            if (rval != 0) {
-                /* bad error */
-                slapi_log_err(SLAPI_LOG_CRIT,
-                    "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
-                    "err=%d (%s)\n", rval, dblayer_strerror(rval));
-                if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
-                    operation_out_of_disk_space();
-                    goto error_return;
-                }
-            } else {
-                time_of_last_checkpoint_completion = current_time();
+                                      PR_TRUE, PR_FALSE);
+        checkpoint_debug_message(debug_checkpointing,
+                                 "checkpoint_threadmain - Checkpoint Done\n");
+        if (rval != 0) {
+            /* bad error */
+            slapi_log_err(SLAPI_LOG_CRIT,
+                "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
+                "err=%d (%s)\n", rval, dblayer_strerror(rval));
+            if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
+                operation_out_of_disk_space();
+                goto error_return;
             }
+        } else {
+            time_of_last_checkpoint_completion = current_time();
         }
         /* find out which log files don't contain active txns */
-        DB_CHECKPOINT_LOCK(PR_TRUE, penv->dblayer_env_lock);
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
         /* Compacting DB borrowing the timing of the log flush */
         if ((compactdb_interval > 0) &&
             (current_time() - time_of_last_comapctdb_completion > compactdb_interval)) {
@@ -4607,11 +4456,9 @@ static int checkpoint_threadmain(void *param)
             time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
             compactdb_interval = priv->dblayer_compactdb_interval;
         }
-#endif
 
         rval = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
                            DB_ARCH_ABS, (void *)slapi_ch_malloc);
-        DB_CHECKPOINT_UNLOCK(PR_TRUE, penv->dblayer_env_lock);
         if (rval) {
             slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
                            "log archive failed - %s (%d)\n", 
@@ -5133,31 +4980,12 @@ static int dblayer_force_checkpoint(struct ldbminfo *li)
      */
     
     for (i = 0; i < 2; i++) {
-      ret = dblayer_txn_checkpoint(li, pEnv, PR_TRUE, PR_FALSE, PR_TRUE);
-      if (ret == 0) continue;
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-      if (ret != DB_INCOMPLETE)
-#endif
-      {
+      ret = dblayer_txn_checkpoint(li, pEnv, PR_FALSE, PR_TRUE);
+      if (ret != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "dblayer_force_checkpoint", "Checkpoint FAILED, error %s (%d)\n",
                   dblayer_strerror(ret), ret);
         break;
       }
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-      
-      slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_force_checkpoint", "Busy: retrying checkpoint\n");
-      
-      /* teletubbies: "again! again!" */
-      ret = dblayer_txn_checkpoint(li, pEnv, PR_TRUE, PR_FALSE, PR_TRUE);
-      if (ret == DB_INCOMPLETE) {
-        slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_force_checkpoint", "Busy: giving up on checkpoint\n");
-        break;
-      } else if (ret != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "Cdblayer_force_checkpoint", "Checkpoint FAILED, error %s (%d)\n",
-                  dblayer_strerror(ret), ret);
-        break;
-      }
-#endif
     }
   }
 

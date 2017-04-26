@@ -272,9 +272,7 @@ int idl_get_tune(void);
 size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
 int idl_get_idl_new(void);
 int idl_new_compare_dups(
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
     DB *db,
-#endif
     const DBT *a, 
     const DBT *b
 );

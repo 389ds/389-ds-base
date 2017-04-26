@@ -16,7 +16,7 @@
 
 /* Note to future editors: 
    This file is now full of redundant code 
-   (the DB_ALLIDS_ON_WRITE==true and DB_USE_BULK_FETCH==false code).
+   (the DB_ALLIDS_ON_WRITE==true).
    It should be stripped out at the beginning of a 
    major release cycle. 
  */
@@ -25,13 +25,8 @@
 
 static char* filename = "idl_new.c";
 
-/* Bulk fetch feature first in DB 3.3 */
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
 #define DB_USE_BULK_FETCH 1
 #define BULK_FETCH_BUFFER_SIZE (8*1024)
-#else
-#undef DB_USE_BULK_FETCH
-#endif
 
 /* We used to implement allids for inserts, but that's a bad idea. 
    Why ? Because:
@@ -43,13 +38,6 @@ static char* filename = "idl_new.c";
 /* #undef DB_ALLIDS_ON_WRITE */
 /* We still enforce allids threshold on reads, to save time and space fetching vast id lists */
 #define DB_ALLIDS_ON_READ 1
-
-#if !defined(DB_NEXT_DUP) 
-#define DB_NEXT_DUP 0
-#endif
-#if !defined(DB_GET_BOTH) 
-#define DB_GET_BOTH 0
-#endif
 
 /* Structure used to hide private idl-specific data in the attrinfo object */
 struct idl_private {
@@ -145,12 +133,10 @@ idl_new_fetch(
     DBT data;
     ID id = 0;
     size_t count = 0;
-#ifdef DB_USE_BULK_FETCH
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE]; 
     void *ptr;
     DBT dataret;
-#endif
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
@@ -173,18 +159,11 @@ idl_new_fetch(
         goto error;
     }
     memset(&data, 0, sizeof(data));
-#ifdef DB_USE_BULK_FETCH
     data.ulen = sizeof(buffer);
     data.size = sizeof(buffer);
     data.data = buffer;
     data.flags = DB_DBT_USERMEM;
     memset(&dataret, 0, sizeof(dataret));
-#else
-    data.ulen = sizeof(id);
-    data.size = sizeof(id);
-    data.data = &id;
-    data.flags = DB_DBT_USERMEM;
-#endif
 
     /*
      * We're not expecting the key to change in value
@@ -198,28 +177,21 @@ idl_new_fetch(
     key.flags = DB_DBT_USERMEM;
 
     /* Position cursor at the first matching key */
-#ifdef DB_USE_BULK_FETCH
     ret = cursor->c_get(cursor,&key,&data,DB_SET|DB_MULTIPLE);
-#else
-    ret = cursor->c_get(cursor,&key,&data,DB_SET);
-#endif
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
-#ifdef DB_USE_BULK_FETCH
             if (ret == DB_BUFFER_SMALL) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Database index is corrupt; "
                           "data item for key %s is too large for our buffer "
                           "(need=%d actual=%d)\n",
                           (char *)key.data, data.size, data.ulen);
             }
-#endif
             ldbm_nasty("idl_new_fetch",filename,2,ret);
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
 
     /* Iterate over the duplicates, amassing them into an IDL */
-#ifdef DB_USE_BULK_FETCH
     for (;;) {
         ID lastid = 0;
 
@@ -281,33 +253,7 @@ idl_new_fetch(
         if (0 != ret) {
             break;
         }
-   }
-#else
-    for (;;) {
-        ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP);
-        count++;
-        if (0 != ret) {
-            break;
-        }
-        /* we got another ID, add it to our IDL */
-        idl_rc = idl_append_extend(&idl, id);
-        if (idl_rc) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "idl_new_fetch", "Unable to extend id list (err=%d)\n", idl_rc);
-            idl_free(&idl);
-            goto error;
-        }
-#if defined(DB_ALLIDS_ON_READ)    
-        /* enforce the allids read limit */
-        if (idl && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
-            idl->b_nids = 1;
-            idl->b_ids[0] = ALLID;
-            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-            break;
-        }
-#endif
-   }
-#endif
+    }
 
     if (ret != DB_NOTFOUND) {
         idl_free(&idl);
@@ -392,12 +338,10 @@ idl_new_range_fetch(
     DBT data = {0};
     ID id = 0;
     size_t count = 0;
-#ifdef DB_USE_BULK_FETCH
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE];
     void *ptr;
     DBT dataret;
-#endif
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     time_t curtime;
@@ -430,18 +374,11 @@ idl_new_range_fetch(
         goto error;
     }
     memset(&data, 0, sizeof(data));
-#ifdef DB_USE_BULK_FETCH
     data.ulen = sizeof(buffer);
     data.size = sizeof(buffer);
     data.data = buffer;
     data.flags = DB_DBT_USERMEM;
     memset(&dataret, 0, sizeof(dataret));
-#else
-    data.ulen = sizeof(id);
-    data.size = sizeof(id);
-    data.data = &id;
-    data.flags = DB_DBT_USERMEM;
-#endif
 
     /*
      * We're not expecting the key to change in value
@@ -456,27 +393,20 @@ idl_new_range_fetch(
     cur_key.flags = DB_DBT_MALLOC;
 
     /* Position cursor at the first matching key */
-#ifdef DB_USE_BULK_FETCH
     ret = cursor->c_get(cursor, &cur_key, &data, DB_SET|DB_MULTIPLE);
-#else
-    ret = cursor->c_get(cursor, &cur_key, &data, DB_SET);
-#endif
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
-#ifdef DB_USE_BULK_FETCH
             if (ret == DB_BUFFER_SMALL) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
                         "data item for key %s is too large for our buffer (need=%d actual=%d)\n",
                         (char *)cur_key.data, data.size, data.ulen);
             }
-#endif
             ldbm_nasty("idl_new_range_fetch",filename,2,ret);
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
 
     /* Iterate over the duplicates, amassing them into an IDL */
-#ifdef DB_USE_BULK_FETCH
     while (cur_key.data &&
            (upperkey && upperkey->data ?
             ((coreop == SLAPI_OP_LESS) ?
@@ -622,81 +552,6 @@ idl_new_range_fetch(
             }
         }
     }
-#else
-    while (upperkey && upperkey->data ?
-           ((coreop == SLAPI_OP_LESS) ?
-            DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
-            DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
-           PR_TRUE /* e.g., (x > a) */) {
-        /* lookthrough limit & sizelimit check */
-        if (idl) {
-            if ((lookthrough_limit != -1) &&
-                (idl->b_nids > (ID)lookthrough_limit)) {
-                idl_free(&idl);
-                idl = idl_allids( be );
-                slapi_log_err(SLAPI_LOG_TRACE,
-                          "idl_new_range_fetch", "lookthrough_limit exceeded\n");
-                *flag_err = LDAP_ADMINLIMIT_EXCEEDED;
-                goto error;
-            }
-            if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
-                slapi_log_err(SLAPI_LOG_TRACE,
-                               "idl_new_range_fetch", "sizelimit exceeded\n");
-                *flag_err = LDAP_SIZELIMIT_EXCEEDED;
-                goto error;
-            }
-        }
-        /* timelimit check */
-        if (stoptime > 0) { /* timelimit is set */
-            curtime = current_time();
-            if (curtime >= stoptime) {
-                slapi_log_err(SLAPI_LOG_TRACE,
-                              "idl_new_range_fetch", "timelimit exceeded\n");
-                *flag_err = LDAP_TIMELIMIT_EXCEEDED;
-                goto error;
-            }
-        }
-        ret = cursor->c_get(cursor,&cur_key,&data,DB_NEXT_DUP);
-        if (saved_key != cur_key.data) {
-            /* key was allocated in c_get */
-            slapi_ch_free(&saved_key);
-            saved_key = cur_key.data;
-        }
-        count++;
-        if (ret) {
-            if (upperkey && upperkey->data && DBT_EQ(&cur_key, upperkey)) {
-                /* this is the last key */
-                break;
-            }
-            ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_NODUP);
-            if (saved_key != cur_key.data) {
-                /* key was allocated in c_get */
-                slapi_ch_free(&saved_key);
-                saved_key = cur_key.data;
-            }
-            if (ret) {
-                break;
-            }
-        }
-        /* we got another ID, add it to our IDL */
-        idl_rc = idl_append_extend(&idl, id);
-        if (idl_rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                    "Unable to extend id list (err=%d)\n", idl_rc);
-            idl_free(&idl);
-            goto error;
-        }
-#if defined(DB_ALLIDS_ON_READ)    
-        /* enforce the allids read limit */
-        if (idl && idl_new_exceeds_allidslimit(count, ai, allidslimit)) {
-            idl->b_nids = 1;
-            idl->b_ids[0] = ALLID;
-            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-            break;
-        }
-#endif
-    }
-#endif
 
     if (ret) {
         if (ret == DB_NOTFOUND) {
@@ -1111,9 +966,7 @@ error:
 
 /* idl_new_compare_dups: comparing ID, pass to libdb for callback */
 int idl_new_compare_dups(
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
     DB *db __attribute__((unused)),
-#endif
     const DBT *a, 
     const DBT *b
 )

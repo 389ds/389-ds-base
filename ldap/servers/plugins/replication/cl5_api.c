@@ -67,18 +67,7 @@
 
 #define HASH_BACKETS_COUNT 16   /* number of buckets in a hash table */
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
-#define USE_DB_TXN 1 /* use transactions */
 #define DEFAULT_DB_ENV_OP_FLAGS DB_AUTO_COMMIT
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR <= 4300
-/* we are enabling transactions everywhere - since we are opening databases
-   with DB_AUTO_COMMIT we must either open and pass a valid txn handle to
-   all operations that modify the database (put, del) or we must pass the
-   DB_AUTO_COMMIT flag to those operations */
-#define DEFAULT_DB_OP_FLAGS(txn) (txn ? 0 : DB_AUTO_COMMIT)
-#else
-#define DEFAULT_DB_OP_FLAGS(txn) 0
-#endif
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
 	if (((oflags) & DB_INIT_TXN) && ((oflags) & DB_INIT_LOG))                  \
@@ -90,45 +79,12 @@
 		(rval) = (db)->open((db), (txnid), (file), (database), (type), (flags), (mode)); \
 	}                                                                          \
 }
-#else /* older then db 41 */
-#define DEFAULT_DB_OP_FLAGS(txn) 0
-#define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
-	(rval) = (db)->open((db), (file), (database), (type), (flags), (mode))
-#endif
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
-#define DB_ENV_SET_REGION_INIT(env) (env)->set_flags((env), DB_REGION_INIT, 1)
 #define TXN_BEGIN(env, parent_txn, tid, flags) \
     (env)->txn_begin((env), (parent_txn), (tid), (flags))
-#define TXN_COMMIT(txn, flags) (txn)->commit((txn), (flags))
+#define TXN_COMMIT(txn) (txn)->commit((txn), 0)
 #define TXN_ABORT(txn) (txn)->abort(txn)
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) \
-	(env)->memp_stat((env), (gsp), (fsp), (flags))
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400 /* db4.4 or later */
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-    (env)->mutex_set_tas_spins((env), (tas_spins))
-#else
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-    (env)->set_tas_spins((env), (tas_spins))
-#endif
 
-#else	/* older than db 4.0 */
-#define DB_ENV_SET_REGION_INIT(env) db_env_set_region_init(1)
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-	db_env_set_tas_spins((tas_spins))
-#define TXN_BEGIN(env, parent_txn, tid, flags) \
-    txn_begin((env), (parent_txn), (tid), (flags))
-#define TXN_COMMIT(txn, flags) txn_commit((txn), (flags))
-#define TXN_ABORT(txn) txn_abort((txn))
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) memp_stat((env), (gsp), (fsp))
-
-#else	/* older than db 3.3 */
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) \
-	memp_stat((env), (gsp), (fsp), (malloc))
-#endif
-#endif
 /* 
  * The defult thread stacksize for nspr21 is 64k. For OSF, we require
  * a larger stacksize as actual storage allocation is higher i.e
@@ -3551,7 +3507,6 @@ static void _cl5DoPurging (cleanruv_purge_data *purge_data)
 static void
 _cl5CompactDBs(void)
 {
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
 	int rc;
 	Object *fileObj = NULL;
 	CL5DBFile *dbFile = NULL;
@@ -3599,7 +3554,7 @@ bail:
 			    rc, db_strerror(rc));
 		}
 	} else {
-		rc = TXN_COMMIT (txnid, 0);
+		rc = TXN_COMMIT (txnid);
 		if (rc) {
 			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 			    "_cl5CompactDBs - Failed to commit transaction; db error - %d %s\n",
@@ -3608,7 +3563,6 @@ bail:
 	}
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
 
-#endif
 	return;
 }
 
@@ -3911,7 +3865,7 @@ _cl5PurgeRID(Object *obj,  ReplicaId cleaned_rid)
 		 * Commit or abort the txn
 		 */
 		if (rc == CL5_SUCCESS || rc == CL5_NOTFOUND){
-			rc = TXN_COMMIT (txnid, 0);
+			rc = TXN_COMMIT (txnid);
 			if (rc != 0){
 				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
 					"_cl5PurgeRID - Failed to commit transaction; db error - %d %s.  "
@@ -4095,7 +4049,7 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 		}
 		else
 		{
-			rc = TXN_COMMIT (txnid, 0);
+			rc = TXN_COMMIT (txnid);
 			if (rc != 0)
 			{
 				finished = 1;
@@ -4197,7 +4151,7 @@ static int _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge)
 
                             /* delete the entry; it is re-added when file
 							   is successfully closed */
-							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS(NULL));
+							file->db->del (file->db, NULL, &key, 0);
 							
 							rc = CL5_SUCCESS;
 							goto done;
@@ -4258,31 +4212,11 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 		return rc;
 	}
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-	rc = txn_begin(s_cl5Desc.dbEnv, NULL, &txnid, 0);
-	if (rc != 0)
-	{
-		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-						"_cl5WriteRUV - Failed to begin transaction; db error - %d %s\n",
-						rc, db_strerror(rc));
-		return CL5_DB_ERROR;
-	}
-#endif
-	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS(txnid));
+	rc = file->db->put(file->db, txnid, &key, &data, 0);
 
 	slapi_ch_free (&(data.data));
 	if ( rc == 0 )
 	{
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-		rc = txn_commit (txnid, 0);
-		if (rc != 0)
-		{
-			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
-						"_cl5WriteRUV - Failed to commit transaction; db error - %d %s\n", 
-						rc, db_strerror(rc));
-			return CL5_DB_ERROR;
-		}
-#endif
 		return CL5_SUCCESS;
 	}
 	else
@@ -4296,15 +4230,6 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 			cl5_set_diskfull();
 			return CL5_DB_ERROR;
 		}
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-		rc = txn_abort (txnid);
-		if (rc != 0)
-		{
-			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-							"_cl5WriteRUV - Failed to abort transaction; db error - %d %s\n",
-							rc, db_strerror(rc));
-		}
-#endif
 		return CL5_DB_ERROR;
 	}
 }
@@ -4593,7 +4518,7 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 
 							/* delete the entry. the entry is re-added when file
 							   is successfully closed */
-							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS(NULL));
+							file->db->del (file->db, NULL, &key, 0);
                             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 									"_cl5GetEntryCount - %d changes for replica %s\n", 
                                     file->entryCount, file->replName);
@@ -4601,13 +4526,7 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 
 		case DB_NOTFOUND:	file->entryCount = 0;
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
                             rc = file->db->stat(file->db, NULL, (void*)&stats, 0);
-#elif 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-                            rc = file->db->stat(file->db, (void*)&stats, 0);
-#else
-                            rc = file->db->stat(file->db, (void*)&stats, (void *)slapi_ch_malloc, 0);
-#endif
 							if (rc != 0)
 							{
 								slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
@@ -4647,29 +4566,9 @@ static int _cl5WriteEntryCount (CL5DBFile *file)
 	data.data = (void*)&file->entryCount;
 	data.size = sizeof (file->entryCount);
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-	rc = txn_begin(s_cl5Desc.dbEnv, NULL, &txnid, 0);
-	if (rc != 0)
-	{
-		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-						"_cl5WriteEntryCount - Failed to begin transaction; db error - %d %s\n",
-						rc, db_strerror(rc));
-		return CL5_DB_ERROR;
-	}
-#endif
-	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS(txnid));
+	rc = file->db->put(file->db, txnid, &key, &data, 0);
 	if (rc == 0)
 	{
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-		rc = txn_commit (txnid, 0);
-		if (rc != 0)
-		{
-			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
-						"_cl5WriteEntryCount - Failed to commit transaction; db error - %d %s\n", 
-						rc, db_strerror(rc));
-			return CL5_DB_ERROR;
-		}
-#endif
 		return CL5_SUCCESS;
 	}
 	else
@@ -4683,15 +4582,6 @@ static int _cl5WriteEntryCount (CL5DBFile *file)
 			cl5_set_diskfull();
 			return CL5_DB_ERROR;
 		}
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-		rc = txn_abort (txnid);
-		if (rc != 0)
-		{
-			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-							"_cl5WriteEntryCount - Failed to abort transaction; db error - %d %s\n",
-							rc, db_strerror(rc));
-		}
-#endif
 		return CL5_DB_ERROR;
 	}	
 }
@@ -5130,7 +5020,6 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 	{ 
 		if (cnt != 0)
 		{
-#if USE_DB_TXN
 			/* abort previous transaction */
 			rc = TXN_ABORT (txnid);
 			if (rc != 0)
@@ -5141,12 +5030,10 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 				rc = CL5_DB_ERROR;
 				goto done;
 			}
-#endif
 			/* back off */
     		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
     		DS_Sleep(interval);
 		}
-#if USE_DB_TXN
 		/* begin transaction */
 		rc = TXN_BEGIN(s_cl5Desc.dbEnv, parent_txnid, &txnid, 0);
 		if (rc != 0)
@@ -5157,13 +5044,12 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 			rc = CL5_DB_ERROR;
 			goto done;
 		}
-#endif
 
 		if ( file->sema )
 		{
 			PR_WaitSemaphore(file->sema);
 		}
-		rc = file->db->put(file->db, txnid, &key, data, DEFAULT_DB_OP_FLAGS(txnid));
+		rc = file->db->put(file->db, txnid, &key, data, 0);
 		if ( file->sema )
 		{
 			PR_PostSemaphore(file->sema);
@@ -5196,9 +5082,7 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 
 	if (rc == 0) /* we successfully added entry */
 	{
-#if USE_DB_TXN
-		rc = TXN_COMMIT (txnid, 0);
-#endif
+		rc = TXN_COMMIT (txnid);
 	}
 	else
 	{
@@ -5207,7 +5091,6 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 						"_cl5WriteOperationTxn - Failed to write entry with csn (%s); "
 						"db error - %d %s\n", csn_as_string(op->csn,PR_FALSE,s),
 						rc, db_strerror(rc));
-#if USE_DB_TXN
 		rc = TXN_ABORT (txnid);
 		if (rc != 0)
 		{
@@ -5215,7 +5098,6 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 							"_cl5WriteOperationTxn - Failed to abort transaction; db error - %d %s\n",
 							rc, db_strerror(rc));
 		}
-#endif
 		rc = CL5_DB_ERROR;
 		goto done;
 	}
@@ -6246,13 +6128,6 @@ static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile**
 	if (0 != rc) {
 		goto out;
 	}
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-	rc = db->set_malloc(db, (void *)slapi_ch_malloc);
-	if (0 != rc) {
-		goto out;
-	}
-#endif
 
 	DB_OPEN(s_cl5Desc.dbEnvOpenFlags,
 			db, NULL /* txnid */, name, subname, DB_BTREE,

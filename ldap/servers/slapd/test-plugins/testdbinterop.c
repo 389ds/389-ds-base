@@ -26,13 +26,8 @@ static  PRLock *db_lock=NULL;
 static int number_of_keys=100;
 static int key_buffer_size = 8000;
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(db, txnid, file, database, type, flags, mode) \
     (db)->open((db), (txnid), (file), (database), (type), (flags), (mode))
-#else
-    (db)->open((db), (file), (database), (type), (flags), (mode))
-#endif
-
 
 DB *dbp=NULL;
 

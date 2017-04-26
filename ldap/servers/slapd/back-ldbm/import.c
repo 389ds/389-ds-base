@@ -590,12 +590,6 @@ out:
     if (mpstat)
         slapi_ch_free((void **)&mpstat);
     if (mpfstat) {
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR + DB_VERSION_PATCH <= 3204
-            /* In DB 3.2.4 and earlier, we need to free each element */
-        DB_MPOOL_FSTAT **tfsp;
-        for (tfsp = mpfstat; *tfsp; tfsp++)
-        slapi_ch_free((void **)tfsp);
-#endif
         slapi_ch_free((void **)&mpfstat);
     }
     return cache_hit_ratio;

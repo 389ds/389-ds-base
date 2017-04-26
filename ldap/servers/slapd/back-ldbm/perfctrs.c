@@ -16,7 +16,6 @@
 
 #include "perfctrs.h"
 
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
 #define TXN_STAT(env, statp, flags, malloc) \
 	(env)->txn_stat((env), (statp), (flags))
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
@@ -24,28 +23,7 @@
 #define LOG_STAT(env, spp, flags, malloc) (env)->log_stat((env), (spp), (flags))
 #define LOCK_STAT(env, statp, flags, malloc) \
 	(env)->lock_stat((env), (statp), (flags))
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400 /* db4.4 or later */
 #define GET_N_LOCK_WAITS(lockstat)   lockstat->st_lock_wait
-#else
-#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts
-#endif
-
-#else	/* older than db 4.0 */
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-#define TXN_STAT(env, statp, flags, malloc) txn_stat((env), (statp))
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) memp_stat((env), (gsp), (fsp))
-#define LOG_STAT(env, spp, flags, malloc) log_stat((env), (spp))
-#define LOCK_STAT(env, statp, flags, malloc) lock_stat((env), (statp))
-#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts
-#else	/* older than db 3.3 */
-#define TXN_STAT(env, statp, flags, malloc) txn_stat((env), (statp), (malloc))
-#define MEMP_STAT(env, gsp, fsp, flags, malloc) 
-	memp_stat((env), (gsp), (fsp), (malloc))
-#define LOG_STAT(env, spp, flags, malloc) log_stat((env), (spp), (malloc))
-#define LOCK_STAT(env, statp, flags, malloc) lock_stat((env), (statp), (malloc))
-#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts
-#endif
-#endif
 
 static void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env);
 static void perfctr_add_to_entry( Slapi_Entry *e, char *type,

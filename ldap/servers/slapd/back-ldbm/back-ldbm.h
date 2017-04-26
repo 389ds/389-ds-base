@@ -73,12 +73,9 @@ typedef unsigned short u_int16_t;
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 5000
 #define LDBM_SUFFIX_OLD	".db4"
 #define LDBM_SUFFIX	".db"
-#elif 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
+#else
 #define LDBM_SUFFIX_OLD	".db3"
 #define LDBM_SUFFIX	".db4"
-#else /* not supported anymore, though */
-#define LDBM_SUFFIX_OLD	".db2"
-#define LDBM_SUFFIX	".db3"
 #endif
 
 #define MEGABYTE (1024 * 1024)
@@ -409,9 +406,7 @@ typedef struct attrcrypt_private attrcrypt_private;
 #define INDEX_SUBSTREND		2
 
 typedef int (*dup_compare_fn_type)(
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
 				DB *db,
-#endif
 				const DBT *,const DBT *);
 
 struct index_idlistsizeinfo {
