@@ -43,7 +43,7 @@ def _test_algo(inst, algo_name):
     pw_field = inst.search_s(USER_DN, ldap.SCOPE_BASE, '(objectClass=*)', ['userPassword'])[0]
 
     if algo_name != 'CLEAR':
-        assert (algo_name.lower() in pw_field.getValue('userPassword').lower())
+        assert (algo_name[:5].lower() in pw_field.getValue('userPassword').lower())
     # Now make sure a bind works
     assert (_test_bind(inst, 'Secret123'))
     # Bind with a wrong shorter password, should fail
