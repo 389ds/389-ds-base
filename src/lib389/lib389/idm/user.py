@@ -38,7 +38,13 @@ class UserAccount(DSLdapObject):
             # Can we get this into core?
             # 'ldapPublicKey',
         ]
-        self._compare_exclude = ['nsuniqueid']
+        user_compare_exclude = [
+            'nsUniqueId', 
+            'modifyTimestamp', 
+            'createTimestamp', 
+            'entrydn'
+        ]
+        self._compare_exclude = self._compare_exclude + user_compare_exclude
         self._protected = False
 
     def _validate(self, rdn, properties, basedn):

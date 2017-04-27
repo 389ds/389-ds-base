@@ -35,6 +35,22 @@ class Config(DSLdapObject):
         self._dn = DN_CONFIG
         # self._instance = conn
         # self.log = conn.log
+        config_compare_exclude = [
+            'nsslapd-ldapifilepath', 
+            'nsslapd-accesslog', 
+            'nsslapd-auditfaillog', 
+            'nsslapd-ldifdir',
+            'nsslapd-errorlog', 
+            'nsslapd-instancedir', 
+            'nsslapd-lockdir', 
+            'nsslapd-bakdir',
+            'nsslapd-schemadir', 
+            'nsslapd-auditlog',
+            'nsslapd-rootpw', 
+            'nsslapd-workingdir',
+            'nsslapd-certdir'
+        ]
+        self._compare_exclude  = self._compare_exclude + config_compare_exclude
 
     def _alter_log_enabled(self, service, state):
         if service not in ('access', 'error', 'audit'):

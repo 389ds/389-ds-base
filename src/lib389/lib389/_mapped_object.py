@@ -95,7 +95,7 @@ class DSLdapObject(DSLogging):
         self._rdn_attribute = None
         self._must_attributes = None
         # attributes, we don't want to compare
-        self._compare_exclude = []
+        self._compare_exclude = ['entryid']
 
     def __unicode__(self):
         val = self._dn
