@@ -60,37 +60,77 @@ def determine_pblock_groups(flat_results):
         if subset is False:
             ss_flat_results.append(pbs_a)
 
-    #for pbs in sorted(ss_flat_results, key=len):
-    #    print(pbs)
+    for pbs in sorted(ss_flat_results, key=len):
+        print('pbs -> %s' % sorted(pbs))
+    print('== unique filtered pblocks %s ==' % len(ss_flat_results))
+
+    # We build some sets of attrs we expect in certain things
+    e_plugin_set = set(['13'])
+    e_search_set = set(['195', '113'])
+    e_modrdn_set = set(['100', '103', '101'])
+    e_backend_plugin_set = set(['213', '202', '214'])
+    e_op_set = set(['1001', '47'])
+    e_task_set = set(['178', '181', '182', '192'])
+    e_dse_set = set(['282', '283', '281', '289'])
 
     # Now, we can group these by plugin callback, and searches.
     # Check for plugin_enabled
+    task_set = set()
+    backend_plugin_set = set()
     plugin_set = set()
     search_set = set()
-    other_set = set()
+    modrdn_set = set()
+    urp_set = set()
+    op_set = set()
+    dse_set = set()
+
     for pbs in ss_flat_results:
-        # 815 is plugin_enabled
-        if '815' in pbs:
-            plugin_set.update(pbs)
-        elif '216' in pbs: # This is db_result_fn
+        # 3 is plugin, and 130 backend.
+        if e_search_set & pbs:
             search_set.update(pbs)
+        elif e_modrdn_set & pbs:
+            modrdn_set.update(pbs)
+        elif e_op_set & pbs:
+            op_set.update(pbs)
+        elif e_task_set & pbs:
+            task_set.update(pbs)
+        elif e_backend_plugin_set & pbs:
+            backend_plugin_set.update(pbs)
+        elif e_plugin_set & pbs:
+            plugin_set.update(pbs)
+        elif e_dse_set & pbs:
+            dse_set.update(pbs)
         else:
-            other_set.update(pbs)
+            print('unclassified pb %s' % sorted(pbs))
 
-    overlap_set = plugin_set & search_set
+    # Now, make each set unique to itself.
 
-    print('plugin_set: %s' % plugin_set)
-    print('search_set: %s' % search_set)
-    print('other_set: %s' % other_set)
-    print('overlap : %s' % (plugin_set & search_set))
+    excess_set = access_values - (task_set | backend_plugin_set | plugin_set | search_set | op_set | dse_set | modrdn_set )
 
-    print ('== frequency of overlap from %s unique pblocks ==' % (len(flat_results)))
+
+
+    print('plugin_set: %s' % sorted(plugin_set))
+    print('')
+    print('backend_plugin_set: %s' % sorted(backend_plugin_set))
+    print('')
+    print('search_set: %s' % sorted(search_set))
+    print('')
+    print('modrdn_set: %s' % sorted(modrdn_set))
+    print('')
+    print('urp_set: %s' % sorted(urp_set))
+    print('')
+    print('task_set: %s' % sorted(task_set))
+    print('')
+    print('op_set: %s' % sorted(op_set))
+    print('')
+    print('dse_set: %s' % sorted(dse_set))
+    print('')
+    print('excess_set: %s' % sorted(excess_set))
+    print('')
+
+    print ('== frequency of overlap from %s unique pblocks ==' % (len(ss_flat_results)))
     for r in sorted(results, key=results.get, reverse=True):
         if r in overlap_set:
-            print('pop: av %s count %s' % (r, results[r]))
-    print ('== frequency of other from %s unique pblocks ==' % (len(flat_results)))
-    for r in sorted(results, key=results.get, reverse=True):
-        if r in other_set:
             print('pop: av %s count %s' % (r, results[r]))
 
 

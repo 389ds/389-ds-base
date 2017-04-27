@@ -658,7 +658,7 @@ static int add_state_entry(void)
 	else 
 	{
 		slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rt);
-		slapi_ch_free((void **) &pb);
+		slapi_pblock_destroy(pb);
 	}
 
 	if (rt != LDAP_SUCCESS) 

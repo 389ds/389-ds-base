@@ -23,6 +23,15 @@
 #define NUMBER_SLAPI_ATTRS 320
 #define ANALYTICS_MAGIC 0x7645
 
+#define SLAPI_OP_STACK_ELEM 2001
+#define SLAPI_VATTR_CONTEXT 2002
+#define SLAPI_LDIF_DUMP_REPLICA 2003
+#define SLAPI_PWDPOLICY 2004
+#define SLAPI_PW_ENTRY 2005
+
+/* Used for checking assertions about pblocks in some cases. */
+#define SLAPI_HINT 9999
+
 static PRLock *pblock_analytics_lock = NULL;
 
 static PLHashNumber
@@ -193,9 +202,20 @@ pblock_done( Slapi_PBlock *pb )
         operation_free(&pb->pb_op,pb->pb_conn);
         pb->pb_op = NULL;
     }
-    delete_passwdPolicy(&pb->pwdpolicy);
-    slapi_ch_free((void**)&(pb->pb_vattr_context));
-    slapi_ch_free((void**)&(pb->pb_result_text));
+    slapi_ch_free((void**)&(pb->pb_dse));
+    slapi_ch_free((void**)&(pb->pb_task));
+    slapi_ch_free((void**)&(pb->pb_mr));
+    slapi_ch_free((void**)&(pb->pb_deprecated));
+    slapi_ch_free((void**)&(pb->pb_misc));
+    if (pb->pb_intop != NULL) {
+        delete_passwdPolicy(&pb->pb_intop->pwdpolicy);
+        slapi_ch_free((void**)&(pb->pb_intop->pb_result_text));
+    }
+    slapi_ch_free((void**)&(pb->pb_intop));
+    if (pb->pb_intplugin != NULL) {
+        slapi_ch_free((void**)&(pb->pb_intplugin->pb_vattr_context));
+    }
+    slapi_ch_free((void**)&(pb->pb_intplugin));
 }
 
 void
@@ -208,12 +228,101 @@ slapi_pblock_destroy( Slapi_PBlock* pb )
     }
 }
 
+/* functions to alloc internals if needed */
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_dse(Slapi_PBlock *pblock) {
+    if (pblock->pb_dse == NULL) {
+        pblock->pb_dse = slapi_ch_calloc(1, sizeof(slapi_pblock_dse));
+    }
+}
+
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_task(Slapi_PBlock *pblock) {
+    if (pblock->pb_task == NULL) {
+        pblock->pb_task = slapi_ch_calloc(1, sizeof(slapi_pblock_task));
+    }
+}
+
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_mr(Slapi_PBlock *pblock) {
+    if (pblock->pb_mr == NULL) {
+        pblock->pb_mr = slapi_ch_calloc(1, sizeof(slapi_pblock_matching_rule));
+    }
+}
+
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_misc(Slapi_PBlock *pblock) {
+    if (pblock->pb_misc == NULL) {
+        pblock->pb_misc = slapi_ch_calloc(1, sizeof(slapi_pblock_misc));
+    }
+}
+
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_intop(Slapi_PBlock *pblock) {
+    if (pblock->pb_intop == NULL) {
+        pblock->pb_intop = slapi_ch_calloc(1, sizeof(slapi_pblock_intop));
+    }
+}
+
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_intplugin(Slapi_PBlock *pblock) {
+    if (pblock->pb_intplugin == NULL) {
+        pblock->pb_intplugin = slapi_ch_calloc(1, sizeof(slapi_pblock_intplugin));
+    }
+}
+
+static inline void __attribute__((always_inline))
+_pblock_assert_pb_deprecated(Slapi_PBlock *pblock) {
+    if (pblock->pb_deprecated == NULL) {
+        pblock->pb_deprecated = slapi_ch_calloc(1, sizeof(slapi_pblock_deprecated));
+    }
+}
+
 Slapi_PBlock *
 slapi_pblock_clone(Slapi_PBlock *pb)
 {
+    /*
+     * This is used only in psearch, with an access pattern of
+     * ['13:3', '191:28', '47:18', '2001:1', '115:3', '503:3', '196:10', '52:18', '1930:3', '133:189', '112:13', '57:1', '214:91', '70:93', '193:14', '49:10', '403:6', '117:2', '1001:1', '130:161', '109:2', '198:36', '510:27', '1945:3', '114:16', '4:11', '216:91', '712:11', '195:19', '51:26', '140:10', '2005:18', '9:2', '132:334', '111:1', '1160:1', '410:54', '48:1', '2002:156', '116:3', '1000:22', '53:27', '9999:1', '113:13', '3:132', '590:3', '215:91', '194:20', '118:1', '131:30', '860:2', '110:14', ]
+     */
     Slapi_PBlock *new_pb = slapi_pblock_new();
+    new_pb->pb_backend = pb->pb_backend;
+    new_pb->pb_conn = pb->pb_conn;
+    new_pb->pb_op = pb->pb_op;
+    new_pb->pb_plugin = pb->pb_plugin;
     /* Perform a shallow copy. */
-    *new_pb = *pb;
+    if (pb->pb_dse != NULL) {
+        _pblock_assert_pb_dse(new_pb);
+        *(new_pb->pb_dse) = *(pb->pb_dse);
+    }
+    if (pb->pb_task != NULL) {
+        _pblock_assert_pb_task(new_pb);
+        *(new_pb->pb_task) = *(pb->pb_task);
+    }
+    if (pb->pb_mr != NULL) {
+        _pblock_assert_pb_mr(new_pb);
+        *(new_pb->pb_mr) = *(pb->pb_mr);
+    }
+    if (pb->pb_misc != NULL) {
+        _pblock_assert_pb_misc(new_pb);
+        *(new_pb->pb_misc) = *(pb->pb_misc);
+    }
+    if (pb->pb_intop != NULL) {
+        _pblock_assert_pb_intop(new_pb);
+        *(new_pb->pb_intop) = *(pb->pb_intop);
+    }
+    if (pb->pb_intplugin != NULL) {
+        _pblock_assert_pb_intplugin(new_pb);
+        *(new_pb->pb_intplugin) = *(pb->pb_intplugin);
+    }
+    if (pb->pb_deprecated != NULL) {
+        _pblock_assert_pb_deprecated(new_pb);
+        *(new_pb->pb_deprecated) = *(pb->pb_deprecated);
+    }
+#ifdef PBLOCK_ANALYTICS
+    new_pb->analytics = NULL;
+    pblock_analytics_init(new_pb);
+#endif
     return new_pb;
 }
 
@@ -247,11 +356,17 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	be = pblock->pb_backend;
 
 	switch ( arg ) {
+#ifdef PBLOCK_ANALYTICS
+    case SLAPI_HINT:
+        break;
+#endif
 	case SLAPI_BACKEND:
 		(*(Slapi_Backend **)value) = be;
 		break;
 	case SLAPI_BACKEND_COUNT:
-		(*(int *)value) = pblock->pb_backend_count;
+        if (pblock->pb_misc != NULL) {
+		    (*(int *)value) = pblock->pb_misc->pb_backend_count;
+        }
 		break;
 	case SLAPI_BE_TYPE:
 		if ( NULL == be ) {
@@ -494,7 +609,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(time_t *)value) = pblock->pb_op->o_time;
 		break;
 	case SLAPI_REQUESTOR_ISROOT:
-		(*(int *)value) = pblock->pb_requestor_isroot;
+        if (pblock->pb_intop != NULL) {
+		    (*(int *)value) = pblock->pb_intop->pb_requestor_isroot;
+        }
 		break;
 	case SLAPI_SKIP_MODIFIED_ATTRS:
 		if(pblock->pb_op==NULL)
@@ -553,7 +670,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
     /* pblock memory management */
     case SLAPI_DESTROY_CONTENT:
-        (*(int *)value) = pblock->pb_destroy_content;
+        if (pblock->pb_deprecated != NULL) {
+            (*(int *)value) = pblock->pb_deprecated->pb_destroy_content;
+        }
         break;        
 
 	/* stuff related to the current plugin */
@@ -579,22 +698,32 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(int *)value) = pblock->pb_plugin->plg_precedence;
 		break;
 	case SLAPI_PLUGIN_OPRETURN:
-		(*(int *)value) = pblock->pb_opreturn;
+        if (pblock->pb_intop != NULL) {
+		    (*(int *)value) = pblock->pb_intop->pb_opreturn;
+        }
 		break;
 	case SLAPI_PLUGIN_OBJECT:
-		(*(void **)value) = pblock->pb_object;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(void **)value) = pblock->pb_intplugin->pb_object;
+        }
 		break;
 	case SLAPI_PLUGIN_DESTROY_FN:
-		(*(IFP*)value) = pblock->pb_destroy_fn;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(IFP*)value) = pblock->pb_intplugin->pb_destroy_fn;
+        }
 		break;
 	case SLAPI_PLUGIN_DESCRIPTION:
 		(*(Slapi_PluginDesc *)value) = pblock->pb_plugin->plg_desc;
 		break;
 	case SLAPI_PLUGIN_IDENTITY:
-		(*(void**)value) = pblock->pb_plugin_identity;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(void**)value) = pblock->pb_intplugin->pb_plugin_identity;
+        }
 		break;
 	case SLAPI_PLUGIN_CONFIG_AREA:
-		(*(char **)value) = pblock->pb_plugin_config_area;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(char **)value) = pblock->pb_intplugin->pb_plugin_config_area;
+        }
 		break;
     case SLAPI_PLUGIN_CONFIG_DN:
         if (pblock->pb_plugin != NULL) {
@@ -602,13 +731,19 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
         }
         break;
 	case SLAPI_PLUGIN_INTOP_RESULT:
-        (*(int *)value) = pblock->pb_internal_op_result; 
+        if (pblock->pb_intop != NULL) {
+            (*(int *)value) = pblock->pb_intop->pb_internal_op_result;
+        }
         break;
 	case SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES:
-        (*(Slapi_Entry ***)value) = pblock->pb_plugin_internal_search_op_entries;
+        if (pblock->pb_intop != NULL) {
+            (*(Slapi_Entry ***)value) = pblock->pb_intop->pb_plugin_internal_search_op_entries;
+        }
         break;
 	case SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS:
-        (*(char ***)value) = pblock->pb_plugin_internal_search_op_referrals;
+        if (pblock->pb_intop != NULL) {
+            (*(char ***)value) = pblock->pb_intop->pb_plugin_internal_search_op_referrals;
+        }
         break;
 
 	/* database plugin functions */
@@ -1048,10 +1183,14 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(IFP *)value) = pblock->pb_plugin->plg_postextop;
 		break;
 	case SLAPI_ENTRY_PRE_OP:
-		(*(Slapi_Entry **)value) = pblock->pb_pre_op_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_pre_op_entry;
+        }
 		break;
 	case SLAPI_ENTRY_POST_OP:
-		(*(Slapi_Entry **)value) = pblock->pb_post_op_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_post_op_entry;
+        }
 		break;
 
 	/* backend preoperation plugin */
@@ -1307,11 +1446,15 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_CONTROLS_ARG:	/* used to pass control argument before operation is created */
-		(*(LDAPControl ***)value) = pblock->pb_ctrls_arg;
+        if (pblock->pb_intop != NULL) {
+		    (*(LDAPControl ***)value) = pblock->pb_intop->pb_ctrls_arg;
+        }
 		break;
 	/* notes to be added to the access log RESULT line for this op. */
 	case SLAPI_OPERATION_NOTES:
-		(*(unsigned int *)value) = pblock->pb_operation_notes;
+        if (pblock->pb_intop != NULL) {
+		    (*(unsigned int *)value) = pblock->pb_intop->pb_operation_notes;
+        }
 		break;
 
 	/* syntax plugin functions */
@@ -1370,7 +1513,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(IFP *)value) = pblock->pb_plugin->plg_syntax_compare;
 		break;
 	case SLAPI_SYNTAX_SUBSTRLENS: /* aka SLAPI_MR_SUBSTRLENS */
-		(*(int **)value) = pblock->pb_substrlens;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(int **)value) = pblock->pb_intplugin->pb_substrlens;
+        }
 		break;
 	case SLAPI_PLUGIN_SYNTAX_VALIDATE:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
@@ -1387,10 +1532,14 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* controls we know about */
 	case SLAPI_MANAGEDSAIT:
-		(*(int *)value) = pblock->pb_managedsait;
+        if (pblock->pb_intop != NULL) {
+		    (*(int *)value) = pblock->pb_intop->pb_managedsait;
+        }
 		break;
 	case SLAPI_PWPOLICY:
-		(*(int *)value) = pblock->pb_pwpolicy_ctrl;
+        if (pblock->pb_intop != NULL) {
+		    (*(int *)value) = pblock->pb_intop->pb_pwpolicy_ctrl;
+        }
 		break;
 
 	/* add arguments */
@@ -1401,13 +1550,19 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_ADD_EXISTING_DN_ENTRY:
-		(*(Slapi_Entry **)value) = pblock->pb_existing_dn_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_existing_dn_entry;
+        }
 		break;
 	case SLAPI_ADD_EXISTING_UNIQUEID_ENTRY:
-		(*(Slapi_Entry **)value) = pblock->pb_existing_uniqueid_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_existing_uniqueid_entry;
+        }
 		break;
 	case SLAPI_ADD_PARENT_ENTRY:
-		(*(Slapi_Entry **)value) = pblock->pb_parent_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_parent_entry;
+        }
 		break;
 	case SLAPI_ADD_PARENT_UNIQUEID:
 		if(pblock->pb_op!=NULL)
@@ -1518,13 +1673,19 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_MODRDN_PARENT_ENTRY:
-		(*(Slapi_Entry **)value) = pblock->pb_parent_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_parent_entry;
+        }
 		break;
 	case SLAPI_MODRDN_NEWPARENT_ENTRY:
-		(*(Slapi_Entry **)value) = pblock->pb_newparent_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_newparent_entry;
+        }
 		break;
 	case SLAPI_MODRDN_TARGET_ENTRY:
-		(*(Slapi_Entry **)value) = pblock->pb_target_entry;
+        if (pblock->pb_intop != NULL) {
+		    (*(Slapi_Entry **)value) = pblock->pb_intop->pb_target_entry;
+        }
 		break;
 	case SLAPI_MODRDN_NEWSUPERIOR_ADDRESS:
 		if(pblock->pb_op!=NULL)
@@ -1645,45 +1806,71 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(IFP *)value) = pblock->pb_plugin->plg_mr_indexer_create;
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_MATCH_FN:
-		(*(mrFilterMatchFn *)value) = pblock->pb_mr_filter_match_fn;
+        if (pblock->pb_mr != NULL) {
+		    (*(mrFilterMatchFn *)value) = pblock->pb_mr->filter_match_fn;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_INDEX_FN:
-		(*(IFP *)value) = pblock->pb_mr_filter_index_fn;
+        if (pblock->pb_mr != NULL) {
+		    (*(IFP *)value) = pblock->pb_mr->filter_index_fn;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_RESET_FN:
-		(*(IFP *)value) = pblock->pb_mr_filter_reset_fn;
+        if (pblock->pb_mr != NULL) {
+		    (*(IFP *)value) = pblock->pb_mr->filter_reset_fn;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_INDEX_FN:
-		(*(IFP *)value) = pblock->pb_mr_index_fn;
+        if (pblock->pb_mr != NULL) {
+		    (*(IFP *)value) = pblock->pb_mr->index_fn;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_INDEX_SV_FN:
-		(*(IFP *)value) = pblock->pb_mr_index_sv_fn;
+        if (pblock->pb_mr != NULL) {
+		    (*(IFP *)value) = pblock->pb_mr->index_sv_fn;
+        }
 		break;
 
 	/* matching rule plugin arguments */
 	case SLAPI_PLUGIN_MR_OID:
-		(*(char **) value) = pblock->pb_mr_oid;
+        if (pblock->pb_mr != NULL) {
+		    (*(char **) value) = pblock->pb_mr->oid;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_TYPE:
-		(*(char **) value) = pblock->pb_mr_type;
+        if (pblock->pb_mr != NULL) {
+		    (*(char **) value) = pblock->pb_mr->type;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_VALUE:
-		(*(struct berval **) value) = pblock->pb_mr_value;
+        if (pblock->pb_mr != NULL) {
+		    (*(struct berval **) value) = pblock->pb_mr->value;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_VALUES:
-		(*(struct berval ***) value) = pblock->pb_mr_values;
+        if (pblock->pb_mr != NULL) {
+		    (*(struct berval ***) value) = pblock->pb_mr->values;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_KEYS:
-		(*(struct berval ***) value) = pblock->pb_mr_keys;
+        if (pblock->pb_mr != NULL) {
+		    (*(struct berval ***) value) = pblock->pb_mr->keys;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_REUSABLE:
-		(*(unsigned int *) value) = pblock->pb_mr_filter_reusable;
+        if (pblock->pb_mr != NULL) {
+		    (*(unsigned int *) value) = pblock->pb_mr->filter_reusable;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_QUERY_OPERATOR:
-		(*(int *) value) = pblock->pb_mr_query_operator;
+        if (pblock->pb_mr != NULL) {
+		    (*(int *) value) = pblock->pb_mr->query_operator;
+        }
 		break;
 	case SLAPI_PLUGIN_MR_USAGE:
-		(*(unsigned int *) value) = pblock->pb_mr_usage;
+        if (pblock->pb_mr != NULL) {
+		    (*(unsigned int *) value) = pblock->pb_mr->usage;
+        }
 		break;
 
 	/* new style matching rule syntax plugin functions */
@@ -1744,90 +1931,140 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* seq arguments */
 	case SLAPI_SEQ_TYPE:
-		(*(int *)value) = pblock->pb_seq_type;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->seq_type;
+        }
 		break;
 	case SLAPI_SEQ_ATTRNAME:
-		(*(char **)value) = pblock->pb_seq_attrname;
+        if (pblock->pb_task != NULL) {
+		    (*(char **)value) = pblock->pb_task->seq_attrname;
+        }
 		break;
 	case SLAPI_SEQ_VAL:
-		(*(char **)value) = pblock->pb_seq_val;
+        if (pblock->pb_task != NULL) {
+		    (*(char **)value) = pblock->pb_task->seq_val;
+        }
 		break;
 
 	/* ldif2db arguments */
 	case SLAPI_LDIF2DB_FILE:
-        (*(char ***)value) = pblock->pb_ldif_files;
+        if (pblock->pb_task != NULL) {
+            (*(char ***)value) = pblock->pb_task->ldif_files;
+        }
 		break;
 	case SLAPI_LDIF2DB_REMOVEDUPVALS:
-		(*(int *)value) = pblock->pb_removedupvals;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->removedupvals;
+        }
 		break;
 	case SLAPI_DB2INDEX_ATTRS:
-		(*(char ***)value) = pblock->pb_db2index_attrs;
+        if (pblock->pb_task != NULL) {
+		    (*(char ***)value) = pblock->pb_task->db2index_attrs;
+        }
 		break;
 	case SLAPI_LDIF2DB_NOATTRINDEXES:
-		(*(int *)value) = pblock->pb_ldif2db_noattrindexes;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->ldif2db_noattrindexes;
+        }
 		break;
 	case SLAPI_LDIF2DB_INCLUDE:
-		(*(char ***)value) = pblock->pb_ldif_include;
+        if (pblock->pb_task != NULL) {
+		    (*(char ***)value) = pblock->pb_task->ldif_include;
+        }
 		break;
 	case SLAPI_LDIF2DB_EXCLUDE:
-		(*(char ***)value) = pblock->pb_ldif_exclude;
+        if (pblock->pb_task != NULL) {
+		    (*(char ***)value) = pblock->pb_task->ldif_exclude;
+        }
 		break;
 	case SLAPI_LDIF2DB_GENERATE_UNIQUEID:
-		(*(int *)value) = pblock->pb_ldif_generate_uniqueid;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->ldif_generate_uniqueid;
+        }
 		break;
 	case SLAPI_LDIF2DB_ENCRYPT:
 	case SLAPI_DB2LDIF_DECRYPT:
-		(*(int *)value) = pblock->pb_ldif_encrypt;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->ldif_encrypt;
+        }
 		break;
 	case SLAPI_LDIF2DB_NAMESPACEID:
-		(*(char **)value) = pblock->pb_ldif_namespaceid;
+        if (pblock->pb_task != NULL) {
+		    (*(char **)value) = pblock->pb_task->ldif_namespaceid;
+        }
 		break;
 
 	/* db2ldif arguments */
 	case SLAPI_DB2LDIF_PRINTKEY:
-		(*(int *)value) = pblock->pb_ldif_printkey;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->ldif_printkey;
+        }
 		break;
 	case SLAPI_DB2LDIF_DUMP_UNIQUEID:
-		(*(int *)value) = pblock->pb_ldif_dump_uniqueid;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->ldif_dump_uniqueid;
+        }
 		break;
 	case SLAPI_DB2LDIF_FILE:
-		(*(char **)value) = pblock->pb_ldif_file;
+        if (pblock->pb_task != NULL) {
+		    (*(char **)value) = pblock->pb_task->ldif_file;
+        }
 		break;
 
 	/* db2ldif/ldif2db/db2bak/bak2db arguments */
 	case SLAPI_BACKEND_INSTANCE_NAME:
-		(*(char **)value) = pblock->pb_instance_name;
+        if (pblock->pb_task != NULL) {
+		    (*(char **)value) = pblock->pb_task->instance_name;
+        }
 		break;
-        case SLAPI_BACKEND_TASK:
-                (*(Slapi_Task **)value) = pblock->pb_task;
-                break;
+    case SLAPI_BACKEND_TASK:
+        if (pblock->pb_task != NULL) {
+            (*(Slapi_Task **)value) = pblock->pb_task->task;
+        }
+        break;
 	case SLAPI_TASK_FLAGS:
-		(*(int *)value) = pblock->pb_task_flags;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->task_flags;
+        }
 		break;
 	case SLAPI_DB2LDIF_SERVER_RUNNING:
-		(*(int *)value) = pblock->pb_server_running;
+        if (pblock->pb_task != NULL) {
+		    (*(int *)value) = pblock->pb_task->server_running;
+        }
 		break;
-        case SLAPI_BULK_IMPORT_ENTRY:
-                (*(Slapi_Entry **)value) = pblock->pb_import_entry;
-                break;
-        case SLAPI_BULK_IMPORT_STATE:
-                (*(int *)value) = pblock->pb_import_state;
-                break;
+    case SLAPI_BULK_IMPORT_ENTRY:
+        if (pblock->pb_task != NULL) {
+            (*(Slapi_Entry **)value) = pblock->pb_task->import_entry;
+        }
+        break;
+    case SLAPI_BULK_IMPORT_STATE:
+        if (pblock->pb_task != NULL) {
+            (*(int *)value) = pblock->pb_task->import_state;
+        }
+        break;
+	/* dbverify */
+	case SLAPI_DBVERIFY_DBDIR:
+        if (pblock->pb_task != NULL) {
+		    (*(char **)value) = pblock->pb_task->dbverify_dbdir;
+        }
+		break;
+
 
 	/* transaction arguments */
 	case SLAPI_PARENT_TXN:
-		(*(void **)value) = pblock->pb_parent_txn;
+        if (pblock->pb_intop != NULL) {
+		    (*(void **)value) = pblock->pb_intop->pb_parent_txn;
+        }
 		break;
 	case SLAPI_TXN:
-		(*(void **)value) = pblock->pb_txn;
+        if (pblock->pb_intop != NULL) {
+		    (*(void **)value) = pblock->pb_intop->pb_txn;
+        }
 		break;
 	case SLAPI_TXN_RUV_MODS_FN:
-		(*(IFP*)value) = pblock->pb_txn_ruv_mods_fn;
-		break;
-
-	/* dbverify */
-	case SLAPI_DBVERIFY_DBDIR:
-		(*(char **)value) = pblock->pb_dbverify_dbdir;
+        if (pblock->pb_intop != NULL) {
+		    (*(IFP*)value) = pblock->pb_intop->pb_txn_ruv_mods_fn;
+        }
 		break;
 
 	/* Search results set */
@@ -1885,12 +2122,16 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			* ((char **) value) = pblock->pb_op->o_results.result_text;
 		break;
 	case SLAPI_PB_RESULT_TEXT:
-		* ((char **) value) = pblock->pb_result_text;
+        if (pblock->pb_intop != NULL) {
+		    * ((char **) value) = pblock->pb_intop->pb_result_text;
+        }
 		break;
 
 	/* Size of the database, in kb */
 	case SLAPI_DBSIZE:
-		(*(unsigned int *)value) = pblock->pb_dbsize;
+        if (pblock->pb_misc != NULL) {
+		    (*(unsigned int *)value) = pblock->pb_misc->pb_dbsize;
+        }
 		break;
 
 	/* ACL Plugin */
@@ -1977,15 +2218,21 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	/* Command line arguments */
 	case SLAPI_ARGC:
-        (*(int *)value) = pblock->pb_slapd_argc;
+        if (pblock->pb_misc != NULL) {
+            (*(int *)value) = pblock->pb_misc->pb_slapd_argc;
+        }
 		break;
 	case SLAPI_ARGV:
-        (*(char ***)value) = pblock->pb_slapd_argv;
+        if (pblock->pb_misc != NULL) {
+            (*(char ***)value) = pblock->pb_misc->pb_slapd_argv;
+        }
 		break;
 
 	/* Config file directory */
 	case SLAPI_CONFIG_DIRECTORY:
-        (*(char **)value) = pblock->pb_slapd_configdir;
+        if (pblock->pb_intplugin != NULL) {
+            (*(char **)value) = pblock->pb_intplugin->pb_slapd_configdir;
+        }
 		break;
 
 	/* password storage scheme (kexcoff */
@@ -1993,11 +2240,15 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
         (*(char **)value) = pblock->pb_plugin->plg_pwdstorageschemename;
 		break;
 	case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_USER_PWD:
-		(*(char **)value) = pblock->pb_pwd_storage_scheme_user_passwd;
+        if (pblock->pb_deprecated != NULL) {
+		    (*(char **)value) = pblock->pb_deprecated->pb_pwd_storage_scheme_user_passwd;
+        }
 		break;
 
 	case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DB_PWD:
-		(*(char **)value) = pblock->pb_pwd_storage_scheme_db_passwd;
+        if (pblock->pb_deprecated != NULL) {
+		    (*(char **)value) = pblock->pb_deprecated->pb_pwd_storage_scheme_db_passwd;
+        }
 		break;
 
 	case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN:
@@ -2022,72 +2273,96 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 
 	case SLAPI_PLUGIN_ENABLED:
-		*((int *)value) =  pblock->pb_plugin_enabled;
+        if (pblock->pb_intplugin != NULL) {
+		    *((int *)value) =  pblock->pb_intplugin->pb_plugin_enabled;
+        }
 		break;
 
 	/* DSE add parameters */
 	case SLAPI_DSE_DONT_WRITE_WHEN_ADDING:
-		(*(int *)value) = pblock->pb_dse_dont_add_write;
-		break;
+        if (pblock->pb_dse != NULL) {
+            (*(int *)value) = pblock->pb_dse->dont_add_write;
+        }
+        break;
 
 	/* DSE add parameters */
 	case SLAPI_DSE_MERGE_WHEN_ADDING:
-		(*(int *)value) = pblock->pb_dse_add_merge;
+        if (pblock->pb_dse != NULL) {
+		    (*(int *)value) = pblock->pb_dse->add_merge;
+        }
 		break;
 
 	/* DSE add parameters */
 	case SLAPI_DSE_DONT_CHECK_DUPS:
-		(*(int *)value) = pblock->pb_dse_dont_check_dups;
+        if (pblock->pb_dse != NULL) {
+		    (*(int *)value) = pblock->pb_dse->dont_check_dups;
+        }
 		break;
 
 	/* DSE modify parameters */
 	case SLAPI_DSE_REAPPLY_MODS:
-		(*(int *)value) = pblock->pb_dse_reapply_mods;
+        if (pblock->pb_dse != NULL) {
+		    (*(int *)value) = pblock->pb_dse->reapply_mods;
+        }
 		break;
 
 	/* DSE read parameters */
 	case SLAPI_DSE_IS_PRIMARY_FILE:
-		(*(int *)value) = pblock->pb_dse_is_primary_file;
+        if (pblock->pb_dse != NULL) {
+		    (*(int *)value) = pblock->pb_dse->is_primary_file;
+        }
 		break;
 		
 	/* used internally by schema code (schema.c) */
 	case SLAPI_SCHEMA_FLAGS:
-		(*(int *)value) = pblock->pb_schema_flags;
+        if (pblock->pb_dse != NULL) {
+		    (*(int *)value) = pblock->pb_dse->schema_flags;
+        }
 		break;
 
 	case SLAPI_URP_NAMING_COLLISION_DN:
-		(*(char **)value) = pblock->pb_urp_naming_collision_dn;
+        if (pblock->pb_intop != NULL) {
+		    (*(char **)value) = pblock->pb_intop->pb_urp_naming_collision_dn;
+        }
 		break;
 		
 	case SLAPI_URP_TOMBSTONE_UNIQUEID:
-		(*(char **)value) = pblock->pb_urp_tombstone_uniqueid;
+        if (pblock->pb_intop != NULL) {
+		    (*(char **)value) = pblock->pb_intop->pb_urp_tombstone_uniqueid;
+        }
 		break;
 		
 	case SLAPI_SEARCH_CTRLS:
-		(*(LDAPControl ***)value) = pblock->pb_search_ctrls;
+        if (pblock->pb_intop != NULL) {
+		    (*(LDAPControl ***)value) = pblock->pb_intop->pb_search_ctrls;
+        }
 		break;
 		
 	case SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED:
-		(*(int *)value) = pblock->pb_syntax_filter_normalized;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(int *)value) = pblock->pb_intplugin->pb_syntax_filter_normalized;
+        }
 		break;
 		
 	case SLAPI_PLUGIN_SYNTAX_FILTER_DATA:
-		(*(void **)value) = pblock->pb_syntax_filter_data;
+        if (pblock->pb_intplugin != NULL) {
+		    (*(void **)value) = pblock->pb_intplugin->pb_syntax_filter_data;
+        }
 		break;
 		
 	case SLAPI_PAGED_RESULTS_INDEX:
-		if (op_is_pagedresults(pblock->pb_op)) {
+		if (op_is_pagedresults(pblock->pb_op) && pblock->pb_intop != NULL) {
 			/* search req is simple paged results */
-			(*(int *)value) = pblock->pb_paged_results_index;
+			(*(int *)value) = pblock->pb_intop->pb_paged_results_index;
 		} else {
 			(*(int *)value) = -1;
 		}
 		break;
 
 	case SLAPI_PAGED_RESULTS_COOKIE:
-		if (op_is_pagedresults(pblock->pb_op)) {
+		if (op_is_pagedresults(pblock->pb_op) && pblock->pb_intop != NULL) {
 			/* search req is simple paged results */
-			(*(int *)value) = pblock->pb_paged_results_cookie;
+			(*(int *)value) = pblock->pb_intop->pb_paged_results_cookie;
 		} else {
 			(*(int *)value) = 0;
 		}
@@ -2095,28 +2370,19 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* ACI Target Check */	
 	case SLAPI_ACI_TARGET_CHECK:
-		(*(int *)value) = pblock->pb_aci_target_check;
+        if (pblock->pb_misc != NULL) {
+		    (*(int *)value) = pblock->pb_misc->pb_aci_target_check;
+        }
 		break;
 
 	default:
 		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get", "Unknown parameter block argument %d\n", arg);
-#ifdef PBLOCK_ANALYTICS
-        Slapi_PBlock *boom = NULL;
-        void *x = (void *)boom->pb_plugin;
-#endif
+        PR_ASSERT(0);
 		return( -1 );
 	}
 
 	return( 0 );
 }
-
-/*
- * This ifdef is needed to resolve a gcc 6 issue which throws a false positive
- * here. See also: https://bugzilla.redhat.com/show_bug.cgi?id=1386445
- *
- * It's a good idea to run this in EL7 to check the overflows etc, but with
- * GCC 6 and lsan to find memory leaks ....
- */
 
 int
 slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
@@ -2129,6 +2395,10 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	PR_ASSERT( NULL != pblock );
 
 	switch ( arg ) {
+#ifdef PBLOCK_ANALYTICS
+    case SLAPI_HINT:
+        break;
+#endif
 	case SLAPI_BACKEND:
 		pblock->pb_backend = (Slapi_Backend *) value;
 		if (pblock->pb_backend && (NULL == pblock->pb_plugin)) {
@@ -2138,7 +2408,8 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_BACKEND_COUNT:
-		pblock->pb_backend_count = *((int *) value);
+        _pblock_assert_pb_misc(pblock);
+		pblock->pb_misc->pb_backend_count = *((int *) value);
 		break;
 	case SLAPI_CONNECTION:
 		pblock->pb_conn = (Connection *) value;
@@ -2152,7 +2423,8 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_REQUESTOR_ISROOT:
-		pblock->pb_requestor_isroot = *((int *) value);
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_requestor_isroot = *((int *) value);
 		break;
 	case SLAPI_IS_REPLICATED_OPERATION:
 		PR_ASSERT(0);
@@ -2218,7 +2490,8 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
     /* pblock memory management */
     case SLAPI_DESTROY_CONTENT:
-        pblock->pb_destroy_content = *((int *) value);
+        _pblock_assert_pb_deprecated(pblock);
+        pblock->pb_deprecated->pb_destroy_content = *((int *) value);
         break;        
 
 	/* stuff related to the current plugin */
@@ -2244,31 +2517,39 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_plugin->plg_precedence = *((int *) value);
 		break;
 	case SLAPI_PLUGIN_OPRETURN:
-		pblock->pb_opreturn = *((int *) value);
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_opreturn = *((int *) value);
 		break;
 	case SLAPI_PLUGIN_OBJECT:
-		pblock->pb_object = (void *) value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_object = (void *) value;
 		break;
 	case SLAPI_PLUGIN_IDENTITY:
-		pblock->pb_plugin_identity = (void*)value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_plugin_identity = (void*)value;
 		break;
 	case SLAPI_PLUGIN_CONFIG_AREA:
-		pblock->pb_plugin_config_area = (char *) value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_plugin_config_area = (char *) value;
 		break;
 	case SLAPI_PLUGIN_DESTROY_FN:
-		pblock->pb_destroy_fn = (IFP) value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_destroy_fn = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_DESCRIPTION:
 		pblock->pb_plugin->plg_desc = *((Slapi_PluginDesc *)value);
 		break;
 	case SLAPI_PLUGIN_INTOP_RESULT:
-		pblock->pb_internal_op_result = *((int *) value);
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_internal_op_result = *((int *) value);
 		break;
 	case SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES:
-		pblock->pb_plugin_internal_search_op_entries = (Slapi_Entry **) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_plugin_internal_search_op_entries = (Slapi_Entry **) value;
 		break;
 	case SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS:
-		pblock->pb_plugin_internal_search_op_referrals = (char **) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_plugin_internal_search_op_referrals = (char **) value;
 		break;
 	case SLAPI_REQUESTOR_DN:
 		if(pblock->pb_op == NULL){
@@ -2969,7 +3250,8 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_plugin->plg_syntax_compare = (IFP) value;
 		break;
 	case SLAPI_SYNTAX_SUBSTRLENS: /* aka SLAPI_MR_SUBSTRLENS */
-		pblock->pb_substrlens = (int *) value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_substrlens = (int *) value;
 		break;
 	case SLAPI_PLUGIN_SYNTAX_VALIDATE:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
@@ -2984,10 +3266,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_plugin->plg_syntax_normalize = (VFPV) value;
 		break;
 	case SLAPI_ENTRY_PRE_OP:
-		pblock->pb_pre_op_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_pre_op_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_ENTRY_POST_OP:
-		pblock->pb_post_op_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_post_op_entry = (Slapi_Entry *) value;
 		break;
 
 	/* target address for all operations */
@@ -3045,7 +3329,8 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_CONTROLS_ARG:	/* used to pass control argument before operation is created */
-		pblock->pb_ctrls_arg = (LDAPControl **) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_ctrls_arg = (LDAPControl **) value;
 		break;
 	case SLAPI_ADD_RESCONTROL:
 		if(pblock->pb_op!=NULL)
@@ -3056,10 +3341,11 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* notes to be added to the access log RESULT line for this op. */
 	case SLAPI_OPERATION_NOTES:
+        _pblock_assert_pb_intop(pblock);
 		if ( value == NULL ) {
-			pblock->pb_operation_notes = 0;	/* cleared */
+			pblock->pb_intop->pb_operation_notes = 0;   /* cleared */
 		} else {
-			pblock->pb_operation_notes |= *((unsigned int *)value );
+			pblock->pb_intop->pb_operation_notes |= *((unsigned int *)value );
 		}
 		break;
 	case SLAPI_SKIP_MODIFIED_ATTRS:
@@ -3073,10 +3359,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	/* controls we know about */
 	case SLAPI_MANAGEDSAIT:
-		pblock->pb_managedsait = *((int *) value);
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_managedsait = *((int *) value);
 		break;
 	case SLAPI_PWPOLICY:
-		pblock->pb_pwpolicy_ctrl = *((int *) value);
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_pwpolicy_ctrl = *((int *) value);
 		break;
 
 	/* add arguments */
@@ -3087,13 +3375,16 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_ADD_EXISTING_DN_ENTRY:
-		pblock->pb_existing_dn_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_existing_dn_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_ADD_EXISTING_UNIQUEID_ENTRY:
-		pblock->pb_existing_uniqueid_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_existing_uniqueid_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_ADD_PARENT_ENTRY:
-		pblock->pb_parent_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_parent_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_ADD_PARENT_UNIQUEID:
 		if(pblock->pb_op!=NULL)
@@ -3202,13 +3493,16 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_MODRDN_PARENT_ENTRY:
-		pblock->pb_parent_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_parent_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_MODRDN_NEWPARENT_ENTRY:
-		pblock->pb_newparent_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_newparent_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_MODRDN_TARGET_ENTRY:
-		pblock->pb_target_entry = (Slapi_Entry *) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_target_entry = (Slapi_Entry *) value;
 		break;
 	case SLAPI_MODRDN_NEWSUPERIOR_ADDRESS:
 		PR_ASSERT (PR_FALSE);	/* can't do this */
@@ -3344,45 +3638,58 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_plugin->plg_mr_indexer_create = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_MATCH_FN:
-		pblock->pb_mr_filter_match_fn = (mrFilterMatchFn) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->filter_match_fn = (mrFilterMatchFn) value;
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_INDEX_FN:
-		pblock->pb_mr_filter_index_fn = (IFP) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->filter_index_fn = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_RESET_FN:
-		pblock->pb_mr_filter_reset_fn = (IFP) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->filter_reset_fn = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_MR_INDEX_FN:
-		pblock->pb_mr_index_fn = (IFP) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->index_fn = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_MR_INDEX_SV_FN:
-		pblock->pb_mr_index_sv_fn = (IFP) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->index_sv_fn = (IFP) value;
 		break;
 
 	/* matching rule plugin arguments */
 	case SLAPI_PLUGIN_MR_OID:
-		pblock->pb_mr_oid = (char *) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->oid = (char *) value;
 		break;
 	case SLAPI_PLUGIN_MR_TYPE:
-		pblock->pb_mr_type = (char *) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->type = (char *) value;
 		break;
 	case SLAPI_PLUGIN_MR_VALUE:
-		pblock->pb_mr_value = (struct berval *) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->value = (struct berval *) value;
 		break;
 	case SLAPI_PLUGIN_MR_VALUES:
-		pblock->pb_mr_values = (struct berval **) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->values = (struct berval **) value;
 		break;
 	case SLAPI_PLUGIN_MR_KEYS:
-		pblock->pb_mr_keys = (struct berval **) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->keys = (struct berval **) value;
 		break;
 	case SLAPI_PLUGIN_MR_FILTER_REUSABLE:
-		pblock->pb_mr_filter_reusable = *(unsigned int *) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->filter_reusable = *(unsigned int *) value;
 		break;
 	case SLAPI_PLUGIN_MR_QUERY_OPERATOR:
-		pblock->pb_mr_query_operator = *(int *) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->query_operator = *(int *) value;
 		break;
 	case SLAPI_PLUGIN_MR_USAGE:
-		pblock->pb_mr_usage = *(unsigned int *) value;
+        _pblock_assert_pb_mr(pblock);
+		pblock->pb_mr->usage = *(unsigned int *) value;
 		break;
 
 	/* new style matching rule syntax plugin functions */
@@ -3443,81 +3750,116 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* seq arguments */
 	case SLAPI_SEQ_TYPE:
-		pblock->pb_seq_type = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->seq_type = *((int *)value);
 		break;
 	case SLAPI_SEQ_ATTRNAME:
-		pblock->pb_seq_attrname = (char *) value;
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->seq_attrname = (char *) value;
 		break;
 	case SLAPI_SEQ_VAL:
-		pblock->pb_seq_val = (char *) value;
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->seq_val = (char *) value;
 		break;
 
     /* ldif2db arguments */
     case SLAPI_LDIF2DB_FILE:
-        pblock->pb_ldif_files = (char **) value;
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->ldif_files = (char **) value;
         break;
 	case SLAPI_LDIF2DB_REMOVEDUPVALS:
-		pblock->pb_removedupvals = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->removedupvals = *((int *)value);
 		break;
 	case SLAPI_DB2INDEX_ATTRS:
-		pblock->pb_db2index_attrs = (char **) value;
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->db2index_attrs = (char **) value;
 		break;
 	case SLAPI_LDIF2DB_NOATTRINDEXES:
-		pblock->pb_ldif2db_noattrindexes = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->ldif2db_noattrindexes = *((int *)value);
 		break;
 	case SLAPI_LDIF2DB_INCLUDE:
-        pblock->pb_ldif_include = (char **)value;
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->ldif_include = (char **)value;
 		break;
 	case SLAPI_LDIF2DB_EXCLUDE:
-        pblock->pb_ldif_exclude = (char **)value;
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->ldif_exclude = (char **)value;
 		break;
 	case SLAPI_LDIF2DB_GENERATE_UNIQUEID:
-		pblock->pb_ldif_generate_uniqueid = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->ldif_generate_uniqueid = *((int *)value);
 		break;
 	case SLAPI_LDIF2DB_NAMESPACEID:
-		pblock->pb_ldif_namespaceid = (char *)value;
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->ldif_namespaceid = (char *)value;
 		break;
 
 	/* db2ldif arguments */
 	case SLAPI_DB2LDIF_PRINTKEY:
-		pblock->pb_ldif_printkey = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->ldif_printkey = *((int *)value);
 		break;
 	case SLAPI_DB2LDIF_DUMP_UNIQUEID:
-		pblock->pb_ldif_dump_uniqueid = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->ldif_dump_uniqueid = *((int *)value);
 		break;
 	case SLAPI_DB2LDIF_FILE:
-        pblock->pb_ldif_file = (char *)value;
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->ldif_file = (char *)value;
 		break;
 
 	/* db2ldif/ldif2db/db2bak/bak2db arguments */
 	case SLAPI_BACKEND_INSTANCE_NAME:
-		pblock->pb_instance_name = (char *) value;
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->instance_name = (char *) value;
 		break;
-        case SLAPI_BACKEND_TASK:
-                pblock->pb_task = (Slapi_Task *)value;
-                break;
+    case SLAPI_BACKEND_TASK:
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->task = (Slapi_Task *)value;
+        break;
 	case SLAPI_TASK_FLAGS:
-		pblock->pb_task_flags = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->task_flags = *((int *)value);
 		break;
 	case SLAPI_DB2LDIF_SERVER_RUNNING:
-		pblock->pb_server_running = *((int *)value);
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->server_running = *((int *)value);
 		break;
-        case SLAPI_BULK_IMPORT_ENTRY:
-                pblock->pb_import_entry = (Slapi_Entry *)value;
-                break;
-        case SLAPI_BULK_IMPORT_STATE:
-                pblock->pb_import_state = *((int *)value);
-                break;
+    case SLAPI_BULK_IMPORT_ENTRY:
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->import_entry = (Slapi_Entry *)value;
+        break;
+    case SLAPI_BULK_IMPORT_STATE:
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->import_state = *((int *)value);
+        break;
+
+	case SLAPI_LDIF2DB_ENCRYPT:
+	case SLAPI_DB2LDIF_DECRYPT:
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->ldif_encrypt = *((int *)value);
+		break;
+	/* dbverify */
+	case SLAPI_DBVERIFY_DBDIR:
+        _pblock_assert_pb_task(pblock);
+		pblock->pb_task->dbverify_dbdir = (char *) value;
+		break;
+
 		
 	/* transaction arguments */
 	case SLAPI_PARENT_TXN:
-		pblock->pb_parent_txn = (void *)value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_parent_txn = (void *)value;
 		break;
 	case SLAPI_TXN:
-		pblock->pb_txn = (void *)value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_txn = (void *)value;
 		break;
 	case SLAPI_TXN_RUV_MODS_FN:
-		pblock->pb_txn_ruv_mods_fn = (IFP) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_txn_ruv_mods_fn = (IFP) value;
 		break;
 
 	/* Search results set */
@@ -3575,13 +3917,15 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			pblock->pb_op->o_results.result_text = (char *) value;
 		break;
 	case SLAPI_PB_RESULT_TEXT:
-		slapi_ch_free((void**)&(pblock->pb_result_text));
-		pblock->pb_result_text = slapi_ch_strdup ((char *) value);
+        _pblock_assert_pb_intop(pblock);
+		slapi_ch_free((void**)&(pblock->pb_intop->pb_result_text));
+		pblock->pb_intop->pb_result_text = slapi_ch_strdup ((char *) value);
 		break;
 
 	/* Size of the database, in kb */
 	case SLAPI_DBSIZE:
-		pblock->pb_dbsize = *((unsigned int *)value);
+        _pblock_assert_pb_misc(pblock);
+		pblock->pb_misc->pb_dbsize = *((unsigned int *)value);
 		break;
 
 	/* ACL Plugin */
@@ -3609,17 +3953,20 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_conn->c_domain = *((struct berval ***) value );
 		break;
-	/* Command line arguments */
-	case SLAPI_ARGC:
-       	pblock->pb_slapd_argc= *((int *)value);
-		break;
-	case SLAPI_ARGV:
-        	pblock->pb_slapd_argv = *((char***)value);
-		break;
+    /* Command line arguments */
+    case SLAPI_ARGC:
+        _pblock_assert_pb_misc(pblock);
+        pblock->pb_misc->pb_slapd_argc= *((int *)value);
+        break;
+    case SLAPI_ARGV:
+        _pblock_assert_pb_misc(pblock);
+        pblock->pb_misc->pb_slapd_argv = *((char***)value);
+        break;
 
 	/* Config file directory */
 	case SLAPI_CONFIG_DIRECTORY:
-			pblock->pb_slapd_configdir = (char *)value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_slapd_configdir = (char *)value;
 		break;
 
     /* password storage scheme (kexcoff) */
@@ -3631,11 +3978,13 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
         pblock->pb_plugin->plg_pwdstorageschemename = slapi_ch_strdup((char *)value);
         break;
     case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_USER_PWD:
-        pblock->pb_pwd_storage_scheme_user_passwd = (char *)value;
+        _pblock_assert_pb_deprecated(pblock);
+        pblock->pb_deprecated->pb_pwd_storage_scheme_user_passwd = (char *)value;
         break; 
  
     case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DB_PWD:
-        pblock->pb_pwd_storage_scheme_db_passwd = (char *)value;
+        _pblock_assert_pb_deprecated(pblock);
+        pblock->pb_deprecated->pb_pwd_storage_scheme_db_passwd = (char *)value;
         break;
  
     case SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN:
@@ -3665,89 +4014,90 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 
 	case SLAPI_PLUGIN_ENABLED:
-		pblock->pb_plugin_enabled = *((int *)value);
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_plugin_enabled = *((int *)value);
 		break;
 
 	/* DSE add parameters */
 	case SLAPI_DSE_DONT_WRITE_WHEN_ADDING:
-		pblock->pb_dse_dont_add_write = *((int *)value);
+        _pblock_assert_pb_dse(pblock);
+		pblock->pb_dse->dont_add_write = *((int *)value);
 		break;
 
 	/* DSE add parameters */
 	case SLAPI_DSE_MERGE_WHEN_ADDING:
-		pblock->pb_dse_add_merge = *((int *)value);
+        _pblock_assert_pb_dse(pblock);
+		pblock->pb_dse->add_merge = *((int *)value);
 		break;
 
 	/* DSE add parameters */
 	case SLAPI_DSE_DONT_CHECK_DUPS:
-		pblock->pb_dse_dont_check_dups = *((int *)value);
+        _pblock_assert_pb_dse(pblock);
+		pblock->pb_dse->dont_check_dups = *((int *)value);
 		break;
 
 	/* DSE modify parameters */
 	case SLAPI_DSE_REAPPLY_MODS:
-		pblock->pb_dse_reapply_mods = *((int *)value);
+        _pblock_assert_pb_dse(pblock);
+		pblock->pb_dse->reapply_mods = *((int *)value);
 		break;
 
 	/* DSE read parameters */
 	case SLAPI_DSE_IS_PRIMARY_FILE:
-		pblock->pb_dse_is_primary_file = *((int *)value);
+        _pblock_assert_pb_dse(pblock);
+		pblock->pb_dse->is_primary_file = *((int *)value);
 		break;
 		
 	/* used internally by schema code (schema.c) */
 	case SLAPI_SCHEMA_FLAGS:
-		pblock->pb_schema_flags = *((int *)value);
+        _pblock_assert_pb_dse(pblock);
+		pblock->pb_dse->schema_flags = *((int *)value);
 		break;
 
 	case SLAPI_URP_NAMING_COLLISION_DN:
-		pblock->pb_urp_naming_collision_dn = (char *)value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_urp_naming_collision_dn = (char *)value;
 		break;
 
 	case SLAPI_URP_TOMBSTONE_UNIQUEID:
-		pblock->pb_urp_tombstone_uniqueid = (char *)value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_urp_tombstone_uniqueid = (char *)value;
 		break;
 		
-	case SLAPI_LDIF2DB_ENCRYPT:
-	case SLAPI_DB2LDIF_DECRYPT:
-		pblock->pb_ldif_encrypt = *((int *)value);
-		break;
-
 	case SLAPI_SEARCH_CTRLS:
-		pblock->pb_search_ctrls = (LDAPControl **) value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_search_ctrls = (LDAPControl **) value;
 		break;
 
 	case SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED:
-		pblock->pb_syntax_filter_normalized = *((int *)value);
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_syntax_filter_normalized = *((int *)value);
 		break;
 
 	case SLAPI_PLUGIN_SYNTAX_FILTER_DATA:
-		pblock->pb_syntax_filter_data = (void *)value;
+        _pblock_assert_pb_intplugin(pblock);
+		pblock->pb_intplugin->pb_syntax_filter_data = (void *)value;
 		break;
 
 	case SLAPI_PAGED_RESULTS_INDEX:
-		pblock->pb_paged_results_index = *(int *)value;
+        _pblock_assert_pb_intop(pblock);
+		pblock->pb_intop->pb_paged_results_index = *(int *)value;
 		break;
 
 	case SLAPI_PAGED_RESULTS_COOKIE:
-		pblock->pb_paged_results_cookie = *(int *)value;
+		pblock->pb_intop->pb_paged_results_cookie = *(int *)value;
 		break;
 
 	/* ACI Target Check */
 	case SLAPI_ACI_TARGET_CHECK:
-		pblock->pb_aci_target_check = *((int *) value);
-		break;
-
-	/* dbverify */
-	case SLAPI_DBVERIFY_DBDIR:
-		pblock->pb_dbverify_dbdir = (char *) value;
+        _pblock_assert_pb_misc(pblock);
+		pblock->pb_misc->pb_aci_target_check = *((int *) value);
 		break;
 
 	default:
 		slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_set",
 		    "Unknown parameter block argument %d\n", arg);
-#ifdef PBLOCK_ANALYTICS
-        Slapi_PBlock *boom = NULL;
-        void *x = (void *)boom->pb_plugin;
-#endif
+        PR_ASSERT(0);
 		return( -1 );
 	}
 
@@ -3823,52 +4173,102 @@ bind_credentials_clear( Connection *conn, PRBool lock_conn,
 
 struct slapi_entry *
 slapi_pblock_get_pw_entry(Slapi_PBlock *pb) {
-    return pb->pb_pw_entry;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_PW_ENTRY);
+#endif
+    if (pb->pb_intop != NULL) {
+        return pb->pb_intop->pb_pw_entry;
+    }
+    return NULL;
 }
 
 void
 slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry) {
-    pb->pb_pw_entry = entry;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_PW_ENTRY);
+#endif
+    _pblock_assert_pb_intop(pb);
+    pb->pb_intop->pb_pw_entry = entry;
 }
 
 passwdPolicy *
 slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb) {
-    return pb->pwdpolicy;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_PWDPOLICY);
+#endif
+    if (pb->pb_intop != NULL) {
+        return pb->pb_intop->pwdpolicy;
+    }
+    return NULL;
 }
 
 void
 slapi_pblock_set_pwdpolicy(Slapi_PBlock *pb, passwdPolicy *pwdpolicy) {
-    pb->pwdpolicy = pwdpolicy;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_PWDPOLICY);
+#endif
+    _pblock_assert_pb_intop(pb);
+    pb->pb_intop->pwdpolicy = pwdpolicy;
 }
 
 int32_t
 slapi_pblock_get_ldif_dump_replica(Slapi_PBlock *pb) {
-    return pb->pb_ldif_dump_replica;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_LDIF_DUMP_REPLICA);
+#endif
+    if (pb->pb_task != NULL) {
+        return pb->pb_task->ldif_dump_replica;
+    }
+    return 0;
 }
 
 void
 slapi_pblock_set_ldif_dump_replica(Slapi_PBlock *pb, int32_t dump_replica) {
-    pb->pb_ldif_dump_replica = dump_replica;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_LDIF_DUMP_REPLICA);
+#endif
+    _pblock_assert_pb_task(pb);
+    pb->pb_task->ldif_dump_replica = dump_replica;
 }
 
 void *
 slapi_pblock_get_vattr_context(Slapi_PBlock *pb) {
-    return pb->pb_vattr_context;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_VATTR_CONTEXT);
+#endif
+    if (pb->pb_intplugin != NULL) {
+        return pb->pb_intplugin->pb_vattr_context;
+    }
+    return NULL;
 }
 
 void
 slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx) {
-    pb->pb_vattr_context = vattr_ctx;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_VATTR_CONTEXT);
+#endif
+    _pblock_assert_pb_intplugin(pb);
+    pb->pb_intplugin->pb_vattr_context = vattr_ctx;
 }
 
 void *
 slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb) {
-    return pb->op_stack_elem;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_OP_STACK_ELEM);
+#endif
+    if (pb->pb_intop != NULL) {
+        return pb->pb_intop->op_stack_elem;
+    }
+    return NULL;
 }
 
 void
 slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem) {
-    pb->op_stack_elem = stack_elem;
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_OP_STACK_ELEM);
+#endif
+    _pblock_assert_pb_intop(pb);
+    pb->pb_intop->op_stack_elem = stack_elem;
 }
 
 /*

@@ -129,12 +129,6 @@ typedef struct symbol_t {
 #include <systemd/sd-daemon.h>
 #endif
 
-#ifdef DEBUG
- // #define PBLOCK_ANALYTICS 1
-#else
-#undef PBLOCK_ANALYTICS
-#endif
-
 #if defined(OS_solaris)
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
