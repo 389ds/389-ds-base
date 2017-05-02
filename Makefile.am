@@ -882,7 +882,7 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/db2index.8 man/man8/db2index.pl.8 \
         man/man8/ldif2db.8 man/man8/ldif2db.pl.8 \
         man/man8/dbverify.8 man/man8/verify-db.pl.8 \
-        man/man8/dbmon.sh.8 \
+        man/man8/dbmon.sh.8 man/man8/ds-replcheck.8 \
         man/man8/dn2rdn.8 man/man8/ldif2ldap.8 \
         man/man8/restoreconfig.8 man/man8/saveconfig.8 \
         man/man8/suffix2instance.8 man/man8/monitor.8 \
