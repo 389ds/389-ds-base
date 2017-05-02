@@ -32,7 +32,6 @@ struct _performance_counters {
 	uint64_t    log_write_rate;
 	uint64_t    log_bytes_since_checkpoint;
 	uint64_t    cache_size_bytes;
-	uint64_t    page_access_rate;
 	uint64_t    cache_hit;
 	uint64_t    cache_try;
 	uint64_t    page_create_rate;

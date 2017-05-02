@@ -165,7 +165,6 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 		if (0 == ret) {
 #define ONEG  1073741824
 			perf->cache_size_bytes = mpstat->st_gbytes * ONEG + mpstat->st_bytes;
-			perf->page_access_rate = mpstat->st_cache_hit + mpstat->st_cache_miss;			
 			perf->cache_hit = mpstat->st_cache_hit;			
 			perf->cache_try = mpstat->st_cache_hit + mpstat->st_cache_miss;			
 			perf->page_create_rate = mpstat->st_page_create;			
@@ -257,8 +256,6 @@ static SlapiLDBMPerfctrATMap perfctr_at_map[] = {
 			offsetof( performance_counters, log_write_rate ) },
 	{ SLAPI_LDBM_PERFCTR_AT_PREFIX "longest-chain-length",
 			offsetof( performance_counters, longest_chain_length ) },
-	{ SLAPI_LDBM_PERFCTR_AT_PREFIX "objects-locked",
-			offsetof( performance_counters, page_access_rate ) },
 	{ SLAPI_LDBM_PERFCTR_AT_PREFIX "page-create-rate",
 			offsetof( performance_counters, page_create_rate ) },
 	{ SLAPI_LDBM_PERFCTR_AT_PREFIX "page-read-rate",
