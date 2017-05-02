@@ -1267,6 +1267,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
     /* li->li_directory comes from nsslapd-directory */
     /* dblayer_home_directory is freed in dblayer_post_close.
      * li_directory needs to live beyond dblayer. */
+    slapi_ch_free(&priv->dblayer_home_directory);
     priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory); 
     priv->dblayer_cachesize = li->li_dbcachesize;
     priv->dblayer_lock_config = li->li_dblock;
@@ -2159,7 +2160,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv,
             "dblayer_get_aux_id2entry_ext", "No dblayer info: persistent id2entry is not available\n");
         goto done;
     }
-    priv = (dblayer_private *)slapi_ch_malloc(sizeof(dblayer_private));
+    priv = (dblayer_private *)slapi_ch_calloc(1, sizeof(dblayer_private));
     memcpy(priv, opriv, sizeof(dblayer_private));
     priv->dblayer_spin_count = 0;
 
@@ -2515,7 +2516,6 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
     dblayer_private *priv = 0;
     int return_value = 0;
     dblayer_private_env *pEnv;
-    int shutdown = g_get_shutdown();
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -2548,10 +2548,8 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         charray_free(priv->dblayer_data_directories);
         priv->dblayer_data_directories = NULL;
     }
-    if(shutdown){
-        slapi_ch_free_string(&priv->dblayer_dbhome_directory);
-        slapi_ch_free_string(&priv->dblayer_home_directory);
-    }
+    slapi_ch_free_string(&priv->dblayer_dbhome_directory);
+    slapi_ch_free_string(&priv->dblayer_home_directory);
 
     return return_value;
 }
@@ -7004,6 +7002,7 @@ dblayer_restore_file_update(struct ldbminfo *li, char *directory)
     PRFileDesc *prfd;
     char *fname = dblayer_restore_file_name(li);
     dblayer_file_open(fname, PR_RDWR, li->li_mode, &prfd);
+    slapi_ch_free(&fname);
     if (prfd) {
         char *line = slapi_ch_smprintf("restore of %s succeeded", directory);
         slapi_write_buffer(prfd, line, strlen(line));

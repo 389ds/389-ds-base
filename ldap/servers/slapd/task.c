@@ -893,7 +893,8 @@ static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
      * otherwise, we use included/excluded suffix list to specify a backend.
      */
     if (NULL == instance_name) {
-        char **instances, **ip;
+        char **instances = NULL;
+        char **ip;
         int counter;
 
         if (slapi_lookup_instance_name_by_suffixes(include, exclude,
@@ -909,11 +910,10 @@ static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
                 ;
 
             if (counter == 1){
-                instance_name = *instances;
-                nameFrombe_name = *instances;
-                
-            }
-            else if (counter == 0) {
+                instance_name = slapi_ch_strdup(*instances);
+                nameFrombe_name = instance_name;
+                charray_free(instances);
+            } else if (counter == 0) {
                 slapi_log_err(SLAPI_LOG_ERR,
                           "task_import_add", "No backend instance is specified.\n");
                 *returncode = LDAP_OBJECT_CLASS_VIOLATION;

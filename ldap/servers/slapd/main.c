@@ -755,7 +755,8 @@ main( int argc, char **argv)
 		/* -sduloutre: must be done before any internal search */
 		/* do it before splitting off to other modes too -robey */
 		/* -richm: must be done before reading config files */
-		if (0 != (return_value = compute_init())) {
+		return_value = compute_init();
+		if (return_value != 0) {
 			slapi_log_err(SLAPI_LOG_EMERG, "main", "Initialization Failed 0 %d\n",return_value);
 			exit (1);
 		}
@@ -2457,11 +2458,7 @@ slapd_exemode_db2archive(void)
 				"Shutting down due to possible conflicts with other slapd processes\n");
 		return 1;
 	}
-	if (compute_init()) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2archive",
-			"Initialization Failed 0 %d\n",return_value);
-		return 1;
-	}
+
 	if (!is_quiet) {
 		slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
 	}
@@ -2508,11 +2505,6 @@ slapd_exemode_archive2db(void)
 	    slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_archive2db",
 		       "Shutting down due to possible conflicts with other slapd processes\n");
 	    return 1;
-	}
-	if (compute_init()) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_archive2db",
-			"Initialization Failed 0 %d\n",return_value);
-		return 1;
 	}
 
 	if (!is_quiet) {

@@ -1953,6 +1953,24 @@ plugin_dependency_closeall(void)
 	}
 }
 
+void
+plugin_freeall(void)
+{
+	struct slapdplugin *plugin = NULL;
+	struct slapdplugin *plugin_next = NULL;
+	int type = 0;
+
+	/* look everywhere for other plugin functions with the plugin id */
+	for(type = 0; type < PLUGIN_LIST_GLOBAL_MAX; type++){
+		plugin = global_plugin_list[type];
+		while(plugin){
+			plugin_next = plugin->plg_next;
+            plugin_free(plugin);
+            plugin = plugin_next;
+		}
+	}
+}
+
 /*
  * Function: plugin_dependency_freeall
  *
@@ -1971,11 +1989,12 @@ plugin_dependency_freeall()
 	while (iterp) {
 		nextp = iterp->next;
 		slapi_entry_free(iterp->e);
-		plugin_free(iterp->plugin);
+		/* plugin_free(iterp->plugin); */
 		slapi_ch_free((void **)&iterp);
 		iterp = nextp;
 	}
 	dep_plugin_entries = NULL;
+    plugin_freeall();
 }
 
 /***********************************************************
@@ -2370,8 +2389,9 @@ plugin_get_type_and_list(
         return( 1 ); /* unknown plugin type - pass to backend */
 	}
 
-	if (plugin_list_index >= 0)
+	if (plugin_list_index >= 0) {
 		*plugin_list = &global_plugin_list[plugin_list_index];
+    }
 
 	return 0;
 }
@@ -4206,34 +4226,37 @@ struct slapdplugin *plugin_get_by_name(char *name)
 struct slapi_componentid *
 generate_componentid ( struct slapdplugin * pp , char * name )
 {
-        struct slapi_componentid * idp;
+    struct slapi_componentid * idp;
 
-        idp = (struct slapi_componentid *) slapi_ch_calloc(1, sizeof( *idp ));
-        if ( pp )
-                idp->sci_plugin=pp;
-        else
-                idp->sci_plugin=(struct slapdplugin *) plugin_get_server_plg();
+    idp = (struct slapi_componentid *) slapi_ch_calloc(1, sizeof( *idp ));
+    if ( pp ) {
+            idp->sci_plugin=pp;
+    } else {
+            idp->sci_plugin=(struct slapdplugin *) plugin_get_server_plg();
+    }
 
-        if ( name )
-                idp->sci_component_name = slapi_ch_strdup(name);
-        else
-                /* Use plugin dn */
-                idp->sci_component_name = plugin_get_dn( idp->sci_plugin );
+    if ( name ) {
+            idp->sci_component_name = slapi_ch_strdup(name);
+    } else {
+            /* Use plugin dn */
+            idp->sci_component_name = plugin_get_dn( idp->sci_plugin );
+    }
 
-	if (idp->sci_component_name)
-		slapi_dn_normalize(idp->sci_component_name);
-        return idp;
+    if (idp->sci_component_name) {
+        slapi_dn_normalize(idp->sci_component_name);
+    }
+    return idp;
 }
 
 void release_componentid ( struct slapi_componentid * id )
 {
-        if ( id ) {
-                if ( id->sci_component_name ) {
-                        slapi_ch_free((void **)&id->sci_component_name);
-                        id->sci_component_name=NULL;
-                }
-                slapi_ch_free((void **)&id);
+    if ( id ) {
+        if ( id->sci_component_name ) {
+            slapi_ch_free((void **)&id->sci_component_name);
+            id->sci_component_name=NULL;
         }
+        slapi_ch_free((void **)&id);
+    }
 }
 
 /* used in main.c if -V flag is given */
