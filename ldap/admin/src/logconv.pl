@@ -2533,6 +2533,7 @@ sub parseLineNormal
 	}
 	if (/ BIND / && /method=sasl/i){
 		$saslBindCount++;
+		$bindCount++;
 		if ($_ =~ /mech=(.*)/i ){
 			my $mech = $1;
 			$hashes->{saslmech}->{$mech}++;
@@ -2550,6 +2551,8 @@ sub parseLineNormal
 	if (/ RESULT err=14 tag=97 / && / SASL bind in progress/){
 		# Drop the sasl bind count since this is step in the bind process
 		$saslBindCount--;
+		$bindCount--;
+		$v3BindCount--;
 		my ($conn, $op);
 		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
 			$conn = $1;
