@@ -51,6 +51,15 @@ class Config(DSLdapObject):
             'nsslapd-certdir'
         ]
         self._compare_exclude  = self._compare_exclude + config_compare_exclude
+        self._rdn_attribute = 'cn'
+
+    @property
+    def dn(self):
+        return DN_CONFIG
+
+    @property
+    def rdn(self):
+        return DN_CONFIG
 
     def _alter_log_enabled(self, service, state):
         if service not in ('access', 'error', 'audit'):
