@@ -72,7 +72,7 @@ avl_delete_wrapper(void **inst, uint64_t *key) {
 int64_t
 avl_destroy_wrapper(void **inst) {
     Avlnode **tree = (Avlnode **)inst;
-    ( void ) avl_free( *tree, free );
+    ( void ) avl_free( *tree, (IFP)free );
     return 0;
 }
 
@@ -284,7 +284,7 @@ int64_t ht_init_wrapper(void **inst) {
 
 int64_t ht_add_wrapper(void** inst, uint64_t *key, void *value) {
     sds_ht_instance **ht = (sds_ht_instance **)inst;
-    sds_ht_insert(*ht, key, NULL);
+    sds_ht_insert(*ht, key, value);
     return 0;
 }
 

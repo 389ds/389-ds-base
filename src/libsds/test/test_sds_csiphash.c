@@ -22,8 +22,8 @@ test_siphash(void **state __attribute__((unused))) {
     uint64_t hashout = 0;
     char key[16] = {0};
 
-    uint64_t test_a = 15794382300316794652;
-    uint64_t test_b = 13042610424265326907;
+    uint64_t test_a = 15794382300316794652U;
+    uint64_t test_b = 13042610424265326907U;
 
     // Initial simple test
     value = 5;

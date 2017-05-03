@@ -9,6 +9,7 @@
 
 #include "test_sds.h"
 
+#ifdef DEBUG_TEST_ASAN
 static void
 test_asan_overflow(void)
 {
@@ -24,6 +25,7 @@ test_asan_leak(void)
     // Just malloc this, it should fail in the end.
     char *test = sds_malloc(4 * sizeof(char));
 }
+#endif
 
 static void
 test_1_invalid_binst_ptr(void **state __attribute__((unused)))
@@ -877,14 +879,14 @@ run_bpt_tests (void) {
 #ifdef DEBUG
         cmocka_unit_test(test_10_tamper_with_inst),
         cmocka_unit_test(test_11_tamper_with_node),
-        /*
+#endif
+#ifdef DEBUG_TEST_ASAN
         cmocka_unit_test_setup_teardown(test_17_insert_and_tamper,
                                         bptree_test_setup,
                                         bptree_test_teardown),
         cmocka_unit_test_setup_teardown(test_5_single_null_mismatch_size_insert_fn,
                                         bptree_test_setup,
                                         bptree_test_teardown),
-        */
 #endif
         cmocka_unit_test_setup_teardown(test_3_single_insert,
                                         bptree_test_setup,

@@ -217,49 +217,49 @@ void slapi_pblock_destroy(Slapi_PBlock *pb) {
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_dse(Slapi_PBlock *pblock) {
     if (pblock->pb_dse == NULL) {
-        pblock->pb_dse = slapi_ch_calloc(1, sizeof(slapi_pblock_dse));
+        pblock->pb_dse = (slapi_pblock_dse *)slapi_ch_calloc(1, sizeof(slapi_pblock_dse));
     }
 }
 
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_task(Slapi_PBlock *pblock) {
     if (pblock->pb_task == NULL) {
-        pblock->pb_task = slapi_ch_calloc(1, sizeof(slapi_pblock_task));
+        pblock->pb_task = (slapi_pblock_task *)slapi_ch_calloc(1, sizeof(slapi_pblock_task));
     }
 }
 
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_mr(Slapi_PBlock *pblock) {
     if (pblock->pb_mr == NULL) {
-        pblock->pb_mr = slapi_ch_calloc(1, sizeof(slapi_pblock_matching_rule));
+        pblock->pb_mr = (slapi_pblock_matching_rule *)slapi_ch_calloc(1, sizeof(slapi_pblock_matching_rule));
     }
 }
 
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_misc(Slapi_PBlock *pblock) {
     if (pblock->pb_misc == NULL) {
-        pblock->pb_misc = slapi_ch_calloc(1, sizeof(slapi_pblock_misc));
+        pblock->pb_misc = (slapi_pblock_misc *)slapi_ch_calloc(1, sizeof(slapi_pblock_misc));
     }
 }
 
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_intop(Slapi_PBlock *pblock) {
     if (pblock->pb_intop == NULL) {
-        pblock->pb_intop = slapi_ch_calloc(1, sizeof(slapi_pblock_intop));
+        pblock->pb_intop = (slapi_pblock_intop *)slapi_ch_calloc(1, sizeof(slapi_pblock_intop));
     }
 }
 
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_intplugin(Slapi_PBlock *pblock) {
     if (pblock->pb_intplugin == NULL) {
-        pblock->pb_intplugin = slapi_ch_calloc(1, sizeof(slapi_pblock_intplugin));
+        pblock->pb_intplugin = (slapi_pblock_intplugin *)slapi_ch_calloc(1, sizeof(slapi_pblock_intplugin));
     }
 }
 
 static inline void __attribute__((always_inline))
 _pblock_assert_pb_deprecated(Slapi_PBlock *pblock) {
     if (pblock->pb_deprecated == NULL) {
-        pblock->pb_deprecated = slapi_ch_calloc(1, sizeof(slapi_pblock_deprecated));
+        pblock->pb_deprecated = (slapi_pblock_deprecated *)slapi_ch_calloc(1, sizeof(slapi_pblock_deprecated));
     }
 }
 
