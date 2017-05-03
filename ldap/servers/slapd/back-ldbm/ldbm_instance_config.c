@@ -126,10 +126,12 @@ ldbm_instance_config_cachememsize_set(void *arg,
 
             if (sane == UTIL_CACHESIZE_ERROR){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: unable to determine system memory limits.");
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set", "Enable to determine system memory limits.\n");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set",
+                        "Enable to determine system memory limits.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             } else if (sane == UTIL_CACHESIZE_REDUCED) {
-                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_config_cachememsize_set", "delta +%"PRIu64" of request %"PRIu64" reduced to %"PRIu64"\n", delta_original, val, delta);
+                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_config_cachememsize_set",
+                        "delta +%"PRIu64" of request %"PRIu64" reduced to %"PRIu64"\n", delta_original, val, delta);
                 /*
                  * This works as: value = 100
                  * delta_original to inst, 20;
@@ -141,7 +143,8 @@ ldbm_instance_config_cachememsize_set(void *arg,
             }
         }
         if (inst->inst_cache.c_maxsize < MINCACHESIZE || val < MINCACHESIZE) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set", "force a minimal value %"PRIu64"\n", MINCACHESIZE);
+            slapi_log_err(SLAPI_LOG_INFO, "ldbm_instance_config_cachememsize_set",
+                    "force a minimal value %"PRIu64"\n", MINCACHESIZE);
             /* This value will trigger an autotune next start up, but it should increase only */
             val = MINCACHESIZE;
         }
@@ -1187,7 +1190,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_post_delete_instance_entry_callback",
+    slapi_log_err(SLAPI_LOG_INFO, "ldbm_instance_post_delete_instance_entry_callback",
         "Removing '%s'.\n", instance_name);
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
@@ -1224,9 +1227,9 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__
                         dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
                         if (NULL == dbp) {
                             slapi_log_err(SLAPI_LOG_ERR,
-                            "ldbm_instance_post_delete_instance_entry_callback",
-                            "Failed to generate db path: %s/%s\n",
-                            inst_dirp, direntry->name);
+                                "ldbm_instance_post_delete_instance_entry_callback",
+                                "Failed to generate db path: %s/%s\n",
+                                inst_dirp, direntry->name);
                             break;
                         }
 
