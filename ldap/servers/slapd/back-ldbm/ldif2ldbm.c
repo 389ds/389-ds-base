@@ -3225,7 +3225,7 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     be = inst->inst_be;
-    slapi_log_err(SLAPI_LOG_ERR, "upgradedb_core",
+    slapi_log_err(SLAPI_LOG_INFO, "upgradedb_core",
                     "%s: Start upgradedb.\n", inst->inst_name);
 
     if (!run_from_cmdline)
