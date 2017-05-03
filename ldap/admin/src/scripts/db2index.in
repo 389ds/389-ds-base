@@ -52,6 +52,7 @@ do
     esac
 done
 
+argnum=$#
 shift $(($OPTIND - 1))
 if [ $1 ]
 then
@@ -71,18 +72,18 @@ fi
 
 idxall=0
 print_usage=0
-if [ -z $servid ] && [ $# -eq 0 ]; then
+if [ -z $servid ] && [ $argnum -eq 0 ]; then
     idxall=1
-elif [ "$servid" ] && [ $# -eq 2 ]; then
+elif [ "$servid" ] && [ $argnum -eq 2 ]; then
     idxall=1
 elif [ -z $benameopt ] && [ -z $includeSuffix ]; then
     print_usage=1
 fi
-if [ -z $servid ] && [ $# -lt 2 ]; then
+if [ -z $servid ] && [ $argnum -lt 2 ]; then
     print_usage=1
-elif [ -n "$servid" ] && [ $# -lt 4 ]; then
+elif [ -n "$servid" ] && [ $argnum -lt 4 ]; then
     print_usage=1
-elif [ -n "$servid" ] && [ $# -eq 4 ]; then
+elif [ -n "$servid" ] && [ $argnum -eq 4 ]; then
     idxall=1
 fi
 
