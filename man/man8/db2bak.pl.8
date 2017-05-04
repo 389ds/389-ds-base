@@ -47,7 +47,7 @@ The name of the file that contains the root DN password.
 The backend database type (default: ldbm database).
 .TP
 .B \fB\-a\fR \fIbackupdir\fR
-The directory where the backup should be stored.
+The directory where the backup should be stored.  This directory is a symbolic link to the actual backup files located under "nsslapd-bakdir" directory that is set in the "cn=config" entry.
 .TP
 .B \fB\-A\fR \fIbackupdir\fR
 This is similar to \fB-a\fR, except that a sub-directory of \fIbackupdir\fR will be created for the backup, and the name of the sub-directory will be a timestamp of the form \fIserver-instance-date_time\fR.
