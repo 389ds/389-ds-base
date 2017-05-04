@@ -288,6 +288,7 @@ make setup.py
 %install
 rm -rf $RPM_BUILD_ROOT
 
+mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
 make DESTDIR="$RPM_BUILD_ROOT" install
 
 # Copy in our docs from doxygen.
@@ -435,6 +436,7 @@ fi
 %config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}
 %config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}.systemd
 %{_datadir}/%{pkgname}
+%{_datadir}/gdb/auto-load/*
 %{_unitdir}
 %{_bindir}/*
 # We have to seperate this from being a glob to ensure the caps are applied.

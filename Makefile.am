@@ -267,6 +267,7 @@ mibdir = $(datadir)@mibdir@
 updatedir = $(datadir)@updatedir@
 pkgconfigdir = $(libdir)/pkgconfig
 serverincdir = $(includedir)/@serverincdir@
+gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -564,6 +565,7 @@ dist_noinst_DATA = \
 	$(srcdir)/ldap/admin/src/scripts/*.pm \
 	$(srcdir)/ldap/admin/src/scripts/*.py \
 	$(srcdir)/ldap/admin/src/scripts/*.sh \
+	$(srcdir)/ldap/admin/src/scripts/ds-replcheck \
 	$(srcdir)/ldap/admin/src/scripts/migrate-ds.res \
 	$(srcdir)/ldap/ldif/*.in \
 	$(srcdir)/ldap/ldif/*.ldif \
@@ -766,6 +768,8 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 
 python_DATA = ldap/admin/src/scripts/failedbinds.py \
 	ldap/admin/src/scripts/logregex.py
+
+gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
