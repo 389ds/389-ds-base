@@ -33,8 +33,8 @@ sub usage {
     print(STDERR "        -w -          - Prompt for Directory Manager's password\n");
     print(STDERR "        -Z serverID   - Server instance identifier\n");
     print(STDERR "        -j filename   - Read Directory Manager's password from file\n");
-    print(STDERR "        -A backupdir  - Backup directory (backupdir/ID-<date_time>)\n");
-    print(STDERR "        -a backupdir  - Backup directory\n");
+    print(STDERR "        -A backupdir  - Backup directory symlink(backupdir/ID-<date_time>)\n");
+    print(STDERR "        -a backupdir  - Backup directory symlink\n");
     print(STDERR "        -t dbtype     - Database type (default: ldbm database)\n");
     print(STDERR "        -P protocol   - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
     print(STDERR "        -v            - Verbose output\n");
