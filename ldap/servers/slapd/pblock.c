@@ -1964,8 +1964,10 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
 
     /* transaction arguments */
     case SLAPI_PARENT_TXN:
-        if (pblock->pb_intop != NULL) {
-            (*(void **)value) = pblock->pb_intop->pb_parent_txn;
+        if (pblock->pb_deprecated != NULL) {
+            (*(void **)value) = pblock->pb_deprecated->pb_parent_txn;
+        } else {
+            (*(void **)value) = NULL;
         }
         break;
     case SLAPI_TXN:
@@ -3702,8 +3704,8 @@ int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
 
     /* transaction arguments */
     case SLAPI_PARENT_TXN:
-        _pblock_assert_pb_intop(pblock);
-        pblock->pb_intop->pb_parent_txn = (void *)value;
+        _pblock_assert_pb_deprecated(pblock);
+        pblock->pb_deprecated->pb_parent_txn = (void *)value;
         break;
     case SLAPI_TXN:
         _pblock_assert_pb_intop(pblock);

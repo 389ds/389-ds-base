@@ -109,7 +109,6 @@ typedef struct _slapi_pblock_intplugin {
 typedef struct _slapi_pblock_intop {
     void *op_stack_elem;
 
-    void        *pb_parent_txn; /* parent transaction ID */
     void        *pb_txn;        /* transaction ID */
     IFP     pb_txn_ruv_mods_fn; /* Function to fetch RUV mods for txn */
     passwdPolicy *pwdpolicy;
@@ -175,6 +174,7 @@ typedef struct _slapi_pblock_misc {
 /* This struct is full of stuff we rarely, or never use. */
 typedef struct _slapi_pblock_deprecated {
     int pb_result_code;         /* operation result code */
+    void        *pb_parent_txn; /* parent transaction ID */
     int     plugin_tracking;
     int     pb_config_argc;
     char        **pb_config_argv;

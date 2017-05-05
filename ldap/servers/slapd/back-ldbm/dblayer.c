@@ -3360,7 +3360,7 @@ dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn,
             if (par_txn_txn) {
                 parent_txn = par_txn_txn->back_txn_txn;
             }
-                }
+        }
         if (priv->dblayer_txn_wait) {
                 txn_begin_flags = 0;
         } else {
@@ -4835,12 +4835,11 @@ unsigned long db_strtoul(const char *str, int *err)
 int dblayer_plugin_begin(Slapi_PBlock *pb)
 {
     int return_value = -1;
-    back_txnid    parent;
-    back_txn    current;
-    Slapi_Backend *be;
+    back_txnid    parent = {0};
+    back_txn    current = {0};
+    Slapi_Backend *be = NULL;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent );
 
     if (NULL == be) {
         Slapi_DN *sdn;
