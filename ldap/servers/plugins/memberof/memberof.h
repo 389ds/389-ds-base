@@ -42,6 +42,7 @@
 #define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
 #define MEMBEROF_SKIP_NESTED_ATTR "memberOfSkipNested"
 #define MEMBEROF_AUTO_ADD_OC "memberOfAutoAddOC"
+#define NSMEMBEROF "nsMemberOf"
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.34"
 

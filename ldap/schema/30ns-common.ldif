@@ -63,3 +63,5 @@ objectClasses: ( nsTaskGroup-oid NAME 'nsTaskGroup' DESC 'Netscape defined objec
 objectClasses: ( nsAdminObject-oid NAME 'nsAdminObject' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsJarFilename $ nsClassName ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsConfig-oid NAME 'nsConfig' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( description $ nsServerPort $ nsServerAddress $ nsSuiteSpotUser $ nsErrorLog $ nsPidLog $ nsAccessLog $ nsDefaultAcceptLanguage $ nsServerSecurity ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsDirectoryInfo-oid NAME 'nsDirectoryInfo' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsBindDN $ nsBindPassword $ nsDirectoryURL $ nsDirectoryFailoverList $ nsDirectoryInfoRef ) X-ORIGIN 'Netscape' )
+objectClasses: ( 2.16.840.1.113730.3.2.329 NAME 'nsMemberOf' DESC 'Allow memberOf assignment on groups for nesting and users' SUP top AUXILIARY MAY ( memberOf ) X-ORIGIN '389 Directory Server Project' )
+

@@ -3140,7 +3140,7 @@ int memberof_task_add(Slapi_PBlock *pb,
 		goto out;
 	}
 
-	if ((filter = fetch_attr(e, "filter", "(|(objectclass=inetuser)(objectclass=inetadmin))")) == NULL)
+	if ((filter = fetch_attr(e, "filter", "(|(objectclass=inetuser)(objectclass=inetadmin)(objectclass=nsmemberof))")) == NULL)
 	{
 		*returncode = LDAP_OBJECT_CLASS_VIOLATION;
 		rv = SLAPI_DSE_CALLBACK_ERROR;

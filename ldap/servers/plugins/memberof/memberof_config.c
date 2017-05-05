@@ -285,13 +285,19 @@ memberof_validate_config (Slapi_PBlock *pb,
 		}
 	}
 
-	if ((auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC))){
+    /* Setup a default auto add OC */
+    auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
+    if (auto_add_oc == NULL) {
+        auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
+    }
+
+	if (auto_add_oc != NULL) {
 		char *sup = NULL;
 
 		/* Check if the objectclass exists by looking for its superior oc */
 		if((sup = slapi_schema_get_superior_name(auto_add_oc)) == NULL){
 			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-				"The %s configuration attribute must be set to "
+				"The %s configuration attribute must be set "
 				"to an existing objectclass  (unknown: %s)",
 				MEMBEROF_AUTO_ADD_OC, auto_add_oc);
 			*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -515,6 +521,10 @@ memberof_apply_config (Slapi_PBlock *pb __attribute__((unused)),
 	skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR);
 	auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
 
+    if (auto_add_oc == NULL) {
+        auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
+    }
+
 	/*
 	 * We want to be sure we don't change the config in the middle of
 	 * a memberOf operation, so we obtain an exclusive lock here
@@ -638,6 +648,7 @@ memberof_apply_config (Slapi_PBlock *pb __attribute__((unused)),
 		theConfig.allBackends = 0;
 	}
 
+	slapi_ch_free_string(&(theConfig.auto_add_oc));
 	theConfig.auto_add_oc = auto_add_oc;
 
 	/*

@@ -128,14 +128,10 @@ def text_memberof_683241_01(topology_st):
                                     [(ldap.MOD_REPLACE,
                                       PLUGIN_TYPE,
                                       'betxnpostoperation')])
-    topology_st.standalone.restart(timeout=10)
+    topology_st.standalone.restart()
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_TYPE])
     assert ent.hasAttr(PLUGIN_TYPE)
     assert ent.getValue(PLUGIN_TYPE) == 'betxnpostoperation'
-
-
-def test_memberof_setloging(topology_st):
-    topology_st.standalone.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(65536))])
 
 
 def test_memberof_MultiGrpAttr_001(topology_st):
@@ -156,7 +152,7 @@ def test_memberof_MultiGrpAttr_003(topology_st):
     """
     log.info("Enable MemberOf plugin")
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-    topology_st.standalone.restart(timeout=10)
+    topology_st.standalone.restart()
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_ENABLED])
     assert ent.hasAttr(PLUGIN_ENABLED)
     assert ent.getValue(PLUGIN_ENABLED).lower() == 'on'
@@ -294,7 +290,7 @@ def test_memberof_MultiGrpAttr_008(topology_st):
                                     [(ldap.MOD_DELETE,
                                       PLUGIN_MEMBEROF_GRP_ATTR,
                                       ['uniqueMember'])])
-    topology_st.standalone.restart(timeout=10)
+    topology_st.standalone.restart()
 
     log.info("Assert that this change of configuration did change the already set values")
     # assert enh1 is member of grp1 and  is NOT member of grp2
@@ -306,7 +302,7 @@ def test_memberof_MultiGrpAttr_008(topology_st):
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
 
     _set_memberofgroupattr_add(topology_st, 'uniqueMember')
-    topology_st.standalone.restart(timeout=10)
+    topology_st.standalone.restart()
 
 
 def test_memberof_MultiGrpAttr_009(topology_st):
@@ -2420,7 +2416,43 @@ def test_memberof_auto_add_oc(topology_st):
     # Enable the plugin
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
 
-    # First test invalid value (config validation)
+    # Test that the default add OC works.
+
+    try:
+        topology_st.standalone.add_s(Entry((USER1_DN,
+                                            {'objectclass': 'top',
+                                             'objectclass': 'person',
+                                             'objectclass': 'organizationalPerson',
+                                             'objectclass': 'inetorgperson',
+                                             'sn': 'last',
+                                             'cn': 'full',
+                                             'givenname': 'user1',
+                                             'uid': 'user1'
+                                             })))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add user1 entry, error: ' + e.message['desc'])
+        assert False
+
+    # Add a group(that already includes one user
+    try:
+        topology_st.standalone.add_s(Entry((GROUP_DN,
+                                            {'objectclass': 'top',
+                                             'objectclass': 'groupOfNames',
+                                             'cn': 'group',
+                                             'member': USER1_DN
+                                             })))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add group entry, error: ' + e.message['desc'])
+        assert False
+
+    # Assert memberOf on user1
+    _check_memberof(topology_st, USER1_DN, GROUP_DN)
+
+    # Reset for the next test ....
+    topology_st.standalone.delete_s(USER1_DN)
+    topology_st.standalone.delete_s(GROUP_DN)
+
+    # Test invalid value (config validation)
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     try:
         topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
@@ -2434,6 +2466,7 @@ def test_memberof_auto_add_oc(topology_st):
     except ldap.LDAPError as e:
         ldap.error('Unexpected error adding invalid objectclass - error: ' + e.message['desc'])
         assert False
+
 
     # Add valid objectclass
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
