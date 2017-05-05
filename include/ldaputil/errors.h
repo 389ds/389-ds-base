@@ -11,8 +11,7 @@
 #  include <config.h>
 #endif
 
-#ifndef _LDAPU_ERRORS_H
-#define _LDAPU_ERRORS_H
+#pragma once
 
 #ifndef NSAPI_PUBLIC
 #define NSAPI_PUBLIC 
@@ -34,12 +33,13 @@
 /* Common error codes */
 #define LDAPU_ERR_NOT_IMPLEMENTED	     -1000
 #define LDAPU_ERR_INTERNAL		     -1001
-/* #define LDAPU_SUCCESS	0 */	    /* defined in extcmap.h */
-/* #define LDAPU_FAILED		-1 */	    /* defined in extcmap.h */
-/* #define LDAPU_CERT_MAP_FUNCTION_FAILED    -2 *//* defined in extcmap.h */
-/* #define LDAPU_CERT_VERIFY_FUNCTION_FAILED -3 *//* defined in extcmap.h */
-/* #define LDAPU_CERT_VERIFY_FUNCTION_FAILED -4 *//* defined in extcmap.h */
-/* #define LDAPU_CERT_MAP_INITFN_FAILED      -5 *//* defined in extcmap.h */
+
+#define LDAPU_SUCCESS              0
+#define LDAPU_FAILED              -1
+#define LDAPU_CERT_MAP_FUNCTION_FAILED    -2
+#define LDAPU_CERT_SEARCH_FUNCTION_FAILED -3
+#define LDAPU_CERT_VERIFY_FUNCTION_FAILED -4
+#define LDAPU_CERT_MAP_INITFN_FAILED      -5
 
 /* Error codes returned by ldapdb.c */
 #define LDAPU_ERR_OUT_OF_MEMORY		     -110
@@ -99,14 +99,3 @@
 #define LDAPU_ERR_INVALID_STRING_INDEX	    -402
 #define LDAPU_ERR_MISSING_ATTR_VAL	    -403
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-    /* NSAPI_PUBLIC extern char *ldapu_err2string(int err); */
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* LDAPUTIL_LDAPU_H */

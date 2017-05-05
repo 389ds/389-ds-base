@@ -13,7 +13,8 @@
 
 #include <stdlib.h> /* getenv */
 #include <string.h> /* memcpy */
-#include <ldaputil/ldaputil.h> /* LDAPU_SUCCESS, ldapu_VTable_set */
+#include <ldaputil/errors.h> /* LDAPU_SUCCESS, ldapu_VTable_set */
+#include <ldaputil/ldaputil.h> /* ldapu_VTable_set */
 #include <ldaputil/init.h> /* ldaputil_init */
 #include <ldaputil/certmap.h> /* ldapu_cert_to_ldap_entry */
 #include <sys/param.h>	/* MAXPATHLEN */

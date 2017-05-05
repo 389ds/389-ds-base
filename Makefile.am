@@ -283,7 +283,7 @@ sbin_PROGRAMS = ns-slapd ldap-agent-bin
 bin_PROGRAMS = dbscan-bin dsktune-bin infadd-bin ldclt-bin \
 	ldif-bin migratecred-bin mmldif-bin pwdhash-bin rsearch-bin
 
-server_LTLIBRARIES = libsds.la libnunc-stans.la libslapd.la libns-dshttpd.la
+server_LTLIBRARIES = libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
 
 # this is how to add optional plugins
 if enable_pam_passthru
@@ -335,7 +335,7 @@ nodist_property_DATA = ns-slapd.properties
 
 noinst_PROGRAMS = makstrdb
 
-noinst_LIBRARIES = libavl.a libldaputil.a
+noinst_LIBRARIES = libavl.a
 
 dist_noinst_HEADERS = \
 	include/i18n.h \
@@ -356,7 +356,6 @@ dist_noinst_HEADERS = \
 	include/ldaputil/dbconf.h \
 	include/ldaputil/encode.h \
 	include/ldaputil/errors.h \
-	include/ldaputil/extcmap.h \
 	include/ldaputil/init.h \
 	include/ldaputil/ldapauth.h \
 	include/ldaputil/ldaputil.h \
@@ -995,7 +994,7 @@ libavl_a_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 #------------------------
 # libldaputil
 #------------------------
-libldaputil_a_SOURCES = lib/ldaputil/cert.c \
+libldaputil_la_SOURCES = lib/ldaputil/cert.c \
 	lib/ldaputil/certmap.c \
 	lib/ldaputil/dbconf.c \
 	lib/ldaputil/encode.c \
@@ -1004,7 +1003,7 @@ libldaputil_a_SOURCES = lib/ldaputil/cert.c \
 	lib/ldaputil/ldapauth.c \
 	lib/ldaputil/vtable.c
 
-libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) -I$(srcdir)/lib/ldaputil
+libldaputil_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) -I$(srcdir)/lib/ldaputil
 
 
 #////////////////////////////////////////////////////////////////
@@ -1117,11 +1116,10 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/util.cpp \
 	lib/libsi18n/getstrprop.c \
 	lib/libsi18n/reshash.c \
-	lib/libsi18n/txtfile.c \
-	$(libldaputil_a_SOURCES)
+	lib/libsi18n/txtfile.c
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) -I$(srcdir)/lib/ldaputil
-libns_dshttpd_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
+libns_dshttpd_la_LIBADD = libslapd.la libldaputil.la $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 # Mark that this is a per version library.
 libns_dshttpd_la_LDFLAGS = -release @PACKAGE_VERSION@
 
@@ -1955,7 +1953,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) $(SVRCORE_INCLUDES)
-ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
+ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
 ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
