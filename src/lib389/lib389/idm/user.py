@@ -31,8 +31,7 @@ class UserAccount(DSLdapObject):
             'account',
             'posixaccount',
             'inetOrgPerson',
-            'person',
-            'inetUser',
+            'nsMemberOf',
             'organizationalPerson',
             # This may not always work at sites?
             # Can we get this into core?

@@ -22,6 +22,7 @@ class Group(DSLdapObject):
         self._create_objectclasses = [
             'top',
             'groupOfNames',
+            'nsMemberOf',
         ]
         self._protected = False
 
