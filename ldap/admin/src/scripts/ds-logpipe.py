@@ -146,7 +146,8 @@ def open_pipe(logfname):
             if e.errno == errno.EINTR:
                 continue # open was interrupted, try again
             else: # hard error
-                raise Exception("%s [%d]" % (e.strerror, e.errno))
+                print("%s [%d]" % (e.strerror, e.errno))
+                sys.exit(1)
     return logf
 
 def is_proc_alive(procpid):
@@ -156,7 +157,8 @@ def is_proc_alive(procpid):
     except IOError as e:
         if e.errno != errno.ENOENT: # may not exist yet - that's ok
             # otherwise, probably permissions or other badness
-            raise Exception("could not open file %s - %s [%d]" % (procfile, e.strerror, e.errno))
+            print("could not open file %s - %s [%d]" % (procfile, e.strerror, e.errno))
+            sys.exit(1)
     # using /proc/pid failed, try kill
     if not retval:
         try:
@@ -177,7 +179,8 @@ def get_pid_from_file(pidfile):
         except IOError as e:
             if e.errno != errno.ENOENT: # may not exist yet - that's ok
                 # otherwise, probably permissions or other badness
-                raise Exception("Could not read pid from file %s - %s [%d]" % (pidfile, e.strerror, e.errno))
+                print("Could not read pid from file %s - %s [%d]" % (pidfile, e.strerror, e.errno))
+                sys.exit(1)
         if line:
             procpid = int(line)
     return procpid
@@ -188,7 +191,8 @@ def write_pid_file(pidfile):
         pfd.write("%d\n" % os.getpid())
         pfd.close()
     except IOError as e:
-        raise Exception("Could not write pid to file %s - %s [%d]" % (pidfile, e.strerror, e.errno))
+        print("Could not write pid to file %s - %s [%d]" % (pidfile, e.strerror, e.errno))
+        sys.exit(1)
 
 def handle_script_pidfile(scriptpidfile):
     scriptpid = get_pid_from_file(scriptpidfile)
@@ -216,7 +220,8 @@ def read_and_process_line(logf, plgfuncs):
             if e.errno == errno.EINTR:
                 continue # read was interrupted, try again
             else: # hard error
-                raise Exception("%s [%d]" % (e.strerror, e.errno))
+                print("%s [%d]" % (e.strerror, e.errno))
+                sys.exit(1)
     if line: # read something
         for plgfunc in plgfuncs:
             if not plgfunc(line):
@@ -312,7 +317,8 @@ except OSError as e:
             print("Failed to create log pipe: " + str(e))
             sys.exit(1)
     else:
-        raise Exception("%s [%d]" % (e.strerror, e.errno))
+        print("Failed to create log pipe - %s [error %d]" % (e.strerror, e.errno))
+        sys.ext(1)
 
 if debug:
     print("Listening to log pipe", logfname, "number of lines", maxlines)
