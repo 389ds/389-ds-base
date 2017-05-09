@@ -78,89 +78,162 @@ static int slapd_exemode_suffix2instance(void);
 static int slapd_debug_level_string2level( const char *s );
 static void slapd_debug_level_log( int level );
 static void slapd_debug_level_usage( void );
-static void cmd_set_shutdown(int);
 /*
  * global variables
  */
 
 static int slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
 
-static int init_cmd_shutdown_detect(void)
+
+struct ns_job_t *ns_signal_job[6];
+
+/*
+ * Nunc stans logging function.
+ */
+static void
+nunc_stans_logging(int severity, const char *format, va_list varg)
 {
+    va_list varg_copy;
+    int loglevel = SLAPI_LOG_ERR;
 
-  /* First of all, we must reset the signal mask to get rid of any blockages
-   * the process may have inherited from its parent (such as the console), which
-   * might result in the process not delivering those blocked signals, and thus,
-   * misbehaving....
-   */
-  {
-    int rc;
-    sigset_t proc_mask;
+    if (severity == LOG_DEBUG){
+        loglevel = SLAPI_LOG_NUNCSTANS;
+    } else if(severity == LOG_INFO){
+        loglevel = SLAPI_LOG_CONNS;
+    }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "init_cmd_shutdown_detect", "Reseting signal mask...\n");
-    (void)sigemptyset( &proc_mask );
-    rc = pthread_sigmask( SIG_SETMASK, &proc_mask, NULL );
-    slapi_log_err(SLAPI_LOG_TRACE, "init_cmd_shutdown_detect", "%s\n",
-               rc ? "Failed to reset signal mask":"...Done (signal mask reset)!!");
-  }
-
-#if defined ( HPUX10 )
-    PR_CreateThread ( PR_USER_THREAD,
-                      catch_signals,
-                      NULL,
-                      PR_PRIORITY_NORMAL,
-                      PR_GLOBAL_THREAD,
-                      PR_UNJOINABLE_THREAD,
-                      SLAPD_DEFAULT_THREAD_STACKSIZE);
-#elif defined ( HPUX11 )
-        /* In the optimized builds for HPUX, the signal handler doesn't seem
-         * to get set correctly unless the primordial thread gets a chance
-         * to run before we make the call to SIGNAL.  (At this point the
-         * the primordial thread has spawned the daemon thread which called
-         * this function.)  The call to DS_Sleep will give the primordial
-         * thread a chance to run. */
-        DS_Sleep(0);
-#endif
-
-        (void) SIGNAL( SIGPIPE, SIG_IGN );
-        (void) SIGNAL( SIGCHLD, slapd_wait4child );
-#ifndef LINUX
-        /* linux uses USR1/USR2 for thread synchronization, so we aren't
-         * allowed to mess with those.
-         */
-        (void) SIGNAL( SIGUSR1, slapd_do_nothing );
-        (void) SIGNAL( SIGUSR2, cmd_set_shutdown );
-#endif
-        (void) SIGNAL( SIGTERM, cmd_set_shutdown );
-        (void) SIGNAL( SIGHUP,  cmd_set_shutdown );
-        (void) SIGNAL( SIGINT,  cmd_set_shutdown );
-
-        return 0;
+    va_copy(varg_copy, varg);
+    slapi_log_error_ext(loglevel, "nunc-stans", (char *)format, varg, varg_copy);
+    va_end(varg_copy);
 }
 
 static void
-cmd_set_shutdown (int sig __attribute__((unused)))
+ns_printf_logger(int priority __attribute__((unused)), const char *fmt, va_list varg)
 {
-    /* don't log anything from a signal handler:
-     * you could be holding a lock when the signal was trapped.  more
-     * specifically, you could be holding the logfile lock (and deadlock
-     * yourself).
-     */
-
-    c_set_shutdown();
-#ifndef LINUX
-    /* don't mess with USR1/USR2 on linux, used by libpthread */
-    (void) SIGNAL( SIGUSR2, cmd_set_shutdown );
-#endif
-    (void) SIGNAL( SIGTERM, cmd_set_shutdown );
-    (void) SIGNAL( SIGHUP,  cmd_set_shutdown );
+    /* Should we do anything with priority? */
+    vprintf(fmt, varg);
 }
 
-#ifdef HPUX10
-extern void collation_init();
-#endif
+static void*
+nunc_stans_malloc(size_t size)
+{
+    return (void*)slapi_ch_malloc((unsigned long)size);
+}
 
-/* 
+static void*
+nunc_stans_memalign(size_t size, size_t alignment)
+{
+    return (void*)slapi_ch_memalign(size, alignment);
+}
+
+static void*
+nunc_stans_calloc(size_t count, size_t size)
+{
+    return (void*)slapi_ch_calloc((unsigned long)count, (unsigned long)size);
+}
+
+static void*
+nunc_stans_realloc(void *block, size_t size)
+{
+    return (void*)slapi_ch_realloc((char *)block, (unsigned long)size);
+}
+
+static void
+nunc_stans_free(void *ptr)
+{
+    slapi_ch_free((void **)&ptr);
+}
+
+static void
+ns_set_user(struct ns_job_t *job __attribute__((unused)))
+{
+    /* This literally does nothing. We intercept user signals (USR1, USR2) */
+    /* Could be good for a status output, or an easter egg. */
+    return;
+}
+
+static void
+ns_set_shutdown(struct ns_job_t *job)
+{
+    /* Is there a way to make this a bit more atomic? */
+    /* I think NS protects this by only executing one signal job at a time */
+    if (g_get_shutdown() == 0) {
+        g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
+
+        /* Signal all the worker threads to stop */
+    }
+    ns_thrpool_shutdown(ns_job_get_tp(job));
+}
+
+
+/*
+ * Setup our nunc-stans worker pool from our config.
+ * we must have read dse.ldif before this point.
+ */
+
+static int_fast32_t
+main_create_ns(ns_thrpool_t **tp_in) {
+    if (!config_get_enable_nunc_stans()) {
+        return 1;
+    }
+    struct ns_thrpool_config tp_config;
+
+    int32_t maxthreads = (int32_t)config_get_threadnumber();
+    /* Set the nunc-stans thread pool config */
+    ns_thrpool_config_init(&tp_config);
+
+    tp_config.max_threads = maxthreads;
+    tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
+    /* Highly likely that we need to re-write logging to be controlled by NS here. */
+    /* tp_config.log_fct = nunc_stans_logging; */
+#ifdef DEBUG
+    tp_config.log_fct = ns_printf_logger;
+#endif
+    tp_config.log_start_fct = NULL;
+    tp_config.log_close_fct = NULL;
+    tp_config.malloc_fct = nunc_stans_malloc;
+    tp_config.memalign_fct = nunc_stans_memalign;
+    tp_config.calloc_fct = nunc_stans_calloc;
+    tp_config.realloc_fct = nunc_stans_realloc;
+    tp_config.free_fct = nunc_stans_free;
+
+    *tp_in = ns_thrpool_new(&tp_config);
+
+    /* We mark these as persistent so they keep blocking signals forever. */
+    /* These *must* be in the event thread (ie not ns_job_thread) to prevent races */
+    ns_add_signal_job(*tp_in, SIGINT,  NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[0]);
+    ns_add_signal_job(*tp_in, SIGTERM, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[1]);
+    ns_add_signal_job(*tp_in, SIGTSTP, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[3]);
+    ns_add_signal_job(*tp_in, SIGHUP,  NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[2]);
+    ns_add_signal_job(*tp_in, SIGUSR1, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[4]);
+    ns_add_signal_job(*tp_in, SIGUSR2, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[5]);
+    return 0;
+}
+
+static int_fast32_t
+main_stop_ns(ns_thrpool_t *tp) {
+    if (tp == NULL) {
+        return 0;
+    }
+    ns_thrpool_shutdown(tp);
+    ns_thrpool_wait(tp);
+
+    /* Now we free the signal jobs. We do it late here to keep intercepting
+     * them for as long as possible .... Later we need to rethink this to
+     * have plugins and such destroy while the tp is still active.
+     */
+    ns_job_done(ns_signal_job[0]);
+    ns_job_done(ns_signal_job[1]);
+    ns_job_done(ns_signal_job[2]);
+    ns_job_done(ns_signal_job[3]);
+    ns_job_done(ns_signal_job[4]);
+    ns_job_done(ns_signal_job[5]);
+    ns_thrpool_destroy(tp);
+
+    return 0;
+}
+
+/*
    Four cases:
     - change ownership of all files in directory (strip_fn=PR_FALSE)
     - change ownership of all files in directory; but trailing fn needs to be stripped (strip_fn=PR_TRUE)
@@ -579,12 +652,8 @@ main( int argc, char **argv)
 	int return_value = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	daemon_ports_t ports_info = {0};
-#ifndef __LP64__ 
-#if defined(__hpux) && !defined(__ia64)
-	/* for static constructors */
-	_main();
-#endif
-#endif
+	ns_thrpool_t *tp = NULL;
+
 #ifdef MEMPOOL_EXPERIMENTAL
 	/* to use LDAP C SDK lber functions seemlessly with slapi_ch_malloc funcs,
 	 * setting the slapi_ch_malloc funcs to lber option here. */
@@ -775,14 +844,6 @@ main( int argc, char **argv)
 
 	raise_process_limits();	/* should be done ASAP once config file read */
 
-#ifdef PUMPKIN_HOUR
-	if ( time( NULL ) > (PUMPKIN_HOUR - 10) ) {
-		slapi_log_err(SLAPI_LOG_ERR, "main", 
-		"ERROR: ** This beta software has expired **\n");
-		exit( 1 );
-	}
-#endif
-
 	/* Set entry points in libslapd */
 	set_entry_points();
 
@@ -855,15 +916,22 @@ main( int argc, char **argv)
 		exit(1);
 	}
 
-    /* Do NSS and/or SSL init for those modes other than listening modes */
-    if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
-        (slapd_exemode != SLAPD_EXEMODE_SLAPD)) {
-        if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
-                                      s_port, &ports_info)) {
-            return_value = 1;
-            goto cleanup;
-        }
-    }
+	/*
+	 * Detach ourselves from the terminal (unless running in debug mode).
+	 * We must detach before we start any threads since detach forks() on
+	 * UNIX.
+	 * Have to detach after ssl_init - the user may be prompted for the PIN
+	 * on the terminal, so it must be open.
+	 */
+	if (detach(slapd_exemode, importexport_encrypt, s_port, &ports_info)) {
+		return_value = 1;
+		goto cleanup;
+	}
+
+	/*
+	 * Create our thread pool here for tasks to utilise.
+	 */
+	main_create_ns(&tp);
 
 	/*
 	 * if we were called upon to do special database stuff, do it and be
@@ -955,35 +1023,23 @@ main( int argc, char **argv)
 	ndn_cache_init();
 
 	global_backend_lock_init();
-	/*
-	 * Detach ourselves from the terminal (unless running in debug mode).
-	 * We must detach before we start any threads since detach forks() on
-	 * UNIX.
-	 * Have to detach after ssl_init - the user may be prompted for the PIN
-	 * on the terminal, so it must be open.
-	 */
-	if (detach(slapd_exemode, importexport_encrypt,
-			   s_port, &ports_info)) {
-		return_value = 1;
-		goto cleanup;
-	}
 
-  /*
-   * Now write our PID to the startup PID file.
-   * This is used by the start up script to determine our PID quickly
-   * after we fork, without needing to wait for the 'real' pid file to be
-   * written. That could take minutes. And the start script will wait
-   * that long looking for it. With this new 'early pid' file, it can avoid
-   * doing that, by detecting the pid and watching for the process exiting.
-   * This removes the blank stares all round from start-slapd when the server
-   * fails to start for some reason
-   */
-   write_start_pid_file();
+	/*
+	* Now write our PID to the startup PID file.
+	* This is used by the start up script to determine our PID quickly
+	* after we fork, without needing to wait for the 'real' pid file to be
+	* written. That could take minutes. And the start script will wait
+	* that long looking for it. With this new 'early pid' file, it can avoid
+	* doing that, by detecting the pid and watching for the process exiting.
+	* This removes the blank stares all round from start-slapd when the server
+	* fails to start for some reason
+	*/
+	write_start_pid_file();
 		
 	/* Make sure we aren't going to run slapd in 
 	 * a mode that is going to conflict with other
- 	 * slapd processes that are currently running
- 	 */
+	 * slapd processes that are currently running
+	 */
 	if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
 		( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
 		                        skip_db_protect_check) == -1 ))
@@ -1001,12 +1057,12 @@ main( int argc, char **argv)
 	 * stderr and our error log.  Yuck.
 	 */
 	if (1) {
-	  char *versionstring = config_get_versionstring();
-	  char *buildnum = config_get_buildnum();
-	  slapi_log_err(SLAPI_LOG_INFO, "main", "%s B%s starting up\n",
+		char *versionstring = config_get_versionstring();
+		char *buildnum = config_get_buildnum();
+		slapi_log_err(SLAPI_LOG_INFO, "main", "%s B%s starting up\n",
 			 versionstring, buildnum);
-	  slapi_ch_free((void **)&buildnum);
-	  slapi_ch_free((void **)&versionstring);
+		slapi_ch_free((void **)&buildnum);
+		slapi_ch_free((void **)&versionstring);
 	}
 
 	/* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
@@ -1142,7 +1198,7 @@ main( int argc, char **argv)
 
 	{
 		time( &starttime );
-		slapd_daemon(&ports_info);
+		slapd_daemon(&ports_info, tp);
 	}
 	slapi_log_err(SLAPI_LOG_INFO, "main", "slapd stopped.\n");
 	reslimit_cleanup();
@@ -1154,12 +1210,9 @@ cleanup:
 	SSL_ClearSessionCache();
 	ndn_cache_destroy();
 	NSS_Shutdown();
+	main_stop_ns(tp);
 	PR_Cleanup();
-#if defined( hpux )
-	exit( return_value );
-#else
 	return return_value;
-#endif
 }
 
 
@@ -1411,7 +1464,6 @@ process_command_line(int argc, char **argv, char **extraname)
 		long_opts = long_options_archive2db;
 		break;
 	case SLAPD_EXEMODE_DB2ARCHIVE:
-		init_cmd_shutdown_detect();
 		opts = opts_db2archive;
 		long_opts = long_options_db2archive;
 		break;
@@ -1420,6 +1472,8 @@ process_command_line(int argc, char **argv, char **extraname)
 		long_opts = long_options_db2index;
 		break;
 	case SLAPD_EXEMODE_REFERRAL:
+        /* Default to not detaching, but if REFERRAL, turn it on. */
+		should_detach = 1;
 		opts = opts_referral;
 		long_opts = long_options_referral;
 		break;
@@ -1440,6 +1494,8 @@ process_command_line(int argc, char **argv, char **extraname)
 		long_opts = long_options_dbverify;
 		break;
 	default:	/* SLAPD_EXEMODE_SLAPD */
+        /* Default to not detaching, but if SLAPD, turn it on. */
+		should_detach = 1;
 		opts = opts_slapd;
 		long_opts = long_options_slapd;
 	}
@@ -2105,7 +2161,6 @@ slapd_exemode_ldif2db(void)
     slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, db2ldif_exclude);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
-    main_setuid(slapdFrontendConfig->localuser);
     if ( plugin->plg_ldif2db != NULL ) {
         return_value = (*plugin->plg_ldif2db)( pb );
     } else {
@@ -2173,9 +2228,6 @@ slapd_exemode_db2ldif(int argc, char** argv)
         }
     }
 
-    /* [622984] db2lidf -r changes database file ownership
-     * should call setuid before "db2ldif_dump_replica" */
-    main_setuid(slapdFrontendConfig->localuser);
     for (instp = cmd_line_instance_names; instp && *instp; instp++) {
         int release_me = 0;
 
@@ -2421,7 +2473,6 @@ static int slapd_exemode_db2index(void)
     slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
-    main_setuid(slapdFrontendConfig->localuser);
     return_value = (*plugin->plg_db2index)( pb );
 
     slapi_pblock_destroy(pb);
@@ -2472,7 +2523,6 @@ slapd_exemode_db2archive(void)
 	slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
 	int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 	slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
-	main_setuid(slapdFrontendConfig->localuser);
 	return_value = (backend_plugin->plg_db2archive)( pb );
 	slapi_pblock_destroy(pb);
 	return return_value;
@@ -2521,7 +2571,6 @@ slapd_exemode_archive2db(void)
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
-	main_setuid(slapdFrontendConfig->localuser);
 	return_value = (backend_plugin->plg_archive2db)( pb );
     slapi_pblock_destroy(pb);
 	return return_value;
@@ -2582,7 +2631,6 @@ slapd_exemode_upgradedb(void)
     /* borrowing import code, so need to set up the import variables */
     slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
     slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
-    main_setuid(slapdFrontendConfig->localuser);
     if ( backend_plugin->plg_upgradedb != NULL ) {
         return_value = (*backend_plugin->plg_upgradedb)( pb );
     } else {
@@ -2657,7 +2705,6 @@ slapd_exemode_upgradednformat(void)
     /* borrowing import code, so need to set up the import variables */
     slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
     slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
-    main_setuid(slapdFrontendConfig->localuser);
     if ( backend_plugin->plg_upgradednformat != NULL ) {
         rc  = (*backend_plugin->plg_upgradednformat)( pb );
     } else {

@@ -38,10 +38,10 @@
 #include "slap.h"
 #include "fe.h"
 
-int		should_detach = 1;
-time_t		starttime;
-PRThread	*listener_tid;
-Slapi_PBlock	*repl_pb = NULL;
+int     should_detach = 0;
+time_t      starttime;
+PRThread    *listener_tid;
+Slapi_PBlock    *repl_pb = NULL;
 
 /*
  * global variables that need mutex protection

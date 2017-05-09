@@ -241,10 +241,8 @@ connection_cleanup(Connection *conn)
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
-#ifdef ENABLE_NUNC_STANS
 	/* even if !config_get_enable_nunc_stans, it is ok to set to 0 here */
 	conn->c_ns_close_jobs = 0;
-#endif
 }
 
 /*
@@ -1509,9 +1507,7 @@ connection_threadmain()
 	Connection *pb_conn = NULL;
 	Operation *pb_op = NULL;
 
-#ifdef ENABLE_NUNC_STANS
 	enable_nunc_stans = config_get_enable_nunc_stans();
-#endif
 #if defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
 	SIGNAL( SIGPIPE, SIG_IGN );

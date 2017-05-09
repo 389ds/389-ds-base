@@ -266,23 +266,6 @@ else
 fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
 
-if test -z "$enable_nunc_stans" ; then
-   enable_nunc_stans=yes # if not set on cmdline, set default
-fi
-AC_MSG_CHECKING(for --enable-nunc-stans)
-AC_ARG_ENABLE(nunc_stans,
-        AS_HELP_STRING([--enable-nunc-stans],
-                       [enable support for nunc-stans event framework (default: no)]))
-if test "$enable_nunc_stans" = yes ; then
-  m4_include(m4/event.m4)
-  AC_MSG_RESULT(yes)
-  AC_DEFINE([ENABLE_NUNC_STANS], [1], [enable support for nunc-stans event framework])
-else
-  AC_MSG_RESULT(no)
-fi
-AM_CONDITIONAL(enable_nunc_stans,test "$enable_nunc_stans" = "yes")
-
-
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 

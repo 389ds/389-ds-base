@@ -156,10 +156,8 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 		 * far then `c' is not being used by any operation threads, etc.
 		 */
 		connection_cleanup(c);
-#ifdef ENABLE_NUNC_STANS
 		/* NOTE - ok to do this here even if enable_nunc_stans is off */
 		c->c_ct = ct; /* pointer to connection table that owns this connection */
-#endif
     }
     else
     {

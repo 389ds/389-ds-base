@@ -841,10 +841,12 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
         return PR_FAILURE;
     }
 
+    pthread_mutex_lock(_job->monitor);
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_io_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
+    pthread_mutex_unlock(_job->monitor);
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -880,10 +882,12 @@ ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
         return PR_FAILURE;
     }
 
+    pthread_mutex_lock(_job->monitor);
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_timeout_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
+    pthread_mutex_unlock(_job->monitor);
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -934,12 +938,14 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
     if (!_job) {
         return PR_FAILURE;
     }
+    pthread_mutex_lock(_job->monitor);
     _job->tv = *tv;
 
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_io_timeout_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
+    pthread_mutex_unlock(_job->monitor);
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -971,10 +977,12 @@ ns_add_signal_job(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type,
         return PR_FAILURE;
     }
 
+    pthread_mutex_lock(_job->monitor);
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_signal_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
+    pthread_mutex_unlock(_job->monitor);
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -1024,7 +1032,9 @@ ns_add_shutdown_job(ns_thrpool_t *tp) {
     if (!_job) {
         return PR_FAILURE;
     }
+    pthread_mutex_lock(_job->monitor);
     _job->state = NS_JOB_NEEDS_ARM;
+    pthread_mutex_unlock(_job->monitor);
     internal_ns_job_rearm(_job);
     return PR_SUCCESS;
 }
@@ -1533,7 +1543,10 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
         PRStatus result = ns_add_shutdown_job(tp);
         PR_ASSERT(result == PR_SUCCESS);
     }
-
+    /* Make sure all threads are woken up to their shutdown jobs. */
+    pthread_mutex_lock(&(tp->work_q_lock));
+    pthread_cond_broadcast(&(tp->work_q_cv));
+    pthread_mutex_unlock(&(tp->work_q_lock));
 }
 
 PRStatus
@@ -1547,12 +1560,6 @@ ns_thrpool_wait(ns_thrpool_t *tp)
 
     while (sds_queue_dequeue(tp->thread_stack, (void **)&thr) == SDS_SUCCESS)
     {
-
-        /* Make sure all threads are woken up to their shutdown jobs. */
-        pthread_mutex_lock(&(tp->work_q_lock));
-        pthread_cond_broadcast(&(tp->work_q_cv));
-        pthread_mutex_unlock(&(tp->work_q_lock));
-
         /* void *thread_retval = NULL; */
         int32_t rc = pthread_join(thr->thr, NULL);
 #ifdef DEBUG

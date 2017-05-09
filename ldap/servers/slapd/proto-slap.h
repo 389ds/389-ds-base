@@ -575,10 +575,8 @@ int config_set_dynamic_plugins(const char *attrname, char *value, char *errorbuf
 int config_get_dynamic_plugins(void);
 int config_set_cn_uses_dn_syntax_in_dns(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_cn_uses_dn_syntax_in_dns(void);
-#ifdef ENABLE_NUNC_STANS
 int config_get_enable_nunc_stans(void);
 int config_set_enable_nunc_stans(const char *attrname, char *value, char *errorbuf, int apply);
-#endif
 int config_set_extract_pem(const char *attrname, char *value, char *errorbuf, int apply);
 
 PLHashNumber hashNocaseString(const void *key);
@@ -1495,9 +1493,7 @@ void slapd_do_nothing(int);
 #endif
 void slapd_wait4child (int);
 
-#ifdef ENABLE_NUNC_STANS
 void ns_handle_pr_read_ready(struct ns_job_t *job);
-#endif
 void ns_connection_post_io_or_closing(Connection *conn);
 
 /*

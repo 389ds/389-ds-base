@@ -87,17 +87,13 @@ static PRLock *diskmon_mutex = NULL;
 void disk_monitoring_stop(void);
 
 typedef struct listener_info {
-#ifdef ENABLE_NUNC_STANS
 	PRStackElem stackelem; /* must be first in struct for PRStack to work */
-#endif
 	int idx; /* index of this listener in the ct->fd array */
 	PRFileDesc *listenfd; /* the listener fd */
 	int secure;
 	int local;
-#ifdef ENABLE_NUNC_STANS
 	Connection_Table *ct; /* for listen job callback */
 	struct ns_job_t *ns_job; /* the ns accept job */
-#endif
 } listener_info;
 
 static size_t listeners = 0; /* number of listener sockets */
@@ -117,11 +113,6 @@ static PRFileDesc **createprlistensockets(unsigned short port,
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf,
 	size_t addrbuflen);
 static void	set_shutdown (int);
-#ifdef ENABLE_NUNC_STANS
-struct ns_job_t *ns_signal_job[6];
-static void ns_set_shutdown (struct ns_job_t *job);
-static void ns_set_user (struct ns_job_t *job);
-#endif
 static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read);
 
 #ifdef HPUX10
@@ -161,9 +152,7 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRN
  */
 /* GGOODREPL static void handle_timeout( void ); */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn );
-#ifdef ENABLE_NUNC_STANS
 static void ns_handle_new_connection(struct ns_job_t *job);
-#endif
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
 static int clear_signal(struct POLL_STRUCT *fds);
 static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
@@ -916,58 +905,7 @@ convert_pbe_des_to_aes(void)
     charray_free(attrs);
 }
 
-#ifdef ENABLE_NUNC_STANS
-/*
- * Nunc stans logging function.
- */
-static void
-nunc_stans_logging(int severity, const char *format, va_list varg)
-{
-	va_list varg_copy;
-	int loglevel = SLAPI_LOG_ERR;
-
-	if (severity == LOG_DEBUG){
-		loglevel = SLAPI_LOG_NUNCSTANS;
-	} else if(severity == LOG_INFO){
-		loglevel = SLAPI_LOG_CONNS;
-	}
-	va_copy(varg_copy, varg);
-	slapi_log_error_ext(loglevel, "nunc-stans", (char *)format, varg, varg_copy);
-	va_end(varg_copy);
-}
-
-static void*
-nunc_stans_malloc(size_t size)
-{
-	return (void*)slapi_ch_malloc((unsigned long)size);
-}
-
-static void*
-nunc_stans_memalign(size_t size, size_t alignment)
-{
-    return (void*)slapi_ch_memalign(size, alignment);
-}
-
-static void*
-nunc_stans_calloc(size_t count, size_t size)
-{
-	return (void*)slapi_ch_calloc((unsigned long)count, (unsigned long)size);
-}
-
-static void*
-nunc_stans_realloc(void *block, size_t size)
-{
-	return (void*)slapi_ch_realloc((char *)block, (unsigned long)size);
-}
-
-static void
-nunc_stans_free(void *ptr)
-{
-	slapi_ch_free((void **)&ptr);
-}
-#endif /* ENABLE_NUNC_STANS */
-
-void slapd_daemon( daemon_ports_t *ports )
+void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
 {
 	/* We are passed some ports---one for regular connections, one
 	 * for SSL connections, one for ldapi connections.
@@ -986,16 +924,10 @@ void slapd_daemon( daemon_ports_t *ports )
 	PRThread *time_thread_p;
 	int threads;
 	int in_referral_mode = config_check_referral_mode();
-#ifdef ENABLE_NUNC_STANS
-	ns_thrpool_t *tp = NULL;
-	struct ns_thrpool_config tp_config;
-#endif
 	int connection_table_size = get_configured_connection_table_size();
 	the_connection_table= connection_table_new(connection_table_size);
 
-#ifdef ENABLE_NUNC_STANS
 	enable_nunc_stans = config_get_enable_nunc_stans();
-#endif
 
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 	/*
@@ -1022,38 +954,6 @@ void slapd_daemon( daemon_ports_t *ports )
         createsignalpipe();
         /* Setup our signal interception. */
         init_shutdown_detect();
-#ifdef ENABLE_NUNC_STANS
-    } else {
-        PRInt32 maxthreads = (PRInt32)config_get_threadnumber();
-        /* Set the nunc-stans thread pool config */
-        ns_thrpool_config_init(&tp_config);
-
-        tp_config.max_threads = maxthreads;
-        tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
-#ifdef LDAP_ERROR_LOGGING
-        tp_config.log_fct = nunc_stans_logging;
-#else
-        tp_config.log_fct = NULL;
-#endif
-        tp_config.log_start_fct = NULL;
-        tp_config.log_close_fct = NULL;
-        tp_config.malloc_fct = nunc_stans_malloc;
-        tp_config.memalign_fct = nunc_stans_memalign;
-        tp_config.calloc_fct = nunc_stans_calloc;
-        tp_config.realloc_fct = nunc_stans_realloc;
-        tp_config.free_fct = nunc_stans_free;
-
-        tp = ns_thrpool_new(&tp_config);
-
-        /* We mark these as persistent so they keep blocking signals forever. */
-        /* These *must* be in the event thread (ie not ns_job_thread) to prevent races */
-        ns_add_signal_job(tp, SIGINT,  NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[0]);
-        ns_add_signal_job(tp, SIGTERM, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[1]);
-        ns_add_signal_job(tp, SIGTSTP, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[3]);
-        ns_add_signal_job(tp, SIGHUP,  NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[2]);
-        ns_add_signal_job(tp, SIGUSR1, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[4]);
-        ns_add_signal_job(tp, SIGUSR2, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[5]);
-#endif /* ENABLE_NUNC_STANS */
     }
 
 	if (
@@ -1180,7 +1080,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	 */
 	convert_pbe_des_to_aes();
 
-#ifdef ENABLE_NUNC_STANS
 	if (enable_nunc_stans && !g_get_shutdown()) {
 		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		for (size_t ii = 0; ii < listeners; ++ii) {
@@ -1190,7 +1089,6 @@ void slapd_daemon( daemon_ports_t *ports )
 
 		}
 	}
-#endif /* ENABLE_NUNC_STANS */
 	/* Now we write the pid file, indicating that the server is finally and listening for connections */
 	write_pid_file();
 
@@ -1205,42 +1103,55 @@ void slapd_daemon( daemon_ports_t *ports )
 	);
 #endif
 
-#ifdef ENABLE_NUNC_STANS
-	if (enable_nunc_stans && ns_thrpool_wait(tp)) {
-		slapi_log_err(SLAPI_LOG_ERR,
-			   "slapd-daemon", "ns_thrpool_wait failed errno %d (%s)\n", errno,
-			   slapd_system_strerror(errno));
-	}
-#endif
-	/* The meat of the operation is in a loop on a call to select */
-	while(!enable_nunc_stans && !g_get_shutdown())
-	{
-		int select_return = 0;
-		PRErrorCode prerr;
+    if (enable_nunc_stans) {
+        if (ns_thrpool_wait(tp)) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                   "slapd-daemon", "ns_thrpool_wait failed errno %d (%s)\n", errno,
+                   slapd_system_strerror(errno));
+        }
 
-		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
-		select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
-		switch (select_return) {
-		case 0: /* Timeout */
-			/* GGOODREPL handle_timeout(); */
-			break;
-		case -1: /* Error */
-			prerr = PR_GetError();
-			slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "PR_Poll() failed, "
-				   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-				   prerr, slapd_system_strerror(prerr));
-			break;
-		default: /* either a new connection or some new data ready */
-			/* handle new connections from the listeners */
-			handle_listeners(the_connection_table);
-			/* handle new data ready */
-			handle_pr_read_ready(the_connection_table, connection_table_size);
-			clear_signal(the_connection_table->fd);
-			break;
-		}
-	}
-	/* We get here when the server is shutting down */
-	/* Do what we have to do before death */
+        /* we have exited from ns_thrpool_wait. This means we are shutting down! */
+        /* Please see https://firstyear.fedorapeople.org/nunc-stans/md_docs_job-safety.html */
+        /* tldr is shutdown needs to run first to allow job_done on an ARMED job */
+        for (size_t i = 0; i < listeners; i++) {
+            PRStatus shutdown_status = ns_job_done(listener_idxs[i].ns_job);
+            if (shutdown_status != PR_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_CRIT, "ns_set_shutdown", "Failed to shutdown listener idx %"PRIu64" !\n", i);
+            }
+            PR_ASSERT(shutdown_status == PR_SUCCESS);
+            listener_idxs[i].ns_job = NULL;
+        }
+    } else {
+        /* The meat of the operation is in a loop on a call to select */
+        while(!g_get_shutdown())
+        {
+            int select_return = 0;
+            PRErrorCode prerr;
+
+            setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
+            select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
+            switch (select_return) {
+            case 0: /* Timeout */
+                /* GGOODREPL handle_timeout(); */
+                break;
+            case -1: /* Error */
+                prerr = PR_GetError();
+                slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "PR_Poll() failed, "
+                       SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                       prerr, slapd_system_strerror(prerr));
+                break;
+            default: /* either a new connection or some new data ready */
+                /* handle new connections from the listeners */
+                handle_listeners(the_connection_table);
+                /* handle new data ready */
+                handle_pr_read_ready(the_connection_table, connection_table_size);
+                clear_signal(the_connection_table->fd);
+                break;
+            }
+        }
+        /* We get here when the server is shutting down */
+        /* Do what we have to do before death */
+    }
 
 #ifdef WITH_SYSTEMD
 	sd_notify(0, "STOPPING=1");
@@ -1374,27 +1285,6 @@ void slapd_daemon( daemon_ports_t *ports )
      */
     log_access_flush();
 
-#ifdef ENABLE_NUNC_STANS
-
-    /*
-     * We need to shutdown the nunc-stans thread pool before we free the
-     * connection table.
-     */
-    if (enable_nunc_stans) {
-        /* Now we free the signal jobs. We do it late here to keep intercepting
-         * them for as long as possible .... Later we need to rethink this to
-         * have plugins and such destroy while the tp is still active.
-         */
-        ns_job_done(ns_signal_job[0]);
-        ns_job_done(ns_signal_job[1]);
-        ns_job_done(ns_signal_job[2]);
-        ns_job_done(ns_signal_job[3]);
-        ns_job_done(ns_signal_job[4]);
-        ns_job_done(ns_signal_job[5]);
-
-        ns_thrpool_destroy(tp);
-    }
-#endif
 	/* 
 	 * connection_table_free could use callbacks in the backend.
 	 * (e.g., be_search_results_release)
@@ -1804,7 +1694,6 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
 	}
 }
 
-#ifdef ENABLE_NUNC_STANS
 #define CONN_NEEDS_CLOSING(c) (c->c_flags & CONN_FLAG_CLOSING) || (c->c_sd == SLAPD_INVALID_SOCKET)
 /* Used internally by ns_handle_closure and ns_handle_pr_read_ready.
  * Returns 0 if the connection was successfully closed, or 1 otherwise.
@@ -1859,7 +1748,6 @@ ns_handle_closure(struct ns_job_t *job)
 	}
 	return;
 }
-#endif
 
 /**
  * Schedule more I/O for this connection, or make sure that it
@@ -1868,7 +1756,6 @@ ns_handle_closure(struct ns_job_t *job)
 void
 ns_connection_post_io_or_closing(Connection *conn)
 {
-#ifdef ENABLE_NUNC_STANS
 	struct timeval tv;
 
 	if (!enable_nunc_stans) {
@@ -1941,10 +1828,8 @@ ns_connection_post_io_or_closing(Connection *conn)
 				"conn %" PRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
 		}
 	}
-#endif
 }
 
-#ifdef ENABLE_NUNC_STANS
 /* This function must be called without the thread flag, in the
  * event loop.  This function may free the connection.  This can
  * only be done in the event loop thread.
@@ -2025,7 +1910,6 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 	ns_job_done(job);
 	return;
 }
-#endif
 
 /*
  * wrapper functions required so we can implement ioblock_timeout and
@@ -2634,7 +2518,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	return 0;
 }
 
-#ifdef ENABLE_NUNC_STANS
 static void
 ns_handle_new_connection(struct ns_job_t *job)
 {
@@ -2680,7 +2563,6 @@ ns_handle_new_connection(struct ns_job_t *job)
 	ns_connection_post_io_or_closing(c);
 	return;
 }
-#endif
 
 static int init_shutdown_detect(void)
 {
@@ -2855,43 +2737,6 @@ set_shutdown (int sig __attribute__((unused)))
 	(void) SIGNAL( SIGTERM, set_shutdown );
 	(void) SIGNAL( SIGHUP,  set_shutdown );
 }
-
-#ifdef ENABLE_NUNC_STANS
-static void
-ns_set_user(struct ns_job_t *job __attribute__((unused)))
-{
-    /* This literally does nothing. We intercept user signals (USR1, USR2) */
-    /* Could be good for a status output, or an easter egg. */
-    return;
-}
-
-static void
-ns_set_shutdown(struct ns_job_t *job)
-{
-    /* Is there a way to make this a bit more atomic? */
-    /* I think NS protects this by only executing one signal job at a time */
-    PRStatus shutdown_status = PR_SUCCESS;
-
-    if (g_get_shutdown() == 0) {
-        g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
-
-        /* Signal all the worker threads to stop */
-        ns_thrpool_shutdown(ns_job_get_tp(job));
-
-        /* Stop all the long running jobs */
-        /* Please see https://firstyear.fedorapeople.org/nunc-stans/md_docs_job-safety.html */
-        /* tldr is shutdown needs to run first to allow job_done on an ARMED job */
-        for (size_t i = 0; i < listeners; i++) {
-            shutdown_status = ns_job_done(listener_idxs[i].ns_job);
-            if (shutdown_status != PR_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_CRIT, "ns_set_shutdown", "Failed to shutdown listener idx %"PRIu64" !\n", i);
-            }
-            PR_ASSERT(shutdown_status == PR_SUCCESS);
-            listener_idxs[i].ns_job = NULL;
-        }
-    }
-}
-#endif
 
 #ifndef LINUX
 void

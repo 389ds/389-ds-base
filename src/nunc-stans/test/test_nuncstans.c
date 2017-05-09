@@ -402,6 +402,74 @@ ns_job_neg_timeout_test(void **state)
 
 }
 
+/*
+ * Test that a timeout job fires a within a time window
+ */
+
+static void
+ns_timer_job_cb(struct ns_job_t *job)
+{
+    cb_check += 1;
+    ns_job_done(job);
+    PR_Lock(cb_lock);
+    PR_NotifyCondVar(cb_cond);
+    /* Disarm ourselves */
+    PR_Unlock(cb_lock);
+}
+
+static void
+ns_job_timer_test(void **state)
+{
+    struct ns_thrpool_t *tp = *state;
+    struct ns_job_t *job = NULL;
+    struct timeval tv = { 2, 0 };
+
+    PR_Lock(cb_lock);
+    assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_job_cb, NULL, &job) == PR_SUCCESS);
+
+    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
+    assert_int_equal(cb_check, 0);
+
+    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(2));
+    PR_Unlock(cb_lock);
+    assert_int_equal(cb_check, 1);
+
+}
+
+/*
+ * Test that within a window, a looping timeout job has fired greater than X times.
+ */
+
+static void
+ns_timer_persist_job_cb(struct ns_job_t *job)
+{
+    cb_check += 1;
+    if (cb_check < 10) {
+        ns_job_rearm(job);
+    } else {
+        ns_job_done(job);
+    }
+}
+
+static void
+ns_job_timer_persist_test(void **state)
+{
+    struct ns_thrpool_t *tp = *state;
+    struct ns_job_t *job = NULL;
+    struct timeval tv = { 1, 0 };
+
+    PR_Lock(cb_lock);
+    assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_persist_job_cb, NULL, &job) == PR_SUCCESS);
+
+    PR_Sleep(PR_SecondsToInterval(5));
+
+    assert_true(cb_check <= 6);
+
+    PR_Sleep(PR_SecondsToInterval(6));
+
+    assert_int_equal(cb_check, 10);
+}
+
 int
 main(void)
 {
@@ -428,6 +496,12 @@ main(void)
                                         ns_test_setup,
                                         ns_test_teardown),
         cmocka_unit_test_setup_teardown(ns_job_neg_timeout_test,
+                                        ns_test_setup,
+                                        ns_test_teardown),
+        cmocka_unit_test_setup_teardown(ns_job_timer_test,
+                                        ns_test_setup,
+                                        ns_test_teardown),
+        cmocka_unit_test_setup_teardown(ns_job_timer_persist_test,
                                         ns_test_setup,
                                         ns_test_teardown),
     };

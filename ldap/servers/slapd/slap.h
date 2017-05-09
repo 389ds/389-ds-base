@@ -118,9 +118,7 @@ typedef struct symbol_t {
  */
 #include <pwd.h>
 
-#ifdef ENABLE_NUNC_STANS
 #include <nunc-stans.h>
-#endif
 
 #ifdef WITH_SYSTEMD
 #ifdef HAVE_JOURNALD
@@ -1619,11 +1617,9 @@ typedef struct conn {
     Conn_IO_Layer_cb c_push_io_layer_cb; /* callback to push an IO layer on the conn->c_prfd */
     Conn_IO_Layer_cb c_pop_io_layer_cb; /* callback to pop an IO layer off of the conn->c_prfd */
     void             *c_io_layer_cb_data; /* callback data */
-#ifdef ENABLE_NUNC_STANS
     struct connection_table     *c_ct; /* connection table that this connection belongs to */
     ns_thrpool_t                *c_tp; /* thread pool for this connection */
     int                         c_ns_close_jobs; /* number of current close jobs */
-#endif
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 
@@ -2102,9 +2098,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
 #define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
 #define CONFIG_GLOBAL_BACKEND_LOCK "nsslapd-global-backend-lock"
-#ifdef ENABLE_NUNC_STANS
 #define CONFIG_ENABLE_NUNC_STANS "nsslapd-enable-nunc-stans"
-#endif
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
 #define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
@@ -2445,9 +2439,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
   slapi_onoff_t global_backend_lock;
   slapi_int_t maxsimplepaged_per_conn;/* max simple paged results reqs handled per connection */
-#ifdef ENABLE_NUNC_STANS
   slapi_onoff_t enable_nunc_stans;
-#endif
 #if defined(LINUX)
   int malloc_mxfast;            /* mallopt M_MXFAST */
   int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */

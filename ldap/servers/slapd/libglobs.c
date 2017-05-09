@@ -241,9 +241,7 @@ slapi_onoff_t init_ignore_time_skew;
 slapi_onoff_t init_dynamic_plugins;
 slapi_onoff_t init_cn_uses_dn_syntax_in_dns;
 slapi_onoff_t init_global_backend_local;
-#ifdef ENABLE_NUNC_STANS
 slapi_onoff_t init_enable_nunc_stans;
-#endif
 #if defined (LINUX)
 slapi_int_t init_malloc_mxfast;
 slapi_int_t init_malloc_trim_threshold;
@@ -1099,12 +1097,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxsimplepaged_per_conn,
 		CONFIG_INT, (ConfigGetFunc)config_get_maxsimplepaged_per_conn, SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
-#ifdef ENABLE_NUNC_STANS
 	{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.enable_nunc_stans,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_nunc_stans, &init_enable_nunc_stans},
-#endif
 #ifdef MEMPOOL_EXPERIMENTAL
 	{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1667,9 +1663,7 @@ FrontendConfig_init(void) {
     cfg->maxbersize = SLAPD_DEFAULT_MAXBERSIZE;
     cfg->logging_backend = slapi_ch_strdup(SLAPD_INIT_LOGGING_BACKEND_INTERNAL);
     cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
-#ifdef ENABLE_NUNC_STANS
     init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_ON;
-#endif
 #if defined(LINUX)
     init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
     init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
@@ -7488,7 +7482,6 @@ config_get_listen_backlog_size()
   return retVal; 
 }
 
-#ifdef ENABLE_NUNC_STANS
 int
 config_get_enable_nunc_stans()
 {
@@ -7513,7 +7506,6 @@ config_set_enable_nunc_stans( const char *attrname, char *value,
                               errorbuf, apply);
     return retVal;
 }
-#endif
 
 static char *
 config_initvalue_to_onoff(struct config_get_and_set *cgas, char *initvalbuf, size_t initvalbufsize)
