@@ -549,6 +549,7 @@ void replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid);
 PRBool replica_get_tombstone_reap_active(const Replica *r);
 const Slapi_DN *replica_get_root(const Replica *r);
 const char *replica_get_name(const Replica *r);
+uint64_t replica_get_locking_conn(const Replica *r);
 ReplicaId replica_get_rid (const Replica *r);
 void replica_set_rid (Replica *r, ReplicaId rid);
 PRBool replica_is_initialized (const Replica *r);

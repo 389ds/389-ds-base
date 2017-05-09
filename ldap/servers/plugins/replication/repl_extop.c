@@ -1138,9 +1138,45 @@ send_response:
 		 */
 		if (NULL != connext && NULL != connext->replica_acquired)
 		{
-            Object *r_obj = (Object*)connext->replica_acquired;
-			replica_relinquish_exclusive_access((Replica*)object_get_data (r_obj),
-												connid, opid);
+			Replica *r = (Replica*)object_get_data ((Object*)connext->replica_acquired);
+			uint64_t r_locking_conn;
+			
+			/* At this point the supplier runs a Replica Agreement for 
+			 * the specific replica connext->replica_acquired.
+			 * The RA does not know it holds the replica (because it is
+			 * sending this request).
+			 * The situation is confused
+			 */
+			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
+				"already acquired replica: replica not ready (%d) (replica=%s)\n", response, replica_get_name(r) ? replica_get_name(r) : "no name");
+			
+			/*
+			 * On consumer side, we release the exclusive access at the
+			 * condition this is this RA that holds the replica
+			 */
+			if (r) {
+				
+				r_locking_conn = replica_get_locking_conn(r);
+				slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
+				"already acquired replica: locking_conn=%d, current connid=%d\n", (int) r_locking_conn, (int) connid);
+				
+				if ((r_locking_conn != ULONG_MAX) && (r_locking_conn == connid)) {
+					replica_relinquish_exclusive_access(r, connid, opid);
+					object_release((Object*) connext->replica_acquired);
+					connext->replica_acquired = NULL;
+				}
+			}
+			/*
+			 * On consumer side we should not keep a incoming connection
+			 * with replica_acquired set although the supplier is not aware of
+			 * 
+			 * On the supplier, we need to close the connection so
+			 * that the RA will restart a new session in a clear state 
+			 */
+			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
+				"already acquired replica: disconnect conn=%d\n", connid);
+			slapi_disconnect_server(conn);
+            
 		}
 		/* Remove any flags that would indicate repl session in progress */
 		if (NULL != connext)
