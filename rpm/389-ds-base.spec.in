@@ -497,12 +497,13 @@ fi
 %files devel
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
+%{_mandir}/man3/*
 %{_includedir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so
 %{_libdir}/%{pkgname}/libns-dshttpd.so
-%{_mandir}/man3/*
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
+%{_libdir}/%{pkgname}/libldaputil.so
 %{_libdir}/pkgconfig/*
 
 %files libs
@@ -513,6 +514,7 @@ fi
 %{_libdir}/%{pkgname}/libns-dshttpd-*.so
 %{_libdir}/%{pkgname}/libnunc-stans.so.*
 %{_libdir}/%{pkgname}/libsds.so.*
+%{_libdir}/%{pkgname}/libldaputil.so.*
 
 %files snmp
 %defattr(-,root,root,-)

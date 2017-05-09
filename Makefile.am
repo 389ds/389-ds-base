@@ -735,7 +735,6 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/infadd \
 	wrappers/ldclt \
 	wrappers/ldif \
-	$(srcdir)/ldap/admin/src/logconv.pl \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \
@@ -744,9 +743,12 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
 	ldap/admin/src/scripts/repl-monitor.pl \
-	ldap/admin/src/scripts/readnsstate \
-	ldap/admin/src/scripts/ds-replcheck \
-	ldap/admin/src/scripts/ds-logpipe.py
+	ldap/admin/src/scripts/readnsstate
+
+# For scripts that are "as is".
+dist_bin_SCRIPTS = ldap/admin/src/scripts/ds-replcheck \
+	ldap/admin/src/scripts/ds-logpipe.py \
+	ldap/admin/src/logconv.pl
 
 # SCRIPTS makes them executables - these are perl modules
 # and should not be marked as executable - so use DATA
