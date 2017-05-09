@@ -30,8 +30,8 @@ def test_ticket48226_set_purgedelay(topology_m2):
         assert False
     topology_m2.ms["master1"].modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
     topology_m2.ms["master2"].modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
-    topology_m2.ms["master1"].restart(30)
-    topology_m2.ms["master2"].restart(30)
+    topology_m2.ms["master1"].restart()
+    topology_m2.ms["master2"].restart()
 
 
 def test_ticket48226_1(topology_m2):

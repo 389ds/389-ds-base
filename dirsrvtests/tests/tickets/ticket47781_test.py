@@ -78,8 +78,8 @@ def test_ticket47781(topology_st):
     # Restart the server
     #
     log.info('Restarting server...')
-    topology_st.standalone.stop(timeout=5)
-    topology_st.standalone.start(timeout=5)
+    topology_st.standalone.stop()
+    topology_st.standalone.start()
 
     #
     # Import the ldif

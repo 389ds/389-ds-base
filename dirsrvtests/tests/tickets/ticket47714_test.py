@@ -24,7 +24,8 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
 ACCT_POLICY_CONFIG_DN = ('cn=config,cn=%s,cn=plugins,cn=config' %
                          PLUGIN_ACCT_POLICY)
 ACCT_POLICY_DN = 'cn=Account Inactivation Policy,%s' % SUFFIX
-INACTIVITY_LIMIT = '9'
+# Set inactivty high to prevent timing issues with debug options or gdb on test runs.
+INACTIVITY_LIMIT = '3000'
 SEARCHFILTER = '(objectclass=*)'
 
 TEST_USER = 'ticket47714user'
@@ -89,7 +90,7 @@ def test_ticket47714_run_0(topology_st):
     # Enable the plugins
     topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
 
-    topology_st.standalone.restart(timeout=120)
+    topology_st.standalone.restart()
 
     log.info("\n######################### Bind as %s ######################\n" % TEST_USER_DN)
     try:
@@ -121,6 +122,12 @@ def test_ticket47714_run_0(topology_st):
     assert lastLoginTime0 < lastLoginTime1
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    # Now, change the inactivity limit, because that should trigger the account to now be locked. This is possible because the check is "delayed" until the usage of the account.
+
+    topology_st.standalone.modify_s(ACCT_POLICY_DN, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '1'),])
+    time.sleep(2)
+
     entry = topology_st.standalone.search_s(ACCT_POLICY_DN, ldap.SCOPE_BASE, SEARCHFILTER)
     log.info("\n######################### %s ######################\n" % ACCT_POLICY_CONFIG_DN)
     log.info("accountInactivityLimit: %s" % entry[0].accountInactivityLimit)
@@ -133,6 +140,10 @@ def test_ticket47714_run_0(topology_st):
         log.info('CONSTRAINT VIOLATION ' + e.message['desc'])
         log.info("%s was successfully inactivated." % TEST_USER_DN)
         pass
+
+    # Now reset the value high to prevent issues with the next test.
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology_st.standalone.modify_s(ACCT_POLICY_DN, [(ldap.MOD_REPLACE, 'accountInactivityLimit', INACTIVITY_LIMIT),])
 
 
 def test_ticket47714_run_1(topology_st):
@@ -162,7 +173,7 @@ def test_ticket47714_run_1(topology_st):
     # Enable the plugins
     topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
 
-    topology_st.standalone.restart(timeout=120)
+    topology_st.standalone.restart()
 
     log.info("\n######################### Bind as %s ######################\n" % TEST_USER_DN)
     try:

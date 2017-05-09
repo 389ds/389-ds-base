@@ -19,8 +19,7 @@ log = logging.getLogger(__name__)
 from lib389.utils import *
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
-
+pytestmark = pytest.mark.skipif(ds_is_older('1.3.3') or ds_is_newer('1.3.7'), reason="Not implemented, or invalid by nsMemberOf")
 
 def test_ticket47815(topology_st):
     """
@@ -58,10 +57,7 @@ def test_ticket47815(topology_st):
         log.error('Failed to add automember config')
         exit(1)
 
-    topology_st.standalone.stop(timeout=120)
-    time.sleep(1)
-    topology_st.standalone.start(timeout=120)
-    time.sleep(3)
+    topology_st.standalone.restart()
 
     # need to reopen a connection toward the instance
     topology_st.standalone.open()

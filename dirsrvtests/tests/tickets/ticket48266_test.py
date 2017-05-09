@@ -10,30 +10,6 @@ NEW_ACCOUNT = "new_account"
 MAX_ACCOUNTS = 20
 
 
-def pattern_accesslog(file, log_pattern):
-    try:
-        pattern_accesslog.last_pos += 1
-    except AttributeError:
-        pattern_accesslog.last_pos = 0
-
-    found = None
-    file.seek(pattern_accesslog.last_pos)
-
-    # Use a while true iteration because 'for line in file: hit a
-    # python bug that break file.tell()
-    while True:
-        line = file.readline()
-        found = log_pattern.search(line)
-        if ((line == '') or (found)):
-            break
-
-    pattern_accesslog.last_pos = file.tell()
-    if found:
-        return line
-    else:
-        return None
-
-
 @pytest.fixture(scope="module")
 def entries(topology_m2):
     # add dummy entries in the staging DIT
@@ -43,10 +19,15 @@ def entries(topology_m2):
             'objectclass': "top person".split(),
             'sn': name,
             'cn': name})))
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '8192'),
-           (ldap.MOD_REPLACE, 'nsslapd-accesslog-level', str(256 + 4))]
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
-    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master1"].config.set('nsslapd-accesslog-logbuffering', 'off')
+    topology_m2.ms["master1"].config.set('nsslapd-errorlog-level', '8192')
+    # 256 + 4
+    topology_m2.ms["master1"].config.set('nsslapd-accesslog-level', '260')
+
+    topology_m2.ms["master2"].config.set('nsslapd-accesslog-logbuffering', 'off')
+    topology_m2.ms["master2"].config.set('nsslapd-errorlog-level', '8192')
+    # 256 + 4
+    topology_m2.ms["master2"].config.set('nsslapd-accesslog-level', '260')
 
 
 def test_ticket48266_fractional(topology_m2, entries):
@@ -64,8 +45,8 @@ def test_ticket48266_fractional(topology_m2, entries):
     assert len(ents) == 1
     topology_m2.ms["master2"].modify_s(ents[0].dn, mod)
 
-    topology_m2.ms["master1"].restart(timeout=10)
-    topology_m2.ms["master2"].restart(timeout=10)
+    topology_m2.ms["master1"].restart()
+    topology_m2.ms["master2"].restart()
 
     topology_m2.ms["master1"].agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
     topology_m2.ms["master1"].waitForReplInit(m1_m2_agmt)
@@ -109,31 +90,20 @@ def _get_last_not_replicated_csn(topology_m2):
             break
     assert attr
 
+    log.info("############# %s " % name)
     # now retrieve the CSN of the operation we are looking for
     csn = None
-    topology_m2.ms["master1"].stop(timeout=10)
-    file_obj = open(topology_m2.ms["master1"].accesslog, "r")
+    found_ops = topology_m2.ms['master1'].ds_access_log.match(".*MOD dn=\"%s\".*" % name)
+    assert(len(found_ops) > 0)
+    found_op = topology_m2.ms['master1'].ds_access_log.parse_line(found_ops[-1])
+    log.info(found_op)
 
-    # First the conn/op of the operation
-    regex = re.compile("MOD dn=\"%s\"" % name)
-    found_op = pattern_accesslog(file_obj, regex)
-    assert found_op
-    if found_op:
-        conn_op_pattern = '.* (conn=[0-9]* op=[0-9]*) .*'
-        conn_op_re = re.compile(conn_op_pattern)
-        conn_op_match = conn_op_re.match(found_op)
-        conn_op = conn_op_match.group(1)
-
-        # now the related CSN
-        regex = re.compile("%s RESULT" % conn_op)
-        found_result = pattern_accesslog(file_obj, regex)
-        csn_pattern = '.* csn=(.*)'
-        csn_re = re.compile(csn_pattern)
-        csn_match = csn_re.match(found_result)
-        csn = csn_match.group(1)
-
-    topology_m2.ms["master1"].start(timeout=10)
-    return csn
+    # Now look for the related CSN
+    found_csns = topology_m2.ms['master1'].ds_access_log.match(".*conn=%s op=%s RESULT.*" % (found_op['conn'], found_op['op']))
+    assert(len(found_csns) > 0)
+    found_csn = topology_m2.ms['master1'].ds_access_log.parse_line(found_csns[-1])
+    log.info(found_csn)
+    return found_csn['csn']
 
 
 def _get_first_not_replicated_csn(topology_m2):
@@ -155,31 +125,20 @@ def _get_first_not_replicated_csn(topology_m2):
             break
     assert attr
 
+    log.info("############# %s " % name)
     # now retrieve the CSN of the operation we are looking for
     csn = None
-    topology_m2.ms["master1"].stop(timeout=10)
-    file_obj = open(topology_m2.ms["master1"].accesslog, "r")
+    found_ops = topology_m2.ms['master1'].ds_access_log.match(".*MOD dn=\"%s\".*" % name)
+    assert(len(found_ops) > 0)
+    found_op = topology_m2.ms['master1'].ds_access_log.parse_line(found_ops[-1])
+    log.info(found_op)
 
-    # First the conn/op of the operation
-    regex = re.compile("MOD dn=\"%s\"" % name)
-    found_op = pattern_accesslog(file_obj, regex)
-    assert found_op
-    if found_op:
-        conn_op_pattern = '.* (conn=[0-9]* op=[0-9]*) .*'
-        conn_op_re = re.compile(conn_op_pattern)
-        conn_op_match = conn_op_re.match(found_op)
-        conn_op = conn_op_match.group(1)
-
-        # now the related CSN
-        regex = re.compile("%s RESULT" % conn_op)
-        found_result = pattern_accesslog(file_obj, regex)
-        csn_pattern = '.* csn=(.*)'
-        csn_re = re.compile(csn_pattern)
-        csn_match = csn_re.match(found_result)
-        csn = csn_match.group(1)
-
-    topology_m2.ms["master1"].start(timeout=10)
-    return csn
+    # Now look for the related CSN
+    found_csns = topology_m2.ms['master1'].ds_access_log.match(".*conn=%s op=%s RESULT.*" % (found_op['conn'], found_op['op']))
+    assert(len(found_csns) > 0)
+    found_csn = topology_m2.ms['master1'].ds_access_log.parse_line(found_csns[-1])
+    log.info(found_csn)
+    return found_csn['csn']
 
 
 def _count_full_session(topology_m2):

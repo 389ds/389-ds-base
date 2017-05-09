@@ -120,10 +120,12 @@ def check_passwd_inhistory(topology_st, user, cpw, passwd):
 
 
 def update_passwd(topology_st, user, passwd, times):
+    # Set the default value
+    cpw = passwd
     for i in range(times):
         log.info("		Bind as {%s,%s}" % (user, cpw))
         topology_st.standalone.simple_bind_s(user, cpw)
-        time.sleep(1)
+        # Now update the value for this iter.
         cpw = 'password%d' % i
         try:
             topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', cpw)])
@@ -132,7 +134,6 @@ def update_passwd(topology_st, user, passwd, times):
                 'test_ticket48228: Failed to update the password ' + cpw + ' of user ' + user + ': error ' + e.message[
                     'desc'])
             assert False
-        time.sleep(1)
 
     # checking the first password, which is supposed to be in history
     inhistory = check_passwd_inhistory(topology_st, user, cpw, passwd)

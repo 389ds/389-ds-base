@@ -57,13 +57,13 @@ def test_ticket47431_1(topology_st):
         assert False
 
     arg2 = "nsslapd-pluginarg2: userpassword"
-    topology_st.standalone.stop(timeout=10)
+    topology_st.standalone.stop()
     dse_ldif = topology_st.standalone.confdir + '/dse.ldif'
     os.system('mv %s %s.47431' % (dse_ldif, dse_ldif))
     os.system(
         'sed -e "s/\\(%s\\)/\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1\\n\\1/" %s.47431 > %s' % (
         arg2, dse_ldif, dse_ldif))
-    topology_st.standalone.start(timeout=10)
+    topology_st.standalone.start()
 
     cmdline = 'egrep -i "%s" %s' % (expected, topology_st.standalone.errlog)
     p = os.popen(cmdline, "r")
@@ -116,7 +116,7 @@ def test_ticket47431_2(topology_st):
     # PLUGIN LOG LEVEL
     topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
 
-    topology_st.standalone.restart(timeout=10)
+    topology_st.standalone.restart()
 
     cmdline = 'egrep -i %s %s' % ("NS7bitAttr_Init", topology_st.standalone.errlog)
     p = os.popen(cmdline, "r")
@@ -176,10 +176,10 @@ def test_ticket47431_3(topology_st):
     # PLUGIN LOG LEVEL
     topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
 
-    topology_st.standalone.stop(timeout=10)
+    topology_st.standalone.stop()
     os.system('mv %s %s.47431' % (topology_st.standalone.errlog, topology_st.standalone.errlog))
     os.system('touch %s' % (topology_st.standalone.errlog))
-    topology_st.standalone.start(timeout=10)
+    topology_st.standalone.start()
 
     cmdline = 'egrep -i %s %s' % ("NS7bitAttr_Init", topology_st.standalone.errlog)
     p = os.popen(cmdline, "r")
