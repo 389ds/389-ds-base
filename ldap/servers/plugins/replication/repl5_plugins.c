@@ -1224,7 +1224,12 @@ common_return:
 	opcsn = operation_get_csn(op);
 	prim_csn = get_thread_primary_csn();
 	if (csn_is_equal(opcsn, prim_csn)) {
-		set_thread_primary_csn(NULL);
+		if (return_value == 0) {
+			/* the primary csn was succesfully committed
+			 * unset it in the thread local data
+			 */
+			set_thread_primary_csn(NULL);
+		}
 	}
 	if (repl_obj) {
 		object_release (repl_obj);

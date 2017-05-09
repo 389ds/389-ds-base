@@ -64,6 +64,7 @@ struct replica {
 	PRBool state_update_inprogress; /* replica state is being updated */
 	PRLock *agmt_lock;          	/* protects agreement creation, start and stop */
 	char *locking_purl;				/* supplier who has exclusive access */
+	uint64_t locking_conn;         	/* The supplier's connection id */
 	Slapi_Counter *protocol_timeout;/* protocol shutdown timeout */
 	Slapi_Counter *backoff_min;		/* backoff retry minimum */
 	Slapi_Counter *backoff_max;		/* backoff retry maximum */
@@ -602,18 +603,31 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 				slapi_sdn_get_dn(r->repl_root),
 				r->locking_purl ? r->locking_purl : "unknown");
 		rval = PR_FALSE;
+		if (!(r->repl_state_flags & REPLICA_TOTAL_IN_PROGRESS)) {
+			/* inc update */
+			if (r->locking_purl && r->locking_conn == connid) {
+				/* This is the same supplier connection, reset the replica
+				 * purl, and return success */
+				slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+					"replica_get_exclusive_access - "
+					"This is a second acquire attempt from the same replica connection "
+					" - return success instead of busy\n");
+				slapi_ch_free_string(&r->locking_purl);
+				r->locking_purl = slapi_ch_strdup(locking_purl);
+				rval = PR_TRUE;
+				goto done;
+			}
+			if (replica_get_release_timeout(r)) {
+				/*
+				 * Abort the current session so other replicas can acquire
+				 * this server.
+				 */
+				r->abort_session = ABORT_SESSION;
+			}
+		}
 		if (current_purl)
 		{
 			*current_purl = slapi_ch_strdup(r->locking_purl);
-		}
-		if (!(r->repl_state_flags & REPLICA_TOTAL_IN_PROGRESS) &&
-		    replica_get_release_timeout(r))
-		{
-			/*
-			 * We are not doing a total update, so abort the current session
-			 * so other replicas can acquire this server.
-			 */
-			r->abort_session = ABORT_SESSION;
 		}
 	}
 	else
@@ -642,7 +656,9 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 		}
 		slapi_ch_free_string(&r->locking_purl);
 		r->locking_purl = slapi_ch_strdup(locking_purl);
+		r->locking_conn = connid;
 	}
+done:
 	replica_unlock(r->repl_lock);
 	return rval;
 }
@@ -720,6 +736,18 @@ replica_get_name(const Replica *r) /* ONREPL - should we return copy instead? */
     return(r->repl_name);
 }
 
+/*
+ * Returns locking_conn of this replica
+ */
+uint64_t
+replica_get_locking_conn(const Replica *r)
+{
+	uint64_t connid;
+	replica_lock(r->repl_lock);
+	connid = r->locking_conn;
+	replica_unlock(r->repl_lock);
+	return connid;
+}
 /* 
  * Returns replicaid of this replica 
  */
@@ -2251,6 +2279,9 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     }
 
     r->tombstone_reap_stop = r->tombstone_reap_active = PR_FALSE;
+    
+    /* No supplier holding the replica */
+    r->locking_conn = ULONG_MAX;
 
     return (_replica_check_validity (r));
 }
