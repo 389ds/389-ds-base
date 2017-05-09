@@ -1074,20 +1074,38 @@ static int roles_cache_create_role_under(roles_cache_def** roles_cache_suffix, S
 }
 
 /*
- * Check that we are not using nsrole in the filter
+ * Check that we are not using nsrole in the filter, recurse over all the
+ * nested filters.
  */
 static int roles_check_filter(Slapi_Filter *filter_list)
 {
 	Slapi_Filter  *f;
 	char *type = NULL;
 
-	for ( f = slapi_filter_list_first( filter_list );
-	          f != NULL;
-	          f = slapi_filter_list_next( filter_list, f ) )
-	{
-		slapi_filter_get_attribute_type(f, &type);
-		if (strcasecmp(type, NSROLEATTR) == 0){
-			return -1;
+	f = slapi_filter_list_first( filter_list );
+	if (f == NULL){
+		/* Single filter */
+		if (slapi_filter_get_attribute_type(filter_list, &type) == 0){
+			if (strcasecmp(type, NSROLEATTR) == 0){
+				return -1;
+			}
+		}
+	}
+	for ( ; f != NULL; f = slapi_filter_list_next(filter_list, f) ){
+		/* Complex filter */
+		if (slapi_filter_list_first(f)) {
+			/* Another filter list - recurse */
+			if (roles_check_filter(f) == -1){
+				/* Done, break out */
+				return -1;
+			}
+		} else {
+			/* Not a filter list, so check the type */
+			if (slapi_filter_get_attribute_type(f, &type) == 0){
+				if (strcasecmp(type, NSROLEATTR) == 0){
+					return -1;
+				}
+			}
 		}
 	}
 
