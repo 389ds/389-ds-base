@@ -2012,7 +2012,8 @@ test_slapd_SOURCES = test/main.c \
 
 # We need to link a lot of plugins for this test.
 test_slapd_LDADD = 	libslapd.la \
-					libpwdstorage-plugin.la
+					libpwdstorage-plugin.la \
+					$(NSS_LINK) $(NSPR_LINK)
 test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 ### WARNING: Slap.h needs cert.h, which requires the -I/lib/ldaputil!!!
 ### WARNING: Slap.h pulls ssl.h, which requires nss!!!!
@@ -2032,35 +2033,35 @@ test_libsds_SOURCES =  src/libsds/test/test_sds.c \
 	src/libsds/test/test_fixtures.c
 
 test_libsds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
-test_libsds_LDADD = libsds.la
+test_libsds_LDADD = libsds.la $(NSPR_LINK)
 test_libsds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS)
 
 benchmark_sds_SOURCES =  src/libsds/test/benchmark.c \
 	$(libavl_a_SOURCES)
 benchmark_sds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
-benchmark_sds_LDADD = libsds.la
+benchmark_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 benchmark_par_sds_SOURCES = src/libsds/test/benchmark_parwrap.c \
 	src/libsds/test/benchmark_par.c \
 	$(libavl_a_SOURCES)
 benchmark_par_sds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
-benchmark_par_sds_LDADD = libsds.la
+benchmark_par_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_par_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 test_nuncstans_SOURCES = src/nunc-stans/test/test_nuncstans.c
 test_nuncstans_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_LDADD = libnunc-stans.la libsds.la
+test_nuncstans_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
 test_nuncstans_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 test_nuncstans_stress_large_SOURCES = src/nunc-stans/test/test_nuncstans_stress_large.c src/nunc-stans/test/test_nuncstans_stress_core.c
 test_nuncstans_stress_large_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_stress_large_LDADD = libnunc-stans.la libsds.la
+test_nuncstans_stress_large_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
 test_nuncstans_stress_large_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 test_nuncstans_stress_small_SOURCES = src/nunc-stans/test/test_nuncstans_stress_small.c src/nunc-stans/test/test_nuncstans_stress_core.c
 test_nuncstans_stress_small_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_stress_small_LDADD = libnunc-stans.la libsds.la
+test_nuncstans_stress_small_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
 test_nuncstans_stress_small_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 
