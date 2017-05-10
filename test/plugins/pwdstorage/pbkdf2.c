@@ -8,7 +8,7 @@
 
 #include "../../test_slapd.h"
 
-#include <nss3/nss.h>
+#include <nss.h>
 #include <pwdstorage.h>
 
 int
