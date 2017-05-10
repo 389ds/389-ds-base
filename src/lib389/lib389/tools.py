@@ -948,8 +948,8 @@ class DirSrvTools(object):
             process.stdin.close()
             process.wait()
             if process.returncode != 0:
-                log.fatal('runUpgrade failed!  Error: ' + process.returncode)
-                assert False
+                log.fatal('runUpgrade failed!  Error: %s ' % process.returncode)
+                assert(False)
         except:
             log.fatal('runUpgrade failed!')
             raise
