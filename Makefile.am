@@ -39,12 +39,8 @@ else
 SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/
 endif
 
-if enable_nunc_stans
 NUNCSTANS_INCLUDES = -I$(srcdir)/src/nunc-stans/include/
 NUNC_STANS_ON = 1
-else
-NUNC_STANS_ON = 0
-endif
 
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
