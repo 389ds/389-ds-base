@@ -110,13 +110,6 @@ static char **mozldap_ldap_explode_rdn( const char *rdn, const int notypes );
 static void clear_krb5_ccache(void);
 #endif
 
-#ifdef MEMPOOL_EXPERIMENTAL
-void _free_wrapper(void *ptr)
-{
-    slapi_ch_free(&ptr);
-}
-#endif
-
 /*
  * Function: slapi_ldap_unbind()
  * Purpose: release an LDAP session obtained from a call to slapi_ldap_init().
@@ -750,29 +743,6 @@ slapi_ldap_init_ext(
       ldapi_socket = ludp->lud_file;
       }
     */
-
-#ifdef MEMPOOL_EXPERIMENTAL
-    {
-        /*
-         * slapi_ch_malloc functions need to be set to LDAP C SDK
-         */
-        struct ldap_memalloc_fns memalloc_fns;
-        memalloc_fns.ldapmem_malloc = (LDAP_MALLOC_CALLBACK *)slapi_ch_malloc;
-        memalloc_fns.ldapmem_calloc = (LDAP_CALLOC_CALLBACK *)slapi_ch_calloc;
-        memalloc_fns.ldapmem_realloc = (LDAP_REALLOC_CALLBACK *)slapi_ch_realloc;
-        memalloc_fns.ldapmem_free = (LDAP_FREE_CALLBACK *)_free_wrapper;
-    }
-    /* 
-     * MEMPOOL_EXPERIMENTAL: 
-     * These LDAP C SDK init function needs to be revisited.
-     * In ldap_init called via ldapssl_init and prldap_init initializes
-     * options and set default values including memalloc_fns, then it
-     * initializes as sasl client by calling sasl_client_init.  In
-     * sasl_client_init, it creates mechlist using the malloc function
-     * available at the moment which could mismatch the malloc/free functions
-     * set later.
-     */
-#endif
 
 #if defined(USE_OPENLDAP)
     if (ldapurl) {

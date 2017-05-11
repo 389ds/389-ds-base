@@ -391,11 +391,6 @@ int config_set_malloc_mmap_threshold(const char *attrname, char *value, char *er
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_localuser( const char *attrname, char *value, char *errorbuf, int apply );
 
-#ifdef MEMPOOL_EXPERIMENTAL
-int config_set_mempool_switch( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_mempool_maxfreelist( const char *attrname, char *value, char *errorbuf, int apply );
-#endif /* MEMPOOL_EXPERIMENTAL */
-
 int config_set_maxsimplepaged_per_conn( const char *attrname, char *value, char *errorbuf, int apply );
 
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
@@ -530,12 +525,6 @@ int config_get_minssf(void);
 int config_get_minssf_exclude_rootdse(void);
 int config_get_validate_cert_switch(void);
 int config_get_csnlogging(void);
-#ifdef MEMPOOL_EXPERIMENTAL
-int config_get_mempool_switch(void);
-int config_get_mempool_maxfreelist(void);
-long config_get_system_page_size(void);
-int config_get_system_page_bits(void);
-#endif
 int config_get_force_sasl_external(void);
 int config_get_entryusn_global(void);
 char *config_get_entryusn_import_init(void);

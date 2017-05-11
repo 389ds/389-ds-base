@@ -80,7 +80,6 @@ log_negative_alloc_msg( const char *op, const char *units, unsigned long size )
 		op, size, units, units );
 }
 
-#if !defined(MEMPOOL_EXPERIMENTAL)
 char *
 slapi_ch_malloc(
     unsigned long   size
@@ -214,7 +213,6 @@ slapi_ch_strdup ( const char* s1)
 
     return newmem;
 }
-#endif /* !MEMPOOL_EXPERIMENTAL */
 
 struct berval*
 slapi_ch_bvdup (const struct berval* v)
@@ -249,7 +247,6 @@ slapi_ch_bvecdup (struct berval** v)
     return newberval;
 }
 
-#if !defined(MEMPOOL_EXPERIMENTAL)
 /*
  *  Function: slapi_ch_free 
  *
@@ -275,7 +272,6 @@ slapi_ch_free(void **ptr)
     *ptr = NULL;
     return;
 }
-#endif /* !MEMPOOL_EXPERIMENTAL */
 
 
 /* just like slapi_ch_free, takes the address of the struct berval pointer */
@@ -322,7 +318,6 @@ slapi_ch_free_string(char **s)
   the operating system.  But if this changes in the future, this
   function will have to change as well.
 */
-#if !defined(MEMPOOL_EXPERIMENTAL)
 char *
 slapi_ch_smprintf(const char *fmt, ...)
 {
@@ -339,7 +334,6 @@ slapi_ch_smprintf(const char *fmt, ...)
 
     return p;
 }
-#endif
 
 /* Constant time memcmp. Does not shortcircuit on failure! */
 /* This relies on p1 and p2 both being size at least n! */

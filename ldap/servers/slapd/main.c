@@ -639,13 +639,6 @@ write_start_pid_file(void)
 	return -1;
 }
 
-#ifdef MEMPOOL_EXPERIMENTAL
-void _free_wrapper(void *ptr)
-{
-	slapi_ch_free(&ptr);
-}
-#endif
-
 int
 main( int argc, char **argv)
 {
@@ -653,20 +646,6 @@ main( int argc, char **argv)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	daemon_ports_t ports_info = {0};
 	ns_thrpool_t *tp = NULL;
-
-#ifdef MEMPOOL_EXPERIMENTAL
-	/* to use LDAP C SDK lber functions seemlessly with slapi_ch_malloc funcs,
-	 * setting the slapi_ch_malloc funcs to lber option here. */
-	{
-		struct ldap_memalloc_fns memalloc_fns;
-
-		memalloc_fns.ldapmem_malloc = (LDAP_MALLOC_CALLBACK *)slapi_ch_malloc;
-		memalloc_fns.ldapmem_calloc = (LDAP_CALLOC_CALLBACK *)slapi_ch_calloc;
-		memalloc_fns.ldapmem_realloc = (LDAP_REALLOC_CALLBACK *)slapi_ch_realloc;
-		memalloc_fns.ldapmem_free = (LDAP_FREE_CALLBACK *)_free_wrapper;
-		ldap_set_option( 0x1, LDAP_OPT_MEMALLOC_FN_PTRS, &memalloc_fns );
-	}
-#endif
 
 #ifdef LINUX
 	char *m = getenv( "SLAPD_MXFAST" );

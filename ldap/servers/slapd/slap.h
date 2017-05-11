@@ -271,10 +271,6 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_DEFAULT_NDN_SIZE 20971520
 #define SLAPD_DEFAULT_NDN_SIZE_STR "20971520"
-#ifdef MEMPOOL_EXPERIMENTAL
-#define SLAPD_DEFAULT_MEMPOOL_MAXFREELIST 1024
-#define SLAPD_DEFAULT_MEMPOOL_MAXFREELIST_STR "1024"
-#endif
 
 #define SLAPD_DEFAULT_DIRECTORY_MANAGER "cn=Directory Manager"
 #define SLAPD_DEFAULT_UIDNUM_TYPE "uidNumber"
@@ -2164,11 +2160,6 @@ typedef struct _slapdEntryPoints {
 #endif
 #define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
-#ifdef MEMPOOL_EXPERIMENTAL
-#define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
-#define CONFIG_MEMPOOL_MAXFREELIST_ATTRIBUTE "nsslapd-mempool-maxfreelist"
-#endif /* MEMPOOL_EXPERIMENTAL */
-
 /* flag used to indicate that the change to the config parameter should be saved */
 #define CONFIG_APPLY 1
 
@@ -2401,12 +2392,6 @@ typedef struct _slapdFrontendConfig {
   char *anon_limits_dn;		/* template entry for anonymous resource limits */
   slapi_int_t listen_backlog_size;      /* size of backlog parameter to PR_Listen */
   struct passwd *localuserinfo; /* userinfo of localuser */
-#ifdef MEMPOOL_EXPERIMENTAL
-  slapi_onoff_t mempool_switch;           /* switch to turn memory pool on/off */
-  int mempool_maxfreelist;      /* max free list length per memory pool item */
-  long system_page_size;		/* system page size */
-  int system_page_bits;			/* bit count to shift the system page size */
-#endif /* MEMPOOL_EXPERIMENTAL */
   slapi_onoff_t force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
   slapi_onoff_t entryusn_global;          /* Entry USN: Use global counter */
   char *entryusn_import_init;   /* Entry USN: determine the initital value of import */
