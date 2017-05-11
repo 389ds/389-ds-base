@@ -2380,7 +2380,7 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 
 		if(!cos_cache_schema_check(pCache, attr_index, pObjclasses))
 		{
-			slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_query_attr - cos attribute %s failed schema check on dn: %s\n",type,pDn);
+			slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_query_attr - cos attribute %s failed schema check on dn: %s\n",type,pDn);
 			goto bail;
 		}
 	}
