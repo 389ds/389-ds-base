@@ -911,7 +911,7 @@ static int task_import_add(Slapi_PBlock *pb __attribute__((unused)),
 
             if (counter == 1){
                 instance_name = slapi_ch_strdup(*instances);
-                nameFrombe_name = instance_name;
+                nameFrombe_name = (char *)instance_name;
                 charray_free(instances);
             } else if (counter == 0) {
                 slapi_log_err(SLAPI_LOG_ERR,

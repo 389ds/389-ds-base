@@ -1267,7 +1267,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
     /* li->li_directory comes from nsslapd-directory */
     /* dblayer_home_directory is freed in dblayer_post_close.
      * li_directory needs to live beyond dblayer. */
-    slapi_ch_free(&priv->dblayer_home_directory);
+    slapi_ch_free_string(&priv->dblayer_home_directory);
     priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory); 
     priv->dblayer_cachesize = li->li_dbcachesize;
     priv->dblayer_lock_config = li->li_dblock;
@@ -7002,7 +7002,7 @@ dblayer_restore_file_update(struct ldbminfo *li, char *directory)
     PRFileDesc *prfd;
     char *fname = dblayer_restore_file_name(li);
     dblayer_file_open(fname, PR_RDWR, li->li_mode, &prfd);
-    slapi_ch_free(&fname);
+    slapi_ch_free_string(&fname);
     if (prfd) {
         char *line = slapi_ch_smprintf("restore of %s succeeded", directory);
         slapi_write_buffer(prfd, line, strlen(line));

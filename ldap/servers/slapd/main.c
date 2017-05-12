@@ -185,7 +185,7 @@ main_create_ns(ns_thrpool_t **tp_in) {
     tp_config.max_threads = maxthreads;
     tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
     /* Highly likely that we need to re-write logging to be controlled by NS here. */
-    /* tp_config.log_fct = nunc_stans_logging; */
+    tp_config.log_fct = nunc_stans_logging;
 #ifdef DEBUG
     tp_config.log_fct = ns_printf_logger;
 #endif
@@ -2037,7 +2037,6 @@ slapd_exemode_ldif2db(void)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( ldif_file == NULL ) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
@@ -2160,7 +2159,6 @@ slapd_exemode_db2ldif(int argc, char** argv)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char *my_ldiffile;
     char **instp;
 
@@ -2376,7 +2374,6 @@ static int slapd_exemode_db2index(void)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     mapping_tree_init();
 
@@ -2465,7 +2462,6 @@ slapd_exemode_db2archive(void)
 {
 	int return_value= 0;
 	struct slapdplugin *backend_plugin;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
 	if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
 		slapi_log_err(SLAPI_LOG_CRIT, "slapd_exemode_db2archive",
@@ -2512,7 +2508,6 @@ slapd_exemode_archive2db(void)
 {
 	int return_value= 0;
 	struct slapdplugin *backend_plugin;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
 	if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
 		slapi_log_err(SLAPI_LOG_CRIT, "slapd_exemode_archive2db",
@@ -2564,7 +2559,6 @@ slapd_exemode_upgradedb(void)
 {
     int return_value= 0;
     struct slapdplugin *backend_plugin;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( archive_name == NULL ) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradedb",
@@ -2629,7 +2623,6 @@ slapd_exemode_upgradednformat(void)
 {
     int rc = -1; /* error, by default */
     struct slapdplugin *backend_plugin;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( archive_name == NULL ) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradednformat",
