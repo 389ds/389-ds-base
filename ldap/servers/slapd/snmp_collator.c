@@ -458,23 +458,23 @@ snmp_collator_create_semaphore(void)
              * around.  Recreate it since we don't know what state it is in. */
             if (sem_unlink(stats_sem_name) != 0) {
                 slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
-                        "Failed to delete old semaphore for stats file (%s). "
-                        "Error %d (%s).\n", stats_sem_name, errno, slapd_system_strerror(errno) );
+                        "Failed to delete old semaphore for stats file (/dev/shm/sem.%s). "
+                        "Error %d (%s).\n", stats_sem_name + 1, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
 
             if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
                 /* No dice */
                 slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
-                        "Failed to create semaphore for stats file (%s). Error %d (%s).\n",
-                        stats_sem_name, errno, slapd_system_strerror(errno) );
+                        "Failed to create semaphore for stats file (/dev/shm/sem.%s). Error %d (%s).\n",
+                        stats_sem_name + 1, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
         } else {
             /* Some other problem occurred creating the semaphore. */
             slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
-                    "Failed to create semaphore for stats file (%s). Error %d.(%s)\n",
-                    stats_sem_name, errno, slapd_system_strerror(errno) );
+                    "Failed to create semaphore for stats file (/dev/shm/sem.%s). Error %d.(%s)\n",
+                    stats_sem_name + 1, errno, slapd_system_strerror(errno) );
             exit(1);
         }
     }
