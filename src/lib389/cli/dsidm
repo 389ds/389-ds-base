@@ -17,6 +17,7 @@ import logging
 logging.basicConfig(format='%(message)s')
 
 from lib389._constants import DN_DM
+from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organisationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
@@ -58,6 +59,7 @@ if __name__ == '__main__':
 
     # Call all the other cli modules to register their bits
 
+    cli_account.create_parser(subparsers)
     cli_group.create_parser(subparsers)
     cli_init.create_parser(subparsers)
     cli_ou.create_parser(subparsers)

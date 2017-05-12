@@ -114,6 +114,12 @@ class DSLdapObject(DSLogging):
         e = self._instance.getEntry(self._dn)
         return e.__repr__()
 
+    def display_attr(self, attr):
+        out = ""
+        for v in self.get_attr_vals(attr):
+            out += "%s: %s\n" % (attr, v)
+        return out
+
     def _jsonify(self, fn, *args, **kwargs):
         # This needs to map all the values to ensure_str
         attrs = fn(*args, **kwargs)
@@ -466,6 +472,11 @@ class DSLdapObjects(DSLogging):
         self._batch = batch
         self._scope = ldap.SCOPE_SUBTREE
 
+    def _get_objectclass_filter(self):
+        return _gen_and(
+            _gen_filter(_term_gen('objectclass'), self._objectclasses)
+        )
+
     def _entry_to_instance(self, dn=None, entry=None):
         # Normally this won't be used. But for say the plugin type where we
         # have "many" possible child types, this allows us to overload
@@ -476,14 +487,14 @@ class DSLdapObjects(DSLogging):
     def list(self):
         # Filter based on the objectclasses and the basedn
         insts = None
+        # This will yield and & filter for objectClass with as many terms as needed.
+        filterstr = self._get_objectclass_filter()
+        self._log.debug('list filter = %s' % filterstr)
         try:
             results = self._instance.search_s(
                 base=self._basedn,
                 scope=self._scope,
-                # This will yield and & filter for objectClass with as many terms as needed.
-                filterstr=_gen_and(
-                    _gen_filter(_term_gen('objectclass'), self._objectclasses)
-                ),
+                filterstr=filterstr,
                 attrlist=self._list_attrlist,
             )
             # def __init__(self, instance, dn=None, batch=False):
@@ -507,31 +518,33 @@ class DSLdapObjects(DSLogging):
         return self._entry_to_instance(results[0].dn, results[0])
 
     def _get_dn(self, dn):
+        # This will yield and & filter for objectClass with as many terms as needed.
+        filterstr = self._get_objectclass_filter()
+        self._log.debug('_gen_dn filter = %s' % filterstr)
         return self._instance.search_s(
             base=dn,
             scope=ldap.SCOPE_BASE,
-            # This will yield and & filter for objectClass with as many terms as needed.
-            filterstr=_gen_and(
-                _gen_filter(_term_gen('objectclass'), self._objectclasses,)
-            ),
+            filterstr=filterstr,
             attrlist=self._list_attrlist,
         )
 
     def _get_selector(self, selector):
         # Filter based on the objectclasses and the basedn
         # Based on the selector, we should filter on that too.
+        # This will yield and & filter for objectClass with as many terms as needed.
+        filterstr=_gen_and([
+            self._get_objectclass_filter(),
+            _gen_or(
+                # This will yield all combinations of selector to filterattrs.
+                # This won't work with multiple values in selector (yet)
+                _gen_filter(self._filterattrs, _term_gen(selector))
+            ),
+        ])
+        self._log.debug('_gen_selector filter = %s' % filterstr)
         return self._instance.search_s(
             base=self._basedn,
             scope=self._scope,
-            # This will yield and & filter for objectClass with as many terms as needed.
-            filterstr=_gen_and(
-                _gen_filter(_term_gen('objectclass'), self._objectclasses, extra=_gen_or(
-                        # This will yield all combinations of selector to filterattrs.
-                        # This won't work with multiple values in selector (yet)
-                        _gen_filter(self._filterattrs, _term_gen(selector))
-                    )
-                )
-            ),
+            filterstr=filterstr,
             attrlist=self._list_attrlist,
         )
 

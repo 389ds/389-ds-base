@@ -6,7 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389._mapped_object import DSLdapObjects
+# Account derives DSLdapObject - it gives us the lock / unlock functions.
+from lib389.idm.account import Account
 
 MUST_ATTRIBUTES = [
     'uid',
@@ -19,8 +21,7 @@ MUST_ATTRIBUTES = [
 RDN = 'uid'
 
 
-class UserAccount(DSLdapObject):
-
+class UserAccount(Account):
     def __init__(self, instance, dn=None, batch=False):
         super(UserAccount, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -62,7 +63,6 @@ class UserAccounts(DSLdapObjects):
             'account',
             'posixaccount',
             'inetOrgPerson',
-            'person',
             'organizationalPerson',
         ]
         self._filterattrs = [RDN]
