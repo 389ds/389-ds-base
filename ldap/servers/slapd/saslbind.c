@@ -807,6 +807,15 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
         ret = sup_ret;
     }
 
+    /*
+     * https://pagure.io/389-ds-base/issue/49231
+     * Because of the way that SASL mechs are managed in bind.c and saslbind.c
+     * even if EXTERNAL was *not* in the list of allowed mechs, it was allowed
+     * in the bind process because it bypasses lots of our checking. As a result
+     * we have to always present it.
+     */
+    charray_assert_present(&ret, "EXTERNAL");
+
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "<=\n");
 
     return ret;

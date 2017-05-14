@@ -25,12 +25,21 @@ def test_sasl_allowed_mechs(topology_st):
     assert('EXTERNAL' in orig_mechs)
 
     # Now edit the supported mechs. CHeck them again.
-    standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'EXTERNAL, PLAIN')
+    standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'PLAIN')
 
     limit_mechs = standalone.rootdse.supported_sasl()
-    print(limit_mechs)
+    assert('PLAIN' in limit_mechs)
+    # Should always be in the allowed list, even if not set.
+    assert('EXTERNAL' in limit_mechs)
+    # Should not be there!
+    assert('GSSAPI' not in limit_mechs)
+
+    standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'PLAIN, EXTERNAL')
+
+    limit_mechs = standalone.rootdse.supported_sasl()
     assert('PLAIN' in limit_mechs)
     assert('EXTERNAL' in limit_mechs)
+    # Should not be there!
     assert('GSSAPI' not in limit_mechs)
 
     # Do a config reset

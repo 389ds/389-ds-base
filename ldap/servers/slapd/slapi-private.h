@@ -834,6 +834,8 @@ void charray_subtract( char **a, char **b, char ***c );
 char **charray_intersection(char **a, char **b);
 int charray_get_index(char **array, char *s);
 int charray_normdn_add(char ***chararray, char *dn, char *errstr);
+void charray_assert_present(char ***a, char *s);
+
 
 /******************************************************************************
  * value array routines.
