@@ -272,6 +272,20 @@ charray_utf8_inlist(
     return( 0 );
 }
 
+/*
+ * Assert that some str s is in the charray, or add it.
+ */
+void
+charray_assert_present(char ***a, char *s)
+{
+    int result = charray_utf8_inlist(*a, s);
+    /* Not in the list */
+    if (result == 0) {
+        char *sdup = slapi_ch_strdup(s);
+        slapi_ch_array_add_ext(a, sdup);
+    }
+}
+
 int slapi_ch_array_utf8_inlist(char **a, char *s)
 {
 	return charray_utf8_inlist(a,s);
