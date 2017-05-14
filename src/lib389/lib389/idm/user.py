@@ -9,6 +9,7 @@
 from lib389._mapped_object import DSLdapObjects
 # Account derives DSLdapObject - it gives us the lock / unlock functions.
 from lib389.idm.account import Account
+from lib389.utils import ds_is_older
 
 MUST_ATTRIBUTES = [
     'uid',
@@ -32,12 +33,15 @@ class UserAccount(Account):
             'account',
             'posixaccount',
             'inetOrgPerson',
-            'nsMemberOf',
             'organizationalPerson',
             # This may not always work at sites?
             # Can we get this into core?
             # 'ldapPublicKey',
         ]
+        if ds_is_older('1.3.7'):
+            self._create_objectclasses.append('inetUser')
+        else:
+            self._create_objectclasses.append('nsMemberOf')
         user_compare_exclude = [
             'nsUniqueId', 
             'modifyTimestamp', 

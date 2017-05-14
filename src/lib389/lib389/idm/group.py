@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389.utils import ds_is_older
 
 MUST_ATTRIBUTES = [
     'cn',
@@ -22,8 +23,9 @@ class Group(DSLdapObject):
         self._create_objectclasses = [
             'top',
             'groupOfNames',
-            'nsMemberOf',
         ]
+        if not ds_is_older('1.3.7'):
+            self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
     def is_member(self, dn):
@@ -57,6 +59,8 @@ class UniqueGroup(DSLdapObject):
             'top',
             'groupOfUniqueNames',
         ]
+        if not ds_is_older('1.3.7'):
+            self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
     def is_member(self, dn):
