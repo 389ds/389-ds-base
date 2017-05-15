@@ -420,7 +420,7 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         /* Stop the user configuring a stupidly small cache */
         /* min: 8KB (page size) * def thrd cnts (threadnumber==20). */
 #define DBDEFMINSIZ     500000
-        /* We allow a value of 0, because the autotuting in start.c will
+        /* We allow a value of 0, because the autotuning in start.c will
          * register that, and trigger the recalculation of the dbcachesize as
          * needed on the next start up.
          */
@@ -443,7 +443,18 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
+
         if (CONFIG_PHASE_RUNNING == phase) {
+            if (val > 0 && li->li_cache_autosize) {
+                /* We are auto-tuning the cache, so this change would be overwritten - return an error */
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: \"nsslapd-dbcachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
+                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_dbcachesize_set",
+                    "\"nsslapd-dbcachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
+                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
             li->li_new_dbcachesize = val;
             if (val == 0) {
                 slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_dbcachesize_set", "cache size reset to 0, will be autosized on next startup.\n");
