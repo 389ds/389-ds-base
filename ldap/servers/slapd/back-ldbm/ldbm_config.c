@@ -1289,14 +1289,25 @@ static void *ldbm_config_cache_autosize_get(void *arg)
 
 static int ldbm_config_cache_autosize_set(void *arg,
                                           void *value,
-                                          char *errorbuf __attribute__((unused)),
+                                          char *errorbuf,
                                           int phase __attribute__((unused)),
                                           int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    if (apply)
-    li->li_cache_autosize = (int)((uintptr_t)value);
+    if (apply) {
+        int val = (int)((uintptr_t)value);
+        if (val < 0 || val > 100) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                CONFIG_CACHE_AUTOSIZE, val);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_autosize_set",
+                "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                CONFIG_CACHE_AUTOSIZE, val);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        li->li_cache_autosize = val;
+    }
     return LDAP_SUCCESS;
 }
 
@@ -1309,14 +1320,25 @@ static void *ldbm_config_cache_autosize_split_get(void *arg)
 
 static int ldbm_config_cache_autosize_split_set(void *arg,
                                                 void *value,
-                                                char *errorbuf __attribute__((unused)),
+                                                char *errorbuf,
                                                 int phase __attribute__((unused)),
                                                 int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    if (apply)
-    li->li_cache_autosize_split = (int)((uintptr_t)value);
+    if (apply) {
+        int val = (int)((uintptr_t)value);
+        if (val < 0 || val > 100) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                CONFIG_CACHE_AUTOSIZE_SPLIT, val);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_autosize_split_set",
+                "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                CONFIG_CACHE_AUTOSIZE_SPLIT, val);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        li->li_cache_autosize_split = val;
+    }
     return LDAP_SUCCESS;
 }
 
@@ -1720,8 +1742,8 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_DEBUG_CHECKPOINTING, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_debug_checkpointing_get, &ldbm_config_db_debug_checkpointing_set, 0},
     {CONFIG_DB_HOME_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_db_home_directory_get, &ldbm_config_db_home_directory_set, 0},
     {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, 0},
-    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "40", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, 0},
+    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "40", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "16777216", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_IDL_UPDATE, CONFIG_TYPE_ONOFF, "on", &ldbm_config_idl_get_update, &ldbm_config_idl_set_update, 0},
