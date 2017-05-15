@@ -49,7 +49,7 @@ class DSEldif(object):
 
         # Find the attribute
         for line in entry_slice:
-            if line.startswith(attr):
+            if line.startswith("{}:".format(attr)):
                 attr_value = line.split(" ", 1)[1][:-1]
                 attr_data.update({entry_slice.index(line): attr_value})
 
@@ -61,7 +61,10 @@ class DSEldif(object):
     def get(self, entry_dn, attr):
         """Return attribute values under a given entry"""
 
-        _, attr_data = self._find_attr(entry_dn, attr)
+        try:
+            _, attr_data = self._find_attr(entry_dn, attr)
+        except ValueError:
+            return None
 
         return attr_data.values()
 
@@ -89,7 +92,10 @@ class DSEldif(object):
     def replace(self, entry_dn, attr, value):
         """Replace attribute values with a new one under a given entry"""
 
-        self.delete(entry_dn, attr)
+        try:
+            self.delete(entry_dn, attr)
+        except ValueError as e:
+            self._instance.log.debug("During replace operation: {}".format(e))
         self.add(entry_dn, attr, value)
         self._update()
 
