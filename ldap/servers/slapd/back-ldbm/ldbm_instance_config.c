@@ -66,7 +66,7 @@ static int
 ldbm_instance_config_cachesize_set(void *arg,
                                    void *value,
                                    char *errorbuf __attribute__((unused)),
-                                   int phase __attribute__((unused)),
+                                   int phase,
                                    int apply)
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
@@ -76,6 +76,18 @@ ldbm_instance_config_cachesize_set(void *arg,
     /* Do whatever we can to make sure the data is ok. */
 
     if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            if (val > 0 && inst->inst_li->li_cache_autosize) {
+                /* We are auto-tuning the cache, so this change would be overwritten - return an error */
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: \"nsslapd-cachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
+                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachesize_set",
+                    "\"nsslapd-cachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
+                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
+        }
         cache_set_max_entries(&(inst->inst_cache), val);
     }
 
@@ -94,7 +106,7 @@ static int
 ldbm_instance_config_cachememsize_set(void *arg,
                                       void *value,
                                       char *errorbuf,
-                                      int phase __attribute__((unused)),
+                                      int phase,
                                       int apply)
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
@@ -115,6 +127,18 @@ ldbm_instance_config_cachememsize_set(void *arg,
      */
 
     if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            if (val > 0 && inst->inst_li->li_cache_autosize) {
+                /* We are auto-tuning the cache, so this change would be overwritten - return an error */
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: \"nsslapd-cachememsize\" can not be updated while \"nsslapd-cache-autosize\" is set "
+                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachememsize_set",
+                    "\"nsslapd-cachememsize\" can not be set while \"nsslapd-cache-autosize\" is set "
+                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
+        }
         if (val > inst->inst_cache.c_maxsize) {
             delta = val - inst->inst_cache.c_maxsize;
             delta_original = delta;
@@ -863,7 +887,7 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb,
                 continue;
             }
 
-        /* This assumes there is only one bval for this mod. */
+            /* This assumes there is only one bval for this mod. */
             if (mods[i]->mod_bvalues == NULL) {
                 /* This avoids the null pointer deref.
                  * In ldbm_config.c ldbm_config_set, it checks for the NULL.

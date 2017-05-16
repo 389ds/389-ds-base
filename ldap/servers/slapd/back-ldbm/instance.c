@@ -302,12 +302,19 @@ ldbm_instance_startall(struct ldbminfo *li)
         inst = (ldbm_instance *) object_get_data(inst_obj);
         ldbm_instance_set_flags(inst);
         rc1 = ldbm_instance_start(inst->inst_be);
-    if (rc1 != 0) {
-        rc = rc1;
-    } else {
-        vlv_init(inst);
-        slapi_mtn_be_started(inst->inst_be);
-    }
+        if (rc1 != 0) {
+            rc = rc1;
+        } else {
+            if(ldbm_instance_config_load_dse_info(inst) != 0){
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_startall",
+                    "Loading database instance configuration failed for (%s)\n",
+                    inst->inst_name);
+                rc = -1;
+            } else {
+                vlv_init(inst);
+                slapi_mtn_be_started(inst->inst_be);
+            }
+        }
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
     }
 
