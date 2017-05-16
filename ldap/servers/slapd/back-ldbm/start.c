@@ -169,7 +169,7 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     }
 
     slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk physical memory\n", mi->system_total_bytes / 1024);
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk avaliable\n", mi->system_available_bytes / 1024);
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk available\n", mi->system_available_bytes / 1024);
 
     /* We've now calculated the autotuning values. Do we need to apply it?
      * we use the logic of "if size is 0, or autosize is > 0. This way three
