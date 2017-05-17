@@ -38,7 +38,7 @@ $decrypt_on_export = 0;
 $cwd = cwd();
 
 sub usage {
-    print(STDERR "Usage: db2ldif.pl [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j pwfilename }\n");
+    print(STDERR "Usage: db2ldif.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j pwfilename }\n");
     print(STDERR "                  [-P protocol] {-n backendname}* | {-s include}* [{-x exclude}*] [-h]\n");
     print(STDERR "                  [-a filename] [-m] [-M] [-r] [-u] [-C] [-N] [-U] [-E] [-1] [-a filename]\n");
     print(STDERR "Options:\n");

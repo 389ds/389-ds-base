@@ -13,11 +13,12 @@ export SHLIB_PATH
 
 usage()
 {
-    echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
+    echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-v] [-h]"
     echo "Options:"
     echo "        archivedir   - Directory where the backup should be stored"
     echo "        -Z serverID  - Server instance identifier"
     echo "        -q           - Quiet mode - suppresses output"
+    echo "        -v           - Display version"
     echo "        -h           - Display usage"  
 }
 
