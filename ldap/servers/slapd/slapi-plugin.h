@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 /* Provides our int types and platform specific requirements. */
-#include <slapi_pal.h>
+#include "slapi_pal.h"
 
 #include "prtypes.h"
 #include "ldap.h"
