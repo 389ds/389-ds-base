@@ -18,7 +18,7 @@
 .SH NAME 
 vlvindex - Directory Server script for VLV indexing
 .SH SYNOPSIS
-vlvindex [\-Z serverID] \-n backendname | {\-s includesuffix}* \-T vlvTag [\-d debuglevel] [\-h]
+vlvindex [\-Z serverID] \-n backendname | {\-s includesuffix}* \-T vlvTag [\-d debuglevel] [\-v] [\-h]
 .SH DESCRIPTION
 Creates virtual list view (VLV) indexes, known in the Directory Server Console as browsing indexes. VLV indexes introduce flexibility in the way search results are viewed.  VLV index configuration must already exist prior to running this script. The Directory Server must be stopped before running this script.
 .SH OPTIONS
@@ -39,6 +39,10 @@ This is the name of the vlv index entry under cn=config.
 .TP
 .B \fB\-d\fR \fIDebug Level\fR
 Settings the debugging level.
+.TP
+.B \fB\-v\fR
+.br
+Display the version.
 .TP
 .B \fB\-h\fR
 .br

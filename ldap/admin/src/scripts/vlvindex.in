@@ -13,7 +13,7 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: vlvindex [-Z serverID] -n backendname | {-s includesuffix}* -T vlvTag [-d debuglevel] [-h]"
+    echo "Usage: vlvindex [-Z serverID] -n backendname | {-s includesuffix}* -T vlvTag [-d debuglevel] [-v] [-h]"
     echo "Note: either \"-n backend\" or \"-s includesuffix\" are required."
     echo "Options:"
     echo "        -Z serverID        - Server instance identifier"
@@ -21,6 +21,7 @@ usage ()
     echo "        -s includessuffix  - Suffix to index"
     echo "        -T vlvTag          - VLV index name"
     echo "        -d debuglevel      - Debugging level"
+    echo "        -v                 - Display version"
     echo "        -h                 - Display usage"
 }
 

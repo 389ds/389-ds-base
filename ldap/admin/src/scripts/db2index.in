@@ -14,7 +14,7 @@ export SHLIB_PATH
 usage ()
 {
     echo "Usage: db2index [-Z serverID] [-n backend | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]]"
-    echo "                -T vlvTag] [-h]"
+    echo "                -T vlvTag] [-v] [-h]"
     echo "Options:"
     echo "        -Z serverID       - Server instance identifier"
     echo "        -n backend        - Backend database name.  Example: userRoot"
@@ -26,6 +26,7 @@ usage ()
     echo "                          - matchingrules: comma separated matrules"
     echo "                                 Example: -t foo:eq,pres"
     echo "        -T vlvTag         - VLV index name"
+    echo "        -v                - Display version"
     echo "        -h                - Display usage" 
 }
 

@@ -16,7 +16,7 @@ cwd=`pwd`
 usage()
 {
     echo "Usage: db2ldif [-Z serverID] {-n backend_instance}* | {-s includesuffix}* [{-x excludesuffix}*] [-a outputfile]"
-    echo "               [-E] [-r] [-u] [-U] [-m] [-1] [-q] [-h]"
+    echo "               [-E] [-r] [-u] [-U] [-m] [-1] [-q] [-v] [-h]"
     echo "Note: either \"-n backend\" or \"-s includesuffix\" is required."
     echo "Options:"
     echo "        -Z serverID       - Server instance identifier"
@@ -31,6 +31,7 @@ usage()
     echo "        -m                - Do not base64 encode values"
     echo "        -1                - Do not include version text"
     echo "        -q                - Quiet mode - suppresses output"
+    echo "        -v                - Display version"
     echo "        -h                - Display usage" 
 }
 
