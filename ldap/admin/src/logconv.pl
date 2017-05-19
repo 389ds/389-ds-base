@@ -1099,23 +1099,23 @@ print "Max BER Size Exceeded:        $maxBerSizeCount\n";
 print "\n";
 print "Binds:                        $bindCount\n";
 print "Unbinds:                      $unbindCount\n";
+print "------------------------------";
+print "-" x length $bindCount;
+print "\n";
 print " - LDAP v2 Binds:             $v2BindCount\n";
 print " - LDAP v3 Binds:             $v3BindCount\n";
-print " - AUTOBINDs:                 $autobindCount\n";
+print " - AUTOBINDs(LDAPI):          $autobindCount\n";
 print " - SSL Client Binds:          $sslClientBindCount\n";
 print " - Failed SSL Client Binds:   $sslClientFailedCount\n";
 print " - SASL Binds:                $saslBindCount\n";
 if ($saslBindCount > 0){
 	my $saslmech = $hashes->{saslmech};
 	foreach my $saslb ( sort {$saslmech->{$b} <=> $saslmech->{$a} } (keys %{$saslmech}) ){
-		printf "    %-4s - %s\n",$saslb, $saslmech->{$saslb};
+		printf "   - %-4s: %s\n",$saslb, $saslmech->{$saslb};
 	}
 }
-
 print " - Directory Manager Binds:   $rootDNBindCount\n";
 print " - Anonymous Binds:           $anonymousBindCount\n";
-my $otherBindCount = $bindCount -($rootDNBindCount + $anonymousBindCount);
-print " - Other Binds:               $otherBindCount\n\n";
 
 ##########################################################################
 #                       Verbose Logging Section                          #
@@ -1195,9 +1195,9 @@ if ($usage =~ /e/i || $verb eq "yes"){
 }
 
 ####################################
-#			   #
+#                                  #
 #     Print Failed Logins          #
-#				   #
+#                                  #
 ####################################
 
 if ($verb eq "yes" || $usage =~ /f/ ){
@@ -2117,7 +2117,7 @@ sub parseLineNormal
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		handleConnClose($connID);
 	}
-	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method=128/i ){
+	if (m/ BIND / && $_ =~ /dn=\"(.*)\" method=128/i ){
 		my $binddn = $1;
 		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
 		$bindCount++;
@@ -2531,21 +2531,49 @@ sub parseLineNormal
 			}
 		}
 	}
-	if (/ BIND / && /method=sasl/i){
+	if (/ BIND / && $_ =~ /dn=\"(.*)\" method=sasl/i){
+		my $binddn = $1;
+		my ($conn, $op);
 		$saslBindCount++;
 		$bindCount++;
 		if ($_ =~ /mech=(.*)/i ){
 			my $mech = $1;
 			$hashes->{saslmech}->{$mech}++;
-			my ($conn, $op);
 			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
 				$conn = $1;
 				$op = $2;
 				$hashes->{saslconnop}->{$conn-$op} = $mech;
 			}
 		}
-		if (/ mech=ANONYMOUS/){
-			$anonymousBindCount++;
+		if ($binddn ne ""){
+			if($binddn eq $rootDN){ $rootDNBindCount++; }
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
+				$tmpp = $binddn;
+				$tmpp =~ tr/A-Z/a-z/;
+				$hashes->{bindlist}->{$tmpp}++;
+				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = $tmpp;
+			}
+		}
+	}
+	if (/ RESULT err=/ && / tag=97 nentries=0 etime=/ && $_ =~ /dn=\"(.*)\"/i){
+		# Check if this is a sasl bind, if see we need to add the RESULT's dn as a bind dn
+		my $binddn = $1;
+		my ($conn, $op);
+		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
+			$conn = $1;
+			$op = $2;
+			if ($hashes->{saslconnop}->{$conn-$op} ne ""){
+				# This was a SASL BIND - record the dn
+				if ($binddn ne ""){
+					if($binddn eq $rootDN){ $rootDNBindCount++; }
+					if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
+						$tmpp = $binddn;
+						$tmpp =~ tr/A-Z/a-z/;
+						$hashes->{bindlist}->{$tmpp}++;
+						$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = $tmpp;
+					}
+				}
+			}
 		}
 	}
 	if (/ RESULT err=14 tag=97 / && / SASL bind in progress/){
