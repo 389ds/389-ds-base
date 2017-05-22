@@ -318,7 +318,7 @@ except OSError as e:
             sys.exit(1)
     else:
         print("Failed to create log pipe - %s [error %d]" % (e.strerror, e.errno))
-        sys.ext(1)
+        sys.exit(1)
 
 if debug:
     print("Listening to log pipe", logfname, "number of lines", maxlines)
