@@ -676,7 +676,18 @@ main( int argc, char **argv)
 		}
 	}
 
+
+	/* used to set configfile to the default config file name here */
+	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
+		myname = slapi_ch_strdup( argv[0] );
+	} else {
+		myname = slapi_ch_strdup( myname + 1 );
+	}
+
+	process_command_line(argc,argv,&extraname);
+
 #ifdef WITH_SYSTEMD
+	/* Note: Must come *after* processing CLI, to override the should_detach flag */
 	/*
 	 * HUGE WARNING: Systemd has some undocumented magic. with Type=notify, this
 	 * acts as type=simple, but waits for ns-slapd to tell systemd it's good to go.
@@ -695,16 +706,6 @@ main( int argc, char **argv)
 		should_detach = 0;
 	}
 #endif
-
-
-	/* used to set configfile to the default config file name here */
-	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
-		myname = slapi_ch_strdup( argv[0] );
-	} else {
-		myname = slapi_ch_strdup( myname + 1 );
-	}
-
-	process_command_line(argc,argv,&extraname);
 
 	if (NULL == slapdFrontendConfig->configdir) {
 		usage( myname, extraname );
