@@ -11,8 +11,6 @@
  * specific issues.
  */
 
-/* Provide ch_malloc etc. */
-#include <slapi-plugin.h>
 /* Provide slapi_log_err macro wrapper */
 #include <slapi-private.h>
 #include <slapi_pal.h>

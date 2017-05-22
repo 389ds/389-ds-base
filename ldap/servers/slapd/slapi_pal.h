@@ -19,15 +19,7 @@
 
 #pragma once
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
 
 /**
  * Structure that contains our system memory information in bytes and pages.
