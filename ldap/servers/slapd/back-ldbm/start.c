@@ -101,7 +101,11 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     /* This doesn't control the availability of the feature, so we can take the
      * default from ldbm_config.c
      */
-    autosize_db_percentage_split = li->li_cache_autosize_split;
+    if (li->li_cache_autosize_split == 0) {
+        autosize_db_percentage_split = 40;
+    } else {
+        autosize_db_percentage_split = li->li_cache_autosize_split;
+    }
 
 
     /* Check the values are sane. */
@@ -131,10 +135,18 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     db_size = (autosize_db_percentage_split * zone_size) / 100;
 
     /* Cap the DB size at 512MB, as this doesn't help perf much more (lkrispen's advice) */
+    /* NOTE: Do we need a minimum DB size? */
     if (db_size > (512 * MEGABYTE)) {
         db_size = (512 * MEGABYTE);
     }
 
+    /* NOTE: Because of how we workout entry_size, even if
+     * have autosize split to say ... 90% for dbcache, because
+     * we cap db_size, we use zone_size - db_size, meaning that entry
+     * cache still gets the remaining memory *even* though we didn't use it all.
+     * If we didn't do this, entry_cache would only get 10% of of the avail, even
+     * if db_size was caped at say 5% down from 90.
+     */
     if (backend_count > 0 ) {
         /* Number of entry cache pages per backend. */
         entry_size = (zone_size - db_size) / backend_count;
