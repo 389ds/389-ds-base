@@ -105,7 +105,12 @@ if ($archivedir eq "") {
     } else {
         $symname = $archivedir;
     }
-    print("Back up directory: $archivedir\n");
+    if ($symname eq "") {
+        print("Back up directory: $archivedir\n");
+    } else {
+        print("Back up directory: $archivedir -> $mybakdir/$archivebase\n");
+    }
+
     # If an archive dir is specified, create it as a symlink pointing
     # to the default backup dir not to violate the selinux policy.
     $archivedir = "${mybakdir}/${archivebase}";
