@@ -118,7 +118,7 @@ pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     }
 
     /* We need a slapi_sdn_isanon? */
-    if (method == LDAP_AUTH_SIMPLE && cred->bv_len == 0) {
+    if (method == LDAP_AUTH_SIMPLE && (cred == NULL || cred->bv_len == 0)) {
         return SLAPI_BIND_ANONYMOUS;
     }
 

@@ -108,6 +108,9 @@ crypt_pw_enc_by_hash( const char *pwd, int hash_algo){
         algo_salt = slapi_ch_smprintf("$5$%s", salt);
     } else if (hash_algo == CRYPT_SHA512) {
         algo_salt = slapi_ch_smprintf("$6$%s", salt);
+    } else {
+        /* default to CRYPT_UNIX */
+        algo_salt = strdup(salt);
     }
 
     PR_Lock(cryptlock);

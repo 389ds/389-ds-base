@@ -658,7 +658,7 @@ ACL_INTEvalTestRights(
      *     place to do it.
      */
 
-    while (*rights)
+    while (*rights && rights_cnt < ACL_MAX_TEST_RIGHTS)
     {
         rarray_p = &rights_arry[rights_cnt];
 

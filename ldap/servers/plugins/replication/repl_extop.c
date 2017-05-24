@@ -1158,7 +1158,8 @@ send_response:
 				
 				r_locking_conn = replica_get_locking_conn(r);
 				slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
-				"already acquired replica: locking_conn=%d, current connid=%d\n", (int) r_locking_conn, (int) connid);
+					"already acquired replica: locking_conn=%" PRIu64 ", current connid=%" PRIu64 "\n",
+					r_locking_conn, connid);
 				
 				if ((r_locking_conn != ULONG_MAX) && (r_locking_conn == connid)) {
 					replica_relinquish_exclusive_access(r, connid, opid);
@@ -1174,7 +1175,7 @@ send_response:
 			 * that the RA will restart a new session in a clear state 
 			 */
 			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
-				"already acquired replica: disconnect conn=%d\n", connid);
+				"already acquired replica: disconnect conn=%" PRIu64 "\n", connid);
 			slapi_disconnect_server(conn);
             
 		}

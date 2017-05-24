@@ -591,15 +591,22 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 	PRInt32 http_connection_time_out = 0;
 	int i = 0;
 	int body_len, buflen = 0; 
+	int path_len;
 
 	if (body) {
 		body_len = strlen(body);
 	} else {
 		body_len = 0;
 	}
+	if (path) {
+		path_len = strlen(path);
+	} else {
+		path_len = 0;
+	}
+
 	PR_snprintf(body_len_str, sizeof(body_len_str), "%d", body_len);
 
-	buflen = (HTTP_POST_STD_LEN + strlen(path) + body_len + strlen(body_len_str));
+	buflen = (HTTP_POST_STD_LEN + path_len + body_len + strlen(body_len_str));
 
 	for (i = 0; httpheaderArray[i] != NULL; i++) {
 
