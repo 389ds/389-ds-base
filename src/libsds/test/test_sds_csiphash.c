@@ -14,6 +14,14 @@
 
 #include "test_sds.h"
 
+#if defined(HAVE_SYS_ENDIAN_H)
+#  include <sys/endian.h>
+#elif defined(HAVE_ENDIAN_H)
+#  include <endian.h>
+#else
+#  error platform header for endian detection not found.
+#endif
+
 static void
 test_siphash(void **state __attribute__((unused))) {
 
@@ -26,7 +34,7 @@ test_siphash(void **state __attribute__((unused))) {
     uint64_t test_b = 13042610424265326907U;
 
     // Initial simple test
-    value = 5;
+    value = htole64(5);
     hashout = sds_siphash13(&value, sizeof(uint64_t), key);
     assert_true(hashout == test_a);
 
