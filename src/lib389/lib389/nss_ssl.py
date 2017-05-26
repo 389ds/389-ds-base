@@ -14,6 +14,7 @@ import sys
 import random
 import string
 import re
+import socket
 # from nss import nss
 from subprocess import check_call, check_output
 from lib389.passwd import password_generate
@@ -21,6 +22,7 @@ from lib389.passwd import password_generate
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
 CERT_NAME = 'Server-Cert'
+USER_PREFIX = 'user-'
 PIN_TXT = 'pin.txt'
 PWD_TXT = 'pwdfile.txt'
 ISSUER = 'CN=ca.lib389.example.com,O=testing,L=lib389,ST=Queensland,C=AU'
@@ -193,6 +195,16 @@ class NssSsl(object):
         (ssl_flag, mime_flag, jar_flag) = trust_flags.split(',')
         return 'C' in ssl_flag
 
+    def _rsa_cert_is_user(self, cert_tuple):
+        """
+        Check an RSA cert is user trust
+
+        Sadly we can't check for ext key usage, because NSS makes this really hard.
+        """
+        trust_flags = cert_tuple[1]
+        (ssl_flag, mime_flag, jar_flag) = trust_flags.split(',')
+        return 'u' in ssl_flag
+
     def _rsa_ca_exists(self):
         """
         Detect if a self-signed ca exists
@@ -206,7 +218,7 @@ class NssSsl(object):
 
     def _rsa_key_and_cert_exists(self):
         """
-        Check if a valid server key and cert pain exist.
+        Check if a valid server key and cert pair exist.
         """
         have_cert = False
         cert_list = self._rsa_cert_list()
@@ -216,6 +228,21 @@ class NssSsl(object):
                 have_cert = True
         return have_cert
 
+    def _rsa_user_exists(self, name):
+        """
+        Check if a valid server key and cert pair exist for a user.
+
+        we use the format, user-<name>
+        """
+        have_user = False
+        cert_list = self._rsa_cert_list()
+        for cert in cert_list:
+            if (cert[0] == '%s%s' % (USER_PREFIX, name)):
+                if self._rsa_cert_key_exists(cert) and self._rsa_cert_is_user(cert):
+                    have_user = True
+        return have_user
+
+
     def create_rsa_key_and_cert(self, alt_names=[]):
         """
         Create a key and a cert that is signed by the self signed ca
@@ -224,9 +251,13 @@ class NssSsl(object):
         extra names to take.
         """
 
+        if len(alt_names) == 0:
+            alt_names.append(socket.gethostname())
+        if self.dirsrv.host not in alt_names:
+            alt_names.append(self.dirsrv.host)
+
         # Create noise.
         self._generate_noise('%s/noise.txt' % self.dirsrv.get_cert_dir())
-        # Now run the command. Can we do this with NSS native?
         cmd = [
             '/usr/bin/certutil',
             '-S',
@@ -235,8 +266,7 @@ class NssSsl(object):
             '-s',
             SELF_ISSUER.format(HOSTNAME=self.dirsrv.host),
             # We MUST issue with SANs else ldap wont verify the name.
-            '-8',
-            self.dirsrv.host,
+            '-8', ','.join(alt_names),
             '-c',
             CA_NAME,
             '-g',
@@ -256,3 +286,84 @@ class NssSsl(object):
         result = check_output(cmd)
         self.dirsrv.log.debug("nss output: %s" % result)
         return True
+
+    def create_rsa_user(self, name):
+        """
+        Create a key and cert for a user to authenticate to the directory.
+
+        Name is the uid of the account, and will become the CN of the cert.
+        """
+        cmd = [
+            '/usr/bin/certutil',
+            '-S',
+            '-n',
+            '%s%s' % (USER_PREFIX, name),
+            '-s',
+            SELF_ISSUER.format(HOSTNAME=name),
+            '--keyUsage',
+            'digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment',
+            '--nsCertType',
+            'sslClient',
+            '--extKeyUsage',
+            'clientAuth',
+            '-c',
+            CA_NAME,
+            '-g',
+            '%s' % KEYBITS,
+            '-t',
+            ',,',
+            '-v',
+            '%s' % VALID,
+            '-d',
+            self._certdb,
+            '-z',
+            '%s/noise.txt' % self.dirsrv.get_cert_dir(),
+            '-f',
+            '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT),
+        ]
+
+        result = check_output(cmd)
+        self.dirsrv.log.debug("nss output: %s" % result)
+        # Now extract this into PEM files that we can use.
+        # pk12util -o user-william.p12 -d . -k pwdfile.txt -n user-william -W ''
+        check_call([
+            'pk12util',
+            '-d', self._certdb,
+            '-o', '%s/%s%s.p12' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name),
+            '-k', '%s/%s' % (self.dirsrv.get_cert_dir(), PWD_TXT),
+            '-n', '%s%s' % (USER_PREFIX, name),
+            '-W', '""'
+        ])
+        # openssl pkcs12 -in user-william.p12 -passin pass:'' -out file.pem -nocerts -nodes
+        # Extract the key
+        check_call([
+            'openssl',
+            'pkcs12',
+            '-in', '%s/%s%s.p12' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name),
+            '-passin', 'pass:""',
+            '-out', '%s/%s%s.key' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name),
+            '-nocerts',
+            '-nodes'
+        ])
+        # Extract the cert
+        check_call([
+            'openssl',
+            'pkcs12',
+            '-in', '%s/%s%s.p12' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name),
+            '-passin', 'pass:""',
+            '-out', '%s/%s%s.crt' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name),
+            '-nokeys',
+            '-clcerts',
+            '-nodes'
+        ])
+        return True
+
+    def get_rsa_user(self, name):
+        """
+        Return a dict of information for ca, key and cert paths for the user id
+        """
+        ca_path = '%s/ca.crt' % self.dirsrv.get_cert_dir()
+        key_path = '%s/%s%s.key' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name)
+        crt_path = '%s/%s%s.crt' % (self.dirsrv.get_cert_dir(), USER_PREFIX, name)
+        return {'ca': ca_path, 'key': key_path, 'crt': crt_path}
+

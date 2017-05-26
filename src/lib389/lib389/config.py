@@ -197,7 +197,7 @@ class Encryption(DSLdapObject):
         self._must_attributes = ['cn']
         self._protected = True
 
-    def create(self, rdn=None, properties={'cn': 'encryption'}):
+    def create(self, rdn=None, properties={'cn': 'encryption', 'nsSSLClientAuth': 'allowed'}):
         if rdn is not None:
             self._log.debug("dn on cn=encryption is not None. This is a mistake.")
         super(Encryption, self).create(properties=properties)
@@ -231,4 +231,100 @@ class RSA(DSLdapObject):
             self._log.debug("dn on cn=Rsa create request is not None. This is a mistake.")
         # Our self._dn is already set, no need for rdn.
         super(RSA, self).create(properties=properties)
+
+class CertmapLegacy(object):
+    """
+    Manage certificate mappings in Directory Server
+
+    This is based on the old certmap fileformat. As a result, the interface is rather
+    crude, until we re-write to use dynamic mappings.
+    """
+    def __init__(self, conn):
+        self._instance = conn
+        pass
+
+    def reset(self):
+        """
+        Reset the certmap to empty.
+        """
+        certmap = os.path.join(self._instance.get_config_dir(), 'certmap.conf')
+        with open(certmap, 'w') as f:
+            f.write('# LDAP Certificate mappings \n')
+
+    def _parse_maps(self, maps):
+        certmaps = {}
+        cur_map = None
+        for l in maps:
+            if l.startswith('certmap'):
+                # Line matches format of: certmap name issuer
+                (_, name, issuer) = l.split(None, 2)
+                certmaps[name] = {
+                    'DNComps': None,
+                    'FilterComps': None,
+                    'VerifyCert': None,
+                    'CmapLdapAttr': None,
+                    'Library': None,
+                    'InitFn': None,
+                }
+                certmaps[name]['issuer'] = issuer
+            else:
+                # The line likely is:
+                # name:property [value]
+                (name, pav) = l.split(':')
+                pavs = pav.split(None, 1)
+                if len(pavs) == 1:
+                    # We have an empty property
+                    certmaps[name][pav] = ''
+                else:
+                    # We clearly have a value.
+                    if pavs[0] == 'DNComps' or pavs[0] == 'FilterComps':
+                        # These two are comma sep lists
+                        values = [w.split for w in pavs[1].split(',')]
+                        certmaps[name][pavs[0]] = values
+                    else:
+                        certmaps[name][pavs[0]] = pavs[1]
+        return certmaps
+
+    def list(self):
+        """
+        Parse and list current certmaps.
+        """
+        certmap = os.path.join(self._instance.get_config_dir(), 'certmap.conf')
+        maps = []
+        with open(certmap, 'r') as f:
+            for line in f.readlines():
+                s_line = line.strip()
+                if not s_line.startswith('#'):
+                    content = s_line.split('#')[0]
+                    if content != '':
+                        maps.append(content)
+        certmaps = self._parse_maps(maps)
+        return certmaps
+
+    def set(self, certmaps):
+        """
+        Take a dict of certmaps and write them out.
+        """
+        output = ""
+        for name in certmaps:
+            certmap = certmaps[name]
+            output += "certmap %s %s\n" % (name, certmap['issuer'])
+            for v in ['DNComps', 'FilterComps']:
+                if certmap[v] == None:
+                    output += "# %s:%s\n" % (name, v)
+                elif certmap[v] == '':
+                    output += "%s:%s\n" % (name, v)
+                else:
+                    output += "%s:%s %s\n" % (name, v, ', '.join(certmap[v]))
+            for v in ['VerifyCert', 'CmapLdapAttr', 'Library', 'InitFn']:
+                if certmap[v] == None:
+                    output += "# %s:%s\n" % (name, v)
+                else:
+                    output += "%s:%s %s\n" % (name, v, certmap[v])
+        # Now write it out
+        certmap = os.path.join(self._instance.get_config_dir(), 'certmap.conf')
+        with open(certmap, 'w') as f:
+            f.write(output)
+
+
 

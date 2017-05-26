@@ -32,6 +32,7 @@ Summary:    %{sum}
 Requires: python-ldap
 Requires: krb5-workstation
 Requires: krb5-server
+Requires: openssl
 # Conditional will need to change later.
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 Requires: python2
@@ -58,6 +59,9 @@ and configuring the 389 Directory Server.
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 %package -n python%{python3_pkgversion}-%{srcname}
 Summary:    %{sum}
+Requires: krb5-workstation
+Requires: krb5-server
+Requires: openssl
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-pyldap

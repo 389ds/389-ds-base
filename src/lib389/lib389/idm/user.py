@@ -32,6 +32,7 @@ class UserAccount(Account):
             'top',
             'account',
             'posixaccount',
+            # inetOrgPerson allows userCertificate
             'inetOrgPerson',
             'organizationalPerson',
             # This may not always work at sites?

@@ -98,6 +98,7 @@ if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
 RE_DBMONATTR = re.compile(r'^([a-zA-Z]+)-([1-9][0-9]*)$')
 RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 
+# This controls pyldap debug levels
 TRACE_LEVEL = 0
 
 # My logger
@@ -530,6 +531,8 @@ class DirSrv(SimpleLDAPObject, object):
         server = DirSrv(verbose=self.verbose)
         args_instance[SER_HOST] = self.host
         args_instance[SER_PORT] = self.port
+        if self.sslport is not None:
+            args_instance[SER_SECURE_PORT] = self.sslport
         args_instance[SER_SERVERID_PROP] = self.serverid
         args_standalone = args_instance.copy()
         server.allocate(args_standalone)
@@ -994,7 +997,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD):
+    def open(self, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD,
+                usercert=None, userkey=None):
         '''
             It opens a ldap bound connection to dirsrv so that online
             administrative tasks are possible.  It binds with the binddn
@@ -1012,7 +1016,54 @@ class DirSrv(SimpleLDAPObject, object):
             @raise LDAPError
         '''
 
+        ##################
+        # WARNING: While you have a python ldap connection open some settings like
+        # ldap.set_option MAY NOT WORK AS YOU EXPECT.
+        # There are cases (especially CACERT/USERCERTS) where when one connection
+        # is open set_option SILENTLY fails!!!!
+        #
+        # You MAY need to set post_open=False in your DirSrv start/restart instance!
+        ##################
+
         uri = self.toLDAPURL()
+
+        if certdir is None and self.isLocal:
+            certdir = self.get_cert_dir()
+            log.debug("Using dirsrv ca certificate %s" % certdir)
+
+        if userkey is not None:
+            # Note this sets LDAP.OPT not SELF. Because once self has opened
+            # it can NOT change opts AT ALL.
+            ldap.set_option(ldap.OPT_X_TLS_KEYFILE, userkey)
+            log.debug("Using user private key %s" % userkey)
+        if usercert is not None:
+            # Note this sets LDAP.OPT not SELF. Because once self has opened
+            # it can NOT change opts AT ALL.
+            ldap.set_option(ldap.OPT_X_TLS_CERTFILE, usercert)
+            log.debug("Using user certificate %s" % usercert)
+
+        if certdir is not None:
+            """
+            We have a certificate directory, so lets start up TLS negotiations
+            """
+            # Note this sets LDAP.OPT not SELF. Because once self has opened
+            # it can NOT change opts AT ALL.
+            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
+            log.debug("Using external ca certificate %s" % certdir)
+
+        if certdir or starttls:
+            try:
+                # Note this sets LDAP.OPT not SELF. Because once self has opened
+                # it can NOT change opts on reused (ie restart)
+                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                log.debug("Using certificate policy %s" % reqcert)
+                log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
+            except ldap.LDAPError as e:
+                log.fatal('TLS negotiation failed: %s' % str(e))
+                raise e
+
+        ## NOW INIT THIS. This MUST be after all the ldap.OPT set above,
+        # so that we inherit the settings correctly!!!!
         if self.verbose:
             self.log.info('open(): Connecting to uri %s' % uri)
         if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
@@ -1020,26 +1071,8 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
 
-        #if certdir is None and self.isLocal and self.nss_ssl._rsa_ca_exists():
-        #    certdir = self.get_cert_dir()
-        #    log.debug("Using dirsrv ca certificate %s" % certdir)
-
-        if certdir is not None:
-            """
-            We have a certificate directory, so lets start up TLS negotiations
-            """
-            self.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
-            log.debug("Using external ca certificate %s" % certdir)
-
-        if certdir or starttls:
-            try:
-                self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
-                log.debug("Using certificate policy %s" % reqcert)
-                log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
-                self.start_tls_s()
-            except ldap.LDAPError as e:
-                log.fatal('TLS negotiation failed: %s' % str(e))
-                raise e
+        if starttls and not uri.startswith('ldaps'):
+            self.start_tls_s()
 
         if saslmethod and saslmethod.lower() == 'gssapi':
             """
@@ -1056,6 +1089,10 @@ class DirSrv(SimpleLDAPObject, object):
                 log.debug("SASL/GSSAPI Bind Failed: %s" % str(e))
                 raise e
 
+        elif saslmethod == 'EXTERNAL':
+            # Do nothing.
+            sasl_auth = ldap.sasl.external()
+            self.sasl_interactive_bind_s("", sasl_auth)
         elif saslmethod and sasltoken is not None:
             # Just pass the sasltoken in!
             self.sasl_interactive_bind_s("", sasltoken)
