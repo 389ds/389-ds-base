@@ -34,6 +34,10 @@ def test_get_singlevalue(topo, entry_dn):
     attr_values = dse_ldif.get(entry_dn, "cn")
     assert attr_values == ["config"]
 
+    log.info("Get 'nonexistent' attr from {}".format(entry_dn))
+    attr_values = dse_ldif.get(entry_dn, "nonexistent")
+    assert not attr_values
+
 
 def test_get_multivalue(topo):
     """Check that we can get attribute values"""
@@ -63,8 +67,7 @@ def test_add(topo, fake_attr_value):
 
     log.info("Clean up")
     dse_ldif.delete(DN_CONFIG, fake_attr)
-    with pytest.raises(ValueError):
-        dse_ldif.get(DN_CONFIG, fake_attr)
+    assert not dse_ldif.get(DN_CONFIG, fake_attr)
 
 
 def test_replace(topo):
@@ -107,8 +110,7 @@ def test_delete_singlevalue(topo):
 
     log.info("Clean up")
     dse_ldif.delete(DN_CONFIG, fake_attr)
-    with pytest.raises(ValueError):
-        dse_ldif.get(DN_CONFIG, fake_attr)
+    assert not dse_ldif.get(DN_CONFIG, fake_attr)
 
 
 def test_delete_multivalue(topo):
@@ -124,6 +126,5 @@ def test_delete_multivalue(topo):
 
     log.info("Delete all values of {}".format(fake_attr))
     dse_ldif.delete(DN_CONFIG, fake_attr)
-    with pytest.raises(ValueError):
-        dse_ldif.get(DN_CONFIG, fake_attr)
+    assert not dse_ldif.get(DN_CONFIG, fake_attr)
 
