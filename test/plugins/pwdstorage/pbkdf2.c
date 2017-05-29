@@ -27,6 +27,7 @@ test_plugin_pwdstorage_nss_stop(void **state __attribute__((unused))) {
 void
 test_plugin_pwdstorage_pbkdf2_auth(void **state __attribute__((unused))) {
 
+#if (NSS_VMAJOR * 100 + NSS_VMINOR) > 328
     /* Check that given various known passwords and hashes they validate (or don't) */
 
     /* 'password' */
@@ -49,10 +50,12 @@ test_plugin_pwdstorage_pbkdf2_auth(void **state __attribute__((unused))) {
     assert_false(pbkdf2_sha256_pw_cmp("password", password_a_rounds) == 0);
     assert_false(pbkdf2_sha256_pw_cmp("password", password_a_salt) == 0);
     assert_false(pbkdf2_sha256_pw_cmp("password_b", password_a) == 0);
+#endif
 }
 
 void
 test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused))){
+#if (NSS_VMAJOR * 100 + NSS_VMINOR) > 328
     /* Check the benchmark, and make sure we get a valid timestamp */
     assert_true(pbkdf2_sha256_benchmark_iterations() > 0);
     /*
@@ -69,5 +72,6 @@ test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused))){
     assert_true(pbkdf2_sha256_calculate_iterations(200000000) == 10000);
     assert_true(pbkdf2_sha256_calculate_iterations(100000000) == 20000);
     assert_true(pbkdf2_sha256_calculate_iterations(50000000) == 40000);
+#endif
 }
 
