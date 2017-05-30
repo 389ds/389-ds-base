@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
@@ -26,13 +26,15 @@ from lib389.cli_idm import user as cli_user
 
 from lib389.cli_base import connect_instance, disconnect_instance
 
+from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
+
 log = logging.getLogger("dsidm")
 
 if __name__ == '__main__':
 
     defbase = ldap.get_option(ldap.OPT_DEFBASE)
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=True)
     # First, add the LDAP options
 
     parser.add_argument('instance',
@@ -40,7 +42,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('-b', '--basedn',
             help="Basedn (root naming context) of the instance to manage",
-            default=defbase
+            default=None
         )
     parser.add_argument('-v', '--verbose',
             help="Display verbose operation tracing during command execution",
@@ -48,7 +50,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default=DN_DM,
+            default=None,
         )
     parser.add_argument('-Z', '--starttls',
             help="Connect with StartTLS",
@@ -79,9 +81,17 @@ if __name__ == '__main__':
     # I gave attribution. -- wibrown
     log.debug("Inspired by works of: ITS, The University of Adelaide")
 
-    log.debug("Called with: %s", args)
+    # Now that we have our args, see how they relate with our instance.
+    dsrc_inst = dsrc_to_ldap("~/.dsrc", args.instance, log.getChild('dsrc'))
 
-    if args.basedn is None:
+    # Now combine this with our arguments
+
+    dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
+
+    log.debug("Called with: %s", args)
+    log.debug("Instance details: %s" % dsrc_inst)
+
+    if dsrc_inst['basedn'] is None:
         log.error("Must provide a basedn!")
 
     ldapurl = args.instance
@@ -89,12 +99,12 @@ if __name__ == '__main__':
     # Connect
     inst = None
     if args.verbose:
-        inst = connect_instance(ldapurl=ldapurl, binddn=args.binddn, verbose=args.verbose, starttls=args.starttls)
-        args.func(inst, args.basedn, log, args)
+        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+        args.func(inst, dsrc_inst['basedn'], log, args)
     else:
         try:
-            inst = connect_instance(ldapurl=ldapurl, binddn=args.binddn, verbose=args.verbose, starttls=args.starttls)
-            args.func(inst, args.basedn, log, args)
+            inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+            args.func(inst, dsrc_inst['basedn'], log, args)
         except Exception as e:
             log.debug(e, exc_info=True)
             log.error("Error: %s" % e.message)

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016 Red Hat, Inc.
@@ -24,13 +24,15 @@ from lib389.cli_conf import schema as cli_schema
 from lib389.cli_conf import lint as cli_lint
 from lib389.cli_base import disconnect_instance, connect_instance
 
+from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
+
 log = logging.getLogger("dsconf")
 
 if __name__ == '__main__':
 
     defbase = ldap.get_option(ldap.OPT_DEFBASE)
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=True)
     # Build the base ldap options, this keeps in unified.
 
     # Can we get default options for these from .rc file?
@@ -44,7 +46,11 @@ if __name__ == '__main__':
         )
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default=DN_DM,
+            default=None,
+        )
+    parser.add_argument('-b', '--basedn',
+            help="Basedn (root naming context) of the instance to manage",
+            default=None
         )
     parser.add_argument('-Z', '--starttls',
             help="Connect with StartTLS",
@@ -71,26 +77,31 @@ if __name__ == '__main__':
     # I gave attribution. -- wibrown
     log.debug("Inspired by works of: ITS, The University of Adelaide")
 
-    log.debug("Called with: %s", args)
+    # Now that we have our args, see how they relate with our instance.
+    dsrc_inst = dsrc_to_ldap("~/.dsrc", args.instance, log.getChild('dsrc'))
+
+    # Now combine this with our arguments
+
+    dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
+
+    log.debug("Called with: %s" % args)
+    log.debug("Instance details: %s" % dsrc_inst)
 
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
         log.error("No resource provided to act upon")
-        log.error("USAGE: dsadm [options] <resource> <action> [action options]")
+        log.error("USAGE: dsconf [options] <resource> <action> [action options]")
         sys.exit(1)
-
-    # TODO: Parse instance to a url in some cases.
-    ldapurl = args.instance
 
     # Connect
     # We don't need a basedn, because the config objects derive it properly
     inst = None
     if args.verbose:
-        inst = connect_instance(ldapurl=ldapurl, binddn=args.binddn, verbose=args.verbose, starttls=args.starttls)
+        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
         args.func(inst, None, log, args)
     else:
         try:
-            inst = connect_instance(ldapurl=ldapurl, binddn=args.binddn, verbose=args.verbose, starttls=args.starttls)
+            inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
             args.func(inst, None, log, args)
         except Exception as e:
             log.debug(e, exc_info=True)

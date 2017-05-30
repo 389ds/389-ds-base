@@ -68,19 +68,24 @@ def _warn(data, msg=None):
     return data
 
 # We'll need another of these that does a "connect via instance name?"
-def connect_instance(ldapurl, binddn, verbose, starttls):
+def connect_instance(dsrc_inst, verbose):
     dsargs = {
-        SER_LDAP_URL: ldapurl,
-        SER_ROOT_DN: binddn
+        SER_LDAP_URL: dsrc_inst['uri'],
+        SER_ROOT_DN: dsrc_inst['binddn'],
     }
     ds = DirSrv(verbose=verbose)
     ds.allocate(dsargs)
-    if not ds.can_autobind() and binddn is not None:
-        dsargs[SER_ROOT_PW] = getpass("Enter password for %s on %s : " % (binddn, ldapurl))
-    elif binddn is None:
+    if not ds.can_autobind() and dsrc_inst['binddn'] is not None:
+        dsargs[SER_ROOT_PW] = getpass("Enter password for %s on %s : " % (dsrc_inst['binddn'], dsrc_inst['uri']))
+    elif dsrc_inst['binddn'] is None:
         raise Exception("Must provide a binddn to connect with")
     ds.allocate(dsargs)
-    ds.open(starttls=starttls, connOnly=True)
+    ds.open(saslmethod=dsrc_inst['saslmech'],
+            certdir=dsrc_inst['tls_cacertdir'],
+            reqcert=dsrc_inst['tls_reqcert'],
+            usercert=dsrc_inst['tls_cert'],
+            userkey=dsrc_inst['tls_key'],
+            starttls=dsrc_inst['starttls'], connOnly=True)
     return ds
 
 def disconnect_instance(inst):
