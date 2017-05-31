@@ -101,7 +101,7 @@ dbversion_write(struct ldbminfo *li, const char *directory,
         len = strlen(buf);
         if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
         {
-            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write - "
+            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write",
                     "Could not write to file \"%s\"\n", filename, 0, 0 );
             rc= -1;
         }
@@ -111,7 +111,7 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             len = strlen( buf );
             if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
             {
-                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write - "
+                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write",
                         "Could not write to file \"%s\"\n", filename, 0, 0 );
                 rc= -1;
             }
@@ -160,7 +160,7 @@ dbversion_read(struct ldbminfo *li, const char *directory,
         /* File missing... we are probably creating a new database. */
         return EACCES;
     } else {
-        char buf[LDBM_VERSION_MAXBUF];
+        char buf[LDBM_VERSION_MAXBUF] = {0};
         PRInt32 nr = slapi_read_buffer(prfd, buf, (PRInt32)LDBM_VERSION_MAXBUF-1);
         if ( nr > 0 && nr != (PRInt32)LDBM_VERSION_MAXBUF-1 )
         {
@@ -178,6 +178,17 @@ dbversion_read(struct ldbminfo *li, const char *directory,
             }
         }
         (void)PR_Close( prfd );
+
+        if (*ldbmversion == NULL || *dataversion == NULL) {
+            /* DBVERSIOn is corrupt, COMPLAIN! */
+            /* This is IDRM           Identifier removed (POSIX.1)
+             * which seems appropriate for the error here :)
+             */
+            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
+            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replicing with a valid DBVERSION file from another DB");
+            return EIDRM;
+        }
+
         return 0;
     }
 }
