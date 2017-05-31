@@ -19,6 +19,10 @@ def test_ticket48665(topology_st):
     # topology_st.standalone.config.enable_log('audit')
     # topology_st.standalone.config.enable_log('auditfail')
     # This will trigger a mod delete then add.
+
+    topology_st.standalone.modify_s('cn=config,cn=ldbm database,cn=plugins,cn=config',
+                                    [(ldap.MOD_REPLACE, 'nsslapd-cache-autosize', '0')])
+
     try:
         modlist = [(ldap.MOD_DELETE, 'nsslapd-cachememsize', None), (ldap.MOD_ADD, 'nsslapd-cachememsize', '1')]
         topology_st.standalone.modify_s("cn=%s,cn=ldbm database,cn=plugins,cn=config" % DEFAULT_BENAME,
