@@ -578,6 +578,19 @@ static int ldbm_instance_deny_config(Slapi_PBlock *pb __attribute__((unused)),
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
+void
+ldbm_instance_register_modify_callback(ldbm_instance *inst)
+{
+    struct ldbminfo *li = inst->inst_li;
+    char *dn = NULL;
+
+    dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
+        LDAP_SCOPE_BASE, "(objectclass=*)",
+        ldbm_instance_modify_config_entry_callback, (void *) inst);
+    slapi_ch_free_string(&dn);
+}
 /* Reads in any config information held in the dse for the given
  * entry.  Creates dse entries used to configure the given instance
  * if they don't already exist.  Registers dse callback functions to
