@@ -185,7 +185,7 @@ dbversion_read(struct ldbminfo *li, const char *directory,
              * which seems appropriate for the error here :)
              */
             slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
-            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replicing with a valid DBVERSION file from another DB");
+            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance");
             return EIDRM;
         }
 
