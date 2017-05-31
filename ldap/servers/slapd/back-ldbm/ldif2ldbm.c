@@ -3644,6 +3644,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     char *ldbmversion = NULL;
     char *dataversion = NULL;
     int ud_flags = 0;
+    int result = 0;
                                                                          
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
@@ -3723,8 +3724,8 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
 
     workdbdir = rel2abspath(rawworkdbdir);
 
-    dbversion_read(li, workdbdir, &ldbmversion, &dataversion);
-    if (ldbmversion) {
+    result = dbversion_read(li, workdbdir, &ldbmversion, &dataversion);
+    if (result == 0 && ldbmversion) {
         char *ptr = PL_strstr(ldbmversion, BDB_DNFORMAT);
         if (ptr) {
             /* DN format is RFC 4514 compliant */
