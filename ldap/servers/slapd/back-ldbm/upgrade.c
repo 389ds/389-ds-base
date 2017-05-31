@@ -133,12 +133,15 @@ int
 check_db_version( struct ldbminfo *li, int *action )
 {
     int value = 0;
+    int result = 0;
     char *ldbmversion = NULL;
     char *dataversion = NULL;
 
     *action = 0;
-    dbversion_read(li, li->li_directory, &ldbmversion, &dataversion);
-    if (NULL == ldbmversion || '\0' == *ldbmversion) {
+    result = dbversion_read(li, li->li_directory, &ldbmversion, &dataversion);
+    if (result != 0) {
+        return 0;
+    } else if (NULL == ldbmversion || '\0' == *ldbmversion) {
         slapi_ch_free_string(&ldbmversion);
         slapi_ch_free_string(&dataversion);
         return 0;
@@ -215,14 +218,17 @@ check_db_inst_version( ldbm_instance *inst )
     char *ldbmversion = NULL;
     char *dataversion = NULL;
     int rval = 0;
+    int result = 0;
     char inst_dir[MAXPATHLEN*2];
     char *inst_dirp = NULL;
 
     inst_dirp =
         dblayer_get_full_inst_dir(inst->inst_li, inst, inst_dir, MAXPATHLEN*2);
 
-    dbversion_read(inst->inst_li, inst_dirp, &ldbmversion, &dataversion);
-    if (NULL == ldbmversion || '\0' == *ldbmversion) {
+    result = dbversion_read(inst->inst_li, inst_dirp, &ldbmversion, &dataversion);
+    if (result != 0) {
+        return rval;
+    } else if (NULL == ldbmversion || '\0' == *ldbmversion) {
         slapi_ch_free_string(&ldbmversion);
         slapi_ch_free_string(&dataversion);
         return rval;
