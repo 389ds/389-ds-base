@@ -15,7 +15,6 @@ from datetime import datetime
 from dateutil.parser import parse as dt_parse
 from glob import glob
 from lib389._constants import DN_CONFIG
-from lib389.properties import LOG_ACCESS_PATH, LOG_ERROR_PATH
 from lib389.utils import ensure_bytes, ensure_str
 
 
@@ -50,15 +49,9 @@ class DirsrvLog(object):
         self.prog_timestamp = re.compile('\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')   # noqa
         self.prog_datetime = re.compile('^(?P<timestamp>\[.*\])')
 
-    def _get_log_attr(self, attr):
-        """Get a logging configfurable attribute value
-        @param attr - a logging configuration attribute
-        """
-        return self.dirsrv.getEntry(DN_CONFIG).__getattr__(attr)
-
     def _get_log_path(self):
         """Return the current log file location"""
-        return self._get_log_attr(self.log_path_attr)
+        raise Exception("Log type not defined.")
 
     def _get_all_log_paths(self):
         """Return all the log paths"""
@@ -185,7 +178,6 @@ class DirsrvAccessLog(DirsrvLog):
         @param dirsrv - A DirSrv object
         """
         super(DirsrvAccessLog, self).__init__(dirsrv)
-        self.log_path_attr = LOG_ACCESS_PATH
         ## We precompile our regex for parse_line to make it faster.
         self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\s(?P<action>\w*)\s(?P<rem>.*)')
         self.prog_con = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')
@@ -198,6 +190,10 @@ class DirsrvAccessLog(DirsrvLog):
         self.full_regexs = [self.prog_m1, self.prog_con, self.prog_discon]
         self.result_regexs = [self.prog_notes, self.prog_repl,
                               self.prog_result]
+
+    def _get_log_path(self):
+        """Return the current log file location"""
+        return self.dirsrv.ds_paths.access_log
 
     def parse_line(self, line):
         """
@@ -249,8 +245,11 @@ class DirsrvErrorLog(DirsrvLog):
         @param diursrv - A DirSrv object
         """
         super(DirsrvErrorLog, self).__init__(dirsrv)
-        self.log_path_attr = LOG_ERROR_PATH
         self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\s(?P<message>.*)')
+
+    def _get_log_path(self):
+        """Return the current log file location"""
+        return self.dirsrv.ds_paths.error_log
 
     def parse_line(self, line):
         """Parse an errors log line

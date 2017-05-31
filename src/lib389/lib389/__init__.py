@@ -1269,11 +1269,16 @@ class DirSrv(SimpleLDAPObject, object):
             pid = pid_from_file(self.ds_paths.pid_file)
             if pid is None:
                 # No pidfile yet ...
+                self.state = DIRSRV_STATE_OFFLINE
                 return False
             if pid == 0:
+                self.state = DIRSRV_STATE_OFFLINE
                 raise ValueError
             # Wait
-            return pid_exists(pid)
+            if not pid_exists(pid):
+                self.state = DIRSRV_STATE_OFFLINE
+                return False
+            return True
 
     def restart(self, timeout=120, post_open=True):
         '''
