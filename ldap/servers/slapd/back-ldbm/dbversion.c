@@ -101,8 +101,7 @@ dbversion_write(struct ldbminfo *li, const char *directory,
         len = strlen(buf);
         if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
         {
-            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write",
-                    "Could not write to file \"%s\"\n", filename, 0, 0 );
+            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename );
             rc= -1;
         }
         if(rc==0 && dataversion!=NULL)
@@ -111,8 +110,7 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             len = strlen( buf );
             if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
             {
-                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write",
-                        "Could not write to file \"%s\"\n", filename, 0, 0 );
+                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename );
                 rc= -1;
             }
         }
@@ -185,7 +183,7 @@ dbversion_read(struct ldbminfo *li, const char *directory,
              * which seems appropriate for the error here :)
              */
             slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
-            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance");
+            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance\n");
             return EIDRM;
         }
 
