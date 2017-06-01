@@ -27,6 +27,13 @@ EnvironmentFile=@initconfigdir@/@package_name@-%i
 PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
 ExecStartPre=@sbindir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
+
+# Hardening options:
+# PrivateDevices=true
+# ProtectSystem=true
+# ProtectHome=true
+# PrivateTmp=true
+
 # if you need to set other directives e.g. LimitNOFILE=8192
 # set them in this file
 .include @initconfigdir@/@package_name@.systemd

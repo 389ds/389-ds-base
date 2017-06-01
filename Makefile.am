@@ -268,6 +268,9 @@ updatedir = $(datadir)@updatedir@
 pkgconfigdir = $(libdir)/pkgconfig
 serverincdir = $(includedir)/@serverincdir@
 gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
+# THis has to be hardcoded to /lib - $libdir changes between lib/lib64, but
+# sysctl.d is always in /lib.
+sysctldir = @prefixdir@/lib/sysctl.d
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -770,6 +773,8 @@ python_DATA = ldap/admin/src/scripts/failedbinds.py \
 	ldap/admin/src/scripts/logregex.py
 
 gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
+
+dist_sysctl_DATA = ldap/admin/src/70-dirsrv.conf
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res

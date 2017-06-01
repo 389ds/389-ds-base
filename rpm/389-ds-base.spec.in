@@ -214,9 +214,13 @@ Group:            Development/Libraries
 BuildArch:        noarch
 Requires:         python2-lib389
 %if 0%{?rhel}
+Requires:      python
+BuildRequires: python
 BuildRequires: python-devel
 BuildRequires: python-setuptools
 %else
+Requires:      python2
+BuildRequires: python2
 BuildRequires: python2-devel
 BuildRequires: python2-setuptools
 %endif
@@ -233,7 +237,9 @@ The lib389 CI tests that can be run against the Directory Server.
 Summary:          The lib389 Continuous Integration Tests
 Group:            Development/Libraries
 BuildArch:        noarch
+Requires:         python%{python3_pkgversion}
 Requires:         python%{python3_pkgversion}-lib389
+BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
 BuildRequires:    python%{python3_pkgversion}-setuptools
 
@@ -487,6 +493,9 @@ fi
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
+# THis has to be hardcoded to /lib - $libdir changes between lib/lib64, but
+# sysctl.d is always in /lib.
+%{_prefix}/lib/sysctl.d/*
 %dir %{_localstatedir}/lib/%{pkgname}
 %dir %{_localstatedir}/log/%{pkgname}
 %ghost %dir %{_localstatedir}/lock/%{pkgname}
