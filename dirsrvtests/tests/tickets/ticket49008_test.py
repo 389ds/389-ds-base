@@ -32,7 +32,12 @@ def test_ticket49008(T):
     A.agreement.pause(AtoC)
     C.agreement.pause(CtoA)
 
+    # Enable memberOf on Master B
     B.plugins.enable(name=PLUGIN_MEMBER_OF)
+
+    # Set the auto OC to an objectclass that does NOT allow memberOf
+    B.modify_s('cn=MemberOf Plugin,cn=plugins,cn=config',
+               [(ldap.MOD_REPLACE, 'memberofAutoAddOC', 'referral')])
     B.restart(timeout=10)
 
     # add a few entries allowing memberof
