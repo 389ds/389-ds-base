@@ -53,7 +53,7 @@ class UserAccount(Account):
         self._protected = False
 
     def _validate(self, rdn, properties, basedn):
-        if properties.has_key('ntUserDomainId') and 'ntUser' not in self._create_objectclasses:
+        if 'ntUserDomainId' in properties and 'ntUser' not in self._create_objectclasses:
             self._create_objectclasses.append('ntUser')
 
         return super(UserAccount, self)._validate(rdn, properties, basedn)

@@ -19,6 +19,8 @@ import socket
 from subprocess import check_call, check_output
 from lib389.passwd import password_generate
 
+from lib389.utils import ensure_str, ensure_bytes
+
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
 CERT_NAME = 'Server-Cert'
@@ -139,7 +141,7 @@ class NssSsl(object):
         ]
         certdetails = check_output(cmd)
         with open('%s/ca.crt' % self.dirsrv.get_cert_dir(), 'w') as f:
-            f.write(certdetails)
+            f.write(ensure_str(certdetails))
         if os.path.isfile('/usr/sbin/cacertdir_rehash'):
             check_output(['/usr/sbin/cacertdir_rehash', self.dirsrv.get_cert_dir()])
         return True

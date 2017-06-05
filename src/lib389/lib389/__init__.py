@@ -1034,12 +1034,12 @@ class DirSrv(SimpleLDAPObject, object):
         if userkey is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
-            ldap.set_option(ldap.OPT_X_TLS_KEYFILE, userkey)
+            ldap.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
             log.debug("Using user private key %s" % userkey)
         if usercert is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
-            ldap.set_option(ldap.OPT_X_TLS_CERTFILE, usercert)
+            ldap.set_option(ldap.OPT_X_TLS_CERTFILE, ensure_str(usercert))
             log.debug("Using user certificate %s" % usercert)
 
         if certdir is not None:
@@ -1048,7 +1048,7 @@ class DirSrv(SimpleLDAPObject, object):
             """
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
-            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
+            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
             log.debug("Using external ca certificate %s" % certdir)
 
         if certdir or starttls:

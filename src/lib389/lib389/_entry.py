@@ -185,7 +185,7 @@ class Entry(object):
             return val == self.data.get(name)
         if isinstance(val, tuple):
             return list(val) == self.data.get(name)
-        return val in self.data.get(name)
+        return ensure_bytes(val) in self.data.get(name)
 
     def hasValueCase(self, name, val):
         """
