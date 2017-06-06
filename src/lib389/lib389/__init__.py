@@ -2587,52 +2587,60 @@ class DirSrv(SimpleLDAPObject, object):
     # server is stopped)
     #
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
-                *import_files):
+                import_file):
         """
         @param bename - The backend name of the database to import
         @param suffixes - List/tuple of suffixes to import
         @param excludeSuffixes - List/tuple of suffixes to exclude from import
         @param encrypt - Perform attribute encryption
-        @param input_files - Files to import: file, file, file
+        @param input_file - File to import: file
         @return - True if import succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
+        if self.status():
+            log.error("ldif2db: Can not operate while directory server is running")
+            return False
+
         if not bename and not suffixes:
             log.error("ldif2db: backend name or suffix missing")
             return False
 
-        for ldif in import_files:
-            if not os.path.isfile(ldif):
-                log.error("ldif2db: Can't find file: %s" % ldif)
-                return False
+        if not os.path.isfile(import_file):
+            log.error("ldif2db: Can't find file: %s" % import_file)
+            return False
 
-        cmd = '%s ldif2db -D %s' % (prog, self.get_config_dir())
+        cmd = [
+            prog,
+            'ldif2db',
+            '-D', self.get_config_dir(),
+            '-i', import_file,
+        ]
         if bename:
-            cmd = cmd + ' -n ' + bename
+            cmd.append('-n')
+            cmd.append(bename)
         if suffixes:
             for suffix in suffixes:
-                cmd = cmd + ' -s ' + suffix
+                cmd.append('-s')
+                cmd.append(suffix)
         if excludeSuffixes:
             for excludeSuffix in excludeSuffixes:
                 cmd = cmd + ' -x ' + excludeSuffix
+                cmd.append('-x')
+                cmd.append(excludeSuffix)
         if encrypt:
-            cmd = cmd + ' -E'
-        for ldif in import_files:
-            cmd = cmd + ' -i ' + ldif
+            cmd.append('-E')
 
-        self.stop(timeout=10)
-        log.info('Running script: %s' % cmd)
-        result = True
-        try:
-            os.system(cmd)
-        except:
-            log.error("ldif2db: error executing %s" % cmd)
-            result = False
-        self.start(timeout=10)
+        result = subprocess.check_output(cmd)
+        u_result = ensure_str(result)
 
-        return result
+        log.debug("ldif2db output: BEGIN")
+        for line in u_result.split("\n"):
+            log.debug(line)
+        log.debug("ldif2db output: END")
+
+        return True
 
     def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
                 outputfile):
@@ -2648,39 +2656,48 @@ class DirSrv(SimpleLDAPObject, object):
         DirSrvTools.lib389User(user=DEFAULT_USER)
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
+        if self.status():
+            log.error("db2ldif: Can not operate while directory server is running")
+            return False
+
         if not bename and not suffixes:
             log.error("db2ldif: backend name or suffix missing")
             return False
 
-        # The shell wrapper is not always reliable, so bypass it. We want to
-        # kill it off anyway!
-        cmd = '%s db2ldif -D %s' % (prog, self.get_config_dir())
+        cmd = [
+            prog,
+            'db2ldif',
+            '-D', self.get_config_dir()
+        ]
         if bename:
-            cmd = cmd + ' -n ' + bename
+            cmd.append('-n')
+            cmd.append(bename)
         if suffixes:
             for suffix in suffixes:
-                cmd = cmd + ' -s ' + suffix
+                cmd.append('-s')
+                cmd.append(suffix)
         if excludeSuffixes:
             for excludeSuffix in excludeSuffixes:
                 cmd = cmd + ' -x ' + excludeSuffix
+                cmd.append('-x')
+                cmd.append(excludeSuffix)
         if encrypt:
-            cmd = cmd + ' -E'
+            cmd.append('-E')
         if repl_data:
-            cmd = cmd + ' -r'
+            cmd.append('-r')
         if outputfile:
-            cmd = cmd + ' -a ' + outputfile
+            cmd.append('-a')
+            cmd.append(outputfile)
 
-        self.stop(timeout=10)
-        log.info('Running script: %s' % cmd)
-        result = True
-        try:
-            os.system(cmd)
-        except:
-            log.error("db2ldif: error executing %s" % cmd)
-            result = False
-        self.start(timeout=10)
+        result = subprocess.check_output(cmd)
+        u_result = ensure_str(result)
 
-        return result
+        log.debug("db2ldif output: BEGIN")
+        for line in u_result.split("\n"):
+            log.debug(line)
+        log.debug("db2ldif output: END")
+
+        return True
 
     def bak2db(self, archive_dir, bename=None):
         """
@@ -2689,27 +2706,30 @@ class DirSrv(SimpleLDAPObject, object):
         @return - True if the restore succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = os.path.join(self.ds_paths.sbin_dir, BAK2DB)
+        prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
+
+        if self.status():
+            log.error("bak2db: Can not operate while directory server is running")
+            return False
 
         if not archive_dir:
             log.error("bak2db: backup directory missing")
             return False
 
-        cmd = '%s %s -Z %s' % (prog, archive_dir, self.serverid)
-        if bename:
-            cmd = cmd + ' -n ' + bename
+        result = subprocess.check_output([
+            prog,
+            'archive2db',
+            '-a', archive_dir,
+            '-D', self.get_config_dir()
+        ])
+        u_result = ensure_str(result)
 
-        self.stop(timeout=10)
-        log.info('Running script: %s' % cmd)
-        result = True
-        try:
-            os.system(cmd)
-        except:
-            log.error("bak2db: error executing %s" % cmd)
-            result = False
-        self.start(timeout=10)
+        log.debug("bak2db output: BEGIN")
+        for line in u_result.split("\n"):
+            log.debug(line)
+        log.debug("bak2db output: END")
 
-        return result
+        return True
 
     def db2bak(self, archive_dir):
         """
@@ -2717,25 +2737,30 @@ class DirSrv(SimpleLDAPObject, object):
         @return - True if the backup succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = os.path.join(self.ds_paths.sbin_dir, DB2BAK)
+        prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
-        if not archive_dir:
-            log.error("db2bak: backup directory missing")
+        if self.status():
+            log.error("db2bak: Can not operate while directory server is running")
             return False
 
-        cmd = '%s %s -Z %s' % (prog, archive_dir, self.serverid)
+        if not archive_dir:
+            log.error("db2bak: archive directory missing")
+            return False
 
-        self.stop(timeout=10)
-        log.info('Running script: %s' % cmd)
-        result = True
-        try:
-            os.system(cmd)
-        except:
-            log.error("db2bak: error executing %s" % cmd)
-            result = False
-        self.start(timeout=10)
+        result = subprocess.check_output([
+            prog,
+            'db2archive',
+            '-a', archive_dir,
+            '-D', self.get_config_dir()
+        ])
+        u_result = ensure_str(result)
 
-        return result
+        log.debug("db2bak output: BEGIN")
+        for line in u_result.split("\n"):
+            log.debug(line)
+        log.debug("db2bak output: END")
+
+        return True
 
     def db2index(self, bename=None, suffixes=None, attrs=None, vlvTag=None):
         """

@@ -336,6 +336,10 @@ class SetupDs(object):
             except OSError:
                 pass
             os.chown(slapd[path], slapd['user_uid'], slapd['group_gid'])
+        ### Warning! We need to down the directory under db too for .restore to work.
+        # See dblayer.c for more!
+        db_parent = os.path.join(slapd['db_dir'], '..')
+        os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
 
         # Copy correct data to the paths.
         # Copy in the schema

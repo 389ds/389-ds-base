@@ -15,6 +15,8 @@ from lib389.instance.setup import SetupDs
 from lib389.instance.options import General2Base, Slapd2Base
 from lib389._constants import *
 
+from lib389.configurations import get_sample_entries
+
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'standalone'
 
@@ -28,9 +30,8 @@ class TopologyInstance(object):
         self.logcap = logcap
 
 # Need a teardown to destroy the instance.
-@pytest.fixture
+@pytest.fixture(scope="module")
 def topology(request):
-
     lc = LogCapture()
     instance = DirSrv(verbose=DEBUGGING)
     instance.log.debug("Instance allocated")
@@ -73,3 +74,31 @@ def topology(request):
     request.addfinalizer(fin)
 
     return TopologyInstance(instance, lc)
+
+
+@pytest.fixture(scope="module")
+def topology_be_latest(topology):
+    be = topology.standalone.backends.create(properties={
+        'cn': 'userRoot',
+        'suffix' : DEFAULT_SUFFIX,
+    })
+    # Now apply sample entries
+    centries = get_sample_entries(INSTALL_LATEST_CONFIG)
+    cent = centries(topology.standalone, DEFAULT_SUFFIX)
+    cent.apply()
+    return topology
+
+
+@pytest.fixture(scope="module")
+def topology_be_001003006(topology):
+    be = topology.standalone.backends.create(properties={
+        'cn': 'userRoot',
+        'suffix' : DEFAULT_SUFFIX,
+    })
+    # Now apply sample entries
+    centries = get_sample_entries('001003006')
+    cent = centries(topology.standalone, DEFAULT_SUFFIX)
+    cent.apply()
+    return topology
+
+
