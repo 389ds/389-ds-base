@@ -3399,7 +3399,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 				/* This is quite unexpected, after a call to memberof_get_groups
 				 * ndn ancestors should be in the cache
 				 */
-				slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Weird, %s is not in the cache\n", ndn);
+				slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Weird, %s is not in the cache\n", ndn);
 			}
 		}
 	}
