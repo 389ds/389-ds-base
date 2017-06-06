@@ -69,7 +69,7 @@ def test_ticket48383(topology_st):
     ldifpath = os.path.join(topology_st.standalone.get_ldif_dir(), "%s.ldif" % SERVERID_STANDALONE)
 
     # stop the server
-    topology_st.standalone.stop(timeout=30)
+    topology_st.standalone.stop()
     # Now export and import the DB. It's easier than db2index ...
     topology_st.standalone.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[],
                                    encrypt=False, repl_data=True, outputfile=ldifpath)
@@ -77,6 +77,7 @@ def test_ticket48383(topology_st):
     result = topology_st.standalone.ldif2db(DEFAULT_BENAME, None, None, False, ldifpath)
 
     assert (result)
+    topology_st.standalone.start()
 
     # see if user1 exists at all ....
 

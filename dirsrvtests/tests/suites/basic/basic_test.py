@@ -235,9 +235,11 @@ def test_basic_import_export(topology_st, import_example_ldif):
         assert False
 
     # Offline
+    topology_st.standalone.stop()
     if not topology_st.standalone.ldif2db(DEFAULT_BENAME, None, None, None, import_ldif):
         log.fatal('test_basic_import_export: Offline import failed')
         assert False
+    topology_st.standalone.start()
 
     #
     # Test online and offline LDIF export
@@ -254,6 +256,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
         assert False
 
     # Offline export
+    topology_st.standalone.stop()
     if not topology_st.standalone.db2ldif(DEFAULT_BENAME, (DEFAULT_SUFFIX,),
                                           None, None, None, export_ldif):
         log.fatal('test_basic_import_export: Failed to run offline db2ldif')
@@ -302,6 +305,7 @@ def test_basic_backup(topology_st, import_example_ldif):
         assert False
 
     # Test offline backup
+    topology_st.standalone.stop()
     if not topology_st.standalone.db2bak(backup_dir):
         log.fatal('test_basic_backup: Offline backup failed')
         assert False
@@ -310,6 +314,7 @@ def test_basic_backup(topology_st, import_example_ldif):
     if not topology_st.standalone.bak2db(backup_dir):
         log.fatal('test_basic_backup: Offline backup failed')
         assert False
+    topology_st.standalone.start()
 
     log.info('test_basic_backup: PASSED')
 
