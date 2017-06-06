@@ -11,7 +11,7 @@ from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups
 
 from lib389.topologies import topology_st as topology
@@ -46,15 +46,7 @@ def test_users_and_groups(topology):
 
     # Create a user
 
-    user_properties = {
-        'uid': 'testuser',
-        'cn' : 'testuser',
-        'sn' : 'user',
-        'uidNumber' : '1000',
-        'gidNumber' : '2000',
-        'homeDirectory' : '/home/testuser'
-    }
-    users.create(properties=user_properties)
+    users.create(properties=TEST_USER_PROPERTIES)
 
     assert(len(users.list()) == 1)
 

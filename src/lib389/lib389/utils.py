@@ -782,16 +782,24 @@ def ensure_bytes(val):
         return val.encode()
     return val
 
-
 def ensure_str(val):
     if val != None and type(val) != str:
         return val.decode('utf-8')
     return val
 
-
 def ensure_list_bytes(val):
-    # if MAJOR >= 3:
     return [ensure_bytes(v) for v in val]
 
 def ensure_list_str(val):
     return [ensure_str(v) for v in val]
+
+def ensure_dict_str(val):
+    if MAJOR <= 2:
+        return val
+    retdict = {}
+    for k in val:
+        if isinstance(val[k], list):
+            retdict[k] = ensure_list_str(val[k])
+        else:
+            retdict[k] = ensure_str(val[k])
+    return retdict

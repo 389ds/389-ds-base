@@ -16,6 +16,9 @@ from lib389.agreement import Agreement
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import DirSrv, Entry
+from lib389.utils import ensure_bytes, ensure_str
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.domain import Domain
 
 # Used for One master / One consumer topology
 HOST_MASTER = LOCALHOST
@@ -107,18 +110,18 @@ def test_create(topology):
     topology.master.agreement.init(SUFFIX, HOST_CONSUMER, PORT_CONSUMER)
     topology.master.waitForReplInit(repl_agreement)
 
-    # Add a test entry
-    topology.master.add_s(Entry((ENTRY_DN, {'objectclass':
-                                            "top person".split(),
-                                            'sn': 'test_entry',
-                                            'cn': 'test_entry'})))
+    master_users = UserAccounts(topology.master, SUFFIX)
+    consumer_users = UserAccounts(topology.consumer, SUFFIX)
 
+    testuser = master_users.create(properties=TEST_USER_PROPERTIES)
+    testuser_dn = testuser.dn
+
+    # Add a test entry
     # Check replication is working
     loop = 0
     while loop <= 10:
         try:
-            ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE,
-                                             "(objectclass=*)")
+            consumer_users.get(dn=testuser_dn)
             break
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
@@ -148,9 +151,9 @@ def test_list(topology):
     ents = topology.master.agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]) == \
-        topology.consumer.host
+        ensure_bytes(topology.consumer.host)
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == \
-        str(topology.consumer.port)
+        ensure_bytes(str(topology.consumer.port))
 
     # Create a second RA to check .list returns 2 RA
     properties = {RA_NAME: r'meTo_%s:%d' % (topology.consumer.host,
@@ -172,9 +175,9 @@ def test_list(topology):
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]) == \
-        topology.consumer.host
+        ensure_bytes(topology.consumer.host)
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == \
-        str(topology.consumer.port)
+        ensure_bytes(str(topology.consumer.port))
 
 
 def test_delete(topology):
@@ -216,7 +219,7 @@ def test_status(topology):
     topology.master.log.info("\n\n###########\n## STATUS\n##########")
     ents = topology.master.agreement.list(suffix=SUFFIX)
     for ent in ents:
-        ra_status = topology.master.agreement.status(ent.dn)
+        ra_status = topology.master.agreement.status(ensure_str(ent.dn))
         assert ra_status
         topology.master.log.info("Status of %s: %s" % (ent.dn, ra_status))
 
@@ -236,7 +239,7 @@ def test_schedule(topology):
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == \
-        Agreement.ALWAYS
+        ensure_bytes(Agreement.ALWAYS)
 
     topology.master.agreement.schedule(ents[0].dn, Agreement.NEVER)
     ents = topology.master.agreement.list(suffix=SUFFIX,
@@ -244,7 +247,7 @@ def test_schedule(topology):
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == \
-        Agreement.NEVER
+        ensure_bytes(Agreement.NEVER)
 
     CUSTOM_SCHEDULE = "0000-1234 6420"
     topology.master.agreement.schedule(ents[0].dn, CUSTOM_SCHEDULE)
@@ -253,7 +256,7 @@ def test_schedule(topology):
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == \
-        CUSTOM_SCHEDULE
+        ensure_bytes(CUSTOM_SCHEDULE)
 
     CUSTOM_SCHEDULES = ("2500-1234 6420",  # Invalid HOUR schedule
                         "0000-2534 6420",  # ^^
@@ -308,8 +311,8 @@ def test_setProperties(topology):
     properties = topology.master.agreement.getProperties(
         agmnt_dn=ents[0].dn, properties=[RA_SCHEDULE, RA_DESCRIPTION])
     assert len(properties) == 2
-    assert properties[RA_SCHEDULE][0] == test_schedule
-    assert properties[RA_DESCRIPTION][0] == test_desc
+    assert properties[RA_SCHEDULE][0] == ensure_bytes(test_schedule)
+    assert properties[RA_DESCRIPTION][0] == ensure_bytes(test_desc)
 
     # Set RA Schedule back to "always"
     topology.master.agreement.schedule(ents[0].dn, Agreement.ALWAYS)
@@ -331,20 +334,16 @@ def test_changes(topology):
 
     # Do an update
     TEST_STRING = 'test_string'
-    mod = [(ldap.MOD_REPLACE, 'description', [TEST_STRING])]
-    topology.master.modify_s(ENTRY_DN, mod)
+    master_domain = Domain(topology.master, SUFFIX)
+    consumer_domain = Domain(topology.consumer, SUFFIX)
 
-    ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE,
-                                     "(objectclass=*)")
+    master_domain.set('description', TEST_STRING)
 
     # The update has been replicated
     loop = 0
     while loop <= 10:
-        ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE,
-                                         "(objectclass=*)")
-        if ent and ent.hasValue('description'):
-            if ent.getValue('description') == TEST_STRING:
-                break
+        if consumer_domain.present('description', TEST_STRING):
+            break
         time.sleep(1)
         loop += 1
     assert loop <= 10

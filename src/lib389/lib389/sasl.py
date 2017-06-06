@@ -12,7 +12,9 @@ Lib389 python ldap sasl operations.
 These should be upstreamed if possible.
 """
 
-from ldap.sasl import sasl, CB_AUTHNAME, CB_PASS
+from ldap.sasl import sasl, CB_AUTHNAME, CB_PASS, CB_USER
+
+from lib389.utils import ensure_bytes
 
 class LdapSSOTokenSASL(sasl):
     """

@@ -12,7 +12,7 @@ import decimal
 import time
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import normalizeDN, escapeDNValue
+from lib389.utils import normalizeDN, escapeDNValue, ensure_bytes
 from lib389._replication import RUV
 from lib389.repltools import ReplTools
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
@@ -557,14 +557,14 @@ class ReplicaLegacy(object):
             if not refresh:  # done - check status
                 if not status:
                     print("No status yet")
-                elif status.find("replica busy") > -1:
+                elif status.find(ensure_bytes("replica busy")) > -1:
                     print("Update failed - replica busy - status", status)
                     done = True
                     hasError = 2
-                elif status.find("Total update succeeded") > -1:
+                elif status.find(ensure_bytes("Total update succeeded")) > -1:
                     print("Update succeeded: status ", status)
                     done = True
-                elif inprogress.lower() == 'true':
+                elif inprogress.lower() == ensure_bytes('true'):
                     print("Update in progress yet not in progress: status ",
                           status)
                 else:

@@ -14,7 +14,7 @@ import six
 from lib389._constants import *
 from lib389.properties import *
 from lib389._entry import FormatDict
-from lib389.utils import normalizeDN
+from lib389.utils import normalizeDN, ensure_bytes, ensure_str, ensure_dict_str
 from lib389 import Entry, DirSrv, NoSuchEntryError, InvalidArgumentError
 
 
@@ -97,9 +97,10 @@ class Agreement(object):
                 "Reap Active: %(nsds5ReplicaReapActive)s" "\n"
             )
             # FormatDict manages missing fields in string formatting
-            result = retstr % FormatDict(ent.data)
+            entry_data = ensure_dict_str(ent.data)
+            result = retstr % FormatDict(entry_data)
             result += "Replication Status: %s\n" % status
-            return retstr % FormatDict(ent.data)
+            return result
 
     def _check_interval(self, interval):
         '''
@@ -173,8 +174,7 @@ class Agreement(object):
 
         # update it
         self.log.info("Schedule replication agreement %s" % agmtdn)
-        mod = [(
-            ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [interval])]
+        mod = [(ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [ensure_bytes(interval)])]
         self.conn.modify_s(agmtdn, mod)
 
     def getProperties(self, agmnt_dn=None, properties=None):
@@ -348,7 +348,7 @@ class Agreement(object):
             if prop_name == RA_SCHEDULE:
                 self._check_interval(properties[prop])
 
-            mod.append((mod_type, attr, properties[prop]))
+            mod.append((mod_type, attr, ensure_bytes(properties[prop])))
 
         # Now time to run the effective modify
         self.conn.modify_s(agmnt_dn, mod)
@@ -645,7 +645,7 @@ class Agreement(object):
         # trigger the total init
         #
         self.log.info("Starting total init %s" % entry.dn)
-        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
+        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', ensure_bytes('start'))]
         self.conn.modify_s(entry.dn, mod)
 
     def pause(self, agmtdn, interval=NEVER):
@@ -705,7 +705,7 @@ class Agreement(object):
         """Return a list of changes sent by this agreement."""
         retval = 0
         try:
-            ent = self.conn.getEntry(agmnt_dn, ldap.SCOPE_BASE,
+            ent = self.conn.getEntry(ensure_str(agmnt_dn), ldap.SCOPE_BASE,
                                      "(objectclass=*)",
                                      [RA_PROPNAME_TO_ATTRNAME[RA_CHANGES]])
         except:
@@ -714,12 +714,12 @@ class Agreement(object):
 
         if ent.nsds5replicaChangesSentSinceStartup:
             val = ent.nsds5replicaChangesSentSinceStartup
-            items = val.split(' ')
+            items = val.split(ensure_bytes(' '))
             if len(items) == 1:
                 retval = int(items[0])
             else:
                 for item in items:
-                    ary = item.split(":")
+                    ary = item.split(ensure_bytes(":"))
                     if ary and len(ary) > 1:
-                        retval = retval + int(ary[1].split("/")[0])
+                        retval = retval + int(ary[1].split(ensure_bytes("/"))[0])
         return retval

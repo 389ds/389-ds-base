@@ -21,6 +21,15 @@ MUST_ATTRIBUTES = [
 ]
 RDN = 'uid'
 
+TEST_USER_PROPERTIES = {
+    'uid': 'testuser',
+    'cn' : 'testuser',
+    'sn' : 'user',
+    'uidNumber' : '1000',
+    'gidNumber' : '2000',
+    'homeDirectory' : '/home/testuser'
+}
+
 
 class UserAccount(Account):
     def __init__(self, instance, dn=None, batch=False):
