@@ -7735,6 +7735,8 @@ config_set_value(
                  * but as its real value.
                  */
                 ival = LDAP_DEBUG_ANY;
+            } else {
+                ival = *(int *)value;
             }
             slapi_entry_attr_set_int(e, cgas->attr_name, ival);
         }

@@ -15,7 +15,10 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
 DEFAULT_LEVEL = "16384"
+COMB_LEVEL = "73864"  # 65536+8192+128+8 = 73864
+COMB_DEFAULT_LEVEL = "90248"  # 65536+8192+128+8+16384 = 90248
 
 
 def set_level(topo, level):
@@ -102,6 +105,39 @@ def test_ticket49227(topo):
         # Size should be the size
         log.fatal('Connection logging is still on')
         assert False
+
+    # Set a combined level that includes the default level
+    set_level(topo, COMB_DEFAULT_LEVEL)
+    level = get_level(topo)
+    if level != COMB_DEFAULT_LEVEL:
+        log.fatal('Incorrect combined logging level with default level: %s expected %s' %
+                  (level, COMB_DEFAULT_LEVEL))
+        assert False
+
+    # Set a combined level that does not includes the default level
+    set_level(topo, COMB_LEVEL)
+    level = get_level(topo)
+    if level != COMB_LEVEL:
+        log.fatal('Incorrect combined logging level without default level: %s expected %s' %
+                  (level, COMB_LEVEL))
+        assert False
+
+    # Check our level is present after a restart - previous level was COMB_LEVEL
+    topo.standalone.restart()
+    log_size = get_log_size(topo)  # Grab the log size for our next check
+    level = get_level(topo)  # This should trigger connection logging
+    if level != COMB_LEVEL:
+        log.fatal('Incorrect combined logging level with default level: %s expected %s' %
+                  (level, COMB_LEVEL))
+        assert False
+
+    # Now check the actual levels are still working
+    new_size = get_log_size(topo)
+    if new_size == log_size:
+        # Size should be different
+        log.fatal('Combined logging is not working')
+        assert False
+
 
 if __name__ == '__main__':
     # Run isolated
