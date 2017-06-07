@@ -289,20 +289,6 @@ slapd_bootstrap_config(const char *configdir)
 									  CONFIG_LOGLEVEL_ATTRIBUTE, errorbuf);
 						}
 					}
-					else
-					{
-						if (strcmp(loglevel, "0") ||
-						    config_get_errorlog_level() != SLAPD_DEFAULT_ERRORLOG_LEVEL)
-						{
-							/*
-							 * loglevel of zero and SLAPD_DEFAULT_ERRORLOG_LEVEL are the
-							 * same.  Only report an error if they are different.
-							 */
-							slapi_log_err(SLAPI_LOG_NOTICE, "slapd_bootstrap_config",
-								"%s: ignoring %s (since -d %d was given on the command line)\n",
-								CONFIG_LOGLEVEL_ATTRIBUTE, loglevel, config_get_errorlog_level());
-						}
-					}
 				}
 
 				/* set the cert dir; needed in slapd_nss_init */
