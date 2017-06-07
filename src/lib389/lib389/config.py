@@ -20,7 +20,9 @@ import ldap
 from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
+from lib389.utils import ensure_bytes, ensure_str
 
+from lib389.lint import DSCLE0001, DSCLE0002, DSELE0001
 
 class Config(DSLdapObject):
     """
@@ -52,6 +54,7 @@ class Config(DSLdapObject):
         ]
         self._compare_exclude  = self._compare_exclude + config_compare_exclude
         self._rdn_attribute = 'cn'
+        self._lint_functions = [self._lint_hr_timestamp, self._lint_passwordscheme]
 
     @property
     def dn(self):
@@ -180,6 +183,21 @@ class Config(DSLdapObject):
         fields = 'nsslapd-security nsslapd-ssl-check-hostname'.split()
         return self._instance.getEntry(DN_CONFIG, attrlist=fields)
 
+    def _lint_hr_timestamp(self):
+        hr_timestamp = self.get_attr_val('nsslapd-logging-hr-timestamps-enabled')
+        if ensure_bytes('on') != hr_timestamp:
+            return DSCLE0001
+        pass # nsslapd-logging-hr-timestamps-enabled
+
+    def _lint_passwordscheme(self):
+        allowed_schemes = ['SSHA512', 'PBKDF2_SHA256']
+        password_scheme = self.get_attr_val('passwordStorageScheme')
+        root_scheme = self.get_attr_val('nsslapd-rootpwstoragescheme')
+        u_password_scheme = ensure_str(password_scheme)
+        u_root_scheme = ensure_str(root_scheme)
+        if u_root_scheme not in allowed_schemes or u_password_scheme not in allowed_schemes:
+            return DSCLE0002
+        return None
 
 class Encryption(DSLdapObject):
     """
@@ -196,11 +214,18 @@ class Encryption(DSLdapObject):
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
         self._protected = True
+        self._lint_functions = [self._lint_check_tls_version]
 
     def create(self, rdn=None, properties={'cn': 'encryption', 'nsSSLClientAuth': 'allowed'}):
         if rdn is not None:
             self._log.debug("dn on cn=encryption is not None. This is a mistake.")
         super(Encryption, self).create(properties=properties)
+
+    def _lint_check_tls_version(self):
+        tls_min = self.get_attr_val('sslVersionMin');
+        if tls_min < ensure_bytes('TLS1.1'):
+            return DSELE0001
+        return None
 
 class RSA(DSLdapObject):
     """

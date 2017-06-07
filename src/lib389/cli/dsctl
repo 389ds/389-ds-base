@@ -21,7 +21,7 @@ from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
 from lib389.cli_base import disconnect_instance
 
-log = logging.getLogger("dsadm")
+log = logging.getLogger("dsctl")
 
 if __name__ == '__main__':
 

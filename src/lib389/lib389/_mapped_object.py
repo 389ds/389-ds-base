@@ -96,6 +96,7 @@ class DSLdapObject(DSLogging):
         self._must_attributes = None
         # attributes, we don't want to compare
         self._compare_exclude = ['entryid']
+        self._lint_functions = None
 
     def __unicode__(self):
         val = self._dn
@@ -463,8 +464,14 @@ class DSLdapObject(DSLogging):
 
         You should return an array of these dicts, on None if there are no errors.
         """
-        return None
-
+        if not self._lint_functions:
+            return None
+        results = []
+        for fn in self._lint_functions:
+            result = fn()
+            if result:
+                results.append(result)
+        return results
 
 # A challenge of this, is how do we manage indexes? They have two naming attribunes....
 

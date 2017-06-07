@@ -9,12 +9,20 @@
 import argparse
 
 from lib389.backend import Backend, Backends
+from lib389.config import Encryption, Config
 
-LINT_OBJECTS = [
-    Backends
+# These get all instances, then check them all.
+CHECK_MANY_OBJECTS = [
+    Backends,
 ]
 
-def _format_lint_output(log, result):
+# These get single instances and check them.
+CHECK_OBJECTS = [
+    Config,
+    Encryption,
+]
+
+def _format_check_output(log, result):
     log.info("==== DS Lint Error: %s ====" % result['dsle'])
     log.info(" Severity: %s " % result['severity'])
     log.info(" Affects:")
@@ -25,25 +33,27 @@ def _format_lint_output(log, result):
     log.info(" Resolution:")
     log.info(result['fix'])
 
-def lint_run(inst, basedn, log, args):
+def health_check_run(inst, basedn, log, args):
     log.info("Beginning lint report, this could take a while ...")
     report = []
-    for lo in LINT_OBJECTS:
+    for lo in CHECK_MANY_OBJECTS:
         log.info("Checking %s ..." % lo.__name__)
         lo_inst = lo(inst)
         for clo in lo_inst.list():
             result = clo.lint()
             if result is not None:
                 report += result
-    log.info("Lint complete!")
+    for lo in CHECK_OBJECTS:
+        log.info("Checking %s ..." % lo.__name__)
+        lo_inst = lo(inst)
+        result = lo_inst.lint()
+        if result is not None:
+            report += result
+    log.info("Healthcheck complete!")
     for item in report:
-        _format_lint_output(log, item)
+        _format_check_output(log, item)
 
 def create_parser(subparsers):
-    lint_parser = subparsers.add_parser('lint', help="Check for configuration issues in your Directory Server instance.")
-
-    subcommands = lint_parser.add_subparsers(help="action")
-
-    run_lint_parser = subcommands.add_parser('run', help="Run a lint report on your Directory Server instance. This is a safe, Read Only operation.")
-    run_lint_parser.set_defaults(func=lint_run)
+    run_healthcheck_parser = subparsers.add_parser('healthcheck', help="Run a healthcheck report on your Directory Server instance. This is a safe, read only operation.")
+    run_healthcheck_parser.set_defaults(func=health_check_run)
 

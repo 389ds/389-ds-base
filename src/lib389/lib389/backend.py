@@ -24,6 +24,8 @@ from lib389.monitor import MonitorBackend
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
+from lib389.lint import DSBLE0001
+
 class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
 
@@ -391,6 +393,7 @@ class Backend(DSLdapObject):
         self._must_attributes = ['nsslapd-suffix', 'cn']
         self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
         self._protected = False
+        self._lint_functions = [self._lint_mappingtree]
         # Check if a mapping tree for this suffix exists.
         self._mts = MappingTrees(self._instance)
 
@@ -480,7 +483,7 @@ class Backend(DSLdapObject):
         # The super will actually delete ourselves.
         super(Backend, self).delete()
 
-    def lint(self):
+    def _lint_mappingtree(self):
         """
         Backend lint
 
@@ -488,48 +491,18 @@ class Backend(DSLdapObject):
         * missing mapping tree entries for the backend
         * missing indcies if we are local and have log access?
         """
-        results = []
-        # return ["Hello!",]
         # Check for the missing mapping tree.
         suffix = ensure_str(self.get_attr_val('nsslapd-suffix'))
         bename = self.get_attr_val('cn')
-        # This should change to the mapping tree objects later ....
         try:
             mt = self._mts.get(suffix)
             if mt.get_attr_val('nsslapd-backend') != ensure_bytes(bename) and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend') :
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
-            results.append({
-                'dsle': 'DSBLE0001',
-                'severity': 'MEDIUM',
-                'items' : [bename, ],
-                'detail' : """
-This backend may be missing the correct mapping tree references. Mapping Trees allow
-the directory server to determine which backend an operation is routed to in the
-abscence of other information. This is extremely important for correct functioning
-of LDAP ADD for example.
-
-A correct Mapping tree for this backend must contain the suffix name, the database name
-and be a backend type. IE:
-
-cn=o3Dexample,cn=mapping tree,cn=config
-cn: o=example
-nsslapd-backend: userRoot
-nsslapd-state: backend
-objectClass: top
-objectClass: extensibleObject
-objectClass: nsMappingTree
-
-                """,
-                'fix' : """
-Either you need to create the mapping tree, or you need to repair the related
-mapping tree. You will need to do this by hand by editing cn=config, or stopping
-the instance and editing dse.ldif.
-                """
-            })
-        if len(results) == 0:
-            return None
-        return results
+            result = DSBLE0001
+            result['items'] = [bename, ]
+            return result
+        return None
 
     def get_monitor(self):
         monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn, batch=self._batch)
