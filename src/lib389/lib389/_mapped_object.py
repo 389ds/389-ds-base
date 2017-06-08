@@ -184,6 +184,15 @@ class DSLdapObject(DSLogging):
         # Do a mod_delete on the value.
         self.set(key, value, action=ldap.MOD_DELETE)
 
+    def remove_all(self, key):
+        """Remove all values defined by key (if possible).
+
+        If an attribute is multi-valued AND required all values except one will
+        be deleted.
+        """
+        for val in self.get_attr_vals(key):
+            self.remove(key, val)
+
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):
         self._log.debug("%s set(%r, %r)" % (self._dn, key, value))

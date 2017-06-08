@@ -150,8 +150,102 @@ class RolesPlugin(Plugin):
         super(RolesPlugin, self).__init__(instance, dn, batch)
 
 class MemberOfPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'MemberOf Plugin',
+        'nsslapd-pluginEnabled' : 'off',
+        'nsslapd-pluginPath' : 'libmemberof-plugin',
+        'nsslapd-pluginInitfunc' : 'memberof_postop_init',
+        'nsslapd-pluginType' : 'betxnpostoperation',
+        'nsslapd-plugin-depends-on-type' : 'database',
+        'nsslapd-pluginId' : 'memberof',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.7.0',
+        'nsslapd-pluginDescription' : 'memberof plugin',
+        'memberOfGroupAttr' : 'member',
+        'memberOfAttr' : 'memberOf',
+    }
+
     def __init__(self, instance, dn="cn=MemberOf Plugin,cn=plugins,cn=config", batch=False):
         super(MemberOfPlugin, self).__init__(instance, dn, batch)
+        self._create_objectclasses = ['top', 'nsSlapdPlugin', 'extensibleObject']
+
+    def get_attr(self):
+        return self.get_attr_val('memberofattr')
+
+    def get_attr_formatted(self):
+        return self.display_attr('memberofattr')
+
+    def set_attr(self, attr):
+        self.set('memberofattr', attr)
+
+    def get_groupattr(self):
+        return self.get_attr_vals('memberofgroupattr')
+
+    def get_groupattr_formatted(self):
+        return self.display_attr('memberofgroupattr')
+
+    def add_groupattr(self, attr):
+        self.add('memberofgroupattr', attr)
+
+    def remove_groupattr(self, attr):
+        self.remove('memberofgroupattr', attr)
+
+    def get_allbackends(self):
+        return self.get_attr_val('memberofallbackends')
+
+    def get_allbackends_formatted(self):
+        return self.display_attr('memberofallbackends')
+
+    def enable_allbackends(self):
+        self.set('memberofallbackends', 'on')
+
+    def disable_allbackends(self):
+        self.set('memberofallbackends', 'off')
+
+    def get_autoaddoc(self):
+        return self.get_attr_val('memberofautoaddoc')
+
+    def get_autoaddoc_formatted(self):
+        return self.display_attr('memberofautoaddoc')
+
+    def set_autoaddoc(self, object_class):
+        self.set('memberofautoaddoc', object_class)
+
+    def remove_autoaddoc(self):
+        self.remove_all('memberofautoaddoc')
+
+    def get_entryscope(self, formatted=False):
+        return self.get_attr_vals('memberofentryscope')
+
+    def get_entryscope_formatted(self):
+        return self.display_attr('memberofentryscope')
+
+    def add_entryscope(self, attr):
+        self.add('memberofentryscope', attr)
+
+    def remove_entryscope(self, attr):
+        self.remove('memberofentryscope', attr)
+
+    # def remove_all_entryscope(self):
+        # self.remove_all('memberofentryscope')
+
+    def get_excludescope(self):
+        return self.get_attr_vals('memberofentryscopeexcludesubtree')
+
+    def get_excludescope_formatted(self):
+        return self.display_attr('memberofentryscopeexcludesubtree')
+
+    def add_excludescope(self, attr):
+        self.add('memberofentryscopeexcludesubtree', attr)
+
+    def remove_excludescope(self, attr):
+        self.remove('memberofentryscopeexcludesubtree', attr)
+
+    # def remove_all_excludescope(self):
+        # self.remove_all('memberofentryscopeexcludesubtree')
+
+    def fixup(self):
+        pass
 
 class RetroChangelogPlugin(Plugin):
     def __init__(self, instance, dn="cn=Retro Changelog Plugin,cn=plugins,cn=config", batch=False):

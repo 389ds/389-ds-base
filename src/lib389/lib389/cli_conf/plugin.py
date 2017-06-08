@@ -61,6 +61,21 @@ def plugin_disable(inst, basedn, log, args, warn=True):
 def plugin_configure(inst, basedn, log, args):
     pass
 
+def generic_show(inst, basedn, log, args):
+    """Display plugin configuration."""
+    plugin = args.plugin_cls(inst)
+    log.info(plugin.display())
+
+def generic_enable(inst, basedn, log, args):
+    plugin = args.plugin_cls(inst)
+    plugin.enable()
+    log.info("Enabled %s", plugin.rdn)
+
+def generic_disable(inst, basedn, log, args):
+    plugin = args.plugin_cls(inst)
+    plugin.disable()
+    log.info("Disabled %s", plugin.rdn)
+
 def create_parser(subparsers):
     plugin_parser = subparsers.add_parser('plugin', help="Manage plugins available on the server")
 

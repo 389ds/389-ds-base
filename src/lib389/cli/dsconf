@@ -22,6 +22,7 @@ from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import plugin as cli_plugin
 from lib389.cli_conf import schema as cli_schema
 from lib389.cli_conf import lint as cli_lint
+from lib389.cli_conf.plugins import memberof as cli_memberof
 from lib389.cli_base import disconnect_instance, connect_instance
 
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
@@ -63,6 +64,7 @@ if __name__ == '__main__':
     cli_schema.create_parser(subparsers)
     cli_lint.create_parser(subparsers)
     cli_plugin.create_parser(subparsers)
+    cli_memberof.create_parser(subparsers)
 
     args = parser.parse_args()
 
