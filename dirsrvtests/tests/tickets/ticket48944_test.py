@@ -1,0 +1,205 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
+import pytest
+from lib389.tasks import *
+from lib389.utils import *
+from lib389.topologies import topology_m2c2 as topo
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+if DEBUGGING:
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+else:
+    logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
+
+ACCPOL_DN = "cn={},{}".format(PLUGIN_ACCT_POLICY, DN_PLUGIN)
+ACCP_CONF = "{},{}".format(DN_CONFIG, ACCPOL_DN)
+USER_PW = 'Secret123'
+
+
+def _last_login_time(topo, userdn, inst_name, last_login):
+    """Find lastLoginTime attribute value for a given master/consumer"""
+
+    if 'master' in inst_name:
+        if (last_login == 'bind_n_check'):
+            topo.ms[inst_name].simple_bind_s(userdn, USER_PW)
+        topo.ms[inst_name].simple_bind_s(DN_DM, PASSWORD)
+        entry = topo.ms[inst_name].search_s(userdn, ldap.SCOPE_BASE, 'objectClass=*', ['lastLoginTime'])
+    else:
+        if (last_login == 'bind_n_check'):
+            topo.cs[inst_name].simple_bind_s(userdn, USER_PW)
+        topo.cs[inst_name].simple_bind_s(DN_DM, PASSWORD)
+        entry = topo.cs[inst_name].search_s(userdn, ldap.SCOPE_BASE, 'objectClass=*', ['lastLoginTime'])
+    lastLogin = entry[0].lastLoginTime
+    return lastLogin
+
+
+def _enable_plugin(topo, inst_name):
+    """Enable account policy plugin and configure required attributes"""
+
+    log.info('Enable account policy plugin and configure required attributes')
+    if 'master' in inst_name:
+        log.info('Configure Account policy plugin on {}'.format(inst_name))
+        topo.ms[inst_name].simple_bind_s(DN_DM, PASSWORD)
+        try:
+            topo.ms[inst_name].plugins.enable(name=PLUGIN_ACCT_POLICY)
+            topo.ms[inst_name].modify_s(ACCPOL_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ACCP_CONF)])
+            topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes')])
+            topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime')])
+            topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'altstateattrname', 'createTimestamp')])
+            topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'specattrname', 'acctPolicySubentry')])
+            topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', 'accountInactivityLimit')])
+            topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '3600')])
+        except ldap.LDAPError as e:
+            log.error('Failed to configure {} plugin for inst-{}'.format(PLUGIN_ACCT_POLICY, inst_name))
+        topo.ms[inst_name].restart(timeout=10)
+    else:
+        log.info('Configure Account policy plugin on {}'.format(inst_name))
+        topo.cs[inst_name].simple_bind_s(DN_DM, PASSWORD)
+        try:
+            topo.cs[inst_name].plugins.enable(name=PLUGIN_ACCT_POLICY)
+            topo.cs[inst_name].modify_s(ACCPOL_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ACCP_CONF)])
+            topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes')])
+            topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime')])
+            topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'altstateattrname', 'createTimestamp')])
+            topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'specattrname', 'acctPolicySubentry')])
+            topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', 'accountInactivityLimit')])
+            topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '3600')])
+        except ldap.LDAPError as e:
+            log.error('Failed to configure {} plugin for inst-{}'.format(PLUGIN_ACCT_POLICY, inst_name))
+        topo.cs[inst_name].restart(timeout=10)
+
+
+def test_ticket48944(topo):
+    """On a read only replica invalid state info can accumulate
+
+    :ID: 833be131-f3bf-493e-97c6-3121438a07b1
+    :feature: Account Policy Plugin
+    :setup: Two master and two consumer setup
+    :steps: 1. Configure Account policy plugin with alwaysrecordlogin set to yes
+            2. Check if entries are synced across masters and consumers
+            3. Stop all masters and consumers
+            4. Start master1 and bind as user1 to create lastLoginTime attribute
+            5. Start master2 and wait for the sync of lastLoginTime attribute
+            6. Stop master1 and bind as user1 from master2
+            7. Check if lastLoginTime attribute is updated and greater than master1
+            8. Stop master2, start consumer1, consumer2 and then master2
+            9. Check if lastLoginTime attribute is updated on both consumers
+            10. Bind as user1 to both consumers and check the value is updated
+            11. Check if lastLoginTime attribute is not updated from consumers
+            12. Start master1 and make sure the lastLoginTime attribute is not updated on consumers
+            13. Bind as user1 from master1 and check if all masters and consumers have the same value
+            14. Check error logs of consumers for "deletedattribute;deleted" message
+    :expectedresults: No accumulation of replica invalid state info on consumers
+    """
+
+    log.info("Ticket 48944 - On a read only replica invalid state info can accumulate")
+    user_name = 'newbzusr'
+    tuserdn = 'uid={}1,ou=people,{}'.format(user_name, SUFFIX)
+    inst_list = ['master1', 'master2', 'consumer1', 'consumer2']
+    for inst_name in inst_list:
+        _enable_plugin(topo, inst_name)
+
+    log.info('Sleep for 10secs for the server to come up')
+    time.sleep(10)
+    log.info('Add few entries to server and check if entries are replicated')
+    for nos in range(10):
+        userdn = 'uid={}{},ou=people,{}'.format(user_name, nos, SUFFIX)
+        try:
+            topo.ms['master1'].add_s(Entry((userdn, {
+                'objectclass': 'top person'.split(),
+                'objectclass': 'inetorgperson',
+                'cn': user_name,
+                'sn': user_name,
+                'userpassword': USER_PW,
+                'mail': '{}@redhat.com'.format(user_name)})))
+        except ldap.LDAPError as e:
+            log.error('Failed to add {} user: error {}'.format(userdn, e.message['desc']))
+            raise e
+
+    log.info('Checking if entries are synced across masters and consumers')
+    entries_m1 = topo.ms['master1'].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
+    exp_entries = str(entries_m1).count('dn: uid={}*'.format(user_name))
+    entries_m2 = topo.ms['master2'].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
+    act_entries = str(entries_m2).count('dn: uid={}*'.format(user_name))
+    assert act_entries == exp_entries
+    inst_list = ['consumer1', 'consumer2']
+    for inst in inst_list:
+        entries_other = topo.cs[inst].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
+        act_entries = str(entries_other).count('dn: uid={}*'.format(user_name))
+        assert act_entries == exp_entries
+
+    topo.ms['master2'].stop(timeout=10)
+    topo.ms['master1'].stop(timeout=10)
+    topo.cs['consumer1'].stop(timeout=10)
+    topo.cs['consumer2'].stop(timeout=10)
+
+    topo.ms['master1'].start(timeout=10)
+    lastLogin_m1_1 = _last_login_time(topo, tuserdn, 'master1', 'bind_n_check')
+
+    log.info('Start master2 to sync lastLoginTime attribute from master1')
+    topo.ms['master2'].start(timeout=10)
+    time.sleep(5)
+    log.info('Stop master1')
+    topo.ms['master1'].stop(timeout=10)
+    log.info('Bind as user1 to master2 and check if lastLoginTime attribute is greater than master1')
+    lastLogin_m2_1 = _last_login_time(topo, tuserdn, 'master2', 'bind_n_check')
+    assert lastLogin_m2_1 > lastLogin_m1_1
+
+    log.info('Start all servers except master1')
+    topo.ms['master2'].stop(timeout=10)
+    topo.cs['consumer1'].start(timeout=10)
+    topo.cs['consumer2'].start(timeout=10)
+    topo.ms['master2'].start(timeout=10)
+    time.sleep(5)
+    log.info('Check if consumers are updated with lastLoginTime attribute value from master2')
+    lastLogin_c1_1 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
+    assert lastLogin_c1_1 == lastLogin_m2_1
+
+    lastLogin_c2_1 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
+    assert lastLogin_c2_1 == lastLogin_m2_1
+
+    log.info('Check if lastLoginTime update in consumers not synced to master2')
+    lastLogin_c1_2 = _last_login_time(topo, tuserdn, 'consumer1', 'bind_n_check')
+    assert lastLogin_c1_2 > lastLogin_m2_1
+
+    lastLogin_c2_2 = _last_login_time(topo, tuserdn, 'consumer2', 'bind_n_check')
+    assert lastLogin_c2_2 > lastLogin_m2_1
+
+    time.sleep(2)
+    lastLogin_m2_2 = _last_login_time(topo, tuserdn, 'master2', 'check')
+    assert lastLogin_m2_2 == lastLogin_m2_1
+
+    log.info('Start master1 and check if its updating its older lastLoginTime attribute to consumers')
+    topo.ms['master1'].start(timeout=10)
+    time.sleep(10)
+    lastLogin_c1_3 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
+    assert lastLogin_c1_3 == lastLogin_c1_2
+
+    lastLogin_c2_3 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
+    assert lastLogin_c2_3 == lastLogin_c2_2
+
+    log.info('Check if lastLoginTime update from master2 is synced to all masters and consumers')
+    lastLogin_m2_3 = _last_login_time(topo, tuserdn, 'master2', 'bind_n_check')
+    time.sleep(2)
+    lastLogin_m1_2 = _last_login_time(topo, tuserdn, 'master1', 'check')
+    lastLogin_c1_4 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
+    lastLogin_c2_4 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
+    assert lastLogin_m2_3 == lastLogin_m1_2 == lastLogin_c2_4 == lastLogin_c1_4
+
+    log.info('Checking consumer error logs for replica invalid state info')
+    assert not topo.cs['consumer2'].ds_error_log.match('.*deletedattribute;deleted.*')
+    assert not topo.cs['consumer1'].ds_error_log.match('.*deletedattribute;deleted.*')
+
+
+if __name__ == '__main__':
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
