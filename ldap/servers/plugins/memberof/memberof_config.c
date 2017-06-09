@@ -69,15 +69,15 @@ static int dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 static void
-memberof_free_scope(Slapi_DN **scopes, int *count)
+memberof_free_scope(Slapi_DN ***scopes, int *count)
 {
 	size_t i = 0;
 
-	while(scopes && scopes[i]){
-		slapi_sdn_free(&scopes[i]);
+	while(*scopes && (*scopes)[i]){
+		slapi_sdn_free(&(*scopes)[i]);
 		i++;
 	}
-	slapi_ch_free((void**)&scopes);
+	slapi_ch_free((void**)scopes);
 	*count = 0;
 }
 
@@ -440,8 +440,8 @@ memberof_validate_config (Slapi_PBlock *pb,
 	}
 
 done:
-	memberof_free_scope(exclude_dn, &num_vals);
-	memberof_free_scope(include_dn,	&num_vals);
+	memberof_free_scope(&exclude_dn, &num_vals);
+	memberof_free_scope(&include_dn,	&num_vals);
 	slapi_ch_free((void**)&entry_scopes);
 	slapi_ch_free((void**)&entry_exclude_scopes);
 	slapi_sdn_free(&config_sdn);
@@ -654,7 +654,7 @@ memberof_apply_config (Slapi_PBlock *pb __attribute__((unused)),
 	/*
 	 * Check and process the entry scopes
 	 */
-	memberof_free_scope(theConfig.entryScopes, &theConfig.entryScopeCount);
+	memberof_free_scope(&(theConfig.entryScopes), &theConfig.entryScopeCount);
 	entryScopes = slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_ATTR, &num_vals);
 	if(entryScopes){
 		int i = 0;
@@ -669,7 +669,7 @@ memberof_apply_config (Slapi_PBlock *pb __attribute__((unused)),
 	/*
 	 * Check and process the entry exclude scopes
 	 */
-	memberof_free_scope(theConfig.entryScopeExcludeSubtrees,
+	memberof_free_scope(&(theConfig.entryScopeExcludeSubtrees),
 	                    &theConfig.entryExcludeScopeCount);
 	entryScopeExcludeSubtrees =
 	    slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE, &num_vals);
@@ -824,8 +824,8 @@ memberof_free_config(MemberOfConfig *config)
 		slapi_ch_free((void **)&config->group_slapiattrs);
 		slapi_ch_free_string(&config->auto_add_oc);
 		slapi_ch_free_string(&config->memberof_attr);
-		memberof_free_scope(config->entryScopes, &config->entryScopeCount);
-		memberof_free_scope(config->entryScopeExcludeSubtrees, &config->entryExcludeScopeCount);
+		memberof_free_scope(&(config->entryScopes), &config->entryScopeCount);
+		memberof_free_scope(&(config->entryScopeExcludeSubtrees), &config->entryExcludeScopeCount);
 	}
 }
 
