@@ -27,7 +27,7 @@ def test_betxn_init(topology_st):
 
 def test_betxt_7bit(topology_st):
     '''
-    Test that the 7-bit plugin correctly rejects an invlaid update
+    Test that the 7-bit plugin correctly rejects an invalid update
     '''
 
     log.info('Running test_betxt_7bit...')
@@ -142,7 +142,8 @@ def test_betxn_memberof(topology_st):
     # Enable and configure memberOf plugin
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member')])
+        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member'),
+                                                    (ldap.MOD_REPLACE, 'memberofAutoAddOC', 'referral')])
     except ldap.LDAPError as e:
         log.fatal('test_betxn_memberof: Failed to update config(member): error ' + e.message['desc'])
         assert False
