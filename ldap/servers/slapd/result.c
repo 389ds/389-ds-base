@@ -351,6 +351,11 @@ send_ldap_result_ext(
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
 
+	if (operation == NULL) {
+		slapi_log_err(SLAPI_LOG_ERR, "send_ldap_result_ext", "No operation found: slapi_search_internal_set_pb was incomplete (invalid 'base' ?)\n");
+		return;
+	}
+
 	if (operation->o_status == SLAPI_OP_STATUS_RESULT_SENT) {
 		return; /* result already sent */
 	}
