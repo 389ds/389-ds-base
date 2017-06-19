@@ -24,7 +24,7 @@ def topology(request):
 
     # At the moment memberof plugin needs to be enabled in order to perform
     # syntax checking. Additionally, we have to restart the server in order
-    # for the action of enabling the pluging to take effect.
+    # for the action of enabling the plugin to take effect.
     plugin.enable()
     topology.standalone.restart()
     topology.logcap.flush()
@@ -150,6 +150,35 @@ def test_disable_all_backends(topology):
     topology.logcap.flush()
 
     memberof_cli.display_allbackends(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains(": off")
+    topology.logcap.flush()
+
+def test_get_skipnested_when_not_set(topology):
+    args = FakeArgs()
+
+    memberof_cli.display_skipnested(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains("memberOfSkipNested is not set")
+    topology.logcap.flush()
+
+def test_set_skipnested(topology):
+    args = FakeArgs()
+
+    memberof_cli.enable_skipnested(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains("set successfully")
+    topology.logcap.flush()
+
+    memberof_cli.display_skipnested(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains(": on")
+    topology.logcap.flush()
+
+def test_unset_skipnested(topology):
+    args = FakeArgs()
+
+    memberof_cli.disable_skipnested(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains("unset successfully")
+    topology.logcap.flush()
+
+    memberof_cli.display_skipnested(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains(": off")
     topology.logcap.flush()
 

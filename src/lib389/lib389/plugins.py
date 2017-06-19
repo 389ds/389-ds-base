@@ -8,10 +8,11 @@
 
 import ldap
 import copy
+
 from lib389.properties import *
 from lib389._constants import *
-
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.utils import ensure_str
 
 class Plugin(DSLdapObject):
     _plugin_properties = {
@@ -42,9 +43,7 @@ class Plugin(DSLdapObject):
         self.set('nsslapd-pluginEnabled', 'off')
 
     def status(self):
-        if self.get_attr_val('nsslapd-pluginEnabled') == 'on':
-            return True
-        return False
+        return ensure_str(self.get_attr_val('nsslapd-pluginEnabled')) == 'on'
 
     def create(self, rdn=None, properties=None, basedn=None):
         # When we create plugins, we don't want people to have to consider all
@@ -167,7 +166,8 @@ class MemberOfPlugin(Plugin):
 
     def __init__(self, instance, dn="cn=MemberOf Plugin,cn=plugins,cn=config", batch=False):
         super(MemberOfPlugin, self).__init__(instance, dn, batch)
-        self._create_objectclasses = ['top', 'nsSlapdPlugin', 'extensibleObject']
+        self._create_objectclasses.extend(['extensibleObject'])
+        self._must_attributes.extend(['memberOfGroupAttr', 'memberOfAttr'])
 
     def get_attr(self):
         return self.get_attr_val('memberofattr')
@@ -201,6 +201,18 @@ class MemberOfPlugin(Plugin):
 
     def disable_allbackends(self):
         self.set('memberofallbackends', 'off')
+
+    def get_skipnested(self):
+        return self.get_attr_val('memberofskipnested')
+
+    def get_skipnested_formatted(self):
+        return self.display_attr('memberofskipnested')
+
+    def enable_skipnested(self):
+        self.set('memberofskipnested', 'on')
+
+    def disable_skipnested(self):
+        self.set('memberofskipnested', 'off')
 
     def get_autoaddoc(self):
         return self.get_attr_val('memberofautoaddoc')

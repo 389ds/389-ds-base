@@ -76,6 +76,13 @@ def generic_disable(inst, basedn, log, args):
     plugin.disable()
     log.info("Disabled %s", plugin.rdn)
 
+def generic_status(inst, basedn, log, args):
+    plugin = args.plugin_cls(inst)
+    if plugin.status() == True:
+        log.info("%s is enabled", plugin.rdn)
+    else:
+        log.info("%s is disabled", plugin.rdn)
+
 def create_parser(subparsers):
     plugin_parser = subparsers.add_parser('plugin', help="Manage plugins available on the server")
 

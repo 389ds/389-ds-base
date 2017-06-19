@@ -9,7 +9,8 @@
 import ldap
 
 from lib389.plugins import MemberOfPlugin
-from lib389.cli_conf.plugin import generic_enable, generic_disable, generic_show
+from lib389.cli_conf.plugin import (
+        generic_enable, generic_disable, generic_status, generic_show)
 
 
 def manage_attr(inst, basedn, log, args):
@@ -74,6 +75,24 @@ def disable_allbackends(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
     plugin.disable_allbackends()
     log.info("memberOfAllBackends disabled successfully")
+
+def display_skipnested(inst, basedn, log, args):
+    plugin = MemberOfPlugin(inst)
+    val = plugin.get_skipnested_formatted()
+    if not val:
+        log.info("memberOfSkipNested is not set")
+    else:
+        log.info(val)
+
+def enable_skipnested(inst, basedn, log, args):
+    plugin = MemberOfPlugin(inst)
+    plugin.enable_skipnested()
+    log.info("memberOfSkipNested set successfully")
+
+def disable_skipnested(inst, basedn, log, args):
+    plugin = MemberOfPlugin(inst)
+    plugin.disable_skipnested()
+    log.info("memberOfSkipNested unset successfully")
 
 def manage_autoaddoc(inst, basedn, log, args):
     if args.value == "del":
@@ -185,6 +204,9 @@ def create_parser(subparsers):
     disable_parser = subcommands.add_parser('disable', help='disable memberof plugin')
     disable_parser.set_defaults(func=generic_disable, plugin_cls=MemberOfPlugin)
 
+    status_parser = subcommands.add_parser('status', help='display memberof plugin status')
+    status_parser.set_defaults(func=generic_status, plugin_cls=MemberOfPlugin)
+
     attr_parser = subcommands.add_parser('attr', help='get or set memberofattr')
     attr_parser.set_defaults(func=manage_attr)
     attr_parser.add_argument('value', nargs='?', help='The value to set as memberofattr')
@@ -208,6 +230,15 @@ def create_parser(subparsers):
     on_allbackends_parser.set_defaults(func=enable_allbackends)
     off_allbackends_parser = allbackends_subcommands.add_parser('off', help='disable all backends for memberof')
     off_allbackends_parser.set_defaults(func=disable_allbackends)
+
+    skipnested_parser = subcommands.add_parser('skipnested', help='get or manage memberofskipnested')
+    skipnested_parser.set_defaults(func=display_skipnested)
+    # argparse doesn't support optional subparsers in python2!
+    skipnested_subcommands = skipnested_parser.add_subparsers(help='action')
+    on_skipnested_parser = skipnested_subcommands.add_parser('on', help='skip nested groups for memberof')
+    on_skipnested_parser.set_defaults(func=enable_skipnested)
+    off_skipnested_parser = skipnested_subcommands.add_parser('off', help="don't skip nested groups for memberof")
+    off_skipnested_parser.set_defaults(func=disable_skipnested)
 
     autoaddoc_parser = subcommands.add_parser('autoaddoc', help='get or set memberofautoaddoc')
     autoaddoc_parser.set_defaults(func=manage_autoaddoc)
