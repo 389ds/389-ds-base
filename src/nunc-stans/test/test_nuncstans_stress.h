@@ -16,6 +16,8 @@
 #include <setjmp.h>
 #include <cmocka.h>
 
+#include <inttypes.h>
+
 #include <nunc-stans.h>
 
 #include <stdio.h>
