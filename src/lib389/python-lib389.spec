@@ -33,6 +33,7 @@ Requires: python-ldap
 Requires: krb5-workstation
 Requires: krb5-server
 Requires: openssl
+Requires: iproute
 # Conditional will need to change later.
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 Requires: python2
@@ -62,6 +63,7 @@ Summary:    %{sum}
 Requires: krb5-workstation
 Requires: krb5-server
 Requires: openssl
+Requires: iproute
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-pyldap
