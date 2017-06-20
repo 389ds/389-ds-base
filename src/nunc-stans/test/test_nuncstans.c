@@ -47,6 +47,9 @@
 /* For signaling tests */
 #include <signal.h>
 
+/* NS requries inttypes.h */
+#include <inttypes.h>
+
 /* For NS itself */
 #include <nunc-stans.h>
 /* We need the internal headers for state checks */
