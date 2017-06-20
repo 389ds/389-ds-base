@@ -3,8 +3,12 @@ import os.path
 import re
 import subprocess
 import ldap
+import logging
 from lib389._constants import *
 from lib389.properties import *
+
+logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
 
 # Helper functions
@@ -72,12 +76,15 @@ class ReplTools(object):
     """
 
     @staticmethod
-    def checkCSNs(dirsrv_replicas):
+    def checkCSNs(dirsrv_replicas, ignoreCSNs=None):
         """Gather all the CSN strings from the access and verify all of those
         CSNs exist on all the other replicas.
 
         @param dirsrv_replicas - a list of DirSrv objects.  The list must begin
                                  with master replicas
+        @param ignoreCSNs - an optional string of csns to be ignored if
+                            the caller knows that some csns can differ eg.:
+                            '57e39e72000000020000|vucsn-57e39e76000000030000'
 
         @return - True if all the CSNs are present, otherwise False
         """
@@ -90,8 +97,12 @@ class ReplTools(object):
             outfile = '/tmp/csn' + str(csn_log_count)
             csn_logs.append(outfile)
             csn_log_count += 1
-            cmd = ("grep csn= " + logdir +
-                   " | awk '{print $10}' | sort -u > " + outfile)
+            if ignoreCSNs:
+                cmd = ("grep csn= " + logdir +
+                       " | awk '{print $10}' | egrep -v '" + ignoreCSNs + "' | sort -u > " + outfile)
+            else:
+                cmd = ("grep csn= " + logdir +
+                       " | awk '{print $10}' | sort -u > " + outfile)
             os.system(cmd)
 
         # Set a side the first master log - we use this for our "diffing"
@@ -106,7 +117,7 @@ class ReplTools(object):
             if line != "" and line != "\n":
                 if not line.startswith("\\"):
                     log.fatal("We have a CSN mismatch between (%s vs %s): %s" %
-                              (main_log, csn_log, line))
+                              (main_log, csnlog, line))
                     return False
 
         return True
@@ -122,8 +133,10 @@ class ReplTools(object):
         @param replica - Dirsrv object where the entries originated
         @param all_replicas - A list of Dirsrv replicas:
                               (suppliers, hubs, consumers)
-        @return - None
+        @return - The longest time in seconds for an operation to fully converge
         """
+        highest_time = 0
+        total_time = 0
 
         print('Convergence Report for replica: %s (%s)' %
               (replica.serverid, suffix))
@@ -168,8 +181,16 @@ class ReplTools(object):
                 print('        %8s secs - %s' % (parts[0], parts[1]))
             print('\n      Longest Convergence Time: ' +
                   str(longest_time))
+            if longest_time > highest_time:
+                highest_time = longest_time
+            total_time += longest_time
 
-        print('\nEnd of Convergence Report for: %s\n' % (replica.serverid))
+        print('\n    Summary for "{}"'.format(replica.serverid))
+        print('    ----------------------------------------')
+        print('      Highest convergence time: {} seconds'.format(highest_time))
+        print('      Average longest convergence time: {} seconds\n'.format(int(total_time / len(ops))))
+
+        return highest_time
 
     @staticmethod
     def replIdle(replicas, suffix=DEFAULT_SUFFIX):

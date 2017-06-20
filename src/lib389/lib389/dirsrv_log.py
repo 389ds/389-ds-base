@@ -145,7 +145,8 @@ class DirsrvLog(object):
             TZ=timedata['tz'],
             )
         dt = dt_parse(dt_str)
-        dt = dt.replace(microsecond=int(int(timedata['nanosecond']) / 1000))
+        if timedata['nanosecond'] is not '':
+            dt = dt.replace(microsecond=int(int(timedata['nanosecond']) / 1000))
         return dt
 
     def get_time_in_secs(self, log_line):
