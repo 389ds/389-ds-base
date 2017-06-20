@@ -127,7 +127,7 @@ def test_run_0(topology_st):
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.restart(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', True)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', True)
     connectWithOpenssl(topology_st, 'AES256-SHA256', True)
 
 
@@ -151,7 +151,7 @@ def test_run_1(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', True)
 
 
@@ -175,7 +175,7 @@ def test_run_2(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', False)
     connectWithOpenssl(topology_st, 'AES128-SHA', True)
     connectWithOpenssl(topology_st, 'AES256-SHA', True)
@@ -199,7 +199,7 @@ def test_run_3(topology_st):
     time.sleep(1)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', False)
 
 
@@ -221,7 +221,7 @@ def test_run_4(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', True)
 
 
@@ -243,7 +243,7 @@ def test_run_5(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', True)
 
 
@@ -267,32 +267,9 @@ def test_run_6(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', False)
     connectWithOpenssl(topology_st, 'AES128-SHA', True)
-
-
-def test_run_7(topology_st):
-    """
-    Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5
-    All ciphers are disabled.
-    default allowWeakCipher
-    """
-    _header(topology_st, 'Test Case 8 - Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5 with default allowWeakCipher')
-
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '-all,+rsa_rc4_128_md5')])
-
-    log.info("\n######################### Restarting the server ######################\n")
-    topology_st.standalone.stop(timeout=10)
-    os.system('mv %s %s.48194_6' % (topology_st.standalone.errlog, topology_st.standalone.errlog))
-    os.system('touch %s' % (topology_st.standalone.errlog))
-    time.sleep(2)
-    topology_st.standalone.start(timeout=120)
-
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
-    connectWithOpenssl(topology_st, 'AES256-SHA256', False)
-    connectWithOpenssl(topology_st, 'RC4-MD5', True)
 
 
 def test_run_8(topology_st):
@@ -313,7 +290,7 @@ def test_run_8(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', True)
 
 
@@ -339,40 +316,8 @@ def test_run_9(topology_st):
     time.sleep(2)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', True)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', True)
     connectWithOpenssl(topology_st, 'AES256-SHA256', True)
-
-
-def test_run_10(topology_st):
-    """
-    Check nsSSL3Ciphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
-        +TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
-        +TLS_DHE_RSA_WITH_DES_CBC_SHA,+SSL_RSA_FIPS_WITH_DES_CBC_SHA,
-        +TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,+SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
-        +TLS_RSA_EXPORT1024_WITH_RC4_56_SHA,+TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA,
-        -SSL_CK_RC4_128_WITH_MD5,-SSL_CK_RC4_128_EXPORT40_WITH_MD5,
-        -SSL_CK_RC2_128_CBC_WITH_MD5,-SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5,
-        -SSL_CK_DES_64_CBC_WITH_MD5,-SSL_CK_DES_192_EDE3_CBC_WITH_MD5
-    allowWeakCipher: on
-    nsslapd-errorlog-level: 0
-    """
-    _header(topology_st,
-            'Test Case 11 - Check nsSSL3Ciphers: long list using the NSS Cipher Suite name with allowWeakCipher on')
-
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers',
-                                                     '-TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,+TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,+TLS_DHE_RSA_WITH_DES_CBC_SHA,+SSL_RSA_FIPS_WITH_DES_CBC_SHA,+TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,+SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,+TLS_RSA_EXPORT1024_WITH_RC4_56_SHA,+TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA,-SSL_CK_RC4_128_WITH_MD5,-SSL_CK_RC4_128_EXPORT40_WITH_MD5,-SSL_CK_RC2_128_CBC_WITH_MD5,-SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5,-SSL_CK_DES_64_CBC_WITH_MD5,-SSL_CK_DES_192_EDE3_CBC_WITH_MD5')])
-
-    log.info("\n######################### Restarting the server ######################\n")
-    topology_st.standalone.stop(timeout=10)
-    os.system('mv %s %s.48194_9' % (topology_st.standalone.errlog, topology_st.standalone.errlog))
-    os.system('touch %s' % (topology_st.standalone.errlog))
-    time.sleep(1)
-    topology_st.standalone.start(timeout=120)
-
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
-    connectWithOpenssl(topology_st, 'RC4-MD5', True)
-    connectWithOpenssl(topology_st, 'AES256-SHA256', False)
 
 
 def test_run_11(topology_st):
@@ -392,7 +337,7 @@ def test_run_11(topology_st):
     time.sleep(1)
     topology_st.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology_st, 'RC4-SHA', False)
+    connectWithOpenssl(topology_st, 'DES-CBC3-SHA', False)
     connectWithOpenssl(topology_st, 'AES256-SHA256', False)
 
 

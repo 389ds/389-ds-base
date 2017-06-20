@@ -176,6 +176,7 @@ def test_ticket47653_add(topology_m2):
     except Exception as e:
         topology_m2.ms["master1"].log.info("Exception (expected): %s" % type(e).__name__)
         assert isinstance(e, ldap.INSUFFICIENT_ACCESS)
+    time.sleep(1)
 
     # entry to add WITH memberS and WITH the ACI -> ldap.INSUFFICIENT_ACCESS
     # member should contain only one value
@@ -185,6 +186,7 @@ def test_ticket47653_add(topology_m2):
     except Exception as e:
         topology_m2.ms["master1"].log.info("Exception (expected): %s" % type(e).__name__)
         assert isinstance(e, ldap.INSUFFICIENT_ACCESS)
+    time.sleep(2)
 
     topology_m2.ms["master1"].log.info("Try to add Add  %s should be successful" % ENTRY_DN)
     try:
@@ -212,6 +214,7 @@ def test_ticket47653_add(topology_m2):
     topology_m2.ms["master1"].log.info("Update  %s on M2" % ENTRY_DN)
     mod = [(ldap.MOD_REPLACE, 'description', 'test_add')]
     topology_m2.ms["master2"].modify_s(ENTRY_DN, mod)
+    time.sleep(1)
 
     topology_m2.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
     loop = 0
@@ -264,7 +267,7 @@ def test_ticket47653_modify(topology_m2):
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     topology_m2.ms["master1"].modify_s(SUFFIX, mod)
-    time.sleep(1)
+    time.sleep(2)
 
     # bind as bind_entry
     topology_m2.ms["master1"].log.info("M1: Bind as %s" % BIND_DN)

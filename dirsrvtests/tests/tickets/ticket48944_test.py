@@ -37,6 +37,7 @@ def _last_login_time(topo, userdn, inst_name, last_login):
         topo.cs[inst_name].simple_bind_s(DN_DM, PASSWORD)
         entry = topo.cs[inst_name].search_s(userdn, ldap.SCOPE_BASE, 'objectClass=*', ['lastLoginTime'])
     lastLogin = entry[0].lastLoginTime
+    time.sleep(1)
     return lastLogin
 
 
@@ -57,7 +58,7 @@ def _enable_plugin(topo, inst_name):
             topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', 'accountInactivityLimit')])
             topo.ms[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '3600')])
         except ldap.LDAPError as e:
-            log.error('Failed to configure {} plugin for inst-{}'.format(PLUGIN_ACCT_POLICY, inst_name))
+            log.error('Failed to configure {} plugin for inst-{} error: {}'.format(PLUGIN_ACCT_POLICY, inst_name, str(e)))
         topo.ms[inst_name].restart(timeout=10)
     else:
         log.info('Configure Account policy plugin on {}'.format(inst_name))
@@ -72,7 +73,7 @@ def _enable_plugin(topo, inst_name):
             topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', 'accountInactivityLimit')])
             topo.cs[inst_name].modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '3600')])
         except ldap.LDAPError as e:
-            log.error('Failed to configure {} plugin for inst-{}'.format(PLUGIN_ACCT_POLICY, inst_name))
+            log.error('Failed to configure {} plugin for inst-{} error {}'.format(PLUGIN_ACCT_POLICY, inst_name, str(e)))
         topo.cs[inst_name].restart(timeout=10)
 
 
@@ -157,7 +158,7 @@ def test_ticket48944(topo):
     topo.cs['consumer1'].start(timeout=10)
     topo.cs['consumer2'].start(timeout=10)
     topo.ms['master2'].start(timeout=10)
-    time.sleep(5)
+    time.sleep(10)
     log.info('Check if consumers are updated with lastLoginTime attribute value from master2')
     lastLogin_c1_1 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
     assert lastLogin_c1_1 == lastLogin_m2_1
@@ -172,7 +173,7 @@ def test_ticket48944(topo):
     lastLogin_c2_2 = _last_login_time(topo, tuserdn, 'consumer2', 'bind_n_check')
     assert lastLogin_c2_2 > lastLogin_m2_1
 
-    time.sleep(2)
+    time.sleep(5)
     lastLogin_m2_2 = _last_login_time(topo, tuserdn, 'master2', 'check')
     assert lastLogin_m2_2 == lastLogin_m2_1
 

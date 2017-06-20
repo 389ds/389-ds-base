@@ -119,7 +119,7 @@ def pwacc_lock(topology_st, suffix, subtree, userid, nousrs):
             topology_st.standalone.simple_bind_s(userdn, USER_PASW)
             log.error('User {} is not locked, expected error 19'.format(userdn))
         nousrs = nousrs - 1
-    time.sleep(1)
+        time.sleep(1)
 
 
 def userpw_reset(topology_st, suffix, subtree, userid, nousrs, bindusr, bindpw, newpasw):
@@ -144,7 +144,7 @@ def userpw_reset(topology_st, suffix, subtree, userid, nousrs, bindusr, bindpw, 
                 log.error('Unable to reset userPassword for user-{}'.format(userdn))
                 raise e
         nousrs = nousrs - 1
-    time.sleep(1)
+        time.sleep(1)
 
 
 def nsact_inact(topology_st, suffix, subtree, userid, nousrs, command, expected):
@@ -171,7 +171,7 @@ def nsact_inact(topology_st, suffix, subtree, userid, nousrs, command, expected)
         log.info('output: {}'.format(output))
         assert expected in output
         nousrs = nousrs - 1
-    time.sleep(1)
+        time.sleep(1)
 
 
 def modify_attr(topology_st, base_dn, attr_name, attr_val):
@@ -218,6 +218,7 @@ def add_time_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
             log.error('Failed to add/replace {} attribute to-{}, for user-{}'.format(attr_name, new_attr_val, userdn))
             raise e
         nousrs = nousrs - 1
+        time.sleep(1)
     time.sleep(1)
 
 
@@ -235,7 +236,7 @@ def modusr_attr(topology_st, suffix, subtree, userid, nousrs, attr_name, attr_va
             log.error('Failed to add/replace {} attribute to-{}, for user-{}'.format(attr_name, attr_value, userdn))
             raise e
         nousrs = nousrs - 1
-    time.sleep(1)
+        time.sleep(1)
 
 
 def del_time_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
@@ -252,7 +253,7 @@ def del_time_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
             log.error('Failed to delete {} attribute for user-{}'.format(attr_name, userdn))
             raise e
         nousrs = nousrs - 1
-    time.sleep(1)
+        time.sleep(1)
 
 
 def add_users(topology_st, suffix, subtree, userid, nousrs, ulimit):
@@ -308,6 +309,7 @@ def account_status(topology_st, suffix, subtree, userid, nousrs, ulimit, tochck)
                 topology_st.standalone.simple_bind_s(userdn, USER_PASW)
                 log.error('User {} is not inactivated, expected error 19'.format(userdn))
         nousrs = nousrs - 1
+        time.sleep(1)
 
 
 def test_glact_inact(topology_st, accpol_global):

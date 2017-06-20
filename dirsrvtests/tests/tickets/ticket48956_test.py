@@ -30,7 +30,9 @@ def _check_status(topology_st, user, expected):
     nsaccountstatus = os.path.join(topology_st.standalone.ds_paths.sbin_dir, "ns-accountstatus.pl")
 
     try:
-        output = subprocess.check_output( [nsaccountstatus, '-Z', topology_st.standalone.serverid, '-D', DN_DM, '-w', PASSWORD, '-p', str(topology_st.standalone.port), '-I', user])
+        output = subprocess.check_output([nsaccountstatus, '-Z', topology_st.standalone.serverid,
+                                          '-D', DN_DM, '-w', PASSWORD,
+                                          '-p', str(topology_st.standalone.port), '-I', user])
     except subprocess.CalledProcessError as err:
         output = err.output
 
@@ -47,6 +49,8 @@ def _check_inactivity(topology_st, mysuffix):
     topology_st.standalone.add_s(
         Entry((ACCT_POLICY_DN, {'objectclass': "top ldapsubentry extensibleObject accountpolicy".split(),
                                 'accountInactivityLimit': INACTIVITY_LIMIT})))
+    time.sleep(1)
+
     TEST_USER_DN = 'uid=%s,%s' % (TEST_USER, mysuffix)
     log.info("\n######################### Adding Test User entry: %s ######################\n" % TEST_USER_DN)
     topology_st.standalone.add_s(
@@ -56,6 +60,7 @@ def _check_inactivity(topology_st, mysuffix):
                               'givenname': TEST_USER,
                               'userPassword': TEST_USER_PW,
                               'acctPolicySubentry': ACCT_POLICY_DN})))
+    time.sleep(1)
 
     # Setting the lastLoginTime
     try:
@@ -90,7 +95,6 @@ def test_ticket48956(topology_st):
 
     # Enable the plugins
     topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
-
     topology_st.standalone.restart(timeout=10)
 
     # Check inactivity on standard suffix (short)

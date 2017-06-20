@@ -133,8 +133,8 @@ def test_ticket49039(topo):
     time.sleep(1)
 
     # Run ldappasswd as the User.
-    cmd = ('LDAPTLS_REQCERT=never LDAPTLS_CACERTDIR=' + topo.standalone.get_cert_dir() +
-           ' ldappasswd' + ' -h ' + topo.standalone.host + ' -Z -p 38901 -D ' + USER_DN +
+    os.environ["LDAPTLS_CACERTDIR"] = topo.standalone.get_cert_dir()
+    cmd = ('ldappasswd' + ' -h ' + topo.standalone.host + ' -Z -p 38901 -D ' + USER_DN +
            ' -w password -a password -s password2 ' + USER_DN)
     os.system(cmd)
     time.sleep(1)

@@ -41,17 +41,12 @@ def runDbVerify(topology_st):
 
 def reindexUidNumber(topology_st):
     topology_st.standalone.log.info("\n\n	+++++ reindex uidnumber +++++\n")
-    sbin_dir = get_sbin_dir(prefix=topology_st.standalone.prefix)
-    indexCMD = sbin_dir + "/db2index.pl -Z " + topology_st.standalone.serverid + " -D \"" + DN_DM + "\" -w \"" + PASSWORD + "\" -n " + MYSUFFIXBE + " -t uidnumber"
-
-    indexOUT = os.popen(indexCMD, "r")
-    topology_st.standalone.log.info("Running %s" % indexCMD)
-
-    time.sleep(30)
-
-    tailCMD = "tail -n 3 " + topology_st.standalone.errlog
-    tailOUT = os.popen(tailCMD, "r")
-    assert 'Finished indexing' in tailOUT.read()
+    try:
+        args = {TASK_WAIT: True}
+        topology_st.standalone.tasks.reindex(suffix=MYSUFFIX, attrname='uidNumber', args=args)
+    except:
+        topology_st.standalone.log.fatal("Reindexing failed")
+        assert False
 
 
 def test_ticket48212(topology_st):
