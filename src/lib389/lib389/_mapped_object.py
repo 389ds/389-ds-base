@@ -335,6 +335,24 @@ class DSLdapObject(DSLogging):
             entry = self._instance.search_s(self._dn, ldap.SCOPE_BASE, attrlist=[key])[0]
             return entry.getValue(key)
 
+    def get_attr_val_bytes(self, key):
+        return ensure_bytes(self.get_attr_val(key))
+
+    def get_attr_vals_bytes(self, key):
+        return ensure_list_bytes(self.get_attrs_val(key))
+
+    def get_attr_val_utf8(self, key):
+        return ensure_str(self.get_attr_val(key))
+
+    def get_attr_vals_utf8(self, key):
+        return ensure_list_str(self.get_attrs_val(key))
+
+    def get_attr_val_int(self, key):
+        return int(self.get_attr_val(key))
+
+    def get_attr_vals_int(self, key):
+        return [int(v) for v in self.get_attrs_val(key)]
+
     # Duplicate, but with many values. IE a dict api.
     # This
     def add_values(self, values):

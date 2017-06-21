@@ -191,10 +191,8 @@ class Config(DSLdapObject):
 
     def _lint_passwordscheme(self):
         allowed_schemes = ['SSHA512', 'PBKDF2_SHA256']
-        password_scheme = self.get_attr_val('passwordStorageScheme')
-        root_scheme = self.get_attr_val('nsslapd-rootpwstoragescheme')
-        u_password_scheme = ensure_str(password_scheme)
-        u_root_scheme = ensure_str(root_scheme)
+        u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
+        u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
         if u_root_scheme not in allowed_schemes or u_password_scheme not in allowed_schemes:
             return DSCLE0002
         return None

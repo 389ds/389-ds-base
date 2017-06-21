@@ -463,7 +463,7 @@ class Backend(DSLdapObject):
             raise ldap.UNWILLING_TO_PERFORM("This is a protected backend!")
         # First check if the mapping tree has our suffix still.
         # suffix = self.get_attr_val('nsslapd-suffix')
-        bename = ensure_str(self.get_attr_val('cn'))
+        bename = self.get_attr_val_utf8('cn')
         try:
             mt = self._mts.get(selector=bename)
             # Assert the type is "backend"
@@ -492,11 +492,11 @@ class Backend(DSLdapObject):
         * missing indcies if we are local and have log access?
         """
         # Check for the missing mapping tree.
-        suffix = ensure_str(self.get_attr_val('nsslapd-suffix'))
-        bename = self.get_attr_val('cn')
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        bename = self.get_attr_val_bytes('cn')
         try:
             mt = self._mts.get(suffix)
-            if mt.get_attr_val('nsslapd-backend') != ensure_bytes(bename) and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend') :
+            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend') :
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001
