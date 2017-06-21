@@ -232,7 +232,7 @@ sds_bptree_cow_node_create(sds_bptree_transaction *btxn) {
 void
 sds_bptree_cow_node_update(sds_bptree_transaction *btxn, sds_bptree_node *node, void *key, void *value) {
     // find the key index.
-    size_t index = sds_bptree_node_key_eq_index(btxn->bi, node, key);
+    size_t index = sds_bptree_node_key_eq_index(btxn->bi->key_cmp_fn, node, key);
     // value free
     btxn->bi->value_free_fn(node->values[index]);
     // insert.

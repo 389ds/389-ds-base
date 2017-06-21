@@ -18,6 +18,7 @@ sds_result
 sds_bptree_search_node(sds_bptree_instance *binst, sds_bptree_node *root, void *key, sds_bptree_node **target_out_node) {
     sds_bptree_node *target_node = root;
     uint64_t i = 0;
+    int64_t (*key_cmp_fn)(void *a, void *b) = binst->key_cmp_fn;
 
     /* We do this first, as we need the node to pass before we access it! */
 #ifdef DEBUG
@@ -36,7 +37,7 @@ sds_bptree_search_node(sds_bptree_instance *binst, sds_bptree_node *root, void *
 branch_loop:
     while (target_node->level > 0) {
         while (i < target_node->item_count) {
-            if (binst->key_cmp_fn(key, (target_node)->keys[i]) < 0) {
+            if (key_cmp_fn(key, (target_node)->keys[i]) < 0) {
                 target_node = (sds_bptree_node *)target_node->values[i];
 #ifdef DEBUG
                 if (binst->search_checksumming) {
@@ -122,7 +123,7 @@ sds_bptree_retrieve_internal(sds_bptree_instance *binst, sds_bptree_node *root, 
 #ifdef DEBUG
     sds_log("sds_bptree_retrieve_internal", "==> Completing retrieve of %d", key);
 #endif
-    return sds_bptree_node_retrieve_key(binst, target_node, key, target);
+    return sds_bptree_node_retrieve_key(binst->key_cmp_fn, target_node, key, target);
 }
 
 

@@ -93,7 +93,7 @@ sds_bptree_insert(sds_bptree_instance *binst, void *key, void *value) {
     }
 
     /* CHECK FOR DUPLICATE KEY HERE. */
-    if (sds_bptree_node_contains_key(binst, target_node, key) == SDS_KEY_PRESENT) {
+    if (sds_bptree_node_contains_key(binst->key_cmp_fn, target_node, key) == SDS_KEY_PRESENT) {
         return SDS_DUPLICATE_KEY;
     }
 
@@ -151,7 +151,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
     }
 
     /* CHECK FOR DUPLICATE KEY HERE. */
-    result = sds_bptree_node_contains_key(binst, target_node, key);
+    result = sds_bptree_node_contains_key(binst->key_cmp_fn, target_node, key);
     if (result != SDS_KEY_PRESENT) {
         return result;
     }
@@ -237,7 +237,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
             sds_bptree_leaf_compact(binst, left, next_node);
             deleted_node = next_node;
         } else {
-            /* Mate, if you get here you are fucked. */
+            /* Mate, if you get here you are in a lot of trouble. */
             return SDS_INVALID_NODE;
         }
 

@@ -19,6 +19,7 @@ sds_bptree_search_node_path(sds_bptree_transaction *btxn, void *key, sds_bptree_
     sds_bptree_node *parent_node = NULL;
     sds_bptree_node *target_node = btxn->root;
     size_t i = 0;
+    int64_t (*key_cmp_fn)(void *a, void *b) = btxn->bi->key_cmp_fn;
 
     /* We do this first, as we need the node to pass before we access it! */
 #ifdef DEBUG
@@ -47,7 +48,7 @@ branch_loop:
         }
 #endif
         while (i < target_node->item_count) {
-            if (btxn->bi->key_cmp_fn(key, (target_node)->keys[i]) < 0) {
+            if (key_cmp_fn(key, (target_node)->keys[i]) < 0) {
                 parent_node = target_node;
                 target_node = (sds_bptree_node *)target_node->values[i];
                 i = 0;

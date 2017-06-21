@@ -125,6 +125,9 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
         return result;
     }
 
+    int64_t (*key_cmp_fn)(void *a, void *b) = binst_a->key_cmp_fn;
+    void *(*key_dup_fn)(void *key) = binst_a->key_dup_fn;
+
     /* Need a pointer to track node_a and index_a, vs node_b and index_b */
     sds_bptree_node *node_a = sds_bptree_node_min(binst_a);
     size_t index_a = 0;
@@ -154,11 +157,11 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
 
         /* Now iterate over the values. */
         while (result_a == SDS_SUCCESS && result_b == SDS_SUCCESS) {
-            int64_t cmp = binst_a->key_cmp_fn(node_a->keys[index_a], node_b->keys[index_b]);
+            int64_t cmp = key_cmp_fn(node_a->keys[index_a], node_b->keys[index_b]);
             if (cmp == 0) {
                 /* These values are the same, advance! */
                 if (both) {
-                    void *key = binst_a->key_dup_fn(node_a->keys[index_a]);
+                    void *key = key_dup_fn(node_a->keys[index_a]);
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
                 result_a = sds_bptree_list_advance(&node_a, &index_a);
@@ -167,14 +170,14 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
                 /* If A is smaller, we advance a, and include the value */
                 /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                 if (diff || alist) {
-                    void *key = binst_a->key_dup_fn(node_a->keys[index_a]);
+                    void *key = key_dup_fn(node_a->keys[index_a]);
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
                 result_a = sds_bptree_list_advance(&node_a, &index_a);
             } else {
                 /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                 if (diff) {
-                    void *key = binst_b->key_dup_fn(node_b->keys[index_b]);
+                    void *key = key_dup_fn(node_b->keys[index_b]);
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
                 result_b = sds_bptree_list_advance(&node_b, &index_b);
@@ -183,17 +186,17 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
 
         /* We have now exhausted a list. Which one? */
         while (result_a == SDS_SUCCESS) {
-            int64_t cmp = binst_a->key_cmp_fn(node_a->keys[index_a], node_b->keys[index_b]);
+            int64_t cmp = key_cmp_fn(node_a->keys[index_a], node_b->keys[index_b]);
             /* We have exhausted B. Finish iterating */
             if (cmp == 0) {
                 if (both) {
-                    void *key = binst_a->key_dup_fn(node_a->keys[index_a]);
+                    void *key = key_dup_fn(node_a->keys[index_a]);
                     /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
             } else if (cmp != 0) {
                 if (diff || alist) {
-                    void *key = binst_a->key_dup_fn(node_a->keys[index_a]);
+                    void *key = key_dup_fn(node_a->keys[index_a]);
                     /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
@@ -202,16 +205,16 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
         }
 
         while (result_b == SDS_SUCCESS) {
-            int64_t cmp = binst_a->key_cmp_fn(node_a->keys[index_a], node_b->keys[index_b]);
+            int64_t cmp = key_cmp_fn(node_a->keys[index_a], node_b->keys[index_b]);
             if (cmp == 0) {
                 if (both) {
-                    void *key = binst_a->key_dup_fn(node_b->keys[index_b]);
+                    void *key = key_dup_fn(node_b->keys[index_b]);
                     /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
             } else if (cmp != 0) {
                 if (diff) {
-                    void *key = binst_a->key_dup_fn(node_b->keys[index_b]);
+                    void *key = key_dup_fn(node_b->keys[index_b]);
                     /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                     sds_bptree_node_list_append(&result_ptr, key, NULL);
                 }
@@ -226,7 +229,7 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
         while (result_a == SDS_SUCCESS) {
             /* We have exhausted B. Finish iterating */
             if (diff || alist) {
-                void *key = binst_a->key_dup_fn(node_a->keys[index_a]);
+                void *key = key_dup_fn(node_a->keys[index_a]);
                 /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                 sds_bptree_node_list_append(&result_ptr, key, NULL);
             }
@@ -235,7 +238,7 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
 
         while (result_b == SDS_SUCCESS) {
             if (diff) {
-                void *key = binst_a->key_dup_fn(node_b->keys[index_b]);
+                void *key = key_dup_fn(node_b->keys[index_b]);
                 /* !! WHAT ABOUT VALUE DUPLICATION!!! */
                 sds_bptree_node_list_append(&result_ptr, key, NULL);
             }

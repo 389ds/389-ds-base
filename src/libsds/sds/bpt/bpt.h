@@ -29,11 +29,11 @@ sds_bptree_node *sds_bptree_arrays_to_node_list(void **keys, void **values, size
 sds_result sds_bptree_node_list_to_tree(sds_bptree_instance *binst, sds_bptree_node *node);
 sds_bptree_node * sds_bptree_node_create(void);
 sds_result sds_bptree_node_destroy(sds_bptree_instance *binst, sds_bptree_node *node);
-sds_result sds_bptree_node_contains_key(sds_bptree_instance *binst, sds_bptree_node *node, void *key);
-size_t sds_bptree_node_key_eq_index(sds_bptree_instance *binst, sds_bptree_node *node, void *key);
-size_t sds_bptree_node_key_lt_index(sds_bptree_instance *binst, sds_bptree_node *node, void *key);
+sds_result sds_bptree_node_contains_key(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key);
+size_t sds_bptree_node_key_eq_index(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key);
+size_t sds_bptree_node_key_lt_index(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key);
 void sds_bptree_node_siblings(sds_bptree_node *target, sds_bptree_node **left, sds_bptree_node **right);
-sds_result sds_bptree_node_retrieve_key(sds_bptree_instance *binst, sds_bptree_node *node, void *key, void **target);
+sds_result sds_bptree_node_retrieve_key(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key, void **target);
 void sds_bptree_node_node_replace(sds_bptree_node *target_node, sds_bptree_node *origin_node, sds_bptree_node *replace_node);
 /*
 sds_result sds_bptree_value_create(struct sds_bptree_instance *binst, void *value, size_t value_size, struct sds_bptree_value **new_value);

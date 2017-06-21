@@ -147,7 +147,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
     }
 
     // Check the key exists
-    result = sds_bptree_node_contains_key(btxn->bi, target_node, key);
+    result = sds_bptree_node_contains_key(btxn->bi->key_cmp_fn, target_node, key);
     if (result != SDS_KEY_PRESENT) {
         return result;
     }
@@ -383,7 +383,7 @@ sds_result sds_bptree_cow_insert(sds_bptree_transaction *btxn, void *key, void *
         return result;
     }
 
-    if (sds_bptree_node_contains_key(btxn->bi, target_node, key) == SDS_KEY_PRESENT) {
+    if (sds_bptree_node_contains_key(btxn->bi->key_cmp_fn, target_node, key) == SDS_KEY_PRESENT) {
         // sds_bptree_node_list_release(&target_path);
         return SDS_DUPLICATE_KEY;
     }
@@ -437,7 +437,7 @@ sds_result sds_bptree_cow_update(sds_bptree_transaction *btxn, void *key, void *
         return result;
     }
 
-    if (sds_bptree_node_contains_key(btxn->bi, target_node, key) == SDS_KEY_NOT_PRESENT) {
+    if (sds_bptree_node_contains_key(btxn->bi->key_cmp_fn, target_node, key) == SDS_KEY_NOT_PRESENT) {
         // Call insert instead!
         sds_bptree_cow_insert(btxn, key, value);
     } else {

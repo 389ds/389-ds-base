@@ -55,11 +55,11 @@ sds_bptree_node_destroy(sds_bptree_instance *binst, sds_bptree_node *node) {
 }
 
 size_t
-sds_bptree_node_key_lt_index(sds_bptree_instance *binst, sds_bptree_node *node, void *key) {
+sds_bptree_node_key_lt_index(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key) {
     /* This is a very busy part of the code. */
     size_t index = 0;
     for (;index < node->item_count; index++) {
-        if (binst->key_cmp_fn(key, node->keys[index]) < 0) {
+        if (key_cmp_fn(key, node->keys[index]) < 0) {
             return index;
         }
     }
@@ -67,11 +67,11 @@ sds_bptree_node_key_lt_index(sds_bptree_instance *binst, sds_bptree_node *node, 
 }
 
 size_t
-sds_bptree_node_key_eq_index(sds_bptree_instance *binst, sds_bptree_node *node, void *key) {
+sds_bptree_node_key_eq_index(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key) {
     size_t index = 0;
     int64_t result = 0;
     for (;index < node->item_count; index++) {
-        result = binst->key_cmp_fn(key, node->keys[index]);
+        result = key_cmp_fn(key, node->keys[index]);
         if (result == 0) {
             return index;
         } else if (result < 0) {
@@ -115,17 +115,17 @@ sds_bptree_node_leftmost_child_key(sds_bptree_node *parent) {
 }
 
 sds_result
-sds_bptree_node_contains_key(sds_bptree_instance *binst, sds_bptree_node *node, void *key) {
+sds_bptree_node_contains_key(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key) {
     /* Very busy part of the code. Could be improved? */
-    if (sds_bptree_node_key_eq_index(binst, node, key) != node->item_count) {
+    if (sds_bptree_node_key_eq_index(key_cmp_fn, node, key) != node->item_count) {
             return SDS_KEY_PRESENT;
     }
     return SDS_KEY_NOT_PRESENT;
 }
 
 sds_result
-sds_bptree_node_retrieve_key(sds_bptree_instance *binst, sds_bptree_node *node, void *key, void **target) {
-    size_t index = sds_bptree_node_key_eq_index(binst, node, key);
+sds_bptree_node_retrieve_key(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key, void **target) {
+    size_t index = sds_bptree_node_key_eq_index(key_cmp_fn, node, key);
 
     if (index == node->item_count) {
         return SDS_KEY_NOT_PRESENT;
@@ -204,7 +204,7 @@ sds_bptree_leaf_insert(sds_bptree_instance *binst, sds_bptree_node *node, void *
 #ifdef DEBUG
     sds_log("sds_bptree_leaf_insert", "node_%p key %" PRIu64 " ", node, key);
 #endif
-    size_t index = sds_bptree_node_key_lt_index(binst, node, key);
+    size_t index = sds_bptree_node_key_lt_index(binst->key_cmp_fn, node, key);
     // Move everything else to the right
     if (node->item_count > 0) {
         for (size_t i = node->item_count; i > index; i--) {
@@ -312,7 +312,7 @@ sds_bptree_branch_insert(sds_bptree_instance *binst, sds_bptree_node *node, void
      * If we are inserting 10, we need to put the new_node to the *RIGHT*.
      * If our key is LESS, then we insert to the LEFT.
      */
-    size_t index = sds_bptree_node_key_lt_index(binst, node, key);
+    size_t index = sds_bptree_node_key_lt_index(binst->key_cmp_fn, node, key);
 
     // If index == node->item_count, nothing will move.
     if (node->item_count > 0) {
@@ -502,7 +502,7 @@ sds_bptree_leaf_delete(sds_bptree_instance *binst, sds_bptree_node *node, void *
     sds_log("sds_bptree_leaf_delete", "deleting %d from %p", key, node);
 #endif
     /* Find the value */
-    size_t index = sds_bptree_node_key_eq_index(binst, node, key);
+    size_t index = sds_bptree_node_key_eq_index(binst->key_cmp_fn, node, key);
 
     /* extract the contents (if any) */
     void *value = node->values[index];
