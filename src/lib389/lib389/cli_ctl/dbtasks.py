@@ -20,11 +20,11 @@ def dbtasks_bak2db(inst, log, args):
     log.info("bak2db successful")
 
 def dbtasks_db2ldif(inst, log, args):
-    inst.db2ldif(bename=args.backend, encrypt=args.encrypt, repl_data=args.replication, outputfile=args.ldif, suffixes=None, excludeSuffixes=None)
+    inst.db2ldif(bename=args.backend, encrypt=args.encrypted, repl_data=args.replication, outputfile=args.ldif, suffixes=None, excludeSuffixes=None)
     log.info("db2ldif successful")
 
 def dbtasks_ldif2db(inst, log, args):
-    inst.ldif2db(bename=args.backend, encrypt=args.encrypt, import_file=args.ldif, suffixes=None, excludeSuffixes=None)
+    inst.ldif2db(bename=args.backend, encrypt=args.encrypted, import_file=args.ldif, suffixes=None, excludeSuffixes=None)
     log.info("ldif2db successful")
 
 def create_parser(subcommands):
@@ -50,7 +50,7 @@ def create_parser(subcommands):
 
     ldif2db_parser = subcommands.add_parser('ldif2db', help="Restore an LDIF dump of the database. The server must be stopped for this to proceed.")
     ldif2db_parser.add_argument('backend', help="The backend to restore from an LDIF. IE userRoot")
-    db2ldif_parser.add_argument('ldif', help="The path to the ldif to import")
+    ldif2db_parser.add_argument('ldif', help="The path to the ldif to import")
     ldif2db_parser.add_argument('--encrypted', help="Import encrypted attributes", default=False, action='store_true')
     ldif2db_parser.set_defaults(func=dbtasks_ldif2db)
 
