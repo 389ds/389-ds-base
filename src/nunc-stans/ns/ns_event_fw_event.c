@@ -142,9 +142,9 @@ ns_event_fw_init(void)
 }
 
 static void
-ns_event_fw_destroy(ns_event_fw_ctx_t *ns_event_fw_ctx_t)
+ns_event_fw_destroy(ns_event_fw_ctx_t *event_ctx_t)
 {
-    event_base_free(ns_event_fw_ctx_t);
+    event_base_free(event_ctx_t);
 }
 
 /*

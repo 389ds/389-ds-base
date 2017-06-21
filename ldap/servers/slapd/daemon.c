@@ -1084,8 +1084,11 @@ void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
 		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		for (size_t ii = 0; ii < listeners; ++ii) {
 			listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
-			ns_add_io_job(tp, listener_idxs[ii].listenfd, NS_JOB_ACCEPT|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD,
+			ns_result_t result = ns_add_io_job(tp, listener_idxs[ii].listenfd, NS_JOB_ACCEPT|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD,
 				      ns_handle_new_connection, &listener_idxs[ii], &(listener_idxs[ii].ns_job));
+			if (result != NS_SUCCESS) {
+				slapi_log_err(SLAPI_LOG_CRIT, "slapd_daemon", "ns_add_io_job failed to create add acceptor %d\n", result);
+			}
 
 		}
 	}
@@ -1775,14 +1778,16 @@ ns_connection_post_io_or_closing(Connection *conn)
 			tv.tv_usec = slapd_wakeup_timer * 1000;
 			conn->c_ns_close_jobs++; /* now 1 active closure job */
 			connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
-			PRStatus job_result = ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
+			ns_result_t job_result = ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
 					   ns_handle_closure, conn, NULL);
-#ifdef DEBUG
-			PR_ASSERT(job_result == PR_SUCCESS);
-#endif
-			if (job_result != PR_SUCCESS) {
-				slapi_log_err(SLAPI_LOG_WARNING, "ns_connection_post_io_or_closing", "post closure job "
-					"for conn %" PRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
+			if (job_result != NS_SUCCESS) {
+				if (job_result == NS_SHUTDOWN) {
+					slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post closure job "
+						"for conn %" PRIu64 " for fd=%d failed to be added to event queue as server is shutting down\n", conn->c_connid, conn->c_sd);
+				} else {
+					slapi_log_err(SLAPI_LOG_ERR, "ns_connection_post_io_or_closing", "post closure job "
+						"for conn %" PRIu64 " for fd=%d failed to be added to event queue %d\n", conn->c_connid, conn->c_sd, job_result);
+				}
 			} else {
 				slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post closure job "
 					"for conn %" PRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
@@ -1814,18 +1819,20 @@ ns_connection_post_io_or_closing(Connection *conn)
 			return;
 		}
 #endif
-		PRStatus job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
+		ns_result_t job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
 				      NS_JOB_READ|NS_JOB_PRESERVE_FD,
 				      ns_handle_pr_read_ready, conn, NULL);
-#ifdef DEBUG
-		PR_ASSERT(job_result == PR_SUCCESS);
-#endif
-		if (job_result != PR_SUCCESS) {
-			slapi_log_err(SLAPI_LOG_WARNING, "ns_connection_post_io_or_closing", "post I/O job for "
-				"conn %" PRIu64 " for fd=%d failed to be added to event queue\n", conn->c_connid, conn->c_sd);
+		if (job_result != NS_SUCCESS) {
+			if (job_result == NS_SHUTDOWN) {
+				slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post I/O job for "
+					"conn %" PRIu64 " for fd=%d failed to be added to event queue as server is shutting down\n", conn->c_connid, conn->c_sd);
+			} else {
+				slapi_log_err(SLAPI_LOG_ERR, "ns_connection_post_io_or_closing", "post I/O job for "
+					"conn %" PRIu64 " for fd=%d failed to be added to event queue %d\n", conn->c_connid, conn->c_sd, job_result);
+			}
 		} else {
 			slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post I/O job for "
-				"conn %" PRIu64 " for fd=%d\n", conn->c_connid, conn->c_sd);
+				"conn %" PRIu64 " for fd=%d added to event queue\n", conn->c_connid, conn->c_sd);
 		}
 	}
 }

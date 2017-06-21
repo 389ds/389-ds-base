@@ -123,7 +123,7 @@ ns_init_test_job_cb(struct ns_job_t *job __attribute__((unused)))
 static void
 ns_init_disarm_job_cb(struct ns_job_t *job)
 {
-    if (ns_job_done(job) == PR_SUCCESS) {
+    if (ns_job_done(job) == NS_SUCCESS) {
         cb_check = 1;
     } else {
         assert_int_equal(1,0);
@@ -160,7 +160,7 @@ ns_init_test(void **state)
     /* Once the job is done, it's not in the event queue, and it's complete */
     /* We have to stall momentarily to let the work_job_execute release the job to us */
     PR_Sleep(PR_SecondsToInterval(1));
-    assert_int_equal(ns_job_done(job), 0);
+    assert_int_equal(ns_job_done(job), NS_SUCCESS);
 }
 
 static void
@@ -177,7 +177,7 @@ ns_set_data_test(void **state)
     PR_Lock(cb_lock);
     assert_int_equal(
         ns_add_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_test_job_cb, data, &job),
-        0);
+        NS_SUCCESS);
 
     /* Let the job run */
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
@@ -222,7 +222,7 @@ ns_set_data_test(void **state)
         PR_Sleep(PR_MillisecondsToInterval(50));
     }
 
-    assert_int_equal(ns_job_done(job), 0);
+    assert_int_equal(ns_job_done(job), NS_SUCCESS);
 }
 
 static void
@@ -234,11 +234,11 @@ ns_job_done_cb_test(void **state)
     PR_Lock(cb_lock);
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_do_nothing_cb, &job),
-        0);
+        NS_SUCCESS);
 
     ns_job_set_done_cb(job, ns_init_test_job_cb);
     /* Remove it */
-    assert_int_equal(ns_job_done(job), 0);
+    assert_int_equal(ns_job_done(job), NS_SUCCESS);
 
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
     PR_Unlock(cb_lock);
@@ -250,10 +250,10 @@ ns_job_done_cb_test(void **state)
 static void
 ns_init_rearm_job_cb(struct ns_job_t *job)
 {
-    if (ns_job_rearm(job) == PR_FAILURE) {
+    if (ns_job_rearm(job) != NS_SUCCESS) {
         cb_check = 1;
         /* we failed to re-arm as expected, let's go away ... */
-        assert_int_equal(ns_job_done(job), 0);
+        assert_int_equal(ns_job_done(job), NS_SUCCESS);
     } else {
         assert_int_equal(1, 0);
     }
@@ -273,7 +273,7 @@ ns_job_persist_rearm_ignore_test(void **state)
     PR_Lock(cb_lock);
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE|NS_JOB_THREAD|NS_JOB_PERSIST, ns_init_rearm_job_cb, &job),
-        0);
+        NS_SUCCESS);
 
     /* This *will* arm the job, and will trigger the cb. */
     assert_int_equal(ns_job_rearm(job), 0);
@@ -299,9 +299,9 @@ ns_job_persist_disarm_test(void **state)
 
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE|NS_JOB_PERSIST, ns_init_disarm_job_cb, &job),
-        0);
+        NS_SUCCESS);
 
-    assert_int_equal(ns_job_rearm(job), 0);
+    assert_int_equal(ns_job_rearm(job), NS_SUCCESS);
 
     /* In the callback it should disarm */
     PR_Lock(cb_lock);
@@ -350,7 +350,7 @@ ns_job_race_done_test(void **state)
     PR_Lock(cb_lock);
     assert_int_equal(
         ns_add_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_race_done_job_cb, NULL, &job),
-        0);
+        NS_SUCCESS);
 
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(5));
     PR_Unlock(cb_lock);
@@ -372,7 +372,7 @@ ns_job_signal_cb_test(void **state)
     PR_Lock(cb_lock);
     assert_int_equal(
         ns_add_signal_job(tp, SIGUSR1, NS_JOB_SIGNAL, ns_init_test_job_cb, NULL, &job),
-        0);
+        NS_SUCCESS);
 
     /* The addition of the signal job to the event fw is async */
     PR_Sleep(PR_SecondsToInterval(2));
@@ -385,7 +385,7 @@ ns_job_signal_cb_test(void **state)
     assert_int_equal(cb_check, 1);
 
     /* Remove the signal job now */
-    assert_int_equal(ns_job_done(job), 0);
+    assert_int_equal(ns_job_done(job), NS_SUCCESS);
 }
 
 /*
@@ -399,9 +399,9 @@ ns_job_neg_timeout_test(void **state)
 
     struct timeval tv = { -1, 0 };
 
-    PR_ASSERT(PR_FAILURE == ns_add_io_timeout_job(tp, 0, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
+    PR_ASSERT(NS_INVALID_REQUEST == ns_add_io_timeout_job(tp, 0, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
 
-    PR_ASSERT(PR_FAILURE == ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
+    PR_ASSERT(NS_INVALID_REQUEST == ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
 
 }
 
@@ -428,7 +428,7 @@ ns_job_timer_test(void **state)
     struct timeval tv = { 2, 0 };
 
     PR_Lock(cb_lock);
-    assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_job_cb, NULL, &job) == PR_SUCCESS);
+    assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_job_cb, NULL, &job) == NS_SUCCESS);
 
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
     assert_int_equal(cb_check, 0);
@@ -462,7 +462,7 @@ ns_job_timer_persist_test(void **state)
     struct timeval tv = { 1, 0 };
 
     PR_Lock(cb_lock);
-    assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_persist_job_cb, NULL, &job) == PR_SUCCESS);
+    assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_persist_job_cb, NULL, &job) == NS_SUCCESS);
 
     PR_Sleep(PR_SecondsToInterval(5));
 

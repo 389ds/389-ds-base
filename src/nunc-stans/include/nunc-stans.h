@@ -46,6 +46,40 @@
 #include "nspr.h"
 
 /**
+ * ns_result_t encapsulates the set of results that can occur when interacting
+ * with nunc_stans. This is better than a simple status, because we can indicate
+ * why a failure occured, and allow the caller to handle it gracefully.
+ */
+typedef enum _ns_result_t {
+    /**
+     * Indicate the operation succeded.
+     */
+    NS_SUCCESS = 0,
+    /**
+     * indicate that the event loop is shutting down, so we may reject operations.
+     */
+    NS_SHUTDOWN = 1,
+    /**
+     * We failed to allocate resources as needed.
+     */
+    NS_ALLOCATION_FAILURE = 2,
+    /**
+     * An invalid request was made to the API, you should probably check your
+     * call.
+     */
+    NS_INVALID_REQUEST = 3,
+    /**
+     * You made a request against a job that would violate the safety of the job
+     * state machine.
+     */
+    NS_INVALID_STATE = 4,
+    /**
+     * This occurs when a lower level OS issue occurs, generally thread related.
+     */
+    NS_THREAD_FAILURE = 5,
+} ns_result_t;
+
+/**
  * Forward declaration of the thread pool struct
  *
  * The actual struct is opaque to applications.  The forward declaration is here
@@ -417,12 +451,13 @@ void ns_thrpool_config_init(struct ns_thrpool_config *tp_config);
  *   }
  * \endcode
  * \param job the job to clean up
- * \retval PR_SUCCESS Job was successfully queued for removal.
- * \retval PR_FAILURE Failed to mark job for removal. Likely the job is ARMED!
+ * \retval NS_SUCCESS Job was successfully queued for removal.
+ * \retval NS_INVALID_STATE Failed to mark job for removal. Likely the job is ARMED!
  *    We cannot remove jobs that are armed due to the race conditions it can cause.
+ * \retval NS_INVALID_REQUEST No job was provided to remove (IE NULL request)
  * \sa ns_job_t, ns_job_get_data, NS_JOB_PERSIST, NS_JOB_PRESERVE_FD
  */
-PRStatus ns_job_done(struct ns_job_t *job);
+ns_result_t ns_job_done(struct ns_job_t *job);
 
 /**
  * Create a new job which is not yet armed.
@@ -448,13 +483,16 @@ PRStatus ns_job_done(struct ns_job_t *job);
  * \param job_type A set of flags that indicates the job type.
  * \param func The callback function to call when processing the job.
  * \param[out] job The address of a job pointer that will be filled in once the job is allocated.
- * \retval PR_SUCCESS Job was successfully added.
- * \retval PR_FAILURE Failed to add job.
+ * \retval NS_SUCCESS Job was successfully added.
+ * \retval NS_ALLOCATION_FAILURE Failed to allocate job.
+ * \retval NS_INVALID_REQUEST As create job does not create armed, if you make a request
+ *  with a NULL job parameter, this would create a memory leak. As a result, we fail if
+ *  the request is NULL.
  * \warning The thread pool will not allow a job to be added when it has been signaled
  *          to shutdown.  It will return PR_FAILURE in that case.
  * \sa ns_job_t, ns_job_get_data, NS_JOB_READ, NS_JOB_WRITE, NS_JOB_ACCEPT, NS_JOB_CONNECT, NS_JOB_IS_IO, ns_job_done
  */
-PRStatus
+ns_result_t
 ns_create_job(struct ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, struct ns_job_t **job);
 
 /**
@@ -486,13 +524,15 @@ ns_create_job(struct ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t fun
  * \param data Arbitrary data that will be available to the job callback function.
  * \param[out] job The address of a job pointer that will be filled in once the job is allocated.
  *            \c NULL can be passed if a pointer to the job is not needed.
- * \retval PR_SUCCESS Job was successfully added.
- * \retval PR_FAILURE Failed to add job.
+ * \retval NS_SUCCESS Job was successfully added.
+ * \retval NS_ALLOCATION_FAILURE Failed to allocate job.
+ * \retval NS_INVALID_REQUEST An invalid job request was made: likely you asked for an
+ * accept job to be threaded, which is currently invalid.
  * \warning The thread pool will not allow a job to be added when it has been signaled
  *          to shutdown.  It will return PR_FAILURE in that case.
  * \sa ns_job_t, ns_job_get_data, NS_JOB_READ, NS_JOB_WRITE, NS_JOB_ACCEPT, NS_JOB_CONNECT, NS_JOB_IS_IO, ns_job_done
  */
-PRStatus ns_add_io_job(struct ns_thrpool_t *tp,
+ns_result_t ns_add_io_job(struct ns_thrpool_t *tp,
                        PRFileDesc *fd,
                        ns_job_type_t job_type,
                        ns_job_func_t func,
@@ -511,13 +551,15 @@ PRStatus ns_add_io_job(struct ns_thrpool_t *tp,
  * \param data Arbitrary data that will be available to the job callback function.
  * \param[out] job The address of a job pointer that will be filled in once the job is allocated.
  *            \c NULL can be passed if a pointer to the job is not needed.
- * \retval PR_SUCCESS Job was successfully added.
- * \retval PR_FAILURE Failed to add job.
+ * \retval NS_SUCCESS Job was successfully added.
+ * \retval NS_ALLOCATION_FAILURE Failed to allocate job.
+ * \retval NS_INVALID_REQUEST An invalid job request was made: likely you asked for a
+ * timeout that is not valid (negative integer).
  * \warning The thread pool will not allow a job to be added when it has been signaled
  *          to shutdown.  It will return PR_FAILURE in that case.
  * \sa ns_job_t, ns_job_get_data, NS_JOB_TIMER, NS_JOB_IS_TIMER, ns_job_done
  */
-PRStatus ns_add_timeout_job(struct ns_thrpool_t *tp,
+ns_result_t ns_add_timeout_job(struct ns_thrpool_t *tp,
                             struct timeval *tv,
                             ns_job_type_t job_type,
                             ns_job_func_t func,
@@ -559,13 +601,16 @@ PRStatus ns_add_timeout_job(struct ns_thrpool_t *tp,
  * \param data Arbitrary data that will be available to the job callback function.
  * \param[out] job The address of a job pointer that will be filled in once the job is allocated.
  *            \c NULL can be passed if a pointer to the job is not needed.
- * \retval PR_SUCCESS Job was successfully added.
- * \retval PR_FAILURE Failed to add job.
+ * \retval NS_SUCCESS Job was successfully added.
+ * \retval NS_ALLOCATION_FAILURE Failed to allocate job.
+ * \retval NS_INVALID_REQUEST An invalid job request was made: likely you asked for a
+ * timeout that is not valid (negative integer). Another failure is you requested a
+ * threaded accept job.
  * \warning The thread pool will not allow a job to be added when it has been signaled
- *          to shutdown.  It will return PR_FAILURE in that case.
+ *          to shutdown.  It will return NS_SHUTDOWN in that case.
  * \sa ns_job_t, ns_job_get_data, NS_JOB_READ, NS_JOB_WRITE, NS_JOB_ACCEPT, NS_JOB_CONNECT, NS_JOB_IS_IO, ns_job_done, NS_JOB_TIMER, NS_JOB_IS_TIMER
  */
-PRStatus ns_add_io_timeout_job(struct ns_thrpool_t *tp,
+ns_result_t ns_add_io_timeout_job(struct ns_thrpool_t *tp,
                                PRFileDesc *fd,
                                struct timeval *tv,
                                ns_job_type_t job_type,
@@ -585,14 +630,14 @@ PRStatus ns_add_io_timeout_job(struct ns_thrpool_t *tp,
  * \param data Arbitrary data that will be available to the job callback function.
  * \param[out] job The address of a job pointer that will be filled in once the job is allocated.
  *            \c NULL can be passed if a pointer to the job is not needed.
- * \retval PR_SUCCESS Job was successfully added.
- * \retval PR_FAILURE Failed to add job.
+ * \retval NS_SUCCESS Job was successfully added.
+ * \retval NS_ALLOCATION_FAILURE Failed to allocate job.
  * \warning The thread pool will not allow a job to be added when it has been signaled
  *          to shutdown.  It will return PR_FAILURE in that case.
  * \sa ns_job_t, ns_job_get_data, NS_JOB_SIGNAL, NS_JOB_IS_SIGNAL
  */
-PRStatus ns_add_signal_job(ns_thrpool_t *tp,
-                           PRInt32 signum,
+ns_result_t ns_add_signal_job(ns_thrpool_t *tp,
+                           int32_t signum,
                            ns_job_type_t job_type,
                            ns_job_func_t func,
                            void *data,
@@ -619,13 +664,13 @@ PRStatus ns_add_signal_job(ns_thrpool_t *tp,
  * \param data Arbitrary data that will be available to the job callback function.
  * \param[out] job The address of a job pointer that will be filled in once the job is allocated.
  *            \c NULL can be passed if a pointer to the job is not needed.
- * \retval PR_SUCCESS Job was successfully added.
- * \retval PR_FAILURE Failed to add job.
+ * \retval NS_SUCCESS Job was successfully added.
+ * \retval NS_ALLOCATION_FAILURE Failed to allocate job.
  * \warning The thread pool will not allow a job to be added when it has been signaled
  *          to shutdown.  It will return PR_FAILURE in that case.
  * \sa ns_job_t, ns_job_get_data, NS_JOB_NONE, NS_JOB_THREAD
  */
-PRStatus ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *data, struct ns_job_t **job);
+ns_result_t ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *data, struct ns_job_t **job);
 
 /**
  * Allows the callback to access the file descriptor for an I/O job
@@ -697,10 +742,11 @@ void *ns_job_get_data(struct ns_job_t *job);
  *
  * \param job The job to set the data for
  * \param data The void * pointer to the data to set
- * \return if the set data succeeded
+ * \retval NS_SUCCESS Job was modified correctly.
+ * \retval NS_INVALID_STATE Failed to modify the job as this may be unsafe.
  * \sa ns_job_t
  */
-PRStatus ns_job_set_data(struct ns_job_t *job, void *data);
+ns_result_t ns_job_set_data(struct ns_job_t *job, void *data);
 
 /**
  * Allows the callback to access the job type flags.
@@ -781,12 +827,13 @@ ns_job_type_t ns_job_get_output_type(struct ns_job_t *job);
  *      free(ns_job_get_data(job));
  *  }
  * \endcode
- * \return status if the set succeeded. Always check this!
  * \param job The job to set the callback for.
  * \param func The callback function, to be called when ns_job_done is triggered.
+ * \retval NS_SUCCESS Job was modified correctly.
+ * \retval NS_INVALID_STATE Failed to modify the job as this may be unsafe.
  * \sa ns_job_t, ns_job_done
  */
-PRStatus ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func);
+ns_result_t ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func);
 
 /**
  * Creates a new thread pool
@@ -858,7 +905,7 @@ void ns_thrpool_shutdown(struct ns_thrpool_t *tp);
  * \retval 1 if the thread pool is shutting down.
  * \sa ns_thrpool_shutdown
  */
-PRInt32 ns_thrpool_is_shutdown(struct ns_thrpool_t *tp);
+int32_t ns_thrpool_is_shutdown(struct ns_thrpool_t *tp);
 
 /**
  * Waits for all threads in the pool to exit
@@ -872,11 +919,11 @@ PRInt32 ns_thrpool_is_shutdown(struct ns_thrpool_t *tp);
  *       never return.
  *
  * \param tp The thread pool to wait for.
- * \retval PR_SUCCESS The thread pool threads completed successfully
- * \retval PR_FAILURE Failure waiting for the thread pool threads to terminate
+ * \retval NS_SUCCESS The thread pool threads completed successfully
+ * \retval NS_THREAD_FAILURE Failure waiting for a thread to rejoin.
  * \sa ns_thrpool_config, ns_thrpool_config_init, ns_thrpool_new, ns_thrpool_destroy, ns_thrpool_shutdown
  */
-PRStatus ns_thrpool_wait(struct ns_thrpool_t *tp);
+ns_result_t ns_thrpool_wait(struct ns_thrpool_t *tp);
 
 
 /**
@@ -890,8 +937,13 @@ PRStatus ns_thrpool_wait(struct ns_thrpool_t *tp);
  * refer to job after calling ns_job_rearm().
  * \note Do not call ns_job_done() with a job if using ns_job_rearm() with the job
  * \param job The job to re-arm
+ * \retval NS_SUCCESS The job was queued correctly.
+ * \retval NS_SHUTDOWN The job was not able to be queued as the server is in the procees
+ * of shutting down.
+ * \retval NS_INVALID_STATE The job was not able to be queued as it is in an invalid state
+ * \retval NS_INVALID_REQUEST The job to be queued is invalid.
  * \sa ns_job_t, ns_job_done, NS_JOB_PERSIST, NS_JOB_THREAD
  */
-PRStatus ns_job_rearm(struct ns_job_t *job);
+ns_result_t ns_job_rearm(struct ns_job_t *job);
 
 #endif /* NS_THRPOOL_H */

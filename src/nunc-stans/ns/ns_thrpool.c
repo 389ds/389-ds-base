@@ -726,12 +726,12 @@ alloc_signal_context(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type,
     return job;
 }
 
-PRStatus
+ns_result_t
 ns_job_done(ns_job_t *job)
 {
     PR_ASSERT(job);
     if (job == NULL) {
-        return PR_FAILURE;
+        return NS_INVALID_REQUEST;
     }
 
     /* Get the shutdown state ONCE at the start, atomically */
@@ -745,7 +745,7 @@ ns_job_done(ns_job_t *job)
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> %x state %d return early\n", job, shutdown_state, job->state);
 #endif
         pthread_mutex_unlock(job->monitor);
-        return PR_SUCCESS;
+        return NS_SUCCESS;
     }
 
     /* Do not allow an armed job to be removed UNLESS the server is shutting down */
@@ -754,7 +754,7 @@ ns_job_done(ns_job_t *job)
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> false state %d failed to mark as done\n", job, job->state);
 #endif
         pthread_mutex_unlock(job->monitor);
-        return PR_FAILURE;
+        return NS_INVALID_STATE;
     }
 
     if (job->state == NS_JOB_RUNNING || job->state == NS_JOB_NEEDS_ARM) {
@@ -781,31 +781,31 @@ ns_job_done(ns_job_t *job)
         pthread_mutex_unlock(job->monitor);
         internal_ns_job_done(job);
     }
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
-PRStatus
+ns_result_t
 ns_create_job(struct ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, struct ns_job_t **job)
 {
     if (job == NULL) {
         /* This won't queue the job, so to pass NULL makes no sense */
-        return PR_FAILURE;
+        return NS_INVALID_REQUEST;
     }
 
     if (ns_thrpool_is_shutdown(tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     *job = new_ns_job(tp, NULL, job_type, func, NULL);
     if (*job == NULL) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
 
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
 /* queue a file descriptor to listen for and accept new connections */
-PRStatus
+ns_result_t
 ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
         ns_job_func_t func, void *data, ns_job_t **job)
 {
@@ -817,7 +817,7 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
 
     /* Don't allow a job to be added if the threadpool is being shut down. */
     if (ns_thrpool_is_shutdown(tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     /* Don't allow an accept job to be run outside of the event thread. 
@@ -832,13 +832,13 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
      *
      */
     if (NS_JOB_IS_ACCEPT(job_type) && NS_JOB_IS_THREAD(job_type)) {
-        return PR_FAILURE;
+        return NS_INVALID_REQUEST;
     }
 
     /* get an event context for an accept */
     _job = alloc_io_context(tp, fd, job_type, func, data);
     if (!_job) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
 
     pthread_mutex_lock(_job->monitor);
@@ -854,10 +854,10 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
         *job = _job;
     }
 
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
-PRStatus
+ns_result_t
 ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
         ns_job_func_t func, void *data, ns_job_t **job)
 {
@@ -869,17 +869,17 @@ ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
 
     /* Don't allow a job to be added if the threadpool is being shut down. */
     if (ns_thrpool_is_shutdown(tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     if (validate_event_timeout(tv)) {
-        return PR_FAILURE;
+        return NS_INVALID_REQUEST;
     }
 
     /* get an event context for a timer job */
     _job = alloc_timeout_context(tp, tv, job_type, func, data);
     if (!_job) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
 
     pthread_mutex_lock(_job->monitor);
@@ -895,11 +895,11 @@ ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
         *job = _job;
     }
 
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
 /* queue a file descriptor to listen for and accept new connections */
-PRStatus
+ns_result_t
 ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
         ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
 {
@@ -911,11 +911,11 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
 
     /* Don't allow a job to be added if the threadpool is being shut down. */
     if (ns_thrpool_is_shutdown(tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     if (validate_event_timeout(tv)) {
-        return PR_FAILURE;
+        return NS_INVALID_REQUEST;
     }
 
     /* Don't allow an accept job to be run outside of the event thread.
@@ -930,13 +930,13 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
      *
      */
     if (NS_JOB_IS_ACCEPT(job_type) && NS_JOB_IS_THREAD(job_type)) {
-        return PR_FAILURE;
+        return NS_INVALID_REQUEST;
     }
 
     /* get an event context for an accept */
     _job = alloc_io_context(tp, fd, job_type|NS_JOB_TIMER, func, data);
     if (!_job) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
     pthread_mutex_lock(_job->monitor);
     _job->tv = *tv;
@@ -953,11 +953,11 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
         *job = _job;
     }
 
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
-PRStatus
-ns_add_signal_job(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type,
+ns_result_t
+ns_add_signal_job(ns_thrpool_t *tp, int32_t signum, ns_job_type_t job_type,
         ns_job_func_t func, void *data, ns_job_t **job)
 {
     ns_job_t *_job = NULL;
@@ -968,13 +968,13 @@ ns_add_signal_job(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type,
 
     /* Don't allow a job to be added if the threadpool is being shut down. */
     if (ns_thrpool_is_shutdown(tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     /* get an event context for a signal job */
     _job = alloc_signal_context(tp, signum, job_type, func, data);
     if (!_job) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
 
     pthread_mutex_lock(_job->monitor);
@@ -990,10 +990,10 @@ ns_add_signal_job(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type,
         *job = _job;
     }
 
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
-PRStatus
+ns_result_t
 ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
 {
     ns_job_t *_job = NULL;
@@ -1004,12 +1004,12 @@ ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *d
 
     /* Don't allow a job to be added if the threadpool is being shut down. */
     if (ns_thrpool_is_shutdown(tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     _job = new_ns_job(tp, NULL, job_type, func, data);
     if (!_job) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
     /* fill in a pointer to the job for the caller if requested */
     if (job) {
@@ -1022,21 +1022,21 @@ ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *d
     _job->state = NS_JOB_NEEDS_ARM;
     internal_ns_job_rearm(_job);
 
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
-PRStatus
+ns_result_t
 ns_add_shutdown_job(ns_thrpool_t *tp) {
     ns_job_t *_job = NULL;
     _job = new_ns_job(tp, NULL, NS_JOB_SHUTDOWN_WORKER, NULL, NULL);
     if (!_job) {
-        return PR_FAILURE;
+        return NS_ALLOCATION_FAILURE;
     }
     pthread_mutex_lock(_job->monitor);
     _job->state = NS_JOB_NEEDS_ARM;
     pthread_mutex_unlock(_job->monitor);
     internal_ns_job_rearm(_job);
-    return PR_SUCCESS;
+    return NS_SUCCESS;
 }
 
 /*
@@ -1066,7 +1066,7 @@ ns_job_get_data(ns_job_t *job)
     }
 }
 
-PRStatus
+ns_result_t
 ns_job_set_data(ns_job_t *job, void *data)
 {
     PR_ASSERT(job);
@@ -1075,10 +1075,10 @@ ns_job_set_data(ns_job_t *job, void *data)
     if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING ) {
         job->data = data;
         pthread_mutex_unlock(job->monitor);
-        return PR_SUCCESS;
+        return NS_SUCCESS;
     } else {
         pthread_mutex_unlock(job->monitor);
-        return PR_FAILURE;
+        return NS_INVALID_STATE;
     }
 }
 
@@ -1142,7 +1142,7 @@ ns_job_get_fd(ns_job_t *job)
     }
 }
 
-PRStatus
+ns_result_t
 ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func)
 {
     PR_ASSERT(job);
@@ -1151,10 +1151,10 @@ ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func)
     if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING ) {
         job->done_cb = func;
         pthread_mutex_unlock(job->monitor);
-        return PR_SUCCESS;
+        return NS_SUCCESS;
     } else {
         pthread_mutex_unlock(job->monitor);
-        return PR_FAILURE;
+        return NS_INVALID_STATE;
     }
 }
 
@@ -1163,7 +1163,7 @@ ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func)
  * This is a convenience function - use if you need to re-arm the same event
  * usually not needed for persistent jobs
  */
-PRStatus
+ns_result_t
 ns_job_rearm(ns_job_t *job)
 {
     PR_ASSERT(job);
@@ -1171,7 +1171,7 @@ ns_job_rearm(ns_job_t *job)
     PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
 
     if (ns_thrpool_is_shutdown(job->tp)) {
-        return PR_FAILURE;
+        return NS_SHUTDOWN;
     }
 
     if (job->state == NS_JOB_WAITING) {
@@ -1181,7 +1181,7 @@ ns_job_rearm(ns_job_t *job)
         job->state = NS_JOB_NEEDS_ARM;
         internal_ns_job_rearm(job);
         pthread_mutex_unlock(job->monitor);
-        return PR_SUCCESS;
+        return NS_SUCCESS;
     } else if ( !NS_JOB_IS_PERSIST(job->job_type) && job->state == NS_JOB_RUNNING) {
         /* For this to be called, and NS_JOB_RUNNING, we *must* be the callback thread! */
         /* Just mark it (ie do nothing), the work_job_execute function will trigger internal_ns_job_rearm */
@@ -1190,13 +1190,13 @@ ns_job_rearm(ns_job_t *job)
 #endif
         job->state = NS_JOB_NEEDS_ARM;
         pthread_mutex_unlock(job->monitor);
-        return PR_SUCCESS;
+        return NS_SUCCESS;
     } else {
         pthread_mutex_unlock(job->monitor);
-        return PR_FAILURE;
+        return NS_INVALID_STATE;
     }
     /* Unreachable code .... */
-    return PR_FAILURE;
+    return NS_INVALID_REQUEST;
 }
 
 static void
@@ -1286,12 +1286,12 @@ ns_thrpool_config_init(struct ns_thrpool_config *tp_config)
 /*
  * Process the config and set the pluggable function pointers
  */
-static int
+static ns_result_t
 ns_thrpool_process_config(struct ns_thrpool_config *tp_config)
 {
     /* Check that the config has been properly initialized */
     if (!tp_config || tp_config->init_flag != NS_INIT_MAGIC){
-        return -1;
+        return NS_INVALID_REQUEST;
     }
     /*
      * Assign our logging function pointers
@@ -1351,7 +1351,7 @@ ns_thrpool_process_config(struct ns_thrpool_config *tp_config)
         free_fct = os_free;
     }
 
-    return 0;
+    return NS_SUCCESS;
 }
 
 ns_thrpool_t *
@@ -1362,7 +1362,7 @@ ns_thrpool_new(struct ns_thrpool_config *tp_config)
     ns_thread_t *thr;
     size_t ii;
 
-    if(ns_thrpool_process_config(tp_config) == -1){
+    if(ns_thrpool_process_config(tp_config) != NS_SUCCESS){
         ns_log(LOG_ERR, "ns_thrpool_new(): config has not been properly initialized\n");
         goto failed;
     }
@@ -1540,8 +1540,8 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
      * currently queued jobs to complete.
      */
     for (size_t i = 0; i < tp->thread_count; i++) {
-        PRStatus result = ns_add_shutdown_job(tp);
-        PR_ASSERT(result == PR_SUCCESS);
+        ns_result_t result = ns_add_shutdown_job(tp);
+        PR_ASSERT(result == NS_SUCCESS);
     }
     /* Make sure all threads are woken up to their shutdown jobs. */
     pthread_mutex_lock(&(tp->work_q_lock));
@@ -1549,13 +1549,13 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
     pthread_mutex_unlock(&(tp->work_q_lock));
 }
 
-PRStatus
+ns_result_t
 ns_thrpool_wait(ns_thrpool_t *tp)
 {
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_thrpool_wait has begun\n");
 #endif
-    PRStatus retval = PR_SUCCESS;
+    ns_result_t retval = NS_SUCCESS;
     ns_thread_t *thr;
 
     while (sds_queue_dequeue(tp->thread_stack, (void **)&thr) == SDS_SUCCESS)
@@ -1568,7 +1568,7 @@ ns_thrpool_wait(ns_thrpool_t *tp)
         if (rc != 0) {
             /* NGK TODO - this is unused right now. */
             ns_log(LOG_ERR, "ns_thrpool_wait, failed to join thread %d", rc);
-            retval = PR_FAILURE;
+            retval = NS_THREAD_FAILURE;
         }
         ns_free(thr);
     }
