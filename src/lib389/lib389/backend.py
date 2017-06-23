@@ -20,6 +20,7 @@ from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
+from lib389.index import Indexes
 
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
@@ -507,6 +508,12 @@ class Backend(DSLdapObject):
     def get_monitor(self):
         monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn, batch=self._batch)
         return monitor
+
+    def get_indexes(self):
+        indexes = Indexes(self._instance, basedn="cn=index,%s" % self._dn)
+        return indexes
+
+    # Future: add reindex task for this be.
 
 # This only does ldbm backends. Chaining backends are a special case
 # of this, so they can be subclassed off.

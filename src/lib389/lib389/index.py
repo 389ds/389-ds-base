@@ -14,15 +14,33 @@ from lib389.properties import *
 from lib389 import Entry
 from lib389.utils import ensure_str, ensure_bytes
 
+from lib389._mapped_object import DSLdapObjects, DSLdapObject
+
 MAJOR, MINOR, _, _, _ = sys.version_info
 
 if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
     from ldap.controls.readentry import PostReadControl
 
+DEFAULT_INDEX_DN = "cn=default indexes,%s" % DN_CONFIG_LDBM
 
+class Index(DSLdapObject):
+    def __init__(self, instance, dn=None, batch=False):
+        super(Index, self).__init__(instance, dn, batch)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'nsSystemIndex', 'nsIndexType']
+        self._create_objectclasses = ['top', 'nsIndex']
+        self._protected = False
+        self._lint_functions = []
 
+class Indexes(DSLdapObjects):
+    def __init__(self, instance, basedn=DEFAULT_INDEX_DN, batch=False):
+        super(Indexes, self).__init__(instance=instance, batch=batch)
+        self._objectclasses = ['nsIndex']
+        self._filterattrs = ['cn']
+        self._childobject = Index
+        self._basedn = basedn
 
-class Index(object):
+class IndexLegacy(object):
 
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
