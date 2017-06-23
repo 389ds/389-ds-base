@@ -652,7 +652,8 @@ list_candidates(
     int           allidslimit
 )
 {
-    IDList        *idl, *tmp, *tmp2;
+    IDList        *idl;
+    IDList        *tmp;
     Slapi_Filter  *f, *nextf, *f_head;
     int           range = 0;
     int           isnot;
@@ -663,6 +664,7 @@ list_candidates(
     char          *tpairs[2] = {NULL, NULL};
     struct berval *vpairs[2] = {NULL, NULL};
     int is_and = 0;
+    IDListSet *idl_set = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "=> 0x%x\n", ftype);
 
@@ -766,6 +768,10 @@ list_candidates(
         goto out;
     }
 
+    if  (ftype == LDAP_FILTER_OR || ftype == LDAP_FILTER_AND) {
+        idl_set = idl_set_create();
+    }
+
     idl = NULL;
     nextf = NULL;
     isnot = 0;
@@ -778,15 +784,21 @@ list_candidates(
                 (LDAP_FILTER_EQUALITY == slapi_filter_get_choice(slapi_filter_list_first(f))));
 
         if (isnot) {
-            /* if this is the first filter we have an allid search anyway, so bail */
-            if(f == f_head)
-            {
+            /*
+             * If this is the first filter, make sure we have something to
+             * subtract from.
+             */
+            if (f == f_head) {
                 idl = idl_allids( be );
-                break;
+                idl_set_insert_idl(idl_set, idl);
             }
+            /*
+             * Not the first filter - good! Get the indexed type out.
+             * if this is unindexed, we'll get allids. During the intersection
+             * in notin, we'll mark this as don't skip filter, because else we might
+             * get the wrong results.
+             */
 
-            /* Fetch the IDL for foo */
-            /* Later we'll remember to call idl_notin() */
             slapi_log_err(SLAPI_LOG_TRACE, "list_candidates" ,"NOT filter\n");
             if (filter_is_subtype(slapi_filter_list_first(f))) {
                 /*
@@ -832,64 +844,79 @@ list_candidates(
             }
         }
 
-        tmp2 = idl;
-        if ( idl == NULL ) {
-            idl = tmp;
-            if ( (ftype == LDAP_FILTER_AND) && ((idl == NULL) ||
-                (idl_length(idl) <= FILTER_TEST_THRESHOLD))) {
-                break; /* We can exit the loop now, since the candidate list is small already */
-            }
-        } else if ( ftype == LDAP_FILTER_AND ) {
-            if (isnot) {
-                /*
-                 * If tmp is NULL or ALLID, idl_notin just duplicates idl.
-                 * We don't have to do it.
-                 */
-                if (!tmp && !idl_is_allids(tmp)) {
-                    IDList *new_idl = NULL;
-                    int notin_result = 0;
-                    notin_result = idl_notin( be, idl, tmp, &new_idl );
-                    if (notin_result) {
-                        idl_free(&idl);
-                        idl = new_idl;
-                    }
-                }
-            } else {
-                idl = idl_intersection(be, idl, tmp);
-                idl_free( &tmp2 );
-            }
-            idl_free( &tmp );
-            /* stop if the list has gotten too small */
-            if ((idl == NULL) ||
-                (idl_length(idl) <= FILTER_TEST_THRESHOLD))
-                break;
-        } else {
+        /*
+         * Assert we recieved a valid idl. If it was NULL, it means somewhere we failed
+         * during the dblayer interactions.
+         *
+         * idl_set requires a valid idl structure to generate the linked list of
+         * idls that we insert.
+         */
+        if (tmp == NULL) {
+            slapi_log_err(SLAPI_LOG_CRIT, "list_candidates", "NULL idl was recieved from filter_candidates_ext.");
+            slapi_log_err(SLAPI_LOG_CRIT, "list_candidates", "Falling back to empty IDL set. This may affect your search results.");
+            PR_ASSERT(tmp);
+            tmp = idl_alloc(0);
+        }
+
+        /*
+         * At this point we have the idl set from the subfilter. In idl_set,
+         * we stash this for later ....
+         */
+
+        if  (ftype == LDAP_FILTER_OR ||
+            (ftype == LDAP_FILTER_AND && !isnot)) {
+            idl_set_insert_idl(idl_set, tmp);
+        } else if (ftype == LDAP_FILTER_AND && isnot) {
+            idl_set_insert_complement_idl(idl_set, tmp);
+        }
+
+        if (ftype == LDAP_FILTER_OR && idl_set_union_shortcut(idl_set) != 0) {
+            /*
+             * If we encounter an allids idl, this means that union will return
+             * and allids - we should not process anymore, and fallback to full
+             * table scan at this point.
+             */
+            goto apply_set_op;
+        }
+
+        if (ftype == LDAP_FILTER_AND && idl_set_intersection_shortcut(idl_set) != 0) {
+            /*
+             * If we encounter a zero length idl, we bail now because this can never
+             * result in a meaningful result besides zero.
+             */
+            goto apply_set_op;
+        }
+
+    }
+
+    /*
+     * Do the idl_set operation if required.
+     * these are far more efficient than the iterative union and
+     * intersections we previously used.
+     */
+apply_set_op:
+
+    if (ftype == LDAP_FILTER_OR) {
+        /* If one of the idl_set is allids, this shortcuts :) */
+        idl = idl_set_union(idl_set, be);
+        size_t nids = IDL_NIDS(idl);
+        if ( allidslimit > 0 && nids > allidslimit ) {
             Slapi_Operation *operation;
             slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
-
-            idl = idl_union( be, idl, tmp );
-            idl_free( &tmp );
-            idl_free( &tmp2 );
-            /* stop if we're already committed to an exhaustive
-             * search. :(
-             */
-            /* PAGED RESULTS: we strictly limit the idlist size by the allids (aka idlistscan) limit.
-             */
+            /* PAGED RESULTS: we strictly limit the idlist size by the allids (aka idlistscan) limit. */
             if (op_is_pagedresults(operation)) {
-                int nids = IDL_NIDS(idl);
-                if ( allidslimit > 0 && nids > allidslimit ) {
-                    idl_free( &idl );
-                    idl = idl_allids( be );
-                }
+                idl_free( &idl );
+                idl = idl_allids( be );
             }
-            if (idl_is_allids(idl))
-                break;
         }
+    } else if (ftype == LDAP_FILTER_AND) {
+        idl = idl_set_intersect(idl_set, be);
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= %lu\n",
                    (u_long)IDL_NIDS(idl));
 out:
+    idl_set_destroy(idl_set);
     if (is_and) {
         /*
          * Sets IS_AND back to 0 only when this function set 1.
@@ -989,14 +1016,11 @@ keys2idl(
     int         allidslimit
 )
 {
-    IDList    *idl;
-    int    i;
+    IDList    *idl = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "keys2idl", "=> type %s indextype %s\n",
-        type, indextype);
-    idl = NULL;
-    for ( i = 0; ivals[i] != NULL; i++ ) {
-        IDList    *idl2;
+    slapi_log_err(SLAPI_LOG_TRACE, "keys2idl", "=> type %s indextype %s\n", type, indextype);
+    for ( size_t i = 0; ivals[i] != NULL; i++ ) {
+        IDList    *idl2 = NULL;
 
         idl2 = index_read_ext_allids( pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit );
 
@@ -1011,23 +1035,25 @@ keys2idl(
         }
 #endif
         if ( idl2 == NULL ) {
-            idl_free( &idl );
-            idl = NULL;
-            break;
+            slapi_log_err(SLAPI_LOG_WARNING, "keys2idl", "recieved NULL idl from index_read_ext_allids, treating as empty set\n");
+            slapi_log_err(SLAPI_LOG_WARNING, "keys2idl", "this is probably a bug that should be reported\n");
+            idl2 = idl_alloc(0);
         }
 
+        /* First iteration of the ivals, stash idl2. */
         if (idl == NULL) {
             idl = idl2;
         } else {
-            IDList    *tmp;
+            /*
+             * second iteration of the ivals - do an intersection and free
+             * the intermediates.
+             */
+            IDList    *tmp = NULL;
 
             tmp = idl;
             idl = idl_intersection(be, idl, idl2);
             idl_free( &idl2 );
             idl_free( &tmp );
-            if ( idl == NULL ) {
-                break;
-            }
         }
     }
 

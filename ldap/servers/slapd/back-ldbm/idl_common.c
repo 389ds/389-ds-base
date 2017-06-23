@@ -20,7 +20,7 @@ size_t idl_sizeof(IDList *idl)
 	if (NULL == idl) {
 		return 0;
 	}
-	return (2 + idl->b_nmax) * sizeof(ID);
+	return sizeof(IDList) + (idl->b_nmax * sizeof(ID));
 }
 
 NIDS idl_length(IDList *idl)
@@ -44,10 +44,19 @@ idl_alloc( NIDS nids )
 {
 	IDList	*new;
 
+    if (nids == 0) {
+        /*
+         * Because we use allids in b_nmax as 0, when we request an
+         * empty set, this *looks* like an empty set. Instead, we make
+         * a minimum b_nmax to trick it.
+         */
+        nids = 1;
+    }
+
 	/* nmax + nids + space for the ids */
-	new = (IDList *) slapi_ch_calloc( (2 + nids), sizeof(ID) );
+	new = (IDList *) slapi_ch_calloc( 1, sizeof(IDList) + (sizeof(ID) * nids) );
 	new->b_nmax = nids;
-	new->b_nids = 0;
+	/* new->b_nids = 0; */
 
 	return( new );
 }
@@ -116,7 +125,7 @@ idl_append_extend(IDList **orig_idl, ID id)
 	IDList *idl = *orig_idl;
 
 	if (idl == NULL) {
-		idl = idl_alloc(32); /* used to be 0 */
+		idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE); /* used to be 0 */
 		idl_append(idl, id);
 
 		*orig_idl = idl;
@@ -125,17 +134,11 @@ idl_append_extend(IDList **orig_idl, ID id)
 
 	if ( idl->b_nids == idl->b_nmax ) {
 		/* No more room, need to extend */
-		/* Allocate new IDL with twice the space of this one */
-		IDList *idl_new = NULL;
-		idl_new = idl_alloc(idl->b_nmax * 2);
-		if (NULL == idl_new) {
+		idl->b_nmax = idl->b_nmax * 2;
+		idl = slapi_ch_realloc(idl, sizeof(IDList) + (sizeof(ID) * idl->b_nmax));
+		if (idl == NULL) {
 			return ENOMEM;
 		}
-		/* copy over the existing contents */
-		idl_new->b_nids = idl->b_nids;
-		memcpy(idl_new->b_ids, idl->b_ids, sizeof(ID) * idl->b_nids);
-		idl_free(&idl);
-		idl = idl_new;
 	}
 
 	idl->b_ids[idl->b_nids] = id;
@@ -155,8 +158,7 @@ idl_dup( IDList *idl )
 	}
 
 	new = idl_alloc( idl->b_nmax );
-	SAFEMEMCPY( (char *) new, (char *) idl, (idl->b_nmax + 2)
-	    * sizeof(ID) );
+	memcpy(new, idl, idl_sizeof(idl) );
 
 	return( new );
 }
@@ -170,19 +172,52 @@ idl_min( IDList *a, IDList *b )
 int
 idl_id_is_in_idlist(IDList *idl, ID id)
 {
-    NIDS i;
     if (NULL == idl || NOID == id) {
         return 0; /* not in the list */
     }
     if (ALLIDS(idl)) {
         return 1; /* in the list */
     }
-    for (i = 0; i < idl->b_nids; i++) {
+
+    for (NIDS i = 0; i < idl->b_nids; i++) {
         if (id == idl->b_ids[i]) {
             return 1; /* in the list */
         }
     }
     return 0; /* not in the list */
+}
+
+/*
+ * idl_compare - compare idl a and b for value equality and ordering.
+ */
+int64_t
+idl_compare(IDList *a, IDList *b) {
+    /* Assert they are not none. */
+    if (a == NULL || b == NULL) {
+        return 1;
+    }
+    /* Are they the same pointer? */
+    if (a == b) {
+        return 0;
+    }
+    /* Do they have the same number of IDs? */
+    if (a->b_nids != b->b_nids) {
+        return 1;
+    }
+
+    /* Are they both allid blocks? */
+    if ( ALLIDS( a ) && ALLIDS( b ) ) {
+        return 0;
+    }
+
+    /* Same size, and not the same array. Lets check! */
+    for (size_t i = 0; i < a->b_nids; i++) {
+        if (a->b_ids[i] != b->b_ids[i]) {
+            return 1;
+        }
+    }
+    /* Must be the same! */
+    return 0;
 }
 
 /*
@@ -198,9 +233,14 @@ idl_intersection(
 	NIDS	ai, bi, ni;
 	IDList	*n;
 
-	if ( a == NULL || b == NULL ) {
-		return( NULL );
+	if ( a == NULL || a->b_nids == 0 ) {
+		return idl_dup(a);
 	}
+
+	if ( b == NULL || b->b_nids == 0) {
+		return idl_dup(b);
+	}
+
 	if ( ALLIDS( a ) ) {
 		slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
 		return( idl_dup( b ) );
@@ -225,10 +265,6 @@ idl_intersection(
 		}
 	}
 
-	if ( ni == 0 ) {
-		idl_free( &n );
-		return( NULL );
-	}
 	n->b_nids = ni;
 
 	return( n );
@@ -248,10 +284,10 @@ idl_union(
 	NIDS	ai, bi, ni;
 	IDList	*n;
 
-	if ( a == NULL ) {
+	if ( a == NULL || a->b_nids == 0 ) {
 		return( idl_dup( b ) );
 	}
-	if ( b == NULL ) {
+	if ( b == NULL || b->b_nids == 0 ) {
 		return( idl_dup( a ) );
 	}
 	if ( ALLIDS( a ) || ALLIDS( b ) ) {
@@ -311,12 +347,23 @@ idl_notin(
 	IDList	*n;
 	*new_result = NULL;
 
-	if ( a == NULL ) {
-		return( 0 );
+	/* Nothing in a, so nothing to subtract from. */
+	if ( a == NULL || a->b_nids == 0 ) {
+		*new_result = idl_alloc(0);
+		return 1;
 	}
-	if ( b == NULL || ALLIDS( b ) ) {
-		*new_result = idl_dup( a );
-		return( 1 );
+	/* b is empty, so nothing to remove from a. */
+	if ( b == NULL || b->b_nids == 0 ) {
+		return 0;
+	}
+
+	/* b is allIDS, so a - b, should be the empty set.
+	 * but if the type in unindexed, we don't know. Instead we have to
+	 * return a, and mark that we can't skip the filter test.
+	 */
+	if ( ALLIDS(b) ) {
+		slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
+		return 0;
 	}
 
 	if ( ALLIDS( a ) ) { /* Not convinced that this code is really worth it */
@@ -418,7 +465,7 @@ idl_nextid( IDList *idl, ID id )
 {
 	NIDS	i;
 
-	if (NULL == idl) {
+	if (NULL == idl || idl->b_nids == 0) {
 		return NOID;
 	}
 	if ( ALLIDS( idl ) ) {
@@ -463,10 +510,18 @@ idl_iterator idl_iterator_decrement(idl_iterator *i)
 
 ID idl_iterator_dereference(idl_iterator i, const IDList *idl)
 {
+	/*
+	 * NOID is used to terminate iteration. When we get an allIDS
+	 * idl->b_nids == number of entries in id2entry. That's how we
+	 * know to stop returning ids.
+	 */
 	if ( (NULL == idl) || (i >= idl->b_nids)) {
 		return NOID;
 	}
 	if (ALLIDS(idl)) {
+		/*
+		 * entries in id2entry start at 1, not 0, so we have off by one here.
+		 */
 		return (ID) i + 1;
 	} else {
 		return idl->b_ids[i];
@@ -484,5 +539,5 @@ ID idl_iterator_dereference_decrement(idl_iterator *i, const IDList *idl)
 {
 	idl_iterator_decrement(i);
 	return idl_iterator_dereference(*i,idl);
-
 }
+

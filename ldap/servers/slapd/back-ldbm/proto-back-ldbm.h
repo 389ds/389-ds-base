@@ -281,6 +281,21 @@ IDList *idl_new_range_fetch(backend *be, DB* db, DBT *lowerkey, DBT *upperkey,
                             int allidslimit, int sizelimit, struct timespec *expire_time,
                             int lookthrough_limit, int operator);
 
+
+int64_t idl_compare(IDList *a, IDList *b);
+
+/*
+ * idl_set.c
+ */
+IDListSet * idl_set_create();
+void idl_set_destroy(IDListSet *idl_set);
+void idl_set_insert_idl(IDListSet *idl_set, IDList *idl);
+void idl_set_insert_complement_idl(IDListSet *idl_set, IDList *idl);
+int64_t idl_set_union_shortcut(IDListSet *idl_set);
+int64_t idl_set_intersection_shortcut(IDListSet *idl_set);
+IDList * idl_set_union(IDListSet *idl_set, backend *be);
+IDList * idl_set_intersect(IDListSet *idl_set, backend *be);
+
 /*
  * index.c
  */

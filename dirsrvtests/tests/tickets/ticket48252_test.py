@@ -11,6 +11,7 @@ import logging
 import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
+from lib389.idm.user import UserAccounts
 
 from lib389._constants import DEFAULT_SUFFIX, SUFFIX, DEFAULT_BENAME, PLUGIN_USN
 
@@ -19,6 +20,7 @@ log = logging.getLogger(__name__)
 # Assuming DEFAULT_SUFFIX is "dc=example,dc=com", otherwise it does not work... :(
 USER_NUM = 10
 TEST_USER = "test_user"
+
 
 
 def test_ticket48252_setup(topology_st):
@@ -35,12 +37,16 @@ def test_ticket48252_setup(topology_st):
         assert False
 
     log.info("Adding test entries...")
-    for id in range(USER_NUM):
-        name = "%s%d" % (TEST_USER, id)
-        topology_st.standalone.add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
-            'objectclass': "top person".split(),
-            'sn': name,
-            'cn': name})))
+    ua = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    for i in range(USER_NUM):
+        ua.create(properties={
+                'uid': "%s%d" % (TEST_USER, i),
+                'cn' : "%s%d" % (TEST_USER, i),
+                'sn' : 'user',
+                'uidNumber' : '1000',
+                'gidNumber' : '2000',
+                'homeDirectory' : '/home/testuser'
+            })
 
 
 def in_index_file(topology_st, id, index):
@@ -64,10 +70,11 @@ def test_ticket48252_run_0(topology_st):
     Check it is not in the 'cn' index file
     """
     log.info("Case 1 - Check deleted entry is not in the 'cn' index file")
+    uas = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     del_rdn = "cn=%s0" % TEST_USER
-    del_entry = "%s,%s" % (del_rdn, SUFFIX)
+    del_entry = uas.get('%s0' % TEST_USER)
     log.info("	Deleting a test entry %s..." % del_entry)
-    topology_st.standalone.delete_s(del_entry)
+    del_entry.delete()
 
     assert in_index_file(topology_st, 0, 'cn') == False
 
@@ -75,7 +82,7 @@ def test_ticket48252_run_0(topology_st):
     assert topology_st.standalone.db2index(DEFAULT_BENAME, 'cn')
 
     assert in_index_file(topology_st, 0, 'cn') == False
-    log.info("	entry %s is not in the cn index file after reindexed." % del_entry)
+    log.info("	entry %s is not in the cn index file after reindexed." % del_rdn)
     log.info('Case 1 - PASSED')
 
 
@@ -85,21 +92,35 @@ def test_ticket48252_run_1(topology_st):
     Check it is in the 'objectclass' index file as a tombstone entry
     """
     log.info("Case 2 - Check deleted entry is in the 'objectclass' index file as a tombstone entry")
+    uas = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     del_rdn = "cn=%s1" % TEST_USER
-    del_entry = "%s,%s" % (del_rdn, SUFFIX)
-    log.info("	Deleting a test entry %s..." % del_entry)
-    topology_st.standalone.delete_s(del_entry)
+    del_entry = uas.get('%s1' % TEST_USER)
+    log.info("	Deleting a test entry %s..." % del_rdn)
 
-    entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
+    del_uniqueid = del_entry.get_attr_val_utf8('nsuniqueid')
+
+    del_entry.delete()
+
+    ## Note: you can't search by nstombstone and other indexed types - it won't work!
+    # need to use the nsuniqueid.
+
+    entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(nsuniqueid=%s))' % del_uniqueid)
     assert len(entry) == 1
-    log.info("	entry %s is in the objectclass index file." % del_entry)
+    log.info("	entry %s is in the objectclass index file." % del_rdn)
+    entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
+    assert len(entry) == 0
+    log.info("	entry %s is correctly not in the cn index file before reindexing." % del_rdn)
 
     log.info("	db2index - reindexing %s ..." % 'objectclass')
     assert topology_st.standalone.db2index(DEFAULT_BENAME, 'objectclass')
 
-    entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
+    entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(nsuniqueid=%s))' % del_uniqueid)
     assert len(entry) == 1
-    log.info("	entry %s is in the objectclass index file after reindexed." % del_entry)
+    log.info("	entry %s is in the objectclass index file after reindexing." % del_rdn)
+    entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
+    assert len(entry) == 0
+    log.info("	entry %s is correctly not in the cn index file after reindexing." % del_rdn)
+
     log.info('Case 2 - PASSED')
 
 

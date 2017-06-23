@@ -362,6 +362,7 @@ index_addordel_entry(
     {
         const CSN *tombstone_csn = NULL;
         char deletion_csn_str[CSN_STRSIZE];
+        char *entryusn_str;
         Slapi_DN parent;
         Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
 
@@ -371,6 +372,8 @@ index_addordel_entry(
          * Just index the "nstombstone" attribute value from the objectclass
          * attribute, and the nsuniqueid attribute value, and the 
          * nscpEntryDN value of the deleted entry.
+         *
+         * 2017 - add entryusn to this to improve entryusn tombstone tasks.
          */
         result = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE, e->ep_id, flags, txn);
         if ( result != 0 ) {
@@ -394,6 +397,19 @@ index_addordel_entry(
             if ( result != 0 ) {
                 ldbm_nasty("index_addordel_entry",errmsg, 1021, result);
                 return( result );
+            }
+        }
+
+        /*
+         * add the entryusn to the list of indexed attributes, even if it's a tombstone
+         */
+        entryusn_str = slapi_entry_attr_get_charptr(e->ep_entry, SLAPI_ATTR_ENTRYUSN);
+        if (entryusn_str != NULL) {
+            result = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN, entryusn_str, e->ep_id, flags, txn);
+            slapi_ch_free_string(&entryusn_str);
+            if (result != 0) {
+                ldbm_nasty("index_addordel_entry",errmsg, 1021, result);
+                return result;
             }
         }
 
@@ -1033,6 +1049,12 @@ index_read_ext_allids(
 		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
 		DS_Sleep(interval);
 	    continue;
+	  } else if (*err != 0 || idl == NULL) {
+	    /* The database might not exist. We have to assume it means empty set */
+	    slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "Failed to access idl index for %s\n", basetype);
+	    slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "Assuming %s has no index values\n", basetype);
+	    idl = idl_alloc(0);
+	    break;
 	  } else {
 	    break;
 	  }
@@ -1434,19 +1456,19 @@ index_range_read_ext(
     if (0 != *err) { 
         /* Free the key we just read above */
             DBT_FREE_PAYLOAD(lowerkey);
-        if (DB_NOTFOUND == *err) { 
-            *err = 0; 
-            idl = NULL; 
-        } else { 
-            idl = idl_allids( be ); 
+        if (DB_NOTFOUND == *err) {
+            *err = 0;
+            idl = idl_alloc(0);
+        } else {
+            idl = idl_allids( be );
             ldbm_nasty("index_range_read_ext", errmsg, 1080, *err);
-            slapi_log_err(SLAPI_LOG_ERR, 
-                "index_range_read_ext", "(%s,%s) allids (seek to lower key in index file err %i)\n", 
-                type, prefix, *err ); 
-        } 
-        dbc->c_close(dbc); 
+            slapi_log_err(SLAPI_LOG_ERR,
+                "index_range_read_ext", "(%s,%s) allids (seek to lower key in index file err %i)\n",
+                type, prefix, *err );
+        }
+        dbc->c_close(dbc);
         goto error;
-    }         
+    }
     /* We now close the cursor, since we're about to iterate over many keys */
     *err = dbc->c_close(dbc);
 

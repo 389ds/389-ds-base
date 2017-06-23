@@ -18,7 +18,7 @@ from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, REPLICAROLE_M
                               REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, SUFFIX,
                               RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              defaultProperties)
+                              defaultProperties, args_instance)
 
 from lib389 import DirSrv
 

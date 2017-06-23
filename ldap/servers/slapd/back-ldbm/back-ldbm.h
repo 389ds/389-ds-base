@@ -237,7 +237,7 @@ typedef u_int32_t	ID;
 /*
  * Use this to count and index into an array of ID.
  */
-typedef u_int32_t	NIDS;
+typedef uint32_t NIDS;
 
 /*
  * This structure represents an id block on disk and an id list
@@ -245,21 +245,38 @@ typedef u_int32_t	NIDS;
  *
  * The fields have the following meanings:
  *
- *	b_nmax	maximum number of ids in this block. if this is == ALLIDSBLOCK,
- *		then this block represents all ids.
- *	b_nids	current number of ids in use in this block.  if this
- *		is == INDBLOCK, then this block is an indirect block
- *		containing a list of other blocks containing actual ids.
- *		the list is terminated by an id of NOID.
- *	b_ids	a list of the actual ids themselves
+ *  b_nmax  maximum number of ids in this block. if this is == ALLIDSBLOCK,
+ *      then this block represents all ids.
+ *  b_nids  current number of ids in use in this block.  if this
+ *      is == INDBLOCK, then this block is an indirect block
+ *      containing a list of other blocks containing actual ids.
+ *      the list is terminated by an id of NOID.
+ *  b_ids   a list of the actual ids themselves
  */
+#define ALLIDSBLOCK 0       /* == 0 => this is an allid block  */
+#define INDBLOCK    0       /* == 0 => this is an indirect blk */
+
+/* Default to holding 8 ids for idl_fetch_ext */
+#define IDLIST_MIN_BLOCK_SIZE 8
+
 typedef struct block {
-	NIDS		b_nmax;		/* max number of ids in this list  */
-#define ALLIDSBLOCK	0		/* == 0 => this is an allid block  */
-	NIDS		b_nids;		/* current number of ids used	   */
-#define INDBLOCK	0		/* == 0 => this is an indirect blk */
-	ID		b_ids[1];	/* the ids - actually bigger 	   */
+    NIDS        b_nmax;     /* max number of ids in this list  */
+    NIDS        b_nids;     /* current number of ids used      */
+    struct  block *next; /* Pointer to the next block in the list
+                         * used by idl_set
+                         */
+    size_t  itr;         /* internal tracker of iteration for set ops */
+    ID      b_ids[1];   /* the ids - actually bigger       */
 } Block, IDList;
+
+typedef struct _idlist_set {
+    int64_t count;
+    int64_t allids;
+    size_t total_size;
+    IDList *minimum;
+    IDList *head;
+    IDList *complement_head;
+} IDListSet;
 
 #define ALLIDS( idl )		((idl)->b_nmax == ALLIDSBLOCK)
 #define INDIRECT_BLOCK( idl )	((idl)->b_nids == INDBLOCK)

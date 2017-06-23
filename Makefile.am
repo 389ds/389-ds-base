@@ -1260,6 +1260,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/idl.c \
 	ldap/servers/slapd/back-ldbm/idl_shim.c \
 	ldap/servers/slapd/back-ldbm/idl_new.c \
+	ldap/servers/slapd/back-ldbm/idl_set.c \
 	ldap/servers/slapd/back-ldbm/idl_common.c \
 	ldap/servers/slapd/back-ldbm/import.c \
 	ldap/servers/slapd/back-ldbm/import-merge.c \

@@ -191,6 +191,9 @@ idl_new_fetch(
         goto error; /* Not found is OK, return NULL IDL */
     }
 
+    /* Allocate an idlist to populate into */
+    idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE);
+
     /* Iterate over the duplicates, amassing them into an IDL */
     for (;;) {
         ID lastid = 0;
@@ -226,8 +229,7 @@ idl_new_fetch(
             /* we got another ID, add it to our IDL */
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Unable to extend id list (err=%d)\n",
-                	idl_rc);
+                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Unable to extend id list (err=%d)\n", idl_rc);
                 idl_free(&idl);
                 goto error;
             }
@@ -240,13 +242,13 @@ idl_new_fetch(
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
             (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
-        	idl->b_nids = 1;
-        	idl->b_ids[0] = ALLID;
-        	ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-        	slapi_log_err(SLAPI_LOG_BACKLDBM, "idl_new_fetch", "Search for key for attribute index %s "
-        		  "exceeded allidslimit %d - count is %lu\n",
-        		  a->ai_type, allidslimit, count);
-        	break;
+            idl->b_nids = 1;
+            idl->b_ids[0] = ALLID;
+            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "idl_new_fetch", "Search for key for attribute index %s "
+                  "exceeded allidslimit %d - count is %lu\n",
+                  a->ai_type, allidslimit, count);
+            break;
         }
 #endif
         ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP|DB_MULTIPLE);
@@ -404,6 +406,9 @@ idl_new_range_fetch(
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
+
+    /* Allocate an idlist to populate into */
+    idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE);
 
     /* Iterate over the duplicates, amassing them into an IDL */
     while (cur_key.data &&
@@ -600,21 +605,16 @@ error:
         qsort((void *)&idl->b_ids[0], idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
     }
     if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-        int i;
-        int left = leftovercnt;
-        while (left) {
-            for (i = 0; i < leftovercnt; i++) {
-                if (leftover[i].key && idl_id_is_in_idlist(idl, leftover[i].key)) {
-                    idl_rc = idl_append_extend(&idl, leftover[i].id);
-                    if (idl_rc) {
-                        slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                            "Unable to extend id list (err=%d)\n", idl_rc);
-                        idl_free(&idl);
-                        return NULL;
-                    }
-                    leftover[i].key = 0;
-                    left--;
+        for (size_t i = 0; i < leftovercnt; i++) {
+            if (leftover[i].key && idl_id_is_in_idlist(idl, leftover[i].key) == 0) {
+                idl_rc = idl_append_extend(&idl, leftover[i].id);
+                if (idl_rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
+                        "Unable to extend id list (err=%d)\n", idl_rc);
+                    idl_free(&idl);
+                    return NULL;
                 }
+                leftover[i].key = 0;
             }
         }
         slapi_ch_free((void **)&leftover);
