@@ -761,7 +761,7 @@ objectclass: top
 objectclass: nsSlapdPlugin
 objectclass: rootDNPluginConfig
 cn: RootDN Access Control
-nsslapd-pluginpath: librootdn-access-plugin.so
+nsslapd-pluginpath: librootdn-access-plugin
 nsslapd-plugininitfunc: rootdn_init
 nsslapd-plugintype: internalpreoperation
 nsslapd-pluginenabled: off
