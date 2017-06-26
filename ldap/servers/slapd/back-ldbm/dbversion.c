@@ -177,15 +177,15 @@ dbversion_read(struct ldbminfo *li, const char *directory,
         (void)PR_Close( prfd );
 
         if (*dataversion == NULL ) {
-            slapi_log_err(SLAPI_LOG_DEBUG, "dbversion_read", "dataversion not present in \"%s\"\n", filename);
+            slapi_log_error(SLAPI_LOG_TRACE, "dbversion_read", "dataversion not present in \"%s\"\n", filename);
         }
         if (*ldbmversion == NULL ) {
-            /* DBVERSIOn is corrupt, COMPLAIN! */
+            /* DBVERSION is corrupt, COMPLAIN! */
             /* This is IDRM           Identifier removed (POSIX.1)
              * which seems appropriate for the error here :)
              */
-            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
-            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance\n");
+            slapi_log_error(SLAPI_LOG_FATAL, "dbversion_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
+            slapi_log_error(SLAPI_LOG_FATAL, "dbversion_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance\n");
             return EIDRM;
         }
         return 0;
