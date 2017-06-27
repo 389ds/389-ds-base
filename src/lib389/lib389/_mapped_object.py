@@ -10,13 +10,15 @@ import ldap
 import ldap.dn
 from ldap import filter as ldap_filter
 import logging
-
-from lib389._constants import *
-from lib389.utils import ensure_bytes, ensure_str, ensure_list_bytes, ensure_list_str
+from functools import partial
 
 from lib389._entry import Entry
+from lib389._constants import DIRSRV_STATE_ONLINE
+from lib389.utils import (
+        ensure_bytes, ensure_str, ensure_int, ensure_list_bytes, ensure_list_str,
+        ensure_list_int
+        )
 
-from functools import partial
 
 # This function filter and term generation provided thanks to
 # The University of Adelaide. <william@adelaide.edu.au>
@@ -348,10 +350,10 @@ class DSLdapObject(DSLogging):
         return ensure_list_str(self.get_attrs_val(key))
 
     def get_attr_val_int(self, key):
-        return int(self.get_attr_val(key))
+        return ensure_int(self.get_attr_val(key))
 
     def get_attr_vals_int(self, key):
-        return [int(v) for v in self.get_attrs_val(key)]
+        return ensure_list_int(self.get_attrs_val(key))
 
     # Duplicate, but with many values. IE a dict api.
     # This

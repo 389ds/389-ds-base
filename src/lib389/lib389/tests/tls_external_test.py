@@ -7,13 +7,12 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-import pytest
 import ldap
 
 from lib389.topologies import topology_st
-from lib389.utils import *
-from lib389.sasl import PlainSASL
+from lib389.utils import logging
 from lib389.idm.user import UserAccounts
+from lib389._constants import DEFAULT_SUFFIX, SECUREPORT_STANDALONE1
 
 from lib389.config import CertmapLegacy
 

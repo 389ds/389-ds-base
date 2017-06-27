@@ -29,7 +29,6 @@ import logging
 import shutil
 import ldap
 import socket
-import subprocess
 import time
 import sys
 import filecmp
@@ -37,9 +36,14 @@ from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
 
-from lib389._constants import *
-from lib389.properties import *
+import lib389
 from lib389.paths import Paths
+from lib389._constants import DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX
+from lib389.properties import (
+        SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
+        SER_ROOT_DN, SER_ROOT_PW, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
+        SER_INST_SCRIPTS_ENABLED
+    )
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -582,7 +586,7 @@ def getcfgdsinfo(new_instance_arguments):
     try:
         return (new_instance_arguments['cfgdshost'],
                 int(new_instance_arguments['cfgdsport']),
-                lib389.CFGSUFFIX)
+                CFGSUFFIX)
     except KeyError:  # if keys are missing...
         if new_instance_arguments['new_style']:
             return getnewcfgdsinfo(new_instance_arguments)
@@ -787,11 +791,19 @@ def ensure_str(val):
         return val.decode('utf-8')
     return val
 
+def ensure_int(val):
+    if val is not None and not isinstance(val, int):
+        return int(val)
+    return val
+
 def ensure_list_bytes(val):
     return [ensure_bytes(v) for v in val]
 
 def ensure_list_str(val):
     return [ensure_str(v) for v in val]
+
+def ensure_list_int(val):
+    return [ensure_int(v) for v in val]
 
 def ensure_dict_str(val):
     if MAJOR <= 2:
