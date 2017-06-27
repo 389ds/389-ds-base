@@ -9,10 +9,13 @@
 import ldap
 import copy
 
-from lib389.properties import *
-from lib389._constants import *
+from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.utils import ensure_str
+from lib389._constants import DN_PLUGIN
+from lib389.properties import (
+        PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
+        PLUGINS_ENABLE_ON_VALUE, PLUGINS_ENABLE_OFF_VALUE, PLUGIN_ENABLE
+        )
 
 class Plugin(DSLdapObject):
     _plugin_properties = {
@@ -43,7 +46,7 @@ class Plugin(DSLdapObject):
         self.set('nsslapd-pluginEnabled', 'off')
 
     def status(self):
-        return ensure_str(self.get_attr_val('nsslapd-pluginEnabled')) == 'on'
+        return self.get_attr_val_utf8('nsslapd-pluginEnabled') == 'on'
 
     def create(self, rdn=None, properties=None, basedn=None):
         # When we create plugins, we don't want people to have to consider all
@@ -256,8 +259,14 @@ class MemberOfPlugin(Plugin):
     # def remove_all_excludescope(self):
         # self.remove_all('memberofentryscopeexcludesubtree')
 
-    def fixup(self):
-        pass
+    def fixup(self, basedn, _filter=None):
+        task = tasks.MemberOfFixupTask(self._instance)
+        task_properties = {'basedn': basedn}
+        if _filter is not None:
+            task_properties['filter'] = _filter
+        task.create(properties=task_properties)
+
+        return task
 
 class RetroChangelogPlugin(Plugin):
     def __init__(self, instance, dn="cn=Retro Changelog Plugin,cn=plugins,cn=config", batch=False):

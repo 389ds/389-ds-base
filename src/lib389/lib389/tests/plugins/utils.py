@@ -34,12 +34,12 @@ def create_test_user(instance, cn=None, suffix=None):
     global test_user_id
 
     if cn is None:
-        cn = "cn=testuser_" + str(test_user_id)
+        cn = "testuser_" + str(test_user_id)
         test_user_id += 1
 
     if suffix is None:
         suffix = "ou=People," + DEFAULT_SUFFIX
-    dn = cn + "," + suffix
+    dn = "cn=" + cn + "," + suffix
 
     properties = {
         'uid': cn,
@@ -68,12 +68,12 @@ def create_test_group(instance, cn=None, suffix=None, unique_group=False):
     global test_group_id
 
     if cn is None:
-        cn = "cn=testgroup_" + str(test_group_id)
+        cn = "testgroup_" + str(test_group_id)
         test_group_id += 1
 
     if suffix is None:
         suffix = "ou=Groups," + DEFAULT_SUFFIX
-    dn = cn + "," + suffix
+    dn = "cn=" + cn + "," + suffix
 
     properties = {
         'cn': cn,
@@ -102,12 +102,13 @@ def create_test_ou(instance, ou=None, suffix=None):
     global test_ou_id
 
     if ou is None:
-        ou = "ou=TestOU_" + str(test_ou_id)
+        ou = "TestOU_" + str(test_ou_id)
         test_ou_id += 1
 
     if suffix is None:
         suffix = DEFAULT_SUFFIX
     dn = ou + "," + suffix
+    dn = "ou=" + ou + "," + suffix
 
     properties = {
         'ou': ou,

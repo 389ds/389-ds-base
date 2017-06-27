@@ -9,10 +9,65 @@
 import time
 import os.path
 import ldap
+from datetime import datetime
 
-from lib389._constants import *
-from lib389.properties import *
-from lib389 import DirSrv, Entry
+
+from lib389 import Entry
+from lib389._mapped_object import DSLdapObject
+from lib389._constants import (
+        DEFAULT_SUFFIX, DEFAULT_BENAME, DN_EXPORT_TASK, DN_BACKUP_TASK,
+        DN_IMPORT_TASK, DN_RESTORE_TASK, DN_INDEX_TASK, DN_MBO_TASK,
+        DN_TOMB_FIXUP_TASK
+        )
+from lib389.properties import (
+        TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
+        TASK_TOMB_STRIP
+        )
+
+
+class Task(DSLdapObject):
+    def __init__(self, instance, dn=None, batch=False):
+        super(Task, self).__init__(instance, dn, batch)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'extensibleObject']
+        self._protected = False
+
+    def is_complete(self):
+        """Return True if task is complete, else False."""
+        self._exit_code = self.get_attr_val("nsTaskExitCode")
+        return self._exit_code is not None
+
+    def get_exit_code(self):
+        """Return task's exit code if task is complete, else None."""
+        if self.is_complete():
+            return int(self._exit_code)
+        return None
+
+    def wait(self):
+        """Wait until task is complete."""
+        while True:
+            if self.is_complete():
+                break
+            time.sleep(1)
+
+    def create(self, rdn=None, properties=None, basedn=None):
+        properties['cn'] = self.cn
+        return super(Task, self).create(rdn, properties, basedn)
+
+    @staticmethod
+    def _get_task_date():
+        """Return a timestamp to use in naming new task entries."""
+        return datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+
+
+class MemberOfFixupTask(Task):
+    def __init__(self, instance, dn=None, batch=False):
+        self.cn = 'memberOf_fixup_' + Task._get_task_date()
+        dn = "cn=" + self.cn + "," + DN_MBO_TASK
+
+        super(MemberOfFixupTask, self).__init__(instance, dn, batch)
+        self._must_attributes.extend(['basedn'])
 
 
 class Tasks(object):
@@ -26,6 +81,7 @@ class Tasks(object):
         self.entry = None
 
     def __getattr__(self, name):
+        from lib389 import DirSrv
         if name in Tasks.proxied_methods:
             return DirSrv.__getattr__(self.conn, name)
 

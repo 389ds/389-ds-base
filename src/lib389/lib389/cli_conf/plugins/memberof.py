@@ -53,7 +53,7 @@ def remove_groupattr(inst, basedn, log, args):
         plugin.remove_groupattr(args.value)
     except ldap.UNWILLING_TO_PERFORM:
         log.error("Error: Failed to delete. memberOfGroupAttr is required.")
-    except ldap.NO_SUCH_ATTRIBUTE as ex:
+    except ldap.NO_SUCH_ATTRIBUTE:
         log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
     else:
         log.info('successfully removed memberOfGroupAttr value "{}"'.format(args.value))
@@ -150,7 +150,7 @@ def remove_scope(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
     try:
         plugin.remove_entryscope(args.value)
-    except ldap.NO_SUCH_ATTRIBUTE as ex:
+    except ldap.NO_SUCH_ATTRIBUTE:
         log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
     else:
         log.info('successfully removed memberOfEntryScope value "{}"'.format(args.value))
@@ -181,14 +181,16 @@ def remove_excludescope(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
     try:
         plugin.remove_excludescope(args.value)
-    except ldap.NO_SUCH_ATTRIBUTE as ex:
+    except ldap.NO_SUCH_ATTRIBUTE:
         log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
     else:
         log.info('successfully removed memberOfEntryScopeExcludeSubtree value "{}"'.format(args.value))
 
 def fixup(inst, basedn, log, args):
-    """Run the fix-up task for memberof plugin."""
-    pass
+    plugin = MemberOfPlugin(inst)
+    log.info('Attempting to add task entry... This will fail if MemberOf plug-in is not enabled.')
+    fixup_task = plugin.fixup(args.basedn, args.filter)
+    log.info('Successfully added task entry ' + fixup_task.dn)
 
 def create_parser(subparsers):
     memberof_parser = subparsers.add_parser('memberof', help='Manage and configure MemberOf plugin')
@@ -269,3 +271,8 @@ def create_parser(subparsers):
 
     fixup_parser = subcommands.add_parser('fixup', help='run the fix-up task for memberof plugin')
     fixup_parser.set_defaults(func=fixup)
+    fixup_parser.add_argument('-b', '--basedn', required=True, help="base DN that contains entries to fix up")
+    fixup_parser.add_argument('-f', '--filter', help="Filter for entries to fix up.\n"
+        "If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the\n"
+        "specified base will have their memberOf attribute regenerated."
+    )

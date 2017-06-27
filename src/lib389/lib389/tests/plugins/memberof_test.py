@@ -8,6 +8,7 @@
 #
 
 import pytest
+from time import sleep
 
 from lib389.topologies import topology_st
 from lib389.plugins import MemberOfPlugin
@@ -128,14 +129,14 @@ def test_memberofallbackends(plugin):
     who are in the same database as the group. Test that when memberOfAllBackends
     is enabled, memberOf will search across all databases instead.
     """
-    ou_value = "ou=People2"
+    ou_value = "People2"
     ou_suffix = DEFAULT_SUFFIX
 
     # create a new backend
     plugin._instance.backends.create(
         None, properties={
             BACKEND_NAME: "People2Data",
-            BACKEND_SUFFIX: ou_value + "," + ou_suffix,
+            BACKEND_SUFFIX: "ou=" + ou_value + "," + ou_suffix,
     })
 
     # create a new sub-suffix stored in the new backend
@@ -308,3 +309,47 @@ def test_scoping(plugin):
     # This does not work at the moment, because there is a bug in DS (#49284).
     # plugin.remove_all_excludescope()
     # plugin.remove_all_entryscope()
+
+def test_fixup_task(plugin):
+    """
+    Test that after creating the fix-up task entry, initial memberOf attributes
+    are created on the member's user entries in the directory automatically.
+    Also, test that the filter provided to the task is correctly applied.
+    """
+    # disable the plugin and restart the server for the action to take effect
+    plugin.disable()
+    plugin._instance.restart()
+
+    user1 = create_test_user(plugin._instance)
+    user2 = create_test_user(plugin._instance, cn="testuser2")
+    group = create_test_group(plugin._instance)
+
+    group.add_member(user1.dn)
+    group.add_member(user2.dn)
+
+    # enable the plugin and restart the server for the action to take effect
+    plugin.enable()
+    plugin._instance.restart()
+
+    memberofattr = plugin.get_attr()
+    # memberof attribute should not appear on user entries
+    assert not memberofattr in user1.get_all_attrs()
+    assert not memberofattr in user2.get_all_attrs()
+
+    # run the fix-up task and provide a filter for the entry
+    task = plugin.fixup(basedn=DEFAULT_SUFFIX, _filter="(cn=testuser2)")
+    # wait for the task to complete
+    task.wait()
+
+    assert task.is_complete()
+    assert task.get_exit_code() == 0
+
+    # memberof attribute should now appear on the user entry matching the filter
+    assert memberofattr in user2.get_all_attrs()
+    assert group.dn in user2.get_attr_vals(memberofattr)
+
+    # but should not appear on user entry that doesn't match the filter
+    assert not memberofattr in user1.get_all_attrs()
+
+    # clean up for subsequent test cases
+    delete_objects([user1, user2, group])
