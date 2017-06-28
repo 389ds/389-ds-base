@@ -1157,6 +1157,11 @@ cleanup:
 #if defined( hpux )
 	exit( return_value );
 #else
+	/*
+	 * Server has stopped, lets force everything to disk: logs
+	 * db, dse.ldif, all of it.
+	 */
+	sync();
 	return return_value;
 #endif
 }
