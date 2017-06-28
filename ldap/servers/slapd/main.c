@@ -1192,6 +1192,11 @@ cleanup:
 	NSS_Shutdown();
 	main_stop_ns(tp);
 	PR_Cleanup();
+	/*
+	 * Server has stopped, lets force everything to disk: logs
+	 * db, dse.ldif, all of it.
+	 */
+	sync();
 	return return_value;
 }
 

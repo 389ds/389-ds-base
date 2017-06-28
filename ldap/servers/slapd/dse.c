@@ -72,11 +72,11 @@
 struct dse_callback
 {
     int operation;
-	int flags;
-	Slapi_DN *base;
-	int scope;
-	char *filter;				/* NULL means match all entries */
-    Slapi_Filter *slapifilter;	/* NULL means match all entries */
+    int flags;
+    Slapi_DN *base;
+    int scope;
+    char *filter;               /* NULL means match all entries */
+    Slapi_Filter *slapifilter;  /* NULL means match all entries */
     int (*fn)(Slapi_PBlock *,Slapi_Entry *,Slapi_Entry *,int*,char*,void *);
     void *fn_arg;
     struct slapdplugin *plugin;
@@ -89,13 +89,14 @@ struct dse
     char *dse_tmpfile; /* and written to when changes are made via LDAP */
     char *dse_fileback; /* contain the latest info, just before a new change */
     char *dse_filestartOK; /* contain the latest info with which the server has successfully started */
+    char *dse_configdir; /* The location of config files - allows us to fsync the dir post rename */
     Avlnode *dse_tree;
     struct dse_callback *dse_callback;
     Slapi_RWLock *dse_rwlock; /* a read-write lock to protect the whole dse backend */
-	char **dse_filelist; /* these are additional read only files used to */
-						 /* initialize the dse */
-	int  dse_is_updateable; /* if non-zero, this DSE can be written to */
-	int  dse_readonly_error_reported; /* used to ensure that read-only errors are logged only once */
+    char **dse_filelist; /* these are additional read only files used to */
+                         /* initialize the dse */
+    int  dse_is_updateable; /* if non-zero, this DSE can be written to */
+    int  dse_readonly_error_reported; /* used to ensure that read-only errors are logged only once */
 };
 
 struct dse_node
@@ -361,37 +362,39 @@ dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfil
 			if (!strstr(filename, realconfigdir))
 			{
 				pdse->dse_filename = slapi_ch_smprintf("%s/%s", realconfigdir, filename );
-			}
-			else
+			} else {
 				pdse->dse_filename = slapi_ch_strdup(filename);
+			}
 
 			if (!strstr(tmpfilename, realconfigdir)) {
 				pdse->dse_tmpfile = slapi_ch_smprintf("%s/%s", realconfigdir, tmpfilename );
-			}
-			else
+			} else {
 				pdse->dse_tmpfile = slapi_ch_strdup(tmpfilename);
+			}
+
+			pdse->dse_configdir = slapi_ch_strdup(realconfigdir);
 
 			if ( backfilename != NULL )
 			{
 				if (!strstr(backfilename, realconfigdir)) {
 					pdse->dse_fileback = slapi_ch_smprintf("%s/%s", realconfigdir, backfilename );
-				}
-				else
+				} else {
 					pdse->dse_fileback = slapi_ch_strdup(backfilename);
-			}
-			else
+				}
+			} else {
 				pdse->dse_fileback = NULL;
+            }
 
 			if ( startokfilename != NULL )
 			{
 				if (!strstr(startokfilename, realconfigdir)) {
 					pdse->dse_filestartOK = slapi_ch_smprintf("%s/%s", realconfigdir, startokfilename );
-				}
-				else
+				} else {
 					pdse->dse_filestartOK = slapi_ch_strdup(startokfilename);
-			}
-			else
+				}
+			} else {
 				pdse->dse_filestartOK = NULL;
+			}
 
 			pdse->dse_tree= NULL;
 			pdse->dse_callback= NULL;
@@ -440,6 +443,7 @@ dse_destroy(struct dse *pdse)
     slapi_ch_free((void **)&(pdse->dse_tmpfile));
     slapi_ch_free((void **)&(pdse->dse_fileback));
     slapi_ch_free((void **)&(pdse->dse_filestartOK));
+    slapi_ch_free((void **)&(pdse->dse_configdir));
     dse_callback_deletelist(&pdse->dse_callback);
     charray_free(pdse->dse_filelist);
     nentries = avl_free(pdse->dse_tree, dse_internal_delete_entry);
@@ -991,8 +995,9 @@ dse_write_file_nolock(struct dse* pdse)
     FPWrapper	fpw;
     int rc = 0;
 
-	if (dont_ever_write_dse_files)
+	if (dont_ever_write_dse_files) {
 		return rc;
+	}
 
     fpw.fpw_rc = 0;
 	fpw.fpw_prfd = NULL;
@@ -1042,6 +1047,14 @@ dse_write_file_nolock(struct dse* pdse)
 							pdse->dse_tmpfile, pdse->dse_filename,
 							rc, slapd_system_strerror( rc ));
                 }
+				/*
+				 * We have now written to the tmp location, and renamed it
+				 * we need to open and fsync the dir to make the rename stick.
+				 */
+				int fp_configdir = open(pdse->dse_configdir, O_PATH | O_DIRECTORY);
+				fsync(fp_configdir);
+				close(fp_configdir);
+
             }
         }
 		if (fpw.fpw_prfd)
