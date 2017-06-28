@@ -7,9 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st as topo
+
+from lib389._constants import (DEFAULT_SUFFIX, PLUGIN_MEMBER_OF, DN_DM, PASSWORD, SERVERID_STANDALONE,
+                              SUFFIX)
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)

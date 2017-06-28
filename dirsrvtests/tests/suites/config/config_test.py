@@ -12,6 +12,8 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_m2
 
+from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
+
 USER_DN = 'uid=test_user,%s' % DEFAULT_SUFFIX
 
 logging.getLogger(__name__).setLevel(logging.INFO)

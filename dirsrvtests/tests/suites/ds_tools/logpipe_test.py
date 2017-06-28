@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+import subprocess
 from lib389.utils import *
 from lib389.topologies import topology_st as topo
 

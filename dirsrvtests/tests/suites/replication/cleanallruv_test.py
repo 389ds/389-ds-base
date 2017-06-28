@@ -13,6 +13,15 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4
 
+from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, REPLICAROLE_MASTER,
+                              REPLICAID_MASTER_4, REPLICAID_MASTER_3, REPLICAID_MASTER_2,
+                              REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, SUFFIX,
+                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
+                              defaultProperties)
+
+from lib389 import DirSrv
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

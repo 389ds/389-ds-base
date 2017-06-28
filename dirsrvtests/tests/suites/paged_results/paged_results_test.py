@@ -13,6 +13,7 @@ from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
+from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX, BACKEND_NAME, PASSWORD
 
 from sss_control import SSSRequestControl
 

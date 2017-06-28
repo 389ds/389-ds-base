@@ -3,6 +3,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, DATA_DIR
+
 log = logging.getLogger(__name__)
 
 MYSUFFIX = 'dc=example,dc=com'

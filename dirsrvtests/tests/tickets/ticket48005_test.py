@@ -13,6 +13,9 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import (DEFAULT_SUFFIX, SUFFIX, PLUGIN_REFER_INTEGRITY, PLUGIN_AUTOMEMBER,
+                              PLUGIN_MEMBER_OF, PLUGIN_USN)
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

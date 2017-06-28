@@ -12,6 +12,9 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, REPLICAROLE_MASTER, REPLICAID_MASTER_1,
+                              DN_CONFIG, PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING)
+
 log = logging.getLogger(__name__)
 
 MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')

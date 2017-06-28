@@ -12,6 +12,11 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, REPLICAROLE_MASTER,
+                              REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, RA_NAME,
+                              RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
+
 log = logging.getLogger(__name__)
 
 

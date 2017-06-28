@@ -20,6 +20,12 @@ from lib389.tasks import *
 import plugin_tests
 import stress_tests
 from lib389.topologies import topology_st
+from lib389._constants import (DN_CONFIG, DEFAULT_SUFFIX, DN_LDBM, PLUGIN_ACCT_POLICY,
+                              PLUGIN_MEMBER_OF, PLUGIN_LINKED_ATTRS, PLUGIN_REFER_INTEGRITY,
+                              REPLICAROLE_MASTER, REPLICAROLE_CONSUMER, REPLICATION_BIND_DN,
+                              REPLICATION_BIND_PW, REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT,
+                              LOCALHOST, REPLICA_RUV_FILTER,
+                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +62,7 @@ def test_dynamic_plugins(topology_st):
     """
 
     REPLICA_PORT = 33334
-    RUV_FILTER = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
+    RUV_FILTER = REPLICA_RUV_FILTER
     master_maxcsn = 0
     replica_maxcsn = 0
     msg = ' (no replication)'

@@ -7,10 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
+
+from lib389._constants import PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_DM, PASSWORD, DEFAULT_SUFFIX, DN_CONFIG
 
 LOCL_CONF = 'cn=AccountPolicy1,ou=people,dc=example,dc=com'
 TEMPL_COS = 'cn=TempltCoS,ou=people,dc=example,dc=com'

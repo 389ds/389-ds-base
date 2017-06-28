@@ -4,6 +4,8 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
+
 log = logging.getLogger(__name__)
 
 MYSUFFIX = 'dc=example,dc=com'

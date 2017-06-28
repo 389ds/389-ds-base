@@ -3,6 +3,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
 
+from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, SUFFIX, HOST_MASTER_2,
+                              PORT_MASTER_2)
+
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
 

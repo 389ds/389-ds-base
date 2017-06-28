@@ -11,6 +11,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DN_DM, DEFAULT_SUFFIX, DN_CONFIG, PASSWORD
+
 DN_PEOPLE = 'ou=people,%s' % DEFAULT_SUFFIX
 DN_ROOT = ''
 TEST_USER_NAME = 'all_attrs_test'

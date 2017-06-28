@@ -15,6 +15,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DN_DM, PASSWORD, PW_DM
+
 log = logging.getLogger(__name__)
 
 # Globals
@@ -469,7 +471,7 @@ def test_basic_searches(topology_st, import_example_ldif):
                ('(&(!(uid=r*))(ou=people))', 139),
                ('(&(uid=m*)(l=sunnyvale)(ou=people)(mail=*example*)(roomNumber=*))', 3),
                ('(&(|(uid=m*)(l=santa clara))(roomNumber=22*))', 5),
-               ('(&(|(uid=m*)(l=santa clara))(roomNumber=22*)(!(roomnumber=2254)))', 4))
+               ('(&(|(uid=m*)(l=santa clara))(roomNumber=22*)(!(roomnumber=2254)))', 4),)
 
     for (search_filter, search_result) in filters:
         try:

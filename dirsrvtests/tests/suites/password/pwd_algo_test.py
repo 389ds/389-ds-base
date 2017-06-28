@@ -10,6 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
+from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, DN_DM, PORT_STANDALONE
 
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
 

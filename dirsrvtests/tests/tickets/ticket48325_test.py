@@ -2,6 +2,11 @@ import pytest
 from lib389.utils import *
 from lib389.topologies import topology_m1h1c1
 
+from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, defaultProperties,
+                              REPLICATION_BIND_DN, REPLICATION_BIND_PW, REPLICATION_BIND_METHOD,
+                              REPLICATION_TRANSPORT, SUFFIX, RA_NAME, RA_BINDDN, RA_BINDPW,
+                              RA_METHOD, RA_TRANSPORT_PROT, SUFFIX)
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

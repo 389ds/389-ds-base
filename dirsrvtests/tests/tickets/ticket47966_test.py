@@ -11,6 +11,9 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
 
+from lib389._constants import (DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2,
+                              REPLICAROLE_MASTER, REPLICAID_MASTER_2, BACKEND_NAME)
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

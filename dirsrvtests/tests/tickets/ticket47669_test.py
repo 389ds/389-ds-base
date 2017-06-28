@@ -12,6 +12,8 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX
+
 log = logging.getLogger(__name__)
 
 CHANGELOG = 'cn=changelog5,cn=config'

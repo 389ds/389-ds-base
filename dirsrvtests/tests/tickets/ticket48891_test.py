@@ -13,6 +13,8 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, BACKEND_NAME, SUFFIX
+
 log = logging.getLogger(__name__)
 
 CONFIG_DN = 'cn=config'

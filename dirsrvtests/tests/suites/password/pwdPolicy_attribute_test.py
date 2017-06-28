@@ -11,6 +11,11 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD, HOST_STANDALONE, SERVERID_STANDALONE,
+                              PORT_STANDALONE)
+
+import subprocess
+
 OU_PEOPLE = 'ou=people,{}'.format(DEFAULT_SUFFIX)
 TEST_USER_NAME = 'simplepaged_test'
 TEST_USER_DN = 'uid={},{}'.format(TEST_USER_NAME, OU_PEOPLE)

@@ -7,10 +7,14 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+import subprocess
 from ldap.controls.ppolicy import PasswordPolicyControl
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
+
+from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
+                              HOST_STANDALONE, PORT_STANDALONE, SERVERID_STANDALONE)
 
 CONFIG_ATTR = 'passwordSendExpiringTime'
 USER_DN = 'uid=tuser,{:s}'.format(DEFAULT_SUFFIX)

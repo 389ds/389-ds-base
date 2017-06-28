@@ -14,6 +14,8 @@ from lib389.utils import *
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")
 from lib389.topologies import topology_m2
 
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

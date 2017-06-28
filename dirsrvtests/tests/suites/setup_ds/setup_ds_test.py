@@ -1,9 +1,13 @@
 import os
 
 import pytest
-from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389._constants import (DEFAULT_SUFFIX, LOCALHOST, SER_HOST, SER_PORT,
+                              SER_SERVERID_PROP, SER_CREATION_SUFFIX, SER_INST_SCRIPTS_ENABLED,
+                              PORT_STANDALONE, args_instance)
+
+from lib389 import DirSrv
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

@@ -11,6 +11,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DEFAULT_SUFFIX, DN_PLUGIN, SUFFIX, PLUGIN_7_BIT_CHECK
+
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3'), reason="Not implemented")
 

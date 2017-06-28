@@ -5,6 +5,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DEFAULT_SUFFIX, PLUGIN_RETRO_CHANGELOG, PLUGIN_MEMBER_OF, BACKEND_NAME
+
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
 
@@ -125,7 +127,7 @@ def test_ticket47931(topology_st):
             USER_DN = ("uid=member%d,%s" % (idx, DEFAULT_SUFFIX))
             topology_st.standalone.add_s(Entry((USER_DN,
                                                 {'objectclass': 'top extensibleObject'.split(),
-                                                 'uid': 'member%d' % (x)})))
+                                                 'uid': 'member%d' % (idx)})))
         except ldap.LDAPError as e:
             log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.message['desc']))
             assert False

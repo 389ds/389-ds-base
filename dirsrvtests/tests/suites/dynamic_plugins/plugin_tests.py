@@ -13,7 +13,16 @@ Created on Dec 09, 2014
 '''
 import logging
 
+from lib389 import DirSrv
+
 from lib389.tasks import *
+
+from lib389._constants import (DEFAULT_SUFFIX, PLUGIN_ACCT_USABILITY, PLUGIN_ACCT_POLICY,
+                              PLUGIN_ATTR_UNIQUENESS, PLUGIN_AUTOMEMBER, PLUGIN_DNA,
+                              PLUGIN_LINKED_ATTRS, PLUGIN_MEMBER_OF,
+                              PLUGIN_MANAGED_ENTRY, PLUGIN_PASSTHRU, PLUGIN_REFER_INTEGRITY,
+                              PLUGIN_RETRO_CHANGELOG, PLUGIN_ROOTDN_ACCESS, DN_DM, PASSWORD,
+                              LOCALHOST)
 
 log = logging.getLogger(__name__)
 

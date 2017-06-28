@@ -10,6 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
+from lib389._constants import DEFAULT_SUFFIX, PLUGIN_ATTR_UNIQUENESS
 
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX

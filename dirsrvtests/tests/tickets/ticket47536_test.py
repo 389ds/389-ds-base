@@ -9,9 +9,12 @@
 import base64
 import os
 import pytest
+import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
+
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
 
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")
 

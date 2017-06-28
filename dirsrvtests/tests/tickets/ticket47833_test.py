@@ -11,6 +11,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import SUFFIX, DEFAULT_SUFFIX, PLUGIN_MEMBER_OF, DN_PLUGIN
+
 SCOPE_IN_CN = 'in'
 SCOPE_OUT_CN = 'out'
 SCOPE_IN_DN = 'cn=%s,%s' % (SCOPE_IN_CN, SUFFIX)

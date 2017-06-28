@@ -11,6 +11,7 @@ from ldap.controls.simple import GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
+from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)

@@ -3,6 +3,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389._constants import SUFFIX, DEFAULT_SUFFIX, PLUGIN_MANAGED_ENTRY, DN_LDBM
+
 PEOPLE_OU = 'people'
 PEOPLE_DN = "ou=%s,%s" % (PEOPLE_OU, SUFFIX)
 GROUPS_OU = 'groups'

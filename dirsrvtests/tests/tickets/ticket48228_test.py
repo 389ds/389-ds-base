@@ -12,6 +12,8 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD, DN_CONFIG
+
 log = logging.getLogger(__name__)
 
 # Assuming DEFAULT_SUFFIX is "dc=example,dc=com", otherwise it does not work... :(

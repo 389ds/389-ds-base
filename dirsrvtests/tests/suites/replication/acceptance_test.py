@@ -11,6 +11,12 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
 
+from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLICA_RUV_FILTER,
+                              REPLICAROLE_MASTER, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
+                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
+                              DN_DM, PASSWORD, LOG_DEFAULT)
+
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
 NEW_SUFFIX_NAME = 'test_repl'
