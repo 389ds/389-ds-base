@@ -311,16 +311,9 @@ def test_remove_entryscope_with_existing_value(topology):
 
     args.value = None
     memberof_cli.display_scope(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains(": dc=example,dc=com")
     assert not topology.logcap.contains(": a=b")
     topology.logcap.flush()
-
-    # THIS MAKES THE SERVER CRASH!!!
-    # caused when trying to remove all memberofentryscope values
-
-    # args.value = "dc=example,dc=com"
-    # memberof_cli.remove_scope(topology.standalone, None, topology.logcap.log, args)
-    # assert topology.logcap.contains("successfully removed value")
-    # topology.logcap.flush()
 
 def test_remove_entryscope_with_non_existing_value(topology):
     args = FakeArgs()
@@ -328,6 +321,33 @@ def test_remove_entryscope_with_non_existing_value(topology):
     args.value = "whatever"
     memberof_cli.remove_scope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains('No value "{0}" found'.format(args.value))
+    topology.logcap.flush()
+
+def test_remove_all_entryscope(topology):
+    plugin = MemberOfPlugin(topology.standalone)
+    # setup test
+    if not "dc=example,dc=com" in plugin.get_entryscope():
+        plugin.add_entryscope("dc=example,dc=com")
+    if not "a=b" in plugin.get_entryscope():
+        plugin.add_entryscope("a=b")
+
+    args = FakeArgs()
+
+    args.value = None
+    memberof_cli.display_scope(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains(": a=b")
+    assert topology.logcap.contains(": dc=example,dc=com")
+    topology.logcap.flush()
+
+    args.value = None
+    memberof_cli.remove_all_scope(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains("successfully removed all memberOfEntryScope values")
+    topology.logcap.flush()
+
+    args.value = None
+    memberof_cli.display_scope(topology.standalone, None, topology.logcap.log, args)
+    assert not topology.logcap.contains(": a=b")
+    assert not topology.logcap.contains(": dc=example,dc=com")
     topology.logcap.flush()
 
 def test_get_excludescope_when_not_set(topology):
@@ -404,20 +424,39 @@ def test_remove_excludescope_with_existing_value(topology):
     assert not topology.logcap.contains(": a=b")
     topology.logcap.flush()
 
-    # THIS MAKES THE SERVER CRASH!!!
-    # caused when trying to remove all memberofentryscopeexcludesubtree values
-
-    # args.value = "ou=People,dc=example,dc=com"
-    # memberof_cli.remove_excludescope(topology.standalone, None, topology.logcap.log, args)
-    # assert topology.logcap.contains("successfully removed value")
-    # topology.logcap.flush()
-
 def test_remove_excludescope_with_non_existing_value(topology):
     args = FakeArgs()
 
     args.value = "whatever"
     memberof_cli.remove_excludescope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains('No value "{0}" found'.format(args.value))
+    topology.logcap.flush()
+
+def test_remove_all_excludescope(topology):
+    plugin = MemberOfPlugin(topology.standalone)
+    # setup test
+    if not "a=b" in plugin.get_excludescope():
+        plugin.add_excludescope("a=b")
+    if not "ou=People,dc=example,dc=com" in plugin.get_excludescope():
+        plugin.add_excludescope("ou=People,dc=example,dc=com")
+
+    args = FakeArgs()
+
+    args.value = None
+    memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains(": a=b")
+    assert topology.logcap.contains(": ou=People,dc=example,dc=com")
+    topology.logcap.flush()
+
+    args.value = None
+    memberof_cli.remove_all_excludescope(topology.standalone, None, topology.logcap.log, args)
+    assert topology.logcap.contains("successfully removed all memberOfEntryScopeExcludeSubtree values")
+    topology.logcap.flush()
+
+    args.value = None
+    memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
+    assert not topology.logcap.contains(": a=b")
+    assert not topology.logcap.contains(": ou=People,dc=example,dc=com")
     topology.logcap.flush()
 
 def test_add_entryscope_with_value_that_exists_in_excludescope(topology):

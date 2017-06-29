@@ -155,6 +155,11 @@ def remove_scope(inst, basedn, log, args):
     else:
         log.info('successfully removed memberOfEntryScope value "{}"'.format(args.value))
 
+def remove_all_scope(inst, basedn, log, args):
+    plugin = MemberOfPlugin(inst)
+    plugin.remove_all_entryscope()
+    log.info('successfully removed all memberOfEntryScope values')
+
 def display_excludescope(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
     val = plugin.get_excludescope_formatted()
@@ -185,6 +190,11 @@ def remove_excludescope(inst, basedn, log, args):
         log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
     else:
         log.info('successfully removed memberOfEntryScopeExcludeSubtree value "{}"'.format(args.value))
+
+def remove_all_excludescope(inst, basedn, log, args):
+    plugin = MemberOfPlugin(inst)
+    plugin.remove_all_excludescope()
+    log.info('successfully removed all memberOfEntryScopeExcludeSubtree values')
 
 def fixup(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
@@ -257,6 +267,8 @@ def create_parser(subparsers):
     del_scope_parser = scope_subcommands.add_parser('del', help='remove memberofentryscope value')
     del_scope_parser.set_defaults(func=remove_scope)
     del_scope_parser.add_argument('value', help='The value to remove from memberofentryscope')
+    delall_scope_parser = scope_subcommands.add_parser('delall', help='remove all memberofentryscope values')
+    delall_scope_parser.set_defaults(func=remove_all_scope)
 
     exclude_parser = subcommands.add_parser('exclude', help='get or manage memberofentryscopeexcludesubtree')
     exclude_parser.set_defaults(func=display_excludescope)
@@ -268,6 +280,8 @@ def create_parser(subparsers):
     del_exclude_parser = exclude_subcommands.add_parser('del', help='remove memberofentryscopeexcludesubtree value')
     del_exclude_parser.set_defaults(func=remove_excludescope)
     del_exclude_parser.add_argument('value', help='The value to remove from memberofentryscopeexcludesubtree')
+    delall_exclude_parser = exclude_subcommands.add_parser('delall', help='remove all memberofentryscopeexcludesubtree values')
+    delall_exclude_parser.set_defaults(func=remove_all_excludescope)
 
     fixup_parser = subcommands.add_parser('fixup', help='run the fix-up task for memberof plugin')
     fixup_parser.set_defaults(func=fixup)

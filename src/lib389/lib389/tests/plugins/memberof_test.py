@@ -306,9 +306,8 @@ def test_scoping(plugin):
     # clean up for subsequent test cases
     delete_objects([user_p1, user_p2, group, ou2])
 
-    # This does not work at the moment, because there is a bug in DS (#49284).
-    # plugin.remove_all_excludescope()
-    # plugin.remove_all_entryscope()
+    plugin.remove_all_excludescope()
+    plugin.remove_all_entryscope()
 
 def test_fixup_task(plugin):
     """

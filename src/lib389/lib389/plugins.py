@@ -241,8 +241,8 @@ class MemberOfPlugin(Plugin):
     def remove_entryscope(self, attr):
         self.remove('memberofentryscope', attr)
 
-    # def remove_all_entryscope(self):
-        # self.remove_all('memberofentryscope')
+    def remove_all_entryscope(self):
+        self.remove_all('memberofentryscope')
 
     def get_excludescope(self):
         return self.get_attr_vals('memberofentryscopeexcludesubtree')
@@ -256,8 +256,8 @@ class MemberOfPlugin(Plugin):
     def remove_excludescope(self, attr):
         self.remove('memberofentryscopeexcludesubtree', attr)
 
-    # def remove_all_excludescope(self):
-        # self.remove_all('memberofentryscopeexcludesubtree')
+    def remove_all_excludescope(self):
+        self.remove_all('memberofentryscopeexcludesubtree')
 
     def fixup(self, basedn, _filter=None):
         task = tasks.MemberOfFixupTask(self._instance)
