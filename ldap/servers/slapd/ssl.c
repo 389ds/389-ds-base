@@ -1753,6 +1753,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #endif
     char cipher_string[1024];
     int allowweakcipher = CIPHER_SET_DEFAULTWEAKCIPHER;
+    int_fast16_t renegotiation = (int_fast16_t) SSL_RENEGOTIATE_REQUIRES_XTN;
 
     /* turn off the PKCS11 pin interactive mode */
     /* wibrown 2016 */
@@ -2218,6 +2219,35 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     }
 #endif
+
+    val = NULL;
+    if (e != NULL) {
+        val = slapi_entry_attr_get_charptr(e, "nsTLSAllowClientRenegotiation");
+    }
+    if( val ) {
+        /* We default to allowing reneg.  If the option is "no",
+         * disable reneg.  Else if the option isn't "yes", complain
+         * and do the default (allow reneg). */
+        if (PL_strcasecmp(val, "off") == 0) {
+            renegotiation = SSL_RENEGOTIATE_NEVER;
+        } else if (PL_strcasecmp(val, "on") == 0) {
+            renegotiation = SSL_RENEGOTIATE_REQUIRES_XTN;
+        } else {
+            slapd_SSL_warn("The value of nsTLSAllowClientRenegotiation is invalid (should be 'on' or 'off'). Using default 'on'.");
+            renegotiation = SSL_RENEGOTIATE_REQUIRES_XTN;
+        }
+    }
+    slapi_ch_free_string(&val);
+
+    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_RENEGOTIATION, (PRBool) renegotiation);
+    if (sslStatus != SECSuccess) {
+        errorCode = PR_GetError();
+        slapd_SSL_error("Failed to set SSL renegotiation on the imported "
+            "socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+            errorCode, slapd_pr_strerror(errorCode));
+        return -1;
+    }
+
     freeConfigEntry( &e );
 
     if(( slapd_SSLclientAuth = config_get_SSLclientAuth()) != SLAPD_SSLCLIENTAUTH_OFF ) {
