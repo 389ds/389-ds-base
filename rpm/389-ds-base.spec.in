@@ -263,7 +263,7 @@ ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
 
 %if %{use_tcmalloc}
-TCMALLOC_FLAGS="--with-tcmalloc"
+TCMALLOC_FLAGS="--enable-tcmalloc"
 %endif
 
 # Rebuild the autotool artifacts now.
