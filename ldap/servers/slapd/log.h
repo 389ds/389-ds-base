@@ -95,7 +95,7 @@ struct logbufinfo  {
     char    *current;                   /* current pointer into buffer */
     size_t  maxsize;                    /* size of buffer */
     PRLock *lock;                       /* lock for access logging */
-    PRInt32 refcount;                   /* Reference count for buffer copies */
+    uint64_t refcount;                   /* Reference count for buffer copies */
 };
 typedef struct logbufinfo LogBufferInfo;
 

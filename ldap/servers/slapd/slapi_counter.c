@@ -6,6 +6,11 @@
  * See LICENSE for details. 
  * END COPYRIGHT BLOCK **/
 
+/*
+ * !!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!
+ * You must read https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
+ */
+
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
@@ -115,7 +120,7 @@ uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
         return newvalue;
     }
 #ifdef ATOMIC_64BIT_OPERATIONS
-    newvalue = __atomic_add_fetch_8(&(counter->value), addvalue, __ATOMIC_SEQ_CST);
+    newvalue = __atomic_add_fetch_8(&(counter->value), addvalue, __ATOMIC_RELAXED);
 #else
 #ifdef HPUX
     uint64_t prev = 0;
@@ -168,7 +173,7 @@ uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
     }
 
 #ifdef ATOMIC_64BIT_OPERATIONS
-    newvalue = __atomic_sub_fetch_8(&(counter->value), subvalue, __ATOMIC_SEQ_CST);
+    newvalue = __atomic_sub_fetch_8(&(counter->value), subvalue, __ATOMIC_RELAXED);
 #else
 #ifdef HPUX
     uint64_t prev = 0;
@@ -220,7 +225,7 @@ uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
     }
 
 #ifdef ATOMIC_64BIT_OPERATIONS
-    __atomic_store_8(&(counter->value), newvalue, __ATOMIC_SEQ_CST);
+    __atomic_store_8(&(counter->value), newvalue, __ATOMIC_RELAXED);
 #else /* HPUX */
 #ifdef HPUX
     do {
@@ -251,7 +256,7 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter)
     }
 
 #ifdef ATOMIC_64BIT_OPERATIONS
-    value = __atomic_load_8(&(counter->value), __ATOMIC_SEQ_CST);
+    value = __atomic_load_8(&(counter->value), __ATOMIC_RELAXED);
 #else  /* HPUX */
 #ifdef HPUX
     do {

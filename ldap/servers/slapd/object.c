@@ -23,7 +23,7 @@
 
 typedef struct object
 {
-	PRInt32 refcnt; /* reference count for the object */
+	uint64_t refcnt; /* reference count for the object */
 	FNFree destructor; /* Destructor for the object */
 	void *data;	/* pointer to actual node data */
 } object;
@@ -44,9 +44,9 @@ object_new(void *user_data, FNFree destructor)
 {
 	Object *o;
 	o = (object *)slapi_ch_malloc(sizeof(object));
-	o->refcnt = 1;
 	o->destructor = destructor;
 	o->data = user_data;
+	__atomic_store_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
 	return o;
 }
 
@@ -60,7 +60,7 @@ void
 object_acquire(Object *o)
 {
 	PR_ASSERT(NULL != o);
-	PR_AtomicIncrement(&o->refcnt);
+	__atomic_add_fetch_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
 }
 
 
@@ -75,8 +75,7 @@ object_release(Object *o)
 	PRInt32 refcnt_after_release;
 
 	PR_ASSERT(NULL != o);
-	refcnt_after_release = PR_AtomicDecrement(&o->refcnt);
-	PR_ASSERT(refcnt_after_release >= 0);
+	refcnt_after_release = __atomic_sub_fetch_8(&(o->refcnt), 1, __ATOMIC_ACQ_REL);
 	if (refcnt_after_release == 0)
 	{
 		/* Object can be destroyed */
@@ -85,7 +84,6 @@ object_release(Object *o)
 		/* Make it harder to reuse a dangling pointer */
 		o->data = NULL;
 		o->destructor = NULL;
-		o->refcnt = -9999;
 		slapi_ch_free((void **)&o);
 	}
 }

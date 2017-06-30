@@ -922,7 +922,7 @@ void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
 	PRIntn num_poll = 0;
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
 	PRThread *time_thread_p;
-	int threads;
+	uint64_t threads;
 	int in_referral_mode = config_check_referral_mode();
 	int connection_table_size = get_configured_connection_table_size();
 	the_connection_table= connection_table_new(connection_table_size);
@@ -1577,7 +1577,7 @@ handle_timeout( void )
 
 	if ( difftime(curtime, prevtime) >= 
 		slapd_housekeeping_timer ) {
-		int	num_active_threads;
+		uint64_t num_active_threads;
 
 		snmp_collator_update();
 

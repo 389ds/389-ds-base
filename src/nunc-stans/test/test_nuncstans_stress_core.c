@@ -355,7 +355,7 @@ client_initiate_connection_cb(struct ns_job_t *job)
         char *err = NULL;
         PR_GetErrorText(err);
         do_logging(LOG_ERR, "FAIL: Socket failed, %d -> %s\n", PR_GetError(), err);
-        PR_AtomicAdd(&client_fail_count, 1);
+        __atomic_add_fetch(&client_fail_count, 1, __ATOMIC_SEQ_CST);
         goto done;
     }
 

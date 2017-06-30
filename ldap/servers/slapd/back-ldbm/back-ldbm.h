@@ -439,7 +439,7 @@ struct attrinfo {
 #define	IS_INDEXED( a )	( a & INDEX_ANY )
 	char	**ai_index_rules; /* matching rule OIDs */
 	void	*ai_dblayer;	  /* private data used by the dblayer code */
-	PRInt32 ai_dblayer_count; /* used by the dblayer code */
+	uint64_t ai_dblayer_count; /* used by the dblayer code */
 	idl_private	*ai_idl;  /* private data used by the IDL code (eg locking the IDLs) */
 	attrcrypt_private	*ai_attrcrypt;  /* private data used by the attribute encryption code (eg is it enabled or not) */
 	value_compare_fn_type ai_key_cmp_fn; /* function used to compare two index keys -

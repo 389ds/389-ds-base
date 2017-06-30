@@ -162,8 +162,8 @@ typedef enum {
 	CONFIG_SPECIAL_UNHASHED_PW_SWITCH /* unhashed pw: on/off/nolog */
 } ConfigVarType;
 
-static int config_set_onoff( const char *attrname, char *value,
-		int *configvalue, char *errorbuf, int apply );
+static int32_t config_set_onoff( const char *attrname, char *value,
+		int32_t *configvalue, char *errorbuf, int apply );
 static int config_set_schemareplace ( const char *attrname, char *value,
 		char *errorbuf, int apply );
 static void remove_commas(char *str);
@@ -1334,24 +1334,24 @@ strarray2bervalarray(const char **strarray)
 /*
  * counter for active threads
  */
-static PRInt32 active_threads = 0;
+static uint64_t active_threads = 0;
 
 void
 g_incr_active_threadcnt(void)
 {
-    PR_AtomicIncrement(&active_threads);
+    __atomic_add_fetch_8(&active_threads, 1, __ATOMIC_RELEASE);
 }
 
 void
 g_decr_active_threadcnt(void)
 {
-    PR_AtomicDecrement(&active_threads);
+    __atomic_sub_fetch_8(&active_threads, 1, __ATOMIC_RELEASE);
 }
 
-int
+uint64_t
 g_get_active_threadcnt(void)
 {
-    return (int)active_threads;
+    return __atomic_load_8(&active_threads, __ATOMIC_ACQUIRE);
 }
 
 /*
@@ -1724,11 +1724,11 @@ get_entry_point( int ep_name, caddr_t *ep_addr )
     return rc;
 }
 
-int
+int32_t
 config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->auditlog_logging_hide_unhashed_pw),
                                 errorbuf, apply);
@@ -1740,11 +1740,11 @@ config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbu
     return retVal;
 }
 
-int
+int32_t
 config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->auditfaillog_logging_hide_unhashed_pw),
                                 errorbuf, apply);
@@ -1757,11 +1757,11 @@ config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *err
 }
 
 #ifdef HAVE_CLOCK_GETTIME
-int
+int32_t
 config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->logging_hr_timestamps),
                                 errorbuf, apply);
@@ -1796,33 +1796,33 @@ config_value_is_null( const char *attrname, const char *value, char *errorbuf,
 	return 0;
 }
 
-int
+int32_t
 config_set_ignore_vattrs (const char *attrname, char *value, char *errorbuf, int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->ignore_vattrs), errorbuf, apply);
 
     return retVal;
 }
 
-int
+int32_t
 config_set_sasl_mapping_fallback (const char *attrname, char *value, char *errorbuf, int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->sasl_mapping_fallback), errorbuf, apply);
 
     return retVal;
 }
 
-int
+int32_t
 config_set_disk_monitoring( const char *attrname, char *value, char *errorbuf, int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_monitoring),
                                 errorbuf, apply);
@@ -1860,11 +1860,11 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
     return retVal;
 }
 
-int
+int32_t
 config_set_disk_logging_critical( const char *attrname, char *value, char *errorbuf, int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_logging_critical),
                                 errorbuf, apply);
@@ -1900,11 +1900,11 @@ config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf,
     return retVal;
 }
 
-int
+int32_t
 config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
+    int32_t retVal;
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->ndn_cache_enabled), errorbuf, apply);
 
@@ -1974,11 +1974,11 @@ config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, in
     return retVal;
 }
 
-int
+int32_t
 config_set_return_orig_type_switch(const char *attrname, char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
+    int32_t retVal;
 
     retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->return_orig_type), errorbuf, apply);
 
@@ -2094,11 +2094,11 @@ config_set_SSLclientAuth( const char *attrname, char *value, char *errorbuf, int
 }
 
 
-int
+int32_t
 config_set_ssl_check_hostname(const char *attrname, char *value,
 		char *errorbuf, int apply)
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
 	retVal = config_set_onoff(attrname,
@@ -2199,9 +2199,9 @@ config_set_ldapi_filename( const char *attrname, char *value, char *errorbuf, in
   return retVal;
 }
 
-int
+int32_t
 config_set_ldapi_switch( const char *attrname, char *value, char *errorbuf, int apply ) {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	retVal = config_set_onoff(attrname,
@@ -2213,9 +2213,10 @@ config_set_ldapi_switch( const char *attrname, char *value, char *errorbuf, int 
 	return retVal;
 }
 
-int config_set_ldapi_bind_switch( const char *attrname, char *value, char *errorbuf, int apply )
+int32_t
+config_set_ldapi_bind_switch( const char *attrname, char *value, char *errorbuf, int apply )
 {
-        int retVal = LDAP_SUCCESS;
+        int32_t retVal = LDAP_SUCCESS;
         slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
         retVal = config_set_onoff(attrname,
@@ -2246,9 +2247,10 @@ int config_set_ldapi_root_dn( const char *attrname, char *value, char *errorbuf,
   return retVal;
 }
 
-int config_set_ldapi_map_entries( const char *attrname, char *value, char *errorbuf, int apply )
+int32_t
+config_set_ldapi_map_entries( const char *attrname, char *value, char *errorbuf, int apply )
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	retVal = config_set_onoff(attrname,
@@ -2364,9 +2366,10 @@ int config_set_anon_limits_dn( const char *attrname, char *value, char *errorbuf
  * incremented.  Note: counters which are necessary for the server's running
  * are not disabled.
  */
-int config_set_slapi_counters( const char *attrname, char *value, char *errorbuf, int apply )
+int32_t
+config_set_slapi_counters( const char *attrname, char *value, char *errorbuf, int apply )
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	retVal = config_set_onoff(attrname, value,
@@ -2559,9 +2562,9 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
 }
 	
 
-int
+int32_t
 config_set_pw_change( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -2574,9 +2577,9 @@ config_set_pw_change( const char *attrname, char *value, char *errorbuf, int app
 }
 
 
-int
+int32_t
 config_set_pw_history( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -2589,9 +2592,9 @@ config_set_pw_history( const char *attrname, char *value, char *errorbuf, int ap
 }
 
 
-int
+int32_t
 config_set_pw_must_change( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -2604,9 +2607,9 @@ config_set_pw_must_change( const char *attrname, char *value, char *errorbuf, in
 }
 
 
-int
+int32_t
 config_set_pwpolicy_local( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -2619,10 +2622,10 @@ config_set_pwpolicy_local( const char *attrname, char *value, char *errorbuf, in
 }
 
 
-int
+int32_t
 config_set_pwpolicy_inherit_global(const char *attrname, char *value, char *errorbuf, int apply)
 {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff (attrname,
@@ -2635,9 +2638,9 @@ config_set_pwpolicy_inherit_global(const char *attrname, char *value, char *erro
 }
 
 
-int
+int32_t
 config_set_allow_hashed_pw( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -2649,9 +2652,9 @@ config_set_allow_hashed_pw( const char *attrname, char *value, char *errorbuf, i
   return retVal;
 }
 
-int
+int32_t
 config_set_pw_syntax( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3130,9 +3133,9 @@ config_set_pw_resetfailurecount( const char *attrname, char *value, char *errorb
   return retVal;
 }
 
-int
+int32_t
 config_set_pw_is_global_policy( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   retVal = config_set_onoff ( attrname,
@@ -3144,9 +3147,9 @@ config_set_pw_is_global_policy( const char *attrname, char *value, char *errorbu
   return retVal;
 }
 
-int
+int32_t
 config_set_pw_is_legacy_policy( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3172,9 +3175,9 @@ config_set_pw_admin_dn( const char *attrname __attribute__((unused)), char *valu
   return retVal;
 }
 
-int
+int32_t
 config_set_pw_track_last_update_time( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3186,9 +3189,9 @@ config_set_pw_track_last_update_time( const char *attrname, char *value, char *e
   return retVal;
 }
 
-int
+int32_t
 config_set_pw_exp( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3200,9 +3203,9 @@ config_set_pw_exp( const char *attrname, char *value, char *errorbuf, int apply 
   return retVal;
 }
 
-int
+int32_t
 config_set_pw_send_expiring( const char *attrname, char *value, char *errorbuf, int apply ) {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff ( attrname,
@@ -3214,9 +3217,9 @@ config_set_pw_send_expiring( const char *attrname, char *value, char *errorbuf, 
     return retVal;
 }
 
-int
+int32_t
 config_set_pw_unlock( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3229,9 +3232,9 @@ config_set_pw_unlock( const char *attrname, char *value, char *errorbuf, int app
 }
 
 
-int
+int32_t
 config_set_pw_lockout( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3279,9 +3282,9 @@ config_set_pw_gracelimit( const char *attrname, char *value, char *errorbuf, int
 }
 
 
-int
+int32_t
 config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   Slapi_Backend *be = NULL;
   char *cookie;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -3312,9 +3315,9 @@ config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply
 }
 
 
-int
+int32_t
 config_set_nagle( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3327,9 +3330,9 @@ config_set_nagle( const char *attrname, char *value, char *errorbuf, int apply )
 }
 
 
-int
+int32_t
 config_set_accesscontrol( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3343,9 +3346,9 @@ config_set_accesscontrol( const char *attrname, char *value, char *errorbuf, int
 
 
 
-int
+int32_t
 config_set_return_exact_case( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3358,9 +3361,9 @@ config_set_return_exact_case( const char *attrname, char *value, char *errorbuf,
 }
 
 
-int
+int32_t
 config_set_result_tweak( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3372,9 +3375,9 @@ config_set_result_tweak( const char *attrname, char *value, char *errorbuf, int 
   return retVal;
 }
 
-int
+int32_t
 config_set_plugin_tracking( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3386,9 +3389,9 @@ config_set_plugin_tracking( const char *attrname, char *value, char *errorbuf, i
   return retVal;
 }
 
-int
+int32_t
 config_set_moddn_aci( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3400,9 +3403,9 @@ config_set_moddn_aci( const char *attrname, char *value, char *errorbuf, int app
   return retVal;
 }
 
-int
+int32_t
 config_set_dynamic_plugins( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3414,22 +3417,16 @@ config_set_dynamic_plugins( const char *attrname, char *value, char *errorbuf, i
   return retVal;
 }
 
-int
+int32_t
 config_get_dynamic_plugins(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->dynamic_plugins;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->dynamic_plugins), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_set_cn_uses_dn_syntax_in_dns(const char *attrname, char *value, char *errorbuf, int apply)
 {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3441,22 +3438,16 @@ config_set_cn_uses_dn_syntax_in_dns(const char *attrname, char *value, char *err
   return retVal;
 }
 
-int
+int32_t
 config_get_cn_uses_dn_syntax_in_dns()
 {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->cn_uses_dn_syntax_in_dns;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->cn_uses_dn_syntax_in_dns), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_set_security( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3468,50 +3459,41 @@ config_set_security( const char *attrname, char *value, char *errorbuf, int appl
   return retVal;
 }
 
-static int 
-config_set_onoff(const char *attrname, char *value, int *configvalue, char *errorbuf, int apply)
+static int32_t
+config_set_onoff(const char *attrname, char *value, int32_t *configvalue, char *errorbuf, int apply)
 {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapi_onoff_t newval = -1;
-#ifndef ATOMIC_GETSET_ONOFF
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-#endif 
-  
+
   if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
     return LDAP_OPERATIONS_ERROR;
   }
-  
-  CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+
   if (strcasecmp(value, "on") && strcasecmp(value, "off")) {
     slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: invalid value \"%s\". Valid values are \"on\" or \"off\".", attrname, value);
     retVal = LDAP_OPERATIONS_ERROR;
   }
- 
+
   if ( !apply ) {
     /* we can return now if we aren't applying the changes */
     return retVal;
   }
-  
+
   if ( strcasecmp ( value, "on" ) == 0 ) {
     newval = LDAP_ON;
   } else if ( strcasecmp ( value, "off" ) == 0 ) {
     newval = LDAP_OFF;
   }
-  
-#ifdef ATOMIC_GETSET_ONOFF
-  PR_AtomicSet(configvalue, newval);
-#else
-  *configvalue = newval;
-#endif
-  CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig); 
+
+  __atomic_store_4(configvalue, newval, __ATOMIC_RELEASE);
 
   return retVal;
 }
-			 
-int
+
+int32_t
 config_set_readonly( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3523,9 +3505,9 @@ config_set_readonly( const char *attrname, char *value, char *errorbuf, int appl
   return retVal;
 }
 
-int
+int32_t
 config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3537,9 +3519,9 @@ config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int a
   return retVal;
 }
 
-int
+int32_t
 config_set_schemamod( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3551,9 +3533,9 @@ config_set_schemamod( const char *attrname, char *value, char *errorbuf, int app
   return retVal;
 }
 
-int
+int32_t
 config_set_syntaxcheck( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3565,9 +3547,9 @@ config_set_syntaxcheck( const char *attrname, char *value, char *errorbuf, int a
   return retVal;
 } 
 
-int
+int32_t
 config_set_syntaxlogging( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3579,9 +3561,9 @@ config_set_syntaxlogging( const char *attrname, char *value, char *errorbuf, int
   return retVal;
 }
 
-int
+int32_t
 config_set_dn_validate_strict( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3593,9 +3575,9 @@ config_set_dn_validate_strict( const char *attrname, char *value, char *errorbuf
   return retVal;
 }
 
-int
+int32_t
 config_set_ds4_compatible_schema( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3608,10 +3590,10 @@ config_set_ds4_compatible_schema( const char *attrname, char *value, char *error
 }
 
 
-int
+int32_t
 config_set_schema_ignore_trailing_spaces( const char *attrname, char *value,
 		char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3624,9 +3606,9 @@ config_set_schema_ignore_trailing_spaces( const char *attrname, char *value,
 }
 
 
-int
+int32_t
 config_set_enquote_sup_oc( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -3891,13 +3873,7 @@ config_set_maxthreadsperconn( const char *attrname, char *value, char *errorbuf,
   }
   
   if (apply) {
-#ifdef ATOMIC_GETSET_MAXTHREADSPERCONN
-    PR_AtomicSet(&slapdFrontendConfig->maxthreadsperconn, (slapi_int_t)maxthreadnum);
-#else
-    CFG_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->maxthreadsperconn = maxthreadnum;
-    CFG_UNLOCK_WRITE(slapdFrontendConfig);
-#endif
+    __atomic_store_4(&(slapdFrontendConfig->maxthreadsperconn), maxthreadnum, __ATOMIC_RELEASE);
   }
   return retVal;
 }
@@ -4051,13 +4027,7 @@ config_set_ioblocktimeout( const char *attrname, char *value, char *errorbuf, in
   }
 
   if ( apply ) {
-#ifdef ATOMIC_GETSET_IOBLOCKTIMEOUT
-    PR_AtomicSet(&slapdFrontendConfig->ioblocktimeout, (PRInt32)nValue);
-#else
-    CFG_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->ioblocktimeout = nValue;
-    CFG_UNLOCK_WRITE(slapdFrontendConfig);
-#endif
+    __atomic_store_4(&(slapdFrontendConfig->ioblocktimeout), nValue, __ATOMIC_RELEASE);
   }
   return retVal;
 
@@ -4559,41 +4529,23 @@ config_get_ignore_vattrs()
     return (int)slapdFrontendConfig->ignore_vattrs;
 }
 
-int
+int32_t
 config_get_sasl_mapping_fallback()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->sasl_mapping_fallback;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->sasl_mapping_fallback), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_disk_monitoring(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->disk_monitoring;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->disk_monitoring), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_disk_logging_critical(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->disk_logging_critical;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->disk_logging_critical), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -4633,24 +4585,16 @@ config_get_ldapi_filename(){
 }
 
 
-int config_get_ldapi_switch(){   
-  int retVal;
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig(); 
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->ldapi_switch;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+int32_t
+config_get_ldapi_switch() {
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->ldapi_switch), __ATOMIC_ACQUIRE);
 }
 
-int config_get_ldapi_bind_switch(){
-  int retVal;
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->ldapi_bind_switch;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+int32_t
+config_get_ldapi_bind_switch() {
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->ldapi_bind_switch), __ATOMIC_ACQUIRE);
 }
 
 char *config_get_ldapi_root_dn(){
@@ -4664,13 +4608,8 @@ char *config_get_ldapi_root_dn(){
 }
 
 int config_get_ldapi_map_entries(){
-  int retVal;
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->ldapi_map_entries;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->ldapi_map_entries), __ATOMIC_ACQUIRE);
 }
 
 char *config_get_ldapi_uidnumber_type(){
@@ -4726,15 +4665,11 @@ char *config_get_anon_limits_dn(){
   return retVal;
 }
 
-int config_get_slapi_counters()
-{   
-  int retVal;
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig(); 
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->slapi_counters;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+int32_t
+config_get_slapi_counters()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->slapi_counters), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -4903,68 +4838,38 @@ config_get_pw_storagescheme(void) {
 }
 
 
-int
+int32_t
 config_get_pw_change(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_change;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_change), __ATOMIC_ACQUIRE);
 }
 
 
-int
+int32_t
 config_get_pw_history(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_history;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_history), __ATOMIC_ACQUIRE);
 }
 
 
 
-int
+int32_t
 config_get_pw_must_change(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_must_change;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_must_change), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_allow_hashed_pw(void)
 {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->allow_hashed_pw;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->allow_hashed_pw), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_pw_syntax(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_syntax;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_syntax), __ATOMIC_ACQUIRE);
 }
 
 
@@ -5138,65 +5043,35 @@ config_get_pw_resetfailurecount(void) {
   return retVal;
 }
 
-int
+int32_t
 config_get_pw_is_global_policy(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_is_global_policy;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_is_global_policy), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_pw_is_legacy_policy(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_is_legacy;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_is_legacy), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_pw_exp(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_exp;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_exp), __ATOMIC_ACQUIRE);
 }
 
 
-int
+int32_t
 config_get_pw_unlock(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_unlock;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_unlock), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_pw_lockout(){
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->pw_policy.pw_lockout;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->pw_policy.pw_lockout), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -5212,193 +5087,100 @@ config_get_pw_gracelimit(void) {
 
 }
 
-int
+int32_t
 config_get_lastmod(){
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->lastmod;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->lastmod), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_enquote_sup_oc(){
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->enquote_sup_oc;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->enquote_sup_oc), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_nagle(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->nagle;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->nagle), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_accesscontrol(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->accesscontrol;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->accesscontrol), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_return_exact_case(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  retVal = (int)slapdFrontendConfig->return_exact_case;
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->return_exact_case), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_result_tweak(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->result_tweak;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->result_tweak), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_moddn_aci(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->moddn_aci;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->moddn_aci), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_security(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->security;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->security), __ATOMIC_ACQUIRE);
 }
-			 
-int
+
+int32_t
 slapi_config_get_readonly(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->readonly;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->readonly), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_schemacheck(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->schemacheck;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->schemacheck), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_schemamod(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->schemamod;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->schemamod), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_syntaxcheck(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->syntaxcheck;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->syntaxcheck), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_syntaxlogging(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->syntaxlogging;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->syntaxlogging), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_dn_validate_strict(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->dn_validate_strict;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->dn_validate_strict), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_ds4_compatible_schema(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->ds4_compatible_schema;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->ds4_compatible_schema), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_schema_ignore_trailing_spaces(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->schema_ignore_trailing_spaces;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-  
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->schema_ignore_trailing_spaces), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -5490,18 +5272,10 @@ config_get_threadnumber(void) {
     return retVal;
 }
 
-int
+int32_t
 config_get_maxthreadsperconn(){
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-#ifdef ATOMIC_GETSET_MAXTHREADSPERCONN
-  retVal = (int)slapdFrontendConfig->maxthreadsperconn;
-#else
-  CFG_LOCK_READ(slapdFrontendConfig);
-  retVal = slapdFrontendConfig->maxthreadsperconn;
-  CFG_UNLOCK_READ(slapdFrontendConfig);
-#endif
-  return retVal; 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->maxthreadsperconn), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -5527,20 +5301,10 @@ config_get_reservedescriptors(){
   return retVal; 
 }
 
-int
+int32_t
 config_get_ioblocktimeout(){
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-#ifndef ATOMIC_GETSET_IOBLOCKTIMEOUT
-  CFG_LOCK_READ(slapdFrontendConfig);
-#endif
-  retVal = (int)slapdFrontendConfig->ioblocktimeout;
-#ifndef ATOMIC_GETSET_IOBLOCKTIMEOUT
-  CFG_UNLOCK_READ(slapdFrontendConfig);	
-#endif
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->ioblocktimeout), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -5833,39 +5597,25 @@ config_get_outbound_ldap_io_timeout(void)
 	return retVal; 
 }
 
-int
+int32_t
 config_get_unauth_binds_switch(void)
 {
-	int retVal;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-	retVal = (int)slapdFrontendConfig->allow_unauth_binds;
-	CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-	return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->allow_unauth_binds), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_require_secure_binds(void)
 {
-	int retVal;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-	retVal = (int)slapdFrontendConfig->require_secure_binds;
-	CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-	return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->require_secure_binds), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_anon_access_switch(void)
 {
-	int retVal = 0;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-	retVal = (int)slapdFrontendConfig->allow_anon_access;
-	CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-	return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->allow_anon_access), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -6066,11 +5816,11 @@ config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply 
   return retVal;
 }
 
-int
+int32_t
 config_set_minssf_exclude_rootdse( const char *attrname, char *value,
                                    char *errorbuf, int apply )
 {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
@@ -6104,16 +5854,11 @@ config_get_minssf()
   return minssf;
 }
 
-int
+int32_t
 config_get_minssf_exclude_rootdse()
 {
-  int retVal;
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-  retVal = (int)slapdFrontendConfig->minssf_exclude_rootdse;
-  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->minssf_exclude_rootdse), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -6138,33 +5883,18 @@ config_set_max_filter_nest_level( const char *attrname, char *value,
   }
 
   if ( !apply ) {
-	return retVal;
+    return retVal;
   }
 
-#ifdef ATOMIC_GETSET_FILTER_NEST_LEVEL
-  PR_AtomicSet(&slapdFrontendConfig->max_filter_nest_level, level);
-#else
-  CFG_LOCK_WRITE(slapdFrontendConfig);
-  slapdFrontendConfig->max_filter_nest_level = level;
-  CFG_UNLOCK_WRITE(slapdFrontendConfig);
-#endif
+  __atomic_store_4(&(slapdFrontendConfig->max_filter_nest_level), level, __ATOMIC_RELEASE);
   return retVal;
 }
 
-int
+int32_t
 config_get_max_filter_nest_level()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	int	retVal;
-
-#ifndef ATOMIC_GETSET_FILTER_NEST_LEVEL
-	CFG_LOCK_READ(slapdFrontendConfig);
-#endif
-    retVal = (int)slapdFrontendConfig->max_filter_nest_level;
-#ifndef ATOMIC_GETSET_FILTER_NEST_LEVEL
-	CFG_UNLOCK_READ(slapdFrontendConfig);
-#endif
-	return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->max_filter_nest_level), __ATOMIC_ACQUIRE);
 }
 
 size_t
@@ -6178,27 +5908,17 @@ config_get_ndn_cache_size(){
     return retVal;
 }
 
-int
+int32_t
 config_get_ndn_cache_enabled(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->ndn_cache_enabled;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->ndn_cache_enabled), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_return_orig_type_switch()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->return_orig_type;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->return_orig_type), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -6620,10 +6340,10 @@ config_get_auditfaillog_list()
     return log_get_loglist(SLAPD_AUDITFAIL_LOG);
 }
 
-int
+int32_t
 config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply)
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
 	retVal = config_set_onoff(attrname,
@@ -6635,10 +6355,10 @@ config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf,
 	return retVal;
 }
 
-int
+int32_t
 config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply)
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
 	retVal = config_set_onoff(attrname,
@@ -6657,10 +6377,10 @@ config_get_csnlogging()
 	return (int)slapdFrontendConfig->csnlogging;
 }
 
-int
+int32_t
 config_set_attrname_exceptions(const char *attrname, char *value, char *errorbuf, int apply)
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
 	retVal = config_set_onoff(attrname,
@@ -6679,11 +6399,11 @@ config_get_attrname_exceptions()
 	return (int)slapdFrontendConfig->attrname_exceptions;
 }
 
-int
+int32_t
 config_set_hash_filters(const char *attrname, char *value, char *errorbuf, int apply)
 {
-	int val = 0;
-	int retVal = LDAP_SUCCESS;
+	int32_t val = 0;
+	int32_t retVal = LDAP_SUCCESS;
   
 	retVal = config_set_onoff(attrname,
 							  value, 
@@ -6704,10 +6424,10 @@ config_get_hash_filters()
 	return 0; /* for now */
 }
 
-int
+int32_t
 config_set_rewrite_rfc1274(const char *attrname, char *value, char *errorbuf, int apply)
 {
-  int retVal = LDAP_SUCCESS;
+  int32_t retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff(attrname,
@@ -6793,11 +6513,11 @@ config_set_outbound_ldap_io_timeout( const char *attrname, char *value,
 }
 
 
-int
+int32_t
 config_set_unauth_binds_switch( const char *attrname, char *value,
 		char *errorbuf, int apply )
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	retVal = config_set_onoff(attrname,
@@ -6809,11 +6529,11 @@ config_set_unauth_binds_switch( const char *attrname, char *value,
 	return retVal;
 }
 
-int
+int32_t
 config_set_require_secure_binds( const char *attrname, char *value,
                 char *errorbuf, int apply )
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	retVal = config_set_onoff(attrname,
@@ -6899,23 +6619,18 @@ config_set_validate_cert_switch( const char *attrname, char *value,
 	return retVal;
 }
 
-int
+int32_t
 config_get_force_sasl_external(void)
 {
-	int retVal;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-	retVal = (int)slapdFrontendConfig->force_sasl_external;
-	CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-	return retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return __atomic_load_4(&(slapdFrontendConfig->force_sasl_external), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_set_force_sasl_external( const char *attrname, char *value,
 		char *errorbuf, int apply )
 {
-	int retVal = LDAP_SUCCESS;
+	int32_t retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	retVal = config_set_onoff(attrname,
@@ -6927,23 +6642,18 @@ config_set_force_sasl_external( const char *attrname, char *value,
 	return retVal;
 }
 
-int
+int32_t
 config_get_entryusn_global(void)
 {
-    int retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->entryusn_global;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->entryusn_global), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_set_entryusn_global( const char *attrname, char *value,
                             char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7168,89 +6878,59 @@ config_set_unhashed_pw_switch(const char *attrname, char *value,
     return retVal;
 }
 
-int
+int32_t
 config_get_enable_turbo_mode(void)
 {
-    int retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->enable_turbo_mode;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->enable_turbo_mode), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_connection_nocanon(void)
 {
-    int retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->connection_nocanon;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->connection_nocanon), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_plugin_logging(void)
 {
-    int retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->plugin_logging;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->plugin_logging), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 slapi_config_get_unhashed_pw_switch()
 {
     return config_get_unhashed_pw_switch();
 }
 
-int
+int32_t
 config_get_unhashed_pw_switch()
 {
-    int retVal = 0;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->unhashed_pw_switch;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->unhashed_pw_switch), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_ignore_time_skew(void)
 {
-    int retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->ignore_time_skew;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->ignore_time_skew), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_get_global_backend_lock()
 {
-    int retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->global_backend_lock;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
+    return __atomic_load_4(&(slapdFrontendConfig->global_backend_lock), __ATOMIC_ACQUIRE);
 }
 
-int
+int32_t
 config_set_enable_turbo_mode( const char *attrname, char *value,
                             char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7259,11 +6939,11 @@ config_set_enable_turbo_mode( const char *attrname, char *value,
     return retVal;
 }
 
-int
+int32_t
 config_set_connection_nocanon( const char *attrname, char *value,
                             char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7272,11 +6952,11 @@ config_set_connection_nocanon( const char *attrname, char *value,
     return retVal;
 }
 
-int
+int32_t
 config_set_ignore_time_skew( const char *attrname, char *value,
                             char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7285,11 +6965,11 @@ config_set_ignore_time_skew( const char *attrname, char *value,
     return retVal;
 }
 
-int
+int32_t
 config_set_global_backend_lock( const char *attrname, char *value,
 	                        char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7298,11 +6978,11 @@ config_set_global_backend_lock( const char *attrname, char *value,
     return retVal;
 }
 
-int
+int32_t
 config_set_plugin_logging( const char *attrname, char *value,
                             char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7343,7 +7023,7 @@ config_set_connection_buffer( const char *attrname, char *value,
         return retVal;
     }
 
-    PR_AtomicSet(&slapdFrontendConfig->connection_buffer, atoi(value));
+    __atomic_store_4(&(slapdFrontendConfig->connection_buffer), atoi(value), __ATOMIC_RELEASE);
     return retVal;
 }
 
@@ -7367,7 +7047,7 @@ config_set_listen_backlog_size( const char *attrname, char *value,
 	}
 
 	if ( apply ) {
-		PR_AtomicSet(&slapdFrontendConfig->listen_backlog_size, size);
+		__atomic_store_4(&(slapdFrontendConfig->listen_backlog_size), size, __ATOMIC_RELEASE);
 	}
 	return LDAP_SUCCESS;
 }
@@ -7394,11 +7074,11 @@ config_get_enable_nunc_stans()
     return retVal;
 }
 
-int
+int32_t
 config_set_enable_nunc_stans( const char *attrname, char *value,
                               char *errorbuf, int apply )
 {
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     retVal = config_set_onoff(attrname, value,
@@ -7790,17 +7470,15 @@ config_set_accesslog_enabled(int value)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-	errorbuf[0] = '\0';
+    errorbuf[0] = '\0';
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->accesslog_logging_enabled = (int)value;
+    __atomic_store_4(&(slapdFrontendConfig->accesslog_logging_enabled), value, __ATOMIC_RELEASE);
     if(value){
         log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
     } else {
         log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
     }
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
-	if (errorbuf[0] != '\0') {
+    if (errorbuf[0] != '\0') {
         slapi_log_err(SLAPI_LOG_ERR, "config_set_accesslog_enabled", "%s\n", errorbuf);
     }
 }
@@ -7809,17 +7487,15 @@ void
 config_set_auditlog_enabled(int value){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-	errorbuf[0] = '\0';
+    errorbuf[0] = '\0';
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->auditlog_logging_enabled = (int)value;
+    __atomic_store_4(&(slapdFrontendConfig->auditlog_logging_enabled), value, __ATOMIC_RELEASE);
     if(value){
         log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
     } else {
         log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
     }
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
-	if (errorbuf[0] != '\0') {
+    if (errorbuf[0] != '\0') {
         slapi_log_err(SLAPI_LOG_ERR, "config_set_auditlog_enabled", "%s\n", errorbuf);
     }
 }
@@ -7828,17 +7504,15 @@ void
 config_set_auditfaillog_enabled(int value){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-	errorbuf[0] = '\0';
+    errorbuf[0] = '\0';
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->auditfaillog_logging_enabled = (int)value;
+    __atomic_store_4(&(slapdFrontendConfig->auditfaillog_logging_enabled), value, __ATOMIC_RELEASE);
     if(value){
         log_set_logging(CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDITFAIL_LOG, errorbuf, CONFIG_APPLY);
     } else {
         log_set_logging(CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_AUDITFAIL_LOG, errorbuf, CONFIG_APPLY);
     }
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
-	if (errorbuf[0] != '\0') {
+    if (errorbuf[0] != '\0') {
         slapi_log_err(SLAPI_LOG_ERR, "config_set_auditlog_enabled", "%s\n", errorbuf);
     }
 }
@@ -7884,11 +7558,11 @@ config_get_maxsimplepaged_per_conn()
   return retVal; 
 }
 
-int
+int32_t
 config_set_extract_pem(const char *attrname, char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
+    int32_t retVal = LDAP_SUCCESS;
 
     retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->extract_pem), errorbuf, apply);
     return retVal;
@@ -7923,9 +7597,7 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
                               value, CONFIG_MALLOC_MXFAST, max);
         return LDAP_OPERATIONS_ERROR;
     }
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->malloc_mxfast = mxfast;
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+    __atomic_store_4(&(slapdFrontendConfig->malloc_mxfast), mxfast, __ATOMIC_RELEASE);
 
     if ((mxfast >= 0) && (mxfast <= max)) {
         mallopt(M_MXFAST, mxfast);
@@ -7965,9 +7637,7 @@ config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorb
         return LDAP_OPERATIONS_ERROR;
     }
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->malloc_trim_threshold = trim_threshold;
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+    __atomic_store_4(&(slapdFrontendConfig->malloc_trim_threshold), trim_threshold, __ATOMIC_RELEASE);
 
     if (trim_threshold >= -1) {
         mallopt(M_TRIM_THRESHOLD, trim_threshold);
@@ -8014,9 +7684,7 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
         return LDAP_OPERATIONS_ERROR;
     }
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->malloc_mmap_threshold = mmap_threshold;
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+    __atomic_store_4(&(slapdFrontendConfig->malloc_mmap_threshold), mmap_threshold, __ATOMIC_RELEASE);
 
     if ((mmap_threshold >= 0) && (mmap_threshold <= max)) {
         mallopt(M_MMAP_THRESHOLD, mmap_threshold);

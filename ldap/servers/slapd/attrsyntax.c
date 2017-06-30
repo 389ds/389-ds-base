@@ -262,7 +262,7 @@ attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock, PRUin
 		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(ht, oid);
 		if (asi)
 		{
-			PR_AtomicIncrement( &asi->asi_refcnt );
+			__atomic_add_fetch_8(&(asi->asi_refcnt), 1, __ATOMIC_RELEASE);
 		}
 		if ( use_lock ) {
 			AS_UNLOCK_READ(oid2asi_lock);
@@ -359,7 +359,7 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUi
 		}
 		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(ht, name);
 		if ( NULL != asi ) {
-			PR_AtomicIncrement( &asi->asi_refcnt );
+			__atomic_add_fetch_8(&(asi->asi_refcnt), 1, __ATOMIC_RELEASE);
 		}
 		if ( use_lock ) {
 			AS_UNLOCK_READ(name2asi_lock);
@@ -394,7 +394,7 @@ attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
 	}
 	if ( NULL != asi ) {
 		PRBool		delete_it = PR_FALSE;
-		if ( 0 == PR_AtomicDecrement( &asi->asi_refcnt )) {
+		if ( 0 == __atomic_sub_fetch_8(&(asi->asi_refcnt), 1, __ATOMIC_ACQ_REL)) {
 			delete_it = asi->asi_marked_for_delete;
 		}
 
@@ -527,7 +527,7 @@ attr_syntax_delete_no_lock( struct asyntaxinfo *asi,
 				PL_HashTableRemove(ht, asi->asi_aliases[i]);
 			}
 		}
-		if ( asi->asi_refcnt > 0 ) {
+		if ( __atomic_load_8(&(asi->asi_refcnt), __ATOMIC_ACQUIRE) > 0 ) {
 			asi->asi_marked_for_delete = PR_TRUE;
 		} else {
 			/* This is ok, but the correct thing is to call delete first, 

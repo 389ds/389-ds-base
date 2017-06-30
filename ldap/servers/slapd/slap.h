@@ -435,19 +435,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_VALIDATE_CERT_ON          1
 #define SLAPD_VALIDATE_CERT_WARN        2
 
-/* if the use of atomic get/set for config parameters is enabled, enable the use for the specific parameters defined below */
-#define USE_ATOMIC_GETSET 1
-#ifdef USE_ATOMIC_GETSET
-#define ATOMIC_GETSET_MAXTHREADSPERCONN 1
-#define ATOMIC_GETSET_IOBLOCKTIMEOUT 1
-#define ATOMIC_GETSET_FILTER_NEST_LEVEL 1
-#define ATOMIC_GETSET_ONOFF 1
-typedef PRInt32 slapi_onoff_t;
-typedef PRInt32 slapi_int_t;
-#else
-typedef int slapi_onoff_t;
-typedef int slapi_int_t;
-#endif
+typedef int32_t slapi_onoff_t;
+typedef int32_t slapi_int_t;
 
 struct subfilt {
 	char	*sf_type;
@@ -619,7 +608,7 @@ typedef struct asyntaxinfo {
 	char				*asi_syntax_oid;	/* syntax oid */
 	unsigned long		asi_flags;			/* SLAPI_ATTR_FLAG_... */
 	int					asi_syntaxlength;	/* length associated w/syntax */
-	int					asi_refcnt;			/* outstanding references */
+	uint64_t			asi_refcnt;			/* outstanding references */
 	PRBool				asi_marked_for_delete;	/* delete at next opportunity */
 	struct slapdplugin	*asi_mr_eq_plugin;	/* EQUALITY matching rule plugin */
 	struct slapdplugin	*asi_mr_sub_plugin;	/* SUBSTR matching rule plugin */
@@ -772,7 +761,7 @@ struct slapi_entry {
     Slapi_Attr *e_attrs;         /* list of attributes and values   */
     Slapi_Attr *e_deleted_attrs; /* deleted list of attributes and values */
     Slapi_Vattr *e_virtual_attrs;       /* cache of virtual attributes */
-    time_t e_virtual_watermark;  /* indicates cache consistency when compared
+    uint32_t e_virtual_watermark;  /* indicates cache consistency when compared
                                     to global watermark */ 
     Slapi_RWLock *e_virtual_lock;    /* for access to cached vattrs */
     void *e_extension;           /* A list of entry object extensions */
@@ -2177,18 +2166,6 @@ typedef struct _slapdEntryPoints {
 #define CFG_UNLOCK_READ(cfg)  slapi_rwlock_unlock(cfg->cfg_rwlock)
 #define CFG_LOCK_WRITE(cfg)   slapi_rwlock_wrlock(cfg->cfg_rwlock)
 #define CFG_UNLOCK_WRITE(cfg) slapi_rwlock_unlock(cfg->cfg_rwlock)
-#endif
-
-#ifdef ATOMIC_GETSET_ONOFF
-#define CFG_ONOFF_LOCK_READ(cfg)
-#define CFG_ONOFF_UNLOCK_READ(cfg)
-#define CFG_ONOFF_LOCK_WRITE(cfg)
-#define CFG_ONOFF_UNLOCK_WRITE(cfg)
-#else
-#define CFG_ONOFF_LOCK_READ(cfg) CFG_LOCK_READ(cfg)
-#define CFG_ONOFF_UNLOCK_READ(cfg) CFG_UNLOCK_READ(cfg)
-#define CFG_ONOFF_LOCK_WRITE(cfg) CFG_LOCK_WRITE(cfg)
-#define CFG_ONOFF_UNLOCK_WRITE(cfg) CFG_UNLOCK_WRITE(cfg)
 #endif
 
 #define REFER_MODE_OFF 0 

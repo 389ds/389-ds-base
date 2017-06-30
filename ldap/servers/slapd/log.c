@@ -4914,14 +4914,14 @@ log__open_auditfaillogfile(int logfile_state, int locked)
 static LogBufferInfo *log_create_buffer(size_t sz)
 {
     LogBufferInfo *lbi;
-    
+
     lbi = (LogBufferInfo *) slapi_ch_malloc(sizeof(LogBufferInfo));
     lbi->top = (char *) slapi_ch_malloc(sz);
     lbi->current = lbi->top;
     lbi->maxsize = sz;
-	lbi->refcount = 0;
+    __atomic_store_8(&(lbi->refcount), 0, __ATOMIC_RELEASE);
     return lbi;
-}    
+}
 
 #if 0
 /* for some reason, we never call this. */
@@ -4981,7 +4981,7 @@ static void log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_
 	insert_point = lbi->current;
 	lbi->current += size;
 	/* Increment the copy refcount */
-	PR_AtomicIncrement(&(lbi->refcount));
+	__atomic_add_fetch_8(&(lbi->refcount), 1, __ATOMIC_RELEASE);
 	PR_Unlock(lbi->lock);
 
 	/* Now we can copy without holding the lock */
@@ -4989,7 +4989,7 @@ static void log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_
     memcpy(insert_point + size1, msg2, size2);
 	
 	/* Decrement the copy refcount */
-	PR_AtomicDecrement(&(lbi->refcount));
+	__atomic_sub_fetch_8(&(lbi->refcount), 1, __ATOMIC_RELEASE);
 	
 	/* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->accesslogbuffering) {
@@ -5009,7 +5009,7 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
     if (type == SLAPD_ACCESS_LOG) {
 
 		/* It is only safe to flush once any other threads which are copying are finished */
-		while (lbi->refcount > 0) {
+		while (__atomic_load_8(&(lbi->refcount), __ATOMIC_ACQUIRE) > 0) {
 			/* It's ok to sleep for a while because we only flush every second or so */
 			DS_Sleep (PR_MillisecondsToInterval(1));
 		} 

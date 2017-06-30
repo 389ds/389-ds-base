@@ -207,7 +207,7 @@ void be_unbindall( Connection *conn, Operation *op);
 int be_nbackends_public(void);
 void g_incr_active_threadcnt(void);
 void g_decr_active_threadcnt(void);
-int g_get_active_threadcnt(void);
+uint64_t g_get_active_threadcnt(void);
 
 /*
  * bind.c

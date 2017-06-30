@@ -43,7 +43,7 @@ typedef struct _ps_entry_queue_node {
 typedef struct _psearch {
     Slapi_PBlock	*ps_pblock;
     PRLock		*ps_lock;
-    PRInt32		ps_complete;
+    uint64_t    ps_complete;
     PSEQNode		*ps_eq_head;
     PSEQNode		*ps_eq_tail;
     time_t		ps_lasttime;
@@ -134,7 +134,7 @@ ps_stop_psearch_system()
 	if ( PS_IS_INITIALIZED()) {
 		PSL_LOCK_WRITE();
 		for ( ps = psearch_list->pl_head; NULL != ps; ps = ps->ps_next ) {
-			PR_AtomicIncrement( &ps->ps_complete );
+			__atomic_add_fetch_8(&(ps->ps_complete), 1, __ATOMIC_RELEASE);
 		}
 		PSL_UNLOCK_WRITE();
 		ps_wakeup_all();
@@ -286,7 +286,7 @@ ps_send_results( void *arg )
 
     PR_Lock( psearch_list->pl_cvarlock );
 
-    while ( (conn_acq_flag == 0) && !ps->ps_complete ) {
+    while ( (conn_acq_flag == 0) && __atomic_load_8(&(ps->ps_complete), __ATOMIC_ACQUIRE) == 0) {
     /* Check for an abandoned operation */
     if ( pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
         slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
@@ -440,7 +440,7 @@ psearch_alloc(void)
 	slapi_ch_free((void **)&ps);
 	return( NULL );
     }
-    ps->ps_complete = 0;
+    __atomic_store_8(&(ps->ps_complete), 0, __ATOMIC_RELEASE);
     ps->ps_eq_head = ps->ps_eq_tail = (PSEQNode *) NULL;
     ps->ps_lasttime = (time_t) 0L;
     ps->ps_next = NULL;
