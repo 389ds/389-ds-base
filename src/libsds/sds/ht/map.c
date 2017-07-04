@@ -11,7 +11,7 @@
 sds_result
 sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *ht_ptr, sds_ht_node *node))
 {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     //verify instance
     if (sds_ht_crc32c_verify_instance(ht_ptr) != SDS_SUCCESS) {
         sds_log("sds_ht_map_nodes", "ht_ptr failed verification");
@@ -25,7 +25,7 @@ sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *
     sds_ht_node *work_node = ht_ptr->root;
     // while node is true
     while (work_node != NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (sds_ht_crc32c_verify_node(work_node) != SDS_SUCCESS) {
             sds_log("sds_ht_map_nodes", "ht_node_%p failed verification", work_node);
             result = SDS_CHECKSUM_FAILURE;
@@ -44,7 +44,7 @@ sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *
         sds_result internal_result = map_fn(ht_ptr, work_node);
         if (internal_result != SDS_SUCCESS) {
             result = internal_result;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_ht_map_nodes", "Encountered an issue with ht_node_%p: %d\n", work_node, internal_result);
             goto out;
 #endif
@@ -56,7 +56,9 @@ sds_ht_map_nodes(sds_ht_instance *ht_ptr, sds_result (*map_fn)(sds_ht_instance *
         }
     }
 
+#ifdef SDS_DEBUG
 out:
+#endif
     sds_queue_destroy(node_q);
     return result;
 

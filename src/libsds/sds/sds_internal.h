@@ -27,6 +27,8 @@
 
 #define SDS_CACHE_ALIGNMENT 64
 
+#ifdef SDS_DEBUG
 void sds_log(char *id, char *msg, ...);
+#endif
 
 

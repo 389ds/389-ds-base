@@ -12,7 +12,7 @@
 void
 sds_bptree_cow_root_insert(sds_bptree_transaction *btxn, sds_bptree_node *left_node, sds_bptree_node *right_node, void *key)
 {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_root_insert", "left_node %p, key %d, right_node %p", left_node, key, right_node);
 #endif
     // Just make the new root, add the nodes, and update the root in the txn.
@@ -32,7 +32,7 @@ sds_bptree_cow_root_insert(sds_bptree_transaction *btxn, sds_bptree_node *left_n
     right_node->parent = root_node; */
     btxn->root = root_node;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->bi->offline_checksumming) {
         sds_bptree_crc32c_update_node(root_node);
         sds_bptree_crc32c_update_node(left_node);
@@ -53,7 +53,7 @@ sds_bptree_cow_leaf_node_insert(sds_bptree_transaction *btxn, sds_bptree_node *l
     sds_bptree_node *parent_node = lnode->parent;
     void *next_key = key;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_leaf_node_insert", "parent_node %p, left_node %p, key %d, right_node %p", parent_node, left_node, key, next_right_node);
 #endif
 
@@ -109,7 +109,7 @@ sds_bptree_cow_leaf_node_insert(sds_bptree_transaction *btxn, sds_bptree_node *l
 void
 sds_bptree_cow_leaf_split_and_insert(sds_bptree_transaction *btxn, sds_bptree_node *left_node, void *key, void *value)
 {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_leaf_split_and_insert", "left_node %p, key %d, right_node TBA", left_node, key);
 #endif
     void *next_key = NULL;
@@ -130,14 +130,14 @@ sds_bptree_cow_leaf_split_and_insert(sds_bptree_transaction *btxn, sds_bptree_no
     }
 
     if (btxn->bi->key_cmp_fn(key, right_node->keys[0]) >= 1) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (btxn->bi->offline_checksumming) {
             sds_bptree_crc32c_update_node(left_node);
         }
 #endif
         sds_bptree_leaf_insert(btxn->bi, right_node, key, value);
     } else {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (btxn->bi->offline_checksumming) {
             sds_bptree_crc32c_update_node(right_node);
         }

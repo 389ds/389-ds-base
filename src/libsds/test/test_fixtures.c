@@ -49,7 +49,7 @@ bptree_test_teardown(void **state)
 
     result = sds_bptree_verify(binst);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (result != SDS_SUCCESS) {
         sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
     }
@@ -130,7 +130,7 @@ bptree_test_cow_teardown(void **state)
 
     result = sds_bptree_cow_verify(binst);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (result != SDS_SUCCESS) {
         sds_log("bptree_test_teardown", "FAIL: B+Tree COW verification failed %d binst", result);
     }

@@ -12,7 +12,7 @@
 #include "../sds_internal.h"
 #include <sds.h>
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
 sds_result sds_bptree_crc32c_verify_instance(sds_bptree_instance *binst);
 void sds_bptree_crc32c_update_instance(sds_bptree_instance *binst);
 sds_result sds_bptree_crc32c_verify_node(sds_bptree_node *node);

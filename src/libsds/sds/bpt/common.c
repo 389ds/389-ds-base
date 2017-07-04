@@ -20,7 +20,7 @@ sds_bptree_node_create() {
     node->parent = NULL;
     node->txn_id = 0;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_node_create", "Creating node_%p item_count=%d\n", node, node->item_count);
 #endif
 
@@ -30,7 +30,7 @@ sds_bptree_node_create() {
 
 sds_result
 sds_bptree_node_destroy(sds_bptree_instance *binst, sds_bptree_node *node) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_node_destroy", "Freeing node_%p", node);
 #endif
     for (size_t i = 0; i < node->item_count; i += 1) {
@@ -45,7 +45,7 @@ sds_bptree_node_destroy(sds_bptree_instance *binst, sds_bptree_node *node) {
 
     sds_free(node);
     // Since we updated the node id.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     // binst->node_count -= 1;
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_instance(binst);
@@ -97,7 +97,7 @@ sds_bptree_node_node_index(sds_bptree_node *parent, sds_bptree_node *child) {
 // How can we make this handle errors safely?
 void
 sds_bptree_node_node_replace(sds_bptree_node *target_node, sds_bptree_node *origin_node, sds_bptree_node *replace_node) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_node_node_replace", "Replace node_%p to overwrite node_%p in node_%p\n", origin_node, replace_node, target_node);
 #endif
     size_t index = sds_bptree_node_node_index(target_node, origin_node);
@@ -180,7 +180,7 @@ sds_bptree_node_list_to_tree(sds_bptree_instance *binst, sds_bptree_node *node) 
     void *next_key = NULL;
 
     binst->root = node;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(node);
         sds_bptree_crc32c_update_instance(binst);
@@ -201,7 +201,7 @@ sds_bptree_node_list_to_tree(sds_bptree_instance *binst, sds_bptree_node *node) 
 void
 sds_bptree_leaf_insert(sds_bptree_instance *binst, sds_bptree_node *node, void *key, void *new_value) {
     /* This is called when you know you have space already */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_leaf_insert", "node_%p key %" PRIu64 " ", node, key);
 #endif
     size_t index = sds_bptree_node_key_lt_index(binst->key_cmp_fn, node, key);
@@ -218,7 +218,7 @@ sds_bptree_leaf_insert(sds_bptree_instance *binst, sds_bptree_node *node, void *
     node->item_count = node->item_count + 1;
 
     // Update the checksum.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(node);
     }
@@ -300,7 +300,7 @@ sds_bptree_insert_leaf_node(sds_bptree_instance *binst, sds_bptree_node *tnode, 
 void
 sds_bptree_branch_insert(sds_bptree_instance *binst, sds_bptree_node *node, void *key, sds_bptree_node *new_node) {
     /* Remember, we already checked for duplicate keys! */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_branch_insert", "new_node %p key %" PRIu64 " to node %p", new_node, key, node);
 #endif
 
@@ -334,7 +334,7 @@ sds_bptree_branch_insert(sds_bptree_instance *binst, sds_bptree_node *node, void
     new_node->parent = node;
 
     // Update the checksum.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(node);
         sds_bptree_crc32c_update_node(new_node);
@@ -346,7 +346,7 @@ sds_bptree_branch_insert(sds_bptree_instance *binst, sds_bptree_node *node, void
 void
 sds_bptree_leaf_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *left_node, sds_bptree_node *right_node, void *key, void *new_value) {
     /* Remember, we already checked for duplicate keys! */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_leaf_split_and_insert", "left %p -> right %p key %" PRIu64 " ", left_node, right_node, key);
 #endif
 
@@ -373,7 +373,7 @@ sds_bptree_leaf_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *le
     if (binst->key_cmp_fn(key, right_node->keys[0]) >= 1) {
         /* Insert to the right */
         // Update the checksum.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (binst->offline_checksumming) {
             sds_bptree_crc32c_update_node(left_node);
         }
@@ -382,7 +382,7 @@ sds_bptree_leaf_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *le
     } else {
         /* Insert to the left */
         // Update the checksum.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (binst->offline_checksumming) {
             sds_bptree_crc32c_update_node(right_node);
         }
@@ -396,7 +396,7 @@ sds_bptree_branch_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *
     /* !!!!! STARTING TO CHANGE THE NODE !!!!!! */
     /*  Right node is always new! */
     sds_bptree_node *rchild = NULL;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_branch_split_and_insert", "left %p -> right %p key %" PRIu64 "", left_node, right_node, key);
 #endif
 
@@ -413,7 +413,7 @@ sds_bptree_branch_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *
         rchild = (sds_bptree_node *)right_node->values[i + 1];
         rchild->parent = right_node;
         right_node->item_count += 1;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (binst->offline_checksumming) {
             sds_bptree_crc32c_update_node(rchild);
         }
@@ -427,7 +427,7 @@ sds_bptree_branch_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *
     right_node->values[0] = left_node->values[SDS_BPTREE_HALF_CAPACITY];
     rchild = (sds_bptree_node *)right_node->values[0];
     rchild->parent = right_node;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(rchild);
     }
@@ -438,14 +438,14 @@ sds_bptree_branch_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *
      * it up the tree at this point. No need to dup!
      */
     *excluded_key = left_node->keys[SDS_BPTREE_HALF_CAPACITY - 1];
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_branch_split_and_insert", "excluding %d", *excluded_key);
 #endif
     left_node->keys[SDS_BPTREE_HALF_CAPACITY - 1] = NULL;
     left_node->item_count -= 1;
 
     if (binst->key_cmp_fn(key, *excluded_key) < 0) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (binst->offline_checksumming) {
             sds_bptree_crc32c_update_node(right_node);
         }
@@ -453,7 +453,7 @@ sds_bptree_branch_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *
         /* Now trigger the insert to the left node. */
         sds_bptree_branch_insert(binst, left_node, key, new_node);
     } else {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (binst->offline_checksumming) {
             sds_bptree_crc32c_update_node(left_node);
         }
@@ -465,7 +465,7 @@ sds_bptree_branch_split_and_insert(sds_bptree_instance *binst, sds_bptree_node *
 
 void
 sds_bptree_root_insert(sds_bptree_instance *binst, sds_bptree_node *left_node, sds_bptree_node *right_node, void *key) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_root_insert", "left_node %p, key %d, right_node %p", left_node, key, right_node);
 #endif
     sds_bptree_node *root_node = sds_bptree_node_create();
@@ -486,7 +486,7 @@ sds_bptree_root_insert(sds_bptree_instance *binst, sds_bptree_node *left_node, s
     right_node->parent = root_node;
     binst->root = root_node;
     // Update the checksum.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(root_node);
         sds_bptree_crc32c_update_node(left_node);
@@ -498,7 +498,7 @@ sds_bptree_root_insert(sds_bptree_instance *binst, sds_bptree_node *left_node, s
 
 void
 sds_bptree_leaf_delete(sds_bptree_instance *binst, sds_bptree_node *node, void *key) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_leaf_delete", "deleting %d from %p", key, node);
 #endif
     /* Find the value */
@@ -522,7 +522,7 @@ sds_bptree_leaf_delete(sds_bptree_instance *binst, sds_bptree_node *node, void *
     node->keys[index] = NULL;
     node->values[index] = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(node);
     }
@@ -544,7 +544,7 @@ sds_bptree_leaf_compact(sds_bptree_instance *binst, sds_bptree_node *left, sds_b
     right->item_count = 0;
     sds_bptree_node_destroy(binst, right);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
     }
@@ -557,7 +557,7 @@ sds_bptree_leaf_right_borrow(sds_bptree_instance *binst, sds_bptree_node *left, 
     left->keys[left->item_count] = right->keys[0];
     left->values[left->item_count] = right->values[0];
     left->item_count += 1;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     assert(right->item_count > 0);
 #endif
     for (size_t i = 0; i < (size_t)(right->item_count - 1); i++) {
@@ -568,7 +568,7 @@ sds_bptree_leaf_right_borrow(sds_bptree_instance *binst, sds_bptree_node *left, 
     right->keys[right->item_count] = NULL;
     right->values[right->item_count] = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
         sds_bptree_crc32c_update_node(right);
@@ -590,7 +590,7 @@ sds_bptree_leaf_left_borrow(sds_bptree_instance *binst, sds_bptree_node *left, s
     left->keys[left->item_count] = NULL;
     left->values[left->item_count] = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
         sds_bptree_crc32c_update_node(right);
@@ -604,7 +604,7 @@ sds_bptree_root_promote(sds_bptree_instance *binst, sds_bptree_node *root) {
     binst->root = (sds_bptree_node *)root->values[0];
     sds_bptree_node_destroy(binst, root);
     binst->root->parent = NULL;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(binst->root);
         sds_bptree_crc32c_update_instance(binst);
@@ -632,7 +632,7 @@ sds_bptree_branch_delete(sds_bptree_instance *binst, sds_bptree_node *node, sds_
     node->keys[node->item_count] = NULL;
     node->values[node->item_count + 1] = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(node);
     }
@@ -674,7 +674,7 @@ sds_bptree_branch_key_fixup(sds_bptree_instance *binst, sds_bptree_node *parent,
     binst->key_free_fn(parent->keys[index]);
     parent->keys[index] = binst->key_dup_fn(sds_bptree_node_leftmost_child_key(child));
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(parent);
     }
@@ -690,7 +690,7 @@ sds_bptree_branch_compact(sds_bptree_instance *binst, sds_bptree_node *left, sds
 
     rchild = (sds_bptree_node *)right->values[0];
     rchild->parent = left;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(rchild);
     }
@@ -704,7 +704,7 @@ sds_bptree_branch_compact(sds_bptree_instance *binst, sds_bptree_node *left, sds
         left->keys[left->item_count] = right->keys[i];
         rchild = (sds_bptree_node *)right->values[i + 1];
         rchild->parent = left;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (binst->offline_checksumming) {
             sds_bptree_crc32c_update_node(rchild);
         }
@@ -718,7 +718,7 @@ sds_bptree_branch_compact(sds_bptree_instance *binst, sds_bptree_node *left, sds
     right->item_count = 0;
     sds_bptree_node_destroy(binst, right);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
     }
@@ -736,7 +736,7 @@ sds_bptree_branch_right_borrow(sds_bptree_instance *binst, sds_bptree_node *left
     rchild->parent = left;
     left->values[left->item_count + 1] = rchild;
     left->item_count += 1;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     assert(right->item_count > 0);
 #endif
     for (size_t i = 0; i < (size_t)(right->item_count - 1); i++) {
@@ -748,7 +748,7 @@ sds_bptree_branch_right_borrow(sds_bptree_instance *binst, sds_bptree_node *left
     right->item_count -= 1;
     right->keys[right->item_count] = NULL;
     right->values[right->item_count + 1] = NULL;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
         sds_bptree_crc32c_update_node(right);
@@ -782,7 +782,7 @@ sds_bptree_branch_left_borrow(sds_bptree_instance *binst, sds_bptree_node *left,
     binst->key_free_fn(left->keys[left->item_count]);
     left->keys[left->item_count] = NULL;
     left->values[left->item_count + 1] = NULL;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
         sds_bptree_crc32c_update_node(right);

@@ -97,13 +97,13 @@ uint64_t sds_siphash13(const void *src, size_t src_sz, const char key[16]) {
     uint8_t *m = (uint8_t *)in;
 
     switch (src_sz) {
-        case 7: pt[6] = m[6];
-        case 6: pt[5] = m[5];
-        case 5: pt[4] = m[4];
+        case 7: pt[6] = m[6]; /* FALLTHRU */
+        case 6: pt[5] = m[5]; /* FALLTHRU */
+        case 5: pt[4] = m[4]; /* FALLTHRU */
         case 4: *((uint32_t*)&pt[0]) = *((uint32_t*)&m[0]); break;
-        case 3: pt[2] = m[2];
-        case 2: pt[1] = m[1];
-        case 1: pt[0] = m[0];
+        case 3: pt[2] = m[2]; /* FALLTHRU */
+        case 2: pt[1] = m[1]; /* FALLTHRU */
+        case 1: pt[0] = m[0]; /* FALLTHRU */
     }
     b |= _le64toh(t);
 

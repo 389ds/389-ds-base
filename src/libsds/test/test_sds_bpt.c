@@ -9,14 +9,16 @@
 
 #include "test_sds.h"
 
-#ifdef DEBUG_TEST_ASAN
+#ifdef SDS_DEBUG_TEST_ASAN
 static void
 test_asan_overflow(void)
 {
     char *test = sds_malloc(4 * sizeof(char));
     test[100] = 'a';
     // At this point, ASAN should explode.
+#ifdef SDS_DEBUG
     sds_log("test_asan", "FAIL: This should not be possible!");
+#endif
 }
 
 static void
@@ -192,7 +194,7 @@ test_11_tamper_with_node(void **state __attribute__((unused))) {
 
     binst->root->keys[0] = (void *)1;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     result = sds_bptree_verify(binst);
     assert_int_equal(result, SDS_CHECKSUM_FAILURE);
 #endif
@@ -214,18 +216,22 @@ test_12_insert_fill_split_and_grow(void **state) {
         assert_int_equal(result, SDS_SUCCESS);
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
     }
 
     for (uint64_t i = 0; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) ; i++) {
         uint64_t ti = i + 2;
         result = sds_bptree_search(binst, (void *)&ti);
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not find %d", ti);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
 
@@ -244,18 +250,22 @@ test_13_insert_fill_split_and_grow_inverse(void **state) {
         assert_int_equal(result, SDS_SUCCESS);
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
     }
 
     for (uint64_t i = ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) + 1; i > 0  ; i--) {
         uint64_t ti = i + 2;
         result = sds_bptree_search(binst, (void *)&ti);
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not find %d", ti);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
 }
@@ -272,9 +282,11 @@ test_14_insert_random(void **state) {
 
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
 
     }
@@ -282,9 +294,11 @@ test_14_insert_random(void **state) {
 
     for (uint64_t i = 0; i < 200 ; i++) {
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not find %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
 }
@@ -491,9 +505,11 @@ test_22_delete_redist_right_leaf(void **state)
 
     result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
     if (result != SDS_SUCCESS) {
         sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
     }
+#endif
     assert_int_equal(result, SDS_SUCCESS);
 
     /* Next delete */
@@ -502,9 +518,11 @@ test_22_delete_redist_right_leaf(void **state)
 
     result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
     if (result != SDS_SUCCESS) {
         sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
     }
+#endif
     assert_int_equal(result, SDS_SUCCESS);
 
 }
@@ -751,9 +769,11 @@ test_28_insert_and_delete_random(void **state) {
 
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
 
     }
@@ -761,28 +781,36 @@ test_28_insert_and_delete_random(void **state) {
 
     for (uint64_t i = 0; i < 200 ; i++) {
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not find %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
 
         result = sds_bptree_delete(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not delete %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
 
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_NOT_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can find %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_NOT_PRESENT);
 
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
 
     }
@@ -800,36 +828,46 @@ test_29_insert_and_delete_random_large(void **state) {
 
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
 
     }
     for (uint64_t i = 0; i < 2048 ; i++) {
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not find %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
 
         result = sds_bptree_delete(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can not delete %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_PRESENT);
 
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
+#ifdef SDS_DEBUG
         if (result != SDS_KEY_NOT_PRESENT) {
             sds_log("bptree_test_teardown", "FAIL: Can find %d", fill_pattern[i]);
         }
+#endif
         assert_int_equal(result, SDS_KEY_NOT_PRESENT);
 
         result = sds_bptree_verify(binst);
 
+#ifdef SDS_DEBUG
         if (result != SDS_SUCCESS) {
             sds_log("bptree_test_teardown", "FAIL: B+Tree verification failed %d binst", result);
         }
+#endif
         assert_int_equal(result, SDS_SUCCESS);
     }
 }
@@ -876,11 +914,11 @@ int
 run_bpt_tests (void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_1_invalid_binst_ptr),
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         cmocka_unit_test(test_10_tamper_with_inst),
         cmocka_unit_test(test_11_tamper_with_node),
 #endif
-#ifdef DEBUG_TEST_ASAN
+#ifdef SDS_DEBUG_TEST_ASAN
         cmocka_unit_test_setup_teardown(test_17_insert_and_tamper,
                                         bptree_test_setup,
                                         bptree_test_teardown),

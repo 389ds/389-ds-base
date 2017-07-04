@@ -18,7 +18,7 @@ sds_result sds_bptree_cow_txn_destroy_all(sds_bptree_cow_instance *binst);
 
 /* Verification */
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
 sds_result sds_bptree_crc32c_verify_cow_instance(sds_bptree_cow_instance *binst);
 void sds_bptree_crc32c_update_cow_instance(sds_bptree_cow_instance *binst);
 sds_result sds_bptree_crc32c_verify_btxn(sds_bptree_transaction *btxn);

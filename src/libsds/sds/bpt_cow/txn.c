@@ -55,7 +55,7 @@ sds_bptree_txn_create(sds_bptree_cow_instance *binst) {
     // Atomically set this to 0.
     __atomic_and_fetch(&(btxn->reference_count), 0, __ATOMIC_SEQ_CST);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     // Update our needed checksums
     if (binst->bi->offline_checksumming) {
         sds_bptree_crc32c_update_btxn(btxn);
@@ -78,13 +78,13 @@ sds_bptree_txn_create(sds_bptree_cow_instance *binst) {
 // Should be caled by txn decrement.
 static void
 sds_bptree_txn_free(sds_bptree_transaction *btxn) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_txn_free", "        Freeing READ txn_%p rc %d", btxn, btxn->reference_count);
 #endif
     sds_bptree_node *target_node = sds_bptree_node_list_pop(&(btxn->owned));
     // This frees only the nodes *related* to this txn.
     while (target_node != NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_bptree_txn_free", "        READ txn_%p owned node node_%p", btxn, target_node);
 #endif
         sds_bptree_node_destroy(btxn->binst->bi, target_node);
@@ -92,7 +92,7 @@ sds_bptree_txn_free(sds_bptree_transaction *btxn) {
         target_node = sds_bptree_node_list_pop(&(btxn->owned));
     }
     sds_free(btxn);
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_txn_free", "        Freed READ txn");
 #endif
 }
@@ -111,7 +111,7 @@ sds_bptree_txn_increment(sds_bptree_transaction *btxn) {
     __atomic_add_fetch(&(btxn->reference_count), 1, __ATOMIC_SEQ_CST);
 
     // PR_AtomicIncrement(&(btxn->reference_count));
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->binst->bi->offline_checksumming) {
         sds_bptree_crc32c_update_btxn(btxn);
     }
@@ -129,7 +129,7 @@ sds_bptree_txn_increment(sds_bptree_transaction *btxn) {
 
 static void
 sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_txn_decrement", "    txn_%p %d - 1", btxn, btxn->reference_count );
 #endif
     sds_bptree_cow_instance *binst = btxn->binst;
@@ -140,7 +140,7 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
     /* WARNING: After this point, another thread MAY free btxn under us.
      * You MUST *not* deref btxn after this point.
      */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_txn_decrement", "                        == %d", result );
     /* WARNING: This *may* in some cases trigger a HUAF ... 
      * Is this reason to ditch the checksum of the txn, or to make a txn lock?
@@ -152,7 +152,7 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
     // If the counter is 0 && we are the tail transaction.
     if (result == 0) {
         while (result == 0 && btxn != NULL && btxn == binst->tail_txn) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_txn_decrement", "    txn_%p has reached 0, and is at the tail, vacuumming!", btxn);
 #endif
             binst->tail_txn = btxn->child_txn;
@@ -169,7 +169,7 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
             }
         }
     }
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn != NULL) {
         sds_log("sds_bptree_txn_decrement", "    txn_%p is at count %d, and is at the tail, NOT vacuumming!", btxn, result);
     } else {
@@ -177,7 +177,7 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
     }
 #endif
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     // Update our needed checksums
     if (binst->bi->offline_checksumming) {
         sds_bptree_crc32c_update_cow_instance(binst);
@@ -199,7 +199,7 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
 sds_result
 sds_bptree_cow_rotxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transaction **btxn) {
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_result result = SDS_SUCCESS;
     if (binst->bi->offline_checksumming) {
         result = sds_bptree_crc32c_verify_cow_instance(binst);
@@ -224,7 +224,7 @@ sds_bptree_cow_rotxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transactio
     }
     /* Unlock */
     pthread_rwlock_unlock(binst->read_lock);
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (*btxn != NULL) {
         sds_log("sds_bptree_cow_rotxn_begin", "==> Beginning READ txn_%p rc %d", *btxn, (*btxn)->reference_count);
     } else {
@@ -252,7 +252,7 @@ sds_bptree_cow_rotxn_close(sds_bptree_transaction **btxn) {
         return SDS_INVALID_TXN;
     }
     /* Decrement the counter */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_rotxn_close", "==> Closing READ txn_%p rc %d - 1", *btxn, (*btxn)->reference_count);
 #endif
     sds_bptree_txn_decrement(*btxn);
@@ -271,7 +271,7 @@ sds_bptree_cow_rotxn_close(sds_bptree_transaction **btxn) {
  */
 
 sds_result sds_bptree_cow_wrtxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transaction **btxn) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_result result = SDS_SUCCESS;
     if (binst->bi->offline_checksumming) {
         result = sds_bptree_crc32c_verify_cow_instance(binst);
@@ -289,7 +289,7 @@ sds_result sds_bptree_cow_wrtxn_begin(sds_bptree_cow_instance *binst, sds_bptree
     // Create the txn
     *btxn = sds_bptree_txn_create(binst);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_wrtxn_begin", "==> Beginning WRITE txn_%p", *btxn);
 #endif
 
@@ -313,7 +313,7 @@ sds_result sds_bptree_cow_wrtxn_abort(sds_bptree_transaction **btxn) {
     (*btxn)->state = SDS_TXN_READ;
     // Unlock the write lock.
     pthread_mutex_unlock((*btxn)->binst->write_lock);
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_wrtxn_abort", "==> Aborting WRITE txn_%p", *btxn);
 #endif
     // Free and *remove* the list of nodes that we created, they are irrelevant!
@@ -345,14 +345,14 @@ sds_result sds_bptree_cow_wrtxn_commit(sds_bptree_transaction **btxn) {
     if (btxn == NULL || *btxn == NULL) {
         return SDS_INVALID_TXN;
     }
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_wrtxn_commit", "==> Committing WRITE txn_%p", *btxn);
 #endif
 
     // This prevents a huaf in decrement at the tail of this fn
     sds_bptree_transaction *parent_txn = (*btxn)->parent_txn;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_result result = SDS_SUCCESS;
     if ((*btxn)->binst->bi->offline_checksumming) {
         result = sds_bptree_crc32c_verify_btxn(*btxn);
@@ -393,7 +393,7 @@ sds_result sds_bptree_cow_wrtxn_commit(sds_bptree_transaction **btxn) {
     (*btxn)->binst->txn = *btxn;
     // Update our parent to reference us.
     parent_txn->child_txn = *btxn;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     // Update our needed checksums
     if ((*btxn)->binst->bi->offline_checksumming) {
         sds_bptree_crc32c_update_cow_instance((*btxn)->binst);
@@ -452,7 +452,7 @@ sds_bptree_cow_txn_destroy_all(sds_bptree_cow_instance *binst)
     }
     pthread_rwlock_unlock(binst->read_lock);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     // Update our needed checksums
     if (binst->bi->offline_checksumming) {
         sds_bptree_crc32c_update_cow_instance(binst);

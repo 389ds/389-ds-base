@@ -10,6 +10,28 @@
 #include "../sds_internal.h"
 #include <sds.h>
 
+/*
+ * sds_log
+ *
+ * This allows us to write a log message to an output.
+ * Similar to malloc, by defining this, we can change the impl later.
+ */
+#ifndef SDS_DEBUG
+static void
+#else
+void
+#endif
+__attribute__((format (printf, 2 , 3)))
+sds_log(char *id, char *msg, ...) {
+    printf("%s: ", id);
+    va_list subs;
+    va_start(subs, msg);
+    vprintf(msg, subs);
+    va_end(subs);
+    printf("\n");
+    return;
+}
+
 /* uint64_t as a key functions. */
 
 int64_t
@@ -26,7 +48,7 @@ sds_uint64_t_compare(void *a, void *b) {
 
 void *
 sds_uint64_t_dup(void *key) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_uint64_t_dup", "dup %" PRIu64" ", key);
 #endif
     uint64_t *newkey = sds_malloc(sizeof(uint64_t));
@@ -37,7 +59,7 @@ sds_uint64_t_dup(void *key) {
 void
 sds_uint64_t_free(void *key) {
     uint64_t *ukey = key;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_uint64_t_free", "freeing %" PRIu64"  @ %p", *ukey, key);
 #endif
     sds_free(ukey);
@@ -60,23 +82,6 @@ sds_strdup(void *key) {
     return (void *)strdup((const char *)key);
 }
 
-
-/*
- * sds_log
- *
- * This allows us to write a log message to an output.
- * Similar to malloc, by defining this, we can change the impl later.
- */
-void
-sds_log(char *id, char *msg, ...) {
-    printf("%s: ", id);
-    va_list subs;
-    va_start(subs, msg);
-    vprintf(msg, subs);
-    va_end(subs);
-    printf("\n");
-    return;
-}
 
 /*
  * sds_malloc

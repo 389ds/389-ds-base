@@ -18,7 +18,7 @@ sds_ht_init(sds_ht_instance **ht_ptr,
             )
 {
     if (ht_ptr == NULL ) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_ht_init", "Invalid pointer");
 #endif
         return SDS_NULL_POINTER;
@@ -34,7 +34,7 @@ sds_ht_init(sds_ht_instance **ht_ptr,
 
     (*ht_ptr)->root = sds_ht_node_create();
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     (*ht_ptr)->root->depth = 15;
     sds_ht_crc32c_update_node((*ht_ptr)->root);
     sds_ht_crc32c_update_instance(*ht_ptr);
@@ -50,7 +50,7 @@ sds_ht_destroy(sds_ht_instance *ht_ptr)
         return SDS_NULL_POINTER;
     }
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (sds_ht_crc32c_verify_instance(ht_ptr) != SDS_SUCCESS) {
         return SDS_CHECKSUM_FAILURE;
     }
@@ -58,7 +58,7 @@ sds_ht_destroy(sds_ht_instance *ht_ptr)
     // Free the tree
     sds_result result = sds_ht_map_nodes(ht_ptr, sds_ht_node_destroy);
     if (result != SDS_SUCCESS) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_ht_destroy", "Failed to destroy instance %d\n", result);
 #endif
         return result;

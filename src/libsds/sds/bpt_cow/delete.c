@@ -39,7 +39,7 @@ sds_bptree_cow_leaf_compact(sds_bptree_transaction *btxn, sds_bptree_node *left,
      */
     sds_bptree_node_list_push(&(btxn->owned), right);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->bi->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
         // Update this becuase we are updating the owned node lists.
@@ -70,7 +70,7 @@ sds_bptree_cow_branch_compact(sds_bptree_transaction *btxn, sds_bptree_node *lef
 
     sds_bptree_node_list_push(&(btxn->owned), right);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->bi->offline_checksumming) {
         sds_bptree_crc32c_update_node(left);
         // Update this becuase we are updating the owned node lists.
@@ -86,7 +86,7 @@ sds_bptree_cow_root_promote(sds_bptree_transaction *btxn, sds_bptree_node *root)
     btxn->root = (sds_bptree_node *)root->values[0];
     sds_bptree_node_list_push(&(btxn->owned), root);
     btxn->root->parent = NULL;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->bi->offline_checksumming) {
         sds_bptree_crc32c_update_node(btxn->root);
         sds_bptree_crc32c_update_btxn(btxn);

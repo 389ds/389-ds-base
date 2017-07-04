@@ -426,7 +426,7 @@ typedef struct _sds_bptree_transaction {
  * and leaves of the structure.
  */
 typedef struct _sds_bptree_node {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     /**
      * checksum of the structure data to detect errors. Must be the first element
      * in the struct.
@@ -1367,7 +1367,7 @@ typedef struct _sds_ht_node {
     uint32_t checksum;
     uint64_t txn_id;
     uint_fast32_t count;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     uint64_t depth;
 #endif
     struct _sds_ht_node *parent;

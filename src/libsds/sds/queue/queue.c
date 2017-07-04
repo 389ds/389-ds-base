@@ -15,7 +15,7 @@
 sds_result
 sds_queue_init(sds_queue **q_ptr, void (*value_free_fn)(void *value)) {
     if (q_ptr == NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_queue_init", "Invalid p_ptr");
 #endif
         return SDS_NULL_POINTER;
@@ -31,11 +31,11 @@ sds_queue_init(sds_queue **q_ptr, void (*value_free_fn)(void *value)) {
 
 sds_result
 sds_queue_enqueue(sds_queue *q, void *elem) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_queue_dequeue", "Queue %p - <== enqueuing", q);
 #endif
     sds_queue_node *node = sds_malloc(sizeof(sds_queue_node));
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_queue_enqueue", "Queue %p - Queueing ptr %p to %p", q, elem, node);
 #endif
     node->element = elem;
@@ -45,13 +45,13 @@ sds_queue_enqueue(sds_queue *q, void *elem) {
         q->tail->next = node;
     } else {
         /* If tail is null, head must ALSO be null. */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_queue_enqueue", "Queue %p - empty, adding %p to head and tail", q, node);
 #endif
         q->head = node;
     }
     q->tail = node;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_queue_enqueue", "Queue %p - complete head: %p tail: %p", q, q->head, q->tail);
 #endif
     return SDS_SUCCESS;
@@ -61,17 +61,17 @@ sds_queue_enqueue(sds_queue *q, void *elem) {
 
 sds_result
 sds_queue_dequeue(sds_queue *q, void **elem) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_queue_dequeue", "Queue %p - ==> dequeuing", q);
 #endif
     if (elem == NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_queue_dequeue", "Queue %p - NULL pointer for **elem", q);
 #endif
         return SDS_NULL_POINTER;
     }
     if (q->head == NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_queue_dequeue", "Queue %p - queue exhausted.", q);
 #endif
         return SDS_LIST_EXHAUSTED;
@@ -86,7 +86,7 @@ sds_queue_dequeue(sds_queue *q, void **elem) {
     } else {
         q->head->prev = NULL;
     }
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_queue_dequeue", "Queue %p - complete head: %p tail: %p", q, q->head, q->tail);
 #endif
     return SDS_SUCCESS;
@@ -99,7 +99,7 @@ sds_queue_dequeue(sds_queue *q, void **elem) {
 
 sds_result
 sds_queue_destroy(sds_queue *q) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_queue_destroy", "Queue %p - destroying", q);
 #endif
     /* Map over the queue and free the elements. */
@@ -108,7 +108,7 @@ sds_queue_destroy(sds_queue *q) {
     while (node != NULL) {
         next = node->next;
         if (q->value_free_fn != NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_queue_destroy", "Queue %p - implicitly freeing %p", q, node->element);
 #endif
             q->value_free_fn(node->element);

@@ -10,7 +10,7 @@
 #include "bpt_cow.h"
 
 /* Node checksumming functions. */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
 sds_result
 sds_bptree_crc32c_verify_btxn(sds_bptree_transaction *btxn) {
     uint32_t checksum = sds_crc32c(0, (const unsigned char *)btxn + sizeof(uint32_t), sizeof(sds_bptree_transaction) - sizeof(uint32_t));
@@ -64,7 +64,7 @@ sds_bptree_crc32c_update_cow_instance(sds_bptree_cow_instance *binst) {
 sds_result
 sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
     // - verify the hash of the node metadata
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_node(node);
         if (result != SDS_SUCCESS) {
@@ -78,7 +78,9 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
     for (size_t i = 0; i < node->item_count; i++) {
         if (node->keys[i] == NULL)
         {
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_verify_node", "%d \n", node->item_count);
+#endif
             return SDS_INVALID_KEY;
         }
 
@@ -182,7 +184,7 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                         /* This checks that all left keys *and* their children are less */
                         int64_t result = binst->key_cmp_fn(lnode->keys[j], node->keys[i]);
                         if (result >= 0) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                             sds_log("sds_bptree_verify_node", "    fault is in node %p with left child %p", node, lnode);
 #endif
                             return SDS_INVALID_KEY_ORDER;
@@ -202,7 +204,7 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                         /* This checks that all right keys are greatr or equal and their children */
                         int64_t result = binst->key_cmp_fn(rnode->keys[j], node->keys[i]);
                         if (result < 0) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                             sds_log("sds_bptree_verify_node", "    fault is in node %p with right child %p", node, rnode);
 #endif
                             return SDS_INVALID_KEY_ORDER;

@@ -135,7 +135,7 @@ int64_t bptree_cow_read_complete(void **inst __attribute__((unused)), void *read
 int64_t bptree_cow_write_begin(void **inst, void **write_txn) {
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction **txn = (sds_bptree_transaction **)write_txn;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     assert_int_equal(sds_bptree_cow_verify(*binst), SDS_SUCCESS);
 #endif
     sds_bptree_cow_wrtxn_begin(*binst, txn);

@@ -82,7 +82,7 @@ typedef struct _sds_lqueue_gc {
 
 static void
 sds_lqueue_tprivate_cleanup(void *priv) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_lqueue_tprivate_cleanup", "Closing thread GC");
 #endif
     sds_lqueue_gc *gc = (sds_lqueue_gc *)priv;
@@ -99,11 +99,11 @@ sds_lqueue_tprivate_cleanup(void *priv) {
 
 sds_result
 sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_lqueue_init", "Creating lock free queue");
 #endif
     if (q_ptr == NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_lqueue_init", "Invalid q_ptr");
 #endif
         return SDS_NULL_POINTER;
@@ -114,7 +114,7 @@ sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
 
     /* Create the thread local storage for GC */
     if (PR_NewThreadPrivateIndex(&((*q_ptr)->gc_index), sds_lqueue_tprivate_cleanup) != PR_SUCCESS) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_lqueue_init", "Unable to create private index");
 #endif
         sds_free(*q_ptr);
@@ -148,7 +148,7 @@ sds_lqueue_tprep(sds_lqueue *q) {
 
 sds_result
 sds_lqueue_enqueue(sds_lqueue *q, void *elem) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_lqueue_enqueue", "<== lf Queue %p elem %p", q, elem);
 #endif
     struct lfds711_queue_umm_element *qe = sds_malloc(sizeof(struct lfds711_queue_umm_element));
@@ -159,7 +159,7 @@ sds_lqueue_enqueue(sds_lqueue *q, void *elem) {
 
 sds_result
 sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_lqueue_dequeue", "==> lf Queue %p elem %p", q, elem);
 #endif
     if (elem == NULL) {

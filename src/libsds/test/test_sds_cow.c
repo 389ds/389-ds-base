@@ -14,7 +14,7 @@
 #include "test_sds.h"
 
 // Predefine for now ...
-#ifdef DEBUG
+#ifdef SDS_DEBUG
 sds_result sds_bptree_cow_display(sds_bptree_transaction *btxn);
 #endif
 

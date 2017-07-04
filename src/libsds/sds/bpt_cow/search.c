@@ -22,7 +22,7 @@ sds_bptree_search_node_path(sds_bptree_transaction *btxn, void *key, sds_bptree_
     int64_t (*key_cmp_fn)(void *a, void *b) = btxn->bi->key_cmp_fn;
 
     /* We do this first, as we need the node to pass before we access it! */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->bi->search_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_btxn(btxn);
         if (result != SDS_SUCCESS) {
@@ -42,7 +42,7 @@ sds_bptree_search_node_path(sds_bptree_transaction *btxn, void *key, sds_bptree_
 branch_loop:
     while (target_node->level != 0) {
         target_node->parent = parent_node;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (btxn->bi->search_checksumming) {
             sds_bptree_crc32c_update_node(target_node);
         }
@@ -60,7 +60,7 @@ branch_loop:
         parent_node = target_node;
         target_node = (sds_bptree_node *)target_node->values[target_node->item_count];
         i = 0;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         if (btxn->bi->search_checksumming) {
             sds_result result = sds_bptree_crc32c_verify_node(target_node);
             if (result != SDS_SUCCESS) {
@@ -70,7 +70,7 @@ branch_loop:
 #endif
     }
     target_node->parent = parent_node;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (btxn->bi->search_checksumming) {
         sds_bptree_crc32c_update_node(target_node);
     }

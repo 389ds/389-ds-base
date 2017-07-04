@@ -15,11 +15,11 @@
 
 sds_result
 sds_tqueue_init(sds_tqueue **q_ptr, void (*value_free_fn)(void *value)) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_tqueue_init", "Createing mutex locked queue");
 #endif
     if (q_ptr == NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_tqueue_init", "Invalid p_ptr");
 #endif
         return SDS_NULL_POINTER;

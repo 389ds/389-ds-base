@@ -32,7 +32,7 @@ sds_bptree_map_nodes(sds_bptree_instance *binst, sds_bptree_node *root, sds_resu
     sds_result result = SDS_SUCCESS;
 
     while (cur != NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         // sds_log("sds_bptree_map_nodes", "node_%p ...", cur->node);
 #endif
         if (cur->node->level > 0) {
@@ -49,7 +49,7 @@ sds_bptree_map_nodes(sds_bptree_instance *binst, sds_bptree_node *root, sds_resu
         }
         result = fn(binst, cur->node);
         if (result != SDS_SUCCESS) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_map_nodes", "node_%p failed %d", cur->node, result);
 #endif
             final_result = result;
@@ -67,7 +67,7 @@ sds_bptree_verify_instance(sds_bptree_instance *binst)
 {
     sds_result result = SDS_SUCCESS;
     // check the checksum.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         result = sds_bptree_crc32c_verify_instance(binst);
     }
@@ -79,7 +79,7 @@ sds_bptree_verify_instance(sds_bptree_instance *binst)
 sds_result
 sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
     // - verify the hash of the node metadata
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_node(node);
         if (result != SDS_SUCCESS) {
@@ -92,7 +92,9 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
     for (size_t i = 0; i < node->item_count; i++) {
         if (node->keys[i] == NULL)
         {
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_verify_node", "%d \n", node->item_count);
+#endif
             return SDS_INVALID_KEY;
         }
 
@@ -124,7 +126,7 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
             return SDS_INVALID_NODE;
         }
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         /*
         // - verify the value hashes
         // Now that we are sure of all value sizes and pointers, lets do the checksum of the data in the values
@@ -209,7 +211,7 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                         /* This checks that all left keys *and* their children are less */
                         int64_t result = binst->key_cmp_fn(lnode->keys[j], node->keys[i]);
                         if (result >= 0) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                             sds_log("sds_bptree_verify_node", "    fault is in node %p with left child %p", node, lnode);
 #endif
                             return SDS_INVALID_KEY_ORDER;
@@ -229,7 +231,7 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                         /* This checks that all right keys are greatr or equal and their children */
                         int64_t result = binst->key_cmp_fn(rnode->keys[j], node->keys[i]);
                         if (result < 0) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                             sds_log("sds_bptree_verify_node", "    fault is in node %p with right child %p", node, rnode);
 #endif
                             return SDS_INVALID_KEY_ORDER;
@@ -253,7 +255,7 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
 
 sds_result
 sds_bptree_verify(sds_bptree_instance *binst) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_verify", "==> Beginning verification of instance %p", binst);
 #endif
     // How do we get *all* the errors here, for every node? ...
@@ -274,7 +276,7 @@ sds_bptree_verify(sds_bptree_instance *binst) {
         total_result = result;
     }
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_verify", "==> Completing verification of instance %p %d", binst, total_result);
 #endif
 
@@ -327,12 +329,12 @@ sds_bptree_display(sds_bptree_instance *binst) {
     sds_result result = SDS_SUCCESS;
 
     char *path = malloc(sizeof(char) * 20);
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_display", "Writing step %03d\n", binst->print_iter);
 #endif
     sprintf(path, "/tmp/graph_%03d.dot", binst->print_iter);
     binst->print_iter += 1;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_bptree_crc32c_update_instance(binst);
     }

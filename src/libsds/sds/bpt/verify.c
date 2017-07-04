@@ -10,7 +10,7 @@
 #include "bpt.h"
 
 /* Node checksumming functions. */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
 
 sds_result
 sds_bptree_crc32c_verify_instance(sds_bptree_instance *binst) {

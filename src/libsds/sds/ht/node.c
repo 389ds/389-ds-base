@@ -12,7 +12,7 @@ sds_ht_node *
 sds_ht_node_create(void)
 {
     sds_ht_node *node = sds_calloc(sizeof(sds_ht_node));
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_ht_node_create", "Creating ht_node_%p", node);
 #endif
     return node;
@@ -22,12 +22,12 @@ sds_ht_value *
 sds_ht_value_create(void *key, void *value)
 {
     sds_ht_value *ht_value = sds_calloc(sizeof(sds_ht_value));
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_ht_value_create", "Creating ht_value_%p", ht_value);
 #endif
     ht_value->key = key;
     ht_value->value = value;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_ht_crc32c_update_value(ht_value);
 #endif
     return ht_value;
@@ -35,7 +35,7 @@ sds_ht_value_create(void *key, void *value)
 
 void
 sds_ht_value_destroy(sds_ht_instance *ht_ptr, sds_ht_value *value) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_ht_value_destroy", "Destroying ht_value_%p", value);
 #endif
     ht_ptr->key_free_fn(value->key);
@@ -48,7 +48,7 @@ sds_ht_value_destroy(sds_ht_instance *ht_ptr, sds_ht_value *value) {
 sds_result
 sds_ht_node_destroy(sds_ht_instance *ht_ptr, sds_ht_node *node)
 {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_ht_node_destroy", "Destroying ht_node_%p", node);
 #endif
     for (size_t i = 0; i < HT_SLOTS; i++) {

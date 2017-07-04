@@ -25,7 +25,7 @@ static uint64_t print_iter = 0;
 
 sds_result sds_bptree_cow_init(sds_bptree_cow_instance **binst_ptr, uint16_t checksumming, int64_t (*key_cmp_fn)(void *a, void *b), void (*value_free_fn)(void *value), void *(*value_dup_fn)(void *key), void (*key_free_fn)(void *key), void *(*key_dup_fn)(void *key)) {
     if (binst_ptr == NULL) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_btree_init", "Invalid pointer");
 #endif
         return SDS_NULL_POINTER;
@@ -67,7 +67,7 @@ sds_result sds_bptree_cow_init(sds_bptree_cow_instance **binst_ptr, uint16_t che
     sds_bptree_node_list_release(&((*binst_ptr)->txn->created));
 
     // Update our checksums.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if ((*binst_ptr)->bi->offline_checksumming) {
         sds_bptree_crc32c_update_instance((*binst_ptr)->bi);
         sds_bptree_crc32c_update_cow_instance(*binst_ptr);
@@ -84,7 +84,7 @@ sds_result sds_bptree_cow_init(sds_bptree_cow_instance **binst_ptr, uint16_t che
 
 sds_result sds_bptree_cow_destroy(sds_bptree_cow_instance *binst) {
     sds_result result = SDS_SUCCESS;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_destroy", "    Destroying instance %p", binst);
 #endif
 
@@ -127,7 +127,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
     sds_bptree_node *target_node = NULL;
     sds_bptree_node *next_node = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_delete", "==> Beginning delete of %d", key);
 #endif
     // Need to fail if txn is RO
@@ -171,7 +171,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
         sds_bptree_node *right = NULL;
         /* This updates the left and right parent paths, but does NOT cow!!! */
         sds_bptree_cow_node_siblings(next_node, &left, &right);
-#ifdef DEBUG
+#ifdef SDS_DEBUG
         sds_log("sds_bptree_cow_delete", " %p -> %p -> %p", left, next_node, right);
         sds_log("sds_bptree_cow_delete", " next_node->item_count = %d", next_node->item_count);
         if (right != NULL) {
@@ -190,7 +190,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
 #endif
         if (right != NULL && right->item_count > SDS_BPTREE_HALF_CAPACITY) {
             /* Does right have excess keys? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_delete", "Right leaf borrow");
 #endif
             cow_node = sds_bptree_cow_node_prepare(btxn, right);
@@ -199,7 +199,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
             next_node = cow_node;
         } else if (left != NULL && left->item_count > SDS_BPTREE_HALF_CAPACITY) {
             /* Does left have excess keys? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_delete", "Left leaf borrow");
 #endif
             cow_node = sds_bptree_cow_node_prepare(btxn, left);
@@ -207,7 +207,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
             /* This does NOT need to set next_node, because everthing is higher than us */
         } else if (right != NULL && right->item_count <= SDS_BPTREE_HALF_CAPACITY) {
             /* Does right want to merge? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_delete", "Right leaf contract");
 #endif
             /* WARNING: DO NOT COW THE RIGHT NODE */
@@ -217,7 +217,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
             /* Next node is correct, and ready for FIXUP */
         } else if (left != NULL && left->item_count <= SDS_BPTREE_HALF_CAPACITY) {
             /* Does left want to merge? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_delete", "Left leaf contract");
 #endif
             cow_node = sds_bptree_cow_node_prepare(btxn, left);
@@ -239,7 +239,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
              */
             if (deleted_node != NULL) {
                 /* Make sure we delete this value from our branch */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                 sds_log("sds_bptree_cow_delete", "Should be removing %p from branch %p here!", deleted_node, target_node);
 #endif
                 sds_bptree_branch_delete(btxn->bi, target_node, deleted_node);
@@ -247,7 +247,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                 deleted_node = NULL;
             } else {
                 /* It means a borrow was probably done somewhere, so we need to fix the path */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                 sds_log("sds_bptree_cow_delete", "Should be fixing %p key to child %p here!", target_node, next_node);
 #endif
                 sds_bptree_branch_key_fixup(btxn->bi, target_node, next_node);
@@ -273,7 +273,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                  * the merge by a fraction, to allow space for 3 keys and 3 keys.
                  *
                  */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                 sds_log("sds_bptree_cow_delete", " %p -> %p -> %p", left, next_node, right);
                 sds_log("sds_bptree_cow_delete", " next_node->item_count = %d", next_node->item_count);
                 if (right != NULL) {
@@ -291,7 +291,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
 #endif
                 if (right != NULL && right->item_count >= SDS_BPTREE_HALF_CAPACITY) {
                     /* Does right have excess keys? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                     sds_log("sds_bptree_cow_delete", "Right branch borrow");
 #endif
                     /* Since we are about to borrow, we need to cow RIGHT */
@@ -302,7 +302,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                     next_node = cow_node;
                 } else if (left != NULL && left->item_count >= SDS_BPTREE_HALF_CAPACITY) {
                     /* Does left have excess keys? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                     sds_log("sds_bptree_cow_delete", "Left branch borrow");
 #endif
                     /* Since we are about to borrow, we need to cow LEFT */
@@ -312,7 +312,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                     /* Next node is still on right, key fix will work next loop. */
                 } else if (right != NULL && right->item_count < SDS_BPTREE_HALF_CAPACITY) {
                     /* Does right want to merge? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                     sds_log("sds_bptree_cow_delete", "Right branch contract");
 #endif
                     /* WARNING: DO NOT COW THE RIGHT NODE */
@@ -322,7 +322,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                     deleted_node = right;
                 } else if (left != NULL && left->item_count < SDS_BPTREE_HALF_CAPACITY) {
                     /* Does left want to merge? */
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                     sds_log("sds_bptree_cow_delete", "Left branch contract");
 #endif
                     /* Since we are about to merge, we need to cow left */
@@ -336,11 +336,13 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
                 }
 
             } else if ( target_node == NULL && next_node->item_count == 0) {
-#ifdef DEBUG
+#ifdef SDS_DEBUG
                 sds_log("sds_bptree_cow_delete", "Begin deleting the root");
 #endif
                 if (btxn->root != next_node) {
+#ifdef SDS_DEBUG
                     sds_log("sds_bptree_cow_delete", "Transaction is corrupted");
+#endif
                     result = SDS_UNKNOWN_ERROR;
                     goto fail;
                 }
@@ -352,7 +354,7 @@ sds_result sds_bptree_cow_delete(sds_bptree_transaction *btxn, void *key) {
     } // End of cow_node capacity check.
 
 fail:
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_delete", "<== finishing delete of %d", key);
 #endif
 
@@ -364,7 +366,7 @@ sds_result sds_bptree_cow_insert(sds_bptree_transaction *btxn, void *key, void *
     sds_bptree_node *cow_node = NULL;
     sds_bptree_node *target_node = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_insert", "==> Beginning insert of %d", key);
 #endif
     // Need to fail if txn is RO
@@ -406,7 +408,7 @@ sds_result sds_bptree_cow_insert(sds_bptree_transaction *btxn, void *key, void *
         sds_bptree_cow_leaf_split_and_insert(btxn, cow_node, insert_key, value);
     }
     // Else, insert to leaf and let things happen.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_insert", "<== Finishing insert of %p", key);
 #endif
 
@@ -418,7 +420,7 @@ sds_result sds_bptree_cow_update(sds_bptree_transaction *btxn, void *key, void *
     sds_bptree_node *cow_node = NULL;
     sds_bptree_node *target_node = NULL;
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_update", "==> Beginning update of %d", key);
 #endif
     // Need to fail if txn is RO
@@ -448,7 +450,7 @@ sds_result sds_bptree_cow_update(sds_bptree_transaction *btxn, void *key, void *
     }
 
     // Else, insert to leaf and let things happen.
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_update", "<== Finishing update of %d", key);
 #endif
     return SDS_SUCCESS;
@@ -459,7 +461,7 @@ sds_result
 sds_bptree_cow_verify(sds_bptree_cow_instance *binst) {
     sds_result result = SDS_SUCCESS;
     // Verify the instance
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->bi->offline_checksumming) {
         result = sds_bptree_crc32c_verify_cow_instance(binst);
         if (result != SDS_SUCCESS) {
@@ -480,7 +482,7 @@ sds_bptree_cow_verify(sds_bptree_cow_instance *binst) {
     }
 
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if (binst->bi->offline_checksumming) {
         result = sds_bptree_crc32c_verify_btxn(btxn);
         if (result != SDS_SUCCESS) {
@@ -495,7 +497,7 @@ sds_bptree_cow_verify(sds_bptree_cow_instance *binst) {
     /* Close the txn */
     sds_bptree_cow_rotxn_close(&btxn);
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_verify", "--> Verification result %d\n", result);
 #endif
 
@@ -549,7 +551,7 @@ sds_bptree_cow_display(sds_bptree_transaction *btxn) {
 
     char *path = malloc(sizeof(char) * 20);
     print_iter += 1;
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_display", "Writing step %03d\n", print_iter);
 #endif
     sprintf(path, "/tmp/graph_%03"PRIu64".dot", print_iter);

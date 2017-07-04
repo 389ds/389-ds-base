@@ -13,7 +13,9 @@
 sds_result
 sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **binst_ptr) {
     if (binst_ptr == NULL) {
+#ifdef SDS_DEBUG
         sds_log("sds_btree_init", "Invalid pointer");
+#endif
         return SDS_NULL_POINTER;
     }
 
@@ -27,7 +29,7 @@ sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **bins
     (*binst_ptr)->key_dup_fn = binst->key_dup_fn;
 
     // Now update the checksums
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     if ((*binst_ptr)->offline_checksumming) {
         sds_bptree_crc32c_update_instance(*binst_ptr);
     }
@@ -39,7 +41,7 @@ sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **bins
 sds_result
 sds_bptree_list_advance(sds_bptree_node **item, size_t *index) {
 
-#ifdef DEBUG
+#ifdef SDS_DEBUG
     sds_log("sds_bptree_list_advance", "%p current index is %" PRIu64"", *item, *index);
 #endif
     /* Now, if we have the ability */
