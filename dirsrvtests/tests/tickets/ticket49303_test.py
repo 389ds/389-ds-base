@@ -32,7 +32,7 @@ def try_reneg(host, port):
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                 stdin=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
-    except ValueError, e:
+    except ValueError as e:
         log.info("openssl failed: %s", e)
         proc.kill()
 
