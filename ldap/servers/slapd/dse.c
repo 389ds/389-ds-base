@@ -40,6 +40,8 @@
 #include "slap.h"
 #include <pwd.h>
 
+#include <unistd.h> /* provides fsync/close */
+
 /* #define SLAPI_DSE_DEBUG */ 	/* define this to force trace log	*/
 								/* messages to always be logged		*/
 
