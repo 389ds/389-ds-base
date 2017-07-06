@@ -16,16 +16,17 @@ import logging
 import ldap.sasl
 import pytest
 from lib389.tasks import *
-
+from lib389 import DirSrv
+from lib389.properties import *
 import plugin_tests
 import stress_tests
 from lib389.topologies import topology_st
-from lib389._constants import (DN_CONFIG, DEFAULT_SUFFIX, DN_LDBM, PLUGIN_ACCT_POLICY,
-                              PLUGIN_MEMBER_OF, PLUGIN_LINKED_ATTRS, PLUGIN_REFER_INTEGRITY,
-                              REPLICAROLE_MASTER, REPLICAROLE_CONSUMER, REPLICATION_BIND_DN,
-                              REPLICATION_BIND_PW, REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT,
-                              LOCALHOST, REPLICA_RUV_FILTER,
-                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
+from lib389._constants import (DN_CONFIG, DEFAULT_SUFFIX, DN_LDBM, defaultProperties,
+                               PLUGIN_MEMBER_OF, PLUGIN_LINKED_ATTRS, PLUGIN_REFER_INTEGRITY,
+                               REPLICAROLE_MASTER, REPLICAROLE_CONSUMER, REPLICATION_BIND_DN,
+                               REPLICATION_BIND_PW, REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT,
+                               LOCALHOST, REPLICA_RUV_FILTER, args_instance,
+                               RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
 
 log = logging.getLogger(__name__)
 
@@ -292,7 +293,6 @@ def test_dynamic_plugins(topology_st):
                               RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                               RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                               RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-
                 repl_agreement = topology_st.standalone.agreement.create(suffix=DEFAULT_SUFFIX,
                                                                          host=LOCALHOST,
                                                                          port=REPLICA_PORT,
@@ -301,7 +301,6 @@ def test_dynamic_plugins(topology_st):
                 if not repl_agreement:
                     log.fatal("Fail to create a replica agreement")
                     repl_fail(replica_inst)
-
                 topology_st.standalone.agreement.init(DEFAULT_SUFFIX, LOCALHOST, REPLICA_PORT)
                 topology_st.standalone.waitForReplInit(repl_agreement)
             except:

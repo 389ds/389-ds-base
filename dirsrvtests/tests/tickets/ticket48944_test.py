@@ -176,7 +176,7 @@ def test_ticket48944(topo):
     lastLogin_c2_2 = _last_login_time(topo, tuserdn, 'consumer2', 'bind_n_check')
     assert lastLogin_c2_2 > lastLogin_m2_1
 
-    time.sleep(5)
+    time.sleep(10)  # Allow replication to kick in
     lastLogin_m2_2 = _last_login_time(topo, tuserdn, 'master2', 'check')
     assert lastLogin_m2_2 == lastLogin_m2_1
 
@@ -191,7 +191,7 @@ def test_ticket48944(topo):
 
     log.info('Check if lastLoginTime update from master2 is synced to all masters and consumers')
     lastLogin_m2_3 = _last_login_time(topo, tuserdn, 'master2', 'bind_n_check')
-    time.sleep(2)
+    time.sleep(10)  # Allow replication to kick in
     lastLogin_m1_2 = _last_login_time(topo, tuserdn, 'master1', 'check')
     lastLogin_c1_4 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
     lastLogin_c2_4 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
