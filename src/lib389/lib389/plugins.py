@@ -12,6 +12,7 @@ import copy
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.exceptions import Error
+from lib389.lint import DSRILE0001
 from lib389._constants import DN_PLUGIN
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
@@ -119,6 +120,13 @@ class ManagedEntriesPlugin(Plugin):
 class ReferentialIntegrityPlugin(Plugin):
     def __init__(self, instance, dn="cn=referential integrity postoperation,cn=plugins,cn=config", batch=False):
         super(ReferentialIntegrityPlugin, self).__init__(instance, dn, batch)
+        self._lint_functions = [self._lint_update_delay]
+
+    def _lint_update_delay(self):
+        if self.status():
+            delay = self.get_attr_val_int("referint-update-delay")
+            if delay is not None and delay != 0:
+                return DSRILE0001
 
     # referint-update-delay: 0
     # referint-logfile: /opt/dirsrv/var/log/dirsrv/slapd-standalone_2/referint

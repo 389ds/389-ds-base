@@ -108,4 +108,24 @@ set cn=encryption,cn=config sslVersionMin to a version greater than TLS1.0
     """
 }
 
+DSRILE0001 = {
+    'dsle': 'DSRLE0001',
+    'severity': 'LOW',
+    'items' : ['cn=referential integrity postoperation,cn=plugins,cn=config', ],
+    'detail': """
+The referential integrity plugin has an asynchronous processing mode. This is controlled by the update-delay flag.
 
+When this value is 0, referential integrity plugin processes these changes inside of the operation that modified the entry - ie these are synchronous.
+
+However, when this is > 0, these are performed asynchronously.
+
+This leads to only having refint enabled on one master in MMR to prevent replication conflicts and loops.
+Additionally, because these are performed in the background these updates may cause spurious update
+delays to your server by batching changes rather than smaller updates during sync processing.
+
+We advise that you set this value to 0, and enable refint on all masters as it provides a more predictable behaviour.
+    """,
+    'fix' : """
+Set referint-update-delay to 0.
+    """
+}

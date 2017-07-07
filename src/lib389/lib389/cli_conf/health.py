@@ -10,6 +10,7 @@ import argparse
 
 from lib389.backend import Backend, Backends
 from lib389.config import Encryption, Config
+from lib389 import plugins
 
 # These get all instances, then check them all.
 CHECK_MANY_OBJECTS = [
@@ -20,6 +21,7 @@ CHECK_MANY_OBJECTS = [
 CHECK_OBJECTS = [
     Config,
     Encryption,
+    plugins.ReferentialIntegrityPlugin
 ]
 
 def _format_check_output(log, result):

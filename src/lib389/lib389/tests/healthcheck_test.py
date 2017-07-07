@@ -11,6 +11,7 @@ import pytest
 import ldap
 
 from lib389.topologies import topology_st
+from lib389.plugins import ReferentialIntegrityPlugin
 
 from lib389.lint import *
 
@@ -40,3 +41,21 @@ def test_hc_config(topology_st):
     result = topology_st.standalone.config._lint_passwordscheme()
     assert result == DSCLE0002
 
+def test_hc_referint(topology_st):
+    plugin = ReferentialIntegrityPlugin(topology_st.standalone)
+    plugin.enable()
+
+    # Assert we don't get an error when delay is 0.
+    plugin.set('referint-update-delay', '0')
+    result = plugin._lint_update_delay()
+    assert result is None
+
+    # Assert we get an error when delay is not 0.
+    plugin.set('referint-update-delay', '10')
+    result = plugin._lint_update_delay()
+    assert result == DSRILE0001
+
+    # Assert we don't get an error when plugin is disabled.
+    plugin.disable()
+    result = plugin._lint_update_delay()
+    assert result is None
