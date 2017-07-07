@@ -13,7 +13,8 @@ from lib389.tasks import *
 from lib389.topologies import topology_st
 
 from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, REPLICAROLE_MASTER, REPLICAID_MASTER_1,
-                              DN_CONFIG, PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY)
+                              DN_CONFIG, PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
+                              REPLICA_PURGE_INTERVAL)
 
 log = logging.getLogger(__name__)
 

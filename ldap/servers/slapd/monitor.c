@@ -59,7 +59,7 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
 	attrlist_replace( &e->e_attrs, "version", vals );
 	slapi_ch_free( (void **) &val.bv_val );
 
-	val.bv_len = snprintf( buf, sizeof(buf), "%d", g_get_active_threadcnt() );
+	val.bv_len = snprintf( buf, sizeof(buf), "%lu", g_get_active_threadcnt() );
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "threads", vals );
 
