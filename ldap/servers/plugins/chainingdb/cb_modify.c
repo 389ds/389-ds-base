@@ -124,8 +124,9 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	cb_remove_illegal_mods(cb,mods);
 
 	/* heart-beat management */
-	if (cb->max_idle_time>0)
-		endtime=current_time() + cb->max_idle_time;
+	if (cb->max_idle_time>0) {
+		endtime=slapi_current_utc_time() + cb->max_idle_time;
+	}
 
 	/*
 	 * Call the backend preoperation plugins

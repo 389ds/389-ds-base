@@ -295,11 +295,9 @@ import_get_version(char *str)
 static void
 import_add_created_attrs(Slapi_Entry *e)
 {
-    char          buf[20];
+    char          buf[SLAPI_TIMESTAMP_BUFSIZE];
     struct berval bv;
     struct berval *bvals[2];
-    time_t        curtime;
-    struct tm     ltm;
 
     bvals[0] = &bv;
     bvals[1] = NULL;
@@ -313,9 +311,7 @@ import_add_created_attrs(Slapi_Entry *e)
         slapi_entry_attr_replace(e, "modifiersname", bvals);
     }
 
-    curtime = current_time();
-    gmtime_r(&curtime, &ltm);
-    strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &ltm);
+    slapi_timestamp_utc_hr(buf, SLAPI_TIMESTAMP_BUFSIZE);
 
     bv.bv_val = buf;
     bv.bv_len = strlen(bv.bv_val);

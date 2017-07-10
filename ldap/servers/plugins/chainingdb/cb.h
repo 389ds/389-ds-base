@@ -381,7 +381,7 @@ typedef struct _cb_searchContext {
 #define CB_UPDATE_CONTROLS_ISABANDON 2
 
 
-int cb_get_connection(cb_conn_pool * pool, LDAP ** ld, cb_outgoing_conn ** cnx, struct timeval * tmax, char **errmsg);
+int cb_get_connection(cb_conn_pool * pool, LDAP ** ld, cb_outgoing_conn ** cnx, struct timespec *expire_time, char **errmsg);
 int cb_config(cb_backend_instance * cb, int argc, char ** argv );
 int cb_update_controls( Slapi_PBlock *pb, LDAP * ld, LDAPControl *** controls, int ctrl_flags);
 int cb_is_control_forwardable(cb_backend * cb, char *controloid);
@@ -469,7 +469,6 @@ void cb_update_failed_conn_cpt ( cb_backend_instance *cb ) ;
 void cb_reset_conn_cpt( cb_backend_instance *cb ) ;
 int  cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) ;
 
-time_t current_time(void);
 char* get_localhost_DNS(void);
 
 /* this function is called when state of a backend changes */

@@ -56,7 +56,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 		}
 	}
 
-	cur_time = current_time();
+	cur_time = slapi_current_utc_time();
 
 	/* get passwordExpirationTime attribute */
 	passwordExpirationTime= slapi_entry_attr_get_charptr(e, "passwordExpirationTime");

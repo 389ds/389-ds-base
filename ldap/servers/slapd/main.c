@@ -1177,7 +1177,7 @@ main( int argc, char **argv)
 	}
 
 	{
-		time( &starttime );
+		starttime = slapi_current_utc_time();
 		slapd_daemon(&ports_info, tp);
 	}
 	slapi_log_err(SLAPI_LOG_INFO, "main", "slapd stopped.\n");

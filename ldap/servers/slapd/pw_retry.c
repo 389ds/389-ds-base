@@ -51,7 +51,7 @@ int update_pw_retry ( Slapi_PBlock *pb )
 		return ( 1 );
 	}
 
-    cur_time = current_time();
+    cur_time = slapi_current_utc_time();
 
     /* check if the retry count can be reset. */
 	retryCountResetTime= slapi_entry_attr_get_charptr(e, "retryCountResetTime");
@@ -150,8 +150,7 @@ int set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 				/* lock until admin reset password */
 				unlock_time = NO_TIME;
 			} else {
-				unlock_time = time_plus_sec ( current_time(),
-											  pwpolicy->pw_lockduration );
+				unlock_time = time_plus_sec ( slapi_current_utc_time(), pwpolicy->pw_lockduration);
 			}
 			timestr= format_genTime ( unlock_time );
 			slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "accountUnlockTime", timestr);

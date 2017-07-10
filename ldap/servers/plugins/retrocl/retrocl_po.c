@@ -619,7 +619,7 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
         return SLAPI_PLUGIN_SUCCESS;
     }
 
-    curtime = current_time();
+    curtime = slapi_current_utc_time();
     
     (void)slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET_DN, &dn );
 

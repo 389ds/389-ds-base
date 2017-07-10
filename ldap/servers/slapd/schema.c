@@ -2378,7 +2378,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
         if (NULL != new_schema_csn) {
             char csn_str[CSN_STRSIZE + 1];
             csn_set_replicaid(new_schema_csn, 0);
-            csn_set_time(new_schema_csn, current_time());
+            csn_set_time(new_schema_csn, slapi_current_utc_time());
             g_set_global_schema_csn(new_schema_csn);
             slapi_entry_attr_delete(entryBefore, "nsschemacsn");
             csn_as_string(new_schema_csn, PR_FALSE, csn_str);
@@ -7431,7 +7431,7 @@ modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
         schema_csn = csn_new();
         if (NULL != schema_csn) {
             csn_set_replicaid(schema_csn, 0);
-            csn_set_time(schema_csn, current_time());
+            csn_set_time(schema_csn, slapi_current_utc_time());
             g_set_global_schema_csn(schema_csn);
         }
     } else {

@@ -97,7 +97,7 @@ repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
 	PR_ASSERT(NULL != o);
 	PR_ASSERT(NULL != *o);
 
-	time(&now);
+	now = slapi_current_utc_time();
 	stop_time = now + maxwait;
 
 	/*
@@ -133,7 +133,7 @@ repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
 				co = llistGetNext((*o)->objects, &cookie);
 		}
 		PR_Unlock((*o)->lock);
-		time(&now);
+		now = slapi_current_utc_time();
 		if (loopcount > 0)
 		{
 			DS_Sleep(PR_TicksPerSecond());

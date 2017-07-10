@@ -197,10 +197,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	size_t		tmpbufsize;
 	char		pat[BUFSIZ];
 	char		buf[BUFSIZ];
-	time_t		curtime = 0;
-	time_t		time_up = 0;
-	time_t		optime = 0; /* time op was initiated */
-	int		timelimit = 0; /* search timelimit */
+	struct timespec expire_time = {0};
 	Operation	*op = NULL;
 	Slapi_Regex	*re = NULL;
 	const char  *re_result = NULL;
@@ -214,17 +211,10 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 	}
 	if (NULL != op) {
+		int32_t timelimit = -1; /* search timelimit */
 		slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
-		slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-	} else {
-		/* timelimit is not passed via pblock */
-		timelimit = -1;
+		slapi_operation_time_expiry(op, (time_t)timelimit, &expire_time);
 	}
-	/*
-	 * (timelimit==-1) means no time limit
-	 */
-	time_up = ( timelimit==-1 ? -1 : optime + timelimit);
-
 	if (pb) {
 		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
 		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, &sf );
@@ -335,8 +325,8 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		}
 	}
 
-	curtime = current_time();
-	if ( time_up != -1 && curtime > time_up ) {
+	if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+		slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "LDAP_TIMELIMIT_EXCEEDED\n");
 		rc = LDAP_TIMELIMIT_EXCEEDED;
 		goto bailout;
 	}
@@ -371,10 +361,20 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 			slapi_dn_ignore_case(realval);
 		}
 		if (alt) {
-			tmprc = slapi_re_exec( re, alt, time_up );
+			if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+				slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "LDAP_TIMELIMIT_EXCEEDED\n");
+				rc = LDAP_TIMELIMIT_EXCEEDED;
+				goto bailout;
+			}
+			tmprc = slapi_re_exec_nt(re, alt);
 			slapi_ch_free_string(&alt);
 		} else {
-			tmprc = slapi_re_exec( re, realval, time_up );
+			if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+				slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "LDAP_TIMELIMIT_EXCEEDED\n");
+				rc = LDAP_TIMELIMIT_EXCEEDED;
+				goto bailout;
+			}
+			tmprc = slapi_re_exec_nt(re, realval);
 		}
 
 		if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {

@@ -129,8 +129,9 @@ chaining_back_add ( Slapi_PBlock *pb )
 	}
 
 	/* heart-beat management */
-	if (cb->max_idle_time>0)
-		endtime=current_time() + cb->max_idle_time;
+	if (cb->max_idle_time>0) {
+		endtime=slapi_current_utc_time() + cb->max_idle_time;
+	}
 
 	/* Send LDAP operation to the remote host */
 	rc = ldap_add_ext( ld, dn, mods, ctrls, NULL, &msgid );

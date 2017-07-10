@@ -647,7 +647,7 @@ int import_mega_merge(ImportJob *job)
                 passes, (long unsigned int)job->number_indexers);
     }
 
-    time(&beginning);
+    beginning = slapi_current_utc_time();
     /* Iterate over the files */
 	for (current_worker = job->worker_list; 
 	 (ret == 0) && (current_worker != NULL);
@@ -660,9 +660,9 @@ int import_mega_merge(ImportJob *job)
 			time_t file_end = 0;
 			int key_count = 0;
 	
-			time(&file_beginning);
+			file_beginning = slapi_current_utc_time();
 			ret = import_merge_one_file(current_worker,passes,&key_count);
-			time(&file_end);
+			file_end = slapi_current_utc_time();
 			if (key_count == 0) {
 				import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "No files to merge for \"%s\".",
 					current_worker->index_info->name);
@@ -679,12 +679,11 @@ int import_mega_merge(ImportJob *job)
 		}
 	}
 
-	time(&end);
+	end = slapi_current_utc_time();
 	if (0 == ret) {
 		int seconds_to_merge = end - beginning;
-	
-	import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",
-			  seconds_to_merge);
+		import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",
+				  seconds_to_merge);
 	}
 
     return ret;

@@ -95,7 +95,7 @@ write_audit_log_entry( Slapi_PBlock *pb )
     default:
         return; /* Unsupported operation type. */
     }
-    curtime = current_time();
+    curtime = slapi_current_utc_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
     write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS, SLAPD_AUDIT_LOG);
@@ -164,7 +164,7 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
     default:
         return; /* Unsupported operation type. */
     }
-    curtime = current_time();
+    curtime = slapi_current_utc_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
     auditfail_config = config_get_auditfaillog();

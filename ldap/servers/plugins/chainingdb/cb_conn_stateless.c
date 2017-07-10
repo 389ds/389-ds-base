@@ -130,14 +130,13 @@ int
 cb_get_connection(cb_conn_pool * pool,
                   LDAP ** lld,
                   cb_outgoing_conn ** cc,
-                  struct timeval * maxtime,
+                  struct timespec *expire_time,
                   char **errmsg)
 {
 	int 				rc=LDAP_SUCCESS;          /* optimistic */
 	cb_outgoing_conn	*conn=NULL;
 	cb_outgoing_conn	*connprev=NULL;
 	LDAP				*ld=NULL;
-	time_t				endbefore=0;
 	int 				checktime=0;
 	struct timeval		bind_to, op_to;
 	unsigned int 		maxconcurrency,maxconnections;
@@ -147,6 +146,8 @@ cb_get_connection(cb_conn_pool * pool,
 	char 				*mech = NULL;;
 	static	char		*error1="Can't contact remote server : %s";
 	int					isMultiThread = ENABLE_MULTITHREAD_PER_CONN ; /* by default, we enable multiple operations per connection */
+
+	struct timespec cb_expire_time;
 	
 	/*
 	** return an error if we can't get a connection
@@ -204,23 +205,27 @@ cb_get_connection(cb_conn_pool * pool,
 		return LDAP_CONNECT_ERROR;
 	}
 
-	if (maxtime) {
-		if (maxtime->tv_sec != 0) {
+	if (expire_time) {
+		if (expire_time->tv_sec > 0) {
 			checktime=1;
-        		endbefore = current_time() + maxtime->tv_sec;
+
+			cb_expire_time.tv_sec = expire_time->tv_sec;
+			cb_expire_time.tv_nsec = expire_time->tv_nsec;
 
 			/* make sure bind to <= operation timeout */
-			if ((bind_to.tv_sec==0) || (bind_to.tv_sec > maxtime->tv_sec))
-				bind_to.tv_sec=maxtime->tv_sec;
+			if ((bind_to.tv_sec==0) || (bind_to.tv_sec > expire_time->tv_sec)) {
+				bind_to.tv_sec=expire_time->tv_sec;
+			}
 		}
 	} else {
 		if (op_to.tv_sec != 0) {
 			checktime=1;
-        		endbefore = current_time() + op_to.tv_sec;
+			slapi_timespec_expire_at(op_to.tv_sec, &cb_expire_time);
 
 			/* make sure bind to <= operation timeout */
-			if ((bind_to.tv_sec==0) || (bind_to.tv_sec > op_to.tv_sec))
+			if ((bind_to.tv_sec==0) || (bind_to.tv_sec > op_to.tv_sec)) {
 				bind_to.tv_sec=op_to.tv_sec;
+			}
 		}
 	}
 
@@ -238,31 +243,29 @@ cb_get_connection(cb_conn_pool * pool,
     	slapi_lock_mutex( pool->conn.conn_list_mutex );
 
 	if (cb_debug_on()) {
-  		slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-        		"cb_get_connection - server %s conns: %d maxconns: %d\n",
-        		hostname, pool->conn.conn_list_count, maxconnections );
+		slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+				"cb_get_connection - server %s conns: %d maxconns: %d\n",
+				hostname, pool->conn.conn_list_count, maxconnections );
 	}
 
 	for (;;) {
 
 		/* time limit mgmt */
-		if (checktime) {
-			if (current_time() > endbefore ) {
-  				slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-        				"cb_get_connection - server %s expired.\n", hostname );
-				if ( errmsg ) {
-					*errmsg = PR_smprintf(error1,"timelimit exceeded");
-				}
-				rc=LDAP_TIMELIMIT_EXCEEDED;
-				conn=NULL;
-				ld=NULL;
-                         	goto unlock_and_return;    
+		if (checktime && slapi_timespec_expire_check(&cb_expire_time) == TIMER_EXPIRED) {
+			slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					"cb_get_connection - server %s expired.\n", hostname );
+			if ( errmsg ) {
+				*errmsg = PR_smprintf(error1,"timelimit exceeded");
 			}
+			rc=LDAP_TIMELIMIT_EXCEEDED;
+			conn=NULL;
+			ld=NULL;
+			goto unlock_and_return;
 		}
 
-        	/*
-         	 * First, look for an available, already open/bound connection
-         	 */
+		/*
+		 * First, look for an available, already open/bound connection
+		 */
 
 		if (secure) {
 			for (conn = pool->connarray[PR_ThreadSelf()]; conn != NULL; conn = conn->next) {
@@ -456,7 +459,7 @@ cb_get_connection(cb_conn_pool * pool,
 			conn->ld=ld;
 			conn->status=CB_CONNSTATUS_OK;
 			conn->refcount=0;	/* incremented below */
-			conn->opentime=current_time();
+			conn->opentime=slapi_current_utc_time();
 			conn->ThreadId=PR_MyThreadId(); /* store the thread id */
 			conn->next=NULL;
 			if (secure) {
@@ -639,7 +642,7 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
         slapi_lock_mutex(pool->conn.conn_list_mutex);
  
 	if (connlifetime > 0)
-                curtime=current_time();
+                curtime=slapi_current_utc_time();
 	
 	if (pool->secure) {
 		myself = PR_ThreadSelf();
@@ -859,7 +862,7 @@ int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time
 	if (cnx && (cnx->status != CB_CONNSTATUS_OK ))	/* Known problem */
 		return LDAP_SERVER_DOWN;
 
-	now = current_time();
+	now = slapi_current_utc_time();
 	if (end_time && ((now <= end_time) || (end_time <0))) return LDAP_SUCCESS;
 
 	secure = cb->pool->secure;
@@ -902,7 +905,7 @@ void cb_update_failed_conn_cpt ( cb_backend_instance *cb ) {
 		slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
 		if (cb->monitor_availability.cpt >= CB_NUM_CONN_BEFORE_UNAVAILABILITY ) {
 	       		/* we reach the limit of authorized failed connections => we setup the chaining BE state to unavailable */
-	       		now = current_time();
+	       		now = slapi_current_utc_time();
 			slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
 	       		       cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD ;
 			slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -932,7 +935,7 @@ int cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) {
 	time_t now ;
 	if ( cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE ){
 		slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-		now = current_time();
+		now = slapi_current_utc_time();
 		if (now >= cb->monitor_availability.unavailableTimeLimit) {
 		    cb->monitor_availability.unavailableTimeLimit = now + CB_INFINITE_TIME ; /* to be sure only one thread can do the test */
 		    slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -946,7 +949,7 @@ int cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) {
 				"cb_check_availability - ping the farm server and check if it's still unavailable");
 		if (cb_ping_farm(cb, NULL, 0) != LDAP_SUCCESS) { /* farm still unavailable... Just change the timelimit */ 
 		    slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-		    now = current_time();
+		    now = slapi_current_utc_time();
 		    cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD ;
 		    slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);		
 		    cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL) ;
@@ -957,7 +960,7 @@ int cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) {
 		else {
 		    /* farm is back !*/
 		    slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-		    now = current_time();
+		    now = slapi_current_utc_time();
 		    cb->monitor_availability.unavailableTimeLimit = now ; /* the unavailable period is finished */
 		    slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);	
 		    /* The farmer server state backs to FARMSERVER_AVAILABLE, but this already done in cb_ping_farm, and also the reset of cpt*/

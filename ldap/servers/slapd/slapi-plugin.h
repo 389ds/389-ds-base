@@ -4826,7 +4826,7 @@ long long slapi_value_get_longlong(const Slapi_Value *value);
 unsigned long long slapi_value_get_ulonglong(const Slapi_Value *value);
 
 /**
- * Retrieves the value of a \c Slapi_Value structure as a long integer.
+ * DEPRECATED: Retrieves the value of a \c Slapi_Value structure as a long integer.
  *
  * \param value Pointer to the value you wish to get as a long integer.
  *        The value could end with D or d for days, H or h for hours,
@@ -4835,18 +4835,28 @@ unsigned long long slapi_value_get_ulonglong(const Slapi_Value *value);
  *         \c Slapi_Value structure.
  * \return \c 0 if there is no value.
  * \return \c -1 if the given value is invalid.
- * \see slapi_value_get_int()
- * \see slapi_value_get_uint()
- * \see slapi_value_get_ulong()
- * \see slapi_value_get_longlong()
- * \see slapi_value_get_ulonglong()
+ * \see slapi_value_get_time_time_t()
  */
-long slapi_value_get_timelong(const Slapi_Value *value);
+long slapi_value_get_timelong(const Slapi_Value *value) __attribute__((deprecated));
 
 /**
- * Retrieves the value of a \c Slapi_Value structure as a long long integer.
+ * DEPRECATED: Retrieves the value of a \c Slapi_Value structure as a long long integer.
  *
  * \param value Pointer to the value you wish to get as a long long integer.
+ *        The value could end with D or d for days, H or h for hours,
+ *        M or m for minutes, S or s for seconds, or no extension.
+ * \return A long long integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \return \c -1 if the given value is invalid.
+ * \see slapi_value_get_time_time_t()
+ */
+long long slapi_value_get_timelonglong(const Slapi_Value *value) __attribute__((deprecated));
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as a time_t.
+ *
+ * \param value Pointer to the value you wish to get as a time_t.
  *        The value could end with D or d for days, H or h for hours,
  *        M or m for minutes, S or s for seconds, or no extension.
  * \return A long long integer that corresponds to the value stored in the
@@ -4858,8 +4868,10 @@ long slapi_value_get_timelong(const Slapi_Value *value);
  * \see slapi_value_get_ulong()
  * \see slapi_value_get_longlong()
  * \see slapi_value_get_ulonglong()
+ * \see slapi_value_get_time_time_t()
  */
-long long slapi_value_get_timelonglong(const Slapi_Value *value);
+time_t slapi_value_get_time_time_t(const Slapi_Value *value);
+
 
 /**
  * Gets the length of a value contained in a \c Slapi_Value structure.
@@ -6775,9 +6787,109 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 /**
  * Returns the current time
  *
+ * CRITICAL: This funciton is NOT THREAD SAFE. DO NOT USE IT.
+ * You MUST use slapi_current_time_hr instead.
+ *
  * \return The current time
  */
-time_t slapi_current_time( void );
+time_t slapi_current_time( void )  __attribute__((deprecated));
+
+/**
+ * Returns the current system time as a hr clock relative to uptime
+ * This means the clock is not affected by timezones
+ * which can normally cause issues with timers. Additionally, this
+ * is a thread safe clock.
+ *
+ * \return timespec of the current relative system time.
+ */
+struct timespec slapi_current_time_hr(void);
+/**
+ * Returns the current system time as a hr clock in UTC timezone.
+ * This clock adjusts with ntp steps, and should NOT be
+ * used for timer information.
+ *
+ * \return timespec of the current UTC time.
+ */
+struct timespec slapi_current_utc_time_hr(void);
+/**
+ * Returns the current system time as a clock in UTC timezone.
+ * This clock adjusts with ntp steps, and should NOT be
+ * used for timer information.
+ *
+ * \return time_t of the current UTC time.
+ */
+time_t slapi_current_utc_time(void);
+
+#define SLAPI_TIMESTAMP_BUFSIZE 32
+/**
+ * Populates a buffer with a timestamp formatted correctly for
+ * directory servers usage. This generally means UTC from localsystem
+ * time and in the format %Y%m%d%H%M%SZ.
+ *
+ * \param char *buf the buffer to populate.
+ * \param size_t bufsize Size of the buffer to populate. Must be at least
+ * SLAPI_TIMESTAMP_BUFSIZE
+ */
+void slapi_timestamp_utc_hr(char *buf, size_t bufsize);
+
+typedef enum {
+    TIMER_CONTINUE,
+    TIMER_EXPIRED
+} slapi_timer_result;
+
+/**
+ * populate a timespec with a time relative to now, that defines
+ * an expiry. IE, current time + timeout. This wraps the internal
+ * clock function to allow us to change clock operations without
+ * changing large parts of the codebase.
+ *
+ * if a negative timeout is provided, we set expire to 0.
+ *
+ * \param timeout the number of seconds relative to now when
+ * the timeout should occur.
+ * \param struct timespec the struct to populate with the relative
+ * time of when we should expire.
+ */
+void slapi_timespec_expire_at(time_t timeout, struct timespec *expire);
+
+/**
+ * populate a timespec with a time relative to start, that defines
+ * an expiry. IE, start time + timeout.
+ *
+ * if a negative timeout is provided, we set expire to 0.
+ *
+ * \param timeout the number of seconds relative to now when
+ * the timeout should occur.
+ * \param struct timespec start the struct containing the start
+ * time we are creating a relative expiry to.
+ * \param struct timespec the struct to populate with the relative
+ * time of when we should expire.
+ */
+void slapi_timespec_expire_rel(time_t timeout, struct timespec *start, struct timespec *expire);
+
+/**
+ * Given a slapi_operation, and a timeout, calculate the expiry
+ * relative to the operations start time. This is used to determine
+ * time outs from op start time + timeout. To check the timeout
+ * you should call slapi_timespec_expire_check.
+ *
+ * \param Slapi_Operation o the operation to use.
+ * \param time_t timeout the timeout in seconds.
+ * \param struct timespec expiry the timespec that will be populated with
+ * the system relative expiry time.
+ */
+void slapi_operation_time_expiry(Slapi_Operation *o, time_t timeout, struct timespec *expiry);
+
+/**
+ * check if a timespec has expired it's lifetime relative to now.
+ * if the timespec is 0, we do not cause a timeout.
+ *
+ * \param timespec to check for validity.
+ * \return slapi_time_result an enum of CONTINUE which means no
+ * expiry has occured, or EXPIRED, to defined tht the time is
+ * up. If timespec is 0, CONTINUE is always returned.
+ */
+slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 
 
 /*
@@ -7428,9 +7540,24 @@ Slapi_Regex *slapi_re_comp( const char *pat, const char **error );
  * \return This function returns other values if any error occurred.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up );
+int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up ) __attribute__((deprecated));
+/**
+ * Matches a compiled regular expression pattern against a given string.
+ * A thin wrapper of pcre_exec.
+ *
+ * \param re_handle The regex handler returned from slapi_re_comp.
+ * \param subject A string to be checked against the compiled pattern.
+ * returns immediately.  (-1) means no time limit.
+ * \return This function returns 0 if the string did not match.
+ * \return This function returns 1 if the string matched.
+ * \return This function returns other values if any error occurred.
+ * \warning The regex handler should be released by slapi_re_free().
+ */
+int32_t slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject);
 /**
  * Substitutes '&' or '\#' in the param src with the matched string.
+ *
+ * This is identical to slapi_re_exec, except with no timeout.
  *
  * \param re_handle The regex handler returned from slapi_re_comp.
  * \param subject A string checked against the compiled pattern.
@@ -8065,6 +8192,44 @@ int slapi_is_special_rdn(const char *rdn, int flag);
  * \return Nothing
  */
 void    DS_Sleep(PRIntervalTime ticks);
+
+
+#ifdef HAVE_CLOCK_GETTIME
+/**
+ * Diffs two timespects a - b into *diff. This is useful with
+ * clock_monotonic to find time taken to perform operations.
+ *
+ * \param struct timespec a the "end" time.
+ * \param struct timespec b the "start" time.
+ * \param struct timespec c the difference.
+ */
+void slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff);
+/**
+ * Given an operation, determine the time elapsed since the op
+ * began.
+ *
+ * \param Slapi_Operation o - the operation which is inprogress
+ * \param struct timespec *elapsed - location where the time difference will be
+ * placed.
+ */
+void slapi_operation_time_elapsed(Slapi_Operation *o, struct timespec *elapsed);
+/**
+ * Given an operation, see it's initiated time based on clock_monotonic
+ * this is useful for timeout parameters and checks.
+ *
+ * \param Slapi_Operation o - the operation that is in progress
+ * \param struct timespec *initiated - location where we will populate the init time.
+ */
+void slapi_operation_time_initiated(Slapi_Operation *o, struct timespec *initiated);
+/**
+ * Given an operation and a timeout, return a populate struct with the expiry
+ * time of the operation suitable for checking with slapi_timespec_expire_check
+ *
+ * \param Slapi_Operation o - the operation that is in progress
+ * \param time_t timeout the seconds relative to operation initiation to expiry at.
+ * \param struct timespec *expiry the timespec to popluate with the relative expiry.
+ */
+#endif
 
 #ifdef __cplusplus
 }

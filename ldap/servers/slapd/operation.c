@@ -160,17 +160,13 @@ operation_init(Slapi_Operation *o, int flags)
 		slapi_sdn_init(&(o->o_sdn));
 		o->o_authtype = NULL;
 		o->o_isroot = 0;
-		o->o_time = current_time();
+		clock_gettime(CLOCK_MONOTONIC, &(o->o_hr_time_rel));
+		clock_gettime(CLOCK_REALTIME, &(o->o_hr_time_utc));
 		o->o_opid = 0;
 		o->o_connid = 0;
 		o->o_next = NULL;
 		o->o_flags= flags;
 		o->o_reverse_search_state = 0;
-		if ( config_get_accesslog_level() & LDAP_DEBUG_TIMING ) {
-			o->o_interval = PR_IntervalNow();
-		} else {
-			o->o_interval = (PRIntervalTime)0;
-		}
 		o->o_pagedresults_sizelimit = -1;
 	}
 
@@ -634,3 +630,23 @@ slapi_connection_remove_operation( Slapi_PBlock *pb __attribute__((unused)), Sla
 	PR_ExitMonitor(conn->c_mutex);
 	return (rc);
 }
+
+void
+slapi_operation_time_elapsed(Slapi_Operation *o, struct timespec *elapsed) {
+    struct timespec o_hr_time_now;
+    clock_gettime(CLOCK_MONOTONIC, &o_hr_time_now);
+
+    slapi_timespec_diff(&o_hr_time_now, &(o->o_hr_time_rel), elapsed);
+}
+
+void
+slapi_operation_time_initiated(Slapi_Operation *o, struct timespec *initiated) {
+    initiated->tv_sec = o->o_hr_time_utc.tv_sec;
+    initiated->tv_nsec = o->o_hr_time_utc.tv_nsec;
+}
+
+void
+slapi_operation_time_expiry(Slapi_Operation *o, time_t timeout, struct timespec *expiry) {
+    slapi_timespec_expire_rel(timeout, &(o->o_hr_time_rel), expiry);
+}
+

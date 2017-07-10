@@ -618,7 +618,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 	target_dn = slapi_sdn_get_ndn(sdn);
 	pwpolicy = new_passwdPolicy(pb, target_dn);
-	cur_time = current_time();
+	cur_time = slapi_current_utc_time();
 	slapi_mods_init(&smods, 0);
 	
 	if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS, "shadowAccount")) {
@@ -762,7 +762,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __
 			slapi_ch_free((void **) &passwordAllowChangeTime );
 
 			/* check if allow to change the password */
-			cur_time_str = format_genTime ( current_time() );
+			cur_time_str = format_genTime ( slapi_current_utc_time() );
 			if ( difftime ( pw_allowchange_date,
 							parse_genTime ( cur_time_str )) > 0 )
 			{
@@ -1205,7 +1205,7 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 		vacnt_todelete = vacnt - pwpolicy->pw_inhistory;
 	}
 
-	cur_time = current_time();
+	cur_time = slapi_current_utc_time();
 	str = format_genTime(cur_time);
 	/* values_replace is sorted. */
 	if (old_pw) {
@@ -1406,7 +1406,7 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op __attribute__((unused)), Sla
 			/* must change password when first time logon */
 			bv.bv_val = format_genTime ( NO_TIME );
 		} else if ( pwpolicy->pw_exp ) {
-			exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
+			exptime = time_plus_sec(slapi_current_utc_time(), pwpolicy->pw_maxage);
 			bv.bv_val = format_genTime(exptime);
 		}
 		bv.bv_len = strlen( bv.bv_val );
@@ -1418,7 +1418,7 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op __attribute__((unused)), Sla
 			/* must change password when first time logon */
 			bv.bv_val = slapi_ch_smprintf("0");
 		} else {
-			exptime = current_time() / _SEC_PER_DAY;
+			exptime = slapi_current_utc_time() / _SEC_PER_DAY;
 			bv.bv_val = slapi_ch_smprintf("%ld", exptime);
 		}
 		bv.bv_len = strlen(bv.bv_val);
@@ -1435,8 +1435,8 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op __attribute__((unused)), Sla
 	 * the password if we set a passwordallowchangetime in the future.
 	 */
 	if ( !has_allowchangetime && pwpolicy->pw_minage != 0 && 
-		(has_expirationtime && existing_exptime > current_time()) ) {
-		bv.bv_val = format_genTime ( time_plus_sec ( current_time (), pwpolicy->pw_minage ) );
+		(has_expirationtime && existing_exptime > slapi_current_utc_time()) ) {
+		bv.bv_val = format_genTime ( time_plus_sec ( slapi_current_utc_time(), pwpolicy->pw_minage ) );
 		bv.bv_len = strlen( bv.bv_val );
 
 		slapi_entry_attr_merge( e, "passwordallowchangetime", bvals );
@@ -1792,7 +1792,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				slapi_attr_get_type(attr, &attr_name);
 				if (!strcasecmp(attr_name, "passwordminage")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_minage = slapi_value_get_timelonglong(*sval);
+						pwdpolicy->pw_minage = slapi_value_get_time_time_t(*sval);
 						if (-1 == pwdpolicy->pw_minage) {
 							slapi_log_err(SLAPI_LOG_ERR,
 								"new_passwdPolicy", "%s - Invalid passwordMinAge: %s\n",
@@ -1804,7 +1804,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				else
 				if (!strcasecmp(attr_name, "passwordmaxage")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_maxage = slapi_value_get_timelonglong(*sval);
+						pwdpolicy->pw_maxage = slapi_value_get_time_time_t(*sval);
 						if (-1 == pwdpolicy->pw_maxage) {
 							slapi_log_err(SLAPI_LOG_ERR,
 								"new_passwdPolicy", "%s - Invalid passwordMaxAge: %s\n",
@@ -1816,7 +1816,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				else
 				if (!strcasecmp(attr_name, "passwordwarning")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_warning = slapi_value_get_timelonglong(*sval);
+						pwdpolicy->pw_warning = slapi_value_get_time_time_t(*sval);
 						if (-1 == pwdpolicy->pw_warning) {
 							slapi_log_err(SLAPI_LOG_ERR,
 								"new_passwdPolicy", "%s - Invalid passwordWarning: %s\n",
@@ -1861,7 +1861,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				else
 				if (!strcasecmp(attr_name, "passwordlockoutduration")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_lockduration = slapi_value_get_timelong(*sval);
+						pwdpolicy->pw_lockduration = slapi_value_get_time_time_t(*sval);
 					}
 				}
 				else
@@ -2172,19 +2172,15 @@ check_pw_duration_value(const char *attr_name, char *value,
                         long minval, long maxval, char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
-	long long age;
+	time_t age;
 
-	age = slapi_parse_duration_longlong(value);
+	age = slapi_parse_duration(value);
 	if (-1 == age) {
 		slapi_create_errormsg(errorbuf, ebuflen, "password minimum age \"%s\" is invalid. ", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	} else if (0 == strcasecmp(CONFIG_PW_LOCKDURATION_ATTRIBUTE, attr_name)) {
 		if ( (age <= 0) ||
-#if defined(CPU_x86_64)
-			 (age > (MAX_ALLOWED_TIME_IN_SECS_64 - current_time())) ||
-#else
-			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
-#endif
+             (age > (MAX_ALLOWED_TIME_IN_SECS_64 - slapi_current_utc_time())) ||
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
 			slapi_create_errormsg(errorbuf, ebuflen, "%s: \"%s\" seconds is invalid. ", attr_name, value);
@@ -2192,11 +2188,7 @@ check_pw_duration_value(const char *attr_name, char *value,
 		}
 	} else {
 		if ( (age < 0) ||
-#if defined(CPU_x86_64)
-			 (age > (MAX_ALLOWED_TIME_IN_SECS_64 - current_time())) ||
-#else
-			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
-#endif
+			 (age > (MAX_ALLOWED_TIME_IN_SECS_64 - slapi_current_utc_time())) ||
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
 			slapi_create_errormsg(errorbuf, ebuflen, "%s: \"%s\" seconds is invalid. ", attr_name, value);
@@ -2212,11 +2204,11 @@ check_pw_resetfailurecount_value(const char *attr_name __attribute__((unused)), 
                                  long minval __attribute__((unused)), long maxval __attribute__((unused)), char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
-	long duration = 0; /* in minutes */
+	time_t duration = 0; /* in seconds */
 
 	/* in seconds */  
-	duration = strtol (value, NULL, 0);
-	if ( duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
+    duration = parse_duration_time_t(value);
+	if ( duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS_64 - slapi_current_utc_time()) ) {
 		slapi_create_errormsg(errorbuf, ebuflen, "password reset count duration \"%s\" seconds is invalid.", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
@@ -2375,7 +2367,7 @@ slapi_check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, in
 						0, NULL );
 			goto locked;
 		}
-		cur_time = current_time();
+		cur_time = slapi_current_utc_time();
 		cur_time_str = format_genTime( cur_time);
 		if ( difftime ( parse_genTime( cur_time_str ), unlock_time )  < 0 ) {
 
@@ -2437,7 +2429,7 @@ slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expi
             if (expiration_val) {
                 _expire_time = parse_genTime(expiration_val);
 
-                cur_time = current_time();
+                cur_time = slapi_current_utc_time();
                 cur_time_str = format_genTime(cur_time);
 
                 if ((_expire_time != NO_TIME) && (_expire_time != NOT_FIRST_TIME) &&
@@ -2509,7 +2501,7 @@ slapi_pwpolicy_is_locked(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *unloc
                     *unlock_time = (time_t)0;
                 }
             } else {
-                cur_time = current_time();
+                cur_time = slapi_current_utc_time();
                 cur_time_str = format_genTime(cur_time);
 
                 if (difftime(parse_genTime(cur_time_str), _unlock_time)  < 0) {

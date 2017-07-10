@@ -2265,7 +2265,7 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     } else {
 #endif
         time_t    tnl;
-        tnl = current_time();
+        tnl = slapi_current_utc_time();
         if (format_localTime_log(tnl, sizeof(tbuf), tbuf, &size) != 0) {
             syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
             return;
@@ -2353,7 +2353,7 @@ vslapd_log_error(
     } else {
 #endif
         time_t    tnl;
-        tnl = current_time();
+        tnl = slapi_current_utc_time();
         if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
             PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
             log__error_emergency(buffer, 1 ,locked);
@@ -2543,7 +2543,7 @@ static int vslapd_log_access(char *fmt, va_list ap)
         }
     } else {
 #endif
-        tnl = current_time();
+        tnl = slapi_current_utc_time();
         if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
             /* MSG may be truncated */
             PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
@@ -2760,7 +2760,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 
 
 	/* write the header in the log */
-	now = current_time();
+	now = slapi_current_utc_time();
 	log_convert_time (now, tbuf, 2 /* long */);
 	PR_snprintf (buffer,sizeof(buffer),"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
@@ -4627,7 +4627,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 	}
 
 	/* write the header in the log */
-	now = current_time();
+	now = slapi_current_utc_time();
 	log_convert_time (now, tbuf, 2 /*long */);
 	PR_snprintf(buffer, sizeof(buffer),"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
@@ -4754,7 +4754,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 	}
 
 	/* write the header in the log */
-	now = current_time();
+	now = slapi_current_utc_time();
 	log_convert_time (now, tbuf, 2 /*long */);	
 	PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
@@ -4880,7 +4880,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     }
 
     /* write the header in the log */
-    now = current_time();
+    now = slapi_current_utc_time();
     log_convert_time (now, tbuf, 2 /*long */);  
     PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
     LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);

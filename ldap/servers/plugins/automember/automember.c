@@ -1398,7 +1398,7 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileD
                     vals = slapi_entry_attr_get_charray(e, curr_rule->attr);
                     for (i = 0; vals && vals[i]; ++i) {
                         /* Evaluate the regex. */
-                        if (slapi_re_exec(curr_rule->regex, vals[i], -1) == 1) {
+                        if (slapi_re_exec_nt(curr_rule->regex, vals[i]) == 1) {
                             /* Found a match.  Add to end of the exclusion list
                              * and set last as a hint to ourselves. */
                             slapi_log_err(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1473,7 +1473,7 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileD
                     vals = slapi_entry_attr_get_charray(e, curr_rule->attr);
                     for (i = 0; vals && vals[i]; ++i) {
                         /* Evaluate the regex. */
-                        if (slapi_re_exec(curr_rule->regex, vals[i], -1) == 1) {
+                        if (slapi_re_exec_nt(curr_rule->regex, vals[i]) == 1) {
                             /* Found a match.  Add to the end of the targets list
                              * and set last as a hint to ourselves. */
                             slapi_log_err(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,

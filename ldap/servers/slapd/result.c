@@ -1944,8 +1944,6 @@ notes2str( unsigned int notes, char *buf, size_t buflen )
 }
 
 
-#define ETIME_BUFSIZ 16         /* room for 99999999.999999 */
-
 static void
 log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries )
 {
@@ -1963,13 +1961,10 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 
 	internal_op = operation_is_flag_set( op, OP_FLAG_INTERNAL );
 
-	if ( (config_get_accesslog_level() & LDAP_DEBUG_TIMING) &&
-			(op->o_interval != (PRIntervalTime) 0) ) {
-		PRIntervalTime delta = PR_IntervalNow() - op->o_interval;
-		PR_snprintf(etime, ETIME_BUFSIZ, "%f", (PRFloat64)delta/PR_TicksPerSecond());
-	} else {
-		PR_snprintf(etime, ETIME_BUFSIZ, "%ld", current_time() - op->o_time);
-	}
+	struct timespec o_hr_time_end;
+	slapi_operation_time_elapsed(op, &o_hr_time_end);
+
+	snprintf(etime, ETIME_BUFSIZ, "%" PRId64 ".%010" PRId64 "", o_hr_time_end.tv_sec, o_hr_time_end.tv_nsec);
 
 	slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &operation_notes);
 

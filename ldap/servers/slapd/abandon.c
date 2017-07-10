@@ -137,10 +137,12 @@ do_abandon( Slapi_PBlock *pb )
 			" targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
 			pb_conn->c_connid, pb_op->o_opid, id );
 	} else {
+		struct timespec o_hr_time_end;
+		slapi_operation_time_elapsed(o, &o_hr_time_end);
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-			" targetop=%d msgid=%d nentries=%d etime=%ld\n",
+			" targetop=%d msgid=%d nentries=%d etime=%"PRId64".%010"PRId64"\n",
 			pb_conn->c_connid, pb_op->o_opid, o->o_opid, id,
-			o->o_results.r.r_search.nentries, current_time() - o->o_time );
+			o->o_results.r.r_search.nentries, o_hr_time_end.tv_sec, o_hr_time_end.tv_nsec);
 	}
 
 	PR_ExitMonitor(pb_conn->c_mutex);

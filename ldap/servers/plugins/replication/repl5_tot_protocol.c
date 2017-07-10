@@ -114,7 +114,7 @@ static void repl5_tot_result_threadmain(void *param)
 	{
 		int message_id = 0;
 		time_t time_now = 0;
-		time_t start_time = time( NULL );
+		time_t start_time = slapi_current_utc_time();
 		int backoff_time = 1;
 
 		/* Read the next result */
@@ -133,7 +133,7 @@ static void repl5_tot_result_threadmain(void *param)
 				/* We need to a) check that the 'real' timeout hasn't expired and
 				 * b) implement a backoff sleep to avoid spinning */
 				/* Did the connection's timeout expire ? */
-				time_now = time( NULL );
+				time_now = slapi_current_utc_time();
 				if (conn_get_timeout(conn) <= ( time_now - start_time ))
 				{
 					/* We timed out */
@@ -347,7 +347,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	conn_set_timeout(prp->conn, agmt_get_timeout(prp->agmt));
 
     /* acquire remote replica */
-	agmt_set_last_init_start(prp->agmt, current_time());
+	agmt_set_last_init_start(prp->agmt, slapi_current_utc_time());
 retry:
     rc = acquire_replica (prp, REPL_NSDS50_TOTAL_PROTOCOL_OID, NULL /* ruv */);
     /* We never retry total protocol, even in case a transient error.
@@ -455,7 +455,7 @@ retry:
         cb_data.rc = 0;
         cb_data.num_entries = 1UL;
         cb_data.sleep_on_busy = 0UL;
-        cb_data.last_busy = current_time ();
+        cb_data.last_busy = slapi_current_utc_time ();
         cb_data.flowcontrol_detection = 0;
         cb_data.lock = PR_NewLock();
 
@@ -514,7 +514,7 @@ retry:
         cb_data.rc = 0;
         cb_data.num_entries = 0UL;
         cb_data.sleep_on_busy = 0UL;
-        cb_data.last_busy = current_time ();
+        cb_data.last_busy = slapi_current_utc_time ();
         cb_data.flowcontrol_detection = 0;
         cb_data.lock = PR_NewLock();
 
@@ -575,7 +575,7 @@ retry:
 	 * suitable messages will have been logged to the error log about the failure.
 	 */
 
-	agmt_set_last_init_end(prp->agmt, current_time());
+	agmt_set_last_init_end(prp->agmt, slapi_current_utc_time());
 	rc = cb_data.rc;
 	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
 	agmt_update_done(prp->agmt, 1);
@@ -883,7 +883,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 		}
 	
 		if (rc == CONN_BUSY) {
-			time_t now = current_time ();
+			time_t now = slapi_current_utc_time ();
 			if ((now - *last_busyp) < (*sleep_on_busyp + 10)) {
 				*sleep_on_busyp +=5;
 			}

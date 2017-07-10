@@ -23,71 +23,6 @@
 unsigned long strntoul( char *from, size_t len, int base );
 #define mktime_r(from) mktime (from) /* possible bug: is this thread-safe? */
 
-static time_t	currenttime;
-static int	currenttime_set = 0;
-/* XXX currenttime and currenttime_set are used by multiple threads,
- * concurrently (one thread sets them, many threads read them),
- * WITHOUT SYNCHRONIZATION.  If assignment to currenttime especially
- * is not atomic, current_time() will return bogus values, and
- * bogus behavior may ensue.  We think this isn't a problem, because
- * currenttime is a static variable, and defined first in this module;
- * consequently it's aligned, and doesn't cross cache lines or
- * otherwise run afoul of multiprocessor weirdness that might make
- * assignment to it non-atomic.
- */
-
-#ifndef HAVE_TIME_R
-PRLock  *time_func_mutex;
-
-int gmtime_r(
-    const time_t *timer,
-    struct tm *result
-)
-{
-    if ( result == NULL ) {
-	return -1;
-    }
-    PR_Lock( time_func_mutex );
-    memcpy( (void *) result, (const void *) gmtime( timer ),
-		sizeof( struct tm ));
-    PR_Unlock( time_func_mutex );
-    return 0;
-}
-
-int localtime_r(
-    const time_t *timer,
-    struct tm *result
-)
-{
-    if ( result == NULL ) {
-	return -1;
-    }
-    PR_Lock( time_func_mutex );
-    memcpy( (void *) result, (const void *) localtime( timer ),
-		sizeof( struct tm ));
-    PR_Unlock( time_func_mutex );
-    return 0;
-}
-
-
-int ctime_r(
-    const time_t *timer,
-    char *buffer,
-    int buflen
-)
-{
-    if (( buffer == NULL ) || ( buflen < 26)) {
-	return -1;
-    }
-    PR_Lock( time_func_mutex );
-    memset( buffer, 0, buflen );
-    memcpy( buffer, ctime( timer ), 26 );
-    PR_Unlock( time_func_mutex );
-    return 0;
-}
-#endif /* HAVE_TIME_R */
-
-
 char *
 get_timestring(time_t *t)
 {
@@ -103,8 +38,9 @@ get_timestring(time_t *t)
 void
 free_timestring(char *timestr)
 {
-    if ( timestr != NULL )
+    if ( timestr != NULL ) {
         slapi_ch_free((void**)&timestr);
+    }
 }
 
 /*
@@ -116,54 +52,71 @@ free_timestring(char *timestr)
  * Note: during server startup, poll_current_time() is not called at all so
  * current_time() just calls through to time() until poll_current_time() starts
  * to be called.
+ *
+ * WARNING: THIS IS NOT THREADSAFE.
  */
 time_t
 poll_current_time()
 {
-    if ( !currenttime_set ) {
-	currenttime_set = 1;
-    }
-
-    time( &currenttime );
-    return( currenttime );
+    return 0;
 }
 
 time_t
 current_time( void )
 {
-    if ( currenttime_set ) {
-        return( currenttime );
-    } else {
-        return( time( (time_t *)0 ));
-    }
+    /*
+     * For now wrap UTC time, but this interface
+     * but this should be removed in favour of the
+     * more accurately named slapi_current_utc_time
+     */
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    return now.tv_sec;
 }
 
 time_t
 slapi_current_time( void )
 {
-    return current_time();
+    return slapi_current_utc_time();
+}
+
+struct timespec
+slapi_current_rel_time_hr( void ) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now;
+}
+
+struct timespec
+slapi_current_utc_time_hr(void) {
+    struct timespec ltnow;
+    clock_gettime(CLOCK_REALTIME, &ltnow);
+    return ltnow;
+}
+
+time_t
+slapi_current_utc_time(void) {
+    struct timespec ltnow;
+    clock_gettime(CLOCK_REALTIME, &ltnow);
+    return ltnow.tv_sec;
+}
+
+void
+slapi_timestamp_utc_hr(char *buf, size_t bufsize) {
+    PR_ASSERT(bufsize >= SLAPI_TIMESTAMP_BUFSIZE);
+    struct timespec ltnow;
+    struct tm utctm;
+    clock_gettime(CLOCK_REALTIME, &ltnow);
+    gmtime_r(&(ltnow.tv_sec), &utctm);
+    strftime(buf, bufsize, "%Y%m%d%H%M%SZ", &utctm);
 }
 
 time_t
 time_plus_sec (time_t l, long r)
     /* return the point in time 'r' seconds after 'l'. */
 {
-    /* On many (but not all) platforms this is simply l + r;
-       perhaps it would be better to implement it that way. */
-    struct tm t;
-    if (r == 0) return l; /* performance optimization */
-    localtime_r (&l, &t);
-    /* Conceptually, we want to do: t.tm_sec += r;
-       but to avoid overflowing fields: */
-    r += t.tm_sec;  t.tm_sec  = r % 60; r /= 60;
-    r += t.tm_min;  t.tm_min  = r % 60; r /= 60;
-    r += t.tm_hour; t.tm_hour = r % 24; r /= 24;
-    t.tm_mday += r; /* may be > 31; mktime_r() must handle this */
-
-    /* These constants are chosen to work when the maximum
-       field values are 127 (the worst case) or more.
-       Perhaps this is excessively conservative. */
-    return mktime_r (&t);
+    PR_ASSERT(r >= 0);
+    return l + (time_t)r;
 }
 
 
@@ -217,7 +170,6 @@ format_localTime_log(time_t t, int initsize __attribute__((unused)), char *buf, 
     return 0;
 }
 
-#ifdef HAVE_CLOCK_GETTIME
 /*
  * format_localTime_hr_log will take a time value, and prepare it for
  * log printing.
@@ -268,7 +220,62 @@ format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)
     *bufsize = strlen(buf);
     return 0;
 }
-#endif /* HAVE_CLOCK_GETTIME */
+
+void
+slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff) {
+    /* Now diff the two */
+    time_t sec = a->tv_sec - b->tv_sec;
+    int32_t nsec = a->tv_nsec - b->tv_nsec;
+
+    if (nsec < 0) {
+        /* It's negative so take one second */
+        sec -= 1;
+        /* And set nsec to to a whole value */
+        nsec = 1000000000 - nsec;
+    }
+
+    diff->tv_sec = sec;
+    diff->tv_nsec = nsec;
+}
+
+void
+slapi_timespec_expire_at(time_t timeout, struct timespec *expire) {
+    if (timeout <= 0) {
+        expire->tv_sec = 0;
+        expire->tv_nsec = 0;
+    } else {
+        clock_gettime(CLOCK_MONOTONIC, expire);
+        expire->tv_sec += timeout;
+    }
+}
+
+void
+slapi_timespec_expire_rel(time_t timeout, struct timespec *start, struct timespec *expire) {
+    if (timeout <= 0) {
+        expire->tv_sec = 0;
+        expire->tv_nsec = 0;
+    } else {
+        expire->tv_sec = start->tv_sec + timeout;
+        expire->tv_nsec = start->tv_nsec;
+    }
+}
+
+slapi_timer_result
+slapi_timespec_expire_check(struct timespec *expire) {
+    /*
+     * Check this first, as it makes no timeout virutally free.
+     */
+    if (expire->tv_sec == 0 && expire->tv_nsec == 0) {
+        return TIMER_CONTINUE;
+    }
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if (now.tv_sec > expire->tv_sec ||
+        (expire->tv_sec == now.tv_sec && now.tv_sec > expire->tv_nsec)) {
+        return TIMER_EXPIRED;
+    }
+    return TIMER_CONTINUE;
+}
 
 char*
 format_localTime (time_t from)
@@ -348,7 +355,7 @@ format_genTime (time_t from)
     struct tm t;
 
     gmtime_r (&from, &t);
-    into = slapi_ch_malloc (20);
+    into = slapi_ch_malloc (SLAPI_TIMESTAMP_BUFSIZE);
     strftime(into, 20, "%Y%m%d%H%M%SZ", &t);
     return into;
 }
@@ -456,7 +463,7 @@ parse_genTime (char* from)
  *   Failure: -1
  */
 long
-parse_duration(char *value)
+parse_duration_32bit(char *value)
 {
     char *input = NULL;
     char *endp;
@@ -523,8 +530,8 @@ bail:
     return duration;
 }
 
-long long
-parse_duration_longlong(char *value)
+time_t
+parse_duration_time_t(char *value)
 {
     char *input = NULL;
     char *endp;
@@ -584,7 +591,7 @@ parse_duration_longlong(char *value)
     duration *= times;
 bail:
     if (duration == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "parse_duration_longlong",
+        slapi_log_err(SLAPI_LOG_ERR, "parse_duration_time_t",
                 "Invalid duration (%s)\n", value?value:"null");
     }
     slapi_ch_free_string(&input);
@@ -594,13 +601,13 @@ bail:
 time_t
 slapi_parse_duration(const char *value)
 {
-    return (time_t)parse_duration((char *)value);
+    return parse_duration_time_t((char *)value);
 }
 
 long long
 slapi_parse_duration_longlong(const char *value)
 {
-    return parse_duration_longlong((char *)value);
+    return parse_duration_time_t((char *)value);
 }
 
 static int

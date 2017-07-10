@@ -289,10 +289,10 @@ struct vlvIndex*
 vlvSearch_findenabled(backend *be,struct vlvSearch* plist, const Slapi_DN *base, int scope, const char *filter, const sort_spec* sort_control)
 {
     struct vlvSearch *t= plist;
-	struct vlvIndex *pi= NULL;
+    struct vlvIndex *pi= NULL;
     for(; (t!=NULL) && (pi == NULL); t= t->vlv_next)
     {
-		pi= vlvSearch_equal(t,base,scope,filter,sort_control);
+        pi= vlvSearch_equal(t,base,scope,filter,sort_control);
         if(pi!=NULL)
         {
             if(!vlvIndex_enabled(pi))
@@ -302,11 +302,9 @@ vlvSearch_findenabled(backend *be,struct vlvSearch* plist, const Slapi_DN *base,
                  * But it hasn't been enabled yet.  Check to see if the
                  * index is there.  But, only check once every 60 seconds.
                  */
-            	time_t curtime = current_time();
-                if(curtime>pi->vlv_lastchecked+60)
-                {
+                if (slapi_timespec_expire_check(&(pi->vlv_nextcheck)) == TIMER_EXPIRED) {
                     vlvIndex_checkforindex(pi, be);
-                    pi->vlv_lastchecked= current_time();
+                    slapi_timespec_expire_at(60, &(pi->vlv_nextcheck));
                 }
             }
             if(!vlvIndex_enabled(pi))
@@ -505,20 +503,9 @@ vlvIndex_new()
     struct vlvIndex* p = (struct vlvIndex*)slapi_ch_calloc(1,sizeof(struct vlvIndex));
     if(p!=NULL)
     {
-        p->vlv_sortspec= NULL;
         p->vlv_attrinfo= attrinfo_new();
-        p->vlv_sortkey= NULL;
-        p->vlv_filename= NULL;
-	    p->vlv_mrpb= NULL;
         p->vlv_indexlength_lock= PR_NewLock();
-        p->vlv_indexlength_cached= 0;
-        p->vlv_indexlength= 0;
         p->vlv_online = 1;
-        p->vlv_enabled = 0;
-        p->vlv_lastchecked= 0;
-        p->vlv_uses= 0;
-        p->vlv_search= NULL;
-        p->vlv_next= NULL;
     }
     return p;
 }
@@ -611,7 +598,7 @@ vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const 
         {
             vlvIndex_checkforindex(p, be);
         }
-        p->vlv_lastchecked= current_time();
+        slapi_timespec_expire_at(60, &(p->vlv_nextcheck));
     }
     slapi_ch_free((void**)&filename);
 }

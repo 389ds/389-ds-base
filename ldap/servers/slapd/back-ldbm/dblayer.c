@@ -4301,19 +4301,21 @@ dblayer_start_checkpoint_thread(struct ldbminfo *li)
  */
 static int checkpoint_threadmain(void *param)
 {
-    time_t time_of_last_checkpoint_completion = 0;    /* seconds since epoch */
     PRIntervalTime    interval;
     int rval = -1;
     dblayer_private *priv = NULL;
     struct ldbminfo *li = NULL;
     int debug_checkpointing = 0;
-    int checkpoint_interval;
     char *home_dir = NULL;
     char **list = NULL;
     char **listp = NULL;
     struct dblayer_private_env *penv = NULL;
-    time_t time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
-    int compactdb_interval = 0;
+    struct timespec checkpoint_expire;
+    struct timespec compactdb_expire;
+    time_t compactdb_interval_update = 0;
+    time_t checkpoint_interval_update = 0;
+    time_t compactdb_interval = 0;
+    time_t checkpoint_interval = 0;
     back_txn txn;
 
     PR_ASSERT(NULL != param);
@@ -4324,8 +4326,7 @@ static int checkpoint_threadmain(void *param)
 
     INCR_THREAD_COUNT(priv);
 
-    compactdb_interval = priv->dblayer_compactdb_interval;
-    interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
+    interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL * 10);
     home_dir = dblayer_get_home_dir(li, NULL);
     if (NULL == home_dir || '\0' == *home_dir)
     {
@@ -4337,76 +4338,113 @@ static int checkpoint_threadmain(void *param)
     /* work around a problem with newly created environments */
     dblayer_force_checkpoint(li);
 
+    PR_Lock(li->li_config_mutex);
+    checkpoint_interval = (time_t)priv->dblayer_checkpoint_interval;
+    compactdb_interval = (time_t)priv->dblayer_compactdb_interval;
     penv = priv->dblayer_env;
     debug_checkpointing = priv->db_debug_checkpointing;
+    PR_Unlock(li->li_config_mutex);
+
     /* assumes dblayer_force_checkpoint worked */
-    time_of_last_checkpoint_completion = current_time();
+    /*
+     * Importantly, the use of this api is not affected by backwards time steps
+     * and the like. Because this use relative system time, rather than utc,
+     * it makes it much more reliable to run.
+     */
+    slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
+    slapi_timespec_expire_at(checkpoint_interval, &checkpoint_expire);
+
     while (!priv->dblayer_stop_threads)
     {
         /* sleep for a while */
         /* why aren't we sleeping exactly the right amount of time ? */
         /* answer---because the interval might be changed after the server 
          * starts up */
+
         DS_Sleep(interval);
 
-        if (0 == priv->dblayer_enable_transactions) 
+        if (0 == priv->dblayer_enable_transactions) {
             continue;
+        }
 
         PR_Lock(li->li_config_mutex);
-        checkpoint_interval = priv->dblayer_checkpoint_interval;
+        checkpoint_interval_update = (time_t)priv->dblayer_checkpoint_interval;
+        compactdb_interval_update = (time_t)priv->dblayer_compactdb_interval;
         PR_Unlock(li->li_config_mutex);
 
-        /* Check to see if the checkpoint interval has elapsed */
-        if (current_time() - time_of_last_checkpoint_completion <
-                                               checkpoint_interval) 
-            continue;
+        /* If the checkpoint has been updated OR we have expired */
+        if (checkpoint_interval != checkpoint_interval_update &&
+            slapi_timespec_expire_check(&checkpoint_expire) == TIMER_EXPIRED) {
 
-        if (!dblayer_db_uses_transactions(priv->dblayer_env->dblayer_DB_ENV))
-            continue;
+            /* If our interval has changed, update it. */
+            checkpoint_interval = checkpoint_interval_update;
 
-        /* now checkpoint */
-        checkpoint_debug_message(debug_checkpointing,
-                                 "checkpoint_threadmain - Starting checkpoint\n");
-        rval = dblayer_txn_checkpoint(li, priv->dblayer_env, 
-                                      PR_TRUE, PR_FALSE);
-        checkpoint_debug_message(debug_checkpointing,
-                                 "checkpoint_threadmain - Checkpoint Done\n");
-        if (rval != 0) {
-            /* bad error */
-            slapi_log_err(SLAPI_LOG_CRIT,
-                "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
-                "err=%d (%s)\n", rval, dblayer_strerror(rval));
-            if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
-                operation_out_of_disk_space();
-                goto error_return;
+            if (!dblayer_db_uses_transactions(priv->dblayer_env->dblayer_DB_ENV)) {
+                continue;
             }
-        } else {
-            time_of_last_checkpoint_completion = current_time();
-        }
 
-        checkpoint_debug_message(debug_checkpointing,
-                                 "checkpoint_threadmain - Starting checkpoint\n");
-        rval = dblayer_txn_checkpoint(li, priv->dblayer_env, 
-                                      PR_TRUE, PR_FALSE);
-        checkpoint_debug_message(debug_checkpointing,
-                                 "checkpoint_threadmain - Checkpoint Done\n");
-        if (rval != 0) {
-            /* bad error */
-            slapi_log_err(SLAPI_LOG_CRIT,
-                "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
-                "err=%d (%s)\n", rval, dblayer_strerror(rval));
-            if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
-                operation_out_of_disk_space();
-                goto error_return;
+            /* now checkpoint */
+            checkpoint_debug_message(debug_checkpointing,
+                                     "checkpoint_threadmain - Starting checkpoint\n");
+            rval = dblayer_txn_checkpoint(li, priv->dblayer_env,
+                                          PR_TRUE, PR_FALSE);
+            checkpoint_debug_message(debug_checkpointing,
+                                     "checkpoint_threadmain - Checkpoint Done\n");
+            if (rval != 0) {
+                /* bad error */
+                slapi_log_err(SLAPI_LOG_CRIT,
+                    "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
+                    "err=%d (%s)\n", rval, dblayer_strerror(rval));
+                if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
+                    operation_out_of_disk_space();
+                    goto error_return;
+                }
             }
-        } else {
-            time_of_last_checkpoint_completion = current_time();
+
+            rval = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
+                               DB_ARCH_ABS, (void *)slapi_ch_malloc);
+            if (rval) {
+                slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
+                               "log archive failed - %s (%d)\n", 
+                               dblayer_strerror(rval), rval);
+            } else {
+                for (listp = list; listp && *listp != NULL; ++listp) {
+                    if (priv->dblayer_circular_logging) {
+                        checkpoint_debug_message(debug_checkpointing,
+                                                 "Deleting %s\n", *listp);
+                        unlink(*listp);
+                    } else {
+                        char new_filename[MAXPATHLEN];
+                        PR_snprintf(new_filename, sizeof(new_filename),
+                                    "%s.old", *listp);
+                        checkpoint_debug_message(debug_checkpointing,
+                                    "Renaming %s -> %s\n",*listp, new_filename);
+                        if(rename(*listp, new_filename) != 0){
+                            slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "Failed to rename log (%s) to (%s)\n",
+                                    *listp, new_filename);
+                            rval = -1;
+                            goto error_return;
+                        }
+                    }
+                }
+                slapi_ch_free((void**)&list);
+                /* Note: references inside the returned memory need not be
+                 * individually freed. */
+            }
+            slapi_timespec_expire_at(checkpoint_interval, &checkpoint_expire);
         }
-        /* find out which log files don't contain active txns */
 
         /* Compacting DB borrowing the timing of the log flush */
-        if ((compactdb_interval > 0) &&
-            (current_time() - time_of_last_comapctdb_completion > compactdb_interval)) {
+
+        /*
+         * Remember that if compactdb_interval is 0, timer_expired can
+         * never occur unless the value in compctdb_interval changes.
+         *
+         * this could have been a bug infact, where compactdb_interval
+         * was 0, if you change while running it would never take effect ....
+         */
+        if (compactdb_interval_update != compactdb_interval ||
+            slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {
             int rc = 0;
             Object *inst_obj;
             ldbm_instance *inst;
@@ -4422,17 +4460,45 @@ static int checkpoint_threadmain(void *param)
                 if (!db || rc ) {
                     continue;
                 }
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "checkpoint_threadmain", "Compacting DB start: %s\n",
+                slapi_log_err(SLAPI_LOG_NOTICE, "checkpoint_threadmain", "Compacting DB start: %s\n",
                               inst->inst_name);
+
+                /*
+                 * It's possible for this to heap us after free because when we access db
+                 * *just* as the server shut's down, we don't know it. So we should probably
+                 * do something like wrapping access to the db var in a rwlock, and have "read"
+                 * to access, and take writes to change the state. This would prevent the issue.
+                 */
+                DBTYPE type;
+                rc = db->get_type(db, &type);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
+                              "compactdb: failed to determine db type for %s: db error - %d %s\n",
+                              inst->inst_name, rc, db_strerror(rc));
+                    continue;
+                }
+
                 rc = dblayer_txn_begin(inst->inst_be, NULL, &txn);
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "compactdb: transaction begin failed: %d\n", rc);
                     break;
                 }
+                /*
+                 * https://docs.oracle.com/cd/E17275_01/html/api_reference/C/BDB-C_APIReference.pdf
+                 * "DB_FREELIST_ONLY
+                 * Do no page compaction, only returning pages to the filesystem that are already free and at the end
+                 * of the file. This flag must be set if the database is a Hash access method database."
+                 *
+                 */
+
+                uint32_t compact_flags = DB_FREE_SPACE;
+                if (type == DB_HASH) {
+                    compact_flags |= DB_FREELIST_ONLY;
+                }
                 rc = db->compact(db, txn.back_txn_txn, NULL/*start*/, NULL/*stop*/, 
-                                 &c_data, DB_FREE_SPACE, NULL/*end*/);
+                                 &c_data, compact_flags, NULL/*end*/);
                 if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR,
+                    slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
                               "compactdb: failed to compact %s; db error - %d %s\n",
                               inst->inst_name, rc, db_strerror(rc));
                     if((rc = dblayer_txn_abort(inst->inst_be, &txn))){
@@ -4441,7 +4507,7 @@ static int checkpoint_threadmain(void *param)
                         break;
                     }
                 } else {
-                    slapi_log_err(SLAPI_LOG_BACKLDBM,
+                    slapi_log_err(SLAPI_LOG_NOTICE, "checkpoint_threadmain",
                                    "compactdb: compact %s - %d pages freed\n",
                                    inst->inst_name, c_data.compact_pages_free);
                     if((rc = dblayer_txn_commit(inst->inst_be, &txn))){
@@ -4451,40 +4517,10 @@ static int checkpoint_threadmain(void *param)
                     }
                 }
             }
-            time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
-            compactdb_interval = priv->dblayer_compactdb_interval;
+            compactdb_interval = compactdb_interval_update;
+            slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
         }
 
-        rval = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
-                           DB_ARCH_ABS, (void *)slapi_ch_malloc);
-        if (rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
-                           "log archive failed - %s (%d)\n", 
-                           dblayer_strerror(rval), rval);
-        } else {
-            for (listp = list; listp && *listp != NULL; ++listp) {
-                if (priv->dblayer_circular_logging) {
-                    checkpoint_debug_message(debug_checkpointing,
-                                             "Deleting %s\n", *listp);
-                    unlink(*listp);
-                } else {
-                    char new_filename[MAXPATHLEN];
-                    PR_snprintf(new_filename, sizeof(new_filename),
-                                "%s.old", *listp);
-                    checkpoint_debug_message(debug_checkpointing,
-                                "Renaming %s -> %s\n",*listp, new_filename);
-                    if(rename(*listp, new_filename) != 0){
-                        slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "Failed to rename log (%s) to (%s)\n",
-                                *listp, new_filename);
-                        rval = -1;
-                        goto error_return;
-                    }
-                }
-            }
-            slapi_ch_free((void**)&list);
-            /* Note: references inside the returned memory need not be 
-             * individually freed. */
-        }
     }
     slapi_log_err(SLAPI_LOG_TRACE, "checkpoint_threadmain", "Check point before leaving\n");
     rval = dblayer_force_checkpoint(li);

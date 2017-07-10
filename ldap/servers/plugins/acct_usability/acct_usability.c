@@ -197,7 +197,7 @@ static LDAPControl *auc_create_response_ctrl(Slapi_Entry *e)
     Slapi_PWPolicy *pwpolicy = NULL;
     time_t expire_time = (time_t)0;
     time_t unlock_time = (time_t)0;
-    time_t now = slapi_current_time();
+    time_t now = slapi_current_utc_time();
 
     if (!e) {
         slapi_log_err(SLAPI_LOG_PLUGIN, AUC_PLUGIN_SUBSYSTEM,

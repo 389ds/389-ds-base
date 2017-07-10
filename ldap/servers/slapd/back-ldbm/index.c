@@ -1227,7 +1227,7 @@ index_range_read_ext(
     int lookthrough_limit = -1; /* default no limit */
     int is_and = 0;
     int sizelimit = 0;
-    time_t curtime, stoptime = 0;
+    struct timespec expire_time;
     int timelimit = -1;
     back_search_result_set *sr = NULL;
     int isroot = 0;
@@ -1252,11 +1252,9 @@ index_range_read_ext(
         slapi_pblock_get(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
     }
     slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &timelimit);
-    if (timelimit != -1) {
-        time_t optime;
-        slapi_pblock_get(pb, SLAPI_OPINITIATED_TIME, &optime);
-        stoptime = optime + timelimit;
-    }
+    Slapi_Operation        *op;
+    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+    slapi_operation_time_expiry(op, (time_t)timelimit, &expire_time);
 
     /*
      * Determine the lookthrough_limit from the PBlock.
@@ -1472,7 +1470,7 @@ index_range_read_ext(
     }
     if (idl_get_idl_new()) { /* new idl */
         idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
-                                  ai, err, allidslimit, sizelimit, stoptime,
+                                  ai, err, allidslimit, sizelimit, &expire_time,
                                   lookthrough_limit, operator);
     } else { /* old idl */
         int retry_count = 0;
@@ -1509,14 +1507,11 @@ index_range_read_ext(
                 }
             }
             /* check time limit */
-            if (timelimit != -1) {
-                curtime = current_time();
-                if (curtime >= stoptime) {
-                    slapi_log_err(SLAPI_LOG_TRACE,
-                                   "index_range_read_ext", "timelimit exceeded\n");
-                    *err = LDAP_TIMELIMIT_EXCEEDED;
-                    break;
-                }
+            if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+                slapi_log_err(SLAPI_LOG_TRACE,
+                               "index_range_read_ext", "timelimit exceeded\n");
+                *err = LDAP_TIMELIMIT_EXCEEDED;
+                break;
             }
             /* Check to see if the operation has been abandoned (also happens
              * when the connection is closed by the client).

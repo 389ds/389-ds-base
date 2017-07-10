@@ -21,7 +21,7 @@
 struct baggage_carrier {
 	backend *be; /* For id2entry */
 	Slapi_PBlock *pb; /* For slapi_op_abandoned */
-	time_t	stoptime; /* For timelimit policing */
+	struct timespec *expire_time;
 	int lookthrough_limit;
 	int check_counter; /* Used to avoid checking every 100ns */
 };
@@ -137,7 +137,7 @@ void sort_log_access(Slapi_PBlock *pb,sort_spec_thing *s,IDList *candidates)
  * Plan C:  We determine that sorting these suckers is
  *			far too hard for us to even try, so we refuse.
  */
-int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlock *pb, 
+int sort_candidates(backend *be,int lookthrough_limit, struct timespec *expire_time, Slapi_PBlock *pb,
 					IDList	*candidates, sort_spec_thing *s, char **sort_error_type)
 {
 	int return_value = LDAP_SUCCESS;
@@ -185,7 +185,7 @@ int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlo
 
 	bc.be = be; 
 	bc.pb = pb; 
-	bc.stoptime = time_up;
+	bc.expire_time = expire_time;
 	bc.lookthrough_limit = lookthrough_limit;
 	bc.check_counter = 1;
 
@@ -580,7 +580,6 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
  */
 static int sort_check(baggage_carrier *bc)
 {
-	time_t curtime = 0;
 	/* check for abandon */
 	if ( slapi_op_abandoned( bc->pb)) {
 	    return LDAP_OTHER;
@@ -590,9 +589,8 @@ static int sort_check(baggage_carrier *bc)
 
 	if (0 == ((bc->check_counter)++ % CHECK_INTERVAL) ) {
 
-		/* check time limit */
-		curtime = current_time();
-		if ( bc->stoptime != -1 && curtime > bc->stoptime ) {
+		if (slapi_timespec_expire_check(bc->expire_time) == TIMER_EXPIRED) {
+			slapi_log_err(SLAPI_LOG_TRACE, "sort_check", "LDAP_TIMELIMIT_EXCEEDED\n");
 			return LDAP_TIMELIMIT_EXCEEDED;
 		}
 			

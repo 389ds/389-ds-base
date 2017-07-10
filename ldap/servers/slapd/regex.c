@@ -71,7 +71,7 @@ int
 slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
 {
     int rc;
-    time_t curtime = current_time();
+    time_t curtime = slapi_current_utc_time();
 
     if (NULL == re_handle || NULL == re_handle->re_pcre || NULL == subject) {
         return LDAP_PARAM_ERROR;
@@ -79,6 +79,52 @@ slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
 
     if ( time_up != -1 && curtime > time_up ) {
         return LDAP_TIMELIMIT_EXCEEDED;
+    }
+
+    if (NULL == re_handle->re_ovector) {
+        re_handle->re_oveccount = OVECCOUNT;
+        re_handle->re_ovector = (int *)slapi_ch_malloc(sizeof(int) * OVECCOUNT);
+    }
+
+    rc = pcre_exec( re_handle->re_pcre, /* the compiled pattern */
+                    NULL,            /* no extra data */
+                    subject,         /* the subject string */
+                    strlen(subject), /* the length of the subject */
+                    0,               /* start at offset 0 in the subject */
+                    0,               /* default options */
+                    re_handle->re_ovector, /* output vector for substring info */
+                    re_handle->re_oveccount ); /* number of elems in the ovector */
+
+    if (rc >= 0) {
+        return 1;    /* matched */
+    } else {
+        return 0;    /* did not match */
+    }
+
+    return rc;
+}
+
+/**
+ * Matches a compiled regular expression pattern against a given string.
+ * A thin wrapper of pcre_exec.
+ *
+ * unlike slapi_re_exec, this has no timeout. The timeout was only checked
+ * at the start of the function, not during or after, so was essentially
+ * meaningless.
+ *
+ * \param re_handle The regex handler returned from slapi_re_comp.
+ * \param subject A string to be checked against the compiled pattern.
+ * \return This function returns 0 if the string did not match.
+ * \return This function returns 1 if the string matched.
+ * \return This function returns other values if any error occurred.
+ * \warning The regex handler should be released by slapi_re_free().
+ */
+int32_t
+slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject) {
+    int32_t rc;
+
+    if (NULL == re_handle || NULL == re_handle->re_pcre || NULL == subject) {
+        return LDAP_PARAM_ERROR;
     }
 
     if (NULL == re_handle->re_ovector) {

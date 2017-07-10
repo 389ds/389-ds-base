@@ -123,10 +123,11 @@ chaining_back_compare ( Slapi_PBlock *pb )
                 	ldap_controls_free(ctrls);
                 return -1;
         }
- 
+
 	/* heart-beat management */
-	if (cb->max_idle_time>0)
-        	endtime=current_time() + cb->max_idle_time;
+	if (cb->max_idle_time>0) {
+			endtime=slapi_current_utc_time() + cb->max_idle_time;
+	}
 
 	/*
 	 * Send LDAP operation to the remote host

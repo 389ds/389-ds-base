@@ -666,7 +666,7 @@ set_max_csn_nolock_ext(RUV *ruv, const CSN *max_csn, const char *replica_purl, P
 		if (!must_be_greater || (csn_compare(replica->csn, max_csn) < 0)) {
 			csn_free(&replica->csn);
 			replica->csn = csn_dup(max_csn);
-			replica->last_modified = current_time();
+			replica->last_modified = slapi_current_utc_time();
 		} else {
 			char csn1[CSN_STRSIZE+1];
 			char csn2[CSN_STRSIZE+1];
@@ -748,7 +748,7 @@ ruv_set_csns(RUV *ruv, const CSN *csn, const char *replica_purl)
 				{
 					replica->csn = csn_dup(csn);
 				}
-				replica->last_modified = current_time();
+				replica->last_modified = slapi_current_utc_time();
 				if (replica_purl && (NULL == replica->replica_purl ||
 					strcmp(replica->replica_purl, replica_purl) != 0))
 				{
@@ -810,7 +810,7 @@ ruv_set_csns_keep_smallest(RUV *ruv, const CSN *csn)
 			{
 				csn_free(&replica->csn);
 				replica->csn = csn_dup(csn);
-				replica->last_modified = current_time();
+				replica->last_modified = slapi_current_utc_time();
 			}
 			
 			return_value = RUV_SUCCESS;
@@ -1891,7 +1891,7 @@ ruvAddReplica (RUV *ruv, const CSN *csn, const char *replica_purl)
 /* 	PR_ASSERT(replica->rid != READ_ONLY_REPLICA_ID); */
 	
 	replica->csn = csn_dup (csn);
-	replica->last_modified = current_time();
+	replica->last_modified = slapi_current_utc_time();
 	replica->min_csn = csn_dup (csn);
 
 	replica->replica_purl = slapi_ch_strdup(replica_purl);

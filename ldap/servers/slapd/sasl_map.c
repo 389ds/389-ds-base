@@ -585,7 +585,7 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 			dp->regular_expression, recomp_result?recomp_result:"unknown");
 	} else {
 		/* Matches the compiled regex against sasl_user_and_realm */
-		matched = slapi_re_exec(re, sasl_user_and_realm, -1 /* no timelimit */);
+		matched = slapi_re_exec_nt(re, sasl_user_and_realm);
 		slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_check", "regex: %s, id: %s, %s\n",
 			dp->regular_expression, sasl_user_and_realm,
 			matched ? "matched" : "didn't match" );
@@ -643,7 +643,7 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 			}
 		} else {
 			slapi_log_err(SLAPI_LOG_ERR,
-				"sasl_map_check", "slapi_re_exec failed: "
+				"sasl_map_check", "slapi_re_exec_nt failed: "
 				"regex: %s, subject: %s (%d)\n",
 				dp->regular_expression, sasl_user_and_realm, matched);
 		}

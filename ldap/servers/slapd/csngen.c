@@ -69,14 +69,6 @@ struct csngen
 
 /*
  * **************************************************************************
- * global data
- * **************************************************************************
- */
-
-static time_t g_sampled_time;	/* time obtained from time() call */
-
-/*
- * **************************************************************************
  * forward declarations	of helper functions
  * **************************************************************************
  */
@@ -143,7 +135,7 @@ csngen_new (ReplicaId rid, Slapi_Attr *state)
 	else
 	{
 		/* new generator */
-		gen->state.sampled_time = current_time ();
+		gen->state.sampled_time = slapi_current_utc_time();
 		gen->state.local_offset = 0;
 		gen->state.remote_offset = 0;
 		gen->state.seq_num = 0;
@@ -199,13 +191,10 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
 
     slapi_rwlock_wrlock (gen->lock);
 
-    if (g_sampled_time == 0)
-        csngen_update_time ();
-
-    cur_time = g_sampled_time;
+    cur_time = slapi_current_utc_time();
 
     /* check if the time should be adjusted */
-	delta = cur_time - gen->state.sampled_time;
+    delta = cur_time - gen->state.sampled_time;
     if (delta > 0)
     {
         rc = _csngen_adjust_local_time (gen, cur_time);
@@ -311,8 +300,7 @@ int csngen_adjust_time(CSNGen *gen, const CSN* csn)
                          gen->state.remote_offset);
     }
     /* make sure we have the current time */
-    csngen_update_time();
-    cur_time = g_sampled_time;
+    cur_time = slapi_current_utc_time();
 
     /* make sure sampled_time is current */
     /* must only call adjust_local_time if the current time is greater than
@@ -458,13 +446,6 @@ void csngen_unregister_callbacks(CSNGen *gen, void *cookie)
         dl_delete (gen->callbacks.list, cookie, _csngen_cmp_callbacks, slapi_ch_free);
         slapi_rwlock_unlock (gen->callbacks.lock);
     }
-}
-
-/* this functions is periodically called from daemon.c to
-   update time used by all generators */
-void csngen_update_time ()
-{
-    g_sampled_time = current_time ();
 }
 
 /* debugging function */
@@ -881,7 +862,9 @@ _csngen_local_tester_main (void *data)
 		/* sleep for 30 seconds */
 		DS_Sleep (PR_SecondsToInterval(60));
 
-		g_sampled_time -= slapi_rand () % 100;		
+		/*
+		 * g_sampled_time -= slapi_rand () % 100;		
+		 */
 
 		csngen_dump_state (gen);
 	}

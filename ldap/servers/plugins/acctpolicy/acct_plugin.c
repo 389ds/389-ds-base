@@ -99,7 +99,7 @@ acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, a
 	}
 
 	last_t = gentimeToEpochtime( lasttimestr );
-	cur_t = time( (time_t*)0 );
+	cur_t = slapi_current_utc_time();
 	lim_t = policy->inactivitylimit;
 
 	/* Finally do the time comparison */
@@ -159,7 +159,7 @@ acct_record_login( const char *dn )
  
 	plugin_id = get_identity();
 
-	timestr = epochtimeToGentime( time( (time_t*)0 ) );
+	timestr = epochtimeToGentime( slapi_current_utc_time() );
 	val.bv_val = timestr;
 	val.bv_len = strlen( val.bv_val );
 

@@ -259,7 +259,7 @@ repl5_inc_result_threadmain(void *param)
 		char *uniqueid = NULL;
 		char *ldap_error_string = NULL;
 		time_t time_now = 0;
-		time_t start_time = time( NULL );
+		time_t start_time = slapi_current_utc_time();
 		int connection_error = 0;
 		int operation_code = 0;
 		int backoff_time = 1;
@@ -282,7 +282,7 @@ repl5_inc_result_threadmain(void *param)
 				/* We need to a) check that the 'real' timeout hasn't expired and
 				 * b) implement a backoff sleep to avoid spinning */
 				/* Did the connection's timeout expire ? */
-				time_now = time( NULL );
+				time_now = slapi_current_utc_time();
 				if (conn_get_timeout(conn) <= ( time_now - start_time ))
 				{
 					/* We timed out */
@@ -373,7 +373,7 @@ repl5_inc_result_threadmain(void *param)
 		/* Should we stop ? */
 		PR_Lock(rd->lock);
 		if (!finished && yield_session && rd->abort != SESSION_ABORTED && rd->abort_time == 0) {
-			rd->abort_time = time( NULL );
+			rd->abort_time = slapi_current_utc_time();
 			rd->abort = SESSION_ABORTED;  /* only set the abort time once */
 			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain - "
 			                "Abort control detected, setting abort time...(%s)\n",
@@ -932,7 +932,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                */
               if (STATE_BACKOFF == next_state){
                   /* Step the backoff timer */
-                  time(&now);
+                  now = slapi_current_utc_time();
                   next_fire_time = backoff_step(prp_priv->backoff);
                   /* And go back to sleep */
                   slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -978,7 +978,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               release_replica (prp);
               done = 1;
               agmt_set_update_in_progress(prp->agmt, PR_FALSE);
-              agmt_set_last_update_end(prp->agmt, current_time());
+              agmt_set_last_update_end(prp->agmt, slapi_current_utc_time());
               /* MAB: I don't find the following status correct. How do we know it has
                * been stopped by an admin and not by a total update request, for instance?
                * In any case, how is this protocol shutdown situation different from all the
@@ -1074,7 +1074,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                       /*
                        *  Reset our update times and status
                        */
-                      agmt_set_last_update_start(prp->agmt, current_time());
+                      agmt_set_last_update_start(prp->agmt, slapi_current_utc_time());
                       agmt_set_last_update_end(prp->agmt, 0);
                       agmt_set_update_in_progress(prp->agmt, PR_TRUE);
                       /*
@@ -1122,7 +1122,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                       /* Set the updates times based off the result of send_updates() */
                       if(rc == UPDATE_NO_MORE_UPDATES){
                           /* update successful, set the end time */
-                    	  agmt_set_last_update_end(prp->agmt, current_time());
+                    	  agmt_set_last_update_end(prp->agmt, slapi_current_utc_time());
                       } else {
                           /* Failed to send updates, reset the start time to zero */
                           agmt_set_last_update_start(prp->agmt, 0);
@@ -1973,7 +1973,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			/* See if the result thread has hit a problem */
 
 			if(!finished && rd->abort_time){
-				time_t current_time = time ( NULL );
+				time_t current_time = slapi_current_utc_time ();
 				if ((current_time - rd->abort_time) >= release_timeout){
 					rd->result = UPDATE_YIELD;
 					return_value = UPDATE_YIELD;

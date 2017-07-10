@@ -883,7 +883,7 @@ static void get_system_time(uuid_time_t *uuid_time)
 {
 	time_t cur_time;
 
-	cur_time = current_time ();
+	cur_time = slapi_current_utc_time();
 
 	/* Offset between UUID formatted times and time() formatted times.
        UUID UTC base time is October 15, 1582. time() base time is January 1, 1970.*/

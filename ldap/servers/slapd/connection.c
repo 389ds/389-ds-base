@@ -415,7 +415,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen __attri
 
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
-    conn->c_starttime = current_time();
+    conn->c_starttime = slapi_current_utc_time();
     conn->c_idlesince = conn->c_starttime;
     conn->c_flags = is_SSL ? CONN_FLAG_SSL : 0;
     conn->c_authtype = slapi_ch_strdup(SLAPD_AUTH_NONE);
@@ -1386,7 +1386,7 @@ void connection_check_activity_level(Connection *conn)
 	/* store current count in the previous count slot */
 	conn->c_private->previous_op_count = current_count;
 	/* update the last checked time */
-	conn->c_private->previous_count_check_time = current_time();
+	conn->c_private->previous_count_check_time = slapi_current_utc_time();
 	PR_ExitMonitor(conn->c_mutex);
 	slapi_log_err(SLAPI_LOG_CONNS,"connection_check_activity_level", "conn %" PRIu64 " activity level = %d\n",conn->c_connid,delta_count); 
 }
@@ -1623,7 +1623,7 @@ connection_threadmain()
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
 		}
 
-		curtime = current_time();
+		curtime = slapi_current_utc_time();
 #define DB_PERF_TURBO 1		
 #if defined(DB_PERF_TURBO)
 		/* If it's been a while since we last did it ... */

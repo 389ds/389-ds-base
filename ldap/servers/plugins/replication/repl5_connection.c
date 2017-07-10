@@ -389,7 +389,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				if (block)
 				{
 					/* Did the connection's timeout expire ? */
-					time_now = time( NULL );
+					time_now = slapi_current_utc_time();
 					if (conn->timeout.tv_sec <= ( time_now - start_time ))
 					{
 						/* We timed out */
@@ -756,7 +756,7 @@ conn_is_available(Repl_Connection *conn)
 {
     time_t poll_timeout_sec = 1; /* Polling for 1sec */
     time_t yield_delay_msec = 100; /* Delay to wait */
-    time_t start_time = time( NULL );
+    time_t start_time = slapi_current_utc_time();
     time_t time_now;
     ConnResult return_value = CONN_OPERATION_SUCCESS;
     
@@ -766,7 +766,7 @@ conn_is_available(Repl_Connection *conn)
             /* in case of timeout we return CONN_TIMEOUT only
              * if the RA.timeout is exceeded
              */
-            time_now = time(NULL);
+            time_now = slapi_current_utc_time();
             if (conn->timeout.tv_sec <= (time_now - start_time)) {
                 break;
             } else {
@@ -1141,7 +1141,7 @@ conn_start_linger(Repl_Connection *conn)
 			agmt_get_long_name(conn->agmt));
 		return;
 	}
-	time(&now);
+	now = slapi_current_utc_time();
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
 	{
@@ -2185,7 +2185,7 @@ repl5_start_debug_timeout(int *setlevel)
 {
 	Slapi_Eq_Context eqctx = 0;
 	if (s_debug_timeout && s_debug_level) {
-		time_t now = time(NULL);
+		time_t now = slapi_current_utc_time();
 		eqctx = slapi_eq_once(repl5_debug_timeout_callback, setlevel,
 							  s_debug_timeout + now);
 	}

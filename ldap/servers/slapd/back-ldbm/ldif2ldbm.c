@@ -2865,7 +2865,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     {
         if (PR_FILE_DIRECTORY == info.type)    /* directory exists */
         {
-            time_t tm = time(0);    /* long */
+            time_t tm = slapi_current_utc_time();
 
             char *tmpname = slapi_ch_smprintf("%s/%ld", dest_dir, tm);
             dest_dir = tmpname;

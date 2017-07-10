@@ -101,13 +101,11 @@ do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t c
 void
 modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 {
-    char        buf[20];
+    char        buf[SLAPI_TIMESTAMP_BUFSIZE];
     char        *plugin_dn = NULL;
     char        *binddn = NULL;
     struct berval    bv;
     struct berval    *bvals[2];
-    time_t        curtime;
-    struct tm    utm;
     Operation    *op;
     struct slapdplugin *plugin = NULL;
     struct slapi_componentid *cid = NULL;
@@ -171,9 +169,8 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
                            "modifiersname", bvals);
 
     /* fill in modifytimestamp */
-    curtime = current_time();
-    gmtime_r(&curtime, &utm);
-    strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &utm);
+    slapi_timestamp_utc_hr(buf, SLAPI_TIMESTAMP_BUFSIZE);
+
     bv.bv_val = buf;
     bv.bv_len = strlen(bv.bv_val);
     slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, 
@@ -548,12 +545,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 
       /* set the timelimit to clean up the too-long-lived-paged results requests */
       if (op_is_pagedresults(operation)) {
-        time_t optime, time_up;
-        int tlimit;
+        int32_t tlimit;
         slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
-        slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-        time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
-        pagedresults_set_timelimit(pb_conn, operation, time_up, pr_idx);
+        pagedresults_set_timelimit(pb_conn, operation, (time_t)tlimit, pr_idx);
       }
     
       /*

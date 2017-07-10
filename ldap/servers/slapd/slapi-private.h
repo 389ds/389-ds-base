@@ -265,10 +265,6 @@ void* csngen_register_callbacks(CSNGen *gen, GenCSNFn genFn, void *genArg,
 /* unregisters callbacks registered via call to csngenRegisterCallbacks */
 void csngen_unregister_callbacks(CSNGen *gen, void *cookie);
 
-/* this functions is periodically called from daemon.c to
-   update time used by all generators */
-void csngen_update_time(void);
-
 /* debugging function */
 void csngen_dump_state (const CSNGen *gen);
 
@@ -1164,12 +1160,14 @@ char* format_localTime(time_t from);
 time_t read_localTime(struct berval* from);
 time_t parse_localTime(char* from);
 void write_localTime(time_t from, struct berval* into);
-time_t current_time( void );
+time_t current_time( void ) __attribute__((deprecated));
 char* format_genTime(time_t from);
 void write_genTime(time_t from, struct berval* into);
 time_t read_genTime(struct berval* from);
 time_t parse_genTime(char* from);
-long parse_duration(char *value);
+long parse_duration(char *value) __attribute__((deprecated));
+long parse_duration_32bit(char *value);
+time_t parse_duration_time_t(char *value);
 char *gen_duration(long duration);
 
 /* Client SSL code */
@@ -1365,7 +1363,7 @@ char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
  *    Failure: -1
  */
 time_t slapi_parse_duration(const char *value);
-long long slapi_parse_duration_longlong(const char *value);
+long long slapi_parse_duration_longlong(const char *value) __attribute__((deprecated));
 int slapi_is_duration_valid(const char *value);
 
 /**

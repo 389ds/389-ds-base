@@ -390,7 +390,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 			}
 
 			gmtime_r( &ct->c[i].c_starttime, &utm );
-			strftime( buf2, sizeof(buf2), "%Y%m%d%H%M%SZ", &utm );
+			strftime( buf2, SLAPI_TIMESTAMP_BUFSIZE, "%Y%m%d%H%M%SZ", &utm );
 
 			/*
 			 * Max threads per connection stats

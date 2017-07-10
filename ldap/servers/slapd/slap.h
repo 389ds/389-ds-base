@@ -72,6 +72,8 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <time.h> /* For timespec definitions */
+
 /* Provides our int types and platform specific requirements. */
 #include <slapi_pal.h>
 
@@ -220,6 +222,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #endif
 
 #define SLAPD_INVALID_SOCKET_INDEX	(-1)
+
+#define ETIME_BUFSIZ 42         /* room for struct timespec */
 
 /* ============================================================================
  *       CONFIGURATION DEFAULTS
@@ -1475,8 +1479,8 @@ typedef struct op {
 	BerElement	*o_ber;		/* ber of the request		  */
 	ber_int_t	o_msgid;	/* msgid of the request		  */
 	ber_tag_t	o_tag;		/* tag of the request		  */
-	time_t		o_time;		/* time op was initiated	  */
-	PRIntervalTime	o_interval;	/* precise time op was initiated  */
+    struct timespec o_hr_time_rel; /* internal system time op initiated */
+    struct timespec o_hr_time_utc; /* utc system time op initiated */
 	int		o_isroot;	/* requestor is manager		  */
 	Slapi_DN	o_sdn;		/* dn bound when op was initiated */
 	char		*o_authtype;	/* auth method used to bind dn	  */
@@ -1525,7 +1529,7 @@ typedef struct _paged_results {
     int           pr_search_result_count; /* search result count */
     int           pr_search_result_set_size_estimate; /* estimated search result set size */
     int           pr_sort_result_code;    /* sort result put in response */
-    time_t        pr_timelimit;           /* time limit for this request */
+    struct timespec pr_timelimit_hr;      /* expiry time of this request rel to clock monotonic */
     int           pr_flags;
     ber_int_t     pr_msgid;               /* msgid of the request; to abandon */
     PRLock        *pr_mutex;              /* protect each conn structure    */
@@ -1711,15 +1715,15 @@ typedef struct passwordpolicyarray {
   int pw_mintokenlength;
   slapi_onoff_t pw_exp;
   slapi_onoff_t pw_send_expiring;
-  long long pw_maxage;
-  long long pw_minage;
-  long long pw_warning;
+  time_t pw_maxage;
+  time_t pw_minage;
+  time_t pw_warning;
   slapi_onoff_t pw_history;
   int pw_inhistory;
   slapi_onoff_t pw_lockout;
   int pw_maxfailure;
   slapi_onoff_t pw_unlock;
-  long pw_lockduration;
+  time_t pw_lockduration;
   long pw_resetfailurecount;
   int pw_gracelimit;
   slapi_onoff_t pw_is_legacy;

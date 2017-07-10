@@ -1355,7 +1355,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
  *       other (80)
  */
 int
-vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList** filteredCandidates, int lookthrough_limit, time_t time_up)
+vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList** filteredCandidates, int lookthrough_limit, struct timespec *expire_time)
 {
     IDList* resultIdl= NULL;
 	int return_value = LDAP_SUCCESS;
@@ -1424,12 +1424,20 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
         	if ( counter++ % 10 == 0 )
         	{
         		/* check time limit */
+#ifdef HAVE_CLOCK_GETTIME
+                if (slapi_timespec_expire_check(expire_time) == TIMER_EXPIRED) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates", "LDAP_TIMELIMIT_EXCEEDED\n");
+                    return_value= LDAP_TIMELIMIT_EXCEEDED;
+                    done= 1;
+                }
+#else
         		time_t curtime = current_time();
         		if ( time_up != -1 && curtime > time_up )
         		{
                     return_value= LDAP_TIMELIMIT_EXCEEDED;
                     done= 1;
         		}
+#endif
         		/* check lookthrough limit */
         		if ( lookthrough_limit != -1 && lookedat>lookthrough_limit )
         		{

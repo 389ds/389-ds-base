@@ -761,7 +761,7 @@ static int import_monitor_threads(ImportJob *job, int *status)
         goto error_abort;
     }
 
-    time(&last_time);
+    last_time = slapi_current_utc_time();
     job->start_time = last_time;
     import_clear_progress_history(job);
 
@@ -773,7 +773,7 @@ static int import_monitor_threads(ImportJob *job, int *status)
 
         /* First calculate the time interval since last reported */
         if (0 == (count % display_interval)) {
-            time(&time_now);
+            time_now = slapi_current_utc_time();
             time_interval = time_now - last_time;
             last_time = time_now;
             /* Now calculate our rate of progress overall for this chunk */
@@ -1212,7 +1212,7 @@ int import_main_offline(void *arg)
         opstr = "Reindexing";
     }
     PR_ASSERT(inst != NULL);
-    time(&beginning);
+    beginning = slapi_current_utc_time();
 
     /* Decide which indexes are needed */
     if (job->flags & FLAG_INDEX_ATTRS) {
@@ -1496,7 +1496,7 @@ error:
     if (!(job->flags & FLAG_ONLINE))
         dblayer_close(job->inst->inst_li, DBLAYER_IMPORT_MODE);
     
-    time(&end);
+    end = slapi_current_utc_time();
     if (verbose && (0 == ret)) {
         int seconds_to_import = end - beginning;
         size_t entries_processed = job->lead_ID - (job->starting_ID - 1);

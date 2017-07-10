@@ -3388,15 +3388,15 @@ static void _cl5TrimCleanup(void)
 
 static int _cl5TrimMain (void *param __attribute__((unused)))
 {
-	time_t timePrev = current_time ();
-	time_t timeCompactPrev = current_time ();
+	time_t timePrev = slapi_current_utc_time();
+	time_t timeCompactPrev = slapi_current_utc_time();
 	time_t timeNow;
 
 	PR_AtomicIncrement (&s_cl5Desc.threadCount);
 
 	while (s_cl5Desc.dbState != CL5_STATE_CLOSING)
 	{
-		timeNow = current_time ();
+		timeNow = slapi_current_utc_time();
 		if (timeNow - timePrev >= s_cl5Desc.dbTrim.trimInterval)
 		{
 			/* time to trim */
@@ -4094,7 +4094,7 @@ static PRBool _cl5CanTrim (time_t time, long *numToTrim)
 	}
 
 	if (time) {
-		return (current_time () - time > s_cl5Desc.dbTrim.maxAge);
+		return (slapi_current_utc_time() - time > s_cl5Desc.dbTrim.maxAge);
 	} else {
 		return PR_TRUE;
 	}
@@ -4972,7 +4972,7 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 	}
 
 	/* assign entry time - used for trimming */
-	entry.time = current_time (); 
+	entry.time = slapi_current_utc_time();
 	entry.op = (slapi_operation_parameters *)op;
 
 	/* construct the key */

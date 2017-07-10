@@ -325,7 +325,7 @@ idl_new_range_fetch(
     int *flag_err,
     int allidslimit,
     int sizelimit,
-    time_t stoptime,
+    struct timespec *expire_time,
     int lookthrough_limit,
     int operator
 )
@@ -344,7 +344,6 @@ idl_new_range_fetch(
     DBT dataret;
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    time_t curtime;
     void *saved_key = NULL;
     int coreop = operator & SLAPI_OP_RANGE;
     ID key = 0xff; /* random- to suppress compiler warning */
@@ -436,14 +435,15 @@ idl_new_range_fetch(
             }
         }
         /* timelimit check */
-        if (stoptime > 0) { /* timelimit is set */
-            curtime = current_time();
-            if (curtime >= stoptime) {
-                slapi_log_err(SLAPI_LOG_TRACE,
-                              "idl_new_range_fetch", "timelimit exceeded\n");
-                *flag_err = LDAP_TIMELIMIT_EXCEEDED;
-                goto error;
-            }
+        /*
+         * A future improvement could be to check this only every X iterations
+         * to prevent overwhelming the clock?
+         */
+        if (slapi_timespec_expire_check(expire_time) == TIMER_EXPIRED) {
+            slapi_log_err(SLAPI_LOG_TRACE,
+                          "idl_new_range_fetch", "timelimit exceeded\n");
+            *flag_err = LDAP_TIMELIMIT_EXCEEDED;
+            goto error;
         }
         if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
             key = (ID)strtol((char *)cur_key.data+1 , (char **)NULL, 10);

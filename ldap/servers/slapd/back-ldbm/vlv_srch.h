@@ -89,7 +89,7 @@ struct vlvIndex
     int vlv_online;             /* turned off when generating index */
 
     /* The last time we checked to see if the index file was available */
-    time_t vlv_lastchecked;
+    struct timespec vlv_nextcheck;
 
     /* The number of uses this search has received since start up */
     uint64_t vlv_uses;

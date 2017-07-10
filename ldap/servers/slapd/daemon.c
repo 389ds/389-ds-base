@@ -150,7 +150,6 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRN
 /* 
  * This is the shiny new re-born daemon function, without all the hair
  */
-/* GGOODREPL static void handle_timeout( void ); */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn );
 static void ns_handle_new_connection(struct ns_job_t *job);
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
@@ -258,23 +257,6 @@ int daemon_pre_setuid_init(daemon_ports_t *ports)
  * process began.
  */
 static int time_shutdown = 0;
-
-void * 
-time_thread(void *nothing __attribute__((unused)))
-{
-    PRIntervalTime    interval;
-
-    interval = PR_SecondsToInterval(1);
-
-    while(!time_shutdown) {
-        poll_current_time();
-        csngen_update_time ();
-        DS_Sleep(interval);
-    }
-
-    /*NOTREACHED*/
-    return(NULL);
-}
 
 /*
  *  Return a copy of the mount point for the specified directory
@@ -666,7 +648,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space on (%s) is too far below the threshold(%" PRIu64 " bytes).  "
                 "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
                 dirstr, threshold, (grace_period / 60));
-            time(&start);
+            start = slapi_current_utc_time();
             now = start;
             while( (now - start) < grace_period ){
                 if(g_get_shutdown()){
@@ -715,7 +697,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
                     return;
                 }
-                time(&now);
+                now = slapi_current_utc_time();
             }
 
             if(ok_now){
@@ -921,7 +903,6 @@ void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
 	PRFileDesc **fdesp = NULL;
 	PRIntn num_poll = 0;
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
-	PRThread *time_thread_p;
 	uint64_t threads;
 	int in_referral_mode = config_check_referral_mode();
 	int connection_table_size = get_configured_connection_table_size();
@@ -967,20 +948,6 @@ void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
 	}
 
 	init_op_threads();
-
-    /* Start the time thread */
-    time_thread_p = PR_CreateThread(PR_SYSTEM_THREAD,
-		(VFP) (void *) time_thread, NULL,
-        PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, 
-        PR_JOINABLE_THREAD, 
-        SLAPD_DEFAULT_THREAD_STACKSIZE);
-    if ( NULL == time_thread_p ) {
-		PRErrorCode errorCode = PR_GetError();
-		slapi_log_err(SLAPI_LOG_EMERG, "slapd_daemon", "Unable to create time thread - Shutting Down ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
-				errorCode, slapd_pr_strerror(errorCode));
-		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
-	}
 
     /*
      *  If we are monitoring disk space, then create the mutex, the cvar,
@@ -1135,7 +1102,6 @@ void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
             select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
             switch (select_return) {
             case 0: /* Timeout */
-                /* GGOODREPL handle_timeout(); */
                 break;
             case -1: /* Error */
                 prerr = PR_GetError();
@@ -1305,7 +1271,6 @@ void slapd_daemon( daemon_ports_t *ports, ns_thrpool_t *tp )
 
 	/* tell the time thread to shutdown and then wait for it */
 	time_shutdown = 1;
-	PR_JoinThread( time_thread_p );
 
 	if ( g_get_shutdown() == SLAPI_SHUTDOWN_DISKFULL ){
 		/* This is a server-induced shutdown, we need to manually remove the pid file */
@@ -1563,38 +1528,6 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 
 }
 
-#ifdef notdef /* GGOODREPL */
-static void
-handle_timeout( void )
-{
-	static time_t prevtime = 0;
-	static time_t housekeeping_fire_time = 0;
-	time_t curtime = current_time();
-
-	if (0 == prevtime) {
-		prevtime = time (&housekeeping_fire_time);
-	}
-
-	if ( difftime(curtime, prevtime) >= 
-		slapd_housekeeping_timer ) {
-		uint64_t num_active_threads;
-
-		snmp_collator_update();
-
-		prevtime = curtime;
-		num_active_threads = g_get_active_threadcnt();
-		if ( (num_active_threads == 0)  || 
-			(difftime(curtime, housekeeping_fire_time) >= 
-		slapd_housekeeping_timer*3) ) {
-		housekeeping_fire_time = curtime;
-			housekeeping_start(curtime);
-		}
-	}
-
-}
-#endif /* notdef */
-
-
 static int	idletimeout_reslimit_handle = -1;
 
 /*
@@ -1612,7 +1545,7 @@ static void
 handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused)))
 {
 	Connection *c;
-	time_t curtime = current_time();
+	time_t curtime = slapi_current_utc_time();
 	int maxthreads = config_get_maxthreadsperconn();
 
 #if LDAP_ERROR_LOGGING

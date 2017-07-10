@@ -581,7 +581,7 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
                           "slapi_pblock_get", "Operation is NULL and hence cannot access SLAPI_OPINITIATED_TIME \n");
             return (-1);
         }
-        (*(time_t *)value) = pblock->pb_op->o_time;
+        (*(time_t *)value) = pblock->pb_op->o_hr_time_utc.tv_sec;
         break;
     case SLAPI_REQUESTOR_ISROOT:
         if (pblock->pb_intop != NULL) {
@@ -2321,9 +2321,6 @@ int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
         pblock->pb_op = (Operation *)value;
         break;
     case SLAPI_OPINITIATED_TIME:
-        if (pblock->pb_op != NULL) {
-            pblock->pb_op->o_time = *((time_t *)value);
-        }
         break;
     case SLAPI_REQUESTOR_ISROOT:
         _pblock_assert_pb_intop(pblock);

@@ -278,7 +278,7 @@ int idl_new_compare_dups(
 );
 IDList *idl_new_range_fetch(backend *be, DB* db, DBT *lowerkey, DBT *upperkey,
                             DB_TXN *txn, struct attrinfo *a, int *flag_err,
-                            int allidslimit, int sizelimit, time_t stoptime,
+                            int allidslimit, int sizelimit, struct timespec *expire_time,
                             int lookthrough_limit, int operator);
 
 /*
@@ -451,7 +451,7 @@ typedef struct sort_spec_thing sort_spec_thing;
 typedef struct sort_spec_thing sort_spec;
 
 void sort_spec_free(sort_spec *s);
-int sort_candidates(backend *be, int lookthrough_limit, time_t time_up, Slapi_PBlock *pb, IDList *candidates, sort_spec_thing *sort_spec, char **sort_error_type) ;
+int sort_candidates(backend *be, int lookthrough_limit, struct timespec *expire_time, Slapi_PBlock *pb, IDList *candidates, sort_spec_thing *sort_spec, char **sort_error_type) ;
 int make_sort_response_control ( Slapi_PBlock *pb, int code, char *error_type);
 int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps);
 struct berval* attr_value_lowest(struct berval **values, value_compare_fn_type compare_fn);
@@ -541,7 +541,7 @@ int vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int 
                     const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control);
 int vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry);
 int vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry);
-int vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList** filteredCandidates,int lookthrough_limit, time_t time_up);
+int vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList** filteredCandidates,int lookthrough_limit, struct timespec *expire_time);
 int vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** filteredCandidates,struct vlv_response *pResponse, back_txn *txn);
 int vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** filteredCandidates,struct vlv_response *pResponse);
 int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request* vlvp);

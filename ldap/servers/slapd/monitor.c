@@ -45,7 +45,7 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
 	char			buf[BUFSIZ];
 	struct berval		val;
 	struct berval	*vals[2];
-	time_t			curtime = current_time();
+	time_t			curtime = slapi_current_utc_time();
 	struct tm		utm;
 	Slapi_Backend		*be;
 	char			*cookie;

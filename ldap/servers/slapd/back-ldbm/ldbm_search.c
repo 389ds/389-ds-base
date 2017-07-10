@@ -603,7 +603,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     }
     else
     {
-        time_t time_up= 0;
+        struct timespec expire_time = {0};
         int lookthrough_limit = 0;
         struct vlv_response vlv_response_control;
         int abandoned= 0;
@@ -670,16 +670,10 @@ ldbm_back_search( Slapi_PBlock *pb )
              */
             if (sort && (NULL != candidates))
             {
-                time_t optime = 0;
                 int tlimit = 0;
 
                 slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
-                slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-                /* 
-                 * (tlimit==-1) means no time limit
-                 */
-                time_up = (tlimit==-1 ? -1 : optime + tlimit);
-
+                slapi_operation_time_expiry(operation, (time_t)tlimit, &expire_time);
                 lookthrough_limit = compute_lookthrough_limit( pb, li );
             }
 
@@ -695,7 +689,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                 if (filter) {
                     rc = vlv_filter_candidates(be, pb, candidates, basesdn,
                                                scope, filter, &idl,
-                                               lookthrough_limit, time_up);
+                                               lookthrough_limit, &expire_time);
                 }
                 switch (rc) {
                 case LDAP_SUCCESS:  /* Everything OK */
@@ -761,7 +755,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                     sort_log_access(pb,sort_control,candidates);
                 }
                 sort_return_value = sort_candidates( be, lookthrough_limit,
-                                                     time_up, pb, candidates,
+                                                     &expire_time, pb, candidates,
                                                      sort_control,
                                                      &sort_error_type );
                 /* Fix for bugid # 394184, SD, 20 Jul 00 */
@@ -1426,7 +1420,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     ID                     id;
     struct backentry       *e;
     int                    nentries;
-    time_t                 curtime, stoptime, optime;
+    struct timespec        expire_time;
     int                    tlimit, llimit, slimit, isroot;
     struct berval          **urls = NULL;
     int                    err;
@@ -1458,7 +1452,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     slapi_pblock_get( pb, SLAPI_NENTRIES, &nentries );
     slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &slimit );
     slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
-    slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
     slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
     slapi_pblock_get( pb, SLAPI_SEARCH_REFERRALS, &urls );
     slapi_pblock_get( pb, SLAPI_TARGET_UNIQUEID, &target_uniqueid );
@@ -1528,7 +1521,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         sr->sr_vlventry = NULL;
     }
 
-    stoptime = optime + tlimit;
+    slapi_operation_time_expiry(op, (time_t)tlimit, &expire_time);
     llimit = sr->sr_lookthroughlimit;
 
     /* Find the next candidate entry and return it. */
@@ -1548,10 +1541,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             goto bail;
         }
 
+        /*
+         * Check this only every few iters to prevent smashing the clock api?
+         */
         /* check time limit */
-        curtime = current_time();
-        if ( tlimit != -1 && curtime > stoptime )
-        {
+        if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+            slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_next_search_entry_ext", "LDAP_TIMELIMIT_EXCEEDED\n");
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
@@ -1562,7 +1557,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             slapi_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             goto bail;
         }
-            
         /* check lookthrough limit */
         if ( llimit != -1 && sr->sr_lookthroughcount >= llimit )
         {
@@ -1576,7 +1570,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             slapi_send_ldap_result( pb, LDAP_ADMINLIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             goto bail;
         }
-            
+
         /*
          * Get the entry ID
          */

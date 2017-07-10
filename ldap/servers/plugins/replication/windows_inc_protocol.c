@@ -739,7 +739,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					dev_debug("windows_inc_run(STATE_SENDING_UPDATES)");
 					agmt_set_update_in_progress(prp->agmt, PR_TRUE);
 					num_changes_sent = 0;
-					last_start_time = current_time();
+					last_start_time = slapi_current_utc_time();
 					agmt_set_last_update_start(prp->agmt, last_start_time);
 					/*
 					 * We've acquired the replica, and are ready to send any
@@ -750,7 +750,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						windows_release_replica (prp);
 						done = 1;
 						agmt_set_update_in_progress(prp->agmt, PR_FALSE);
-						agmt_set_last_update_end(prp->agmt, current_time());
+						agmt_set_last_update_end(prp->agmt, slapi_current_utc_time());
 						/* MAB: I don't find the following status correct. How do we know it has
 						   been stopped by an admin and not by a total update request, for instance?
 						   In any case, how is this protocol shutdown situation different from all the 
@@ -892,7 +892,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 		run_dirsync = PR_FALSE;
 	}
 
-	agmt_set_last_update_end(prp->agmt, current_time());
+	agmt_set_last_update_end(prp->agmt, slapi_current_utc_time());
 	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
 	agmt_update_done(prp->agmt, 0);
 	/* If timed out, close the connection after released the replica */

@@ -58,7 +58,6 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     Operation *op = NULL;
     BerElement *ber = NULL;
     PagedResults *prp = NULL;
-    time_t ctime = current_time();
     int i;
     int maxreqs = config_get_maxsimplepaged_per_conn();
 
@@ -131,7 +130,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                     prp->pr_current_be = be;
                     *index = i;
                     break;
-                } else if (((prp->pr_timelimit > 0) && (ctime > prp->pr_timelimit)) || /* timelimit exceeded */
+                } else if ( slapi_timespec_expire_check(&(prp->pr_timelimit_hr)) == TIMER_EXPIRED || /* timelimit exceeded */
                            (prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED) /* abandoned */) {
                     _pr_cleanup_one_slot(prp);
                     conn->c_pagedresults.prl_count--;
@@ -198,7 +197,7 @@ bail:
     prp = conn->c_pagedresults.prl_list;
     for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++, prp++) {
         if (prp->pr_current_be &&
-            (((prp->pr_timelimit > 0) && (ctime > prp->pr_timelimit)) || /* timelimit exceeded */
+            (slapi_timespec_expire_check(&(prp->pr_timelimit_hr)) == TIMER_EXPIRED || /* timelimit exceeded */
              (prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED)) /* abandoned */) {
             _pr_cleanup_one_slot(prp);
             conn->c_pagedresults.prl_count--;
@@ -698,7 +697,7 @@ pagedresults_set_timelimit(Connection *conn, Operation *op,
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
-            conn->c_pagedresults.prl_list[index].pr_timelimit = timelimit;
+            slapi_timespec_expire_at(timelimit, &(conn->c_pagedresults.prl_list[index].pr_timelimit_hr));
         }
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
@@ -899,7 +898,6 @@ int
 pagedresults_is_timedout_nolock(Connection *conn)
 {
     PagedResults *prp = NULL;
-    time_t ctime;
 
     slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_is_timedout", "=>\n");
 
@@ -908,14 +906,11 @@ pagedresults_is_timedout_nolock(Connection *conn)
         return 0;
     }
 
-    ctime = current_time();
     prp = conn->c_pagedresults.prl_list;
     if (prp && (1 == conn->c_pagedresults.prl_maxlen)) {
-        if (prp->pr_current_be && (prp->pr_timelimit > 0)) {
-            if (ctime > prp->pr_timelimit) {
-                slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_is_timedout", "<= true\n");
-                return 1;
-            }
+        if (slapi_timespec_expire_check(&(prp->pr_timelimit_hr)) == TIMER_EXPIRED) {
+            slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_is_timedout", "<= true\n");
+            return 1;
         }
     }
     slapi_log_err(SLAPI_LOG_TRACE, "<-- pagedresults_is_timedout", "<= false 2\n");
@@ -939,7 +934,8 @@ pagedresults_reset_timedout_nolock(Connection *conn)
 
     for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
         prp = conn->c_pagedresults.prl_list + i;
-        prp->pr_timelimit = 0;
+        prp->pr_timelimit_hr.tv_sec = 0;
+        prp->pr_timelimit_hr.tv_nsec = 0;
     }
     slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_reset_timedout", "<=\n");
     return 0;

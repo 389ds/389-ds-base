@@ -202,16 +202,20 @@ slapi_eq_cancel(Slapi_Eq_Context ctx)
 static slapi_eq_context *
 eq_new(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval)
 {
-	slapi_eq_context *retptr = (slapi_eq_context *)slapi_ch_calloc(1, sizeof(slapi_eq_context));
-	time_t now;
+    slapi_eq_context *retptr = (slapi_eq_context *)slapi_ch_calloc(1, sizeof(slapi_eq_context));
 
-	retptr->ec_fn = fn;
-	retptr->ec_arg = arg;
-	now = current_time();
-	retptr->ec_when = when < now ? now : when;
-	retptr->ec_interval = interval == 0UL ? 0UL : (interval + 999) / 1000;
-	retptr->ec_id = (Slapi_Eq_Context)retptr;
-	return retptr;
+    retptr->ec_fn = fn;
+    retptr->ec_arg = arg;
+    /*
+     * retptr->ec_when = when < now ? now : when;
+     * we used to amke this check, but it make no sense: when queued, if when
+     * has expired, we'll be executed anyway. save the cycles, and just set
+     * ec_when.
+     */
+    retptr->ec_when = when;
+    retptr->ec_interval = interval == 0UL ? 0UL : (interval + 999) / 1000;
+    retptr->ec_id = (Slapi_Eq_Context)retptr;
+    return retptr;
 }
 
 
@@ -277,18 +281,19 @@ static void
 eq_call_all(void)
 {
 	slapi_eq_context *p;
+    time_t curtime = slapi_current_utc_time();
 
-	while ((p = eq_dequeue(current_time())) != NULL) {
+	while ((p = eq_dequeue(curtime)) != NULL) {
 		/* Call the scheduled function */
 		p->ec_fn(p->ec_when, p->ec_arg);
 		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
 				"Event id %p called at %ld (scheduled for %ld)\n",
-				p->ec_id, current_time(), p->ec_when);
+				p->ec_id, curtime, p->ec_when);
 		if (0UL != p->ec_interval) {
 			/* This is a repeating event. Requeue it. */
 			do {
 				p->ec_when += p->ec_interval;
-			} while (p->ec_when < current_time());
+			} while (p->ec_when < curtime);
 			eq_enqueue(p);
 		} else {
 			slapi_ch_free((void **)&p);
@@ -302,23 +307,22 @@ eq_call_all(void)
 /*
  * The main event queue loop.
  */
-#define WORK_AVAILABLE ((NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= current_time()))
-
 static void
 eq_loop(void *arg __attribute__((unused)))
 {
 	while (eq_running) {
+        time_t curtime = slapi_current_utc_time();
 		PRIntervalTime timeout;
 		int until;
 		PR_Lock(eq->eq_lock);
-		while (!WORK_AVAILABLE) {
+		while (!(NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= curtime)) {
 			if (!eq_running) {
 				PR_Unlock(eq->eq_lock);
 				goto bye;
 			}
 			/* Compute new timeout */
 			if (NULL != eq->eq_queue) {
-				until = eq->eq_queue->ec_when - current_time();
+				until = eq->eq_queue->ec_when - curtime;
 				timeout = PR_SecondsToInterval(until);
 			} else {
 				timeout = PR_INTERVAL_NO_TIMEOUT;

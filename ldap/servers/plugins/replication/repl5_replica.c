@@ -246,7 +246,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
        In that case the updated would fail but nothing bad would happen. The next
        scheduled update would save the state */
 	r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
-                                       current_time () + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+                                       slapi_current_utc_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
 
 	if (r->tombstone_reap_interval > 0)
 	{
@@ -255,7 +255,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 		 * This will allow the server to fully start before consuming resources.
 		 */
 		r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, r->repl_name,
-										   current_time() + r->tombstone_reap_interval,
+										   slapi_current_utc_time() + r->tombstone_reap_interval,
 										   1000 * r->tombstone_reap_interval);
 	}
 
@@ -516,17 +516,14 @@ replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid)
     LDAPMod * mods[2];
     LDAPMod mod;
     struct berval * vals[2];
-    char buf[20];
-    time_t curtime;
-    struct tm ltm;
+    char buf[SLAPI_TIMESTAMP_BUFSIZE];
     struct berval val;
     Slapi_PBlock *modpb = NULL;
     char *dn;
 
     replica_subentry_check(repl_root, rid);
-    curtime = current_time();
-    gmtime_r(&curtime, &ltm);
-    strftime(buf, sizeof (buf), "%Y%m%d%H%M%SZ", &ltm);
+
+    slapi_timestamp_utc_hr(buf, SLAPI_TIMESTAMP_BUFSIZE);
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "subentry_update called at %s\n", buf);
 
@@ -1214,7 +1211,7 @@ replica_is_updatedn (Replica *r, const Slapi_DN *sdn)
     if (r->groupdn_list) {
         /* check and rebuild groupdns */
         if (r->updatedn_group_check_interval > -1) {
-            time_t now = time(NULL);
+            time_t now = slapi_current_utc_time();
             if (now - r->updatedn_group_last_check > r->updatedn_group_check_interval) {
                 Slapi_ValueSet *updatedn_groups_copy = NULL;
                 ReplicaUpdateDNList groupdn_list = replica_updatedn_list_new(NULL);
@@ -1652,7 +1649,7 @@ replica_set_enabled (Replica *r, PRBool enable)
         if (r->repl_eqcxt_rs == NULL)   /* event is not already registered */
         {
             r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
-                                               current_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);  
+                                               slapi_current_utc_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);  
         }
     }
     else    /* disable */
@@ -3907,7 +3904,7 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 	if ( interval > 0 && r->repl_eqcxt_tr == NULL )
 	{
 		r->repl_eqcxt_tr = slapi_eq_repeat (eq_cb_reap_tombstones, r->repl_name,
-											current_time() + r->tombstone_reap_interval,
+											slapi_current_utc_time() + r->tombstone_reap_interval,
 											1000 * r->tombstone_reap_interval);
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 			"replica_set_tombstone_reap_interval - tombstone_reap event (interval=%ld) was %s\n",

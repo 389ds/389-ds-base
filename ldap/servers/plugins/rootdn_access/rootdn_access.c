@@ -63,8 +63,8 @@ char * strToLower(char *str);
  */
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
-static int open_time = 0;
-static int close_time = 0;
+static time_t open_time = 0;
+static time_t close_time = 0;
 static char *daysAllowed = NULL;
 static char **hosts = NULL;
 static char **hosts_to_deny = NULL;
@@ -289,7 +289,7 @@ rootdn_load_config(Slapi_PBlock *pb)
              */
             strncpy(hour, openTime,2);
             strncpy(min, openTime+2,2);
-            open_time = (atoi(hour) * 3600) + (atoi(min) * 60);
+            open_time = (time_t)(atoi(hour) * 3600) + (atoi(min) * 60);
         }
         if(closeTime){
             end = strspn(closeTime, "0123456789");
@@ -317,7 +317,7 @@ rootdn_load_config(Slapi_PBlock *pb)
              */
             strncpy(hour, closeTime,2);
             strncpy(min, closeTime+2,2);
-            close_time = (atoi(hour) * 3600) + (atoi(min) * 60);
+            close_time = (time_t)(atoi(hour) * 3600) + (atoi(min) * 60);
         }
         if((openTime && closeTime == NULL) || (openTime == NULL && closeTime)){
             /* If you are using TOD access control, you must have a open and close time */
@@ -461,16 +461,16 @@ rootdn_check_access(Slapi_PBlock *pb){
      *  grab the current time/info if we need it
      */
     if(open_time || daysAllowed){
-        time(&curr_time);
+        curr_time = slapi_current_utc_time();
         timeinfo = localtime(&curr_time);
     }
     /*
      *  First check TOD restrictions, continue through if we are in the open "window"
      */
     if(open_time){
-        int curr_total;
+        time_t curr_total;
 
-        curr_total = (timeinfo->tm_hour * 3600) + (timeinfo->tm_min * 60);
+        curr_total = (time_t)(timeinfo->tm_hour * 3600) + (timeinfo->tm_min * 60);
 
         if((curr_total < open_time) || (curr_total >= close_time)){
             slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - Bind not in the "

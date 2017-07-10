@@ -1223,7 +1223,7 @@ windows_conn_start_linger(Repl_Connection *conn)
 			agmt_get_long_name(conn->agmt));
 		return;
 	}
-	time(&now);
+	now = slapi_current_utc_time();
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
 	{

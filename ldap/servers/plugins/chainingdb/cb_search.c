@@ -40,9 +40,8 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	const char          *target = NULL;
 	char                *filter;
 	char                **attrs = NULL;
+	struct timespec     expire_time;
 	struct timeval      timeout;
-	time_t              optime;
-	time_t              endbefore = 0;
 	time_t              endtime = 0;
 	char                *matched_msg, *error_msg;
 	char                **referrals = NULL;
@@ -56,7 +55,6 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 	slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &filter );
 	slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
-	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
 	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &target_sdn );
 
 	target = slapi_sdn_get_dn(target_sdn);
@@ -94,8 +92,9 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_SEARCH_ATTRS, &attrs );
 	slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
 	slapi_pblock_get( pb, SLAPI_REQCONTROLS, &controls );
-	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
 	slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
+	slapi_operation_time_expiry(op, (time_t)timelimit, &expire_time);
 	slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
 
 	if ((scope != LDAP_SCOPE_BASE) && (scope != LDAP_SCOPE_ONELEVEL) && (scope != LDAP_SCOPE_SUBTREE)) {
@@ -143,20 +142,25 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	** Time limit management.
 	** Make sure the operation has not expired
 	*/
-
-	if ( timelimit == -1 )  {
-		timeout.tv_sec = timeout.tv_usec = 0;
+	if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+		cb_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL,NULL, 0, NULL);
+		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
+		return 1;
+	}
+	/* Set the timeout for ldap_search_ext */
+	/* for some reasons, it is an error to pass in a zero'd timeval */
+	/* to ldap_search_ext()							*/
+	if ( timelimit == -1 || timelimit == 0)  {
+		timeout.tv_sec = -1;
+		timeout.tv_usec = -1;
 	} else {
-		time_t now=current_time();
-		endbefore=optime + timelimit;
-		if (now >= endbefore) {
-			cb_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL,NULL, 0, NULL);
-			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-			return 1;
-		}
-		timeout.tv_sec=(time_t)timelimit-(now-optime);
+		/* Get the elapsed op time to fix our time limit */
+		struct timespec elapsed;
+		slapi_operation_time_elapsed(op, &elapsed);
+		timeout.tv_sec = ((time_t)timelimit) - elapsed.tv_sec;
 		timeout.tv_usec=0;
 	}
+	
 
 	/* Operational attribute support for internal searches:         */
 	/* The front-end relies on the fact that operational attributes */
@@ -179,7 +183,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	}
 
 	/* Grab a connection handle */
-	rc = cb_get_connection(cb->pool, &ld, &cnx, &timeout, &cnxerrbuf);
+	rc = cb_get_connection(cb->pool, &ld, &cnx, &expire_time, &cnxerrbuf);
 	if (LDAP_SUCCESS != rc) {
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
@@ -230,14 +234,10 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	ctx->ld=ld;
 	ctx->cnx=cnx;
 
-	/* for some reasons, it is an error to pass in a zero'd timeval */
-	/* to ldap_search_ext()					        */
-	if ((timeout.tv_sec==0) && (timeout.tv_usec==0))
-		timeout.tv_sec=timeout.tv_usec=-1;
-
  	/* heart-beat management */
-	if (cb->max_idle_time>0)
-		endtime=current_time() + cb->max_idle_time;
+	if (cb->max_idle_time>0) {
+		endtime=slapi_current_utc_time() + cb->max_idle_time;
+	}
 
 	rc = ldap_search_ext(ld ,target,scope,filter,attrs,attrsonly,
 	                     ctrls, NULL, &timeout,sizelimit, &(ctx->msgid) );
@@ -282,18 +282,16 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
 		case 0:
 			/* Local timeout management */
-			if (timelimit != -1) {
-				if (current_time() > endbefore) {
-					slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-						"chainingdb_build_candidate_list - Local timeout expiration\n");
-					cb_send_ldap_result(pb,LDAP_TIMELIMIT_EXCEEDED,
-						NULL,NULL, 0, NULL);
-					/* Force connection close */
-					cb_release_op_connection(cb->pool,ld,1);
-					ldap_msgfree(res);
-					slapi_ch_free((void **)&ctx);
-					return 1;
-				}
+			if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+				slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					"chainingdb_build_candidate_list - Local timeout expiration\n");
+				cb_send_ldap_result(pb,LDAP_TIMELIMIT_EXCEEDED,
+					NULL,NULL, 0, NULL);
+				/* Force connection close */
+				cb_release_op_connection(cb->pool,ld,1);
+				ldap_msgfree(res);
+				slapi_ch_free((void **)&ctx);
+				return 1;
 			}
 			/* heart-beat management */
 			if ((rc=cb_ping_farm(cb,cnx,endtime)) != LDAP_SUCCESS) {
@@ -399,7 +397,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 	int			sizelimit, timelimit;
 	int			rc, parse_rc, retcode;
 	int			i, attrsonly;
-	time_t			optime;
+	struct timespec expire_time;
 	LDAPMessage 		*res=NULL;
 	char 			*matched_msg,*error_msg;
 	cb_searchContext 	*ctx=NULL;
@@ -409,6 +407,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 	cb_backend_instance 	* cb=NULL;
 	Slapi_Backend		* be;
 	time_t			endtime = 0;
+	Slapi_Operation *op;
 
 	matched_msg=error_msg=NULL;
 
@@ -417,7 +416,8 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
 	slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
 	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &target_sdn );
-	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	slapi_pblock_get( pb, SLAPI_OPERATION, &op);
+	slapi_operation_time_expiry(op, (time_t)timelimit, &expire_time);
 	slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
 
 	cb = cb_get_instance(be);
@@ -452,23 +452,20 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 		int n;
 		Slapi_Entry ** ptr;
-		if ( (timelimit != -1) && (timelimit != 0)) {
- 			time_t now=current_time();
+		if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
+			cb_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL,NULL, 0, NULL);
+			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL );
+			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
 
-                	if (now > (optime + timelimit)) {
-                        	cb_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL,NULL, 0, NULL);
-				slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL );
-        			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
-
-                		for ( n = 0, ptr=(Slapi_Entry **)ctx->data; ptr != NULL && ptr[n] != NULL; n++ ) {
-					slapi_entry_free(ptr[n]);
-				}
-				if (ctx->data)
-					slapi_ch_free((void **)&ctx->data);
-				slapi_ch_free((void **)&ctx);
-                        	return -1;
+			for ( n = 0, ptr=(Slapi_Entry **)ctx->data; ptr != NULL && ptr[n] != NULL; n++ ) {
+				slapi_entry_free(ptr[n]);
 			}
-                }
+			if (ctx->data) {
+				slapi_ch_free((void **)&ctx->data);
+			}
+			slapi_ch_free((void **)&ctx);
+			return -1;
+		}
 
 		/*
 		** Return the Slapi_Entry of the result set one
@@ -497,15 +494,16 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 	 * the context.
 	 */
 
- 	/* Poll the server for the results of the search operation. 
-         * Passing LDAP_MSG_ONE indicates that you want to receive 
-         * the entries one at a time, as they come in.  If the next
-         * entry that you retrieve is NULL, there are no more entries. 
+	/* Poll the server for the results of the search operation. 
+	 * Passing LDAP_MSG_ONE indicates that you want to receive 
+	 * the entries one at a time, as they come in.  If the next
+	 * entry that you retrieve is NULL, there are no more entries. 
 	 */
 	
 	/* heart-beat management */
-       	if (cb->max_idle_time>0)
-	       	endtime=current_time() + cb->max_idle_time;
+		if (cb->max_idle_time>0) {
+			endtime=slapi_current_utc_time() + cb->max_idle_time;
+		}
 
 	while (1) {
 
@@ -579,8 +577,9 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 		case LDAP_RES_SEARCH_ENTRY:
 
 			/* heart-beat management */
-       			if (cb->max_idle_time>0)
-	       			endtime=current_time() + cb->max_idle_time;
+       			if (cb->max_idle_time>0) {
+	       			endtime=slapi_current_utc_time() + cb->max_idle_time;
+				}
 
          		/* The server sent one of the entries found by the search */
 			if ((entry = cb_LDAPMessage2Entry(ctx->ld,res,attrsonly)) == NULL) {
@@ -610,8 +609,9 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 			 */
 		
 			/* heart-beat management */
-			if (cb->max_idle_time>0)
-				endtime=current_time() + cb->max_idle_time;
+			if (cb->max_idle_time>0) {
+				endtime=slapi_current_utc_time() + cb->max_idle_time;
+			}
 
 			parse_rc = ldap_parse_reference( ctx->ld, res, &referrals, NULL, 1 );
 			if ( parse_rc != LDAP_SUCCESS ) {

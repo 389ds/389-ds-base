@@ -221,7 +221,7 @@ gentimeToEpochtime( char *gentimestr ) {
 
 	/* Find the local offset from GMT */
 	cur_gm_time = (struct tm*)slapi_ch_calloc( 1, sizeof( struct tm ) );
-	cur_local_epochtime = time( (time_t *)0 );
+	cur_local_epochtime = slapi_current_utc_time();
 	gmtime_r( &cur_local_epochtime, cur_gm_time );
 	cur_gm_epochtime = mktime( cur_gm_time );
 	free( cur_gm_time );
@@ -255,9 +255,9 @@ epochtimeToGentime( time_t epochtime ) {
 	struct tm t;
 
 	gmtime_r( &epochtime, &t );
-	gentimestr = slapi_ch_malloc( 20 );
+	gentimestr = slapi_ch_malloc(SLAPI_TIMESTAMP_BUFSIZE);
 	/* Format is YYYYmmddHHMMSSZ (15+1 chars) */
-	strftime( gentimestr, 16, "%Y%m%d%H%M%SZ", &t );
+	strftime( gentimestr, SLAPI_TIMESTAMP_BUFSIZE, "%Y%m%d%H%M%SZ", &t );
 
 	return( gentimestr );
 }

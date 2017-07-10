@@ -142,7 +142,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	windows_conn_set_timeout(prp->conn, agmt_get_timeout(prp->agmt));
 
 	/* acquire remote replica */
-	agmt_set_last_init_start(prp->agmt, current_time());
+	agmt_set_last_init_start(prp->agmt, slapi_current_utc_time());
 	
 	rc = windows_acquire_replica (prp, &ruv, 0 /* don't check RUV for total protocol */);
 	/* We never retry total protocol, even in case a transient error.
@@ -204,7 +204,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	cb_data.rc = 0;
 	cb_data.num_entries = 0UL;
 	cb_data.sleep_on_busy = 0UL;
-	cb_data.last_busy = current_time ();
+	cb_data.last_busy = slapi_current_utc_time ();
 
 	/* Don't send anything if one-way (ONE_WAY_SYNC_FROM_AD) is set. */
 	if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_TO_AD)) {
@@ -253,7 +253,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	/* Save the dirsync cookie. */
 	windows_private_save_dirsync_cookie(prp->agmt);
 
-	agmt_set_last_init_end(prp->agmt, current_time());
+	agmt_set_last_init_end(prp->agmt, slapi_current_utc_time());
 	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
 	agmt_update_done(prp->agmt, 1);
 
