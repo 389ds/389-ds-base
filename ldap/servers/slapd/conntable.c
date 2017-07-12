@@ -365,10 +365,19 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 		if ( ct->c[i].c_sd != SLAPD_INVALID_SOCKET )
 		{
 			char buf2[20];
-			int lendn = ct->c[i].c_dn ? strlen(ct->c[i].c_dn) : 6; /* "NULLDN" */
+			size_t lendn = ct->c[i].c_dn ? strlen(ct->c[i].c_dn) : 6; /* "NULLDN" */
+			size_t lenip = ct->c[i].c_ipaddr ? strlen(ct->c[i].c_ipaddr) : 0;
+			size_t lenconn = 1;
+			uint64_t connid = ct->c[i].c_connid;
 			char *bufptr = &buf[0];
 			char *newbuf = NULL;
 			int maxthreadstate = 0;
+
+			/* Get the connid length */
+			while (connid > 9) {
+				lenconn++;
+				connid /= 10;
+			}
 
 			if(ct->c[i].c_flags & CONN_FLAG_MAX_THREADS){
 				maxthreadstate = 1;
@@ -397,25 +406,33 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 				maxthreadstate, ct->c[i].c_maxthreadscount,
 				ct->c[i].c_maxthreadsblocked);
 
-			if ((lendn + strlen(maxthreadbuf)) > (BUFSIZ - 46)) {
+			if ((lenconn + lenip + lendn + strlen(maxthreadbuf)) > (BUFSIZ - 54)) {
 				/*
-				 * 46 = 4 for the "i" couter + 20 for buf2 +
-				 *     10 for c_opsinitiated + 10 for c_opscompleted +
-				 *      1 for c_gettingber + 1
+				 * 54 =  8 for the colon separators +
+				 *       6 for the "i" counter +
+				 *      15 for buf2 (date) +
+				 *      10 for c_opsinitiated +
+				 *      10 for c_opscompleted +
+				 *       1 for c_gettingber +
+				 *       3 for "ip=" +
+				 *       1 for NULL terminator
 				 */
-				newbuf = (char *) slapi_ch_malloc(lendn + strlen(maxthreadbuf) + 46);
+				newbuf = (char *) slapi_ch_malloc(lenconn + lendn + lenip + strlen(maxthreadbuf) + 54);
 				bufptr = newbuf;
 			}
 
-			sprintf( bufptr, "%d:%s:%d:%d:%s%s:%s:%s", i,
+			sprintf( bufptr, "%d:%s:%d:%d:%s%s:%s:%s:%lu:ip=%s",
+			    i,
 			    buf2, 
 			    ct->c[i].c_opsinitiated, 
 			    ct->c[i].c_opscompleted,
 			    ct->c[i].c_gettingber ? "r" : "-",
 			    "",
 			    ct->c[i].c_dn ? ct->c[i].c_dn : "NULLDN",
-			    maxthreadbuf
-			    );
+			    maxthreadbuf,
+			    ct->c[i].c_connid,
+			    ct->c[i].c_ipaddr
+			);
 			val.bv_val = bufptr;
 			val.bv_len = strlen( bufptr );
 			attrlist_merge( &e->e_attrs, "connection", vals );

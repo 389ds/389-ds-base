@@ -1605,6 +1605,7 @@ typedef struct conn {
     struct connection_table     *c_ct; /* connection table that this connection belongs to */
     ns_thrpool_t                *c_tp; /* thread pool for this connection */
     int                         c_ns_close_jobs; /* number of current close jobs */
+    char                        *c_ipaddr; /* ip address str - used by monitor */
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 

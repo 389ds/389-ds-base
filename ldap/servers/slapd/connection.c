@@ -207,6 +207,7 @@ connection_cleanup(Connection *conn)
     conn->c_isreplication_session = 0;
 	slapi_ch_free((void**)&conn->cin_addr );
 	slapi_ch_free((void**)&conn->cin_destaddr );
+	slapi_ch_free_string(&conn->c_ipaddr);
     if ( conn->c_domain != NULL )
     {
 		ber_bvecfree( conn->c_domain );
@@ -422,6 +423,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen __attri
      * yet, which prevents us from getting the effective key length. */
     conn->c_ssl_ssf = 0;
     conn->c_local_ssf = 0;
+    conn->c_ipaddr = slapi_ch_strdup(str_ip);
 }
 
 /* Create a pool of threads for handling the operations */ 
