@@ -19,8 +19,8 @@ def topology(request):
     topology = default_topology(request)
 
     plugin = MemberOfPlugin(topology.standalone)
-    # no memberof entry exists by default
-    plugin.create()
+    if not plugin.exists():
+        plugin.create()
 
     # At the moment memberof plugin needs to be enabled in order to perform
     # syntax checking. Additionally, we have to restart the server in order

@@ -113,6 +113,14 @@ class DSLdapObject(DSLogging):
     def raw_entry(self):
         return self._instance.getEntry(self._dn)
 
+    def exists(self):
+        try:
+            self._instance.search_s(self._dn, ldap.SCOPE_BASE, attrsonly=1)
+        except ldap.NO_SUCH_OBJECT:
+            return False
+
+        return True
+
     def display(self):
         e = self._instance.getEntry(self._dn)
         return e.__repr__()
