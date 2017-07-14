@@ -193,7 +193,7 @@ const CSN *csn_max(const CSN *csn1,const CSN *csn2);
    a csn from the set.*/
 int csn_increment_subsequence (CSN *csn);
 
-void csnplFreeCSN (void *arg);
+void csnplFreeCSNPL_CTX (void *arg);
 /*
  * csnset.c
  */

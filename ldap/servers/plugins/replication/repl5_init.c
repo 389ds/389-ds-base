@@ -154,24 +154,60 @@ set_thread_private_agmtname(const char *agmtname)
 		PR_SetThreadPrivate(thread_private_agmtname, (void *)agmtname);
 }
 
-CSN*
+CSNPL_CTX*
 get_thread_primary_csn(void)
 {
-	CSN *prim_csn = NULL;
+	CSNPL_CTX *prim_csn = NULL;
 	if (thread_primary_csn)
-		prim_csn = (CSN *)PR_GetThreadPrivate(thread_primary_csn);
+		prim_csn = (CSNPL_CTX *)PR_GetThreadPrivate(thread_primary_csn);
+
 	return prim_csn;
 }
 void
-set_thread_primary_csn(const CSN *prim_csn)
+set_thread_primary_csn (const CSN *prim_csn, Replica *repl)
 {
 	if (thread_primary_csn) {
 		if (prim_csn) {
-			PR_SetThreadPrivate(thread_primary_csn, (void *)csn_dup(prim_csn));
+			CSNPL_CTX *csnpl_ctx = (CSNPL_CTX *)slapi_ch_calloc(1,sizeof(CSNPL_CTX));
+			csnpl_ctx->prim_csn = csn_dup(prim_csn);
+			/* repl_alloc, repl_cnt and sec_repl are 0 by calloc */
+			csnpl_ctx->prim_repl = repl;
+			PR_SetThreadPrivate(thread_primary_csn, (void *)csnpl_ctx);
 		} else {
 			PR_SetThreadPrivate(thread_primary_csn, NULL);
 		}
 	}
+}
+
+void
+add_replica_to_primcsn(CSNPL_CTX *csnpl_ctx, Replica *repl)
+{
+	size_t found = 0;
+	size_t it = 0;
+
+	if (repl == csnpl_ctx->prim_repl) return;
+
+	while (it < csnpl_ctx->repl_cnt) {
+		if (csnpl_ctx->sec_repl[it] == repl) {
+			found = 1;
+			break;
+		}
+		it++;
+	}
+	if (found) return;
+
+	if (csnpl_ctx->repl_cnt < csnpl_ctx->repl_alloc) {
+		csnpl_ctx->sec_repl[csnpl_ctx->repl_cnt++] = repl;
+		return;
+	}
+	csnpl_ctx->repl_alloc += CSNPL_CTX_REPLCNT;
+	if (csnpl_ctx->repl_cnt == 0) {
+		csnpl_ctx->sec_repl = (Replica **)slapi_ch_calloc(csnpl_ctx->repl_alloc, sizeof(Replica *));
+	} else {
+		csnpl_ctx->sec_repl = (Replica **)slapi_ch_realloc((char *)csnpl_ctx->sec_repl, csnpl_ctx->repl_alloc * sizeof(Replica *));
+	}
+	csnpl_ctx->sec_repl[csnpl_ctx->repl_cnt++] = repl;
+	return;
 }
 
 void*
@@ -740,7 +776,7 @@ multimaster_start( Slapi_PBlock *pb )
 		/* Initialize thread private data for logging. Ignore if fails */
 		PR_NewThreadPrivateIndex (&thread_private_agmtname, NULL);
 		PR_NewThreadPrivateIndex (&thread_private_cache, NULL);
-		PR_NewThreadPrivateIndex (&thread_primary_csn, csnplFreeCSN);
+		PR_NewThreadPrivateIndex (&thread_primary_csn, csnplFreeCSNPL_CTX);
 
 		/* Decode the command line args to see if we're dumping to LDIF */
 		is_ldif_dump = check_for_ldif_dump(pb);

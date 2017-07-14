@@ -17,15 +17,17 @@
 #define CSNPL_H
 
 #include "slapi-private.h"
+#include "repl5.h"
 
 typedef struct csnpl CSNPL;
 
 CSNPL* csnplNew(void);
 void csnplFree (CSNPL **csnpl);
-int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSN *prim_csn);
+int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSNPL_CTX *prim_csn);
 int csnplRemove (CSNPL *csnpl, const CSN *csn);
-int csnplRemoveAll (CSNPL *csnpl, const CSN *csn);
-int csnplCommitAll (CSNPL *csnpl, const CSN *csn);
+int csnplRemoveAll (CSNPL *csnpl, const CSNPL_CTX *csn_ctx);
+int csnplCommitAll (CSNPL *csnpl, const CSNPL_CTX *csn_ctx);
+PRBool csn_primary(Replica *replica, const CSN *csn,  const CSNPL_CTX *csn_ctx);
 CSN* csnplGetMinCSN (CSNPL *csnpl, PRBool *committed);
 int csnplCommit (CSNPL *csnpl, const CSN *csn);
 CSN *csnplRollUp(CSNPL *csnpl, CSN ** first);
