@@ -16,11 +16,15 @@
 
 # This enables an ASAN build. This should not go to production, so we rename.
 %global use_asan __ASAN_ON__
+
+# This enables rust in the build.
+%global use_rust __RUST_ON__
+
 %if %{use_asan}
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%if %{_arch} != "s390x" && %{_arch} != "s390" && !%{use_rust}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -83,6 +87,11 @@ BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
 %if %{use_asan}
 BuildRequires:    libasan
+%endif
+# If rust is enabled
+%if %{use_rust}
+BuildRequires: cargo
+BuildRequires: rust
 %endif
 # Needed to support regeneration of the autotool artifacts.
 BuildRequires:    autoconf
@@ -263,12 +272,16 @@ export CXX=clang++
 # hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529
 NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
 
-%if %{use_asan}
+%if %{use_asan} && !%{use_rust}
 ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
 
 %if %{use_tcmalloc}
 TCMALLOC_FLAGS="--enable-tcmalloc"
+%endif
+
+%if %{use_rust}
+RUST_FLAGS="--enable-rust"
 %endif
 
 # Rebuild the autotool artifacts now.
@@ -279,7 +292,7 @@ autoreconf -fiv
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
-           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS \
+           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $RUST_FLAGS \
            --enable-cmocka
 
 %if 0%{?rhel} >= 8 || 0%{?fedora}
@@ -526,6 +539,9 @@ fi
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
 %{_libdir}/%{pkgname}/libldaputil.so
+%if %{use_rust}
+%{_libdir}/%{pkgname}/librsds.so
+%endif
 %{_libdir}/pkgconfig/*
 
 %files libs
@@ -537,6 +553,9 @@ fi
 %{_libdir}/%{pkgname}/libnunc-stans.so.*
 %{_libdir}/%{pkgname}/libsds.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
+%if %{use_rust}
+%{_libdir}/%{pkgname}/librsds.so.*
+%endif
 
 %files snmp
 %defattr(-,root,root,-)

@@ -17,6 +17,7 @@ test_1_tqueue_invalid_create(void **state __attribute__((unused)))
     assert_int_equal(result, SDS_NULL_POINTER);
 }
 
+#ifndef RUST_ENABLE
 static void
 test_2_tqueue_enqueue(void **state)
 {
@@ -113,6 +114,7 @@ test_6_tqueue_dequeue_multiple(void **state)
     assert_ptr_equal(q->uq->head, NULL);
     assert_ptr_equal(q->uq->tail, NULL);
 }
+#endif /* RUST_ENABLE */
 
 static void
 test_7_tqueue_random(void **state)
@@ -178,6 +180,7 @@ run_tqueue_tests(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_1_tqueue_invalid_create),
+#ifndef RUST_ENABLE
         cmocka_unit_test_setup_teardown(test_2_tqueue_enqueue,
                                         tqueue_test_setup,
                                         tqueue_test_teardown),
@@ -193,6 +196,7 @@ run_tqueue_tests(void)
         cmocka_unit_test_setup_teardown(test_6_tqueue_dequeue_multiple,
                                         tqueue_test_setup,
                                         tqueue_test_teardown),
+#endif
         cmocka_unit_test_setup_teardown(test_7_tqueue_random,
                                         tqueue_test_setup,
                                         tqueue_test_teardown),

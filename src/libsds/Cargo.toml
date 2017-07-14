@@ -1,0 +1,16 @@
+[package]
+name = "rsds"
+version = "0.1.0"
+authors = ["William Brown <firstyear@redhat.com>"]
+
+[dependencies]
+
+[lib]
+path = "sds/lib.rs"
+name = "rsds"
+crate-type = ["dylib"]
+
+[profile.release]
+panic = "abort"
+# lto = true
+

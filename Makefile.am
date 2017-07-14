@@ -29,8 +29,21 @@ NSPR_INCLUDES = @nspr_inc@
 SVRCORE_INCLUDES = @svrcore_inc@
 SASL_INCLUDES = @sasl_inc@
 EVENT_INCLUDES = @event_inc@
-# Not used currently
-# TCMALLOC_INCLUDES = @tcmalloc_inc@
+
+# Rust inclusions.
+if RUST_ENABLE
+RUST_ON = 1
+CARGO_FLAGS = @cargo_defs@
+RUSTC_FLAGS = @asan_rust_defs@ @debug_rust_defs@
+RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
+RUST_DEFINES = -DRUST_ENABLE
+else
+RUST_ON = 0
+CARGO_FLAGS =
+RUSTC_FLAGS =
+RUST_LDFLAGS =
+RUST_DEFINES =
+endif
 
 # We can't add the lfds includes all the time as they have a "bomb" in them that
 # prevents compilation on unsupported hardware arches.
@@ -80,7 +93,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(PROFILING_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
 DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ $(NSPR_INCLUDES) @systemd_inc@
@@ -138,7 +151,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 # Provide the tcmalloc links if needed
-AM_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) -latomic
+AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) -latomic
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
@@ -236,6 +249,7 @@ clean-local:
 	-rm -rf dist
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo clean --manifest-path=$(srcdir)/src/libsds/Cargo.toml
 
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
@@ -288,7 +302,18 @@ bin_PROGRAMS = dbscan \
 	pwdhash \
 	rsearch
 
-server_LTLIBRARIES = libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
+# ----------------------------------------------------------------------------------------
+# This odd looking definition is to keep the libraries in ORDER that they are needed. rsds
+# is needed by sds, which is needed by ns. So we have a blank LTLIB, then append in order
+# based on defines
+# ----------------------------------------------------------------------------------------
+
+server_LTLIBRARIES =
+if RUST_ENABLE
+server_LTLIBRARIES += librsds.la
+endif
+server_LTLIBRARIES += libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
+
 
 # this is how to add optional plugins
 if enable_pam_passthru
@@ -1047,7 +1072,6 @@ libsds_la_SOURCES = src/libsds/sds/core/utils.c \
 	src/libsds/sds/bpt_cow/txn.c \
 	src/libsds/sds/bpt_cow/verify.c \
 	src/libsds/sds/queue/queue.c \
-	src/libsds/sds/queue/tqueue.c \
 	src/libsds/sds/queue/lqueue.c \
 	src/libsds/external/csiphash/csiphash.c \
 	src/libsds/sds/ht/ht.c \
@@ -1069,6 +1093,32 @@ endif
 # EDIT THESE AT THE TOP OF THE MAKE FILE!!!
 libsds_la_CPPFLAGS = $(AM_CPPFLAGS) $(SDS_CPPFLAGS)
 libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
+
+if RUST_ENABLE
+libsds_la_LIBADD = librsds.la
+
+librsdspatha = $(abs_top_builddir)/rs/@rust_target_dir@/librsds.a
+librsdspatho = $(abs_top_builddir)/rs/@rust_target_dir@/librsds.o
+
+# Remember, these emit to cargo_target_dir/<at>rust_target_dir<at>/emit target
+$(librsdspatha): Makefile src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml -- $(RUSTC_FLAGS) --emit link=$(librsdspatha)
+
+$(librsdspatho): Makefile src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml -- $(RUSTC_FLAGS) --emit obj=$(librsdspatho)
+
+am_librsds_la_OBJECTS = $(librsdspatho)
+librsds_la_LIBADD = $(librsdspatha)
+librsds_la_SOURCES =
+
+dist_noinst_DATA += $(srcdir)/src/libsds/Cargo.toml \
+					$(srcdir)/src/libsds/sds/*.rs
+
+else
+# Just build the tqueue in C.
+libsds_la_SOURCES += \
+	src/libsds/sds/queue/tqueue.c
+endif
 
 #------------------------
 # libnunc-stans
@@ -2242,7 +2292,12 @@ rpmbrprep: dist-bzip2 rpmroot
 	cp $(distdir).tar.bz2 $(RPMBUILD)/SOURCES
 	cp $(srcdir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
 	cp $(srcdir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
-	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" -e "s/__ASAN_ON__/$(ASAN_ON)/"  < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
+	sed -e "s/__VERSION__/$(RPM_VERSION)/" \
+		-e "s/__RELEASE__/$(RPM_RELEASE)/" \
+		-e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" \
+		-e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" \
+		-e "s/__RUST_ON__/$(RUST_ON)/" \
+		-e "s/__ASAN_ON__/$(ASAN_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
 # Requires rpmdevtools. Consider making this a dependancy of rpms.
 rpmsources: rpmbrprep

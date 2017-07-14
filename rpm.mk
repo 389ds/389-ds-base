@@ -10,6 +10,7 @@ NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
 NUNC_STANS_ON = 1
 ASAN_ON = 0
+RUST_ON = 0
 
 clean:
 	rm -rf dist
@@ -35,6 +36,7 @@ rpmroot:
 	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
 	-e s/__VERSION_PREREL__/$(VERSION_PREREL)/ \
 	-e s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/ \
+	-e s/__RUST_ON__/$(RUST_ON)/ \
 	-e s/__ASAN_ON__/$(ASAN_ON)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
 
