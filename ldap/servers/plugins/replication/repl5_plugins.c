@@ -1034,7 +1034,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 {
 	Slapi_Operation *op = NULL;
 	CSN *opcsn;
-	CSN *prim_csn;
+	CSNPL_CTX *prim_csn;
 	int rc;
 	slapi_operation_parameters *op_params = NULL;
 	Object *repl_obj = NULL;
@@ -1070,14 +1070,15 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	if (repl_obj == NULL)
 		return return_value;
 
+	r = (Replica*)object_get_data (repl_obj);
+	PR_ASSERT (r);
+
 	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
 	if (rc) { /* op failed - just return */
 		cancel_opcsn(pb);
 		goto common_return;
 	}
 
-	r = (Replica*)object_get_data (repl_obj);
-	PR_ASSERT (r);
 
 	replica_check_release_timeout(r, pb);
 
@@ -1223,12 +1224,12 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 common_return:
 	opcsn = operation_get_csn(op);
 	prim_csn = get_thread_primary_csn();
-	if (csn_is_equal(opcsn, prim_csn)) {
+	if (csn_primary(r, opcsn, prim_csn)) {
 		if (return_value == 0) {
 			/* the primary csn was succesfully committed
 			 * unset it in the thread local data
 			 */
-			set_thread_primary_csn(NULL);
+			set_thread_primary_csn(NULL, NULL);
 		}
 	}
 	if (repl_obj) {
@@ -1430,7 +1431,7 @@ cancel_opcsn (Slapi_PBlock *pb)
 
             ruv_obj = replica_get_ruv (r);
             PR_ASSERT (ruv_obj);
-            ruv_cancel_csn_inprogress ((RUV*)object_get_data (ruv_obj), opcsn, replica_get_rid(r));
+            ruv_cancel_csn_inprogress (r, (RUV*)object_get_data (ruv_obj), opcsn, replica_get_rid(r));
             object_release (ruv_obj);
         }
 
@@ -1491,7 +1492,7 @@ process_operation (Slapi_PBlock *pb, const CSN *csn)
     ruv = (RUV*)object_get_data (ruv_obj);
     PR_ASSERT (ruv);
  
-    rc = ruv_add_csn_inprogress (ruv, csn);
+    rc = ruv_add_csn_inprogress (r, ruv, csn);
 
     object_release (ruv_obj);
     object_release (r_obj);

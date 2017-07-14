@@ -920,7 +920,7 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 					}
 				}
 				/* Update max csn for local and remote replicas */
-				rc = ruv_update_ruv (ruv, updated_csn, replica_purl, r->repl_rid);
+				rc = ruv_update_ruv (ruv, updated_csn, replica_purl, r, r->repl_rid);
 				if (RUV_COVERS_CSN == rc)
 				{
 					slapi_log_err(SLAPI_LOG_REPL,
@@ -3660,7 +3660,7 @@ assign_csn_callback(const CSN *csn, void *data)
         }
     }
 
-    ruv_add_csn_inprogress (ruv, csn);
+    ruv_add_csn_inprogress (r, ruv, csn);
 
     replica_unlock(r->repl_lock);
 
@@ -3689,13 +3689,13 @@ abort_csn_callback(const CSN *csn, void *data)
     {
         int rc = csnplRemove(r->min_csn_pl, csn);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "abort_csn_callback - csnplRemove failed");
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "abort_csn_callback - csnplRemove failed\n");
             replica_unlock(r->repl_lock);
             return;
         }
     }
 
-    ruv_cancel_csn_inprogress (ruv, csn, replica_get_rid(r));
+    ruv_cancel_csn_inprogress (r, ruv, csn, replica_get_rid(r));
     replica_unlock(r->repl_lock);
 
     object_release (ruv_obj);
@@ -4484,5 +4484,15 @@ replica_check_release_timeout(Replica *r, Slapi_PBlock *pb)
 		replica_add_session_abort_control(pb);
 		r->abort_session = SESSION_ABORTED;
 	}
+	replica_unlock(r->repl_lock);
+}
+void
+replica_lock_replica(Replica *r)
+{
+	replica_lock(r->repl_lock);
+}
+void
+replica_unlock_replica(Replica *r)
+{
 	replica_unlock(r->repl_lock);
 }

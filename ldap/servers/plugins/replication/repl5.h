@@ -228,12 +228,27 @@ int multimaster_be_betxnpostop_delete (Slapi_PBlock *pb);
 int multimaster_be_betxnpostop_add (Slapi_PBlock *pb);
 int multimaster_be_betxnpostop_modify (Slapi_PBlock *pb);
 
+/* In repl5_replica.c */
+typedef struct replica Replica;
+
+/* csn pending lists */
+#define CSNPL_CTX_REPLCNT 4
+typedef struct CSNPL_CTX
+{
+	CSN *prim_csn;
+	size_t repl_alloc; /* max number of replicas  */
+	size_t repl_cnt; /* number of replicas affected by operation */
+	Replica *prim_repl; /* pirmary replica */
+	Replica **sec_repl; /* additional replicas affected */
+} CSNPL_CTX;
+
 /* In repl5_init.c */
 extern int repl5_is_betxn;
 char* get_thread_private_agmtname(void);
 void  set_thread_private_agmtname (const char *agmtname);
-void  set_thread_primary_csn (const CSN *prim_csn);
-CSN*  get_thread_primary_csn(void);
+void  set_thread_primary_csn (const CSN *prim_csn, Replica *repl);
+void  add_replica_to_primcsn(CSNPL_CTX *prim_csn, Replica *repl);
+CSNPL_CTX*  get_thread_primary_csn(void);
 void* get_thread_private_cache(void);
 void  set_thread_private_cache (void *buf);
 char* get_repl_session_id (Slapi_PBlock *pb, char *id, CSN **opcsn);
@@ -302,7 +317,6 @@ typedef struct repl_bos Repl_Bos;
 
 /* In repl5_agmt.c */
 typedef struct repl5agmt Repl_Agmt;
-typedef struct replica Replica;
 
 #define TRANSPORT_FLAG_SSL 1
 #define TRANSPORT_FLAG_TLS 2
@@ -629,6 +643,8 @@ PRUint64 replica_get_precise_purging(Replica *r);
 void replica_set_precise_purging(Replica *r, PRUint64 on_off);
 PRBool ignore_error_and_keep_going(int error);
 void replica_check_release_timeout(Replica *r, Slapi_PBlock *pb);
+void replica_lock_replica(Replica *r);
+void replica_unlock_replica(Replica *r);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

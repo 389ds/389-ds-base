@@ -14,7 +14,6 @@
 
 #include "csnpl.h"
 #include "llist.h"
-#include "repl_shared.h"
 
 struct csnpl 
 {
@@ -22,12 +21,16 @@ struct csnpl
 	Slapi_RWLock*	csnLock;	/* lock to serialize access to PL */
 };	
 
+
 typedef struct _csnpldata
 {
 	PRBool	committed;  /* True if CSN committed */
 	CSN	*csn;       /* The actual CSN */
+	Replica * prim_replica; /* The replica where the prom csn was generated */
 	const CSN *prim_csn;  /* The primary CSN of an operation consising of multiple sub ops*/
 } csnpldata;
+
+static PRBool csn_primary_or_nested(csnpldata *csn_data,  const CSNPL_CTX *csn_ctx);
 
 /* forward declarations */
 #ifdef DEBUG
@@ -104,7 +107,7 @@ void csnplFree (CSNPL **csnpl)
  *          1 if the csn has already been seen
  *         -1 for any other kind of errors
  */
-int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSN *prim_csn)
+int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSNPL_CTX *prim_csn)
 {
 	int rc;
 	csnpldata *csnplnode;
@@ -129,10 +132,13 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn, const CSN *prim_csn)
         return 1;
     }
 
-	csnplnode = (csnpldata *)slapi_ch_malloc(sizeof(csnpldata));
+	csnplnode = (csnpldata *)slapi_ch_calloc(1, sizeof(csnpldata));
 	csnplnode->committed = PR_FALSE;
 	csnplnode->csn = csn_dup(csn);
-	csnplnode->prim_csn = prim_csn;
+	if (prim_csn) {
+		csnplnode->prim_csn = prim_csn->prim_csn;
+		csnplnode->prim_replica =  prim_csn->prim_repl;
+	}
 	csn_as_string(csn, PR_FALSE, csn_str);
 	rc = llistInsertTail (csnpl->csnList, csn_str, csnplnode);
 
@@ -187,8 +193,58 @@ int csnplRemove (CSNPL *csnpl, const CSN *csn)
 
 	return 0;
 }
+PRBool csn_primary(Replica *replica, const CSN *csn,  const CSNPL_CTX *csn_ctx)
+{
+    if (csn_ctx == NULL)
+        return PR_FALSE;
+    
+    if (replica != csn_ctx->prim_repl) {
+        /* The CSNs are not from the same replication topology
+         * so even if the csn values are equal they are not related
+         * to the same operation
+         */
+        return PR_FALSE;
+    }
+    
+    /* Here the two CSNs belong to the same replication topology */
+    
+    /* check if the CSN identifies the primary update */
+    if (csn_is_equal(csn, csn_ctx->prim_csn)) {
+        return PR_TRUE;
+    }
+    
+    return PR_FALSE;
+}
 
-int csnplRemoveAll (CSNPL *csnpl, const CSN *csn)
+static PRBool csn_primary_or_nested(csnpldata *csn_data,  const CSNPL_CTX *csn_ctx)
+{
+    if ((csn_data == NULL) || (csn_ctx == NULL))
+        return PR_FALSE;
+    
+    if (csn_data->prim_replica != csn_ctx->prim_repl) {
+        /* The CSNs are not from the same replication topology
+         * so even if the csn values are equal they are not related
+         * to the same operation
+         */
+        return PR_FALSE;
+    }
+    
+    /* Here the two CSNs belong to the same replication topology */
+    
+    /* First check if the CSN identifies the primary update */
+    if (csn_is_equal(csn_data->csn, csn_ctx->prim_csn)) {
+        return PR_TRUE;
+    }
+    
+    /* Second check if the CSN identifies a nested update */
+    if (csn_is_equal(csn_data->prim_csn, csn_ctx->prim_csn)) {
+        return PR_TRUE;
+    }
+    
+    return PR_FALSE;
+}
+
+int csnplRemoveAll (CSNPL *csnpl, const CSNPL_CTX *csn_ctx)
 {
 	csnpldata *data;
 	void *iterator;
@@ -197,8 +253,7 @@ int csnplRemoveAll (CSNPL *csnpl, const CSN *csn)
 	data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
 	while (NULL != data)
 	{
-		if (csn_is_equal(data->csn, csn) ||
-		    csn_is_equal(data->prim_csn, csn)) {
+		if (csn_primary_or_nested(data, csn_ctx)) {
 			csnpldata_free(&data);
 			data = (csnpldata *)llistRemoveCurrentAndGetNext(csnpl->csnList, &iterator);
 		} else {
@@ -213,13 +268,13 @@ int csnplRemoveAll (CSNPL *csnpl, const CSN *csn)
 }
 
 
-int csnplCommitAll (CSNPL *csnpl, const CSN *csn)
+int csnplCommitAll (CSNPL *csnpl, const CSNPL_CTX *csn_ctx)
 {
 	csnpldata *data;
 	void *iterator;
 	char csn_str[CSN_STRSIZE];
 
-	csn_as_string(csn, PR_FALSE, csn_str);
+	csn_as_string(csn_ctx->prim_csn, PR_FALSE, csn_str);
 	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 		            "csnplCommitALL: committing all csns for csn %s\n", csn_str);
 	slapi_rwlock_wrlock (csnpl->csnLock);
@@ -229,8 +284,7 @@ int csnplCommitAll (CSNPL *csnpl, const CSN *csn)
 		csn_as_string(data->csn, PR_FALSE, csn_str);
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"csnplCommitALL: processing data csn %s\n", csn_str);
-		if (csn_is_equal(data->csn, csn) ||
-		    csn_is_equal(data->prim_csn, csn)) {
+                if (csn_primary_or_nested(data, csn_ctx)) {
 			data->committed = PR_TRUE;
 		}
 		data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
@@ -395,7 +449,12 @@ static void _csnplDumpContentNoLock(CSNPL *csnpl, const char *caller)
 
 /* wrapper around csn_free, to satisfy NSPR thread context API */
 void
-csnplFreeCSN (void *arg)
+csnplFreeCSNPL_CTX (void *arg)
 {
-	csn_free((CSN **)&arg);
+	CSNPL_CTX *csnpl_ctx = (CSNPL_CTX *)arg;
+	csn_free(&csnpl_ctx->prim_csn);
+	if (csnpl_ctx->sec_repl) {
+		slapi_ch_free((void **)&csnpl_ctx->sec_repl);
+	}
+	slapi_ch_free((void **)&csnpl_ctx);
 }
