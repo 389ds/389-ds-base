@@ -83,6 +83,20 @@ def generic_status(inst, basedn, log, args):
     else:
         log.info("%s is disabled", plugin.rdn)
 
+def add_generic_plugin_parsers(subparser, plugin_cls):
+    show_parser = subparser.add_parser('show', help='display plugin configuration')
+    show_parser.set_defaults(func=generic_show, plugin_cls=plugin_cls)
+
+    enable_parser = subparser.add_parser('enable', help='enable plugin')
+    enable_parser.set_defaults(func=generic_enable, plugin_cls=plugin_cls)
+
+    disable_parser = subparser.add_parser('disable', help='disable plugin')
+    disable_parser.set_defaults(func=generic_disable, plugin_cls=plugin_cls)
+
+    status_parser = subparser.add_parser('status', help='display plugin status')
+    status_parser.set_defaults(func=generic_status, plugin_cls=plugin_cls)
+
+
 def create_parser(subparsers):
     plugin_parser = subparsers.add_parser('plugin', help="Manage plugins available on the server")
 

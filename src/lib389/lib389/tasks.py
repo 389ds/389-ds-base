@@ -14,10 +14,11 @@ from datetime import datetime
 
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
+from lib389.exceptions import Error
 from lib389._constants import (
         DEFAULT_SUFFIX, DEFAULT_BENAME, DN_EXPORT_TASK, DN_BACKUP_TASK,
         DN_IMPORT_TASK, DN_RESTORE_TASK, DN_INDEX_TASK, DN_MBO_TASK,
-        DN_TOMB_FIXUP_TASK
+        DN_TOMB_FIXUP_TASK, DN_TASKS
         )
 from lib389.properties import (
         TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
@@ -75,6 +76,19 @@ class MemberOfFixupTask(Task):
         super(MemberOfFixupTask, self).__init__(instance, dn, batch)
         self._must_attributes.extend(['basedn'])
 
+
+class USNTombstoneCleanupTask(Task):
+    def __init__(self, instance, dn=None, batch=False):
+        self.cn = 'usn_cleanup_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=USN tombstone cleanup task," + DN_TASKS
+
+        super(USNTombstoneCleanupTask, self).__init__(instance, dn, batch)
+
+    def _validate(self, rdn, properties, basedn):
+        if not 'suffix' in properties and not 'backend' in properties:
+            raise Error("Either suffix or backend must be specified for cleanup task.")
+
+        return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()

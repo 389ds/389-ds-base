@@ -9,8 +9,7 @@
 import ldap
 
 from lib389.plugins import MemberOfPlugin
-from lib389.cli_conf.plugin import (
-        generic_enable, generic_disable, generic_status, generic_show)
+from lib389.cli_conf.plugin import add_generic_plugin_parsers
 
 
 def manage_attr(inst, basedn, log, args):
@@ -207,17 +206,7 @@ def create_parser(subparsers):
 
     subcommands = memberof_parser.add_subparsers(help='action')
 
-    show_parser = subcommands.add_parser('show', help='display memberof plugin configuration')
-    show_parser.set_defaults(func=generic_show, plugin_cls=MemberOfPlugin)
-
-    enable_parser = subcommands.add_parser('enable', help='enable memberof plugin')
-    enable_parser.set_defaults(func=generic_enable, plugin_cls=MemberOfPlugin)
-
-    disable_parser = subcommands.add_parser('disable', help='disable memberof plugin')
-    disable_parser.set_defaults(func=generic_disable, plugin_cls=MemberOfPlugin)
-
-    status_parser = subcommands.add_parser('status', help='display memberof plugin status')
-    status_parser.set_defaults(func=generic_status, plugin_cls=MemberOfPlugin)
+    add_generic_plugin_parsers(subcommands, MemberOfPlugin)
 
     attr_parser = subcommands.add_parser('attr', help='get or set memberofattr')
     attr_parser.set_defaults(func=manage_attr)
@@ -225,7 +214,6 @@ def create_parser(subparsers):
 
     groupattr_parser = subcommands.add_parser('groupattr', help='get or manage memberofgroupattr')
     groupattr_parser.set_defaults(func=display_groupattr)
-    # argparse doesn't support optional subparsers in python2!
     groupattr_subcommands = groupattr_parser.add_subparsers(help='action')
     add_groupattr_parser = groupattr_subcommands.add_parser('add', help='add memberofgroupattr value')
     add_groupattr_parser.set_defaults(func=add_groupattr)
@@ -236,7 +224,6 @@ def create_parser(subparsers):
 
     allbackends_parser = subcommands.add_parser('allbackends', help='get or manage memberofallbackends')
     allbackends_parser.set_defaults(func=display_allbackends)
-    # argparse doesn't support optional subparsers in python2!
     allbackends_subcommands = allbackends_parser.add_subparsers(help='action')
     on_allbackends_parser = allbackends_subcommands.add_parser('on', help='enable all backends for memberof')
     on_allbackends_parser.set_defaults(func=enable_allbackends)
@@ -245,7 +232,6 @@ def create_parser(subparsers):
 
     skipnested_parser = subcommands.add_parser('skipnested', help='get or manage memberofskipnested')
     skipnested_parser.set_defaults(func=display_skipnested)
-    # argparse doesn't support optional subparsers in python2!
     skipnested_subcommands = skipnested_parser.add_subparsers(help='action')
     on_skipnested_parser = skipnested_subcommands.add_parser('on', help='skip nested groups for memberof')
     on_skipnested_parser.set_defaults(func=enable_skipnested)
@@ -259,7 +245,6 @@ def create_parser(subparsers):
 
     scope_parser = subcommands.add_parser('scope', help='get or manage memberofentryscope')
     scope_parser.set_defaults(func=display_scope)
-    # argparse doesn't support optional subparsers in python2!
     scope_subcommands = scope_parser.add_subparsers(help='action')
     add_scope_parser = scope_subcommands.add_parser('add', help='add memberofentryscope value')
     add_scope_parser.set_defaults(func=add_scope)
@@ -272,7 +257,6 @@ def create_parser(subparsers):
 
     exclude_parser = subcommands.add_parser('exclude', help='get or manage memberofentryscopeexcludesubtree')
     exclude_parser.set_defaults(func=display_excludescope)
-    # argparse doesn't support optional subparsers in python2!
     exclude_subcommands = exclude_parser.add_subparsers(help='action')
     add_exclude_parser = exclude_subcommands.add_parser('add', help='add memberofentryscopeexcludesubtree value')
     add_exclude_parser.set_defaults(func=add_excludescope)

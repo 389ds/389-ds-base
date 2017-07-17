@@ -11,6 +11,7 @@ import copy
 
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.exceptions import Error
 from lib389._constants import DN_PLUGIN
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
@@ -313,8 +314,48 @@ class PassThroughAuthenticationPlugin(Plugin):
         super(PassThroughAuthenticationPlugin, self).__init__(instance, dn, batch)
 
 class USNPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'USN',
+        'nsslapd-pluginEnabled': 'off',
+        'nsslapd-pluginPath': 'libusn-plugin',
+        'nsslapd-pluginInitfunc': 'usn_init',
+        'nsslapd-pluginType': 'object',
+        'nsslapd-pluginbetxn': 'on',
+        'nsslapd-plugin-depends-on-type': 'database',
+        'nsslapd-pluginId': 'USN',
+        'nsslapd-pluginVendor': '389 Project',
+        'nsslapd-pluginVersion': '1.3.7.0',
+        'nsslapd-pluginDescription': 'USN (Update Sequence Number) plugin',
+    }
+
     def __init__(self, instance, dn="cn=USN,cn=plugins,cn=config", batch=False):
         super(USNPlugin, self).__init__(instance, dn, batch)
+        self._create_objectclasses.extend(['extensibleObject'])
+
+    def is_global_mode_set(self):
+        """Return True if global mode is enabled, else False."""
+        return self._instance.config.get_attr_val_utf8('nsslapd-entryusn-global') == 'on'
+
+    def enable_global_mode(self):
+        self._instance.config.set('nsslapd-entryusn-global', 'on')
+
+    def disable_global_mode(self):
+        self._instance.config.set('nsslapd-entryusn-global', 'off')
+
+    def cleanup(self, suffix=None, backend=None, max_usn=None):
+        task = tasks.USNTombstoneCleanupTask(self._instance)
+        task_properties = {}
+
+        if suffix is not None:
+            task_properties['suffix'] = suffix
+        if backend is not None:
+            task_properties['backend'] = backend
+        if max_usn is not None:
+            task_properties['maxusn_to_delete'] = str(max_usn)
+
+        task.create(properties=task_properties)
+
+        return task
 
 class WhoamiPlugin(Plugin):
     _plugin_properties = {
