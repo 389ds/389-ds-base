@@ -364,6 +364,7 @@ class WhoamiPlugin(Plugin):
         'nsslapd-pluginPath' : 'libwhoami-plugin',
         'nsslapd-pluginInitfunc' : 'whoami_init',
         'nsslapd-pluginType' : 'extendedop',
+        'nsslapd-plugin-depends-on-type' : 'database',
         'nsslapd-pluginId' : 'ldapwhoami-plugin',
         'nsslapd-pluginVendor' : '389 Project',
         'nsslapd-pluginVersion' : '1.3.6',
