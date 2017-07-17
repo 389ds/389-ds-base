@@ -196,6 +196,7 @@ PLUGIN_STATECHANGE = 'State Change Plugin'
 PLUGIN_USN = 'USN'
 PLUGIN_VIEWS = 'Views'
 PLUGIN_WHOAMI = 'whoami'
+PLUGIN_ADDN = 'addn'
 
 
 #
