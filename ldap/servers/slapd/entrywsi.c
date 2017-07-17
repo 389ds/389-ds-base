@@ -677,10 +677,10 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
                          * The attribute would otherwise be created in the 
                          * entry_add_.. function
                          */
-			Slapi_Attr *a = slapi_attr_new();
-			slapi_attr_init(a, type);
-			attr_set_deletion_csn(a,csn); 
-			entry_add_deleted_attribute_wsi(e, a);
+			Slapi_Attr *create_a = slapi_attr_new();
+			slapi_attr_init(create_a, type);
+			attr_set_deletion_csn(create_a,csn);
+			entry_add_deleted_attribute_wsi(e, create_a);
 		}
 	}
 	return retVal;

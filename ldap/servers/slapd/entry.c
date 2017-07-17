@@ -1114,9 +1114,11 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		}
 		else
 		{
-			int flags = SLAPI_VALUE_FLAG_PASSIN;
-			if (check_for_duplicate_values) flags |= SLAPI_VALUE_FLAG_DUPCHECK;
-			rc = slapi_valueset_add_attr_value_ext(&sa->sa_attr, &sa->sa_present_values,value, flags);
+			int value_flags = SLAPI_VALUE_FLAG_PASSIN;
+			if (check_for_duplicate_values) {
+				value_flags |= SLAPI_VALUE_FLAG_DUPCHECK;
+			}
+			rc = slapi_valueset_add_attr_value_ext(&sa->sa_attr, &sa->sa_present_values,value, value_flags);
 		}
 
 		if ( rc==LDAP_SUCCESS )

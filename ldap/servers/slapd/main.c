@@ -64,26 +64,56 @@ union semun {
 #endif
 
 /* Forward Declarations */
+
+struct main_config {
+    char *extraname;
+    int slapd_exemode;
+    int n_port;
+    int i_port;
+    int s_port;
+    char *myname;
+    char **ldif_file;
+    int ldif_files;
+    char *cmd_line_instance_name;
+    char **cmd_line_instance_names;
+    int skip_db_protect_check;
+    char **db2ldif_include;
+    char **db2ldif_exclude;
+    int ldif2db_removedupvals;
+    int ldif2db_noattrindexes;
+    char **db2index_attrs;
+    int ldif_printkey;
+    char *archive_name;
+    int db2ldif_dump_replica;
+    int db2ldif_dump_uniqueid;
+    int ldif2db_generate_uniqueid;
+    char *ldif2db_namespaceid;
+    int importexport_encrypt;
+    int upgradedb_flags;
+    int upgradednformat_dryrun;
+    int is_quiet;
+    int dbverify_verbose;
+    char *dbverify_dbdir;
+};
+/* dbverify options */
+
 static void register_objects(void);
-static void process_command_line(int argc, char **argv, char **extraname);
-static int slapd_exemode_ldif2db(void);
-static int slapd_exemode_db2ldif(int argc, char **argv);
-static int slapd_exemode_db2index(void);
-static int slapd_exemode_archive2db(void);
-static int slapd_exemode_db2archive(void);
-static int slapd_exemode_upgradedb(void);
-static int slapd_exemode_upgradednformat(void);
-static int slapd_exemode_dbverify(void);
-static int slapd_exemode_suffix2instance(void);
+static void process_command_line(int argc, char **argv, struct main_config *mcfg);
+static int slapd_exemode_ldif2db(struct main_config *mcfg);
+static int slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg);
+static int slapd_exemode_db2index(struct main_config *mcfg);
+static int slapd_exemode_archive2db(struct main_config *mcfg);
+static int slapd_exemode_db2archive(struct main_config *mcfg);
+static int slapd_exemode_upgradedb(struct main_config *mcfg);
+static int slapd_exemode_upgradednformat(struct main_config *mcfg);
+static int slapd_exemode_dbverify(struct main_config *mcfg);
+static int slapd_exemode_suffix2instance(struct main_config *mcfg);
 static int slapd_debug_level_string2level( const char *s );
 static void slapd_debug_level_log( int level );
 static void slapd_debug_level_usage( void );
 /*
  * global variables
  */
-
-static int slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
-
 
 struct ns_job_t *ns_signal_job[6];
 
@@ -432,17 +462,17 @@ name2exemode( char *progname, char *s, int exit_if_unknown )
 
 
 static void
-usage( char *name, char *extraname )
+usage( char *name, char *extraname, int slapd_exemode)
 {
     char *usagestr = NULL;
     char *extraspace;
 
     if ( extraname == NULL ) {
-	extraspace = extraname = "";
+        extraspace = extraname = "";
     } else {
-	extraspace = " ";
+        extraspace = " ";
     }
-	
+
     switch( slapd_exemode ) {
     case SLAPD_EXEMODE_DB2LDIF:
 	usagestr = "usage: %s %s%s-D configdir [-n backend-instance-name] [-d debuglevel] "
@@ -491,41 +521,6 @@ usage( char *name, char *extraname )
     fprintf( stderr, usagestr, name, extraname, extraspace );
 }
 
-
-/*
- * These nasty globals are the settings collected from the
- * command line by the process_command_line function. The
- * various slapd_exemode functions read these to drive their
- * execution.
- */
-static char *extraname;
-static char *myname;
-static int n_port = 0;
-static int i_port = 0;
-static int s_port = 0;
-static char **ldif_file = NULL;
-static int ldif_files = 0;
-static char *cmd_line_instance_name = NULL;
-static char **cmd_line_instance_names = NULL;
-static int skip_db_protect_check = 0;
-static char **db2ldif_include = NULL;
-static char **db2ldif_exclude = NULL;
-static int ldif2db_removedupvals = 1;
-static int ldif2db_noattrindexes = 0;
-static char **db2index_attrs = NULL;
-static int ldif_printkey = EXPORT_PRINTKEY|EXPORT_APPENDMODE;
-static char *archive_name = NULL;
-static int db2ldif_dump_replica = 0;
-static int db2ldif_dump_uniqueid = 1;
-static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
-static char *ldif2db_namespaceid = NULL;
-int importexport_encrypt = 0;
-static int upgradedb_flags = 0;
-static int upgradednformat_dryrun = 0;
-static int is_quiet = 0;
-/* dbverify options */
-static int dbverify_verbose = 0;
-static char *dbverify_dbdir = NULL;
 
 /* taken from idsktune */
 #if defined(__sun)
@@ -643,6 +638,15 @@ int
 main( int argc, char **argv)
 {
 	int return_value = 0;
+	struct main_config mcfg = {0};
+
+	/* Set a number of defaults */
+	mcfg.slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
+	mcfg.ldif_printkey = EXPORT_PRINTKEY|EXPORT_APPENDMODE;
+	mcfg.db2ldif_dump_uniqueid = 1;
+	mcfg.ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
+	mcfg.ldif2db_removedupvals = 1;
+
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	daemon_ports_t ports_info = {0};
 	ns_thrpool_t *tp = NULL;
@@ -678,13 +682,13 @@ main( int argc, char **argv)
 
 
 	/* used to set configfile to the default config file name here */
-	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
-		myname = slapi_ch_strdup( argv[0] );
+	if ( (mcfg.myname = strrchr( argv[0], '/' )) == NULL ) {
+		mcfg.myname = slapi_ch_strdup( argv[0] );
 	} else {
-		myname = slapi_ch_strdup( myname + 1 );
+		mcfg.myname = slapi_ch_strdup( mcfg.myname + 1 );
 	}
 
-	process_command_line(argc,argv,&extraname);
+	process_command_line(argc,argv, &mcfg);
 
 #ifdef WITH_SYSTEMD
 	/* Note: Must come *after* processing CLI, to override the should_detach flag */
@@ -708,7 +712,7 @@ main( int argc, char **argv)
 #endif
 
 	if (NULL == slapdFrontendConfig->configdir) {
-		usage( myname, extraname );
+		usage( mcfg.myname, mcfg.extraname, mcfg.slapd_exemode );
 		exit( 1 );
 	}
 
@@ -721,7 +725,7 @@ main( int argc, char **argv)
 	g_log_init();
 	vattr_init();
 
-	if (slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
+	if (mcfg.slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
 		slapdFrontendConfig = getFrontendConfig();
 		/* make up the config stuff */
 		referral_set_defaults();
@@ -735,8 +739,8 @@ main( int argc, char **argv)
 			exit(1);
 		}
 
-		n_port = config_get_port();
-		s_port = config_get_secureport();
+		mcfg.n_port = config_get_port();
+		mcfg.s_port = config_get_secureport();
    		register_objects();
 
 	} else {
@@ -818,8 +822,8 @@ main( int argc, char **argv)
 			exit(1);
 		}
 
-		n_port = config_get_port();
-		s_port = config_get_secureport();
+		mcfg.n_port = config_get_port();
+		mcfg.s_port = config_get_secureport();
 	}
 
 	raise_process_limits();	/* should be done ASAP once config file read */
@@ -843,11 +847,11 @@ main( int argc, char **argv)
 	 * we need to be root in order to open them. 
 	 */
 
-	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
-		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
+	if ((mcfg.slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+		(mcfg.slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
 		char *listenhost = config_get_listenhost();
 		char *securelistenhost = config_get_securelistenhost();
-		ports_info.n_port = (unsigned short)n_port;
+		ports_info.n_port = (unsigned short)mcfg.n_port;
 		if ( slapd_listenhost2addr( listenhost,
 				&ports_info.n_listenaddr ) != 0 || 
 		     ports_info.n_listenaddr == NULL ) {
@@ -857,7 +861,7 @@ main( int argc, char **argv)
 		}
 		slapi_ch_free_string(&listenhost);
 
-		ports_info.s_port = (unsigned short)s_port;
+		ports_info.s_port = (unsigned short)mcfg.s_port;
 		if ( slapd_listenhost2addr( securelistenhost,
 				&ports_info.s_listenaddr ) != 0 ||
 			ports_info.s_listenaddr == NULL ) {
@@ -870,7 +874,7 @@ main( int argc, char **argv)
 		if(	config_get_ldapi_switch() &&
 			config_get_ldapi_filename() != 0)
 		{
-			i_port = ports_info.i_port = 1; /* flag ldapi as on */
+			mcfg.i_port = ports_info.i_port = 1; /* flag ldapi as on */
 			ports_info.i_listenaddr = (PRNetAddr **)slapi_ch_calloc(2, sizeof(PRNetAddr *));
 			*ports_info.i_listenaddr = (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
 			(*ports_info.i_listenaddr)->local.family = PR_AF_LOCAL;
@@ -903,7 +907,7 @@ main( int argc, char **argv)
 	 * Have to detach after ssl_init - the user may be prompted for the PIN
 	 * on the terminal, so it must be open.
 	 */
-	if (detach(slapd_exemode, importexport_encrypt, s_port, &ports_info)) {
+	if (detach(mcfg.slapd_exemode, mcfg.importexport_encrypt, mcfg.s_port, &ports_info)) {
 		return_value = 1;
 		goto cleanup;
 	}
@@ -917,29 +921,29 @@ main( int argc, char **argv)
 	 * if we were called upon to do special database stuff, do it and be
 	 * done.
 	 */
-	switch ( slapd_exemode ) {
+	switch ( mcfg.slapd_exemode ) {
 	case SLAPD_EXEMODE_LDIF2DB:
-		return_value = slapd_exemode_ldif2db();
+		return_value = slapd_exemode_ldif2db(&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_DB2LDIF:
-		return_value = slapd_exemode_db2ldif(argc,argv);
+		return_value = slapd_exemode_db2ldif(argc,argv,&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_DB2INDEX:
-		return_value = slapd_exemode_db2index();
+		return_value = slapd_exemode_db2index(&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_ARCHIVE2DB:
-		return_value = slapd_exemode_archive2db();
+		return_value = slapd_exemode_archive2db(&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_DB2ARCHIVE:
-		return_value = slapd_exemode_db2archive();
+		return_value = slapd_exemode_db2archive(&mcfg);
 		goto cleanup;
 		break;
 
@@ -948,28 +952,28 @@ main( int argc, char **argv)
 		if (! config_check_referral_mode()) {
 			slapi_log_err(SLAPI_LOG_ALERT, "main", 
 				  "ERROR: No referral URL supplied\n");
-			usage( myname, extraname );
+			usage( mcfg.myname, mcfg.extraname, mcfg.slapd_exemode );
 			exit(1);
 		}
 		break;
 
 	case SLAPD_EXEMODE_SUFFIX2INSTANCE:
-		return_value = slapd_exemode_suffix2instance();
+		return_value = slapd_exemode_suffix2instance(&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_UPGRADEDB:
-		return_value = slapd_exemode_upgradedb();
+		return_value = slapd_exemode_upgradedb(&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_UPGRADEDNFORMAT:
-		return_value = slapd_exemode_upgradednformat();
+		return_value = slapd_exemode_upgradednformat(&mcfg);
 		goto cleanup;
 		break;
 
 	case SLAPD_EXEMODE_DBVERIFY:
-		return_value = slapd_exemode_dbverify();
+		return_value = slapd_exemode_dbverify(&mcfg);
 		goto cleanup;
 		break;
 
@@ -1020,9 +1024,9 @@ main( int argc, char **argv)
 	 * a mode that is going to conflict with other
 	 * slapd processes that are currently running
 	 */
-	if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
-		( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-		                        skip_db_protect_check) == -1 ))
+	if ((mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
+		( add_new_slapd_process(mcfg.slapd_exemode, mcfg.db2ldif_dump_replica,
+		                        mcfg.skip_db_protect_check) == -1 ))
 	{
 		slapi_log_err(SLAPI_LOG_CRIT, "main",
 			"Shutting down due to possible conflicts with other slapd processes\n");
@@ -1047,7 +1051,7 @@ main( int argc, char **argv)
 
 	/* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
 
-	if (slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
+	if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
 		int rc;
 		Slapi_DN *sdn;
 
@@ -1077,7 +1081,7 @@ main( int argc, char **argv)
 		   and event queue is initialized but before plugins are started */
 		/* Note: This DN is no need to be normalized. */
 		sdn = slapi_sdn_new_ndn_byval ("cn=uniqueid generator,cn=config");
-		rc = uniqueIDGenInit (NULL, sdn, slapd_exemode == SLAPD_EXEMODE_SLAPD);
+		rc = uniqueIDGenInit (NULL, sdn, mcfg.slapd_exemode == SLAPD_EXEMODE_SLAPD);
 		slapi_sdn_free (&sdn);
 		if (rc != UID_SUCCESS)
 		{
@@ -1135,8 +1139,8 @@ main( int argc, char **argv)
 
 		normalize_oc();
 
-		if (n_port) {
-		} else if (i_port) {
+		if (mcfg.n_port) {
+		} else if (mcfg.i_port) {
 		} else if ( config_get_security()) {
 		} else {
 			slapi_log_err(SLAPI_LOG_EMERG, "main",
@@ -1148,7 +1152,7 @@ main( int argc, char **argv)
 		}
 	}
 
-	if (slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
+	if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
 		/* else do this after seteuid() */
 		/* setup cn=tasks tree */
 		task_init();
@@ -1225,7 +1229,7 @@ register_objects(void)
 }
 
 static void
-process_command_line(int argc, char **argv, char **extraname)
+process_command_line(int argc, char **argv, struct main_config *mcfg)
 {
 	int i;
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
@@ -1407,20 +1411,20 @@ process_command_line(int argc, char **argv, char **extraname)
 	/*
 	 * determine which of serveral modes we are executing in.
 	 */
-	*extraname = NULL;
-	if (( slapd_exemode = name2exemode( myname, myname, 0 ))
+	mcfg->extraname = NULL;
+	if (( mcfg->slapd_exemode = name2exemode( mcfg->myname, mcfg->myname, 0 ))
 	    == SLAPD_EXEMODE_UNKNOWN ) {
 
 
 		if ( argv[1] != NULL && argv[1][0] != '-' ) {
-			slapd_exemode = name2exemode( myname, argv[1], 1 );
-			*extraname = argv[1];
+			mcfg->slapd_exemode = name2exemode( mcfg->myname, argv[1], 1 );
+			mcfg->extraname = argv[1];
 			optind_ext = 2;	/* make getopt() skip argv[1] */
 			optind = 2;
 		}
 	}
-	if ( slapd_exemode == SLAPD_EXEMODE_UNKNOWN ) {
-		slapd_exemode = SLAPD_EXEMODE_SLAPD;	/* default */
+	if ( mcfg->slapd_exemode == SLAPD_EXEMODE_UNKNOWN ) {
+		mcfg->slapd_exemode = SLAPD_EXEMODE_SLAPD;	/* default */
 	}
 	/*
 	 * richm: If running in regular slapd server mode, allow the front
@@ -1429,13 +1433,13 @@ process_command_line(int argc, char **argv, char **extraname)
 	 * should only be read and never written.
 	 */
 
-	if (slapd_exemode == SLAPD_EXEMODE_SLAPD ||
-	    slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB || /* bak2db adjusts config */
-	    slapd_exemode == SLAPD_EXEMODE_UPGRADEDB)        /* update idl-switch */
+	if (mcfg->slapd_exemode == SLAPD_EXEMODE_SLAPD ||
+	    mcfg->slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB || /* bak2db adjusts config */
+	    mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDB)        /* update idl-switch */
 		dse_unset_dont_ever_write_dse_files();
 
 	/* maintain compatibility with pre-5.x options */
-	switch( slapd_exemode ) {
+	switch( mcfg->slapd_exemode ) {
 	case SLAPD_EXEMODE_DB2LDIF:
 		opts = opts_db2ldif;
 		long_opts = long_options_db2ldif;
@@ -1518,7 +1522,7 @@ process_command_line(int argc, char **argv, char **extraname)
 			if ( config_set_configdir( "configdir (-D)",
 					configdir, errorbuf, 1) != LDAP_SUCCESS ) {
 				fprintf( stderr, "%s: aborting now\n", errorbuf );
-			    usage( myname, *extraname );
+			    usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 			    exit( 1 );
 			}
 			slapi_ch_free((void **)&configdir);
@@ -1529,13 +1533,13 @@ process_command_line(int argc, char **argv, char **extraname)
 		  if ( config_set_port ( "portnumber (-p)", optarg_ext,
 					errorbuf, CONFIG_APPLY ) != LDAP_SUCCESS ) {
 				fprintf( stderr, "%s: aborting now\n", errorbuf );
-			    usage( myname, *extraname );
+			    usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 			    exit( 1 );
 			}
 			break;
 
 		case 'i':	/* set pid log file or ldif2db LDIF file */
-			if ( slapd_exemode == SLAPD_EXEMODE_LDIF2DB ) {
+			if ( mcfg->slapd_exemode == SLAPD_EXEMODE_LDIF2DB ) {
 			        char *p;
 					/* if LDIF comes through standard input, skip path checking */
 					if ( optarg_ext[0] != '-' || strlen(optarg_ext) != 1) {
@@ -1548,8 +1552,8 @@ process_command_line(int argc, char **argv, char **extraname)
 				p = (char *) slapi_ch_malloc(strlen(optarg_ext) + 1);
 
 				strcpy(p, optarg_ext);
-				charray_add(&ldif_file, p);
-				ldif_files++;
+				charray_add(&(mcfg->ldif_file), p);
+				mcfg->ldif_files++;
 			} else {
 				pid_file = rel2abspath( optarg_ext );
 			}
@@ -1558,62 +1562,62 @@ process_command_line(int argc, char **argv, char **extraname)
 			start_pid_file = rel2abspath( optarg_ext );
 			break;
 		case 'n':	/* which backend to do ldif2db/bak2db for */
-			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
-				slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ||
-				slapd_exemode == SLAPD_EXEMODE_DB2INDEX ||
-				slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
+			if (mcfg->slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
+				mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ||
+				mcfg->slapd_exemode == SLAPD_EXEMODE_DB2INDEX ||
+				mcfg->slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
 				/* The -n argument will give the name of a backend instance. */
-				cmd_line_instance_name = optarg_ext;
-			} else if (slapd_exemode == SLAPD_EXEMODE_DB2LDIF ||
-			 	slapd_exemode == SLAPD_EXEMODE_DBVERIFY) {
+				mcfg->cmd_line_instance_name = optarg_ext;
+			} else if (mcfg->slapd_exemode == SLAPD_EXEMODE_DB2LDIF ||
+			 	mcfg->slapd_exemode == SLAPD_EXEMODE_DBVERIFY) {
 			    char *s = slapi_ch_strdup(optarg_ext);
-			    charray_add(&cmd_line_instance_names, s);
+			    charray_add(&(mcfg->cmd_line_instance_names), s);
 			}
 			break;
 		case 's':       /* which suffix to include in import/export */
 			{
-				int rc = charray_normdn_add(&db2ldif_include, optarg_ext, NULL);
+				int rc = charray_normdn_add(&(mcfg->db2ldif_include), optarg_ext, NULL);
 				if (rc < 0) {
 					fprintf(stderr, "Invalid dn: -s %s\n", optarg_ext);
-					usage(myname, *extraname);
+					usage(mcfg->myname, mcfg->extraname, mcfg->slapd_exemode);
 					exit(1);
 				}
 			}
 			break;
 		case 'x':       /* which suffix to exclude in import/export */
 			{
-				int rc = charray_normdn_add(&db2ldif_exclude, optarg_ext, NULL);
+				int rc = charray_normdn_add(&(mcfg->db2ldif_exclude), optarg_ext, NULL);
 				if (rc < 0) {
 					fprintf(stderr, "Invalid dn: -x %s\n", optarg_ext);
-					usage(myname, *extraname);
+					usage(mcfg->myname, mcfg->extraname, mcfg->slapd_exemode);
 					exit(1);
 				}
 			}
 			break;
 		case 'r':       /* db2ldif for replication */
-			if (slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
+			if (mcfg->slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
 				if (config_set_referral_mode( "referral (-r)", optarg_ext,
 						errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
 					fprintf(stderr, "%s: aborting now\n", errorbuf);
-					usage(myname, *extraname);
+					usage(mcfg->myname, mcfg->extraname, mcfg->slapd_exemode);
 					exit(1);
 				}
 				break;
-			} else if ( slapd_exemode == SLAPD_EXEMODE_UPGRADEDB ) {
-				upgradedb_flags |= SLAPI_UPGRADEDB_DN2RDN;
+			} else if ( mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDB ) {
+				mcfg->upgradedb_flags |= SLAPI_UPGRADEDB_DN2RDN;
 				break;
-			} else if (slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			} else if (mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
-			db2ldif_dump_replica = 1;
+			mcfg->db2ldif_dump_replica = 1;
 			break;
 		case 'N':	/* do not do ldif2db duplicate value check */
 					/* Or dryrun mode for upgradednformat */
-			if ( slapd_exemode != SLAPD_EXEMODE_LDIF2DB && 
-				slapd_exemode != SLAPD_EXEMODE_DB2LDIF &&
-				slapd_exemode != SLAPD_EXEMODE_UPGRADEDNFORMAT) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB && 
+				mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF &&
+				mcfg->slapd_exemode != SLAPD_EXEMODE_UPGRADEDNFORMAT) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			/*
@@ -1624,18 +1628,18 @@ process_command_line(int argc, char **argv, char **extraname)
 			/* The -N flag now does what the -n flag used to do for db2ldif.  
 			 * This is so -n cane be used for the instance name just like 
 			 * with ldif2db. */
-			if ( slapd_exemode == SLAPD_EXEMODE_DB2LDIF ) {
-				ldif_printkey &= ~EXPORT_PRINTKEY;
+			if ( mcfg->slapd_exemode == SLAPD_EXEMODE_DB2LDIF ) {
+				mcfg->ldif_printkey &= ~EXPORT_PRINTKEY;
 			}
-			if ( slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ) {
-				upgradednformat_dryrun = 1;
+			if ( mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ) {
+				mcfg->upgradednformat_dryrun = 1;
 			}
 
 			break;
 
 		case 'U':	/* db2ldif only */
-			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			
@@ -1643,24 +1647,24 @@ process_command_line(int argc, char **argv, char **extraname)
 			 * don't fold (wrap) long lines (default is to fold),
 			 * as of ldapsearch -T
 			 */
-			ldif_printkey |= EXPORT_NOWRAP;
+			mcfg->ldif_printkey |= EXPORT_NOWRAP;
 
 			break;
 
 		case 'm':	/* db2ldif only */
-			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			
 			/* minimal base64 encoding */
-			ldif_printkey |= EXPORT_MINIMAL_ENCODING;
+			mcfg->ldif_printkey |= EXPORT_MINIMAL_ENCODING;
 
 			break;
 
 		case 'M':	/* db2ldif only */
-			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			
@@ -1668,13 +1672,13 @@ process_command_line(int argc, char **argv, char **extraname)
 			 * output ldif is stored in several file called intance_filename.
 			 * by default, all instances are stored in the single filename.
 			 */
-			ldif_printkey &= ~EXPORT_APPENDMODE;
+			mcfg->ldif_printkey &= ~EXPORT_APPENDMODE;
 
 			break;
 
 		case 'o':	/* db2ldif only */
-			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			
@@ -1682,52 +1686,52 @@ process_command_line(int argc, char **argv, char **extraname)
 			 * output ldif is stored in one file.
 			 * by default, each instance is stored in instance_filename.
 			 */
-			ldif_printkey |= EXPORT_APPENDMODE;
+			mcfg->ldif_printkey |= EXPORT_APPENDMODE;
 
 			break;
 
 		case 'C':
-			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB) {
+			if (mcfg->slapd_exemode == SLAPD_EXEMODE_LDIF2DB) {
 			    /* used to mean "Cool new import" (which is now
 			     * the default) -- ignore
 			     */
 			    break;
 			}
-			if (slapd_exemode == SLAPD_EXEMODE_DB2LDIF) {
+			if (mcfg->slapd_exemode == SLAPD_EXEMODE_DB2LDIF) {
 			    /* possibly corrupted db -- don't look at any
 			     * file except id2entry.  yet another overloaded
 			     * flag.
 			     */
-			    ldif_printkey |= EXPORT_ID2ENTRY_ONLY;
+			    mcfg->ldif_printkey |= EXPORT_ID2ENTRY_ONLY;
 			    break;
 			}
-			usage( myname, *extraname );
+			usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 			exit( 1 );
 
 		case 'c':	/* merge chunk size for Cool new import */
-			if ( slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
-			ldif2db_removedupvals = atoi(optarg_ext); /* We overload this flag---ok since we always check for dupes in the new code */
+			mcfg->ldif2db_removedupvals = atoi(optarg_ext); /* We overload this flag---ok since we always check for dupes in the new code */
 			break;
 
 		case 'O':	/* only create core db, no attr indexes */
-			if ( slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
-			ldif2db_noattrindexes = 1;
+			mcfg->ldif2db_noattrindexes = 1;
 			break;
 
 		case 't':	/* attribute type to index - may be repeated */
 		case 'T':	/* VLV Search to index - may be repeated */
-			if ( slapd_exemode == SLAPD_EXEMODE_DB2INDEX ) {
+			if ( mcfg->slapd_exemode == SLAPD_EXEMODE_DB2INDEX ) {
                 char *p= slapi_ch_smprintf("%c%s",i,optarg_ext);
-    			charray_add( &db2index_attrs, p);
+    			charray_add( &(mcfg->db2index_attrs), p);
 				break;
             }
-			usage( myname, *extraname );
+			usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 			exit(1);
 
 		case 'v':	/* print version and exit */
@@ -1736,101 +1740,101 @@ process_command_line(int argc, char **argv, char **extraname)
 			break;
 
 		case 'V':
-			if ( slapd_exemode == SLAPD_EXEMODE_DBVERIFY ) {
-				dbverify_verbose = 1;
+			if ( mcfg->slapd_exemode == SLAPD_EXEMODE_DBVERIFY ) {
+				mcfg->dbverify_verbose = 1;
 			} else {
-		  		slapd_exemode = SLAPD_EXEMODE_PRINTVERSION;
+		  		mcfg->slapd_exemode = SLAPD_EXEMODE_PRINTVERSION;
 			}
 			break;
 
 		case 'a':	/* archive pathname for db */
-			if ( slapd_exemode == SLAPD_EXEMODE_DBVERIFY ) {
-				dbverify_dbdir = optarg_ext;
+			if ( mcfg->slapd_exemode == SLAPD_EXEMODE_DBVERIFY ) {
+				mcfg->dbverify_dbdir = optarg_ext;
 			} else {
-				archive_name = optarg_ext;
+				mcfg->archive_name = optarg_ext;
 			}
 			break;
 
 		case 'Z':
-			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB)
+			if (mcfg->slapd_exemode == SLAPD_EXEMODE_LDIF2DB)
 			{
 				break;
 			}
-			usage( myname, *extraname );
+			usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 			exit(1);			
 		case 'S':       /* skip the check for slad running in conflicting modes */
-		        skip_db_protect_check = 1;
+		        mcfg->skip_db_protect_check = 1;
 			break;
 		case 'u': /* do not dump uniqueid for db2ldif */
-			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
-			db2ldif_dump_uniqueid = 0;
+			mcfg->db2ldif_dump_uniqueid = 0;
 			break;
 		case 'g': /* generate uniqueid for ldif2db */
-			if ( slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			if (optarg_ext == NULL){
 				printf ("ldif2db: generation type is not specified for -g; "
 						"random generation is used\n");
-				ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;						
+				mcfg->ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;						
 			}
 			else if (strcasecmp (optarg_ext, "none") == 0)
-				ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_NONE;
+				mcfg->ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_NONE;
 			else if (strcasecmp (optarg_ext, "deterministic") == 0) /* name based */
-				ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_NAME_BASED;
+				mcfg->ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_NAME_BASED;
 			else /* default - time based */
-				ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
+				mcfg->ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
 			break;
 		case 'G': /* namespace id for name based uniqueid generation for ldif2db */
-		    if ( slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
-				usage( myname, *extraname );
+		    if ( mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 
-			ldif2db_namespaceid = optarg_ext;
+			mcfg->ldif2db_namespaceid = optarg_ext;
 			break;			
 		case 'E': /* encrypt data if importing, decrypt if exporting */
-		    if ( (slapd_exemode != SLAPD_EXEMODE_LDIF2DB) && (slapd_exemode != SLAPD_EXEMODE_DB2LDIF)) {
-				usage( myname, *extraname );
+		    if ( (mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB) && (mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF)) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
-			importexport_encrypt = 1;
+			mcfg->importexport_encrypt = 1;
 			break;			
 		case 'f':	/* upgradedb only */
-		    if ( slapd_exemode != SLAPD_EXEMODE_UPGRADEDB ) {
-				usage( myname, *extraname );
+		    if ( mcfg->slapd_exemode != SLAPD_EXEMODE_UPGRADEDB ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
-			upgradedb_flags |= SLAPI_UPGRADEDB_FORCE;
+			mcfg->upgradedb_flags |= SLAPI_UPGRADEDB_FORCE;
 			break;			
 		case '1':	/* db2ldif only */
-			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-				usage( myname, *extraname );
+			if ( mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 				exit( 1 );
 			}
 			
 			/*
 			 * do not output "version: 1" to the ldif file
 			 */
-			ldif_printkey |= EXPORT_NOVERSION;
+			mcfg->ldif_printkey |= EXPORT_NOVERSION;
 
 			break;
 		case 'q':	/* quiet option for db2ldif, ldif2db, db2bak, bak2db */
-			is_quiet = 1;
+			mcfg->is_quiet = 1;
 			break;
 		default:
-			usage( myname, *extraname );
+			usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 			exit( 1 );
 		}
 	}
 
-	if ((NULL != cmd_line_instance_names)
-		 && (NULL != cmd_line_instance_names[1])
-		 && (ldif_printkey & EXPORT_APPENDMODE))
+	if ((NULL != mcfg->cmd_line_instance_names)
+		 && (NULL != mcfg->cmd_line_instance_names[1])
+		 && (mcfg->ldif_printkey & EXPORT_APPENDMODE))
 	{
 		fprintf(stderr, "WARNING: several backends are being"
 						" exported to a single ldif file\n");
@@ -1839,7 +1843,7 @@ process_command_line(int argc, char **argv, char **extraname)
 	}
 	/* Any leftover arguments? */
 	if ( optind_last > optind ) {
-		usage( myname, *extraname );
+		usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
 		exit( 1 );
 	}
 
@@ -1853,7 +1857,7 @@ lookup_instance_name_by_suffix(char *suffix,
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Entry **entries = NULL, **ep;
     char *query;
-    char *backend;
+    char *backend_name;
     char *fullsuffix;
     int rval = -1;
 
@@ -1913,9 +1917,9 @@ lookup_instance_name_by_suffix(char *suffix,
 
     rval = 0;
     for (ep = entries; ep && *ep; ep++) {
-        backend = slapi_entry_attr_get_charptr(*ep, "nsslapd-backend");
-        if (backend) {
-            charray_add(instances, backend);
+        backend_name = slapi_entry_attr_get_charptr(*ep, "nsslapd-backend");
+        if (backend_name) {
+            charray_add(instances, backend_name);
             if (suffixes) {
                 fullsuffix = slapi_entry_attr_get_charptr(*ep, "cn");
                 charray_add(suffixes, fullsuffix);    /* NULL is ok */
@@ -2039,15 +2043,15 @@ static struct slapdplugin *lookup_plugin_by_instance_name(const char *name)
 }
 
 static int
-slapd_exemode_ldif2db(void)
+slapd_exemode_ldif2db(struct main_config *mcfg)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
 
-    if ( ldif_file == NULL ) {
+    if ( mcfg->ldif_file == NULL ) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
                    "Required argument -i <ldiffile> missing\n");
-        usage( myname, extraname );
+        usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
         return 1;
     }
 
@@ -2060,11 +2064,11 @@ slapd_exemode_ldif2db(void)
 	 * if instance is given, just use it to get the backend.
 	 * otherwise, we use included/excluded suffix list to specify a backend.
 	 */
-    if (NULL == cmd_line_instance_name) {
+    if (NULL == mcfg->cmd_line_instance_name) {
 		char **instances, **ip;
 		int counter;
 
-		if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
+		if (lookup_instance_name_by_suffixes(mcfg->db2ldif_include, mcfg->db2ldif_exclude,
 													&instances) < 0) {
 			slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
 				"Backend instances name [-n <name>] or "
@@ -2091,7 +2095,7 @@ slapd_exemode_ldif2db(void)
 			} else {
 				slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_ldif2db", "Backend Instance: %s\n",
 					*instances);
-				cmd_line_instance_name = *instances;
+				mcfg->cmd_line_instance_name = *instances;
 			}
 		} else {
 			slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
@@ -2100,11 +2104,11 @@ slapd_exemode_ldif2db(void)
 		}
     }
 
-    plugin = lookup_plugin_by_instance_name(cmd_line_instance_name);
+    plugin = lookup_plugin_by_instance_name(mcfg->cmd_line_instance_name);
     if (plugin == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
                   "Could not find backend '%s'.\n",
-                  cmd_line_instance_name);
+                  mcfg->cmd_line_instance_name);
         return 1;
     }
 
@@ -2112,8 +2116,8 @@ slapd_exemode_ldif2db(void)
      * a mode that is going to conflict with other
      * slapd processes that are currently running
      */
-    if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-                               skip_db_protect_check) == -1 )  {
+    if ( add_new_slapd_process(mcfg->slapd_exemode, mcfg->db2ldif_dump_replica,
+                               mcfg->skip_db_protect_check) == -1 )  {
 
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
                    "Shutting down due to possible conflicts with other slapd processes\n");
@@ -2125,7 +2129,7 @@ slapd_exemode_ldif2db(void)
                   plugin->plg_name);
         return 1;
     }
-    if (!is_quiet) {
+    if (!mcfg->is_quiet) {
         slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
     }
     if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2134,15 +2138,15 @@ slapd_exemode_ldif2db(void)
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_REMOVEDUPVALS, &ldif2db_removedupvals);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_NOATTRINDEXES, &ldif2db_noattrindexes);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &importexport_encrypt);
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_FILE, ldif_file);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_INCLUDE, db2ldif_include);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, db2ldif_exclude);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_REMOVEDUPVALS, &(mcfg->ldif2db_removedupvals));
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NOATTRINDEXES, &(mcfg->ldif2db_noattrindexes));
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &(mcfg->ldif2db_generate_uniqueid));
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &(mcfg->ldif2db_namespaceid));
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &(mcfg->importexport_encrypt));
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_FILE, mcfg->ldif_file);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_INCLUDE, mcfg->db2ldif_include);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, mcfg->db2ldif_exclude);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     if ( plugin->plg_ldif2db != NULL ) {
@@ -2154,14 +2158,14 @@ slapd_exemode_ldif2db(void)
         return_value = -1;
     }
     slapi_pblock_destroy(pb);
-    slapi_ch_free((void**)&myname );
-    charray_free( db2index_attrs );
-    charray_free(ldif_file);
+    slapi_ch_free((void**)&(mcfg->myname));
+    charray_free(mcfg->db2index_attrs);
+    charray_free(mcfg->ldif_file);
     return( return_value );
 }
 
 static int
-slapd_exemode_db2ldif(int argc, char** argv)
+slapd_exemode_db2ldif(int argc, char** argv, struct main_config *mcfg)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
@@ -2177,11 +2181,11 @@ slapd_exemode_db2ldif(int argc, char** argv)
      * if instance is given, just pass it to the backend.
      * otherwise, we use included/excluded suffix list to specify a backend.
      */
-    if (NULL == cmd_line_instance_names) {
+    if (NULL == mcfg->cmd_line_instance_names) {
         char **instances, **ip;
         int counter;
 
-        if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
+        if (lookup_instance_name_by_suffixes(mcfg->db2ldif_include, mcfg->db2ldif_exclude,
                                                     &instances) < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
                 "Backend instances name [-n <name>] or "
@@ -2202,7 +2206,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
                 for (ip = instances, counter = 0; ip && *ip; ip++, counter++) {
                     slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_db2ldif", "db2ldif - %s\n", *ip);
                 }
-                cmd_line_instance_names = instances;
+                mcfg->cmd_line_instance_names = instances;
             }
         } else {
             slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
@@ -2211,7 +2215,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
         }
     }
 
-    for (instp = cmd_line_instance_names; instp && *instp; instp++) {
+    for (instp = mcfg->cmd_line_instance_names; instp && *instp; instp++) {
         int release_me = 0;
 
         plugin = lookup_plugin_by_instance_name(*instp);
@@ -2231,8 +2235,8 @@ slapd_exemode_db2ldif(int argc, char** argv)
          * a mode that is going to conflict with other
          * slapd processes that are currently running
          */
-        if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-                                   skip_db_protect_check) == -1 )  {
+        if ( add_new_slapd_process(mcfg->slapd_exemode, mcfg->db2ldif_dump_replica,
+                                   mcfg->skip_db_protect_check) == -1 )  {
             slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2ldif",
                        "Shutting down due to possible conflicts "
                        "with other slapd processes\n");
@@ -2245,7 +2249,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
             return 1;
         }
     
-        if (!is_quiet) {
+        if (!mcfg->is_quiet) {
             slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
         }
         if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2254,12 +2258,12 @@ slapd_exemode_db2ldif(int argc, char** argv)
         Slapi_PBlock *pb = slapi_pblock_new();
         slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
         slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
-        slapi_pblock_set(pb, SLAPI_LDIF2DB_INCLUDE, db2ldif_include);
-        slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, db2ldif_exclude);
-        slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &importexport_encrypt);
+        slapi_pblock_set(pb, SLAPI_LDIF2DB_INCLUDE, mcfg->db2ldif_include);
+        slapi_pblock_set(pb, SLAPI_LDIF2DB_EXCLUDE, mcfg->db2ldif_exclude);
+        slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &(mcfg->importexport_encrypt));
         slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, *instp);
-        slapi_pblock_set_ldif_dump_replica(pb, db2ldif_dump_replica);
-        slapi_pblock_set(pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &db2ldif_dump_uniqueid);
+        slapi_pblock_set_ldif_dump_replica(pb, mcfg->db2ldif_dump_replica);
+        slapi_pblock_set(pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &(mcfg->db2ldif_dump_uniqueid));
         int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
         int32_t is_running = 0;
@@ -2268,7 +2272,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
         }
         slapi_pblock_set(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &is_running);
     
-        if (db2ldif_dump_replica) {
+        if (mcfg->db2ldif_dump_replica) {
             char **plugin_list = NULL;
             char *repl_plg_name = "Multimaster Replication Plugin";
 
@@ -2287,37 +2291,37 @@ slapd_exemode_db2ldif(int argc, char** argv)
             charray_free(plugin_list);
         }
       
-        if ( archive_name ) { /* redirect stdout to this file: */
+        if ( mcfg->archive_name ) { /* redirect stdout to this file: */
             char *p, *q;
             char sep = '/';
 
-            my_ldiffile = archive_name;
-            if (ldif_printkey & EXPORT_APPENDMODE) {
-                if (instp == cmd_line_instance_names) { /* first export */
-                    ldif_printkey |= EXPORT_APPENDMODE_1;
+            my_ldiffile = mcfg->archive_name;
+            if (mcfg->ldif_printkey & EXPORT_APPENDMODE) {
+                if (instp == mcfg->cmd_line_instance_names) { /* first export */
+                    mcfg->ldif_printkey |= EXPORT_APPENDMODE_1;
                 } else {
-                    ldif_printkey &= ~EXPORT_APPENDMODE_1;
+                    mcfg->ldif_printkey &= ~EXPORT_APPENDMODE_1;
                 }
             } else {    /* not APPENDMODE */
-                if (strcmp(archive_name, "-")) {    /* not '-' */
+                if (strcmp(mcfg->archive_name, "-")) {    /* not '-' */
                     my_ldiffile =
-                    (char *)slapi_ch_malloc((unsigned long)(strlen(archive_name)
+                    (char *)slapi_ch_malloc((unsigned long)(strlen(mcfg->archive_name)
                                                     + strlen(*instp) + 2));
-                    p = strrchr(archive_name, sep);
+                    p = strrchr(mcfg->archive_name, sep);
                     if (NULL == p) {
-                        sprintf(my_ldiffile, "%s_%s", *instp, archive_name);
+                        sprintf(my_ldiffile, "%s_%s", *instp, mcfg->archive_name);
                     } else {
                         q = p + 1;
                         *p = '\0';
                         sprintf(my_ldiffile, "%s%c%s_%s",
-                                         archive_name, sep, *instp, q);
+                                         mcfg->archive_name, sep, *instp, q);
                         *p = sep;
                     }
                     release_me = 1;
                 }
             }
 
-            if (!is_quiet) {
+            if (!mcfg->is_quiet) {
                 fprintf(stderr, "ldiffile: %s\n", my_ldiffile);
             }
             /* just send the filename to the backend and let
@@ -2325,7 +2329,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
              * stuff for 64-bit fs)
              */
             slapi_pblock_set(pb, SLAPI_DB2LDIF_FILE, my_ldiffile);
-            slapi_pblock_set(pb, SLAPI_DB2LDIF_PRINTKEY, &ldif_printkey);
+            slapi_pblock_set(pb, SLAPI_DB2LDIF_PRINTKEY, &(mcfg->ldif_printkey));
         }
     
         return_value = (plugin->plg_db2ldif)( pb );
@@ -2336,8 +2340,8 @@ slapd_exemode_db2ldif(int argc, char** argv)
             slapi_ch_free((void **)&my_ldiffile);
         }
     }
-    slapi_ch_free( (void**)&myname );
-    if (db2ldif_dump_replica) {
+    slapi_ch_free( (void**)&(mcfg->myname));
+    if (mcfg->db2ldif_dump_replica) {
         eq_stop();         /* event queue should be shutdown before closing
                               all plugins (especailly, replication plugin) */
         plugin_closeall( 1 /* Close Backends */, 1 /* Close Globals */);
@@ -2346,7 +2350,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
 }
 
 static int
-slapd_exemode_suffix2instance(void)
+slapd_exemode_suffix2instance(struct main_config *mcfg)
 {
     int return_value = 0;
 	char **instances = NULL;
@@ -2358,16 +2362,18 @@ slapd_exemode_suffix2instance(void)
      */
     mapping_tree_init();
 
-	for (p = db2ldif_include; p && *p; p++) {
+	for (p = mcfg->db2ldif_include; p && *p; p++) {
 		if (lookup_instance_name_by_suffix(*p, &suffixes, &instances, 0) < 0)
 			continue;
 		fprintf(stderr, "Suffix, Instance name pair(s) under \"%s\":\n", *p);
-		if (instances)
-			for (q = suffixes, r = instances; *r; q++, r++)
+		if (instances) {
+			for (q = suffixes, r = instances; *r; q++, r++) {
 				fprintf(stderr, "\tsuffix %s; instance name \"%s\"\n",
 								*q?*q:"-", *r);
-		else
+            }
+		} else {
 			fprintf(stderr, "\tNo instance\n");
+        }
 		charray_free(suffixes);
 		suffixes = NULL;
 		charray_free(instances);
@@ -2376,7 +2382,7 @@ slapd_exemode_suffix2instance(void)
 	return (return_value);
 }
 
-static int slapd_exemode_db2index(void)
+static int slapd_exemode_db2index(struct main_config *mcfg)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
@@ -2387,11 +2393,11 @@ static int slapd_exemode_db2index(void)
      * if instance is given, just use it to get the backend.
      * otherwise, we use included/excluded suffix list to specify a backend.
      */
-    if (NULL == cmd_line_instance_name) {
+    if (NULL == mcfg->cmd_line_instance_name) {
         char **instances, **ip;
         int counter;
 
-        if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
+        if (lookup_instance_name_by_suffixes(mcfg->db2ldif_include, mcfg->db2ldif_exclude,
                                              &instances) < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2index",
                       "Backend instances name [-n <name>] or "
@@ -2418,7 +2424,7 @@ static int slapd_exemode_db2index(void)
             } else {
                 slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_db2index", 
                         "Backend Instance: %s\n", *instances);
-                cmd_line_instance_name = *instances;
+                mcfg->cmd_line_instance_name = *instances;
             }
         } else {
             slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2index",
@@ -2427,44 +2433,44 @@ static int slapd_exemode_db2index(void)
         }
     }
 
-    plugin = lookup_plugin_by_instance_name(cmd_line_instance_name);
+    plugin = lookup_plugin_by_instance_name(mcfg->cmd_line_instance_name);
     if (plugin == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2index",
                   "Could not find backend '%s'.\n",
-                  cmd_line_instance_name);
+                  mcfg->cmd_line_instance_name);
         return 1;
     }
 
     /* make sure nothing else is running */
-    if (add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-                              skip_db_protect_check) == -1) {
+    if (add_new_slapd_process(mcfg->slapd_exemode, mcfg->db2ldif_dump_replica,
+                              mcfg->skip_db_protect_check) == -1) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2index",
                   "Shutting down due to possible conflicts with other "
                   "slapd processes.\n");
         return 1;
     }
 
-    if ( db2index_attrs == NULL ) {
-        usage( myname, extraname );
+    if ( mcfg->db2index_attrs == NULL ) {
+        usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
         return 1;
     }
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, plugin);
-    slapi_pblock_set(pb, SLAPI_DB2INDEX_ATTRS, db2index_attrs);
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_DB2INDEX_ATTRS, mcfg->db2index_attrs);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     return_value = (*plugin->plg_db2index)( pb );
 
     slapi_pblock_destroy(pb);
-    slapi_ch_free( (void**)&myname );
+    slapi_ch_free((void**)&(mcfg->myname));
     return( return_value );
 }
 
 
 static int 
-slapd_exemode_db2archive(void)
+slapd_exemode_db2archive(struct main_config *mcfg)
 {
 	int return_value= 0;
 	struct slapdplugin *backend_plugin;
@@ -2474,7 +2480,7 @@ slapd_exemode_db2archive(void)
 			"Could not find the ldbm backend plugin.\n");
 		return 1;
 	}
-	if (NULL == archive_name) {
+	if (NULL == mcfg->archive_name) {
 		slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2archive",
 		    "No archive directory supplied\n");
 		return 1;
@@ -2484,14 +2490,14 @@ slapd_exemode_db2archive(void)
 	 * a mode that is going to conflict with other
 	 * slapd processes that are currently running
 	 */
-	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-							   skip_db_protect_check) == -1 )  {
+	if ( add_new_slapd_process(mcfg->slapd_exemode, mcfg->db2ldif_dump_replica,
+							   mcfg->skip_db_protect_check) == -1 )  {
 	    slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_db2archive",
 				"Shutting down due to possible conflicts with other slapd processes\n");
 		return 1;
 	}
 
-	if (!is_quiet) {
+	if (!mcfg->is_quiet) {
 		slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
 	}
 	if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2501,7 +2507,7 @@ slapd_exemode_db2archive(void)
 	Slapi_PBlock *pb = slapi_pblock_new();
 	slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
 	slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
-	slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
+	slapi_pblock_set(pb, SLAPI_SEQ_VAL, mcfg->archive_name);
 	int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 	slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
 	return_value = (backend_plugin->plg_db2archive)( pb );
@@ -2510,7 +2516,7 @@ slapd_exemode_db2archive(void)
 }
 
 static int
-slapd_exemode_archive2db(void)
+slapd_exemode_archive2db(struct main_config *mcfg)
 {
 	int return_value= 0;
 	struct slapdplugin *backend_plugin;
@@ -2520,7 +2526,7 @@ slapd_exemode_archive2db(void)
 			"Could not find the ldbm backend plugin.\n");
 		return 1;
 	}
-	if (NULL == archive_name) {
+	if (NULL == mcfg->archive_name) {
 		slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_archive2db",
 		    "No archive directory supplied\n");
 		return 1;
@@ -2530,14 +2536,14 @@ slapd_exemode_archive2db(void)
 	 * a mode that is going to conflict with other
 	 * slapd processes that are currently running
 	 */
-	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-	                           skip_db_protect_check) == -1 )  {
+	if ( add_new_slapd_process(mcfg->slapd_exemode, mcfg->db2ldif_dump_replica,
+	                           mcfg->skip_db_protect_check) == -1 )  {
 	    slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_archive2db",
 		       "Shutting down due to possible conflicts with other slapd processes\n");
 	    return 1;
 	}
 
-	if (!is_quiet) {
+	if (!mcfg->is_quiet) {
 		slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
 	}
 	if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2547,10 +2553,10 @@ slapd_exemode_archive2db(void)
 	Slapi_PBlock *pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
-    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, mcfg->archive_name);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
 	return_value = (backend_plugin->plg_archive2db)( pb );
     slapi_pblock_destroy(pb);
 	return return_value;
@@ -2561,15 +2567,15 @@ slapd_exemode_archive2db(void)
  * (604921) Support a database uprev process any time post-install
  */
 static int
-slapd_exemode_upgradedb(void)
+slapd_exemode_upgradedb(struct main_config *mcfg)
 {
     int return_value= 0;
     struct slapdplugin *backend_plugin;
 
-    if ( archive_name == NULL ) {
+    if ( mcfg->archive_name == NULL ) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradedb",
               "Required argument -a <backup_dir> missing\n");
-        usage( myname, extraname );
+        usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
         return 1;
     }
 
@@ -2588,7 +2594,7 @@ slapd_exemode_upgradedb(void)
      * a mode that is going to conflict with other
      * slapd processes that are currently running
      */
-    if (add_new_slapd_process(slapd_exemode, 0, skip_db_protect_check) == -1) {
+    if (add_new_slapd_process(mcfg->slapd_exemode, 0, mcfg->skip_db_protect_check) == -1) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradedb",
                 "Shutting down due to possible conflicts with other slapd processes\n");
         return 1;
@@ -2603,13 +2609,13 @@ slapd_exemode_upgradedb(void)
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
-    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name);
-    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &upgradedb_flags);
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, mcfg->archive_name);
+    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &(mcfg->upgradedb_flags));
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     /* borrowing import code, so need to set up the import variables */
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &(mcfg->ldif2db_generate_uniqueid));
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &(mcfg->ldif2db_namespaceid));
     if ( backend_plugin->plg_upgradedb != NULL ) {
         return_value = (*backend_plugin->plg_upgradedb)( pb );
     } else {
@@ -2619,21 +2625,21 @@ slapd_exemode_upgradedb(void)
         return_value = -1;
     }
     slapi_pblock_destroy(pb);
-    slapi_ch_free((void**)&myname );
+    slapi_ch_free((void**)&(mcfg->myname));
     return( return_value );
 }
 
 /* Command to upgrade the old dn format to the new style */
 static int
-slapd_exemode_upgradednformat(void)
+slapd_exemode_upgradednformat(struct main_config *mcfg)
 {
     int rc = -1; /* error, by default */
     struct slapdplugin *backend_plugin;
 
-    if ( archive_name == NULL ) {
+    if ( mcfg->archive_name == NULL ) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradednformat",
                 "Required argument \"-a <path to work db instance dir>\" is missing\n");
-        usage( myname, extraname );
+        usage( mcfg->myname, mcfg->extraname, mcfg->slapd_exemode );
         goto bail;
     }
 
@@ -2653,7 +2659,7 @@ slapd_exemode_upgradednformat(void)
      * slapd processes that are currently running
      * Pretending to execute import.
      */
-    if (add_new_slapd_process(slapd_exemode, 0, skip_db_protect_check) 
+    if (add_new_slapd_process(mcfg->slapd_exemode, 0, mcfg->skip_db_protect_check) 
                                                                         == -1) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_upgradednformat",
                 "Shutting down due to possible "
@@ -2671,18 +2677,18 @@ slapd_exemode_upgradednformat(void)
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
     int32_t seq_type = SLAPI_UPGRADEDNFORMAT;
-    if (upgradednformat_dryrun) {
+    if (mcfg->upgradednformat_dryrun) {
         seq_type = SLAPI_UPGRADEDNFORMAT|SLAPI_DRYRUN;
     }
     slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &seq_type);
-    slapi_pblock_set(pb, SLAPI_SEQ_VAL, archive_name); /* Path to the work db instance dir */
+    slapi_pblock_set(pb, SLAPI_SEQ_VAL, mcfg->archive_name); /* Path to the work db instance dir */
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     /* borrowing import code, so need to set up the import variables */
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ldif2db_generate_uniqueid);
-    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &ldif2db_namespaceid);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &(mcfg->ldif2db_generate_uniqueid));
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_NAMESPACEID, &(mcfg->ldif2db_namespaceid));
     if ( backend_plugin->plg_upgradednformat != NULL ) {
         rc  = (*backend_plugin->plg_upgradednformat)( pb );
     } else {
@@ -2692,7 +2698,7 @@ slapd_exemode_upgradednformat(void)
     }
     slapi_pblock_destroy(pb);
 bail:
-    slapi_ch_free((void**)&myname );
+    slapi_ch_free((void**)&(mcfg->myname));
     return( rc  );
 }
 
@@ -2700,7 +2706,7 @@ bail:
  * function to perform DB verify
  */
 static int
-slapd_exemode_dbverify(void)
+slapd_exemode_dbverify(struct main_config *mcfg)
 {
     int return_value = 0;
     struct slapdplugin *backend_plugin;
@@ -2725,11 +2731,11 @@ slapd_exemode_dbverify(void)
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
-    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &dbverify_verbose);
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &(mcfg->dbverify_verbose));
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
-    slapi_pblock_set(pb, SLAPI_DBVERIFY_DBDIR, dbverify_dbdir);
+    slapi_pblock_set(pb, SLAPI_DBVERIFY_DBDIR, mcfg->dbverify_dbdir);
 
     if ( backend_plugin->plg_dbverify != NULL ) {
         return_value = (*backend_plugin->plg_dbverify)( pb );

@@ -636,7 +636,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	int err;
 	LDAPMod *lc_mod = NULL;
 	struct slapdplugin  *p = NULL;
-	int numattr, i;
+	int numattr;
 	char *proxydn = NULL;
 	int proxy_err = LDAP_SUCCESS;
 	char *errtext = NULL;
@@ -761,7 +761,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 				if ((*tmpmods)->mod_bvalues != NULL &&
 				    !SLAPI_IS_MOD_DELETE((*tmpmods)->mod_op))
 				{
-					for (i=0; i < numattr; i++)
+					for (size_t i=0; i < numattr; i++)
 					{
 						if (slapi_attr_type_cmp((*tmpmods)->mod_type, 
 							AttrValueCheckList[i].attr_name, SLAPI_TYPE_CMP_SUBTYPE) == 0)
@@ -829,7 +829,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 				char *valpwd = NULL;
 
 				/* if there are mod values, we need to delete a specific userpassword */
-				for ( i = 0; pw_mod->mod_bvalues != NULL && pw_mod->mod_bvalues[i] != NULL; i++ ) {
+				for (size_t i = 0; pw_mod->mod_bvalues != NULL && pw_mod->mod_bvalues[i] != NULL; i++ ) {
 					password = slapi_ch_strdup(pw_mod->mod_bvalues[i]->bv_val);
 					pwsp = pw_val2scheme( password, &valpwd, 1 );
 					if(pwsp == NULL || strcmp(pwsp->pws_name, "CLEAR") == 0){
@@ -982,7 +982,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL && !repl_op; p = p->plg_next )
     {
         char *L_attr = NULL;
-        int i = 0;
+        size_t i = 0;
  
         /* Get the appropriate encoding function */
         for ( L_attr = p->plg_argv[i]; i<p->plg_argc; L_attr = p->plg_argv[++i])
@@ -1153,17 +1153,16 @@ free_and_return:
 static int
 valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***cvals)
 {
-	int n;
-
+	size_t n;
 	for(n=0; bvals != NULL && bvals[n] != NULL; n++);
 	if(n==0){
 		*cvals = NULL;
 	} else {
 		struct pw_scheme *pwsp = NULL;
-		int i,p;
+		size_t p = 0;
 
 		*cvals = (Slapi_Value **) slapi_ch_malloc((n + 1) * sizeof(Slapi_Value *));
-		for(i=0,p=0;i<n;i++){
+		for(size_t i=0; i<n; i++){
 			pwsp = pw_val2scheme( bvals[i]->bv_val, NULL, 1 );
 			if(pwsp == NULL || strcmp(pwsp->pws_name, "CLEAR") == 0){
 				(*cvals)[p++] = slapi_value_new_berval(bvals[i]);
@@ -1434,7 +1433,6 @@ done:
 static int
 hash_rootpw (LDAPMod **mods)
 {
-	int i, j;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	if (strcasecmp(slapdFrontendConfig->rootpwstoragescheme->pws_name, "clear") == 0) {
@@ -1442,13 +1440,13 @@ hash_rootpw (LDAPMod **mods)
 		return 0;
 	}
 
-	for (i=0; (mods != NULL) && (mods[i] != NULL); i++) {
+	for (size_t i=0; (mods != NULL) && (mods[i] != NULL); i++) {
 		LDAPMod *mod = mods[i];
 		if (strcasecmp (mod->mod_type, CONFIG_ROOTPW_ATTRIBUTE) != 0) 
 			continue;
 
 		if (mod->mod_bvalues != NULL) {
-			for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
+			for (size_t j = 0; mod->mod_bvalues[j] != NULL; j++) {
 				char *val = mod->mod_bvalues[j]->bv_val;
 				char *hashedval = NULL;
 				struct pw_scheme *pws = pw_val2scheme (val, NULL, 0);
@@ -1503,7 +1501,9 @@ hash_rootpw (LDAPMod **mods)
 static void
 optimize_mods(Slapi_Mods *smods){
     LDAPMod *mod, *prev_mod;
-    int i, mod_count = 0, max_vals = 0;
+    int mod_count = 0;
+    int max_vals = 0;
+    size_t i = 0;
 
     prev_mod = slapi_mods_get_first_mod(smods);
     while((mod = slapi_mods_get_next_mod(smods))){

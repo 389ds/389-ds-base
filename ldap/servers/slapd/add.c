@@ -631,18 +631,19 @@ static void op_shared_add (Slapi_PBlock *pb)
                 slapi_entry_attr_find(e, L_normalized, &attr);
                 if (attr)
                 {
-                    Slapi_Value **present_values = NULL;
+                    Slapi_Value **decode_present_values = NULL;
                     Slapi_Value **vals = NULL;
 
-                    present_values= attr_get_present_values(attr);
+                    decode_present_values= attr_get_present_values(attr);
 
-                    valuearray_add_valuearray(&vals, present_values, 0);
+                    valuearray_add_valuearray(&vals, decode_present_values, 0);
                     pw_rever_encode(vals, L_normalized);
                     slapi_entry_attr_replace_sv(e, L_normalized, vals);
                     valuearray_free(&vals);
                 }
-                if (L_normalized)
+                if (L_normalized) {
                     slapi_ch_free ((void**)&L_normalized);
+                }
             }
         }
     }

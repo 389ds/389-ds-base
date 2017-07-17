@@ -686,25 +686,25 @@ _conf_dumpciphers(void)
 }
 
 char *
-_conf_setciphers(char *ciphers, int flags)
+_conf_setciphers(char *setciphers, int flags)
 {
     char *t, err[MAGNUS_ERROR_LEN];
     int x, i, active;
-    char *raw = ciphers;
+    char *raw = setciphers;
     char **suplist = NULL;
     char **unsuplist = NULL;
     PRBool enabledOne = PR_FALSE;
 
     /* #47838: harden the list of ciphers available by default */
     /* Default is to activate all of them ==> none of them*/
-    if (!ciphers || (ciphers[0] == '\0') || !PL_strcasecmp(ciphers, "default")) {
+    if (!setciphers || (setciphers[0] == '\0') || !PL_strcasecmp(setciphers, "default")) {
         _conf_setallciphers((CIPHER_SET_DEFAULT|flags), NULL, NULL);
         slapd_SSL_info("Enabling default cipher set.");
         _conf_dumpciphers();
         return NULL;
     }
 
-    if (PL_strcasestr(ciphers, "+all")) {
+    if (PL_strcasestr(setciphers, "+all")) {
         /*
          * Enable all the ciphers if "+all" and the following while loop would
          * disable the user disabled ones.  This is needed because we added a new
@@ -719,11 +719,11 @@ _conf_setciphers(char *ciphers, int flags)
         _conf_setallciphers(CIPHER_SET_NONE /* disabled */, NULL, NULL);
     }
 
-    t = ciphers;
+    t = setciphers;
     while(t) {
-        while((*ciphers) && (isspace(*ciphers))) ++ciphers;
+        while((*setciphers) && (isspace(*setciphers))) ++setciphers;
 
-        switch(*ciphers++) {
+        switch(*setciphers++) {
           case '+':
             active = 1; break;
           case '-':
@@ -733,14 +733,14 @@ _conf_setciphers(char *ciphers, int flags)
                     "+cipher1,-cipher2...", raw);
             return slapi_ch_strdup(err);
         }
-        if( (t = strchr(ciphers, ',')) )
+        if( (t = strchr(setciphers, ',')) )
             *t++ = '\0';
 
-        if (strcasecmp(ciphers, "all")) { /* if not all */
+        if (strcasecmp(setciphers, "all")) { /* if not all */
             PRBool enabled = active ? PR_TRUE : PR_FALSE;
             int lookup = 1;
             for (x = 0; _conf_ciphers[x].name; x++) {
-                if (!PL_strcasecmp(ciphers, _conf_ciphers[x].name)) {
+                if (!PL_strcasecmp(setciphers, _conf_ciphers[x].name)) {
                     if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
                         if (active && CIPHER_SET_ALLOWSWEAKCIPHER(flags)) { 
                             slapd_SSL_warn("Cipher %s is weak.  It is enabled since allowWeakCipher is \"on\" "
@@ -748,7 +748,7 @@ _conf_setciphers(char *ciphers, int flags)
                                            "We strongly recommend to set it to \"off\".  "
                                            "Please replace the value of allowWeakCipher with \"off\" in "
                                            "the encryption config entry cn=encryption,cn=config and "
-                                           "restart the server.", ciphers);
+                                           "restart the server.", setciphers);
                         } else {
                             /* if the cipher is weak and we don't allow weak cipher,
                                disable it. */
@@ -770,10 +770,10 @@ _conf_setciphers(char *ciphers, int flags)
             }
             if (lookup) { /* lookup with old cipher name and get NSS cipherSuiteName */
                 for (i = 0; _lookup_cipher[i].alias; i++) {
-                    if (!PL_strcasecmp(ciphers, _lookup_cipher[i].alias)) {
+                    if (!PL_strcasecmp(setciphers, _lookup_cipher[i].alias)) {
                         if (enabled && !_lookup_cipher[i].name[0]) {
                             slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d.  Ignoring %s",
-                                           ciphers, NSS_VMAJOR, NSS_VMINOR, ciphers);
+                                           setciphers, NSS_VMAJOR, NSS_VMINOR, setciphers);
                             continue;
                         }
                         for (x = 0; _conf_ciphers[x].name; x++) {
@@ -787,7 +787,7 @@ _conf_setciphers(char *ciphers, int flags)
                                                            "We strongly recommend to set it to \"off\".  "
                                                            "Please replace the value of allowWeakCipher with \"off\" in "
                                                            "the encryption config entry cn=encryption,cn=config and "
-                                                           "restart the server.", ciphers);
+                                                           "restart the server.", setciphers);
                                         } else {
                                             /* if the cipher is weak and we don't allow weak cipher,
                                                disable it. */
@@ -813,11 +813,11 @@ _conf_setciphers(char *ciphers, int flags)
             }
             if (!lookup && !_conf_ciphers[x].name) { /* If lookup, it's already reported. */
                 slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d.  Ignoring %s",
-                               ciphers, NSS_VMAJOR, NSS_VMINOR, ciphers);
+                               setciphers, NSS_VMAJOR, NSS_VMINOR, setciphers);
             }
         }
         if(t) {
-            ciphers = t;
+            setciphers = t;
         }
     }
     if (unsuplist && *unsuplist) {

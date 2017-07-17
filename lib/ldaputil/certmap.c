@@ -1433,9 +1433,9 @@ static void * ldapu_certinfo_free_helper (void *info, void *arg __attribute__((u
     return (void *)LDAPU_SUCCESS;
 }
 
-void ldapu_certmap_listinfo_free (void *certmap_listinfo)
+void ldapu_certmap_listinfo_free (void *_certmap_listinfo)
 {
-    LDAPUCertMapListInfo_t *list = (LDAPUCertMapListInfo_t *)certmap_listinfo;
+    LDAPUCertMapListInfo_t *list = (LDAPUCertMapListInfo_t *)_certmap_listinfo;
     ldapu_list_free(list, ldapu_certinfo_free_helper);
 }
 
