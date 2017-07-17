@@ -14,7 +14,6 @@
 
 #include "slapi-plugin.h"
 #include "repl5.h"
-#include "repl.h" /* For LDAP_CONTROL_REPL_MODRDN_EXTRAMODS */
 
 /*
  * repl_controls.c - convenience functions for creating and

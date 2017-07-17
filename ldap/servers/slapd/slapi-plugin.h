@@ -6989,7 +6989,6 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 #define SLAPI_OPERATION_SSF			750
 #define SLAPI_IS_REPLICATED_OPERATION		142
 #define SLAPI_IS_MMR_REPLICATED_OPERATION	153
-#define SLAPI_IS_LEGACY_REPLICATED_OPERATION	154
 #define SLAPI_SKIP_MODIFIED_ATTRS		155
 
 /* connection */

@@ -204,22 +204,6 @@ do_search( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	/* 
-	 * This search is performed against the legacy consumer, so ask explicitly
-	 * for the aci attribute as it is an operational in 5.0
-	 */
-	if ( operation->o_flags & OP_FLAG_LEGACY_REPLICATION_DN )
-	{
-		/* If attrs==NULL in a 4.x request, means that we want all the attributes, as aci is 
-		 * now operational, we need to ask it explicilty as well as all the attributes
-		 */
-		if ( (attrs == NULL) || (attrs[0] == NULL) )
-		{
-			charray_add(&attrs, slapi_attr_syntax_normalize("aci"));
-			charray_add(&attrs, slapi_attr_syntax_normalize(LDAP_ALL_USER_ATTRS));
-		}
-	}
-
 	if ( attrs != NULL ) {
 		char *normaci = slapi_attr_syntax_normalize("aci");
 		int replace_aci = 0;

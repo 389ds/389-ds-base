@@ -13,7 +13,7 @@
 
  
 #include "nspr.h"
-#include "repl.h"
+#include "repl_shared.h"
 
 char *repl_plugin_name = REPL_PLUGIN_NAME;
 char *windows_repl_plugin_name = REPL_PLUGIN_NAME " - windows sync";
@@ -82,7 +82,6 @@ const char *type_agmtMaxCSN = "nsds5AgmtMaxCSN";
 const char *type_replicaPurgeDelay = "nsds5ReplicaPurgeDelay";
 const char *type_replicaChangeCount = "nsds5ReplicaChangeCount";
 const char *type_replicaTombstonePurgeInterval = "nsds5ReplicaTombstonePurgeInterval";
-const char *type_replicaLegacyConsumer = "nsds5ReplicaLegacyConsumer";
 const char *type_ruvElementUpdatetime = "nsruvReplicaLastModified";
 const char *type_replicaCleanRUV = "nsds5ReplicaCleanRUV";
 const char *type_replicaAbortCleanRUV = "nsds5ReplicaAbortCleanRUV";

@@ -13,7 +13,6 @@
 
  
 #include "slapi-plugin.h"
-#include "repl.h"
 #include "repl5.h"
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
@@ -778,13 +777,6 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			replica_set_state_flag (replica, REPLICA_TOTAL_EXCL_RECV, 0);
 		}
 	}
-
-    /* check that this replica is not a 4.0 consumer */
-    if (replica_is_legacy_consumer (replica))
-    {
-        response = NSDS50_REPL_LEGACY_CONSUMER;
-        goto send_response;
-    }
 
 	/* Check that bind dn is authorized to supply replication updates */
 	slapi_pblock_get(pb, SLAPI_CONN_DN, &bind_dn); /* bind_dn is allocated */

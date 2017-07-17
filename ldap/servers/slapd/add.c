@@ -419,7 +419,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 	Slapi_Entry	*e, *pse;
 	Slapi_Backend *be = NULL;
 	int	err;
-	int internal_op, repl_op, legacy_op, lastmod;
+	int internal_op, repl_op, lastmod;
 	char *pwdtype = NULL;
 	Slapi_Attr *attr = NULL;
 	Slapi_Entry *referral;
@@ -437,7 +437,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 	slapi_pblock_get (pb, SLAPI_CONNECTION, &pb_conn);
 	slapi_pblock_get (pb, SLAPI_ADD_ENTRY, &e);
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
-	slapi_pblock_get (pb, SLAPI_IS_LEGACY_REPLICATED_OPERATION, &legacy_op);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 	pwpolicy = new_passwdPolicy(pb, slapi_entry_get_dn(e));
 
@@ -664,16 +663,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 		/* expand objectClass values to reflect the inheritance hierarchy */
 		slapi_schema_expand_objectclasses( e );
 	}
-
-    /* uniqueid needs to be generated for entries added during legacy replication */
-    if (legacy_op){
-    	if (add_uniqueid(e) != UID_SUCCESS)
-    	{
-    		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
-    				"cannot insert computed attributes", 0, NULL);
-    		goto done;
-    	}
-    }
 
 	/*
 	 * call the pre-add plugins. if they succeed, call

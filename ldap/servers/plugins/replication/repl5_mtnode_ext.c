@@ -14,7 +14,6 @@
 
 /* repl5_replica.c */
 
-#include "repl.h"   /* ONREPL - this is bad */
 #include "repl5.h" 
 #include "cl5_api.h"
 

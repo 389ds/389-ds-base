@@ -23,7 +23,7 @@ dn: cn=Multi-Master Replication Plugin,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
 objectclass: extensibleObject
-cn: Legacy Replication Plugin
+cn: Multi-Master Replication Plugin
 nsslapd-pluginpath: /export2/servers/Hydra-supplier/lib/replication-plugin.so
 nsslapd-plugininitfunc: replication_multimaster_plugin_init
 nsslapd-plugintype: object
@@ -38,7 +38,6 @@ nsslapd-plugindescription: Multi-Master Replication Plugin
 */
  
 #include "slapi-plugin.h"
-#include "repl.h"
 #include "repl5.h"
 #include "cl5.h"			 /* changelog interface */
 #include "plstr.h"
@@ -261,7 +260,6 @@ get_repl_session_id (Slapi_PBlock *pb, char *idstr, CSN **csn)
 	}
 	return idstr;
 }
-
 
 /* preop acquires csn generator handle */
 int repl5_is_betxn = 0;
@@ -792,11 +790,6 @@ multimaster_start( Slapi_PBlock *pb )
 
 		/* Stash away our partial URL, used in RUVs */
 		rc = multimaster_set_local_purl();
-		if (rc != 0)
-			goto out;
-
-		/* Initialise support for cn=monitor */
-		rc = repl_monitor_init();
 		if (rc != 0)
 			goto out;
 

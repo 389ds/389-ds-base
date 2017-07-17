@@ -14,8 +14,6 @@
 /* repl_connext.c - replication extension to the Connection object
  */
 
-
-#include "repl.h"
 #include "repl5.h"
 
 
@@ -36,7 +34,6 @@ void* consumer_connection_extension_constructor (void *object __attribute__((unu
 	}
 	else
 	{
-	    ext->is_legacy_replication_dn= 0;
 		ext->repl_protocol_version = REPL_PROTOCOL_UNKNOWN;
 		ext->replica_acquired = NULL;
 		ext->isreplicationsession= 0;

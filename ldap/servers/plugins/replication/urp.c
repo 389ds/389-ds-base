@@ -17,7 +17,6 @@
  */
 
 #include "slapi-plugin.h"
-#include "repl.h"
 #include "repl5.h"
 #include "urp.h"
 

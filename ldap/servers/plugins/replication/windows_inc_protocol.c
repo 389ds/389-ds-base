@@ -29,7 +29,6 @@ Stuff to do:
 Perhaps these events should be properties of the main protocol.
 */
 
-#include "repl.h"
 #include "repl5.h"
 #include "windowsrepl.h"
 #include "windows_prot_private.h"

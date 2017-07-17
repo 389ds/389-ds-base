@@ -15,7 +15,6 @@
 /* repl5_replica.c */
 
 #include "slapi-plugin.h"
-#include "repl.h"   /* ONREPL - this is bad */
 #include "repl5.h" 
 #include "repl_shared.h" 
 #include "csnpl.h"
@@ -25,7 +24,6 @@
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
 
 #define REPLICA_RDN "cn=replica"
-#define CHANGELOG_RDN "cn=legacy changelog"
 
 /*
  * A replica is a locally-held copy of a portion of the DIT.
@@ -42,8 +40,6 @@ struct replica {
 	PRUint32			updatedn_group_last_check;
 	int				updatedn_group_check_interval;
 	ReplicaType	 repl_type;			/* is this replica read-only ?			*/
-	PRBool  legacy_consumer;        /* if true, this replica is supplied by 4.0 consumer */
-	char*   legacy_purl;            /* partial url of the legacy supplier   */
 	ReplicaId repl_rid;				/* replicaID							*/
 	Object	*repl_ruv;				/* replica update vector				*/
 	PRBool repl_ruv_dirty;          /* Dirty flag for ruv                   */
@@ -100,8 +96,6 @@ static void abort_csn_callback(const CSN *csn, void *data);
 static void eq_cb_reap_tombstones(time_t when, void *arg);
 static CSN *_replica_get_purge_csn_nolock (const Replica *r);
 static void replica_get_referrals_nolock (const Replica *r, char ***referrals);
-static void replica_clear_legacy_referrals (const Slapi_DN *repl_root_sdn, char **referrals, const char *state);
-static void replica_remove_legacy_attr (const Slapi_DN *repl_root_sdn, const char *attr);
 static int replica_log_ruv_elements_nolock (const Replica *r);
 static void replica_replace_ruv_tombstone(Replica *r);
 static void start_agreements_for_replica (Replica *r, PRBool start);
@@ -259,14 +253,6 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 										   1000 * r->tombstone_reap_interval);
 	}
 
-    if (r->legacy_consumer)
-    {
-        legacy_consumer_init_referrals (r);
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_new_from_entry: "
-                        "replica for %s was configured as legacy consumer\n",
-                        slapi_sdn_get_dn(r->repl_root));
-    }
-
     replica_check_for_tasks(r, e);
 
 done:
@@ -364,7 +350,6 @@ replica_destroy(void **arg)
 
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free ((void**)&r->repl_name);
-	slapi_ch_free ((void**)&r->legacy_purl);    
 
 	if (r->repl_lock)
 	{
@@ -1052,93 +1037,6 @@ replica_set_type (Replica *r, ReplicaType type)
 	replica_unlock(r->repl_lock);
 }
 
-/* 
- * Returns PR_TRUE if this replica is a consumer of 4.0 server
- * and PR_FALSE otherwise
- */
-PRBool
-replica_is_legacy_consumer (const Replica *r)
-{
-	PR_ASSERT(r);
-	return r->legacy_consumer;
-}
-
-/* 
- * Sets the replica type.
- */
-void 
-replica_set_legacy_consumer (Replica *r, PRBool legacy_consumer)
-{
-    int legacy2mmr;
-	Slapi_DN *repl_root_sdn = NULL;
-	char **referrals = NULL;
-	char *replstate = NULL;
-	PR_ASSERT(r);
-
-    replica_lock(r->repl_lock);
-
-    legacy2mmr = r->legacy_consumer && !legacy_consumer;
-
-    /* making the server a regular 5.0 replica */
-    if (legacy2mmr)
-    {
-        slapi_ch_free ((void**)&r->legacy_purl);
-        /* Remove copiedFrom/copyingFrom attributes from the root entry */           
-		/* set the right state in the mapping tree */
-		if (r->repl_type == REPLICA_TYPE_READONLY)
-		{
-			replica_get_referrals_nolock (r, &referrals);
-			replstate = STATE_UPDATE_REFERRAL;
-		}
-		else /* updateable */
-		{
-			replstate = STATE_BACKEND;
-		}
-    }
-
-    r->legacy_consumer = legacy_consumer;
-    repl_root_sdn = slapi_sdn_dup(r->repl_root);
-    replica_unlock(r->repl_lock);
-
-    if (legacy2mmr)
-    {
-		replica_clear_legacy_referrals(repl_root_sdn, referrals, replstate);
-		/* Also change state of the mapping tree node and/or referrals */
-        replica_remove_legacy_attr (repl_root_sdn, type_copiedFrom);
-        replica_remove_legacy_attr (repl_root_sdn, type_copyingFrom);
-    }
-	charray_free(referrals);
-	slapi_sdn_free(&repl_root_sdn);
-}
-
-/* Gets partial url of the legacy supplier - applicable for legacy consumer only */
-char *
-replica_get_legacy_purl (const Replica *r)
-{
-    char *purl;
-
-    replica_lock(r->repl_lock);
-    purl = slapi_ch_strdup(r->legacy_purl);
-    replica_unlock(r->repl_lock);
-
-    return purl;
-}
-
-void 
-replica_set_legacy_purl (Replica *r, const char *purl)
-{
-    replica_lock(r->repl_lock);
-
-    PR_ASSERT (r->legacy_consumer);
-
-    /* slapi_ch_free accepts NULL pointer */
-    slapi_ch_free ((void**)&r->legacy_purl);
-
-    r->legacy_purl = slapi_ch_strdup (purl);
-
-    replica_unlock(r->repl_lock);
-}
-
 static PRBool
 valuesets_equal(Slapi_ValueSet *new_dn_groups, Slapi_ValueSet *old_dn_groups)
 {
@@ -1608,7 +1506,7 @@ consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv)
 	replica_get_referrals_nolock (r, &replica_referrals); /* replica_referrals has to be free'd */
 	
     /* JCMREPL - What if there's a Total update in progress? */
-	if( (r->repl_type==REPLICA_TYPE_READONLY) || (r->legacy_consumer) )
+	if(r->repl_type==REPLICA_TYPE_READONLY)
 	{
 		state_backend = 0;
 	}
@@ -2025,7 +1923,6 @@ _replica_check_validity (const Replica *r)
 	nsds5ReplicaReferral: <referral URL to updatable replica> consumers only
 	nsds5ReplicaPurgeDelay: <time, in seconds, to keep purgeable CSNs, 0 == keep forever>
 	nsds5ReplicaTombstonePurgeInterval: <time, in seconds, between tombstone purge runs, 0 == don't reap>
-	nsds5ReplicaLegacyConsumer: <TRUE | FALSE>
 
 	richm: changed slapi entry from const to editable - if the replica id is supplied for a read
 	only replica, we ignore it and replace the value with the READ_ONLY_REPLICA_ID
@@ -2068,21 +1965,6 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
         slapi_ch_free ((void**)&val);
     } else {
         r->repl_type = REPLICA_TYPE_READONLY;
-    }
-
-    /* get legacy consumer flag */
-    val = slapi_entry_attr_get_charptr (e, type_replicaLegacyConsumer);
-    if (val){
-        if (strcasecmp (val, "on") == 0 || strcasecmp (val, "yes") == 0 ||
-            strcasecmp (val, "true") == 0 || strcasecmp (val, "1") == 0)
-        {
-	        r->legacy_consumer = PR_TRUE;
-        } else {
-            r->legacy_consumer = PR_FALSE;
-        }
-        slapi_ch_free ((void**)&val);
-    } else {
-        r->legacy_consumer = PR_FALSE;
     }
 
     /* grab and validate the backoff retry settings */
@@ -3770,51 +3652,6 @@ replica_get_referrals_nolock (const Replica *r, char ***referrals)
 	}
 }
 
-static void 
-replica_clear_legacy_referrals(const Slapi_DN *repl_root_sdn,
-							   char **referrals, const char *state)
-{
-	repl_set_mtn_state_and_referrals(repl_root_sdn, state, NULL, NULL, referrals);
-}
-
-static void 
-replica_remove_legacy_attr (const Slapi_DN *repl_root_sdn, const char *attr)
-{
-    Slapi_PBlock *pb;
-    Slapi_Mods smods;
-    LDAPControl **ctrls;
-    int rc;
-
-    pb = slapi_pblock_new ();
-    
-    slapi_mods_init(&smods, 1);
-    slapi_mods_add(&smods, LDAP_MOD_DELETE, attr, 0, NULL);
-   
-    
-    ctrls = (LDAPControl**)slapi_ch_malloc (2 * sizeof (LDAPControl*));
-    ctrls[0] = create_managedsait_control ();
-    ctrls[1] = NULL;
-    
-    /* remove copiedFrom/copyingFrom first */
-    slapi_modify_internal_set_pb_ext (pb, repl_root_sdn, 
-                                      slapi_mods_get_ldapmods_passout (&smods),
-                                      ctrls, NULL /*uniqueid */, 
-                                      repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION) , 
-                                      0 /* operation_flags */);
- 
-    slapi_modify_internal_pb (pb);
-	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    if (rc != LDAP_SUCCESS) 
-	{
-        /* this is not a fatal error because the attribute may not be there */
-		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_remove_legacy_attr - "
-			"Failed to remove legacy attribute %s for replica %s; LDAP error - %d\n", 
-            attr, slapi_sdn_get_dn(repl_root_sdn), rc);
-	}
-    
-    slapi_mods_done (&smods);
-    slapi_pblock_destroy (pb);
-}
 typedef struct replinfo {
     char *repl_gen;
     char *repl_name;
@@ -4279,8 +4116,7 @@ replica_generate_next_csn ( Slapi_PBlock *pb, const CSN *basecsn )
 		{
 			Slapi_Operation *op;
 			slapi_pblock_get (pb, SLAPI_OPERATION, &op);
-			if ( replica->repl_type != REPLICA_TYPE_READONLY ||
-				 operation_is_flag_set (op, OP_FLAG_LEGACY_REPLICATION_DN ))
+			if ( replica->repl_type != REPLICA_TYPE_READONLY )
 			{
 				Object *gen_obj = replica_get_csngen (replica);
 				if (NULL != gen_obj)

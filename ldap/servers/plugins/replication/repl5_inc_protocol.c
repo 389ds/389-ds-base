@@ -30,13 +30,9 @@ Perhaps these events should be properties of the main protocol.
 */
 #include <plstr.h>
 
-#include "repl.h"
-#include "repl5.h"
-#include "repl5_ruv.h"
-#include "repl5_prot_private.h"
-#include "cl5_api.h"
 
 #include "repl5.h"
+#include "repl5_ruv.h"
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
 #include "slapi-plugin.h"

@@ -42,7 +42,6 @@
  */
 
 #include "repl5.h"
-#include "repl.h"
 #include "cl5_api.h"
 #include "urp.h"
 #include "csnpl.h"
@@ -148,22 +147,8 @@ multimaster_preop_add (Slapi_PBlock *pb)
     Slapi_Operation *op;
     int is_replicated_operation;
     int is_fixup_operation;
-    int is_legacy_operation;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-
-    /* If there is no replica or it is a legacy consumer - we don't need to continue.
-       Legacy plugin is handling 4.0 consumer code */
-    /* but if it is legacy, csngen_handler needs to be assigned here */
-    is_legacy_operation =
-        operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
-    if (is_legacy_operation)
-    {
-        copy_operation_parameters(pb);
-        slapi_operation_set_csngen_handler(op,
-                                           (void*)replica_generate_next_csn);
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     if (!is_mmr_replica (pb))
     {
@@ -277,23 +262,8 @@ multimaster_preop_delete (Slapi_PBlock *pb)
     Slapi_Operation *op;
     int is_replicated_operation;
     int is_fixup_operation;
-    int is_legacy_operation;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-
-    /* If there is no replica or it is a legacy consumer - we don't need to continue.
-       Legacy plugin is handling 4.0 consumer code */
-    /* but if it is legacy, csngen_handler needs to be assigned here */
-    is_legacy_operation =
-        operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
-    if (is_legacy_operation)
-    {
-        copy_operation_parameters(pb);
-    	slapi_operation_set_replica_attr_handler ( op, (void*)replica_get_attr );
-        slapi_operation_set_csngen_handler(op,
-                                           (void*)replica_generate_next_csn);
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     if (!is_mmr_replica (pb))
     {
@@ -377,22 +347,8 @@ multimaster_preop_modify (Slapi_PBlock *pb)
     Slapi_Operation *op;
     int is_replicated_operation;
     int is_fixup_operation;
-    int is_legacy_operation;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-
-    /* If there is no replica or it is a legacy consumer - we don't need to continue.
-       Legacy plugin is handling 4.0 consumer code */
-    /* but if it is legacy, csngen_handler needs to be assigned here */
-    is_legacy_operation =
-        operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
-    if (is_legacy_operation)
-    {
-        copy_operation_parameters(pb);
-        slapi_operation_set_csngen_handler(op,
-                                           (void*)replica_generate_next_csn);
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     if (!is_mmr_replica (pb))
     {
@@ -479,22 +435,8 @@ multimaster_preop_modrdn (Slapi_PBlock *pb)
     Slapi_Operation *op;
     int is_replicated_operation;
     int is_fixup_operation;
-    int is_legacy_operation;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-
-    /* If there is no replica or it is a legacy consumer - we don't need to continue.
-       Legacy plugin is handling 4.0 consumer code */
-    /* but if it is legacy, csngen_handler needs to be assigned here */
-    is_legacy_operation =
-        operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
-    if (is_legacy_operation)
-    {
-        copy_operation_parameters(pb);
-        slapi_operation_set_csngen_handler(op,
-                                           (void*)replica_generate_next_csn);
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     if (!is_mmr_replica (pb))
     {
@@ -998,7 +940,6 @@ copy_operation_parameters(Slapi_PBlock *pb)
 static int
 update_ruv_component(Replica *replica, CSN *opcsn, Slapi_PBlock *pb)
 {
-    PRBool legacy;
     char *purl;
     int rc = RUV_NOTFOUND;
 
@@ -1006,18 +947,10 @@ update_ruv_component(Replica *replica, CSN *opcsn, Slapi_PBlock *pb)
 		return rc;
 
 	/* Replica configured, so update its ruv */
-	legacy = replica_is_legacy_consumer (replica);
-	if (legacy)
-		purl = replica_get_legacy_purl (replica);
-	else
-		purl = (char*)replica_get_purl_for_op (replica, pb, opcsn);
+	purl = (char*)replica_get_purl_for_op (replica, pb, opcsn);
 
 	rc = replica_update_ruv(replica, opcsn, purl);
 
-	if (legacy)
-	{
-		slapi_ch_free ((void**)&purl);
-	}
 	return rc;
 }
 
@@ -1505,23 +1438,15 @@ static PRBool
 is_mmr_replica (Slapi_PBlock *pb)
 {
     Object *r_obj;
-    Replica *r;
-    PRBool mmr;
 
     r_obj = replica_get_replica_for_op(pb);
     if (r_obj == NULL)
     {
         return PR_FALSE;
     }   
-
-    r = (Replica*)object_get_data (r_obj);
-    PR_ASSERT (r);
-
-    mmr = !replica_is_legacy_consumer (r);
-
     object_release (r_obj);
 
-    return mmr;
+    return PR_TRUE;
 }
 
 static const char *replica_get_purl_for_op (const Replica *r __attribute__((unused)), Slapi_PBlock *pb, const CSN *opcsn)
@@ -1563,53 +1488,6 @@ static const char *replica_get_purl_for_op (const Replica *r __attribute__((unus
 
     return purl;   
 }
-
-#ifdef NOTUSED
-/* ONREPL at the moment, I decided not to trim copiedFrom and copyingFrom
-   attributes when sending operation to replicas. This is because, each
-   operation results in a state information stored in the database and
-   if we don't replay all operations we will endup with state inconsistency.
-
-   Keeping the function just in case
- */
-static void strip_legacy_info (slapi_operation_parameters *op_params)
-{
-    switch (op_params->operation_type)
-    {
-        case SLAPI_OPERATION_ADD:       
-                slapi_entry_delete_values_sv(op_params->p.p_add.target_entry, 
-                                             type_copiedFrom, NULL);
-                slapi_entry_delete_values_sv(op_params->p.p_add.target_entry, 
-                                             type_copyingFrom, NULL);
-                break;
-        case SLAPI_OPERATION_MODIFY:
-        {        
-                Slapi_Mods smods;
-                LDAPMod *mod;
-
-                slapi_mods_init_byref(&smods, op_params->p.p_modify.modify_mods);
-                mod = slapi_mods_get_first_mod(&smods);
-                while (mod)
-                {
-                    /* modify just to update copiedFrom or copyingFrom attribute 
-                       does not contain modifiersname or modifytime - so we don't
-                       have to strip them */
-                    if (strcasecmp (mod->mod_type, type_copiedFrom) == 0 ||
-                        strcasecmp (mod->mod_type, type_copyingFrom) == 0)
-                        slapi_mods_remove(&smods);
-                    mod = slapi_mods_get_next_mod(&smods);
-                }
-
-                op_params->p.p_modify.modify_mods = slapi_mods_get_ldapmods_passout (&smods);
-                slapi_mods_done (&smods);
-
-                break;
-        }
-
-        default: break;
-    }
-}
-#endif
 
 /* this function is called when state of a backend changes */
 void 

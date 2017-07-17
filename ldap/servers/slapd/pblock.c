@@ -599,7 +599,7 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
         if (pblock->pb_op == NULL) {
             (*(int *)value) = 0; /* No Operation -> Not Replicated */
         } else {
-            (*(int *)value) = (pblock->pb_op->o_flags & (OP_FLAG_REPLICATED | OP_FLAG_LEGACY_REPLICATION_DN));
+            (*(int *)value) = (pblock->pb_op->o_flags & OP_FLAG_REPLICATED);
         }
         break;
     case SLAPI_IS_MMR_REPLICATED_OPERATION:
@@ -607,13 +607,6 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
             (*(int *)value) = 0; /* No Operation -> Not Replicated */
         } else {
             (*(int *)value) = (pblock->pb_op->o_flags & OP_FLAG_REPLICATED);
-        }
-        break;
-    case SLAPI_IS_LEGACY_REPLICATED_OPERATION:
-        if (pblock->pb_op == NULL) {
-            (*(int *)value) = 0; /* No Operation -> Not Replicated */
-        } else {
-            (*(int *)value) = (pblock->pb_op->o_flags & OP_FLAG_LEGACY_REPLICATION_DN);
         }
         break;
 

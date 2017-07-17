@@ -13,7 +13,6 @@
 
  
 #include "slapi-plugin.h"
-#include "repl.h"
 
 
 /* module: provide an interface to the profile file */

@@ -47,7 +47,6 @@
     }
 */
 
-#include "repl.h"
 #include "repl5.h"
 
 #define CSN_TYPE_VALUE_UPDATED_ON_WIRE 1

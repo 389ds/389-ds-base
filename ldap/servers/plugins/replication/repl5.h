@@ -27,7 +27,6 @@
 #include "repl_shared.h"
 #include "llist.h"
 #include "repl5_ruv.h"
-#include "cl4.h"
 #include "plstr.h"
 
 #define START_UPDATE_DELAY 2 /* 2 second */
@@ -36,6 +35,8 @@
 #define REPL_DIRSYNC_CONTROL_OID "1.2.840.113556.1.4.841"
 #define REPL_RETURN_DELETED_OBJS_CONTROL_OID "1.2.840.113556.1.4.417"
 #define REPL_WIN2K3_AD_OID "1.2.840.113556.1.4.1670"
+#define LDAP_CONTROL_REPL_MODRDN_EXTRAMODS "2.16.840.1.113730.3.4.999"
+#define REPLICATION_SUBSYSTEM "replication"
 
 /* DS 5.0 replication protocol OIDs */
 #define REPL_START_NSDS50_REPLICATION_REQUEST_OID "2.16.840.1.113730.3.5.3"
@@ -91,7 +92,6 @@
 #define NSDS50_REPL_BELOW_PURGEPOINT 0x07 /* Supplier provided a CSN below the consumer's purge point */
 #define NSDS50_REPL_INTERNAL_ERROR 0x08 /* Something bad happened on consumer */
 #define NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED 0x09 /* Replica released successfully */
-#define NSDS50_REPL_LEGACY_CONSUMER 0x0A /* replica is a legacy consumer */
 #define NSDS50_REPL_REPLICAID_ERROR 0x0B /* replicaID doesn't seem to be unique */
 #define NSDS50_REPL_DISABLED 0x0C /* replica suffix is disabled */
 #define NSDS50_REPL_UPTODATE 0x0D /* replica is uptodate */
@@ -192,7 +192,6 @@ extern const char *type_agmtMaxCSN;
 extern const char *type_replicaPurgeDelay;
 extern const char *type_replicaChangeCount;
 extern const char *type_replicaTombstonePurgeInterval;
-extern const char *type_replicaLegacyConsumer;
 extern const char *type_replicaCleanRUV;
 extern const char *type_replicaAbortCleanRUV;
 extern const char *type_ruvElementUpdatetime;
@@ -272,6 +271,37 @@ struct berval *NSDS90StartReplicationRequest_new(const char *protocol_oid,
 
 /* In repl5_total.c */
 int multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb);
+
+/* From repl_globals.c */
+extern char     *attr_changenumber;
+extern char     *attr_targetdn;
+extern char     *attr_changetype;
+extern char     *attr_newrdn;
+extern char     *attr_deleteoldrdn;
+extern char     *attr_changes;
+extern char     *attr_newsuperior;
+extern char     *attr_changetime;
+extern char     *attr_dataversion;
+extern char     *attr_csn;
+extern char     *changetype_add;
+extern char     *changetype_delete;
+extern char     *changetype_modify;
+extern char     *changetype_modrdn;
+extern char     *changetype_moddn;
+extern char     *type_copyingFrom;
+extern char     *type_copiedFrom;
+extern char     *filter_copyingFrom;
+extern char     *filter_copiedFrom;
+extern char     *filter_objectclass;
+extern char     *type_cn;
+extern char     *type_objectclass;
+
+/* In profile.c */
+#ifdef PROFILE
+#define PROFILE_POINT if (CFG_profile) profile_log(__FILE__,__LINE__) /* JCMREPL - Where is the profiling flag stored? */
+#else
+#define PROFILE_POINT ((void)0)
+#endif
 
 /* In repl_controls.c */
 int create_NSDS50ReplUpdateInfoControl(const char *uuid,
@@ -433,6 +463,85 @@ time_t backoff_step(Backoff_Timer *bt);
 int backoff_expired(Backoff_Timer *bt, int margin);
 void backoff_delete(Backoff_Timer **btp);
 
+#define REPL_PROTOCOL_UNKNOWN 0
+#define REPL_PROTOCOL_50_INCREMENTAL 2
+#define REPL_PROTOCOL_50_TOTALUPDATE 3
+
+/* Type of extensions that can be registered */
+typedef enum
+{
+    REPL_SUP_EXT_OP,        /* extension for Operation object, replication supplier */
+    REPL_SUP_EXT_CONN,      /* extension for Connection object, replication supplier */
+    REPL_CON_EXT_OP,        /* extension for Operation object, replication consumer */
+    REPL_CON_EXT_CONN,      /* extension for Connection object, replication consumer */
+    REPL_CON_EXT_MTNODE,/* extension for mapping_tree_node object, replication consumer */
+    REPL_EXT_ALL
+} ext_type;
+
+/* Operation extension functions - supplier_operation_extension.c */
+
+/* --- supplier operation extension --- */
+typedef struct supplier_operation_extension
+{
+    int prevent_recursive_call;
+    struct slapi_operation_parameters *operation_parameters;
+    char *repl_gen;
+} supplier_operation_extension;
+
+/* extension construct/destructor */
+void* supplier_operation_extension_constructor (void *object, void *parent);
+void supplier_operation_extension_destructor (void* ext,void *object, void *parent);
+
+/* --- consumer operation extension --- */
+typedef struct consumer_operation_extension
+{
+    int has_cf;      /* non-zero if the operation contains a copiedFrom/copyingFrom attr */
+    void *search_referrals;
+} consumer_operation_extension;
+
+/* extension construct/destructor */
+void* consumer_operation_extension_constructor (void *object, void *parent);
+void consumer_operation_extension_destructor (void* ext,void *object, void *parent);
+
+
+/* Connection extension functions - repl_connext.c */
+typedef struct consumer_connection_extension
+{
+    int repl_protocol_version; /* the replication protocol version number the supplier is talking. */
+    void *replica_acquired; /* Object* for replica */
+    void *supplier_ruv; /* RUV* */
+    int isreplicationsession;
+    Slapi_Connection *connection;
+    PRLock  *lock; /* protects entire structure */
+    int in_use_opid; /* the id of the operation actively using this, else -1 */
+} consumer_connection_extension;
+
+/* extension construct/destructor */
+void* consumer_connection_extension_constructor (void *object,void *parent);
+void consumer_connection_extension_destructor (void* ext,void *object,void *parent);
+
+/* extension helpers for managing exclusive access */
+consumer_connection_extension* consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 connid, int opid);
+int consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 connid, int opid, PRBool force);
+
+/* mapping tree extension - stores replica object */
+typedef struct multimaster_mtnode_extension
+{
+    Object *replica;
+} multimaster_mtnode_extension;
+void* multimaster_mtnode_extension_constructor (void *object,void *parent);
+void  multimaster_mtnode_extension_destructor (void* ext,void *object,void *parent);
+
+/* general extension functions - repl_ext.c */
+void repl_sup_init_ext ();      /* initializes registrations - must be called first */
+void repl_con_init_ext ();      /* initializes registrations - must be called first */
+int repl_sup_register_ext (ext_type type); /* registers an extension of the specified type */
+int repl_con_register_ext (ext_type type); /* registers an extension of the specified type */
+void* repl_sup_get_ext (ext_type type, void *object); /* retireves the extension from the object */
+void* repl_con_get_ext (ext_type type, void *object); /* retireves the extension from the object */
+
+
+
 /* In repl5_connection.c 
  * keep in sync with conn_result2string
  */
@@ -573,10 +682,6 @@ void replica_set_ruv (Replica *r, RUV *ruv);
 Object *replica_get_csngen (const Replica *r);
 ReplicaType replica_get_type (const Replica *r);
 void replica_set_type (Replica *r, ReplicaType type);
-PRBool replica_is_legacy_consumer (const Replica *r);
-void replica_set_legacy_consumer (Replica *r, PRBool legacy);
-char *replica_get_legacy_purl (const Replica *r);
-void replica_set_legacy_purl (Replica *r, const char *purl);
 PRBool replica_is_updatedn (Replica *r, const Slapi_DN *sdn);
 void replica_set_updatedn (Replica *r, const Slapi_ValueSet *vs, int mod_op);
 void replica_set_groupdn (Replica *r, const Slapi_ValueSet *vs, int mod_op);
@@ -614,7 +719,6 @@ void replica_destroy_dn_hash(void);
 int replica_add_by_dn (const char *dn);
 int replica_delete_by_dn (const char *dn);
 int replica_is_being_configured (const char *dn);
-int legacy_consumer_init_referrals (Replica *r);
 void consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv);
 Object *replica_get_for_backend (const char *be_name);
 void replica_set_purge_delay (Replica *r, PRUint32 purge_delay);

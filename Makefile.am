@@ -417,13 +417,11 @@ dist_noinst_HEADERS = \
 	ldap/servers/plugins/uiduniq/plugin-utils.h \
 	ldap/servers/plugins/memberof/memberof.h \
 	ldap/servers/plugins/replication/cl5_api.h \
-	ldap/servers/plugins/replication/cl4_api.h \
 	ldap/servers/plugins/replication/llist.h \
 	ldap/servers/plugins/replication/repl_shared.h \
 	ldap/servers/plugins/replication/csnpl.h \
 	ldap/servers/plugins/replication/cl5.h \
 	ldap/servers/plugins/replication/repl-session-plugin.h \
-	ldap/servers/plugins/replication/repl.h \
 	ldap/servers/plugins/replication/windows_prot_private.h \
 	ldap/servers/plugins/replication/repl_helper.h \
 	ldap/servers/plugins/replication/repl_objset.h \
@@ -431,7 +429,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/plugins/replication/cl5_test.h \
 	ldap/servers/plugins/replication/repl5_ruv.h \
 	ldap/servers/plugins/replication/cl5_clcache.h \
-	ldap/servers/plugins/replication/cl4.h \
 	ldap/servers/plugins/replication/cl_crypt.h \
 	ldap/servers/plugins/replication/urp.h \
 	ldap/servers/plugins/replication/winsync-plugin.h \
@@ -943,6 +940,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/admin/src/scripts/50targetuniqueid.ldif \
+	ldap/admin/src/scripts/50removeLegacyReplication.ldif \
 	ldap/ldif/50replication-plugins.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
 	$(POSIX_WINSYNC_PLUGIN_LDIF) \
@@ -1653,27 +1651,14 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/cl5_init.c \
 	ldap/servers/plugins/replication/cl_crypt.c \
 	ldap/servers/plugins/replication/csnpl.c \
-	ldap/servers/plugins/replication/legacy_consumer.c \
 	ldap/servers/plugins/replication/llist.c \
-	ldap/servers/plugins/replication/repl_add.c \
-	ldap/servers/plugins/replication/repl_bind.c \
-	ldap/servers/plugins/replication/repl_compare.c \
 	ldap/servers/plugins/replication/repl_connext.c \
 	ldap/servers/plugins/replication/repl_controls.c \
-	ldap/servers/plugins/replication/repl_delete.c \
-	ldap/servers/plugins/replication/repl_entry.c \
 	ldap/servers/plugins/replication/repl_ext.c \
 	ldap/servers/plugins/replication/repl_extop.c \
 	ldap/servers/plugins/replication/repl_globals.c \
-	ldap/servers/plugins/replication/repl_init.c \
-	ldap/servers/plugins/replication/repl_modify.c \
-	ldap/servers/plugins/replication/repl_modrdn.c \
-	ldap/servers/plugins/replication/repl_monitor.c \
 	ldap/servers/plugins/replication/repl_objset.c \
 	ldap/servers/plugins/replication/repl_opext.c \
-	ldap/servers/plugins/replication/repl_ops.c \
-	ldap/servers/plugins/replication/repl_rootdse.c \
-	ldap/servers/plugins/replication/repl_search.c \
 	ldap/servers/plugins/replication/repl_session_plugin.c \
 	ldap/servers/plugins/replication/repl5_agmt.c \
 	ldap/servers/plugins/replication/repl5_agmtlist.c \

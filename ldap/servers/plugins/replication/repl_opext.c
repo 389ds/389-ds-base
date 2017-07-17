@@ -14,8 +14,6 @@
 /* supplier_operation_extension.c - replication extension to the Operation object
  */
 
-
-#include "repl.h"
 #include "repl5.h"
 
 /* ***** Supplier side ***** */
@@ -69,11 +67,6 @@ void* consumer_operation_extension_constructor (void *object, void *parent)
 			if (connext->isreplicationsession)
 			{
 				operation_set_flag((Slapi_Operation *)object,OP_FLAG_REPLICATED);
-			}
-			/* We set the Replication DN flag if session bound as replication dn */ 
-			if (connext->is_legacy_replication_dn)
-			{
-				operation_set_flag((Slapi_Operation *)object, OP_FLAG_LEGACY_REPLICATION_DN);
 			}
 		}
 	}

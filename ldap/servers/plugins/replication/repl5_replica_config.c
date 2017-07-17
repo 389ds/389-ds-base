@@ -14,7 +14,6 @@
 
 /* repl5_replica_config.c - replica configuration over ldap */
 #include <ctype.h>	/* for isdigit() */
-#include "repl.h"   /* ONREPL - this is bad */
 #include "repl5.h"
 #include "cl5_api.h"
 #include "cl5.h"
@@ -235,9 +234,7 @@ replica_config_add (Slapi_PBlock *pb __attribute__((unused)),
     }
 
 	/* Set the mapping tree node state, and the referrals from the RUV */
-    /* if this server is a 4.0 consumer the referrals are set by legacy plugin */
-    if (!replica_is_legacy_consumer (r))
-	    consumer5_set_mapping_tree_state_for_replica(r, NULL);
+	consumer5_set_mapping_tree_state_for_replica(r, NULL);
 
     /* ONREPL if replica is added as writable we need to execute protocol that
        introduces new writable replica to the topology */
@@ -383,15 +380,8 @@ replica_config_modify (Slapi_PBlock *pb,
                 {
                     if (apply_mods) {
                         replica_set_referrals(r, NULL);
-                        if (!replica_is_legacy_consumer (r)) {
-                             consumer5_set_mapping_tree_state_for_replica(r, NULL);
-                        }
+                        consumer5_set_mapping_tree_state_for_replica(r, NULL);
                     }
-                }
-                else if (strcasecmp (config_attr, type_replicaLegacyConsumer) == 0)
-                {
-                    if (apply_mods)
-                        replica_set_legacy_consumer (r, PR_FALSE);
                 }
                 else if (strcasecmp (config_attr, type_replicaCleanRUV) == 0 ||
                          strcasecmp (config_attr, type_replicaAbortCleanRUV) == 0)
@@ -486,9 +476,7 @@ replica_config_modify (Slapi_PBlock *pb,
                         replica_set_referrals (r, vs);
                         slapi_mod_done(&smod);
                         slapi_valueset_free(vs);
-						if (!replica_is_legacy_consumer (r)) {
-							consumer5_set_mapping_tree_state_for_replica(r, NULL);
-						}
+						consumer5_set_mapping_tree_state_for_replica(r, NULL);
                     }
                 }
 				else if (strcasecmp (config_attr, type_replicaPurgeDelay) == 0)
@@ -514,18 +502,6 @@ replica_config_modify (Slapi_PBlock *pb,
 						replica_set_tombstone_reap_interval (r, interval);
 					}
 				}
-                else if (strcasecmp (config_attr, type_replicaLegacyConsumer) == 0)
-                {
-					if (apply_mods && config_attr_value[0])
-                    {
-                        PRBool legacy = (strcasecmp (config_attr_value, "on") == 0) ||
-                                        (strcasecmp (config_attr_value, "true") == 0) ||
-                                        (strcasecmp (config_attr_value, "yes") == 0) ||
-                                        (strcasecmp (config_attr_value, "1") == 0);
-
-                        replica_set_legacy_consumer (r, legacy);
-                    }
-                }
                 /* ignore modifiers attributes added by the server */
                 else if (slapi_attr_is_last_mod(config_attr))
                 {
@@ -1065,9 +1041,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
         replica_set_rid(r, rid);
 
         /* Set the mapping tree node, and the list of referrals */
-        /* if this server is a 4.0 consumer the referrals are set by legacy plugin */
-        if (!replica_is_legacy_consumer(r))
-		    consumer5_set_mapping_tree_state_for_replica(r, NULL);
+		consumer5_set_mapping_tree_state_for_replica(r, NULL);
     }
 
     return LDAP_SUCCESS;

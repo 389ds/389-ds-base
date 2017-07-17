@@ -8,7 +8,6 @@
 
 /* repl_session_plugin.c */
 
-#include "repl.h"
 #include "repl5.h"
 #include "slap.h"
 #include "slapi-plugin.h"

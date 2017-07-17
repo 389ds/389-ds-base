@@ -35,7 +35,6 @@
 
 #include "slapi-plugin.h"
 #include "repl5.h"
-#include "repl.h"
 
 typedef int (*open_fn)(const char *path, int flags, ...);
 

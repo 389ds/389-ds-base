@@ -50,7 +50,7 @@ plugin_call_acl_plugin ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs,
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	/* we don't perform acl check for internal operations  and if the plugin has set it not to be checked */
-	if (operation_is_flag_set(operation, SLAPI_OP_FLAG_NO_ACCESS_CHECK|OP_FLAG_INTERNAL|OP_FLAG_REPLICATED|OP_FLAG_LEGACY_REPLICATION_DN))
+	if (operation_is_flag_set(operation, SLAPI_OP_FLAG_NO_ACCESS_CHECK|OP_FLAG_INTERNAL|OP_FLAG_REPLICATED))
 		return LDAP_SUCCESS;
 	
 	/* call the global plugins first and then the backend specific */
@@ -81,7 +81,7 @@ plugin_call_acl_mods_access ( Slapi_PBlock *pb, Slapi_Entry *e, LDAPMod **mods, 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	/* we don't perform acl check for internal operations  and if the plugin has set it not to be checked */
-	if (operation_is_flag_set(operation, SLAPI_OP_FLAG_NO_ACCESS_CHECK|OP_FLAG_INTERNAL|OP_FLAG_REPLICATED|OP_FLAG_LEGACY_REPLICATION_DN))
+	if (operation_is_flag_set(operation, SLAPI_OP_FLAG_NO_ACCESS_CHECK|OP_FLAG_INTERNAL|OP_FLAG_REPLICATED))
 		return LDAP_SUCCESS;
 	
 	/* call the global plugins first and then the backend specific */
@@ -179,7 +179,7 @@ plugin_call_acl_verify_syntax ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	/* we don't perform acl check for internal operations  and if the plugin has set it not to be checked */
-	if (operation_is_flag_set(operation, SLAPI_OP_FLAG_NO_ACCESS_CHECK|OP_FLAG_INTERNAL|OP_FLAG_REPLICATED|OP_FLAG_LEGACY_REPLICATION_DN))
+	if (operation_is_flag_set(operation, SLAPI_OP_FLAG_NO_ACCESS_CHECK|OP_FLAG_INTERNAL|OP_FLAG_REPLICATED))
 		return LDAP_SUCCESS;
 
 	/* call the global plugins first and then the backend specific */

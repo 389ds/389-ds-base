@@ -16,7 +16,7 @@
  */
 
 
-#include "repl.h"
+#include "repl5.h"
 
 /* structure with information for each extension */
 typedef struct repl_ext

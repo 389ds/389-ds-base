@@ -403,18 +403,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							"supplier.");
 						return_value = ACQUIRE_REPLICA_BUSY;
 						break;
-					case NSDS50_REPL_LEGACY_CONSUMER:
-						/* remote replica is a legacy consumer */
-						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-							"acquire_replica - "
-							"%s: Unable to acquire replica: the replica "
-							"is supplied by a legacy supplier. "
-							"Replication is aborting.\n", agmt_get_long_name(prp->agmt));
-						agmt_set_last_update_status(prp->agmt, 0, extop_result,
-							"Unable to acquire replica: the replica is supplied "
-							"by a legacy supplier.  Replication is aborting.");
-						return_value = ACQUIRE_FATAL_ERROR;
-						break;
 					case NSDS50_REPL_REPLICAID_ERROR:
 						/* remote replica detected a duplicate ReplicaID */
 						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
@@ -715,7 +703,6 @@ protocol_response2string (int response)
         case NSDS50_REPL_BELOW_PURGEPOINT:          return "csn below purge point";
         case NSDS50_REPL_INTERNAL_ERROR:            return "internal error";
         case NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED: return "replica released";
-        case NSDS50_REPL_LEGACY_CONSUMER:           return "replica is a legacy consumer";
         case NSDS50_REPL_REPLICAID_ERROR:           return "duplicate replica ID detected";
         case NSDS50_REPL_UPTODATE:                  return "no change to send";
         case NSDS50_REPL_CL_ERROR:                  return "changelog error";
