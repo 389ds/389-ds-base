@@ -315,7 +315,7 @@ eq_loop(void *arg __attribute__((unused)))
 		PRIntervalTime timeout;
 		int until;
 		PR_Lock(eq->eq_lock);
-		while (!(NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= curtime)) {
+       while (!((NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= curtime))) {
 			if (!eq_running) {
 				PR_Unlock(eq->eq_lock);
 				goto bye;
