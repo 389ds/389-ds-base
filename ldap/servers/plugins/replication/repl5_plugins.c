@@ -45,6 +45,7 @@
 #include "repl.h"
 #include "cl5_api.h"
 #include "urp.h"
+#include "csnpl.h"
 
 static char *local_purl = NULL;
 static char *purl_attrs[] = {"nsslapd-localhost", "nsslapd-port", "nsslapd-secureport", NULL};
