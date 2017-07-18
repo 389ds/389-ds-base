@@ -596,11 +596,11 @@ static void op_shared_add (Slapi_PBlock *pb)
 
 #if defined(THISISTEST)
 		{
-			/* test code to retrieve an unhashed pw from the entry extention &
+			/* test code to retrieve an unhashed pw from the entry extension &
 			 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD attribute */
 			char *test_str = slapi_get_first_clear_text_pw(e);
 			if (test_str) {
-				slapi_log_err(SLAPI_LOG_ERR,
+				slapi_log_err(SLAPI_LOG_ERR, "op_shared_add",
 				              "Value from extension: %s\n", test_str);
 				slapi_ch_free_string(&test_str);
 			}
@@ -608,7 +608,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			test_str = slapi_entry_attr_get_charptr(e,
 			                                  PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
 			if (test_str) {
-				slapi_log_err(SLAPI_LOG_ERR,
+				slapi_log_err(SLAPI_LOG_ERR, "op_shared_add",
 				              "Value from attr: %s\n", test_str);
 				slapi_ch_free_string(&test_str);
 			}
