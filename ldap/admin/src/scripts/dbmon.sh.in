@@ -43,6 +43,7 @@ parseldif() {
             fn="entcur entmax entcnt dncur dnmax dncnt"
             split(fn, fields)
             havednstats=0
+            havendnstats=0
             maxdbnamelen=0
         }
         /^[^ ]|^$/ {origline = $0; $0 = unwrapline; unwrapline = origline}
@@ -66,9 +67,16 @@ parseldif() {
         /^currententrycachesize/ { stats[dbname,"entcur"]=$2 }
         /^maxentrycachesize/ { stats[dbname,"entmax"]=$2 }
         /^currententrycachecount/ { stats[dbname,"entcnt"]=$2 }
+        /^entrycachehitratio/ { stats[dbname,"entratio"]=$2 }
         /^currentdncachesize/ { stats[dbname,"dncur"]=$2 ; havednstats=1 }
         /^maxdncachesize/ { stats[dbname,"dnmax"]=$2 }
         /^currentdncachecount/ { stats[dbname,"dncnt"]=$2 }
+        /^dncachehitratio/ { stats[dbname,"dnratio"]=$2 }
+        /^normalizeddncachehitratio/ { stats[dbname,"ndnratio"]=$2 }
+        /^currentnormalizeddncachesize/ { stats[dbname,"ndncursize"]=$2 ; havendnstats=1 }
+        /^maxnormalizeddncachesize/ { stats[dbname,"ndnmaxsize"]=$2 }
+        /^currentnormalizeddncachecount/ { stats[dbname,"ndncount"]=$2 }
+
         /^dbfilename-/ {
             #rhds
             #dbfilename-3: userRoot/id2entry.db4
@@ -126,43 +134,61 @@ parseldif() {
                     print "# free - number of free bytes in dn cache"
                     print "# free% - percent free in dn cache"
                     print "# size - average size of dn in dn cache in bytes (currentdncachesize/currentdncachecount)"
+                    print "# hit_ratio - cache hit ratio"
                     print "# under each db are the list of selected indexes specified with INDEXLIST"
                 }
             }
-            if (havednstats) { # make sure there is enough room for dbname:ent and dbname:dn
+            if (havednstats || havendnstats) { # make sure there is enough room for dbname:ent and dbname:dn
                 maxdbnamelen += 4 # :ent
                 dbentext = ":ent"
                 dbdnext = ":dn "
+                dbndnext = ":ndn"
             } else {
                 dbentext = ""
                 dbdnext = ""
             }
+
             if (maxdbnamelen < 6) { # len of "dbname"
                 maxdbnamelen = 6
             }
 
             if (verbose > 0) {
-                fmtstr = sprintf("%%%d.%ds %%10.10s %%13.13s %%6.6s %%7.7s\n", maxdbnamelen, maxdbnamelen)
-                printf fmtstr, "dbname", "count", "free", "free%", "size"
+                fmtstr = sprintf("%%%d.%ds %%10.10s %%13.13s %%6.6s %%7.7s %%10.9s\n", maxdbnamelen, maxdbnamelen)
+                printf fmtstr, "dbname", "count", "free", "free%", "size", "hit_ratio%"
             }
             for (dbn in dbnames) {
                 cur=stats[dbn,"entcur"]
                 max=stats[dbn,"entmax"]
                 cnt=stats[dbn,"entcnt"]
+                eratio=stats[dbname,"entratio"]
                 free=max-cur
                 freep=free/max*100
                 size=(cnt == 0) ? 0 : cur/cnt
-                fmtstr = sprintf("%%%d.%ds %%10d %%13d %%6.1f %%7.1f\n", maxdbnamelen, maxdbnamelen)
-                printf fmtstr, dbnames[dbn] dbentext, cnt, free, freep, size
+                fmtstr = sprintf("%%%d.%ds %%10d %%13d %%6.1f %%7.1f %%10.1f\n", maxdbnamelen, maxdbnamelen)
+                printf fmtstr, dbnames[dbn] dbentext, cnt, free, freep, size, eratio
                 if (havednstats) {
                     dcur=stats[dbn,"dncur"]
                     dmax=stats[dbn,"dnmax"]
                     dcnt=stats[dbn,"dncnt"]
+                    dratio=stats[dbn,"dnratio"]
                     dfree=dmax-dcur
                     dfreep=dfree/dmax*100
                     dsize=(dcnt == 0) ? 0 : dcur/dcnt
-                    printf fmtstr, dbnames[dbn] dbdnext, dcnt, dfree, dfreep, dsize
+                    printf fmtstr, dbnames[dbn] dbdnext, dcnt, dfree, dfreep, dsize, dratio
                 }
+
+                if (havendnstats) {
+                    # normalized dn cache
+                    nratio=stats[dbn,"ndnratio"]
+                    ncursize=stats[dbn,"ndncursize"]
+                    nmaxsize=stats[dbn,"ndnmaxsize"]
+                    ncount=stats[dbn,"ndncount"]
+                    nfree=nmaxsize-ncursize
+                    nfreep=nfree/nmaxsize*100
+                    nsize=(ncount == 0) ? 0 : ncursize/ncount
+                    printf fmtstr, dbnames[dbn] dbndnext, ncount, nfree, nfreep, nsize, nratio
+                }
+
                 if (indexlist) {
                     len = idxmaxlen[dbn]
                     fmtstr = sprintf("%%%d.%ds %%%d.%ds pagein %%8d pageout %%8d\n", maxdbnamelen, maxdbnamelen, len, len)
