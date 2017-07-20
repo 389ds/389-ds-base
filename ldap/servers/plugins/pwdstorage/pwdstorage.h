@@ -4,13 +4,13 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #pragma once
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <slapi-plugin.h>
@@ -21,15 +21,15 @@
 #include <ldif.h>
 #include "md5.h"
 
-#define PWD_HASH_PREFIX_START   '{'
-#define PWD_HASH_PREFIX_END '}'
+#define PWD_HASH_PREFIX_START '{'
+#define PWD_HASH_PREFIX_END   '}'
 
-#define MAX_SHA_HASH_SIZE  HASH_LENGTH_MAX
+#define MAX_SHA_HASH_SIZE HASH_LENGTH_MAX
 
-#define SHA1_SCHEME_NAME    "SHA"
-#define SHA1_NAME_LEN       3
-#define SALTED_SHA1_SCHEME_NAME "SSHA"
-#define SALTED_SHA1_NAME_LEN        4
+#define SHA1_SCHEME_NAME          "SHA"
+#define SHA1_NAME_LEN              3
+#define SALTED_SHA1_SCHEME_NAME   "SSHA"
+#define SALTED_SHA1_NAME_LEN      4
 #define SHA256_SCHEME_NAME        "SHA256"
 #define SHA256_NAME_LEN           6
 #define SALTED_SHA256_SCHEME_NAME "SSHA256"
@@ -42,55 +42,55 @@
 #define SHA512_NAME_LEN           6
 #define SALTED_SHA512_SCHEME_NAME "SSHA512"
 #define SALTED_SHA512_NAME_LEN    7
-#define CRYPT_SCHEME_NAME   "crypt"
-#define CRYPT_NAME_LEN      5
-#define NS_MTA_MD5_SCHEME_NAME  "NS-MTA-MD5"
-#define NS_MTA_MD5_NAME_LEN 10
-#define CLEARTEXT_SCHEME_NAME "clear"
-#define CLEARTEXT_NAME_LEN  5
-#define MD5_SCHEME_NAME "MD5"
-#define MD5_NAME_LEN 3
-#define SALTED_MD5_SCHEME_NAME "SMD5"
-#define SALTED_MD5_NAME_LEN 4
+#define CRYPT_SCHEME_NAME         "crypt"
+#define CRYPT_NAME_LEN            5
+#define NS_MTA_MD5_SCHEME_NAME    "NS-MTA-MD5"
+#define NS_MTA_MD5_NAME_LEN       10
+#define CLEARTEXT_SCHEME_NAME     "clear"
+#define CLEARTEXT_NAME_LEN        5
+#define MD5_SCHEME_NAME           "MD5"
+#define MD5_NAME_LEN              3
+#define SALTED_MD5_SCHEME_NAME    "SMD5"
+#define SALTED_MD5_NAME_LEN       4
 #define PBKDF2_SHA256_SCHEME_NAME "PBKDF2_SHA256"
-#define PBKDF2_SHA256_NAME_LEN 13
+#define PBKDF2_SHA256_NAME_LEN    13
 
 
 SECStatus sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID);
-int sha_pw_cmp( const char *userpwd, const char *dbpwd, unsigned int shaLen );
-char * sha_pw_enc( const char *pwd, unsigned int shaLen );
-char * salted_sha_pw_enc( const char *pwd, unsigned int shaLen );
-int sha1_pw_cmp( const char *userpwd, const char *dbpwd );
-char * sha1_pw_enc( const char *pwd );
-char * salted_sha1_pw_enc( const char *pwd );
-int sha256_pw_cmp( const char *userpwd, const char *dbpwd );
-char * sha256_pw_enc( const char *pwd );
-char * salted_sha256_pw_enc( const char *pwd );
-int sha384_pw_cmp( const char *userpwd, const char *dbpwd );
-char * sha384_pw_enc( const char *pwd );
-char * salted_sha384_pw_enc( const char *pwd );
-int sha512_pw_cmp( const char *userpwd, const char *dbpwd );
-char * sha512_pw_enc( const char *pwd );
-char * salted_sha512_pw_enc( const char *pwd );
-int clear_pw_cmp( const char *userpwd, const char *dbpwd );
-char *clear_pw_enc( const char *pwd );
+int sha_pw_cmp(const char *userpwd, const char *dbpwd, unsigned int shaLen);
+char *sha_pw_enc(const char *pwd, unsigned int shaLen);
+char *salted_sha_pw_enc(const char *pwd, unsigned int shaLen);
+int sha1_pw_cmp(const char *userpwd, const char *dbpwd);
+char *sha1_pw_enc(const char *pwd);
+char *salted_sha1_pw_enc(const char *pwd);
+int sha256_pw_cmp(const char *userpwd, const char *dbpwd);
+char *sha256_pw_enc(const char *pwd);
+char *salted_sha256_pw_enc(const char *pwd);
+int sha384_pw_cmp(const char *userpwd, const char *dbpwd);
+char *sha384_pw_enc(const char *pwd);
+char *salted_sha384_pw_enc(const char *pwd);
+int sha512_pw_cmp(const char *userpwd, const char *dbpwd);
+char *sha512_pw_enc(const char *pwd);
+char *salted_sha512_pw_enc(const char *pwd);
+int clear_pw_cmp(const char *userpwd, const char *dbpwd);
+char *clear_pw_enc(const char *pwd);
 int crypt_start(Slapi_PBlock *pb);
 int crypt_close(Slapi_PBlock *pb);
-int crypt_pw_cmp( const char *userpwd, const char *dbpwd );
-char *crypt_pw_enc( const char *pwd );
-char *crypt_pw_md5_enc( const char *pwd );
-char *crypt_pw_sha256_enc( const char *pwd );
-char *crypt_pw_sha512_enc( const char *pwd );
-int ns_mta_md5_pw_cmp( const char *userpwd, const char *dbpwd );
-int md5_pw_cmp( const char *userpwd, const char *dbpwd );
-char *md5_pw_enc( const char *pwd );
-int smd5_pw_cmp( const char *userpwd, const char *dbpwd );
-char *smd5_pw_enc( const char *pwd );
+int crypt_pw_cmp(const char *userpwd, const char *dbpwd);
+char *crypt_pw_enc(const char *pwd);
+char *crypt_pw_md5_enc(const char *pwd);
+char *crypt_pw_sha256_enc(const char *pwd);
+char *crypt_pw_sha512_enc(const char *pwd);
+int ns_mta_md5_pw_cmp(const char *userpwd, const char *dbpwd);
+int md5_pw_cmp(const char *userpwd, const char *dbpwd);
+char *md5_pw_enc(const char *pwd);
+int smd5_pw_cmp(const char *userpwd, const char *dbpwd);
+char *smd5_pw_enc(const char *pwd);
 
 int pbkdf2_sha256_start(Slapi_PBlock *pb);
 int pbkdf2_sha256_close(Slapi_PBlock *pb);
 SECStatus pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, PRUint32 iterations);
-char * pbkdf2_sha256_pw_enc(const char *pwd);
+char *pbkdf2_sha256_pw_enc(const char *pwd);
 int pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd);
 
 /* For testing pbkdf2 only */
@@ -99,4 +99,3 @@ PRUint32 pbkdf2_sha256_calculate_iterations();
 
 /* Utility functions */
 PRUint32 pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen);
-

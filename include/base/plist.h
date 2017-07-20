@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _PLIST_H
@@ -37,27 +37,31 @@
 /* Functions in plist.c */
 NSPR_BEGIN_EXTERN_C
 
-NSAPI_PUBLIC extern int PListAssignValue(PList_t plist, const char *pname,
-                            const void *pvalue, PList_t ptype);
+NSAPI_PUBLIC extern int PListAssignValue(PList_t plist, const char *pname, const void *pvalue, PList_t ptype);
 NSAPI_PUBLIC extern PList_t PListCreate(pool_handle_t *mempool,
-                           int resvprop, int maxprop, int flags);
-NSAPI_PUBLIC extern int PListDefProp(PList_t plist, int pindex, 
-                        const char *pname, const int flags);
-NSAPI_PUBLIC extern const void * PListDeleteProp(PList_t plist, int pindex, const char *pname);
+                                        int resvprop,
+                                        int maxprop,
+                                        int flags);
+NSAPI_PUBLIC extern int PListDefProp(PList_t plist, int pindex, const char *pname, const int flags);
+NSAPI_PUBLIC extern const void *PListDeleteProp(PList_t plist, int pindex, const char *pname);
 NSAPI_PUBLIC extern int PListFindValue(PList_t plist,
-                          const char *pname, void **pvalue, PList_t *type);
-NSAPI_PUBLIC extern int PListInitProp(PList_t plist, int pindex, const char *pname,
-                         const void *pvalue, PList_t ptype);
+                                       const char *pname,
+                                       void **pvalue,
+                                       PList_t *type);
+NSAPI_PUBLIC extern int PListInitProp(PList_t plist, int pindex, const char *pname, const void *pvalue, PList_t ptype);
 NSAPI_PUBLIC extern PList_t PListNew(pool_handle_t *mempool);
 NSAPI_PUBLIC extern void PListDestroy(PList_t plist);
 NSAPI_PUBLIC extern int PListGetValue(PList_t plist,
-                         int pindex, void **pvalue, PList_t *type);
+                                      int pindex,
+                                      void **pvalue,
+                                      PList_t *type);
 NSAPI_PUBLIC extern int PListNameProp(PList_t plist, int pindex, const char *pname);
 NSAPI_PUBLIC extern int PListSetType(PList_t plist, int pindex, PList_t type);
 NSAPI_PUBLIC extern int PListSetValue(PList_t plist,
-                         int pindex, const void *pvalue, PList_t type);
-NSAPI_PUBLIC extern void PListEnumerate(PList_t plist, PListFunc_t *user_func, 
-                           void *user_data);
+                                      int pindex,
+                                      const void *pvalue,
+                                      PList_t type);
+NSAPI_PUBLIC extern void PListEnumerate(PList_t plist, PListFunc_t *user_func, void *user_data);
 NSAPI_PUBLIC extern PList_t
 PListDuplicate(PList_t plist, pool_handle_t *new_mempool, int flags);
 NSAPI_PUBLIC extern pool_handle_t *PListGetPool(PList_t plist);

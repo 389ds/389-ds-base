@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* slapi_ch_malloc.c - malloc routines that test returns from malloc and friends */
@@ -21,21 +21,21 @@
 #include <sys/socket.h>
 #include "slap.h"
 
-#define OOM_PREALLOC_SIZE  65536
+#define OOM_PREALLOC_SIZE 65536
 static void *oom_emergency_area = NULL;
 static PRLock *oom_emergency_lock = NULL;
 
-#define SLAPD_MODULE    "memory allocator"
+#define SLAPD_MODULE "memory allocator"
 
-static const char* const oom_advice =
-  "\nThe server has probably allocated all available virtual memory. To solve\n"
-  "this problem, make more virtual memory available to your server, or reduce\n"
-  "one or more of the following server configuration settings:\n"
-  "  nsslapd-cachesize        (Database Settings - Maximum entries in cache)\n"
-  "  nsslapd-cachememsize     (Database Settings - Memory available for cache)\n"
-  "  nsslapd-dbcachesize      (LDBM Plug-in Settings - Maximum cache size)\n"
-  "  nsslapd-import-cachesize (LDBM Plug-in Settings - Import cache size).\n"
-  "Can't recover; calling exit(1).\n";
+static const char *const oom_advice =
+    "\nThe server has probably allocated all available virtual memory. To solve\n"
+    "this problem, make more virtual memory available to your server, or reduce\n"
+    "one or more of the following server configuration settings:\n"
+    "  nsslapd-cachesize        (Database Settings - Maximum entries in cache)\n"
+    "  nsslapd-cachememsize     (Database Settings - Memory available for cache)\n"
+    "  nsslapd-dbcachesize      (LDBM Plug-in Settings - Maximum cache size)\n"
+    "  nsslapd-import-cachesize (LDBM Plug-in Settings - Import cache size).\n"
+    "Can't recover; calling exit(1).\n";
 
 static void
 create_oom_buffer(void)
@@ -54,9 +54,10 @@ create_oom_buffer(void)
  * indirectly.  By making 64KB free, we should be able to have a few
  * mallocs' succeed before we shut down.
  */
-void oom_occurred(void)
+void
+oom_occurred(void)
 {
-    int tmp_errno = errno;  /* callers will need the error from malloc */
+    int tmp_errno = errno; /* callers will need the error from malloc */
     if (oom_emergency_lock == NULL) {
         return;
     }
@@ -71,189 +72,187 @@ void oom_occurred(void)
 }
 
 static void
-log_negative_alloc_msg( const char *op, const char *units, unsigned long size )
+log_negative_alloc_msg(const char *op, const char *units, unsigned long size)
 {
-	slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-		"cannot %s %lu %s;\n"
-		"trying to allocate 0 or a negative number of %s is not portable and\n"
-		"gives different results on different platforms.\n",
-		op, size, units, units );
+    slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                  "cannot %s %lu %s;\n"
+                  "trying to allocate 0 or a negative number of %s is not portable and\n"
+                  "gives different results on different platforms.\n",
+                  op, size, units, units);
 }
 
 char *
 slapi_ch_malloc(
-    unsigned long   size
-)
+    unsigned long size)
 {
-	char	*newmem;
+    char *newmem;
 
-	if (size <= 0) {
-		log_negative_alloc_msg( "malloc", "bytes", size );
-		return 0;
-	}
+    if (size <= 0) {
+        log_negative_alloc_msg("malloc", "bytes", size);
+        return 0;
+    }
 
-	if ( (newmem = (char *) malloc( size )) == NULL ) {
-		int	oserr = errno;
+    if ((newmem = (char *)malloc(size)) == NULL) {
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "malloc of %lu bytes failed; OS error %d (%s)%s\n",
-			size, oserr, slapd_system_strerror( oserr ), oom_advice );
-		exit( 1 );
-	}
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+                      size, oserr, slapd_system_strerror(oserr), oom_advice);
+        exit(1);
+    }
     /* So long as this happens once, we are happy, put it in ch_malloc. */
     create_oom_buffer();
 
-    return( newmem );
+    return (newmem);
 }
 
 /* See slapi-plugin.h */
 char *
 slapi_ch_memalign(size_t size, size_t alignment)
 {
-    char    *newmem;
+    char *newmem;
 
     if (size <= 0) {
-        log_negative_alloc_msg( "memalign", "bytes", size );
+        log_negative_alloc_msg("memalign", "bytes", size);
         return 0;
     }
 
-    if ( posix_memalign((void **)&newmem, alignment, size) != 0 ) {
+    if (posix_memalign((void **)&newmem, alignment, size) != 0) {
         int oserr = errno;
 
         oom_occurred();
         slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-            "malloc of %lu bytes failed; OS error %d (%s)%s\n",
-            size, oserr, slapd_system_strerror( oserr ), oom_advice );
-        exit( 1 );
+                      "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+                      size, oserr, slapd_system_strerror(oserr), oom_advice);
+        exit(1);
     }
 
-    return( newmem );
+    return (newmem);
 }
 
 char *
 slapi_ch_realloc(
-    char        *block,
-    unsigned long   size
-)
+    char *block,
+    unsigned long size)
 {
-	char	*newmem;
+    char *newmem;
 
-	if ( block == NULL ) {
-		return( slapi_ch_malloc( size ) );
-	}
+    if (block == NULL) {
+        return (slapi_ch_malloc(size));
+    }
 
-	if (size <= 0) {
-		log_negative_alloc_msg( "realloc", "bytes", size );
-		return block;
-	}
+    if (size <= 0) {
+        log_negative_alloc_msg("realloc", "bytes", size);
+        return block;
+    }
 
-	if ( (newmem = (char *) realloc( block, size )) == NULL ) {
-		int	oserr = errno;
+    if ((newmem = (char *)realloc(block, size)) == NULL) {
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "realloc of %lu bytes failed; OS error %d (%s)%s\n",
-			size, oserr, slapd_system_strerror( oserr ), oom_advice );
-		exit( 1 );
-	}
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "realloc of %lu bytes failed; OS error %d (%s)%s\n",
+                      size, oserr, slapd_system_strerror(oserr), oom_advice);
+        exit(1);
+    }
 
-    return( newmem );
+    return (newmem);
 }
 
 char *
 slapi_ch_calloc(
-    unsigned long   nelem,
-    unsigned long   size
-)
+    unsigned long nelem,
+    unsigned long size)
 {
-	char	*newmem;
+    char *newmem;
 
-	if (size <= 0) {
-		log_negative_alloc_msg( "calloc", "bytes", size );
-		return 0;
-	}
+    if (size <= 0) {
+        log_negative_alloc_msg("calloc", "bytes", size);
+        return 0;
+    }
 
-	if (nelem <= 0) {
-		log_negative_alloc_msg( "calloc", "elements", nelem );
-		return 0;
-	}
+    if (nelem <= 0) {
+        log_negative_alloc_msg("calloc", "elements", nelem);
+        return 0;
+    }
 
-	if ( (newmem = (char *) calloc( nelem, size )) == NULL ) {
-		int	oserr = errno;
+    if ((newmem = (char *)calloc(nelem, size)) == NULL) {
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
-			nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
-		exit( 1 );
-	}
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
+                      nelem, size, oserr, slapd_system_strerror(oserr), oom_advice);
+        exit(1);
+    }
 
-    return( newmem );
+    return (newmem);
 }
 
-char*
-slapi_ch_strdup ( const char* s1)
+char *
+slapi_ch_strdup(const char *s1)
 {
-    char* newmem;
-    
+    char *newmem;
+
     /* strdup pukes on NULL strings...bail out now */
-    if(NULL == s1)
+    if (NULL == s1)
         return NULL;
-    newmem = strdup (s1);
+    newmem = strdup(s1);
     if (newmem == NULL) {
         int oserr = errno;
         oom_occurred();
-		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "strdup of %lu characters failed; OS error %d (%s)%s\n",
-			(unsigned long)strlen(s1), oserr, slapd_system_strerror( oserr ),
-			oom_advice );
-		exit (1);
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "strdup of %lu characters failed; OS error %d (%s)%s\n",
+                      (unsigned long)strlen(s1), oserr, slapd_system_strerror(oserr),
+                      oom_advice);
+        exit(1);
     }
 
     return newmem;
 }
 
-struct berval*
-slapi_ch_bvdup (const struct berval* v)
+struct berval *
+slapi_ch_bvdup(const struct berval *v)
 {
-    struct berval* newberval = ber_bvdup ((struct berval *)v);
+    struct berval *newberval = ber_bvdup((struct berval *)v);
     if (newberval == NULL) {
-		int	oserr = errno;
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
-			(unsigned long)v->bv_len, oserr, slapd_system_strerror( oserr ),
-			oom_advice );
-		exit( 1 );
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
+                      (unsigned long)v->bv_len, oserr, slapd_system_strerror(oserr),
+                      oom_advice);
+        exit(1);
     }
     return newberval;
 }
 
-struct berval**
-slapi_ch_bvecdup (struct berval** v)
+struct berval **
+slapi_ch_bvecdup(struct berval **v)
 {
-    struct berval** newberval = NULL;
+    struct berval **newberval = NULL;
     if (v != NULL) {
         size_t i = 0;
-        while (v[i] != NULL) ++i;
-        newberval = (struct berval**) slapi_ch_malloc ((i + 1) * sizeof (struct berval*));
+        while (v[i] != NULL)
+            ++i;
+        newberval = (struct berval **)slapi_ch_malloc((i + 1) * sizeof(struct berval *));
         newberval[i] = NULL;
         while (i-- > 0) {
-            newberval[i] = slapi_ch_bvdup (v[i]);
+            newberval[i] = slapi_ch_bvdup(v[i]);
         }
     }
     return newberval;
 }
 
 /*
- *  Function: slapi_ch_free 
+ *  Function: slapi_ch_free
  *
- *  Returns: nothing 
+ *  Returns: nothing
  *
- *  Description: frees the pointer, and then sets it to NULL to 
- *               prevent free-memory writes. 
+ *  Description: frees the pointer, and then sets it to NULL to
+ *               prevent free-memory writes.
  *               Note: pass in the address of the pointer you want to free.
  *               Note: you can pass in null pointers, it's cool.
  */
@@ -264,11 +263,11 @@ slapi_ch_free(void **ptr)
      * If ptr is NULL, no operation is performed. We only need to check ptr
      * has a value so that *ptr won't SIGSEGV
      */
-    if ( ptr==NULL ){
+    if (ptr == NULL) {
         return;
     }
 
-    free (*ptr);
+    free(*ptr);
     *ptr = NULL;
     return;
 }
@@ -276,7 +275,7 @@ slapi_ch_free(void **ptr)
 
 /* just like slapi_ch_free, takes the address of the struct berval pointer */
 void
-slapi_ch_bvfree(struct berval** v)
+slapi_ch_bvfree(struct berval **v)
 {
     if (v == NULL || *v == NULL)
         return;
@@ -310,7 +309,7 @@ slapi_ch_free_string(char **s)
   because it is likely faster.
 */
 /*
-  This implementation is the same as PR_smprintf.  
+  This implementation is the same as PR_smprintf.
   The above comment does not apply to this function for now.
   see [150809] for more details.
   WARNING - with this fix, this means we are now mixing PR_Malloc with
@@ -338,7 +337,7 @@ slapi_ch_smprintf(const char *fmt, ...)
 /* Constant time memcmp. Does not shortcircuit on failure! */
 /* This relies on p1 and p2 both being size at least n! */
 int
-slapi_ct_memcmp( const void *p1, const void *p2, size_t n)
+slapi_ct_memcmp(const void *p1, const void *p2, size_t n)
 {
     int result = 0;
     const unsigned char *_p1 = (const unsigned char *)p1;
@@ -355,4 +354,3 @@ slapi_ct_memcmp( const void *p1, const void *p2, size_t n)
     }
     return result;
 }
-

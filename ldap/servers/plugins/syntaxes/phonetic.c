@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* phonetic.c - routines to do phonetic matching */
@@ -24,163 +24,164 @@
 #define METAPHONE
 #endif
 
-#define iswordbreak(s) \
-(isascii(*(s)) \
-? (isspace(*(s)) || \
-   ispunct(*(s)) || \
-   isdigit(*(s)) || \
-   *(s) == '\0') \
-: utf8iswordbreak(s))
+#define iswordbreak(s)       \
+    (isascii(*(s))           \
+         ? (isspace(*(s)) || \
+            ispunct(*(s)) || \
+            isdigit(*(s)) || \
+            *(s) == '\0')    \
+         : utf8iswordbreak(s))
 
 static int
-utf8iswordbreak( const char* s )
+utf8iswordbreak(const char *s)
 {
-    switch( LDAP_UTF8GETCC( s )) {
-      case 0x00A0: /* non-breaking space */
-      case 0x3000: /* ideographic space */
-      case 0xFEFF: /* zero-width non-breaking space */
+    switch (LDAP_UTF8GETCC(s)) {
+    case 0x00A0: /* non-breaking space */
+    case 0x3000: /* ideographic space */
+    case 0xFEFF: /* zero-width non-breaking space */
         return 1;
-      default: break;
+    default:
+        break;
     }
     return 0;
 }
 
 char *
-first_word( char *s )
+first_word(char *s)
 {
-        if ( s == NULL ) {
-                return( NULL );
-        }
+    if (s == NULL) {
+        return (NULL);
+    }
 
-        while ( iswordbreak( s ) ) {
-                if ( *s == '\0' ) {
-                        return( NULL );
-                } else {
-                        LDAP_UTF8INC( s );
-                }
+    while (iswordbreak(s)) {
+        if (*s == '\0') {
+            return (NULL);
+        } else {
+            LDAP_UTF8INC(s);
         }
+    }
 
-        return( s );
+    return (s);
 }
 
 char *
-next_word( char *s )
+next_word(char *s)
 {
-        if ( s == NULL ) {
-                return( NULL );
-        }
+    if (s == NULL) {
+        return (NULL);
+    }
 
-        while ( ! iswordbreak( s ) ) {
-                LDAP_UTF8INC( s );
-        }
+    while (!iswordbreak(s)) {
+        LDAP_UTF8INC(s);
+    }
 
-        while ( iswordbreak( s ) ) {
-                if ( *s == '\0' ) {
-                        return( NULL );
-                } else {
-                        LDAP_UTF8INC( s );
-                }
+    while (iswordbreak(s)) {
+        if (*s == '\0') {
+            return (NULL);
+        } else {
+            LDAP_UTF8INC(s);
         }
+    }
 
-        return( s );
+    return (s);
 }
 
 char *
-word_dup( char *w )
+word_dup(char *w)
 {
-        char        *s, *ret;
-        char        save;
+    char *s, *ret;
+    char save;
 
-        for ( s = w; !iswordbreak( s ); LDAP_UTF8INC( s ))
-                ;        /* NULL */
-        save = *s;
-        *s = '\0';
-        ret = slapi_ch_strdup( w );
-        *s = save;
+    for (s = w; !iswordbreak(s); LDAP_UTF8INC(s))
+        ; /* NULL */
+    save = *s;
+    *s = '\0';
+    ret = slapi_ch_strdup(w);
+    *s = save;
 
-        return( ret );
+    return (ret);
 }
 
 #ifndef MAXPHONEMELEN
-#define MAXPHONEMELEN        6
+#define MAXPHONEMELEN 6
 #endif
 
 #if defined(SOUNDEX)
 
 /* lifted from isode-8.0 */
 char *
-phonetic( char *s )
+phonetic(char *s)
 {
-        char        code, adjacent, ch;
-        char        *p;
-        char        **c;
-        int        i, cmax;
-        char        phoneme[MAXPHONEMELEN + 1];
+    char code, adjacent, ch;
+    char *p;
+    char **c;
+    int i, cmax;
+    char phoneme[MAXPHONEMELEN + 1];
 
-        p = s;
-        if (  p == NULL || *p == '\0' ) {
-                return( NULL );
+    p = s;
+    if (p == NULL || *p == '\0') {
+        return (NULL);
+    }
+
+    adjacent = '0';
+    phoneme[0] = TOUPPER(*p);
+
+    phoneme[1] = '\0';
+    for (i = 0; i < 99 && (!iswordbreak(p)); LDAP_UTF8INC(p)) {
+        ch = TOUPPER(*p);
+
+        code = '0';
+
+        switch (ch) {
+        case 'B':
+        case 'F':
+        case 'P':
+        case 'V':
+            code = (adjacent != '1') ? '1' : '0';
+            break;
+        case 'S':
+        case 'C':
+        case 'G':
+        case 'J':
+        case 'K':
+        case 'Q':
+        case 'X':
+        case 'Z':
+            code = (adjacent != '2') ? '2' : '0';
+            break;
+        case 'D':
+        case 'T':
+            code = (adjacent != '3') ? '3' : '0';
+            break;
+        case 'L':
+            code = (adjacent != '4') ? '4' : '0';
+            break;
+        case 'M':
+        case 'N':
+            code = (adjacent != '5') ? '5' : '0';
+            break;
+        case 'R':
+            code = (adjacent != '6') ? '6' : '0';
+            break;
+        default:
+            adjacent = '0';
         }
 
-        adjacent = '0';
-        phoneme[0] = TOUPPER(*p);
-
-        phoneme[1]  = '\0';
-        for ( i = 0; i < 99 && (! iswordbreak(p)); LDAP_UTF8INC( p )) {
-                ch = TOUPPER (*p);
-
-                code = '0';
-
-                switch (ch) {
-                case 'B':
-                case 'F':
-                case 'P':
-                case 'V':
-                        code = (adjacent != '1') ? '1' : '0';
-                        break;
-                case 'S':
-                case 'C':
-                case 'G':
-                case 'J':
-                case 'K':
-                case 'Q':
-                case 'X':
-                case 'Z':
-                        code = (adjacent != '2') ? '2' : '0';
-                        break;
-                case 'D':
-                case 'T':
-                        code = (adjacent != '3') ? '3' : '0';
-                        break;
-                case 'L':
-                        code = (adjacent != '4') ? '4' : '0';
-                        break;
-                case 'M':
-                case 'N':
-                        code = (adjacent != '5') ? '5' : '0';
-                        break;
-                case 'R':
-                        code = (adjacent != '6') ? '6' : '0';
-                        break;
-                default:
-                        adjacent = '0';
-                }
-
-                if ( i == 0 ) {
-                        adjacent = code;
-                        i++;
-                } else if ( code != '0' ) {
-                        if ( i == MAXPHONEMELEN )
-                                break;
-                        adjacent = phoneme[i] = code;
-                        i++;
-                }
+        if (i == 0) {
+            adjacent = code;
+            i++;
+        } else if (code != '0') {
+            if (i == MAXPHONEMELEN)
+                break;
+            adjacent = phoneme[i] = code;
+            i++;
         }
+    }
 
-        if ( i > 0 )
-                phoneme[i] = '\0';
+    if (i > 0)
+        phoneme[i] = '\0';
 
-        return( slapi_ch_strdup( phoneme ) );
+    return (slapi_ch_strdup(phoneme));
 }
 
 #else
@@ -194,45 +195,48 @@ phonetic( char *s )
  */
 
 /* Character coding array */
-static char     vsvfn[26] = {
-           1, 16, 4, 16, 9, 2, 4, 16, 9, 2, 0, 2, 2,
-        /* A   B  C   D  E  F  G   H  I  J  K  L  M  */
-           2, 1, 4, 0, 2, 4, 4, 1, 0, 0, 0, 8, 0};
-        /* N  O  P  Q  R  S  T  U  V  W  X  Y  Z  */
+static char vsvfn[26] = {
+    1, 16, 4, 16, 9, 2, 4, 16, 9, 2, 0, 2, 2,
+    /* A   B  C   D  E  F  G   H  I  J  K  L  M  */
+    2, 1, 4, 0, 2, 4, 4, 1, 0, 0, 0, 8, 0};
+/* N  O  P  Q  R  S  T  U  V  W  X  Y  Z  */
 
 /* Macros to access character coding array */
-#define vowel(x)     ((*(x) != '\0' && vsvfn[(*(x)) - 'A'] & 1) || /* AEIOU */ \
-   (((*(x)==0xC3) && (*((x)+1))) ?       ((0x80<=*((x)+1) && *((x)+1)<0x87) || \
-     (0x88<=*((x)+1) && *((x)+1)<0x90) || (0x92<=*((x)+1) && *((x)+1)<0x97) || \
-     (0x98<=*((x)+1) && *((x)+1)<0x9D) || (0xA0<=*((x)+1) && *((x)+1)<0xA7) || \
-     (0xA8<=*((x)+1) && *((x)+1)<0xB0) || (0xB2<=*((x)+1) && *((x)+1)<0xB7) || \
-     (0xB8<=*((x)+1) && *((x)+1)<0xBD)) : 0 ) /* Latin-1 characters */ )
+#define vowel(x) ((*(x) != '\0' && vsvfn[(*(x)) - 'A'] & 1) || /* AEIOU */                                                                       \
+                  (((*(x) == 0xC3) && (*((x) + 1))) ? ((0x80 <= *((x) + 1) && *((x) + 1) < 0x87) ||                                              \
+                                                       (0x88 <= *((x) + 1) && *((x) + 1) < 0x90) || (0x92 <= *((x) + 1) && *((x) + 1) < 0x97) || \
+                                                       (0x98 <= *((x) + 1) && *((x) + 1) < 0x9D) || (0xA0 <= *((x) + 1) && *((x) + 1) < 0xA7) || \
+                                                       (0xA8 <= *((x) + 1) && *((x) + 1) < 0xB0) || (0xB2 <= *((x) + 1) && *((x) + 1) < 0xB7) || \
+                                                       (0xB8 <= *((x) + 1) && *((x) + 1) < 0xBD))                                                \
+                                                    : 0) /* Latin-1 characters */)
 /*
     case 0xC3:
 */
-#define same(x)         ((x) != '\0' && vsvfn[(x) - 'A'] & 2)        /* FJLMNR */
-#define varson(x)       ((x) != '\0' && vsvfn[(x) - 'A'] & 4)        /* CGPST */
-#define frontv(x)   ((*(x) != '\0' && vsvfn[(*(x)) - 'A'] & 8) ||    /* EIY */ \
-   (((*(x)==0xC3) && (*((x)+1))) ?       ((0x88<=*((x)+1) && *((x)+1)<0x90) || \
-     (0xA8<=*((x)+1) && *((x)+1)<0xB0)) : 0 ) /* Latin-1 E/I */ )
-#define noghf(x)        ((x) != '\0' && vsvfn[(x) - 'A'] & 16)        /* BDH */
+#define same(x) ((x) != '\0' && vsvfn[(x) - 'A'] & 2)           /* FJLMNR */
+#define varson(x) ((x) != '\0' && vsvfn[(x) - 'A'] & 4)         /* CGPST */
+#define frontv(x) ((*(x) != '\0' && vsvfn[(*(x)) - 'A'] & 8) || /* EIY */                            \
+                   (((*(x) == 0xC3) && (*((x) + 1))) ? ((0x88 <= *((x) + 1) && *((x) + 1) < 0x90) || \
+                                                        (0xA8 <= *((x) + 1) && *((x) + 1) < 0xB0))   \
+                                                     : 0) /* Latin-1 E/I */)
+#define noghf(x) ((x) != '\0' && vsvfn[(x) - 'A'] & 16) /* BDH */
 
 char *
-phonetic( char *Word )
+phonetic(char *Word)
 {
-    unsigned char   *n_start, *n, *n_end;        /* pointers to string */
-    char            *metaph_end;        /* pointers to metaph */
-    unsigned char   ntrans[42];        /* word with uppercase letters */
-    int             KSflag;        /* state flag for X -> KS */
-    char                buf[MAXPHONEMELEN + 2];
-    char                *Metaph;
+    unsigned char *n_start, *n, *n_end; /* pointers to string */
+    char *metaph_end;                   /* pointers to metaph */
+    unsigned char ntrans[42];           /* word with uppercase letters */
+    int KSflag;                         /* state flag for X -> KS */
+    char buf[MAXPHONEMELEN + 2];
+    char *Metaph;
 
     /*
      * Copy Word to internal buffer, dropping non-alphabetic characters
      * and converting to upper case
      */
-    n = ntrans + 4; n_end = ntrans + 35;
-    while (!iswordbreak( Word ) && n < n_end) {
+    n = ntrans + 4;
+    n_end = ntrans + 35;
+    while (!iswordbreak(Word) && n < n_end) {
         if (isascii(*Word)) {
             if (isalpha(*Word)) {
                 *n++ = TOUPPER(*Word);
@@ -240,15 +244,16 @@ phonetic( char *Word )
             ++Word;
         } else {
             auto const size_t len = LDAP_UTF8COPY((char *)n, Word);
-            n += len; Word += len;
+            n += len;
+            Word += len;
         }
     }
     Metaph = buf;
     *Metaph = '\0';
     if (n == ntrans + 4) {
-            return( slapi_ch_strdup( buf ) );                /* Return if null */
+        return (slapi_ch_strdup(buf)); /* Return if null */
     }
-    n_end = n;                /* Set n_end to end of string */
+    n_end = n; /* Set n_end to end of string */
 
     /* ntrans[0] will always be == 0 */
     ntrans[0] = '\0';
@@ -258,8 +263,8 @@ phonetic( char *Word )
     *n++ = 0;
     *n++ = 0;
     *n++ = 0;
-    *n = 0;                        /* Pad with nulls */
-    n = ntrans + 4;                /* Assign pointer to start */
+    *n = 0;         /* Pad with nulls */
+    n = ntrans + 4; /* Assign pointer to start */
 
     /* Check for PN, KN, GN, AE, WR, WH, and X at start */
     switch (*n) {
@@ -288,7 +293,7 @@ phonetic( char *Word )
         *n = 'S';
         break;
     case 0xC3:
-        switch (*(n+1)) {
+        switch (*(n + 1)) {
         case 0x80:
         case 0x81:
         case 0x82:
@@ -317,7 +322,7 @@ phonetic( char *Word )
             *n++ = 0;
             *n = 'I';
             break;
-        case 0x90:    /* eth: TH */
+        case 0x90: /* eth: TH */
             *n++ = 0;
             *n = '0';
             break;
@@ -347,7 +352,7 @@ phonetic( char *Word )
             break;
         case 0x9E:
             *n++ = 0;
-            *n = '0';    /* thorn: TH */
+            *n = '0'; /* thorn: TH */
             break;
         case 0x9F:
             *n++ = 0;
@@ -386,7 +391,7 @@ phonetic( char *Word )
             break;
         case 0xB0:
             *n++ = 0;
-            *n = '0';    /* eth: th */
+            *n = '0'; /* eth: th */
             break;
         case 0xB1:
             *n++ = 0;
@@ -415,7 +420,7 @@ phonetic( char *Word )
             break;
         case 0xBE:
             *n++ = 0;
-            *n = '0';    /* thorn: th */
+            *n = '0'; /* thorn: th */
             break;
         }
         break;
@@ -426,7 +431,7 @@ phonetic( char *Word )
      * the computed 'metaph' is MAXPHONEMELEN characters long
      */
 
-    KSflag = 0;                /* state flag for KS translation */
+    KSflag = 0; /* state flag for KS translation */
     for (metaph_end = Metaph + MAXPHONEMELEN, n_start = n;
          n <= n_end && Metaph < metaph_end; n++) {
         if (KSflag) {
@@ -435,17 +440,17 @@ phonetic( char *Word )
         } else if (!isascii(*n)) {
             switch (*n) {
             case 0xC3:
-                if (n+1 <= n_end) {
+                if (n + 1 <= n_end) {
                     switch (*(++n)) {
-                    case 0x87:    /* C with cedilla */
-                    case 0x9F:    /* ess-zed */
-                    case 0xA7:    /* c with cedilla */
+                    case 0x87: /* C with cedilla */
+                    case 0x9F: /* ess-zed */
+                    case 0xA7: /* c with cedilla */
                         *Metaph++ = 'S';
                         break;
-                    case 0x90:    /* eth: TH */
-                    case 0x9E:    /* thorn: TH */
-                    case 0xB0:    /* eth: th */
-                    case 0xBE:    /* thorn: th */
+                    case 0x90: /* eth: TH */
+                    case 0x9E: /* thorn: TH */
+                    case 0xB0: /* eth: th */
+                    case 0xBE: /* thorn: th */
                         *Metaph++ = '0';
                         break;
                     case 0x91:
@@ -457,7 +462,7 @@ phonetic( char *Word )
                     case 0xBF:
                         *Metaph++ = 'Y';
                         break;
-                    default:      /* skipping the rest */
+                    default: /* skipping the rest */
                         break;
                     }
                 }
@@ -496,9 +501,9 @@ phonetic( char *Word )
                         } else if (frontv((n + 1))) {
                             *Metaph++ = 'S';
                         } else if (*(n + 1) == 'H') {
-                            *Metaph++ = ((n == n_start && !vowel((n + 2)))
-                             || *(n - 1) == 'S')
-                                ? (char) 'K' : (char) 'X';
+                            *Metaph++ = ((n == n_start && !vowel((n + 2))) || *(n - 1) == 'S')
+                                            ? (char)'K'
+                                            : (char)'X';
                         } else {
                             *Metaph++ = 'K';
                         }
@@ -510,7 +515,8 @@ phonetic( char *Word )
                      * J if in DGE or DGI or DGY else T
                      */
                     *Metaph++ = (*(n + 1) == 'G' && frontv((n + 2)))
-                        ? (char) 'J' : (char) 'T';
+                                    ? (char)'J'
+                                    : (char)'T';
                     break;
                 case 'G':
 
@@ -523,12 +529,14 @@ phonetic( char *Word )
                      */
                     if ((*(n + 1) != 'J' || vowel((n + 2))) &&
                         (*(n + 1) != 'N' || ((n + 1) < n_end &&
-                                 (*(n + 2) != 'E' || *(n + 3) != 'D'))) &&
+                                             (*(n + 2) != 'E' || *(n + 3) != 'D'))) &&
                         (*(n - 1) != 'D' || !frontv((n + 1))))
                         *Metaph++ = (frontv((n + 1)) &&
-                                 *(n + 2) != 'G') ? (char) 'G' : (char) 'K';
+                                     *(n + 2) != 'G')
+                                        ? (char)'G'
+                                        : (char)'K';
                     else if (*(n + 1) == 'H' && !noghf(*(n - 3)) &&
-                         *(n - 4) != 'H')
+                             *(n - 4) != 'H')
                         *Metaph++ = 'F';
                     break;
                 case 'H':
@@ -538,7 +546,7 @@ phonetic( char *Word )
                      * C, G, P, S, T else dropped
                      */
                     if (!varson(*(n - 1)) && (!vowel((n - 1)) ||
-                               vowel((n + 1))))
+                                              vowel((n + 1))))
                         *Metaph++ = 'H';
                     break;
                 case 'K':
@@ -554,8 +562,7 @@ phonetic( char *Word )
                     /*
                      * F if before H, else P
                      */
-                    *Metaph++ = *(n + 1) == 'H' ?
-                        (char) 'F' : (char) 'P';
+                    *Metaph++ = *(n + 1) == 'H' ? (char)'F' : (char)'P';
                     break;
                 case 'Q':
 
@@ -570,9 +577,10 @@ phonetic( char *Word )
                      * X in -SH-, -SIO- or -SIA- else S
                      */
                     *Metaph++ = (*(n + 1) == 'H' ||
-                             (*(n + 1) == 'I' && (*(n + 2) == 'O' ||
-                              *(n + 2) == 'A')))
-                        ? (char) 'X' : (char) 'S';
+                                 (*(n + 1) == 'I' && (*(n + 2) == 'O' ||
+                                                      *(n + 2) == 'A')))
+                                    ? (char)'X'
+                                    : (char)'S';
                     break;
                 case 'T':
 
@@ -582,7 +590,7 @@ phonetic( char *Word )
                      * else T
                      */
                     if (*(n + 1) == 'I' && (*(n + 2) == 'O' ||
-                               *(n + 2) == 'A'))
+                                            *(n + 2) == 'A'))
                         *Metaph++ = 'X';
                     else if (*(n + 1) == 'H')
                         *Metaph++ = '0';
@@ -598,7 +606,7 @@ phonetic( char *Word )
                     break;
                 case 'W':
 
-                    /*
+                /*
                      * W after a vowel, else dropped
                      */
                 case 'Y':
@@ -617,7 +625,7 @@ phonetic( char *Word )
                     if (n == n_start)
                         *Metaph++ = 'S';
                     else {
-                        *Metaph++ = 'K';    /* Insert K, then S */
+                        *Metaph++ = 'K'; /* Insert K, then S */
                         KSflag = 1;
                     }
                     break;
@@ -633,8 +641,8 @@ phonetic( char *Word )
         }
     }
 
-    *Metaph = 0;                /* Null terminate */
-    return( slapi_ch_strdup( buf ) );
+    *Metaph = 0; /* Null terminate */
+    return (slapi_ch_strdup(buf));
 }
 
 #endif /* METAPHONE */

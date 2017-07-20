@@ -12,7 +12,8 @@
 /* Node checksumming functions. */
 #ifdef SDS_DEBUG
 sds_result
-sds_bptree_crc32c_verify_btxn(sds_bptree_transaction *btxn) {
+sds_bptree_crc32c_verify_btxn(sds_bptree_transaction *btxn)
+{
     uint32_t checksum = sds_crc32c(0, (const unsigned char *)btxn + sizeof(uint32_t), sizeof(sds_bptree_transaction) - sizeof(uint32_t));
     // Iterate over the node list, and add the checksums.
     sds_bptree_node_list *cur_list = btxn->owned;
@@ -29,7 +30,8 @@ sds_bptree_crc32c_verify_btxn(sds_bptree_transaction *btxn) {
 }
 
 void
-sds_bptree_crc32c_update_btxn(sds_bptree_transaction *btxn) {
+sds_bptree_crc32c_update_btxn(sds_bptree_transaction *btxn)
+{
 
     uint32_t checksum = sds_crc32c(0, (const unsigned char *)btxn + sizeof(uint32_t), sizeof(sds_bptree_transaction) - sizeof(uint32_t));
     // Iterate over the node list, and add the checksums.
@@ -45,7 +47,8 @@ sds_bptree_crc32c_update_btxn(sds_bptree_transaction *btxn) {
 
 
 sds_result
-sds_bptree_crc32c_verify_cow_instance(sds_bptree_cow_instance *binst) {
+sds_bptree_crc32c_verify_cow_instance(sds_bptree_cow_instance *binst)
+{
     // This starts the check *after* the checksum in the struct
     if (sds_crc32c(0, (const unsigned char *)binst + sizeof(uint32_t), sizeof(sds_bptree_cow_instance) - sizeof(uint32_t)) == binst->checksum) {
         return SDS_SUCCESS;
@@ -55,15 +58,17 @@ sds_bptree_crc32c_verify_cow_instance(sds_bptree_cow_instance *binst) {
 }
 
 void
-sds_bptree_crc32c_update_cow_instance(sds_bptree_cow_instance *binst) {
+sds_bptree_crc32c_update_cow_instance(sds_bptree_cow_instance *binst)
+{
     // This starts the check *after* the checksum in the struct
     binst->checksum = sds_crc32c(0, (const unsigned char *)binst + sizeof(uint32_t), sizeof(sds_bptree_cow_instance) - sizeof(uint32_t));
 }
 #endif /* DEBUG */
 
 sds_result
-sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
-    // - verify the hash of the node metadata
+sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node)
+{
+// - verify the hash of the node metadata
 #ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_node(node);
@@ -76,14 +81,12 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
 
     // - item_count matches number of non-null keys.
     for (size_t i = 0; i < node->item_count; i++) {
-        if (node->keys[i] == NULL)
-        {
+        if (node->keys[i] == NULL) {
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_verify_node", "%d \n", node->item_count);
 #endif
             return SDS_INVALID_KEY;
         }
-
     }
 
 
@@ -120,7 +123,7 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
         // Because of the above assertion, we now know that our node is in order
         // And given the next is also, we can assert ALL nodes are in key order.
         /* This doesn't work because we don't maintain node links. */
-            // Is there a way to assert ordering?
+        // Is there a way to assert ordering?
         /*
         sds_bptree_node *rnode = (sds_bptree_node *)node->values[SDS_BPTREE_DEFAULT_CAPACITY];
 
@@ -217,12 +220,11 @@ sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                         sds_bptree_node_list_push(&path, rnode->values[j]);
                     }
                     rnode = sds_bptree_node_list_pop(&path);
-                } // While rnode
+                }  // While rnode
             }
-        } // end for
+        }  // end for
 
-    } // end else is_leaf
+    }  // end else is_leaf
 
     return SDS_SUCCESS;
 }
-

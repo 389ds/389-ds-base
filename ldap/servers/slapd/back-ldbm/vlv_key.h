@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* vlv_key.h */
@@ -25,6 +25,6 @@ struct vlv_key
 
 struct vlv_key *vlv_key_new(void);
 void vlv_key_delete(struct vlv_key **p);
-void vlv_key_addattr(struct vlv_key *p,struct berval *val);
+void vlv_key_addattr(struct vlv_key *p, struct berval *val);
 
 #endif

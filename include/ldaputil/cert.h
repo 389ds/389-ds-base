@@ -4,25 +4,25 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _LDAPU_CERT_H
 #define _LDAPU_CERT_H
 
 #ifndef NSAPI_PUBLIC
-#define NSAPI_PUBLIC 
+#define NSAPI_PUBLIC
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-NSAPI_PUBLIC int ldapu_get_cert (void *SSLendpoint, void **cert);
+NSAPI_PUBLIC int ldapu_get_cert(void *SSLendpoint, void **cert);
 
 #ifdef __cplusplus
 }

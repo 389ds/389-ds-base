@@ -4,52 +4,52 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
 unsigned char
-slapi_setbit_uchar(unsigned char f,unsigned char bitnum)
+slapi_setbit_uchar(unsigned char f, unsigned char bitnum)
 {
     return (f | ((unsigned char)1 << bitnum));
 }
 
 unsigned char
-slapi_unsetbit_uchar(unsigned char f,unsigned char bitnum)
+slapi_unsetbit_uchar(unsigned char f, unsigned char bitnum)
 {
-/* TEMPORARY WORKAROUND FOR x86 compiler problem on solaris
+    /* TEMPORARY WORKAROUND FOR x86 compiler problem on solaris
  *   return (f & (~((unsigned char)1 << bitnum)));
  */
-      unsigned char t;
+    unsigned char t;
     t = f & (~((unsigned char)1 << bitnum));
-    return(t);
+    return (t);
 }
 
 int
-slapi_isbitset_uchar(unsigned char f,unsigned char bitnum)
+slapi_isbitset_uchar(unsigned char f, unsigned char bitnum)
 {
     return (f & ((unsigned char)1 << bitnum));
 }
 
 
 unsigned int
-slapi_setbit_int(unsigned int f,unsigned int bitnum)
+slapi_setbit_int(unsigned int f, unsigned int bitnum)
 {
     return (f | ((unsigned int)1 << bitnum));
 }
 
 unsigned int
-slapi_unsetbit_int(unsigned int f,unsigned int bitnum)
+slapi_unsetbit_int(unsigned int f, unsigned int bitnum)
 {
     return (f & (~((unsigned int)1 << bitnum)));
 }
 
 int
-slapi_isbitset_int(unsigned int f,unsigned int bitnum)
+slapi_isbitset_int(unsigned int f, unsigned int bitnum)
 {
     return (f & ((unsigned int)1 << bitnum));
 }

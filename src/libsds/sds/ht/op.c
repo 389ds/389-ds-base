@@ -44,7 +44,7 @@ sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value)
     // Use an internal search to find the node and slot we need to occupy
     uint64_t hashout = sds_siphash13(key, ht_ptr->key_size_fn(key), ht_ptr->hkey);
 #ifdef SDS_DEBUG
-    sds_log("sds_ht_insert", "hash key %p -> 0x%"PRIx64, key, hashout);
+    sds_log("sds_ht_insert", "hash key %p -> 0x%" PRIx64, key, hashout);
 #endif
     int64_t depth = 15;
     size_t c_slot = 0;
@@ -59,13 +59,13 @@ sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value)
             return SDS_CHECKSUM_FAILURE;
         }
 
-        sds_log("sds_ht_insert", "at ht_node_%p depth %"PRIu64" c_slot 0x%"PRIx64, work_node, depth, c_slot);
+        sds_log("sds_ht_insert", "at ht_node_%p depth %" PRIu64 " c_slot 0x%" PRIx64, work_node, depth, c_slot);
 #endif
         slot = &(work_node->slots[c_slot]);
         // Now look at the slot, and see if it's full, empty or branch.
         if (slot->state == SDS_HT_EMPTY) {
 #ifdef SDS_DEBUG
-            sds_log("sds_ht_insert", "c_slot 0x%"PRIx64" state=EMPTY", c_slot);
+            sds_log("sds_ht_insert", "c_slot 0x%" PRIx64 " state=EMPTY", c_slot);
 #endif
             // This is where we can insert.
             work_node->count += 1;
@@ -79,14 +79,14 @@ sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value)
             return SDS_SUCCESS;
         } else if (slot->state == SDS_HT_BRANCH) {
 #ifdef SDS_DEBUG
-            sds_log("sds_ht_insert", "c_slot 0x%"PRIx64" state=BRANCH", c_slot);
+            sds_log("sds_ht_insert", "c_slot 0x%" PRIx64 " state=BRANCH", c_slot);
 #endif
             depth--;
             work_node = slot->slot.node;
             // Keep looping!
         } else {
 #ifdef SDS_DEBUG
-            sds_log("sds_ht_insert", "ht_node_%p at c_slot 0x%"PRIx64" state=VALUE", work_node, c_slot);
+            sds_log("sds_ht_insert", "ht_node_%p at c_slot 0x%" PRIx64 " state=VALUE", work_node, c_slot);
 #endif
             // Must be a value, let's break out and process it.
             if (ht_ptr->key_cmp_fn(key, slot->slot.value->key) == 0) {
@@ -107,7 +107,7 @@ sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value)
                 ex_slot->state = SDS_HT_VALUE;
                 ex_slot->slot.value = slot->slot.value;
 #ifdef SDS_DEBUG
-                sds_log("sds_ht_insert", "existing c_slot 0x%"PRIx64" to new ht_node_%p c_slot 0x%"PRIx64, c_slot, new_node, ex_c_slot);
+                sds_log("sds_ht_insert", "existing c_slot 0x%" PRIx64 " to new ht_node_%p c_slot 0x%" PRIx64, c_slot, new_node, ex_c_slot);
                 new_node->depth = depth;
 #endif
                 new_node->parent = work_node;
@@ -136,8 +136,8 @@ sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value)
 sds_result
 sds_ht_search(sds_ht_instance *ht_ptr, void *key, void **value)
 {
-    // Search the tree. if key is found, SDS_KEY_PRESENT and *value is set.
-    // Else, SDS_KEY_NOT_PRESENT
+// Search the tree. if key is found, SDS_KEY_PRESENT and *value is set.
+// Else, SDS_KEY_NOT_PRESENT
 #ifdef SDS_DEBUG
     sds_log("sds_ht_search", "==> begin");
     if (sds_ht_crc32c_verify_instance(ht_ptr) != SDS_SUCCESS) {
@@ -161,7 +161,7 @@ sds_ht_search(sds_ht_instance *ht_ptr, void *key, void **value)
     // Use an internal search to find the node and slot we need to occupy
     uint64_t hashout = sds_siphash13(key, ht_ptr->key_size_fn(key), ht_ptr->hkey);
 #ifdef SDS_DEBUG
-    sds_log("sds_ht_search", "hash key %p -> 0x%"PRIx64, key, hashout);
+    sds_log("sds_ht_search", "hash key %p -> 0x%" PRIx64, key, hashout);
 #endif
     int64_t depth = 15;
     size_t c_slot = 0;
@@ -176,7 +176,7 @@ sds_ht_search(sds_ht_instance *ht_ptr, void *key, void **value)
             sds_log("sds_ht_search", "==> complete");
             return SDS_CHECKSUM_FAILURE;
         }
-        sds_log("sds_ht_search", "depth %"PRIu64" c_slot 0x%"PRIx64, depth, c_slot);
+        sds_log("sds_ht_search", "depth %" PRIu64 " c_slot 0x%" PRIx64, depth, c_slot);
 #endif
         slot = &(work_node->slots[c_slot]);
 
@@ -200,7 +200,7 @@ sds_ht_search(sds_ht_instance *ht_ptr, void *key, void **value)
                 return SDS_KEY_NOT_PRESENT;
             }
         } else {
-            // We got to the hash point where this should be but it's not here ....
+// We got to the hash point where this should be but it's not here ....
 #ifdef SDS_DEBUG
             sds_log("sds_ht_search", "==> complete");
 #endif
@@ -245,7 +245,7 @@ sds_ht_node_cleanup(sds_ht_instance *ht_ptr, sds_ht_node *node)
                 return;
             }
         }
-        assert (r_slot < HT_SLOTS);
+        assert(r_slot < HT_SLOTS);
 
 #ifdef SDS_DEBUG
         sds_log("sds_ht_node_cleanup", "Remaining slot %p of ht_node_%p", r_slot, work_node);
@@ -275,8 +275,8 @@ sds_ht_node_cleanup(sds_ht_instance *ht_ptr, sds_ht_node *node)
 sds_result
 sds_ht_delete(sds_ht_instance *ht_ptr, void *key)
 {
-    // Search the tree. if key is found, SDS_KEY_PRESENT and *value is set.
-    // Else, SDS_KEY_NOT_PRESENT
+// Search the tree. if key is found, SDS_KEY_PRESENT and *value is set.
+// Else, SDS_KEY_NOT_PRESENT
 #ifdef SDS_DEBUG
     sds_log("sds_ht_delete", "==> begin");
     if (sds_ht_crc32c_verify_instance(ht_ptr) != SDS_SUCCESS) {
@@ -296,7 +296,7 @@ sds_ht_delete(sds_ht_instance *ht_ptr, void *key)
     // Use an internal search to find the node and slot we need to occupy
     uint64_t hashout = sds_siphash13(key, ht_ptr->key_size_fn(key), ht_ptr->hkey);
 #ifdef SDS_DEBUG
-    sds_log("sds_ht_delete", "hash key %p -> 0x%"PRIx64, key, hashout);
+    sds_log("sds_ht_delete", "hash key %p -> 0x%" PRIx64, key, hashout);
 #endif
     int64_t depth = 15;
     size_t c_slot = 0;
@@ -312,7 +312,7 @@ sds_ht_delete(sds_ht_instance *ht_ptr, void *key)
             sds_log("sds_ht_delete", "==> complete");
             return result;
         }
-        sds_log("sds_ht_delete", "depth %"PRIu64" c_slot 0x%"PRIx64, depth, c_slot);
+        sds_log("sds_ht_delete", "depth %" PRIu64 " c_slot 0x%" PRIx64, depth, c_slot);
 #endif
         slot = &(work_node->slots[c_slot]);
 
@@ -321,14 +321,14 @@ sds_ht_delete(sds_ht_instance *ht_ptr, void *key)
             work_node = slot->slot.node;
             depth--;
         } else if (slot->state == SDS_HT_EMPTY) {
-            // We got to the hash point where this should be but it's not here ....
+// We got to the hash point where this should be but it's not here ....
 #ifdef SDS_DEBUG
             sds_log("sds_ht_delete", "==> complete");
 #endif
             return SDS_KEY_NOT_PRESENT;
         } else {
             if (ht_ptr->key_cmp_fn(key, slot->slot.value->key) == 0) {
-                // WARNING: If depth == 0, check for LL
+// WARNING: If depth == 0, check for LL
 #ifdef SDS_DEBUG
                 sds_log("sds_ht_delete", "deleting from ht_node_%p", work_node);
 #endif
@@ -356,4 +356,3 @@ sds_ht_delete(sds_ht_instance *ht_ptr, void *key)
     }
     return SDS_UNKNOWN_ERROR;
 }
-

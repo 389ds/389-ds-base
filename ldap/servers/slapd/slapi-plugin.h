@@ -9,12 +9,12 @@
  *     Bugfix for bug #195302
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK */
 
 /*! \file slapi-plugin.h
  *  \brief Public Directory Server plugin interface.
- *         
+ *
  *  The SLAPI plugin interface allows complex plugins to be created
  *  for Directory Server.
  */
@@ -35,29 +35,33 @@ extern "C" {
 #include "prprf.h"
 #include "nspr.h"
 #include <syslog.h>
-NSPR_API(PRUint32) PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 3, 4)));
+NSPR_API(PRUint32)
+PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 3, 4)));
 #else
-        ;
+    ;
 #endif
-NSPR_API(char*) PR_smprintf(const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 1, 2)));
+NSPR_API(char *)
+PR_smprintf(const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 1, 2)));
 #else
-        ;
+    ;
 #endif
-NSPR_API(char*) PR_sprintf_append(char *last, const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
+NSPR_API(char *)
+PR_sprintf_append(char *last, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
 #else
-        ;
+    ;
 #endif
-NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
+NSPR_API(PRUint32)
+PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
 #else
-        ;
+    ;
 #endif
 
 /* OpenLDAP uses unsigned long for ber_tag_t and ber_len_t but mozldap uses unsigned int */
@@ -89,7 +93,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_SINGLE		0x0001	/* single-valued attribute */
+#define SLAPI_ATTR_FLAG_SINGLE 0x0001 /* single-valued attribute */
 
 /**
  * Flag indicating than an attribute is operational.
@@ -97,7 +101,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_OPATTR		0x0002	/* operational attribute */
+#define SLAPI_ATTR_FLAG_OPATTR 0x0002 /* operational attribute */
 
 /**
  * Flag indicating than an attribute is read-only.
@@ -105,7 +109,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_READONLY	0x0004	/* read from shipped config file */
+#define SLAPI_ATTR_FLAG_READONLY 0x0004 /* read from shipped config file */
 
 /**
  * Flag indicating than an attribute is read-only.
@@ -114,7 +118,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_STD_ATTR	SLAPI_ATTR_FLAG_READONLY /* alias for read only */
+#define SLAPI_ATTR_FLAG_STD_ATTR SLAPI_ATTR_FLAG_READONLY /* alias for read only */
 
 /**
  * Flag indicating than an attribute is obsolete.
@@ -122,7 +126,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_OBSOLETE	0x0040	/* an outdated definition */
+#define SLAPI_ATTR_FLAG_OBSOLETE 0x0040 /* an outdated definition */
 
 /**
  * Flag indicating that an attribute is collective.
@@ -132,7 +136,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_COLLECTIVE	0x0080	/* collective (not supported) */
+#define SLAPI_ATTR_FLAG_COLLECTIVE 0x0080 /* collective (not supported) */
 
 /**
  * Flag indicating that an attribute is not modifiable over LDAP.
@@ -140,7 +144,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_attr_flag_is_set()
  * \see slapi_attr_set_flags()
  */
-#define SLAPI_ATTR_FLAG_NOUSERMOD	0x0100	/* can't be modified over LDAP */
+#define SLAPI_ATTR_FLAG_NOUSERMOD 0x0100 /* can't be modified over LDAP */
 
 /**
  * Flag to indicate that the attribute value is normalized.
@@ -150,12 +154,12 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  */
 /* the attr value is normalized */
 #define SLAPI_ATTR_FLAG_NORMALIZED \
-        (SLAPI_ATTR_FLAG_NORMALIZED_CES|SLAPI_ATTR_FLAG_NORMALIZED_CIS)
-#define SLAPI_ATTR_FLAG_NORMALIZED_CES 0x0200 /* the attr value is normalized,
-                                                 but not case-normalized.
+    (SLAPI_ATTR_FLAG_NORMALIZED_CES | SLAPI_ATTR_FLAG_NORMALIZED_CIS)
+#define SLAPI_ATTR_FLAG_NORMALIZED_CES 0x0200 /* the attr value is normalized, \
+                                                 but not case-normalized.      \
                                                  Used for DN. */
-#define SLAPI_ATTR_FLAG_NORMALIZED_CIS 0x0400 /* the attr value is normalized 
-                                                 including case.
+#define SLAPI_ATTR_FLAG_NORMALIZED_CIS 0x0400 /* the attr value is normalized \
+                                                 including case.              \
                                                  Used for DN. */
 
 /**
@@ -164,7 +168,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_value_set_flags()
  * \see slapi_values_set_flags()
  */
-#define SLAPI_ATTR_FLAG_NOEXPOSE	0x0800	/* the attr value is not exposed */
+#define SLAPI_ATTR_FLAG_NOEXPOSE 0x0800 /* the attr value is not exposed */
 
 /**
  * Flag to indicate that the attribute value is LDAP_SCHEMA_DISTRIBUTED_OPERATION
@@ -173,7 +177,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_value_set_flags()
  * \see slapi_values_set_flags()
 */
-#define SLAPI_ATTR_FLAG_DISTRIBUTED_OPERATION	0x1000	/* USAGE distributedOperation */
+#define SLAPI_ATTR_FLAG_DISTRIBUTED_OPERATION 0x1000 /* USAGE distributedOperation */
 
 /**
  * Flag to indicate that the attribute value is LDAP_SCHEMA_DSA_OPERATION
@@ -182,135 +186,135 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_value_set_flags()
  * \see slapi_values_set_flags()
  */
-#define SLAPI_ATTR_FLAG_DSA_OPERATION	0x2000	/* USAGE dSAOperation */
+#define SLAPI_ATTR_FLAG_DSA_OPERATION 0x2000 /* USAGE dSAOperation */
 
 /* operation flags */
-#define SLAPI_OP_FLAG_INTERNAL		0x000020 /* An operation generated by the core server or a plugin. */
-#define SLAPI_OP_FLAG_NEVER_CHAIN	0x000800 /* Do not chain the operation */
-#define SLAPI_OP_FLAG_TOMBSTONE_ENTRY	0x001000 /* Operation is done on a tombstone entry */
-#define SLAPI_OP_FLAG_NO_ACCESS_CHECK	0x010000 /* Do not check for access control - bypass them */
-#define SLAPI_OP_FLAG_BYPASS_REFERRALS	0x040000 /* Useful for performing internal operations on read-only replica */
-#define SLAPI_OP_FLAG_NEVER_CACHE	0x200000 /* added entry should not be kept in cache */
-#define SLAPI_OP_FLAG_IGNORE_UNINDEXED	0x800000 /* Do not log unindexed search */
+#define SLAPI_OP_FLAG_INTERNAL         0x000020  /* An operation generated by the core server or a plugin. */
+#define SLAPI_OP_FLAG_NEVER_CHAIN      0x000800  /* Do not chain the operation */
+#define SLAPI_OP_FLAG_TOMBSTONE_ENTRY  0x001000  /* Operation is done on a tombstone entry */
+#define SLAPI_OP_FLAG_NO_ACCESS_CHECK  0x010000  /* Do not check for access control - bypass them */
+#define SLAPI_OP_FLAG_BYPASS_REFERRALS 0x040000  /* Useful for performing internal operations on read-only replica */
+#define SLAPI_OP_FLAG_NEVER_CACHE      0x200000  /* added entry should not be kept in cache */
+#define SLAPI_OP_FLAG_IGNORE_UNINDEXED 0x800000  /* Do not log unindexed search */
 
-#define SLAPI_OC_FLAG_REQUIRED	0x0001
-#define SLAPI_OC_FLAG_ALLOWED	0x0002
+#define SLAPI_OC_FLAG_REQUIRED 0x0001
+#define SLAPI_OC_FLAG_ALLOWED  0x0002
 
 /*
  * access control levels
  */
-#define SLAPI_ACL_COMPARE     	0x01
-#define SLAPI_ACL_SEARCH      	0x02
-#define SLAPI_ACL_READ        	0x04
-#define SLAPI_ACL_WRITE		0x08
-#define SLAPI_ACL_DELETE	0x10
-#define SLAPI_ACL_ADD		0x20
-#define SLAPI_ACL_SELF		0x40
-#define SLAPI_ACL_PROXY		0x80
+#define SLAPI_ACL_COMPARE 0x01
+#define SLAPI_ACL_SEARCH  0x02
+#define SLAPI_ACL_READ    0x04
+#define SLAPI_ACL_WRITE   0x08
+#define SLAPI_ACL_DELETE  0x10
+#define SLAPI_ACL_ADD     0x20
+#define SLAPI_ACL_SELF    0x40
+#define SLAPI_ACL_PROXY   0x80
 /* Values 0x200 and 0x400 are booked (acl.h) by
  * ACLPB_SLAPI_ACL_WRITE_ADD
  * ACLPB_SLAPI_ACL_WRITE_DEL
  */
-#define SLAPI_ACL_MODDN         0x0800
-#define SLAPI_ACL_ALL           0x087f
-        
+#define SLAPI_ACL_MODDN 0x0800
+#define SLAPI_ACL_ALL   0x087f
+
 
 /*
  * filter types
  * openldap defines these, but not mozldap
  */
 #ifndef LDAP_FILTER_AND
-#define LDAP_FILTER_AND		0xa0L
+#define LDAP_FILTER_AND 0xa0L
 #endif
 #ifndef LDAP_FILTER_OR
-#define LDAP_FILTER_OR		0xa1L
+#define LDAP_FILTER_OR 0xa1L
 #endif
 #ifndef LDAP_FILTER_NOT
-#define LDAP_FILTER_NOT		0xa2L
+#define LDAP_FILTER_NOT 0xa2L
 #endif
 #ifndef LDAP_FILTER_EQUALITY
-#define LDAP_FILTER_EQUALITY	0xa3L
+#define LDAP_FILTER_EQUALITY 0xa3L
 #endif
 #ifndef LDAP_FILTER_SUBSTRINGS
-#define LDAP_FILTER_SUBSTRINGS	0xa4L
+#define LDAP_FILTER_SUBSTRINGS 0xa4L
 #endif
 #ifndef LDAP_FILTER_GE
-#define LDAP_FILTER_GE		0xa5L
+#define LDAP_FILTER_GE 0xa5L
 #endif
 #ifndef LDAP_FILTER_LE
-#define LDAP_FILTER_LE		0xa6L
+#define LDAP_FILTER_LE 0xa6L
 #endif
 #ifndef LDAP_FILTER_PRESENT
-#define LDAP_FILTER_PRESENT	0x87L
+#define LDAP_FILTER_PRESENT 0x87L
 #endif
 #ifndef LDAP_FILTER_APPROX
-#define LDAP_FILTER_APPROX	0xa8L
+#define LDAP_FILTER_APPROX 0xa8L
 #endif
 
 #ifndef LDAP_FILTER_EXTENDED
 #ifdef LDAP_FILTER_EXT
-#define LDAP_FILTER_EXTENDED	LDAP_FILTER_EXT
+#define LDAP_FILTER_EXTENDED LDAP_FILTER_EXT
 #else
 #define LDAP_FILTER_EXTENDED 0xa9L
 #endif
 #endif
 
 #ifndef LBER_END_OF_SEQORSET
-#define LBER_END_OF_SEQORSET    ((ber_tag_t) -2) /* 0xfffffffeU */
+#define LBER_END_OF_SEQORSET ((ber_tag_t)-2) /* 0xfffffffeU */
 #endif
 
 #ifndef LDAP_CHANGETYPE_ADD
 #ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_ADD
 #define LDAP_CHANGETYPE_ADD LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_ADD
 #else
-#define LDAP_CHANGETYPE_ADD             1
+#define LDAP_CHANGETYPE_ADD 1
 #endif
 #endif
 #ifndef LDAP_CHANGETYPE_DELETE
 #ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_DELETE
 #define LDAP_CHANGETYPE_DELETE LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_DELETE
 #else
-#define LDAP_CHANGETYPE_DELETE          2
+#define LDAP_CHANGETYPE_DELETE 2
 #endif
 #endif
 #ifndef LDAP_CHANGETYPE_MODIFY
 #ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_MODIFY
 #define LDAP_CHANGETYPE_MODIFY LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_MODIFY
 #else
-#define LDAP_CHANGETYPE_MODIFY          4
+#define LDAP_CHANGETYPE_MODIFY 4
 #endif
 #endif
 #ifndef LDAP_CHANGETYPE_MODDN
 #ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_RENAME
 #define LDAP_CHANGETYPE_MODDN LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_RENAME
 #else
-#define LDAP_CHANGETYPE_MODDN           8
+#define LDAP_CHANGETYPE_MODDN 8
 #endif
 #endif
 #ifndef LDAP_CHANGETYPE_ANY
-#define LDAP_CHANGETYPE_ANY             (1|2|4|8)
+#define LDAP_CHANGETYPE_ANY (1 | 2 | 4 | 8)
 #endif
 
 #ifndef LDAP_CONTROL_PERSISTENTSEARCH
 #ifdef LDAP_CONTROL_PERSIST_REQUEST
 #define LDAP_CONTROL_PERSISTENTSEARCH LDAP_CONTROL_PERSIST_REQUEST
 #else
-#define LDAP_CONTROL_PERSISTENTSEARCH   "2.16.840.1.113730.3.4.3"
+#define LDAP_CONTROL_PERSISTENTSEARCH "2.16.840.1.113730.3.4.3"
 #endif
 #endif
 #ifndef LDAP_CONTROL_ENTRYCHANGE
 #ifdef LDAP_CONTROL_PERSIST_ENTRY_CHANGE_NOTICE
 #define LDAP_CONTROL_ENTRYCHANGE LDAP_CONTROL_PERSIST_ENTRY_CHANGE_NOTICE
 #else
-#define LDAP_CONTROL_ENTRYCHANGE        "2.16.840.1.113730.3.4.7"
+#define LDAP_CONTROL_ENTRYCHANGE "2.16.840.1.113730.3.4.7"
 #endif
 #endif
 
 #ifndef LDAP_CONTROL_PWEXPIRED
-#define LDAP_CONTROL_PWEXPIRED          "2.16.840.1.113730.3.4.4"
+#define LDAP_CONTROL_PWEXPIRED "2.16.840.1.113730.3.4.4"
 #endif
 #ifndef LDAP_CONTROL_PWEXPIRING
-#define LDAP_CONTROL_PWEXPIRING         "2.16.840.1.113730.3.4.5"
+#define LDAP_CONTROL_PWEXPIRING "2.16.840.1.113730.3.4.5"
 #endif
 #ifndef LDAP_X_CONTROL_PWPOLICY_REQUEST
 #ifdef LDAP_CONTROL_PASSWORDPOLICYREQUEST
@@ -334,33 +338,33 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #ifdef LDAP_CONTROL_PROXY_AUTHZ
 #define LDAP_CONTROL_PROXIEDAUTH LDAP_CONTROL_PROXY_AUTHZ
 #else
-#define LDAP_CONTROL_PROXIEDAUTH        "2.16.840.1.113730.3.4.18" /* version 2 */
+#define LDAP_CONTROL_PROXIEDAUTH "2.16.840.1.113730.3.4.18" /* version 2 */
 #endif
 #endif
 
 #ifndef LDAP_CONTROL_AUTH_REQUEST
-#define LDAP_CONTROL_AUTH_REQUEST	"2.16.840.1.113730.3.4.16"
+#define LDAP_CONTROL_AUTH_REQUEST "2.16.840.1.113730.3.4.16"
 #endif
 
 /* Read Entry Controls - PRE & POST */
 #ifndef LDAP_CONTROL_PRE_READ_ENTRY
-#define LDAP_CONTROL_PRE_READ_ENTRY	"1.3.6.1.1.13.1"
+#define LDAP_CONTROL_PRE_READ_ENTRY "1.3.6.1.1.13.1"
 #endif
 #ifndef LDAP_CONTROL_POST_READ_ENTRY
-#define LDAP_CONTROL_POST_READ_ENTRY	"1.3.6.1.1.13.2"
+#define LDAP_CONTROL_POST_READ_ENTRY "1.3.6.1.1.13.2"
 #endif
 
 #ifndef LDAP_SORT_CONTROL_MISSING
-#define LDAP_SORT_CONTROL_MISSING       0x3C    /* 60 (server side sort extn) */
+#define LDAP_SORT_CONTROL_MISSING 0x3C /* 60 (server side sort extn) */
 #endif
 
 #ifndef LDAP_INDEX_RANGE_ERROR
-#define LDAP_INDEX_RANGE_ERROR          0x3D    /* 61 (VLV extn) */
+#define LDAP_INDEX_RANGE_ERROR 0x3D /* 61 (VLV extn) */
 #endif
 
 /* openldap does not use this */
 #ifndef LBER_OVERFLOW
-#define LBER_OVERFLOW           ((ber_tag_t) -3) /* 0xfffffffdU */
+#define LBER_OVERFLOW ((ber_tag_t)-3) /* 0xfffffffdU */
 #endif
 
 #ifndef LDAP_MAXINT
@@ -374,124 +378,124 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #endif
 
 #ifndef LDAP_RES_INTERMEDIATE
-#define LDAP_RES_INTERMEDIATE ((ber_tag_t) 0x79U)
+#define LDAP_RES_INTERMEDIATE ((ber_tag_t)0x79U)
 #endif
 
 #ifndef LDAP_TAG_IM_RES_OID
-#define LDAP_TAG_IM_RES_OID   ((ber_tag_t) 0x80U)
+#define LDAP_TAG_IM_RES_OID ((ber_tag_t)0x80U)
 #endif
 
 #ifndef LDAP_TAG_IM_RES_VALUE
-#define LDAP_TAG_IM_RES_VALUE ((ber_tag_t) 0x81U)
+#define LDAP_TAG_IM_RES_VALUE ((ber_tag_t)0x81U)
 #endif
 
 #ifndef LDAP_SCOPE_ONE
-#define LDAP_SCOPE_ONE                  LDAP_SCOPE_ONELEVEL
+#define LDAP_SCOPE_ONE LDAP_SCOPE_ONELEVEL
 #endif
 
 #ifndef LDAP_SYNC_OID
 /* LDAP Content Synchronization Operation -- RFC 4533 */
-#define LDAP_SYNC_OID                   "1.3.6.1.4.1.4203.1.9.1"
-#define LDAP_CONTROL_SYNC               LDAP_SYNC_OID ".1"
-#define LDAP_CONTROL_SYNC_STATE         LDAP_SYNC_OID ".2"
-#define LDAP_CONTROL_SYNC_DONE          LDAP_SYNC_OID ".3"
-#define LDAP_SYNC_INFO                  LDAP_SYNC_OID ".4"
-#define LDAP_TAG_SYNC_NEW_COOKIE        ((ber_tag_t) 0x80U)
-#define LDAP_TAG_SYNC_REFRESH_DELETE    ((ber_tag_t) 0xa1U)
-#define LDAP_TAG_SYNC_REFRESH_PRESENT   ((ber_tag_t) 0xa2U)
-#define LDAP_TAG_SYNC_ID_SET            ((ber_tag_t) 0xa3U)
-#define LDAP_SYNC_NONE                  0x00
-#define LDAP_SYNC_REFRESH_ONLY          0x01
-#define LDAP_SYNC_RESERVED              0x02
-#define LDAP_SYNC_REFRESH_AND_PERSIST   0x03
-#define LDAP_SYNC_REFRESH_PRESENTS      0
-#define LDAP_SYNC_REFRESH_DELETES       1
-#define LDAP_TAG_SYNC_COOKIE            ((ber_tag_t) 0x04U)
-#define LDAP_TAG_REFRESHDELETES         ((ber_tag_t) 0x01U)
-#define LDAP_TAG_REFRESHDONE            ((ber_tag_t) 0x01U)
-#define LDAP_TAG_RELOAD_HINT            ((ber_tag_t) 0x01U)
-#define LDAP_SYNC_PRESENT               0
-#define LDAP_SYNC_ADD                   1
-#define LDAP_SYNC_MODIFY                2
-#define LDAP_SYNC_DELETE                3
-#define LDAP_SYNC_NEW_COOKIE            4
+#define LDAP_SYNC_OID                         "1.3.6.1.4.1.4203.1.9.1"
+#define LDAP_CONTROL_SYNC LDAP_SYNC_OID       ".1"
+#define LDAP_CONTROL_SYNC_STATE LDAP_SYNC_OID ".2"
+#define LDAP_CONTROL_SYNC_DONE LDAP_SYNC_OID  ".3"
+#define LDAP_SYNC_INFO LDAP_SYNC_OID          ".4"
+#define LDAP_TAG_SYNC_NEW_COOKIE              ((ber_tag_t)0x80U)
+#define LDAP_TAG_SYNC_REFRESH_DELETE          ((ber_tag_t)0xa1U)
+#define LDAP_TAG_SYNC_REFRESH_PRESENT         ((ber_tag_t)0xa2U)
+#define LDAP_TAG_SYNC_ID_SET                  ((ber_tag_t)0xa3U)
+#define LDAP_SYNC_NONE                        0x00
+#define LDAP_SYNC_REFRESH_ONLY                0x01
+#define LDAP_SYNC_RESERVED                    0x02
+#define LDAP_SYNC_REFRESH_AND_PERSIST         0x03
+#define LDAP_SYNC_REFRESH_PRESENTS            0
+#define LDAP_SYNC_REFRESH_DELETES             1
+#define LDAP_TAG_SYNC_COOKIE                  ((ber_tag_t)0x04U)
+#define LDAP_TAG_REFRESHDELETES               ((ber_tag_t)0x01U)
+#define LDAP_TAG_REFRESHDONE                  ((ber_tag_t)0x01U)
+#define LDAP_TAG_RELOAD_HINT                  ((ber_tag_t)0x01U)
+#define LDAP_SYNC_PRESENT                     0
+#define LDAP_SYNC_ADD                         1
+#define LDAP_SYNC_MODIFY                      2
+#define LDAP_SYNC_DELETE                      3
+#define LDAP_SYNC_NEW_COOKIE                  4
 #endif
 
 #ifndef LDAP_REQ_BIND
-#define LDAP_REQ_BIND           ((ber_tag_t) 0x60U)     /* application + constructed */
-#define LDAP_REQ_UNBIND         ((ber_tag_t) 0x42U)     /* application + primitive   */
-#define LDAP_REQ_SEARCH         ((ber_tag_t) 0x63U)     /* application + constructed */
-#define LDAP_REQ_MODIFY         ((ber_tag_t) 0x66U)     /* application + constructed */
-#define LDAP_REQ_ADD            ((ber_tag_t) 0x68U)     /* application + constructed */
-#define LDAP_REQ_DELETE         ((ber_tag_t) 0x4aU)     /* application + primitive   */
-#define LDAP_REQ_MODDN          ((ber_tag_t) 0x6cU)     /* application + constructed */
-#define LDAP_REQ_MODRDN         LDAP_REQ_MODDN
-#define LDAP_REQ_RENAME         LDAP_REQ_MODDN
-#define LDAP_REQ_COMPARE        ((ber_tag_t) 0x6eU)     /* application + constructed */
-#define LDAP_REQ_ABANDON        ((ber_tag_t) 0x50U)     /* application + primitive   */
-#define LDAP_REQ_EXTENDED       ((ber_tag_t) 0x77U)     /* application + constructed */
+#define LDAP_REQ_BIND     ((ber_tag_t)0x60U)   /* application + constructed */
+#define LDAP_REQ_UNBIND   ((ber_tag_t)0x42U) /* application + primitive   */
+#define LDAP_REQ_SEARCH   ((ber_tag_t)0x63U) /* application + constructed */
+#define LDAP_REQ_MODIFY   ((ber_tag_t)0x66U) /* application + constructed */
+#define LDAP_REQ_ADD      ((ber_tag_t)0x68U)    /* application + constructed */
+#define LDAP_REQ_DELETE   ((ber_tag_t)0x4aU) /* application + primitive   */
+#define LDAP_REQ_MODDN    ((ber_tag_t)0x6cU)  /* application + constructed */
+#define LDAP_REQ_MODRDN   LDAP_REQ_MODDN
+#define LDAP_REQ_RENAME   LDAP_REQ_MODDN
+#define LDAP_REQ_COMPARE  ((ber_tag_t)0x6eU)  /* application + constructed */
+#define LDAP_REQ_ABANDON  ((ber_tag_t)0x50U)  /* application + primitive   */
+#define LDAP_REQ_EXTENDED ((ber_tag_t)0x77U) /* application + constructed */
 #endif
 
 #ifndef LDAP_SYNC_PRESENT
-#define LDAP_SYNC_PRESENT        0
-#define LDAP_SYNC_ADD            1
-#define LDAP_SYNC_MODIFY         2
-#define LDAP_SYNC_DELETE         3
-#define LDAP_SYNC_NEW_COOKIE     4
+#define LDAP_SYNC_PRESENT    0
+#define LDAP_SYNC_ADD        1
+#define LDAP_SYNC_MODIFY     2
+#define LDAP_SYNC_DELETE     3
+#define LDAP_SYNC_NEW_COOKIE 4
 #endif
 
 /*
  * Sequential access types
  */
-#define	SLAPI_SEQ_FIRST		1
-#define	SLAPI_SEQ_LAST		2
-#define	SLAPI_SEQ_PREV		3
-#define	SLAPI_SEQ_NEXT		4
+#define SLAPI_SEQ_FIRST 1
+#define SLAPI_SEQ_LAST  2
+#define SLAPI_SEQ_PREV  3
+#define SLAPI_SEQ_NEXT  4
 
 
 /*
  * return codes from a backend API call
  */
-#define SLAPI_FAIL_GENERAL	-1
-#define SLAPI_FAIL_DISKFULL	-2
+#define SLAPI_FAIL_GENERAL  -1
+#define SLAPI_FAIL_DISKFULL -2
 
 
 /*
  * return codes used by BIND functions
  */
-#define SLAPI_BIND_SUCCESS		0    /* front end will send result */
-                                     /* 1 is reserved */
-#define SLAPI_BIND_FAIL			2    /* back end should send result */
-#define SLAPI_BIND_ANONYMOUS	3    /* front end will send result */
-#define SLAPI_BIND_REFERRAL     4    /* caller should send result */
-#define SLAPI_BIND_NO_BACKEND   5    /* caller should send result */
+#define SLAPI_BIND_SUCCESS    0  /* front end will send result */
+                                 /* 1 is reserved */
+#define SLAPI_BIND_FAIL       2  /* back end should send result */
+#define SLAPI_BIND_ANONYMOUS  3  /* front end will send result */
+#define SLAPI_BIND_REFERRAL   4  /* caller should send result */
+#define SLAPI_BIND_NO_BACKEND 5  /* caller should send result */
 
 
 /* commonly used attributes names */
-#define SLAPI_ATTR_UNIQUEID			"nsuniqueid"
-#define SLAPI_ATTR_OBJECTCLASS			"objectclass"
-#define SLAPI_ATTR_VALUE_TOMBSTONE		"nsTombstone"
-#define SLAPI_ATTR_TOMBSTONE_CSN		"nsTombstoneCSN"
-#define SLAPI_ATTR_VALUE_PARENT_UNIQUEID	"nsParentUniqueID"
-#define SLAPI_ATTR_VALUE_SUBENTRY		"ldapsubentry"
-#define SLAPI_ATTR_NSCP_ENTRYDN 		"nscpEntryDN"
-#define SLAPI_ATTR_ENTRYUSN 			"entryusn"
-#define SLAPI_ATTR_ENTRYDN 			"entrydn"
-#define SLAPI_ATTR_DN 				"dn"
-#define SLAPI_ATTR_RDN 				"rdn"
-#define SLAPI_ATTR_PARENTID			"parentid"
-#define SLAPI_ATTR_UNIQUEID_LENGTH		10
-#define SLAPI_ATTR_OBJECTCLASS_LENGTH		11
-#define SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH	11
-#define SLAPI_ATTR_TOMBSTONE_CSN_LENGTH		14
-#define SLAPI_ATTR_VALUE_PARENT_UNIQUEID_LENGTH	16
-#define SLAPI_ATTR_VALUE_SUBENTRY_LENGTH	12
-#define SLAPI_ATTR_NSCP_ENTRYDN_LENGTH 		11
-#define SLAPI_ATTR_ENTRYUSN_LENGTH 		8
-#define SLAPI_ATTR_ENTRYDN_LENGTH 		7
-#define SLAPI_ATTR_DN_LENGTH 			2
-#define SLAPI_ATTR_RDN_LENGTH 			3
-#define SLAPI_ATTR_PARENTID_LENGTH 		8
+#define SLAPI_ATTR_UNIQUEID              "nsuniqueid"
+#define SLAPI_ATTR_OBJECTCLASS           "objectclass"
+#define SLAPI_ATTR_VALUE_TOMBSTONE       "nsTombstone"
+#define SLAPI_ATTR_TOMBSTONE_CSN         "nsTombstoneCSN"
+#define SLAPI_ATTR_VALUE_PARENT_UNIQUEID "nsParentUniqueID"
+#define SLAPI_ATTR_VALUE_SUBENTRY        "ldapsubentry"
+#define SLAPI_ATTR_NSCP_ENTRYDN          "nscpEntryDN"
+#define SLAPI_ATTR_ENTRYUSN              "entryusn"
+#define SLAPI_ATTR_ENTRYDN               "entrydn"
+#define SLAPI_ATTR_DN                    "dn"
+#define SLAPI_ATTR_RDN                   "rdn"
+#define SLAPI_ATTR_PARENTID              "parentid"
+#define SLAPI_ATTR_UNIQUEID_LENGTH              10
+#define SLAPI_ATTR_OBJECTCLASS_LENGTH           11
+#define SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH       11
+#define SLAPI_ATTR_TOMBSTONE_CSN_LENGTH         14
+#define SLAPI_ATTR_VALUE_PARENT_UNIQUEID_LENGTH 16
+#define SLAPI_ATTR_VALUE_SUBENTRY_LENGTH        12
+#define SLAPI_ATTR_NSCP_ENTRYDN_LENGTH          11
+#define SLAPI_ATTR_ENTRYUSN_LENGTH               8
+#define SLAPI_ATTR_ENTRYDN_LENGTH                7
+#define SLAPI_ATTR_DN_LENGTH                     2
+#define SLAPI_ATTR_RDN_LENGTH                    3
+#define SLAPI_ATTR_PARENTID_LENGTH               8
 
 /* plugin shared config area */
 #define SLAPI_PLUGIN_SHARED_CONFIG_AREA "nsslapd-pluginConfigArea"
@@ -540,7 +544,7 @@ typedef struct slapi_pblock Slapi_PBlock;
  * the directory. In certain cases, your server plug-in may need to work with an entry
  * in the directory.
  */
-typedef struct slapi_entry		Slapi_Entry;
+typedef struct slapi_entry Slapi_Entry;
 
 /**
  * Represents an attribute in an entry.
@@ -549,7 +553,7 @@ typedef struct slapi_entry		Slapi_Entry;
  * in a directory entry. In certain cases, your server plug-in may need to work with
  * an entry’s attributes.
  */
-typedef struct slapi_attr		Slapi_Attr;
+typedef struct slapi_attr Slapi_Attr;
 
 /**
  * Represents the value of the attribute in a directory entry.
@@ -557,7 +561,7 @@ typedef struct slapi_attr		Slapi_Attr;
  * #Slapi_Value is the data type for an opaque structure that represents the value of
  * an attribute in a directory entry.
  */
-typedef struct slapi_value  		Slapi_Value;
+typedef struct slapi_value Slapi_Value;
 
 /**
  * Represents a set of Slapi_Value (or a list of Slapi_Value).
@@ -565,7 +569,7 @@ typedef struct slapi_value  		Slapi_Value;
  * #Slapi_ValueSet is the data type for an opaque structure that represents set of
  * #Slapi_Value (or a list of #Slapi_Value).
  */
-typedef struct slapi_value_set  	Slapi_ValueSet;
+typedef struct slapi_value_set Slapi_ValueSet;
 
 /**
  * Represents a search filter.
@@ -573,7 +577,7 @@ typedef struct slapi_value_set  	Slapi_ValueSet;
  * #Slapi_Filter is the data type for an opaque structure that represents an search
  * filter.
  */
-typedef struct slapi_filter		Slapi_Filter;
+typedef struct slapi_filter Slapi_Filter;
 
 /**
  * Represents a backend operation in the server plug-in.
@@ -581,7 +585,7 @@ typedef struct slapi_filter		Slapi_Filter;
  * #Slapi_Backend is the data type for an opaque structure that represents a backend
  * operation.
  */
-typedef struct backend			Slapi_Backend;
+typedef struct backend Slapi_Backend;
 
 /**
  * Represents password scheme information
@@ -597,7 +601,7 @@ typedef struct pw_scheme PWScheme;
  * never changes, providing a good way to refer unambiguously to an entry in a
  * distributed/replicated environment.
  */
-typedef struct _guid_t			Slapi_UniqueID;
+typedef struct _guid_t Slapi_UniqueID;
 
 /**
  * Represents an operation pending from an LDAP client.
@@ -605,7 +609,7 @@ typedef struct _guid_t			Slapi_UniqueID;
  * #Slapi_Operation is the data type for an opaque structure that represents an
  * operation pending from an LDAP client.
  */
-typedef struct op			Slapi_Operation;
+typedef struct op Slapi_Operation;
 
 /**
  * Represents a connection.
@@ -613,7 +617,7 @@ typedef struct op			Slapi_Operation;
  * #Slapi_Connection is the data type for an opaque structure that represents a
  * connection.
  */
-typedef struct conn			Slapi_Connection;
+typedef struct conn Slapi_Connection;
 
 /**
  * Represents a distinguished name in a directory entry.
@@ -621,7 +625,7 @@ typedef struct conn			Slapi_Connection;
  * #Slapi_DN is the data type for an opaque structure that represents a distinguished
  * name in the server plug-in.
  */
-typedef struct slapi_dn			Slapi_DN;
+typedef struct slapi_dn Slapi_DN;
 
 /**
  * Represents a relative distinguished name in a directory entry.
@@ -629,7 +633,7 @@ typedef struct slapi_dn			Slapi_DN;
  * #Slapi_RDN is the data type for an opaque structure that represents a relative
  * distinguished name in the server plug-in.
  */
-typedef struct slapi_rdn		Slapi_RDN;
+typedef struct slapi_rdn Slapi_RDN;
 
 /**
  * Represents a single LDAP modification to a directory entry.
@@ -637,7 +641,7 @@ typedef struct slapi_rdn		Slapi_RDN;
  * #Slapi_Mod is the data type for an opaque structure that represents LDAPMod
  * modifications to an attribute in a directory entry.
  */
-typedef struct slapi_mod		Slapi_Mod;
+typedef struct slapi_mod Slapi_Mod;
 
 /**
  * Represents two or more LDAP modifications to a directory entry
@@ -645,7 +649,7 @@ typedef struct slapi_mod		Slapi_Mod;
  * #Slapi_Mods is the data type for an opaque structure that represents LDAPMod
  * manipulations that can be made to a directory entry.
  */
-typedef struct slapi_mods		Slapi_Mods;
+typedef struct slapi_mods Slapi_Mods;
 
 /**
  * Represents a the component ID in a directory entry.
@@ -653,7 +657,7 @@ typedef struct slapi_mods		Slapi_Mods;
  * #Slapi_ComponentId is the data type for an opaque structure that represents the
  * component ID in a directory entry.
  */
-typedef struct slapi_componentid	Slapi_ComponentId;
+typedef struct slapi_componentid Slapi_ComponentId;
 
 /**
  * Represents an integral counter.
@@ -664,7 +668,7 @@ typedef struct slapi_componentid	Slapi_ComponentId;
  *
  * The #Slapi_Counter structure is a wrapper around the actual counter value
  */
-typedef struct slapi_counter		Slapi_Counter;
+typedef struct slapi_counter Slapi_Counter;
 
 /* Online tasks interface (to support import, export, etc) */
 #define SLAPI_TASK_PUBLIC 1 /* tell old plugins that the task api is now public */
@@ -675,11 +679,11 @@ typedef struct slapi_counter		Slapi_Counter;
  * Common Directory Server tasks, including importing, exporting, and indexing
  * databases, can be initiated through a special task configuration entry in
  * cn=tasks,cn=config. These task operations are managed using the #Slapi_Task
- * structure. 
+ * structure.
  */
-typedef struct slapi_task		Slapi_Task;
+typedef struct slapi_task Slapi_Task;
 
-typedef struct passwordpolicyarray	Slapi_PWPolicy;
+typedef struct passwordpolicyarray Slapi_PWPolicy;
 
 /**
  * Defines a callback used specifically by Slapi_Task structure cancel and
@@ -698,11 +702,11 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
  * HP-UX on PA-RISC uses 64KB default stack size.  Just set to 256K for all
  * HP-UX.
  */
-#if ( defined ( hpux ))
-#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
+#if (defined(hpux))
+#define SLAPD_DEFAULT_THREAD_STACKSIZE 262144L
 #else
 /* All other platforms use the default stack size */
-#define SLAPD_DEFAULT_THREAD_STACKSIZE  0
+#define SLAPD_DEFAULT_THREAD_STACKSIZE 0
 #endif
 
 
@@ -718,7 +722,7 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
  *          <tt>free()</tt>) is not supported and may lead to crashes or memory leaks.
  * \see slapi_pblock_destroy()
  */
-Slapi_PBlock *slapi_pblock_new( void ); /* allocate and initialize */
+Slapi_PBlock *slapi_pblock_new(void); /* allocate and initialize */
 
 /**
  * Initializes an existing parameter block for re-use.
@@ -730,13 +734,13 @@ Slapi_PBlock *slapi_pblock_new( void ); /* allocate and initialize */
  *
  * \warning Note that search results will not be freed from the parameter block by
  *          slapi_pblock_init(). You must free any internal  search results with the
- *          slapi_free_search_results_internal() function prior to calling 
+ *          slapi_free_search_results_internal() function prior to calling
  *          slapi_pblock_init(), otherwise the search results will be leaked.
  * \see slapi_pblock_new()
  * \see slapi_pblock_destroy()
  * \see slapi_free_search_results_internal()
  */
-void slapi_pblock_init( Slapi_PBlock *pb ); /* clear out for re-use */
+void slapi_pblock_init(Slapi_PBlock *pb); /* clear out for re-use */
 
 /**
  * Gets the value of a name-value pair from a parameter block.
@@ -801,7 +805,7 @@ void slapi_pblock_init( Slapi_PBlock *pb ); /* clear out for re-use */
  * \see slapi_pblock_destroy()
  * \see slapi_pblock_set()
  */
-int slapi_pblock_get( Slapi_PBlock *pb, int arg, void *value );
+int slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Sets the value of a name-value pair in a parameter block.
@@ -852,8 +856,8 @@ int slapi_pblock_get( Slapi_PBlock *pb, int arg, void *value );
  *          the plug-in.
  *
  * \see slapi_pblock_get()
- */ 
-int slapi_pblock_set( Slapi_PBlock *pb, int arg, void *value );
+ */
+int slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Frees the specified parameter block from memory.
@@ -892,7 +896,7 @@ int slapi_pblock_set( Slapi_PBlock *pb, int arg, void *value );
  *
  * \see slapi_pblock_new()
  */
-void slapi_pblock_destroy( Slapi_PBlock *pb );
+void slapi_pblock_destroy(Slapi_PBlock *pb);
 
 
 /*----------------
@@ -939,12 +943,12 @@ void slapi_pblock_destroy( Slapi_PBlock *pb );
  * \see slapi_entry_free()
  * \see slapi_entry2str()
  */
-Slapi_Entry *slapi_str2entry( char *s, int flags );
+Slapi_Entry *slapi_str2entry(char *s, int flags);
 
 /*
  * Same as slapi_str2entry except passing optional dn and rdn structure as argument
  */
-Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s, int flags );
+Slapi_Entry *slapi_str2entry_ext(const char *dn, const Slapi_RDN *srdn, char *s, int flags);
 
 
 /*-----------------------------
@@ -955,7 +959,7 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_REMOVEDUPVALS		1
+#define SLAPI_STR2ENTRY_REMOVEDUPVALS 1
 
 /**
  * Adds the relative distinguished name (RDN) components (for example,
@@ -963,7 +967,7 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_ADDRDNVALS		2
+#define SLAPI_STR2ENTRY_ADDRDNVALS 2
 
 /**
  * Provide a hint that the entry is large. This enables some optimizations
@@ -971,7 +975,7 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  *
  *  \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_BIGENTRY		4
+#define SLAPI_STR2ENTRY_BIGENTRY 4
 
 /**
  * Check to see if the entry is a tombstone. If so, set the tombstone flag
@@ -979,14 +983,14 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_TOMBSTONE_CHECK		8
+#define SLAPI_STR2ENTRY_TOMBSTONE_CHECK 8
 
 /**
  * Ignore entry state information if present.
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_IGNORE_STATE		16
+#define SLAPI_STR2ENTRY_IGNORE_STATE 16
 
 /**
  * Return entries that have a <tt>version: 1</tt> line as part of the LDIF
@@ -994,14 +998,14 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_INCLUDE_VERSION_STR	32
+#define SLAPI_STR2ENTRY_INCLUDE_VERSION_STR 32
 
 /**
  * Add any missing ancestor values based on the object class hierarchy.
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES	64
+#define SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES 64
 
 /**
  * Inform slapi_str2entry() that the LDIF input is not well formed.
@@ -1022,7 +1026,7 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  *
  * \see slapi_str2entry()
  */
-#define SLAPI_STR2ENTRY_NO_SCHEMA_LOCK       256
+#define SLAPI_STR2ENTRY_NO_SCHEMA_LOCK 256
 
 /**
  * Normalize DN using obsolete DN normalizer.
@@ -1092,7 +1096,7 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s
  * \see slapi_entry2str()
  * \see slapi_str2entry()
  */
-char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
+char *slapi_entry2str_with_options(Slapi_Entry *e, int *len, int options);
 
 
 /*---------------------------------------------
@@ -1105,7 +1109,7 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  *
  * \see slapi_entry2str_with_options()
  */
-#define SLAPI_DUMP_STATEINFO		1	/* replication state */
+#define SLAPI_DUMP_STATEINFO 1 /* replication state */
 
 /**
  * Output entry with uniqueid.
@@ -1115,7 +1119,7 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  *
  * \see slapi_entry2str_with_options()
  */
-#define SLAPI_DUMP_UNIQUEID		2	/* unique ID */
+#define SLAPI_DUMP_UNIQUEID 2 /* unique ID */
 
 /**
  * Output entry without operational attributes.
@@ -1127,7 +1131,7 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  *
  * \see slapi_entry2str_with_options()
  */
-#define SLAPI_DUMP_NOOPATTRS		4	/* suppress operational attrs */
+#define SLAPI_DUMP_NOOPATTRS 4 /* suppress operational attrs */
 
 /**
  * Output entry without LDIF line wrapping.
@@ -1137,7 +1141,7 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  *
  * \see slapi_entry2str_with_options()
  */
-#define SLAPI_DUMP_NOWRAP		8	/* no line breaks */
+#define SLAPI_DUMP_NOWRAP 8 /* no line breaks */
 
 /**
  * Output entry with less base64 encoding.
@@ -1146,14 +1150,14 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  *
  * \see slapi_entry2str_with_options()
  */
-#define SLAPI_DUMP_MINIMAL_ENCODING	16	/* use less base64 encoding */
+#define SLAPI_DUMP_MINIMAL_ENCODING 16 /* use less base64 encoding */
 
 /**
  * Output rdn based entry instead of dn based.  Introduced for subtree rename.
  *
  * \see slapi_entry2str_with_options()
  */
-#define SLAPI_DUMP_RDN_ENTRY	32	/* rdn based entry */
+#define SLAPI_DUMP_RDN_ENTRY 32 /* rdn based entry */
 
 /**
  * Generates an LDIF string description of an LDAP entry.
@@ -1185,7 +1189,7 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  * \see slapi_entry2str_with_options()
  * \see slapi_str2entry()
  */
-char *slapi_entry2str( Slapi_Entry *e, int *len );
+char *slapi_entry2str(Slapi_Entry *e, int *len);
 
 /**
  * Allocates memory for a new entry of the data type #Slapi_Entry.
@@ -1250,7 +1254,7 @@ Slapi_Entry *slapi_entry_alloc(void);
 void slapi_entry_init(Slapi_Entry *e, char *dn, Slapi_Attr *a);
 
 /*
- * Initializes the values of an entry with the Slapi_DN and attribute value 
+ * Initializes the values of an entry with the Slapi_DN and attribute value
  * pairs you supply.
  */
 void slapi_entry_init_ext(Slapi_Entry *e, Slapi_DN *sdn, Slapi_Attr *a);
@@ -1268,12 +1272,12 @@ void slapi_entry_init_ext(Slapi_Entry *e, Slapi_DN *sdn, Slapi_Attr *a);
  * \see slapi_entry_alloc()
  * \see slapi_entry_dup()
  */
-void slapi_entry_free( Slapi_Entry *e );
+void slapi_entry_free(Slapi_Entry *e);
 
 /**
  * Makes a copy of an entry, its DN, and its attributes.
  *
- * This function returns a copy of an existing #Slapi_Entry structure. You can 
+ * This function returns a copy of an existing #Slapi_Entry structure. You can
  * call other front-end functions to change the DN and attributes of this entry.
  *
  * \param e Entry that you want to copy.
@@ -1285,7 +1289,7 @@ void slapi_entry_free( Slapi_Entry *e );
  * \see slapi_entry_alloc()
  * \see slapi_entry_free()
  */
-Slapi_Entry *slapi_entry_dup( const Slapi_Entry *e );
+Slapi_Entry *slapi_entry_dup(const Slapi_Entry *e);
 
 /**
  * Gets the distinguished name (DN) of the specified entry.
@@ -1299,7 +1303,7 @@ Slapi_Entry *slapi_entry_dup( const Slapi_Entry *e );
  * \see slapi_ch_free_string()
  * \see slapi_entry_set_dn()
  */
-char *slapi_entry_get_dn( Slapi_Entry *e );
+char *slapi_entry_get_dn(Slapi_Entry *e);
 
 /**
  * Returns the normalized DN from the entry that you specify.
@@ -1311,7 +1315,7 @@ char *slapi_entry_get_dn( Slapi_Entry *e );
  * \warning Never free the returned value.
  * \see slapi_entry_get_dn()
  */
-char *slapi_entry_get_ndn( Slapi_Entry *e );
+char *slapi_entry_get_ndn(Slapi_Entry *e);
 
 /**
  * Returns as a \c const the value of the #Slapi_DN object from the entry
@@ -1319,13 +1323,13 @@ char *slapi_entry_get_ndn( Slapi_Entry *e );
  *
  * \param e Entry from which you want to get the #Slapi_DN object.
  * \return Returns as a \c const the #Slapi_DN object from the entry that you
- *         specify. 
+ *         specify.
  * \warning Never free the returned value.  If you need a copy, use
  *          slapi_sdn_dup().
  * \see slapi_sdn_dup()
  * \see slapi_entry_get_sdn()
  */
-const Slapi_DN *slapi_entry_get_sdn_const( const Slapi_Entry *e );
+const Slapi_DN *slapi_entry_get_sdn_const(const Slapi_Entry *e);
 
 /**
  * Returns the #Slapi_DN object from the entry that you specify.
@@ -1337,7 +1341,7 @@ const Slapi_DN *slapi_entry_get_sdn_const( const Slapi_Entry *e );
  * \see slapi_entry_get_sdn_const()
  * \see slapi_sdn_dup()
  */
-Slapi_DN *slapi_entry_get_sdn( Slapi_Entry *e );
+Slapi_DN *slapi_entry_get_sdn(Slapi_Entry *e);
 
 /**
  * Returns as a \c const the value of the #Slapi_RDN from the entry
@@ -1345,13 +1349,13 @@ Slapi_DN *slapi_entry_get_sdn( Slapi_Entry *e );
  *
  * \param e Entry from which you want to get the #Slapi_RDN object.
  * \return Returns as a \c const the #Slapi_RDN object from the entry that you
- *         specify. 
+ *         specify.
  * \warning Never free the returned value.  If you need a copy, use
  *          slapi_sdn_dup().
  * \see slapi_sdn_dup()
  * \see slapi_entry_get_sdn()
  */
-const Slapi_RDN *slapi_entry_get_srdn_const( const Slapi_Entry *e );
+const Slapi_RDN *slapi_entry_get_srdn_const(const Slapi_Entry *e);
 
 /**
  * Returns the #Slapi_RDN object from the entry that you specify.
@@ -1363,7 +1367,7 @@ const Slapi_RDN *slapi_entry_get_srdn_const( const Slapi_Entry *e );
  * \see slapi_entry_get_srdn_const()
  * \see slapi_sdn_dup()
  */
-Slapi_RDN * slapi_entry_get_srdn( Slapi_Entry *e );
+Slapi_RDN *slapi_entry_get_srdn(Slapi_Entry *e);
 
 /**
  * Returns as a \c const the DN value of the entry that you specify.
@@ -1376,7 +1380,7 @@ Slapi_RDN * slapi_entry_get_srdn( Slapi_Entry *e );
  * \warning Never free the returned value.
  * \see slapi_entry_set_sdn()
  */
-const char *slapi_entry_get_dn_const( const Slapi_Entry *e );
+const char *slapi_entry_get_dn_const(const Slapi_Entry *e);
 
 /**
  * Returns as a \c const the RDN value of the entry that you specify.
@@ -1388,20 +1392,20 @@ const char *slapi_entry_get_dn_const( const Slapi_Entry *e );
  * \warning Never free the returned value.
  * \see slapi_entry_set_srdn()
  */
-const char *slapi_entry_get_rdn_const( const Slapi_Entry *e );
+const char *slapi_entry_get_rdn_const(const Slapi_Entry *e);
 
 /**
  * Returns as a \c const the Normalized RDN value of the entry that you specify.
  *
  * \param e Entry from which you want to get the Normalized RDN as a constant.
  * \return This function returns one of the following values:
- *         \arg The Normalized RDN of the entry that you specify. 
- *              The Normalized RDN is returned as a const; 
+ *         \arg The Normalized RDN of the entry that you specify.
+ *              The Normalized RDN is returned as a const;
  *              you are not able to modify the Normalized RDN value.
  * \warning Never free the returned value.
  * \see slapi_entry_set_srdn()
  */
-const char *slapi_entry_get_nrdn_const( const Slapi_Entry *e );
+const char *slapi_entry_get_nrdn_const(const Slapi_Entry *e);
 
 /**
  * Sets the distinguished name (DN) of an entry.
@@ -1422,7 +1426,7 @@ const char *slapi_entry_get_nrdn_const( const Slapi_Entry *e );
  * \see slapi_entry_free()
  * \see slapi_entry_get_dn()
  */
-void slapi_entry_set_dn( Slapi_Entry *e, char *dn );
+void slapi_entry_set_dn(Slapi_Entry *e, char *dn);
 
 /**
  * Sets the normalized distinguished name (DN) of an entry.
@@ -1439,12 +1443,12 @@ void slapi_entry_set_dn( Slapi_Entry *e, char *dn );
  * \see slapi_entry_free()
  * \see slapi_entry_get_dn()
  */
-void slapi_entry_set_normdn( Slapi_Entry *e, char *normdn );
+void slapi_entry_set_normdn(Slapi_Entry *e, char *normdn);
 
 /**
  * Sets the relative distinguished name (RDN) of an entry.
  *
- * This function sets the RDN pointer in the specified entry to the RDN that 
+ * This function sets the RDN pointer in the specified entry to the RDN that
  * you supply.
  *
  * \param e Entry to which you want to assign the RDN.
@@ -1452,7 +1456,7 @@ void slapi_entry_set_normdn( Slapi_Entry *e, char *normdn );
  *            If dn is given here, the first rdn part is set to the RDN.
  * \warning The rdn will be copied in slapi_entry_set_rdn.
  */
-void slapi_entry_set_rdn( Slapi_Entry *e, char *rdn );
+void slapi_entry_set_rdn(Slapi_Entry *e, char *rdn);
 
 /**
  * Sets the Slapi_DN value in an entry.
@@ -1464,7 +1468,7 @@ void slapi_entry_set_rdn( Slapi_Entry *e, char *rdn );
  * \warning This function makes a copy of the \c sdn parameter.
  * \see slapi_entry_get_sdn()
  */
-void slapi_entry_set_sdn( Slapi_Entry *e, const Slapi_DN *sdn );
+void slapi_entry_set_sdn(Slapi_Entry *e, const Slapi_DN *sdn);
 
 /**
  * Sets the Slapi_DN value containing RDN in an entry.
@@ -1476,7 +1480,7 @@ void slapi_entry_set_sdn( Slapi_Entry *e, const Slapi_DN *sdn );
  * \warning This function makes a copy of the \c srdn parameter.
  * \see slapi_entry_get_srdn()
  */
-void slapi_entry_set_srdn( Slapi_Entry *e, const Slapi_RDN *srdn );
+void slapi_entry_set_srdn(Slapi_Entry *e, const Slapi_RDN *srdn);
 
 
 /**
@@ -1497,7 +1501,7 @@ void slapi_entry_set_srdn( Slapi_Entry *e, const Slapi_RDN *srdn );
  *          if the entry is freed while the pointer to attr is still being used.
  * \see slapi_attr_dup()
  */
-int slapi_entry_attr_find( const Slapi_Entry *e, const char *type, Slapi_Attr **attr );
+int slapi_entry_attr_find(const Slapi_Entry *e, const char *type, Slapi_Attr **attr);
 
 /**
  * Finds the first attribute in an entry.
@@ -1513,7 +1517,7 @@ int slapi_entry_attr_find( const Slapi_Entry *e, const char *type, Slapi_Attr **
  * \see slapi_entry_next_attr()
  * \see slapi_attr_dup()
  */
-int slapi_entry_first_attr( const Slapi_Entry *e, Slapi_Attr **attr );
+int slapi_entry_first_attr(const Slapi_Entry *e, Slapi_Attr **attr);
 
 /**
  * Finds the next attribute after \c prevattr in an entry.
@@ -1531,7 +1535,7 @@ int slapi_entry_first_attr( const Slapi_Entry *e, Slapi_Attr **attr );
  * \see slapi_entry_first_attr()
  * \see slapi_entry_dup()
  */
-int slapi_entry_next_attr( const Slapi_Entry *e, Slapi_Attr *prevattr, Slapi_Attr **attr );
+int slapi_entry_next_attr(const Slapi_Entry *e, Slapi_Attr *prevattr, Slapi_Attr **attr);
 
 /**
  * Gets the unique ID value of the entry.
@@ -1542,7 +1546,7 @@ int slapi_entry_next_attr( const Slapi_Entry *e, Slapi_Attr *prevattr, Slapi_Att
  * \see slapi_entry_set_uniqueid()
  * \see slapi_ch_strdup()
  */
-const char *slapi_entry_get_uniqueid( const Slapi_Entry *e );
+const char *slapi_entry_get_uniqueid(const Slapi_Entry *e);
 
 /**
  * Replaces the unique ID value of an entry with the unique ID value that you
@@ -1570,7 +1574,7 @@ const char *slapi_entry_get_uniqueid( const Slapi_Entry *e );
  * \see slapi_entry_get_uniqueid()
  * \see slapi_entry_free()
  */
-void slapi_entry_set_uniqueid( Slapi_Entry *e, char *uniqueid );
+void slapi_entry_set_uniqueid(Slapi_Entry *e, char *uniqueid);
 
 /**
  * Determines whether the specified entry complies with the schema for its object
@@ -1590,17 +1594,17 @@ void slapi_entry_set_uniqueid( Slapi_Entry *e, char *uniqueid );
  *          #SLAPI_IS_REPLICATED_OPERATION flag. If that flag is present, no schema
  *          checking is done.
  */
-int slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e );
+int slapi_entry_schema_check(Slapi_PBlock *pb, Slapi_Entry *e);
 
 /**
  * Determines whether the specified entry complies with the schema for its object
  * class.
  *
- * Like slapi_entry_schema_check() with one additional parameter to enforce schema 
+ * Like slapi_entry_schema_check() with one additional parameter to enforce schema
  * checking for replicated operations.
  * \param check_repl Set to 1 if replicted operations should be checked
  */
-int slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int check_repl );
+int slapi_entry_schema_check_ext(Slapi_PBlock *pb, Slapi_Entry *e, int check_repl);
 
 /**
  * Determines whether the specified entry complies with the syntax rules imposed
@@ -1621,7 +1625,7 @@ int slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int check_re
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
-int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
+int slapi_entry_syntax_check(Slapi_PBlock *pb, Slapi_Entry *e, int override);
 
 /**
  * Determines if the DN violates the Distinguished Name syntax rules.
@@ -1640,7 +1644,7 @@ int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
-int slapi_dn_syntax_check( Slapi_PBlock *pb, const char *dn, int override );
+int slapi_dn_syntax_check(Slapi_PBlock *pb, const char *dn, int override);
 
 /**
  * Determines if any values being added to an entry violate the syntax rules
@@ -1661,7 +1665,7 @@ int slapi_dn_syntax_check( Slapi_PBlock *pb, const char *dn, int override );
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
-int slapi_mods_syntax_check( Slapi_PBlock *pb, LDAPMod **mods, int override );
+int slapi_mods_syntax_check(Slapi_PBlock *pb, LDAPMod **mods, int override);
 
 /**
  * Determines whether the values in an entry’s relative distinguished name (RDN)
@@ -1674,7 +1678,7 @@ int slapi_mods_syntax_check( Slapi_PBlock *pb, LDAPMod **mods, int override );
  * \return \c 1 if the values in the RDN are present in the attributes of the entry.
  * \return \c 0 if the values are not present.
  */
-int slapi_entry_rdn_values_present( const Slapi_Entry *e );
+int slapi_entry_rdn_values_present(const Slapi_Entry *e);
 
 /**
  * Adds the components in an entry’s relative distinguished name (RDN) to the entry
@@ -1692,7 +1696,7 @@ int slapi_entry_rdn_values_present( const Slapi_Entry *e );
  *          entry was allocated by the user.
  * \see slapi_entry_free()
  */
-int slapi_entry_add_rdn_values( Slapi_Entry *e );
+int slapi_entry_add_rdn_values(Slapi_Entry *e);
 
 /**
  * Deletes an attribute (and all its associated values) from an entry.
@@ -1703,7 +1707,7 @@ int slapi_entry_add_rdn_values( Slapi_Entry *e );
  * \return \c 1 if the specified attribute is not part of the entry.
  * \return \c -1 if an error occurred.
  */
-int slapi_entry_attr_delete( Slapi_Entry *e, const char *type );
+int slapi_entry_attr_delete(Slapi_Entry *e, const char *type);
 
 /**
  * Gets the values of a multi-valued attribute of an entry.
@@ -1714,7 +1718,7 @@ int slapi_entry_attr_delete( Slapi_Entry *e, const char *type );
  * be \c NULL terminated so that they can be used safely in a string context. If there
  * are no values, \c NULL will be returned. Because the array is \c NULL terminated,
  * the usage should be similar to the sample shown below:
- * 
+ *
  * \code
  *     char **ary = slapi_entry_attr_get_charray(e, someattr);
  *     int ii;
@@ -1734,7 +1738,7 @@ int slapi_entry_attr_delete( Slapi_Entry *e, const char *type );
  *          the slapi_ch_array_free() function.
  * \see slapi_entry_attr_get_charptr()
  */
-char **slapi_entry_attr_get_charray(const Slapi_Entry* e, const char *type);
+char **slapi_entry_attr_get_charray(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the values of a multi-valued attribute of an entry.
@@ -1766,7 +1770,7 @@ char **slapi_entry_attr_get_charray(const Slapi_Entry* e, const char *type);
  *          the slapi_ch_array_free() function.
  * \see slapi_entry_attr_get_charptr()
  */
-char **slapi_entry_attr_get_charray_ext( const Slapi_Entry* e, const char *type, int *numVals);
+char **slapi_entry_attr_get_charray_ext(const Slapi_Entry *e, const char *type, int *numVals);
 /**
  * Gets the first value of an attribute of an entry as a string.
  *
@@ -1778,7 +1782,7 @@ char **slapi_entry_attr_get_charray_ext( const Slapi_Entry* e, const char *type,
  *          slapi_ch_free_string() function.
  * \see slapi_entry_attr_get_charray()
  */
-char *slapi_entry_attr_get_charptr(const Slapi_Entry* e, const char *type);
+char *slapi_entry_attr_get_charptr(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the first value of an attribute in an entry as an integer.
@@ -1788,7 +1792,7 @@ char *slapi_entry_attr_get_charptr(const Slapi_Entry* e, const char *type);
  * \return The first value of the attribute converted to an integer.
  * \return \c 0 if the entry does not contain the attribute.
  */
-int slapi_entry_attr_get_int(const Slapi_Entry* e, const char *type);
+int slapi_entry_attr_get_int(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the first value of an attribute in an entry as an unsigned integer data type.
@@ -1798,7 +1802,7 @@ int slapi_entry_attr_get_int(const Slapi_Entry* e, const char *type);
  * \return The first value of the attribute converted to an unsigned integer.
  * \return \c 0 if the entry does not contain the attribute.
  */
-unsigned int slapi_entry_attr_get_uint(const Slapi_Entry* e, const char *type);
+unsigned int slapi_entry_attr_get_uint(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the first value of an attribute in an entry as a long data type.
@@ -1808,7 +1812,7 @@ unsigned int slapi_entry_attr_get_uint(const Slapi_Entry* e, const char *type);
  * \return The first value of the attribute converted to a \c long type.
  * \return \c 0 if the entry does not contain the attribute.
  */
-long slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type);
+long slapi_entry_attr_get_long(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the first value of an attribute in an entry as an unsigned long
@@ -1820,7 +1824,7 @@ long slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type);
  *         unsigned long</tt>.
  * \return \c 0 if the entry does not contain the attribute.
  */
-unsigned long slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type);
+unsigned long slapi_entry_attr_get_ulong(const Slapi_Entry *e, const char *type);
 
 /**
  *  Gets the first value of an attribute in an entry as a long long data type.
@@ -1830,7 +1834,7 @@ unsigned long slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type
  *  \return The first value of the attribute converted to a <tt>long long</tt>.
  *  \return  \c 0 if the entry does not contain the attribute.
  */
-long long slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type);
+long long slapi_entry_attr_get_longlong(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the first value of an attribute in an entry as an unsigned
@@ -1842,7 +1846,7 @@ long long slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type)
  *         long long</tt>.
  * \return  \c 0 if the entry does not contain the attribute.
  */
-unsigned long long slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type);
+unsigned long long slapi_entry_attr_get_ulonglong(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the value of a given attribute of a given entry as a boolean value.
@@ -1857,7 +1861,7 @@ unsigned long long slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const c
  * \param type Attribute type from which you want to get the value.
  * \return \c PR_TRUE | \c PR_FALSE
  */
-PRBool slapi_entry_attr_get_bool(const Slapi_Entry* e, const char *type);
+PRBool slapi_entry_attr_get_bool(const Slapi_Entry *e, const char *type);
 
 /**
  * Gets the value of a given attribute of a given entry as a boolean value.
@@ -1873,7 +1877,7 @@ PRBool slapi_entry_attr_get_bool(const Slapi_Entry* e, const char *type);
  * \param type Attribute type from which you want to get the value.
  * \return \c PR_TRUE | \c PR_FALSE
  */
-PRBool slapi_entry_attr_get_bool_ext(const Slapi_Entry* e, const char *type, PRBool default_value);
+PRBool slapi_entry_attr_get_bool_ext(const Slapi_Entry *e, const char *type, PRBool default_value);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified string
@@ -1887,7 +1891,7 @@ PRBool slapi_entry_attr_get_bool_ext(const Slapi_Entry* e, const char *type, PRB
  *          to slapi_entry_attr_delete().
  * \see slapi_entry_attr_delete()
  */
-void slapi_entry_attr_set_charptr(Slapi_Entry* e, const char *type, const char *value);
+void slapi_entry_attr_set_charptr(Slapi_Entry *e, const char *type, const char *value);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified integer
@@ -1901,7 +1905,7 @@ void slapi_entry_attr_set_charptr(Slapi_Entry* e, const char *type, const char *
  * \param type Attribute type in which you want to set the value.
  * \param l Integer value that you want to assign to the attribute.
  */
-void slapi_entry_attr_set_int( Slapi_Entry* e, const char *type, int l);
+void slapi_entry_attr_set_int(Slapi_Entry *e, const char *type, int l);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified
@@ -1915,7 +1919,7 @@ void slapi_entry_attr_set_int( Slapi_Entry* e, const char *type, int l);
  * \param type Attribute type in which you want to set the value.
  * \param l Unsigned integer value that you want to assign to the attribute.
  */
-void slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l);
+void slapi_entry_attr_set_uint(Slapi_Entry *e, const char *type, unsigned int l);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified long data
@@ -1925,7 +1929,7 @@ void slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l
  * \param type Attribute type in which you want to set the value.
  * \param l Long integer value that you want to assign to the attribute.
  */
-void slapi_entry_attr_set_long(Slapi_Entry* e, const char *type, long l);
+void slapi_entry_attr_set_long(Slapi_Entry *e, const char *type, long l);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified long long
@@ -1935,7 +1939,7 @@ void slapi_entry_attr_set_long(Slapi_Entry* e, const char *type, long l);
  * \param type Attribute type in which you want to set the value.
  * \param l Long Long integer value that you want to assign to the attribute.
  */
-void slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long l);
+void slapi_entry_attr_set_longlong(Slapi_Entry *e, const char *type, long long l);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified unsigned
@@ -1949,7 +1953,7 @@ void slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long 
  * \param type Attribute type in which you want to set the value.
  * \param l Unsigned long value that you want to assign to the attribute.
  */
-void slapi_entry_attr_set_ulong(Slapi_Entry* e, const char *type, uint64_t l);
+void slapi_entry_attr_set_ulong(Slapi_Entry *e, const char *type, uint64_t l);
 
 /**
  * Check if an attribute is set in the entry
@@ -2006,11 +2010,11 @@ int slapi_entry_has_children_ext(const Slapi_Entry *e, int include_tombstone);
  * \return \c 1 if \c dn is the root DSE.
  * \return \c 0 if \c dn is not the root DSE.
  */
-int slapi_is_rootdse( const char *dn );
+int slapi_is_rootdse(const char *dn);
 
 /**
  * This function returns the approximate size of an entry, rounded to the nearest 1k.
- * 
+ *
  * This can be useful for checking cache sizes, estimating storage needs, and so on.
  *
  * When determining the size of an entry, only the sizes of the attribute values are
@@ -2046,7 +2050,7 @@ size_t slapi_entry_size(Slapi_Entry *e);
  * \warning This function makes a copy of the parameter \c vals. The \c vals
  *          parameter can be \c NULL.
  */
-int slapi_entry_attr_merge_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+int slapi_entry_attr_merge_sv(Slapi_Entry *e, const char *type, Slapi_Value **vals);
 
 /**
  * Adds and array of #Slapi_Value data values to the specified attribute in an entry.
@@ -2067,7 +2071,7 @@ int slapi_entry_attr_merge_sv( Slapi_Entry *e, const char *type, Slapi_Value **v
  * \warning This function makes a copy of the parameter \c vals. The \c vals
  *          parameter can be \c NULL.
  */
-int slapi_entry_add_values_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+int slapi_entry_add_values_sv(Slapi_Entry *e, const char *type, Slapi_Value **vals);
 
 /**
  * Add a Slapi_ValueSet data value to the specified attribute in an entry.
@@ -2110,7 +2114,7 @@ int slapi_entry_add_valueset(Slapi_Entry *e, const char *type, Slapi_ValueSet *v
  * \warning The \c vals parameter can be \c NULL, in which case this function does
  *          nothing.
  */
-int slapi_entry_delete_values_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+int slapi_entry_delete_values_sv(Slapi_Entry *e, const char *type, Slapi_Value **vals);
 
 /**
  * Merges (adds) and array of #Slapi_Value data values to a specified attribute in
@@ -2136,7 +2140,7 @@ int slapi_entry_delete_values_sv( Slapi_Entry *e, const char *type, Slapi_Value 
  * \warning This function makes a copy of \c vals.  The \c vals parameter
  *          can be \c NULL.
  */
-int slapi_entry_merge_values_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+int slapi_entry_merge_values_sv(Slapi_Entry *e, const char *type, Slapi_Value **vals);
 
 /**
  * Replaces the values of an attribute with the #Slapi_Value data value you specify.
@@ -2153,7 +2157,7 @@ int slapi_entry_merge_values_sv( Slapi_Entry *e, const char *type, Slapi_Value *
  * \warning This function makes a copy of \c vals.  The \c vals parameter
  *          can be \c NULL.
  */
-int slapi_entry_attr_replace_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+int slapi_entry_attr_replace_sv(Slapi_Entry *e, const char *type, Slapi_Value **vals);
 
 /**
  * Adds a specified #Slapi_Value data value to an attribute in an entry.
@@ -2276,7 +2280,7 @@ int slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, Sla
  * \see slapi_entry_set_flag()
  * \see slapi_entry_clear_flag()
  */
-#define SLAPI_ENTRY_FLAG_TOMBSTONE		1
+#define SLAPI_ENTRY_FLAG_TOMBSTONE 1
 
 /**
  * Determines if certain flags are set for a specified entry.
@@ -2289,7 +2293,7 @@ int slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, Sla
  * \see slapi_entry_clear_flag()
  * \see slapi_entry_set_flag()
  */
-int slapi_entry_flag_is_set( const Slapi_Entry *e, unsigned char flag );
+int slapi_entry_flag_is_set(const Slapi_Entry *e, unsigned char flag);
 
 /**
  * Sets a flag for a specified entry.
@@ -2300,7 +2304,7 @@ int slapi_entry_flag_is_set( const Slapi_Entry *e, unsigned char flag );
  * \see slapi_entry_clear_flag()
  * \see slapi_entry_flag_is_set()
  */
-void slapi_entry_set_flag( Slapi_Entry *e, unsigned char flag);
+void slapi_entry_set_flag(Slapi_Entry *e, unsigned char flag);
 
 /**
  * Clears a flag for a specified entry.
@@ -2311,7 +2315,7 @@ void slapi_entry_set_flag( Slapi_Entry *e, unsigned char flag);
  * \see slapi_entry_flag_is_set()
  * \see slapi_entry_set_flag()
  */
-void slapi_entry_clear_flag( Slapi_Entry *e, unsigned char flag);
+void slapi_entry_clear_flag(Slapi_Entry *e, unsigned char flag);
 
 
 /*------------------------------
@@ -2375,7 +2379,7 @@ void slapi_entrycache_vattrcache_watermark_invalidate(void);
  * \see slapi_sdn_copy()
  * \see slapi_sdn_done()
  */
-Slapi_DN *slapi_sdn_new( void );
+Slapi_DN *slapi_sdn_new(void);
 
 /**
  * Creates a new \c Slapi_DN structure and intializes it's DN to a requested value.
@@ -2501,8 +2505,8 @@ Slapi_DN *slapi_sdn_new_dn_passin(const char *dn);
  * \param normdn The normalized DN value to be set in the new \c Slapi_DN structure.
  * \return A pointer to the newly allocated \c Slapi_DN structure with
  *         the normalized DN value set to the content of \c normdn.
- * \warning The caller is still responsible for the memory used by \c normdn. 
- *          This memory should not be freed until the returned \c Slapi_DN 
+ * \warning The caller is still responsible for the memory used by \c normdn.
+ *          This memory should not be freed until the returned \c Slapi_DN
  *          has been disposed of or reinitialized.
  * \see slapi_sdn_free()
  * \see slapi_sdn_copy()
@@ -2605,8 +2609,8 @@ Slapi_DN *slapi_sdn_set_dn_passin(Slapi_DN *sdn, const char *dn);
  * \param sdn The target \c Slapi_DN structure.
  * \param normdn The normalized DN value to be set in \c sdn.
  * \return A pointer to the \c Slapi_DN structure containing the new DN value.
- * \warning The caller is still responsible for the memory used by \c normdn.  
- *          This memory should not be freed until the returned \c Slapi_DN 
+ * \warning The caller is still responsible for the memory used by \c normdn.
+ *          This memory should not be freed until the returned \c Slapi_DN
  *          has been disposed of or reinitialized.
  * \see slapi_sdn_set_dn_byref()
  */
@@ -2684,7 +2688,7 @@ Slapi_DN *slapi_sdn_set_ndn_byref(Slapi_DN *sdn, const char *ndn);
  * Sets a normalized DN value in a \c Slapi_DN structure.
  *
  * The normalized DN of the structure will point to the same string pointed to
- * by \c ndn.  
+ * by \c ndn.
  * Ownership of the memory pointed to by \c ndn is tranferred to the Slapi_DN.
  *
  * \param sdn The target \c Slapi_DN structure.
@@ -2733,12 +2737,12 @@ void slapi_sdn_free(Slapi_DN **sdn);
  * \see slapi_sdn_get_ndn()
  * \see slapi_sdn_get_udn()
  */
-const char * slapi_sdn_get_dn(const Slapi_DN *sdn);
+const char *slapi_sdn_get_dn(const Slapi_DN *sdn);
 
 /**
  * Retrieves the normalized and case ignored DN value of a \c Slapi_DN structure.
  *
- * If the structure does not contain a normalized and case ignored DN yet, 
+ * If the structure does not contain a normalized and case ignored DN yet,
  * it will normalize and case ignore the DN and set it in the structure.
  *
  * \param sdn The \c Slapi_DN strucure containing the normalized and case ignored DN value.
@@ -2748,7 +2752,7 @@ const char * slapi_sdn_get_dn(const Slapi_DN *sdn);
  * \see slapi_sdn_get_dn()
  * \see slapi_sdn_get_udn()
  */
-const char * slapi_sdn_get_ndn(const Slapi_DN *sdn);
+const char *slapi_sdn_get_ndn(const Slapi_DN *sdn);
 
 /**
  * Retrieves the un-normalized DN value of a \c Slapi_DN structure.
@@ -2762,7 +2766,7 @@ const char * slapi_sdn_get_ndn(const Slapi_DN *sdn);
  * \see slapi_sdn_get_dn()
  * \see slapi_sdn_get_ndn()
  */
-const char * slapi_sdn_get_udn(const Slapi_DN *sdn);
+const char *slapi_sdn_get_udn(const Slapi_DN *sdn);
 
 /**
  * Fills in an existing \c Slapi_DN structure with the parent DN of the passed in \c Slapi_DN.
@@ -2773,7 +2777,7 @@ const char * slapi_sdn_get_udn(const Slapi_DN *sdn);
  * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
  * \see slapi_sdn_get_backend_parent()
  */
-void slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent);
+void slapi_sdn_get_parent(const Slapi_DN *sdn, Slapi_DN *sdn_parent);
 
 /**
  * Fills in an existing \c Slapi_DN structure with the parent DN of the passed in \c Slapi_DN.
@@ -2785,7 +2789,7 @@ void slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent);
  * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
  * \see slapi_sdn_get_backend_parent()
  */
-void slapi_sdn_get_parent_ext(const Slapi_DN *sdn,Slapi_DN *sdn_parent,int is_tombstone);
+void slapi_sdn_get_parent_ext(const Slapi_DN *sdn, Slapi_DN *sdn_parent, int is_tombstone);
 
 /**
  * Fills in an existing \c Slapi_DN structure with the parent DN of an entry within a specific backend.
@@ -2800,7 +2804,7 @@ void slapi_sdn_get_parent_ext(const Slapi_DN *sdn,Slapi_DN *sdn_parent,int is_to
  * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
  * \see slapi_sdn_get_parent()
  */
-void slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend);
+void slapi_sdn_get_backend_parent(const Slapi_DN *sdn, Slapi_DN *sdn_parent, const Slapi_Backend *backend);
 
 /**
  * Fills in an existing \c Slapi_DN structure with the parent DN of an entry within a specific backend.
@@ -2816,7 +2820,7 @@ void slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const
  * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
  * \see slapi_sdn_get_parent()
  */
-void slapi_sdn_get_backend_parent_ext(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend,int is_tombstone);
+void slapi_sdn_get_backend_parent_ext(const Slapi_DN *sdn, Slapi_DN *sdn_parent, const Slapi_Backend *backend, int is_tombstone);
 
 /**
  * Return the size of a \c Slapi_DN structure.
@@ -2834,7 +2838,7 @@ size_t slapi_sdn_get_size(const Slapi_DN *sdn);
  * \see slapi_sdn_new()
  * \see slapi_sdn_free()
  */
-Slapi_DN * slapi_sdn_dup(const Slapi_DN *sdn);
+Slapi_DN *slapi_sdn_dup(const Slapi_DN *sdn);
 
 /**
  * Copies the contents of a \c Slapi_DN to another \c existing Slapi_DN.
@@ -2857,7 +2861,7 @@ void slapi_sdn_copy(const Slapi_DN *from, Slapi_DN *to);
  * \return \c -1 if \c sdn1 is \c NULL.
  * \return \c 1 if \c sdn2 is \c NULL and \c sdn1 is not \c NULL.
  */
-int slapi_sdn_compare( const Slapi_DN *sdn1, const Slapi_DN *sdn2 );
+int slapi_sdn_compare(const Slapi_DN *sdn1, const Slapi_DN *sdn2);
 
 /**
  * Checks if a DN or normalized DN is set in a \c Slapi_DN.
@@ -2867,7 +2871,7 @@ int slapi_sdn_compare( const Slapi_DN *sdn1, const Slapi_DN *sdn2 );
  * \return \c 0 if \c sdn is not empty.
  * \see slapi_sdn_done()
  */
-int slapi_sdn_isempty( const Slapi_DN *sdn);
+int slapi_sdn_isempty(const Slapi_DN *sdn);
 
 /**
  * Checks whether a \c Slapi_DN structure contains a suffix of another \c Slapi_DN structure.
@@ -2894,7 +2898,7 @@ int slapi_sdn_issuffix(const Slapi_DN *sdn, const Slapi_DN *suffixsdn);
  * \see slapi_sdn_issuffix()
  * \see slapi_sdn_get_parent()
  */
-int slapi_sdn_isparent( const Slapi_DN *parent, const Slapi_DN *child );
+int slapi_sdn_isparent(const Slapi_DN *parent, const Slapi_DN *child);
 
 /**
  * Checks whether a DN is the grandparent of a given DN.
@@ -2909,7 +2913,7 @@ int slapi_sdn_isparent( const Slapi_DN *parent, const Slapi_DN *child );
  * \see slapi_sdn_issuffix()
  * \see slapi_sdn_get_parent()
  */
-int slapi_sdn_isgrandparent( const Slapi_DN *parent, const Slapi_DN *child );
+int slapi_sdn_isgrandparent(const Slapi_DN *parent, const Slapi_DN *child);
 
 /**
  * Gets the length of the normalized DN of a Slapi_DN structure.
@@ -2935,7 +2939,7 @@ int slapi_sdn_get_ndn_len(const Slapi_DN *sdn);
  * \see slapi_sdn_isparent()
  * \see slapi_sdn_issuffix()
  */
-int slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope );
+int slapi_sdn_scope_test(const Slapi_DN *dn, const Slapi_DN *base, int scope);
 
 /**
  * Checks if a DN is within a specified scope under a specified base DN.
@@ -2953,7 +2957,7 @@ int slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope );
  * \see slapi_sdn_isparent()
  * \see slapi_sdn_issuffix()
  */
-int slapi_sdn_scope_test_ext( const Slapi_DN *dn, const Slapi_DN *base, int scope, int flags );
+int slapi_sdn_scope_test_ext(const Slapi_DN *dn, const Slapi_DN *base, int scope, int flags);
 
 /**
  * Retrieves the RDN from a given DN.
@@ -2970,7 +2974,7 @@ int slapi_sdn_scope_test_ext( const Slapi_DN *dn, const Slapi_DN *base, int scop
  * \see slapi_sdn_add_rdn()
  * \see slapi_sdn_is_rdn_component()
  */
-void slapi_sdn_get_rdn(const Slapi_DN *sdn,Slapi_RDN *rdn);
+void slapi_sdn_get_rdn(const Slapi_DN *sdn, Slapi_RDN *rdn);
 
 /**
  * Sets a new RDN for a given DN.
@@ -3014,7 +3018,7 @@ Slapi_DN *slapi_sdn_set_parent(Slapi_DN *sdn, const Slapi_DN *parentdn);
  *        in \c newrdn in front of the content of this parameter.
  * \return The new DN for the entry whose previous DN was \c dn_olddn.
  */
-char * slapi_moddn_get_newdn(Slapi_DN *dn_olddn, const char *newrdn, const char *newsuperiordn);
+char *slapi_moddn_get_newdn(Slapi_DN *dn_olddn, const char *newrdn, const char *newsuperiordn);
 Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
 
 
@@ -3034,7 +3038,7 @@ Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
  * \see slapi_rdn_done()
  * \see slapi_rdn_free()
  */
-Slapi_RDN *slapi_rdn_new( void );
+Slapi_RDN *slapi_rdn_new(void);
 
 /**
  * Creates a new \c Slapi_RDN structure and initializes it from a string.
@@ -3052,7 +3056,7 @@ Slapi_RDN *slapi_rdn_new_dn(const char *dn);
 
 /**
  * Creates a new \c Slapi_RDN structure and initializes it from a \c Slapi_DN.
- * 
+ *
  * \param sdn The \c Slapi_DN structure whose RDN will be used to initialize
  *        the new \c Slapi_RDN structure.
  * \return A pointer to the newly allocated and initialized \c Slapi_RDN structure.
@@ -3103,7 +3107,7 @@ void slapi_rdn_init(Slapi_RDN *rdn);
  * \see slapi_rdn_init_sdn()
  * \see slapi_rdn_init_rdn()
  */
-void slapi_rdn_init_dn(Slapi_RDN *rdn,const char *dn);
+void slapi_rdn_init_dn(Slapi_RDN *rdn, const char *dn);
 
 /**
  * Initializes a \c Slapi_RDN structure from a \c Slapi_DN.
@@ -3116,7 +3120,7 @@ void slapi_rdn_init_dn(Slapi_RDN *rdn,const char *dn);
  * \see slapi_rdn_init_dn()
  * \see slapi_rdn_init_rdn()
  */
-void slapi_rdn_init_sdn(Slapi_RDN *rdn,const Slapi_DN *sdn);
+void slapi_rdn_init_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn);
 
 /**
  * Initializes a \c Slapi_RDN structure from another \c Slapi_RDN.
@@ -3130,7 +3134,7 @@ void slapi_rdn_init_sdn(Slapi_RDN *rdn,const Slapi_DN *sdn);
  * \see slapi_rdn_init_dn()
  * \see slapi_rdn_init_sdn()
  */
-void slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
+void slapi_rdn_init_rdn(Slapi_RDN *rdn, const Slapi_RDN *fromrdn);
 
 /**
  * Sets the RDN value in a \c Slapi_RDN structure from a string.
@@ -3143,10 +3147,10 @@ void slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
  * \see slapi_rdn_set_sdn()
  * \see slapi_rdn_set_rdn()
  */
-void slapi_rdn_set_dn(Slapi_RDN *rdn,const char *dn);
+void slapi_rdn_set_dn(Slapi_RDN *rdn, const char *dn);
 #define SLAPI_RDN_SET_DN_SKIP_UNIQUEID 1
 #define SLAPI_RDN_SET_DN_INCLUDE_UNIQUEID 2
-void slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int flags);
+void slapi_rdn_set_dn_ext(Slapi_RDN *rdn, const char *dn, int flags);
 Slapi_RDN *slapi_rdn_new_all_dn(const char *dn);
 int slapi_rdn_init_all_dn(Slapi_RDN *rdn, const char *dn);
 int slapi_rdn_init_all_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn);
@@ -3163,7 +3167,7 @@ int slapi_rdn_init_all_sdn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn, int is_tombs
  * \see slapi_rdn_set_dn()
  * \see slapi_rdn_set_rdn()
  */
-void slapi_rdn_set_sdn(Slapi_RDN *rdn,const Slapi_DN *sdn);
+void slapi_rdn_set_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn);
 
 /**
  * Sets the RDN value in a \c Slapi_RDN structure from a \c Slapi_RDN.
@@ -3176,7 +3180,7 @@ void slapi_rdn_set_sdn(Slapi_RDN *rdn,const Slapi_DN *sdn);
  * \see slapi_rdn_set_dn()
  * \see slapi_rdn_set_sdn()
  */
-void slapi_rdn_set_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
+void slapi_rdn_set_rdn(Slapi_RDN *rdn, const Slapi_RDN *fromrdn);
 
 /**
  * Frees a \c Slapi_RDN structure and it's contents from memory.
@@ -3194,7 +3198,7 @@ void slapi_rdn_free(Slapi_RDN **rdn);
  * \return 1 if address is an IPv6 address
  * \return 0 if address is an IPv4 address
  */
-int slapi_is_ipv6_addr( const char *ipAddress);
+int slapi_is_ipv6_addr(const char *ipAddress);
 
 /**
  * Returns the length of a ber-encoded ldap operation
@@ -3276,7 +3280,7 @@ int slapi_rdn_get_next(Slapi_RDN *rdn, int index, char **type, char **value);
  * \see slapi_rdn_get_index_attr()
  * \see slapi_rdn_contains()
  */
-int slapi_rdn_get_index(Slapi_RDN *rdn, const char *type, const char *value,size_t length);
+int slapi_rdn_get_index(Slapi_RDN *rdn, const char *type, const char *value, size_t length);
 
 /**
  * Finds a RDN for a given type in a \c Slapi_RDN structure and returns it's index.
@@ -3305,7 +3309,7 @@ int slapi_rdn_get_index_attr(Slapi_RDN *rdn, const char *type, char **value);
  * \see slapi_rdn_get_index()
  * \see slapi_rdn_contains_attr()
  */
-int slapi_rdn_contains(Slapi_RDN *rdn, const char *type, const char *value,size_t length);
+int slapi_rdn_contains(Slapi_RDN *rdn, const char *type, const char *value, size_t length);
 
 /**
  * Checks if a RDN for a given type exists in a \c Slapi_RDN structure.
@@ -3438,14 +3442,14 @@ const char *slapi_rdn_get_rdn(const Slapi_RDN *rdn);
  */
 Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
 
-/* Function:	slapi_rdn_set_all_dn
+/* Function:    slapi_rdn_set_all_dn
    Description: this function sets exploded RDNs of DN to Slapi_RDN
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                dn - distinguished name which is to be exploded into RDNs and
-			        set to Slapi_RDN
+                    set to Slapi_RDN
    Return: none
 */
-void slapi_rdn_set_all_dn(Slapi_RDN *rdn,const char *dn);
+void slapi_rdn_set_all_dn(Slapi_RDN *rdn, const char *dn);
 
 /**
  * Gets the normalized RDN from a \c Slapi_RDN structure
@@ -3455,12 +3459,12 @@ void slapi_rdn_set_all_dn(Slapi_RDN *rdn,const char *dn);
  */
 const char *slapi_rdn_get_nrdn(Slapi_RDN *srdn);
 
-/* Function:	slapi_rdn_get_first_ext
-   Description: this function returns the first RDN in RDN array.  The RDN 
+/* Function:    slapi_rdn_get_first_ext
+   Description: this function returns the first RDN in RDN array.  The RDN
                 array is supposed to store all the RDNs of DN.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                firstrdn - a container to store the address of the first RDN.
-			             The caller should not free the returned address.
+                         The caller should not free the returned address.
                flag - type of the returned RDN.  one of the followings:
                       FLAG_ALL_RDNS -- raw (not normalized)
                       FLAG_ALL_NRDNS -- normalized
@@ -3469,12 +3473,12 @@ const char *slapi_rdn_get_nrdn(Slapi_RDN *srdn);
 */
 int slapi_rdn_get_first_ext(Slapi_RDN *srdn, const char **firstrdn, int flag);
 
-/* Function:	slapi_rdn_get_last_ext
-   Description: this function returns the last RDN in RDN array.  The RDN 
+/* Function:    slapi_rdn_get_last_ext
+   Description: this function returns the last RDN in RDN array.  The RDN
                 array is supposed to store all the RDNs of DN.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                lastrdn - a container to store the address of the last RDN.
-			             The caller should not free the returned address.
+                         The caller should not free the returned address.
                flag - type of the returned RDN.  one of the followings:
                       FLAG_ALL_RDNS -- raw (not normalized)
                       FLAG_ALL_NRDNS -- normalized
@@ -3482,14 +3486,14 @@ int slapi_rdn_get_first_ext(Slapi_RDN *srdn, const char **firstrdn, int flag);
            -1, if it fails.
 */
 int slapi_rdn_get_last_ext(Slapi_RDN *srdn, const char **lastrdn, int flag);
-/* Function:	slapi_rdn_get_prev_ext
+/* Function:    slapi_rdn_get_prev_ext
    Description: this function returns the previous RDN of the given index (idx)
                 in RDN array.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                idx - a return value of the previous slapi_rdn_get_last_ext
                      or slapi_rdn_get_prev_ext or slapi_rdn_get_next_ext call.
                prevrdn - a container to store the address of the previous RDN.
-			             The caller should not free the returned address.
+                         The caller should not free the returned address.
                flag - type of the returned RDN.  one of the followings:
                       FLAG_ALL_RDNS -- raw (not normalized)
                       FLAG_ALL_NRDNS -- normalized
@@ -3497,14 +3501,14 @@ int slapi_rdn_get_last_ext(Slapi_RDN *srdn, const char **lastrdn, int flag);
            -1, if it fails.
 */
 int slapi_rdn_get_prev_ext(Slapi_RDN *srdn, int idx, const char **prevrdn, int flag);
-/* Function:	slapi_rdn_get_next_ext
+/* Function:    slapi_rdn_get_next_ext
    Description: this function returns the next RDN of the given index (idx)
                 in RDN array.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
-               idx - a return value of the previous slapi_rdn_get_prev_ext 
+               idx - a return value of the previous slapi_rdn_get_prev_ext
                      or slapi_rdn_get_next_ext call.
                nextrdn - a container to store the address of the next RDN.
-			             The caller should not free the returned address.
+                         The caller should not free the returned address.
                flag - type of the returned RDN.  one of the followings:
                       FLAG_ALL_RDNS -- raw (not normalized)
                       FLAG_ALL_NRDNS -- normalized
@@ -3512,8 +3516,8 @@ int slapi_rdn_get_prev_ext(Slapi_RDN *srdn, int idx, const char **prevrdn, int f
            -1, if it fails.
 */
 int slapi_rdn_get_next_ext(Slapi_RDN *srdn, int idx, const char **nextrdn, int flag);
-/* Function:	slapi_rdn_add_rdn_to_all_rdns
-   Description: this function appends the given RDN to the RDN array in 
+/* Function:    slapi_rdn_add_rdn_to_all_rdns
+   Description: this function appends the given RDN to the RDN array in
                 Slapi_RDN.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                addrdn - an RDN string to append.
@@ -3523,8 +3527,8 @@ int slapi_rdn_get_next_ext(Slapi_RDN *srdn, int idx, const char **nextrdn, int f
            -1, if it fails.
 */
 int slapi_rdn_add_rdn_to_all_rdns(Slapi_RDN *srdn, char *addrdn, int byref);
-/* Function:	slapi_rdn_add_srdn_to_all_rdns
-   Description: this function appends the given Slapi_RDN to the RDN array in 
+/* Function:    slapi_rdn_add_srdn_to_all_rdns
+   Description: this function appends the given Slapi_RDN to the RDN array in
                 Slapi_RDN.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                addsrdn - Slapi_RDN to append.
@@ -3532,38 +3536,38 @@ int slapi_rdn_add_rdn_to_all_rdns(Slapi_RDN *srdn, char *addrdn, int byref);
            -1, if it fails.
 */
 int slapi_rdn_add_srdn_to_all_rdns(Slapi_RDN *srdn, Slapi_RDN *addsrdn);
-/* Function:	slapi_rdn_get_dn
+/* Function:    slapi_rdn_get_dn
    Description: this function generates DN string if it stores RDNs in its
                 all_rdns field.
    Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
                dn -- a container to store the address of DN; dn is allocated
-			         in this function.
+                     in this function.
    Return: 0, if the function succeeds.
            -1, if it fails (e.g., srdn is NULL, dn is NULL, or srdn does not
                have RDN array in it.
 */
 int slapi_rdn_get_dn(Slapi_RDN *srdn, char **dn);
-/* Function:	slapi_srdn_copy
+/* Function:    slapi_srdn_copy
    Description: this function copies "from" Slapi_RDN structure to "to"
-   Parameters: from - a pointer to source Slapi_RDN 
+   Parameters: from - a pointer to source Slapi_RDN
                to -- an address to store the copied Slapi_RDN.
    Return: 0, if the function succeeds.
            -1, if it fails
 */
 int slapi_srdn_copy(const Slapi_RDN *from, Slapi_RDN *to);
-/* Function:	slapi_srdn_copy
+/* Function:    slapi_srdn_copy
    Description: this function replaces the rdn in Slapi_RDN with new_rdn
-   Parameters: srdn - a pointer to Slapi_RDN 
+   Parameters: srdn - a pointer to Slapi_RDN
                new_rdn -- new rdn set to Slapi_RDN
    Return: 0, if the function succeeds.
            -1, if it fails
 */
 int slapi_rdn_replace_rdn(Slapi_RDN *srdn, char *new_rdn);
-/* Function:	slapi_rdn_partial_dup
+/* Function:    slapi_rdn_partial_dup
    Description: this function partially duplicates "from" Slapi_RDN structure and set it to "to"
-   Parameters: from - a pointer to source Slapi_RDN 
+   Parameters: from - a pointer to source Slapi_RDN
                to -- an address to store the partially copied Slapi_RDN.
-			   idx -- index from which the duplicate begins
+               idx -- index from which the duplicate begins
    Return: 0, if the function succeeds.
            -1, if it fails
 */
@@ -3583,7 +3587,7 @@ size_t slapi_rdn_get_size(Slapi_RDN *srdn);
  * \param rdn A pointer to rdn to get the value.
  * \return The value of the given RDN.
  */
-char * slapi_rdn_get_value(const char *rdn);
+char *slapi_rdn_get_value(const char *rdn);
 
 /**
  * Return a pointer to the value of the RDN
@@ -3591,7 +3595,7 @@ char * slapi_rdn_get_value(const char *rdn);
  * \param rdn A pointer to rdn to get the value.
  * \return The value of the given RDN.
  */
-char * slapi_rdn_get_value_by_ref(const char *rdn);
+char *slapi_rdn_get_value_by_ref(const char *rdn);
 
 /**
  * Check if the rdn is multivalued or not
@@ -3621,7 +3625,7 @@ int slapi_rdn_is_conflict(Slapi_RDN *rdn);
  * \return The normalized DN.
  * \deprecated Use slapi_dn_normalized_ext.
  */
-char *slapi_dn_normalize( char *dn );
+char *slapi_dn_normalize(char *dn);
 
 /**
  * Does nothing. (DEPRECATED)
@@ -3633,7 +3637,7 @@ char *slapi_dn_normalize( char *dn );
  * \return The normalized DN.
  * \deprecated Use slapi_dn_normalized_ext.
  */
-char *slapi_dn_normalize_to_end( char *dn, char *end );
+char *slapi_dn_normalize_to_end(char *dn, char *end);
 
 /**
  * Normalizes a DN.
@@ -3700,7 +3704,7 @@ char *slapi_create_rdn_value(const char *fmt, ...);
  * \deprecated Use slapi_sdn_get_ndn() instead to normalize the case,
  *             or use slapi_sdn_compare() to compare regardless of case.
  */
-char *slapi_dn_ignore_case( char *dn );
+char *slapi_dn_ignore_case(char *dn);
 
 /**
  * Converts a DN to canonical format and converts all characters to lowercase.
@@ -3709,7 +3713,7 @@ char *slapi_dn_ignore_case( char *dn );
  * \return The normalized and converted DN.
  * \note The \c dn parameter is converted in place.
  */
-char *slapi_dn_normalize_case( char *dn );
+char *slapi_dn_normalize_case(char *dn);
 
 /**
  * Get a copy of the parent DN of a DN.
@@ -3721,7 +3725,7 @@ char *slapi_dn_normalize_case( char *dn );
  * \warning The caller must free the returned DN when finished with it.
  * \deprecated Use slapi_sdn_get_backend_parent() instead.
  */
-char *slapi_dn_beparent( Slapi_PBlock *pb, const char *dn );
+char *slapi_dn_beparent(Slapi_PBlock *pb, const char *dn);
 
 /**
  * Finds the parent DN of a DN within the same string.
@@ -3729,7 +3733,7 @@ char *slapi_dn_beparent( Slapi_PBlock *pb, const char *dn );
  * \param dn The DN whose parent DN is desired.
  * \return A pointer to the parent DN within \c dn.
  */
-const char *slapi_dn_find_parent( const char *dn );
+const char *slapi_dn_find_parent(const char *dn);
 
 /**
  * Finds the parent DN of a DN within the same string.
@@ -3738,7 +3742,7 @@ const char *slapi_dn_find_parent( const char *dn );
  * \param is_tombstone If non-zero, the special leaf rdn "nsuniqueid=.." is ignored.
  * \return A pointer to the parent DN within \c dn.
  */
-const char *slapi_dn_find_parent_ext( const char *dn, int is_tombstone );
+const char *slapi_dn_find_parent_ext(const char *dn, int is_tombstone);
 
 /**
  * Gets the parent DN of a given DN.
@@ -3748,7 +3752,7 @@ const char *slapi_dn_find_parent_ext( const char *dn, int is_tombstone );
  * \warning The caller must free the returned DN when finished with it.
  * \deprecated Use slapi_sdn_get_parent() instead.
  */
-char *slapi_dn_parent( const char *dn );
+char *slapi_dn_parent(const char *dn);
 
 /**
  * Gets the parent DN of a given DN.
@@ -3759,7 +3763,7 @@ char *slapi_dn_parent( const char *dn );
  * \warning The caller must free the returned DN when finished with it.
  * \deprecated Use slapi_sdn_get_parent() instead.
  */
-char *slapi_dn_parent_ext( const char *dn, int is_tombstone );
+char *slapi_dn_parent_ext(const char *dn, int is_tombstone);
 
 /**
  * Checks if a DN belongs to a suffix.
@@ -3771,7 +3775,7 @@ char *slapi_dn_parent_ext( const char *dn, int is_tombstone );
  * \warning Both \c dn and \c suffix must be normalized before calling this function.
  * \deprecated Use slapi_sdn_issuffix() instead.
  */
-int slapi_dn_issuffix( const char *dn, const char *suffix );
+int slapi_dn_issuffix(const char *dn, const char *suffix);
 
 /**
  * Checks if a DN is the parent of another DN.
@@ -3782,7 +3786,7 @@ int slapi_dn_issuffix( const char *dn, const char *suffix );
  * \return \c 0 if \c parentdn is not the paret of \c childdn.
  * \deprecated Use slapi_sdn_isparent() instead.
  */
-int slapi_dn_isparent( const char *parentdn, const char *childdn );
+int slapi_dn_isparent(const char *parentdn, const char *childdn);
 
 /**
  * Determines is a DN is the root DN.
@@ -3792,7 +3796,7 @@ int slapi_dn_isparent( const char *parentdn, const char *childdn );
  * \return \c 0 if the DN is not the root DN.
  * \warning You must normalize \c dn before calling this function.
  */
-int slapi_dn_isroot( const char *dn );
+int slapi_dn_isroot(const char *dn);
 
 /**
  * Determines if an SDN is the root DN.
@@ -3801,7 +3805,7 @@ int slapi_dn_isroot( const char *dn );
  * \return \c 1 if the DN is the root DN.
  * \return \c 0 if the DN is not the root DN.
  */
-int32_t slapi_sdn_isroot( const Slapi_DN *sdn );
+int32_t slapi_sdn_isroot(const Slapi_DN *sdn);
 
 /**
  * Checks if a DN is the backend suffix.
@@ -3812,7 +3816,7 @@ int32_t slapi_sdn_isroot( const Slapi_DN *sdn );
  * \return \c 0 if \c dn is not the backend suffix.
  * \deprecated slapi_be_issuffix()
  */
-int slapi_dn_isbesuffix( Slapi_PBlock *pb, const char *dn );
+int slapi_dn_isbesuffix(Slapi_PBlock *pb, const char *dn);
 
 /**
  * Checks if writes to a particular DN need to send a referral.
@@ -3839,7 +3843,7 @@ int slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral);
  *        of the second RDN.
  * \param bv A pointer to the berval structure to receive the value.
  */
-int slapi_rdn2typeval( char *rdn, char **type, struct berval *bv );
+int slapi_rdn2typeval(char *rdn, char **type, struct berval *bv);
 
 /**
  * Adds a RDN to a DN.
@@ -3873,7 +3877,7 @@ Slapi_DN *slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2);
  * \see slapi_rand()
  * \see slapi_rand_array()
  */
-int slapi_rand_r(unsigned int * seed);
+int slapi_rand_r(unsigned int *seed);
 
 /* Generate a pseudo-random integer in an array.
  *
@@ -3901,13 +3905,13 @@ int slapi_rand(void);
  * \param buf the buffer to store the escaped filter value string
  * \return the escaped filter value string
  */
-char* slapi_escape_filter_value(char* filter_str, int len);
+char *slapi_escape_filter_value(char *filter_str, int len);
 
 #define ESC_NEXT_VAL "__ESC__NEXT__VAL__"
 #define NORM_NEXT_VAL "__NORM__NEXT__VAL__"
 #define ESC_AND_NORM_NEXT_VAL "__ESC__AND__NORM__NEXT__VAL__"
 
-char* slapi_filter_sprintf(const char *fmt, ...);
+char *slapi_filter_sprintf(const char *fmt, ...);
 
 /*
  * attribute routines
@@ -3921,7 +3925,7 @@ char* slapi_filter_sprintf(const char *fmt, ...);
  * \see slapi_attr_dup()
  * \see slapi_attr_free()
  */
-Slapi_Attr *slapi_attr_new( void );
+Slapi_Attr *slapi_attr_new(void);
 
 /**
  * Initializes an attribute with an attribute type.
@@ -3940,7 +3944,7 @@ Slapi_Attr *slapi_attr_init(Slapi_Attr *a, const char *type);
  * \see slapi_attr_dup()
  * \see slapi_attr_new()
  */
-void slapi_attr_free( Slapi_Attr **a );
+void slapi_attr_free(Slapi_Attr **a);
 
 /**
  * Make a copy of an attribute.
@@ -3985,7 +3989,7 @@ int slapi_attr_add_value(Slapi_Attr *a, const Slapi_Value *v);
  * \see slapi_attr_types_equivalent()
  * \see slapi_attr_basetype()
  */
-int slapi_attr_type2plugin( const char *type, void **pi );
+int slapi_attr_type2plugin(const char *type, void **pi);
 
 /**
  * Get the name of the attribute type from a specified attribute.
@@ -4000,7 +4004,7 @@ int slapi_attr_type2plugin( const char *type, void **pi );
  * \see slapi_attr_types_equivalent()
  * \see slapi_attr_basetype()
  */
-int slapi_attr_get_type( Slapi_Attr *attr, char **type );
+int slapi_attr_get_type(Slapi_Attr *attr, char **type);
 
 /**
  * Get the attribute type OID of a particular attribute.
@@ -4014,7 +4018,7 @@ int slapi_attr_get_type( Slapi_Attr *attr, char **type );
  *       slapi_ch_free_string() function.
  * \see slapi_attr_get_syntax_oid_copy()
  */
-int slapi_attr_get_oid_copy( const Slapi_Attr *attr, char **oidp );
+int slapi_attr_get_oid_copy(const Slapi_Attr *attr, char **oidp);
 
 /*
  * Get the syntax OID of a particular attribute.
@@ -4028,7 +4032,7 @@ int slapi_attr_get_oid_copy( const Slapi_Attr *attr, char **oidp );
  *       slapi_ch_free_string() function.
  * \see slapi_attr_get_oid_copy()
  */
-int slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp );
+int slapi_attr_get_syntax_oid_copy(const Slapi_Attr *a, char **oidp);
 
 /**
  * Checks if the attribute uses a DN syntax or not.
@@ -4058,7 +4062,7 @@ int slapi_attr_is_dn_syntax_type(char *type);
  * \return \c Always returns 0.
  * \see slapi_attr_flag_is_set()
  */
-int slapi_attr_get_flags( const Slapi_Attr *attr, unsigned long *flags );
+int slapi_attr_get_flags(const Slapi_Attr *attr, unsigned long *flags);
 
 /**
  * Checks if certain flags are set for a particular attribute.
@@ -4079,7 +4083,7 @@ int slapi_attr_get_flags( const Slapi_Attr *attr, unsigned long *flags );
  * \return \c 0 if the specified flags are not set.
  * \see slapi_attr_get_flags()
  */
-int slapi_attr_flag_is_set( const Slapi_Attr *attr, unsigned long flag );
+int slapi_attr_flag_is_set(const Slapi_Attr *attr, unsigned long flag);
 
 /**
  * Comare two bervals for a given attribute.
@@ -4099,7 +4103,7 @@ int slapi_attr_flag_is_set( const Slapi_Attr *attr, unsigned long flag );
  * \see slapi_attr_get_numvalues()
  * \see slapi_attr_value_find()
  */
-int slapi_attr_value_cmp( const Slapi_Attr *attr, const struct berval *v1, const struct berval *v2 );
+int slapi_attr_value_cmp(const Slapi_Attr *attr, const struct berval *v1, const struct berval *v2);
 
 /**
  * Comare two values for a given attribute.
@@ -4136,7 +4140,7 @@ int slapi_attr_value_cmp_ext(const Slapi_Attr *a, Slapi_Value *v1, Slapi_Value *
  * \see slapi_attr_get_numvalues()
  * \see slapi_attr_value_cmp()
  */
-int slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v );
+int slapi_attr_value_find(const Slapi_Attr *a, const struct berval *v);
 
 /**
  * Compare two attribute types.
@@ -4155,7 +4159,7 @@ int slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v );
  * \see slapi_attr_types_equivalent()
  * \see slapi_attr_basetype()
  */
-int slapi_attr_type_cmp( const char *t1, const char *t2, int opt );
+int slapi_attr_type_cmp(const char *t1, const char *t2, int opt);
 
 /* Mode of operation (opt) values for slapi_attr_type_cmp() */
 /**
@@ -4163,28 +4167,28 @@ int slapi_attr_type_cmp( const char *t1, const char *t2, int opt );
  *
  * \see slapi_attr_type_cmp()
  */
-#define SLAPI_TYPE_CMP_EXACT	0
+#define SLAPI_TYPE_CMP_EXACT 0
 
 /**
  * Compare only the base names of the types.
  *
  * \see slapi_attr_type_cmp()
  */
-#define SLAPI_TYPE_CMP_BASE	1
+#define SLAPI_TYPE_CMP_BASE 1
 
 /**
  * Ignore any subtypes in the second type that are not in the first subtype.
  *
  * \see slapi_attr_type_cmp()
  */
-#define SLAPI_TYPE_CMP_SUBTYPE	2
+#define SLAPI_TYPE_CMP_SUBTYPE 2
 
 /**
  * Compare types including subtypes in the both args.
  *
  * \see slapi_attr_type_cmp()
  */
-#define SLAPI_TYPE_CMP_SUBTYPES	3
+#define SLAPI_TYPE_CMP_SUBTYPES 3
 
 /**
  * Compare two attribute names to determine if they represent the same value.
@@ -4216,7 +4220,7 @@ int slapi_attr_types_equivalent(const char *t1, const char *t2);
  * \see slapi_attr_type_cmp()
  * \see slapi_attr_types_equivalent()
  */
-char *slapi_attr_basetype( const char *type, char *buf, size_t bufsiz );
+char *slapi_attr_basetype(const char *type, char *buf, size_t bufsiz);
 
 /**
  * Get the first value of an attribute.
@@ -4233,7 +4237,7 @@ char *slapi_attr_basetype( const char *type, char *buf, size_t bufsiz );
  * \see slapi_attr_next_value()
  * \see slapi_attr_get_num_values()
  */
-int slapi_attr_first_value( Slapi_Attr *a, Slapi_Value **v );
+int slapi_attr_first_value(Slapi_Attr *a, Slapi_Value **v);
 
 /**
  * Get the next value of an attribute.
@@ -4252,7 +4256,7 @@ int slapi_attr_first_value( Slapi_Attr *a, Slapi_Value **v );
  * \see slapi_attr_first_value()
  * \see slapi_attr_get_num_values()
  */
-int slapi_attr_next_value( Slapi_Attr *a, int hint, Slapi_Value **v );
+int slapi_attr_next_value(Slapi_Attr *a, int hint, Slapi_Value **v);
 
 /**
  * Get the number of values present in an attribute.
@@ -4265,7 +4269,7 @@ int slapi_attr_next_value( Slapi_Attr *a, int hint, Slapi_Value **v );
  * \see slapi_attr_first_value()
  * \see slapi_attr_next_value()
  */
-int slapi_attr_get_numvalues( const Slapi_Attr *a, int *numValues);
+int slapi_attr_get_numvalues(const Slapi_Attr *a, int *numValues);
 
 /**
  * Copy existing values contained in an attribute into a valueset.
@@ -4328,7 +4332,7 @@ int slapi_attr_set_type(Slapi_Attr *a, const char *type);
  * \warning You should free the array using ber_bvecfree() from the
  *          Mozilla LDAP C SDK.
  */
-int slapi_attr_get_bervals_copy( Slapi_Attr *a, struct berval ***vals );
+int slapi_attr_get_bervals_copy(Slapi_Attr *a, struct berval ***vals);
 
 /**
  * Normalize an attribute type.
@@ -4342,7 +4346,7 @@ int slapi_attr_get_bervals_copy( Slapi_Attr *a, struct berval ***vals );
  * \warning You should free the returned string using slapi_ch_free_string().
  * \see slapi_ch_free_string()
  */
-char * slapi_attr_syntax_normalize( const char *s );
+char *slapi_attr_syntax_normalize(const char *s);
 
 /**
  * Normalize an attribute type.
@@ -4359,7 +4363,7 @@ char * slapi_attr_syntax_normalize( const char *s );
  * \warning You should free the returned string using slapi_ch_free_string().
  * \see slapi_ch_free_string()
  */
-char * slapi_attr_syntax_normalize_ext( char *s, int flags );
+char *slapi_attr_syntax_normalize_ext(char *s, int flags);
 
 
 /*
@@ -4378,7 +4382,7 @@ char * slapi_attr_syntax_normalize_ext( char *s, int flags );
  * \see slapi_value_new_string()
  * \see slapi_value_new_string_passin()
  */
-Slapi_Value *slapi_value_new( void );
+Slapi_Value *slapi_value_new(void);
 
 /**
  * Create a new \c Slapi_value structure and initialize it's value.
@@ -4495,7 +4499,7 @@ Slapi_Value *slapi_value_init_berval(Slapi_Value *v, struct berval *bval);
  * \see slapi_value_init_berval()
  * \see slapi_value_init_string_passin()
  */
-Slapi_Value *slapi_value_init_string(Slapi_Value *v,const char *s);
+Slapi_Value *slapi_value_init_string(Slapi_Value *v, const char *s);
 
 /* Initialize a \c Slapi_Value with the value contained in a string.
  *
@@ -4595,7 +4599,7 @@ void slapi_value_free(Slapi_Value **value);
  *          you plan to replace it by calling \c slapi_value_set_berval().
  * \see slapi_value_set_berval()
  */
-const struct berval *slapi_value_get_berval( const Slapi_Value *value );
+const struct berval *slapi_value_get_berval(const Slapi_Value *value);
 
 /**
  * Sets the value of a \c Slapi_Value structure from a \c berval structure.
@@ -4616,7 +4620,7 @@ const struct berval *slapi_value_get_berval( const Slapi_Value *value );
  * \see slapi_value_free()
  * \see slapi_value_get_berval()
  */
-Slapi_Value *slapi_value_set_berval( Slapi_Value *value, const struct berval *bval );
+Slapi_Value *slapi_value_set_berval(Slapi_Value *value, const struct berval *bval);
 
 /**
  * Sets the value of a \c Slapi_Value structure from another \c Slapi_Value structure.
@@ -4638,7 +4642,7 @@ Slapi_Value *slapi_value_set_berval( Slapi_Value *value, const struct berval *bv
  *          should free it from memory by valling \c slapi_value_free().
  * \see slapi_value_free()
  */
-Slapi_Value *slapi_value_set_value( Slapi_Value *value, const Slapi_Value *vfrom);
+Slapi_Value *slapi_value_set_value(Slapi_Value *value, const Slapi_Value *vfrom);
 
 /**
  * Sets the value of a \c Slapi_Value structure.
@@ -4660,7 +4664,7 @@ Slapi_Value *slapi_value_set_value( Slapi_Value *value, const Slapi_Value *vfrom
  *          should free it from memory by valling \c slapi_value_free().
  * \see slapi_value_free()
  */
-Slapi_Value *slapi_value_set( Slapi_Value *value, void *val, unsigned long len);
+Slapi_Value *slapi_value_set(Slapi_Value *value, void *val, unsigned long len);
 
 /**
  * Sets the value of a \c Slapi_Value structure from a string.
@@ -4733,7 +4737,7 @@ int slapi_value_set_int(Slapi_Value *value, int intVal);
  *          replace it by calling slapi_value_set_string().
  * \see slapi_value_set_string()
  */
-const char*slapi_value_get_string(const Slapi_Value *value);
+const char *slapi_value_get_string(const Slapi_Value *value);
 
 /**
  * Retrieves the value of a \c Slapi_Value structure as an integer.
@@ -4884,7 +4888,7 @@ size_t slapi_value_get_length(const Slapi_Value *value);
 
 /**
  * Compares two \c Slapi_Value structures
- * 
+ *
  * The matching rule associated with the supplied attribute \c a is used
  * to compare the two values.
  *
@@ -4898,7 +4902,7 @@ size_t slapi_value_get_length(const Slapi_Value *value);
  * \return \c -1 if \c v1 is smaller than \c v2.
  * \return \c 1 if \c v1 is greater than \c v2.
  */
-int slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Value *v2);
+int slapi_value_compare(const Slapi_Attr *a, const Slapi_Value *v1, const Slapi_Value *v2);
 
 /**
  * Free and initialize the contents of the berval without freeing the
@@ -4910,7 +4914,7 @@ int slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Va
  * // use bv
  * slapi_ber_bvdone(&bv);
  * \endcode
- * You must only call slapi_ber_bvdone() if the bv_val member has been 
+ * You must only call slapi_ber_bvdone() if the bv_val member has been
  * allocated with malloc() or is NULL.
  *
  * \param bvp A struct berval * you want to free the contents of
@@ -4945,11 +4949,11 @@ void slapi_ber_bvcpy(struct berval *bvd, const struct berval *bvs);
  *
  * \see slapi_valueset_add_value_ext()
  */
-#define SLAPI_VALUE_FLAG_PASSIN			0x1
-#define SLAPI_VALUE_FLAG_IGNOREERROR	0x2
-#define SLAPI_VALUE_FLAG_PRESERVECSNSET	0x4
-#define SLAPI_VALUE_FLAG_USENEWVALUE	0x8	/* see valueset_remove_valuearray */
-#define SLAPI_VALUE_FLAG_DUPCHECK	0x10	/* used in valueset_add... */
+#define SLAPI_VALUE_FLAG_PASSIN          0x1
+#define SLAPI_VALUE_FLAG_IGNOREERROR     0x2
+#define SLAPI_VALUE_FLAG_PRESERVECSNSET  0x4
+#define SLAPI_VALUE_FLAG_USENEWVALUE     0x8  /* see valueset_remove_valuearray */
+#define SLAPI_VALUE_FLAG_DUPCHECK       0x10  /* used in valueset_add... */
 
 /**
  * Creates an empty \c Slapi_ValueSet structure.
@@ -4961,7 +4965,7 @@ void slapi_ber_bvcpy(struct berval *bvd, const struct berval *bvs);
  *          from memory by calling \c slapi_valueset_free().
  * \see slapi_valueset_free()
  */
-Slapi_ValueSet *slapi_valueset_new( void );
+Slapi_ValueSet *slapi_valueset_new(void);
 
 /**
  * Free a \c Slapi_ValueSet structure from memory.
@@ -5065,7 +5069,7 @@ int slapi_valueset_add_attr_value_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, S
  *          if you wish to iterate through all values in the valueset.
  * \see slapi_valueset_next_value().
  */
-int slapi_valueset_first_value( Slapi_ValueSet *vs, Slapi_Value **v );
+int slapi_valueset_first_value(Slapi_ValueSet *vs, Slapi_Value **v);
 
 /**
  * Gets the next value in a \c Slapi_ValueSet structure.
@@ -5088,7 +5092,7 @@ int slapi_valueset_first_value( Slapi_ValueSet *vs, Slapi_Value **v );
  *          if you wish to iterate through all values in the valueset.
  * \see slapi_valueset_first_value()
  */
-int slapi_valueset_next_value( Slapi_ValueSet *vs, int index, Slapi_Value **v);
+int slapi_valueset_next_value(Slapi_ValueSet *vs, int index, Slapi_Value **v);
 
 /**
  * Returns the number of values contained in a \c Slapi_ValueSet structure.
@@ -5097,7 +5101,7 @@ int slapi_valueset_next_value( Slapi_ValueSet *vs, int index, Slapi_Value **v);
  *        you wish to get the count.
  * \return The number of values contained in the \c Slapi_ValueSet structure.
  */
-int slapi_valueset_count( const Slapi_ValueSet *vs);
+int slapi_valueset_count(const Slapi_ValueSet *vs);
 
 /**
  * Checks if  a \c Slapi_ValueSet structure has values
@@ -5107,7 +5111,7 @@ int slapi_valueset_count( const Slapi_ValueSet *vs);
  * \return 1 if there are no values contained in the \c Slapi_ValueSet structure.
  * \return 0 if there are values contained in the \c Slapi_ValueSet structure.
  */
-int slapi_valueset_isempty( const Slapi_ValueSet *vs);
+int slapi_valueset_isempty(const Slapi_ValueSet *vs);
 
 /**
  * Initializes a \c Slapi_ValueSet with copies of the values of a \c Slapi_Mod structure.
@@ -5126,7 +5130,7 @@ int slapi_valueset_isempty( const Slapi_ValueSet *vs);
 void slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod);
 
 /**
- * Initializes a \c Slapi_ValueSet with copies of the values of another \c Slapi_ValueSet. 
+ * Initializes a \c Slapi_ValueSet with copies of the values of another \c Slapi_ValueSet.
  *
  * \param vs1 Pointer to the \c Slapi_ValueSet structure into which
  *        you wish to copy the values.
@@ -5166,9 +5170,9 @@ Slapi_Value *slapi_valueset_find(const Slapi_Attr *a, const Slapi_ValueSet *vs, 
 /*
  * operation routines
  */
-int slapi_op_abandoned( Slapi_PBlock *pb );
-int slapi_is_operation_abandoned( Slapi_Operation *op );
-unsigned long slapi_op_get_type(Slapi_Operation * op);
+int slapi_op_abandoned(Slapi_PBlock *pb);
+int slapi_is_operation_abandoned(Slapi_Operation *op);
+unsigned long slapi_op_get_type(Slapi_Operation *op);
 void slapi_operation_set_flag(Slapi_Operation *op, unsigned long flag);
 void slapi_operation_clear_flag(Slapi_Operation *op, unsigned long flag);
 int slapi_operation_is_flag_set(Slapi_Operation *op, unsigned long flag);
@@ -5177,11 +5181,11 @@ ber_int_t slapi_operation_get_msgid(Slapi_Operation *op);
 void slapi_operation_set_tag(Slapi_Operation *op, ber_tag_t tag);
 void slapi_operation_set_msgid(Slapi_Operation *op, ber_int_t msgid);
 int slapi_op_reserved(Slapi_PBlock *pb);
-void slapi_operation_set_csngen_handler ( Slapi_Operation *op, void *callback );
-void slapi_operation_set_replica_attr_handler ( Slapi_Operation *op, void *callback );
-int slapi_operation_get_replica_attr ( Slapi_PBlock *pb, Slapi_Operation *op, const char *type, void *value );
+void slapi_operation_set_csngen_handler(Slapi_Operation *op, void *callback);
+void slapi_operation_set_replica_attr_handler(Slapi_Operation *op, void *callback);
+int slapi_operation_get_replica_attr(Slapi_PBlock *pb, Slapi_Operation *op, const char *type, void *value);
 char *slapi_op_type_to_string(unsigned long type);
-int slapi_op_internal( Slapi_PBlock *pb );
+int slapi_op_internal(Slapi_PBlock *pb);
 Slapi_Operation *slapi_operation_new(int flags);
 
 /*
@@ -5189,12 +5193,12 @@ Slapi_Operation *slapi_operation_new(int flags);
  */
 
 int slapi_connection_acquire(Slapi_Connection *conn);
-int slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release);
+int slapi_connection_remove_operation(Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release);
 
 /*
  * LDAPMod manipulation routines
  */
-Slapi_Mods* slapi_mods_new( void );
+Slapi_Mods *slapi_mods_new(void);
 void slapi_mods_init(Slapi_Mods *smods, int initCount);
 void slapi_mods_init_byref(Slapi_Mods *smods, LDAPMod **mods);
 void slapi_mods_init_passin(Slapi_Mods *smods, LDAPMod **mods);
@@ -5206,12 +5210,12 @@ void slapi_mods_insert_before(Slapi_Mods *smods, LDAPMod *mod);
 void slapi_mods_insert_smod_before(Slapi_Mods *smods, Slapi_Mod *smod);
 void slapi_mods_insert_after(Slapi_Mods *smods, LDAPMod *mod);
 void slapi_mods_insert_after(Slapi_Mods *smods, LDAPMod *mod);
-void slapi_mods_add( Slapi_Mods *smods, int modtype, const char *type, unsigned long len, const char *val);
+void slapi_mods_add(Slapi_Mods *smods, int modtype, const char *type, unsigned long len, const char *val);
 void slapi_mods_add_ldapmod(Slapi_Mods *smods, LDAPMod *mod);
-void slapi_mods_add_modbvps( Slapi_Mods *smods, int modtype, const char *type, struct berval **bvps );
-void slapi_mods_add_mod_values( Slapi_Mods *smods, int modtype, const char *type, Slapi_Value **va );
+void slapi_mods_add_modbvps(Slapi_Mods *smods, int modtype, const char *type, struct berval **bvps);
+void slapi_mods_add_mod_values(Slapi_Mods *smods, int modtype, const char *type, Slapi_Value **va);
 void slapi_mods_add_smod(Slapi_Mods *smods, Slapi_Mod *smod);
-void slapi_mods_add_string( Slapi_Mods *smods, int modtype, const char *type, const char *val);
+void slapi_mods_add_string(Slapi_Mods *smods, int modtype, const char *type, const char *val);
 void slapi_mods_remove(Slapi_Mods *smods);
 LDAPMod *slapi_mods_get_first_mod(Slapi_Mods *smods);
 LDAPMod *slapi_mods_get_next_mod(Slapi_Mods *smods);
@@ -5223,7 +5227,7 @@ LDAPMod **slapi_mods_get_ldapmods_passout(Slapi_Mods *smods);
 int slapi_mods_get_num_mods(const Slapi_Mods *smods);
 void slapi_mods_dump(const Slapi_Mods *smods, const char *text);
 
-Slapi_Mod* slapi_mod_new( void );
+Slapi_Mod *slapi_mod_new(void);
 void slapi_mod_init(Slapi_Mod *smod, int initCount);
 void slapi_mod_init_byval(Slapi_Mod *smod, const LDAPMod *mod);
 void slapi_mod_init_byref(Slapi_Mod *smod, LDAPMod *mod);
@@ -5258,30 +5262,23 @@ int is_type_forbidden(const char *type);
 /*
  * routines for dealing with filters
  */
-int slapi_filter_get_choice( Slapi_Filter *f );
-int slapi_filter_get_ava( Slapi_Filter *f, char **type, struct berval **bval );
-int slapi_filter_get_attribute_type( Slapi_Filter *f, char **type );
-int slapi_filter_get_subfilt( Slapi_Filter *f, char **type, char **initial,
-	char ***any, char **final );
-Slapi_Filter *slapi_filter_list_first( Slapi_Filter *f );
-Slapi_Filter *slapi_filter_list_next( Slapi_Filter *f, Slapi_Filter *fprev );
-Slapi_Filter *slapi_str2filter( char *str );
-Slapi_Filter *slapi_filter_join( int ftype, Slapi_Filter *f1,
-	Slapi_Filter *f2 );
-Slapi_Filter *slapi_filter_join_ex( int ftype, Slapi_Filter *f1, 
-	Slapi_Filter *f2, int recurse_always );
+int slapi_filter_get_choice(Slapi_Filter *f);
+int slapi_filter_get_ava(Slapi_Filter *f, char **type, struct berval **bval);
+int slapi_filter_get_attribute_type(Slapi_Filter *f, char **type);
+int slapi_filter_get_subfilt(Slapi_Filter *f, char **type, char **initial, char ***any, char ** final);
+Slapi_Filter *slapi_filter_list_first(Slapi_Filter *f);
+Slapi_Filter *slapi_filter_list_next(Slapi_Filter *f, Slapi_Filter *fprev);
+Slapi_Filter *slapi_str2filter(char *str);
+Slapi_Filter *slapi_filter_join(int ftype, Slapi_Filter *f1, Slapi_Filter *f2);
+Slapi_Filter *slapi_filter_join_ex(int ftype, Slapi_Filter *f1, Slapi_Filter *f2, int recurse_always);
 
-void slapi_filter_free( Slapi_Filter *f, int recurse );
-int slapi_filter_test( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *f,
-	int verify_access );
-int slapi_vattr_filter_test( Slapi_PBlock *pb, Slapi_Entry *e,
-								struct slapi_filter	*f, int verify_access);
-int slapi_filter_test_simple( Slapi_Entry *e, Slapi_Filter *f);
-char *slapi_find_matching_paren( const char *str );
-int slapi_filter_test_ext( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *f,
-	int verify_access , int only_test_access);
-int slapi_vattr_filter_test_ext( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *f,
-	int verify_access , int only_test_access);
+void slapi_filter_free(Slapi_Filter *f, int recurse);
+int slapi_filter_test(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *f, int verify_access);
+int slapi_vattr_filter_test(Slapi_PBlock *pb, Slapi_Entry *e, struct slapi_filter *f, int verify_access);
+int slapi_filter_test_simple(Slapi_Entry *e, Slapi_Filter *f);
+char *slapi_find_matching_paren(const char *str);
+int slapi_filter_test_ext(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *f, int verify_access, int only_test_access);
+int slapi_vattr_filter_test_ext(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *f, int verify_access, int only_test_access);
 int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2);
 Slapi_Filter *slapi_filter_dup(Slapi_Filter *f);
 int slapi_filter_changetype(Slapi_Filter *f, const char *newtype);
@@ -5320,75 +5317,75 @@ int slapi_reload_internal_attr_syntax(void);
  * component within a complex filter.  A 'simple filter' is anything other
  * than AND, OR or NOT.
  */
-typedef int (*FILTER_APPLY_FN)( Slapi_Filter *f, void *arg);
-int slapi_filter_apply( struct slapi_filter *f, FILTER_APPLY_FN fn, void *arg,
-	int *error_code );
+typedef int (*FILTER_APPLY_FN)(Slapi_Filter *f, void *arg);
+int slapi_filter_apply(struct slapi_filter *f, FILTER_APPLY_FN fn, void *arg, int *error_code);
 /*
  * Possible return values for slapi_filter_apply() and FILTER_APPLY_FNs.
  * Note that a FILTER_APPLY_FN should return _STOP or _CONTINUE only.
  */
-#define SLAPI_FILTER_SCAN_STOP		-1	/* premature abort */
-#define SLAPI_FILTER_SCAN_ERROR		-2 	/* an error occurred */
-#define SLAPI_FILTER_SCAN_NOMORE	0	/* success */
-#define SLAPI_FILTER_SCAN_CONTINUE	1	/* continue scanning */
+#define SLAPI_FILTER_SCAN_STOP     -1  /* premature abort */
+#define SLAPI_FILTER_SCAN_ERROR    -2  /* an error occurred */
+#define SLAPI_FILTER_SCAN_NOMORE   0   /* success */
+#define SLAPI_FILTER_SCAN_CONTINUE 1   /* continue scanning */
 /* Error codes that slapi_filter_apply() may set in *error_code */
 #define SLAPI_FILTER_UNKNOWN_FILTER_TYPE 2
-	
+
 
 /*
  * Bit-Twiddlers
  */
-unsigned char slapi_setbit_uchar(unsigned char f,unsigned char bitnum);
-unsigned char slapi_unsetbit_uchar(unsigned char f,unsigned char bitnum);
-int slapi_isbitset_uchar(unsigned char f,unsigned char bitnum);
-unsigned int slapi_setbit_int(unsigned int f,unsigned int bitnum);
-unsigned int slapi_unsetbit_int(unsigned int f,unsigned int bitnum);
-int slapi_isbitset_int(unsigned int f,unsigned int bitnum);
+unsigned char slapi_setbit_uchar(unsigned char f, unsigned char bitnum);
+unsigned char slapi_unsetbit_uchar(unsigned char f, unsigned char bitnum);
+int slapi_isbitset_uchar(unsigned char f, unsigned char bitnum);
+unsigned int slapi_setbit_int(unsigned int f, unsigned int bitnum);
+unsigned int slapi_unsetbit_int(unsigned int f, unsigned int bitnum);
+int slapi_isbitset_int(unsigned int f, unsigned int bitnum);
 
 
 /*
  * routines for sending entries and results to the client
  */
-int slapi_send_ldap_search_entry( Slapi_PBlock *pb, Slapi_Entry *e,
-	LDAPControl **ectrls, char **attrs, int attrsonly );
-void slapi_send_ldap_result( Slapi_PBlock *pb, int err, char *matched,
-	char *text, int nentries, struct berval **urls );
-int slapi_send_ldap_referral( Slapi_PBlock *pb, Slapi_Entry *e,
-	struct berval **refs, struct berval ***urls );
-int slapi_send_ldap_intermediate( Slapi_PBlock *pb, LDAPControl **ectrls,
-	char *responseName, struct berval *responseValue);
-typedef int (*send_ldap_search_entry_fn_ptr_t)( Slapi_PBlock *pb,
-	Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly );
-typedef void (*send_ldap_result_fn_ptr_t)( Slapi_PBlock *pb, int err,
-	char *matched, char *text, int nentries, struct berval **urls );
-typedef int (*send_ldap_referral_fn_ptr_t)( Slapi_PBlock *pb,
-	Slapi_Entry *e, struct berval **refs, struct berval ***urls );
+int slapi_send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly);
+void slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls);
+int slapi_send_ldap_referral(Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs, struct berval ***urls);
+int slapi_send_ldap_intermediate(Slapi_PBlock *pb, LDAPControl **ectrls, char *responseName, struct berval *responseValue);
+typedef int (*send_ldap_search_entry_fn_ptr_t)(Slapi_PBlock *pb,
+                                               Slapi_Entry *e,
+                                               LDAPControl **ectrls,
+                                               char **attrs,
+                                               int attrsonly);
+typedef void (*send_ldap_result_fn_ptr_t)(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls);
+typedef int (*send_ldap_referral_fn_ptr_t)(Slapi_PBlock *pb,
+                                           Slapi_Entry *e,
+                                           struct berval **refs,
+                                           struct berval ***urls);
 
 
 /*
  * matching rule
  */
-typedef int (*mrFilterMatchFn) (void* filter, Slapi_Entry*, Slapi_Attr* vals);
+typedef int (*mrFilterMatchFn)(void *filter, Slapi_Entry *, Slapi_Attr *vals);
 /* returns:  0  filter matched
- *	    -1  filter did not match
- *	    >0  an LDAP error code
+ *        -1  filter did not match
+ *        >0  an LDAP error code
  */
-int slapi_mr_indexer_create(Slapi_PBlock* opb);
-int slapi_mr_filter_index(Slapi_Filter* f, Slapi_PBlock* pb);
-int slapi_berval_cmp(const struct berval* L, const struct berval* R);
-#define SLAPI_BERVAL_EQ(L,R) ((L)->bv_len == (R)->bv_len && \
-        ! memcmp ((L)->bv_val, (R)->bv_val, (L)->bv_len))
+int slapi_mr_indexer_create(Slapi_PBlock *opb);
+int slapi_mr_filter_index(Slapi_Filter *f, Slapi_PBlock *pb);
+int slapi_berval_cmp(const struct berval *L, const struct berval *R);
+#define SLAPI_BERVAL_EQ(L, R) ((L)->bv_len == (R)->bv_len && \
+                               !memcmp((L)->bv_val, (R)->bv_val, (L)->bv_len))
 
-typedef struct slapi_matchingRuleEntry {
-    char *mr_oid; /* the official oid */
-    char *mr_oidalias; /* not currently used */
-    char *mr_name; /* the official name */
-    char *mr_desc; /* a description */
-    char *mr_syntax; /* the assertion syntax OID */
-    int mr_obsolete; /* is mr obsolete? */
+typedef struct slapi_matchingRuleEntry
+{
+    char *mr_oid;            /* the official oid */
+    char *mr_oidalias;       /* not currently used */
+    char *mr_name;           /* the official name */
+    char *mr_desc;           /* a description */
+    char *mr_syntax;         /* the assertion syntax OID */
+    int mr_obsolete;         /* is mr obsolete? */
     char **mr_compat_syntax; /* list of OIDs of other syntaxes that can use this matching rule */
 } slapi_matchingRuleEntry;
-typedef struct slapi_matchingRuleEntry	Slapi_MatchingRuleEntry;
+typedef struct slapi_matchingRuleEntry Slapi_MatchingRuleEntry;
 
 Slapi_MatchingRuleEntry *slapi_matchingrule_new(void);
 void slapi_matchingrule_free(Slapi_MatchingRuleEntry **mrEntry,
@@ -5401,11 +5398,11 @@ int slapi_matchingrule_unregister(char *oid);
 /**
  * Is the given matching rule an ordering matching rule and is it
  * compatible with the given syntax?
- * 
+ *
  * \param name_or_oid Name or OID of a matching rule
  * \param syntax_oid OID of a syntax
  * \return \c TRUE if the matching rule is an ordering rule and can be used by the given syntax
- * \return \c FALSE otherwise 
+ * \return \c FALSE otherwise
  */
 int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid);
 
@@ -5413,11 +5410,11 @@ int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_o
  * Can the given syntax OID use the given matching rule name/OID? A
  * matching rule can apply to more than one syntax.  Use this function
  * to determine if the given syntax can use the given matching rule.
- * 
+ *
  * \param mr_name_or_oid Name or OID of a matching rule
  * \param syntax_oid OID of a syntax
  * \return \c TRUE if the syntax can be used with the matching rule
- * \return \c FALSE otherwise 
+ * \return \c FALSE otherwise
  */
 int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_oid);
 
@@ -5426,43 +5423,41 @@ int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_
  * generate index keys.  The compare function is usually provided
  * by the syntax plugin.  If this is the case, we can skip generating
  * an indexer in the index config code.
- * 
+ *
  * \param mr_name_or_oid Name or OID of a matching rule
  * \return \c TRUE if the matching rule can use a simple compare function
- * \return \c FALSE otherwise 
+ * \return \c FALSE otherwise
  */
 int slapi_matchingrule_can_use_compare_fn(const char *mr_oid_or_name);
 
 /*
  * access control
  */
-int slapi_access_allowed( Slapi_PBlock *pb, Slapi_Entry *e, char *attr,
-	struct berval *val, int access );
-int slapi_acl_check_mods( Slapi_PBlock *pb, Slapi_Entry *e,
-	LDAPMod **mods, char **errbuf );
+int slapi_access_allowed(Slapi_PBlock *pb, Slapi_Entry *e, char *attr, struct berval *val, int access);
+int slapi_acl_check_mods(Slapi_PBlock *pb, Slapi_Entry *e, LDAPMod **mods, char **errbuf);
 int slapi_acl_verify_aci_syntax(Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf);
 
 
 /*
  * attribute stuff
  */
-int slapi_value_find( void *plugin, struct berval **vals, struct berval *v );
+int slapi_value_find(void *plugin, struct berval **vals, struct berval *v);
 
 
 /*
  * password handling
  */
 #define SLAPI_USERPWD_ATTR "userpassword"
-int slapi_pw_find_sv( Slapi_Value **vals, const Slapi_Value *v );
+int slapi_pw_find_sv(Slapi_Value **vals, const Slapi_Value *v);
 
 /* value encoding encoding */
 /* checks if the value is encoded with any known algorithm*/
-int slapi_is_encoded(char *value); 
+int slapi_is_encoded(char *value);
 /* encode value with the specified algorithm */
-char* slapi_encode(char *value, char *alg);
+char *slapi_encode(char *value, char *alg);
 /* encode value with the specified algorithm, or with local algorithm if pb
  * and sdn are specified instead, or global algorithm if pb and sdn are null */
-char* slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg);
+char *slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg);
 
 
 /* UTF8 related */
@@ -5486,100 +5481,99 @@ int slapi_UTF8CASECMP(char *s0, char *s1);
 int slapi_UTF8NCASECMP(char *s0, char *s1, int n);
 
 
-
 /*
  * Interface to the API broker service
  *
  * The API broker allows plugins to publish an API that may be discovered
  * and used dynamically at run time by other subsystems e.g. other plugins.
  */
-										  
-/* Function:	slapi_apib_register
-   Description:	this function allows publication of an interface
-   Parameters:	guid - a string constant that uniquely identifies the
-		    interface (must exist for the life of the server)
-		api - a vtable for the published api (must exist for the
-		    life of the server or until the reference count,
-		    if it exists, reaches zero)
-   Return:	0 if function succeeds
-		non-zero otherwise
+
+/* Function:    slapi_apib_register
+   Description:    this function allows publication of an interface
+   Parameters:    guid - a string constant that uniquely identifies the
+            interface (must exist for the life of the server)
+        api - a vtable for the published api (must exist for the
+            life of the server or until the reference count,
+            if it exists, reaches zero)
+   Return:    0 if function succeeds
+        non-zero otherwise
 */
 int slapi_apib_register(char *guid, void **api); /* publish an interface */
 
-/* Function:	slapi_apib_unregister
-   Description:	this function allows removal of a published interface
-   Parameters:	guid - a string constant that uniquely identifies the interface
-   Return:	0 if function succeeds
-		non-zero otherwise
+/* Function:    slapi_apib_unregister
+   Description:    this function allows removal of a published interface
+   Parameters:    guid - a string constant that uniquely identifies the interface
+   Return:    0 if function succeeds
+        non-zero otherwise
 */
 int slapi_apib_unregister(char *guid); /* remove interface from published list */
 
 
-/* Function:	slapi_apib_get_interface
-   Description:	this function allows retrieval of a published interface,
-		    if the api reference counted, then the reference
-		    count is incremented
-   Parameters:	guid - a string constant that uniquely identifies the
-		    interface requested
-		api - the retrieved vtable for the published api (must NOT
-		    be freed)
-   Return:	0 if function succeeds
-		non-zero otherwise
+/* Function:    slapi_apib_get_interface
+   Description:    this function allows retrieval of a published interface,
+            if the api reference counted, then the reference
+            count is incremented
+   Parameters:    guid - a string constant that uniquely identifies the
+            interface requested
+        api - the retrieved vtable for the published api (must NOT
+            be freed)
+   Return:    0 if function succeeds
+        non-zero otherwise
 */
 int slapi_apib_get_interface(char *guid, void ***api); /* retrieve an interface for use */
 
-/* Function:	slapi_apib_get_interface_all
-   Description:	this function allows retrieval of a published interface,
-		    if the api reference counted, then the reference
-		    count is incremented
+/* Function:    slapi_apib_get_interface_all
+   Description:    this function allows retrieval of a published interface,
+            if the api reference counted, then the reference
+            count is incremented
             This will return all published interfaces for a given guid
-   Parameters:	guid - a string constant that uniquely identifies the
-		    interface requested
-		apilist - the retrieved list of vtables for the published api - caller
+   Parameters:    guid - a string constant that uniquely identifies the
+            interface requested
+        apilist - the retrieved list of vtables for the published api - caller
             must free the apilist, but not the apilist elements
-   Return:	0 if function succeeds
-		non-zero otherwise
+   Return:    0 if function succeeds
+        non-zero otherwise
 */
 int slapi_apib_get_interface_all(char *guid, void ****apilist); /* retrieve all interfaces for guid */
 
 
-/* Function:	slapi_apib_make_reference_counted
-   Description:	this function makes an interface a reference counted interface
-		    it must be called prior to registering the interface
-   Parameters:	api - the api to make a reference counted api
-		callback - if non-zero, this must be a pointer to a function
-		    which the api broker will call when the ref count for
-		    the api reaches zero.  This function must return 0 if
-		    it deregisters the api, non-zero otherwise
-		api - the retrieved vtable for the published api (must NOT
-		    be freed)
-   Return:	0 if function succeeds
-		non-zero otherwise
+/* Function:    slapi_apib_make_reference_counted
+   Description:    this function makes an interface a reference counted interface
+            it must be called prior to registering the interface
+   Parameters:    api - the api to make a reference counted api
+        callback - if non-zero, this must be a pointer to a function
+            which the api broker will call when the ref count for
+            the api reaches zero.  This function must return 0 if
+            it deregisters the api, non-zero otherwise
+        api - the retrieved vtable for the published api (must NOT
+            be freed)
+   Return:    0 if function succeeds
+        non-zero otherwise
 */
 typedef int (*slapi_apib_callback_on_zero)(void **api);
 
 int slapi_apib_make_reference_counted(void **api,
-	slapi_apib_callback_on_zero callback);
+                                      slapi_apib_callback_on_zero callback);
 
 
-/* Function:	slapi_apib_addref
-   Description:	this function adds to the reference count of an api - a
-		    call to this function should be paired with a call
-		    to slapi_apib_release
-		 - ONLY FOR REFERENCE COUNTED APIS
-   Parameters:	api - the api to add a reference to
-   Return:	the new reference count
+/* Function:    slapi_apib_addref
+   Description:    this function adds to the reference count of an api - a
+            call to this function should be paired with a call
+            to slapi_apib_release
+         - ONLY FOR REFERENCE COUNTED APIS
+   Parameters:    api - the api to add a reference to
+   Return:    the new reference count
 */
 int slapi_apib_addref(void **api);
 
 
-/* Function:	slapi_apib_release
-   Description:	this function adds to the reference count of an api - a
-		    call to this function should be paired with a prior call
-		    to slapi_apib_addref or slapi_apib_get_interface
-		- ONLY FOR REFERENCE COUNTED APIS
-   Parameters:	api - the api to add a reference to
-   Return:	the new reference count
+/* Function:    slapi_apib_release
+   Description:    this function adds to the reference count of an api - a
+            call to this function should be paired with a prior call
+            to slapi_apib_addref or slapi_apib_get_interface
+        - ONLY FOR REFERENCE COUNTED APIS
+   Parameters:    api - the api to add a reference to
+   Return:    the new reference count
 */
 int slapi_apib_release(void **api);
 
@@ -5599,37 +5593,34 @@ int slapi_td_set_plugin_unlocked(void);
 
 
 /*  Thread Local Storage Index Types  */
-#define SLAPI_TD_REQUESTOR_DN		1
-#define SLAPI_TD_PLUGIN_LIST_LOCK		2
+#define SLAPI_TD_REQUESTOR_DN 1
+#define SLAPI_TD_PLUGIN_LIST_LOCK 2
 
 /*
  * routines for dealing with controls
  */
-int slapi_control_present( LDAPControl **controls, char *oid,
-	struct berval **val, int *iscritical );
-void slapi_register_supported_control( char *controloid,
-	unsigned long controlops );
-LDAPControl * slapi_dup_control( LDAPControl *ctrl );
+int slapi_control_present(LDAPControl **controls, char *oid, struct berval **val, int *iscritical);
+void slapi_register_supported_control(char *controloid,
+                                      unsigned long controlops);
+LDAPControl *slapi_dup_control(LDAPControl *ctrl);
 
-#define SLAPI_OPERATION_BIND		0x00000001UL
-#define SLAPI_OPERATION_UNBIND		0x00000002UL
-#define SLAPI_OPERATION_SEARCH		0x00000004UL
-#define SLAPI_OPERATION_MODIFY		0x00000008UL
-#define SLAPI_OPERATION_ADD		0x00000010UL
-#define SLAPI_OPERATION_DELETE		0x00000020UL
-#define SLAPI_OPERATION_MODDN		0x00000040UL
-#define SLAPI_OPERATION_MODRDN		SLAPI_OPERATION_MODDN
-#define SLAPI_OPERATION_COMPARE		0x00000080UL
-#define SLAPI_OPERATION_ABANDON		0x00000100UL
-#define SLAPI_OPERATION_EXTENDED	0x00000200UL
-#define SLAPI_OPERATION_ANY		0xFFFFFFFFUL
-#define SLAPI_OPERATION_NONE		0x00000000UL
-int slapi_get_supported_controls_copy( char ***ctrloidsp,
-    unsigned long **ctrlopsp );
-int slapi_build_control( char *oid, BerElement *ber,
-    char iscritical, LDAPControl **ctrlp );
-int slapi_build_control_from_berval( char *oid, struct berval *bvp,
-    char iscritical, LDAPControl **ctrlp );
+#define SLAPI_OPERATION_BIND     0x00000001UL
+#define SLAPI_OPERATION_UNBIND   0x00000002UL
+#define SLAPI_OPERATION_SEARCH   0x00000004UL
+#define SLAPI_OPERATION_MODIFY   0x00000008UL
+#define SLAPI_OPERATION_ADD      0x00000010UL
+#define SLAPI_OPERATION_DELETE   0x00000020UL
+#define SLAPI_OPERATION_MODDN    0x00000040UL
+#define SLAPI_OPERATION_MODRDN   SLAPI_OPERATION_MODDN
+#define SLAPI_OPERATION_COMPARE  0x00000080UL
+#define SLAPI_OPERATION_ABANDON  0x00000100UL
+#define SLAPI_OPERATION_EXTENDED 0x00000200UL
+#define SLAPI_OPERATION_ANY      0xFFFFFFFFUL
+#define SLAPI_OPERATION_NONE     0x00000000UL
+int slapi_get_supported_controls_copy(char ***ctrloidsp,
+                                      unsigned long **ctrlopsp);
+int slapi_build_control(char *oid, BerElement *ber, char iscritical, LDAPControl **ctrlp);
+int slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, LDAPControl **ctrlp);
 
 /* Given an array of controls e.g. LDAPControl **ctrls, add the given
    control to the end of the array, growing the array with realloc
@@ -5639,7 +5630,7 @@ int slapi_build_control_from_berval( char *oid, struct berval *bvp,
    if copy is false, the given control will be used and owned by the array
    if copy is false, make sure the control can be freed by ldap_controls_free
 */
-void slapi_add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy );
+void slapi_add_control_ext(LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy);
 
 /* Given an array of controls e.g. LDAPControl **ctrls, add all of the given
    controls in the newctrls array to the end of ctrls, growing the array with realloc
@@ -5648,12 +5639,12 @@ void slapi_add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int cop
    if copy is false, each given control will be used and owned by the array
    if copy is false, make sure each control can be freed by ldap_controls_free
 */
-void slapi_add_controls( LDAPControl ***ctrlsp, LDAPControl **newctrls, int copy );
+void slapi_add_controls(LDAPControl ***ctrlsp, LDAPControl **newctrls, int copy);
 
 /*
  * routines for dealing with extended operations
  */
-char **slapi_get_supported_extended_ops_copy( void );
+char **slapi_get_supported_extended_ops_copy(void);
 
 /*
  * routines for dealing with supported features
@@ -5663,26 +5654,26 @@ char **slapi_get_supported_extended_ops_copy( void );
 #define LDAP_FEATURE_ALL_OP_ATTRS "1.3.6.1.4.1.4203.1.5.1"
 #endif
 
-int slapi_get_supported_features_copy( char ***ftroidsp );
+int slapi_get_supported_features_copy(char ***ftroidsp);
 
 /*
- * bind, including SASL 
+ * bind, including SASL
  */
-void slapi_register_supported_saslmechanism( char *mechanism );
-char ** slapi_get_supported_saslmechanisms_copy( void );
-void slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn );
-int slapi_add_pwd_control( Slapi_PBlock *pb, char *arg, long time );
-int slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int error);
+void slapi_register_supported_saslmechanism(char *mechanism);
+char **slapi_get_supported_saslmechanisms_copy(void);
+void slapi_add_auth_response_control(Slapi_PBlock *pb, const char *binddn);
+int slapi_add_pwd_control(Slapi_PBlock *pb, char *arg, long time);
+int slapi_pwpolicy_make_response_control(Slapi_PBlock *pb, int seconds, int logins, int error);
 /* Password Policy Response Control stuff - the error argument above */
-#define LDAP_PWPOLICY_PWDEXPIRED		0
-#define LDAP_PWPOLICY_ACCTLOCKED		1
-#define LDAP_PWPOLICY_CHGAFTERRESET		2
-#define LDAP_PWPOLICY_PWDMODNOTALLOWED		3
-#define LDAP_PWPOLICY_MUSTSUPPLYOLDPWD		4
-#define LDAP_PWPOLICY_INVALIDPWDSYNTAX		5
-#define LDAP_PWPOLICY_PWDTOOSHORT		6
-#define LDAP_PWPOLICY_PWDTOOYOUNG		7
-#define LDAP_PWPOLICY_PWDINHISTORY		8
+#define LDAP_PWPOLICY_PWDEXPIRED       0
+#define LDAP_PWPOLICY_ACCTLOCKED       1
+#define LDAP_PWPOLICY_CHGAFTERRESET    2
+#define LDAP_PWPOLICY_PWDMODNOTALLOWED 3
+#define LDAP_PWPOLICY_MUSTSUPPLYOLDPWD 4
+#define LDAP_PWPOLICY_INVALIDPWDSYNTAX 5
+#define LDAP_PWPOLICY_PWDTOOSHORT      6
+#define LDAP_PWPOLICY_PWDTOOYOUNG      7
+#define LDAP_PWPOLICY_PWDINHISTORY     8
 
 /*
  * Password Policy API
@@ -5758,7 +5749,7 @@ int slapi_pwpolicy_is_reset(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e);
  * \see slapi_ch_array_add()
  * \see slapi_ch_array_dup()
  */
-void slapi_ch_array_free( char **array );
+void slapi_ch_array_free(char **array);
 
 /**
  * Duplicate an array of strings
@@ -5770,7 +5761,7 @@ void slapi_ch_array_free( char **array );
  *          by calling the slapi_ch_array_free() function.
  * \see slapi_ch_array_free()
  */
-char ** slapi_ch_array_dup( char **array );
+char **slapi_ch_array_dup(char **array);
 
 /**
  * Add a string to an array of strings
@@ -5784,7 +5775,7 @@ char ** slapi_ch_array_dup( char **array );
  * \warning If \c *a is \c NULL, a new array will be allocated.
  * \see slapi_ch_array_free()
  */
-void slapi_ch_array_add( char ***array, char *string );
+void slapi_ch_array_add(char ***array, char *string);
 
 /**
  * Add a string to an array of strings
@@ -5830,7 +5821,7 @@ int slapi_is_shutting_down(void);
 /*
  * checking routines for allocating and freeing memory
  */
-char * slapi_ch_malloc( unsigned long size );
+char *slapi_ch_malloc(unsigned long size);
 /*
  * memalign returns an alligned block of memory as a multiple of alignment.
  * alignment must be a power of 2. This is not normally needed, but is required
@@ -5841,20 +5832,20 @@ char * slapi_ch_malloc( unsigned long size );
  * \param alignment The alignment. MUST be a power of 2!
  * \return Pointer to the allocated memory aligned by alignment.
  */
-char * slapi_ch_memalign( size_t size, size_t alignment);
-char * slapi_ch_realloc( char *block, unsigned long size );
-char * slapi_ch_calloc( unsigned long nelem, unsigned long size );
-char * slapi_ch_strdup( const char *s );
-void slapi_ch_free( void **ptr );
-void slapi_ch_free_string( char **s );
-struct berval*  slapi_ch_bvdup(const struct berval*);
-struct berval** slapi_ch_bvecdup(struct berval**);
-void slapi_ch_bvfree(struct berval** v);
-char * slapi_ch_smprintf(const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 1, 2)));
+char *slapi_ch_memalign(size_t size, size_t alignment);
+char *slapi_ch_realloc(char *block, unsigned long size);
+char *slapi_ch_calloc(unsigned long nelem, unsigned long size);
+char *slapi_ch_strdup(const char *s);
+void slapi_ch_free(void **ptr);
+void slapi_ch_free_string(char **s);
+struct berval *slapi_ch_bvdup(const struct berval *);
+struct berval **slapi_ch_bvecdup(struct berval **);
+void slapi_ch_bvfree(struct berval **v);
+char *slapi_ch_smprintf(const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 1, 2)));
 #else
-        ;
+    ;
 #endif
 /**
  * slapi_ct_memcmp is a constant time memory comparison function. This is for
@@ -5871,7 +5862,7 @@ char * slapi_ch_smprintf(const char *fmt, ...)
  * \param n length in bytes of the content of p1 AND p2.
  * \return 0 on match. 1 on non-match. 2 on presence of NULL pointer in p1 or p2.
  */
-int slapi_ct_memcmp( const void *p1, const void *p2, size_t n);
+int slapi_ct_memcmp(const void *p1, const void *p2, size_t n);
 
 /*
  * syntax plugin routines
@@ -5879,27 +5870,17 @@ int slapi_ct_memcmp( const void *p1, const void *p2, size_t n);
  * we do not support that style of call anymore - use the slapi_attr_
  * versions below instead
  */
-int slapi_call_syntax_values2keys_sv( void *vpi, Slapi_Value **vals,
-	Slapi_Value ***ivals, int ftype );
-int slapi_call_syntax_values2keys_sv_pb( void *vpi, Slapi_Value **vals,
-	Slapi_Value ***ivals, int ftype, Slapi_PBlock *pb );
-int slapi_call_syntax_assertion2keys_ava_sv( void *vpi, Slapi_Value *val,
-	Slapi_Value ***ivals, int ftype );
-int slapi_call_syntax_assertion2keys_sub_sv( void *vpi, char *initial,
-	char **any, char *final, Slapi_Value ***ivals );
-int slapi_call_syntax_assertion2keys_sub_sv_pb( Slapi_PBlock *pb, void *vpi,
-	char *initial, char **any, char *final, Slapi_Value ***ivals );
+int slapi_call_syntax_values2keys_sv(void *vpi, Slapi_Value **vals, Slapi_Value ***ivals, int ftype);
+int slapi_call_syntax_values2keys_sv_pb(void *vpi, Slapi_Value **vals, Slapi_Value ***ivals, int ftype, Slapi_PBlock *pb);
+int slapi_call_syntax_assertion2keys_ava_sv(void *vpi, Slapi_Value *val, Slapi_Value ***ivals, int ftype);
+int slapi_call_syntax_assertion2keys_sub_sv(void *vpi, char *initial, char **any, char * final, Slapi_Value ***ivals);
+int slapi_call_syntax_assertion2keys_sub_sv_pb(Slapi_PBlock *pb, void *vpi, char *initial, char **any, char * final, Slapi_Value ***ivals);
 
-int slapi_attr_values2keys_sv( const Slapi_Attr *sattr, Slapi_Value **vals,
-	Slapi_Value ***ivals, int ftype );
-int slapi_attr_values2keys_sv_pb( const Slapi_Attr *sattr, Slapi_Value **vals,
-	Slapi_Value ***ivals, int ftype, Slapi_PBlock *pb );
-int slapi_attr_assertion2keys_ava_sv( const Slapi_Attr *sattr, Slapi_Value *val,
-	Slapi_Value ***ivals, int ftype );
-int slapi_attr_assertion2keys_sub_sv( const Slapi_Attr *sattr, char *initial,
-	char **any, char *final, Slapi_Value ***ivals );
-int slapi_attr_assertion2keys_sub_sv_pb( Slapi_PBlock *pb, const Slapi_Attr *sattr,
-	char *initial, char **any, char *final, Slapi_Value ***ivals);
+int slapi_attr_values2keys_sv(const Slapi_Attr *sattr, Slapi_Value **vals, Slapi_Value ***ivals, int ftype);
+int slapi_attr_values2keys_sv_pb(const Slapi_Attr *sattr, Slapi_Value **vals, Slapi_Value ***ivals, int ftype, Slapi_PBlock *pb);
+int slapi_attr_assertion2keys_ava_sv(const Slapi_Attr *sattr, Slapi_Value *val, Slapi_Value ***ivals, int ftype);
+int slapi_attr_assertion2keys_sub_sv(const Slapi_Attr *sattr, char *initial, char **any, char * final, Slapi_Value ***ivals);
+int slapi_attr_assertion2keys_sub_sv_pb(Slapi_PBlock *pb, const Slapi_Attr *sattr, char *initial, char **any, char * final, Slapi_Value ***ivals);
 
 /**
  * Normalize the given value using the syntax associated with the
@@ -5911,20 +5892,19 @@ int slapi_attr_assertion2keys_sub_sv_pb( Slapi_PBlock *pb, const Slapi_Attr *sat
  * retval is set, the caller is responsible for freeing it.
  *
  * \param pb Slapi_PBlock to use
- * \param sattr attribute to get the syntax from 
+ * \param sattr attribute to get the syntax from
  * \param type attribute to get the syntax from if sattr is NULL
  * \param val value to normalize in place - must be NULL terminated
  * \param trim_spaces trim whitespace from ends of string
  * \param retval if value could not be normalized in place, this is the malloc'd memory containg the new value - caller must free
  */
 void slapi_attr_value_normalize(
-	Slapi_PBlock *pb,
-	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
-	const char *type,
-	char *val,
-	int trim_spaces,
-	char **retval
-);
+    Slapi_PBlock *pb,
+    const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
+    const char *type,
+    char *val,
+    int trim_spaces,
+    char **retval);
 
 /**
  * Normalize the given value using the matching rule associated with the
@@ -5943,7 +5923,7 @@ void slapi_attr_value_normalize(
  * function provided by the attribute syntax will be used.
  *
  * \param pb Slapi_PBlock to use
- * \param sattr attribute to get the syntax from 
+ * \param sattr attribute to get the syntax from
  * \param type attribute to get the syntax from if sattr is NULL
  * \param val value to normalize in place - must be NULL terminated
  * \param trim_spaces trim whitespace from ends of string
@@ -5951,23 +5931,22 @@ void slapi_attr_value_normalize(
  * \param filter_type one of the values specified above, or 0
  */
 void slapi_attr_value_normalize_ext(
-	Slapi_PBlock *pb,
-	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
-	const char *type,
-	char *val,
-	int trim_spaces,
-	char **retval,
-	unsigned long filter_type
-);
+    Slapi_PBlock *pb,
+    const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
+    const char *type,
+    char *val,
+    int trim_spaces,
+    char **retval,
+    unsigned long filter_type);
 
 /*
  * internal operation and plugin callback routines
  */
 typedef void (*plugin_result_callback)(int rc, void *callback_data);
-typedef int (*plugin_referral_entry_callback)(char * referral, 
-	void *callback_data);
-typedef int (*plugin_search_entry_callback)(Slapi_Entry *e, 
-	void *callback_data);
+typedef int (*plugin_referral_entry_callback)(char *referral,
+                                              void *callback_data);
+typedef int (*plugin_search_entry_callback)(Slapi_Entry *e,
+                                            void *callback_data);
 void slapi_free_search_results_internal(Slapi_PBlock *pb);
 
 
@@ -5980,7 +5959,7 @@ void slapi_free_search_results_internal(Slapi_PBlock *pb);
  *
  * These functions return -1 if pb is NULL and 0 otherwise.
  * The SLAPI_PLUGIN_INTOP_RESULT pblock parameter should be checked to
- * check if the operation was successful. 
+ * check if the operation was successful.
  *
  * Helper functions are provided to set up pblock parameters currently used
  * by the functions, e.g., slapi_search_internal_set_pb().
@@ -5988,40 +5967,21 @@ void slapi_free_search_results_internal(Slapi_PBlock *pb);
  */
 
 int slapi_search_internal_pb(Slapi_PBlock *pb);
-int slapi_search_internal_callback_pb(Slapi_PBlock *pb, void *callback_data,
-	plugin_result_callback prc, plugin_search_entry_callback psec,
-	plugin_referral_entry_callback prec);
+int slapi_search_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_callback prc, plugin_search_entry_callback psec, plugin_referral_entry_callback prec);
 int slapi_add_internal_pb(Slapi_PBlock *pb);
 int slapi_modify_internal_pb(Slapi_PBlock *pb);
 int slapi_modrdn_internal_pb(Slapi_PBlock *pb);
 int slapi_delete_internal_pb(Slapi_PBlock *pb);
 
 
-int slapi_seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data,
-	plugin_result_callback res_callback,
-	plugin_search_entry_callback srch_callback,
-	plugin_referral_entry_callback ref_callback);
+int slapi_seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_callback res_callback, plugin_search_entry_callback srch_callback, plugin_referral_entry_callback ref_callback);
 
-void slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base,
-	int scope, const char *filter, char **attrs, int attrsonly,
-	LDAPControl **controls, const char *uniqueid,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
-void slapi_search_internal_set_pb_ext(Slapi_PBlock *pb, Slapi_DN *sdn,
-	int scope, const char *filter, char **attrs, int attrsonly,
-	LDAPControl **controls, const char *uniqueid,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
-void slapi_add_entry_internal_set_pb(Slapi_PBlock *pb, Slapi_Entry *e,
-	LDAPControl **controls, Slapi_ComponentId *plugin_identity,
-	int operation_flags);
-int slapi_add_internal_set_pb(Slapi_PBlock *pb, const char *dn,
-	LDAPMod **attrs, LDAPControl **controls,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
-void slapi_modify_internal_set_pb(Slapi_PBlock *pb, const char *dn,
-	LDAPMod **mods, LDAPControl **controls, const char *uniqueid,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
-void slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn,
-	LDAPMod **mods, LDAPControl **controls, const char *uniqueid,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base, int scope, const char *filter, char **attrs, int attrsonly, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_search_internal_set_pb_ext(Slapi_PBlock *pb, Slapi_DN *sdn, int scope, const char *filter, char **attrs, int attrsonly, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_add_entry_internal_set_pb(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **controls, Slapi_ComponentId *plugin_identity, int operation_flags);
+int slapi_add_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPMod **attrs, LDAPControl **controls, Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_modify_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPMod **mods, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mods, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
 /**
  * Set \c Slapi_PBlock to perform modrdn/rename internally
  *
@@ -6036,138 +5996,133 @@ void slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn,
  * \param operation_flags
  */
 void slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
-	const Slapi_DN *olddn, const char *newrdn,
-	const Slapi_DN *newsuperior, int deloldrdn,
-	LDAPControl **controls, const char *uniqueid,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
+                                      const Slapi_DN *olddn,
+                                      const char *newrdn,
+                                      const Slapi_DN *newsuperior,
+                                      int deloldrdn,
+                                      LDAPControl **controls,
+                                      const char *uniqueid,
+                                      Slapi_ComponentId *plugin_identity,
+                                      int operation_flags);
 
-void slapi_delete_internal_set_pb(Slapi_PBlock *pb, const char *dn,
-	LDAPControl **controls, const char *uniqueid,
-	Slapi_ComponentId *plugin_identity, int operation_flags);
-void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *ibase, int type,
-	char *attrname, char *val, char **attrs, int attrsonly,
-	LDAPControl **controls, Slapi_ComponentId *plugin_identity,
-	int operation_flags);
+void slapi_delete_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *ibase, int type, char *attrname, char *val, char **attrs, int attrsonly, LDAPControl **controls, Slapi_ComponentId *plugin_identity, int operation_flags);
 
 /*
  * slapi_search_internal_get_entry() finds an entry given a dn.  It returns
  * an LDAP error code (LDAP_SUCCESS if all goes well).
  */
-int slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrlist,
-	Slapi_Entry **ret_entry , void *caller_identity);
+int slapi_search_internal_get_entry(Slapi_DN *dn, char **attrlist, Slapi_Entry **ret_entry, void *caller_identity);
 
-/* 
+/*
  * interface for registering object extensions.
  */
 typedef void *(*slapi_extension_constructor_fnptr)(void *object, void *parent);
 
 typedef void (*slapi_extension_destructor_fnptr)(void *extension,
-	void *object, void *parent);
+                                                 void *object,
+                                                 void *parent);
 
-int slapi_register_object_extension( const char *pluginname,
-	const char *objectname, slapi_extension_constructor_fnptr constructor, 
-	slapi_extension_destructor_fnptr destructor, int *objecttype,
-	int *extensionhandle);
+int slapi_register_object_extension(const char *pluginname,
+                                    const char *objectname,
+                                    slapi_extension_constructor_fnptr constructor,
+                                    slapi_extension_destructor_fnptr destructor,
+                                    int *objecttype,
+                                    int *extensionhandle);
 
 int
 slapi_unregister_object_extension(
-    const char* pluginname,
-    const char* objectname,
+    const char *pluginname,
+    const char *objectname,
     int *objecttype,
     int *ext_index);
 
 /* objects that can be extended (possible values for the objectname param.) */
-#define SLAPI_EXT_CONNECTION	"Connection"
-#define SLAPI_EXT_OPERATION	"Operation"
-#define SLAPI_EXT_ENTRY		"Entry"
-#define SLAPI_EXT_MTNODE	"Mapping Tree Node"
+#define SLAPI_EXT_CONNECTION "Connection"
+#define SLAPI_EXT_OPERATION  "Operation"
+#define SLAPI_EXT_ENTRY      "Entry"
+#define SLAPI_EXT_MTNODE     "Mapping Tree Node"
 
 /* Module names for SLAPI_EXT_ENTRY */
-#define SLAPI_EXTMOD_PWPOLICY	"Password Policy"
+#define SLAPI_EXTMOD_PWPOLICY "Password Policy"
 
 /* Object names in SLAPI_EXT_ENTRY */
-#define SLAPI_EXTOBJ_ENTRY_PW	"UnhashedPW"
+#define SLAPI_EXTOBJ_ENTRY_PW "UnhashedPW"
 
-void *slapi_get_object_extension(int objecttype, void *object,
-	int extensionhandle);
-void slapi_set_object_extension(int objecttype, void *object,
-	int extensionhandle, void *extension);
+void *slapi_get_object_extension(int objecttype, void *object, int extensionhandle);
+void slapi_set_object_extension(int objecttype, void *object, int extensionhandle, void *extension);
 
 /*
  * interface to allow a plugin to register additional plugins.
  */
-typedef int (*slapi_plugin_init_fnptr)( Slapi_PBlock *pb );
-int slapi_register_plugin( const char *plugintype, int enabled,
-	const char *initsymbol, slapi_plugin_init_fnptr initfunc,
-	const char *name, char **argv, void *group_identity);
+typedef int (*slapi_plugin_init_fnptr)(Slapi_PBlock *pb);
+int slapi_register_plugin(const char *plugintype, int enabled, const char *initsymbol, slapi_plugin_init_fnptr initfunc, const char *name, char **argv, void *group_identity);
 
-int slapi_register_plugin_ext( const char *plugintype, int enabled,
-	const char *initsymbol, slapi_plugin_init_fnptr initfunc,
-	const char *name, char **argv, void *group_identity, int precedence);
+int slapi_register_plugin_ext(const char *plugintype, int enabled, const char *initsymbol, slapi_plugin_init_fnptr initfunc, const char *name, char **argv, void *group_identity, int precedence);
 
 /*
  * logging
  */
-int slapi_log_error( int loglevel, char *subsystem, char *fmt, ... )
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 3, 4)));
+int slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 3, 4)));
 #else
-        ;
+    ;
 #endif
 
-int slapi_log_error_ext( int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2);
+int slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2);
 
 /* allowed values for the "severity" parameter */
-#define SLAPI_LOG_FATAL        0
-#define SLAPI_LOG_TRACE        1
-#define SLAPI_LOG_PACKETS      2
-#define SLAPI_LOG_ARGS         3
-#define SLAPI_LOG_CONNS        4
-#define SLAPI_LOG_BER          5
-#define SLAPI_LOG_FILTER       6
-#define SLAPI_LOG_CONFIG       7
-#define SLAPI_LOG_ACL          8
-#define SLAPI_LOG_SHELL        9
-#define SLAPI_LOG_PARSE       10
-#define SLAPI_LOG_HOUSE       11
-#define SLAPI_LOG_REPL        12
-#define SLAPI_LOG_CACHE       13
-#define SLAPI_LOG_PLUGIN      14
-#define SLAPI_LOG_TIMING      15
-#define SLAPI_LOG_BACKLDBM    16
-#define SLAPI_LOG_ACLSUMMARY  17
-#define SLAPI_LOG_NUNCSTANS   18
+#define SLAPI_LOG_FATAL       0
+#define SLAPI_LOG_TRACE       1
+#define SLAPI_LOG_PACKETS     2
+#define SLAPI_LOG_ARGS        3
+#define SLAPI_LOG_CONNS       4
+#define SLAPI_LOG_BER         5
+#define SLAPI_LOG_FILTER      6
+#define SLAPI_LOG_CONFIG      7
+#define SLAPI_LOG_ACL         8
+#define SLAPI_LOG_SHELL       9
+#define SLAPI_LOG_PARSE      10
+#define SLAPI_LOG_HOUSE      11
+#define SLAPI_LOG_REPL       12
+#define SLAPI_LOG_CACHE      13
+#define SLAPI_LOG_PLUGIN     14
+#define SLAPI_LOG_TIMING     15
+#define SLAPI_LOG_BACKLDBM   16
+#define SLAPI_LOG_ACLSUMMARY 17
+#define SLAPI_LOG_NUNCSTANS  18
 /* Severity levels */
-#define SLAPI_LOG_EMERG       19
-#define SLAPI_LOG_ALERT       20
-#define SLAPI_LOG_CRIT        21
-#define SLAPI_LOG_ERR         22
-#define SLAPI_LOG_WARNING     23
-#define SLAPI_LOG_NOTICE      24
-#define SLAPI_LOG_INFO        25
-#define SLAPI_LOG_DEBUG       26 /* The last level must be set in log.c: SLAPI_LOG_MAX */
+#define SLAPI_LOG_EMERG      19
+#define SLAPI_LOG_ALERT      20
+#define SLAPI_LOG_CRIT       21
+#define SLAPI_LOG_ERR        22
+#define SLAPI_LOG_WARNING    23
+#define SLAPI_LOG_NOTICE     24
+#define SLAPI_LOG_INFO       25
+#define SLAPI_LOG_DEBUG      26 /* The last level must be set in log.c: SLAPI_LOG_MAX */
 
-int slapi_is_loglevel_set( const int loglevel );
+int slapi_is_loglevel_set(const int loglevel);
 
 
 /*
  * locks and synchronization
  */
-typedef struct slapi_mutex	Slapi_Mutex;
-typedef struct slapi_condvar	Slapi_CondVar;
+typedef struct slapi_mutex Slapi_Mutex;
+typedef struct slapi_condvar Slapi_CondVar;
 #ifdef USE_POSIX_RWLOCKS
-typedef pthread_rwlock_t	Slapi_RWLock;
+typedef pthread_rwlock_t Slapi_RWLock;
 #else
-typedef PRRWLock	Slapi_RWLock;
+typedef PRRWLock Slapi_RWLock;
 #endif
-Slapi_Mutex *slapi_new_mutex( void );
-void slapi_destroy_mutex( Slapi_Mutex *mutex );
-void slapi_lock_mutex( Slapi_Mutex *mutex );
-int slapi_unlock_mutex( Slapi_Mutex *mutex );
-Slapi_CondVar *slapi_new_condvar( Slapi_Mutex *mutex );
-void slapi_destroy_condvar( Slapi_CondVar *cvar );
-int slapi_wait_condvar( Slapi_CondVar *cvar, struct timeval *timeout );
-int slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all );
+Slapi_Mutex *slapi_new_mutex(void);
+void slapi_destroy_mutex(Slapi_Mutex *mutex);
+void slapi_lock_mutex(Slapi_Mutex *mutex);
+int slapi_unlock_mutex(Slapi_Mutex *mutex);
+Slapi_CondVar *slapi_new_condvar(Slapi_Mutex *mutex);
+void slapi_destroy_condvar(Slapi_CondVar *cvar);
+int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout);
+int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 
 /**
  * Creates a new read/write lock.
@@ -6181,14 +6136,14 @@ int slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all );
  * \see slapi_rwlock_wrlock()
  * \see slapi_rwlock_unlock()
  */
-Slapi_RWLock *slapi_new_rwlock( void );
+Slapi_RWLock *slapi_new_rwlock(void);
 
 /**
  * Free a read/write lock
  *
  * \see slapi_new_rwlock()
  */
-void slapi_destroy_rwlock( Slapi_RWLock *rwlock );
+void slapi_destroy_rwlock(Slapi_RWLock *rwlock);
 
 /**
  * Acquires a reader lock
@@ -6202,7 +6157,7 @@ void slapi_destroy_rwlock( Slapi_RWLock *rwlock );
  *
  * \see slapi_rwlock_unlock()
  */
-int slapi_rwlock_rdlock( Slapi_RWLock *rwlock );
+int slapi_rwlock_rdlock(Slapi_RWLock *rwlock);
 
 /**
  * Acquires a writer lock
@@ -6214,7 +6169,7 @@ int slapi_rwlock_rdlock( Slapi_RWLock *rwlock );
  *
  * \see slapi_rwlock_unlock()
  */
-int slapi_rwlock_wrlock( Slapi_RWLock *rwlock );
+int slapi_rwlock_wrlock(Slapi_RWLock *rwlock);
 
 /**
  * Releases a reader or writer lock
@@ -6225,20 +6180,20 @@ int slapi_rwlock_wrlock( Slapi_RWLock *rwlock );
  * \see slapi_rwlock_rdlock()
  * \see slapi_rwlock_wrlock()
  */
-int slapi_rwlock_unlock( Slapi_RWLock *rwlock );
+int slapi_rwlock_unlock(Slapi_RWLock *rwlock);
 
 /**
  * Get the size of Slapi_RWLock
  *
  * \return the size of Slapi_RWLock
  */
-int slapi_rwlock_get_size( void );
+int slapi_rwlock_get_size(void);
 
 /*
  * thread-safe LDAP connections
  */
-#define SLAPI_LDAP_INIT_FLAG_SSL      1  /* SSL */
-#define SLAPI_LDAP_INIT_FLAG_startTLS 2  /* startTLS */
+#define SLAPI_LDAP_INIT_FLAG_SSL      1 /* SSL */
+#define SLAPI_LDAP_INIT_FLAG_startTLS 2 /* startTLS */
 /**
  * Initializes an LDAP connection, and returns a handle to the connection.
  *
@@ -6253,7 +6208,7 @@ int slapi_rwlock_get_size( void );
  * \see slapi_ldap_unbind()
  * \see slapi_ldap_init_ext()
  */
-LDAP *slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared );
+LDAP *slapi_ldap_init(char *ldaphost, int ldapport, int secure, int shared);
 /**
  * Closes an LDAP connection, and frees memory associated with the handle
  *
@@ -6262,7 +6217,7 @@ LDAP *slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared );
  * \see slapi_ldap_init()
  * \see slapi_ldap_init_ext()
  */
-void slapi_ldap_unbind( LDAP *ld );
+void slapi_ldap_unbind(LDAP *ld);
 
 /**
  * Initializes an LDAP connection, and returns a handle to the connection.
@@ -6282,15 +6237,15 @@ void slapi_ldap_unbind( LDAP *ld );
  * \see slapi_ldap_init()
  */
 LDAP *slapi_ldap_init_ext(
-    const char *ldapurl, /* full ldap url */
-    const char *hostname, /* can also use this to override
+    const char *ldapurl,    /* full ldap url */
+    const char *hostname,   /* can also use this to override
                              host in url */
-    int port, /* can also use this to override port in url */
-    int secure, /* 0 for ldap, 1 for ldaps, 2 for starttls -
+    int port,               /* can also use this to override port in url */
+    int secure,             /* 0 for ldap, 1 for ldaps, 2 for starttls -
                    override proto in url */
-    int shared, /* if true, LDAP* will be shared among multiple threads */
+    int shared,             /* if true, LDAP* will be shared among multiple threads */
     const char *ldap_socket /* ldapi socket path */
-);
+    );
 /**
  * The LDAP bind request - this function handles all of the different types of mechanisms
  * including simple, sasl, and external (client cert auth)
@@ -6315,22 +6270,22 @@ LDAP *slapi_ldap_init_ext(
  * \see ldap_result()
  */
 int slapi_ldap_bind(
-    LDAP *ld, /* ldap connection */
-    const char *bindid, /* usually a bind DN for simple bind */
-    const char *creds, /* usually a password for simple bind */
-    const char *mech, /* name of mechanism */
-    LDAPControl **serverctrls, /* additional controls to send */
+    LDAP *ld,                     /* ldap connection */
+    const char *bindid,           /* usually a bind DN for simple bind */
+    const char *creds,            /* usually a password for simple bind */
+    const char *mech,             /* name of mechanism */
+    LDAPControl **serverctrls,    /* additional controls to send */
     LDAPControl ***returnedctrls, /* returned controls */
-    struct timeval *timeout, /* timeout */
-    int *msgidp /* pass in non-NULL for async handling */
-);
+    struct timeval *timeout,      /* timeout */
+    int *msgidp                   /* pass in non-NULL for async handling */
+    );
 
 /**
  * Return the full path of PEM format CA Cert
- * 
+ *
  * \return the full path of PEM format CA Cert
  */
-const char * slapi_get_cacertfile(void);
+const char *slapi_get_cacertfile(void);
 
 /**
  * Set the full path of PEM format CA Cert
@@ -6350,13 +6305,13 @@ void slapi_set_cacertfile(char *certfile);
  *
  * \see ldap_control_free()
  */
-int slapi_ldap_create_proxyauth_control (
-    LDAP *ld, /* only used to get current ber options */
+int slapi_ldap_create_proxyauth_control(
+    LDAP *ld,       /* only used to get current ber options */
     const char *dn, /* proxy dn */
     const char ctl_iscritical,
-    int usev2, /* use the v2 (.18) control instead */
+    int usev2,          /* use the v2 (.18) control instead */
     LDAPControl **ctrlp /* value to return */
-);
+    );
 
 /**
  * Parse a line from an LDIF record returned by ldif_getline() and return the LDAP
@@ -6379,11 +6334,11 @@ int slapi_ldap_create_proxyauth_control (
  * \see ldif_getline()
  */
 int slapi_ldif_parse_line(
-    char *line, /* line to parse */
-    struct berval *type, /* attribute type to return */
+    char *line,           /* line to parse */
+    struct berval *type,  /* attribute type to return */
     struct berval *value, /* attribute value to return */
-    int *freeval /* values will usually be returned in place as pointers into line - if the value is a url, the value will be malloced and must be freed by the caller */
-);
+    int *freeval          /* values will usually be returned in place as pointers into line - if the value is a url, the value will be malloced and must be freed by the caller */
+    );
 
 /**
  * Parse an LDAP DN string.  Return an array of RDN strings, terminated by a NULL.  This
@@ -6392,15 +6347,15 @@ int slapi_ldif_parse_line(
  * should use slapi_ldap_value_free to free the returned memory when finished.
  *
  * \param dn      The LDAP DN
- * \param notypes set to true (1) to return only the attribute values with no attribute types  
+ * \param notypes set to true (1) to return only the attribute values with no attribute types
  * \return \c     An array of RDN strings - use slapi_ch_array_free to free
  *
  * \see slapi_ldap_value_free()
  */
 char **slapi_ldap_explode_dn(
     const char *dn, /* dn to explode */
-    int notypes /* set to true to return only the values with no types */
-);
+    int notypes     /* set to true to return only the values with no types */
+    );
 
 /**
  * Parse an LDAP RDN string.  Return an array of AVA strings, terminated by a NULL.  This
@@ -6409,63 +6364,60 @@ char **slapi_ldap_explode_dn(
  * should use slapi_ldap_value_free to free the returned memory when finished.
  *
  * \param dn      The LDAP RDN
- * \param notypes set to true (1) to return only the attribute values with no attribute types  
+ * \param notypes set to true (1) to return only the attribute values with no attribute types
  * \return \c     An array of AVA strings - use slapi_ch_array_free to free
  *
  * \see slapi_ldap_value_free()
  */
 char **slapi_ldap_explode_rdn(
     const char *rdn, /* rdn to explode */
-    int notypes /* set to true to return only the values with no types */
-);
+    int notypes      /* set to true to return only the values with no types */
+    );
 
 /*
  * computed attributes
  */
 struct _computed_attr_context;
-typedef struct _computed_attr_context computed_attr_context; 
-typedef int (*slapi_compute_output_t)(computed_attr_context *c,Slapi_Attr *a , Slapi_Entry *e);
-typedef int (*slapi_compute_callback_t)(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_compute_output_t outputfn);
+typedef struct _computed_attr_context computed_attr_context;
+typedef int (*slapi_compute_output_t)(computed_attr_context *c, Slapi_Attr *a, Slapi_Entry *e);
+typedef int (*slapi_compute_callback_t)(computed_attr_context *c, char *type, Slapi_Entry *e, slapi_compute_output_t outputfn);
 typedef int (*slapi_search_rewrite_callback_t)(Slapi_PBlock *pb);
 int slapi_compute_add_evaluator(slapi_compute_callback_t function);
 int slapi_compute_add_evaluator_ext(slapi_compute_callback_t function, int rootonly);
 int slapi_compute_add_search_rewriter(slapi_search_rewrite_callback_t function);
-int	compute_rewrite_search_filter(Slapi_PBlock *pb);
+int compute_rewrite_search_filter(Slapi_PBlock *pb);
 
 
 /*
  * routines for dealing with backends
  */
-Slapi_Backend *slapi_be_new( const char *type, const char *name,
-	int isprivate, int logchanges );
+Slapi_Backend *slapi_be_new(const char *type, const char *name, int isprivate, int logchanges);
 void slapi_be_free(Slapi_Backend **be);
-Slapi_Backend *slapi_be_select( const Slapi_DN *sdn );
+Slapi_Backend *slapi_be_select(const Slapi_DN *sdn);
 Slapi_Backend *slapi_be_select_exact(const Slapi_DN *sdn);
-Slapi_Backend *slapi_be_select_by_instance_name( const char *name );
+Slapi_Backend *slapi_be_select_by_instance_name(const char *name);
 int slapi_be_exist(const Slapi_DN *sdn);
 void slapi_be_delete_onexit(Slapi_Backend *be);
 void slapi_be_set_readonly(Slapi_Backend *be, int readonly);
 int slapi_be_get_readonly(Slapi_Backend *be);
-int slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr,
-                           Slapi_PBlock *pb);
-int slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, 
-			   Slapi_PBlock *pb);
+int slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slapi_PBlock *pb);
+int slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi_PBlock *pb);
 int slapi_be_logchanges(Slapi_Backend *be);
-int slapi_be_issuffix(const Slapi_Backend *be, const Slapi_DN *suffix );
-void slapi_be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix);
-char * slapi_be_get_name(Slapi_Backend * be);
+int slapi_be_issuffix(const Slapi_Backend *be, const Slapi_DN *suffix);
+void slapi_be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix);
+char *slapi_be_get_name(Slapi_Backend *be);
 const Slapi_DN *slapi_be_getsuffix(Slapi_Backend *be, int n);
-Slapi_Backend* slapi_get_first_backend(char **cookie);
-Slapi_Backend* slapi_get_next_backend(char *cookie);
-int slapi_be_private( Slapi_Backend *be );
-void * slapi_be_get_instance_info(Slapi_Backend * be);
-void  slapi_be_set_instance_info(Slapi_Backend * be, void * data);
-Slapi_DN * slapi_get_first_suffix(void ** node, int show_private);
-Slapi_DN * slapi_get_next_suffix(void ** node, int show_private);
-Slapi_DN * slapi_get_next_suffix_ext(void ** node, int show_private);
-int slapi_is_root_suffix(Slapi_DN * dn);
+Slapi_Backend *slapi_get_first_backend(char **cookie);
+Slapi_Backend *slapi_get_next_backend(char *cookie);
+int slapi_be_private(Slapi_Backend *be);
+void *slapi_be_get_instance_info(Slapi_Backend *be);
+void slapi_be_set_instance_info(Slapi_Backend *be, void *data);
+Slapi_DN *slapi_get_first_suffix(void **node, int show_private);
+Slapi_DN *slapi_get_next_suffix(void **node, int show_private);
+Slapi_DN *slapi_get_next_suffix_ext(void **node, int show_private);
+int slapi_is_root_suffix(Slapi_DN *dn);
 const Slapi_DN *slapi_get_suffix_by_dn(const Slapi_DN *dn);
-const char * slapi_be_gettype(Slapi_Backend *be);
+const char *slapi_be_gettype(Slapi_Backend *be);
 
 /**
  * Start database transaction
@@ -6512,25 +6464,24 @@ int slapi_back_transaction_abort(Slapi_PBlock *pb);
  */
 int slapi_is_ldapi_conn(Slapi_PBlock *pb);
 
-int slapi_be_is_flag_set(Slapi_Backend * be, int flag);
-void slapi_be_set_flag(Slapi_Backend * be, int flag);
-void slapi_be_unset_flag(Slapi_Backend * be, int flag);
-#define SLAPI_BE_FLAG_REMOTE_DATA   0x1  /* entries held by backend are remote */
-#define SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST   0x10  /* force to call filter_test (search only) */
-#define SLAPI_BE_FLAG_POST_IMPORT   0x100  /* backend was imported */
-#define SLAPI_BE_FLAG_POST_RESTORE   0x200  /* startup after restore */
+int slapi_be_is_flag_set(Slapi_Backend *be, int flag);
+void slapi_be_set_flag(Slapi_Backend *be, int flag);
+void slapi_be_unset_flag(Slapi_Backend *be, int flag);
+#define SLAPI_BE_FLAG_REMOTE_DATA              0x1  /* entries held by backend are remote */
+#define SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST  0x10  /* force to call filter_test (search only) */
+#define SLAPI_BE_FLAG_POST_IMPORT            0x100  /* backend was imported */
+#define SLAPI_BE_FLAG_POST_RESTORE           0x200  /* startup after restore */
 
 
 /* These functions allow a plugin to register for callback when
  * a backend state change
  */
-typedef void (*slapi_backend_state_change_fnptr)(void *handle, char *be_name,
-	 int old_be_state, int new_be_state);
-void slapi_register_backend_state_change(void * handle, slapi_backend_state_change_fnptr funct);
-int slapi_unregister_backend_state_change(void * handle);
-#define	SLAPI_BE_STATE_ON       1	/* backend is ON */
-#define	SLAPI_BE_STATE_OFFLINE 	2	/* backend is OFFLINE (import process) */
-#define	SLAPI_BE_STATE_DELETE 	3	/* backend has been deleted */
+typedef void (*slapi_backend_state_change_fnptr)(void *handle, char *be_name, int old_be_state, int new_be_state);
+void slapi_register_backend_state_change(void *handle, slapi_backend_state_change_fnptr funct);
+int slapi_unregister_backend_state_change(void *handle);
+#define SLAPI_BE_STATE_ON      1  /* backend is ON */
+#define SLAPI_BE_STATE_OFFLINE 2  /* backend is OFFLINE (import process) */
+#define SLAPI_BE_STATE_DELETE  3  /* backend has been deleted */
 
 /*
  * Distribution.
@@ -6542,10 +6493,9 @@ int slapi_unregister_backend_state_change(void * handle);
  * SLAPI_BE_NO_BACKEND indicates no more backend is available or allowed
  * SLAPI_BE_REMOTE_BACKEND indicates that the are not locally available
  */
-#define SLAPI_BE_ALL_BACKENDS			-1
-#define SLAPI_BE_NO_BACKEND			-2
-#define SLAPI_BE_REMOTE_BACKEND			-3
-
+#define SLAPI_BE_ALL_BACKENDS   -1
+#define SLAPI_BE_NO_BACKEND     -2
+#define SLAPI_BE_REMOTE_BACKEND -3
 
 
 /*
@@ -6553,23 +6503,23 @@ int slapi_unregister_backend_state_change(void * handle);
  */
 
 /* General flags (flags parameter) */
-#define SLAPI_REALATTRS_ONLY						1
-#define SLAPI_VIRTUALATTRS_ONLY						2
-#define SLAPI_VIRTUALATTRS_REQUEST_POINTERS			4 /* I want to receive pointers into the entry, if possible */
-#define  SLAPI_VIRTUALATTRS_LIST_OPERATIONAL_ATTRS	8 /* Include operational attributes in attribute lists */
-#define SLAPI_VIRTUALATTRS_SUPPRESS_SUBTYPES		16 /* I want only the requested attribute */
+#define SLAPI_REALATTRS_ONLY                       1
+#define SLAPI_VIRTUALATTRS_ONLY                    2
+#define SLAPI_VIRTUALATTRS_REQUEST_POINTERS        4  /* I want to receive pointers into the entry, if possible */
+#define SLAPI_VIRTUALATTRS_LIST_OPERATIONAL_ATTRS  8  /* Include operational attributes in attribute lists */
+#define SLAPI_VIRTUALATTRS_SUPPRESS_SUBTYPES      16  /* I want only the requested attribute */
 
 /* Buffer disposition flags (buffer_flags parameter) */
-#define SLAPI_VIRTUALATTRS_RETURNED_POINTERS	1
-#define SLAPI_VIRTUALATTRS_RETURNED_COPIES	2
-#define SLAPI_VIRTUALATTRS_REALATTRS_ONLY       4
-#define SLAPI_VIRTUALATTRS_VALUES_CACHEABLE     8
+#define SLAPI_VIRTUALATTRS_RETURNED_POINTERS 1
+#define SLAPI_VIRTUALATTRS_RETURNED_COPIES   2
+#define SLAPI_VIRTUALATTRS_REALATTRS_ONLY    4
+#define SLAPI_VIRTUALATTRS_VALUES_CACHEABLE  8
 
 /* Attribute type name disposition values (type_name_disposition parameter) */
-#define SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS	1
-#define SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE		2
-#define SLAPI_VIRTUALATTRS_NOT_FOUND				-1
-#define SLAPI_VIRTUALATTRS_LOOP_DETECTED			-2
+#define SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS 1
+#define SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE          2
+#define SLAPI_VIRTUALATTRS_NOT_FOUND     -1
+#define SLAPI_VIRTUALATTRS_LOOP_DETECTED -2
 
 typedef struct _vattr_type_thang vattr_type_thang;
 typedef struct _vattr_get_thang vattr_get_thang;
@@ -6577,47 +6527,59 @@ vattr_get_thang *slapi_vattr_getthang_first(vattr_get_thang *t);
 vattr_get_thang *slapi_vattr_getthang_next(vattr_get_thang *t);
 
 int slapi_vattr_values_type_thang_get(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* attr type */ vattr_type_thang *type_thang,
-	/* pointer to result set */ Slapi_ValueSet** results,
-	int *type_name_disposition, char **actual_type_name, int flags,
-	int *buffer_flags);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* attr type */ vattr_type_thang *type_thang,
+    /* pointer to result set */ Slapi_ValueSet **results,
+    int *type_name_disposition,
+    char **actual_type_name,
+    int flags,
+    int *buffer_flags);
 int slapi_vattr_values_get(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* attr type name */ char *type,
-	/* pointer to result set */ Slapi_ValueSet** results,
-	int *type_name_disposition, char **actual_type_name, int flags,
-	int *buffer_flags);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* attr type name */ char *type,
+    /* pointer to result set */ Slapi_ValueSet **results,
+    int *type_name_disposition,
+    char **actual_type_name,
+    int flags,
+    int *buffer_flags);
 int slapi_vattr_values_get_ex(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* attr type name */ char *type,
-	/* pointer to result set */ Slapi_ValueSet*** results,
-	int **type_name_disposition, char ***actual_type_name, int flags,
-	int *buffer_flags, int *subtype_count);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* attr type name */ char *type,
+    /* pointer to result set */ Slapi_ValueSet ***results,
+    int **type_name_disposition,
+    char ***actual_type_name,
+    int flags,
+    int *buffer_flags,
+    int *subtype_count);
 int slapi_vattr_namespace_values_get(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* backend namespace dn */ Slapi_DN *namespace_dn,
-	/* attr type name */ char *type,
-	/* pointer to result set */ Slapi_ValueSet*** results,
-	int **type_name_disposition, char ***actual_type_name, int flags,
-	int *buffer_flags, int *subtype_count);
-void slapi_vattr_values_free(Slapi_ValueSet **value, char **actual_type_name,
-	int flags);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* backend namespace dn */ Slapi_DN *namespace_dn,
+    /* attr type name */ char *type,
+    /* pointer to result set */ Slapi_ValueSet ***results,
+    int **type_name_disposition,
+    char ***actual_type_name,
+    int flags,
+    int *buffer_flags,
+    int *subtype_count);
+void slapi_vattr_values_free(Slapi_ValueSet **value, char **actual_type_name, int flags);
 int slapi_vattr_value_compare(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* attr type name */ char *type,
-	Slapi_Value *test_this,/* pointer to result */ int *result,
-	int flags);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* attr type name */ char *type,
+    Slapi_Value *test_this,
+    /* pointer to result */ int *result,
+    int flags);
 int slapi_vattr_namespace_value_compare(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* backend namespace dn */ Slapi_DN *namespace_dn,
-	/* attr type name */ const char *type,
-	Slapi_Value *test_this,/* pointer to result */ int *result,
-	int flags);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* backend namespace dn */ Slapi_DN *namespace_dn,
+    /* attr type name */ const char *type,
+    Slapi_Value *test_this,
+    /* pointer to result */ int *result,
+    int flags);
 int slapi_vattr_list_attrs(
-	/* Entry we're interested in */ Slapi_Entry *e,
-	/* pointer to receive the list */ vattr_type_thang **types,
-	int flags, int *buffer_flags);
+    /* Entry we're interested in */ Slapi_Entry *e,
+    /* pointer to receive the list */ vattr_type_thang **types,
+    int flags,
+    int *buffer_flags);
 void slapi_vattr_attrs_free(vattr_type_thang **types, int flags);
 char *vattr_typethang_get_name(vattr_type_thang *t);
 unsigned long vattr_typethang_get_flags(vattr_type_thang *t);
@@ -6634,8 +6596,7 @@ void slapi_register_role_check(roles_check_fn_type check_fn);
 
 /* DSE */
 /* Front end configuration */
-typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *, 
-                             int *, char*, void *);
+typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *, int *, char *, void *);
 
 /*
  * Note: DSE callback functions MUST return one of these three values:
@@ -6649,21 +6610,21 @@ typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *,
  * A return value of SLAPI_DSE_CALLBACK_DO_NOT_APPLY is treated the same as
  * SLAPI_DSE_CALLBACK_ERROR for all other operations.
  */
-#define SLAPI_DSE_CALLBACK_OK                   (1)
-#define SLAPI_DSE_CALLBACK_ERROR                (-1)
+#define SLAPI_DSE_CALLBACK_OK           (1)
+#define SLAPI_DSE_CALLBACK_ERROR        (-1)
 #define SLAPI_DSE_CALLBACK_DO_NOT_APPLY (0)
 
 /*
  * Flags for slapi_config_register_callback() and
- *		slapi_config_remove_callback()
+ *        slapi_config_remove_callback()
  */
-#define DSE_FLAG_PREOP          0x0001
-#define DSE_FLAG_POSTOP         0x0002
-#define DSE_FLAG_PLUGIN         0x0004
+#define DSE_FLAG_PREOP  0x0001
+#define DSE_FLAG_POSTOP 0x0002
+#define DSE_FLAG_PLUGIN 0x0004
 
 /* This is the size of the returntext parameter passed to the config callback function,
    which is the "char *" argument to dseCallbackFn above */
-#define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
+#define SLAPI_DSE_RETURNTEXT_SIZE 512 /* for use by callback functions */
 
 int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
 int slapi_config_register_callback_plugin(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg, Slapi_PBlock *pb);
@@ -6675,17 +6636,17 @@ int slapi_config_remove_callback(int operation, int flags, const char *base, int
  */
 
 /* task states */
-#define SLAPI_TASK_SETUP        0
-#define SLAPI_TASK_RUNNING      1
-#define SLAPI_TASK_FINISHED     2
-#define SLAPI_TASK_CANCELLED    3
+#define SLAPI_TASK_SETUP     0
+#define SLAPI_TASK_RUNNING   1
+#define SLAPI_TASK_FINISHED  2
+#define SLAPI_TASK_CANCELLED 3
 
 /* task flag (pb_task_flags)*/
-#define SLAPI_TASK_RUNNING_AS_TASK            0x0
-#define SLAPI_TASK_RUNNING_FROM_COMMANDLINE   0x1
+#define SLAPI_TASK_RUNNING_AS_TASK          0x0
+#define SLAPI_TASK_RUNNING_FROM_COMMANDLINE 0x1
 
 /* task flags (set by the task-control code) */
-#define SLAPI_TASK_DESTROYING   0x01    /* queued event for destruction */
+#define SLAPI_TASK_DESTROYING 0x01 /* queued event for destruction */
 
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
 int slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb);
@@ -6696,7 +6657,7 @@ void slapi_task_finish(Slapi_Task *task, int rc);
 void slapi_task_cancel(Slapi_Task *task, int rc);
 int slapi_task_get_state(Slapi_Task *task);
 void slapi_task_set_data(Slapi_Task *task, void *data);
-void * slapi_task_get_data(Slapi_Task *task);
+void *slapi_task_get_data(Slapi_Task *task);
 void slapi_task_inc_refcount(Slapi_Task *task);
 void slapi_task_dec_refcount(Slapi_Task *task);
 int slapi_task_get_refcount(Slapi_Task *task);
@@ -6704,17 +6665,17 @@ void slapi_task_set_destructor_fn(Slapi_Task *task, TaskCallbackFn func);
 void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func);
 void slapi_task_status_changed(Slapi_Task *task);
 void slapi_task_log_status(Slapi_Task *task, char *format, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
 #else
-        ;
+    ;
 #endif
 
 void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
 #else
-        ;
+    ;
 #endif
 void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list varg);
 void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list varg);
@@ -6763,25 +6724,24 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter);
 /* Binder-based (connection centric) resource limits */
 /*
  * Valid values for `type' parameter to slapi_reslimit_register().
- */		
-#define SLAPI_RESLIMIT_TYPE_INT				0
+ */
+#define SLAPI_RESLIMIT_TYPE_INT 0
 
 /*
  * Status codes returned by all functions.
  */
-#define SLAPI_RESLIMIT_STATUS_SUCCESS		0	/* goodness */
-#define SLAPI_RESLIMIT_STATUS_NOVALUE		1	/* no value is available */
-#define SLAPI_RESLIMIT_STATUS_INIT_FAILURE	2	/* initialization failed */
-#define SLAPI_RESLIMIT_STATUS_PARAM_ERROR	3	/* bad parameter */
-#define SLAPI_RESLIMIT_STATUS_UNKNOWN_HANDLE	4	/* unregistered handle */
-#define SLAPI_RESLIMIT_STATUS_INTERNAL_ERROR	5	/* unexpected error */
+#define SLAPI_RESLIMIT_STATUS_SUCCESS        0 /* goodness */
+#define SLAPI_RESLIMIT_STATUS_NOVALUE        1 /* no value is available */
+#define SLAPI_RESLIMIT_STATUS_INIT_FAILURE   2 /* initialization failed */
+#define SLAPI_RESLIMIT_STATUS_PARAM_ERROR    3 /* bad parameter */
+#define SLAPI_RESLIMIT_STATUS_UNKNOWN_HANDLE 4 /* unregistered handle */
+#define SLAPI_RESLIMIT_STATUS_INTERNAL_ERROR 5 /* unexpected error */
 
 /*
  * Functions.
  */
-int slapi_reslimit_register( int type, const char *attrname, int *handlep );
-int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
-		int *limitp );
+int slapi_reslimit_register(int type, const char *attrname, int *handlep);
+int slapi_reslimit_get_integer_limit(Slapi_Connection *conn, int handle, int *limitp);
 /* END of Binder-based resource limits API */
 
 /**
@@ -6792,7 +6752,7 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
  *
  * \return The current time
  */
-time_t slapi_current_time( void )  __attribute__((deprecated));
+time_t slapi_current_time(void) __attribute__((deprecated));
 
 /**
  * Returns the current system time as a hr clock relative to uptime
@@ -6900,66 +6860,66 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
  * Plugin version.  Note that the Directory Server will load version 01
  * and 02 plugins, but some server features require 03 plugins.
  */
-#define SLAPI_PLUGIN_VERSION_01		"01"
-#define SLAPI_PLUGIN_VERSION_02		"02"
-#define SLAPI_PLUGIN_VERSION_03         "03"
-#define SLAPI_PLUGIN_CURRENT_VERSION	SLAPI_PLUGIN_VERSION_03
-#define SLAPI_PLUGIN_IS_COMPAT(x)	\
-	((strcmp((x), SLAPI_PLUGIN_VERSION_01) == 0) ||	\
-	 (strcmp((x), SLAPI_PLUGIN_VERSION_02) == 0) || \
-	 (strcmp((x), SLAPI_PLUGIN_VERSION_03) == 0))
-#define SLAPI_PLUGIN_IS_V2(x)		\
-	((strcmp((x)->plg_version, SLAPI_PLUGIN_VERSION_02) == 0) || \
-         (strcmp((x)->plg_version, SLAPI_PLUGIN_VERSION_03) == 0))
-#define SLAPI_PLUGIN_IS_V3(x)		\
-	(strcmp((x)->plg_version, SLAPI_PLUGIN_VERSION_03) == 0)
+#define SLAPI_PLUGIN_VERSION_01 "01"
+#define SLAPI_PLUGIN_VERSION_02 "02"
+#define SLAPI_PLUGIN_VERSION_03 "03"
+#define SLAPI_PLUGIN_CURRENT_VERSION SLAPI_PLUGIN_VERSION_03
+#define SLAPI_PLUGIN_IS_COMPAT(x)                   \
+    ((strcmp((x), SLAPI_PLUGIN_VERSION_01) == 0) || \
+     (strcmp((x), SLAPI_PLUGIN_VERSION_02) == 0) || \
+     (strcmp((x), SLAPI_PLUGIN_VERSION_03) == 0))
+#define SLAPI_PLUGIN_IS_V2(x)                                    \
+    ((strcmp((x)->plg_version, SLAPI_PLUGIN_VERSION_02) == 0) || \
+     (strcmp((x)->plg_version, SLAPI_PLUGIN_VERSION_03) == 0))
+#define SLAPI_PLUGIN_IS_V3(x) \
+    (strcmp((x)->plg_version, SLAPI_PLUGIN_VERSION_03) == 0)
 
 /* this one just has to be human readable */
-#define SLAPI_PLUGIN_SUPPORTED_VERSIONS	"01,02,03"
+#define SLAPI_PLUGIN_SUPPORTED_VERSIONS "01,02,03"
 
 /*
  * types of plugin interfaces
  */
-#define SLAPI_PLUGIN_EXTENDEDOP			2
-#define SLAPI_PLUGIN_PREOPERATION		3
-#define SLAPI_PLUGIN_POSTOPERATION		4
-#define SLAPI_PLUGIN_MATCHINGRULE		5
-#define SLAPI_PLUGIN_SYNTAX			6
-#define SLAPI_PLUGIN_ACL			7
-#define	SLAPI_PLUGIN_BEPREOPERATION		8
-#define SLAPI_PLUGIN_BEPOSTOPERATION		9
-#define SLAPI_PLUGIN_ENTRY             		10
-#define SLAPI_PLUGIN_TYPE_OBJECT       		11
-#define SLAPI_PLUGIN_INTERNAL_PREOPERATION	12
-#define SLAPI_PLUGIN_INTERNAL_POSTOPERATION	13
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME		14
-#define SLAPI_PLUGIN_VATTR_SP			15
-#define SLAPI_PLUGIN_REVER_PWD_STORAGE_SCHEME	16
-#define SLAPI_PLUGIN_LDBM_ENTRY_FETCH_STORE	17
-#define SLAPI_PLUGIN_INDEX			18
-#define	SLAPI_PLUGIN_BETXNPREOPERATION		19
-#define SLAPI_PLUGIN_BETXNPOSTOPERATION		20
-#define SLAPI_PLUGIN_BETXNEXTENDEDOP		21
-#define SLAPI_PLUGIN_PREEXTOPERATION		22
-#define SLAPI_PLUGIN_POSTEXTOPERATION		23
+#define SLAPI_PLUGIN_EXTENDEDOP                2
+#define SLAPI_PLUGIN_PREOPERATION              3
+#define SLAPI_PLUGIN_POSTOPERATION             4
+#define SLAPI_PLUGIN_MATCHINGRULE              5
+#define SLAPI_PLUGIN_SYNTAX                    6
+#define SLAPI_PLUGIN_ACL                       7
+#define SLAPI_PLUGIN_BEPREOPERATION            8
+#define SLAPI_PLUGIN_BEPOSTOPERATION           9
+#define SLAPI_PLUGIN_ENTRY                    10
+#define SLAPI_PLUGIN_TYPE_OBJECT              11
+#define SLAPI_PLUGIN_INTERNAL_PREOPERATION    12
+#define SLAPI_PLUGIN_INTERNAL_POSTOPERATION   13
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME       14
+#define SLAPI_PLUGIN_VATTR_SP                 15
+#define SLAPI_PLUGIN_REVER_PWD_STORAGE_SCHEME 16
+#define SLAPI_PLUGIN_LDBM_ENTRY_FETCH_STORE   17
+#define SLAPI_PLUGIN_INDEX                    18
+#define SLAPI_PLUGIN_BETXNPREOPERATION        19
+#define SLAPI_PLUGIN_BETXNPOSTOPERATION       20
+#define SLAPI_PLUGIN_BETXNEXTENDEDOP          21
+#define SLAPI_PLUGIN_PREEXTOPERATION          22
+#define SLAPI_PLUGIN_POSTEXTOPERATION         23
 
 /*
  * special return values for extended operation plugins (zero or positive
  *     return values should be LDAP error codes as defined in ldap.h)
  */
-#define SLAPI_PLUGIN_EXTENDED_SENT_RESULT	-1
-#define SLAPI_PLUGIN_EXTENDED_NOT_HANDLED	-2
+#define SLAPI_PLUGIN_EXTENDED_SENT_RESULT          -1
+#define SLAPI_PLUGIN_EXTENDED_NOT_HANDLED          -2
 #define SLAPI_PLUGIN_EXTENDED_NO_BACKEND_AVAILABLE -3
 
 /*
  * Return values of plugins:
  */
-#define SLAPI_PLUGIN_SUCCESS  0  /* 0 is treated as success implicitely */
-#define SLAPI_PLUGIN_FAILURE -1  /* common failure */
-#define SLAPI_PLUGIN_NOOP    -2  /* Special in be_pre_op/be_txn_pre_op.
-                                  * Treat as SUCCESS, but skip the backend op.
-                                  * Also, return SUCCESS to the client/supplier.
-                                  * Necessary for the replication conflicts. */
+#define SLAPI_PLUGIN_SUCCESS 0  /* 0 is treated as success implicitely */
+#define SLAPI_PLUGIN_FAILURE -1 /* common failure */
+#define SLAPI_PLUGIN_NOOP    -2 /* Special in be_pre_op/be_txn_pre_op.
+                                 * Treat as SUCCESS, but skip the backend op.
+                                 * Also, return SUCCESS to the client/supplier.
+                                 * Necessary for the replication conflicts. */
 
 /*
  * the following can be used as the second argument to the
@@ -6967,43 +6927,43 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
  */
 
 /* backend, connection, operation */
-#define SLAPI_BACKEND               130
-#define SLAPI_CONNECTION            131
-#define SLAPI_OPERATION             132
-#define SLAPI_REQUESTOR_ISROOT      133
-#define SLAPI_BE_TYPE               135
-#define SLAPI_BE_READONLY           136
-#define SLAPI_BE_LASTMOD            137
-#define SLAPI_CONN_ID               139
-#define SLAPI_BACKEND_COUNT         860
+#define SLAPI_BACKEND          130
+#define SLAPI_CONNECTION       131
+#define SLAPI_OPERATION        132
+#define SLAPI_REQUESTOR_ISROOT 133
+#define SLAPI_BE_TYPE          135
+#define SLAPI_BE_READONLY      136
+#define SLAPI_BE_LASTMOD       137
+#define SLAPI_CONN_ID          139
+#define SLAPI_BACKEND_COUNT    860
 
 /* operation */
-#define SLAPI_OPINITIATED_TIME			140
-#define SLAPI_REQUESTOR_DN			141
-#define SLAPI_REQUESTOR_SDN			852
-#define SLAPI_REQUESTOR_NDN			156
-#define SLAPI_OPERATION_PARAMETERS		138
-#define SLAPI_OPERATION_TYPE			590
-#define SLAPI_OPERATION_AUTHTYPE		741
-#define SLAPI_OPERATION_ID			744
-#define SLAPI_OPERATION_SSF			750
-#define SLAPI_IS_REPLICATED_OPERATION		142
-#define SLAPI_IS_MMR_REPLICATED_OPERATION	153
-#define SLAPI_SKIP_MODIFIED_ATTRS		155
+#define SLAPI_OPINITIATED_TIME            140
+#define SLAPI_REQUESTOR_DN                141
+#define SLAPI_REQUESTOR_SDN               852
+#define SLAPI_REQUESTOR_NDN               156
+#define SLAPI_OPERATION_PARAMETERS        138
+#define SLAPI_OPERATION_TYPE              590
+#define SLAPI_OPERATION_AUTHTYPE          741
+#define SLAPI_OPERATION_ID                744
+#define SLAPI_OPERATION_SSF               750
+#define SLAPI_IS_REPLICATED_OPERATION     142
+#define SLAPI_IS_MMR_REPLICATED_OPERATION 153
+#define SLAPI_SKIP_MODIFIED_ATTRS         155
 
 /* connection */
-#define SLAPI_CONN_DN        			143
-#define SLAPI_CONN_CLIENTNETADDR	850
-#define SLAPI_CONN_SERVERNETADDR			851
-#define SLAPI_CONN_IS_REPLICATION_SESSION 	149
-#define SLAPI_CONN_IS_SSL_SESSION 	747
-#define SLAPI_CONN_CERT				743
-#define SLAPI_CONN_AUTHMETHOD			746
-#define SLAPI_CONN_SASL_SSF			748
-#define SLAPI_CONN_SSL_SSF			749
-#define SLAPI_CONN_LOCAL_SSF			751
+#define SLAPI_CONN_DN                     143
+#define SLAPI_CONN_CLIENTNETADDR          850
+#define SLAPI_CONN_SERVERNETADDR          851
+#define SLAPI_CONN_IS_REPLICATION_SESSION 149
+#define SLAPI_CONN_IS_SSL_SESSION         747
+#define SLAPI_CONN_CERT                   743
+#define SLAPI_CONN_AUTHMETHOD             746
+#define SLAPI_CONN_SASL_SSF               748
+#define SLAPI_CONN_SSL_SSF                749
+#define SLAPI_CONN_LOCAL_SSF              751
 
-/* 
+/*
  * Types of authentication for SLAPI_CONN_AUTHMETHOD
  * (and deprecated SLAPI_CONN_AUTHTYPE)
  */
@@ -7014,268 +6974,265 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 #define SLAPD_AUTH_OS     "OS"
 
 /* Command Line Arguments */
-#define SLAPI_ARGC				147
-#define SLAPI_ARGV				148
+#define SLAPI_ARGC 147
+#define SLAPI_ARGV 148
 
 /* Slapd config file directory */
-#define SLAPI_CONFIG_DIRECTORY			281
+#define SLAPI_CONFIG_DIRECTORY 281
 
 /* DSE flags */
-#define SLAPI_DSE_DONT_WRITE_WHEN_ADDING	282
-#define SLAPI_DSE_MERGE_WHEN_ADDING		283
-#define SLAPI_DSE_DONT_CHECK_DUPS		284
-#define SLAPI_DSE_REAPPLY_MODS			287
-#define SLAPI_DSE_IS_PRIMARY_FILE		289
+#define SLAPI_DSE_DONT_WRITE_WHEN_ADDING 282
+#define SLAPI_DSE_MERGE_WHEN_ADDING      283
+#define SLAPI_DSE_DONT_CHECK_DUPS        284
+#define SLAPI_DSE_REAPPLY_MODS           287
+#define SLAPI_DSE_IS_PRIMARY_FILE        289
 
 /* internal schema flags */
-#define SLAPI_SCHEMA_FLAGS					285
+#define SLAPI_SCHEMA_FLAGS 285
 
 /* urp flags */
-#define SLAPI_URP_NAMING_COLLISION_DN	286
-#define SLAPI_URP_TOMBSTONE_UNIQUEID	288
+#define SLAPI_URP_NAMING_COLLISION_DN 286
+#define SLAPI_URP_TOMBSTONE_UNIQUEID  288
 
 /* common to all plugins */
-#define SLAPI_PLUGIN				3
-#define SLAPI_PLUGIN_PRIVATE			4
-#define SLAPI_PLUGIN_TYPE			5
-#define SLAPI_PLUGIN_ARGV			6
-#define SLAPI_PLUGIN_ARGC			7
-#define SLAPI_PLUGIN_VERSION			8
-
-#define SLAPI_PLUGIN_OPRETURN			9
-#define SLAPI_PLUGIN_OBJECT			10
-#define SLAPI_PLUGIN_DESTROY_FN			11
-
-#define SLAPI_PLUGIN_DESCRIPTION		12
-typedef struct slapi_plugindesc {
-	char	*spd_id;
-	char	*spd_vendor;
-	char	*spd_version;
-	char	*spd_description;	
+#define SLAPI_PLUGIN              3
+#define SLAPI_PLUGIN_PRIVATE      4
+#define SLAPI_PLUGIN_TYPE         5
+#define SLAPI_PLUGIN_ARGV         6
+#define SLAPI_PLUGIN_ARGC         7
+#define SLAPI_PLUGIN_VERSION      8
+#define SLAPI_PLUGIN_OPRETURN     9
+#define SLAPI_PLUGIN_OBJECT      10
+#define SLAPI_PLUGIN_DESTROY_FN  11
+#define SLAPI_PLUGIN_DESCRIPTION 12
+typedef struct slapi_plugindesc
+{
+    char *spd_id;
+    char *spd_vendor;
+    char *spd_version;
+    char *spd_description;
 } Slapi_PluginDesc;
 
-#define SLAPI_PLUGIN_IDENTITY                   13
-#define SLAPI_PLUGIN_PRECEDENCE			14
+#define SLAPI_PLUGIN_IDENTITY   13
+#define SLAPI_PLUGIN_PRECEDENCE 14
 
 /* common for internal plugin_ops */
-#define SLAPI_PLUGIN_INTOP_RESULT		15
-#define SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES	16
-#define SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS	17
+#define SLAPI_PLUGIN_INTOP_RESULT           15
+#define SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES   16
+#define SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS 17
 
 /* miscellaneous plugin functions */
-#define SLAPI_PLUGIN_CLOSE_FN			210
-#define SLAPI_PLUGIN_START_FN			212
-#define	SLAPI_PLUGIN_CLEANUP_FN                 232
-#define	SLAPI_PLUGIN_POSTSTART_FN		233
+#define SLAPI_PLUGIN_CLOSE_FN     210
+#define SLAPI_PLUGIN_START_FN     212
+#define SLAPI_PLUGIN_CLEANUP_FN   232
+#define SLAPI_PLUGIN_POSTSTART_FN 233
 
 
 /* extendedop plugin functions */
-#define SLAPI_PLUGIN_EXT_OP_FN			300
-#define SLAPI_PLUGIN_EXT_OP_OIDLIST		301
-#define SLAPI_PLUGIN_EXT_OP_NAMELIST	302
-#define SLAPI_PLUGIN_EXT_OP_BACKEND_FN  1948
+#define SLAPI_PLUGIN_EXT_OP_FN          300
+#define SLAPI_PLUGIN_EXT_OP_OIDLIST     301
+#define SLAPI_PLUGIN_EXT_OP_NAMELIST    302
+#define SLAPI_PLUGIN_EXT_OP_BACKEND_FN 1948
 
 /* preoperation plugin functions */
-#define SLAPI_PLUGIN_PRE_BIND_FN		401
-#define SLAPI_PLUGIN_PRE_UNBIND_FN		402
-#define SLAPI_PLUGIN_PRE_SEARCH_FN		403
-#define SLAPI_PLUGIN_PRE_COMPARE_FN		404
-#define SLAPI_PLUGIN_PRE_MODIFY_FN		405
-#define SLAPI_PLUGIN_PRE_MODRDN_FN		406
-#define SLAPI_PLUGIN_PRE_ADD_FN			407
-#define SLAPI_PLUGIN_PRE_DELETE_FN		408
-#define SLAPI_PLUGIN_PRE_ABANDON_FN		409
-#define SLAPI_PLUGIN_PRE_ENTRY_FN		410
-#define SLAPI_PLUGIN_PRE_REFERRAL_FN		411
-#define SLAPI_PLUGIN_PRE_RESULT_FN		412
-#define SLAPI_PLUGIN_PRE_EXTOP_FN		413
+#define SLAPI_PLUGIN_PRE_BIND_FN     401
+#define SLAPI_PLUGIN_PRE_UNBIND_FN   402
+#define SLAPI_PLUGIN_PRE_SEARCH_FN   403
+#define SLAPI_PLUGIN_PRE_COMPARE_FN  404
+#define SLAPI_PLUGIN_PRE_MODIFY_FN   405
+#define SLAPI_PLUGIN_PRE_MODRDN_FN   406
+#define SLAPI_PLUGIN_PRE_ADD_FN      407
+#define SLAPI_PLUGIN_PRE_DELETE_FN   408
+#define SLAPI_PLUGIN_PRE_ABANDON_FN  409
+#define SLAPI_PLUGIN_PRE_ENTRY_FN    410
+#define SLAPI_PLUGIN_PRE_REFERRAL_FN 411
+#define SLAPI_PLUGIN_PRE_RESULT_FN   412
+#define SLAPI_PLUGIN_PRE_EXTOP_FN    413
 
 /* internal preoperation plugin functions */
-#define SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN    	420
-#define SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN	421
-#define SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN	422
-#define SLAPI_PLUGIN_INTERNAL_PRE_DELETE_FN	423
-#define SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN	424
+#define SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN    420
+#define SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN 421
+#define SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN 422
+#define SLAPI_PLUGIN_INTERNAL_PRE_DELETE_FN 423
+#define SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN   424
 
 /* preoperation plugin to the backend */
-#define SLAPI_PLUGIN_BE_PRE_ADD_FN		450
-#define SLAPI_PLUGIN_BE_PRE_MODIFY_FN		451
-#define SLAPI_PLUGIN_BE_PRE_MODRDN_FN		452
-#define SLAPI_PLUGIN_BE_PRE_DELETE_FN		453
-#define SLAPI_PLUGIN_BE_PRE_CLOSE_FN		454
-#define SLAPI_PLUGIN_BE_PRE_BACKUP_FN		455
+#define SLAPI_PLUGIN_BE_PRE_ADD_FN    450
+#define SLAPI_PLUGIN_BE_PRE_MODIFY_FN 451
+#define SLAPI_PLUGIN_BE_PRE_MODRDN_FN 452
+#define SLAPI_PLUGIN_BE_PRE_DELETE_FN 453
+#define SLAPI_PLUGIN_BE_PRE_CLOSE_FN  454
+#define SLAPI_PLUGIN_BE_PRE_BACKUP_FN 455
 
 /* preoperation plugin to the backend - just after transaction creation */
-#define SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN		460
-#define SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN		461
-#define SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN		462
-#define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN		463
-#define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN		464
+#define SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN              460
+#define SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN           461
+#define SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN           462
+#define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN           463
+#define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN 464
 
 /* postoperation plugin functions */
-#define SLAPI_PLUGIN_POST_BIND_FN		501
-#define SLAPI_PLUGIN_POST_UNBIND_FN		502
-#define SLAPI_PLUGIN_POST_SEARCH_FN		503
-#define SLAPI_PLUGIN_POST_COMPARE_FN		504
-#define SLAPI_PLUGIN_POST_MODIFY_FN		505
-#define SLAPI_PLUGIN_POST_MODRDN_FN		506
-#define SLAPI_PLUGIN_POST_ADD_FN		507
-#define SLAPI_PLUGIN_POST_DELETE_FN		508
-#define SLAPI_PLUGIN_POST_ABANDON_FN		509
-#define SLAPI_PLUGIN_POST_ENTRY_FN		510
-#define SLAPI_PLUGIN_POST_REFERRAL_FN		511
-#define SLAPI_PLUGIN_POST_RESULT_FN		512
-#define SLAPI_PLUGIN_POST_SEARCH_FAIL_FN	513
-#define SLAPI_PLUGIN_POST_EXTOP_FN		514
+#define SLAPI_PLUGIN_POST_BIND_FN        501
+#define SLAPI_PLUGIN_POST_UNBIND_FN      502
+#define SLAPI_PLUGIN_POST_SEARCH_FN      503
+#define SLAPI_PLUGIN_POST_COMPARE_FN     504
+#define SLAPI_PLUGIN_POST_MODIFY_FN      505
+#define SLAPI_PLUGIN_POST_MODRDN_FN      506
+#define SLAPI_PLUGIN_POST_ADD_FN         507
+#define SLAPI_PLUGIN_POST_DELETE_FN      508
+#define SLAPI_PLUGIN_POST_ABANDON_FN     509
+#define SLAPI_PLUGIN_POST_ENTRY_FN       510
+#define SLAPI_PLUGIN_POST_REFERRAL_FN    511
+#define SLAPI_PLUGIN_POST_RESULT_FN      512
+#define SLAPI_PLUGIN_POST_SEARCH_FAIL_FN 513
+#define SLAPI_PLUGIN_POST_EXTOP_FN       514
 
 /* internal preoperation plugin functions */
-#define SLAPI_PLUGIN_INTERNAL_POST_ADD_FN   	520
-#define SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN    521
-#define SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN	522
-#define SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN	523
+#define SLAPI_PLUGIN_INTERNAL_POST_ADD_FN    520
+#define SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN 521
+#define SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN 522
+#define SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN 523
 
 /* postoperation plugin to the backend */
-#define SLAPI_PLUGIN_BE_POST_ADD_FN		550
-#define SLAPI_PLUGIN_BE_POST_MODIFY_FN		551
-#define SLAPI_PLUGIN_BE_POST_MODRDN_FN		552
-#define SLAPI_PLUGIN_BE_POST_DELETE_FN		553
-#define SLAPI_PLUGIN_BE_POST_OPEN_FN		554
-#define SLAPI_PLUGIN_BE_POST_BACKUP_FN		555
+#define SLAPI_PLUGIN_BE_POST_ADD_FN    550
+#define SLAPI_PLUGIN_BE_POST_MODIFY_FN 551
+#define SLAPI_PLUGIN_BE_POST_MODRDN_FN 552
+#define SLAPI_PLUGIN_BE_POST_DELETE_FN 553
+#define SLAPI_PLUGIN_BE_POST_OPEN_FN   554
+#define SLAPI_PLUGIN_BE_POST_BACKUP_FN 555
 
 /* postoperation plugin to the backend - just before transaction commit */
-#define SLAPI_PLUGIN_BE_TXN_POST_ADD_FN		560
-#define SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN		561
-#define SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN		562
-#define SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN		563
+#define SLAPI_PLUGIN_BE_TXN_POST_ADD_FN    560
+#define SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN 561
+#define SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN 562
+#define SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN 563
 
 /* matching rule plugin functions */
-#define SLAPI_PLUGIN_MR_FILTER_CREATE_FN	600
-#define SLAPI_PLUGIN_MR_INDEXER_CREATE_FN	601
-#define SLAPI_PLUGIN_MR_FILTER_MATCH_FN		602
-#define SLAPI_PLUGIN_MR_FILTER_INDEX_FN		603
-#define SLAPI_PLUGIN_MR_FILTER_RESET_FN		604
-#define SLAPI_PLUGIN_MR_INDEX_FN		605
-#define SLAPI_PLUGIN_MR_INDEX_SV_FN		606
+#define SLAPI_PLUGIN_MR_FILTER_CREATE_FN  600
+#define SLAPI_PLUGIN_MR_INDEXER_CREATE_FN 601
+#define SLAPI_PLUGIN_MR_FILTER_MATCH_FN   602
+#define SLAPI_PLUGIN_MR_FILTER_INDEX_FN   603
+#define SLAPI_PLUGIN_MR_FILTER_RESET_FN   604
+#define SLAPI_PLUGIN_MR_INDEX_FN          605
+#define SLAPI_PLUGIN_MR_INDEX_SV_FN       606
 
 /* matching rule plugin arguments */
-#define SLAPI_PLUGIN_MR_OID			610
-#define SLAPI_PLUGIN_MR_TYPE			611
-#define SLAPI_PLUGIN_MR_VALUE			612
-#define SLAPI_PLUGIN_MR_VALUES			613
-#define SLAPI_PLUGIN_MR_KEYS			614
-#define SLAPI_PLUGIN_MR_FILTER_REUSABLE		615
-#define SLAPI_PLUGIN_MR_QUERY_OPERATOR		616
-#define SLAPI_PLUGIN_MR_USAGE			617
+#define SLAPI_PLUGIN_MR_OID                610
+#define SLAPI_PLUGIN_MR_TYPE               611
+#define SLAPI_PLUGIN_MR_VALUE              612
+#define SLAPI_PLUGIN_MR_VALUES             613
+#define SLAPI_PLUGIN_MR_KEYS               614
+#define SLAPI_PLUGIN_MR_FILTER_REUSABLE    615
+#define SLAPI_PLUGIN_MR_QUERY_OPERATOR     616
+#define SLAPI_PLUGIN_MR_USAGE              617
 /* new style matching rule syntax plugin functions */
-#define SLAPI_PLUGIN_MR_FILTER_AVA		618
-#define SLAPI_PLUGIN_MR_FILTER_SUB		619
-#define SLAPI_PLUGIN_MR_VALUES2KEYS		620
-#define SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA	621
-#define SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB	622
-#define SLAPI_PLUGIN_MR_FLAGS		623
-#define SLAPI_PLUGIN_MR_NAMES		624
-#define SLAPI_PLUGIN_MR_COMPARE		625
-#define SLAPI_PLUGIN_MR_NORMALIZE	626
+#define SLAPI_PLUGIN_MR_FILTER_AVA         618
+#define SLAPI_PLUGIN_MR_FILTER_SUB         619
+#define SLAPI_PLUGIN_MR_VALUES2KEYS        620
+#define SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA 621
+#define SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB 622
+#define SLAPI_PLUGIN_MR_FLAGS              623
+#define SLAPI_PLUGIN_MR_NAMES              624
+#define SLAPI_PLUGIN_MR_COMPARE            625
+#define SLAPI_PLUGIN_MR_NORMALIZE          626
 
 /* Defined values of SLAPI_PLUGIN_MR_QUERY_OPERATOR: */
-#define SLAPI_OP_LESS					1
-#define SLAPI_OP_LESS_OR_EQUAL				2
-#define SLAPI_OP_EQUAL					3
-#define SLAPI_OP_GREATER_OR_EQUAL			4
-#define SLAPI_OP_GREATER				5
-#define SLAPI_OP_SUBSTRING				6
-#define SLAPI_OP_RANGE					0xff
-#define SLAPI_OP_RANGE_NO_IDL_SORT		0x100
-#define SLAPI_OP_RANGE_NO_ALLIDS		0x200
+#define SLAPI_OP_LESS              1
+#define SLAPI_OP_LESS_OR_EQUAL     2
+#define SLAPI_OP_EQUAL             3
+#define SLAPI_OP_GREATER_OR_EQUAL  4
+#define SLAPI_OP_GREATER           5
+#define SLAPI_OP_SUBSTRING         6
+#define SLAPI_OP_RANGE             0xff
+#define SLAPI_OP_RANGE_NO_IDL_SORT 0x100
+#define SLAPI_OP_RANGE_NO_ALLIDS   0x200
 
 /* Defined values of SLAPI_PLUGIN_MR_USAGE: */
-#define SLAPI_PLUGIN_MR_USAGE_INDEX		0
-#define SLAPI_PLUGIN_MR_USAGE_SORT		1
+#define SLAPI_PLUGIN_MR_USAGE_INDEX 0
+#define SLAPI_PLUGIN_MR_USAGE_SORT  1
 
 /* Defined values for matchingRuleEntry accessor functions */
-#define SLAPI_MATCHINGRULE_NAME                 1
-#define SLAPI_MATCHINGRULE_OID                  2
-#define SLAPI_MATCHINGRULE_DESC                 3
-#define SLAPI_MATCHINGRULE_SYNTAX               4
-#define SLAPI_MATCHINGRULE_OBSOLETE             5
+#define SLAPI_MATCHINGRULE_NAME     1
+#define SLAPI_MATCHINGRULE_OID      2
+#define SLAPI_MATCHINGRULE_DESC     3
+#define SLAPI_MATCHINGRULE_SYNTAX   4
+#define SLAPI_MATCHINGRULE_OBSOLETE 5
 
 /* syntax plugin functions and arguments */
-#define SLAPI_PLUGIN_SYNTAX_FILTER_AVA		700
-#define SLAPI_PLUGIN_SYNTAX_FILTER_SUB		701
-#define SLAPI_PLUGIN_SYNTAX_VALUES2KEYS		702
-#define SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA	703
-#define SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB	704
-#define SLAPI_PLUGIN_SYNTAX_NAMES		705
-#define SLAPI_PLUGIN_SYNTAX_OID			706
-#define SLAPI_PLUGIN_SYNTAX_FLAGS		707
-#define SLAPI_PLUGIN_SYNTAX_COMPARE		708
+#define SLAPI_PLUGIN_SYNTAX_FILTER_AVA         700
+#define SLAPI_PLUGIN_SYNTAX_FILTER_SUB         701
+#define SLAPI_PLUGIN_SYNTAX_VALUES2KEYS        702
+#define SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA 703
+#define SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB 704
+#define SLAPI_PLUGIN_SYNTAX_NAMES              705
+#define SLAPI_PLUGIN_SYNTAX_OID                706
+#define SLAPI_PLUGIN_SYNTAX_FLAGS              707
+#define SLAPI_PLUGIN_SYNTAX_COMPARE            708
 
 /* user defined substrlen; not stored in slapdplugin, but pblock itself */
-#define SLAPI_SYNTAX_SUBSTRLENS			709
-#define SLAPI_MR_SUBSTRLENS			SLAPI_SYNTAX_SUBSTRLENS /* alias */
-#define SLAPI_PLUGIN_SYNTAX_VALIDATE		710
-#define SLAPI_PLUGIN_SYNTAX_NORMALIZE		711
-#define SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED	712
-#define SLAPI_PLUGIN_SYNTAX_FILTER_DATA		713
+#define SLAPI_SYNTAX_SUBSTRLENS               709
+#define SLAPI_MR_SUBSTRLENS                   SLAPI_SYNTAX_SUBSTRLENS /* alias */
+#define SLAPI_PLUGIN_SYNTAX_VALIDATE          710
+#define SLAPI_PLUGIN_SYNTAX_NORMALIZE         711
+#define SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED 712
+#define SLAPI_PLUGIN_SYNTAX_FILTER_DATA       713
 
 /* ACL plugin functions and arguments */
-#define SLAPI_PLUGIN_ACL_INIT			730
-#define SLAPI_PLUGIN_ACL_SYNTAX_CHECK		731
-#define SLAPI_PLUGIN_ACL_ALLOW_ACCESS		732
-#define SLAPI_PLUGIN_ACL_MODS_ALLOWED		733
-#define SLAPI_PLUGIN_ACL_MODS_UPDATE		734
+#define SLAPI_PLUGIN_ACL_INIT         730
+#define SLAPI_PLUGIN_ACL_SYNTAX_CHECK 731
+#define SLAPI_PLUGIN_ACL_ALLOW_ACCESS 732
+#define SLAPI_PLUGIN_ACL_MODS_ALLOWED 733
+#define SLAPI_PLUGIN_ACL_MODS_UPDATE  734
 
 
-#define ACLPLUGIN_ACCESS_DEFAULT		0
-#define ACLPLUGIN_ACCESS_READ_ON_ENTRY		1
-#define ACLPLUGIN_ACCESS_READ_ON_ATTR		2
-#define ACLPLUGIN_ACCESS_READ_ON_VLV		3
-#define ACLPLUGIN_ACCESS_MODRDN				4
-#define ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS	5
+#define ACLPLUGIN_ACCESS_DEFAULT              0
+#define ACLPLUGIN_ACCESS_READ_ON_ENTRY        1
+#define ACLPLUGIN_ACCESS_READ_ON_ATTR         2
+#define ACLPLUGIN_ACCESS_READ_ON_VLV          3
+#define ACLPLUGIN_ACCESS_MODRDN               4
+#define ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS 5
 
 /* Authorization types */
-#define SLAPI_BE_MAXNESTLEVEL			742
-#define SLAPI_CLIENT_DNS			745
+#define SLAPI_BE_MAXNESTLEVEL 742
+#define SLAPI_CLIENT_DNS 745
 
 /* Password storage scheme functions and arguments */
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN		800
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN		801 /* only meaningfull for reversible encryption */
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN		802
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN 800
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN 801 /* only meaningfull for reversible encryption */
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN 802
 
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME		810	/* name of the method: SHA, SSHA... */
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_USER_PWD	811	/* value sent over LDAP */
-#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DB_PWD		812	/* value from the DB */
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME     810 /* name of the method: SHA, SSHA... */
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_USER_PWD 811 /* value sent over LDAP */
+#define SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DB_PWD   812 /* value from the DB */
 
 /* entry fetch and entry store values */
-#define SLAPI_PLUGIN_ENTRY_FETCH_FUNC				813 
-#define SLAPI_PLUGIN_ENTRY_STORE_FUNC				814
-#define SLAPI_PLUGIN_ENABLED						815
+#define SLAPI_PLUGIN_ENTRY_FETCH_FUNC 813
+#define SLAPI_PLUGIN_ENTRY_STORE_FUNC 814
+#define SLAPI_PLUGIN_ENABLED          815
 
-#define SLAPI_PLUGIN_CONFIG_AREA				816
-#define SLAPI_PLUGIN_CONFIG_DN                  817
+#define SLAPI_PLUGIN_CONFIG_AREA      816
+#define SLAPI_PLUGIN_CONFIG_DN        817
 
 /*
  * Defined values of SLAPI_PLUGIN_SYNTAX_FLAGS:
  */
-#define SLAPI_PLUGIN_SYNTAX_FLAG_ORKEYS			1
-#define SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING		2
+#define SLAPI_PLUGIN_SYNTAX_FLAG_ORKEYS   1
+#define SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING 2
 
 /* controls we know about */
-#define SLAPI_MANAGEDSAIT       		1000
-#define SLAPI_PWPOLICY          		1001
+#define SLAPI_MANAGEDSAIT 1000
+#define SLAPI_PWPOLICY    1001
 
 /* arguments that are common to all operation */
-#define SLAPI_TARGET_ADDRESS			48	/* target address (dn + uniqueid) should be normalized */
-#define SLAPI_TARGET_UNIQUEID			49	/* target uniqueid of the operation */
-#define SLAPI_TARGET_DN  50 /* DEPRECATED.  target dn of the operation.
-                               It actually points DN in SLAPI_TARGET_SDN. */
-#define SLAPI_TARGET_SDN 47 /* target sdn of the operation */
-
-#define SLAPI_REQCONTROLS			51	/* request controls */
+#define SLAPI_TARGET_SDN      47 /* target sdn of the operation */
+#define SLAPI_TARGET_ADDRESS  48 /* target address (dn + uniqueid) should be normalized */
+#define SLAPI_TARGET_UNIQUEID 49 /* target uniqueid of the operation */
+#define SLAPI_TARGET_DN       50 /* DEPRECATED.  target dn of the operation. It actually points DN in SLAPI_TARGET_SDN. */
+#define SLAPI_REQCONTROLS     51 /* request controls */
 
 /* Copies of entry before and after add, mod, mod[r]dn operations */
-#define	SLAPI_ENTRY_PRE_OP			52
-#define	SLAPI_ENTRY_POST_OP			53
+#define SLAPI_ENTRY_PRE_OP  52
+#define SLAPI_ENTRY_POST_OP 53
 /* a PRE_ENTRY_FN may alter the entry to be returned to the client -
    SLAPI_SEARCH_ORIG_ENTRY holds the original entry from
    the database - this must not be changed
@@ -7287,174 +7244,174 @@ typedef struct slapi_plugindesc {
    the copy, then store it in SLAPI_SEARCH_ENTRY_COPY - the internal
    server code will free SLAPI_SEARCH_ENTRY_COPY
 */
-#define	SLAPI_SEARCH_ENTRY_ORIG		SLAPI_ENTRY_PRE_OP
-#define	SLAPI_SEARCH_ENTRY_COPY		SLAPI_ENTRY_POST_OP
+#define SLAPI_SEARCH_ENTRY_ORIG SLAPI_ENTRY_PRE_OP
+#define SLAPI_SEARCH_ENTRY_COPY SLAPI_ENTRY_POST_OP
 /* for plugin init functions, this is the plugin config entry */
-#define SLAPI_PLUGIN_CONFIG_ENTRY   SLAPI_ENTRY_PRE_OP
+#define SLAPI_PLUGIN_CONFIG_ENTRY SLAPI_ENTRY_PRE_OP
 
 /* LDAPv3 controls to be sent with the operation result */
-#define SLAPI_RESCONTROLS			55
-#define SLAPI_ADD_RESCONTROL			56	/* add result control */
+#define SLAPI_RESCONTROLS    55
+#define SLAPI_ADD_RESCONTROL 56 /* add result control */
 
 /* Extra notes to be logged within access log RESULT lines */
-#define SLAPI_OPERATION_NOTES			57
-#define SLAPI_OP_NOTE_UNINDEXED		0x01
-#define SLAPI_OP_NOTE_SIMPLEPAGED	0x02
-#define SLAPI_OP_NOTE_FULL_UNINDEXED    0x04
+#define SLAPI_OPERATION_NOTES        57
+#define SLAPI_OP_NOTE_UNINDEXED      0x01
+#define SLAPI_OP_NOTE_SIMPLEPAGED    0x02
+#define SLAPI_OP_NOTE_FULL_UNINDEXED 0x04
 
 /* Allows controls to be passed before operation object is created */
-#define SLAPI_CONTROLS_ARG			58
+#define SLAPI_CONTROLS_ARG 58
 
 /* specify whether pblock content should be destroyed when the pblock is destroyed */
-#define SLAPI_DESTROY_CONTENT       		59
+#define SLAPI_DESTROY_CONTENT 59
 
 /* add arguments */
-#define SLAPI_ADD_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_ADD_TARGET_SDN		SLAPI_TARGET_SDN
-#define SLAPI_ADD_ENTRY				60
-#define SLAPI_ADD_EXISTING_DN_ENTRY		61
-#define SLAPI_ADD_PARENT_ENTRY      		62
-#define SLAPI_ADD_PARENT_UNIQUEID		63
-#define SLAPI_ADD_EXISTING_UNIQUEID_ENTRY	64
+#define SLAPI_ADD_TARGET                  SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_ADD_TARGET_SDN              SLAPI_TARGET_SDN
+#define SLAPI_ADD_ENTRY                   60
+#define SLAPI_ADD_EXISTING_DN_ENTRY       61
+#define SLAPI_ADD_PARENT_ENTRY            62
+#define SLAPI_ADD_PARENT_UNIQUEID         63
+#define SLAPI_ADD_EXISTING_UNIQUEID_ENTRY 64
 
 /* bind arguments */
-#define SLAPI_BIND_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_BIND_TARGET_SDN		SLAPI_TARGET_SDN
-#define SLAPI_BIND_METHOD			70
-#define SLAPI_BIND_CREDENTIALS			71	/* v3 only */
-#define SLAPI_BIND_SASLMECHANISM		72	/* v3 only */
+#define SLAPI_BIND_TARGET        SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_BIND_TARGET_SDN    SLAPI_TARGET_SDN
+#define SLAPI_BIND_METHOD        70
+#define SLAPI_BIND_CREDENTIALS   71  /* v3 only */
+#define SLAPI_BIND_SASLMECHANISM 72 /* v3 only */
 /* bind return values */
-#define SLAPI_BIND_RET_SASLCREDS		73	/* v3 only */
+#define SLAPI_BIND_RET_SASLCREDS 73 /* v3 only */
 
 /* compare arguments */
-#define SLAPI_COMPARE_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_COMPARE_TARGET_SDN		SLAPI_TARGET_SDN
-#define SLAPI_COMPARE_TYPE			80
-#define SLAPI_COMPARE_VALUE			81
+#define SLAPI_COMPARE_TARGET     SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_COMPARE_TARGET_SDN SLAPI_TARGET_SDN
+#define SLAPI_COMPARE_TYPE       80
+#define SLAPI_COMPARE_VALUE      81
 
 /* delete arguments */
-#define SLAPI_DELETE_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_DELETE_TARGET_SDN		SLAPI_TARGET_SDN
-#define SLAPI_DELETE_EXISTING_ENTRY		SLAPI_ADD_EXISTING_DN_ENTRY
-#define SLAPI_DELETE_GLUE_PARENT_ENTRY	SLAPI_ADD_PARENT_ENTRY
-#define SLAPI_DELETE_BEPREOP_ENTRY			SLAPI_ENTRY_PRE_OP
-#define SLAPI_DELETE_BEPOSTOP_ENTRY			SLAPI_ENTRY_POST_OP
+#define SLAPI_DELETE_TARGET            SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_DELETE_TARGET_SDN        SLAPI_TARGET_SDN
+#define SLAPI_DELETE_EXISTING_ENTRY    SLAPI_ADD_EXISTING_DN_ENTRY
+#define SLAPI_DELETE_GLUE_PARENT_ENTRY SLAPI_ADD_PARENT_ENTRY
+#define SLAPI_DELETE_BEPREOP_ENTRY     SLAPI_ENTRY_PRE_OP
+#define SLAPI_DELETE_BEPOSTOP_ENTRY    SLAPI_ENTRY_POST_OP
 
 /* modify arguments */
-#define SLAPI_MODIFY_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_MODIFY_TARGET_SDN		SLAPI_TARGET_SDN
-#define SLAPI_MODIFY_MODS			90
-#define SLAPI_MODIFY_EXISTING_ENTRY		SLAPI_ADD_EXISTING_DN_ENTRY
+#define SLAPI_MODIFY_TARGET         SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_MODIFY_TARGET_SDN     SLAPI_TARGET_SDN
+#define SLAPI_MODIFY_MODS           90
+#define SLAPI_MODIFY_EXISTING_ENTRY SLAPI_ADD_EXISTING_DN_ENTRY
 
 /* modrdn arguments */
-#define SLAPI_MODRDN_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_MODRDN_TARGET_SDN		SLAPI_TARGET_SDN
-#define SLAPI_MODRDN_NEWRDN			100
-#define SLAPI_MODRDN_DELOLDRDN			101
-#define SLAPI_MODRDN_NEWSUPERIOR        	102	/* v3 only */
-#define SLAPI_MODRDN_NEWSUPERIOR_SDN        103	/* v3 only */
-#define SLAPI_MODRDN_EXISTING_ENTRY     	SLAPI_ADD_EXISTING_DN_ENTRY
-#define SLAPI_MODRDN_PARENT_ENTRY       	104
-#define SLAPI_MODRDN_NEWPARENT_ENTRY    	105
-#define SLAPI_MODRDN_TARGET_ENTRY       	106
-#define SLAPI_MODRDN_NEWSUPERIOR_ADDRESS	107
+#define SLAPI_MODRDN_TARGET              SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_MODRDN_TARGET_SDN          SLAPI_TARGET_SDN
+#define SLAPI_MODRDN_NEWRDN              100
+#define SLAPI_MODRDN_DELOLDRDN           101
+#define SLAPI_MODRDN_NEWSUPERIOR         102 /* v3 only */
+#define SLAPI_MODRDN_NEWSUPERIOR_SDN     103 /* v3 only */
+#define SLAPI_MODRDN_EXISTING_ENTRY      SLAPI_ADD_EXISTING_DN_ENTRY
+#define SLAPI_MODRDN_PARENT_ENTRY        104
+#define SLAPI_MODRDN_NEWPARENT_ENTRY     105
+#define SLAPI_MODRDN_TARGET_ENTRY        106
+#define SLAPI_MODRDN_NEWSUPERIOR_ADDRESS 107
 
-/* 
- * unnormalized dn argument (useful for MOD, MODRDN and DEL operations to carry 
+/*
+ * unnormalized dn argument (useful for MOD, MODRDN and DEL operations to carry
  * the original non-escaped dn as introduced by the client application)
  */
-#define SLAPI_ORIGINAL_TARGET_DN		109
-#define SLAPI_ORIGINAL_TARGET			SLAPI_ORIGINAL_TARGET_DN
+#define SLAPI_ORIGINAL_TARGET_DN 109
+#define SLAPI_ORIGINAL_TARGET    SLAPI_ORIGINAL_TARGET_DN
 
 /* search arguments */
-#define SLAPI_SEARCH_TARGET     	SLAPI_TARGET_DN /* DEPRECATED */
-#define SLAPI_SEARCH_TARGET_SDN     SLAPI_TARGET_SDN
-#define SLAPI_SEARCH_SCOPE          110
-#define SLAPI_SEARCH_DEREF          111
-#define SLAPI_SEARCH_SIZELIMIT      112
-#define SLAPI_SEARCH_TIMELIMIT      113
-#define SLAPI_SEARCH_FILTER         114
-#define SLAPI_SEARCH_STRFILTER      115
-#define SLAPI_SEARCH_ATTRS          116
-#define SLAPI_SEARCH_GERATTRS       1160
-#define SLAPI_SEARCH_REQATTRS       1161
-#define SLAPI_SEARCH_ATTRSONLY      117
-#define SLAPI_SEARCH_IS_AND         118
+#define SLAPI_SEARCH_TARGET     SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_SEARCH_TARGET_SDN SLAPI_TARGET_SDN
+#define SLAPI_SEARCH_SCOPE      110
+#define SLAPI_SEARCH_DEREF      111
+#define SLAPI_SEARCH_SIZELIMIT  112
+#define SLAPI_SEARCH_TIMELIMIT  113
+#define SLAPI_SEARCH_FILTER     114
+#define SLAPI_SEARCH_STRFILTER  115
+#define SLAPI_SEARCH_ATTRS      116
+#define SLAPI_SEARCH_GERATTRS  1160
+#define SLAPI_SEARCH_REQATTRS  1161
+#define SLAPI_SEARCH_ATTRSONLY  117
+#define SLAPI_SEARCH_IS_AND     118
 
 /* abandon arguments */
-#define SLAPI_ABANDON_MSGID			120
+#define SLAPI_ABANDON_MSGID 120
 
 /* seq access arguments */
-#define SLAPI_SEQ_TYPE				150
-#define SLAPI_SEQ_ATTRNAME			151
-#define SLAPI_SEQ_VAL				152
+#define SLAPI_SEQ_TYPE 150
+#define SLAPI_SEQ_ATTRNAME 151
+#define SLAPI_SEQ_VAL 152
 
 /* extended operation arguments */
-#define SLAPI_EXT_OP_REQ_OID			160	/* v3 only */
-#define SLAPI_EXT_OP_REQ_VALUE			161	/* v3 only */
+#define SLAPI_EXT_OP_REQ_OID   160 /* v3 only */
+#define SLAPI_EXT_OP_REQ_VALUE 161 /* v3 only */
 /* extended operation return values */
-#define SLAPI_EXT_OP_RET_OID			162	/* v3 only */
-#define SLAPI_EXT_OP_RET_VALUE			163	/* v3 only */
+#define SLAPI_EXT_OP_RET_OID   162 /* v3 only */
+#define SLAPI_EXT_OP_RET_VALUE 163 /* v3 only */
 
 /* extended filter arguments */
-#define SLAPI_MR_FILTER_ENTRY			170	/* v3 only */
-#define SLAPI_MR_FILTER_TYPE			171	/* v3 only */
-#define SLAPI_MR_FILTER_VALUE			172	/* v3 only */
-#define SLAPI_MR_FILTER_OID			173	/* v3 only */
-#define SLAPI_MR_FILTER_DNATTRS			174	/* v3 only */
+#define SLAPI_MR_FILTER_ENTRY   170 /* v3 only */
+#define SLAPI_MR_FILTER_TYPE    171 /* v3 only */
+#define SLAPI_MR_FILTER_VALUE   172 /* v3 only */
+#define SLAPI_MR_FILTER_OID     173 /* v3 only */
+#define SLAPI_MR_FILTER_DNATTRS 174 /* v3 only */
 
 /* ldif2db arguments */
 /* ldif file to convert to db */
-#define SLAPI_LDIF2DB_FILE			180
+#define SLAPI_LDIF2DB_FILE 180
 /* check for duplicate values or not */
-#define SLAPI_LDIF2DB_REMOVEDUPVALS		185
+#define SLAPI_LDIF2DB_REMOVEDUPVALS 185
 /* index only this attribute from existing database */
-#define SLAPI_DB2INDEX_ATTRS			186
+#define SLAPI_DB2INDEX_ATTRS 186
 /* do not generate attribute indexes */
-#define SLAPI_LDIF2DB_NOATTRINDEXES		187
+#define SLAPI_LDIF2DB_NOATTRINDEXES 187
 /* list if DNs to include */
-#define SLAPI_LDIF2DB_INCLUDE			188
+#define SLAPI_LDIF2DB_INCLUDE 188
 /* list of DNs to exclude */
-#define SLAPI_LDIF2DB_EXCLUDE			189
+#define SLAPI_LDIF2DB_EXCLUDE 189
 /* generate uniqueid */
-#define SLAPI_LDIF2DB_GENERATE_UNIQUEID		175
-#define SLAPI_LDIF2DB_NAMESPACEID       	177
-#define SLAPI_LDIF2DB_ENCRYPT		303
-#define SLAPI_DB2LDIF_DECRYPT		304
+#define SLAPI_LDIF2DB_GENERATE_UNIQUEID 175
+#define SLAPI_LDIF2DB_NAMESPACEID       177
+#define SLAPI_LDIF2DB_ENCRYPT           303
+#define SLAPI_DB2LDIF_DECRYPT           304
 /* uniqueid generation options */
-#define SLAPI_UNIQUEID_GENERATE_NONE		0	/* do not generate */
-#define SLAPI_UNIQUEID_GENERATE_TIME_BASED	1	/* generate time based id */
-#define SLAPI_UNIQUEID_GENERATE_NAME_BASED	2	/* generate name based id */
+#define SLAPI_UNIQUEID_GENERATE_NONE       0 /* do not generate */
+#define SLAPI_UNIQUEID_GENERATE_TIME_BASED 1 /* generate time based id */
+#define SLAPI_UNIQUEID_GENERATE_NAME_BASED 2 /* generate name based id */
 
 /* db2ldif arguments */
 /* print keys or not in ldif */
-#define SLAPI_DB2LDIF_PRINTKEY			183
+#define SLAPI_DB2LDIF_PRINTKEY 183
 /* filename to export */
-#define SLAPI_DB2LDIF_FILE			184
+#define SLAPI_DB2LDIF_FILE 184
 /* dump uniqueid */
-#define SLAPI_DB2LDIF_DUMP_UNIQUEID		176
-#define SLAPI_DB2LDIF_SERVER_RUNNING	197
+#define SLAPI_DB2LDIF_DUMP_UNIQUEID  176
+#define SLAPI_DB2LDIF_SERVER_RUNNING 197
 
 /* db2ldif/ldif2db/bak2db/db2bak arguments */
-#define SLAPI_BACKEND_INSTANCE_NAME             178
-#define SLAPI_BACKEND_TASK                      179
-#define SLAPI_TASK_FLAGS                      	181
+#define SLAPI_BACKEND_INSTANCE_NAME 178
+#define SLAPI_BACKEND_TASK          179
+#define SLAPI_TASK_FLAGS            181
 
 /* bulk import (online wire import) */
-#define SLAPI_BULK_IMPORT_ENTRY                 182
-#define SLAPI_BULK_IMPORT_STATE                 192
+#define SLAPI_BULK_IMPORT_ENTRY 182
+#define SLAPI_BULK_IMPORT_STATE 192
 /* the actual states (these are not pblock args) */
-#define SLAPI_BI_STATE_START    1
-#define SLAPI_BI_STATE_DONE     2
-#define SLAPI_BI_STATE_ADD      3
+#define SLAPI_BI_STATE_START 1
+#define SLAPI_BI_STATE_DONE  2
+#define SLAPI_BI_STATE_ADD   3
 /* possible error codes from a bulk import */
-#define SLAPI_BI_ERR_BUSY	-23	/* backend is busy; try later */
+#define SLAPI_BI_ERR_BUSY -23 /* backend is busy; try later */
 
 /* transaction arguments */
-#define SLAPI_PARENT_TXN			190
-#define SLAPI_TXN				191
-#define SLAPI_TXN_RUV_MODS_FN			1901
-#define SLAPI_BACK_TRANSACTION_NOT_SUPPORTED	1902
+#define SLAPI_PARENT_TXN                      190
+#define SLAPI_TXN                             191
+#define SLAPI_TXN_RUV_MODS_FN                1901
+#define SLAPI_BACK_TRANSACTION_NOT_SUPPORTED 1902
 
 /*
  * The following are used to pass information back and forth
@@ -7468,49 +7425,49 @@ typedef struct slapi_plugindesc {
  * search results.
  */
 /* Search result set */
-#define SLAPI_SEARCH_RESULT_SET			193
+#define SLAPI_SEARCH_RESULT_SET 193
 /* Estimated search result set size (for paged results) */
-#define SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE	1930
+#define SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE 1930
 /* Search result - next entry returned from search result set */
-#define	SLAPI_SEARCH_RESULT_ENTRY		194
-#define SLAPI_SEARCH_RESULT_ENTRY_EXT           1944
+#define SLAPI_SEARCH_RESULT_ENTRY     194
+#define SLAPI_SEARCH_RESULT_ENTRY_EXT 1944
 /* Number of entries returned from search */
-#define	SLAPI_NENTRIES				195
+#define SLAPI_NENTRIES 195
 /* Any referrals encountered during the search */
-#define SLAPI_SEARCH_REFERRALS			196
+#define SLAPI_SEARCH_REFERRALS 196
 /* for search operations, allows plugins to provide
    controls to pass for each entry or referral returned
    corresponds to pb_search_ctrls */
-#define SLAPI_SEARCH_CTRLS			198
+#define SLAPI_SEARCH_CTRLS 198
 
 /* plugin be/betxn operations */
-#define SLAPI_PLUGIN_ADD_OP			199
-#define SLAPI_PLUGIN_MOD_OP			200
-#define SLAPI_PLUGIN_MODRDN_OP			201
-#define SLAPI_PLUGIN_DEL_OP			202
+#define SLAPI_PLUGIN_ADD_OP    199
+#define SLAPI_PLUGIN_MOD_OP    200
+#define SLAPI_PLUGIN_MODRDN_OP 201
+#define SLAPI_PLUGIN_DEL_OP    202
 
-#define SLAPI_RESULT_CODE			881
-#define SLAPI_RESULT_TEXT			882
-#define SLAPI_RESULT_MATCHED			883
+#define SLAPI_RESULT_CODE      881
+#define SLAPI_RESULT_TEXT      882
+#define SLAPI_RESULT_MATCHED   883
 
-#define SLAPI_PB_RESULT_TEXT			885
+#define SLAPI_PB_RESULT_TEXT   885
 
 /* Size of the database, in kilobytes */
-#define SLAPI_DBSIZE				199
+#define SLAPI_DBSIZE 199
 
 /* Simple paged results index */
-#define SLAPI_PAGED_RESULTS_INDEX   1945
-#define SLAPI_PAGED_RESULTS_COOKIE  1949
+#define SLAPI_PAGED_RESULTS_INDEX  1945
+#define SLAPI_PAGED_RESULTS_COOKIE 1949
 
 /* ACI Target Check */
-#define SLAPI_ACI_TARGET_CHECK      1946
+#define SLAPI_ACI_TARGET_CHECK 1946
 
 /* dbverify */
-#define SLAPI_DBVERIFY_DBDIR		1947
+#define SLAPI_DBVERIFY_DBDIR 1947
 
 /* convenience macros for checking modify operation types */
-#define SLAPI_IS_MOD_ADD(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
-#define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
+#define SLAPI_IS_MOD_ADD(x)     (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
+#define SLAPI_IS_MOD_DELETE(x)  (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
 #define SLAPI_IS_MOD_REPLACE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)
 
 /* regex.c */
@@ -7525,7 +7482,7 @@ typedef struct slapi_regex_handle Slapi_Regex;
  * the compiled pattern. NULL if the compile fails.
  * \warning The regex handler should be released by slapi_re_free().
  */
-Slapi_Regex *slapi_re_comp( const char *pat, const char **error );
+Slapi_Regex *slapi_re_comp(const char *pat, const char **error);
 /**
  * Matches a compiled regular expression pattern against a given string.
  * A thin wrapper of pcre_exec.
@@ -7539,7 +7496,7 @@ Slapi_Regex *slapi_re_comp( const char *pat, const char **error );
  * \return This function returns other values if any error occurred.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up ) __attribute__((deprecated));
+int slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up) __attribute__((deprecated));
 /**
  * Matches a compiled regular expression pattern against a given string.
  * A thin wrapper of pcre_exec.
@@ -7552,7 +7509,7 @@ int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
  * \return This function returns other values if any error occurred.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int32_t slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject);
+int32_t slapi_re_exec_nt(Slapi_Regex *re_handle, const char *subject);
 /**
  * Substitutes '&' or '\#' in the param src with the matched string.
  *
@@ -7567,7 +7524,7 @@ int32_t slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject);
  * \return This function returns 0 if the substitution failed.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int slapi_re_subs( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen );
+int slapi_re_subs(Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen);
 /**
  * Substitutes '&' or '\#' in the param src with the matched string.  If the 'src' is a search filter
  * do not remove & if it is part of a compound filter.
@@ -7582,7 +7539,7 @@ int slapi_re_subs( Slapi_Regex *re_handle, const char *subject, const char *src,
  * \return This function returns 0 if the substitution failed.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen, int filter );
+int slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen, int filter);
 /**
  * Releases the regex handler which was returned from slapi_re_comp.
  *
@@ -7598,15 +7555,15 @@ int slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, i
 const char *slapi_urlparse_err2string(int err);
 int slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s);
 #ifndef LDIF_OPT_NOWRAP
-#define LDIF_OPT_NOWRAP			0x01UL
+#define LDIF_OPT_NOWRAP 0x01UL
 #endif
 #ifndef LDIF_OPT_VALUE_IS_URL
-#define LDIF_OPT_VALUE_IS_URL		0x02UL
+#define LDIF_OPT_VALUE_IS_URL 0x02UL
 #endif
 #ifndef LDIF_OPT_MINIMAL_ENCODING
-#define LDIF_OPT_MINIMAL_ENCODING	0x04UL
+#define LDIF_OPT_MINIMAL_ENCODING 0x04UL
 #endif
-void slapi_ldif_put_type_and_value_with_options( char **out, const char *t, const char *val, int vlen, unsigned long options );
+void slapi_ldif_put_type_and_value_with_options(char **out, const char *t, const char *val, int vlen, unsigned long options);
 
 /* ldif_read_record lineno argument type depends on openldap version */
 #if defined(USE_OPENLDAP)
@@ -7622,57 +7579,57 @@ typedef int ldif_record_lineno_t;
  * UTF-8 routines (should these move into libnls?)
  */
 /* number of bytes in character */
-int ldap_utf8len( const char* );
+int ldap_utf8len(const char *);
 /* find next character */
-char *ldap_utf8next( char* );
+char *ldap_utf8next(char *);
 /* find previous character */
-char *ldap_utf8prev( char* );
+char *ldap_utf8prev(char *);
 /* find n-th character */
-char *ldap_utf8nextn (char* s, int n);
+char *ldap_utf8nextn(char *s, int n);
 /* find n-th previous character from "from" */
-char *ldap_utf8prevn (char *s, char *from, int n);
+char *ldap_utf8prevn(char *s, char *from, int n);
 /* copy one character */
-int ldap_utf8copy( char* dst, const char* src );
+int ldap_utf8copy(char *dst, const char *src);
 /* total number of characters */
-size_t ldap_utf8characters( const char* );
+size_t ldap_utf8characters(const char *);
 /* get one UCS-4 character, and move *src to the next character */
-unsigned long ldap_utf8getcc( const char** src );
+unsigned long ldap_utf8getcc(const char **src);
 /* UTF-8 aware strtok_r() */
-char *ldap_utf8strtok_r( char* src, const char* brk, char** next);
+char *ldap_utf8strtok_r(char *src, const char *brk, char **next);
 
 /* like isalnum(*s) in the C locale */
-int ldap_utf8isalnum( char* s );
+int ldap_utf8isalnum(char *s);
 /* like isalpha(*s) in the C locale */
-int ldap_utf8isalpha( char* s );
+int ldap_utf8isalpha(char *s);
 /* like isdigit(*s) in the C locale */
-int ldap_utf8isdigit( char* s );
+int ldap_utf8isdigit(char *s);
 /* like isxdigit(*s) in the C locale */
-int ldap_utf8isxdigit(char* s );
+int ldap_utf8isxdigit(char *s);
 /* like isspace(*s) in the C locale */
-int ldap_utf8isspace( char* s );
+int ldap_utf8isspace(char *s);
 
-#define LDAP_UTF8LEN(s)  ((0x80 & *(unsigned char*)(s)) ?   ldap_utf8len (s) : 1)
-#define LDAP_UTF8NEXT(s) ((0x80 & *(unsigned char*)(s)) ?   ldap_utf8next(s) : ( s)+1)
-#define LDAP_UTF8INC(s)  ((0x80 & *(unsigned char*)(s)) ? s=ldap_utf8next(s) : ++s)
+#define LDAP_UTF8LEN(s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8len(s) : 1)
+#define LDAP_UTF8NEXT(s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8next(s) : (s) + 1)
+#define LDAP_UTF8INC(s) ((0x80 & *(unsigned char *)(s)) ? s = ldap_utf8next(s) : ++s)
 
-#define LDAP_UTF8PREV(s)   ldap_utf8prev(s)
-#define LDAP_UTF8DEC(s) (s=ldap_utf8prev(s))
+#define LDAP_UTF8PREV(s) ldap_utf8prev(s)
+#define LDAP_UTF8DEC(s) (s = ldap_utf8prev(s))
 
-#define LDAP_UTF8COPY(d,s) ((0x80 & *(unsigned char*)(s)) ? ldap_utf8copy(d,s) : ((*(d) = *(s)), 1))
-#define LDAP_UTF8GETCC(s) ((0x80 & *(unsigned char*)(s)) ? ldap_utf8getcc (&s) : *s++)
-#define LDAP_UTF8GETC(s) ((0x80 & *(unsigned char*)(s)) ? ldap_utf8getcc ((const char**)&s) : *s++)
+#define LDAP_UTF8COPY(d, s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8copy(d, s) : ((*(d) = *(s)), 1))
+#define LDAP_UTF8GETCC(s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8getcc(&s) : *s++)
+#define LDAP_UTF8GETC(s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8getcc((const char **)&s) : *s++)
 #endif /* USE_OPENLDAP */
 
 /* by default will allow dups */
-char **slapi_str2charray( char *str, char *brkstr );
+char **slapi_str2charray(char *str, char *brkstr);
 /*
  * extended version of str2charray lets you disallow
  * duplicate values into the array.
  */
-char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
+char **slapi_str2charray_ext(char *str, char *brkstr, int allow_dups);
 
 #ifndef LDAP_PORT_MAX
-#define LDAP_PORT_MAX           65535           /* API extension */
+#define LDAP_PORT_MAX 65535 /* API extension */
 #endif
 
 #ifndef LDAP_ALL_USER_ATTRS
@@ -7690,7 +7647,7 @@ char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
 #define LDAP_ALL_OPERATIONAL_ATTRS "+"
 
 #ifndef LDAP_SASL_EXTERNAL
-#define LDAP_SASL_EXTERNAL      "EXTERNAL"      /* TLS/SSL extension */
+#define LDAP_SASL_EXTERNAL "EXTERNAL" /* TLS/SSL extension */
 #endif
 
 #ifndef LBER_SOCKET
@@ -7702,12 +7659,12 @@ char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
 #endif
 
 /* Used to make unhashed passwords available to plugins. */
-#define	PSEUDO_ATTR_UNHASHEDUSERPASSWORD	"unhashed#user#password"
+#define PSEUDO_ATTR_UNHASHEDUSERPASSWORD "unhashed#user#password"
 
 /* Unhashed password */
-#define SLAPD_UNHASHED_PW_OFF           0
-#define SLAPD_UNHASHED_PW_ON            1
-#define SLAPD_UNHASHED_PW_NOLOG         2
+#define SLAPD_UNHASHED_PW_OFF   0
+#define SLAPD_UNHASHED_PW_ON    1
+#define SLAPD_UNHASHED_PW_NOLOG 2
 
 /**
  * Set given "type: value" to the plugin default config entry
@@ -7733,7 +7690,7 @@ int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
  */
 int slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset);
 
-int slapi_check_account_lock( Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int pwresponse_req, int check_password_policy, int send_result);
+int slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int pwresponse_req, int check_password_policy, int send_result);
 
 /* backend get/set info */
 /**
@@ -7794,7 +7751,8 @@ enum
     BACK_INFO_IS_ENTRYRDN          /* Get the flag for entryrdn */
 };
 
-struct _back_info_crypt_init {
+struct _back_info_crypt_init
+{
     char *dn;                  /* input -- entry to store nsSymmetricKey */
     char *encryptionAlgorithm; /* input -- encryption althorithm */
     Slapi_Backend *be;         /* input -- backend to use */
@@ -7802,10 +7760,11 @@ struct _back_info_crypt_init {
 };
 typedef struct _back_info_crypt_init back_info_crypt_init;
 
-struct _back_info_crypt_value {
-    void *state_priv;          /* input */
-    struct berval *in;          /* input */
-    struct berval *out;         /* output */
+struct _back_info_crypt_value
+{
+    void *state_priv;   /* input */
+    struct berval *in;  /* input */
+    struct berval *out; /* output */
 };
 typedef struct _back_info_crypt_value back_info_crypt_value;
 
@@ -7950,11 +7909,11 @@ void slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb);
 
 PRBool slapi_disordely_shutdown(PRBool set);
 
-/* 
+/*
  * Public entry extension getter/setter functions
  *
  * Currently, only slapi_pw_get/set_entry_ext is implemented.
- * The functions are in pw.c.  Detailed usage of the factory 
+ * The functions are in pw.c.  Detailed usage of the factory
  * is found in the comments at the top of factory.c.
  *
  * When you plan to add other entry extension code AND
@@ -7986,7 +7945,7 @@ int slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals);
  * Set entry extension
  *
  * \param entry is the entry to set the extension to
- * \param vals is the array of (Slapi_Value *), which is consumed in slapi_pw_set_ext if the call is successful. 
+ * \param vals is the array of (Slapi_Value *), which is consumed in slapi_pw_set_ext if the call is successful.
  * \param flags: SLAPI_EXT_SET_ADD -- add vals to the existing extension if any.
  *               SLAPI_EXT_SET_REPLACE -- replace vals with the existing extension if any.
  * No difference if there is no extension in the entry.
@@ -8013,7 +7972,7 @@ char *slapi_get_first_clear_text_pw(Slapi_Entry *entry);
  *
  * \return a pointer to the error code string.
  */
-char *slapi_pr_strerror( const PRErrorCode prerrno );
+char *slapi_pr_strerror(const PRErrorCode prerrno);
 
 /**
  * Return the string equivalent of an OS error
@@ -8022,14 +7981,14 @@ char *slapi_pr_strerror( const PRErrorCode prerrno );
  *
  * \return a pointer to the system error code string.
  */
-const char *slapi_system_strerror( const int syserrno );
+const char *slapi_system_strerror(const int syserrno);
 
 /* event queue routines and data types */
 
 /**
  * Represents a scheduled event object.
  */
-typedef void* Slapi_Eq_Context;
+typedef void *Slapi_Eq_Context;
 
 /**
  * Represents the function that will be performed when an event is triggered.
@@ -8077,7 +8036,7 @@ int slapi_eq_cancel(Slapi_Eq_Context ctx);
  *
  * \return A pointer to the event argument.
  */
-void *slapi_eq_get_arg (Slapi_Eq_Context ctx);
+void *slapi_eq_get_arg(Slapi_Eq_Context ctx);
 
 /**
  * Construct a full path and name of a plugin.
@@ -8107,7 +8066,7 @@ char *slapi_get_plugin_name(const char *dir, const char *name);
  *
  * \return password storage scheme
  */
-PWScheme *slapi_pw_val2scheme( char *passwd_val, char **valpwdp, int first_is_default );
+PWScheme *slapi_pw_val2scheme(char *passwd_val, char **valpwdp, int first_is_default);
 
 /**
  * Compare a clear text password to an encoded password value.
@@ -8170,11 +8129,11 @@ void slapi_plugin_op_started(void *arg);
 void slapi_plugin_op_finished(void *arg);
 
 /** Check if rdn is a slecial rdn/dn or not.
- * 
+ *
  * \param rdn rdn/dn to check
  * \param flags specify the type: RDN_IS_TOMBSTONE or RDN_IS_CONFLICT or 0
  *
- * \return 1 if rdn matches the flag. 
+ * \return 1 if rdn matches the flag.
  *   If flag is IS_TOMBSTONE, returns 1 if rdn is a tombstone rdn/dn.
  *   If flag is IS_CONFLICT, returns 1 if rdn is a conflict rdn/dn.
  * \return 0 otherwise
@@ -8190,7 +8149,7 @@ int slapi_is_special_rdn(const char *rdn, int flag);
  *
  * \return Nothing
  */
-void    DS_Sleep(PRIntervalTime ticks);
+void DS_Sleep(PRIntervalTime ticks);
 
 
 #ifdef HAVE_CLOCK_GETTIME

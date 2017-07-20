@@ -14,10 +14,9 @@ sds_ht_init(sds_ht_instance **ht_ptr,
             void (*value_free_fn)(void *value),
             void *(*key_dup_fn)(void *key),
             void (*key_free_fn)(void *key),
-            uint64_t (*key_size_fn)(void *key)
-            )
+            uint64_t (*key_size_fn)(void *key))
 {
-    if (ht_ptr == NULL ) {
+    if (ht_ptr == NULL) {
 #ifdef SDS_DEBUG
         sds_log("sds_ht_init", "Invalid pointer");
 #endif
@@ -68,4 +67,3 @@ sds_ht_destroy(sds_ht_instance *ht_ptr)
     // Done!
     return SDS_SUCCESS;
 }
-

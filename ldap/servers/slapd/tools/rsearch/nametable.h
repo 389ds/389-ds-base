@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -23,7 +23,7 @@
 typedef struct _nametable NameTable;
 
 /* size that the array should grow by when it fills up */
-#define NT_STEP		32
+#define NT_STEP 32
 
 
 NameTable *nt_new(int capacity);
@@ -33,7 +33,7 @@ int nt_load(NameTable *nt, const char *filename);
 int nt_save(NameTable *nt, const char *filename);
 int nt_cis_check(NameTable *nt, const char *name);
 char *nt_get(NameTable *nt, int entry);
-char **nt_get_all(NameTable *nt );
+char **nt_get_all(NameTable *nt);
 char *nt_getrand(NameTable *nt);
 int PR_GetLine(PRFileDesc *fd, char *s, unsigned int n);
 int get_large_random_number(void);

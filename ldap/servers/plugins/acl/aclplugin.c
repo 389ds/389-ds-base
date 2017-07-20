@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -18,38 +18,38 @@
  */
 #include "acl.h"
 
-static Slapi_PluginDesc pdesc = { "acl", VENDOR, DS_PACKAGE_VERSION, "acl access check plugin" };
+static Slapi_PluginDesc pdesc = {"acl", VENDOR, DS_PACKAGE_VERSION, "acl access check plugin"};
 char *plugin_name = ACL_PLUGIN_NAME;
 
 /* Prototypes */
 
-static int aclplugin_preop_search ( Slapi_PBlock *pb );
-static int aclplugin_preop_modify ( Slapi_PBlock *pb );
-int aclplugin_preop_common ( Slapi_PBlock *pb );
+static int aclplugin_preop_search(Slapi_PBlock *pb);
+static int aclplugin_preop_modify(Slapi_PBlock *pb);
+int aclplugin_preop_common(Slapi_PBlock *pb);
 
 /*******************************************************************************
  *  ACL PLUGIN Architecture
  *
- *	There are 3 registered plugins:
+ *    There are 3 registered plugins:
  *
- *	1) PREOP ACL Plugin
- *		The preop plugin does all the initialization. It allocate the ACL
- *		PBlock and copies stuff from the connection if it needs to.
- *	
- *	2) POSTOP ACL Plugin
- *		The Postop plugin cleans up the ACL PBlock. It copies Back to the
- *		connection struct. The Postop bind & Unbind  cleans up the 
- *		ACL CBlock ( struct hanging from conn struct ).
+ *    1) PREOP ACL Plugin
+ *        The preop plugin does all the initialization. It allocate the ACL
+ *        PBlock and copies stuff from the connection if it needs to.
  *
- *	3) ACCESSCONTROL Plugin
- *		Main module which does the access check. There are 5 entry point
- *		from this plugin 
- *		a) Initilize the ACL system i.e read all the ACLs and generate the
- *		   the ACL List.
- *		b) Check for ACI syntax.
- *		c) Check for normal access.
- *		d) Check for access to a mod request.
- *		e) Update the in-memory ACL List.
+ *    2) POSTOP ACL Plugin
+ *        The Postop plugin cleans up the ACL PBlock. It copies Back to the
+ *        connection struct. The Postop bind & Unbind  cleans up the
+ *        ACL CBlock ( struct hanging from conn struct ).
+ *
+ *    3) ACCESSCONTROL Plugin
+ *        Main module which does the access check. There are 5 entry point
+ *        from this plugin
+ *        a) Initilize the ACL system i.e read all the ACLs and generate the
+ *           the ACL List.
+ *        b) Check for ACI syntax.
+ *        c) Check for normal access.
+ *        d) Check for access to a mod request.
+ *        e) Update the in-memory ACL List.
  *
  *******************************************************************************/
 
@@ -57,112 +57,112 @@ int aclplugin_preop_common ( Slapi_PBlock *pb );
  * PREOP
  *******************************************************************************/
 
-/* Plugin identity is passed by the server in the plugin init function and must 
+/* Plugin identity is passed by the server in the plugin init function and must
    be supplied by the plugin to all internal operations it initiates
  */
-void* g_acl_preop_plugin_identity;
+void *g_acl_preop_plugin_identity;
 
 int
-acl_preopInit (Slapi_PBlock *pb)
+acl_preopInit(Slapi_PBlock *pb)
 {
-	int rc = 0;
-	
-	/* save plugin identity to later pass to internal operations */
-	rc = slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &g_acl_preop_plugin_identity);
+    int rc = 0;
 
-	/* Declare plugin version */
-	rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01);
+    /* save plugin identity to later pass to internal operations */
+    rc = slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &g_acl_preop_plugin_identity);
 
-    	/* Provide descriptive information */
-	rc |=  slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void*)&pdesc);
+    /* Declare plugin version */
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01);
 
-	/* Register functions */
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_SEARCH_FN, (void*)aclplugin_preop_search);
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_COMPARE_FN, (void*)aclplugin_preop_search);
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ADD_FN,    (void*)aclplugin_preop_modify);
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODIFY_FN, (void*)aclplugin_preop_modify);
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODRDN_FN, (void*)aclplugin_preop_modify);
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_DELETE_FN, (void*)aclplugin_preop_modify);
+    /* Provide descriptive information */
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc);
+
+    /* Register functions */
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_SEARCH_FN, (void *)aclplugin_preop_search);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_COMPARE_FN, (void *)aclplugin_preop_search);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ADD_FN, (void *)aclplugin_preop_modify);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODIFY_FN, (void *)aclplugin_preop_modify);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODRDN_FN, (void *)aclplugin_preop_modify);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_DELETE_FN, (void *)aclplugin_preop_modify);
 
 #if 0
-	/*
-	 * XXXmcs: In order to support access control checking from
-	 * extended operations, we need a SLAPI_PLUGIN_PRE_EXTENDED_FN hook.
-	 * But today no such entry point exists.
-	 */
-	rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_EXTENDED_FN, (void*)aclplugin_preop_modify);
+    /*
+     * XXXmcs: In order to support access control checking from
+     * extended operations, we need a SLAPI_PLUGIN_PRE_EXTENDED_FN hook.
+     * But today no such entry point exists.
+     */
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_EXTENDED_FN, (void*)aclplugin_preop_modify);
 #endif
 
 
-        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc );
-        return( rc );
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc);
+    return (rc);
 }
 
 /* For preop search we do two things:
  * 1) based on the search base, we preselect the acls.
- * 2) also get hold of a acl_pblock for use 
+ * 2) also get hold of a acl_pblock for use
  */
 static int
-aclplugin_preop_search ( Slapi_PBlock *pb )
+aclplugin_preop_search(Slapi_PBlock *pb)
 {
-	int 		scope;
-	const char	*base = NULL;
-	Slapi_DN	*sdn = NULL;
-	int			optype;
-	int			isRoot;
-	int			isProxy = 0;
-	int			rc = 0;
-	char *errtxt = NULL;
-	char *proxy_dn = NULL;
-			
-	TNF_PROBE_0_DEBUG(aclplugin_preop_search_start ,"ACL","");
+    int scope;
+    const char *base = NULL;
+    Slapi_DN *sdn = NULL;
+    int optype;
+    int isRoot;
+    int isProxy = 0;
+    int rc = 0;
+    char *errtxt = NULL;
+    char *proxy_dn = NULL;
 
-	slapi_pblock_get ( pb, SLAPI_OPERATION_TYPE, &optype );
-	slapi_pblock_get ( pb, SLAPI_REQUESTOR_ISROOT, &isRoot );
+    TNF_PROBE_0_DEBUG(aclplugin_preop_search_start, "ACL", "");
 
-	if (LDAP_SUCCESS == proxyauth_get_dn(pb, &proxy_dn, &errtxt) && proxy_dn) {
-		isProxy = 1;
-	}
-	slapi_ch_free_string(&proxy_dn);
+    slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isRoot);
 
-	if ( isRoot && !isProxy) {
-		TNF_PROBE_1_DEBUG(aclplugin_preop_search_end ,"ACL","",
-							tnf_string,isroot,"");
-		return rc;
-	}
+    if (LDAP_SUCCESS == proxyauth_get_dn(pb, &proxy_dn, &errtxt) && proxy_dn) {
+        isProxy = 1;
+    }
+    slapi_ch_free_string(&proxy_dn);
 
-	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &sdn );
-	base = slapi_sdn_get_dn(sdn);
-	/* For anonymous client  doing search nothing needs to be set up */
-	if ( optype == SLAPI_OPERATION_SEARCH && aclanom_is_client_anonymous ( pb )  &&
-			! slapi_dn_issuffix( base, "cn=monitor") ) {
-				TNF_PROBE_1_DEBUG(aclplugin_preop_search_end ,"ACL","",
-									tnf_string,anon,"");
-		return rc;
-	}
+    if (isRoot && !isProxy) {
+        TNF_PROBE_1_DEBUG(aclplugin_preop_search_end, "ACL", "",
+                          tnf_string, isroot, "");
+        return rc;
+    }
 
-	if ( 0 == ( rc = aclplugin_preop_common( pb ))) {
-		slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
-		acllist_init_scan ( pb, scope, base );
-	}
+    slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+    base = slapi_sdn_get_dn(sdn);
+    /* For anonymous client  doing search nothing needs to be set up */
+    if (optype == SLAPI_OPERATION_SEARCH && aclanom_is_client_anonymous(pb) &&
+        !slapi_dn_issuffix(base, "cn=monitor")) {
+        TNF_PROBE_1_DEBUG(aclplugin_preop_search_end, "ACL", "",
+                          tnf_string, anon, "");
+        return rc;
+    }
 
-	TNF_PROBE_0_DEBUG(aclplugin_preop_search_end ,"ACL","");
+    if (0 == (rc = aclplugin_preop_common(pb))) {
+        slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
+        acllist_init_scan(pb, scope, base);
+    }
 
-	return rc;
+    TNF_PROBE_0_DEBUG(aclplugin_preop_search_end, "ACL", "");
+
+    return rc;
 }
 
-/* 
+/*
  * For rest of the opertion type, we get a hold of the acl
  * private Block.
  */
 static int
-aclplugin_preop_modify ( Slapi_PBlock *pb )
+aclplugin_preop_modify(Slapi_PBlock *pb)
 {
-	/*
-	 * Note: since we don't keep the anom profile for modifies, we have to go
-	 * through the regular process to check the access.
-	*/
-	return aclplugin_preop_common( pb );
+    /*
+     * Note: since we don't keep the anom profile for modifies, we have to go
+     * through the regular process to check the access.
+    */
+    return aclplugin_preop_common(pb);
 }
 
 /*
@@ -170,76 +170,76 @@ aclplugin_preop_modify ( Slapi_PBlock *pb )
  * aclplugin_preop_modify().
  *
  * Return values:
- *	0 - all is well; proceed.
+ *    0 - all is well; proceed.
  *  1 - fatal error; result has been sent to client.
- */ 
+ */
 int
-aclplugin_preop_common( Slapi_PBlock *pb )
+aclplugin_preop_common(Slapi_PBlock *pb)
 {
-	char		*proxy_dn = NULL;	/* id being assumed */
-	char		*dn;		/* proxy master */
-	char		*errtext = NULL;
-	int			lderr;
-	Acl_PBlock	*aclpb;
+    char *proxy_dn = NULL; /* id being assumed */
+    char *dn;              /* proxy master */
+    char *errtext = NULL;
+    int lderr;
+    Acl_PBlock *aclpb;
 
-	TNF_PROBE_0_DEBUG(aclplugin_preop_common_start ,"ACL","");
+    TNF_PROBE_0_DEBUG(aclplugin_preop_common_start, "ACL", "");
 
-	aclpb = acl_get_aclpb ( pb, ACLPB_BINDDN_PBLOCK );
+    aclpb = acl_get_aclpb(pb, ACLPB_BINDDN_PBLOCK);
 
-	if (aclpb == NULL) {
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name, "aclplugin_preop_common - Error: aclpb is NULL\n" );
-		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-		return 1;
-	}
+    if (aclpb == NULL) {
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name, "aclplugin_preop_common - Error: aclpb is NULL\n");
+        slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        return 1;
+    }
 
-        /* See if we have initialized already */
-        if ( aclpb->aclpb_state & ACLPB_INITIALIZED ) goto done;
+    /* See if we have initialized already */
+    if (aclpb->aclpb_state & ACLPB_INITIALIZED)
+        goto done;
 
-	/*
-	 * The following mallocs memory for proxy_dn, but not the dn.
-	 * The proxy_dn is the id being assumed, while dn
-	 * is the "proxy master".
-	*/
-	if ( LDAP_SUCCESS != ( lderr = proxyauth_get_dn( pb, &proxy_dn, &errtext ))) {
-		/*
-		 * Fatal error -- send a result to the client and arrange to skip
-		 * any further processing.
-		 */
-		slapi_send_ldap_result( pb, lderr, NULL, errtext, 0, NULL );
-		TNF_PROBE_1_DEBUG(aclplugin_preop_common_end ,"ACL","",
-						tnf_string,proxid_error,"");
-		slapi_ch_free_string(&proxy_dn);
-		return 1;	/* skip any further processing */
-	}
-	slapi_pblock_get ( pb, SLAPI_REQUESTOR_DN, &dn );
+    /*
+     * The following mallocs memory for proxy_dn, but not the dn.
+     * The proxy_dn is the id being assumed, while dn
+     * is the "proxy master".
+    */
+    if (LDAP_SUCCESS != (lderr = proxyauth_get_dn(pb, &proxy_dn, &errtext))) {
+        /*
+         * Fatal error -- send a result to the client and arrange to skip
+         * any further processing.
+         */
+        slapi_send_ldap_result(pb, lderr, NULL, errtext, 0, NULL);
+        TNF_PROBE_1_DEBUG(aclplugin_preop_common_end, "ACL", "",
+                          tnf_string, proxid_error, "");
+        slapi_ch_free_string(&proxy_dn);
+        return 1; /* skip any further processing */
+    }
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &dn);
 
 
-	/*
-	 * The dn is copied into the aclpb during initialization.
-	*/
-	if ( proxy_dn) {
-		TNF_PROBE_0_DEBUG(proxyacpb_init_start,"ACL","");
+    /*
+     * The dn is copied into the aclpb during initialization.
+    */
+    if (proxy_dn) {
+        TNF_PROBE_0_DEBUG(proxyacpb_init_start, "ACL", "");
 
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-				"aclplugin_preop_common - Proxied authorization dn is (%s)\n", proxy_dn );
-		acl_init_aclpb ( pb, aclpb, proxy_dn, 1 );
-		aclpb = acl_new_proxy_aclpb ( pb );
-		acl_init_aclpb ( pb, aclpb, dn, 0 );
-		slapi_ch_free ( (void **) &proxy_dn );
-		
-		TNF_PROBE_0_DEBUG(proxyacpb_init_end,"ACL","");
- 
-	} else {
-		TNF_PROBE_0_DEBUG(aclpb_init_start,"ACL","");
-		acl_init_aclpb ( pb, aclpb, dn, 1 );
-		TNF_PROBE_0_DEBUG(aclpb_init_end,"ACL","");
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "aclplugin_preop_common - Proxied authorization dn is (%s)\n", proxy_dn);
+        acl_init_aclpb(pb, aclpb, proxy_dn, 1);
+        aclpb = acl_new_proxy_aclpb(pb);
+        acl_init_aclpb(pb, aclpb, dn, 0);
+        slapi_ch_free((void **)&proxy_dn);
 
-	}
+        TNF_PROBE_0_DEBUG(proxyacpb_init_end, "ACL", "");
+
+    } else {
+        TNF_PROBE_0_DEBUG(aclpb_init_start, "ACL", "");
+        acl_init_aclpb(pb, aclpb, dn, 1);
+        TNF_PROBE_0_DEBUG(aclpb_init_end, "ACL", "");
+    }
 
 done:
-	TNF_PROBE_0_DEBUG(aclplugin_preop_common_end ,"ACL","");
+    TNF_PROBE_0_DEBUG(aclplugin_preop_common_end, "ACL", "");
 
-	return 0;
+    return 0;
 }
 
 /*******************************************************************************
@@ -250,137 +250,138 @@ done:
  * ACCESSCONTROL PLUGIN
  *******************************************************************************/
 
-void* g_acl_plugin_identity;
+void *g_acl_plugin_identity;
 
 /* For now, the acl component is implemented as 2 different plugins */
-/* Return the right plugin identity 				    */
-void * aclplugin_get_identity(int plug) {
-        if (plug == ACL_PLUGIN_IDENTITY)
-                return g_acl_plugin_identity;
-        if (plug == ACL_PREOP_PLUGIN_IDENTITY)
-                return g_acl_preop_plugin_identity;
-        return NULL;
+/* Return the right plugin identity                     */
+void *
+aclplugin_get_identity(int plug)
+{
+    if (plug == ACL_PLUGIN_IDENTITY)
+        return g_acl_plugin_identity;
+    if (plug == ACL_PREOP_PLUGIN_IDENTITY)
+        return g_acl_preop_plugin_identity;
+    return NULL;
 }
 
 int
-aclplugin_init (Slapi_PBlock *pb __attribute__((unused)))
+aclplugin_init(Slapi_PBlock *pb __attribute__((unused)))
 {
 
-	int rc = 0; /* OK */
-       rc = aclinit_main();
+    int rc = 0; /* OK */
+    rc = aclinit_main();
 
-	return  rc;
-
+    return rc;
 }
 int
-aclplugin_stop ( Slapi_PBlock *pb __attribute__((unused)))
+aclplugin_stop(Slapi_PBlock *pb __attribute__((unused)))
 {
-	int rc = 0; /* OK */
+    int rc = 0; /* OK */
 
-	free_acl_avl_list();
-	ACL_Destroy();
-	acl_destroy_aclpb_pool();
-	acl_remove_ext();
-	ACL_AttrGetterHashDestroy();
-	ACL_MethodHashDestroy();
-	ACL_DestroyPools();
-	aclanom__del_profile(1);
-	aclgroup_free();
-	//aclext_free_lockarray();
-	acllist_free();
+    free_acl_avl_list();
+    ACL_Destroy();
+    acl_destroy_aclpb_pool();
+    acl_remove_ext();
+    ACL_AttrGetterHashDestroy();
+    ACL_MethodHashDestroy();
+    ACL_DestroyPools();
+    aclanom__del_profile(1);
+    aclgroup_free();
+    //aclext_free_lockarray();
+    acllist_free();
 
-	return  rc;
+    return rc;
 }
 
 int
-acl_init( Slapi_PBlock *pb )
+acl_init(Slapi_PBlock *pb)
 {
-        int     rc =0;
+    int rc = 0;
 
-        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> acl_init\n" );
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> acl_init\n");
 
-        if  ( 0 != acl_init_ext() ) {
-		    slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-			    "acl_init - Unable to initialize the extensions\n");
-		    return 1;
-	    }
+    if (0 != acl_init_ext()) {
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                      "acl_init - Unable to initialize the extensions\n");
+        return 1;
+    }
 
-		/* save plugin identity to later pass to internal operations */
-		rc = slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &g_acl_plugin_identity);
+    /* save plugin identity to later pass to internal operations */
+    rc = slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &g_acl_plugin_identity);
 
-        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-            (void *) SLAPI_PLUGIN_VERSION_01 );
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-            (void *)&pdesc );
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                          (void *)SLAPI_PLUGIN_VERSION_01);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                           (void *)&pdesc);
 
-		rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void *) aclplugin_init );
-		rc = slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) aclplugin_stop );
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_ACL_SYNTAX_CHECK, 
-            (void *) acl_verify_aci_syntax );
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_ACL_ALLOW_ACCESS,
-            (void *) acl_access_allowed_main );
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_ACL_MODS_ALLOWED,
-            (void *) acl_check_mods );
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_ACL_MODS_UPDATE,
-            (void *) acl_modified );
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)aclplugin_init);
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)aclplugin_stop);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_ACL_SYNTAX_CHECK,
+                           (void *)acl_verify_aci_syntax);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_ACL_ALLOW_ACCESS,
+                           (void *)acl_access_allowed_main);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_ACL_MODS_ALLOWED,
+                           (void *)acl_check_mods);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_ACL_MODS_UPDATE,
+                           (void *)acl_modified);
 
-        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_init %d\n", rc);
-        return( rc );
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_init %d\n", rc);
+    return (rc);
 }
 
 /*
  *
  * acl_access_allowed_main
- *	Main interface to the plugin. Calls different access check functions
- *	based on the flag.
+ *    Main interface to the plugin. Calls different access check functions
+ *    based on the flag.
  *
- *	
+ *
  *  Returns:
- *	LDAP_SUCCESS			-- access is granted
- *	LDAP_INSUFFICIENT_ACCESS	-- access denied
- *	<other ldap error>		-- ex: opererations error
+ *    LDAP_SUCCESS            -- access is granted
+ *    LDAP_INSUFFICIENT_ACCESS    -- access denied
+ *    <other ldap error>        -- ex: opererations error
  *
  */
 int
-acl_access_allowed_main ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, 
-			  struct berval *val, int access , int flags, char **errbuf)
+acl_access_allowed_main(Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, struct berval *val, int access, int flags, char **errbuf)
 {
-	int	rc =0;
-	char	*attr = NULL;
+    int rc = 0;
+    char *attr = NULL;
 
-	TNF_PROBE_0_DEBUG(acl_access_allowed_main_start,"ACL","");
+    TNF_PROBE_0_DEBUG(acl_access_allowed_main_start, "ACL", "");
 
-	if (attrs && *attrs) attr = attrs[0];
+    if (attrs && *attrs)
+        attr = attrs[0];
 
-	if (ACLPLUGIN_ACCESS_READ_ON_ENTRY == flags) {
-		rc = acl_read_access_allowed_on_entry ( pb, e, attrs, access);
-	} else if ( ACLPLUGIN_ACCESS_READ_ON_ATTR == flags) {
-		if (attr == NULL) {
-			slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "acl_access_allowed_main - Missing attribute\n" );
-			rc = LDAP_OPERATIONS_ERROR;
-		} else {
-			rc = acl_read_access_allowed_on_attr ( pb, e, attr, val, access);
-		}
-	} else if ( ACLPLUGIN_ACCESS_READ_ON_VLV == flags)
-		rc =  acl_access_allowed_disjoint_resource ( pb, e, attr, val, access);
-	else if ( ACLPLUGIN_ACCESS_MODRDN == flags)
-		rc =  acl_access_allowed_modrdn ( pb, e, attr, val, access);
-	else if ( ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS == flags)
-		rc =  acl_get_effective_rights ( pb, e, attrs, val, access, errbuf );
-	else
-		rc = acl_access_allowed ( pb, e, attr, val, access);
+    if (ACLPLUGIN_ACCESS_READ_ON_ENTRY == flags) {
+        rc = acl_read_access_allowed_on_entry(pb, e, attrs, access);
+    } else if (ACLPLUGIN_ACCESS_READ_ON_ATTR == flags) {
+        if (attr == NULL) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "acl_access_allowed_main - Missing attribute\n");
+            rc = LDAP_OPERATIONS_ERROR;
+        } else {
+            rc = acl_read_access_allowed_on_attr(pb, e, attr, val, access);
+        }
+    } else if (ACLPLUGIN_ACCESS_READ_ON_VLV == flags)
+        rc = acl_access_allowed_disjoint_resource(pb, e, attr, val, access);
+    else if (ACLPLUGIN_ACCESS_MODRDN == flags)
+        rc = acl_access_allowed_modrdn(pb, e, attr, val, access);
+    else if (ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS == flags)
+        rc = acl_get_effective_rights(pb, e, attrs, val, access, errbuf);
+    else
+        rc = acl_access_allowed(pb, e, attr, val, access);
 
-	/* generate the appropriate error message */
-	if ( ( rc != LDAP_SUCCESS ) && errbuf && 
-		 ( ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS != flags ) &&
-		 ( access & ( SLAPI_ACL_WRITE | SLAPI_ACL_ADD | SLAPI_ACL_DELETE | SLAPI_ACL_MODDN ))) {
+    /* generate the appropriate error message */
+    if ((rc != LDAP_SUCCESS) && errbuf &&
+        (ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS != flags) &&
+        (access & (SLAPI_ACL_WRITE | SLAPI_ACL_ADD | SLAPI_ACL_DELETE | SLAPI_ACL_MODDN))) {
 
-		char	*edn  = slapi_entry_get_dn ( e );
+        char *edn = slapi_entry_get_dn(e);
 
-		acl_gen_err_msg(access, edn, attr, errbuf);
-	}
-	
-	TNF_PROBE_0_DEBUG(acl_access_allowed_main_end,"ACL","");
+        acl_gen_err_msg(access, edn, attr, errbuf);
+    }
 
-	return rc;
+    TNF_PROBE_0_DEBUG(acl_access_allowed_main_end, "ACL", "");
+
+    return rc;
 }

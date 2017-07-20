@@ -4,28 +4,29 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-#if defined( ultrix ) || defined( nextstep )
+#if defined(ultrix) || defined(nextstep)
 
 #include <string.h>
 
 
-char *strdup( char *s )
+char *
+strdup(char *s)
 {
-        char    *p;
+    char *p;
 
-        if ( (p = (char *) malloc( strlen( s ) + 1 )) == NULL )
-                return( NULL );
+    if ((p = (char *)malloc(strlen(s) + 1)) == NULL)
+        return (NULL);
 
-        strcpy( p, s );
+    strcpy(p, s);
 
-        return( p );
+    return (p);
 }
 
 #else

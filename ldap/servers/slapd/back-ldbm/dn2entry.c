@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* dn2entry.c - given a dn return an entry */
@@ -23,111 +23,96 @@
 struct backentry *
 dn2entry(
     Slapi_Backend *be,
-    const Slapi_DN	*sdn,
-    back_txn		*txn,
-    int			*err
-)
+    const Slapi_DN *sdn,
+    back_txn *txn,
+    int *err)
 {
-	return dn2entry_ext(be, sdn, txn, 0 /* flags */, err);
+    return dn2entry_ext(be, sdn, txn, 0 /* flags */, err);
 }
 
 struct backentry *
 dn2entry_ext(
     Slapi_Backend *be,
-    const Slapi_DN	*sdn,
-    back_txn		*txn,
-    int			flags,
-    int			*err
-)
+    const Slapi_DN *sdn,
+    back_txn *txn,
+    int flags,
+    int *err)
 {
-	ldbm_instance *inst;
-	struct berval		ndnv;
-	struct backentry	*e = NULL;
-	char *indexname = "";
+    ldbm_instance *inst;
+    struct berval ndnv;
+    struct backentry *e = NULL;
+    char *indexname = "";
 
-	slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "=> \"%s\"\n", slapi_sdn_get_dn(sdn));
+    slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "=> \"%s\"\n", slapi_sdn_get_dn(sdn));
 
-	inst = (ldbm_instance *) be->be_instance_info;
+    inst = (ldbm_instance *)be->be_instance_info;
 
-	*err = 0;
-	ndnv.bv_val = (void*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
-	ndnv.bv_len = slapi_sdn_get_ndn_len(sdn);
+    *err = 0;
+    ndnv.bv_val = (void *)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
+    ndnv.bv_len = slapi_sdn_get_ndn_len(sdn);
 
-	e = cache_find_dn(&inst->inst_cache, ndnv.bv_val, ndnv.bv_len);
-	if (e == NULL)
-	{
-		ID id = ALLID;
-		/* convert dn to entry id */
-		if (entryrdn_get_switch())
-		{ /* subtree-rename: on */
-			*err = entryrdn_index_read_ext(be, sdn, &id,
-			                               flags&TOMBSTONE_INCLUDED, txn);
-			if (*err)
-			{
-				if (DB_NOTFOUND != *err)
-				{
-					slapi_log_err(SLAPI_LOG_ERR,
-									"dn2entry_ext", "Failed to get id for %s "
-									"from entryrdn index (%d)\n",
-									slapi_sdn_get_dn(sdn), *err);
-				}
-				/* There's no entry with this DN. */
-				goto bail;
-			}
-			if (0 == id) {
-				/* 
-				 * Note: A special entry such as RUV could be added 
-				 * to entryrdn even if the suffix does not exist in 
-				 * the index.  At that time, fake ID 0 is used as the
-				 * parent id.
-				 */
-				/* There's no entry with this suffix. */
-				goto bail;
-			}
-			indexname = LDBM_ENTRYRDN_STR;
-		}
-		else
-		{
-			IDList	*idl = NULL;
-			if ( (idl = index_read( be, LDBM_ENTRYDN_STR, indextype_EQUALITY, 
-											&ndnv, txn, err )) == NULL )
-			{
-				/* There's no entry with this DN. */
-				goto bail;
-			}
-			id = idl_firstid( idl );
-			slapi_ch_free((void**)&idl);
-			indexname = LDBM_ENTRYDN_STR;
-		}
-		/* convert entry id to entry */
-		if ( (e = id2entry( be, id, txn, err )) != NULL )
-		{
-			/* Means that we found the entry OK */
-		}
-		else
-		{
-			/* Hmm. The DN mapped onto an EntryID, but that didn't map onto an Entry. */
-			if ( *err != 0 && *err != DB_NOTFOUND )
-			{
-				/* JCM - Not sure if this is ever OK or not. */
-			}
-			else
-			{
-				/*
-				 * this is pretty bad anyway. the dn was in the
-				 * entrydn index, but we could not read the entry
-				 * from the id2entry index. what should we do?
-				 */
-				slapi_log_err(SLAPI_LOG_ERR,
-					    "dn2entry_ext", "The dn \"%s\" was in the %s index, "
-					    "but it did not exist in id2entry of instance %s.\n",
-					    slapi_sdn_get_dn(sdn), indexname, inst->inst_name);
-			}
-		}
-	}
+    e = cache_find_dn(&inst->inst_cache, ndnv.bv_val, ndnv.bv_len);
+    if (e == NULL) {
+        ID id = ALLID;
+        /* convert dn to entry id */
+        if (entryrdn_get_switch()) { /* subtree-rename: on */
+            *err = entryrdn_index_read_ext(be, sdn, &id,
+                                           flags & TOMBSTONE_INCLUDED, txn);
+            if (*err) {
+                if (DB_NOTFOUND != *err) {
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "dn2entry_ext", "Failed to get id for %s "
+                                                  "from entryrdn index (%d)\n",
+                                  slapi_sdn_get_dn(sdn), *err);
+                }
+                /* There's no entry with this DN. */
+                goto bail;
+            }
+            if (0 == id) {
+                /*
+                 * Note: A special entry such as RUV could be added
+                 * to entryrdn even if the suffix does not exist in
+                 * the index.  At that time, fake ID 0 is used as the
+                 * parent id.
+                 */
+                /* There's no entry with this suffix. */
+                goto bail;
+            }
+            indexname = LDBM_ENTRYRDN_STR;
+        } else {
+            IDList *idl = NULL;
+            if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
+                                  &ndnv, txn, err)) == NULL) {
+                /* There's no entry with this DN. */
+                goto bail;
+            }
+            id = idl_firstid(idl);
+            slapi_ch_free((void **)&idl);
+            indexname = LDBM_ENTRYDN_STR;
+        }
+        /* convert entry id to entry */
+        if ((e = id2entry(be, id, txn, err)) != NULL) {
+            /* Means that we found the entry OK */
+        } else {
+            /* Hmm. The DN mapped onto an EntryID, but that didn't map onto an Entry. */
+            if (*err != 0 && *err != DB_NOTFOUND) {
+                /* JCM - Not sure if this is ever OK or not. */
+            } else {
+                /*
+                 * this is pretty bad anyway. the dn was in the
+                 * entrydn index, but we could not read the entry
+                 * from the id2entry index. what should we do?
+                 */
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "dn2entry_ext", "The dn \"%s\" was in the %s index, "
+                                              "but it did not exist in id2entry of instance %s.\n",
+                              slapi_sdn_get_dn(sdn), indexname, inst->inst_name);
+            }
+        }
+    }
 bail:
-	slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "<= %p\n", e);
-	return( e );
+    slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "<= %p\n", e);
+    return (e);
 }
 
 /*
@@ -144,18 +129,17 @@ bail:
  * to the cache:
  *  e = dn2ancestor( ... );
  *  if ( NULL != e ) {
- *		cache_return( &inst->inst_cache, &e );
- *	}
+ *        cache_return( &inst->inst_cache, &e );
+ *    }
  */
 struct backentry *
 dn2ancestor(
     Slapi_Backend *be,
-    const Slapi_DN	*sdn,
+    const Slapi_DN *sdn,
     Slapi_DN *ancestordn,
-    back_txn		*txn,
-    int			*err,
-    int allow_suffix
-)
+    back_txn *txn,
+    int *err,
+    int allow_suffix)
 {
     struct backentry *e = NULL;
 
@@ -163,7 +147,7 @@ dn2ancestor(
 
     /* first, check to see if the given sdn is empty or a root suffix of the
        given backend - if so, it has no parent */
-    if (!slapi_sdn_isempty(sdn) && !slapi_be_issuffix( be, sdn )) {
+    if (!slapi_sdn_isempty(sdn) && !slapi_be_issuffix(be, sdn)) {
         Slapi_DN ancestorndn;
         const char *ptr;
 
@@ -199,7 +183,7 @@ dn2ancestor(
                 }
             }
             /* find the entry - it uses the ndn, so no further conversion is necessary */
-            e= dn2entry(be,&ancestorndn,txn,err);
+            e = dn2entry(be, &ancestorndn, txn, err);
             if (!e) {
                 /* not found, so set ancestordn to its parent and try again */
                 ptr = slapi_dn_find_parent(slapi_sdn_get_ndn(&ancestorndn));
@@ -222,7 +206,7 @@ dn2ancestor(
        OR e is NULL
        ancestordn contains the unnormalized DN of e or is empty */
     slapi_log_err(SLAPI_LOG_TRACE, "dn2ancestor", "=> %p\n", e);
-    return( e );
+    return (e);
 }
 
 /*
@@ -232,64 +216,54 @@ dn2ancestor(
 int
 get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, int plock_parameter, int must_exist) /* JCM - Move somewhere more appropriate */
 {
-	int	err= 0;
-	int rc= LDAP_SUCCESS;
-	backend *be;
-	struct backentry *entry;
+    int err = 0;
+    int rc = LDAP_SUCCESS;
+    backend *be;
+    struct backentry *entry;
 
-	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
-	if( addr->uniqueid!=NULL)
-	{
-		entry = uniqueid2entry(be, addr->uniqueid, txn, &err );
-	}
-	else
-	{
-		if (addr->sdn) {
-			entry = dn2entry( be, addr->sdn, txn, &err );
-		} else {
-			err = 1;
-		}
-	}
-	if ( 0 != err && DB_NOTFOUND != err )
-	{
-		if(must_exist)
-		{
-			slapi_log_err(SLAPI_LOG_ERR,
-				"get_copy_of_entry", "Operation error fetching %s (%s), error %d.\n", 
-				addr->sdn?slapi_sdn_get_dn(addr->sdn):"Null DN",
-				(addr->uniqueid==NULL?"null":addr->uniqueid), err );
-		}
-		if ( LDAP_INVALID_DN_SYNTAX == err ) {
-			rc = LDAP_INVALID_DN_SYNTAX; /* respect the error */
-		} else {
-			rc = LDAP_OPERATIONS_ERROR;
-		}
-	}
-	else
-	{
-		/* If an entry is found, copy it into the PBlock. */
-		if(entry!=NULL)
-		{
-			ldbm_instance *inst;
-			slapi_pblock_set( pb, plock_parameter, slapi_entry_dup(entry->ep_entry) );
-			inst = (ldbm_instance *) be->be_instance_info;
-			CACHE_RETURN( &inst->inst_cache, &entry );
-		}
-	}
-	return rc;
+    if (addr->uniqueid != NULL) {
+        entry = uniqueid2entry(be, addr->uniqueid, txn, &err);
+    } else {
+        if (addr->sdn) {
+            entry = dn2entry(be, addr->sdn, txn, &err);
+        } else {
+            err = 1;
+        }
+    }
+    if (0 != err && DB_NOTFOUND != err) {
+        if (must_exist) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "get_copy_of_entry", "Operation error fetching %s (%s), error %d.\n",
+                          addr->sdn ? slapi_sdn_get_dn(addr->sdn) : "Null DN",
+                          (addr->uniqueid == NULL ? "null" : addr->uniqueid), err);
+        }
+        if (LDAP_INVALID_DN_SYNTAX == err) {
+            rc = LDAP_INVALID_DN_SYNTAX; /* respect the error */
+        } else {
+            rc = LDAP_OPERATIONS_ERROR;
+        }
+    } else {
+        /* If an entry is found, copy it into the PBlock. */
+        if (entry != NULL) {
+            ldbm_instance *inst;
+            slapi_pblock_set(pb, plock_parameter, slapi_entry_dup(entry->ep_entry));
+            inst = (ldbm_instance *)be->be_instance_info;
+            CACHE_RETURN(&inst->inst_cache, &entry);
+        }
+    }
+    return rc;
 }
 
 void
 done_with_pblock_entry(Slapi_PBlock *pb, int plock_parameter) /* JCM - Move somewhere more appropriate */
 {
-	Slapi_Entry *entry;
-	slapi_pblock_get( pb, plock_parameter, &entry);
-	if(entry!=NULL)
-	{
-		slapi_entry_free(entry);
-		entry= NULL;
-		slapi_pblock_set( pb, plock_parameter, entry);
-	}
+    Slapi_Entry *entry;
+    slapi_pblock_get(pb, plock_parameter, &entry);
+    if (entry != NULL) {
+        slapi_entry_free(entry);
+        entry = NULL;
+        slapi_pblock_set(pb, plock_parameter, entry);
+    }
 }
-

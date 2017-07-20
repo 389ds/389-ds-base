@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * --- END COPYRIGHT BLOCK --- */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -16,20 +16,21 @@
 #define _HTTP_CLIENT_H_
 
 /* Error codes */
-#define HTTP_CLIENT_ERROR_BAD_URL		-1
-#define HTTP_CLIENT_ERROR_NET_ADDR		-2
-#define HTTP_CLIENT_ERROR_SOCKET_CREATE     	-3
-#define HTTP_CLIENT_ERROR_CONNECT_FAILED	-4
-#define HTTP_CLIENT_ERROR_SEND_REQ		-5
-#define HTTP_CLIENT_ERROR_BAD_RESPONSE	-6
-#define HTTP_CLIENT_ERROR_SSLSOCKET_CREATE	-7
- #define HTTP_CLIENT_ERROR_NSS_INITIALIZE    -8
+#define HTTP_CLIENT_ERROR_BAD_URL -1
+#define HTTP_CLIENT_ERROR_NET_ADDR -2
+#define HTTP_CLIENT_ERROR_SOCKET_CREATE -3
+#define HTTP_CLIENT_ERROR_CONNECT_FAILED -4
+#define HTTP_CLIENT_ERROR_SEND_REQ -5
+#define HTTP_CLIENT_ERROR_BAD_RESPONSE -6
+#define HTTP_CLIENT_ERROR_SSLSOCKET_CREATE -7
+#define HTTP_CLIENT_ERROR_NSS_INITIALIZE -8
 
 /*Structure to store HTTP Headers */
-typedef struct {
-        char    *name;
-        char    *value;
-}       httpheader;
+typedef struct
+{
+    char *name;
+    char *value;
+} httpheader;
 
 
 /* mechanics */
@@ -51,21 +52,21 @@ typedef int (*api_http_post)(char *url, httpheader **httpheaderArray, char *body
 /* the api broker reserves api[0] for its use */
 
 #define http_init(api) \
-	((api_http_init*)(api))[1](Slapi_ComponentId *plugin_id)
+    ((api_http_init *)(api))[1](Slapi_ComponentId * plugin_id)
 
 #define http_get_text(api, url, data, bytesRead) \
-	((api_http_get_text*)(api))[2]( url, data, bytesRead)
+    ((api_http_get_text *)(api))[2](url, data, bytesRead)
 
 #define http_get_binary(api, url, data, bytesRead) \
-	((api_http_get_binary*)(api))[3](url, data, bytesRead)
+    ((api_http_get_binary *)(api))[3](url, data, bytesRead)
 
 #define http_get_redirected_uri(api, url, data, bytesRead) \
-	((api_http_get_redirected_uri*)(api))[4](url, data, bytesRead)
+    ((api_http_get_redirected_uri *)(api))[4](url, data, bytesRead)
 
 #define http_shutdown(api) \
-	((api_http_shutdown*)(api))[5]()
+    ((api_http_shutdown *)(api))[5]()
 
 #define http_post(api, url, httpheaderArray, body, data, bytesRead) \
-	((api_http_post*)(api))[6](url, httpheaderArray, body, data, bytesRead)
+    ((api_http_post *)(api))[6](url, httpheaderArray, body, data, bytesRead)
 
 #endif /*_HTTP_CLIENT_H_*/

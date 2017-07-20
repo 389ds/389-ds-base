@@ -2,22 +2,22 @@
  * Copyright (C) 2015  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -78,20 +78,21 @@ typedef enum _ns_job_state {
 
 /* this is our "kitchen sink" pblock/glue object that is the main
    interface between the app/thread pool/event framework */
-typedef struct ns_job_t {
+typedef struct ns_job_t
+{
     pthread_mutex_t *monitor;
     struct ns_thrpool_t *tp;
     ns_job_func_t func;
     struct ns_job_data_t *data;
-    ns_job_type_t job_type; /* NS_JOB_ACCEPT etc. */
-    PRFileDesc *fd; /* for I/O events */
-    struct timeval tv; /* used for timed events */
-    int signal; /* if the event was triggered by a signal, this is the signal number */
-    ns_event_fw_fd_t *ns_event_fw_fd; /* event framework fd event object */
+    ns_job_type_t job_type;               /* NS_JOB_ACCEPT etc. */
+    PRFileDesc *fd;                       /* for I/O events */
+    struct timeval tv;                    /* used for timed events */
+    int signal;                           /* if the event was triggered by a signal, this is the signal number */
+    ns_event_fw_fd_t *ns_event_fw_fd;     /* event framework fd event object */
     ns_event_fw_time_t *ns_event_fw_time; /* event framework timer event object */
-    ns_event_fw_sig_t *ns_event_fw_sig; /* event framework signal event object */
-    ns_job_type_t output_job_type; /* info about event that triggered the callback */
-    ns_job_state_t state; /* What state the job is currently in. */
+    ns_event_fw_sig_t *ns_event_fw_sig;   /* event framework signal event object */
+    ns_job_type_t output_job_type;        /* info about event that triggered the callback */
+    ns_job_state_t state;                 /* What state the job is currently in. */
     ns_event_fw_ctx_t *ns_event_fw_ctx;
     void *(*alloc_event_context)(size_t size, struct ns_job_t *job);
     void (*free_event_context)(void *ev_ctx, struct ns_job_t *job);
@@ -106,7 +107,8 @@ typedef void (*ns_event_fw_read_cb_t)(PRFileDesc *fd, ns_job_t *job);
 typedef void (*ns_event_fw_write_cb_t)(PRFileDesc *fd, ns_job_t *job);
 typedef void (*ns_event_fw_connect_cb_t)(PRFileDesc *fd, ns_job_t *job);
 
-typedef struct ns_event_fw_t {
+typedef struct ns_event_fw_t
+{
     ns_event_fw_ctx_t *(*ns_event_fw_init)(void);
     /*
 struct event_base *event_base_new(void);
@@ -139,7 +141,7 @@ int event_add(struct event *ev, const struct timeval *timeout);
     void (*ns_event_fw_add_timer)(
         ns_event_fw_ctx_t *ns_event_fw_ctx,
         ns_job_t *job);
-        /*
+    /*
 tevent_timer *tevent_add_timer(ev, mem_ctx, next_event, handler, private_data)
 
 evtimer_set(ev, cb, arg)
@@ -171,7 +173,7 @@ signal_add(ev, tv)
         ns_job_t *job);
 } ns_event_fw_t;
 
-ns_event_fw_t *get_event_framework_event( void );
-ns_event_fw_t *get_event_framework_tevent( void );
+ns_event_fw_t *get_event_framework_event(void);
+ns_event_fw_t *get_event_framework_tevent(void);
 
 #endif /* THRPOOL_NS_EVENT_FW_H */

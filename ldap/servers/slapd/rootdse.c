@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* rootdse.c - routines to manage the root DSE */
@@ -32,16 +32,14 @@ static char *readonly_attributes[] = {
     "vendorName",
     "vendorVersion",
     ATTR_NETSCAPEMDSUFFIX,
-    NULL
-};
+    NULL};
 
 
 static char *writable_attributes[] = {
     "copiedfrom",
     "copyingfrom",
     "aci",
-    NULL
-};
+    NULL};
 
 
 /*
@@ -53,36 +51,33 @@ static char *writable_attributes[] = {
  *        this list can be configured at runtime.
  */
 static int
-rootdse_is_readonly_attr( char *attr )
+rootdse_is_readonly_attr(char *attr)
 {
-    int	i;
+    int i;
 
-    if ( NULL == attr ) {
-	return 1;	/* I guess.  It's not really an attribute at all */
+    if (NULL == attr) {
+        return 1; /* I guess.  It's not really an attribute at all */
     }
 
     /*
      * optimization: check for attributes we're likely to be writing
      * frequently.
      */
-    for ( i = 0; NULL != writable_attributes[ i ]; i++ ) {
-	if ( strncasecmp( attr, writable_attributes[ i ],
-		strlen( writable_attributes[ i ])) == 0 ) {
-	    return 0;
-	}
+    for (i = 0; NULL != writable_attributes[i]; i++) {
+        if (strncasecmp(attr, writable_attributes[i],
+                        strlen(writable_attributes[i])) == 0) {
+            return 0;
+        }
     }
 
-    for ( i = 0; NULL != readonly_attributes[ i ]; i++ ) {
-	if ( strncasecmp( attr, readonly_attributes[ i ],
-		strlen( readonly_attributes[ i ])) == 0 ) {
-	    return 1;
-	}
+    for (i = 0; NULL != readonly_attributes[i]; i++) {
+        if (strncasecmp(attr, readonly_attributes[i],
+                        strlen(readonly_attributes[i])) == 0) {
+            return 1;
+        }
     }
     return 0;
 }
-
-
-
 
 
 /*
@@ -93,229 +88,224 @@ rootdse_is_readonly_attr( char *attr )
  * before calling slapi_entry_free().
  */
 int
-read_root_dse( Slapi_PBlock *pb,
-               Slapi_Entry *e,
-               Slapi_Entry *entryAfter __attribute__((unused)),
-               int *returncode,
-               char *returntext __attribute__((unused)),
-               void *arg __attribute__((unused)))
+read_root_dse(Slapi_PBlock *pb,
+              Slapi_Entry *e,
+              Slapi_Entry *entryAfter __attribute__((unused)),
+              int *returncode,
+              char *returntext __attribute__((unused)),
+              void *arg __attribute__((unused)))
 {
-	int			i;
-	struct berval		*vals[2];
-	struct berval val;
-	struct berval **bvals;
-	Slapi_Backend	*be;
-	char			*cookie = NULL;
-	char			**strs;
-	void			*node;
-	Slapi_DN		*sdn;
+    int i;
+    struct berval *vals[2];
+    struct berval val;
+    struct berval **bvals;
+    Slapi_Backend *be;
+    char *cookie = NULL;
+    char **strs;
+    void *node;
+    Slapi_DN *sdn;
 
     /*
      * Check that we were doing a base search on the root dse.
      */
     {
         int scope;
-    	slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
-        if(scope!=LDAP_SCOPE_BASE)
-        {
-            *returncode= LDAP_NO_SUCH_OBJECT;
+        slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
+        if (scope != LDAP_SCOPE_BASE) {
+            *returncode = LDAP_NO_SUCH_OBJECT;
             return SLAPI_DSE_CALLBACK_ERROR;
         }
     }
 
-	vals[0] = &val;
-	vals[1] = NULL;
+    vals[0] = &val;
+    vals[1] = NULL;
 
     /* loop through backend suffixes to get namingcontexts attr */
-    attrlist_delete( &e->e_attrs, "namingcontexts");
+    attrlist_delete(&e->e_attrs, "namingcontexts");
 
     sdn = slapi_get_first_suffix(&node, 0);
-	while (sdn)
-	{
-		val.bv_val = (char*)slapi_sdn_get_dn(sdn); /* jcm: had to cast away const */
-		val.bv_len = strlen( val.bv_val );
-		attrlist_merge( &e->e_attrs, "namingcontexts", vals );
-		sdn = slapi_get_next_suffix(&node, 0);
-	}
+    while (sdn) {
+        val.bv_val = (char *)slapi_sdn_get_dn(sdn); /* jcm: had to cast away const */
+        val.bv_len = strlen(val.bv_val);
+        attrlist_merge(&e->e_attrs, "namingcontexts", vals);
+        sdn = slapi_get_next_suffix(&node, 0);
+    }
 
-	val.bv_val = config_get_default_naming_context();
-	if (val.bv_val) {
-		val.bv_len = strlen(val.bv_val);
-		attrlist_replace( &e->e_attrs, "defaultnamingcontext", vals );
-	}
+    val.bv_val = config_get_default_naming_context();
+    if (val.bv_val) {
+        val.bv_len = strlen(val.bv_val);
+        attrlist_replace(&e->e_attrs, "defaultnamingcontext", vals);
+    }
 
-	attrlist_delete( &e->e_attrs, "nsBackendSuffix");
-	for (be = slapi_get_first_backend(&cookie); be != NULL; 
-             be = slapi_get_next_backend(cookie)) {
+    attrlist_delete(&e->e_attrs, "nsBackendSuffix");
+    for (be = slapi_get_first_backend(&cookie); be != NULL;
+         be = slapi_get_next_backend(cookie)) {
 
-            char * base;                                               
-            char * be_name;
-            const Slapi_DN *be_suffix;
+        char *base;
+        char *be_name;
+        const Slapi_DN *be_suffix;
 
-            if (slapi_be_private(be)) continue;
+        if (slapi_be_private(be))
+            continue;
 
-            /* tolerate a backend under construction containing no suffix */
-            if ((be_suffix = slapi_be_getsuffix(be, 0)) == NULL) continue;
+        /* tolerate a backend under construction containing no suffix */
+        if ((be_suffix = slapi_be_getsuffix(be, 0)) == NULL)
+            continue;
 
-            if ((base = (char *)slapi_sdn_get_dn(be_suffix)) == NULL) continue;
-            if ((be_name = slapi_be_get_name(be)) == NULL) continue;
+        if ((base = (char *)slapi_sdn_get_dn(be_suffix)) == NULL)
+            continue;
+        if ((be_name = slapi_be_get_name(be)) == NULL)
+            continue;
 
-            val.bv_len = strlen(base)+strlen(be_name)+1;
-            val.bv_val = slapi_ch_malloc(val.bv_len+1);
-            sprintf(val.bv_val, "%s:%s", be_name, base); 
-            attrlist_merge(&e->e_attrs, "nsBackendSuffix", vals);
-            slapi_ch_free((void **) &val.bv_val);
-	}
-	slapi_ch_free((void **)&cookie);       
+        val.bv_len = strlen(base) + strlen(be_name) + 1;
+        val.bv_val = slapi_ch_malloc(val.bv_len + 1);
+        sprintf(val.bv_val, "%s:%s", be_name, base);
+        attrlist_merge(&e->e_attrs, "nsBackendSuffix", vals);
+        slapi_ch_free((void **)&val.bv_val);
+    }
+    slapi_ch_free((void **)&cookie);
 
-	/* schema entry */
-	val.bv_val = SLAPD_SCHEMA_DN;
-	val.bv_len = sizeof( SLAPD_SCHEMA_DN ) - 1;
-	attrlist_replace( &e->e_attrs, "subschemasubentry", vals );
-	
-	/* supported extended operations */
-	attrlist_delete( &e->e_attrs, "supportedExtension");
-	if (( strs = slapi_get_supported_extended_ops_copy()) != NULL ) {
-	    for ( i = 0; strs[i] != NULL; ++i ) {
-		val.bv_val = strs[i];
-		val.bv_len = strlen( strs[i] );
-		attrlist_merge( &e->e_attrs, "supportedExtension", vals );
-	    }
-	    charray_free(strs);
-	}
-	
-	/* supported controls */
-	attrlist_delete( &e->e_attrs, "supportedControl");
-	if ( slapi_get_supported_controls_copy( &strs, NULL ) == 0
-		&& strs != NULL ) {
-	    for ( i = 0; strs[i] != NULL; ++i ) {
-		val.bv_val = strs[i];
-		val.bv_len = strlen( strs[i] );
-		attrlist_merge( &e->e_attrs, "supportedControl", vals );
-	    }
-	    charray_free(strs);
-	}
+    /* schema entry */
+    val.bv_val = SLAPD_SCHEMA_DN;
+    val.bv_len = sizeof(SLAPD_SCHEMA_DN) - 1;
+    attrlist_replace(&e->e_attrs, "subschemasubentry", vals);
 
-	/* supported features */
-	attrlist_delete( &e->e_attrs, "supportedFeatures");
-	if ( slapi_get_supported_features_copy( &strs ) == 0
-		&& strs != NULL ) {
-	    for ( i = 0; strs[i] != NULL; ++i ) {
-		val.bv_val = strs[i];
-		val.bv_len = strlen( strs[i] );
-		attrlist_merge( &e->e_attrs, "supportedFeatures", vals );
-	    }
-	    charray_free(strs);
-	}
+    /* supported extended operations */
+    attrlist_delete(&e->e_attrs, "supportedExtension");
+    if ((strs = slapi_get_supported_extended_ops_copy()) != NULL) {
+        for (i = 0; strs[i] != NULL; ++i) {
+            val.bv_val = strs[i];
+            val.bv_len = strlen(strs[i]);
+            attrlist_merge(&e->e_attrs, "supportedExtension", vals);
+        }
+        charray_free(strs);
+    }
 
-	/* supported sasl mechanisms */
-	attrlist_delete( &e->e_attrs, "supportedSASLMechanisms");
-	if (( strs = ids_sasl_listmech (pb)) != NULL ) {
-	    for ( i = 0; strs[i] != NULL; ++i ) {
-		val.bv_val = strs[i];
-		val.bv_len = strlen( strs[i] );
-		attrlist_merge( &e->e_attrs, "supportedSASLMechanisms", vals );
-	    }
-            charray_free(strs);
-	}
+    /* supported controls */
+    attrlist_delete(&e->e_attrs, "supportedControl");
+    if (slapi_get_supported_controls_copy(&strs, NULL) == 0 && strs != NULL) {
+        for (i = 0; strs[i] != NULL; ++i) {
+            val.bv_val = strs[i];
+            val.bv_len = strlen(strs[i]);
+            attrlist_merge(&e->e_attrs, "supportedControl", vals);
+        }
+        charray_free(strs);
+    }
+
+    /* supported features */
+    attrlist_delete(&e->e_attrs, "supportedFeatures");
+    if (slapi_get_supported_features_copy(&strs) == 0 && strs != NULL) {
+        for (i = 0; strs[i] != NULL; ++i) {
+            val.bv_val = strs[i];
+            val.bv_len = strlen(strs[i]);
+            attrlist_merge(&e->e_attrs, "supportedFeatures", vals);
+        }
+        charray_free(strs);
+    }
+
+    /* supported sasl mechanisms */
+    attrlist_delete(&e->e_attrs, "supportedSASLMechanisms");
+    if ((strs = ids_sasl_listmech(pb)) != NULL) {
+        for (i = 0; strs[i] != NULL; ++i) {
+            val.bv_val = strs[i];
+            val.bv_len = strlen(strs[i]);
+            attrlist_merge(&e->e_attrs, "supportedSASLMechanisms", vals);
+        }
+        charray_free(strs);
+    }
 
 
-	/* supported LDAP versions */
-	val.bv_val = "2";
-	val.bv_len = 1;
-	attrlist_replace( &e->e_attrs, "supportedldapversion", vals );
-	val.bv_val = "3";
-	val.bv_len = 1;
-	attrlist_merge( &e->e_attrs, "supportedldapversion", vals );
+    /* supported LDAP versions */
+    val.bv_val = "2";
+    val.bv_len = 1;
+    attrlist_replace(&e->e_attrs, "supportedldapversion", vals);
+    val.bv_val = "3";
+    val.bv_len = 1;
+    attrlist_merge(&e->e_attrs, "supportedldapversion", vals);
 
-	/* superior references (ref attribute) */
-	attrlist_delete( &e->e_attrs, "ref");
-	if (( bvals = g_get_default_referral()) != NULL ) {
-	    for ( i = 0; bvals[i] != NULL; ++i ) {
-		val.bv_val = bvals[i]->bv_val;
-		val.bv_len = bvals[i]->bv_len;
-		attrlist_merge( &e->e_attrs, "ref", vals );
-	    }
-	}
+    /* superior references (ref attribute) */
+    attrlist_delete(&e->e_attrs, "ref");
+    if ((bvals = g_get_default_referral()) != NULL) {
+        for (i = 0; bvals[i] != NULL; ++i) {
+            val.bv_val = bvals[i]->bv_val;
+            val.bv_len = bvals[i]->bv_len;
+            attrlist_merge(&e->e_attrs, "ref", vals);
+        }
+    }
 
-	/* RFC 3045 attributes: vendorName and vendorVersion */
-	val.bv_val = SLAPD_VENDOR_NAME;
-	val.bv_len = strlen( val.bv_val );
-	attrlist_replace( &e->e_attrs, "vendorName", vals );
-	val.bv_val = slapd_get_version_value();
-	val.bv_len = strlen( val.bv_val );
-	attrlist_replace( &e->e_attrs, "vendorVersion", vals );
-	slapi_ch_free( (void **)&val.bv_val );
+    /* RFC 3045 attributes: vendorName and vendorVersion */
+    val.bv_val = SLAPD_VENDOR_NAME;
+    val.bv_len = strlen(val.bv_val);
+    attrlist_replace(&e->e_attrs, "vendorName", vals);
+    val.bv_val = slapd_get_version_value();
+    val.bv_len = strlen(val.bv_val);
+    attrlist_replace(&e->e_attrs, "vendorVersion", vals);
+    slapi_ch_free((void **)&val.bv_val);
 
-	/* Server Data Version */
-	if (( val.bv_val = (char*)get_server_dataversion()) != NULL ) { /* jcm cast away const */
-	    val.bv_len = strlen( val.bv_val );
-	    attrlist_replace( &e->e_attrs, attr_dataversion, vals );
-	}
+    /* Server Data Version */
+    if ((val.bv_val = (char *)get_server_dataversion()) != NULL) { /* jcm cast away const */
+        val.bv_len = strlen(val.bv_val);
+        attrlist_replace(&e->e_attrs, attr_dataversion, vals);
+    }
 
-	/* machine data suffix
-	 * this has been added in 4.0 for replication purpose
-	 * and since 5.0 is now unused by the core server,
-	 * however some functionalities of the console framework 5.01
-	 * still depend on this
-	 */
-	if (( val.bv_val = get_config_DN()) != NULL ) {
-		val.bv_len = strlen( val.bv_val );
-		attrlist_replace( &e->e_attrs, ATTR_NETSCAPEMDSUFFIX, vals );
-	}
+    /* machine data suffix
+     * this has been added in 4.0 for replication purpose
+     * and since 5.0 is now unused by the core server,
+     * however some functionalities of the console framework 5.01
+     * still depend on this
+     */
+    if ((val.bv_val = get_config_DN()) != NULL) {
+        val.bv_len = strlen(val.bv_val);
+        attrlist_replace(&e->e_attrs, ATTR_NETSCAPEMDSUFFIX, vals);
+    }
 
 #ifdef notdef
-	/* XXXggood testing - print the size of the changelog db */
-	{
-	    unsigned int clsize;
-	    clsize = get_changelog_size();
-	    sprintf( buf, "%u", clsize );
-	    val.bv_val = buf;
-	    val.bv_len = strlen( buf );
-	    attrlist_replace( &e->e_attrs, "changelogsize", vals );
-	    slapi_ch_free((void**)&val.bv_val );
-	}
+    /* XXXggood testing - print the size of the changelog db */
+    {
+        unsigned int clsize;
+        clsize = get_changelog_size();
+        sprintf(buf, "%u", clsize);
+        val.bv_val = buf;
+        val.bv_len = strlen(buf);
+        attrlist_replace(&e->e_attrs, "changelogsize", vals);
+        slapi_ch_free((void **)&val.bv_val);
+    }
 #endif /* notdef */
 
     /* vlvsearch is list of dns to VLV Search Specifications */
-	attrlist_delete( &e->e_attrs, "vlvsearch");
-	cookie = NULL;
-	be = slapi_get_first_backend(&cookie);
-	while (be)
-	{
-        if(!be->be_private)
-        {
+    attrlist_delete(&e->e_attrs, "vlvsearch");
+    cookie = NULL;
+    be = slapi_get_first_backend(&cookie);
+    while (be) {
+        if (!be->be_private) {
             /* Generate searches to find the VLV Search Specifications */
             int r;
-            Slapi_PBlock *resultpb= NULL;
-            Slapi_Entry** entry = NULL;
-			Slapi_DN dn;
-			slapi_sdn_init(&dn);
-		    be_getconfigdn(be,&dn);
-            resultpb= slapi_search_internal( slapi_sdn_get_ndn(&dn), LDAP_SCOPE_ONELEVEL, "objectclass=vlvsearch", NULL, NULL, 1);
-			slapi_sdn_done(&dn);
-            slapi_pblock_get( resultpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entry );
-            slapi_pblock_get( resultpb, SLAPI_PLUGIN_INTOP_RESULT, &r );
-            if(r==LDAP_SUCCESS)
-            {
-            	for (; *entry; ++entry)
-            	{
-            		val.bv_val = slapi_entry_get_dn(*entry);
-            		val.bv_len = strlen( val.bv_val );
-            		attrlist_merge( &e->e_attrs, "vlvsearch", vals );
+            Slapi_PBlock *resultpb = NULL;
+            Slapi_Entry **entry = NULL;
+            Slapi_DN dn;
+            slapi_sdn_init(&dn);
+            be_getconfigdn(be, &dn);
+            resultpb = slapi_search_internal(slapi_sdn_get_ndn(&dn), LDAP_SCOPE_ONELEVEL, "objectclass=vlvsearch", NULL, NULL, 1);
+            slapi_sdn_done(&dn);
+            slapi_pblock_get(resultpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entry);
+            slapi_pblock_get(resultpb, SLAPI_PLUGIN_INTOP_RESULT, &r);
+            if (r == LDAP_SUCCESS) {
+                for (; *entry; ++entry) {
+                    val.bv_val = slapi_entry_get_dn(*entry);
+                    val.bv_len = strlen(val.bv_val);
+                    attrlist_merge(&e->e_attrs, "vlvsearch", vals);
                 }
             }
             slapi_free_search_results_internal(resultpb);
             slapi_pblock_destroy(resultpb);
         }
 
-		be = slapi_get_next_backend (cookie);
-	}
-	slapi_ch_free ((void **)&cookie);
-    *returncode= LDAP_SUCCESS;
+        be = slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free((void **)&cookie);
+    *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
 }
-
 
 
 /*
@@ -326,14 +316,14 @@ read_root_dse( Slapi_PBlock *pb,
  * case LDAP_INSUFFICIENT_ACCESS is returned.
  */
 int
-modify_root_dse( Slapi_PBlock *pb,
-                 Slapi_Entry *entryBefore __attribute__((unused)),
-                 Slapi_Entry *e __attribute__((unused)),
-                 int *returncode,
-                 char *returntext,
-                 void *arg __attribute__((unused)))
+modify_root_dse(Slapi_PBlock *pb,
+                Slapi_Entry *entryBefore __attribute__((unused)),
+                Slapi_Entry *e __attribute__((unused)),
+                int *returncode,
+                char *returntext,
+                void *arg __attribute__((unused)))
 {
-    LDAPMod		**mods;
+    LDAPMod **mods;
 
     /*
      * Make a pass through the attributes and check them
@@ -343,22 +333,19 @@ modify_root_dse( Slapi_PBlock *pb,
      * writable, but for now, none are.
      */
 
-    slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-    if ( NULL != mods )
-    {
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+    if (NULL != mods) {
         int i;
-    	for ( i = 0; NULL != mods[ i ]; i++ )
-    	{
-    	    if ( rootdse_is_readonly_attr( mods[ i ]->mod_type ))
-    	    {
-        		/* The modification is disallowed */
-        		*returncode = LDAP_UNWILLING_TO_PERFORM;
-                strcpy(returntext,"Modification of these root DSE attributes not allowed");
-        		return SLAPI_DSE_CALLBACK_ERROR;
-    	    }
-    	}
+        for (i = 0; NULL != mods[i]; i++) {
+            if (rootdse_is_readonly_attr(mods[i]->mod_type)) {
+                /* The modification is disallowed */
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                strcpy(returntext, "Modification of these root DSE attributes not allowed");
+                return SLAPI_DSE_CALLBACK_ERROR;
+            }
+        }
     }
 
-    *returncode= LDAP_SUCCESS;
-    return SLAPI_DSE_CALLBACK_OK;	/* success -- apply the changes */
-} 
+    *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK; /* success -- apply the changes */
+}

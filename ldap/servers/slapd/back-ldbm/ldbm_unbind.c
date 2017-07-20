@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* unbind.c - handle an ldap unbind operation */
@@ -16,7 +16,7 @@
 #include "back-ldbm.h"
 
 int
-ldbm_back_unbind( Slapi_PBlock *pb __attribute__((unused)))
+ldbm_back_unbind(Slapi_PBlock *pb __attribute__((unused)))
 {
-	return( 0 );
+    return (0);
 }

@@ -14,7 +14,8 @@
 
 
 sds_result
-sds_tqueue_init(sds_tqueue **q_ptr, void (*value_free_fn)(void *value)) {
+sds_tqueue_init(sds_tqueue **q_ptr, void (*value_free_fn)(void *value))
+{
 #ifdef SDS_DEBUG
     sds_log("sds_tqueue_init", "Createing mutex locked queue");
 #endif
@@ -35,7 +36,8 @@ sds_tqueue_init(sds_tqueue **q_ptr, void (*value_free_fn)(void *value)) {
 }
 
 sds_result
-sds_tqueue_enqueue(sds_tqueue *q, void *elem) {
+sds_tqueue_enqueue(sds_tqueue *q, void *elem)
+{
     pthread_mutex_lock(&(q->lock));
     sds_result result = sds_queue_enqueue(q->uq, elem);
     pthread_mutex_unlock(&(q->lock));
@@ -43,7 +45,8 @@ sds_tqueue_enqueue(sds_tqueue *q, void *elem) {
 }
 
 sds_result
-sds_tqueue_dequeue(sds_tqueue *q, void **elem) {
+sds_tqueue_dequeue(sds_tqueue *q, void **elem)
+{
     pthread_mutex_lock(&(q->lock));
     sds_result result = sds_queue_dequeue(q->uq, elem);
     pthread_mutex_unlock(&(q->lock));
@@ -51,7 +54,8 @@ sds_tqueue_dequeue(sds_tqueue *q, void **elem) {
 }
 
 sds_result
-sds_tqueue_destroy(sds_tqueue *q) {
+sds_tqueue_destroy(sds_tqueue *q)
+{
     pthread_mutex_lock(&(q->lock));
     sds_result result = sds_queue_destroy(q->uq);
     pthread_mutex_unlock(&(q->lock));
@@ -59,7 +63,3 @@ sds_tqueue_destroy(sds_tqueue *q) {
     sds_free(q);
     return result;
 }
-
-
-
-

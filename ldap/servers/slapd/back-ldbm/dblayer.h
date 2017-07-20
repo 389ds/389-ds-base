@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* Structures and #defines used in the dblayer. */
@@ -18,24 +18,24 @@
 
 #ifdef DB_USE_64LFS
 #ifdef OS_solaris
-#include <dlfcn.h>	/* needed for dlopen and dlsym */
-#endif /* solaris: dlopen */
+#include <dlfcn.h> /* needed for dlopen and dlsym */
+#endif             /* solaris: dlopen */
 #ifdef OS_solaris
-#include <sys/mman.h>	/* needed for mmap/mmap64 */
+#include <sys/mman.h> /* needed for mmap/mmap64 */
 #ifndef MAP_FAILED
 #define MAP_FAILED (-1)
 #endif
-#endif  /* solaris: mmap */
-#endif  /* DB_USE_64LFS */
+#endif /* solaris: mmap */
+#endif /* DB_USE_64LFS */
 
-#define DBLAYER_PAGESIZE (size_t)8*1024
-#define DBLAYER_INDEX_PAGESIZE (size_t)8*1024 /* With the new idl design,
-   the large 8Kbyte pages we use are not optimal. The page pool churns very
-   quickly as we add new IDs under a sustained add load. Smaller pages stop
-   this happening so much and consequently make us spend less time flushing
-   dirty pages on checkpoints.  But 8K is still a good page size for id2entry. 
-   So we now allow different page sizes for the primary and secondary indices.
-   */
+#define DBLAYER_PAGESIZE (size_t)8 * 1024
+#define DBLAYER_INDEX_PAGESIZE (size_t)8 * 1024 /* With the new idl design,      \
+     the large 8Kbyte pages we use are not optimal. The page pool churns very    \
+     quickly as we add new IDs under a sustained add load. Smaller pages stop    \
+     this happening so much and consequently make us spend less time flushing    \
+     dirty pages on checkpoints.  But 8K is still a good page size for id2entry. \
+     So we now allow different page sizes for the primary and secondary indices. \
+     */
 
 /* Interval, in ms, that threads sleep when they are wanting to
  * wait for a while withouth spinning. If this time is too long,
@@ -59,20 +59,21 @@
 
 /* Define constants from DB2.4 when using DB2.3 header file */
 #ifndef DB_TSL_SPINS
-#define	DB_TSL_SPINS	21		/* DB: initialize spin count. */
+#define DB_TSL_SPINS 21 /* DB: initialize spin count. */
 #endif
 #ifndef DB_REGION_INIT
-#define	DB_REGION_INIT	24		/* DB: page-fault regions in create. */
+#define DB_REGION_INIT 24 /* DB: page-fault regions in create. */
 #endif
 #ifndef DB_REGION_NAME
-#define	DB_REGION_NAME	25		/* DB: named regions, no backing file. */
+#define DB_REGION_NAME 25 /* DB: named regions, no backing file. */
 #endif
 
-struct dblayer_private_env {
-	DB_ENV	*dblayer_DB_ENV;
-	Slapi_RWLock * dblayer_env_lock;
-	int dblayer_openflags;
-	int dblayer_priv_flags;
+struct dblayer_private_env
+{
+    DB_ENV *dblayer_DB_ENV;
+    Slapi_RWLock *dblayer_env_lock;
+    int dblayer_openflags;
+    int dblayer_priv_flags;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -80,7 +81,7 @@ struct dblayer_private_env {
 /* structure which holds our stuff */
 struct dblayer_private
 {
-    struct dblayer_private_env * dblayer_env;
+    struct dblayer_private_env *dblayer_env;
     char *dblayer_home_directory;
     char *dblayer_log_directory;
     char *dblayer_dbhome_directory;  /* default path for relative inst paths */
@@ -92,11 +93,11 @@ struct dblayer_private
     int dblayer_tx_max;
     uint64_t dblayer_cachesize;
     uint64_t dblayer_previous_cachesize; /* Cache size when we last shut down--
-                                        * used to determine if we delete 
+                                        * used to determine if we delete
                                         * the mpool */
     int dblayer_recovery_required;
     int dblayer_enable_transactions;
-    int dblayer_txn_wait;           /* Default is "off" (DB_TXN_NOWAIT) but for
+    int dblayer_txn_wait; /* Default is "off" (DB_TXN_NOWAIT) but for
                                      * support purpose it could be helpful to set
                                      * "on" so that backend hang on deadlock */
     int dblayer_durable_transactions;
@@ -105,37 +106,37 @@ struct dblayer_private
     uint64_t dblayer_page_size;       /* db page size if configured,
                                      * otherwise default to DBLAYER_PAGESIZE */
     uint64_t dblayer_index_page_size; /* db index page size if configured,
-                                     * otherwise default to 
+                                     * otherwise default to
                                      * DBLAYER_INDEX_PAGESIZE */
-    int dblayer_idl_divisor;        /* divide page size by this to get IDL 
+    int dblayer_idl_divisor;          /* divide page size by this to get IDL
                                      * size */
     uint64_t dblayer_logfile_size;    /* How large can one logfile be ? */
     uint64_t dblayer_logbuf_size;     /* how large log buffer can be */
-    int dblayer_file_mode;          /* pmode for files we create */
-    int dblayer_verbose;            /* Get libdb to exhale debugging info */
-    int dblayer_debug;              /* Will libdb emit debugging info into 
+    int dblayer_file_mode;            /* pmode for files we create */
+    int dblayer_verbose;              /* Get libdb to exhale debugging info */
+    int dblayer_debug;                /* Will libdb emit debugging info into
                                      * our log ? */
     int dblayer_trickle_percentage;
-    int dblayer_cache_config;       /* Special cache configurations
+    int dblayer_cache_config; /* Special cache configurations
                                      * e.g. force file-based mpool */
-    int dblayer_lib_version; 
+    int dblayer_lib_version;
     int dblayer_spin_count;         /* DB Mutex spin count, 0 == use default */
     int dblayer_named_regions;      /* Should the regions be named sections,
                                      * or backed by files ? */
-    int dblayer_private_mem;        /* private memory will be used for 
+    int dblayer_private_mem;        /* private memory will be used for
                                      * allocation of regions and mutexes */
-    int dblayer_private_import_mem; /* private memory will be used for 
+    int dblayer_private_import_mem; /* private memory will be used for
                                      * allocation of regions and mutexes for
                                      * import */
     long dblayer_shm_key;           /* base segment ID for named regions */
-    int db_debug_checkpointing;     /* Enable debugging messages from 
+    int db_debug_checkpointing;     /* Enable debugging messages from
                                      * checkpointing */
     int dblayer_bad_stuff_happened; /* Means that something happened (e.g. out
                                      * of disk space) such that the guardian
                                      * file must not be written on shutdown */
     perfctrs_private *perf_private; /* Private data for performance counters
                                      * code */
-    int dblayer_stop_threads;       /* Used to signal to threads that they 
+    int dblayer_stop_threads;       /* Used to signal to threads that they
                                      * should stop ASAP */
     PRInt32 dblayer_thread_count;   /* Tells us how many threads are running,
                                      * used to figure out when they're all
@@ -145,16 +146,15 @@ struct dblayer_private
     int dblayer_lockdown;           /* use DB_LOCKDOWN */
 #define BDB_LOCK_NB_MIN 10000
     int dblayer_lock_config;
-    int dblayer_previous_lock_config;/* Max lock count when we last shut down--
+    int dblayer_previous_lock_config;  /* Max lock count when we last shut down--
                                       * used to determine if we delete the mpool */
-    u_int32_t dblayer_deadlock_policy;    /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
-    int dblayer_compactdb_interval; /* interval to execute compact id2entry dbs */
+    u_int32_t dblayer_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
+    int dblayer_compactdb_interval;    /* interval to execute compact id2entry dbs */
 };
 
-void dblayer_log_print(const DB_ENV *dbenv, const char* prefix,
-                       const char *buffer);
+void dblayer_log_print(const DB_ENV *dbenv, const char *prefix, const char *buffer);
 
-int dblayer_db_remove(dblayer_private_env * env, char const path[], char const dbName[]);
+int dblayer_db_remove(dblayer_private_env *env, char const path[], char const dbName[]);
 
 int dblayer_delete_indices(ldbm_instance *inst);
 
@@ -164,7 +164,7 @@ int dblayer_delete_indices(ldbm_instance *inst);
 int dblayer_make_private_recovery_env(char *db_home_dir, dblayer_private *priv, DB_ENV **env);
 /* Make an environment to be used for simple non-transacted database operations, e.g. fixup during upgrade */
 int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env);
-/* Copy a database file, preserving all its contents (used to reset the LSNs in the file in order to move 
+/* Copy a database file, preserving all its contents (used to reset the LSNs in the file in order to move
  * it from one transacted environment to another.
  */
 int dblayer_copy_file_resetlsns(char *home_dir, char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv, ldbm_instance *inst);
@@ -172,10 +172,10 @@ int dblayer_copy_file_resetlsns(char *home_dir, char *source_file_name, char *de
 void dblayer_set_env_debugging(DB_ENV *pEnv, dblayer_private *priv);
 
 /* Return the last four characters of a string; used for comparing extensions. */
-char* last_four_chars(const char* s);
+char *last_four_chars(const char *s);
 
 /* To support backingup/restoring changelog dir */
-#define CHANGELOGENTRY   "cn=changelog5,cn=config"
+#define CHANGELOGENTRY "cn=changelog5,cn=config"
 #define CHANGELOGDIRATTR "nsslapd-changelogdir"
 
 #endif /* _DBLAYER_H_ */

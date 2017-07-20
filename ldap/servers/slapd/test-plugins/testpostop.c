@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -16,19 +16,19 @@
 
  testpostop.c
 
- This source file provides examples of post-operation plug-in 
- functions.  The server calls these plug-in functions after 
+ This source file provides examples of post-operation plug-in
+ functions.  The server calls these plug-in functions after
  executing certain LDAP operations:
 
- * testpostop_add (called after an LDAP add operation)	
+ * testpostop_add (called after an LDAP add operation)
  * testpostop_mod (called after an LDAP modify operation)
  * testpostop_del (called after an LDAP delete operation)
  * testpostop_modrdn (called after an LDAP modify RDN operation)
  * testpostop_abandon (called after an LDAP abandon operation)
 
- After the server processes an LDAP add, modify, delete, or 
- modify RDN operation, these post-operation plug-in functions 
- log information about the operation to a change log file. 
+ After the server processes an LDAP add, modify, delete, or
+ modify RDN operation, these post-operation plug-in functions
+ log information about the operation to a change log file.
 
  The post-abandon plugin simply logs some information to the error
  log to demonstrate that it was called.
@@ -57,196 +57,196 @@
 #include <time.h>
 #include "slapi-plugin.h"
 
-#define	_ADD	0
-#define _MOD	1
-#define _DEL	2
-#define _MODRDN	3
+#define _ADD 0
+#define _MOD 1
+#define _DEL 2
+#define _MODRDN 3
 
 static char *changelogfile = "/tmp/changelog";
 
-Slapi_PluginDesc postoppdesc = { "test-postop", VENDOR, DS_PACKAGE_VERSION,
-	"sample post-operation plugin" };
+Slapi_PluginDesc postoppdesc = {"test-postop", VENDOR, DS_PACKAGE_VERSION,
+                                "sample post-operation plugin"};
 
-static void write_changelog( int optype, char *dn, void *change, int flag );
+static void write_changelog(int optype, char *dn, void *change, int flag);
 
 /* Current time is a function defined in the server. */
-time_t current_time( void );
+time_t current_time(void);
 
 /* Post-operation plug-in function */
 int
-testpostop_add( Slapi_PBlock *pb )
+testpostop_add(Slapi_PBlock *pb)
 {
-	Slapi_Entry	*e;
-	char		*dn;
+    Slapi_Entry *e;
+    char *dn;
 
-	/* Get the entry that has been added and the DN of
-	   that entry. */
-	if ( slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN,
-		    "testpostop_add", "Could not get parameters\n" );
-		return( -1 );
-	}
+    /* Get the entry that has been added and the DN of
+       that entry. */
+    if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0 ||
+        slapi_pblock_get(pb, SLAPI_ADD_TARGET, &dn) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN,
+                      "testpostop_add", "Could not get parameters\n");
+        return (-1);
+    }
 
-	/* Log the DN of the newly added entry in the server error log. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_add",
-		"Added entry (%s)\n", dn );
+    /* Log the DN of the newly added entry in the server error log. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_add",
+                  "Added entry (%s)\n", dn);
 
-	/* Log the DN and the entry to the change log file. */
-	write_changelog( _ADD, dn, (void *) e, 0 );
+    /* Log the DN and the entry to the change log file. */
+    write_changelog(_ADD, dn, (void *)e, 0);
 
-	return( 0 );	/* allow the operation to continue */
+    return (0); /* allow the operation to continue */
 }
 
 /* Post-operation plug-in function. */
 int
-testpostop_mod( Slapi_PBlock *pb )
+testpostop_mod(Slapi_PBlock *pb)
 {
-	char	*dn;
-	LDAPMod	**mods;
+    char *dn;
+    LDAPMod **mods;
 
-	/* Get the DN of the modified entry and the modifications made. */
-	if ( slapi_pblock_get( pb, SLAPI_MODIFY_TARGET, &dn ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN,
-		    "testpostop_mod", "Could not get parameters\n" );
-		return( -1 );
-	}
+    /* Get the DN of the modified entry and the modifications made. */
+    if (slapi_pblock_get(pb, SLAPI_MODIFY_TARGET, &dn) != 0 ||
+        slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN,
+                      "testpostop_mod", "Could not get parameters\n");
+        return (-1);
+    }
 
-	/* Log the DN of the modified entry to the server error log. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_mod", 
-		"Modified entry (%s)\n", dn );
+    /* Log the DN of the modified entry to the server error log. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_mod",
+                  "Modified entry (%s)\n", dn);
 
-	/* Log the DN and the modifications made to the change log file. */
-	write_changelog( _MOD, dn, (void *) mods, 0 );
+    /* Log the DN and the modifications made to the change log file. */
+    write_changelog(_MOD, dn, (void *)mods, 0);
 
-	return( 0 );	/* allow the operation to continue */
+    return (0); /* allow the operation to continue */
 }
 
 /* Post-operation plug-in function */
 int
-testpostop_del( Slapi_PBlock *pb )
+testpostop_del(Slapi_PBlock *pb)
 {
-	char	*dn;
+    char *dn;
 
-	/* Get the DN of the entry that was removed from the directory. */
-	if ( slapi_pblock_get( pb, SLAPI_DELETE_TARGET, &dn ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN,
-		    "testpostop_del", "Could not get parameters\n" );
-		return( -1 );
-	}
+    /* Get the DN of the entry that was removed from the directory. */
+    if (slapi_pblock_get(pb, SLAPI_DELETE_TARGET, &dn) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN,
+                      "testpostop_del", "Could not get parameters\n");
+        return (-1);
+    }
 
-	/* Log the DN of the deleted entry to the server error log. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_del",
-		"Deleted entry (%s)\n", dn );
+    /* Log the DN of the deleted entry to the server error log. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_del",
+                  "Deleted entry (%s)\n", dn);
 
-	/* Log the DN of the deleted entry to the change log. */
-	write_changelog( _DEL, dn, NULL, 0 );
+    /* Log the DN of the deleted entry to the change log. */
+    write_changelog(_DEL, dn, NULL, 0);
 
-	return( 0 );	/* allow the operation to continue */
+    return (0); /* allow the operation to continue */
 }
 
 /* Post-operation plug-in function */
 int
-testpostop_modrdn( Slapi_PBlock *pb )
+testpostop_modrdn(Slapi_PBlock *pb)
 {
-	char	*dn;
-	char	*newrdn;
-	int	dflag;
+    char *dn;
+    char *newrdn;
+    int dflag;
 
-	/* Get the DN of the renamed entry, the new RDN of the entry,
-	   and the flag indicating whether or not the old RDN was
-	   removed from the entry. */
-	if ( slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &dflag ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN,
-		    "testpostop_modrdn", "Could not get parameters\n" );
-		return( -1 );
-	}
+    /* Get the DN of the renamed entry, the new RDN of the entry,
+       and the flag indicating whether or not the old RDN was
+       removed from the entry. */
+    if (slapi_pblock_get(pb, SLAPI_MODRDN_TARGET, &dn) != 0 ||
+        slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn) != 0 ||
+        slapi_pblock_get(pb, SLAPI_MODRDN_DELOLDRDN, &dflag) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN,
+                      "testpostop_modrdn", "Could not get parameters\n");
+        return (-1);
+    }
 
-	/* Log the DN of the renamed entry to the server error log. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_modrdn", 
-		"modrdn entry (%s)\n", dn );
+    /* Log the DN of the renamed entry to the server error log. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_modrdn",
+                  "modrdn entry (%s)\n", dn);
 
-	/* Log the DN of the renamed entry, its new RDN, and the
-	   flag (the one indicating whether or not the old RDN was
-	   removed from the entry) to the change log. */
-	write_changelog( _MODRDN, dn, (void *) newrdn, dflag );
+    /* Log the DN of the renamed entry, its new RDN, and the
+       flag (the one indicating whether or not the old RDN was
+       removed from the entry) to the change log. */
+    write_changelog(_MODRDN, dn, (void *)newrdn, dflag);
 
-	return( 0 );	/* allow the operation to continue */
+    return (0); /* allow the operation to continue */
 }
 
 /* Post-operation plug-in function */
 int
-testpostop_abandon( Slapi_PBlock *pb )
+testpostop_abandon(Slapi_PBlock *pb)
 {
-	int		msgid;
+    int msgid;
 
-	/* Get the LDAP message ID of the abandoned operation */
-	if ( slapi_pblock_get( pb, SLAPI_ABANDON_MSGID, &msgid ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN,
-		"testpostop_abandon", "Could not get parameters\n" );
-		return( -1 );
-	}
+    /* Get the LDAP message ID of the abandoned operation */
+    if (slapi_pblock_get(pb, SLAPI_ABANDON_MSGID, &msgid) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN,
+                      "testpostop_abandon", "Could not get parameters\n");
+        return (-1);
+    }
 
-	/* Log information about the abandon operation to the
-	   server error log. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_abandon",  
-		"Postoperation abandon function called.\n" 
-		"\tTarget MsgID: %d\n",
-		msgid );
+    /* Log information about the abandon operation to the
+       server error log. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_abandon",
+                  "Postoperation abandon function called.\n"
+                  "\tTarget MsgID: %d\n",
+                  msgid);
 
-	return( 0 );	/* allow the operation to continue */
+    return (0); /* allow the operation to continue */
 }
 
 /* Initialization function */
 int
-testpostop_init( Slapi_PBlock *pb )
+testpostop_init(Slapi_PBlock *pb)
 {
-	/* Register the four post-operation plug-in functions, 
-	   and specify the server plug-in version. */
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    			SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-				(void *)&postoppdesc ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_ADD_FN,
-				(void *) testpostop_add ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODIFY_FN,
-				(void *) testpostop_mod ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_DELETE_FN,
-                                (void *) testpostop_del ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODRDN_FN,
-                                (void *) testpostop_modrdn ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_ABANDON_FN,
-                                (void *) testpostop_abandon ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_init",
-			 "Failed to set version and functions\n" );
-		return( -1 );
-	}
-	return( 0 );
+    /* Register the four post-operation plug-in functions,
+       and specify the server plug-in version. */
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                         SLAPI_PLUGIN_VERSION_01) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                         (void *)&postoppdesc) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN,
+                         (void *)testpostop_add) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN,
+                         (void *)testpostop_mod) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN,
+                         (void *)testpostop_del) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN,
+                         (void *)testpostop_modrdn) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ABANDON_FN,
+                         (void *)testpostop_abandon) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testpostop_init",
+                      "Failed to set version and functions\n");
+        return (-1);
+    }
+    return (0);
 }
 
 /* Function for generating a newly allocated string that contains the
-   specified time.  The time is expressed as generalizedTime, except 
+   specified time.  The time is expressed as generalizedTime, except
    without the time zone. */
-static char*
-format_localTime( time_t timeval )
+static char *
+format_localTime(time_t timeval)
 {
-    char* into;
+    char *into;
     struct tm t;
-    localtime_r (&timeval, &t);
-    
+    localtime_r(&timeval, &t);
+
     /* Allocate memory for the formatted string.  (slapi_ch_malloc()
        should be used in server plug-ins instead of malloc().)
        This string is freed by the calling function write_changelog(). */
     into = slapi_ch_malloc(15);
-    sprintf (into, "%.4li%.2i%.2i%.2i%.2i%.2i",
-	     1900L + t.tm_year, 1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    sprintf(into, "%.4li%.2i%.2i%.2i%.2i%.2i",
+            1900L + t.tm_year, 1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
     return into;
 }
 
-/* Logs information on an operation to a change log file. 
+/* Logs information on an operation to a change log file.
    Parameters;
    - optype is type of LDAP operation to record:
      - _ADD for LDAP add operations
@@ -267,107 +267,106 @@ format_localTime( time_t timeval )
 */
 static void
 write_changelog(
-    int			optype,
-    char		*dn,
-    void		*change,
-    int			flag
-)
+    int optype,
+    char *dn,
+    void *change,
+    int flag)
 {
-    LDAPMod	**mods;
-    Slapi_Entry	*e;
-    char	*newrdn, *tmp, *tmpsave;
-    FILE	*fp;
-    int		len, i, j;
-    char*	timestr;
+    LDAPMod **mods;
+    Slapi_Entry *e;
+    char *newrdn, *tmp, *tmpsave;
+    FILE *fp;
+    int len, i, j;
+    char *timestr;
 
     /* Open the change log file */
-	if ( changelogfile == NULL ) {
-		return;
-	}
-	if ( (fp = fopen( changelogfile, "ab" )) == NULL ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "write_changelog", 
-			"Could not open log file %s\n", changelogfile );
-		return;
-	}
+    if (changelogfile == NULL) {
+        return;
+    }
+    if ((fp = fopen(changelogfile, "ab")) == NULL) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "write_changelog",
+                      "Could not open log file %s\n", changelogfile);
+        return;
+    }
 
     /* Log the current time of the operation in generalizedTime form */
-    timestr = format_localTime( current_time() );
-    fprintf( fp, "time: %s\n", timestr );
-    slapi_ch_free( ( void ** ) &timestr);
+    timestr = format_localTime(current_time());
+    fprintf(fp, "time: %s\n", timestr);
+    slapi_ch_free((void **)&timestr);
     timestr = NULL;
 
     /* Print the DN of the entry affected by the operation. */
-    fprintf( fp, "dn: %s\n", dn );
+    fprintf(fp, "dn: %s\n", dn);
 
     /* Log information about the operation */
-    switch ( optype ) {
+    switch (optype) {
     case _MOD:
-	/* For modify operations, log the attribute type
-	   that has been added, replaced, or deleted. */
-	fprintf( fp, "changetype: modify\n" );
-	mods = (LDAPMod **)change;
-	for ( j = 0; (mods != NULL) && (mods[j] != NULL); j++ ) {
-	    switch ( mods[j]->mod_op & ~LDAP_MOD_BVALUES ) {
-	    case LDAP_MOD_ADD:
-		fprintf( fp, "add: %s\n", mods[j]->mod_type );
-		break;
+        /* For modify operations, log the attribute type
+       that has been added, replaced, or deleted. */
+        fprintf(fp, "changetype: modify\n");
+        mods = (LDAPMod **)change;
+        for (j = 0; (mods != NULL) && (mods[j] != NULL); j++) {
+            switch (mods[j]->mod_op & ~LDAP_MOD_BVALUES) {
+            case LDAP_MOD_ADD:
+                fprintf(fp, "add: %s\n", mods[j]->mod_type);
+                break;
 
-	    case LDAP_MOD_DELETE:
-		fprintf( fp, "delete: %s\n", mods[j]->mod_type );
-		break;
+            case LDAP_MOD_DELETE:
+                fprintf(fp, "delete: %s\n", mods[j]->mod_type);
+                break;
 
-	    case LDAP_MOD_REPLACE:
-		fprintf( fp, "replace: %s\n", mods[j]->mod_type );
-		break;
-	    }
+            case LDAP_MOD_REPLACE:
+                fprintf(fp, "replace: %s\n", mods[j]->mod_type);
+                break;
+            }
 
-	    for ( i = 0; mods[j]->mod_bvalues != NULL &&
-		    mods[j]->mod_bvalues[i] != NULL; i++ ) {
-		/* XXX should handle binary values XXX */
-		fprintf( fp, "%s: %s\n", mods[j]->mod_type,
-		    mods[j]->mod_bvalues[i]->bv_val );
-	    }
-	    fprintf( fp, "-\n" );
-	}
-	break;
+            for (i = 0; mods[j]->mod_bvalues != NULL &&
+                        mods[j]->mod_bvalues[i] != NULL;
+                 i++) {
+                /* XXX should handle binary values XXX */
+                fprintf(fp, "%s: %s\n", mods[j]->mod_type,
+                        mods[j]->mod_bvalues[i]->bv_val);
+            }
+            fprintf(fp, "-\n");
+        }
+        break;
 
     case _ADD:
-	/* For LDAP add operations, log the newly added entry. */
-	e = (Slapi_Entry *)change;
-	fprintf( fp, "changetype: add\n" );
-	/* Get the LDIF string representation of the entry. */
-	tmp = slapi_entry2str( e, &len );
-	tmpsave = tmp;
-	/* Skip the first line, which is the dn: line */
-	while (( tmp = strchr( tmp, '\n' )) != NULL ) {
-	    tmp++;
-	    if ( !isspace( *tmp )) {
-		break;
-	    }
-	}
-	fprintf( fp, "%s", tmp );
-	slapi_ch_free( (void **)&tmpsave );
-	break;
+        /* For LDAP add operations, log the newly added entry. */
+        e = (Slapi_Entry *)change;
+        fprintf(fp, "changetype: add\n");
+        /* Get the LDIF string representation of the entry. */
+        tmp = slapi_entry2str(e, &len);
+        tmpsave = tmp;
+        /* Skip the first line, which is the dn: line */
+        while ((tmp = strchr(tmp, '\n')) != NULL) {
+            tmp++;
+            if (!isspace(*tmp)) {
+                break;
+            }
+        }
+        fprintf(fp, "%s", tmp);
+        slapi_ch_free((void **)&tmpsave);
+        break;
 
     case _DEL:
-	/* For the LDAP delete operation, log the DN of the
-	   removed entry.  (Since this is already done earlier,
-	   the plug-in just needs to note the type of operation
-	   performed. */
-	fprintf( fp, "changetype: delete\n" );
-	break;
+        /* For the LDAP delete operation, log the DN of the
+       removed entry.  (Since this is already done earlier,
+       the plug-in just needs to note the type of operation
+       performed. */
+        fprintf(fp, "changetype: delete\n");
+        break;
 
     case _MODRDN:
-	/* For the LDAP modify RDN operation, log the new RDN
-	   and the flag indicating whether or not the old RDN
-	   was removed. */
-	newrdn = (char *)change;
-	fprintf( fp, "changetype: modrdn\n" );
-	fprintf( fp, "newrdn: %s\n", newrdn );
-	fprintf( fp, "deleteoldrdn: %d\n", flag ? 1 : 0 );
+        /* For the LDAP modify RDN operation, log the new RDN
+       and the flag indicating whether or not the old RDN
+       was removed. */
+        newrdn = (char *)change;
+        fprintf(fp, "changetype: modrdn\n");
+        fprintf(fp, "newrdn: %s\n", newrdn);
+        fprintf(fp, "deleteoldrdn: %d\n", flag ? 1 : 0);
     }
-    fprintf( fp, "\n" );
+    fprintf(fp, "\n");
 
-    fclose( fp );
+    fclose(fp);
 }
-

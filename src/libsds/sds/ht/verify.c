@@ -17,7 +17,8 @@ sds_ht_crc32c_update_node(sds_ht_node *node)
 }
 
 sds_result
-sds_ht_crc32c_verify_node(sds_ht_node *node) {
+sds_ht_crc32c_verify_node(sds_ht_node *node)
+{
     if (sds_crc32c(0, (const unsigned char *)node + sizeof(uint32_t), sizeof(sds_ht_node) - sizeof(uint32_t)) == node->checksum) {
         return SDS_SUCCESS;
     } else {
@@ -32,7 +33,8 @@ sds_ht_crc32c_update_instance(sds_ht_instance *inst)
 }
 
 sds_result
-sds_ht_crc32c_verify_instance(sds_ht_instance *inst) {
+sds_ht_crc32c_verify_instance(sds_ht_instance *inst)
+{
     if (sds_crc32c(0, (const unsigned char *)inst + sizeof(uint32_t), sizeof(sds_ht_instance) - sizeof(uint32_t)) == inst->checksum) {
         return SDS_SUCCESS;
     } else {
@@ -41,12 +43,14 @@ sds_ht_crc32c_verify_instance(sds_ht_instance *inst) {
 }
 
 void
-sds_ht_crc32c_update_value(sds_ht_value *value) {
+sds_ht_crc32c_update_value(sds_ht_value *value)
+{
     value->checksum = sds_crc32c(0, (const unsigned char *)value + sizeof(uint32_t), sizeof(sds_ht_value) - sizeof(uint32_t));
 }
 
 sds_result
-sds_ht_crc32c_verify_value(sds_ht_value *value) {
+sds_ht_crc32c_verify_value(sds_ht_value *value)
+{
     if (sds_crc32c(0, (const unsigned char *)value + sizeof(uint32_t), sizeof(sds_ht_value) - sizeof(uint32_t)) == value->checksum) {
         return SDS_SUCCESS;
     } else {
@@ -71,14 +75,14 @@ sds_ht_verify_node(sds_ht_instance *ht_ptr, sds_ht_node *node)
         if (slot->state == SDS_HT_EMPTY) {
             if (slot->slot.value != NULL) {
 #ifdef SDS_DEBUG
-                sds_log("sds_ht_verify_node", "Failing ht_node_%p - invalid empty node c_slot 0x%"PRIu64, node, i);
+                sds_log("sds_ht_verify_node", "Failing ht_node_%p - invalid empty node c_slot 0x%" PRIu64, node, i);
 #endif
                 return SDS_INVALID_NODE;
             }
         } else if (slot->state == SDS_HT_VALUE) {
             if (slot->slot.value == NULL) {
 #ifdef SDS_DEBUG
-                sds_log("sds_ht_verify_node", "Failing ht_node_%p - invalid value pointer of NULL c_slot 0x%"PRIu64, node);
+                sds_log("sds_ht_verify_node", "Failing ht_node_%p - invalid value pointer of NULL c_slot 0x%" PRIu64, node);
 #endif
                 return SDS_INVALID_POINTER;
             }
@@ -91,14 +95,13 @@ sds_ht_verify_node(sds_ht_instance *ht_ptr, sds_ht_node *node)
             // Check the value is sane.
         } else {
             // It's a branch
-            if (slot->slot.node == NULL ) {
+            if (slot->slot.node == NULL) {
 #ifdef SDS_DEBUG
                 sds_log("sds_ht_verify_node", "Failing ht_node_%p - invalid branch, can not be NULL", node);
 #endif
                 return SDS_INVALID_POINTER;
             }
         }
-
     }
     if (count != node->count) {
 #ifdef SDS_DEBUG
@@ -131,7 +134,7 @@ sds_ht_verify_node(sds_ht_instance *ht_ptr, sds_ht_node *node)
     }
 
 #ifdef SDS_DEBUG
-    sds_log("sds_ht_verify_node", "ht_node_%p depth= %"PRIu64" count=%"PRIu64, node, node->depth, node->count);
+    sds_log("sds_ht_verify_node", "ht_node_%p depth= %" PRIu64 " count=%" PRIu64, node, node->depth, node->count);
 #endif
     return SDS_SUCCESS;
 }
@@ -149,4 +152,3 @@ sds_ht_verify(sds_ht_instance *ht_ptr)
     // Map all our nodes
     return sds_ht_map_nodes(ht_ptr, sds_ht_verify_node);
 }
-

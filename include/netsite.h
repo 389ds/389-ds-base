@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef NETSITE_H
@@ -28,8 +28,8 @@
 */
 #ifndef NSPR_BEGIN_EXTERN_C
 #ifdef __cplusplus
-#define NSPR_BEGIN_EXTERN_C	extern "C" {
-#define NSPR_END_EXTERN_C	}
+#define NSPR_BEGIN_EXTERN_C extern "C" {
+#define NSPR_END_EXTERN_C }
 #else
 #define NSPR_BEGIN_EXTERN_C
 #define NSPR_END_EXTERN_C
@@ -49,12 +49,12 @@
 #define VOID void
 #endif
 
-#if !defined (boolean) && !defined (__GNUC__)
-typedef int                  boolean;
+#if !defined(boolean) && !defined(__GNUC__)
+typedef int boolean;
 #endif
 
-#define NS_TRUE              1
-#define NS_FALSE             0
+#define NS_TRUE 1
+#define NS_FALSE 0
 
 NSPR_BEGIN_EXTERN_C
 
@@ -84,7 +84,7 @@ NSAPI_PUBLIC void *INTsystem_calloc_perm(int size, int line, char *file);
 #define PERM_REALLOC(ptr, size) INTsystem_realloc_perm(ptr, size, __LINE__, __FILE__)
 NSAPI_PUBLIC void *INTsystem_realloc_perm(void *ptr, int size, int line, char *file);
 
-#define PERM_FREE(ptr) INTsystem_free_perm((void *) ptr, __LINE__, __FILE__)
+#define PERM_FREE(ptr) INTsystem_free_perm((void *)ptr, __LINE__, __FILE__)
 NSAPI_PUBLIC void INTsystem_free_perm(void *ptr, int line, char *file);
 
 #define PERM_STRDUP(ptr) INTsystem_strdup_perm(ptr, __LINE__, __FILE__)
@@ -98,7 +98,7 @@ NSAPI_PUBLIC char *INTsystem_strdup_perm(const char *ptr, int line, char *file);
 void setThreadMallocKey(int key);
 
 /* This probably belongs somewhere else, perhaps with a different name */
-NSAPI_PUBLIC char *INTdns_guess_domain(char * hname);
+NSAPI_PUBLIC char *INTdns_guess_domain(char *hname);
 
 /* --- Begin public functions --- */
 
@@ -107,9 +107,9 @@ NSAPI_PUBLIC char *INTdns_guess_domain(char * hname);
 NSAPI_PUBLIC char *INTsystem_version(void);
 
 /*
-   Depending on the system, memory allocated via these macros may come from 
-   an arena. If these functions are called from within an Init function, they 
-   will be allocated from permanent storage. Otherwise, they will be freed 
+   Depending on the system, memory allocated via these macros may come from
+   an arena. If these functions are called from within an Init function, they
+   will be allocated from permanent storage. Otherwise, they will be freed
    when the current request is finished.
  */
 
@@ -122,7 +122,7 @@ NSAPI_PUBLIC void *INTsystem_calloc(int size);
 #define REALLOC(ptr, size) INTsystem_realloc(ptr, size)
 NSAPI_PUBLIC void *INTsystem_realloc(void *ptr, int size);
 
-#define FREE(ptr) INTsystem_free((void *) ptr)
+#define FREE(ptr) INTsystem_free((void *)ptr)
 NSAPI_PUBLIC void INTsystem_free(void *ptr);
 
 #define STRDUP(ptr) INTsystem_strdup(ptr)
@@ -144,7 +144,7 @@ NSAPI_PUBLIC void *INTsystem_calloc_perm(int size);
 #define PERM_REALLOC(ptr, size) INTsystem_realloc_perm(ptr, size)
 NSAPI_PUBLIC void *INTsystem_realloc_perm(void *ptr, int size);
 
-#define PERM_FREE(ptr) INTsystem_free_perm((void *) ptr)
+#define PERM_FREE(ptr) INTsystem_free_perm((void *)ptr)
 NSAPI_PUBLIC void INTsystem_free_perm(void *ptr);
 
 #define PERM_STRDUP(ptr) INTsystem_strdup_perm(ptr)

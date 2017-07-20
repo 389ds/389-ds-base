@@ -4,14 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-#if defined( macintosh ) || defined( NEED_BSDREGEX )
+#if defined(macintosh) || defined(NEED_BSDREGEX)
 /*
  * Copyright (c) 1993 Regents of the University of Michigan.
  * All rights reserved.
@@ -32,13 +32,13 @@
 extern "C" {
 #endif
 
-#include "ldap.h" 
+#include "ldap.h"
 
-#if !defined( NEEDPROTOS ) && defined( __STDC__ )
+#if !defined(NEEDPROTOS) && defined(__STDC__)
 #define NEEDPROTOS
 #endif
 
-#ifdef _SLDAPD_H_	/* server build: no need to use LDAP_CALL stuff */
+#ifdef _SLDAPD_H_ /* server build: no need to use LDAP_CALL stuff */
 #ifdef LDAP_CALL
 #undef LDAP_CALL
 #define LDAP_CALL
@@ -46,24 +46,24 @@ extern "C" {
 #endif
 
 #ifdef NEEDPROTOS
-int re_init( void );
-void re_lock( void );
-int re_unlock( void );
-char *  re_comp( char *pat );
-int re_exec( char *lp );
-void  re_modw( char *s );
-int  re_subs( char *src, char *dst );
-#else /* NEEDPROTOS */
+int re_init(void);
+void re_lock(void);
+int re_unlock(void);
+char *re_comp(char *pat);
+int re_exec(char *lp);
+void re_modw(char *s);
+int re_subs(char *src, char *dst);
+#else  /* NEEDPROTOS */
 int re_init();
 void re_lock();
 int re_unlock();
-char *  re_comp();
-int  re_exec();
-void  re_modw();
-int  re_subs();
+char *re_comp();
+int re_exec();
+void re_modw();
+int re_subs();
 #endif /* NEEDPROTOS */
 
-#define re_fail( m, p )
+#define re_fail(m, p)
 
 #ifdef __cplusplus
 }

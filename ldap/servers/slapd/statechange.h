@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -34,13 +34,13 @@ typedef void (*api_statechange_unregister_all)(char *caller_id, caller_data_free
 /* the api broker reserves api[0] for its use */
 
 #define statechange_register(api, caller_id, dn, filter, caller, func) \
-	((api_statechange_register*)(api))[1]( caller_id, dn, filter, caller, func)
+    ((api_statechange_register *)(api))[1](caller_id, dn, filter, caller, func)
 
 #define statechange_unregister(api, dn, filter, func) \
-	((api_statechange_unregister*)(api))[2]( dn, filter, func)
+    ((api_statechange_unregister *)(api))[2](dn, filter, func)
 
 #define statechange_unregister_all(api, caller_id, callback) \
-	((api_statechange_unregister*)(api))[3](caller_id, callback)
+    ((api_statechange_unregister *)(api))[3](caller_id, callback)
 
 /* Vattr state change handler to be passed to statechange_register() by va sps*/
 #define statechange_vattr_cache_invalidator_callback(api) api[4]

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* ldbm_config.c - Handles configuration information that is global to all ldbm instances. */
@@ -20,34 +20,34 @@
 static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
 
 /* Forward callback declarations */
-int ldbm_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
-int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
+int ldbm_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 
 static char *ldbm_skeleton_entries[] =
-{
-    "dn:cn=config, cn=%s, cn=plugins, cn=config\n"
-    "objectclass:top\n"
-    "objectclass:extensibleObject\n"
-    "cn:config\n",
+    {
+        "dn:cn=config, cn=%s, cn=plugins, cn=config\n"
+        "objectclass:top\n"
+        "objectclass:extensibleObject\n"
+        "cn:config\n",
 
-    "dn:cn=monitor, cn=%s, cn=plugins, cn=config\n"
-    "objectclass:top\n"
-    "objectclass:extensibleObject\n"
-    "cn:monitor\n",
+        "dn:cn=monitor, cn=%s, cn=plugins, cn=config\n"
+        "objectclass:top\n"
+        "objectclass:extensibleObject\n"
+        "cn:monitor\n",
 
-    "dn:cn=database, cn=monitor, cn=%s, cn=plugins, cn=config\n"
-    "objectclass:top\n"
-    "objectclass:extensibleObject\n"
-    "cn:database\n",
+        "dn:cn=database, cn=monitor, cn=%s, cn=plugins, cn=config\n"
+        "objectclass:top\n"
+        "objectclass:extensibleObject\n"
+        "cn:database\n",
 
-    ""
-};
+        ""};
 
-/* Used to add an array of entries, like the one above and 
- * ldbm_instance_skeleton_entries in ldbm_instance_config.c, to the dse. 
+/* Used to add an array of entries, like the one above and
+ * ldbm_instance_skeleton_entries in ldbm_instance_config.c, to the dse.
  * Returns 0 on success.
  */
-int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, char *string2, char *string3, int flags)
+int
+ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, char *string2, char *string3, int flags)
 {
     int x;
     Slapi_Entry *e;
@@ -62,13 +62,13 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
         dont_write_file = 1;
     }
 
-    for(x = 0; strlen(entries[x]) > 0; x++) {
+    for (x = 0; strlen(entries[x]) > 0; x++) {
         util_pb = slapi_pblock_new();
         PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
         PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)); /* for logging */
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
-        slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, 
+        slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING,
                          &dont_write_file);
         rc = slapi_add_internal_pb(util_pb);
         slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
@@ -78,8 +78,8 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
             slapi_log_err(SLAPI_LOG_TRACE, "ldbm_config_add_dse_entries", "Database config entry [%s] already exists - skipping\n", ebuf);
         } else {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_add_dse_entries",
-                    "Unable to add config entry [%s] to the DSE: %d %d\n",
-                    ebuf, result, rc);
+                          "Unable to add config entry [%s] to the DSE: %d %d\n",
+                          ebuf, result, rc);
         }
         slapi_pblock_destroy(util_pb);
     }
@@ -88,9 +88,10 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
 }
 
 /* used to add a single entry, special case of above */
-int ldbm_config_add_dse_entry(struct ldbminfo *li, char *entry, int flags)
+int
+ldbm_config_add_dse_entry(struct ldbminfo *li, char *entry, int flags)
 {
-    char *entries[] = { "%s", "" };
+    char *entries[] = {"%s", ""};
 
     return ldbm_config_add_dse_entries(li, entries, entry, NULL, NULL, flags);
 }
@@ -98,11 +99,12 @@ int ldbm_config_add_dse_entry(struct ldbminfo *li, char *entry, int flags)
 /* Finds an entry in a config_info array with the given name.  Returns
  * the entry on success and NULL when not found.
  */
-config_info *get_config_info(config_info *config_array, char *attr_name)
+config_info *
+get_config_info(config_info *config_array, char *attr_name)
 {
     int x;
 
-    for(x = 0; config_array[x].config_name != NULL; x++) {
+    for (x = 0; config_array[x].config_name != NULL; x++) {
         if (!strcasecmp(config_array[x].config_name, attr_name)) {
             return &(config_array[x]);
         }
@@ -113,18 +115,20 @@ config_info *get_config_info(config_info *config_array, char *attr_name)
 /*------------------------------------------------------------------------
  * Get and set functions for ldbm and dblayer variables
  *----------------------------------------------------------------------*/
-static void *ldbm_config_lookthroughlimit_get(void *arg) 
+static void *
+ldbm_config_lookthroughlimit_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_lookthroughlimit));
+    return (void *)((uintptr_t)(li->li_lookthroughlimit));
 }
 
-static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -135,18 +139,20 @@ static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorb
     return retval;
 }
 
-static void *ldbm_config_pagedlookthroughlimit_get(void *arg)
+static void *
+ldbm_config_pagedlookthroughlimit_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_pagedlookthroughlimit));
+    return (void *)((uintptr_t)(li->li_pagedlookthroughlimit));
 }
 
-static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+static int
+ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -157,18 +163,20 @@ static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *e
     return retval;
 }
 
-static void *ldbm_config_rangelookthroughlimit_get(void *arg) 
+static void *
+ldbm_config_rangelookthroughlimit_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_rangelookthroughlimit));
+    return (void *)((uintptr_t)(li->li_rangelookthroughlimit));
 }
 
-static int ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -179,18 +187,20 @@ static int ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *e
     return retval;
 }
 
-static void *ldbm_config_backend_opt_level_get(void *arg) 
+static void *
+ldbm_config_backend_opt_level_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_backend_opt_level));
+    return (void *)((uintptr_t)(li->li_backend_opt_level));
 }
 
-static int ldbm_config_backend_opt_level_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_backend_opt_level_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -200,18 +210,20 @@ static int ldbm_config_backend_opt_level_set(void *arg, void *value, char *error
 
     return retval;
 }
-static void *ldbm_config_mode_get(void *arg) 
+static void *
+ldbm_config_mode_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_mode));
+    return (void *)((uintptr_t)(li->li_mode));
 }
 
-static int ldbm_config_mode_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_mode_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -222,18 +234,20 @@ static int ldbm_config_mode_set(void *arg, void *value, char *errorbuf __attribu
     return retval;
 }
 
-static void *ldbm_config_allidsthreshold_get(void *arg) 
+static void *
+ldbm_config_allidsthreshold_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_allidsthreshold));
+    return (void *)((uintptr_t)(li->li_allidsthreshold));
 }
 
-static int ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -249,18 +263,20 @@ static int ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbu
     return retval;
 }
 
-static void *ldbm_config_pagedallidsthreshold_get(void *arg) 
+static void *
+ldbm_config_pagedallidsthreshold_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_pagedallidsthreshold));
+    return (void *)((uintptr_t)(li->li_pagedallidsthreshold));
 }
 
-static int ldbm_config_pagedallidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+static int
+ldbm_config_pagedallidsthreshold_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     /* Do whatever we can to make sure the data is ok. */
 
@@ -277,20 +293,22 @@ static int ldbm_config_pagedallidsthreshold_set(void *arg, void *value, char *er
     return retval;
 }
 
-static void *ldbm_config_directory_get(void *arg) 
+static void *
+ldbm_config_directory_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
     /* Remember get functions of type string need to return
      * alloced memory. */
-    return (void *) slapi_ch_strdup(li->li_new_directory);
+    return (void *)slapi_ch_strdup(li->li_new_directory);
 }
 
-static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int
+ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int phase, int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    char *val = (char *) value;
+    char *val = (char *)value;
     char tmpbuf[BUFSIZ];
 
     if (errorbuf) {
@@ -303,22 +321,22 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
     }
 
     if (CONFIG_PHASE_RUNNING == phase) {
-        slapi_ch_free((void **) &(li->li_new_directory));
+        slapi_ch_free((void **)&(li->li_new_directory));
         li->li_new_directory = rel2abspath(val); /* normalize the path;
                                                     strdup'ed in rel2abspath */
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_directory_set",
-                "New db directory location will not take affect until the server is restarted\n");
+                      "New db directory location will not take affect until the server is restarted\n");
     } else {
-        slapi_ch_free((void **) &(li->li_new_directory));
-        slapi_ch_free((void **) &(li->li_directory));
+        slapi_ch_free((void **)&(li->li_new_directory));
+        slapi_ch_free((void **)&(li->li_directory));
         if (NULL == val || '\0' == *val) {
-            slapi_log_err(SLAPI_LOG_ERR, 
-                "ldbm_config_directory_set", "db directory is not set; check %s in the db config: %s\n",
-                CONFIG_DIRECTORY, CONFIG_LDBM_DN);
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "ldbm_config_directory_set", "db directory is not set; check %s in the db config: %s\n",
+                          CONFIG_DIRECTORY, CONFIG_LDBM_DN);
             retval = LDAP_PARAM_ERROR;
         } else {
             if (0 == strcmp(val, "get default")) {
-                /* We use this funky "get default" string for the caller to 
+                /* We use this funky "get default" string for the caller to
                  * tell us that it has no idea what the db directory should
                  * be.  This code figures it out be reading "cn=config,cn=ldbm
                  * database,cn=plugins,cn=config" entry. */
@@ -328,54 +346,52 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
                 Slapi_Value *v = NULL;
                 const char *s = NULL;
                 int res;
-    
+
                 search_pb = slapi_pblock_new();
                 slapi_search_internal_set_pb(search_pb, CONFIG_LDBM_DN,
-                        LDAP_SCOPE_BASE, "objectclass=*", NULL, 0, NULL, NULL,
-                        li->li_identity, 0);
+                                             LDAP_SCOPE_BASE, "objectclass=*", NULL, 0, NULL, NULL,
+                                             li->li_identity, 0);
                 slapi_search_internal_pb(search_pb);
                 slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
-    
+
                 if (res != LDAP_SUCCESS) {
-                    slapi_log_err(SLAPI_LOG_ERR, 
-                              "ldbm_config_directory_set", "ldbm plugin unable to read %s\n",
-                              CONFIG_LDBM_DN);
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "ldbm_config_directory_set", "ldbm plugin unable to read %s\n",
+                                  CONFIG_LDBM_DN);
                     retval = res;
                     goto done;
                 }
-    
+
                 slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
                 if (NULL == entries) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                              "ldbm_config_directory_set", "ldbm plugin unable to read %s\n",
-                              CONFIG_LDBM_DN);
+                                  "ldbm_config_directory_set", "ldbm plugin unable to read %s\n",
+                                  CONFIG_LDBM_DN);
                     retval = LDAP_OPERATIONS_ERROR;
                     goto done;
                 }
-                
+
                 res = slapi_entry_attr_find(entries[0], "nsslapd-directory", &attr);
                 if (res != 0 || attr == NULL) {
-                    slapi_log_err(SLAPI_LOG_ERR, 
-                              "ldbm_config_directory_set", "ldbm plugin unable to read attribute nsslapd-directory from %s\n",
-                              CONFIG_LDBM_DN);
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "ldbm_config_directory_set", "ldbm plugin unable to read attribute nsslapd-directory from %s\n",
+                                  CONFIG_LDBM_DN);
                     retval = LDAP_OPERATIONS_ERROR;
                     goto done;
                 }
-    
-                if ( slapi_attr_first_value(attr,&v) != 0
-                        || ( NULL == v )
-                        || ( NULL == ( s = slapi_value_get_string( v )))) {
-                    slapi_log_err(SLAPI_LOG_ERR, 
-                              "ldbm_config_directory_set", "ldbm plugin unable to read attribute nsslapd-directory from %s\n",
-                              CONFIG_LDBM_DN);
+
+                if (slapi_attr_first_value(attr, &v) != 0 || (NULL == v) || (NULL == (s = slapi_value_get_string(v)))) {
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "ldbm_config_directory_set", "ldbm plugin unable to read attribute nsslapd-directory from %s\n",
+                                  CONFIG_LDBM_DN);
                     retval = LDAP_OPERATIONS_ERROR;
                     goto done;
                 }
                 slapi_pblock_destroy(search_pb);
                 if (NULL == s || '\0' == s || 0 == PL_strcmp(s, "(null)")) {
-                    slapi_log_err(SLAPI_LOG_ERR, 
-                        "ldbm_config_directory_set", "db directory is not set; check %s in the db config: %s\n",
-                        CONFIG_DIRECTORY, CONFIG_LDBM_DN);
+                    slapi_log_err(SLAPI_LOG_ERR,
+                                  "ldbm_config_directory_set", "db directory is not set; check %s in the db config: %s\n",
+                                  CONFIG_DIRECTORY, CONFIG_LDBM_DN);
                     retval = LDAP_PARAM_ERROR;
                     goto done;
                 }
@@ -383,7 +399,7 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
                 val = tmpbuf;
             }
             li->li_new_directory = rel2abspath(val); /* normalize the path;
-                                                        strdup'ed in 
+                                                        strdup'ed in
                                                         rel2abspath */
             li->li_directory = rel2abspath(val);     /* ditto */
         }
@@ -392,24 +408,26 @@ done:
     return retval;
 }
 
-static void *ldbm_config_dbcachesize_get(void *arg) 
+static void *
+ldbm_config_dbcachesize_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) (li->li_new_dbcachesize);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)(li->li_new_dbcachesize);
 }
 
-static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int
+ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, int phase, int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
     uint64_t val = (size_t)value;
     uint64_t delta = (size_t)value;
 
-    /* There is an error here. We check the new val against our current mem-alloc 
+    /* There is an error here. We check the new val against our current mem-alloc
      * Issue is that we already are using system pages, so while our value *might*
      * be valid, we may reject it here due to the current procs page usage.
-     * 
+     *
      * So how do we solve this? If we are setting a SMALLER value than we
      * currently have ALLOW it, because we already passed the cache sanity.
      * If we are setting a LARGER value, we check the delta of the two, and make
@@ -417,16 +435,16 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
      */
 
     if (apply) {
-        /* Stop the user configuring a stupidly small cache */
-        /* min: 8KB (page size) * def thrd cnts (threadnumber==20). */
-#define DBDEFMINSIZ     500000
+/* Stop the user configuring a stupidly small cache */
+/* min: 8KB (page size) * def thrd cnts (threadnumber==20). */
+#define DBDEFMINSIZ 500000
         /* We allow a value of 0, because the autotuning in start.c will
          * register that, and trigger the recalculation of the dbcachesize as
          * needed on the next start up.
          */
         if (val < DBDEFMINSIZ && val > 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE,"ldbm_config_dbcachesize_set", "cache too small, increasing to %dK bytes\n",
-                    DBDEFMINSIZ/1000);
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_dbcachesize_set", "cache too small, increasing to %dK bytes\n",
+                          DBDEFMINSIZ / 1000);
             val = DBDEFMINSIZ;
         } else if (val > li->li_dbcachesize) {
             delta = val - li->li_dbcachesize;
@@ -436,10 +454,10 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
             sane = util_is_cachesize_sane(mi, &delta);
             spal_meminfo_destroy(mi);
 
-            if (sane != UTIL_CACHESIZE_VALID){
+            if (sane != UTIL_CACHESIZE_VALID) {
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: nsslapd-dbcachesize value is too large.");
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_dbcachesize_set",
-                        "nsslapd-dbcachesize value is too large.\n");
+                              "nsslapd-dbcachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -448,11 +466,11 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
             if (val > 0 && li->li_cache_autosize) {
                 /* We are auto-tuning the cache, so this change would be overwritten - return an error */
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: \"nsslapd-dbcachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
-                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
+                                      "Error: \"nsslapd-dbcachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
+                                      "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_dbcachesize_set",
-                    "\"nsslapd-dbcachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
-                    "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
+                              "\"nsslapd-dbcachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
+                              "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
             li->li_new_dbcachesize = val;
@@ -470,26 +488,28 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
     return retval;
 }
 
-static void *ldbm_config_maxpassbeforemerge_get(void *arg) 
+static void *
+ldbm_config_maxpassbeforemerge_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_maxpassbeforemerge));
+    return (void *)((uintptr_t)(li->li_maxpassbeforemerge));
 }
 
-static int ldbm_config_maxpassbeforemerge_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_maxpassbeforemerge_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         if (val < 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE,"ldbm_config_maxpassbeforemerge_set",
-                   "maxpassbeforemerge will not take negative value - setting to 100\n");
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_maxpassbeforemerge_set",
+                          "maxpassbeforemerge will not take negative value - setting to 100\n");
             val = 100;
-        } 
-        
+        }
+
         li->li_maxpassbeforemerge = val;
     }
 
@@ -497,55 +517,58 @@ static int ldbm_config_maxpassbeforemerge_set(void *arg, void *value, char *erro
 }
 
 
-static void *ldbm_config_dbncache_get(void *arg) 
+static void *
+ldbm_config_dbncache_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)(li->li_new_dbncache));
+    return (void *)((uintptr_t)(li->li_new_dbncache));
 }
 
-static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply) 
+static int
+ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) ((uintptr_t)value);
+    size_t val = (size_t)((uintptr_t)value);
 
     if (apply) {
 
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbncache = val;
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_dbncache_set",
-                   "New nsslapd-dbncache will not take affect until the server is restarted\n");
+                          "New nsslapd-dbncache will not take affect until the server is restarted\n");
         } else {
             li->li_new_dbncache = val;
             li->li_dbncache = val;
         }
-
     }
 
     return retval;
 }
 
-void *ldbm_config_db_logdirectory_get(void *arg)
+void *
+ldbm_config_db_logdirectory_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
     /* Remember get functions of type string need to return
      * alloced memory. */
-    /* if dblayer_log_directory is set to a string different from "" 
+    /* if dblayer_log_directory is set to a string different from ""
      * then it has been set, return this variable
      * otherwise it is set to default, use the instance home directory
      */
     if (strlen(li->li_dblayer_private->dblayer_log_directory) > 0)
-        return (void *) slapi_ch_strdup(li->li_dblayer_private->dblayer_log_directory);
+        return (void *)slapi_ch_strdup(li->li_dblayer_private->dblayer_log_directory);
     else
-        return (void *) slapi_ch_strdup(li->li_new_directory);
+        return (void *)slapi_ch_strdup(li->li_new_directory);
 }
 
 /* Does not return a copy of the string - used by disk space monitoring feature */
-void *ldbm_config_db_logdirectory_get_ext(void *arg)
+void *
+ldbm_config_db_logdirectory_get_ext(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
     if (strlen(li->li_dblayer_private->dblayer_log_directory) > 0)
         return (void *)li->li_dblayer_private->dblayer_log_directory;
@@ -553,58 +576,62 @@ void *ldbm_config_db_logdirectory_get_ext(void *arg)
         return (void *)li->li_new_directory;
 }
 
-static int ldbm_config_db_logdirectory_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_db_logdirectory_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    char *val = (char *) value;
-    
+    char *val = (char *)value;
+
     if (apply) {
-        slapi_ch_free((void **) &(li->li_dblayer_private->dblayer_log_directory));
+        slapi_ch_free((void **)&(li->li_dblayer_private->dblayer_log_directory));
         li->li_dblayer_private->dblayer_log_directory = slapi_ch_strdup(val);
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_durable_transactions_get(void *arg) 
+static void *
+ldbm_config_db_durable_transactions_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_durable_transactions);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_durable_transactions);
 }
 
-static int ldbm_config_db_durable_transactions_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply) 
+static int
+ldbm_config_db_durable_transactions_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-        
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_durable_transactions = val;
     }
-        
+
     return retval;
 }
 
-static void *ldbm_config_db_lockdown_get(void *arg) 
+static void *
+ldbm_config_db_lockdown_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_lockdown);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_lockdown);
 }
 
-static int ldbm_config_db_lockdown_set(
-    void *arg, 
-    void *value, 
-    char *errorbuf __attribute__((unused)), 
-    int phase __attribute__((unused)), 
-    int apply
-) 
+static int
+ldbm_config_db_lockdown_set(
+    void *arg,
+    void *value,
+    char *errorbuf __attribute__((unused)),
+    int phase __attribute__((unused)),
+    int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_lockdown = val;
@@ -613,71 +640,77 @@ static int ldbm_config_db_lockdown_set(
     return retval;
 }
 
-static void *ldbm_config_db_circular_logging_get(void *arg) 
+static void *
+ldbm_config_db_circular_logging_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_circular_logging);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_circular_logging);
 }
 
-static int ldbm_config_db_circular_logging_set(void *arg,
-                                               void *value,
-                                               char *errorbuf __attribute__((unused)),
-                                               int phase __attribute__((unused)),
-                                               int apply)
+static int
+ldbm_config_db_circular_logging_set(void *arg,
+                                    void *value,
+                                    char *errorbuf __attribute__((unused)),
+                                    int phase __attribute__((unused)),
+                                    int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_circular_logging = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_transaction_logging_get(void *arg) 
+static void *
+ldbm_config_db_transaction_logging_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_enable_transactions);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_enable_transactions);
 }
 
-static int ldbm_config_db_transaction_logging_set(void *arg,
-                                                  void *value,
-                                                  char *errorbuf __attribute__((unused)),
-                                                  int phase __attribute__((unused)),
-                                                  int apply)
+static int
+ldbm_config_db_transaction_logging_set(void *arg,
+                                       void *value,
+                                       char *errorbuf __attribute__((unused)),
+                                       int phase __attribute__((unused)),
+                                       int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_enable_transactions = val;
     }
-    
+
     return retval;
 }
 
 
-static void *ldbm_config_db_transaction_wait_get(void *arg)
+static void *
+ldbm_config_db_transaction_wait_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_txn_wait);
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_txn_wait);
 }
 
-static int ldbm_config_db_transaction_wait_set(void *arg,
-                                               void *value,
-                                               char *errorbuf __attribute__((unused)),
-                                               int phase __attribute__((unused)),
-                                               int apply)
+static int
+ldbm_config_db_transaction_wait_set(void *arg,
+                                    void *value,
+                                    char *errorbuf __attribute__((unused)),
+                                    int phase __attribute__((unused)),
+                                    int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_txn_wait = val;
@@ -686,174 +719,188 @@ static int ldbm_config_db_transaction_wait_set(void *arg,
     return retval;
 }
 
-static void *ldbm_config_db_logbuf_size_get(void *arg) 
+static void *
+ldbm_config_db_logbuf_size_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) li->li_dblayer_private->dblayer_logbuf_size;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)li->li_dblayer_private->dblayer_logbuf_size;
 }
 
-static int ldbm_config_db_logbuf_size_set(void *arg,
-                                          void *value,
-                                          char *errorbuf __attribute__((unused)),
-                                          int phase __attribute__((unused)),
-                                          int apply)
+static int
+ldbm_config_db_logbuf_size_set(void *arg,
+                               void *value,
+                               char *errorbuf __attribute__((unused)),
+                               int phase __attribute__((unused)),
+                               int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
-    
+    size_t val = (size_t)value;
+
     if (apply) {
         li->li_dblayer_private->dblayer_logbuf_size = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_checkpoint_interval_get(void *arg) 
+static void *
+ldbm_config_db_checkpoint_interval_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_checkpoint_interval);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_checkpoint_interval);
 }
 
-static int ldbm_config_db_checkpoint_interval_set(void *arg,
-                                                  void *value,
-                                                  char *errorbuf __attribute__((unused)),
-                                                  int phase __attribute__((unused)),
-                                                  int apply)
+static int
+ldbm_config_db_checkpoint_interval_set(void *arg,
+                                       void *value,
+                                       char *errorbuf __attribute__((unused)),
+                                       int phase __attribute__((unused)),
+                                       int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_checkpoint_interval = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_compactdb_interval_get(void *arg) 
+static void *
+ldbm_config_db_compactdb_interval_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_compactdb_interval);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_compactdb_interval);
 }
 
-static int ldbm_config_db_compactdb_interval_set(void *arg,
-                                                 void *value,
-                                                 char *errorbuf __attribute__((unused)),
-                                                 int phase __attribute__((unused)),
-                                                 int apply)
+static int
+ldbm_config_db_compactdb_interval_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_compactdb_interval = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_page_size_get(void *arg) 
+static void *
+ldbm_config_db_page_size_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) li->li_dblayer_private->dblayer_page_size;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)li->li_dblayer_private->dblayer_page_size;
 }
 
-static int ldbm_config_db_page_size_set(void *arg,
-                                        void *value,
-                                        char *errorbuf __attribute__((unused)),
-                                        int phase __attribute__((unused)),
-                                        int apply)
+static int
+ldbm_config_db_page_size_set(void *arg,
+                             void *value,
+                             char *errorbuf __attribute__((unused)),
+                             int phase __attribute__((unused)),
+                             int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
-    
+    size_t val = (size_t)value;
+
     if (apply) {
         li->li_dblayer_private->dblayer_page_size = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_index_page_size_get(void *arg) 
+static void *
+ldbm_config_db_index_page_size_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) li->li_dblayer_private->dblayer_index_page_size;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)li->li_dblayer_private->dblayer_index_page_size;
 }
 
-static int ldbm_config_db_index_page_size_set(void *arg,
-                                              void *value,
-                                              char *errorbuf __attribute__((unused)),
-                                              int phase __attribute__((unused)),
-                                              int apply)
+static int
+ldbm_config_db_index_page_size_set(void *arg,
+                                   void *value,
+                                   char *errorbuf __attribute__((unused)),
+                                   int phase __attribute__((unused)),
+                                   int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
-    
+    size_t val = (size_t)value;
+
     if (apply) {
         li->li_dblayer_private->dblayer_index_page_size = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_idl_divisor_get(void *arg) 
+static void *
+ldbm_config_db_idl_divisor_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_idl_divisor);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_idl_divisor);
 }
 
-static int ldbm_config_db_idl_divisor_set(void *arg,
-                                          void *value,
-                                          char *errorbuf __attribute__((unused)),
-                                          int phase __attribute__((unused)),
-                                          int apply)
+static int
+ldbm_config_db_idl_divisor_set(void *arg,
+                               void *value,
+                               char *errorbuf __attribute__((unused)),
+                               int phase __attribute__((unused)),
+                               int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_idl_divisor = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_old_idl_maxids_get(void *arg)
+static void *
+ldbm_config_db_old_idl_maxids_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_old_idl_maxids);
+    return (void *)((uintptr_t)li->li_old_idl_maxids);
 }
 
-static int ldbm_config_db_old_idl_maxids_set(void *arg,
-                                             void *value,
-                                             char *errorbuf,
-                                             int phase __attribute__((unused)),
-                                             int apply)
+static int
+ldbm_config_db_old_idl_maxids_set(void *arg,
+                                  void *value,
+                                  char *errorbuf,
+                                  int phase __attribute__((unused)),
+                                  int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     if (apply) {
-        if(val >= 0){
+        if (val >= 0) {
             li->li_old_idl_maxids = val;
         } else {
             slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-        	            "Error: Invalid value for %s (%d). Value must be equal or greater than zero.",
-        	            CONFIG_DB_OLD_IDL_MAXIDS, val);
+                                  "Error: Invalid value for %s (%d). Value must be equal or greater than zero.",
+                                  CONFIG_DB_OLD_IDL_MAXIDS, val);
             return LDAP_UNWILLING_TO_PERFORM;
         }
     }
@@ -861,230 +908,249 @@ static int ldbm_config_db_old_idl_maxids_set(void *arg,
     return retval;
 }
 
-static void *ldbm_config_db_logfile_size_get(void *arg) 
+static void *
+ldbm_config_db_logfile_size_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) li->li_dblayer_private->dblayer_logfile_size;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)li->li_dblayer_private->dblayer_logfile_size;
 }
 
-static int ldbm_config_db_logfile_size_set(void *arg,
-                                           void *value,
-                                           char *errorbuf __attribute__((unused)),
-                                           int phase __attribute__((unused)),
-                                           int apply)
+static int
+ldbm_config_db_logfile_size_set(void *arg,
+                                void *value,
+                                char *errorbuf __attribute__((unused)),
+                                int phase __attribute__((unused)),
+                                int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
-    
+    size_t val = (size_t)value;
+
     if (apply) {
         li->li_dblayer_private->dblayer_logfile_size = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_spin_count_get(void *arg) 
+static void *
+ldbm_config_db_spin_count_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_spin_count);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_spin_count);
 }
 
-static int ldbm_config_db_spin_count_set(void *arg,
+static int
+ldbm_config_db_spin_count_set(void *arg,
+                              void *value,
+                              char *errorbuf __attribute__((unused)),
+                              int phase __attribute__((unused)),
+                              int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_spin_count = val;
+    }
+
+    return retval;
+}
+
+static void *
+ldbm_config_db_trickle_percentage_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_trickle_percentage);
+}
+
+static int
+ldbm_config_db_trickle_percentage_set(void *arg,
+                                      void *value,
+                                      char *errorbuf,
+                                      int phase __attribute__((unused)),
+                                      int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (val < 0 || val > 100) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
+                              CONFIG_DB_TRICKLE_PERCENTAGE, val);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_trickle_percentage_set",
+                      "Invalid value for %s (%d). Must be between 0 and 100\n",
+                      CONFIG_DB_TRICKLE_PERCENTAGE, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_trickle_percentage = val;
+    }
+
+    return retval;
+}
+
+static void *
+ldbm_config_db_verbose_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_verbose);
+}
+
+static int
+ldbm_config_db_verbose_set(void *arg,
+                           void *value,
+                           char *errorbuf __attribute__((unused)),
+                           int phase __attribute__((unused)),
+                           int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_verbose = val;
+    }
+
+    return retval;
+}
+
+static void *
+ldbm_config_db_debug_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_debug);
+}
+
+static int
+ldbm_config_db_debug_set(void *arg,
+                         void *value,
+                         char *errorbuf __attribute__((unused)),
+                         int phase __attribute__((unused)),
+                         int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_debug = val;
+    }
+
+    return retval;
+}
+
+static void *
+ldbm_config_db_named_regions_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_named_regions);
+}
+
+static int
+ldbm_config_db_named_regions_set(void *arg,
+                                 void *value,
+                                 char *errorbuf __attribute__((unused)),
+                                 int phase __attribute__((unused)),
+                                 int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_named_regions = val;
+    }
+
+    return retval;
+}
+
+static void *
+ldbm_config_db_private_mem_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_private_mem);
+}
+
+static int
+ldbm_config_db_private_mem_set(void *arg,
+                               void *value,
+                               char *errorbuf __attribute__((unused)),
+                               int phase __attribute__((unused)),
+                               int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int)((uintptr_t)value);
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_private_mem = val;
+    }
+
+    return retval;
+}
+
+static void *
+ldbm_config_db_online_import_encrypt_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_online_import_encrypt);
+}
+
+static int
+ldbm_config_db_online_import_encrypt_set(void *arg,
                                          void *value,
                                          char *errorbuf __attribute__((unused)),
                                          int phase __attribute__((unused)),
                                          int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
-    if (apply) {
-        li->li_dblayer_private->dblayer_spin_count = val;
-    }
-    
-    return retval;
-}
+    int val = (int)((uintptr_t)value);
 
-static void *ldbm_config_db_trickle_percentage_get(void *arg) 
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_trickle_percentage);
-}
-
-static int ldbm_config_db_trickle_percentage_set(void *arg,
-                                                 void *value,
-                                                 char *errorbuf,
-                                                 int phase __attribute__((unused)),
-                                                 int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
-    if (val < 0 || val > 100) {
-        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
-            CONFIG_DB_TRICKLE_PERCENTAGE, val);
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_trickle_percentage_set",
-                "Invalid value for %s (%d). Must be between 0 and 100\n",
-                CONFIG_DB_TRICKLE_PERCENTAGE, val);
-        return LDAP_UNWILLING_TO_PERFORM;
-    }
-    
-    if (apply) {
-        li->li_dblayer_private->dblayer_trickle_percentage = val;
-    }
-    
-    return retval;
-}
-
-static void *ldbm_config_db_verbose_get(void *arg) 
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_verbose);
-}
-
-static int ldbm_config_db_verbose_set(void *arg,
-                                      void *value,
-                                      char *errorbuf __attribute__((unused)),
-                                      int phase __attribute__((unused)),
-                                      int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
-    if (apply) {
-        li->li_dblayer_private->dblayer_verbose = val;
-    }
-    
-    return retval;
-}
-
-static void *ldbm_config_db_debug_get(void *arg) 
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_debug);
-}
-
-static int ldbm_config_db_debug_set(void *arg,
-                                    void *value,
-                                    char *errorbuf __attribute__((unused)),
-                                    int phase __attribute__((unused)),
-                                    int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
-    if (apply) {
-        li->li_dblayer_private->dblayer_debug = val;
-    }
-    
-    return retval;
-}
-
-static void *ldbm_config_db_named_regions_get(void *arg) 
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_named_regions);
-}
-
-static int ldbm_config_db_named_regions_set(void *arg,
-                                            void *value,
-                                            char *errorbuf __attribute__((unused)),
-                                            int phase __attribute__((unused)),
-                                            int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
-    if (apply) {
-        li->li_dblayer_private->dblayer_named_regions = val;
-    }
-    
-    return retval;
-}
-
-static void *ldbm_config_db_private_mem_get(void *arg) 
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_private_mem);
-}
-
-static int ldbm_config_db_private_mem_set(void *arg,
-                                          void *value,
-                                          char *errorbuf __attribute__((unused)),
-                                          int phase __attribute__((unused)),
-                                          int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
-    if (apply) {
-        li->li_dblayer_private->dblayer_private_mem = val;
-    }
-    
-    return retval;
-}
-
-static void *ldbm_config_db_online_import_encrypt_get(void *arg) 
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_online_import_encrypt);
-}
-
-static int ldbm_config_db_online_import_encrypt_set(void *arg,
-                                                    void *value,
-                                                    char *errorbuf __attribute__((unused)),
-                                                    int phase __attribute__((unused)),
-                                                    int apply)
-{
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
     if (apply) {
         li->li_online_import_encrypt = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_private_import_mem_get(void *arg) 
+static void *
+ldbm_config_db_private_import_mem_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_private_import_mem);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_private_import_mem);
 }
 
-static void *ldbm_config_idl_get_update(void *arg)
+static void *
+ldbm_config_idl_get_update(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_idl_update);
+    return (void *)((uintptr_t)li->li_idl_update);
 }
 
-static int ldbm_config_idl_set_update(void *arg,
-                                      void *value,
-                                      char *errorbuf __attribute__((unused)),
-                                      int phase __attribute__((unused)),
-                                      int apply)
+static int
+ldbm_config_idl_set_update(void *arg,
+                           void *value,
+                           char *errorbuf __attribute__((unused)),
+                           int phase __attribute__((unused)),
+                           int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     if (apply) {
         li->li_idl_update = val;
@@ -1093,41 +1159,43 @@ static int ldbm_config_idl_set_update(void *arg,
     return retval;
 }
 
-static int ldbm_config_db_private_import_mem_set(void *arg,
-                                                 void *value,
-                                                 char *errorbuf __attribute__((unused)),
-                                                 int phase __attribute__((unused)),
-                                                 int apply)
+static int
+ldbm_config_db_private_import_mem_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->dblayer_private_import_mem = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_shm_key_get(void *arg) 
+static void *
+ldbm_config_db_shm_key_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) li->li_dblayer_private->dblayer_shm_key;
+    return (void *)li->li_dblayer_private->dblayer_shm_key;
 }
 
-static int ldbm_config_db_shm_key_set(
+static int
+ldbm_config_db_shm_key_set(
     void *arg,
     void *value,
     char *errorbuf __attribute__((unused)),
     int phase __attribute__((unused)),
-    int apply
-)
+    int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_shm_key = val;
@@ -1136,69 +1204,72 @@ static int ldbm_config_db_shm_key_set(
     return retval;
 }
 
-static void *ldbm_config_db_lock_get(void *arg) 
+static void *
+ldbm_config_db_lock_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_new_dblock);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_new_dblock);
 }
 
 
-static int ldbm_config_db_lock_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int
+ldbm_config_db_lock_set(void *arg, void *value, char *errorbuf, int phase, int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
+    size_t val = (size_t)value;
 
     if (val < BDB_LOCK_NB_MIN) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be greater than %d\n",
-            CONFIG_DB_LOCK, val, BDB_LOCK_NB_MIN);
+                              CONFIG_DB_LOCK, val, BDB_LOCK_NB_MIN);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_lock_set", "Invalid value for %s (%lu)\n",
-            CONFIG_DB_LOCK, val);
+                      CONFIG_DB_LOCK, val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
     if (apply) {
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dblock = val;
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_config_db_lock_set",
-            	"New db max lock count will not take affect until the server is restarted\n");
+                          "New db max lock count will not take affect until the server is restarted\n");
         } else {
             li->li_new_dblock = val;
             li->li_dblock = val;
         }
-        
     }
 
     return retval;
 }
-static void *ldbm_config_db_cache_get(void *arg) 
+static void *
+ldbm_config_db_cache_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_cache_config);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_cache_config);
 }
 
-static int ldbm_config_db_cache_set(void *arg,
-                                    void *value,
-                                    char *errorbuf,
-                                    int phase __attribute__((unused)),
-                                    int apply)
+static int
+ldbm_config_db_cache_set(void *arg,
+                         void *value,
+                         char *errorbuf,
+                         int phase __attribute__((unused)),
+                         int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
     int val = ((uintptr_t)value);
     uint64_t delta = 0;
 
-    /* There is an error here. We check the new val against our current mem-alloc 
+    /* There is an error here. We check the new val against our current mem-alloc
      * Issue is that we already are using system pages, so while our value *might*
      * be valid, we may reject it here due to the current procs page usage.
-     * 
+     *
      * So how do we solve this? If we are setting a SMALLER value than we
      * currently have ALLOW it, because we already passed the cache sanity.
      * If we are setting a LARGER value, we check the delta of the two, and make
      * sure that it is sane.
      */
-    
+
     if (apply) {
         if (val > li->li_dblayer_private->dblayer_cache_config) {
             delta = val - li->li_dblayer_private->dblayer_cache_config;
@@ -1208,101 +1279,109 @@ static int ldbm_config_db_cache_set(void *arg,
             sane = util_is_cachesize_sane(mi, &delta);
             spal_meminfo_destroy(mi);
 
-            if (sane != UTIL_CACHESIZE_VALID){
+            if (sane != UTIL_CACHESIZE_VALID) {
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: db cachesize value is too large");
-                slapi_log_err(SLAPI_LOG_ERR,"ldbm_config_db_cache_set", "db cachesize value is too large.\n");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_cache_set", "db cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
         li->li_dblayer_private->dblayer_cache_config = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_debug_checkpointing_get(void *arg) 
+static void *
+ldbm_config_db_debug_checkpointing_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
-    return (void *) ((uintptr_t)li->li_dblayer_private->db_debug_checkpointing);
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)li->li_dblayer_private->db_debug_checkpointing);
 }
 
-static int ldbm_config_db_debug_checkpointing_set(void *arg,
-                                                  void *value,
-                                                  char *errorbuf __attribute__((unused)),
-                                                  int phase __attribute__((unused)),
-                                                  int apply)
+static int
+ldbm_config_db_debug_checkpointing_set(void *arg,
+                                       void *value,
+                                       char *errorbuf __attribute__((unused)),
+                                       int phase __attribute__((unused)),
+                                       int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
-    
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         li->li_dblayer_private->db_debug_checkpointing = val;
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_db_home_directory_get(void *arg) 
+static void *
+ldbm_config_db_home_directory_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
     /* Remember get functions of type string need to return
      * alloced memory. */
-    return (void *) slapi_ch_strdup(li->li_dblayer_private->dblayer_dbhome_directory);
+    return (void *)slapi_ch_strdup(li->li_dblayer_private->dblayer_dbhome_directory);
 }
 
-static int ldbm_config_db_home_directory_set(void *arg,
-                                             void *value,
-                                             char *errorbuf __attribute__((unused)),
-                                             int phase __attribute__((unused)),
-                                             int apply)
+static int
+ldbm_config_db_home_directory_set(void *arg,
+                                  void *value,
+                                  char *errorbuf __attribute__((unused)),
+                                  int phase __attribute__((unused)),
+                                  int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    char *val = (char *) value;
-    
+    char *val = (char *)value;
+
     if (apply) {
-        slapi_ch_free((void **) &(li->li_dblayer_private->dblayer_dbhome_directory));
+        slapi_ch_free((void **)&(li->li_dblayer_private->dblayer_dbhome_directory));
         li->li_dblayer_private->dblayer_dbhome_directory = slapi_ch_strdup(val);
     }
-    
+
     return retval;
 }
 
-static void *ldbm_config_import_cache_autosize_get(void *arg)
+static void *
+ldbm_config_import_cache_autosize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
     return (void *)((uintptr_t)(li->li_import_cache_autosize));
 }
 
-static int ldbm_config_import_cache_autosize_set(void *arg,
-                                                 void *value,
-                                                 char *errorbuf __attribute__((unused)),
-                                                 int phase __attribute__((unused)),
-                                                 int apply)
+static int
+ldbm_config_import_cache_autosize_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
     if (apply)
-    li->li_import_cache_autosize = (int)((uintptr_t)value);
+        li->li_import_cache_autosize = (int)((uintptr_t)value);
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_cache_autosize_get(void *arg)
+static void *
+ldbm_config_cache_autosize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
     return (void *)((uintptr_t)(li->li_cache_autosize));
 }
 
-static int ldbm_config_cache_autosize_set(void *arg,
-                                          void *value,
-                                          char *errorbuf,
-                                          int phase __attribute__((unused)),
-                                          int apply)
+static int
+ldbm_config_cache_autosize_set(void *arg,
+                               void *value,
+                               char *errorbuf,
+                               int phase __attribute__((unused)),
+                               int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1310,11 +1389,11 @@ static int ldbm_config_cache_autosize_set(void *arg,
         int val = (int)((uintptr_t)value);
         if (val < 0 || val > 100) {
             slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
-                CONFIG_CACHE_AUTOSIZE, val);
+                                  "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                                  CONFIG_CACHE_AUTOSIZE, val);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_autosize_set",
-                "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
-                CONFIG_CACHE_AUTOSIZE, val);
+                          "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                          CONFIG_CACHE_AUTOSIZE, val);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         li->li_cache_autosize = val;
@@ -1322,18 +1401,20 @@ static int ldbm_config_cache_autosize_set(void *arg,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_cache_autosize_split_get(void *arg)
+static void *
+ldbm_config_cache_autosize_split_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
     return (void *)((uintptr_t)(li->li_cache_autosize_split));
 }
 
-static int ldbm_config_cache_autosize_split_set(void *arg,
-                                                void *value,
-                                                char *errorbuf,
-                                                int phase __attribute__((unused)),
-                                                int apply)
+static int
+ldbm_config_cache_autosize_split_set(void *arg,
+                                     void *value,
+                                     char *errorbuf,
+                                     int phase __attribute__((unused)),
+                                     int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
@@ -1341,11 +1422,11 @@ static int ldbm_config_cache_autosize_split_set(void *arg,
         int val = (int)((uintptr_t)value);
         if (val < 0 || val > 100) {
             slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
-                CONFIG_CACHE_AUTOSIZE_SPLIT, val);
+                                  "Error: Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                                  CONFIG_CACHE_AUTOSIZE_SPLIT, val);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_autosize_split_set",
-                "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
-                CONFIG_CACHE_AUTOSIZE_SPLIT, val);
+                          "Invalid value for %s (%d). The value must be between \"0\" and \"100\"\n",
+                          CONFIG_CACHE_AUTOSIZE_SPLIT, val);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         li->li_cache_autosize_split = val;
@@ -1353,32 +1434,34 @@ static int ldbm_config_cache_autosize_split_set(void *arg,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_import_cachesize_get(void *arg)
+static void *
+ldbm_config_import_cachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
     return (void *)(li->li_import_cachesize);
 }
 
-static int ldbm_config_import_cachesize_set(void *arg,
-                                            void *value,
-                                            char *errorbuf,
-                                            int phase __attribute__((unused)),
-                                            int apply)
+static int
+ldbm_config_import_cachesize_set(void *arg,
+                                 void *value,
+                                 char *errorbuf,
+                                 int phase __attribute__((unused)),
+                                 int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     size_t val = (size_t)value;
     uint64_t delta = (size_t)value;
-    /* There is an error here. We check the new val against our current mem-alloc 
+    /* There is an error here. We check the new val against our current mem-alloc
      * Issue is that we already are using system pages, so while our value *might*
      * be valid, we may reject it here due to the current procs page usage.
-     * 
+     *
      * So how do we solve this? If we are setting a SMALLER value than we
      * currently have ALLOW it, because we already passed the cache sanity.
      * If we are setting a LARGER value, we check the delta of the two, and make
      * sure that it is sane.
      */
-    if (apply){
+    if (apply) {
         if (val > li->li_import_cachesize) {
             delta = val - li->li_import_cachesize;
 
@@ -1387,10 +1470,10 @@ static int ldbm_config_import_cachesize_set(void *arg,
             sane = util_is_cachesize_sane(mi, &delta);
             spal_meminfo_destroy(mi);
 
-            if (sane != UTIL_CACHESIZE_VALID){
+            if (sane != UTIL_CACHESIZE_VALID) {
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: import cachesize value is too large.");
-                slapi_log_err(SLAPI_LOG_ERR,"ldbm_config_import_cachesize_set",
-                        "Import cachesize value is too large.\n");
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_import_cachesize_set",
+                              "Import cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -1399,16 +1482,18 @@ static int ldbm_config_import_cachesize_set(void *arg,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_index_buffer_size_get(void *arg __attribute__((unused)))
+static void *
+ldbm_config_index_buffer_size_get(void *arg __attribute__((unused)))
 {
     return (void *)import_get_index_buffer_size();
 }
 
-static int ldbm_config_index_buffer_size_set(void *arg __attribute__((unused)),
-                                             void *value,
-                                             char *errorbuf __attribute__((unused)),
-                                             int phase __attribute__((unused)),
-                                             int apply)
+static int
+ldbm_config_index_buffer_size_set(void *arg __attribute__((unused)),
+                                  void *value,
+                                  char *errorbuf __attribute__((unused)),
+                                  int phase __attribute__((unused)),
+                                  int apply)
 {
     if (apply) {
         import_configure_index_buffer_size((size_t)value);
@@ -1416,7 +1501,8 @@ static int ldbm_config_index_buffer_size_set(void *arg __attribute__((unused)),
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_idl_get_idl_new(void *arg __attribute__((unused)))
+static void *
+ldbm_config_idl_get_idl_new(void *arg __attribute__((unused)))
 {
     if (idl_get_idl_new()) {
         return slapi_ch_strdup("new");
@@ -1424,11 +1510,12 @@ static void *ldbm_config_idl_get_idl_new(void *arg __attribute__((unused)))
     return slapi_ch_strdup("old");
 }
 
-static int ldbm_config_idl_set_tune(void *arg __attribute__((unused)),
-                                    void *value,
-                                    char *errorbuf __attribute__((unused)),
-                                    int phase __attribute__((unused)),
-                                    int apply __attribute__((unused)))
+static int
+ldbm_config_idl_set_tune(void *arg __attribute__((unused)),
+                         void *value,
+                         char *errorbuf __attribute__((unused)),
+                         int phase __attribute__((unused)),
+                         int apply __attribute__((unused)))
 {
     if (!strcasecmp("new", value)) {
         idl_set_tune(4096);
@@ -1438,38 +1525,42 @@ static int ldbm_config_idl_set_tune(void *arg __attribute__((unused)),
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_serial_lock_get(void *arg)
+static void *
+ldbm_config_serial_lock_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_fat_lock);
+    return (void *)((uintptr_t)li->li_fat_lock);
 }
 
-static int ldbm_config_serial_lock_set(void *arg,
-                                       void *value,
-                                       char *errorbuf __attribute__((unused)),
-                                       int phase __attribute__((unused)),
-                                       int apply)
+static int
+ldbm_config_serial_lock_set(void *arg,
+                            void *value,
+                            char *errorbuf __attribute__((unused)),
+                            int phase __attribute__((unused)),
+                            int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
     if (apply) {
-        li->li_fat_lock = (int) ((uintptr_t)value);
+        li->li_fat_lock = (int)((uintptr_t)value);
     }
-    
+
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_entryrdn_switch_get(void *arg __attribute__((unused)))
+static void *
+ldbm_config_entryrdn_switch_get(void *arg __attribute__((unused)))
 {
     return (void *)((uintptr_t)entryrdn_get_switch());
 }
 
-static int ldbm_config_entryrdn_switch_set(void *arg __attribute__((unused)),
-                                           void *value,
-                                           char *errorbuf __attribute__((unused)),
-                                           int phase __attribute__((unused)),
-                                           int apply)
+static int
+ldbm_config_entryrdn_switch_set(void *arg __attribute__((unused)),
+                                void *value,
+                                char *errorbuf __attribute__((unused)),
+                                int phase __attribute__((unused)),
+                                int apply)
 {
     if (apply) {
         entryrdn_set_switch((int)((uintptr_t)value));
@@ -1477,16 +1568,18 @@ static int ldbm_config_entryrdn_switch_set(void *arg __attribute__((unused)),
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_entryrdn_noancestorid_get(void *arg __attribute__((unused)))
+static void *
+ldbm_config_entryrdn_noancestorid_get(void *arg __attribute__((unused)))
 {
     return (void *)((uintptr_t)entryrdn_get_noancestorid());
 }
 
-static int ldbm_config_entryrdn_noancestorid_set(void *arg __attribute__((unused)),
-                                                 void *value,
-                                                 char *errorbuf __attribute__((unused)),
-                                                 int phase __attribute__((unused)),
-                                                 int apply)
+static int
+ldbm_config_entryrdn_noancestorid_set(void *arg __attribute__((unused)),
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
 {
     if (apply) {
         entryrdn_set_noancestorid((int)((uintptr_t)value));
@@ -1494,25 +1587,27 @@ static int ldbm_config_entryrdn_noancestorid_set(void *arg __attribute__((unused
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_legacy_errcode_get(void *arg)
+static void *
+ldbm_config_legacy_errcode_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_legacy_errcode);
+    return (void *)((uintptr_t)li->li_legacy_errcode);
 }
 
-static int ldbm_config_legacy_errcode_set(void *arg,
-                                          void *value,
-                                          char *errorbuf __attribute__((unused)),
-                                          int phase __attribute__((unused)),
-                                          int apply)
+static int
+ldbm_config_legacy_errcode_set(void *arg,
+                               void *value,
+                               char *errorbuf __attribute__((unused)),
+                               int phase __attribute__((unused)),
+                               int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
     if (apply) {
-        li->li_legacy_errcode = (int) ((uintptr_t)value);
+        li->li_legacy_errcode = (int)((uintptr_t)value);
     }
-    
+
     return LDAP_SUCCESS;
 }
 
@@ -1542,7 +1637,8 @@ ldbm_config_set_bypass_filter_test(void *arg,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_get_bypass_filter_test(void *arg)
+static void *
+ldbm_config_get_bypass_filter_test(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     char *retstr = NULL;
@@ -1560,15 +1656,16 @@ static void *ldbm_config_get_bypass_filter_test(void *arg)
     return (void *)retstr;
 }
 
-static int ldbm_config_set_use_vlv_index(void *arg,
-                                         void *value,
-                                         char *errorbuf __attribute__((unused)),
-                                         int phase __attribute__((unused)),
-                                         int apply)
+static int
+ldbm_config_set_use_vlv_index(void *arg,
+                              void *value,
+                              char *errorbuf __attribute__((unused)),
+                              int phase __attribute__((unused)),
+                              int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
-    int val = (int) ((uintptr_t)value);
-        
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int val = (int)((uintptr_t)value);
+
     if (apply) {
         if (val) {
             li->li_use_vlv = 1;
@@ -1579,11 +1676,12 @@ static int ldbm_config_set_use_vlv_index(void *arg,
     return LDAP_SUCCESS;
 }
 
-static void *ldbm_config_get_use_vlv_index(void *arg) 
+static void *
+ldbm_config_get_use_vlv_index(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_use_vlv);
+    return (void *)((uintptr_t)li->li_use_vlv);
 }
 
 static int
@@ -1595,70 +1693,71 @@ ldbm_config_exclude_from_export_set(void *arg,
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    if ( apply ) {
-        if ( NULL != li->li_attrs_to_exclude_from_export ) {
-            charray_free( li->li_attrs_to_exclude_from_export );
+    if (apply) {
+        if (NULL != li->li_attrs_to_exclude_from_export) {
+            charray_free(li->li_attrs_to_exclude_from_export);
             li->li_attrs_to_exclude_from_export = NULL;
         }
-        
-        if ( NULL != value ) {
-            char *dupvalue = slapi_ch_strdup( value );
-            li->li_attrs_to_exclude_from_export = slapi_str2charray( dupvalue, " " );
-            slapi_ch_free((void**)&dupvalue);
+
+        if (NULL != value) {
+            char *dupvalue = slapi_ch_strdup(value);
+            li->li_attrs_to_exclude_from_export = slapi_str2charray(dupvalue, " ");
+            slapi_ch_free((void **)&dupvalue);
         }
     }
-    
+
     return LDAP_SUCCESS;
 }
 
 static void *
-ldbm_config_exclude_from_export_get( void *arg )
+ldbm_config_exclude_from_export_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
-    char    *p, *retstr = NULL;
-    size_t    len = 0;
-    
-    if ( NULL != li->li_attrs_to_exclude_from_export &&
-         NULL != li->li_attrs_to_exclude_from_export[0] ) {
-        int        i;
-        
-        for ( i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i ) {
-            len += strlen( li->li_attrs_to_exclude_from_export[i] ) + 1;
+    char *p, *retstr = NULL;
+    size_t len = 0;
+
+    if (NULL != li->li_attrs_to_exclude_from_export &&
+        NULL != li->li_attrs_to_exclude_from_export[0]) {
+        int i;
+
+        for (i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i) {
+            len += strlen(li->li_attrs_to_exclude_from_export[i]) + 1;
         }
-        p = retstr = slapi_ch_malloc( len );
-        for ( i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i ) {
-            if ( i > 0 ) {
+        p = retstr = slapi_ch_malloc(len);
+        for (i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i) {
+            if (i > 0) {
                 *p++ = ' ';
             }
-            strcpy( p, li->li_attrs_to_exclude_from_export[i] );
-            p += strlen( p );
+            strcpy(p, li->li_attrs_to_exclude_from_export[i]);
+            p += strlen(p);
         }
         *p = '\0';
     } else {
-        retstr = slapi_ch_strdup( "" );
+        retstr = slapi_ch_strdup("");
     }
-    
+
     return (void *)retstr;
 }
 
-static void *ldbm_config_db_tx_max_get(void *arg) 
+static void *
+ldbm_config_db_tx_max_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_tx_max);
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_tx_max);
 }
 
-static int ldbm_config_db_tx_max_set(
+static int
+ldbm_config_db_tx_max_set(
     void *arg,
     void *value,
     char *errorbuf __attribute__((unused)),
     int phase __attribute__((unused)),
-    int apply
-) 
+    int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    int val = (int)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_tx_max = val;
@@ -1667,39 +1766,41 @@ static int ldbm_config_db_tx_max_set(
     return retval;
 }
 
-static void *ldbm_config_db_deadlock_policy_get(void *arg)
+static void *
+ldbm_config_db_deadlock_policy_get(void *arg)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_deadlock_policy);
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_deadlock_policy);
 }
 
-static int ldbm_config_db_deadlock_policy_set(void *arg,
-                                              void *value,
-                                              char *errorbuf,
-                                              int phase __attribute__((unused)),
-                                              int apply)
+static int
+ldbm_config_db_deadlock_policy_set(void *arg,
+                                   void *value,
+                                   char *errorbuf,
+                                   int phase __attribute__((unused)),
+                                   int apply)
 {
-    struct ldbminfo *li = (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    u_int32_t val = (u_int32_t) ((uintptr_t)value);
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
 
     if (val > DB_LOCK_YOUNGEST) {
-	    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-	                "Error: Invalid value for %s (%d). Must be between %d and %d inclusive",
-	                CONFIG_DB_DEADLOCK_POLICY, val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
-	    slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_deadlock_policy_set",
-	            "Invalid value for deadlock policy (%d). Must be between %d and %d inclusive",
-	            val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
-	    return LDAP_UNWILLING_TO_PERFORM;
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: Invalid value for %s (%d). Must be between %d and %d inclusive",
+                              CONFIG_DB_DEADLOCK_POLICY, val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_deadlock_policy_set",
+                      "Invalid value for deadlock policy (%d). Must be between %d and %d inclusive",
+                      val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
+        return LDAP_UNWILLING_TO_PERFORM;
     }
     if (val == DB_LOCK_NORUN) {
-	    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-	                "Warning: Setting value for %s to (%d) will disable deadlock detection",
-	                CONFIG_DB_DEADLOCK_POLICY, val);
-	    slapi_log_err(SLAPI_LOG_WARNING, "ldbm_config_db_deadlock_policy_set",
-	            "Setting value for %s to (%d) will disable deadlock detection",
-	            CONFIG_DB_DEADLOCK_POLICY, val);
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Warning: Setting value for %s to (%d) will disable deadlock detection",
+                              CONFIG_DB_DEADLOCK_POLICY, val);
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_config_db_deadlock_policy_set",
+                      "Setting value for %s to (%d) will disable deadlock detection",
+                      CONFIG_DB_DEADLOCK_POLICY, val);
     }
 
     if (apply) {
@@ -1714,25 +1815,25 @@ static int ldbm_config_db_deadlock_policy_set(void *arg,
  * Configuration array for ldbm and dblayer variables
  *----------------------------------------------------------------------*/
 static config_info ldbm_config[] = {
-    {CONFIG_LOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_lookthroughlimit_get, &ldbm_config_lookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE|CONFIG_FLAG_SKIP_DEFAULT_SETTING},
-    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, DEFAULT_CACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_LOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_lookthroughlimit_get, &ldbm_config_lookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE | CONFIG_FLAG_SKIP_DEFAULT_SETTING},
+    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, DEFAULT_CACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBNCACHE, CONFIG_TYPE_INT, "0", &ldbm_config_dbncache_get, &ldbm_config_dbncache_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
-    
+
     /* dblayer config attributes */
     {CONFIG_DB_LOGDIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_db_logdirectory_get, &ldbm_config_db_logdirectory_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_DURABLE_TRANSACTIONS, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_durable_transactions_get, &ldbm_config_db_durable_transactions_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_CIRCULAR_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_circular_logging_get, &ldbm_config_db_circular_logging_set, 0},
     {CONFIG_DB_TRANSACTION_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_transaction_logging_get, &ldbm_config_db_transaction_logging_set, 0},
-    {CONFIG_DB_TRANSACTION_WAIT, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_transaction_wait_get, &ldbm_config_db_transaction_wait_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &ldbm_config_db_checkpoint_interval_get, &ldbm_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000"/*30days*/, &ldbm_config_db_compactdb_interval_get, &ldbm_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &dblayer_get_batch_transactions, &dblayer_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_min_sleep, &dblayer_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_max_sleep, &dblayer_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_TRANSACTION_WAIT, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_transaction_wait_get, &ldbm_config_db_transaction_wait_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &ldbm_config_db_checkpoint_interval_get, &ldbm_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000" /*30days*/, &ldbm_config_db_compactdb_interval_get, &ldbm_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &dblayer_get_batch_transactions, &dblayer_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_min_sleep, &dblayer_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_max_sleep, &dblayer_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_LOGBUF_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_logbuf_size_get, &ldbm_config_db_logbuf_size_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_page_size_get, &ldbm_config_db_page_size_set, 0},
     {CONFIG_DB_INDEX_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_index_page_size_get, &ldbm_config_db_index_page_size_set, 0},
@@ -1744,46 +1845,46 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_VERBOSE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_verbose_get, &ldbm_config_db_verbose_set, 0},
     {CONFIG_DB_DEBUG, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_debug_get, &ldbm_config_db_debug_set, 0},
     {CONFIG_DB_NAMED_REGIONS, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_named_regions_get, &ldbm_config_db_named_regions_set, 0},
-    {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_PRIVATE_MEM, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_private_mem_get, &ldbm_config_db_private_mem_set, 0},
-    {CONFIG_DB_PRIVATE_IMPORT_MEM, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_private_import_mem_get, &ldbm_config_db_private_import_mem_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_PRIVATE_IMPORT_MEM, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_private_import_mem_get, &ldbm_config_db_private_import_mem_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONDIF_DB_ONLINE_IMPORT_ENCRYPT, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_online_import_encrypt_get, &ldbm_config_db_online_import_encrypt_set, 0},
     {CONFIG_DB_SHM_KEY, CONFIG_TYPE_LONG, "389389", &ldbm_config_db_shm_key_get, &ldbm_config_db_shm_key_set, 0},
     {CONFIG_DB_CACHE, CONFIG_TYPE_INT, "0", &ldbm_config_db_cache_get, &ldbm_config_db_cache_set, 0},
     {CONFIG_DB_DEBUG_CHECKPOINTING, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_debug_checkpointing_get, &ldbm_config_db_debug_checkpointing_set, 0},
     {CONFIG_DB_HOME_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_db_home_directory_get, &ldbm_config_db_home_directory_set, 0},
-    {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "40", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "16777216", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "40", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "16777216", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_IDL_UPDATE, CONFIG_TYPE_ONOFF, "on", &ldbm_config_idl_get_update, &ldbm_config_idl_set_update, 0},
-    {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &ldbm_config_get_bypass_filter_test, &ldbm_config_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_USE_VLV_INDEX, CONFIG_TYPE_ONOFF, "on", &ldbm_config_get_use_vlv_index, &ldbm_config_set_use_vlv_index, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &ldbm_config_get_bypass_filter_test, &ldbm_config_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_USE_VLV_INDEX, CONFIG_TYPE_ONOFF, "on", &ldbm_config_get_use_vlv_index, &ldbm_config_set_use_vlv_index, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_LOCKDOWN, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_lockdown_get, &ldbm_config_db_lockdown_set, 0},
     {CONFIG_INDEX_BUFFER_SIZE, CONFIG_TYPE_INT, "0", &ldbm_config_index_buffer_size_get, &ldbm_config_index_buffer_size_set, 0},
     {CONFIG_EXCLUDE_FROM_EXPORT, CONFIG_TYPE_STRING,
-            CONFIG_EXCLUDE_FROM_EXPORT_DEFAULT_VALUE,
-            &ldbm_config_exclude_from_export_get,
-            &ldbm_config_exclude_from_export_set, CONFIG_FLAG_ALWAYS_SHOW},
+     CONFIG_EXCLUDE_FROM_EXPORT_DEFAULT_VALUE,
+     &ldbm_config_exclude_from_export_get,
+     &ldbm_config_exclude_from_export_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_TX_MAX, CONFIG_TYPE_INT, "200", &ldbm_config_db_tx_max_get, &ldbm_config_db_tx_max_set, 0},
-    {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &ldbm_config_serial_lock_get, &ldbm_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &ldbm_config_serial_lock_get, &ldbm_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_legacy_errcode_get, &ldbm_config_legacy_errcode_set, 0},
     {CONFIG_ENTRYRDN_SWITCH, CONFIG_TYPE_ONOFF, "on", &ldbm_config_entryrdn_switch_get, &ldbm_config_entryrdn_switch_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_ENTRYRDN_NOANCESTORID, CONFIG_TYPE_ONOFF, "off", &ldbm_config_entryrdn_noancestorid_get, &ldbm_config_entryrdn_noancestorid_set, 0 /* no show */},
-    {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BACKEND_OPT_LEVEL, CONFIG_TYPE_INT, "1", &ldbm_config_backend_opt_level_get, &ldbm_config_backend_opt_level_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_DB_DEADLOCK_POLICY, CONFIG_TYPE_INT, STRINGIFYDEFINE(DB_LOCK_YOUNGEST), &ldbm_config_db_deadlock_policy_get, &ldbm_config_db_deadlock_policy_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {NULL, 0, NULL, NULL, NULL, 0}
-};
+    {CONFIG_DB_DEADLOCK_POLICY, CONFIG_TYPE_INT, STRINGIFYDEFINE(DB_LOCK_YOUNGEST), &ldbm_config_db_deadlock_policy_get, &ldbm_config_db_deadlock_policy_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {NULL, 0, NULL, NULL, NULL, 0}};
 
-void ldbm_config_setup_default(struct ldbminfo *li) 
+void
+ldbm_config_setup_default(struct ldbminfo *li)
 {
     config_info *config;
     char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
-    
+
     for (config = ldbm_config; config->config_name != NULL; config++) {
         ldbm_config_set((void *)li, config->config_name, ldbm_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
@@ -1809,18 +1910,18 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
     /* Do a search of the subtree containing the instance entries */
     tmp_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(tmp_pb, basedn, LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)", NULL, 0, NULL, NULL, li->li_identity, 0);
-    slapi_search_internal_pb (tmp_pb);
+    slapi_search_internal_pb(tmp_pb);
     slapi_pblock_get(tmp_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-    if (entries!=NULL) {
+    if (entries != NULL) {
         int i;
-        for (i=0; entries[i]!=NULL; i++) {
+        for (i = 0; entries[i] != NULL; i++) {
             rc = ldbm_instance_add_instance_entry_callback(NULL,
-                                             entries[i], NULL, NULL, NULL, li);
+                                                           entries[i], NULL, NULL, NULL, li);
             if (SLAPI_DSE_CALLBACK_ERROR == rc) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_config_read_instance_entries",
-                      "Failed to add instance entry %s\n", 
-                      slapi_entry_get_dn_const(entries[i]));
+                              "ldbm_config_read_instance_entries",
+                              "Failed to add instance entry %s\n",
+                              slapi_entry_get_dn_const(entries[i]));
                 break;
             }
             rc = 0;
@@ -1839,24 +1940,25 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
  * if they don't already exist.  Registers dse callback functions to
  * maintain those dse entries.  Returns 0 on success.
  */
-int ldbm_config_load_dse_info(struct ldbminfo *li)
+int
+ldbm_config_load_dse_info(struct ldbminfo *li)
 {
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
     char *dn = NULL;
     int rval = 0;
 
-    /* We try to read the entry 
+    /* We try to read the entry
      * cn=config, cn=ldbm database, cn=plugins, cn=config.  If the entry is
      * there, then we process the config information it stores.
      */
-    dn = slapi_create_dn_string("cn=config,cn=%s,cn=plugins,cn=config", 
+    dn = slapi_create_dn_string("cn=config,cn=%s,cn=plugins,cn=config",
                                 li->li_plugin->plg_name);
     if (NULL == dn) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_config_load_dse_info",
                       "failed create config dn for %s\n",
-                      li->li_plugin->plg_name); 
+                      li->li_plugin->plg_name);
         rval = 1;
         goto bail;
     }
@@ -1868,9 +1970,9 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         goto bail;
     }
 
-    slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE, 
-        "objectclass=*", NULL, 0, NULL, NULL, li->li_identity, 0);
-    slapi_search_internal_pb (search_pb);
+    slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE,
+                                 "objectclass=*", NULL, 0, NULL, NULL, li->li_identity, 0);
+    slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
 
     if (LDAP_NO_SUCH_OBJECT == rval) {
@@ -1879,7 +1981,7 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
                                     li->li_plugin->plg_name, NULL, NULL, 0);
     } else if (rval != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_load_dse_info",
-                "Error accessing the ldbm config DSE 1\n");
+                      "Error accessing the ldbm config DSE 1\n");
         rval = 1;
         goto bail;
     } else {
@@ -1903,27 +2005,27 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         slapi_free_search_results_internal(search_pb);
         slapi_pblock_destroy(search_pb);
     }
-    
+
     /* Find all the instance entries and create a Slapi_Backend and an
      * ldbm_instance for each */
     rval = ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
     if (rval) {
         slapi_log_err(SLAPI_LOG_ERR,
-                       "ldbm_config_load_dse_info",
-                       "failed to read instance entries\n");
+                      "ldbm_config_load_dse_info",
+                      "failed to read instance entries\n");
         goto bail;
     }
 
     /* setup the dse callback functions for the ldbm backend config entry */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
-        (void *) li);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
+                                   (void *)li);
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_modify_entry_callback,
-        (void *) li);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_modify_entry_callback,
+                                   (void *)li);
     slapi_config_register_callback(DSE_OPERATION_WRITE, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
-        (void *) li);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
+                                   (void *)li);
     slapi_ch_free_string(&dn);
 
     /* setup the dse callback functions for the ldbm backend monitor entry */
@@ -1933,13 +2035,13 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_config_load_dse_info",
                       "failed to create monitor dn for %s\n",
-                      li->li_plugin->plg_name); 
+                      li->li_plugin->plg_name);
         rval = 1;
         goto bail;
     }
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_search,
-        (void *)li);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_search,
+                                   (void *)li);
     slapi_ch_free_string(&dn);
 
     /* And the ldbm backend database monitor entry */
@@ -1949,39 +2051,39 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_config_load_dse_info",
                       "failed create monitor database dn for %s\n",
-                      li->li_plugin->plg_name); 
+                      li->li_plugin->plg_name);
         rval = 1;
         goto bail;
     }
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_dbmonitor_search,
-        (void *)li);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_dbmonitor_search,
+                                   (void *)li);
     slapi_ch_free_string(&dn);
 
     /* setup the dse callback functions for the ldbm backend instance
      * entries */
-    dn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config", 
+    dn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config",
                                 li->li_plugin->plg_name);
     if (NULL == dn) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_config_load_dse_info",
                       "failed create plugin dn for %s\n",
-                      li->li_plugin->plg_name); 
+                      li->li_plugin->plg_name);
         rval = 1;
         goto bail;
     }
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
-        ldbm_instance_add_instance_entry_callback, (void *) li);
+                                   LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
+                                   ldbm_instance_add_instance_entry_callback, (void *)li);
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, dn,
-        LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
-        ldbm_instance_postadd_instance_entry_callback, (void *) li);
+                                   LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
+                                   ldbm_instance_postadd_instance_entry_callback, (void *)li);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn,
-        LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
-        ldbm_instance_delete_instance_entry_callback, (void *) li);
+                                   LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
+                                   ldbm_instance_delete_instance_entry_callback, (void *)li);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, dn,
-        LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
-        ldbm_instance_post_delete_instance_entry_callback, (void *) li);
+                                   LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
+                                   ldbm_instance_post_delete_instance_entry_callback, (void *)li);
 bail:
     slapi_ch_free_string(&dn);
     return rval;
@@ -1993,39 +2095,40 @@ bail:
  * way.
  * buf is char[BUFSIZ]
  */
-void ldbm_config_get(void *arg, config_info *config, char *buf)
+void
+ldbm_config_get(void *arg, config_info *config, char *buf)
 {
     char *tmp_string;
     size_t val = 0;
-    
+
     if (config == NULL) {
         buf[0] = '\0';
         return;
     }
-    
-    switch(config->config_type) {
+
+    switch (config->config_type) {
     case CONFIG_TYPE_INT:
-            sprintf(buf, "%d", (int) ((uintptr_t)config->config_get_fn(arg)));
-            break;
+        sprintf(buf, "%d", (int)((uintptr_t)config->config_get_fn(arg)));
+        break;
     case CONFIG_TYPE_INT_OCTAL:
-        sprintf(buf, "%o", (int) ((uintptr_t)config->config_get_fn(arg)));
+        sprintf(buf, "%o", (int)((uintptr_t)config->config_get_fn(arg)));
         break;
     case CONFIG_TYPE_LONG:
-        sprintf(buf, "%ld", (long) config->config_get_fn(arg));
+        sprintf(buf, "%ld", (long)config->config_get_fn(arg));
         break;
     case CONFIG_TYPE_SIZE_T:
-        val = (size_t) config->config_get_fn(arg);
+        val = (size_t)config->config_get_fn(arg);
         sprintf(buf, "%lu", (long unsigned int)val);
         break;
     case CONFIG_TYPE_STRING:
         /* Remember the get function for strings returns memory
          * that must be freed. */
-        tmp_string = (char *) config->config_get_fn(arg);
-        PR_snprintf(buf, BUFSIZ, "%s", (char *) tmp_string);
+        tmp_string = (char *)config->config_get_fn(arg);
+        PR_snprintf(buf, BUFSIZ, "%s", (char *)tmp_string);
         slapi_ch_free((void **)&tmp_string);
         break;
     case CONFIG_TYPE_ONOFF:
-        if ((int) ((uintptr_t)config->config_get_fn(arg))) {
+        if ((int)((uintptr_t)config->config_get_fn(arg))) {
             sprintf(buf, "on");
         } else {
             sprintf(buf, "off");
@@ -2039,41 +2142,42 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
  *   SLAPI_DSE_CALLBACK_ERROR on failure
  *   SLAPI_DSE_CALLBACK_OK on success
  */
-int ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
-                                      Slapi_Entry *e,
-                                      Slapi_Entry *entryAfter __attribute__((unused)),
-                                      int *returncode,
-                                      char *returntext,
-                                      void *arg)
+int
+ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                  Slapi_Entry *e,
+                                  Slapi_Entry *entryAfter __attribute__((unused)),
+                                  int *returncode,
+                                  char *returntext,
+                                  void *arg)
 {
     char buf[BUFSIZ];
     struct berval *vals[2];
     struct berval val;
-    struct ldbminfo *li= (struct ldbminfo *) arg;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     config_info *config;
-    
+
     vals[0] = &val;
-    vals[1] = NULL;  
-    
+    vals[1] = NULL;
+
     returntext[0] = '\0';
-    
+
     PR_Lock(li->li_config_mutex);
-    
-    for(config = ldbm_config; config->config_name != NULL; config++) {
+
+    for (config = ldbm_config; config->config_name != NULL; config++) {
         /* Go through the ldbm_config table and fill in the entry. */
 
         if (!(config->config_flags & (CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_PREVIOUSLY_SET))) {
             /* This config option shouldn't be shown */
             continue;
         }
-        
-        ldbm_config_get((void *) li, config, buf);
-        
+
+        ldbm_config_get((void *)li, config, buf);
+
         val.bv_val = buf;
         val.bv_len = strlen(buf);
         slapi_entry_attr_replace(e, config->config_name, vals);
     }
-    
+
     PR_Unlock(li->li_config_mutex);
 
     *returncode = LDAP_SUCCESS;
@@ -2081,7 +2185,8 @@ int ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 
-int ldbm_config_ignored_attr(char *attr_name)
+int
+ldbm_config_ignored_attr(char *attr_name)
 {
     /* These are the names of attributes that are in the
      * config entries but are not config attributes. */
@@ -2090,7 +2195,7 @@ int ldbm_config_ignored_attr(char *attr_name)
         !strcasecmp("creatorsname", attr_name) ||
         !strcasecmp("createtimestamp", attr_name) ||
         !strcasecmp(LDBM_NUMSUBORDINATES_STR, attr_name) ||
-        slapi_attr_is_last_mod(attr_name)){
+        slapi_attr_is_last_mod(attr_name)) {
         return 1;
     } else {
         return 0;
@@ -2098,7 +2203,8 @@ int ldbm_config_ignored_attr(char *attr_name)
 }
 
 /* Returns LDAP_SUCCESS on success */
-int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op)
+int
+ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op)
 {
     config_info *config;
     int use_default;
@@ -2106,7 +2212,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     long long_val;
     size_t sz_val;
     PRInt64 llval;
-    int maxint = (int)(((unsigned int)~0)>>1);
+    int maxint = (int)(((unsigned int)~0) >> 1);
     int minint = ~maxint;
     PRInt64 llmaxint;
     PRInt64 llminint;
@@ -2125,13 +2231,13 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     }
 
     /* Some config attrs can't be changed while the server is running. */
-    if (phase == CONFIG_PHASE_RUNNING && 
+    if (phase == CONFIG_PHASE_RUNNING &&
         !(config->config_flags & CONFIG_FLAG_ALLOW_RUNNING_CHANGE)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "%s can't be modified while the server is running.\n", attr_name);
         slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "%s can't be modified while the server is running.\n", attr_name);
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    
+
     /* If the config phase is initialization or if bval is NULL or if we are deleting
        the value, we will use the default value for the attribute. */
     if ((CONFIG_PHASE_INITIALIZATION == phase) || (NULL == bval) || SLAPI_IS_MOD_DELETE(mod_op)) {
@@ -2158,12 +2264,12 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         ldbm_config_get(arg, config, buf);
         if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
-                "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
+                                  "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
             return LDAP_NO_SUCH_ATTRIBUTE;
         }
     }
-    
-    switch(config->config_type) {
+
+    switch (config->config_type) {
     case CONFIG_TYPE_INT:
         if (use_default) {
             str_val = config->config_default_value;
@@ -2177,32 +2283,32 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n", str_val, attr_name);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is not a number\n", str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
-        /* check for overflow */
+            /* check for overflow */
         } else if (LL_CMP(llval, >, llmaxint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
-                    str_val, attr_name, maxint);
+                                  str_val, attr_name, maxint);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is greater than the maximum %d\n",
-                    str_val, attr_name, maxint);
+                          str_val, attr_name, maxint);
             return LDAP_UNWILLING_TO_PERFORM;
-        /* check for underflow */
+            /* check for underflow */
         } else if (LL_CMP(llval, <, llminint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
-                    str_val, attr_name, minint);
+                                  str_val, attr_name, minint);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is less than the minimum %d\n",
-                    str_val, attr_name, minint);
+                          str_val, attr_name, minint);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         /* convert 64 bit value to 32 bit value */
         LL_L2I(int_val, llval);
-        retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
+        retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_INT_OCTAL:
         if (use_default) {
-            int_val = (int) strtol(config->config_default_value, NULL, 8);
+            int_val = (int)strtol(config->config_default_value, NULL, 8);
         } else {
-            int_val = (int) strtol((char *)bval->bv_val, NULL, 8);
+            int_val = (int)strtol((char *)bval->bv_val, NULL, 8);
         }
-        retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
+        retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_LONG:
         if (use_default) {
@@ -2215,28 +2321,28 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         /* check for parsing error (e.g. not a number) */
         if (err) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
-                    str_val, attr_name);
+                                  str_val, attr_name);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is not a number\n",
-                    str_val, attr_name);
+                          str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
-        /* check for overflow */
+            /* check for overflow */
         } else if (LL_CMP(llval, >, llmaxint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
-                    str_val, attr_name, maxint);
+                                  str_val, attr_name, maxint);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is greater than the maximum %d\n",
-                    str_val, attr_name, maxint);
+                          str_val, attr_name, maxint);
             return LDAP_UNWILLING_TO_PERFORM;
-        /* check for underflow */
+            /* check for underflow */
         } else if (LL_CMP(llval, <, llminint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
-                    str_val, attr_name, minint);
+                                  str_val, attr_name, minint);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is less than the minimum %d\n",
-                    str_val, attr_name, minint);
+                          str_val, attr_name, minint);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         /* convert 64 bit value to 32 bit value */
         LL_L2I(long_val, llval);
-        retval = config->config_set_fn(arg, (void *) long_val, err_buf, phase, apply_mod);
+        retval = config->config_set_fn(arg, (void *)long_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_SIZE_T:
         if (use_default) {
@@ -2251,19 +2357,19 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         /* check for parsing error (e.g. not a number) */
         if (err == EINVAL) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
-                    str_val, attr_name);
+                                  str_val, attr_name);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is not a number\n",
-                    str_val, attr_name);
+                          str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
             /* check for overflow */
         } else if (err == ERANGE) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is outside the range of representable values\n",
-                    str_val, attr_name);
+                                  str_val, attr_name);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is outside the range of representable values\n",
-                    str_val, attr_name);
+                          str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
         }
-        retval = config->config_set_fn(arg, (void *) sz_val, err_buf, phase, apply_mod);
+        retval = config->config_set_fn(arg, (void *)sz_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_STRING:
         if (use_default) {
@@ -2276,9 +2382,9 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         if (use_default) {
             int_val = !strcasecmp(config->config_default_value, "on");
         } else {
-            int_val = !strcasecmp((char *) bval->bv_val, "on");
+            int_val = !strcasecmp((char *)bval->bv_val, "on");
         }
-        retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
+        retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     }
 
@@ -2295,30 +2401,31 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
             config->config_flags |= CONFIG_FLAG_PREVIOUSLY_SET;
         }
     }
-    
+
     return retval;
 }
 
 
-static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
+static int
+parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
 {
     Slapi_Attr *attr = NULL;
-    
-    for (slapi_entry_first_attr(e, &attr); attr; slapi_entry_next_attr(e, attr, &attr)) { 
+
+    for (slapi_entry_first_attr(e, &attr); attr; slapi_entry_next_attr(e, attr, &attr)) {
         char *attr_name = NULL;
         Slapi_Value *sval = NULL;
         struct berval *bval;
         char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
-        
+
         slapi_attr_get_type(attr, &attr_name);
-        
+
         /* There are some attributes that we don't care about, like objectclass. */
         if (ldbm_config_ignored_attr(attr_name)) {
             continue;
         }
         slapi_attr_first_value(attr, &sval);
-        bval = (struct berval *) slapi_value_get_berval(sval);
-        
+        bval = (struct berval *)slapi_value_get_berval(sval);
+
         if (ldbm_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, "parse_ldbm_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
             return 1;
@@ -2331,40 +2438,41 @@ static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_i
 static void
 mod_free(LDAPMod *mod)
 {
-	ber_bvecfree(mod->mod_bvalues);
-	slapi_ch_free((void**)&(mod->mod_type));
-	slapi_ch_free((void**)&mod);
+    ber_bvecfree(mod->mod_bvalues);
+    slapi_ch_free((void **)&(mod->mod_type));
+    slapi_ch_free((void **)&mod);
 }
 
 /*
  * Returns:
  *   SLAPI_DSE_CALLBACK_ERROR on failure
  *   SLAPI_DSE_CALLBACK_OK on success
- */        
-int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg) 
-{ 
-    int i; 
-    char *attr_name; 
-    LDAPMod **mods; 
-    int rc = LDAP_SUCCESS; 
-    int apply_mod = 0; 
-    struct ldbminfo *li= (struct ldbminfo *) arg;
+ */
+int
+ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg)
+{
+    int i;
+    char *attr_name;
+    LDAPMod **mods;
+    int rc = LDAP_SUCCESS;
+    int apply_mod = 0;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
     int reapply_mods = 0;
     int idx = 0;
 
     /* This lock is probably way too conservative, but we don't expect much
      * contention for it. */
     PR_Lock(li->li_config_mutex);
-        
-    slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods ); 
-    
-    returntext[0] = '\0'; 
 
-    /* 
-     * First pass: set apply mods to 0 so only input validation will be done; 
-     * 2nd pass: set apply mods to 1 to apply changes to internal storage 
-     */ 
-    for ( apply_mod = 0; apply_mod <= 1 && LDAP_SUCCESS == rc; apply_mod++ ) {
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+
+    returntext[0] = '\0';
+
+    /*
+     * First pass: set apply mods to 0 so only input validation will be done;
+     * 2nd pass: set apply mods to 1 to apply changes to internal storage
+     */
+    for (apply_mod = 0; apply_mod <= 1 && LDAP_SUCCESS == rc; apply_mod++) {
         for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
             attr_name = mods[i]->mod_type;
 
@@ -2396,53 +2504,53 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
                it with the new value - otherwise, if it is single valued, reject the
                operation with TYPE_OR_VALUE_EXISTS */
             /* This assumes there is only one bval for this mod. */
-            rc = ldbm_config_set((void *) li, attr_name, ldbm_config,
-                                 ( mods[i]->mod_bvalues == NULL ) ? NULL
-                                 : mods[i]->mod_bvalues[0], returntext,
-                                 ((li->li_flags&LI_FORCE_MOD_CONFIG)?
-                                  CONFIG_PHASE_INTERNAL:CONFIG_PHASE_RUNNING),
-                                 apply_mod, mods[i]->mod_op); 
+            rc = ldbm_config_set((void *)li, attr_name, ldbm_config,
+                                 (mods[i]->mod_bvalues == NULL) ? NULL
+                                                                : mods[i]->mod_bvalues[0],
+                                 returntext,
+                                 ((li->li_flags & LI_FORCE_MOD_CONFIG) ? CONFIG_PHASE_INTERNAL : CONFIG_PHASE_RUNNING),
+                                 apply_mod, mods[i]->mod_op);
             if (apply_mod) {
                 mod_free(mods[i]);
                 mods[i] = NULL;
             }
-        } 
-    } 
-    
+        }
+    }
+
     PR_Unlock(li->li_config_mutex);
 
     if (reapply_mods) {
         mods[idx] = NULL;
         slapi_pblock_set(pb, SLAPI_DSE_REAPPLY_MODS, &reapply_mods);
     }
-    
-    *returncode= rc; 
-    if(LDAP_SUCCESS == rc) { 
-        return SLAPI_DSE_CALLBACK_OK; 
-    } 
-    else { 
-        return SLAPI_DSE_CALLBACK_ERROR; 
-    } 
-} 
+
+    *returncode = rc;
+    if (LDAP_SUCCESS == rc) {
+        return SLAPI_DSE_CALLBACK_OK;
+    } else {
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+}
 
 
-/* This function is used to set config attributes. It can be used as a 
+/* This function is used to set config attributes. It can be used as a
  * shortcut to doing an internal modify operation on the config DSE.
  */
-void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
+void
+ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
 {
     char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
     struct berval bval;
-    
+
     bval.bv_val = value;
     bval.bv_len = strlen(value);
-    
-    if (ldbm_config_set((void *) li, attrname, ldbm_config, &bval, 
+
+    if (ldbm_config_set((void *)li, attrname, ldbm_config, &bval,
                         err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */,
                         LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, 
-                  "ldbm_config_internal_set", "Error setting instance config attr %s to %s: %s\n", 
-                  attrname, value, err_buf);
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_config_internal_set", "Error setting instance config attr %s to %s: %s\n",
+                      attrname, value, err_buf);
         exit(1);
     }
 }
@@ -2451,7 +2559,8 @@ void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
  * replace_ldbm_config_value:
  * - update an ldbm database config value
  */
-void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
+void
+replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Mods smods;
@@ -2459,8 +2568,8 @@ void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
     slapi_mods_init(&smods, 1);
     slapi_mods_add(&smods, LDAP_MOD_REPLACE, conftype, strlen(val), val);
     slapi_modify_internal_set_pb(pb, CONFIG_LDBM_DN,
-                   slapi_mods_get_ldapmods_byref(&smods),
-                   NULL, NULL, li->li_identity, 0);
+                                 slapi_mods_get_ldapmods_byref(&smods),
+                                 NULL, NULL, li->li_identity, 0);
     slapi_modify_internal_pb(pb);
     slapi_mods_done(&smods);
     slapi_pblock_destroy(pb);
@@ -2468,12 +2577,13 @@ void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
 
 /* Dispose of an ldbminfo struct for good */
 void
-ldbm_config_destroy(struct ldbminfo *li) {
+ldbm_config_destroy(struct ldbminfo *li)
+{
     if (li->li_attrs_to_exclude_from_export != NULL) {
-        charray_free( li->li_attrs_to_exclude_from_export );
+        charray_free(li->li_attrs_to_exclude_from_export);
     }
-    slapi_ch_free((void **) &(li->li_new_directory));
-    slapi_ch_free((void **) &(li->li_directory));
+    slapi_ch_free((void **)&(li->li_new_directory));
+    slapi_ch_free((void **)&(li->li_directory));
     /* Destroy the mutexes and cond var */
     PR_DestroyLock(li->li_dbcache_mutex);
     PR_DestroyLock(li->li_shutdown_mutex);

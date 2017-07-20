@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <stdio.h>
@@ -19,7 +19,6 @@
 #include "txtfile.h"
 
 
-
 #if 0
 char fileBuffer[FILE_BUFFER_SIZE + 1];
 char *fbCurrent;
@@ -28,7 +27,8 @@ int fbStatus;
 #endif
 
 
-TEXTFILE * OpenTextFile(char *filename, int access)
+TEXTFILE *
+OpenTextFile(char *filename, int access)
 {
     TEXTFILE *txtfile;
     FILE *file;
@@ -37,8 +37,7 @@ TEXTFILE * OpenTextFile(char *filename, int access)
     if (access == TEXT_OPEN_FOR_WRITE) {
         status = TEXT_FILE_WRITING;
         file = fopen(filename, "w+");
-    }
-    else {
+    } else {
         status = TEXT_FILE_READING;
         file = fopen(filename, "r");
     }
@@ -46,46 +45,48 @@ TEXTFILE * OpenTextFile(char *filename, int access)
     if (file == NULL)
         return NULL;
 
-    txtfile = (TEXTFILE *) malloc (sizeof(TEXTFILE));
+    txtfile = (TEXTFILE *)malloc(sizeof(TEXTFILE));
     memset(txtfile, 0, sizeof(TEXTFILE));
 
     txtfile->file = file;
     txtfile->fbStatus = status;
 
-	txtfile->fbCurrent = txtfile->fileBuffer;
-	*txtfile->fbCurrent = '\0';
-	txtfile->fbSize = 0;
+    txtfile->fbCurrent = txtfile->fileBuffer;
+    *txtfile->fbCurrent = '\0';
+    txtfile->fbSize = 0;
     return txtfile;
 }
 
 
-void CloseTextFile(TEXTFILE *txtfile)
+void
+CloseTextFile(TEXTFILE *txtfile)
 {
     if (txtfile) {
-	    fclose(txtfile->file);
+        fclose(txtfile->file);
         free(txtfile);
     }
-    
 }
 
-int FillTextBuffer(TEXTFILE *txtfile)
+int
+FillTextBuffer(TEXTFILE *txtfile)
 {
-	int nLeft, size;
-	nLeft = strlen(txtfile->fbCurrent); 
-	memcpy(txtfile->fileBuffer, txtfile->fbCurrent, nLeft+1);
+    int nLeft, size;
+    nLeft = strlen(txtfile->fbCurrent);
+    memcpy(txtfile->fileBuffer, txtfile->fbCurrent, nLeft + 1);
 
-	size = fread(txtfile->fileBuffer + nLeft, 1, FILE_BUFFER_SIZE - nLeft, txtfile->file);
-	if (size == 0)
-		return 0;
+    size = fread(txtfile->fileBuffer + nLeft, 1, FILE_BUFFER_SIZE - nLeft, txtfile->file);
+    if (size == 0)
+        return 0;
 
-	txtfile->fbCurrent = txtfile->fileBuffer;
-	*(txtfile->fbCurrent + size + nLeft) = '\0';
-	txtfile->fbSize = size + nLeft;
+    txtfile->fbCurrent = txtfile->fileBuffer;
+    *(txtfile->fbCurrent + size + nLeft) = '\0';
+    txtfile->fbSize = size + nLeft;
 
-	return size;
+    return size;
 }
 
-int ReadTextLine(TEXTFILE *txtfile, char *linebuf)
+int
+ReadTextLine(TEXTFILE *txtfile, char *linebuf)
 {
     char *p, *q;
 
@@ -95,17 +96,13 @@ int ReadTextLine(TEXTFILE *txtfile, char *linebuf)
 
     p = txtfile->fbCurrent;
     q = strchr(p, '\n');
-    if (q)
-    {
+    if (q) {
         *q = '\0';
         strcpy(linebuf, p);
         txtfile->fbCurrent = q + 1;
         return strlen(linebuf);
-    }
-    else
-    {
-        if (FillTextBuffer(txtfile) == 0)
-        {   /* Done with file reading,
+    } else {
+        if (FillTextBuffer(txtfile) == 0) { /* Done with file reading,
                return last line
              */
             txtfile->fbStatus = TEXT_FILE_DONE;
@@ -113,23 +110,18 @@ int ReadTextLine(TEXTFILE *txtfile, char *linebuf)
                 strcpy(linebuf, txtfile->fbCurrent);
                 CloseTextFile(txtfile);
                 return strlen(linebuf);
-            }
-            else {
+            } else {
                 CloseTextFile(txtfile);
                 return -1;
             }
-        }
-        else {
+        } else {
             p = txtfile->fbCurrent;
             q = strchr(p, '\n');
-            if (q)
-            {
+            if (q) {
                 *q = '\0';
                 strcpy(linebuf, p);
                 txtfile->fbCurrent = q + 1;
-            }
-            else
-            {
+            } else {
                 strcpy(linebuf, txtfile->fbCurrent);
                 txtfile->fbCurrent = txtfile->fbCurrent + strlen(linebuf);
             }

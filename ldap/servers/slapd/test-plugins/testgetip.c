@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /************************************************************
@@ -16,7 +16,7 @@
  testgetip.c
 
  This source file provides an example of a pre-operation plug-in
- function that gets the IP address of the client and the IP 
+ function that gets the IP address of the client and the IP
  address of the server.
 
  testgetip logs this information to the server error log.
@@ -48,73 +48,71 @@
 #include "slapi-plugin.h"
 #include "nspr.h"
 
-Slapi_PluginDesc getippdesc = { "test-getip", VENDOR, DS_PACKAGE_VERSION,
-	"sample pre-operation plugin" };
+Slapi_PluginDesc getippdesc = {"test-getip", VENDOR, DS_PACKAGE_VERSION,
+                               "sample pre-operation plugin"};
 
-static char *netaddr2str( PRNetAddr *addrp, char *buf, size_t buflen );
+static char *netaddr2str(PRNetAddr *addrp, char *buf, size_t buflen);
 
 int
-testgetip( Slapi_PBlock *pb )
+testgetip(Slapi_PBlock *pb)
 {
-	void		*conn;
-	PRNetAddr	client_addr, server_addr;
-	char		addrbuf[ 512 ], *addrstr;
+    void *conn;
+    PRNetAddr client_addr, server_addr;
+    char addrbuf[512], *addrstr;
 
-	/*
-	 * Don't do anything for internal operations (NULL connection).
-	 */
-	if ( slapi_pblock_get( pb, SLAPI_CONNECTION, &conn ) != 0 ||
-		( conn == NULL )) {
-			return( 0 );
-	}
+    /*
+     * Don't do anything for internal operations (NULL connection).
+     */
+    if (slapi_pblock_get(pb, SLAPI_CONNECTION, &conn) != 0 ||
+        (conn == NULL)) {
+        return (0);
+    }
 
-	/*
-	 * Get the client's IP address and log it
-	 */
-	if ( slapi_pblock_get( pb, SLAPI_CONN_CLIENTNETADDR, &client_addr )
-	    != 0 || ( client_addr.raw.family == 0 )) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
-		    "Could not get client IP.\n" );
-	} else if (( addrstr = netaddr2str( &client_addr, addrbuf,
-	    sizeof(addrbuf))) != NULL ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
-		    "Client's IP address is %s\n", addrstr );
-	}
+    /*
+     * Get the client's IP address and log it
+     */
+    if (slapi_pblock_get(pb, SLAPI_CONN_CLIENTNETADDR, &client_addr) != 0 || (client_addr.raw.family == 0)) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
+                      "Could not get client IP.\n");
+    } else if ((addrstr = netaddr2str(&client_addr, addrbuf,
+                                      sizeof(addrbuf))) != NULL) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
+                      "Client's IP address is %s\n", addrstr);
+    }
 
-	/*
-	 * Get the destination (server) IP address and log it
-	 */
-	if ( slapi_pblock_get( pb, SLAPI_CONN_SERVERNETADDR, &server_addr )
-	    != 0 || ( server_addr.raw.family == 0 )) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
-		    "Could not get server IP.\n" );
-	} else if (( addrstr = netaddr2str( &server_addr, addrbuf,
-	    sizeof(addrbuf))) != NULL ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
-		    "Client sent request to server IP %s\n", addrstr );
-	}
+    /*
+     * Get the destination (server) IP address and log it
+     */
+    if (slapi_pblock_get(pb, SLAPI_CONN_SERVERNETADDR, &server_addr) != 0 || (server_addr.raw.family == 0)) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
+                      "Could not get server IP.\n");
+    } else if ((addrstr = netaddr2str(&server_addr, addrbuf,
+                                      sizeof(addrbuf))) != NULL) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
+                      "Client sent request to server IP %s\n", addrstr);
+    }
 
-	return( 0 );
+    return (0);
 }
 
 int
-testgetip_init( Slapi_PBlock *pb )
+testgetip_init(Slapi_PBlock *pb)
 {
-	/* Register the pre-operation plug-in function. */
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-	    (void *)&getippdesc ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_SEARCH_FN,
-	    (void *) testgetip ) != 0 ) { 
-		slapi_log_err(SLAPI_LOG_ERR, "testgetip_init",
-			"Failed to set version and functions.\n" );
-		return( -1 );
-	}
+    /* Register the pre-operation plug-in function. */
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                         SLAPI_PLUGIN_VERSION_01) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                         (void *)&getippdesc) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_SEARCH_FN,
+                         (void *)testgetip) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "testgetip_init",
+                      "Failed to set version and functions.\n");
+        return (-1);
+    }
 
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip_init",
-		"Registered preop plugins.\n" );
-	return( 0 );
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip_init",
+                  "Registered preop plugins.\n");
+    return (0);
 }
 
 
@@ -122,23 +120,23 @@ testgetip_init( Slapi_PBlock *pb )
  * Utility function to convert a PRNetAddr to a human readable string.
  */
 static char *
-netaddr2str( PRNetAddr *addrp, char *buf, size_t buflen )
+netaddr2str(PRNetAddr *addrp, char *buf, size_t buflen)
 {
-	char	*addrstr;
+    char *addrstr;
 
-	*buf = '\0';
-	if ( PR_NetAddrToString( addrp, buf, buflen ) != PR_SUCCESS ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
-		    "PR_NetAddrToString failed.\n" );
-		return( NULL );
-	}
+    *buf = '\0';
+    if (PR_NetAddrToString(addrp, buf, buflen) != PR_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testgetip",
+                      "PR_NetAddrToString failed.\n");
+        return (NULL);
+    }
 
-	/* skip past leading ::ffff: if IPv4 address */
-	if ( strlen( buf ) > 7 && strncmp( buf, "::ffff:", 7 ) == 0 ) {
-		addrstr = buf + 7;
-	} else {
-		addrstr = buf;
-	}
+    /* skip past leading ::ffff: if IPv4 address */
+    if (strlen(buf) > 7 && strncmp(buf, "::ffff:", 7) == 0) {
+        addrstr = buf + 7;
+    } else {
+        addrstr = buf;
+    }
 
-	return( addrstr );
+    return (addrstr);
 }

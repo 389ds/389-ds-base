@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -17,26 +17,26 @@
 #include "slapi-plugin.h"
 
 typedef void IndexEntryList;
-typedef unsigned int	IndexEntryID;
+typedef unsigned int IndexEntryID;
 
-typedef int (*index_search_callback)(Slapi_Filter *filter, IndexEntryList **results, void *user_data );
+typedef int (*index_search_callback)(Slapi_Filter *filter, IndexEntryList **results, void *user_data);
 typedef int (*index_validate_callback)(void);
 
 typedef struct __indexed_item
 {
-	/* item that is indexed, an LDAP string filter description of the index
-	 * x=*  = presence
-	 * x=** = equality
-	 * x=?* = substrings
-	 */
-    char *index_filter; /* item that is indexed, an LDAP string filter description of the index e.g. (presence=*) */
+    /* item that is indexed, an LDAP string filter description of the index
+     * x=*  = presence
+     * x=** = equality
+     * x=?* = substrings
+     */
+    char *index_filter;              /* item that is indexed, an LDAP string filter description of the index e.g. (presence=*) */
     index_search_callback search_op; /* search call back */
-	char **associated_attrs; /* null terminated list of filter groupable attributes */
-	Slapi_DN *namespace_dn; /* the namespace this index is valid for */
+    char **associated_attrs;         /* null terminated list of filter groupable attributes */
+    Slapi_DN *namespace_dn;          /* the namespace this index is valid for */
 } indexed_item;
 
 
-#define INDEX_FILTER_EVALUTED	0
+#define INDEX_FILTER_EVALUTED    0
 #define INDEX_FILTER_UNEVALUATED 1
 
 

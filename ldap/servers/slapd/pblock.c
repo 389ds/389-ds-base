@@ -35,27 +35,31 @@
 static PRLock *pblock_analytics_lock = NULL;
 
 static PLHashNumber
-hash_int_func(const void *key) {
+hash_int_func(const void *key)
+{
     uint64_t ik = (uint64_t)key;
     return ik % NUMBER_SLAPI_ATTRS;
 }
 
 static PRIntn
-hash_key_compare(const void *a, const void *b) {
+hash_key_compare(const void *a, const void *b)
+{
     uint64_t ia = (uint64_t)a;
     uint64_t ib = (uint64_t)b;
     return ia == ib;
 }
 
 static PRIntn
-hash_value_compare(const void *a, const void *b) {
+hash_value_compare(const void *a, const void *b)
+{
     uint64_t ia = (uint64_t)a;
     uint64_t ib = (uint64_t)b;
     return ia == ib;
 }
 
 static void
-pblock_analytics_init(Slapi_PBlock *pb) {
+pblock_analytics_init(Slapi_PBlock *pb)
+{
     if (pblock_analytics_lock == NULL) {
         pblock_analytics_lock = PR_NewLock();
     }
@@ -67,7 +71,8 @@ pblock_analytics_init(Slapi_PBlock *pb) {
 }
 
 static void
-pblock_analytics_destroy(Slapi_PBlock *pb) {
+pblock_analytics_destroy(Slapi_PBlock *pb)
+{
     /* Some parts of DS re-use or double free pblocks >.< */
     if (pb->analytics_init != ANALYTICS_MAGIC) {
         return;
@@ -78,7 +83,8 @@ pblock_analytics_destroy(Slapi_PBlock *pb) {
 }
 
 static void
-pblock_analytics_record(Slapi_PBlock *pb, int access_type) {
+pblock_analytics_record(Slapi_PBlock *pb, int access_type)
+{
     if (pb->analytics_init != ANALYTICS_MAGIC) {
         pblock_analytics_init(pb);
     }
@@ -95,7 +101,8 @@ pblock_analytics_record(Slapi_PBlock *pb, int access_type) {
 }
 
 static PRIntn
-pblock_analytics_report_entry(PLHashEntry *he, PRIntn index, void *arg) {
+pblock_analytics_report_entry(PLHashEntry *he, PRIntn index, void *arg)
+{
     FILE *fp = (FILE *)arg;
     /* Print a pair of values */
     fprintf(fp, "%" PRIu64 ":%" PRIu64 ",", (uint64_t)he->key, (uint64_t)he->value);
@@ -104,7 +111,8 @@ pblock_analytics_report_entry(PLHashEntry *he, PRIntn index, void *arg) {
 }
 
 static void
-pblock_analytics_report(Slapi_PBlock *pb) {
+pblock_analytics_report(Slapi_PBlock *pb)
+{
     /* Some parts of DS re-use or double free pblocks >.< */
     if (pb->analytics_init != ANALYTICS_MAGIC) {
         return;
@@ -130,7 +138,8 @@ pblock_analytics_report(Slapi_PBlock *pb) {
 }
 
 uint64_t
-pblock_analytics_query(Slapi_PBlock *pb, int access_type) {
+pblock_analytics_query(Slapi_PBlock *pb, int access_type)
+{
     uint64_t uact = (uint64_t)access_type;
     /* For testing, allow querying of the stats we have taken. */
     return (uint64_t)PL_HashTableLookup(pb->analytics, (void *)uact);
@@ -138,15 +147,19 @@ pblock_analytics_query(Slapi_PBlock *pb, int access_type) {
 
 #endif
 
-void pblock_init(Slapi_PBlock *pb) {
+void
+pblock_init(Slapi_PBlock *pb)
+{
     memset(pb, '\0', sizeof(Slapi_PBlock));
 }
 
-void pblock_init_common(
+void
+pblock_init_common(
     Slapi_PBlock *pb,
     Slapi_Backend *be,
     Connection *conn,
-    Operation *op) {
+    Operation *op)
+{
     PR_ASSERT(NULL != pb);
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_init(pb);
@@ -158,7 +171,8 @@ void pblock_init_common(
 }
 
 Slapi_PBlock *
-slapi_pblock_new() {
+slapi_pblock_new()
+{
     Slapi_PBlock *pb;
 
     pb = (Slapi_PBlock *)slapi_ch_calloc(1, sizeof(Slapi_PBlock));
@@ -168,7 +182,9 @@ slapi_pblock_new() {
     return pb;
 }
 
-void slapi_pblock_init(Slapi_PBlock *pb) {
+void
+slapi_pblock_init(Slapi_PBlock *pb)
+{
     if (pb != NULL) {
         pblock_done(pb);
         pblock_init(pb);
@@ -181,7 +197,9 @@ void slapi_pblock_init(Slapi_PBlock *pb) {
 /*
  * THIS FUNCTION IS AWFUL, WE SHOULD NOT REUSE PBLOCKS
  */
-void pblock_done(Slapi_PBlock *pb) {
+void
+pblock_done(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_report(pb);
     pblock_analytics_destroy(pb);
@@ -206,7 +224,9 @@ void pblock_done(Slapi_PBlock *pb) {
     slapi_ch_free((void **)&(pb->pb_intplugin));
 }
 
-void slapi_pblock_destroy(Slapi_PBlock *pb) {
+void
+slapi_pblock_destroy(Slapi_PBlock *pb)
+{
     if (pb != NULL) {
         pblock_done(pb);
         slapi_ch_free((void **)&pb);
@@ -215,56 +235,64 @@ void slapi_pblock_destroy(Slapi_PBlock *pb) {
 
 /* functions to alloc internals if needed */
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_dse(Slapi_PBlock *pblock) {
+_pblock_assert_pb_dse(Slapi_PBlock *pblock)
+{
     if (pblock->pb_dse == NULL) {
         pblock->pb_dse = (slapi_pblock_dse *)slapi_ch_calloc(1, sizeof(slapi_pblock_dse));
     }
 }
 
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_task(Slapi_PBlock *pblock) {
+_pblock_assert_pb_task(Slapi_PBlock *pblock)
+{
     if (pblock->pb_task == NULL) {
         pblock->pb_task = (slapi_pblock_task *)slapi_ch_calloc(1, sizeof(slapi_pblock_task));
     }
 }
 
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_mr(Slapi_PBlock *pblock) {
+_pblock_assert_pb_mr(Slapi_PBlock *pblock)
+{
     if (pblock->pb_mr == NULL) {
         pblock->pb_mr = (slapi_pblock_matching_rule *)slapi_ch_calloc(1, sizeof(slapi_pblock_matching_rule));
     }
 }
 
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_misc(Slapi_PBlock *pblock) {
+_pblock_assert_pb_misc(Slapi_PBlock *pblock)
+{
     if (pblock->pb_misc == NULL) {
         pblock->pb_misc = (slapi_pblock_misc *)slapi_ch_calloc(1, sizeof(slapi_pblock_misc));
     }
 }
 
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_intop(Slapi_PBlock *pblock) {
+_pblock_assert_pb_intop(Slapi_PBlock *pblock)
+{
     if (pblock->pb_intop == NULL) {
         pblock->pb_intop = (slapi_pblock_intop *)slapi_ch_calloc(1, sizeof(slapi_pblock_intop));
     }
 }
 
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_intplugin(Slapi_PBlock *pblock) {
+_pblock_assert_pb_intplugin(Slapi_PBlock *pblock)
+{
     if (pblock->pb_intplugin == NULL) {
         pblock->pb_intplugin = (slapi_pblock_intplugin *)slapi_ch_calloc(1, sizeof(slapi_pblock_intplugin));
     }
 }
 
 static inline void __attribute__((always_inline))
-_pblock_assert_pb_deprecated(Slapi_PBlock *pblock) {
+_pblock_assert_pb_deprecated(Slapi_PBlock *pblock)
+{
     if (pblock->pb_deprecated == NULL) {
         pblock->pb_deprecated = (slapi_pblock_deprecated *)slapi_ch_calloc(1, sizeof(slapi_pblock_deprecated));
     }
 }
 
 Slapi_PBlock *
-slapi_pblock_clone(Slapi_PBlock *pb) {
+slapi_pblock_clone(Slapi_PBlock *pb)
+{
     /*
      * This is used only in psearch, with an access pattern of
      * ['13:3', '191:28', '47:18', '2001:1', '115:3', '503:3', '196:10', '52:18', '1930:3', '133:189', '112:13', '57:1', '214:91', '70:93', '193:14', '49:10', '403:6', '117:2', '1001:1', '130:161', '109:2', '198:36', '510:27', '1945:3', '114:16', '4:11', '216:91', '712:11', '195:19', '51:26', '140:10', '2005:18', '9:2', '132:334', '111:1', '1160:1', '410:54', '48:1', '2002:156', '116:3', '1000:22', '53:27', '9999:1', '113:13', '3:132', '590:3', '215:91', '194:20', '118:1', '131:30', '860:2', '110:14', ]
@@ -325,7 +353,9 @@ slapi_pblock_clone(Slapi_PBlock *pb) {
 #define SLAPI_PBLOCK_GET_PLUGIN_RELATED_POINTER(pb, element) \
     ((pb)->pb_plugin == NULL ? NULL : (pb)->pb_plugin->element)
 
-int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
+int
+slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
+{
 
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pblock, arg);
@@ -384,10 +414,10 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
         break;
     case SLAPI_CONN_DN:
         /*
-		 * NOTE: we have to make a copy of this that the caller
-		 * is responsible for freeing. otherwise, they would get
-		 * a pointer that could be freed out from under them.
-		 */
+         * NOTE: we have to make a copy of this that the caller
+         * is responsible for freeing. otherwise, they would get
+         * a pointer that could be freed out from under them.
+         */
         if (pblock->pb_conn == NULL) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_DN \n");
@@ -1349,8 +1379,8 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
         }
         break;
     case SLAPI_TARGET_DN: /* DEPRECATED */
-        /* The returned value refers SLAPI_TARGET_SDN.  
-		 * It should not be freed.*/
+        /* The returned value refers SLAPI_TARGET_SDN.
+         * It should not be freed.*/
         if (pblock->pb_op != NULL) {
             Slapi_DN *sdn = pblock->pb_op->o_params.target_address.sdn;
             if (sdn) {
@@ -2282,7 +2312,9 @@ int slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value) {
     return (0);
 }
 
-int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
+int
+slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pblock, arg);
 #endif
@@ -3173,9 +3205,9 @@ int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
         break;
     case SLAPI_TARGET_DN: /* DEPRECATED */
         /* slapi_pblock_set(pb, SLAPI_TARGET_DN, val) automatically
-		 * replaces SLAPI_TARGET_SDN.  Caller should not free the 
-		 * original SLAPI_TARGET_SDN, but the reset one here by getting
-		 * the address using slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn). */
+         * replaces SLAPI_TARGET_SDN.  Caller should not free the
+         * original SLAPI_TARGET_SDN, but the reset one here by getting
+         * the address using slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn). */
         if (pblock->pb_op != NULL) {
             Slapi_DN *sdn = pblock->pb_op->o_params.target_address.sdn;
             slapi_sdn_free(&sdn);
@@ -3404,8 +3436,8 @@ int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
             char **attrs;
             for (attrs = (char **)value; attrs && *attrs; attrs++) {
                 /* Get rid of forbidden attr, e.g.,
-				 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
-				 * which never be returned. */
+                 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+                 * which never be returned. */
                 if (is_type_forbidden(*attrs)) {
                     char **ptr;
                     for (ptr = attrs; ptr && *ptr; ptr++) {
@@ -3413,7 +3445,7 @@ int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
                             slapi_ch_free_string(ptr); /* free unhashed type */
                         }
                         *ptr = *(ptr + 1); /* attrs is NULL terminated;
-						                      the NULL is copied here. */
+                                              the NULL is copied here. */
                     }
                 }
             }
@@ -3941,7 +3973,9 @@ int slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value) {
     return (0);
 }
 
-int slapi_is_ldapi_conn(Slapi_PBlock *pb) {
+int
+slapi_is_ldapi_conn(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     // MAKE THIS BETTER.
     pblock_analytics_record(pb, SLAPI_CONNECTION);
@@ -3964,13 +3998,15 @@ int slapi_is_ldapi_conn(Slapi_PBlock *pb) {
  * and client certificate are also cleared and free'd.
  *
  * Connection structure members that are potentially changed by this function:
- *		c_dn, c_isroot, c_authtype
- *		c_external_dn, c_external_authtype, c_client_cert
+ *        c_dn, c_isroot, c_authtype
+ *        c_external_dn, c_external_authtype, c_client_cert
  *
  * This function might better belong on bind.c or perhaps connection.c but
  * it needs to be in libslapd because FE code and libslapd code calls it.
  */
-void bind_credentials_clear(Connection *conn, PRBool lock_conn, PRBool clear_externalcreds) {
+void
+bind_credentials_clear(Connection *conn, PRBool lock_conn, PRBool clear_externalcreds)
+{
     if (lock_conn) {
         PR_EnterMonitor(conn->c_mutex);
     }
@@ -4003,7 +4039,8 @@ void bind_credentials_clear(Connection *conn, PRBool lock_conn, PRBool clear_ext
 }
 
 struct slapi_entry *
-slapi_pblock_get_pw_entry(Slapi_PBlock *pb) {
+slapi_pblock_get_pw_entry(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_PW_ENTRY);
 #endif
@@ -4013,7 +4050,9 @@ slapi_pblock_get_pw_entry(Slapi_PBlock *pb) {
     return NULL;
 }
 
-void slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry) {
+void
+slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_PW_ENTRY);
 #endif
@@ -4022,7 +4061,8 @@ void slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry) {
 }
 
 passwdPolicy *
-slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb) {
+slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_PWDPOLICY);
 #endif
@@ -4032,7 +4072,9 @@ slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb) {
     return NULL;
 }
 
-void slapi_pblock_set_pwdpolicy(Slapi_PBlock *pb, passwdPolicy *pwdpolicy) {
+void
+slapi_pblock_set_pwdpolicy(Slapi_PBlock *pb, passwdPolicy *pwdpolicy)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_PWDPOLICY);
 #endif
@@ -4041,7 +4083,8 @@ void slapi_pblock_set_pwdpolicy(Slapi_PBlock *pb, passwdPolicy *pwdpolicy) {
 }
 
 int32_t
-slapi_pblock_get_ldif_dump_replica(Slapi_PBlock *pb) {
+slapi_pblock_get_ldif_dump_replica(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_LDIF_DUMP_REPLICA);
 #endif
@@ -4051,7 +4094,9 @@ slapi_pblock_get_ldif_dump_replica(Slapi_PBlock *pb) {
     return 0;
 }
 
-void slapi_pblock_set_ldif_dump_replica(Slapi_PBlock *pb, int32_t dump_replica) {
+void
+slapi_pblock_set_ldif_dump_replica(Slapi_PBlock *pb, int32_t dump_replica)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_LDIF_DUMP_REPLICA);
 #endif
@@ -4060,7 +4105,8 @@ void slapi_pblock_set_ldif_dump_replica(Slapi_PBlock *pb, int32_t dump_replica) 
 }
 
 void *
-slapi_pblock_get_vattr_context(Slapi_PBlock *pb) {
+slapi_pblock_get_vattr_context(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_VATTR_CONTEXT);
 #endif
@@ -4070,7 +4116,9 @@ slapi_pblock_get_vattr_context(Slapi_PBlock *pb) {
     return NULL;
 }
 
-void slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx) {
+void
+slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_VATTR_CONTEXT);
 #endif
@@ -4079,7 +4127,8 @@ void slapi_pblock_set_vattr_context(Slapi_PBlock *pb, void *vattr_ctx) {
 }
 
 void *
-slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb) {
+slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_OP_STACK_ELEM);
 #endif
@@ -4089,7 +4138,9 @@ slapi_pblock_get_op_stack_elem(Slapi_PBlock *pb) {
     return NULL;
 }
 
-void slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem) {
+void
+slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem)
+{
 #ifdef PBLOCK_ANALYTICS
     pblock_analytics_record(pb, SLAPI_OP_STACK_ELEM);
 #endif
@@ -4116,15 +4167,15 @@ void slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem) {
  * is smart enough to know to only free the memory once.  Like `normdn',
  * `externaldn' and `clientcert' should be NULL or point to malloc'd memory
  * as they are both consumed by this function.
- * 
+ *
  * We also:
  *
  *   1) Test to see if the DN is the root DN and set the c_isroot flag
- *		appropriately.
+ *        appropriately.
  * And
  *
  *   2) Call the binder-based resource limits subsystem so it can
- *		update the per-connection resource limit data it maintains.
+ *        update the per-connection resource limit data it maintains.
  *
  * Note that this function should ALWAYS be used instead of manipulating
  * conn->c_dn directly; otherwise, subsystems like the binder-based resource
@@ -4132,25 +4183,29 @@ void slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem) {
  *
  * It is also acceptable to set the DN via a call slapi_pblock_set(), e.g.,
  *
- *			slapi_pblock_set( pb, SLAPI_CONN_DN, ndn );
+ *            slapi_pblock_set( pb, SLAPI_CONN_DN, ndn );
  *
  * because it calls this function.
  *
  * Connection structure members that are potentially changed by this function:
- *		c_dn, c_isroot, c_authtype
- *		c_external_dn, c_external_authtype, c_client_cert
+ *        c_dn, c_isroot, c_authtype
+ *        c_external_dn, c_external_authtype, c_client_cert
  *
  * This function might better belong on bind.c or perhaps connection.c but
  * it needs to be in libslapd because FE code and libslapd code calls it.
  */
-void bind_credentials_set(Connection *conn, char *authtype, char *normdn, char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry *bind_target_entry) {
+void
+bind_credentials_set(Connection *conn, char *authtype, char *normdn, char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry *bind_target_entry)
+{
     PR_EnterMonitor(conn->c_mutex);
     bind_credentials_set_nolock(conn, authtype, normdn,
                                 extauthtype, externaldn, clientcert, bind_target_entry);
     PR_ExitMonitor(conn->c_mutex);
 }
 
-void bind_credentials_set_nolock(Connection *conn, char *authtype, char *normdn, char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry *bind_target_entry) {
+void
+bind_credentials_set_nolock(Connection *conn, char *authtype, char *normdn, char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry *bind_target_entry)
+{
     slapdFrontendConfig_t *fecfg = getFrontendConfig();
     int idletimeout = 0;
 

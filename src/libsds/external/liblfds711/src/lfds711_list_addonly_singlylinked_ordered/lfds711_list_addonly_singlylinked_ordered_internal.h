@@ -2,4 +2,3 @@
 #include "../liblfds711_internal.h"
 
 /***** private prototypes *****/
-

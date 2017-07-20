@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -24,27 +24,27 @@
  * Always succeeds.
  */
 struct berval **
-passthru_strs2bervals( char **ss )
+passthru_strs2bervals(char **ss)
 {
-    int			i;
-    struct berval	**bvs;
+    int i;
+    struct berval **bvs;
 
-    if ( ss == NULL || ss[0] == NULL ) {
-	return( NULL );
+    if (ss == NULL || ss[0] == NULL) {
+        return (NULL);
     }
 
-    for ( i = 0; ss[i] != NULL; ++i ) {
-	;
+    for (i = 0; ss[i] != NULL; ++i) {
+        ;
     }
 
-    bvs = (struct berval **)slapi_ch_calloc( i + 1, sizeof( struct berval * ));
-    for ( i = 0; ss[i] != NULL; ++i ) {
-	bvs[i] = (struct berval *)slapi_ch_malloc( sizeof( struct berval ));
-	bvs[i]->bv_val = slapi_ch_strdup( ss[i] );
-	bvs[i]->bv_len = strlen( ss[i] );
+    bvs = (struct berval **)slapi_ch_calloc(i + 1, sizeof(struct berval *));
+    for (i = 0; ss[i] != NULL; ++i) {
+        bvs[i] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+        bvs[i]->bv_val = slapi_ch_strdup(ss[i]);
+        bvs[i]->bv_len = strlen(ss[i]);
     }
 
-    return( bvs );
+    return (bvs);
 }
 
 
@@ -53,37 +53,37 @@ passthru_strs2bervals( char **ss )
  * Always succeeds.
  */
 char **
-passthru_bervals2strs( struct berval **bvs )
+passthru_bervals2strs(struct berval **bvs)
 {
-    int			i;
-    char		**strs;
+    int i;
+    char **strs;
 
-    if ( bvs == NULL || bvs[0] == NULL ) {
-	return( NULL );
+    if (bvs == NULL || bvs[0] == NULL) {
+        return (NULL);
     }
 
-    for ( i = 0; bvs[i] != NULL; ++i ) {
-	;
+    for (i = 0; bvs[i] != NULL; ++i) {
+        ;
     }
 
-    strs = (char **)slapi_ch_calloc( i + 1, sizeof( char * ));
-    for ( i = 0; bvs[i] != NULL; ++i ) {
-	strs[i] = slapi_ch_strdup( bvs[i]->bv_val );
+    strs = (char **)slapi_ch_calloc(i + 1, sizeof(char *));
+    for (i = 0; bvs[i] != NULL; ++i) {
+        strs[i] = slapi_ch_strdup(bvs[i]->bv_val);
     }
 
-    return( strs );
+    return (strs);
 }
 
 
 void
-passthru_free_bervals( struct berval **bvs )
+passthru_free_bervals(struct berval **bvs)
 {
-    int		i;
+    int i;
 
-    if ( bvs != NULL ) {
-	for ( i = 0; bvs[ i ] != NULL; ++i ) {
-	    slapi_ch_free( (void **)&bvs[ i ] );
-	}
+    if (bvs != NULL) {
+        for (i = 0; bvs[i] != NULL; ++i) {
+            slapi_ch_free((void **)&bvs[i]);
+        }
     }
-    slapi_ch_free( (void **)&bvs );
+    slapi_ch_free((void **)&bvs);
 }

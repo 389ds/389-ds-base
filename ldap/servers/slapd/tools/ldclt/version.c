@@ -1,1 +1,1 @@
-char *ldcltVersion="4.23";
+char *ldcltVersion = "4.23";

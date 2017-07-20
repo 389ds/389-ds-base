@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -20,13 +20,14 @@ NSPR_BEGIN_EXTERN_C
 int evalComparator(CmpOp_t ctok, int result);
 void makelower(char *string);
 int EvalToRes(int value);
-const char *comparator_string (int comparator);
+const char *comparator_string(int comparator);
 
 /*Warning: acl_next_token modifies 'ptr' */
-char *acl_next_token (char **ptr, char delim);
+char *acl_next_token(char **ptr, char delim);
 
-const char *acl_next_token_len (const char *ptr,
-				char delim, int *len);
+const char *acl_next_token_len(const char *ptr,
+                               char delim,
+                               int *len);
 
 NSPR_END_EXTERN_C
 

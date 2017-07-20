@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -17,24 +17,21 @@
 
 #include <stdio.h>
 
-struct iii_pio_parsetab {
-  char *token;
-  int (*fn)(char *,char *);
+struct iii_pio_parsetab
+{
+    char *token;
+    int (*fn)(char *, char *);
 };
 
-#define III_PIO_SZ(x) (sizeof(x)/sizeof(struct iii_pio_parsetab))
+#define III_PIO_SZ(x) (sizeof(x) / sizeof(struct iii_pio_parsetab))
 
-extern int iii_pio_procparse (
-	const char *cmd,
-	int count,
-	struct iii_pio_parsetab *
-);
+extern int iii_pio_procparse(
+    const char *cmd,
+    int count,
+    struct iii_pio_parsetab *);
 
-extern int iii_pio_getnum (
-	const char *cmd,
-	long *valPtr
-);
+extern int iii_pio_getnum(
+    const char *cmd,
+    long *valPtr);
 
 #endif /* _H_III_PIO_H */
-
-

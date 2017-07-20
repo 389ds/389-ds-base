@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* llist.h - single link list interface */
@@ -17,18 +17,17 @@
 #define LLIST_H
 typedef struct llist LList;
 
-LList* llistNew(void);
-void   llistDestroy (LList **list, FNFree fnFree);
-void*  llistGetFirst(LList *list, void **iterator);
-void*  llistGetNext (LList *list, void **iterator);
-void*  llistRemoveCurrentAndGetNext (LList *list, void **iterator);
-void*  llistGetHead (LList *list);
-void*  llistGetTail (LList *list);
-void*  llistGet		(LList *list, const char* key);
-int	   llistInsertHead (LList *list, const char *key, void *data);
-int    llistInsertTail (LList *list, const char *key, void *data);
-void*  llistRemoveHead (LList *list);
-void*  llistRemove     (LList *list, const char *key);
+LList *llistNew(void);
+void llistDestroy(LList **list, FNFree fnFree);
+void *llistGetFirst(LList *list, void **iterator);
+void *llistGetNext(LList *list, void **iterator);
+void *llistRemoveCurrentAndGetNext(LList *list, void **iterator);
+void *llistGetHead(LList *list);
+void *llistGetTail(LList *list);
+void *llistGet(LList *list, const char *key);
+int llistInsertHead(LList *list, const char *key, void *data);
+int llistInsertTail(LList *list, const char *key, void *data);
+void *llistRemoveHead(LList *list);
+void *llistRemove(LList *list, const char *key);
 
 #endif
-

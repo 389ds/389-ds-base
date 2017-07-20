@@ -21,7 +21,9 @@ static pthread_rwlock_t the_lock;
 static pthread_mutex_t the_lock;
 #endif
 
-int64_t generic_read_begin(void **inst __attribute__((unused)), void **txn __attribute__((unused))) {
+int64_t
+generic_read_begin(void **inst __attribute__((unused)), void **txn __attribute__((unused)))
+{
 #ifdef WITH_RWLOCK
     pthread_rwlock_rdlock(&the_lock);
 #else
@@ -30,7 +32,9 @@ int64_t generic_read_begin(void **inst __attribute__((unused)), void **txn __att
     return 0;
 }
 
-int64_t generic_read_complete(void **inst __attribute__((unused)), void *txn __attribute__((unused))) {
+int64_t
+generic_read_complete(void **inst __attribute__((unused)), void *txn __attribute__((unused)))
+{
 #ifdef WITH_RWLOCK
     pthread_rwlock_unlock(&the_lock);
 #else
@@ -39,7 +43,9 @@ int64_t generic_read_complete(void **inst __attribute__((unused)), void *txn __a
     return 0;
 }
 
-int64_t generic_write_begin(void **inst __attribute__((unused)), void **txn __attribute__((unused))) {
+int64_t
+generic_write_begin(void **inst __attribute__((unused)), void **txn __attribute__((unused)))
+{
 #ifdef WITH_RWLOCK
     pthread_rwlock_wrlock(&the_lock);
 #else
@@ -48,7 +54,9 @@ int64_t generic_write_begin(void **inst __attribute__((unused)), void **txn __at
     return 0;
 }
 
-int64_t generic_write_commit(void **inst __attribute__((unused)), void *txn __attribute__((unused))) {
+int64_t
+generic_write_commit(void **inst __attribute__((unused)), void *txn __attribute__((unused)))
+{
 #ifdef WITH_RWLOCK
     pthread_rwlock_unlock(&the_lock);
 #else
@@ -59,7 +67,9 @@ int64_t generic_write_commit(void **inst __attribute__((unused)), void *txn __at
 
 /* The sds b+ tree wrappers */
 
-int64_t bptree_init_wrapper(void **inst) {
+int64_t
+bptree_init_wrapper(void **inst)
+{
 #ifdef WITH_RWLOCK
     pthread_rwlock_init(&the_lock, NULL);
 #else
@@ -70,14 +80,18 @@ int64_t bptree_init_wrapper(void **inst) {
     return 0;
 }
 
-int64_t bptree_add_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void *value) {
+int64_t
+bptree_add_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void *value)
+{
     // THIS WILL BREAK SOMETIME!
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
-    sds_bptree_insert(*binst, (void*)key, value);
+    sds_bptree_insert(*binst, (void *)key, value);
     return 0;
 }
 
-int64_t bptree_search_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void **value_out __attribute__((unused))) {
+int64_t
+bptree_search_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void **value_out __attribute__((unused)))
+{
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
     sds_result result = sds_bptree_search(*binst, (void *)key);
     if (result != SDS_KEY_PRESENT) {
@@ -87,7 +101,9 @@ int64_t bptree_search_wrapper(void **inst, void *txn __attribute__((unused)), ui
     return 0;
 }
 
-int64_t bptree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key) {
+int64_t
+bptree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key)
+{
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
     sds_result result = sds_bptree_delete(*binst, (void *)key);
 
@@ -98,7 +114,9 @@ int64_t bptree_delete_wrapper(void **inst, void *txn __attribute__((unused)), ui
     return 0;
 }
 
-int64_t bptree_destroy_wrapper(void **inst) {
+int64_t
+bptree_destroy_wrapper(void **inst)
+{
     sds_bptree_instance **binst = (sds_bptree_instance **)inst;
     // sds_bptree_display(*binst);
     sds_bptree_destroy(*binst);
@@ -112,27 +130,35 @@ int64_t bptree_destroy_wrapper(void **inst) {
 
 /* sds bptree cow wrapper */
 
-int64_t bptree_cow_init_wrapper(void **inst) {
+int64_t
+bptree_cow_init_wrapper(void **inst)
+{
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_cow_init(binst, 0, sds_uint64_t_compare, sds_uint64_t_free, sds_uint64_t_dup, sds_uint64_t_free, sds_uint64_t_dup);
     return 0;
 }
 
-int64_t bptree_cow_read_begin(void **inst, void **read_txn) {
+int64_t
+bptree_cow_read_begin(void **inst, void **read_txn)
+{
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction **txn = (sds_bptree_transaction **)read_txn;
     sds_bptree_cow_rotxn_begin(*binst, txn);
     return 0;
 }
 
-int64_t bptree_cow_read_complete(void **inst __attribute__((unused)), void *read_txn) {
+int64_t
+bptree_cow_read_complete(void **inst __attribute__((unused)), void *read_txn)
+{
     // sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction *txn = (sds_bptree_transaction *)read_txn;
     sds_bptree_cow_rotxn_close(&txn);
     return 0;
 }
 
-int64_t bptree_cow_write_begin(void **inst, void **write_txn) {
+int64_t
+bptree_cow_write_begin(void **inst, void **write_txn)
+{
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction **txn = (sds_bptree_transaction **)write_txn;
 #ifdef SDS_DEBUG
@@ -142,21 +168,27 @@ int64_t bptree_cow_write_begin(void **inst, void **write_txn) {
     return 0;
 }
 
-int64_t bptree_cow_write_commit(void **inst __attribute__((unused)), void *write_txn) {
+int64_t
+bptree_cow_write_commit(void **inst __attribute__((unused)), void *write_txn)
+{
     // sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction *txn = (sds_bptree_transaction *)write_txn;
     sds_bptree_cow_wrtxn_commit(&txn);
     return 0;
 }
 
-int64_t bptree_cow_add_wrapper(void **inst __attribute__((unused)), void *write_txn, uint64_t *key, void *value) {
+int64_t
+bptree_cow_add_wrapper(void **inst __attribute__((unused)), void *write_txn, uint64_t *key, void *value)
+{
     // THIS WILL BREAK SOMETIME!
     sds_bptree_transaction *txn = (sds_bptree_transaction *)write_txn;
     sds_bptree_cow_insert(txn, (void *)key, value);
     return 0;
 }
 
-int64_t bptree_cow_search_wrapper(void **inst __attribute__((unused)), void *read_txn, uint64_t *key, void **value_out __attribute__((unused))) {
+int64_t
+bptree_cow_search_wrapper(void **inst __attribute__((unused)), void *read_txn, uint64_t *key, void **value_out __attribute__((unused)))
+{
     sds_bptree_transaction *txn = (sds_bptree_transaction *)read_txn;
     sds_result result = sds_bptree_cow_search(txn, (void *)key);
     if (result != SDS_KEY_PRESENT) {
@@ -165,7 +197,9 @@ int64_t bptree_cow_search_wrapper(void **inst __attribute__((unused)), void *rea
     return 0;
 }
 
-int64_t bptree_cow_delete_wrapper(void **inst __attribute__((unused)), void *write_txn, uint64_t *key) {
+int64_t
+bptree_cow_delete_wrapper(void **inst __attribute__((unused)), void *write_txn, uint64_t *key)
+{
     // sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     sds_bptree_transaction *txn = (sds_bptree_transaction *)write_txn;
     sds_result result = sds_bptree_cow_delete(txn, (void *)key);
@@ -175,7 +209,9 @@ int64_t bptree_cow_delete_wrapper(void **inst __attribute__((unused)), void *wri
     return 0;
 }
 
-int64_t bptree_cow_destroy_wrapper(void **inst) {
+int64_t
+bptree_cow_destroy_wrapper(void **inst)
+{
     sds_bptree_cow_instance **binst = (sds_bptree_cow_instance **)inst;
     // sds_bptree_display(*binst);
     sds_bptree_cow_destroy(*binst);
@@ -184,7 +220,9 @@ int64_t bptree_cow_destroy_wrapper(void **inst) {
 
 /* Hashmap structures */
 
-int64_t htree_init_wrapper(void **inst) {
+int64_t
+htree_init_wrapper(void **inst)
+{
 #ifdef WITH_RWLOCK
     pthread_rwlock_init(&the_lock, NULL);
 #else
@@ -195,14 +233,18 @@ int64_t htree_init_wrapper(void **inst) {
     return 0;
 }
 
-int64_t htree_add_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void *value) {
+int64_t
+htree_add_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void *value)
+{
     // THIS WILL BREAK SOMETIME!
     sds_ht_instance **binst = (sds_ht_instance **)inst;
-    sds_ht_insert(*binst, (void*)key, value);
+    sds_ht_insert(*binst, (void *)key, value);
     return 0;
 }
 
-int64_t htree_search_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void **value_out __attribute__((unused))) {
+int64_t
+htree_search_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key, void **value_out __attribute__((unused)))
+{
     sds_ht_instance **binst = (sds_ht_instance **)inst;
     void *value;
     sds_result result = sds_ht_search(*binst, (void *)key, &value);
@@ -213,7 +255,9 @@ int64_t htree_search_wrapper(void **inst, void *txn __attribute__((unused)), uin
     return 0;
 }
 
-int64_t htree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key) {
+int64_t
+htree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uint64_t *key)
+{
     sds_ht_instance **binst = (sds_ht_instance **)inst;
     sds_result result = sds_ht_delete(*binst, (void *)key);
 
@@ -224,7 +268,9 @@ int64_t htree_delete_wrapper(void **inst, void *txn __attribute__((unused)), uin
     return 0;
 }
 
-int64_t htree_destroy_wrapper(void **inst) {
+int64_t
+htree_destroy_wrapper(void **inst)
+{
     sds_ht_instance **binst = (sds_ht_instance **)inst;
     // sds_bptree_display(*binst);
     sds_ht_destroy(*binst);
@@ -256,38 +302,44 @@ int64_t htree_destroy_wrapper(void **inst) {
 #define HASH_BUCKETS_LARGE 245761
 
 PLHashNumber
-hash_func_large(const void *key) {
+hash_func_large(const void *key)
+{
     uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_LARGE;
 }
 
 PLHashNumber
-hash_func_med(const void *key) {
+hash_func_med(const void *key)
+{
     uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_MED;
 }
 
 PLHashNumber
-hash_func_small(const void *key) {
+hash_func_small(const void *key)
+{
     uint64_t ik = *(uint64_t *)key;
     return ik % HASH_BUCKETS_SMALL;
 }
 
 PRIntn
-hash_key_compare (const void *a, const void *b) {
+hash_key_compare(const void *a, const void *b)
+{
     uint64_t ia = *(uint64_t *)a;
     uint64_t ib = *(uint64_t *)b;
     return ia == ib;
 }
 
 PRIntn
-hash_value_compare(const void *a __attribute__((unused)), const void *b __attribute__((unused))) {
+hash_value_compare(const void *a __attribute__((unused)), const void *b __attribute__((unused)))
+{
     // This cheats and says they are always differnt, but I don't think I use this ....
     return 1;
 }
 
 int64_t
-hash_small_init_wrapper(void **inst) {
+hash_small_init_wrapper(void **inst)
+{
     PLHashTable **table = (PLHashTable **)inst;
 #ifdef WITH_RWLOCK
     pthread_rwlock_init(&the_lock, NULL);
@@ -300,7 +352,8 @@ hash_small_init_wrapper(void **inst) {
 }
 
 int64_t
-hash_med_init_wrapper(void **inst) {
+hash_med_init_wrapper(void **inst)
+{
     PLHashTable **table = (PLHashTable **)inst;
 #ifdef WITH_RWLOCK
     pthread_rwlock_init(&the_lock, NULL);
@@ -313,7 +366,8 @@ hash_med_init_wrapper(void **inst) {
 }
 
 int64_t
-hash_large_init_wrapper(void **inst) {
+hash_large_init_wrapper(void **inst)
+{
     PLHashTable **table = (PLHashTable **)inst;
 #ifdef WITH_RWLOCK
     pthread_rwlock_init(&the_lock, NULL);
@@ -326,7 +380,8 @@ hash_large_init_wrapper(void **inst) {
 }
 
 int64_t
-hash_add_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t *key, void *value __attribute__((unused))) {
+hash_add_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t *key, void *value __attribute__((unused)))
+{
     PLHashTable **table = (PLHashTable **)inst;
     // WARNING: We have to add key as value too else hashmap won't add it!!!
     uint64_t *i = sds_uint64_t_dup(key);
@@ -335,7 +390,8 @@ hash_add_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t 
 }
 
 int64_t
-hash_search_wrapper(void **inst, void *read_txn __attribute__((unused)), uint64_t *key, void **value_out) {
+hash_search_wrapper(void **inst, void *read_txn __attribute__((unused)), uint64_t *key, void **value_out)
+{
     PLHashTable **table = (PLHashTable **)inst;
     *value_out = PL_HashTableLookup(*table, key);
     if (*value_out == NULL) {
@@ -345,14 +401,16 @@ hash_search_wrapper(void **inst, void *read_txn __attribute__((unused)), uint64_
 }
 
 int64_t
-hash_delete_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t *key) {
+hash_delete_wrapper(void **inst, void *write_txn __attribute__((unused)), uint64_t *key)
+{
     PLHashTable **table = (PLHashTable **)inst;
     PL_HashTableRemove(*table, key);
     return 0;
 }
 
 int64_t
-hash_destroy_wrapper(void **inst) {
+hash_destroy_wrapper(void **inst)
+{
     PLHashTable **table = (PLHashTable **)inst;
 #ifdef WITH_RWLOCK
     pthread_rwlock_destroy(&the_lock);
@@ -362,4 +420,3 @@ hash_destroy_wrapper(void **inst) {
     PL_HashTableDestroy(*table);
     return 0;
 }
-

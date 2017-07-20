@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_EREPORT_H
@@ -20,7 +20,7 @@
 
 /*
  * ereport.h: Records transactions, reports errors to administrators, etc.
- * 
+ *
  * Rob McCool
  */
 
@@ -31,16 +31,16 @@
 NSPR_BEGIN_EXTERN_C
 
 /*
- * INTereport logs an error of the given degree and formats the arguments with 
- * the printf() style fmt. Returns whether the log was successful. Records 
+ * INTereport logs an error of the given degree and formats the arguments with
+ * the printf() style fmt. Returns whether the log was successful. Records
  * the current date.
  */
 
 NSAPI_PUBLIC int INTereport(int degree, char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
 #else
-        ;
+    ;
 #endif
 NSAPI_PUBLIC int INTereport_v(int degree, char *fmt, va_list args);
 

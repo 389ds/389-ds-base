@@ -10,7 +10,8 @@
 #include "bpt_cow.h"
 
 void
-sds_bptree_cow_leaf_compact(sds_bptree_transaction *btxn, sds_bptree_node *left, sds_bptree_node *right) {
+sds_bptree_cow_leaf_compact(sds_bptree_transaction *btxn, sds_bptree_node *left, sds_bptree_node *right)
+{
     /* Append content of right to left, mark right for free. */
 
     /*
@@ -49,7 +50,8 @@ sds_bptree_cow_leaf_compact(sds_bptree_transaction *btxn, sds_bptree_node *left,
 }
 
 void
-sds_bptree_cow_branch_compact(sds_bptree_transaction *btxn, sds_bptree_node *left, sds_bptree_node *right) {
+sds_bptree_cow_branch_compact(sds_bptree_transaction *btxn, sds_bptree_node *left, sds_bptree_node *right)
+{
     /* REMEMBER: Left is COWed, right is NOT */
     /* Append content of right to left, mark right for deletion */
 
@@ -81,7 +83,8 @@ sds_bptree_cow_branch_compact(sds_bptree_transaction *btxn, sds_bptree_node *lef
 
 
 void
-sds_bptree_cow_root_promote(sds_bptree_transaction *btxn, sds_bptree_node *root) {
+sds_bptree_cow_root_promote(sds_bptree_transaction *btxn, sds_bptree_node *root)
+{
     /* Current root is empty! We have one child, so we promote them. */
     btxn->root = (sds_bptree_node *)root->values[0];
     sds_bptree_node_list_push(&(btxn->owned), root);

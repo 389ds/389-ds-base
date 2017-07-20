@@ -4,20 +4,21 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-#include "cb.h" 
+#include "cb.h"
 
 /*
 ** cLeanup a chaining backend instance
 */
 
-int cb_back_cleanup( Slapi_PBlock *pb __attribute__((unused)))
+int
+cb_back_cleanup(Slapi_PBlock *pb __attribute__((unused)))
 {
 
     /*
@@ -27,4 +28,3 @@ int cb_back_cleanup( Slapi_PBlock *pb __attribute__((unused)))
 
     return 0;
 }
-

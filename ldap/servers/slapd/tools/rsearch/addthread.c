@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -17,7 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "nspr.h"
-#include <netinet/tcp.h>	/* for TCP_NODELAY */
+#include <netinet/tcp.h> /* for TCP_NODELAY */
 #include "ldap.h"
 #include "addthread.h"
 #include "infadd.h"
@@ -31,7 +31,8 @@
 #endif
 
 /* local data for a search thread */
-struct _addthread {
+struct _addthread
+{
     PRUint32 addCount;
     PRUint32 addTotal;
     PRUint32 failCount;
@@ -43,25 +44,27 @@ struct _addthread {
     int id;
     int alive;
     char *blob;
-	int retry;
+    int retry;
 };
 
 
 /*** unique id generator ***/
 static unsigned long uniqueid = 0;
-void at_initID(unsigned long i)
+void
+at_initID(unsigned long i)
 {
-    uniqueid = i;	/* before threading */
+    uniqueid = i; /* before threading */
 }
 
-unsigned long getID(void)
+unsigned long
+getID(void)
 {
     static PRLock *lock = NULL;
     unsigned long ret;
 
     if (!lock) {
-	/* initialize */
-	lock = PR_NewLock();
+        /* initialize */
+        lock = PR_NewLock();
     }
     PR_Lock(lock);
     ret = uniqueid++;
@@ -69,13 +72,15 @@ unsigned long getID(void)
     return ret;
 }
 
-    
+
 /* new addthread */
-AddThread *at_new(void)
+AddThread *
+at_new(void)
 {
     AddThread *at = (AddThread *)malloc(sizeof(AddThread));
 
-    if (!at) return NULL;
+    if (!at)
+        return NULL;
     at->addCount = at->failCount = at->addTotal = 0;
     at->mintime = 10000;
     at->maxtime = 0;
@@ -91,37 +96,42 @@ AddThread *at_new(void)
     return at;
 }
 
-static void at_bail(AddThread *at)
+static void
+at_bail(AddThread *at)
 {
     PR_Lock(at->lock);
     at->alive = -10;
     PR_Unlock(at->lock);
 }
 
-void at_setThread(AddThread *at, PRThread *tid, int id)
+void
+at_setThread(AddThread *at, PRThread *tid, int id)
 {
     at->tid = tid;
     at->id = id;
 }
 
-int at_getThread(AddThread *at, PRThread **tid)
+int
+at_getThread(AddThread *at, PRThread **tid)
 {
-    if (tid) *tid = at->tid;
+    if (tid)
+        *tid = at->tid;
     return at->id;
 }
 
 
-static void at_enableTCPnodelay(AddThread *at)
+static void
+at_enableTCPnodelay(AddThread *at)
 {
     LBER_SOCKET s = 0;
     int val = 1;
 
     if (ldap_get_option(at->ld, LDAP_OPT_DESC, (void *)&s) != LDAP_SUCCESS) {
-	fprintf(stderr, "T%d: failed on ldap_get_option\n", at->id);
-	return;
+        fprintf(stderr, "T%d: failed on ldap_get_option\n", at->id);
+        return;
     }
     if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val)))
-	fprintf(stderr, "T%d: failed in setsockopt\n", at->id);
+        fprintf(stderr, "T%d: failed in setsockopt\n", at->id);
 }
 
 /* NOTE: currently these are unused */
@@ -130,24 +140,24 @@ static void at_enableTCPnodelay(AddThread *at)
 static void at_disconnect(AddThread *at)
 {
     LBER_SOCKET s = 0;
-    
+
     if (ldap_get_option(at->ld, LDAP_OPT_DESC, (void *)&s) != LDAP_SUCCESS) {
-	fprintf(stderr, "T%d: failed on ldap_get_option\n", at->id);
-	return;
+    fprintf(stderr, "T%d: failed on ldap_get_option\n", at->id);
+    return;
     }
 #ifdef XP_WIN
     if (closesocket(s))
-	fprintf(stderr, "T%d: failed to disconnect\n", at->id);
+    fprintf(stderr, "T%d: failed to disconnect\n", at->id);
 #else
     if (close(s))
-	fprintf(stderr, "T%d: failed to disconnect\n", at->id);
+    fprintf(stderr, "T%d: failed to disconnect\n", at->id);
 #endif
 }
 #endif
 
 #if defined(USE_OPENLDAP)
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
-static PRCallOnceType ol_init_callOnce = {0,0,0};
+static PRCallOnceType ol_init_callOnce = {0, 0, 0};
 static PRLock *ol_init_lock = NULL;
 
 static PRStatus
@@ -164,7 +174,8 @@ internal_ol_init_init(void)
 }
 #endif
 
-static void at_bind(AddThread *at)
+static void
+at_bind(AddThread *at)
 {
     int ret;
     int retry = 0;
@@ -183,55 +194,56 @@ static void at_bind(AddThread *at)
     PR_Unlock(ol_init_lock);
     PR_smprintf_free(ldapurl);
     ldapurl = NULL;
-	if (ret) {
+    if (ret) {
         fprintf(stderr, "T%d: failed to init: %s port %d: %d:%s\n", at->id, hostname, port,
                 ret, ldap_err2string(ret));
         return;
-	}
+    }
 #else
     at->ld = ldap_init(hostname, port);
 #endif
-    if (! at->ld) {
+    if (!at->ld) {
         fprintf(stderr, "T%d: failed to init: %s port %d\n", at->id, hostname, port);
         return;
     }
-    while (retry < 10)
-    {
+    while (retry < 10) {
         struct berval bvcreds = {0, NULL};
         bvcreds.bv_val = password;
         bvcreds.bv_len = password ? strlen(password) : 0;
         ret = ldap_sasl_bind_s(at->ld, username, LDAP_SASL_SIMPLE, &bvcreds,
                                NULL, NULL, NULL);
         if (LDAP_SUCCESS == ret) {
-            return;        /* ok */
+            return; /* ok */
         } else if (LDAP_CONNECT_ERROR == ret) {
             retry++;
         } else {
             break;
         }
     }
-    fprintf(stderr, "T%d: failed to bind, ldap_sasl_bind_s returned %d\n", 
-                   at->id,  ret);
+    fprintf(stderr, "T%d: failed to bind, ldap_sasl_bind_s returned %d\n",
+            at->id, ret);
 }
 
 #if 0
 static void at_unbind(AddThread *at)
 {
     if (ldap_unbind(at->ld) != LDAP_SUCCESS)
-	fprintf(stderr, "T%d: failed to unbind\n", at->id);
+    fprintf(stderr, "T%d: failed to unbind\n", at->id);
 }
-#endif  /* 0 */
+#endif /* 0 */
 
-static void at_random_tel_number(char *s)
+static void
+at_random_tel_number(char *s)
 {
-    static char *areaCode[] = { "303", "408", "415", "423", "510",
-				"650", "714", "803", "864", "901" };
+    static char *areaCode[] = {"303", "408", "415", "423", "510",
+                               "650", "714", "803", "864", "901"};
     int index = rand() % 10;
-   
-    sprintf(s, "+1 %s %03d %04d", areaCode[index], rand()%1000, rand()%10000);
+
+    sprintf(s, "+1 %s %03d %04d", areaCode[index], rand() % 1000, rand() % 10000);
 }
 
-static int at_add(AddThread *at)
+static int
+at_add(AddThread *at)
 {
     LDAPMod *attrs[10];
     LDAPMod attr_cn, attr_sn, attr_givenname,
@@ -243,10 +255,10 @@ static int at_add(AddThread *at)
     char *cn_values[2], *sn_values[2], *givenname_values[2];
     char *uid_values[2], *mail_values[2], *telno_values[2];
 #if 1
-    char *objectclass_values[] = { "top", "person", "organizationalPerson",
-                                   "inetOrgPerson", NULL };
+    char *objectclass_values[] = {"top", "person", "organizationalPerson",
+                                  "inetOrgPerson", NULL};
 #else
-    char *objectclass_values[] = { "inetOrgPerson", NULL };
+    char *objectclass_values[] = {"inetOrgPerson", NULL};
 #endif
     int ret;
 
@@ -271,7 +283,7 @@ static int at_add(AddThread *at)
     mail_values[1] = NULL;
     telno_values[0] = telno;
     telno_values[1] = NULL;
-    
+
     attrs[0] = &attr_objectclass;
     attrs[1] = &attr_cn;
     attrs[2] = &attr_sn;
@@ -283,17 +295,14 @@ static int at_add(AddThread *at)
     if (blobsize > 0) {
         audio_values[0] = &audio_berval;
         audio_values[1] = 0;
-        audio_berval.bv_len = (blobsize > 32000) ?
-            ((long)rand() * 1039) % blobsize :
-            (rand() % blobsize);
+        audio_berval.bv_len = (blobsize > 32000) ? ((long)rand() * 1039) % blobsize : (rand() % blobsize);
         audio_berval.bv_val = at->blob;
         attr_audio.mod_op = LDAP_MOD_BVALUES;
         attr_audio.mod_type = "audio";
         attr_audio.mod_values = (char **)&audio_values;
         attrs[8] = &attr_audio;
         attrs[9] = 0;
-    }
-    else
+    } else
         attrs[8] = 0;
 
     attr_cn.mod_op = LDAP_MOD_ADD;
@@ -326,12 +335,12 @@ static int at_add(AddThread *at)
         fprintf(stderr, "attr '%s': ", attrs[i]->mod_type);
         if (strcasecmp(attrs[i]->mod_type, "audio") == 0)
             fprintf(stderr, "binary data len=%lu\n", ((struct berval **)(attrs[i]->mod_values))[0]->bv_len);
-        else 
+        else
             fprintf(stderr, "'%s'\n", attrs[i]->mod_values[0]);
     }
 #endif
     ret = ldap_add_ext_s(at->ld, dn, attrs, NULL, NULL);
-	if (ret != LDAP_SUCCESS) {
+    if (ret != LDAP_SUCCESS) {
         fprintf(stderr, "T%d: failed to add, error = %d\n", at->id, ret);
     }
     return ret;
@@ -339,7 +348,8 @@ static int at_add(AddThread *at)
 
 
 /* the main thread */
-void infadd_start(void *v)
+void
+infadd_start(void *v)
 {
     AddThread *at = (AddThread *)v;
     PRIntervalTime timer;
@@ -350,7 +360,7 @@ void infadd_start(void *v)
     /* make the blob if necessary */
     if (blobsize > 0) {
         at->blob = (char *)malloc(blobsize);
-        if (! at->blob) {
+        if (!at->blob) {
             fprintf(stderr, "T%d: can't allocate blob!\n", at->id);
             return;
         }
@@ -361,7 +371,7 @@ void infadd_start(void *v)
     at->alive = 1;
     while (1) {
         timer = PR_IntervalNow();
-        
+
         /* bind if we need to */
         if (notBound) {
             at_bind(at);
@@ -372,7 +382,7 @@ void infadd_start(void *v)
 
         ret = at_add(at);
         if (LDAP_SUCCESS == ret) {
-            span = PR_IntervalToMilliseconds(PR_IntervalNow()-timer);
+            span = PR_IntervalToMilliseconds(PR_IntervalNow() - timer);
             /* update data */
             PR_Lock(at->lock);
             at->addCount++;
@@ -392,13 +402,12 @@ void infadd_start(void *v)
             at_bail(at);
             return;
         }
-        
     }
 }
 
 /* fetches the current min/max times and the search count, and clears them */
-void at_getCountMinMax(AddThread *at, PRUint32 *count, PRUint32 *min,
-		       PRUint32 *max, PRUint32 *total)
+void
+at_getCountMinMax(AddThread *at, PRUint32 *count, PRUint32 *min, PRUint32 *max, PRUint32 *total)
 {
     PR_Lock(at->lock);
     if (count) {
@@ -419,7 +428,8 @@ void at_getCountMinMax(AddThread *at, PRUint32 *count, PRUint32 *min,
     PR_Unlock(at->lock);
 }
 
-int at_alive(AddThread *at)
+int
+at_alive(AddThread *at)
 {
     int alive;
 
@@ -428,4 +438,3 @@ int at_alive(AddThread *at)
     PR_Unlock(at->lock);
     return alive;
 }
-

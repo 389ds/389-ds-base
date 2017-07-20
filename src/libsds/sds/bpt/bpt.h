@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #pragma once
@@ -27,7 +27,7 @@ void sds_bptree_crc32c_update_value(struct sds_bptree_value *value);
 
 sds_bptree_node *sds_bptree_arrays_to_node_list(void **keys, void **values, size_t count);
 sds_result sds_bptree_node_list_to_tree(sds_bptree_instance *binst, sds_bptree_node *node);
-sds_bptree_node * sds_bptree_node_create(void);
+sds_bptree_node *sds_bptree_node_create(void);
 sds_result sds_bptree_node_destroy(sds_bptree_instance *binst, sds_bptree_node *node);
 sds_result sds_bptree_node_contains_key(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key);
 size_t sds_bptree_node_key_eq_index(int64_t (*key_cmp_fn)(void *a, void *b), sds_bptree_node *node, void *key);
@@ -40,11 +40,11 @@ sds_result sds_bptree_value_create(struct sds_bptree_instance *binst, void *valu
 */
 
 /* Search and retrieve */
-sds_result sds_bptree_search_node(sds_bptree_instance *binst, sds_bptree_node *root, void *key, sds_bptree_node** target_out_node);
+sds_result sds_bptree_search_node(sds_bptree_instance *binst, sds_bptree_node *root, void *key, sds_bptree_node **target_out_node);
 sds_result sds_bptree_search_internal(sds_bptree_instance *binst, sds_bptree_node *root, void *key);
 sds_result sds_bptree_retrieve_internal(sds_bptree_instance *binst, sds_bptree_node *root, void *key, void **target);
 
-void * sds_bptree_node_leftmost_child_key(sds_bptree_node *parent);
+void *sds_bptree_node_leftmost_child_key(sds_bptree_node *parent);
 
 /* Leaf insert and delete */
 
@@ -73,7 +73,7 @@ void sds_bptree_root_insert(sds_bptree_instance *binst, sds_bptree_node *left_no
 /* Node path tracking */
 
 void sds_bptree_node_list_push(sds_bptree_node_list **list, sds_bptree_node *node);
-sds_bptree_node * sds_bptree_node_list_pop(sds_bptree_node_list **list);
+sds_bptree_node *sds_bptree_node_list_pop(sds_bptree_node_list **list);
 void sds_bptree_node_list_release(sds_bptree_node_list **list);
 sds_bptree_node *sds_bptree_node_min(sds_bptree_instance *binst);
 
@@ -88,5 +88,3 @@ sds_result sds_bptree_display(sds_bptree_instance *binst);
 
 /* Verification */
 sds_result sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node);
-
-

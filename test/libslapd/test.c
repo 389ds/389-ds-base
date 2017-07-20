@@ -9,13 +9,15 @@
 #include "../test_slapd.h"
 
 void
-test_libslapd_hello(void **state __attribute__((unused))) {
+test_libslapd_hello(void **state __attribute__((unused)))
+{
     /* It works! */
     assert_int_equal(1, 1);
 }
 
 int
-run_libslapd_tests (void) {
+run_libslapd_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_libslapd_hello),
         cmocka_unit_test(test_libslapd_pblock_analytics),
@@ -31,5 +33,3 @@ run_libslapd_tests (void) {
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-

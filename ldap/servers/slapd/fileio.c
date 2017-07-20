@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* fileio.c - layer to adjust EOL to use DOS format via PR_Read/Write on NT */
@@ -26,11 +26,11 @@
 #include <prio.h>
 
 PRInt32
-slapi_read_buffer( PRFileDesc *fd, void *buf, PRInt32 amount )
+slapi_read_buffer(PRFileDesc *fd, void *buf, PRInt32 amount)
 {
-	PRInt32 rval = 0;
+    PRInt32 rval = 0;
 
-	rval = PR_Read( fd, buf, amount );
+    rval = PR_Read(fd, buf, amount);
 
     return rval;
 }
@@ -41,11 +41,11 @@ slapi_read_buffer( PRFileDesc *fd, void *buf, PRInt32 amount )
  * Return value: written bytes not including '\r' characters.
  */
 PRInt32
-slapi_write_buffer( PRFileDesc *fd, void *buf, PRInt32 amount )
+slapi_write_buffer(PRFileDesc *fd, void *buf, PRInt32 amount)
 {
-	PRInt32 rval = 0;
+    PRInt32 rval = 0;
 
-    rval = PR_Write( fd, buf, amount );
+    rval = PR_Write(fd, buf, amount);
 
     return rval;
 }
@@ -58,13 +58,13 @@ slapi_write_buffer( PRFileDesc *fd, void *buf, PRInt32 amount )
 int
 slapi_destructive_rename(const char *srcfilename, const char *destfilename)
 {
-	int rv = 0;
+    int rv = 0;
 
-	if ( rename(srcfilename, destfilename) < 0 ) {
-		rv = errno;
-	}
+    if (rename(srcfilename, destfilename) < 0) {
+        rv = errno;
+    }
 
-	return rv;
+    return rv;
 }
 
 /*
@@ -73,12 +73,12 @@ slapi_destructive_rename(const char *srcfilename, const char *destfilename)
 int
 slapi_copy(const char *srcfilename, const char *destfilename)
 {
-	int rv = 0;
+    int rv = 0;
 
-	unlink(destfilename);
-	if ( link(srcfilename, destfilename) < 0 ) {
-		rv = errno;
-	}
+    unlink(destfilename);
+    if (link(srcfilename, destfilename) < 0) {
+        rv = errno;
+    }
 
-	return rv;
+    return rv;
 }

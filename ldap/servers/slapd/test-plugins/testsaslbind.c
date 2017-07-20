@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -18,7 +18,7 @@
 
  This source file provides an example of a pre-operation plug-in
  function for SASL authentication with LDAP bind operations.
- The function demonstrates how to send credentials back to the 
+ The function demonstrates how to send credentials back to the
  client in cases where mutual authentication is required.
 
  This plugin responds to SASL bind requests with a mechanism
@@ -29,7 +29,7 @@
 
  Note that the Directory Server front-end handles bind
  operations requested by the root DN. The server does not
- invoke your plug-in function if the client is authenticating 
+ invoke your plug-in function if the client is authenticating
  as the root DN.
 
  To test this plug-in function, stop the server, edit the dse.ldif file
@@ -56,95 +56,89 @@ nsslapd-plugindescription: sample SASL bind pre-operation plugin
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc saslpdesc = { "test-saslbind", VENDOR, DS_PACKAGE_VERSION,
-	"sample SASL bind pre-operation plugin" };
+Slapi_PluginDesc saslpdesc = {"test-saslbind", VENDOR, DS_PACKAGE_VERSION,
+                              "sample SASL bind pre-operation plugin"};
 
 
-#define TEST_SASL_MECHANISM	"babsmechanism"
-#define TEST_SASL_AUTHMETHOD	SLAPD_AUTH_SASL TEST_SASL_MECHANISM
+#define TEST_SASL_MECHANISM "babsmechanism"
+#define TEST_SASL_AUTHMETHOD SLAPD_AUTH_SASL TEST_SASL_MECHANISM
 
 /* Pre-operation plug-in function */
 int
-testsasl_bind( Slapi_PBlock *pb )
+testsasl_bind(Slapi_PBlock *pb)
 {
-	char		*target;
-	int		method;
-	char		*mechanism;
-	struct berval	*credentials;
-	struct berval	svrcreds;
+    char *target;
+    int method;
+    char *mechanism;
+    struct berval *credentials;
+    struct berval svrcreds;
 
-	/* Log a message to the server error log. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_bind", 
-		"Pre-operation bind function called.\n" );
+    /* Log a message to the server error log. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_bind",
+                  "Pre-operation bind function called.\n");
 
-	/* Gets parameters available when processing an LDAP bind
-	   operation. */
-	if ( slapi_pblock_get( pb, SLAPI_BIND_TARGET, &target ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &credentials ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_BIND_SASLMECHANISM, &mechanism )
-	    != 0 ) {
-		slapi_log_err(SLAPI_LOG_ERR, "testsasl_bind",
-			"Could not get parameters for bind operation\n" );
-		return( 0 );	/* let the server try other mechanisms */
-	}
+    /* Gets parameters available when processing an LDAP bind
+       operation. */
+    if (slapi_pblock_get(pb, SLAPI_BIND_TARGET, &target) != 0 ||
+        slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method) != 0 ||
+        slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &credentials) != 0 ||
+        slapi_pblock_get(pb, SLAPI_BIND_SASLMECHANISM, &mechanism) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "testsasl_bind",
+                      "Could not get parameters for bind operation\n");
+        return (0); /* let the server try other mechanisms */
+    }
 
-	/* Check to see if the mechanism being used is ours. */
-	if ( mechanism == NULL
-	    || strcmp( mechanism, TEST_SASL_MECHANISM ) != 0 ) {
-		return( 0 );	/* let the server try other mechanisms */
-	}
+    /* Check to see if the mechanism being used is ours. */
+    if (mechanism == NULL || strcmp(mechanism, TEST_SASL_MECHANISM) != 0) {
+        return (0); /* let the server try other mechanisms */
+    }
 
-	/*
-	 * Set the DN and authentication method for the connection.
-	 * Binds with our mechanism always succeed (which is not very secure!)
-	 */
-	if ( slapi_pblock_set( pb, SLAPI_CONN_DN, slapi_ch_strdup( target ) )
-	    != 0 || slapi_pblock_set( pb, SLAPI_CONN_AUTHMETHOD,
-	    TEST_SASL_AUTHMETHOD ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_ERR, "testsasl_bind",
-		    "Failed to set DN and method for connection\n" );
-		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-		    NULL, 0, NULL );
-		return( 1 );	/* done -- sent result to client */
-	}
+    /*
+     * Set the DN and authentication method for the connection.
+     * Binds with our mechanism always succeed (which is not very secure!)
+     */
+    if (slapi_pblock_set(pb, SLAPI_CONN_DN, slapi_ch_strdup(target)) != 0 || slapi_pblock_set(pb, SLAPI_CONN_AUTHMETHOD, TEST_SASL_AUTHMETHOD) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "testsasl_bind",
+                      "Failed to set DN and method for connection\n");
+        slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+                               NULL, 0, NULL);
+        return (1); /* done -- sent result to client */
+    }
 
-	/* Set the credentials that should be returned to the client. */
-	svrcreds.bv_val = "my credentials";
-	svrcreds.bv_len = sizeof("my credentials") - 1;
-	if ( slapi_pblock_set( pb, SLAPI_BIND_RET_SASLCREDS, &svrcreds )
-	    != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_bind", 
-			"Could not set credentials to return to client\n" );
-		slapi_pblock_set( pb, SLAPI_CONN_DN, NULL );
-		slapi_pblock_set( pb, SLAPI_CONN_AUTHMETHOD, SLAPD_AUTH_NONE );
-		return( 0 );	/* let the server try other mechanisms */
-	}
+    /* Set the credentials that should be returned to the client. */
+    svrcreds.bv_val = "my credentials";
+    svrcreds.bv_len = sizeof("my credentials") - 1;
+    if (slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, &svrcreds) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_bind",
+                      "Could not set credentials to return to client\n");
+        slapi_pblock_set(pb, SLAPI_CONN_DN, NULL);
+        slapi_pblock_set(pb, SLAPI_CONN_AUTHMETHOD, SLAPD_AUTH_NONE);
+        return (0); /* let the server try other mechanisms */
+    }
 
-	/* Send the credentials back to the client. */
-	slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_bind",
-	    "Authenticated: %s\n", target );
-	slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
+    /* Send the credentials back to the client. */
+    slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_bind",
+                  "Authenticated: %s\n", target);
+    slapi_send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
 
-	return( 1 );	/* done -- sent result to client */
+    return (1); /* done -- sent result to client */
 }
 
 /* Initialization function */
 int
-testsasl_init( Slapi_PBlock *pb )
+testsasl_init(Slapi_PBlock *pb)
 {
-	/* Register the pre-operation bind function and specify
-	   the server plug-in version. */
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&saslpdesc ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN, (void *) testsasl_bind ) != 0 ) {
-		slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_init",
-			"Failed to set version and function\n" );
-		return( -1 );
-	}
+    /* Register the pre-operation bind function and specify
+       the server plug-in version. */
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&saslpdesc) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_BIND_FN, (void *)testsasl_bind) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, "testsasl_init",
+                      "Failed to set version and function\n");
+        return (-1);
+    }
 
-	/* Register the SASL mechanism. */
-	slapi_register_supported_saslmechanism( TEST_SASL_MECHANISM );
-	return( 0 );
+    /* Register the SASL mechanism. */
+    slapi_register_supported_saslmechanism(TEST_SASL_MECHANISM);
+    return (0);
 }
-

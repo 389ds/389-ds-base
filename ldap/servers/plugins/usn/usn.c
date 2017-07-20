@@ -3,18 +3,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "usn.h"
 
 static Slapi_PluginDesc pdesc = {
-        "USN", VENDOR, DS_PACKAGE_VERSION,
-        "USN (Update Sequence Number) plugin" };
+    "USN", VENDOR, DS_PACKAGE_VERSION,
+    "USN (Update Sequence Number) plugin"};
 
 static void *_usn_identity = NULL;
 
@@ -29,15 +29,14 @@ static int usn_bepreop_modify(Slapi_PBlock *pb);
 static int usn_betxnpreop_add(Slapi_PBlock *pb);
 static int usn_betxnpreop_delete(Slapi_PBlock *pb);
 static int usn_bepostop(Slapi_PBlock *pb);
-static int usn_bepostop_delete (Slapi_PBlock *pb);
-static int usn_bepostop_modify (Slapi_PBlock *pb);
+static int usn_bepostop_delete(Slapi_PBlock *pb);
+static int usn_bepostop_modify(Slapi_PBlock *pb);
 
 static int usn_start(Slapi_PBlock *pb);
 static int usn_close(Slapi_PBlock *pb);
-static int usn_get_attr(Slapi_PBlock *pb, const char* type, void *value);
+static int usn_get_attr(Slapi_PBlock *pb, const char *type, void *value);
 
-static int usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e,
-        Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
+static int usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 
 /*
  * Register USN plugin
@@ -53,7 +52,7 @@ usn_init(Slapi_PBlock *pb)
     const char *plugintype;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_init\n");
+                  "--> usn_init\n");
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
 
@@ -69,16 +68,16 @@ usn_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                          (void *)&pdesc) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                        "usn_init - Failed to register version & description\n");
+                      "usn_init - Failed to register version & description\n");
         rc = -1;
         goto bail;
     }
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
                          (void *)usn_start) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                         (void *)usn_close) != 0 ) {
+                         (void *)usn_close) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                        "usn_init - Failed to register close callback & task\n");
+                      "usn_init - Failed to register close callback & task\n");
         rc = -1;
         goto bail;
     }
@@ -92,25 +91,25 @@ usn_init(Slapi_PBlock *pb)
     /* usn_bepreop_init: plugintype is bepreoperation (not betxn) */
     plugintype = "bepreoperation";
     rc |= slapi_register_plugin(plugintype, 1 /* Enabled */,
-                               "usn_bepreop_init", usn_bepreop_init,
-                               "USN bepreoperation plugin", NULL, identity);
+                                "usn_bepreop_init", usn_bepreop_init,
+                                "USN bepreoperation plugin", NULL, identity);
 
     /* usn_bepreop_init: plugintype is betxnpreoperation */
     plugintype = "betxnpreoperation";
     rc |= slapi_register_plugin(plugintype, 1 /* Enabled */,
-                               "usn_betxnpreop_init", usn_betxnpreop_init,
-                               "USN betxnpreoperation plugin", NULL, identity);
+                                "usn_betxnpreop_init", usn_betxnpreop_init,
+                                "USN betxnpreoperation plugin", NULL, identity);
     plugintype = "bepostoperation";
     if (is_betxn) {
         plugintype = "betxnpostoperation";
     }
     rc |= slapi_register_plugin(plugintype, 1 /* Enabled */,
-                               "usn_bepostop_init", usn_bepostop_init,
-                               "USN bepostoperation plugin", NULL, identity);
+                                "usn_bepostop_init", usn_bepostop_init,
+                                "USN bepostoperation plugin", NULL, identity);
     usn_set_identity(identity);
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_init\n");
+                  "<-- usn_init\n");
     return rc;
 }
 
@@ -123,7 +122,7 @@ usn_preop_init(Slapi_PBlock *pb)
 
     if (slapi_pblock_set(pb, predel, (void *)usn_preop_delete) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                        "usn_preop_init - Failed to register preop plugin\n");
+                      "usn_preop_init - Failed to register preop plugin\n");
         rc = SLAPI_PLUGIN_FAILURE;
     }
 
@@ -139,12 +138,12 @@ usn_bepreop_init(Slapi_PBlock *pb)
 
     /* usn_bepreop functions are called at BE_PRE_OP timing,
      * not at BE_TXN_PREOP */
-    /* modify/modrdn updates mods which is evaluated before the 
+    /* modify/modrdn updates mods which is evaluated before the
      * transaction start */
     if ((slapi_pblock_set(pb, premod, (void *)usn_bepreop_modify) != 0) ||
         (slapi_pblock_set(pb, premdn, (void *)usn_bepreop_modify) != 0)) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                       "usn_bepreop_init - Failed to register bepreop plugin\n");
+                      "usn_bepreop_init - Failed to register bepreop plugin\n");
         rc = SLAPI_PLUGIN_FAILURE;
     }
 
@@ -159,9 +158,9 @@ usn_betxnpreop_init(Slapi_PBlock *pb)
     int predel = SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN;
 
     if ((slapi_pblock_set(pb, preadd, (void *)usn_betxnpreop_add) != 0) ||
-        (slapi_pblock_set(pb, predel, (void *)usn_betxnpreop_delete) != 0)) { 
+        (slapi_pblock_set(pb, predel, (void *)usn_betxnpreop_delete) != 0)) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                 "usn_betxnpreop_init - Failed to register betxnpreop plugin\n");
+                      "usn_betxnpreop_init - Failed to register betxnpreop plugin\n");
         rc = SLAPI_PLUGIN_FAILURE;
     }
 
@@ -196,7 +195,7 @@ usn_bepostop_init(Slapi_PBlock *pb)
         (slapi_pblock_set(pb, postmod, (void *)usn_bepostop_modify) != 0) ||
         (slapi_pblock_set(pb, postmdn, (void *)usn_bepostop) != 0)) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                     "usn_bepostop_init - Failed to register bepostop plugin\n");
+                      "usn_bepostop_init - Failed to register bepostop plugin\n");
         rc = SLAPI_PLUGIN_FAILURE;
     }
 
@@ -209,8 +208,8 @@ usn_rootdse_init(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_FAILURE;
 
     if (slapi_config_register_callback_plugin(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN,
-                                        "", LDAP_SCOPE_BASE, "(objectclass=*)", 
-                                        usn_rootdse_search, NULL, pb)) {
+                                              "", LDAP_SCOPE_BASE, "(objectclass=*)",
+                                              usn_rootdse_search, NULL, pb)) {
         rc = SLAPI_PLUGIN_SUCCESS;
     }
 
@@ -246,13 +245,13 @@ usn_start(Slapi_PBlock *pb)
                  i != -1;
                  i = slapi_valueset_next_value(vs, i, &v)) {
                 slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                        "nsds5ReplicatedAttributeList: %s\n", 
-                        slapi_value_get_string(v));
+                              "nsds5ReplicatedAttributeList: %s\n",
+                              slapi_value_get_string(v));
             }
         }
         slapi_valueset_free(vs);
     }
-    /* add nsds5ReplicatedAttributeList: (objectclass=*) $ EXCLUDE entryusn 
+    /* add nsds5ReplicatedAttributeList: (objectclass=*) $ EXCLUDE entryusn
      * to cn=plugin default config,cn=config */
     value = slapi_value_new_string("(objectclass=*) $ EXCLUDE entryusn");
     if (slapi_set_plugin_default_config("nsds5ReplicatedAttributeList", value)) {
@@ -262,7 +261,7 @@ usn_start(Slapi_PBlock *pb)
 
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_start (rc: %d)\n", rc);
+                  "<-- usn_start (rc: %d)\n", rc);
     return rc;
 }
 
@@ -273,14 +272,14 @@ usn_close(Slapi_PBlock *pb __attribute__((unused)))
 
     usn_cleanup_close();
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP,
-            "", LDAP_SCOPE_BASE, "(objectclass=*)", usn_rootdse_search);
+                                 "", LDAP_SCOPE_BASE, "(objectclass=*)", usn_rootdse_search);
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "<-- usn_close\n");
 
     return SLAPI_PLUGIN_SUCCESS;
 }
 
-/* 
+/*
  * usn_preop_delete -- set params to turn the entry to tombstone
  */
 static int
@@ -289,18 +288,18 @@ usn_preop_delete(Slapi_PBlock *pb)
     Slapi_Operation *op = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_preop_delete\n");
+                  "--> usn_preop_delete\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     if (NULL == op) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                        "usn_preop_delete - Failed; no operation.\n");
+                      "usn_preop_delete - Failed; no operation.\n");
         return SLAPI_PLUGIN_FAILURE;
     }
     slapi_operation_set_replica_attr_handler(op, (void *)usn_get_attr);
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_preop_delete\n");
+                  "<-- usn_preop_delete\n");
 
     return SLAPI_PLUGIN_SUCCESS;
 }
@@ -309,7 +308,7 @@ static void
 _usn_add_next_usn(Slapi_Entry *e, Slapi_Backend *be)
 {
     struct berval usn_berval = {0};
-    Slapi_Attr* attr = NULL;
+    Slapi_Attr *attr = NULL;
 
     if (NULL == be->be_usn_counter) {
         /* USN plugin is not enabled */
@@ -317,10 +316,10 @@ _usn_add_next_usn(Slapi_Entry *e, Slapi_Backend *be)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> _usn_add_next_usn\n");
+                  "--> _usn_add_next_usn\n");
 
     /* add next USN to the entry; "be" contains the usn counter */
-    usn_berval.bv_val = slapi_ch_smprintf("%" PRIu64, 
+    usn_berval.bv_val = slapi_ch_smprintf("%" PRIu64,
                                           slapi_counter_get_value(be->be_usn_counter));
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     slapi_entry_attr_find(e, SLAPI_ATTR_ENTRYUSN, &attr);
@@ -337,7 +336,7 @@ _usn_add_next_usn(Slapi_Entry *e, Slapi_Backend *be)
     slapi_ch_free_string(&usn_berval.bv_val);
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- _usn_add_next_usn\n");
+                  "<-- _usn_add_next_usn\n");
 
     return;
 }
@@ -356,12 +355,12 @@ _usn_mod_next_usn(LDAPMod ***mods, Slapi_Backend *be)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> _usn_mod_next_usn\n");
+                  "--> _usn_mod_next_usn\n");
 
     /* add next USN to the mods; "be" contains the usn counter */
     usn_berval.bv_val = counter_buf;
     snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" PRIu64,
-                slapi_counter_get_value(be->be_usn_counter));
+             slapi_counter_get_value(be->be_usn_counter));
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     bvals[0] = &usn_berval;
     bvals[1] = NULL;
@@ -374,7 +373,7 @@ _usn_mod_next_usn(LDAPMod ***mods, Slapi_Backend *be)
     *mods = slapi_mods_get_ldapmods_passout(&smods);
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- _usn_mod_next_usn\n");
+                  "<-- _usn_mod_next_usn\n");
     return LDAP_SUCCESS;
 }
 
@@ -389,19 +388,19 @@ usn_betxnpreop_add(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_betxnpreop_add\n");
+                  "--> usn_betxnpreop_add\n");
 
     /* add next USN to the entry; "be" contains the usn counter */
     slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
     if (NULL == e) {
-        rc = LDAP_NO_SUCH_OBJECT;    
+        rc = LDAP_NO_SUCH_OBJECT;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
     }
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;    
+        rc = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -409,12 +408,12 @@ usn_betxnpreop_add(Slapi_PBlock *pb)
     _usn_add_next_usn(e, be);
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_betxnpreop_add\n");
+                  "<-- usn_betxnpreop_add\n");
 
     return rc;
 }
 
-/* 
+/*
  * usn_betxnpreop_delete -- add/replace next USN to the entry
  *                       bepreop_delete is not called if the entry is tombstone
  */
@@ -426,19 +425,19 @@ usn_betxnpreop_delete(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_betxnpreop_delete\n");
+                  "--> usn_betxnpreop_delete\n");
 
     /* add next USN to the entry; "be" contains the usn counter */
     slapi_pblock_get(pb, SLAPI_DELETE_BEPREOP_ENTRY, &e);
     if (NULL == e) {
-        rc = LDAP_NO_SUCH_OBJECT;    
+        rc = LDAP_NO_SUCH_OBJECT;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
     }
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;    
+        rc = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -446,33 +445,33 @@ usn_betxnpreop_delete(Slapi_PBlock *pb)
     _usn_add_next_usn(e, be);
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_betxnpreop_delete\n");
+                  "<-- usn_betxnpreop_delete\n");
 
     return rc;
 }
 
 /*
- * usn_bepreop_modify - add/replace next USN to the mods; 
+ * usn_bepreop_modify - add/replace next USN to the mods;
  *                      shared by modify and modrdn
  * Note: bepreop should not return other than LDAP_SUCCESS.
  */
 static int
-usn_bepreop_modify (Slapi_PBlock *pb)
+usn_bepreop_modify(Slapi_PBlock *pb)
 {
     LDAPMod **mods = NULL;
     Slapi_Backend *be = NULL;
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_bepreop_modify\n");
+                  "--> usn_bepreop_modify\n");
 
     /* add/replace next USN to the mods; "be" contains the usn counter */
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                    "usn_bepreop_modify - No backend.\n");
-        rc = LDAP_PARAM_ERROR;    
+                      "usn_bepreop_modify - No backend.\n");
+        rc = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -482,19 +481,19 @@ usn_bepreop_modify (Slapi_PBlock *pb)
     }
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_bepreop_modify\n");
+                  "<-- usn_bepreop_modify\n");
     return rc;
 }
 
 /* count up the counter */
 static int
-usn_bepostop (Slapi_PBlock *pb)
+usn_bepostop(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_FAILURE;
     Slapi_Backend *be = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_bepostop\n");
+                  "--> usn_bepostop\n");
 
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
@@ -506,7 +505,7 @@ usn_bepostop (Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;    
+        rc = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -517,14 +516,14 @@ usn_bepostop (Slapi_PBlock *pb)
     }
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_bepostop\n");
+                  "<-- usn_bepostop\n");
 
     return rc;
 }
 
 /* count up the counter */
 static int
-usn_bepostop_modify (Slapi_PBlock *pb)
+usn_bepostop_modify(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_FAILURE;
     Slapi_Backend *be = NULL;
@@ -532,7 +531,7 @@ usn_bepostop_modify (Slapi_PBlock *pb)
     int i;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_bepostop_modify\n");
+                  "--> usn_bepostop_modify\n");
 
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
@@ -547,7 +546,7 @@ usn_bepostop_modify (Slapi_PBlock *pb)
         if (0 == strcasecmp(mods[i]->mod_type, SLAPI_ATTR_ENTRYUSN)) {
             if (mods[i]->mod_op & LDAP_MOD_IGNORE) {
                 slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "usn_bepostop_modify - MOD_IGNORE detected\n");
+                              "usn_bepostop_modify - MOD_IGNORE detected\n");
                 goto bail; /* conflict occurred.
                               skip incrementing the counter. */
             } else {
@@ -558,7 +557,7 @@ usn_bepostop_modify (Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;    
+        rc = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -569,7 +568,7 @@ usn_bepostop_modify (Slapi_PBlock *pb)
     }
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_bepostop_modify\n");
+                  "<-- usn_bepostop_modify\n");
 
     return rc;
 }
@@ -577,13 +576,13 @@ bail:
 /* count up the counter */
 /* if the op is delete and the op was not successful, remove preventryusn */
 static int
-usn_bepostop_delete (Slapi_PBlock *pb)
+usn_bepostop_delete(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_FAILURE;
     Slapi_Backend *be = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_bepostop_delete\n");
+                  "--> usn_bepostop_delete\n");
 
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
@@ -595,7 +594,7 @@ usn_bepostop_delete (Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;    
+        rc = LDAP_PARAM_ERROR;
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -606,14 +605,14 @@ usn_bepostop_delete (Slapi_PBlock *pb)
     }
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_bepostop_delete\n");
+                  "<-- usn_bepostop_delete\n");
 
     return rc;
 }
 
 /* mimic replication to turn on create_tombstone_entry */
 static int
-usn_get_attr(Slapi_PBlock *pb __attribute__((unused)), const char* type, void *value)
+usn_get_attr(Slapi_PBlock *pb __attribute__((unused)), const char *type, void *value)
 {
     if (0 == strcasecmp(type, "nsds5ReplicaTombstonePurgeInterval")) {
         *(int *)value = 1;
@@ -648,8 +647,8 @@ usn_get_identity(void)
  */
 static int
 usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
-                   Slapi_Entry* e,
-                   Slapi_Entry* entryAfter __attribute__((unused)),
+                   Slapi_Entry *e,
+                   Slapi_Entry *entryAfter __attribute__((unused)),
                    int *returncode __attribute__((unused)),
                    char *returntext __attribute__((unused)),
                    void *arg __attribute__((unused)))
@@ -667,7 +666,7 @@ usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
     int isglobal = config_get_entryusn_global();
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "--> usn_rootdse_search\n");
+                  "--> usn_rootdse_search\n");
 
     usn_berval.bv_val = counter_buf;
     if (isglobal) {
@@ -682,11 +681,11 @@ usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
             }
         }
         if (be && be->be_usn_counter) {
-            /* get a next USN counter from be_usn_counter; 
+            /* get a next USN counter from be_usn_counter;
              * then minus 1 from it (except if be_usn_counter has value 0) */
             if (slapi_counter_get_value(be->be_usn_counter)) {
                 snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" PRIu64,
-                            slapi_counter_get_value(be->be_usn_counter)-1);
+                         slapi_counter_get_value(be->be_usn_counter) - 1);
             } else {
                 snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "-1");
             }
@@ -705,23 +704,23 @@ usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
                 /* no counter == not a db backend */
                 continue;
             }
-            /* get a next USN counter from be_usn_counter; 
+            /* get a next USN counter from be_usn_counter;
              * then minus 1 from it (except if be_usn_counter has value 0) */
             if (slapi_counter_get_value(be->be_usn_counter)) {
                 snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" PRIu64,
-                            slapi_counter_get_value(be->be_usn_counter)-1);
+                         slapi_counter_get_value(be->be_usn_counter) - 1);
             } else {
                 snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "-1");
             }
             usn_berval.bv_len = strlen(usn_berval.bv_val);
-    
-            if (USN_LAST_USN_ATTR_CORE_LEN+strlen(be->be_name)+2 > attr_len) {
+
+            if (USN_LAST_USN_ATTR_CORE_LEN + strlen(be->be_name) + 2 > attr_len) {
                 attr_len *= 2;
                 attr = (char *)slapi_ch_realloc(attr, attr_len);
                 attr_subp = attr + USN_LAST_USN_ATTR_CORE_LEN;
             }
             snprintf(attr_subp, attr_len - USN_LAST_USN_ATTR_CORE_LEN,
-                                    "%s", be->be_name);
+                     "%s", be->be_name);
             slapi_entry_attr_replace(e, attr, vals);
         }
     }
@@ -730,6 +729,6 @@ usn_rootdse_search(Slapi_PBlock *pb __attribute__((unused)),
     slapi_ch_free_string(&attr);
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
-                    "<-- usn_rootdse_search\n");
+                  "<-- usn_rootdse_search\n");
     return SLAPI_DSE_CALLBACK_OK;
 }

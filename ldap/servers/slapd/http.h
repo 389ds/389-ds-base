@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * --- END COPYRIGHT BLOCK --- */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -20,7 +20,7 @@
 
 typedef void (*api_http_init)();
 typedef int (*api_get_http_text)(char *url, char *text_data);
-typedef int (*api_get_http_binary)(char *url, char* bin_data, int *len);
+typedef int (*api_get_http_binary)(char *url, char *bin_data, int *len);
 typedef void (*api_http_shutdown)();
 
 /* API ID for http_apib_get_interface */
@@ -32,16 +32,16 @@ typedef void (*api_http_shutdown)();
 /* the api broker reserves api[0] for its use */
 
 #define http_init() \
-	((api_http_init*)(api))[1]()
+    ((api_http_init *)(api))[1]()
 
 #define get_http_text(url, text_data) \
-	((api_get_http_text*)(api))[2]( url, text_data)
+    ((api_get_http_text *)(api))[2](url, text_data)
 
 #define get_http_binary(url, bin_data, len) \
-	((api_get_http_binary*)(api))[3](url,bin_data, len)
+    ((api_get_http_binary *)(api))[3](url, bin_data, len)
 
 #define set_http_shutdown() \
-	((api_http_shutdown*)(api))[4]()
+    ((api_http_shutdown *)(api))[4]()
 
 /* HTTP to be passed to http_register() by presence sps*/
 #define http_api(api) api[5]

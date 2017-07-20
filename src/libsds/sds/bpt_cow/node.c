@@ -11,7 +11,8 @@
 
 #ifdef SDS_DEBUG
 static sds_result
-sds_bptree_cow_node_path_verify(sds_bptree_transaction *btxn, sds_bptree_node *node) {
+sds_bptree_cow_node_path_verify(sds_bptree_transaction *btxn, sds_bptree_node *node)
+{
     // Verify that the node has a valid parent path back to the root!
     sds_bptree_node *target_node = node;
     while (target_node->parent != NULL) {
@@ -25,7 +26,8 @@ sds_bptree_cow_node_path_verify(sds_bptree_transaction *btxn, sds_bptree_node *n
 #endif
 
 void
-sds_bptree_cow_node_siblings(sds_bptree_node *target, sds_bptree_node **left, sds_bptree_node **right) {
+sds_bptree_cow_node_siblings(sds_bptree_node *target, sds_bptree_node **left, sds_bptree_node **right)
+{
     /*
      * This has one difference to sds_bptree_node_siblings
      * which is that we update the parent pointer of left and right after we get them.
@@ -46,7 +48,8 @@ sds_bptree_cow_node_siblings(sds_bptree_node *target, sds_bptree_node **left, sd
 }
 
 static sds_bptree_node *
-sds_bptree_cow_node_clone(sds_bptree_transaction *btxn, sds_bptree_node *node) {
+sds_bptree_cow_node_clone(sds_bptree_transaction *btxn, sds_bptree_node *node)
+{
     sds_bptree_node *clone_node = sds_memalign(sizeof(sds_bptree_node), SDS_CACHE_ALIGNMENT);
 
     clone_node->level = node->level;
@@ -100,7 +103,8 @@ sds_bptree_cow_node_clone(sds_bptree_transaction *btxn, sds_bptree_node *node) {
  */
 
 static void
-sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origin_node, sds_bptree_node *clone_node) {
+sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origin_node, sds_bptree_node *clone_node)
+{
 
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_branch_clone", "Cloning branch from node_%p\n", clone_node);
@@ -132,8 +136,8 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
             // BAIL EARLY
             return;
         } else {
-            // Is the parent node NOT in this txn?
-            // We need to clone the parent, and then replace ourselves in it ....
+// Is the parent node NOT in this txn?
+// We need to clone the parent, and then replace ourselves in it ....
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_cow_branch_clone", "Branch parent node_%p NOT within txn, cloning...\n", parent_node);
 #endif
@@ -141,7 +145,7 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
             parent_clone_node = sds_bptree_cow_node_clone(btxn, parent_node);
             sds_bptree_node_node_replace(parent_clone_node, former_origin_node, former_clone_node);
 
-            // TODO: This probably needs to update csums of the nodes along the branch.
+// TODO: This probably needs to update csums of the nodes along the branch.
 #ifdef SDS_DEBUG
             if (btxn->bi->offline_checksumming) {
                 // Update this becuase we are updating the owned node lists.
@@ -154,12 +158,10 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
             former_origin_node = parent_node;
             former_clone_node = parent_clone_node;
             parent_clone_node = NULL;
-
         }
-
     }
-    // We have hit the root, update the root.
-    // Origin is root, update the txn root.
+// We have hit the root, update the root.
+// Origin is root, update the txn root.
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_branch_clone", "Updating txn_%p root from node_%p to node_%p\n", btxn, btxn->root, former_clone_node);
 #endif
@@ -167,7 +169,8 @@ sds_bptree_cow_branch_clone(sds_bptree_transaction *btxn, sds_bptree_node *origi
 }
 
 sds_bptree_node *
-sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node) {
+sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_node_prepare", " --> prepare node %p for txn_%p", node, btxn);
     sds_log("sds_bptree_node_prepare", "     prepare current tree root node_%p", btxn->root);
@@ -183,7 +186,7 @@ sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node)
         sds_bptree_node *clone_node = sds_bptree_cow_node_clone(btxn, node);
         sds_bptree_cow_branch_clone(btxn, node, clone_node);
 
-        // TODO: Need to update the btxn checksum?
+// TODO: Need to update the btxn checksum?
 
 #ifdef SDS_DEBUG
         if (btxn->bi->offline_checksumming) {
@@ -195,7 +198,7 @@ sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node)
         result_node = clone_node;
     }
 #ifdef SDS_DEBUG
-    if (sds_bptree_cow_node_path_verify(btxn, result_node)!= SDS_SUCCESS) {
+    if (sds_bptree_cow_node_path_verify(btxn, result_node) != SDS_SUCCESS) {
         sds_log("sds_bptree_cow_node_prepare", "!!! Invalid path from cow_node to root!");
         return NULL;
     }
@@ -206,7 +209,8 @@ sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node)
 }
 
 sds_bptree_node *
-sds_bptree_cow_node_create(sds_bptree_transaction *btxn) {
+sds_bptree_cow_node_create(sds_bptree_transaction *btxn)
+{
     sds_bptree_node *node = sds_memalign(sizeof(sds_bptree_node), SDS_CACHE_ALIGNMENT);
     // Without memset, we need to null the max link in a value
     node->values[SDS_BPTREE_DEFAULT_CAPACITY] = NULL;
@@ -230,7 +234,8 @@ sds_bptree_cow_node_create(sds_bptree_transaction *btxn) {
 }
 
 void
-sds_bptree_cow_node_update(sds_bptree_transaction *btxn, sds_bptree_node *node, void *key, void *value) {
+sds_bptree_cow_node_update(sds_bptree_transaction *btxn, sds_bptree_node *node, void *key, void *value)
+{
     // find the key index.
     size_t index = sds_bptree_node_key_eq_index(btxn->bi->key_cmp_fn, node, key);
     // value free
@@ -239,9 +244,7 @@ sds_bptree_cow_node_update(sds_bptree_transaction *btxn, sds_bptree_node *node, 
     node->values[index] = value;
 #ifdef SDS_DEBUG
     if (btxn->bi->offline_checksumming) {
-    	sds_bptree_crc32c_update_node(node);
-	}
+        sds_bptree_crc32c_update_node(node);
+    }
 #endif
 }
-
-

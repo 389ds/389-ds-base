@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _POLL_USING_SELECT_H
@@ -20,31 +20,32 @@
 #include "slap.h"
 
 /* uncomment for debugging info
-#define DEBUG_POLL_AS_SELECT	
+#define DEBUG_POLL_AS_SELECT
 */
-#define MSECONDS		1000
+#define MSECONDS 1000
 
-struct my_pollfd {
+struct my_pollfd
+{
     int fd;
     short events;
     short revents;
 };
- 
+
 /* poll events */
- 
-#define POLLIN          0x0001          /* fd is readable */
-#define POLLPRI         0x0002          /* high priority info at fd */
-#define POLLOUT         0x0004          /* fd is writeable (won't block) */
-#define POLLRDNORM      0x0040          /* normal data is readable */
-#define POLLWRNORM      POLLOUT
-#define POLLRDBAND      0x0080          /* out-of-band data is readable */
-#define POLLWRBAND      0x0100          /* out-of-band data is writeable */
- 
-#define POLLNORM        POLLRDNORM
- 
-#define POLLERR         0x0008          /* fd has error condition */
-#define POLLHUP         0x0010          /* fd has been hung up on */
-#define POLLNVAL        0x0020          /* invalid pollfd entry */
+
+#define POLLIN     0x0001 /* fd is readable */
+#define POLLPRI    0x0002 /* high priority info at fd */
+#define POLLOUT    0x0004 /* fd is writeable (won't block) */
+#define POLLRDNORM 0x0040 /* normal data is readable */
+#define POLLWRNORM POLLOUT
+#define POLLRDBAND 0x0080 /* out-of-band data is readable */
+#define POLLWRBAND 0x0100 /* out-of-band data is writeable */
+
+#define POLLNORM POLLRDNORM
+
+#define POLLERR  0x0008 /* fd has error condition */
+#define POLLHUP  0x0010 /* fd has been hung up on */
+#define POLLNVAL 0x0020 /* invalid pollfd entry */
 
 int poll_using_select(struct my_pollfd *filedes, int nfds, int timeout);
 

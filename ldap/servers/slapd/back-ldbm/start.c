@@ -4,19 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-/* 
+/*
  *  start.c
  */
 
 #include "back-ldbm.h"
-
 
 
 static int initialized = 0;
@@ -28,7 +27,8 @@ ldbm_back_isinitialized()
 }
 
 static int
-ldbm_back_start_autotune(struct ldbminfo *li) {
+ldbm_back_start_autotune(struct ldbminfo *li)
+{
     Object *inst_obj = NULL;
     ldbm_instance *inst = NULL;
     /* size_t is a platform unsigned int, IE uint64_t */
@@ -47,8 +47,8 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
     int_fast32_t autosize_db_percentage_split = 0;
     int_fast32_t import_percentage = 0;
     util_cachesize_result issane;
-    char *msg = ""; /* This will be set by one of the two cache sizing paths below. */
-    char size_to_str[32];    /* big enough to hold %ld */
+    char *msg = "";       /* This will be set by one of the two cache sizing paths below. */
+    char size_to_str[32]; /* big enough to hold %ld */
 
 
     /* == Begin autotune == */
@@ -110,7 +110,7 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
 
     /* Check the values are sane. */
     if ((autosize_percentage > 100) || (import_percentage > 100) || (autosize_db_percentage_split > 100) ||
-            ((autosize_percentage > 0) && (import_percentage > 0) && (autosize_percentage + import_percentage > 100))) {
+        ((autosize_percentage > 0) && (import_percentage > 0) && (autosize_percentage + import_percentage > 100))) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Cache autosizing: bad settings, value or sum of values can not larger than 100.\n");
         return SLAPI_FAIL_GENERAL;
     }
@@ -147,7 +147,7 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
      * If we didn't do this, entry_cache would only get 10% of of the avail, even
      * if db_size was caped at say 5% down from 90.
      */
-    if (backend_count > 0 ) {
+    if (backend_count > 0) {
         /* Number of entry cache pages per backend. */
         entry_size = (zone_size - db_size) / backend_count;
         /* Now, clamp this value to a 64mb boundary. */
@@ -189,19 +189,19 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
             db_size = db_size / 1.25;
         }
         /* Have to set this value through text. */
-        sprintf(size_to_str, "%" PRIu64 , db_size);
+        sprintf(size_to_str, "%" PRIu64, db_size);
         ldbm_config_internal_set(li, CONFIG_DBCACHESIZE, size_to_str);
     }
     total_cache_size += li->li_dbcachesize;
 
     /* For each backend */
     /*   apply the appropriate cache size if 0 */
-    if (backend_count > 0 ) {
+    if (backend_count > 0) {
         li->li_cache_autosize_ec = entry_size;
     }
 
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-            inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
 
         inst = (ldbm_instance *)object_get_data(inst_obj);
         cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
@@ -221,11 +221,11 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
         db_size = dblayer_get_id2entry_size(inst);
         if (cache_size < db_size) {
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start",
-                  "%s: entry cache size %"PRIu64" B is "
-                  "less than db size %"PRIu64" B; "
-                  "We recommend to increase the entry cache size "
-                  "nsslapd-cachememsize.\n",
-                  inst->inst_name, cache_size, db_size);
+                          "%s: entry cache size %" PRIu64 " B is "
+                          "less than db size %" PRIu64 " B; "
+                          "We recommend to increase the entry cache size "
+                          "nsslapd-cachememsize.\n",
+                          inst->inst_name, cache_size, db_size);
         }
         /* We need to get each instances dncache size to add to the total */
         /* Else we can't properly check the cache allocations below */
@@ -242,23 +242,22 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
             slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Your autosized import cache values have been reduced. Likely your nsslapd-import-cache-autosize percentage is too high.\n");
         }
         /* We just accept the reduced allocation here. */
-        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: import cache: %"PRIu64"k\n", import_size / 1024);
+        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: import cache: %" PRIu64 "k\n", import_size / 1024);
 
-        sprintf(size_to_str, "%"PRIu64, import_size);
+        sprintf(size_to_str, "%" PRIu64, import_size);
         ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, size_to_str);
     }
 
     /* Finally, lets check that the total result is sane. */
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "total cache size: %"PRIu64" B; \n", total_cache_size);
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "total cache size: %" PRIu64 " B; \n", total_cache_size);
 
     issane = util_is_cachesize_sane(mi, &total_cache_size);
     if (issane != UTIL_CACHESIZE_VALID) {
         /* Right, it's time to panic */
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n");
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
-        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Total entry cache size: %"PRIu64" B; dbcache size: %"PRIu64" B; available memory size: %"PRIu64" B; \n",
-                    total_cache_size, (uint64_t)li->li_dbcachesize, mi->system_available_bytes
-        );
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "Total entry cache size: %" PRIu64 " B; dbcache size: %" PRIu64 " B; available memory size: %" PRIu64 " B; \n",
+                      total_cache_size, (uint64_t)li->li_dbcachesize, mi->system_available_bytes);
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_start", "%s\n", msg);
         /* WB 2016 - This should be UNCOMMENTED in a future release */
         /* return SLAPI_FAIL_GENERAL; */
@@ -274,146 +273,137 @@ ldbm_back_start_autotune(struct ldbminfo *li) {
  * Start the LDBM plugin, and all its instances.
  */
 int
-ldbm_back_start( Slapi_PBlock *pb )
+ldbm_back_start(Slapi_PBlock *pb)
 {
-  struct ldbminfo  *li;
-  char *home_dir = NULL;
-  int action = 0 ;
-  int retval = 0;
+    struct ldbminfo *li;
+    char *home_dir = NULL;
+    int action = 0;
+    int retval = 0;
 
-  slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend starting\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend starting\n");
 
-  slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
 
-  /* parse the config file here */
-  if (0 != ldbm_config_load_dse_info(li)) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Loading database configuration failed\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  /* register with the binder-based resource limit subsystem so that    */
-  /* lookthroughlimit can be supported on a per-connection basis.        */
-  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
-            LDBM_LOOKTHROUGHLIMIT_AT, &li->li_reslimit_lookthrough_handle )
-            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for lookthroughlimit\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  /* register with the binder-based resource limit subsystem so that    */
-  /* allidslimit (aka idlistscanlimit) can be supported on a per-connection basis.        */
-  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
-            LDBM_ALLIDSLIMIT_AT, &li->li_reslimit_allids_handle )
-            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for allidslimit\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  /* register with the binder-based resource limit subsystem so that    */
-  /* pagedlookthroughlimit can be supported on a per-connection basis.        */
-  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
-            LDBM_PAGEDLOOKTHROUGHLIMIT_AT, &li->li_reslimit_pagedlookthrough_handle )
-            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for pagedlookthroughlimit\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  /* register with the binder-based resource limit subsystem so that    */
-  /* pagedallidslimit (aka idlistscanlimit) can be supported on a per-connection basis.        */
-  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
-            LDBM_PAGEDALLIDSLIMIT_AT, &li->li_reslimit_pagedallids_handle )
-            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for pagedallidslimit\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  /* lookthrough limit for the rangesearch */
-  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
-            LDBM_RANGELOOKTHROUGHLIMIT_AT, &li->li_reslimit_rangelookthrough_handle )
-            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for rangelookthroughlimit\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  /* If the db directory hasn't been set yet, we need to set it to 
-   * the default. */
-  if (NULL == li->li_directory || '\0' == li->li_directory[0]) {
-      /* "get default" is a special string that tells the config
-       * routines to figure out the default db directory by 
-       * reading cn=config. */
-      ldbm_config_internal_set(li, CONFIG_DIRECTORY, "get default");
-  }
-
-  retval = ldbm_back_start_autotune(li);
-  if (retval != 0) {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to set database tuning on backends\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  retval = check_db_version(li, &action);
-  if (0 != retval)
-  {
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "db version is not supported\n");
-      return SLAPI_FAIL_GENERAL;
-  }
-
-  if (action &
-      (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4|DBVERSION_UPGRADE_4_5))
-  {
-      retval = dblayer_start(li,DBLAYER_CLEAN_RECOVER_MODE);
-  }
-  else
-  {
-      retval = dblayer_start(li,DBLAYER_NORMAL_MODE);
-  }
-  if (0 != retval) {
-      char *msg;
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to init database, err=%d %s\n",
-         retval, (msg = dblayer_strerror( retval )) ? msg : "");
-      if (LDBM_OS_ERR_IS_DISKFULL(retval)) return return_on_disk_full(li);
-      else return SLAPI_FAIL_GENERAL;
-  }
-
-  /* Walk down the instance list, starting all the instances. */
-  retval = ldbm_instance_startall(li);
-  if (0 != retval) {
-      char *msg;
-      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to start databases, err=%d %s\n",
-         retval, (msg = dblayer_strerror( retval )) ? msg : "");
-      if (LDBM_OS_ERR_IS_DISKFULL(retval)) return return_on_disk_full(li);
-      else {
-        if ((li->li_cache_autosize > 0) && (li->li_cache_autosize <= 100)) {
-          slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to allocate %lu byte dbcache.  "
-                   "Please reduce the value of %s and restart the server.\n",
-                   li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE);
-        }
+    /* parse the config file here */
+    if (0 != ldbm_config_load_dse_info(li)) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Loading database configuration failed\n");
         return SLAPI_FAIL_GENERAL;
-      }
-  }
+    }
 
-  /* write DBVERSION file if one does not exist */
-  home_dir = dblayer_get_home_dir(li, NULL);
-  if (!dbversion_exists(li, home_dir))
-  {
-      dbversion_write (li, home_dir, NULL, DBVERSION_ALL);
-  }
+    /* register with the binder-based resource limit subsystem so that    */
+    /* lookthroughlimit can be supported on a per-connection basis.        */
+    if (slapi_reslimit_register(SLAPI_RESLIMIT_TYPE_INT,
+                                LDBM_LOOKTHROUGHLIMIT_AT, &li->li_reslimit_lookthrough_handle) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for lookthroughlimit\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    /* register with the binder-based resource limit subsystem so that    */
+    /* allidslimit (aka idlistscanlimit) can be supported on a per-connection basis.        */
+    if (slapi_reslimit_register(SLAPI_RESLIMIT_TYPE_INT,
+                                LDBM_ALLIDSLIMIT_AT, &li->li_reslimit_allids_handle) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for allidslimit\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    /* register with the binder-based resource limit subsystem so that    */
+    /* pagedlookthroughlimit can be supported on a per-connection basis.        */
+    if (slapi_reslimit_register(SLAPI_RESLIMIT_TYPE_INT,
+                                LDBM_PAGEDLOOKTHROUGHLIMIT_AT, &li->li_reslimit_pagedlookthrough_handle) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for pagedlookthroughlimit\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    /* register with the binder-based resource limit subsystem so that    */
+    /* pagedallidslimit (aka idlistscanlimit) can be supported on a per-connection basis.        */
+    if (slapi_reslimit_register(SLAPI_RESLIMIT_TYPE_INT,
+                                LDBM_PAGEDALLIDSLIMIT_AT, &li->li_reslimit_pagedallids_handle) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for pagedallidslimit\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    /* lookthrough limit for the rangesearch */
+    if (slapi_reslimit_register(SLAPI_RESLIMIT_TYPE_INT,
+                                LDBM_RANGELOOKTHROUGHLIMIT_AT, &li->li_reslimit_rangelookthrough_handle) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for rangelookthroughlimit\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    /* If the db directory hasn't been set yet, we need to set it to
+   * the default. */
+    if (NULL == li->li_directory || '\0' == li->li_directory[0]) {
+        /* "get default" is a special string that tells the config
+       * routines to figure out the default db directory by
+       * reading cn=config. */
+        ldbm_config_internal_set(li, CONFIG_DIRECTORY, "get default");
+    }
+
+    retval = ldbm_back_start_autotune(li);
+    if (retval != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to set database tuning on backends\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    retval = check_db_version(li, &action);
+    if (0 != retval) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "db version is not supported\n");
+        return SLAPI_FAIL_GENERAL;
+    }
+
+    if (action &
+        (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4 | DBVERSION_UPGRADE_4_5)) {
+        retval = dblayer_start(li, DBLAYER_CLEAN_RECOVER_MODE);
+    } else {
+        retval = dblayer_start(li, DBLAYER_NORMAL_MODE);
+    }
+    if (0 != retval) {
+        char *msg;
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to init database, err=%d %s\n",
+                      retval, (msg = dblayer_strerror(retval)) ? msg : "");
+        if (LDBM_OS_ERR_IS_DISKFULL(retval))
+            return return_on_disk_full(li);
+        else
+            return SLAPI_FAIL_GENERAL;
+    }
+
+    /* Walk down the instance list, starting all the instances. */
+    retval = ldbm_instance_startall(li);
+    if (0 != retval) {
+        char *msg;
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to start databases, err=%d %s\n",
+                      retval, (msg = dblayer_strerror(retval)) ? msg : "");
+        if (LDBM_OS_ERR_IS_DISKFULL(retval))
+            return return_on_disk_full(li);
+        else {
+            if ((li->li_cache_autosize > 0) && (li->li_cache_autosize <= 100)) {
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to allocate %lu byte dbcache.  "
+                                                                "Please reduce the value of %s and restart the server.\n",
+                              li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE);
+            }
+            return SLAPI_FAIL_GENERAL;
+        }
+    }
+
+    /* write DBVERSION file if one does not exist */
+    home_dir = dblayer_get_home_dir(li, NULL);
+    if (!dbversion_exists(li, home_dir)) {
+        dbversion_write(li, home_dir, NULL, DBVERSION_ALL);
+    }
 
 
-  /* this function is called every time new db is initialized   */
-  /* currently it is called the 2nd time  when changelog db is  */
-  /* dynamically created. Code below should only be called once */
-  if (!initialized)
-  {
-    ldbm_compute_init();
+    /* this function is called every time new db is initialized   */
+    /* currently it is called the 2nd time  when changelog db is  */
+    /* dynamically created. Code below should only be called once */
+    if (!initialized) {
+        ldbm_compute_init();
 
-    initialized = 1;
-  }
+        initialized = 1;
+    }
 
-  /* initialize the USN counter */
-  ldbm_usn_init(li);
+    /* initialize the USN counter */
+    ldbm_usn_init(li);
 
-  slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend done starting\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend done starting\n");
 
-  return( 0 );
-
+    return (0);
 }

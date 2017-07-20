@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* Shim which forwards IDL calls to the appropriate implementation */
@@ -23,10 +23,10 @@ int idl_old_get_tune(void);
 int idl_old_init_private(backend *be, struct attrinfo *a);
 int idl_old_release_private(struct attrinfo *a);
 size_t idl_old_get_allidslimit(struct attrinfo *a);
-IDList * idl_old_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err );
-int idl_old_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition );
-int idl_old_delete_key( backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a );
-int idl_old_store_block( backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a);
+IDList *idl_old_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err);
+int idl_old_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition);
+int idl_old_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a);
+int idl_old_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a);
 
 
 void idl_new_set_tune(int val);
@@ -34,104 +34,115 @@ int idl_new_get_tune(void);
 int idl_new_init_private(backend *be, struct attrinfo *a);
 int idl_new_release_private(struct attrinfo *a);
 size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit);
-IDList * idl_new_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit );
-int idl_new_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition );
-int idl_new_delete_key( backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a );
-int idl_new_store_block( backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a);
+IDList *idl_new_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit);
+int idl_new_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition);
+int idl_new_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a);
+int idl_new_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a);
 
-int idl_get_idl_new()
+int
+idl_get_idl_new()
 {
-	return idl_new;
+    return idl_new;
 }
 
-void idl_set_tune(int val)
+void
+idl_set_tune(int val)
 {
-	/* Catch idl_tune requests to use new idl code */
-	if (4096 == val) {
-		idl_new = 1;
-	} else {
-		idl_new = 0;
-	}
-	if (idl_new) {
-		idl_new_set_tune(val);
-	} else {
-		idl_old_set_tune(val);
-	}
+    /* Catch idl_tune requests to use new idl code */
+    if (4096 == val) {
+        idl_new = 1;
+    } else {
+        idl_new = 0;
+    }
+    if (idl_new) {
+        idl_new_set_tune(val);
+    } else {
+        idl_old_set_tune(val);
+    }
 }
 
-int idl_get_tune(void)
+int
+idl_get_tune(void)
 {
-	if (idl_new) {
-		return idl_new_get_tune();
-	} else {
-		return idl_old_get_tune();
-	}
+    if (idl_new) {
+        return idl_new_get_tune();
+    } else {
+        return idl_old_get_tune();
+    }
 }
 
-int idl_init_private(backend *be, struct attrinfo *a)
+int
+idl_init_private(backend *be, struct attrinfo *a)
 {
-	if (idl_new) {
-		return idl_new_init_private(be,a);
-	} else {
-		return idl_old_init_private(be,a);
-	}
+    if (idl_new) {
+        return idl_new_init_private(be, a);
+    } else {
+        return idl_old_init_private(be, a);
+    }
 }
 
-int idl_release_private(struct attrinfo *a)
+int
+idl_release_private(struct attrinfo *a)
 {
-	if (idl_new) {
-		return idl_new_release_private(a);
-	} else {
-		return idl_old_release_private(a);
-	}
+    if (idl_new) {
+        return idl_new_release_private(a);
+    } else {
+        return idl_old_release_private(a);
+    }
 }
 
-size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit)
+size_t
+idl_get_allidslimit(struct attrinfo *a, int allidslimit)
 {
-	if (idl_new) {
-		return idl_new_get_allidslimit(a, allidslimit);
-	} else {
-		return idl_old_get_allidslimit(a);
-	}
+    if (idl_new) {
+        return idl_new_get_allidslimit(a, allidslimit);
+    } else {
+        return idl_old_get_allidslimit(a);
+    }
 }
 
-IDList * idl_fetch_ext( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit )
+IDList *
+idl_fetch_ext(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit)
 {
-	if (idl_new) {
-		return idl_new_fetch(be,db,key,txn,a,err,allidslimit);
-	} else {
-		return idl_old_fetch(be,db,key,txn,a,err);
-	}
+    if (idl_new) {
+        return idl_new_fetch(be, db, key, txn, a, err, allidslimit);
+    } else {
+        return idl_old_fetch(be, db, key, txn, a, err);
+    }
 }
 
-IDList * idl_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err )
+IDList *
+idl_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err)
 {
     return idl_fetch_ext(be, db, key, txn, a, err, 0);
 }
 
-int idl_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition )
+int
+idl_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition)
 {
-	if (idl_new) {
-		return idl_new_insert_key(be,db,key,id,txn,a,disposition);
-	} else {
-		return idl_old_insert_key(be,db,key,id,txn,a,disposition);
-	}
+    if (idl_new) {
+        return idl_new_insert_key(be, db, key, id, txn, a, disposition);
+    } else {
+        return idl_old_insert_key(be, db, key, id, txn, a, disposition);
+    }
 }
 
-int idl_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a )
+int
+idl_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a)
 {
-	if (idl_new) {
-		return idl_new_delete_key(be,db,key,id,txn,a);
-	} else {
-		return idl_old_delete_key(be,db,key,id,txn,a);
-	}
+    if (idl_new) {
+        return idl_new_delete_key(be, db, key, id, txn, a);
+    } else {
+        return idl_old_delete_key(be, db, key, id, txn, a);
+    }
 }
 
-int idl_store_block(backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a)
+int
+idl_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a)
 {
-	if (idl_new) {
-		return idl_new_store_block(be,db,key,idl,txn,a);
-	} else {
-		return idl_old_store_block(be,db,key,idl,txn,a);
-	}
+    if (idl_new) {
+        return idl_new_store_block(be, db, key, idl, txn, a);
+    } else {
+        return idl_old_store_block(be, db, key, idl, txn, a);
+    }
 }

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -48,24 +48,24 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef unsigned char      * POINTER;
-typedef PRUint16              UINT2;
-typedef PRUint32              UINT4;
+typedef unsigned char *POINTER;
+typedef PRUint16 UINT2;
+typedef PRUint32 UINT4;
 
 /* MD5 context. */
-typedef struct {
-  UINT4 state[4];                                   /* state (ABCD) */
-  UINT4 count[2];        /* number of bits, modulo 2^64 (lsb first) */
-  unsigned char buffer[64];                         /* input buffer */
+typedef struct
+{
+    UINT4 state[4];           /* state (ABCD) */
+    UINT4 count[2];           /* number of bits, modulo 2^64 (lsb first) */
+    unsigned char buffer[64]; /* input buffer */
 } mta_MD5_CTX;
 
-void mta_MD5Init   (mta_MD5_CTX *);
-void mta_MD5Update (mta_MD5_CTX *, const unsigned char *, unsigned int);
-void mta_MD5Final  (unsigned char [16], mta_MD5_CTX *);
+void mta_MD5Init(mta_MD5_CTX *);
+void mta_MD5Update(mta_MD5_CTX *, const unsigned char *, unsigned int);
+void mta_MD5Final(unsigned char[16], mta_MD5_CTX *);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
 #endif /* end of _RFC1321_MD5_H_ */
-

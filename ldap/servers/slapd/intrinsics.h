@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -22,41 +22,44 @@
 #define INLINE_DIRECTIVE
 #endif
 
-INLINE_DIRECTIVE static int strcmpi_fast(const char * dst, const char * src)
+INLINE_DIRECTIVE static int
+strcmpi_fast(const char *dst, const char *src)
 {
-	int f,l;
-	do {
-		if ( ((f = (unsigned char)(*(dst++))) >= 'A') && (f <= 'Z') )
-			f -= ('A' - 'a');
-		if ( ((l = (unsigned char)(*(src++))) >= 'A') && (l <= 'Z') )
-			l -= ('A' - 'a');
-	} while ( f && (f == l) );
-	return(f - l);
+    int f, l;
+    do {
+        if (((f = (unsigned char)(*(dst++))) >= 'A') && (f <= 'Z'))
+            f -= ('A' - 'a');
+        if (((l = (unsigned char)(*(src++))) >= 'A') && (l <= 'Z'))
+            l -= ('A' - 'a');
+    } while (f && (f == l));
+    return (f - l);
 }
 #ifdef strcasecmp
 #undef strcasecmp
 #endif
-#define strcasecmp(x,y) strcmpi_fast(x,y)
+#define strcasecmp(x, y) strcmpi_fast(x, y)
 #ifdef strcmpi
 #undef strcmpi
 #endif
-#define strcmpi(x,y) strcmpi_fast(x,y)
+#define strcmpi(x, y) strcmpi_fast(x, y)
 
-INLINE_DIRECTIVE static int tolower_fast(int c)
+INLINE_DIRECTIVE static int
+tolower_fast(int c)
 {
-	if ( (c >= 'A') && (c <= 'Z') )
-		c = c + ('a' - 'A');
-	return c;
+    if ((c >= 'A') && (c <= 'Z'))
+        c = c + ('a' - 'A');
+    return c;
 }
 #ifdef tolower
 #undef tolower
 #endif
 #define tolower(x) tolower_fast(x)
 
-INLINE_DIRECTIVE static int toupper_fast(int c)
+INLINE_DIRECTIVE static int
+toupper_fast(int c)
 {
-    if ( (c >= 'a') && (c <= 'z') )
-	c = c - ('a' - 'A');
+    if ((c >= 'a') && (c <= 'z'))
+        c = c - ('a' - 'A');
     return c;
 }
 #ifdef toupper
@@ -64,19 +67,20 @@ INLINE_DIRECTIVE static int toupper_fast(int c)
 #endif
 #define toupper(x) toupper_fast(x)
 
-INLINE_DIRECTIVE static int strncasecmp_fast(const char * dst, const char * src, int n)
+INLINE_DIRECTIVE static int
+strncasecmp_fast(const char *dst, const char *src, int n)
 {
-	int f,l,x=0;
-	do {
-		if ( ((f = (unsigned char)(*(dst++))) >= 'A') && (f <= 'Z') )
-			f -= ('A' - 'a');
-		if ( ((l = (unsigned char)(*(src++))) >= 'A') && (l <= 'Z') )
-			l -= ('A' - 'a');
-	} while ( f && (f == l) && ++x < n );
-	return(f - l);
+    int f, l, x = 0;
+    do {
+        if (((f = (unsigned char)(*(dst++))) >= 'A') && (f <= 'Z'))
+            f -= ('A' - 'a');
+        if (((l = (unsigned char)(*(src++))) >= 'A') && (l <= 'Z'))
+            l -= ('A' - 'a');
+    } while (f && (f == l) && ++x < n);
+    return (f - l);
 }
 
 #ifdef strncasecmp
 #undef strncasecmp
 #endif
-#define strncasecmp(x,y,z) strncasecmp_fast(x,y,z)
+#define strncasecmp(x, y, z) strncasecmp_fast(x, y, z)

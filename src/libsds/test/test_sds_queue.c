@@ -10,14 +10,16 @@
 #include "test_sds.h"
 
 static void
-test_1_queue_invalid_create(void **state __attribute__((unused))) {
+test_1_queue_invalid_create(void **state __attribute__((unused)))
+{
     sds_result result = SDS_SUCCESS;
     result = sds_queue_init(NULL, NULL);
     assert_int_equal(result, SDS_NULL_POINTER);
 }
 
 static void
-test_2_queue_enqueue(void **state) {
+test_2_queue_enqueue(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
     result = sds_queue_enqueue(q, (void *)1);
@@ -27,7 +29,8 @@ test_2_queue_enqueue(void **state) {
 }
 
 static void
-test_3_queue_enqueue_multiple(void **state) {
+test_3_queue_enqueue_multiple(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -44,7 +47,8 @@ test_3_queue_enqueue_multiple(void **state) {
 }
 
 static void
-test_4_queue_invalid_dequeue(void **state) {
+test_4_queue_invalid_dequeue(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
     void *ptr = NULL;
@@ -59,7 +63,8 @@ test_4_queue_invalid_dequeue(void **state) {
 }
 
 static void
-test_5_queue_dequeue(void **state) {
+test_5_queue_dequeue(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
     void *ptr = NULL;
@@ -79,7 +84,8 @@ test_5_queue_dequeue(void **state) {
 }
 
 static void
-test_6_queue_dequeue_multiple(void **state) {
+test_6_queue_dequeue_multiple(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
     uint64_t *ptr = NULL;
@@ -106,11 +112,11 @@ test_6_queue_dequeue_multiple(void **state) {
     sds_free(ptr);
     assert_ptr_equal(q->head, NULL);
     assert_ptr_equal(q->tail, NULL);
-
 }
 
 static void
-test_7_queue_random(void **state) {
+test_7_queue_random(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
     uint64_t ptr = 0;
@@ -129,7 +135,8 @@ test_7_queue_random(void **state) {
 }
 
 static void
-test_8_queue_implicit_free(void **state __attribute__((unused))) {
+test_8_queue_implicit_free(void **state __attribute__((unused)))
+{
     sds_result result = SDS_SUCCESS;
     sds_queue *q = NULL;
     result = sds_queue_init(&q, sds_free);
@@ -143,7 +150,8 @@ test_8_queue_implicit_free(void **state __attribute__((unused))) {
 }
 
 int
-run_queue_tests (void) {
+run_queue_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_1_queue_invalid_create),
         cmocka_unit_test_setup_teardown(test_2_queue_enqueue,
@@ -168,5 +176,3 @@ run_queue_tests (void) {
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-

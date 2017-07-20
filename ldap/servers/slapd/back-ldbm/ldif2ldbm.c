@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* ldif2ldbm.c
@@ -25,14 +25,15 @@
 
 static char *sourcefile = "ldif2ldbm.c";
 
-#define DB2INDEX_ANCESTORID  0x1    /* index ancestorid */
-#define DB2INDEX_ENTRYRDN    0x2    /* index entryrdn */
-#define DB2LDIF_ENTRYRDN     0x4    /* export entryrdn */
-#define DB2INDEX_OBJECTCLASS 0x10   /* for reindexing "objectclass: nstombstone" */
+#define DB2INDEX_ANCESTORID 0x1   /* index ancestorid */
+#define DB2INDEX_ENTRYRDN 0x2     /* index entryrdn */
+#define DB2LDIF_ENTRYRDN 0x4      /* export entryrdn */
+#define DB2INDEX_OBJECTCLASS 0x10 /* for reindexing "objectclass: nstombstone" */
 
-#define LDIF2LDBM_EXTBITS(x) ((x) & 0xf)
+#define LDIF2LDBM_EXTBITS(x) ((x)&0xf)
 
-typedef struct _export_args {
+typedef struct _export_args
+{
     struct backentry *ep;
     int decrypt;
     int options;
@@ -55,8 +56,9 @@ typedef struct _export_args {
 /* static functions */
 static int db2index_add_indexed_attr(backend *be, char *attrString);
 
-static int ldbm_exclude_attr_from_export( struct ldbminfo *li,
-                                          const char *attr, int dump_uniqueid );
+static int ldbm_exclude_attr_from_export(struct ldbminfo *li,
+                                         const char *attr,
+                                         int dump_uniqueid);
 
 static int _get_and_add_parent_rdns(backend *be, DB *db, back_txn *txn, ID id, Slapi_RDN *srdn, ID *pid, int index_ext, int run_from_cmdline, export_args *eargs);
 static int _export_or_index_parents(ldbm_instance *inst, DB *db, back_txn *txn, ID currentid, char *rdn, ID id, ID pid, int run_from_cmdline, struct _export_args *eargs, int type, Slapi_RDN *psrdn);
@@ -65,40 +67,48 @@ static int _export_or_index_parents(ldbm_instance *inst, DB *db, back_txn *txn, 
 
 static size_t import_config_index_buffer_size = DEFAULT_IMPORT_INDEX_BUFFER_SIZE;
 
-void import_configure_index_buffer_size(size_t size)
+void
+import_configure_index_buffer_size(size_t size)
 {
     import_config_index_buffer_size = size;
 }
 
-size_t import_get_index_buffer_size() {
+size_t
+import_get_index_buffer_size()
+{
     return import_config_index_buffer_size;
 }
 
-static PRIntn import_subcount_hash_compare_keys(const void *v1, const void *v2)
+static PRIntn
+import_subcount_hash_compare_keys(const void *v1, const void *v2)
 {
-    return( ((ID)((uintptr_t)v1) == (ID)((uintptr_t)v2) ) ? 1 : 0);
+    return (((ID)((uintptr_t)v1) == (ID)((uintptr_t)v2)) ? 1 : 0);
 }
 
-static PRIntn import_subcount_hash_compare_values(const void *v1, const void *v2)
+static PRIntn
+import_subcount_hash_compare_values(const void *v1, const void *v2)
 {
-    return( ((size_t)v1 == (size_t)v2 ) ? 1 : 0);
+    return (((size_t)v1 == (size_t)v2) ? 1 : 0);
 }
 
-static PLHashNumber import_subcount_hash_fn(const void *id)
+static PLHashNumber
+import_subcount_hash_fn(const void *id)
 {
-    return (PLHashNumber) ((uintptr_t)id);
+    return (PLHashNumber)((uintptr_t)id);
 }
 
-void import_subcount_stuff_init(import_subcount_stuff *stuff)
+void
+import_subcount_stuff_init(import_subcount_stuff *stuff)
 {
     stuff->hashtable = PL_NewHashTable(IMPORT_SUBCOUNT_HASHTABLE_SIZE,
-    import_subcount_hash_fn, import_subcount_hash_compare_keys,
-    import_subcount_hash_compare_values, NULL, NULL);
+                                       import_subcount_hash_fn, import_subcount_hash_compare_keys,
+                                       import_subcount_hash_compare_values, NULL, NULL);
 }
 
-void import_subcount_stuff_term(import_subcount_stuff *stuff)
+void
+import_subcount_stuff_term(import_subcount_stuff *stuff)
 {
-    if ( stuff != NULL && stuff->hashtable != NULL ) {
+    if (stuff != NULL && stuff->hashtable != NULL) {
         PL_HashTableDestroy(stuff->hashtable);
     }
 }
@@ -107,8 +117,8 @@ void import_subcount_stuff_term(import_subcount_stuff *stuff)
  * returns true if there are any include/exclude DNs
  * [used by both ldif2db and db2ldif]
  */
-int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
-                              char ***exclude)
+int
+ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude)
 {
     char **pb_incl, **pb_excl;
 
@@ -126,7 +136,8 @@ int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
     return (pb_incl || pb_excl);
 }
 
-void ldbm_back_free_incl_excl(char **include, char **exclude)
+void
+ldbm_back_free_incl_excl(char **include, char **exclude)
 {
     if (include) {
         charray_free(include);
@@ -139,18 +150,19 @@ void ldbm_back_free_incl_excl(char **include, char **exclude)
 /* check if a DN is in the include list but NOT the exclude list
  * [used by both ldif2db and db2ldif]
  */
-int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
+int
+ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
 {
     int i = 0;
-    
+
     if (!(include || exclude))
-        return(1);
+        return (1);
 
     if (exclude) {
         i = 0;
         while (exclude[i]) {
-            if (slapi_dn_issuffix(dn,exclude[i]))
-               return(0);
+            if (slapi_dn_issuffix(dn, exclude[i]))
+                return (0);
             i++;
         }
     }
@@ -158,29 +170,28 @@ int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
     if (include) {
         i = 0;
         while (include[i]) {
-            if (slapi_dn_issuffix(dn,include[i]))
-                return(1);
+            if (slapi_dn_issuffix(dn, include[i]))
+                return (1);
             i++;
         }
         /* not in include... bye. */
-        return(0);
+        return (0);
     }
 
-    return(1);
+    return (1);
 }
 
 
 /*
  * add_op_attrs - add the parentid, entryid, dncomp,
- * and entrydn operational attributes to an entry. 
+ * and entrydn operational attributes to an entry.
  * Also---new improved washes whiter than white version
  * now removes any bogus operational attributes you're not
  * allowed to specify yourself on entries.
  * Currenty the list of these is: numSubordinates, hasSubordinates
  */
 int
-add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep,
-             int *status)
+add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep, int *status)
 {
     backend *be;
     char *pdn;
@@ -204,13 +215,12 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
     is_tombstone = slapi_entry_flag_is_set(ep->ep_entry,
                                            SLAPI_ENTRY_FLAG_TOMBSTONE);
     /* parentid */
-    if ((pdn = slapi_dn_parent_ext(backentry_get_ndn(ep), is_tombstone))
-                                                                != NULL) {
+    if ((pdn = slapi_dn_parent_ext(backentry_get_ndn(ep), is_tombstone)) != NULL) {
         int err = 0;
 
         /*
          * read the entrydn/entryrdn index to get the id of the parent
-         * If this entry's parent is not present in the index, 
+         * If this entry's parent is not present in the index,
          * we'll get a DB_NOTFOUND error here.
          * In olden times, we just ignored this, but now...
          * we see this as meaning that the entry is either a
@@ -221,11 +231,11 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             Slapi_DN sdn;
             slapi_sdn_init(&sdn);
             slapi_sdn_set_dn_byval(&sdn, pdn);
-            err = entryrdn_index_read_ext(be, &sdn, &pid, 
+            err = entryrdn_index_read_ext(be, &sdn, &pid,
                                           TOMBSTONE_INCLUDED, NULL);
             slapi_sdn_done(&sdn);
             if (DB_NOTFOUND == err) {
-                /* 
+                /*
                  * Could be a tombstone. E.g.,
                  * nsuniqueid=042d8081-..-ca8fe9f7,uid=tuser,o=abc,com
                  * If so, need to get the grandparent of the leaf.
@@ -250,9 +260,9 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             }
             if (err) {
                 if (DB_NOTFOUND != err && 1 != err) {
-                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err );
-                    slapi_ch_free_string( &pdn );
-                    return( -1 );
+                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
+                    slapi_ch_free_string(&pdn);
+                    return (-1);
                 }
                 if (NULL != status) {
                     *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
@@ -263,23 +273,23 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             IDList *idl = NULL;
             bv.bv_val = pdn;
             bv.bv_len = strlen(pdn);
-            if ( (idl = index_read( be, LDBM_ENTRYDN_STR, indextype_EQUALITY, 
-                                    &bv, NULL, &err )) != NULL ) {
-                pid = idl_firstid( idl );
-                idl_free( &idl );
+            if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
+                                  &bv, NULL, &err)) != NULL) {
+                pid = idl_firstid(idl);
+                idl_free(&idl);
             } else {
                 /* empty idl */
-                if ( 0 != err && DB_NOTFOUND != err ) {
-                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err );
-                    slapi_ch_free_string( &pdn );
-                    return( -1 );
+                if (0 != err && DB_NOTFOUND != err) {
+                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
+                    slapi_ch_free_string(&pdn);
+                    return (-1);
                 }
                 if (NULL != status) {
                     *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
                 }
             }
         }
-        slapi_ch_free_string( &pdn );
+        slapi_ch_free_string(&pdn);
     } else {
         if (NULL != status) {
             *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
@@ -287,9 +297,9 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
     }
 next:
     /* Get rid of attributes you're not allowed to specify yourself */
-    slapi_entry_delete_values( ep->ep_entry, hassubordinates, NULL );
-    slapi_entry_delete_values( ep->ep_entry, numsubordinates, NULL );
-    
+    slapi_entry_delete_values(ep->ep_entry, hassubordinates, NULL);
+    slapi_entry_delete_values(ep->ep_entry, numsubordinates, NULL);
+
     /* Upgrade DN format only */
     /* Set current parentid to e_aux_attrs to remove it from the index file. */
     if (save_old_pid) {
@@ -303,31 +313,33 @@ next:
     /* Add the entryid, parentid and entrydn operational attributes */
     /* Note: This function is provided by the Add code */
     add_update_entry_operational_attributes(ep, pid);
-    
-    return( 0 );
+
+    return (0);
 }
 
 /**********  functions for maintaining the subordinate count **********/
 
 /* Update subordinate count in a hint list, given the parent's ID */
-int import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id,
-                                size_t count)
+int
+import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count)
 {
-    PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable,(void*)((uintptr_t)parent_id)));
-    PL_HashTableAdd(mothers->hashtable,(void*)((uintptr_t)parent_id),(void*)count);
+    PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable, (void *)((uintptr_t)parent_id)));
+    PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)count);
     return 0;
 }
 
 /* Look for a subordinate count in a hint list, given the parent's ID */
-static int import_subcount_mothers_lookup(import_subcount_stuff *mothers,
-        ID parent_id, size_t *count)
+static int
+import_subcount_mothers_lookup(import_subcount_stuff *mothers,
+                               ID parent_id,
+                               size_t *count)
 {
     size_t stored_count = 0;
 
     *count = 0;
     /* Lookup hash table for ID */
     stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void*)((uintptr_t)parent_id));
+                                              (void *)((uintptr_t)parent_id));
     /* If present, return the count found */
     if (0 != stored_count) {
         *count = stored_count;
@@ -337,24 +349,25 @@ static int import_subcount_mothers_lookup(import_subcount_stuff *mothers,
 }
 
 /* Update subordinate count in a hint list, given the parent's ID */
-int import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
+int
+import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
 {
     size_t stored_count = 0;
 
     /* Lookup the hash table for the target ID */
     stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void*)((uintptr_t)parent_id));
+                                              (void *)((uintptr_t)parent_id));
     PR_ASSERT(0 != stored_count);
     /* Increment the count */
     stored_count++;
-    PL_HashTableAdd(mothers->hashtable, (void*)((uintptr_t)parent_id), (void*)stored_count);
+    PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)stored_count);
     return 0;
 }
 
-static int import_update_entry_subcount(backend *be, ID parentid,
-                                        size_t sub_count, int isencrypted)
+static int
+import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted)
 {
-    ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int ret = 0;
     modify_context mc = {0};
     char value_buffer[22] = {0}; /* enough digits for 2^64 children */
@@ -363,53 +376,55 @@ static int import_update_entry_subcount(backend *be, ID parentid,
     char *numsub_str = numsubordinates;
 
     /* Get hold of the parent */
-    e = id2entry(be,parentid,NULL,&ret);
-    if ( (NULL == e) || (0 != ret)) {
-        ldbm_nasty("import_update_entry_subcount",sourcefile,5,ret);
+    e = id2entry(be, parentid, NULL, &ret);
+    if ((NULL == e) || (0 != ret)) {
+        ldbm_nasty("import_update_entry_subcount", sourcefile, 5, ret);
         return (0 == ret) ? -1 : ret;
     }
-    /* Lock it (not really required since we're single-threaded here, but 
+    /* Lock it (not really required since we're single-threaded here, but
      * let's do it so we can reuse the modify routines) */
-    cache_lock_entry( &inst->inst_cache, e );
-    modify_init(&mc,e);
+    cache_lock_entry(&inst->inst_cache, e);
+    modify_init(&mc, e);
     mc.attr_encrypt = isencrypted;
-    sprintf(value_buffer,"%lu",(long unsigned int)sub_count);
+    sprintf(value_buffer, "%lu", (long unsigned int)sub_count);
     /* If it is a tombstone entry, add tombstonesubordinates instead of
      * numsubordinates. */
     if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
         numsub_str = tombstone_numsubordinates;
     }
-    /* attr numsubordinates/tombstonenumsubordinates could already exist in 
+    /* attr numsubordinates/tombstonenumsubordinates could already exist in
      * the entry, let's check whether it's already there or not */
     isreplace = (attrlist_find(e->ep_entry->e_attrs, numsub_str) != NULL);
     {
         int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
-        Slapi_Mods *smods= slapi_mods_new();
+        Slapi_Mods *smods = slapi_mods_new();
 
         slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsub_str,
                        strlen(value_buffer), value_buffer);
-        ret = modify_apply_mods(&mc,smods); /* smods passed in */
+        ret = modify_apply_mods(&mc, smods); /* smods passed in */
     }
     if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
         /* This will correctly index subordinatecount: */
-        ret = modify_update_all(be,NULL,&mc,NULL);
+        ret = modify_update_all(be, NULL, &mc, NULL);
         if (0 == ret) {
-            modify_switch_entries( &mc,be);
+            modify_switch_entries(&mc, be);
         }
     }
     /* entry is unlocked and returned to the cache in modify_term */
-    modify_term(&mc,be);
+    modify_term(&mc, be);
     return ret;
 }
 
-struct _import_subcount_trawl_info {
+struct _import_subcount_trawl_info
+{
     struct _import_subcount_trawl_info *next;
     ID id;
     size_t sub_count;
 };
 typedef struct _import_subcount_trawl_info import_subcount_trawl_info;
 
-static void import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
+static void
+import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
 {
     import_subcount_trawl_info *new_info = CALLOC(import_subcount_trawl_info);
 
@@ -418,11 +433,12 @@ static void import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
     *list = new_info;
 }
 
-static int import_subcount_trawl(backend *be,
-                                 import_subcount_trawl_info *trawl_list,
-                                 int isencrypted)
+static int
+import_subcount_trawl(backend *be,
+                      import_subcount_trawl_info *trawl_list,
+                      int isencrypted)
 {
-    ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     ID id = 1;
     int ret = 0;
     import_subcount_trawl_info *current = NULL;
@@ -430,7 +446,7 @@ static int import_subcount_trawl(backend *be,
 
     /* OK, we do */
     /* We open id2entry and iterate through it */
-    /* Foreach entry, we check to see if its parentID matches any of the 
+    /* Foreach entry, we check to see if its parentID matches any of the
      * values in the trawl list . If so, we bump the sub count for that
      * parent in the list.
      */
@@ -438,19 +454,19 @@ static int import_subcount_trawl(backend *be,
         struct backentry *e = NULL;
 
         /* Get the next entry */
-        e = id2entry(be,id,NULL,&ret);
-        if ( (NULL == e) || (0 != ret)) {
+        e = id2entry(be, id, NULL, &ret);
+        if ((NULL == e) || (0 != ret)) {
             if (DB_NOTFOUND == ret) {
                 break;
             } else {
-                ldbm_nasty("import_subcount_trawl",sourcefile,8,ret);
+                ldbm_nasty("import_subcount_trawl", sourcefile, 8, ret);
                 return ret;
             }
         }
         for (current = trawl_list; current != NULL; current = current->next) {
-            sprintf(value_buffer,"%lu",(u_long)current->id);
-            if (slapi_entry_attr_hasvalue(e->ep_entry,LDBM_PARENTID_STR,value_buffer)) {
-                /* If this entry's parent ID matches one we're trawling for, 
+            sprintf(value_buffer, "%lu", (u_long)current->id);
+            if (slapi_entry_attr_hasvalue(e->ep_entry, LDBM_PARENTID_STR, value_buffer)) {
+                /* If this entry's parent ID matches one we're trawling for,
                  * bump its count */
                 current->sub_count++;
             }
@@ -463,10 +479,10 @@ static int import_subcount_trawl(backend *be,
     /* Now update the parent entries from the list */
     for (current = trawl_list; current != NULL; current = current->next) {
         /* Update the parent entry with the correctly counted subcount */
-        ret = import_update_entry_subcount(be,current->id,
-                                           current->sub_count,isencrypted);
+        ret = import_update_entry_subcount(be, current->id,
+                                           current->sub_count, isencrypted);
         if (0 != ret) {
-            ldbm_nasty("import_subcount_trawl",sourcefile,10,ret);
+            ldbm_nasty("import_subcount_trawl", sourcefile, 10, ret);
             break;
         }
     }
@@ -477,35 +493,36 @@ static int import_subcount_trawl(backend *be,
  * Function: update_subordinatecounts
  *
  * Returns: Nothing
- * 
+ *
  */
-int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
+int
+update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 {
     import_subcount_stuff *mothers = job->mothers;
     int isencrypted = job->encrypt;
     int started_progress_logging = 0;
     int key_count = 0;
     int ret = 0;
-    DB *db    = NULL;
-    DBC *dbc  = NULL; 
-    struct attrinfo  *ai  = NULL;
-    DBT key  = {0};
+    DB *db = NULL;
+    DBC *dbc = NULL;
+    struct attrinfo *ai = NULL;
+    DBT key = {0};
     DBT data = {0};
     import_subcount_trawl_info *trawl_list = NULL;
 
     /* Open the parentid index */
-    ainfo_get( be, LDBM_PARENTID_STR, &ai );
+    ainfo_get(be, LDBM_PARENTID_STR, &ai);
 
     /* Open the parentid index file */
-    if ( (ret = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-        ldbm_nasty("update_subordinatecounts",sourcefile,67,ret);
-        return(ret);
+    if ((ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE)) != 0) {
+        ldbm_nasty("update_subordinatecounts", sourcefile, 67, ret);
+        return (ret);
     }
     /* Get a cursor so we can walk through the parentid */
-    ret = db->cursor(db,txn,&dbc,0);
-    if (ret != 0 ) {
-        ldbm_nasty("update_subordinatecounts",sourcefile,68,ret);
-                dblayer_release_index_file( be, ai, db );
+    ret = db->cursor(db, txn, &dbc, 0);
+    if (ret != 0) {
+        ldbm_nasty("update_subordinatecounts", sourcefile, 68, ret);
+        dblayer_release_index_file(be, ai, db);
         return ret;
     }
 
@@ -514,18 +531,18 @@ int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
         size_t sub_count = 0;
         int found_count = 1;
         ID parentid = 0;
-    
+
         /* Foreach key which is an equality key : */
         data.flags = DB_DBT_MALLOC;
         key.flags = DB_DBT_MALLOC;
-        ret = dbc->c_get(dbc,&key,&data,DB_NEXT_NODUP);
+        ret = dbc->c_get(dbc, &key, &data, DB_NEXT_NODUP);
         if (NULL != data.data) {
             slapi_ch_free(&(data.data));
             data.data = NULL;
         }
         if (0 != ret) {
             if (ret != DB_NOTFOUND) {
-                ldbm_nasty("update_subordinatecounts",sourcefile,62,ret);
+                ldbm_nasty("update_subordinatecounts", sourcefile, 62, ret);
             }
             if (NULL != key.data) {
                 slapi_ch_free(&(key.data));
@@ -534,43 +551,43 @@ int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
             break;
         }
         /* check if we need to abort */
-        if(job->flags & FLAG_ABORT){
+        if (job->flags & FLAG_ABORT) {
             import_log_notice(job, SLAPI_LOG_ERR, "update_subordinatecounts",
-                    "numsubordinate generation aborted.");
+                              "numsubordinate generation aborted.");
             break;
         }
         /*
          * Do an update count
          */
         key_count++;
-        if(!(key_count % PROGRESS_INTERVAL)){
+        if (!(key_count % PROGRESS_INTERVAL)) {
             import_log_notice(job, SLAPI_LOG_INFO, "update_subordinatecounts",
-                    "numsubordinate generation: processed %d entries...",
-                    key_count);
+                              "numsubordinate generation: processed %d entries...",
+                              key_count);
             started_progress_logging = 1;
         }
 
-        if (*(char*)key.data == EQ_PREFIX) {
+        if (*(char *)key.data == EQ_PREFIX) {
             char *idptr = NULL;
-    
+
             /* construct the parent's ID from the key */
             /* Look for the ID in the hint list supplied by the caller */
             /* If its there, we know the answer already */
-            idptr = (((char *) key.data) + 1);
-            parentid = (ID) atol(idptr);
+            idptr = (((char *)key.data) + 1);
+            parentid = (ID)atol(idptr);
             PR_ASSERT(0 != parentid);
-            ret = import_subcount_mothers_lookup(mothers,parentid,&sub_count);
+            ret = import_subcount_mothers_lookup(mothers, parentid, &sub_count);
             if (0 != ret) {
                 IDList *idl = NULL;
-        
+
                 /* If it's not, we need to compute it ourselves: */
                 /* Load the IDL matching the key */
                 key.flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
-                idl = idl_fetch(be,db,&key,NULL,NULL,&ret);
-                if ( (NULL == idl) || (0 != ret)) {
-                    ldbm_nasty("update_subordinatecounts",sourcefile,4,ret);
-                               dblayer_release_index_file( be, ai, db );
+                idl = idl_fetch(be, db, &key, NULL, NULL, &ret);
+                if ((NULL == idl) || (0 != ret)) {
+                    ldbm_nasty("update_subordinatecounts", sourcefile, 4, ret);
+                    dblayer_release_index_file(be, ai, db);
                     return (0 == ret) ? -1 : ret;
                 }
                 /* The number of IDs in the IDL tells us the number of
@@ -579,19 +596,19 @@ int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
                  * in which case */
                 if (ALLIDS(idl)) {
                     /* We add this ID to the list for which to trawl */
-                    import_subcount_trawl_add(&trawl_list,parentid);
+                    import_subcount_trawl_add(&trawl_list, parentid);
                     found_count = 0;
                 } else {
                     /* We get the count from the IDL */
                     sub_count = idl->b_nids;
                 }
                 idl_free(&idl);
-            } 
+            }
             /* Did we get the count ? */
             if (found_count) {
                 PR_ASSERT(0 != sub_count);
                 /* If so, update the parent now */
-                import_update_entry_subcount(be,parentid,sub_count,isencrypted);
+                import_update_entry_subcount(be, parentid, sub_count, isencrypted);
             }
         }
         if (NULL != key.data) {
@@ -599,36 +616,36 @@ int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
             key.data = NULL;
         }
     }
-    if(started_progress_logging){
+    if (started_progress_logging) {
         /* Finish what we started... */
         import_log_notice(job, SLAPI_LOG_INFO, "update_subordinatecounts",
-                "numsubordinate generation: processed %d entries.",
-                key_count);
+                          "numsubordinate generation: processed %d entries.",
+                          key_count);
         job->numsubordinates = key_count;
     }
 
     ret = dbc->c_close(dbc);
     if (0 != ret) {
-        ldbm_nasty("update_subordinatecounts",sourcefile,6,ret);
+        ldbm_nasty("update_subordinatecounts", sourcefile, 6, ret);
     }
-    dblayer_release_index_file( be, ai, db );
+    dblayer_release_index_file(be, ai, db);
 
     /* Now see if we need to go trawling through id2entry for the info
      * we need */
     if (NULL != trawl_list) {
-        ret = import_subcount_trawl(be,trawl_list,isencrypted);
+        ret = import_subcount_trawl(be, trawl_list, isencrypted);
         if (0 != ret) {
-            ldbm_nasty("update_subordinatecounts",sourcefile,7,ret);
+            ldbm_nasty("update_subordinatecounts", sourcefile, 7, ret);
         }
     }
-    return(ret);
+    return (ret);
 }
 
 
 /**********  ldif2db entry point  **********/
 
 /*
-    Some notes about this stuff: 
+    Some notes about this stuff:
 
     The front-end does call our init routine before calling us here.
     So, we get the regular chance to parse the config file etc.
@@ -642,15 +659,16 @@ int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
  * ldbm_back_ldif2ldbm - backend routine to convert an ldif file to
  * a database.
  */
-int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
+int
+ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
     ldbm_instance *inst = NULL;
     char *instance_name;
     int ret, task_flags;
-    
-    slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name );
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
 
     /* BEGIN complex dependencies of various initializations. */
     /* hopefully this will go away once import is not run standalone... */
@@ -660,15 +678,16 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
         /* initialize UniqueID generator - must be done once backends are started
            and event queue is initialized but before plugins are started */
         /* This dn is normalize. */
-        Slapi_DN *sdn = 
-                 slapi_sdn_new_ndn_byref ("cn=uniqueid generator,cn=config");
-        int rc = uniqueIDGenInit (NULL, sdn /*const*/,
-                                  0 /* use single thread mode */);
-        slapi_sdn_free (&sdn);
+        Slapi_DN *sdn =
+            slapi_sdn_new_ndn_byref("cn=uniqueid generator,cn=config");
+        int rc = uniqueIDGenInit(NULL, sdn /*const*/,
+                                 0 /* use single thread mode */);
+        slapi_sdn_free(&sdn);
         if (rc != UID_SUCCESS) {
             slapi_log_err(SLAPI_LOG_EMERG,
-                       "ldbm_back_ldif2ldbm", "Failed to initialize uniqueid generator; error = %d. "
-                       "Exiting now.\n", rc);
+                          "ldbm_back_ldif2ldbm", "Failed to initialize uniqueid generator; error = %d. "
+                                                 "Exiting now.\n",
+                          rc);
             return -1;
         }
 
@@ -680,7 +699,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (NULL == inst) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "Unknown ldbm instance %s\n",
-        	instance_name);
+                      instance_name);
         return -1;
     }
 
@@ -688,25 +707,25 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
     if ((instance_set_busy(inst) != 0) ||
         (slapi_counter_get_value(inst->inst_ref_count) > 0)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' is already in the middle of "
-                  "another task and cannot be disturbed.\n",
-                  inst->inst_name);
+                                                            "another task and cannot be disturbed.\n",
+                      inst->inst_name);
         return -1;
     }
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
         if (dblayer_import_file_init(inst)) {
             slapi_log_err(SLAPI_LOG_ERR,
-                    "ldbm_back_ldif2ldbm", "Failed to write import file\n");
+                          "ldbm_back_ldif2ldbm", "Failed to write import file\n");
             return -1;
         }
     }
 
     /***** prepare & init libdb and dblayer *****/
 
-    if (! (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
+    if (!(task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
         /* shutdown this instance of the db */
-        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm", "Bringing %s offline...\n", 
-                  instance_name);
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm", "Bringing %s offline...\n",
+                      instance_name);
         slapi_mtn_be_disable(inst->inst_be);
 
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
@@ -719,16 +738,16 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
         /* from the command line, libdb needs to be started up */
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
-        /* If USN plugin is enabled, 
+        /* If USN plugin is enabled,
          * initialize the USN counter to get the next USN */
         if (plugin_enabled("USN", li->li_identity)) {
             /* close immediately; no need to run db threads */
             ret = dblayer_start(li,
-                                 DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
+                                DBLAYER_NORMAL_MODE | DBLAYER_NO_DBTHREADS_MODE);
             if (ret) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                    "ldbm_back_ldif2ldbm", "dblayer_start failed! %s (%d)\n",
-                    dblayer_strerror(ret), ret);
+                              "ldbm_back_ldif2ldbm", "dblayer_start failed! %s (%d)\n",
+                              dblayer_strerror(ret), ret);
                 goto fail;
             }
             /* initialize the USN counter */
@@ -736,24 +755,25 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
             ret = dblayer_close(li, DBLAYER_NORMAL_MODE);
             if (ret != 0) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                    "ldbm_back_ldif2ldbm", "dblayer_close failed! %s (%d)\n",
-                    dblayer_strerror(ret), ret);
+                              "ldbm_back_ldif2ldbm", "dblayer_close failed! %s (%d)\n",
+                              dblayer_strerror(ret), ret);
             }
         }
 
-        if (0 != (ret = dblayer_start(li, DBLAYER_IMPORT_MODE)) ) {
+        if (0 != (ret = dblayer_start(li, DBLAYER_IMPORT_MODE))) {
             if (LDBM_OS_ERR_IS_DISKFULL(ret)) {
                 slapi_log_err(SLAPI_LOG_ALERT, "ldbm_back_ldif2ldbm", "Failed to init database.  "
-                          "There is either insufficient disk space or "
-                          "insufficient memory available to initialize the "
-                          "database.\n");
-                slapi_log_err(SLAPI_LOG_ALERT,"ldbm_back_ldif2ldbm", "Please check that\n"
-                          "1) disks are not full,\n"
-                          "2) no file exceeds the file size limit,\n"
-                          "3) the configured dbcachesize is not too large for the available memory on this machine.\n");
+                                                                      "There is either insufficient disk space or "
+                                                                      "insufficient memory available to initialize the "
+                                                                      "database.\n");
+                slapi_log_err(SLAPI_LOG_ALERT, "ldbm_back_ldif2ldbm", "Please check that\n"
+                                                                      "1) disks are not full,\n"
+                                                                      "2) no file exceeds the file size limit,\n"
+                                                                      "3) the configured dbcachesize is not too large for the available memory on this machine.\n");
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "Failed to init database "
-                          "(error %d: %s)\n", ret, dblayer_strerror(ret));
+                                                                    "(error %d: %s)\n",
+                              ret, dblayer_strerror(ret));
             }
             goto fail;
         }
@@ -778,11 +798,11 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
     slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
     ret = ldbm_back_ldif2ldbm_deluxe(pb);
     if (ret == 0) {
-	if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
-		dblayer_import_file_update(inst);
-	} else {
-		slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
-	}
+        if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+            dblayer_import_file_update(inst);
+        } else {
+            slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
+        }
     }
     return ret;
 
@@ -798,7 +818,8 @@ fail:
 
 /* fetch an IDL for the series of subtree specs */
 /* (used for db2ldif) */
-static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
+static IDList *
+ldbm_fetch_subtrees(backend *be, char **include, int *err)
 {
     int i;
     ID id;
@@ -819,24 +840,24 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         int issubsuffix = 0;
 
         /*
-         * avoid a case that an include suffix is applied to the backend of 
-         * its sub suffix 
+         * avoid a case that an include suffix is applied to the backend of
+         * its sub suffix
          * e.g., suffix: dc=example,dc=com (backend userRoot)
          *       sub suffix: ou=sub,dc=example,dc=com (backend subUserRoot)
          * When this CLI db2ldif -s "dc=example,dc=com" is executed,
          * skip checking "dc=example,dc=com" in entrydn of subUserRoot.
          */
         while (NULL != parentdn &&
-               NULL != (nextdn = slapi_dn_parent( parentdn ))) {
-            slapi_ch_free_string( &parentdn );
+               NULL != (nextdn = slapi_dn_parent(parentdn))) {
+            slapi_ch_free_string(&parentdn);
             if (0 == slapi_UTF8CASECMP(nextdn, include[i])) {
                 issubsuffix = 1; /* suffix of be is a subsuffix of include[i] */
                 break;
             }
             parentdn = nextdn;
         }
-        slapi_ch_free_string( &parentdn );
-        slapi_ch_free_string( &nextdn );
+        slapi_ch_free_string(&parentdn);
+        slapi_ch_free_string(&nextdn);
         if (issubsuffix) {
             continue;
         }
@@ -851,21 +872,21 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
          */
         parentdn = slapi_ch_strdup(include[i]);
         while (NULL != parentdn &&
-               NULL != (nextdn = slapi_dn_parent( parentdn ))) {
-            slapi_ch_free_string( &parentdn );
+               NULL != (nextdn = slapi_dn_parent(parentdn))) {
+            slapi_ch_free_string(&parentdn);
             if (0 == slapi_UTF8CASECMP(nextdn, (char *)suffix)) {
                 matched = 1;
                 break;
             }
             parentdn = nextdn;
         }
-        slapi_ch_free_string( &parentdn );
-        slapi_ch_free_string( &nextdn );
+        slapi_ch_free_string(&parentdn);
+        slapi_ch_free_string(&nextdn);
         if (!matched) {
             continue;
         }
 
-        /* 
+        /*
          * First map the suffix to its entry ID.
          * Note that the suffix is already normalized.
          */
@@ -875,14 +896,14 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             if (*err) {
                 if (DB_NOTFOUND == *err) {
                     slapi_log_err(SLAPI_LOG_INFO,
-                        "ldbm_fetch_subtrees", "entryrdn not indexed on '%s'; "
-                        "entry %s may not be added to the database yet.\n",
-                        include[i], include[i]);
+                                  "ldbm_fetch_subtrees", "entryrdn not indexed on '%s'; "
+                                                         "entry %s may not be added to the database yet.\n",
+                                  include[i], include[i]);
                     *err = 0; /* not a problem */
                 } else {
                     slapi_log_err(SLAPI_LOG_ERR,
-                        "ldbm_fetch_subtrees", "Reading %s failed on entryrdn; %d\n",
-                        include[i], *err );
+                                  "ldbm_fetch_subtrees", "Reading %s failed on entryrdn; %d\n",
+                                  include[i], *err);
                 }
                 slapi_sdn_done(&sdn);
                 continue;
@@ -894,14 +915,14 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             if (idl == NULL) {
                 if (DB_NOTFOUND == *err) {
                     slapi_log_err(SLAPI_LOG_INFO,
-                        "ldbm_fetch_subtrees", "entrydn not indexed on '%s'; "
-                        "entry %s may not be added to the database yet.\n",
-                        include[i], include[i]);
+                                  "ldbm_fetch_subtrees", "entrydn not indexed on '%s'; "
+                                                         "entry %s may not be added to the database yet.\n",
+                                  include[i], include[i]);
                     *err = 0; /* not a problem */
                 } else {
-                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_fetch_subtrees", 
-                                   "Reading %s failed on entrydn; %d\n",
-                                   include[i], *err );
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_fetch_subtrees",
+                                  "Reading %s failed on entrydn; %d\n",
+                                  include[i], *err);
                 }
                 continue;
             }
@@ -922,14 +943,14 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         if (idl == NULL) {
             if (DB_NOTFOUND == *err) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                    "ldbm_fetch_subtrees", "Entry id %u has no descendants according to %s. "
-                    "Index file created by this reindex will be empty.\n",
-                    id, entryrdn_get_noancestorid()?"entryrdn":"ancestorid");
+                              "ldbm_fetch_subtrees", "Entry id %u has no descendants according to %s. "
+                                                     "Index file created by this reindex will be empty.\n",
+                              id, entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid");
                 *err = 0; /* not a problem */
             } else {
                 slapi_log_err(SLAPI_LOG_WARNING,
-                    "ldbm_fetch_subtrees", "%s not indexed on %u\n",
-                    entryrdn_get_noancestorid()?"entryrdn":"ancestorid", id);
+                              "ldbm_fetch_subtrees", "%s not indexed on %u\n",
+                              entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid", id);
             }
             continue;
         }
@@ -938,7 +959,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         idl_insert(&idl, id);
 
         /* Merge the idlists */
-        if (! idltotal) {
+        if (!idltotal) {
             idltotal = idl;
         } else if (idl) {
             idltmp = idl_union(be, idltotal, idl);
@@ -947,7 +968,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             idltotal = idltmp;
         }
     } /* for (i = 0; include[i]; i++) */
-    
+
     return idltotal;
 }
 
@@ -971,8 +992,8 @@ export_one_entry(struct ldbminfo *li,
     }
     if (!(expargs->options & SLAPI_DUMP_STATEINFO) &&
         slapi_entry_flag_is_set(expargs->ep->ep_entry,
-                               SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        /* We only dump the tombstones if the user needs to create 
+                                SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+        /* We only dump the tombstones if the user needs to create
          * a replica from the ldif */
         goto bail; /* go to next loop */
     }
@@ -980,31 +1001,31 @@ export_one_entry(struct ldbminfo *li,
 
     /* do not output attributes that are in the "exclude" list */
     /* Also, decrypt any encrypted attributes, if we're asked to */
-    rc = slapi_entry_first_attr( expargs->ep->ep_entry, &this_attr );
+    rc = slapi_entry_first_attr(expargs->ep->ep_entry, &this_attr);
     while (0 == rc) {
         int dump_uniqueid = (expargs->options & SLAPI_DUMP_UNIQUEID) ? 1 : 0;
         rc = slapi_entry_next_attr(expargs->ep->ep_entry,
                                    this_attr, &next_attr);
-        slapi_attr_get_type( this_attr, &type );
+        slapi_attr_get_type(this_attr, &type);
         if (ldbm_exclude_attr_from_export(li, type, dump_uniqueid)) {
             slapi_entry_delete_values(expargs->ep->ep_entry, type, NULL);
-        } 
+        }
         this_attr = next_attr;
     }
     if (expargs->decrypt) {
         /* Decrypt in place */
         rc = attrcrypt_decrypt_entry(be, expargs->ep);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR,"export_one_entry", "Failed to decrypt entry [%s] : %d\n",
-                      slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
+            slapi_log_err(SLAPI_LOG_ERR, "export_one_entry", "Failed to decrypt entry [%s] : %d\n",
+                          slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
         }
     }
-    /* 
+    /*
      * Check if userPassword value is hashed or not.
      * If it is not, put "{CLEAR}" in front of the password value.
      */
     {
-        char *pw = slapi_entry_attr_get_charptr(expargs->ep->ep_entry, 
+        char *pw = slapi_entry_attr_get_charptr(expargs->ep->ep_entry,
                                                 "userpassword");
         if (pw && !slapi_is_encoded(pw)) {
             /* clear password does not have {CLEAR} storage scheme */
@@ -1018,8 +1039,8 @@ export_one_entry(struct ldbminfo *li,
                                           "userpassword", vals);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                        "export_one_entry", "%s: Failed to add clear password storage scheme: %d\n",
-                        slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
+                              "export_one_entry", "%s: Failed to add clear password storage scheme: %d\n",
+                              slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
             }
             slapi_ch_free_string(&val.bv_val);
         }
@@ -1029,9 +1050,9 @@ export_one_entry(struct ldbminfo *li,
                                              &len, expargs->options);
     data.size = len + 1;
 
-    if ( expargs->printkey & EXPORT_PRINTKEY ) {
+    if (expargs->printkey & EXPORT_PRINTKEY) {
         char idstr[32];
-        
+
         sprintf(idstr, "# entry-id: %lu\n", (u_long)expargs->ep->ep_id);
         rc = write(expargs->fd, idstr, strlen(idstr));
         PR_ASSERT(rc > 0);
@@ -1045,24 +1066,24 @@ export_one_entry(struct ldbminfo *li,
         int percent;
 
         if (expargs->idl) {
-            percent = (expargs->idindex*100 / expargs->idl->b_nids);
+            percent = (expargs->idindex * 100 / expargs->idl->b_nids);
         } else {
-            percent = (expargs->ep->ep_id*100 / expargs->lastid);
+            percent = (expargs->ep->ep_id * 100 / expargs->lastid);
         }
         if (expargs->task) {
             slapi_task_log_status(expargs->task,
-                            "%s: Processed %d entries (%d%%).",
-                            inst->inst_name, *expargs->cnt, percent);
+                                  "%s: Processed %d entries (%d%%).",
+                                  inst->inst_name, *expargs->cnt, percent);
             slapi_task_log_notice(expargs->task,
-                            "%s: Processed %d entries (%d%%).",
-                            inst->inst_name, *expargs->cnt, percent);
+                                  "%s: Processed %d entries (%d%%).",
+                                  inst->inst_name, *expargs->cnt, percent);
         }
         slapi_log_err(SLAPI_LOG_INFO, "export_one_entry", "export %s: Processed %d entries (%d%%).\n",
-                                  inst->inst_name, *expargs->cnt, percent);
+                      inst->inst_name, *expargs->cnt, percent);
         *expargs->lastcnt = *expargs->cnt;
     }
 bail:
-    slapi_ch_free( &(data.data) );
+    slapi_ch_free(&(data.data));
     return rc;
 }
 
@@ -1073,55 +1094,55 @@ bail:
  */
 #define LDBM2LDIF_BUSY (-2)
 int
-ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
+ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
 {
-    backend          *be = NULL;
-    struct ldbminfo  *li = NULL;
-    DB               *db = NULL;
-    DBC              *dbc = NULL;
+    backend *be = NULL;
+    struct ldbminfo *li = NULL;
+    DB *db = NULL;
+    DBC *dbc = NULL;
     struct backentry *ep;
-    DBT              key = {0};
-    DBT              data = {0};
-    char             *fname = NULL;
-    int              printkey, rc, ok_index;
-    int              return_value = 0;
-    int              nowrap = 0;
-    int              nobase64 = 0;
-    NIDS             idindex = 0;
-    ID               temp_id;
-    char             **exclude_suffix = NULL;
-    char             **include_suffix = NULL;
-    int              decrypt = 0;
-    int32_t          dump_replica = 0;
-    int              dump_uniqueid = 1;
-    int              fd = STDOUT_FILENO;
-    IDList           *idl = NULL;    /* optimization for -s include lists */
-    int              cnt = 0, lastcnt = 0;
-    int              options = 0;
-    int              keepgoing = 1;
-    int              isfirst = 1;
-    int              appendmode = 0;
-    int              appendmode_1 = 0;
-    int              noversion = 0;
-    ID               lastid = 0;
-    int              task_flags;
-    Slapi_Task       *task;
-    int              run_from_cmdline = 0;
-    char             *instance_name;
-    ldbm_instance    *inst = NULL;
-    int              str2entry_options= 0;
-    int              retry;
-    int              we_start_the_backends = 0;
-    static int       load_dse = 1; /* We'd like to load dse just once. */
-    int              server_running;
-    export_args      eargs = {0};
+    DBT key = {0};
+    DBT data = {0};
+    char *fname = NULL;
+    int printkey, rc, ok_index;
+    int return_value = 0;
+    int nowrap = 0;
+    int nobase64 = 0;
+    NIDS idindex = 0;
+    ID temp_id;
+    char **exclude_suffix = NULL;
+    char **include_suffix = NULL;
+    int decrypt = 0;
+    int32_t dump_replica = 0;
+    int dump_uniqueid = 1;
+    int fd = STDOUT_FILENO;
+    IDList *idl = NULL; /* optimization for -s include lists */
+    int cnt = 0, lastcnt = 0;
+    int options = 0;
+    int keepgoing = 1;
+    int isfirst = 1;
+    int appendmode = 0;
+    int appendmode_1 = 0;
+    int noversion = 0;
+    ID lastid = 0;
+    int task_flags;
+    Slapi_Task *task;
+    int run_from_cmdline = 0;
+    char *instance_name;
+    ldbm_instance *inst = NULL;
+    int str2entry_options = 0;
+    int retry;
+    int we_start_the_backends = 0;
+    static int load_dse = 1; /* We'd like to load dse just once. */
+    int server_running;
+    export_args eargs = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_ldbm2ldif", "=>\n");
 
-    slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
-    slapi_pblock_get( pb, SLAPI_DB2LDIF_DECRYPT, &decrypt );
-    slapi_pblock_get( pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running );
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_DECRYPT, &decrypt);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     dump_replica = slapi_pblock_get_ldif_dump_replica(pb);
@@ -1145,12 +1166,10 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         load_dse = 0;
     }
 
-    if (run_from_cmdline && li->li_dblayer_private->dblayer_private_mem
-        && server_running)
-    {
+    if (run_from_cmdline && li->li_dblayer_private->dblayer_private_mem && server_running) {
         slapi_log_err(SLAPI_LOG_ERR,
-             "ldbm_back_ldbm2ldif", "Cannot export the database while the server "
-             "is running and nsslapd-db-private-mem option is used, please use ldif2db.pl\n");
+                      "ldbm_back_ldbm2ldif", "Cannot export the database while the server "
+                                             "is running and nsslapd-db-private-mem option is used, please use ldif2db.pl\n");
         return_value = -1;
         goto bye;
     }
@@ -1167,7 +1186,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             return_value = -1;
             goto bye;
         }
-        /* [605974] command db2ldif should not be able to run when on-line 
+        /* [605974] command db2ldif should not be able to run when on-line
          * import is running */
         if (dblayer_in_import(inst)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Backend instance %s is busy\n",
@@ -1196,22 +1215,22 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         /* check if an import/restore is already ongoing... */
         if (instance_set_busy(inst) != 0) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Backend instance '%s' is already in the middle"
-                    " of another task and cannot be disturbed.\n",
-                    inst->inst_name);
+                                                                " of another task and cannot be disturbed.\n",
+                          inst->inst_name);
             return_value = LDBM2LDIF_BUSY;
             goto bye;
         }
     }
 
-    slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
-    
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+
     ldbm_back_fetch_incl_excl(pb, &include_suffix, &exclude_suffix);
 
-    str2entry_options= (dump_replica?0:SLAPI_STR2ENTRY_TOMBSTONE_CHECK);
+    str2entry_options = (dump_replica ? 0 : SLAPI_STR2ENTRY_TOMBSTONE_CHECK);
 
-    slapi_pblock_get( pb, SLAPI_DB2LDIF_FILE, &fname );
-    slapi_pblock_get( pb, SLAPI_DB2LDIF_PRINTKEY, &printkey );
-    slapi_pblock_get( pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &dump_uniqueid );
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_FILE, &fname);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_PRINTKEY, &printkey);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &dump_uniqueid);
 
     /* tsk, overloading printkey.  shame on me. */
     ok_index = !(printkey & EXPORT_ID2ENTRY_ONLY);
@@ -1244,33 +1263,33 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         goto bye;
     }
 
-    if (strcmp(fname, "-")) {    /* not '-' */
+    if (strcmp(fname, "-")) { /* not '-' */
         if (appendmode) {
             if (appendmode_1) {
-                fd = dblayer_open_huge_file(fname, O_WRONLY|O_CREAT|O_TRUNC,
-                                        SLAPD_DEFAULT_FILE_MODE);
+                fd = dblayer_open_huge_file(fname, O_WRONLY | O_CREAT | O_TRUNC,
+                                            SLAPD_DEFAULT_FILE_MODE);
             } else {
-                fd = dblayer_open_huge_file(fname, O_WRONLY|O_CREAT|O_APPEND,
-                                        SLAPD_DEFAULT_FILE_MODE);
+                fd = dblayer_open_huge_file(fname, O_WRONLY | O_CREAT | O_APPEND,
+                                            SLAPD_DEFAULT_FILE_MODE);
             }
         } else {
             /* open it */
-            fd = dblayer_open_huge_file(fname, O_WRONLY|O_CREAT|O_TRUNC,
-                    SLAPD_DEFAULT_FILE_MODE);
+            fd = dblayer_open_huge_file(fname, O_WRONLY | O_CREAT | O_TRUNC,
+                                        SLAPD_DEFAULT_FILE_MODE);
         }
         if (fd < 0) {
             slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: can't open %s: %d (%s) while running as user \"%s\"\n",
-                  fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
+                          fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             return_value = -1;
             goto bye;
         }
-    } else {                    /* '-' */
+    } else { /* '-' */
         fd = STDOUT_FILENO;
     }
 
-    if ( we_start_the_backends )  {
-        if (0 != dblayer_start(li,DBLAYER_EXPORT_MODE)) {
+    if (we_start_the_backends) {
+        if (0 != dblayer_start(li, DBLAYER_EXPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: Failed to init database\n");
             return_value = -1;
             goto bye;
@@ -1287,7 +1306,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     if (include_suffix && ok_index)
         get_ids_from_disk(be);
 
-    if ((( dblayer_get_id2entry( be, &db )) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Could not open/create id2entry\n");
         return_value = -1;
         goto bye;
@@ -1302,11 +1321,11 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
      * GIGS in size.
      */
     {
-        /* Here, we assume that the table is ordered in EID-order, 
+        /* Here, we assume that the table is ordered in EID-order,
          * which it is !
          */
         /* get a cursor to we can walk over the table */
-        return_value = db->cursor(db,NULL,&dbc,0);
+        return_value = db->cursor(db, NULL, &dbc, 0);
         if (0 != return_value || NULL == dbc) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm_back_ldbm2ldif", "Failed to get cursor for db2ldif; %s (%d)\n",
@@ -1316,13 +1335,13 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         }
         key.flags = DB_DBT_MALLOC;
         data.flags = DB_DBT_MALLOC;
-        return_value = dbc->c_get(dbc,&key,&data,DB_LAST);
+        return_value = dbc->c_get(dbc, &key, &data, DB_LAST);
         if (0 != return_value) {
             keepgoing = 0;
         } else {
             lastid = id_stored_to_internal((char *)key.data);
-            slapi_ch_free( &(key.data) );
-            slapi_ch_free( &(data.data) );
+            slapi_ch_free(&(key.data));
+            slapi_ch_free(&(data.data));
             isfirst = 1;
         }
     }
@@ -1334,13 +1353,13 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             if (err) {
                 /* most likely, indexes are bad. */
                 slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2ldif", "Failed to fetch subtree lists (error %d) %s\n",
-                      err, dblayer_strerror(err));
+                              "ldbm_back_ldbm2ldif", "Failed to fetch subtree lists (error %d) %s\n",
+                              err, dblayer_strerror(err));
                 slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2ldif", "Possibly the entrydn/entryrdn or ancestorid index is "
-                      "corrupted or does not exist.\n");
+                              "ldbm_back_ldbm2ldif", "Possibly the entrydn/entryrdn or ancestorid index is "
+                                                     "corrupted or does not exist.\n");
                 slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2ldif", "Attempting direct unindexed export instead.\n");
+                              "ldbm_back_ldbm2ldif", "Attempting direct unindexed export instead.\n");
             }
             ok_index = 0;
             idl = NULL;
@@ -1359,7 +1378,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
      */
     if ((!noversion) && ((!appendmode) || (appendmode_1))) {
         char vstr[64];
-        int myversion = 1;    /* XXX: ldif version;
+        int myversion = 1; /* XXX: ldif version;
                  * needs to be modified when version
                  * control begins.
                  */
@@ -1367,7 +1386,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         sprintf(vstr, "version: %d\n\n", myversion);
         rc = write(fd, vstr, strlen(vstr));
         PR_ASSERT(rc > 0);
-		rc = 0;
+        rc = 0;
     }
 
     eargs.decrypt = decrypt;
@@ -1380,7 +1399,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     eargs.include_suffix = include_suffix;
     eargs.exclude_suffix = exclude_suffix;
 
-    while ( keepgoing ) {
+    while (keepgoing) {
         /*
          * All database operations in a transactional environment,
          * including non-transactional reads can receive a return of
@@ -1401,13 +1420,15 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
             for (retry = 0; retry < RETRY_TIMES; retry++) {
                 return_value = db->get(db, NULL, &key, &data, 0);
-                if (return_value != DB_LOCK_DEADLOCK) break;
+                if (return_value != DB_LOCK_DEADLOCK)
+                    break;
             }
             if (return_value) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: failed to read "
-                      "entry %lu, err %d\n", (u_long)idl->b_ids[idindex],
-                      return_value);
-                    return_value = -1;
+                                                                    "entry %lu, err %d\n",
+                              (u_long)idl->b_ids[idindex],
+                              return_value);
+                return_value = -1;
                 break;
             }
             /* back to internal format: */
@@ -1419,14 +1440,16 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             data.flags = DB_DBT_MALLOC;
             if (isfirst) {
                 for (retry = 0; retry < RETRY_TIMES; retry++) {
-                    return_value = dbc->c_get(dbc,&key,&data,DB_FIRST);
-                    if (return_value != DB_LOCK_DEADLOCK) break;
+                    return_value = dbc->c_get(dbc, &key, &data, DB_FIRST);
+                    if (return_value != DB_LOCK_DEADLOCK)
+                        break;
                 }
                 isfirst = 0;
             } else {
                 for (retry = 0; retry < RETRY_TIMES; retry++) {
-                    return_value = dbc->c_get(dbc,&key,&data,DB_NEXT);
-                    if (return_value != DB_LOCK_DEADLOCK) break;
+                    return_value = dbc->c_get(dbc, &key, &data, DB_NEXT);
+                    if (return_value != DB_LOCK_DEADLOCK)
+                        break;
                 }
             }
 
@@ -1444,18 +1467,18 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         }
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins( (char **) &data.dptr, &data.dsize );
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
-    
+
             /* rdn is allocated in get_value_from_string */
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry( data.dptr, 
-                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN );
+                ep->ep_entry = slapi_str2entry(data.dptr,
+                                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
             } else {
                 char *pid_str = NULL;
                 char *pdn = NULL;
@@ -1466,7 +1489,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
                 /* get a parent pid */
                 rc = get_value_from_string((const char *)data.dptr,
-                                                   LDBM_PARENTID_STR, &pid_str);
+                                           LDBM_PARENTID_STR, &pid_str);
                 if (rc) {
                     rc = 0; /* assume this is a suffix */
                 } else {
@@ -1482,8 +1505,8 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                         eargs.lastcnt = &lastcnt;
 
                         rc = _export_or_index_parents(inst, db, NULL, temp_id,
-                                            rdn, temp_id, pid, run_from_cmdline,
-                                            &eargs, DB2LDIF_ENTRYRDN, &psrdn);
+                                                      rdn, temp_id, pid, run_from_cmdline,
+                                                      &eargs, DB2LDIF_ENTRYRDN, &psrdn);
                         if (rc) {
                             slapi_rdn_done(&psrdn);
                             backentry_free(&ep);
@@ -1495,7 +1518,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                 bdn = dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
                     /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn); 
+                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                     slapi_rdn_done(&psrdn);
                 } else {
@@ -1506,19 +1529,19 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
                         slapi_log_err(SLAPI_LOG_TRACE,
-                                   "ldbm_back_ldbm2ldif", "entryrdn is not available; "
-                                   "composing dn (rdn: %s, ID: %d)\n", 
-                                   rdn, temp_id);
+                                      "ldbm_back_ldbm2ldif", "entryrdn is not available; "
+                                                             "composing dn (rdn: %s, ID: %d)\n",
+                                      rdn, temp_id);
                         if (NOID != pid) { /* if not a suffix */
                             if (NULL == slapi_rdn_get_rdn(&psrdn)) {
                                 /* This time just to get the parents' rdn
                                  * most likely from dn cache. */
                                 rc = _get_and_add_parent_rdns(be, db, NULL, pid,
-                                                      &psrdn, NULL, 0,
-                                                      run_from_cmdline, NULL);
+                                                              &psrdn, NULL, 0,
+                                                              run_from_cmdline, NULL);
                                 if (rc) {
                                     slapi_log_err(SLAPI_LOG_WARNING,
-                                                "ldbm_back_ldbm2ldif", "Skip ID %d\n", pid);
+                                                  "ldbm_back_ldbm2ldif", "Skip ID %d\n", pid);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
                                     backentry_free(&ep);
@@ -1529,9 +1552,9 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_WARNING,
-                                       "ldbm_back_ldbm2ldif", "Failed to compose dn for "
-                                       "(rdn: %s, ID: %d) from Slapi_RDN\n",
-                                       rdn, temp_id);
+                                              "ldbm_back_ldbm2ldif", "Failed to compose dn for "
+                                                                     "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                                              rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
                                 backentry_free(&ep);
@@ -1539,7 +1562,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                             }
                         }
                         dn = slapi_ch_smprintf("%s%s%s",
-                                               rdn, pdn?",":"", pdn?pdn:"");
+                                               rdn, pdn ? "," : "", pdn ? pdn : "");
                         slapi_ch_free_string(&pdn);
                     }
                     slapi_rdn_done(&psrdn);
@@ -1548,34 +1571,36 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                     /* don't free dn */
                     sdn = slapi_sdn_new_dn_passin(dn);
                     bdn = backdn_init(sdn, temp_id, 0);
-                    myrc = CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                    myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     if (myrc) {
                         backdn_free(&bdn);
                         slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_ldbm2ldif",
-                                        "%s is already in the dn cache (%d)\n",
-                                        dn, myrc);
+                                      "%s is already in the dn cache (%d)\n",
+                                      dn, myrc);
                     } else {
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
                         slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_ldbm2ldif",
-                                        "entryrdn_lookup_dn returned: %s, "
-                                        "and set to dn cache\n", dn);
+                                      "entryrdn_lookup_dn returned: %s, "
+                                      "and set to dn cache\n",
+                                      dn);
                     }
                 }
-                ep->ep_entry = slapi_str2entry_ext( dn, NULL, data.dptr, 
-                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN );
+                ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
+                                                   str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
             }
         } else {
-            ep->ep_entry = slapi_str2entry( data.dptr, str2entry_options );
+            ep->ep_entry = slapi_str2entry(data.dptr, str2entry_options);
         }
         slapi_ch_free(&(data.data));
 
-        if ( (ep->ep_entry) != NULL ) {
+        if ((ep->ep_entry) != NULL) {
             ep->ep_id = temp_id;
         } else {
             slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_ldbm2ldif", "Skipping "
-                        "badly formatted entry with id %lu\n", (u_long)temp_id);
-            backentry_free( &ep );
+                                                                    "badly formatted entry with id %lu\n",
+                          (u_long)temp_id);
+            backentry_free(&ep);
             continue;
         }
 
@@ -1584,7 +1609,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         eargs.cnt = &cnt;
         eargs.lastcnt = &lastcnt;
         rc = export_one_entry(li, inst, &eargs);
-        backentry_free( &ep );
+        backentry_free(&ep);
     }
     /* DB_NOTFOUND -> successful end */
     if (return_value == DB_NOTFOUND)
@@ -1594,15 +1619,15 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     if (lastcnt != cnt) {
         if (task) {
             slapi_task_log_status(task,
-                    "%s: Processed %d entries (100%%).",
-                    inst->inst_name, cnt);
+                                  "%s: Processed %d entries (100%%).",
+                                  inst->inst_name, cnt);
             slapi_task_log_notice(task,
-                    "%s: Processed %d entries (100%%).",
-                    inst->inst_name, cnt);
+                                  "%s: Processed %d entries (100%%).",
+                                  inst->inst_name, cnt);
         }
         slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2ldif",
-            "export %s: Processed %d entries (100%%).\n",
-            inst->inst_name, cnt);
+                      "export %s: Processed %d entries (100%%).\n",
+                      inst->inst_name, cnt);
     }
 bye:
     if (idl) {
@@ -1612,7 +1637,7 @@ bye:
         dbc->c_close(dbc);
     }
 
-    dblayer_release_id2entry( be, db );
+    dblayer_release_id2entry(be, db);
 
     if (fd > STDERR_FILENO) {
         close(fd);
@@ -1623,12 +1648,12 @@ bye:
     if (we_start_the_backends && NULL != li) {
         if (0 != dblayer_flush(li)) {
             slapi_log_err(SLAPI_LOG_ERR,
-                            "ldbm_back_ldbm2ldif", "db2ldif: Failed to flush database\n" );
+                          "ldbm_back_ldbm2ldif", "db2ldif: Failed to flush database\n");
         }
 
-        if (0 != dblayer_close(li,DBLAYER_EXPORT_MODE)) {
+        if (0 != dblayer_close(li, DBLAYER_EXPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR,
-                            "ldbm_back_ldbm2ldif", "db2ldif: Failed to close database\n" );
+                          "ldbm_back_ldbm2ldif", "db2ldif: Failed to close database\n");
         }
     }
 
@@ -1638,18 +1663,18 @@ bye:
 
     ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(&(eargs.pre_exported_idl));
-    
-    return( return_value );
+
+    return (return_value);
 }
 
 
-static void ldbm2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst,
-                               char *index)
+static void
+ldbm2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
 {
     char *text = vlv_getindexnames(inst->inst_be);
 
     if (task) {
-        slapi_task_log_status(task, "%s: Unknown VLV index '%s'", 
+        slapi_task_log_status(task, "%s: Unknown VLV index '%s'",
                               inst->inst_name, index);
         slapi_task_log_notice(task, "%s: Unknown VLV index '%s'",
                               inst->inst_name, index);
@@ -1657,9 +1682,9 @@ static void ldbm2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst,
                               inst->inst_name, text);
     }
     slapi_log_err(SLAPI_LOG_ERR,
-              "ldbm2index_bad_vlv", "Unknown VLV Index named '%s'\n", index);
+                  "ldbm2index_bad_vlv", "Unknown VLV Index named '%s'\n", index);
     slapi_log_err(SLAPI_LOG_ERR,
-              "ldbm2index_bad_vlv", "Known VLV Indexes are: %s\n", text);
+                  "ldbm2index_bad_vlv", "Known VLV Indexes are: %s\n", text);
     slapi_ch_free_string(&text);
 }
 
@@ -1670,43 +1695,43 @@ static void ldbm2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst,
 int
 ldbm_back_ldbm2index(Slapi_PBlock *pb)
 {
-    char             *instance_name;
-    struct ldbminfo  *li;
-    int              task_flags, run_from_cmdline;
-    ldbm_instance    *inst;
-    backend          *be;
-    DB               *db = NULL; /* DB handle for id2entry */
-    DBC              *dbc = NULL;
-    char             **indexAttrs = NULL;
-    struct vlvIndex  **pvlv= NULL;
-    DBT              key = {0};
-    DBT              data = {0};
-    IDList           *idl = NULL; /* optimization for vlv index creation */
-    int              numvlv = 0;
-    int              return_value = -1;
-    int              rc = -1;
-    ID               temp_id;
-    int              i, j, vlvidx;
-    ID               lastid;
+    char *instance_name;
+    struct ldbminfo *li;
+    int task_flags, run_from_cmdline;
+    ldbm_instance *inst;
+    backend *be;
+    DB *db = NULL; /* DB handle for id2entry */
+    DBC *dbc = NULL;
+    char **indexAttrs = NULL;
+    struct vlvIndex **pvlv = NULL;
+    DBT key = {0};
+    DBT data = {0};
+    IDList *idl = NULL; /* optimization for vlv index creation */
+    int numvlv = 0;
+    int return_value = -1;
+    int rc = -1;
+    ID temp_id;
+    int i, j, vlvidx;
+    ID lastid;
     struct backentry *ep = NULL;
-    char             *type;
-    NIDS             idindex = 0;
-    int              count = 0;
-    Slapi_Attr       *attr;
-    Slapi_Task       *task;
-    int              isfirst = 1;
-    int              index_ext = 0;
-    struct vlvIndex  *vlvip = NULL;
-    back_txn         txn;
-    ID               suffixid = NOID; /* holds the id of the suffix entry */
-    Slapi_Value      **nstombstone_vals = NULL;
-    int              istombstone = 0;
+    char *type;
+    NIDS idindex = 0;
+    int count = 0;
+    Slapi_Attr *attr;
+    Slapi_Task *task;
+    int isfirst = 1;
+    int index_ext = 0;
+    struct vlvIndex *vlvip = NULL;
+    back_txn txn;
+    ID suffixid = NOID; /* holds the id of the suffix entry */
+    Slapi_Value **nstombstone_vals = NULL;
+    int istombstone = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_ldbm2index", "=>\n");
-    if ( g_get_shutdown() || c_get_shutdown() ) {
+    if (g_get_shutdown() || c_get_shutdown()) {
         return return_value;
     }
-        
+
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
@@ -1726,7 +1751,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                   instance_name);
         }
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "Unknown ldbm instance %s\n",
-                  instance_name);
+                      instance_name);
         return return_value;
     }
     be = inst->inst_be;
@@ -1739,9 +1764,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         /* Turn off transactions */
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
-        if (0 != dblayer_start(li,DBLAYER_INDEX_MODE)) {
+        if (0 != dblayer_start(li, DBLAYER_INDEX_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR,
-                       "ldbm2index", "Failed to init database\n");
+                          "ldbm2index", "Failed to init database\n");
             return return_value;
         }
 
@@ -1758,12 +1783,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     /* make sure no other tasks are going, and set the backend readonly */
     if (instance_set_busy_and_readonly(inst) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "ldbm: '%s' is already in the middle of "
-                  "another task and cannot be disturbed.\n",
-                  inst->inst_name);
+                                                             "another task and cannot be disturbed.\n",
+                      inst->inst_name);
         return return_value;
     }
 
-    if ((( dblayer_get_id2entry( be, &db )) != 0 ) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "Could not open/create id2entry\n");
         goto err_min;
     }
@@ -1772,7 +1797,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     rc = db->cursor(db, NULL, &dbc, 0);
     if (0 != rc) {
         slapi_log_err(SLAPI_LOG_ERR,
-                   "ldbm_back_ldbm2index", "Failed to get cursor for ldbm2index\n");
+                      "ldbm_back_ldbm2index", "Failed to get cursor for ldbm2index\n");
         goto err_min;
     }
 
@@ -1782,7 +1807,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     rc = dbc->c_get(dbc, &key, &data, DB_LAST);
     if (rc == DB_NOTFOUND) {
         lastid = 0;
-        isfirst = 0;  /* neither a first nor a last */
+        isfirst = 0; /* neither a first nor a last */
     } else if (rc == 0) {
         lastid = id_stored_to_internal((char *)key.data);
         slapi_ch_free(&(key.data));
@@ -1790,8 +1815,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         isfirst = 1;
     } else {
         slapi_log_err(SLAPI_LOG_ERR,
-                  "ldbm_back_ldbm2index", "Failed to seek within id2entry (BAD %d)\n", 
-                  return_value);
+                      "ldbm_back_ldbm2index", "Failed to seek within id2entry (BAD %d)\n",
+                      return_value);
         goto err_out;
     }
 
@@ -1807,98 +1832,98 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
         slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &attrs);
         for (i = 0; attrs && attrs[i]; i++) {
-            if ( g_get_shutdown() || c_get_shutdown() ) {
+            if (g_get_shutdown() || c_get_shutdown()) {
                 goto err_out;
             }
-            switch(attrs[i][0]) {
-            case 't':        /* attribute type to index */
+            switch (attrs[i][0]) {
+            case 't': /* attribute type to index */
                 db2index_add_indexed_attr(be, attrs[i]);
-                ainfo_get(be, attrs[i]+1, &ai);
+                ainfo_get(be, attrs[i] + 1, &ai);
                 /* the ai was added above, if it didn't already exist */
                 PR_ASSERT(ai != NULL);
-                if (strcasecmp(attrs[i]+1, LDBM_ANCESTORID_STR) == 0) {
+                if (strcasecmp(attrs[i] + 1, LDBM_ANCESTORID_STR) == 0) {
                     if (task) {
                         slapi_task_log_notice(task, "%s: Indexing %s",
                                               inst->inst_name, LDBM_ANCESTORID_STR);
                     }
                     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexing %s\n",
-                                   inst->inst_name, LDBM_ANCESTORID_STR);
+                                  inst->inst_name, LDBM_ANCESTORID_STR);
                     index_ext |= DB2INDEX_ANCESTORID;
-                } else if (strcasecmp(attrs[i]+1, LDBM_ENTRYRDN_STR) == 0) {
+                } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYRDN_STR) == 0) {
                     if (entryrdn_get_switch()) { /* subtree-rename: on */
                         if (task) {
                             slapi_task_log_notice(task, "%s: Indexing %s",
-                                            inst->inst_name, LDBM_ENTRYRDN_STR);
+                                                  inst->inst_name, LDBM_ENTRYRDN_STR);
                         }
                         slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexing %s\n",
-                                       inst->inst_name, LDBM_ENTRYRDN_STR);
+                                      inst->inst_name, LDBM_ENTRYRDN_STR);
                         index_ext |= DB2INDEX_ENTRYRDN;
                     } else {
                         if (task) {
                             slapi_task_log_notice(task,
-                                "%s: Requested to index %s, but %s is off",
-                                inst->inst_name, LDBM_ENTRYRDN_STR,
-                                CONFIG_ENTRYRDN_SWITCH);
-                        }
-                        slapi_log_err(SLAPI_LOG_WARNING, 
-                                "ldbm_back_ldbm2index", "%s: Requested to index %s, but %s is off\n",
-                                inst->inst_name, LDBM_ENTRYRDN_STR,
-                                CONFIG_ENTRYRDN_SWITCH);
-                        goto err_out;
-                    }
-                } else if (strcasecmp(attrs[i]+1, LDBM_ENTRYDN_STR) == 0) {
-                    if (entryrdn_get_switch()) { /* subtree-rename: on */
-                        if (task) {
-                            slapi_task_log_notice(task, 
-                                "%s: Requested to index %s, but %s is on",
-                                inst->inst_name, LDBM_ENTRYDN_STR,
-                                CONFIG_ENTRYRDN_SWITCH);
+                                                  "%s: Requested to index %s, but %s is off",
+                                                  inst->inst_name, LDBM_ENTRYRDN_STR,
+                                                  CONFIG_ENTRYRDN_SWITCH);
                         }
                         slapi_log_err(SLAPI_LOG_WARNING,
-                                "ldbm_back_ldbm2index", "%s: Requested to index %s, but %s is on\n",
-                                inst->inst_name, LDBM_ENTRYDN_STR,
-                                CONFIG_ENTRYRDN_SWITCH);
+                                      "ldbm_back_ldbm2index", "%s: Requested to index %s, but %s is off\n",
+                                      inst->inst_name, LDBM_ENTRYRDN_STR,
+                                      CONFIG_ENTRYRDN_SWITCH);
+                        goto err_out;
+                    }
+                } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYDN_STR) == 0) {
+                    if (entryrdn_get_switch()) { /* subtree-rename: on */
+                        if (task) {
+                            slapi_task_log_notice(task,
+                                                  "%s: Requested to index %s, but %s is on",
+                                                  inst->inst_name, LDBM_ENTRYDN_STR,
+                                                  CONFIG_ENTRYRDN_SWITCH);
+                        }
+                        slapi_log_err(SLAPI_LOG_WARNING,
+                                      "ldbm_back_ldbm2index", "%s: Requested to index %s, but %s is on\n",
+                                      inst->inst_name, LDBM_ENTRYDN_STR,
+                                      CONFIG_ENTRYRDN_SWITCH);
                         goto err_out;
                     } else {
-                        charray_add(&indexAttrs, attrs[i]+1);
+                        charray_add(&indexAttrs, attrs[i] + 1);
                         ai->ai_indexmask |= INDEX_OFFLINE;
                         if (task) {
                             slapi_task_log_notice(task,
                                                   "%s: Indexing attribute: %s",
-                                                  inst->inst_name, attrs[i]+1);
+                                                  inst->inst_name, attrs[i] + 1);
                         }
                         slapi_log_err(SLAPI_LOG_INFO,
-                                       "ldbm_back_ldbm2index", "%s: Indexing attribute: %s\n",
-                                       inst->inst_name, attrs[i] + 1);
+                                      "ldbm_back_ldbm2index", "%s: Indexing attribute: %s\n",
+                                      inst->inst_name, attrs[i] + 1);
                     }
                 } else {
-                    if (strcasecmp(attrs[i]+1, SLAPI_ATTR_OBJECTCLASS) == 0) {
+                    if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_OBJECTCLASS) == 0) {
                         index_ext |= DB2INDEX_OBJECTCLASS;
                     }
-                    charray_add(&indexAttrs, attrs[i]+1);
+                    charray_add(&indexAttrs, attrs[i] + 1);
                     ai->ai_indexmask |= INDEX_OFFLINE;
                     if (task) {
-                      slapi_task_log_notice(task, "%s: Indexing attribute: %s",
-                                            inst->inst_name, attrs[i]+1);
+                        slapi_task_log_notice(task, "%s: Indexing attribute: %s",
+                                              inst->inst_name, attrs[i] + 1);
                     }
                     slapi_log_err(SLAPI_LOG_INFO,
-                                   "ldbm_back_ldbm2index", "%s: Indexing attribute: %s\n",
-                                   inst->inst_name, attrs[i]+1);
+                                  "ldbm_back_ldbm2index", "%s: Indexing attribute: %s\n",
+                                  inst->inst_name, attrs[i] + 1);
                 }
-                dblayer_erase_index_file(be, ai, i/* chkpt; 1st time only */);
+                dblayer_erase_index_file(be, ai, i /* chkpt; 1st time only */);
                 break;
-            case 'T':        /* VLV Search to index */
-                vlvip = vlv_find_searchname((attrs[i])+1, be);
+            case 'T': /* VLV Search to index */
+                vlvip = vlv_find_searchname((attrs[i]) + 1, be);
                 if (vlvip == NULL) {
-                    ldbm2index_bad_vlv(task, inst, attrs[i]+1);
+                    ldbm2index_bad_vlv(task, inst, attrs[i] + 1);
                 } else {
                     vlvIndex_go_offline(vlvip, be);
                     if (pvlv == NULL) {
                         pvlv = (struct vlvIndex **)slapi_ch_calloc(1,
-                                                     sizeof(struct vlvIndex *));
+                                                                   sizeof(struct vlvIndex *));
                     } else {
-                        pvlv = (struct vlvIndex **)slapi_ch_realloc((char*)pvlv,
-                                          (numvlv+1)*sizeof(struct vlvIndex *));
+                        pvlv = (struct vlvIndex **)slapi_ch_realloc((char *)pvlv,
+                                                                    (numvlv + 1) * sizeof(struct vlvIndex *));
                     }
                     pvlv[numvlv] = vlvip;
                     numvlv++;
@@ -1906,10 +1931,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     PR_Delete(vlvIndex_filename(vlvip));
                     if (task) {
                         slapi_task_log_notice(task, "%s: Indexing VLV: %s",
-                                              inst->inst_name, attrs[i]+1);
+                                              inst->inst_name, attrs[i] + 1);
                     }
                     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexing VLV: %s\n",
-                                   inst->inst_name, attrs[i]+1);
+                                  inst->inst_name, attrs[i] + 1);
                 }
                 break;
             }
@@ -1926,30 +1951,31 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
         /* create suffix list */
         for (vlvidx = 0; vlvidx < numvlv; vlvidx++) {
-            char *s = 
-             slapi_ch_strdup(slapi_sdn_get_ndn(vlvIndex_getBase(pvlv[vlvidx])));
+            char *s =
+                slapi_ch_strdup(slapi_sdn_get_ndn(vlvIndex_getBase(pvlv[vlvidx])));
             /* 's' is passed in */
             charray_add(&suffix_list, s);
         }
         idl = ldbm_fetch_subtrees(be, suffix_list, &err);
         charray_free(suffix_list);
-        if (! idl) {
+        if (!idl) {
             /* most likely, indexes are bad if err is set. */
             if (0 != err) {
                 slapi_log_err(SLAPI_LOG_WARNING,
-                      "ldbm_back_ldbm2index", "%s: Failed to fetch subtree lists: (%d) %s\n",
-                      inst->inst_name, err, dblayer_strerror(err));
+                              "ldbm_back_ldbm2index", "%s: Failed to fetch subtree lists: (%d) %s\n",
+                              inst->inst_name, err, dblayer_strerror(err));
                 slapi_log_err(SLAPI_LOG_WARNING,
-                      "ldbm_back_ldbm2index", "%s: Possibly the entrydn/entryrdn or ancestorid index "
-                      "is corrupted or does not exist.\n", inst->inst_name);
-                slapi_log_err(SLAPI_LOG_WARNING,"ldbm_back_ldbm2index",
-                      "%s: Attempting brute-force method instead.\n",
-                      inst->inst_name);
+                              "ldbm_back_ldbm2index", "%s: Possibly the entrydn/entryrdn or ancestorid index "
+                                                      "is corrupted or does not exist.\n",
+                              inst->inst_name);
+                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_ldbm2index",
+                              "%s: Attempting brute-force method instead.\n",
+                              inst->inst_name);
                 if (task) {
                     slapi_task_log_notice(task,
-                      "ldbm_back_ldbm2index - %s: WARNING: Failed to fetch subtree lists (err %d) -- "
-                      "attempting brute-force method instead.", 
-                      inst->inst_name, err);
+                                          "ldbm_back_ldbm2index - %s: WARNING: Failed to fetch subtree lists (err %d) -- "
+                                          "attempting brute-force method instead.",
+                                          inst->inst_name, err);
                 }
             }
         } else if (ALLIDS(idl)) {
@@ -1966,7 +1992,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     dblayer_txn_init(li, &txn);
 
     while (1) {
-        if ( g_get_shutdown() || c_get_shutdown() ) {
+        if (g_get_shutdown() || c_get_shutdown()) {
             goto err_out;
         }
         if (idl) {
@@ -1980,12 +2006,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             rc = db->get(db, NULL, &key, &data, 0);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Failed "
-                          "to read database, errno=%d (%s)\n",
-                          inst->inst_name, rc, dblayer_strerror(rc));
+                                                                     "to read database, errno=%d (%s)\n",
+                              inst->inst_name, rc, dblayer_strerror(rc));
                 if (task) {
                     slapi_task_log_notice(task,
-                        "%s: Failed to read database, err %d (%s)",
-                        inst->inst_name, rc, dblayer_strerror(rc));
+                                          "%s: Failed to read database, err %d (%s)",
+                                          inst->inst_name, rc, dblayer_strerror(rc));
                 }
                 break;
             }
@@ -1997,7 +2023,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             if (isfirst) {
                 rc = dbc->c_get(dbc, &key, &data, DB_FIRST);
                 isfirst = 0;
-            } else{
+            } else {
                 rc = dbc->c_get(dbc, &key, &data, DB_NEXT);
             }
 
@@ -2005,12 +2031,13 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 break;
             } else if (0 != rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Failed to read database, "
-                              "errno=%d (%s)\n", inst->inst_name, rc,
+                                                                     "errno=%d (%s)\n",
+                              inst->inst_name, rc,
                               dblayer_strerror(rc));
                 if (task) {
                     slapi_task_log_notice(task,
-                            "%s: Failed to read database, err %d (%s)",
-                            inst->inst_name, rc, dblayer_strerror(rc));
+                                          "%s: Failed to read database, err %d (%s)",
+                                          inst->inst_name, rc, dblayer_strerror(rc));
                 }
                 break;
             }
@@ -2020,19 +2047,19 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         idindex++;
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins( (char **) &data.dptr, &data.dsize );
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
             int rc = 0;
-    
+
             /* rdn is allocated in get_value_from_string */
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry( data.dptr, 
-                                                SLAPI_STR2ENTRY_NO_ENTRYDN );
+                ep->ep_entry = slapi_str2entry(data.dptr,
+                                               SLAPI_STR2ENTRY_NO_ENTRYDN);
             } else {
                 char *pid_str = NULL;
                 char *pdn = NULL;
@@ -2043,7 +2070,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
                 /* get a parent pid */
                 rc = get_value_from_string((const char *)data.dptr,
-                                                   LDBM_PARENTID_STR, &pid_str);
+                                           LDBM_PARENTID_STR, &pid_str);
                 if (rc || !pid_str) {
                     /* see if this is a suffix or some entry without a parent id
                        e.g. a tombstone entry */
@@ -2051,7 +2078,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
                     slapi_sdn_init_dn_byref(&sufdn, rdn);
                     if (slapi_be_issuffix(be, &sufdn)) {
-                        rc = 0; /* is a suffix */
+                        rc = 0;             /* is a suffix */
                         suffixid = temp_id; /* this is the ID of a suffix entry */
                     } else {
                         /* assume the parent entry is the suffix entry for this backend
@@ -2067,8 +2094,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                      * the parent entry has to be exported first. */
                     if (temp_id < pid) {
                         rc = _export_or_index_parents(inst, db, &txn, temp_id,
-                                            rdn, temp_id, pid, run_from_cmdline,
-                                            NULL, index_ext, &psrdn);
+                                                      rdn, temp_id, pid, run_from_cmdline,
+                                                      NULL, index_ext, &psrdn);
                         if (rc) {
                             backentry_free(&ep);
                             continue;
@@ -2079,7 +2106,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 bdn = dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
                     /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn); 
+                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                 } else {
                     int myrc = 0;
@@ -2089,27 +2116,27 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
                         slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_ldbm2index",
-                                   "entryrdn is not available; "
-                                   "composing dn (rdn: %s, ID: %d)\n", 
-                                   rdn, temp_id);
+                                      "entryrdn is not available; "
+                                      "composing dn (rdn: %s, ID: %d)\n",
+                                      rdn, temp_id);
                         if (NOID != pid) { /* if not a suffix */
                             if (NULL == slapi_rdn_get_rdn(&psrdn)) {
                                 /* This time just to get the parents' rdn
                                  * most likely from dn cache. */
                                 rc = _get_and_add_parent_rdns(be, db, &txn, pid,
-                                                      &psrdn, NULL, 0,
-                                                      run_from_cmdline, NULL);
+                                                              &psrdn, NULL, 0,
+                                                              run_from_cmdline, NULL);
                                 if (rc) {
                                     slapi_log_err(SLAPI_LOG_WARNING,
-                                        "ldbm_back_ldbm2index", "Skip ID %d\n", pid);
+                                                  "ldbm_back_ldbm2index", "Skip ID %d\n", pid);
                                     slapi_log_err(SLAPI_LOG_WARNING,
-                                        "ldbm_back_ldbm2index", "Parent entry (ID %d) of entry. "
-                                        "(ID %d, rdn: %s) does not exist.\n",
-                                        pid, temp_id, rdn);
+                                                  "ldbm_back_ldbm2index", "Parent entry (ID %d) of entry. "
+                                                                          "(ID %d, rdn: %s) does not exist.\n",
+                                                  pid, temp_id, rdn);
                                     slapi_log_err(SLAPI_LOG_WARNING,
-                                        "ldbm_back_ldbm2index", "We recommend to export the backend "
-                                        "instance %s and reimport it.\n",
-                                        instance_name);
+                                                  "ldbm_back_ldbm2index", "We recommend to export the backend "
+                                                                          "instance %s and reimport it.\n",
+                                                  instance_name);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
                                     backentry_free(&ep);
@@ -2120,9 +2147,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                       "ldbm_back_ldbm2index", "Failed to compose dn for "
-                                       "(rdn: %s, ID: %d) from Slapi_RDN\n",
-                                       rdn, temp_id);
+                                              "ldbm_back_ldbm2index", "Failed to compose dn for "
+                                                                      "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                                              rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
                                 backentry_free(&ep);
@@ -2130,7 +2157,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             }
                         }
                         dn = slapi_ch_smprintf("%s%s%s",
-                                               rdn, pdn?",":"", pdn?pdn:"");
+                                               rdn, pdn ? "," : "", pdn ? pdn : "");
                         slapi_ch_free_string(&pdn);
                     }
                     /* dn is not dup'ed in slapi_sdn_new_dn_passin.
@@ -2138,41 +2165,42 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     /* don't free dn */
                     sdn = slapi_sdn_new_dn_passin(dn);
                     bdn = backdn_init(sdn, temp_id, 0);
-                    myrc = CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                    myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     if (myrc) {
                         backdn_free(&bdn);
                         slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_ldbm2index",
-                                        "%s is already in the dn cache (%d)\n",
-                                        dn, myrc);
+                                      "%s is already in the dn cache (%d)\n",
+                                      dn, myrc);
                     } else {
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
                         slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_ldbm2index",
-                                        "entryrdn_lookup_dn returned: %s, "
-                                        "and set to dn cache\n", dn);
+                                      "entryrdn_lookup_dn returned: %s, "
+                                      "and set to dn cache\n",
+                                      dn);
                     }
                 }
                 slapi_rdn_done(&psrdn);
-                ep->ep_entry = slapi_str2entry_ext( dn, NULL, data.dptr, 
-                                                   SLAPI_STR2ENTRY_NO_ENTRYDN );
+                ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
+                                                   SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
             }
         } else {
-            ep->ep_entry = slapi_str2entry( data.dptr, 0 );
+            ep->ep_entry = slapi_str2entry(data.dptr, 0);
         }
         slapi_ch_free(&(data.data));
 
-        if ( ep->ep_entry != NULL ) {
+        if (ep->ep_entry != NULL) {
             ep->ep_id = temp_id;
         } else {
             if (task) {
                 slapi_task_log_notice(task,
-                    "%s: WARNING: skipping badly formatted entry (id %lu)",
-                    inst->inst_name, (u_long)temp_id);
+                                      "%s: WARNING: skipping badly formatted entry (id %lu)",
+                                      inst->inst_name, (u_long)temp_id);
             }
             slapi_log_err(SLAPI_LOG_WARNING,
-                      "ldbm_back_ldbm2index", "%s: Skipping badly formatted entry (id %lu)\n",
-                      inst->inst_name, (u_long)temp_id);
-            backentry_free( &ep );
+                          "ldbm_back_ldbm2index", "%s: Skipping badly formatted entry (id %lu)\n",
+                          inst->inst_name, (u_long)temp_id);
+            backentry_free(&ep);
             continue;
         }
 
@@ -2185,7 +2213,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
             istombstone = 1;
             if (!nstombstone_vals) {
-                nstombstone_vals = (Slapi_Value **) slapi_ch_calloc(2, sizeof(Slapi_Value *));
+                nstombstone_vals = (Slapi_Value **)slapi_ch_calloc(2, sizeof(Slapi_Value *));
                 *nstombstone_vals = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
             }
             if (tombstone_csn) {
@@ -2193,11 +2221,11 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     rc = dblayer_txn_begin(be, NULL, &txn);
                     if (0 != rc) {
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
-                            "%s: Failed to begin txn for update index '%s' (err %d: %s)\n",
-                            inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
+                                      "%s: Failed to begin txn for update index '%s' (err %d: %s)\n",
+                                      inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                         if (task) {
                             slapi_task_log_notice(task, "%s: ERROR: failed to begin txn for "
-                                                  "update index '%s' (err %d: %s)",
+                                                        "update index '%s' (err %d: %s)",
                                                   inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc,
                                                   dblayer_strerror(rc));
                         }
@@ -2211,13 +2239,14 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                            ep->ep_id, BE_INDEX_ADD, &txn);
                 if (rc != 0) {
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
-                        "%s: Failed to update index '%s' (err %d: %s)\n",
-                        inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
+                                  "%s: Failed to update index '%s' (err %d: %s)\n",
+                                  inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                     if (task) {
                         slapi_task_log_notice(task, "%s: ERROR: failed to update index '%s' "
-                                                    "(err %d: %s)", inst->inst_name,
-                                                    SLAPI_ATTR_TOMBSTONE_CSN, rc,
-                                                    dblayer_strerror(rc));
+                                                    "(err %d: %s)",
+                                              inst->inst_name,
+                                              SLAPI_ATTR_TOMBSTONE_CSN, rc,
+                                              dblayer_strerror(rc));
                     }
                     if (!run_from_cmdline) {
                         dblayer_txn_abort(be, &txn);
@@ -2229,11 +2258,11 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     rc = dblayer_txn_commit(be, &txn);
                     if (0 != rc) {
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
-                            "%s: Failed to commit txn for update index '%s' (err %d: %s)\n",
-                            inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
+                                      "%s: Failed to commit txn for update index '%s' (err %d: %s)\n",
+                                      inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                         if (task) {
-                            slapi_task_log_notice(task,"%s: ERROR: failed to commit txn for "
-                                                  "update index '%s' (err %d: %s)",
+                            slapi_task_log_notice(task, "%s: ERROR: failed to commit txn for "
+                                                        "update index '%s' (err %d: %s)",
                                                   inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN,
                                                   rc, dblayer_strerror(rc));
                         }
@@ -2250,20 +2279,20 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
          * Update the attribute indexes
          */
         if (indexAttrs) {
-            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN|DB2INDEX_OBJECTCLASS))) {
+            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN | DB2INDEX_OBJECTCLASS))) {
                 /* if it is a tombstone entry, just entryrdn or "objectclass: nstombstone"
                  * need to be reindexed.  the to-be-indexed list does not contain them. */
-                backentry_free( &ep );
+                backentry_free(&ep);
                 continue;
             }
             for (i = slapi_entry_first_attr(ep->ep_entry, &attr); i == 0;
                  i = slapi_entry_next_attr(ep->ep_entry, attr, &attr)) {
                 Slapi_Value **svals;
 
-                slapi_attr_get_type( attr, &type );
-                for ( j = 0; indexAttrs[j] != NULL; j++ ) {
+                slapi_attr_get_type(attr, &type);
+                for (j = 0; indexAttrs[j] != NULL; j++) {
                     int is_tombstone_obj = 0;
-                    if ( g_get_shutdown() || c_get_shutdown() ) {
+                    if (g_get_shutdown() || c_get_shutdown()) {
                         goto err_out;
                     }
                     if (slapi_attr_type_cmp(indexAttrs[j], type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
@@ -2281,17 +2310,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             rc = dblayer_txn_begin(be, NULL, &txn);
                             if (0 != rc) {
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                    "ldbm_back_ldbm2index", "%s: Failed to begin txn for update index '%s'\n",
-                                    inst->inst_name, indexAttrs[j]);
+                                              "ldbm_back_ldbm2index", "%s: Failed to begin txn for update index '%s'\n",
+                                              inst->inst_name, indexAttrs[j]);
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                    "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                    dblayer_strerror(rc));
+                                              "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                                              dblayer_strerror(rc));
                                 if (task) {
                                     slapi_task_log_notice(task,
-                                        "%s: ERROR: failed to begin txn for "
-                                        "update index '%s' (err %d: %s)",
-                                        inst->inst_name, indexAttrs[j], rc,
-                                        dblayer_strerror(rc));
+                                                          "%s: ERROR: failed to begin txn for "
+                                                          "update index '%s' (err %d: %s)",
+                                                          inst->inst_name, indexAttrs[j], rc,
+                                                          dblayer_strerror(rc));
                                 }
                                 return_value = -2;
                                 goto err_out;
@@ -2304,16 +2333,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         }
                         if (rc) {
                             slapi_log_err(SLAPI_LOG_ERR,
-                                "ldbm_back_ldbm2index", "%s: Failed to update index '%s'\n",
-                                inst->inst_name, indexAttrs[j]);
+                                          "ldbm_back_ldbm2index", "%s: Failed to update index '%s'\n",
+                                          inst->inst_name, indexAttrs[j]);
                             slapi_log_err(SLAPI_LOG_ERR,
-                                "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                dblayer_strerror(rc));
+                                          "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                                          dblayer_strerror(rc));
                             if (task) {
                                 slapi_task_log_notice(task,
-                                    "%s: ERROR: failed to update index '%s' "
-                                    "(err %d: %s)", inst->inst_name,
-                                    indexAttrs[j], rc, dblayer_strerror(rc));
+                                                      "%s: ERROR: failed to update index '%s' "
+                                                      "(err %d: %s)",
+                                                      inst->inst_name,
+                                                      indexAttrs[j], rc, dblayer_strerror(rc));
                             }
                             if (!run_from_cmdline) {
                                 dblayer_txn_abort(be, &txn);
@@ -2325,18 +2355,19 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             rc = dblayer_txn_commit(be, &txn);
                             if (0 != rc) {
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                    "ldbm_back_ldbm2index", "%s: Failed to commit txn for "
-                                    "update index '%s'\n",
-                                    inst->inst_name, indexAttrs[j]);
+                                              "ldbm_back_ldbm2index", "%s: Failed to commit txn for "
+                                                                      "update index '%s'\n",
+                                              inst->inst_name, indexAttrs[j]);
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                    "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                    dblayer_strerror(rc));
+                                              "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                                              dblayer_strerror(rc));
                                 if (task) {
                                     slapi_task_log_notice(task,
-                                        "%s: ERROR: failed to commit txn for "
-                                        "update index '%s' "
-                                        "(err %d: %s)", inst->inst_name,
-                                        indexAttrs[j], rc, dblayer_strerror(rc));
+                                                          "%s: ERROR: failed to commit txn for "
+                                                          "update index '%s' "
+                                                          "(err %d: %s)",
+                                                          inst->inst_name,
+                                                          indexAttrs[j], rc, dblayer_strerror(rc));
                                 }
                                 return_value = -2;
                                 goto err_out;
@@ -2353,7 +2384,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         for (vlvidx = 0; !istombstone && (vlvidx < numvlv); vlvidx++) {
             char *ai = "Unknown index";
 
-            if ( g_get_shutdown() || c_get_shutdown() ) {
+            if (g_get_shutdown() || c_get_shutdown()) {
                 goto err_out;
             }
             if (indexAttrs && indexAttrs[vlvidx]) {
@@ -2364,16 +2395,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (0 != rc) {
 
                     slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2index", "%s: Failed to begin txn for update index '%s'\n",
-                      inst->inst_name, ai);
+                                  "ldbm_back_ldbm2index", "%s: Failed to begin txn for update index '%s'\n",
+                                  inst->inst_name, ai);
                     slapi_log_err(SLAPI_LOG_ERR,
-                        "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                        dblayer_strerror(rc));
+                                  "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                                  dblayer_strerror(rc));
                     if (task) {
                         slapi_task_log_notice(task,
-                         "%s: ERROR: failed to begin txn for update index '%s' "
-                         "(err %d: %s)", inst->inst_name,
-                         ai, rc, dblayer_strerror(rc));
+                                              "%s: ERROR: failed to begin txn for update index '%s' "
+                                              "(err %d: %s)",
+                                              inst->inst_name,
+                                              ai, rc, dblayer_strerror(rc));
                     }
                     return_value = -2;
                     goto err_out;
@@ -2386,21 +2418,21 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             vlv_acquire_lock(be);
             vlv_update_index(pvlv[vlvidx], &txn, li, pb, NULL, ep);
             vlv_release_lock(be);
-            if (!run_from_cmdline)
-            {
+            if (!run_from_cmdline) {
                 rc = dblayer_txn_commit(be, &txn);
                 if (0 != rc) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2index", "%s: Failed to commit txn for update index '%s'\n",
-                      inst->inst_name, ai);
+                                  "ldbm_back_ldbm2index", "%s: Failed to commit txn for update index '%s'\n",
+                                  inst->inst_name, ai);
                     slapi_log_err(SLAPI_LOG_ERR,
-                        "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                        dblayer_strerror(rc));
+                                  "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                                  dblayer_strerror(rc));
                     if (task) {
                         slapi_task_log_notice(task,
-                        "%s: ERROR: failed to commit txn for update index '%s' "
-                        "(err %d: %s)", inst->inst_name,
-                        ai, rc, dblayer_strerror(rc));
+                                              "%s: ERROR: failed to commit txn for update index '%s' "
+                                              "(err %d: %s)",
+                                              inst->inst_name,
+                                              ai, rc, dblayer_strerror(rc));
                     }
                     return_value = -2;
                     goto err_out;
@@ -2415,16 +2447,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             rc = ldbm_ancestorid_index_entry(be, ep, BE_INDEX_ADD, NULL);
             if (rc != 0) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldbm2index", "%s: Failed to update index 'ancestorid'\n",
-                          inst->inst_name);
+                              "ldbm_back_ldbm2index", "%s: Failed to update index 'ancestorid'\n",
+                              inst->inst_name);
                 slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                          dblayer_strerror(rc));
+                              "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                              dblayer_strerror(rc));
                 if (task) {
                     slapi_task_log_notice(task,
-                        "%s: ERROR: failed to update index 'ancestorid' "
-                        "(err %d: %s)", inst->inst_name,
-                        rc, dblayer_strerror(rc));
+                                          "%s: ERROR: failed to update index 'ancestorid' "
+                                          "(err %d: %s)",
+                                          inst->inst_name,
+                                          rc, dblayer_strerror(rc));
                 }
                 return_value = -2;
                 goto err_out;
@@ -2436,15 +2469,15 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     rc = dblayer_txn_begin(be, NULL, &txn);
                     if (0 != rc) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                            "ldbm_back_ldbm2index", "%s: ERROR: failed to begin txn for update index 'entryrdn'\n",
-                            inst->inst_name);
-                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Error %d: %s\n", 
-                            inst->inst_name, rc, dblayer_strerror(rc));
+                                      "ldbm_back_ldbm2index", "%s: ERROR: failed to begin txn for update index 'entryrdn'\n",
+                                      inst->inst_name);
+                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Error %d: %s\n",
+                                      inst->inst_name, rc, dblayer_strerror(rc));
                         if (task) {
                             slapi_task_log_notice(task,
-                                    "%s: ERROR: failed to begin txn for "
-                                    "update index 'entryrdn' (err %d: %s)",
-                                    inst->inst_name, rc, dblayer_strerror(rc));
+                                                  "%s: ERROR: failed to begin txn for "
+                                                  "update index 'entryrdn' (err %d: %s)",
+                                                  inst->inst_name, rc, dblayer_strerror(rc));
                         }
                         return_value = -2;
                         goto err_out;
@@ -2453,16 +2486,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 rc = entryrdn_index_entry(be, ep, BE_INDEX_ADD, &txn);
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                              "ldbm_back_ldbm2index", "%s: Failed to update index 'entryrdn'\n",
-                              inst->inst_name);
+                                  "ldbm_back_ldbm2index", "%s: Failed to update index 'entryrdn'\n",
+                                  inst->inst_name);
                     slapi_log_err(SLAPI_LOG_ERR,
-                              "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                              dblayer_strerror(rc));
+                                  "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                                  dblayer_strerror(rc));
                     if (task) {
                         slapi_task_log_notice(task,
-                            "%s: ERROR: failed to update index 'entryrdn' "
-                            "(err %d: %s)", inst->inst_name,
-                            rc, dblayer_strerror(rc));
+                                              "%s: ERROR: failed to update index 'entryrdn' "
+                                              "(err %d: %s)",
+                                              inst->inst_name,
+                                              rc, dblayer_strerror(rc));
                     }
                     if (!run_from_cmdline) {
                         dblayer_txn_abort(be, &txn);
@@ -2474,16 +2508,16 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     rc = dblayer_txn_commit(be, &txn);
                     if (0 != rc) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                    "ldbm_back_ldbm2index", "%s: Failed to commit txn for "
-                                    "update index 'entryrdn'\n",
-                                    inst->inst_name);
+                                      "ldbm_back_ldbm2index", "%s: Failed to commit txn for "
+                                                              "update index 'entryrdn'\n",
+                                      inst->inst_name);
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Error %d: %s\n",
-                                    inst->inst_name, rc, dblayer_strerror(rc));
+                                      inst->inst_name, rc, dblayer_strerror(rc));
                         if (task) {
                             slapi_task_log_notice(task,
-                                    "%s: ERROR: failed to commit txn for "
-                                    "update index 'entryrdn' (err %d: %s)",
-                                    inst->inst_name, rc, dblayer_strerror(rc));
+                                                  "%s: ERROR: failed to commit txn for "
+                                                  "update index 'entryrdn' (err %d: %s)",
+                                                  inst->inst_name, rc, dblayer_strerror(rc));
                         }
                         return_value = -2;
                         goto err_out;
@@ -2497,9 +2531,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             int percent;
 
             if (idl) {
-                percent = (idindex*100 / (idl->b_nids ? idl->b_nids : 1));
+                percent = (idindex * 100 / (idl->b_nids ? idl->b_nids : 1));
             } else {
-                percent = (ep->ep_id*100 / (lastid ? lastid : 1));
+                percent = (ep->ep_id * 100 / (lastid ? lastid : 1));
             }
             if (task) {
                 /* NGK - This should eventually be cleaned up to use the
@@ -2513,10 +2547,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                       inst->inst_name, count, percent);
             }
             slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexed %d entries (%d%%).\n",
-                      inst->inst_name, count, percent);
+                          inst->inst_name, count, percent);
         }
 
-        backentry_free( &ep );
+        backentry_free(&ep);
     }
 
     /* if we got here, we finished successfully */
@@ -2529,7 +2563,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         PR_ASSERT(ai != NULL);
         ai->ai_indexmask &= ~INDEX_OFFLINE;
     }
-    for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
+    for (vlvidx = 0; vlvidx < numvlv; vlvidx++) {
         vlvIndex_go_online(pvlv[vlvidx], be);
     }
 
@@ -2540,18 +2574,18 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                               inst->inst_name);
     }
     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Finished indexing.\n",
-              inst->inst_name);
+                  inst->inst_name);
     return_value = 0; /* success */
 err_out:
-    backentry_free( &ep ); /* if ep or *ep is NULL, it does nothing */
+    backentry_free(&ep); /* if ep or *ep is NULL, it does nothing */
     if (idl) {
         idl_free(&idl);
     } else {
         dbc->c_close(dbc);
     }
-    if (return_value < 0) {/* error case: undo vlv indexing */
+    if (return_value < 0) { /* error case: undo vlv indexing */
         /* if jumped to out due to an error, vlv lock has not been released */
-        for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
+        for (vlvidx = 0; vlvidx < numvlv; vlvidx++) {
             vlvIndex_go_offline(pvlv[vlvidx], be);
             vlv_acquire_lock(be);
             vlvIndex_delete(&pvlv[vlvidx]);
@@ -2559,18 +2593,18 @@ err_out:
         }
     }
 err_min:
-    dblayer_release_id2entry( be, db ); /* nope */
+    dblayer_release_id2entry(be, db); /* nope */
     instance_set_not_busy(inst);
 
     if (run_from_cmdline) {
         if (0 != dblayer_flush(li)) {
             slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2index", "%s: Failed to flush database\n", inst->inst_name);
+                          "ldbm_back_ldbm2index", "%s: Failed to flush database\n", inst->inst_name);
         }
         dblayer_instance_close(be);
-        if (0 != dblayer_close(li,DBLAYER_INDEX_MODE)) {
+        if (0 != dblayer_close(li, DBLAYER_INDEX_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2index", "%s: Failed to close database\n", inst->inst_name);
+                          "ldbm_back_ldbm2index", "%s: Failed to close database\n", inst->inst_name);
         }
     }
 
@@ -2612,17 +2646,17 @@ db2index_add_indexed_attr(backend *be, char *attrString)
     vals[1] = NULL;
 
     if (NULL == (iptr = strchr(attrString, ':'))) {
-        return(0);
+        return (0);
     }
     e = slapi_entry_alloc();
     iptr[0] = '\0';
     iptr++;
 
     /* set the index name */
-    val.bv_val = attrString+1;
+    val.bv_val = attrString + 1;
     val.bv_len = strlen(attrString);
     /* bv_val is copied into the entry. */
-    slapi_entry_add_values(e,"cn",vals);
+    slapi_entry_add_values(e, "cn", vals);
 
     if (NULL != (mptr = strchr(iptr, ':'))) {
         mptr[0] = '\0';
@@ -2636,7 +2670,7 @@ db2index_add_indexed_attr(backend *be, char *attrString)
         val.bv_val = ptr;
         val.bv_len = strlen(ptr);
         /* bv_val is copied into the entry. */
-        slapi_entry_add_values(e,"nsIndexType",vals);
+        slapi_entry_add_values(e, "nsIndexType", vals);
     }
 
     if (NULL != mptr) {
@@ -2646,14 +2680,14 @@ db2index_add_indexed_attr(backend *be, char *attrString)
             val.bv_val = ptr;
             val.bv_len = strlen(ptr);
             /* bv_val is copied into the entry. */
-            slapi_entry_add_values(e,"nsMatchingRule",vals);
+            slapi_entry_add_values(e, "nsMatchingRule", vals);
         }
     }
 
     attr_index_config(be, "from db2index()", 0, e, 0, 0);
     slapi_entry_free(e);
 
-    return(0);
+    return (0);
 }
 
 
@@ -2669,30 +2703,29 @@ db2index_add_indexed_attr(backend *be, char *attrString)
  * Return 0 if the attribute is not to be excluded.
  */
 static int
-ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
-                               int dump_uniqueid )
+ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_uniqueid)
 
 {
     int i, rc = 0;
 
-    if ( !dump_uniqueid && 0 == strcasecmp( SLAPI_ATTR_UNIQUEID, attr )) {
-        rc = 1;                /* exclude */
+    if (!dump_uniqueid && 0 == strcasecmp(SLAPI_ATTR_UNIQUEID, attr)) {
+        rc = 1; /* exclude */
 
-    } else if ( NULL != li && NULL != li->li_attrs_to_exclude_from_export ) {
-        for ( i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i ) {
-            if ( 0 == strcasecmp( li->li_attrs_to_exclude_from_export[i],
-                        attr )) {
-                rc = 1;        /* exclude */
+    } else if (NULL != li && NULL != li->li_attrs_to_exclude_from_export) {
+        for (i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i) {
+            if (0 == strcasecmp(li->li_attrs_to_exclude_from_export[i],
+                                attr)) {
+                rc = 1; /* exclude */
                 break;
             }
         }
     }
 
-    return( rc );
+    return (rc);
 }
 
 /*
- * ldbm_back_upgradedb - 
+ * ldbm_back_upgradedb -
  *
  * functions to convert idl from the old format to the new one
  * (604921) Support a database uprev process any time post-install
@@ -2703,13 +2736,14 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int rest
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 
 /*
- * ldbm_back_upgradedb - 
+ * ldbm_back_upgradedb -
  *    check the DB version and if it's old idl'ed index,
  *    then reindex using new idl.
  *
  * standalone only -- not allowed to run while DS is up.
  */
-int ldbm_back_upgradedb(Slapi_PBlock *pb)
+int
+ldbm_back_upgradedb(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
     Object *inst_obj = NULL;
@@ -2732,7 +2766,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     int cnt = 0;
     PRFileInfo64 info = {0};
     PRUint32 dbversion_flags = DBVERSION_ALL;
-                                                                         
+
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &up_flags);
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_upgradedb", "Reindexing all...\n");
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
@@ -2742,43 +2776,36 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
 
-    if (run_from_cmdline)
-    {
-        if (!(up_flags & SLAPI_UPGRADEDB_SKIPINIT))
-        {
+    if (run_from_cmdline) {
+        if (!(up_flags & SLAPI_UPGRADEDB_SKIPINIT)) {
             ldbm_config_load_dse_info(li);
         }
         if (check_and_set_import_cache(li) < 0) {
             return -1;
         }
-    }
-    else
-    {
+    } else {
         Object *inst_obj, *inst_obj2;
         ldbm_instance *inst = NULL;
 
         /* server is up -- mark all backends busy */
         slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_upgradedb",
-                        "server is up -- marking all LDBM backends busy\n");
+                      "server is up -- marking all LDBM backends busy\n");
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-             inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
-        {
+             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
             /* check if an import/restore is already ongoing... */
             /* BUSY flag is cleared at the end of import_main (join thread);
                it should not cleared in this thread [610347] */
-            if (instance_set_busy(inst) != 0)
-            {
+            if (instance_set_busy(inst) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                            "ldbm: '%s' is already in the middle of "
-                            "another task and cannot be disturbed.\n",
-                            inst->inst_name);
-                if (task)
-                {
+                              "ldbm: '%s' is already in the middle of "
+                              "another task and cannot be disturbed.\n",
+                              inst->inst_name);
+                if (task) {
                     slapi_task_log_notice(task,
-                        "Backend '%s' is already in the middle of "
-                        "another task and cannot be disturbed.\n",
-                        inst->inst_name);
+                                          "Backend '%s' is already in the middle of "
+                                          "another task and cannot be disturbed.\n",
+                                          inst->inst_name);
                 }
 
                 /* painfully, we have to clear the BUSY flags on the
@@ -2786,36 +2813,33 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                  */
                 for (inst_obj2 = objset_first_obj(li->li_instance_set);
                      inst_obj2 && (inst_obj2 != inst_obj);
-                     inst_obj2 = objset_next_obj(li->li_instance_set, inst_obj2))
-                {
+                     inst_obj2 = objset_next_obj(li->li_instance_set, inst_obj2)) {
                     inst = (ldbm_instance *)object_get_data(inst_obj2);
                     instance_set_not_busy(inst);
                 }
-                if (inst_obj2 && inst_obj2 != inst_obj) object_release(inst_obj2);
+                if (inst_obj2 && inst_obj2 != inst_obj)
+                    object_release(inst_obj2);
                 object_release(inst_obj);
                 return -1;
             }
         }
     }
-    if ((up_flags & SLAPI_UPGRADEDB_DN2RDN) && !entryrdn_get_switch())
-    {
+    if ((up_flags & SLAPI_UPGRADEDB_DN2RDN) && !entryrdn_get_switch()) {
         /*
          * DN2RDN option (-r) is given, but subtree-rename is off.
          * Print an error and back off.
          */
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                        "DN2RDN option (-r) is given, but %s is off in "
-                        "dse.ldif.  Please change the value to on.\n",
-                        CONFIG_ENTRYRDN_SWITCH);
+                      "DN2RDN option (-r) is given, but %s is off in "
+                      "dse.ldif.  Please change the value to on.\n",
+                      CONFIG_ENTRYRDN_SWITCH);
         return -1;
     }
 
     inst_obj = objset_first_obj(li->li_instance_set);
-    if (inst_obj)
-    {
+    if (inst_obj) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
-        if (!(up_flags & SLAPI_UPGRADEDB_FORCE))
-        { /* upgrade idl to new */
+        if (!(up_flags & SLAPI_UPGRADEDB_FORCE)) { /* upgrade idl to new */
             int need_upgrade = 0;
             li->li_flags |= LI_FORCE_MOD_CONFIG;
             /* set new idl */
@@ -2827,33 +2851,29 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                 need_upgrade = (rval & DBVERSION_NEED_DN2RDN);
             }
             if (!need_upgrade) {
-                need_upgrade = (rval & (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4));
+                need_upgrade = (rval & (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4));
             }
-            if (!need_upgrade)
-            {
+            if (!need_upgrade) {
                 slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_upgradedb",
-                                "Index version is up-to-date\n");
+                              "Index version is up-to-date\n");
                 return 0;
             }
         }
-    }
-    else
-    {
+    } else {
         slapi_log_err(SLAPI_LOG_WARNING,
-                        "ldbm_back_upgradedb", "No instance to be upgraded\n");
+                      "ldbm_back_upgradedb", "No instance to be upgraded\n");
         return -1;
     }
 
     /* we are going to go forward */
-    /* 
+    /*
      * First, backup index files and checkpoint log files
      * since the server is not up and running, we can just copy them.
      */
-    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &dest_dir );
-    if (NULL == dest_dir)
-    {
+    slapi_pblock_get(pb, SLAPI_SEQ_VAL, &dest_dir);
+    if (NULL == dest_dir) {
         slapi_log_err(SLAPI_LOG_ERR, "upgrade DB",
-                        "Backup directory is not specified.\n");
+                      "Backup directory is not specified.\n");
         return -1;
     }
 
@@ -2861,16 +2881,14 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     normalize_dir(dest_dir);
     /* clean up the backup dir first, then create it */
     rval = PR_GetFileInfo64(dest_dir, &info);
-    if (PR_SUCCESS == rval)
-    {
-        if (PR_FILE_DIRECTORY == info.type)    /* directory exists */
+    if (PR_SUCCESS == rval) {
+        if (PR_FILE_DIRECTORY == info.type) /* directory exists */
         {
             time_t tm = slapi_current_utc_time();
 
             char *tmpname = slapi_ch_smprintf("%s/%ld", dest_dir, tm);
             dest_dir = tmpname;
-        }
-        else    /* not a directory */
+        } else /* not a directory */
             PR_Delete(dest_dir);
     }
 
@@ -2882,17 +2900,14 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
 
     for (inst_obj = objset_first_obj(li->li_instance_set);
          inst_obj;
-         inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
-    {
-        if (run_from_cmdline)
-        {
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+        if (run_from_cmdline) {
             /* need to call dblayer_start for each instance,
                since dblayer_close is called in upgradedb_core =>
                ldbm_back_ldif2ldbm_deluxe */
-            if (0 != dblayer_start(li, DBLAYER_IMPORT_MODE))
-            {
+            if (0 != dblayer_start(li, DBLAYER_IMPORT_MODE)) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                                "Failed to init database\n");
+                              "Failed to init database\n");
                 goto fail1;
             }
         }
@@ -2905,50 +2920,42 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                               inst_dir, MAXPATHLEN);
         backup_rval = dblayer_copy_directory(li, NULL /* task */,
-                                             inst_dirp, dest_dir, 0/*backup*/,
+                                             inst_dirp, dest_dir, 0 /*backup*/,
                                              &cnt, 0, 0, 0);
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
-        if (backup_rval < 0)
-        {
+        if (backup_rval < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-              "Failed to backup index files (instance %s).\n", inst_dirp);
+                          "Failed to backup index files (instance %s).\n", inst_dirp);
             goto fail1;
         }
 
         /* delete index files to be reindexed */
-        if (run_from_cmdline)
-        {
+        if (run_from_cmdline) {
             rval = upgradedb_delete_indices_4cmd(inst, up_flags);
-            if (rval)
-            {
+            if (rval) {
                 upgrade_rval += rval;
                 slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_upgradedb",
-                    "Can't clean up indices in %s\n", inst->inst_dir_name);
+                              "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
             }
-        }
-        else
-        {
+        } else {
             rval = dblayer_delete_indices(inst);
-            if (rval)
-            {
+            if (rval) {
                 upgrade_rval += rval;
                 slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_upgradedb",
-                    "Can't clean up indices in %s\n", inst->inst_dir_name);
+                              "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
             }
         }
 
         rval = upgradedb_core(pb, inst);
-        if (rval)
-        {
+        if (rval) {
             upgrade_rval += rval;
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                            "upgradedb: Failed to upgrade database %s\n",
-                            inst->inst_name);
-            if (run_from_cmdline)
-            {
+                          "upgradedb: Failed to upgrade database %s\n",
+                          inst->inst_name);
+            if (run_from_cmdline) {
                 continue; /* Need to make all backups; continue */
             }
         }
@@ -2968,8 +2975,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     }
 
     /* upgrade idl to new; otherwise no need to modify idl-switch */
-    if (!(up_flags & SLAPI_UPGRADEDB_FORCE))
-    {
+    if (!(up_flags & SLAPI_UPGRADEDB_FORCE)) {
         replace_ldbm_config_value(CONFIG_IDL_SWITCH, "new", li);
     }
 
@@ -2978,11 +2984,11 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
 
     if ((up_flags & SLAPI_UPGRADEDB_DN2RDN) && entryrdn_get_switch()) {
         /* exclude dnformat to allow upgradednformat later */
-        dbversion_flags = DBVERSION_ALL ^ DBVERSION_DNFORMAT;;
+        dbversion_flags = DBVERSION_ALL ^ DBVERSION_DNFORMAT;
+        ;
     }
     inst_obj = objset_first_obj(li->li_instance_set);
-    while (NULL != inst_obj)
-    {
+    while (NULL != inst_obj) {
         char *inst_dirp = NULL;
         inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
         inst = (ldbm_instance *)object_get_data(inst_obj);
@@ -2993,17 +2999,14 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     }
 
     /* close the database down again */
-    if (run_from_cmdline)
-    {
-        if (0 != dblayer_flush(li))
-        {
+    if (run_from_cmdline) {
+        if (0 != dblayer_flush(li)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                            "Failed to flush database\n");
+                          "Failed to flush database\n");
         }
-        if (0 != dblayer_close(li,DBLAYER_IMPORT_MODE))
-        {
+        if (0 != dblayer_close(li, DBLAYER_IMPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                            "Failed to close database\n");
+                          "Failed to close database\n");
             goto fail1;
         }
     }
@@ -3023,26 +3026,23 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
 fail1:
     if (0 != dblayer_flush(li))
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                        "Failed to flush database\n");
+                      "Failed to flush database\n");
 
     /* we started dblayer with DBLAYER_IMPORT_MODE
      * We just want not to generate a guardian file...
      */
-    if (0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE))
+    if (0 != dblayer_close(li, DBLAYER_ARCHIVE_MODE))
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                        "Failed to close database\n");
+                      "Failed to close database\n");
 
     /* restore from the backup, if possible */
-    if (NULL != dest_dir)
-    {
+    if (NULL != dest_dir) {
         /* If the backup was successfull and ugrade failed... */
-        if ((0 == backup_rval) && upgrade_rval)
-        {
+        if ((0 == backup_rval) && upgrade_rval) {
             backup_rval = dblayer_restore(li, dest_dir, NULL, NULL);
         }
         /* restore is done; clean up the backup dir */
-        if (0 == backup_rval)
-        {
+        if (0 == backup_rval) {
             ldbm_delete_dirs(dest_dir);
         }
     }
@@ -3056,10 +3056,10 @@ fail0:
     return rval + upgrade_rval;
 }
 
-#define LOG    "log."
-#define LOGLEN    4
-int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
-                            int restore)
+#define LOG "log."
+#define LOGLEN 4
+int
+upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -3073,24 +3073,21 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
     char *from = NULL;
     char *to = NULL;
 
-    if (restore)
-    {
+    if (restore) {
         src = destination_dir;
         dest = li->li_directory;
-    }
-    else
-    {
+    } else {
         src = li->li_directory;
         dest = destination_dir;
     }
     if (NULL == src || '\0' == *src) {
         slapi_log_err(SLAPI_LOG_ERR, "upgradedb_copy_logfiles",
-                                       "NULL src directory\n");
+                      "NULL src directory\n");
         return -1;
     }
     if (NULL == dest || '\0' == *dest) {
         slapi_log_err(SLAPI_LOG_ERR, "upgradedb_copy_logfiles",
-                                       "NULL dest directory\n");
+                      "NULL dest directory\n");
         return -1;
     }
     srclen = strlen(src);
@@ -3102,41 +3099,35 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
         return -1;
 
     while (NULL != (direntry =
-                    PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
-    {
+                        PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
         if (NULL == direntry->name)
             break;
 
-        if (0 == strncmp(direntry->name, LOG, 4))
-        {
+        if (0 == strncmp(direntry->name, LOG, 4)) {
             int filelen = strlen(direntry->name);
             char *p, *endp;
             int fromlen, tolen;
             int notalog = 0;
 
             endp = (char *)direntry->name + filelen;
-            for (p = (char *)direntry->name + LOGLEN; p < endp; p++)
-            {
-                if (!isdigit(*p))
-                {
+            for (p = (char *)direntry->name + LOGLEN; p < endp; p++) {
+                if (!isdigit(*p)) {
                     notalog = 1;
                     break;
                 }
             }
             if (notalog)
-                continue;    /* go to next file */
+                continue; /* go to next file */
 
             fromlen = srclen + filelen + 2;
-            if (len0 < fromlen)
-            {
+            if (len0 < fromlen) {
                 slapi_ch_free_string(&from);
                 from = slapi_ch_calloc(1, fromlen);
                 len0 = fromlen;
             }
             PR_snprintf(from, len0, "%s/%s", src, direntry->name);
             tolen = destlen + filelen + 2;
-            if (len1 < tolen)
-            {
+            if (len1 < tolen) {
                 slapi_ch_free_string(&to);
                 to = slapi_ch_calloc(1, tolen);
                 len1 = tolen;
@@ -3154,7 +3145,8 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
     return rval;
 }
 
-int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
+int
+upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -3166,41 +3158,37 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((
                                                 inst_dir, MAXPATHLEN);
 
     slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_delete_indices_4cmd",
-                    "%s\n", inst_dir);
+                  "%s\n", inst_dir);
     dirhandle = PR_OpenDir(inst_dirp);
-    if (!dirhandle)
-    {
+    if (!dirhandle) {
         slapi_log_err(SLAPI_LOG_ERR, "upgradedb_delete_indices_4cmd",
-                        "PR_OpenDir failed\n");
+                      "PR_OpenDir failed\n");
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
         return -1;
     }
 
     while (NULL != (direntry =
-                    PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
-    {
+                        PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
         PRFileInfo64 info;
         int len;
 
-        if (! direntry->name)
+        if (!direntry->name)
             break;
 
         if (0 == strcmp(direntry->name, ID2ENTRY LDBM_FILENAME_SUFFIX))
             continue;
 
         len = strlen(inst_dirp) + strlen(direntry->name) + 2;
-        if (len > MAXPATHLEN)
-        {
+        if (len > MAXPATHLEN) {
             fullpathp = (char *)slapi_ch_malloc(len);
         }
         sprintf(fullpathp, "%s/%s", inst_dirp, direntry->name);
         rval = PR_GetFileInfo64(fullpathp, &info);
-        if (PR_SUCCESS == rval && PR_FILE_DIRECTORY != info.type)
-        {
+        if (PR_SUCCESS == rval && PR_FILE_DIRECTORY != info.type) {
             PR_Delete(fullpathp);
             slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_delete_indices_4cmd",
-                            "%s deleted\n", fullpath);
+                          "%s deleted\n", fullpath);
         }
         if (fullpathp != fullpath)
             slapi_ch_free_string(&fullpathp);
@@ -3226,13 +3214,12 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
 
     be = inst->inst_be;
     slapi_log_err(SLAPI_LOG_INFO, "upgradedb_core",
-                    "%s: Start upgradedb.\n", inst->inst_name);
+                  "%s: Start upgradedb.\n", inst->inst_name);
 
-    if (!run_from_cmdline)
-    {
+    if (!run_from_cmdline) {
         /* shutdown this instance of the db */
         slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_core",
-                    "Bringing %s offline...\n", inst->inst_name);
+                      "Bringing %s offline...\n", inst->inst_name);
         slapi_mtn_be_disable(inst->inst_be);
 
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
@@ -3243,15 +3230,14 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     }
 
     /* dblayer_instance_start will init the id2entry index. */
-    if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE))
-    {
+    if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE)) {
         slapi_log_err(SLAPI_LOG_ERR, "upgradedb_core",
-                    "Failed to init instance %s\n", inst->inst_name);
+                      "Failed to init instance %s\n", inst->inst_name);
         return -1;
     }
 
     if (run_from_cmdline)
-        vlv_init(inst);    /* Initialise the Virtual List View code */
+        vlv_init(inst); /* Initialise the Virtual List View code */
 
     return ldbm_back_ldif2ldbm_deluxe(pb);
 }
@@ -3261,22 +3247,22 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
  *       the specified operation is executed.
  *       If 0 is passed, just Slapi_RDN srdn is filled and returned.
  */
-static int 
+static int
 _get_and_add_parent_rdns(backend *be,
-                 DB *db,
-                 back_txn *txn,
-                 ID id,           /* input */
-                 Slapi_RDN *srdn, /* output */
-                 ID *pid,         /* output */
-                 int index_ext,   /* DB2LDIF_ENTRYRDN | DB2INDEX_ENTRYRDN | 0 */
-                 int run_from_cmdline,
-                 export_args *eargs)
+                         DB *db,
+                         back_txn *txn,
+                         ID id,           /* input */
+                         Slapi_RDN *srdn, /* output */
+                         ID *pid,         /* output */
+                         int index_ext,   /* DB2LDIF_ENTRYRDN | DB2INDEX_ENTRYRDN | 0 */
+                         int run_from_cmdline,
+                         export_args *eargs)
 {
     int rc = -1;
     Slapi_RDN mysrdn = {0};
     struct backdn *bdn = NULL;
     ldbm_instance *inst = NULL;
-    struct ldbminfo  *li = NULL;
+    struct ldbminfo *li = NULL;
     struct backentry *ep = NULL;
     char *rdn = NULL;
     DBT key, data;
@@ -3290,7 +3276,7 @@ _get_and_add_parent_rdns(backend *be,
 
     if (NULL == be || NULL == srdn) {
         slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                        "Empty %s\n", NULL==be?"be":"srdn");
+                      "Empty %s\n", NULL == be ? "be" : "srdn");
         return rc;
     }
 
@@ -3306,8 +3292,8 @@ _get_and_add_parent_rdns(backend *be,
             rc = slapi_rdn_init_all_dn(&mysrdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                "Failed to convert DN %s to RDN\n", 
-                                slapi_rdn_get_rdn(&mysrdn));
+                              "Failed to convert DN %s to RDN\n",
+                              slapi_rdn_get_rdn(&mysrdn));
                 slapi_rdn_done(&mysrdn);
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
                 goto bail;
@@ -3315,16 +3301,16 @@ _get_and_add_parent_rdns(backend *be,
             rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                "Failed to merge Slapi_RDN %s to RDN\n",
-                                slapi_sdn_get_dn(bdn->dn_sdn));
+                              "Failed to merge Slapi_RDN %s to RDN\n",
+                              slapi_sdn_get_dn(bdn->dn_sdn));
             }
             slapi_rdn_done(&mysrdn);
         } else { /* srdn is empty */
             rc = slapi_rdn_init_all_dn(srdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                "Failed to convert DN %s to RDN\n", 
-                                slapi_sdn_get_dn(bdn->dn_sdn));
+                              "Failed to convert DN %s to RDN\n",
+                              slapi_sdn_get_dn(bdn->dn_sdn));
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
                 goto bail;
             }
@@ -3332,12 +3318,12 @@ _get_and_add_parent_rdns(backend *be,
         CACHE_RETURN(&inst->inst_dncache, &bdn);
     }
 
-    if (!bdn || (index_ext & (DB2LDIF_ENTRYRDN|DB2INDEX_ENTRYRDN)) || pid) {
+    if (!bdn || (index_ext & (DB2LDIF_ENTRYRDN | DB2INDEX_ENTRYRDN)) || pid) {
         /* not in the dn cache or DB2LDIF or caller is expecting the parent ID;
          * read id2entry */
         if (NULL == db) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                            "Empty db\n");
+                          "Empty db\n");
             goto bail;
         }
         id_internal_to_stored(id, (char *)&storedid);
@@ -3350,33 +3336,33 @@ _get_and_add_parent_rdns(backend *be,
         rc = db->get(db, NULL, &key, &data, 0);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                            "Failed to position cursor at ID " ID_FMT "\n", id);
+                          "Failed to position cursor at ID " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is allocated in get_value_from_string */
         rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                            "Failed to get rdn of entry " ID_FMT "\n", id);
+                          "Failed to get rdn of entry " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is going to be set to srdn */
         rc = slapi_rdn_init_all_dn(&mysrdn, rdn);
         if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                            "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
+                          "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
         }
         /* pid */
         rc = get_value_from_string((const char *)data.dptr,
-                                                   LDBM_PARENTID_STR, &pid_str);
+                                   LDBM_PARENTID_STR, &pid_str);
         if (rc) {
             rc = 0; /* assume this is a suffix */
             temp_pid = NOID;
         } else {
             temp_pid = (ID)strtol(pid_str, (char **)NULL, 10);
             slapi_ch_free_string(&pid_str);
-        } 
+        }
         if (pid) {
             *pid = temp_pid;
         }
@@ -3384,7 +3370,7 @@ _get_and_add_parent_rdns(backend *be,
     if (!bdn) {
         if (NOID != temp_pid) {
             rc = _get_and_add_parent_rdns(be, db, txn, temp_pid, &mysrdn, NULL,
-                              id<temp_pid?index_ext:0, run_from_cmdline, eargs);
+                                          id < temp_pid ? index_ext : 0, run_from_cmdline, eargs);
             if (rc) {
                 goto bail;
             }
@@ -3392,24 +3378,25 @@ _get_and_add_parent_rdns(backend *be,
         rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                   "Failed to merge Slapi_RDN %s to RDN\n",
-                                   slapi_rdn_get_rdn(&mysrdn));
+                          "Failed to merge Slapi_RDN %s to RDN\n",
+                          slapi_rdn_get_rdn(&mysrdn));
             goto bail;
         }
     }
 
-    if (index_ext & (DB2LDIF_ENTRYRDN|DB2INDEX_ENTRYRDN)) {
+    if (index_ext & (DB2LDIF_ENTRYRDN | DB2INDEX_ENTRYRDN)) {
         char *dn = NULL;
         ep = backentry_alloc();
         rc = slapi_rdn_get_dn(srdn, &dn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                           "Failed to compose dn for "
-                           "(rdn: %s, ID: %d) from Slapi_RDN\n", rdn, id);
+                          "Failed to compose dn for "
+                          "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                          rdn, id);
             goto bail;
         }
-        ep->ep_entry = slapi_str2entry_ext( dn, NULL, data.dptr, 
-                                            SLAPI_STR2ENTRY_NO_ENTRYDN );
+        ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.dptr,
+                                           SLAPI_STR2ENTRY_NO_ENTRYDN);
         ep->ep_id = id;
         slapi_ch_free_string(&dn);
     }
@@ -3419,23 +3406,23 @@ _get_and_add_parent_rdns(backend *be,
             rc = dblayer_txn_begin(be, NULL, txn);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                    "%s: Failed to begin txn for update "
-                                    "index 'entryrdn'\n",
-                                    inst->inst_name);
+                              "%s: Failed to begin txn for update "
+                              "index 'entryrdn'\n",
+                              inst->inst_name);
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                "%s: Error %d: %s\n", 
-                                inst->inst_name, rc, dblayer_strerror(rc));
+                              "%s: Error %d: %s\n",
+                              inst->inst_name, rc, dblayer_strerror(rc));
                 goto bail;
             }
         }
         rc = entryrdn_index_entry(be, ep, BE_INDEX_ADD, txn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                              "%s: Failed to update index 'entryrdn'\n",
-                              inst->inst_name);
+                          "%s: Failed to update index 'entryrdn'\n",
+                          inst->inst_name);
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                              "%s: Error %d: %s\n", inst->inst_name, rc,
-                              dblayer_strerror(rc));
+                          "%s: Error %d: %s\n", inst->inst_name, rc,
+                          dblayer_strerror(rc));
             if (txn && !run_from_cmdline) {
                 dblayer_txn_abort(be, txn);
             }
@@ -3445,34 +3432,34 @@ _get_and_add_parent_rdns(backend *be,
             rc = dblayer_txn_commit(be, txn);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                    "%s: Failed to commit txn for "
-                                    "update index 'entryrdn'\n",
-                                    inst->inst_name);
+                              "%s: Failed to commit txn for "
+                              "update index 'entryrdn'\n",
+                              inst->inst_name);
                 slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                                "%s: Error %d: %s\n",
-                                inst->inst_name, rc, dblayer_strerror(rc));
+                              "%s: Error %d: %s\n",
+                              inst->inst_name, rc, dblayer_strerror(rc));
                 goto bail;
             }
         }
     } else if (index_ext & DB2LDIF_ENTRYRDN) {
         if (NULL == eargs) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                            "Empty export args\n");
-                rc = -1;
-                goto bail;
+                          "Empty export args\n");
+            rc = -1;
+            goto bail;
         }
         eargs->ep = ep;
         rc = export_one_entry(li, inst, eargs);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                           "Failed to export an entry %s\n",
-                           slapi_sdn_get_dn(slapi_entry_get_sdn(ep->ep_entry)));
+                          "Failed to export an entry %s\n",
+                          slapi_sdn_get_dn(slapi_entry_get_sdn(ep->ep_entry)));
             goto bail;
         }
         rc = idl_append_extend(&(eargs->pre_exported_idl), id);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
-                           "Failed add %d to exported idl\n", id);
+                          "Failed add %d to exported idl\n", id);
         }
     }
 
@@ -3487,16 +3474,16 @@ bail:
 /* Used by the reindex and export (subtree rename must be on)*/
 static int
 _export_or_index_parents(ldbm_instance *inst,
-                DB *db,
-                back_txn *txn,
-                ID currentid,    /* current id to compare with */
-                char *rdn,       /* my rdn */
-                ID id,           /* my id */
-                ID pid,          /* parent id */
-                int run_from_cmdline,
-                export_args *eargs,
-                int type,        /* DB2LDIF_ENTRYRDN or DB2INDEX_ENTRYRDN */
-                Slapi_RDN *psrdn /* output */)
+                         DB *db,
+                         back_txn *txn,
+                         ID currentid, /* current id to compare with */
+                         char *rdn,    /* my rdn */
+                         ID id,        /* my id */
+                         ID pid,       /* parent id */
+                         int run_from_cmdline,
+                         export_args *eargs,
+                         int type, /* DB2LDIF_ENTRYRDN or DB2INDEX_ENTRYRDN */
+                         Slapi_RDN *psrdn /* output */)
 {
     int rc = -1;
     ID temp_pid = 0;
@@ -3522,13 +3509,14 @@ _export_or_index_parents(ldbm_instance *inst,
             goto bail;
         }
         prdn = slapi_ch_strdup(slapi_rdn_get_rdn(psrdn));
-    } else {  /* we have entryrdn */
+    } else { /* we have entryrdn */
         if (pid != temp_pid) {
             slapi_log_err(SLAPI_LOG_WARNING, "_export_or_index_parents",
-                           "parentid conflict found between entryrdn (%d) and "
-                           "id2entry (%d)\n", temp_pid, pid);
+                          "parentid conflict found between entryrdn (%d) and "
+                          "id2entry (%d)\n",
+                          temp_pid, pid);
             slapi_log_err(SLAPI_LOG_WARNING, "_export_or_index_parents",
-                           "Ignoring entryrdn\n");
+                          "Ignoring entryrdn\n");
         } else {
             struct backdn *bdn = NULL;
             char *pdn = NULL;
@@ -3548,15 +3536,16 @@ _export_or_index_parents(ldbm_instance *inst,
                     if (myrc) {
                         backdn_free(&bdn);
                         slapi_log_err(SLAPI_LOG_CACHE,
-                                        "_export_or_index_parents",
-                                        "%s is already in the dn cache (%d)\n",
-                                        pdn, myrc);
+                                      "_export_or_index_parents",
+                                      "%s is already in the dn cache (%d)\n",
+                                      pdn, myrc);
                     } else {
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
                         slapi_log_err(SLAPI_LOG_CACHE,
-                                        "_export_or_index_parents",
-                                        "entryrdn_lookup_dn returned: %s, "
-                                        "and set to dn cache\n", pdn);
+                                      "_export_or_index_parents",
+                                      "entryrdn_lookup_dn returned: %s, "
+                                      "and set to dn cache\n",
+                                      pdn);
                     }
                 }
             }
@@ -3577,7 +3566,7 @@ _export_or_index_parents(ldbm_instance *inst,
         (!eargs || !idl_id_is_in_idlist(eargs->pre_exported_idl, ppid))) {
         Slapi_RDN ppsrdn = {0};
         rc = _export_or_index_parents(inst, db, txn, currentid, prdn, pid,
-                             ppid, run_from_cmdline, eargs, type, &ppsrdn);
+                                      ppid, run_from_cmdline, eargs, type, &ppsrdn);
         if (rc) {
             goto bail;
         }
@@ -3588,7 +3577,7 @@ _export_or_index_parents(ldbm_instance *inst,
                                   type, run_from_cmdline, eargs);
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR,
-               "_export_or_index_parents", "Failed to get rdn for ID: %d\n", pid);
+                      "_export_or_index_parents", "Failed to get rdn for ID: %d\n", pid);
         slapi_rdn_done(psrdn);
     }
 bail:
@@ -3597,28 +3586,29 @@ bail:
 }
 
 /*
- * ldbm_back_upgradednformat 
+ * ldbm_back_upgradednformat
  *
  * Update old DN format in entrydn and the leaf attr value to the new one
  *
  * The implementation would be similar to the upgradedb for new idl.
  * Scan each entry, checking the entrydn value with the normalized dn.
  * If they don't match,
- *   replace the old entrydn value with the new one in the entry 
+ *   replace the old entrydn value with the new one in the entry
  *   in id2entry.db4.
- *   also get the leaf RDN attribute value, unescape it, and check 
+ *   also get the leaf RDN attribute value, unescape it, and check
  *   if it is in the entry.  If not, add it.
  * Then, update the key in the entrydn index and the leaf RDN attribute
  * (if need it).
  *
- * Return value:  0: success (the backend instance includes update 
+ * Return value:  0: success (the backend instance includes update
  *                   candidates for DRYRUN mode)
  *                1: the backend instance is up-to-date (DRYRUN mode only)
  *               -1: error
  *
  * standalone only -- not allowed to run while DS is up.
  */
-int ldbm_back_upgradednformat(Slapi_PBlock *pb)
+int
+ldbm_back_upgradednformat(Slapi_PBlock *pb)
 {
     int rc = -1;
     struct ldbminfo *li = NULL;
@@ -3645,12 +3635,12 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     char *dataversion = NULL;
     int ud_flags = 0;
     int result = 0;
-                                                                         
+
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
-    slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &ud_flags); 
+    slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &ud_flags);
 
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -3661,8 +3651,8 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        " Online mode is not supported. "
-                        "Shutdown the server and run the tool\n");
+                      " Online mode is not supported. "
+                      "Shutdown the server and run the tool\n");
         goto bail;
     }
 
@@ -3670,11 +3660,11 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (NULL == inst) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        "Unknown ldbm instance %s\n", instance_name);
+                      "Unknown ldbm instance %s\n", instance_name);
         goto bail;
     }
     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_upgradednformat",
-                    "%s: Start upgrade dn format.\n", inst->inst_name);
+                  "%s: Start upgrade dn format.\n", inst->inst_name);
 
     slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawworkdbdir);
@@ -3683,16 +3673,15 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     prst = PR_GetFileInfo64(rawworkdbdir, &prfinfo);
     if (PR_FAILURE == prst || PR_FILE_DIRECTORY != prfinfo.type) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        "Working DB instance dir %s is not a directory\n",
-                        rawworkdbdir);
+                      "Working DB instance dir %s is not a directory\n",
+                      rawworkdbdir);
         goto bail;
     }
     dirhandle = PR_OpenDir(rawworkdbdir);
-    if (!dirhandle)
-    {
+    if (!dirhandle) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        "Failed to open working DB instance dir %s\n",
-                        rawworkdbdir);
+                      "Failed to open working DB instance dir %s\n",
+                      rawworkdbdir);
         goto bail;
     }
     id2entrylen = strlen(ID2ENTRY);
@@ -3708,8 +3697,8 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
 
     if (!found) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        "Working DB instance dir %s does not include %s file\n",
-                        rawworkdbdir, ID2ENTRY);
+                      "Working DB instance dir %s does not include %s file\n",
+                      rawworkdbdir, ID2ENTRY);
         goto bail;
     }
 
@@ -3730,32 +3719,32 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
         if (ptr) {
             /* DN format is RFC 4514 compliant */
             if (strlen(ptr) == strlen(BDB_DNFORMAT)) { /* no version */
-                /* 
+                /*
                  * DN format is RFC 4514 compliant.
                  * But it hasn't taken care of the multiple spaces yet.
                  */
                 ud_flags &= ~SLAPI_UPGRADEDNFORMAT;
                 ud_flags |= SLAPI_UPGRADEDNFORMAT_V1;
-                slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &ud_flags); 
+                slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &ud_flags);
                 rc = 3; /* 0: need upgrade (dn norm sp, only) */
             } else {
                 /* DN format already takes care of the multiple spaces */
                 slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_upgradednformat",
-                                "Instance %s in %s is up-to-date\n", 
-                                instance_name, workdbdir);
+                              "Instance %s in %s is up-to-date\n",
+                              instance_name, workdbdir);
                 rc = 0; /* 0: up-to-date */
                 goto bail;
             }
         } else {
             /* DN format is not RFC 4514 compliant */
             ud_flags |= SLAPI_UPGRADEDNFORMAT | SLAPI_UPGRADEDNFORMAT_V1;
-            slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &ud_flags); 
+            slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &ud_flags);
             rc = 1; /* 0: need upgrade (both) */
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        "Failed to get DBVERSION (Instance name: %s, dir %s)\n",
-                        instance_name, workdbdir);
+                      "Failed to get DBVERSION (Instance name: %s, dir %s)\n",
+                      instance_name, workdbdir);
         rc = -1; /* error */
         goto bail;
     }
@@ -3763,34 +3752,33 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     sep = PL_strrchr(workdbdir, '/');
     if (!sep) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                        "Working DB instance dir %s does not include %s file\n",
-                        workdbdir, ID2ENTRY);
+                      "Working DB instance dir %s does not include %s file\n",
+                      workdbdir, ID2ENTRY);
         goto bail;
     }
     *sep = '\0';
     li->li_directory = workdbdir;
     li->li_dblayer_private->dblayer_log_directory = workdbdir;
     inst->inst_parent_dir_name = workdbdir;
-    
+
     if (run_from_cmdline) {
         if (0 != dblayer_start(li, DBLAYER_IMPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                            "Failed to init database\n");
+                          "Failed to init database\n");
             goto bail;
         }
     }
 
     /* dblayer_instance_start will init the id2entry index. */
     be = inst->inst_be;
-    if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE))
-    {
+    if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                    "Failed to init instance %s\n", inst->inst_name);
+                      "Failed to init instance %s\n", inst->inst_name);
         goto bail;
     }
 
     if (run_from_cmdline) {
-        vlv_init(inst);    /* Initialise the Virtual List View code */
+        vlv_init(inst); /* Initialise the Virtual List View code */
     }
 
     rc = ldbm_back_ldif2ldbm_deluxe(pb);
@@ -3799,11 +3787,11 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     if (run_from_cmdline) {
         if (0 != dblayer_flush(li)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                            "Failed to flush database\n");
+                          "Failed to flush database\n");
         }
-        if (0 != dblayer_close(li,DBLAYER_IMPORT_MODE)) {
+        if (0 != dblayer_close(li, DBLAYER_IMPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                            "Failed to close database\n");
+                          "Failed to close database\n");
             goto bail;
         }
     }

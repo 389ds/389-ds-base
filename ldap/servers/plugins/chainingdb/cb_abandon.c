@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "cb.h"
@@ -23,7 +23,7 @@
  */
 
 int
-chaining_back_abandon ( Slapi_PBlock *pb __attribute__((unused)) )
+chaining_back_abandon(Slapi_PBlock *pb __attribute__((unused)))
 {
     /*
      * Abandon forwarded to the farm server for scoped
@@ -32,25 +32,27 @@ chaining_back_abandon ( Slapi_PBlock *pb __attribute__((unused)) )
     return 0;
 }
 
-int cb_check_forward_abandon(cb_backend_instance * cb,Slapi_PBlock * pb, LDAP * ld, int msgid ) {
-    
+int
+cb_check_forward_abandon(cb_backend_instance *cb, Slapi_PBlock *pb, LDAP *ld, int msgid)
+{
+
     int rc;
-    LDAPControl ** ctrls=NULL;
+    LDAPControl **ctrls = NULL;
 
-    if (slapi_op_abandoned( pb )) {
+    if (slapi_op_abandoned(pb)) {
 
-        if ((rc=cb_forward_operation(pb)) != LDAP_SUCCESS ) {
+        if ((rc = cb_forward_operation(pb)) != LDAP_SUCCESS) {
             return 0;
         }
-        
-        if ((rc = cb_update_controls( pb,ld,&ctrls,CB_UPDATE_CONTROLS_ISABANDON )) != LDAP_SUCCESS ) { 
-            if ( NULL != ctrls)
+
+        if ((rc = cb_update_controls(pb, ld, &ctrls, CB_UPDATE_CONTROLS_ISABANDON)) != LDAP_SUCCESS) {
+            if (NULL != ctrls)
                 ldap_controls_free(ctrls);
             return 0;
         }
-        rc = ldap_abandon_ext(ld, msgid, ctrls, NULL );
-        cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-        if ( NULL != ctrls)
+        rc = ldap_abandon_ext(ld, msgid, ctrls, NULL);
+        cb_release_op_connection(cb->pool, ld, CB_LDAP_CONN_ERROR(rc));
+        if (NULL != ctrls)
             ldap_controls_free(ctrls);
         return 1;
     }

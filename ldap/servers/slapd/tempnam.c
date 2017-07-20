@@ -4,49 +4,50 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-#if defined( nextstep )
+#if defined(nextstep)
 
 #include <string.h>
 
-char *tempnam( char *dir, char *pfx );
+char *tempnam(char *dir, char *pfx);
 
-char *tempnam( char *dir, char *pfx )
+char *
+tempnam(char *dir, char *pfx)
 {
-    char	*s;
+    char *s;
 
-    if ( dir == NULL ) {
-	dir = "/tmp";
+    if (dir == NULL) {
+        dir = "/tmp";
     }
 
-/*
+    /*
  * allocate space for dir + '/' + pfx (up to 5 chars) + 6 trailing 'X's + 0 byte
  */
-    if (( s = (char *)slapi_ch_malloc( strlen( dir ) + 14 )) == NULL ) {
-	return( NULL );
+    if ((s = (char *)slapi_ch_malloc(strlen(dir) + 14)) == NULL) {
+        return (NULL);
     }
 
-    strcpy( s, dir );
-    strcat( s, "/" );
-    if ( pfx != NULL ) {
-	strcat( s, pfx );
+    strcpy(s, dir);
+    strcat(s, "/");
+    if (pfx != NULL) {
+        strcat(s, pfx);
     }
-    strcat( s, "XXXXXX" );
-    mktemp( s );
+    strcat(s, "XXXXXX");
+    mktemp(s);
 
-    if ( *s == '\0' ) {
-	slapi_ch_free( (void**)&s );
+    if (*s == '\0') {
+        slapi_ch_free((void **)&s);
     }
 
-    return( s );
+    return (s);
 }
 
-#else /* nextstep */
+#else  /* nextstep */
 typedef int SHUT_UP_DAMN_COMPILER;
 #endif /* nextstep */

@@ -2,22 +2,22 @@
  * Copyright (C) 2016  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -31,7 +31,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* For cmocka */
@@ -126,7 +126,7 @@ ns_init_disarm_job_cb(struct ns_job_t *job)
     if (ns_job_done(job) == NS_SUCCESS) {
         cb_check = 1;
     } else {
-        assert_int_equal(1,0);
+        assert_int_equal(1, 0);
     }
     PR_Lock(cb_lock);
     PR_NotifyCondVar(cb_cond);
@@ -149,7 +149,7 @@ ns_init_test(void **state)
 
     PR_Lock(cb_lock);
     assert_int_equal(
-        ns_add_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_test_job_cb, NULL, &job),
+        ns_add_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_test_job_cb, NULL, &job),
         0);
 
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
@@ -176,7 +176,7 @@ ns_set_data_test(void **state)
 
     PR_Lock(cb_lock);
     assert_int_equal(
-        ns_add_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_test_job_cb, data, &job),
+        ns_add_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_test_job_cb, data, &job),
         NS_SUCCESS);
 
     /* Let the job run */
@@ -233,7 +233,7 @@ ns_job_done_cb_test(void **state)
 
     PR_Lock(cb_lock);
     assert_int_equal(
-        ns_create_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_do_nothing_cb, &job),
+        ns_create_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_do_nothing_cb, &job),
         NS_SUCCESS);
 
     ns_job_set_done_cb(job, ns_init_test_job_cb);
@@ -244,7 +244,6 @@ ns_job_done_cb_test(void **state)
     PR_Unlock(cb_lock);
 
     assert_int_equal(cb_check, 1);
-
 }
 
 static void
@@ -272,12 +271,12 @@ ns_job_persist_rearm_ignore_test(void **state)
 
     PR_Lock(cb_lock);
     assert_int_equal(
-        ns_create_job(tp, NS_JOB_NONE|NS_JOB_THREAD|NS_JOB_PERSIST, ns_init_rearm_job_cb, &job),
+        ns_create_job(tp, NS_JOB_NONE | NS_JOB_THREAD | NS_JOB_PERSIST, ns_init_rearm_job_cb, &job),
         NS_SUCCESS);
 
     /* This *will* arm the job, and will trigger the cb. */
     assert_int_equal(ns_job_rearm(job), 0);
-    /* 
+    /*
      * Now when the CB fires, it will *try* to rearm, but will fail, so we
      * should see only 1 in the cb_check.
      */
@@ -287,7 +286,6 @@ ns_job_persist_rearm_ignore_test(void **state)
 
     /* If we fail to rearm, this is set to 1 Which is what we want. */
     assert_int_equal(cb_check, 1);
-
 }
 
 static void
@@ -298,7 +296,7 @@ ns_job_persist_disarm_test(void **state)
     struct ns_job_t *job = NULL;
 
     assert_int_equal(
-        ns_create_job(tp, NS_JOB_NONE|NS_JOB_PERSIST, ns_init_disarm_job_cb, &job),
+        ns_create_job(tp, NS_JOB_NONE | NS_JOB_PERSIST, ns_init_disarm_job_cb, &job),
         NS_SUCCESS);
 
     assert_int_equal(ns_job_rearm(job), NS_SUCCESS);
@@ -349,14 +347,13 @@ ns_job_race_done_test(void **state)
 
     PR_Lock(cb_lock);
     assert_int_equal(
-        ns_add_job(tp, NS_JOB_NONE|NS_JOB_THREAD, ns_init_race_done_job_cb, NULL, &job),
+        ns_add_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_race_done_job_cb, NULL, &job),
         NS_SUCCESS);
 
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(5));
     PR_Unlock(cb_lock);
 
     assert_int_equal(cb_check, 1);
-
 }
 
 /*
@@ -397,12 +394,11 @@ ns_job_neg_timeout_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
 
-    struct timeval tv = { -1, 0 };
+    struct timeval tv = {-1, 0};
 
     PR_ASSERT(NS_INVALID_REQUEST == ns_add_io_timeout_job(tp, 0, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
 
     PR_ASSERT(NS_INVALID_REQUEST == ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_init_do_nothing_cb, NULL, NULL));
-
 }
 
 /*
@@ -425,7 +421,7 @@ ns_job_timer_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
-    struct timeval tv = { 2, 0 };
+    struct timeval tv = {2, 0};
 
     PR_Lock(cb_lock);
     assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_job_cb, NULL, &job) == NS_SUCCESS);
@@ -436,7 +432,6 @@ ns_job_timer_test(void **state)
     PR_WaitCondVar(cb_cond, PR_SecondsToInterval(2));
     PR_Unlock(cb_lock);
     assert_int_equal(cb_check, 1);
-
 }
 
 /*
@@ -459,7 +454,7 @@ ns_job_timer_persist_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
-    struct timeval tv = { 1, 0 };
+    struct timeval tv = {1, 0};
 
     PR_Lock(cb_lock);
     assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_persist_job_cb, NULL, &job) == NS_SUCCESS);
@@ -510,6 +505,3 @@ main(void)
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-
-

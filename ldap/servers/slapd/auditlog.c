@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -18,27 +18,27 @@
  * JCM - The audit log might be better implemented as a post-op plugin.
  */
 
-#define	ATTR_CHANGETYPE		"changetype"
-#define	ATTR_NEWRDN		"newrdn"
-#define	ATTR_DELETEOLDRDN	"deleteoldrdn"
-#define	ATTR_NEWSUPERIOR	"newsuperior"
+#define ATTR_CHANGETYPE "changetype"
+#define ATTR_NEWRDN "newrdn"
+#define ATTR_DELETEOLDRDN "deleteoldrdn"
+#define ATTR_NEWSUPERIOR "newsuperior"
 #define ATTR_MODIFIERSNAME "modifiersname"
-char	*attr_changetype	= ATTR_CHANGETYPE;
-char	*attr_newrdn		= ATTR_NEWRDN;
-char	*attr_deleteoldrdn	= ATTR_DELETEOLDRDN;
-char	*attr_newsuperior	= ATTR_NEWSUPERIOR;
-char	*attr_modifiersname = ATTR_MODIFIERSNAME;
+char *attr_changetype = ATTR_CHANGETYPE;
+char *attr_newrdn = ATTR_NEWRDN;
+char *attr_deleteoldrdn = ATTR_DELETEOLDRDN;
+char *attr_newsuperior = ATTR_NEWSUPERIOR;
+char *attr_modifiersname = ATTR_MODIFIERSNAME;
 
 static int audit_hide_unhashed_pw = 1;
 static int auditfail_hide_unhashed_pw = 1;
 
 /* Forward Declarations */
-static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog );
+static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog);
 
 static const char *modrdn_changes[4];
 
 void
-write_audit_log_entry( Slapi_PBlock *pb )
+write_audit_log_entry(Slapi_PBlock *pb)
 {
     time_t curtime;
     Slapi_DN *sdn;
@@ -53,45 +53,41 @@ write_audit_log_entry( Slapi_PBlock *pb )
         return;
     }
 
-    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-    slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
-    switch ( operation_get_type(op) )
-    {
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    switch (operation_get_type(op)) {
     case SLAPI_OPERATION_MODIFY:
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
+        slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &change);
         break;
     case SLAPI_OPERATION_ADD:
-    	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &change );
-    	break;
-    case SLAPI_OPERATION_DELETE:
-        {
-        char * deleterDN = NULL;
+        slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &change);
+        break;
+    case SLAPI_OPERATION_DELETE: {
+        char *deleterDN = NULL;
         slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &deleterDN);
         change = deleterDN;
-        }
-        break;
-    
-    case SLAPI_OPERATION_MODDN:
-        {
+    } break;
+
+    case SLAPI_OPERATION_MODDN: {
         char *rdn = NULL;
         Slapi_DN *snewsuperior = NULL;
         char *requestor = NULL;
         /* newrdn: change is just for logging -- case does not matter. */
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &rdn );
-        slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &snewsuperior );
-        slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &requestor );
+        slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
+        slapi_pblock_get(pb, SLAPI_MODRDN_DELOLDRDN, &flag);
+        slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &snewsuperior);
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestor);
         modrdn_changes[0] = rdn;
         modrdn_changes[1] = requestor;
         if (snewsuperior && slapi_sdn_get_dn(snewsuperior)) {
             modrdn_changes[2] = slapi_sdn_get_dn(snewsuperior);
             modrdn_changes[3] = NULL;
         } else {
-            modrdn_changes[2] = NULL; 
+            modrdn_changes[2] = NULL;
         }
-		change = (void *)modrdn_changes;
+        change = (void *)modrdn_changes;
         break;
-        }
+    }
     default:
         return; /* Unsupported operation type. */
     }
@@ -102,7 +98,7 @@ write_audit_log_entry( Slapi_PBlock *pb )
 }
 
 void
-write_auditfail_log_entry( Slapi_PBlock *pb )
+write_auditfail_log_entry(Slapi_PBlock *pb)
 {
     time_t curtime;
     Slapi_DN *sdn;
@@ -120,47 +116,43 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
         return;
     }
 
-    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-    slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
 
-    slapi_pblock_get( pb, SLAPI_RESULT_CODE, &pbrc );
+    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &pbrc);
 
-    switch ( operation_get_type(op) )
-    {
+    switch (operation_get_type(op)) {
     case SLAPI_OPERATION_MODIFY:
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
+        slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &change);
         break;
     case SLAPI_OPERATION_ADD:
-    	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &change );
-    	break;
-    case SLAPI_OPERATION_DELETE:
-        {
-        char * deleterDN = NULL;
+        slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &change);
+        break;
+    case SLAPI_OPERATION_DELETE: {
+        char *deleterDN = NULL;
         slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &deleterDN);
         change = deleterDN;
-        }
-        break;
-    case SLAPI_OPERATION_MODDN:
-        {
+    } break;
+    case SLAPI_OPERATION_MODDN: {
         char *rdn = NULL;
         Slapi_DN *snewsuperior = NULL;
         char *requestor = NULL;
         /* newrdn: change is just for logging -- case does not matter. */
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &rdn );
-        slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &snewsuperior );
-        slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &requestor );
+        slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
+        slapi_pblock_get(pb, SLAPI_MODRDN_DELOLDRDN, &flag);
+        slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &snewsuperior);
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestor);
         modrdn_changes[0] = rdn;
         modrdn_changes[1] = requestor;
         if (snewsuperior && slapi_sdn_get_dn(snewsuperior)) {
             modrdn_changes[2] = slapi_sdn_get_dn(snewsuperior);
             modrdn_changes[3] = NULL;
         } else {
-            modrdn_changes[2] = NULL; 
+            modrdn_changes[2] = NULL;
         }
-		change = (void *)modrdn_changes;
+        change = (void *)modrdn_changes;
         break;
-        }
+    }
     default:
         return; /* Unsupported operation type. */
     }
@@ -183,7 +175,7 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
 
 /*
  * Function: write_audit_file
- * Arguments: 
+ * Arguments:
  *            logtype - Destination where the message will go.
  *            optype - type of LDAP operation being logged
  *            dn     - distinguished name of entry being changed
@@ -197,55 +189,51 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
  */
 static void
 write_audit_file(
-    int         logtype,
-    int         optype,
-    const char  *dn,
-    void        *change,
-    int         flag,
-    time_t      curtime,
-    int         rc,
-    int         sourcelog
-)
+    int logtype,
+    int optype,
+    const char *dn,
+    void *change,
+    int flag,
+    time_t curtime,
+    int rc,
+    int sourcelog)
 {
     LDAPMod **mods;
     Slapi_Entry *e;
-    char    *newrdn, *tmp, *tmpsave;
+    char *newrdn, *tmp, *tmpsave;
     int len, i, j;
-    char    *timestr;
-    char    *rcstr;
-    lenstr  *l;
+    char *timestr;
+    char *rcstr;
+    lenstr *l;
 
     l = lenstr_new();
 
-    addlenstr( l, "time: " );
-    timestr = format_localTime( curtime );
-    addlenstr( l, timestr );
+    addlenstr(l, "time: ");
+    timestr = format_localTime(curtime);
+    addlenstr(l, timestr);
     slapi_ch_free_string(&timestr);
-    addlenstr( l, "\n" );
-    addlenstr( l, "dn: " );
-    addlenstr( l, dn );
-    addlenstr( l, "\n" );
+    addlenstr(l, "\n");
+    addlenstr(l, "dn: ");
+    addlenstr(l, dn);
+    addlenstr(l, "\n");
 
-    addlenstr( l, "result: " );
+    addlenstr(l, "result: ");
     rcstr = slapi_ch_smprintf("%d", rc);
-    addlenstr( l, rcstr );
+    addlenstr(l, rcstr);
     slapi_ch_free_string(&rcstr);
-    addlenstr( l, "\n" );
+    addlenstr(l, "\n");
 
 
-    switch ( optype )
-    {
+    switch (optype) {
     case SLAPI_OPERATION_MODIFY:
-        addlenstr( l, attr_changetype );
-        addlenstr( l, ": modify\n" );
+        addlenstr(l, attr_changetype);
+        addlenstr(l, ": modify\n");
         mods = change;
-        for ( j = 0; (mods != NULL) && (mods[j] != NULL); j++ )
-        {
-            int operationtype= mods[j]->mod_op & ~LDAP_MOD_BVALUES;
-    
-            if(strcmp(mods[j]->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0){
-                switch (logtype)
-                {
+        for (j = 0; (mods != NULL) && (mods[j] != NULL); j++) {
+            int operationtype = mods[j]->mod_op & ~LDAP_MOD_BVALUES;
+
+            if (strcmp(mods[j]->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0) {
+                switch (logtype) {
                 case SLAPD_AUDIT_LOG:
                     if (audit_hide_unhashed_pw != 0) {
                         continue;
@@ -258,117 +246,111 @@ write_audit_file(
                     break;
                 }
             }
-            switch ( operationtype )
-            {
+            switch (operationtype) {
             case LDAP_MOD_ADD:
-                addlenstr( l, "add: " );
-                addlenstr( l, mods[j]->mod_type );
-                addlenstr( l, "\n" );
+                addlenstr(l, "add: ");
+                addlenstr(l, mods[j]->mod_type);
+                addlenstr(l, "\n");
                 break;
 
             case LDAP_MOD_DELETE:
-                addlenstr( l, "delete: " );
-                addlenstr( l, mods[j]->mod_type );
-                addlenstr( l, "\n" );
+                addlenstr(l, "delete: ");
+                addlenstr(l, mods[j]->mod_type);
+                addlenstr(l, "\n");
                 break;
 
             case LDAP_MOD_REPLACE:
-                addlenstr( l, "replace: " );
-                addlenstr( l, mods[j]->mod_type );
-                addlenstr( l, "\n" );
+                addlenstr(l, "replace: ");
+                addlenstr(l, mods[j]->mod_type);
+                addlenstr(l, "\n");
                 break;
 
             default:
-                operationtype= LDAP_MOD_IGNORE;
+                operationtype = LDAP_MOD_IGNORE;
                 break;
             }
-            if(operationtype!=LDAP_MOD_IGNORE)
-            {
-                for ( i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++ )
-                {
+            if (operationtype != LDAP_MOD_IGNORE) {
+                for (i = 0; mods[j]->mod_bvalues != NULL && mods[j]->mod_bvalues[i] != NULL; i++) {
                     char *buf, *bufp;
-                    len = strlen( mods[j]->mod_type );
-                    len = LDIF_SIZE_NEEDED( len, mods[j]->mod_bvalues[i]->bv_len ) + 1;
-                    buf = slapi_ch_malloc( len );
+                    len = strlen(mods[j]->mod_type);
+                    len = LDIF_SIZE_NEEDED(len, mods[j]->mod_bvalues[i]->bv_len) + 1;
+                    buf = slapi_ch_malloc(len);
                     bufp = buf;
-                    slapi_ldif_put_type_and_value_with_options( &bufp, mods[j]->mod_type,
-                        mods[j]->mod_bvalues[i]->bv_val,
-                        mods[j]->mod_bvalues[i]->bv_len, 0 );
+                    slapi_ldif_put_type_and_value_with_options(&bufp, mods[j]->mod_type,
+                                                               mods[j]->mod_bvalues[i]->bv_val,
+                                                               mods[j]->mod_bvalues[i]->bv_len, 0);
                     *bufp = '\0';
-                    addlenstr( l, buf );
-                    slapi_ch_free( (void**)&buf );
+                    addlenstr(l, buf);
+                    slapi_ch_free((void **)&buf);
                 }
             }
-            addlenstr( l, "-\n" );
+            addlenstr(l, "-\n");
         }
         break;
 
     case SLAPI_OPERATION_ADD:
         e = change;
-        addlenstr( l, attr_changetype );
-        addlenstr( l, ": add\n" );
-        tmp = slapi_entry2str( e, &len );
+        addlenstr(l, attr_changetype);
+        addlenstr(l, ": add\n");
+        tmp = slapi_entry2str(e, &len);
         tmpsave = tmp;
-        while (( tmp = strchr( tmp, '\n' )) != NULL )
-        {
+        while ((tmp = strchr(tmp, '\n')) != NULL) {
             tmp++;
-            if ( !ldap_utf8isspace( tmp ))
-            {
+            if (!ldap_utf8isspace(tmp)) {
                 break;
             }
         }
-        addlenstr( l, tmp );
-        slapi_ch_free((void**)&tmpsave );
+        addlenstr(l, tmp);
+        slapi_ch_free((void **)&tmpsave);
         break;
 
     case SLAPI_OPERATION_DELETE:
         tmp = change;
-        addlenstr( l, attr_changetype );
-        addlenstr( l, ": delete\n" );
+        addlenstr(l, attr_changetype);
+        addlenstr(l, ": delete\n");
         if (tmp && tmp[0]) {
-            addlenstr( l, attr_modifiersname );
-            addlenstr( l, ": ");
-            addlenstr( l, tmp);
-            addlenstr( l, "\n");
+            addlenstr(l, attr_modifiersname);
+            addlenstr(l, ": ");
+            addlenstr(l, tmp);
+            addlenstr(l, "\n");
         }
         break;
-    
+
     case SLAPI_OPERATION_MODDN:
         newrdn = ((char **)change)[0];
-        addlenstr( l, attr_changetype );
-        addlenstr( l, ": modrdn\n" );
-        addlenstr( l, attr_newrdn );
-        addlenstr( l, ": " );
-        addlenstr( l, newrdn );
-        addlenstr( l, "\n" );
-        addlenstr( l, attr_deleteoldrdn );
-        addlenstr( l, ": " );
-        addlenstr( l, flag ? "1" : "0" );
-        addlenstr( l, "\n" );
+        addlenstr(l, attr_changetype);
+        addlenstr(l, ": modrdn\n");
+        addlenstr(l, attr_newrdn);
+        addlenstr(l, ": ");
+        addlenstr(l, newrdn);
+        addlenstr(l, "\n");
+        addlenstr(l, attr_deleteoldrdn);
+        addlenstr(l, ": ");
+        addlenstr(l, flag ? "1" : "0");
+        addlenstr(l, "\n");
         if (((char **)change)[2]) {
             char *newsuperior = ((char **)change)[2];
-            addlenstr( l, attr_newsuperior );
-            addlenstr( l, ": " );
-            addlenstr( l, newsuperior );
-            addlenstr( l, "\n" );
+            addlenstr(l, attr_newsuperior);
+            addlenstr(l, ": ");
+            addlenstr(l, newsuperior);
+            addlenstr(l, "\n");
         }
         if (((char **)change)[1]) {
             char *modifier = ((char **)change)[1];
-            addlenstr( l, attr_modifiersname );
-            addlenstr( l, ": " );
-            addlenstr( l, modifier );
-            addlenstr( l, "\n" );
+            addlenstr(l, attr_modifiersname);
+            addlenstr(l, ": ");
+            addlenstr(l, modifier);
+            addlenstr(l, "\n");
         }
     }
-    addlenstr( l, "\n" );
+    addlenstr(l, "\n");
 
-    switch (logtype)
-    {
+    switch (logtype) {
     case SLAPD_AUDIT_LOG:
-        slapd_log_audit (l->ls_buf, l->ls_len, sourcelog);
+        slapd_log_audit(l->ls_buf, l->ls_len, sourcelog);
         break;
     case SLAPD_AUDITFAIL_LOG:
-        slapd_log_auditfail (l->ls_buf, l->ls_len);
+        slapd_log_auditfail(l->ls_buf, l->ls_len);
         break;
     default:
         /* Unsupported log type, we should make some noise */
@@ -376,29 +358,29 @@ write_audit_file(
         break;
     }
 
-    lenstr_free( &l );
+    lenstr_free(&l);
 }
 
 void
 auditlog_hide_unhashed_pw()
 {
-	audit_hide_unhashed_pw = 1;
+    audit_hide_unhashed_pw = 1;
 }
 
 void
 auditlog_expose_unhashed_pw()
 {
-	audit_hide_unhashed_pw = 0;
+    audit_hide_unhashed_pw = 0;
 }
 
 void
 auditfaillog_hide_unhashed_pw()
 {
-	auditfail_hide_unhashed_pw = 1;
+    auditfail_hide_unhashed_pw = 1;
 }
 
 void
 auditfaillog_expose_unhashed_pw()
 {
-	auditfail_hide_unhashed_pw = 0;
+    auditfail_hide_unhashed_pw = 0;
 }

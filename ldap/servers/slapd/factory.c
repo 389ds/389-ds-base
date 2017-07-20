@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -22,7 +22,7 @@
  * convenient for the plugin to associate it's private data with the
  * operation object that's passed through the PBlock.
  *
- * --- An interface is made available to the core server. 
+ * --- An interface is made available to the core server.
  *
  *   int factory_register_type(const char *name, size_t offset)
  *   void *factory_create_extension(int type,void *object,void *parent)
@@ -48,7 +48,7 @@
  *
  *   int slapi_register_object_extension(
  *       const char* objectname,
- *       slapi_extension_constructor_fnptr constructor, 
+ *       slapi_extension_constructor_fnptr constructor,
  *       slapi_extension_destructor_fnptr destructor,
  *       int *objecttype,
  *       int *extensionhandle)
@@ -70,7 +70,7 @@
  * retrieved. The factory uses the objecttype to find the offset into the
  * object of where the extension block is stored. The extension handle is
  * then used to find the appropriate extension within the block.
- * 
+ *
  * Currently (Oct 98) the only supported objects are Operation and Connection.
  *
  * This documentation is available here...
@@ -86,31 +86,31 @@
 struct factory_extension
 {
     const char *pluginname;
-	slapi_extension_constructor_fnptr constructor;
-	slapi_extension_destructor_fnptr destructor;
-	int removed;
+    slapi_extension_constructor_fnptr constructor;
+    slapi_extension_destructor_fnptr destructor;
+    int removed;
 };
 
-static struct factory_extension*
+static struct factory_extension *
 new_factory_extension(
     const char *pluginname,
-    slapi_extension_constructor_fnptr constructor, 
+    slapi_extension_constructor_fnptr constructor,
     slapi_extension_destructor_fnptr destructor)
 {
-	struct factory_extension* fe = (struct factory_extension*)slapi_ch_calloc(1, sizeof(struct factory_extension));
+    struct factory_extension *fe = (struct factory_extension *)slapi_ch_calloc(1, sizeof(struct factory_extension));
 
-	fe->pluginname= slapi_ch_strdup(pluginname);
-	fe->constructor= constructor;
-	fe->destructor= destructor;
+    fe->pluginname = slapi_ch_strdup(pluginname);
+    fe->constructor = constructor;
+    fe->destructor = destructor;
 
-	return fe;
+    return fe;
 }
 
 static void
 delete_factory_extension(struct factory_extension **fe)
 {
-    slapi_ch_free( (void **) &((*fe)->pluginname) );
-    slapi_ch_free( (void **) fe);
+    slapi_ch_free((void **)&((*fe)->pluginname));
+    slapi_ch_free((void **)fe);
 }
 
 /* ---------------------- Factory Type ---------------------- */
@@ -119,24 +119,24 @@ delete_factory_extension(struct factory_extension **fe)
 
 struct factory_type
 {
-    char *name; /* The name of the object that can be extended */
-	int extension_count; /* The number of extensions registered for this object */
-	PRLock *extension_lock; /* Protect the array of extensions */
-	size_t extension_offset; /* The offset into the object where the extension pointer is */
-	long existence_count; /* Keep track of how many extensions blocks are in existence */
-	struct factory_extension *extensions[MAX_EXTENSIONS]; /* The extension registered for this object type */
+    char *name;                                           /* The name of the object that can be extended */
+    int extension_count;                                  /* The number of extensions registered for this object */
+    PRLock *extension_lock;                               /* Protect the array of extensions */
+    size_t extension_offset;                              /* The offset into the object where the extension pointer is */
+    long existence_count;                                 /* Keep track of how many extensions blocks are in existence */
+    struct factory_extension *extensions[MAX_EXTENSIONS]; /* The extension registered for this object type */
 };
 
-static struct factory_type*
+static struct factory_type *
 new_factory_type(const char *name, size_t offset)
 {
-    struct factory_type* ft= (struct factory_type*)slapi_ch_calloc(1, sizeof(struct factory_type));
-	ft->name= slapi_ch_strdup(name);
+    struct factory_type *ft = (struct factory_type *)slapi_ch_calloc(1, sizeof(struct factory_type));
+    ft->name = slapi_ch_strdup(name);
     ft->extension_lock = PR_NewLock();
-	ft->extension_count= 0;
-	ft->extension_offset= offset;
-	ft->existence_count= 0;
-	return ft;
+    ft->extension_count = 0;
+    ft->extension_offset = offset;
+    ft->existence_count = 0;
+    return ft;
 }
 
 static int
@@ -148,11 +148,10 @@ factory_type_add_extension(struct factory_type *ft, struct factory_extension *fe
 
     PR_Lock(ft->extension_lock);
 
-    if(ft->extension_count<MAX_EXTENSIONS)
-    {
-        for(i = 0; i < ft->extension_count; i++){
-            if(strcasecmp(ft->extensions[i]->pluginname,fe->pluginname) == 0){
-                if(ft->extensions[i]->removed){
+    if (ft->extension_count < MAX_EXTENSIONS) {
+        for (i = 0; i < ft->extension_count; i++) {
+            if (strcasecmp(ft->extensions[i]->pluginname, fe->pluginname) == 0) {
+                if (ft->extensions[i]->removed) {
                     /* this extension was previously added, and then removed.  Reuse the slot */
                     delete_factory_extension(&ft->extensions[i]);
                     extensionhandle = i;
@@ -162,20 +161,18 @@ factory_type_add_extension(struct factory_type *ft, struct factory_extension *fe
                 }
             }
         }
-        if(!added){
-            extensionhandle= ft->extension_count;
-            ft->extensions[ft->extension_count]= fe;
+        if (!added) {
+            extensionhandle = ft->extension_count;
+            ft->extensions[ft->extension_count] = fe;
             ft->extension_count++;
         }
-    }
-    else
-    {
+    } else {
         slapi_log_err(SLAPI_LOG_ERR, "factory_type_add_extension",
-                "Registration of %s extension by %s failed.\n",
-                ft->name, fe->pluginname);
+                      "Registration of %s extension by %s failed.\n",
+                      ft->name, fe->pluginname);
         slapi_log_err(SLAPI_LOG_ERR, "factory_type_add_extension",
-                "%d extensions already registered. Max is %d\n",
-                ft->extension_count, MAX_EXTENSIONS);
+                      "%d extensions already registered. Max is %d\n",
+                      ft->extension_count, MAX_EXTENSIONS);
     }
 
     PR_Unlock(ft->extension_lock);
@@ -192,13 +189,12 @@ static void
 factory_type_decrement_existence(struct factory_type *ft)
 {
     ft->existence_count--;
-	if(ft->existence_count<0)
-	{
-	    /* This just shouldn't happen */
-   		slapi_log_err(SLAPI_LOG_ERR, "factory_type_decrement_existence",
-   			"%d %s object extensions in existence.\n",
-   			ft->extension_count, ft->name);
-	}
+    if (ft->existence_count < 0) {
+        /* This just shouldn't happen */
+        slapi_log_err(SLAPI_LOG_ERR, "factory_type_decrement_existence",
+                      "%d %s object extensions in existence.\n",
+                      ft->extension_count, ft->name);
+    }
 }
 
 /* ---------------------- Factory Type Store ---------------------- */
@@ -206,54 +202,48 @@ factory_type_decrement_existence(struct factory_type *ft)
 #define MAX_TYPES 16
 
 static PRLock *factory_type_store_lock;
-static struct factory_type* factory_type_store[MAX_TYPES];
-static int number_of_types= 0;
+static struct factory_type *factory_type_store[MAX_TYPES];
+static int number_of_types = 0;
 
 static void
 factory_type_store_init(void)
 {
-	int i= 0;
-    factory_type_store_lock= PR_NewLock(); /* JCM - Should really free this at shutdown */
-	for(i=0;i<MAX_TYPES;i++)
-	{
-        factory_type_store[number_of_types]= NULL;
+    int i = 0;
+    factory_type_store_lock = PR_NewLock(); /* JCM - Should really free this at shutdown */
+    for (i = 0; i < MAX_TYPES; i++) {
+        factory_type_store[number_of_types] = NULL;
     }
 }
 
 static int
-factory_type_store_add(struct factory_type* ft)
+factory_type_store_add(struct factory_type *ft)
 {
-    int type= number_of_types;
-    factory_type_store[type]= ft;
-	number_of_types++;
-	return type;
+    int type = number_of_types;
+    factory_type_store[type] = ft;
+    number_of_types++;
+    return type;
 }
 
-static struct factory_type*
+static struct factory_type *
 factory_type_store_get_factory_type(int type)
 {
-    if(type>=0 && type<number_of_types)
-	{
-	    return factory_type_store[type];
-	}
-	else
-	{
-	    return NULL;
-	}
+    if (type >= 0 && type < number_of_types) {
+        return factory_type_store[type];
+    } else {
+        return NULL;
+    }
 }
 
 static int
-factory_type_store_name_to_type(const char* name)
+factory_type_store_name_to_type(const char *name)
 {
     int i;
-	for(i=0;i<number_of_types;i++)
-	{
-        if(strcasecmp(factory_type_store[i]->name,name)==0)
-		{
-		    return i;
-		}
+    for (i = 0; i < number_of_types; i++) {
+        if (strcasecmp(factory_type_store[i]->name, name) == 0) {
+            return i;
+        }
     }
-	return -1;
+    return -1;
 }
 
 /* ---------------------- Core Server Functions ---------------------- */
@@ -265,27 +255,23 @@ factory_type_store_name_to_type(const char* name)
 int
 factory_register_type(const char *name, size_t offset)
 {
-    int type= 0;
-    if(number_of_types==0)
-	{
+    int type = 0;
+    if (number_of_types == 0) {
         factory_type_store_init();
-	}
-	PR_Lock(factory_type_store_lock);
-    if(number_of_types<MAX_TYPES)
-	{
-        struct factory_type* ft= new_factory_type(name,offset);
-        type= factory_type_store_add(ft);
-	}
-	else
-	{
-   		slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
-   			"Registration of %s object failed.\n", name);
-   		slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
-   			"%d objects already registered. Max is %d\n", number_of_types, MAX_TYPES);
-	    type= -1;
-	}
-	PR_Unlock(factory_type_store_lock);
-	return type;
+    }
+    PR_Lock(factory_type_store_lock);
+    if (number_of_types < MAX_TYPES) {
+        struct factory_type *ft = new_factory_type(name, offset);
+        type = factory_type_store_add(ft);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
+                      "Registration of %s object failed.\n", name);
+        slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
+                      "%d objects already registered. Max is %d\n", number_of_types, MAX_TYPES);
+        type = -1;
+    }
+    PR_Unlock(factory_type_store_lock);
+    return type;
 }
 
 /*
@@ -293,46 +279,38 @@ factory_register_type(const char *name, size_t offset)
  * See documentation at head of file.
  */
 void *
-factory_create_extension(int type,void *object,void *parent)
+factory_create_extension(int type, void *object, void *parent)
 {
     int n;
-    void **extension= NULL;
-    struct factory_type* ft= factory_type_store_get_factory_type(type);
+    void **extension = NULL;
+    struct factory_type *ft = factory_type_store_get_factory_type(type);
 
-	if(ft!=NULL)
-	{
-	    PR_Lock(ft->extension_lock);
-    	if((n = ft->extension_count)>0)
-    	{
-    	    int i;
+    if (ft != NULL) {
+        PR_Lock(ft->extension_lock);
+        if ((n = ft->extension_count) > 0) {
+            int i;
             factory_type_increment_existence(ft);
             PR_Unlock(ft->extension_lock);
-            extension= (void**)slapi_ch_calloc(n + 1,sizeof(void*));
-    		for(i=0;i<n;i++)
-    		{
-    		    if(ft->extensions[i] == NULL || ft->extensions[i]->removed){
-    		        continue;
-    		    }
-                slapi_extension_constructor_fnptr constructor= ft->extensions[i]->constructor;
-    			if(constructor!=NULL)
-    			{
-    			    extension[i]= (*constructor)(object,parent);
-    			}
-    		}
-		}
-		else
-		{
-		    /* No extensions registered. That's OK */
-		    PR_Unlock(ft->extension_lock);
-		}
-	}
-	else
-	{
-	    /* The type wasn't registered. Programming error? */
-   		slapi_log_err(SLAPI_LOG_ERR, "factory_create_extension",
-   			"Object type handle %d not valid. Object not registered?\n", type);
-	}
-	return (void*)extension;
+            extension = (void **)slapi_ch_calloc(n + 1, sizeof(void *));
+            for (i = 0; i < n; i++) {
+                if (ft->extensions[i] == NULL || ft->extensions[i]->removed) {
+                    continue;
+                }
+                slapi_extension_constructor_fnptr constructor = ft->extensions[i]->constructor;
+                if (constructor != NULL) {
+                    extension[i] = (*constructor)(object, parent);
+                }
+            }
+        } else {
+            /* No extensions registered. That's OK */
+            PR_Unlock(ft->extension_lock);
+        }
+    } else {
+        /* The type wasn't registered. Programming error? */
+        slapi_log_err(SLAPI_LOG_ERR, "factory_create_extension",
+                      "Object type handle %d not valid. Object not registered?\n", type);
+    }
+    return (void *)extension;
 }
 
 /*
@@ -340,42 +318,36 @@ factory_create_extension(int type,void *object,void *parent)
  * See documentation at head of file.
  */
 void
-factory_destroy_extension(int type,void *object,void *parent,void **extension)
+factory_destroy_extension(int type, void *object, void *parent, void **extension)
 {
-	if(extension!=NULL && *extension!=NULL)
-	{
-		struct factory_type* ft= factory_type_store_get_factory_type(type);
-		if(ft!=NULL)
-		{
-			int i,n;
+    if (extension != NULL && *extension != NULL) {
+        struct factory_type *ft = factory_type_store_get_factory_type(type);
+        if (ft != NULL) {
+            int i, n;
 
-			PR_Lock(ft->extension_lock);
-			n=ft->extension_count;
-			factory_type_decrement_existence(ft);
-			for(i=0;i<n;i++)
-			{
-				slapi_extension_destructor_fnptr destructor;
+            PR_Lock(ft->extension_lock);
+            n = ft->extension_count;
+            factory_type_decrement_existence(ft);
+            for (i = 0; i < n; i++) {
+                slapi_extension_destructor_fnptr destructor;
 
-				if(ft->extensions[i] == NULL){
-					continue;
-				}
-				destructor = ft->extensions[i]->destructor;
-				if(destructor!=NULL)
-				{
-					void **extention_array= (void**)(*extension);
-					(*destructor)(extention_array[i],object,parent);
-				}
-			}
-			PR_Unlock(ft->extension_lock);
-		}
-		else
-		{
-			/* The type wasn't registered. Programming error? */
-			slapi_log_err(SLAPI_LOG_ERR, "factory_destroy_extension", 
-				"Object type handle %d not valid. Object not registered?\n", type);
-		}
-		slapi_ch_free(extension);
-	}
+                if (ft->extensions[i] == NULL) {
+                    continue;
+                }
+                destructor = ft->extensions[i]->destructor;
+                if (destructor != NULL) {
+                    void **extention_array = (void **)(*extension);
+                    (*destructor)(extention_array[i], object, parent);
+                }
+            }
+            PR_Unlock(ft->extension_lock);
+        } else {
+            /* The type wasn't registered. Programming error? */
+            slapi_log_err(SLAPI_LOG_ERR, "factory_destroy_extension",
+                          "Object type handle %d not valid. Object not registered?\n", type);
+        }
+        slapi_ch_free(extension);
+    }
 }
 
 /* ---------------------- Slapi Functions ---------------------- */
@@ -385,17 +357,17 @@ factory_destroy_extension(int type,void *object,void *parent,void **extension)
  */
 int
 slapi_unregister_object_extension(
-    const char* pluginname __attribute__((unused)),
-    const char* objectname,
+    const char *pluginname __attribute__((unused)),
+    const char *objectname,
     int *objecttype,
     int *extensionhandle)
 {
-    struct factory_type* ft;
+    struct factory_type *ft;
     int rc = 0;
 
     *objecttype = factory_type_store_name_to_type(objectname);
     ft = factory_type_store_get_factory_type(*objecttype);
-    if(ft){
+    if (ft) {
         PR_Lock(ft->extension_lock);
         ft->extensions[*extensionhandle]->removed = 1;
         PR_Unlock(ft->extension_lock);
@@ -413,36 +385,32 @@ slapi_unregister_object_extension(
  */
 int
 slapi_register_object_extension(
-    const char* pluginname,
-    const char* objectname,
-    slapi_extension_constructor_fnptr constructor, 
+    const char *pluginname,
+    const char *objectname,
+    slapi_extension_constructor_fnptr constructor,
     slapi_extension_destructor_fnptr destructor,
     int *objecttype,
     int *extensionhandle)
 {
-    int rc= 0;
-    struct factory_extension* fe;
-    struct factory_type* ft;
-    fe= new_factory_extension(pluginname,constructor, destructor);
-    *objecttype= factory_type_store_name_to_type(objectname);
-    ft= factory_type_store_get_factory_type(*objecttype);
+    int rc = 0;
+    struct factory_extension *fe;
+    struct factory_type *ft;
+    fe = new_factory_extension(pluginname, constructor, destructor);
+    *objecttype = factory_type_store_name_to_type(objectname);
+    ft = factory_type_store_get_factory_type(*objecttype);
 
-	if(ft!=NULL)
-	{
-        *extensionhandle= factory_type_add_extension(ft,fe);
-        if(*extensionhandle==-1)
-        {
-           delete_factory_extension(&fe);
+    if (ft != NULL) {
+        *extensionhandle = factory_type_add_extension(ft, fe);
+        if (*extensionhandle == -1) {
+            delete_factory_extension(&fe);
         }
-	}
-	else
-	{
-   		slapi_log_err(SLAPI_LOG_ERR, "slapi_register_object_extension",
-   			"Plugin %s failed to register extension for object %s.\n", pluginname, objectname);
-		rc= -1;
-		delete_factory_extension(&fe);
-	}
-	return rc;
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_register_object_extension",
+                      "Plugin %s failed to register extension for object %s.\n", pluginname, objectname);
+        rc = -1;
+        delete_factory_extension(&fe);
+    }
+    return rc;
 }
 
 /*
@@ -450,34 +418,32 @@ slapi_register_object_extension(
  * See documentation at head of file.
  */
 void *
-slapi_get_object_extension(int objecttype,void *object,int extensionhandle)
+slapi_get_object_extension(int objecttype, void *object, int extensionhandle)
 {
-    void *object_extension= NULL;
-    struct factory_type* ft= factory_type_store_get_factory_type(objecttype);
-	if(ft!=NULL)
-	{
-	    char *object_base= (char*)object;
-		void **o_extension= (void**)(object_base + ft->extension_offset);
-		void **extension_array= (void**)(*o_extension);
-		if ( extension_array != NULL ) {
-			object_extension= extension_array[extensionhandle];
-		}
-	}
-	return object_extension;
+    void *object_extension = NULL;
+    struct factory_type *ft = factory_type_store_get_factory_type(objecttype);
+    if (ft != NULL) {
+        char *object_base = (char *)object;
+        void **o_extension = (void **)(object_base + ft->extension_offset);
+        void **extension_array = (void **)(*o_extension);
+        if (extension_array != NULL) {
+            object_extension = extension_array[extensionhandle];
+        }
+    }
+    return object_extension;
 }
 
 /*
  * sometimes a plugin would like to change its extension, too.
  */
 void
-slapi_set_object_extension(int objecttype, void *object, int extensionhandle,
-                           void *extension)
+slapi_set_object_extension(int objecttype, void *object, int extensionhandle, void *extension)
 {
     struct factory_type *ft = factory_type_store_get_factory_type(objecttype);
     if (ft != NULL) {
         char *object_base = (char *)object;
         void **o_extension = (void **)(object_base + ft->extension_offset);
-		void **extension_array= (void**)(*o_extension);
+        void **extension_array = (void **)(*o_extension);
         if (extension_array != NULL) {
             extension_array[extensionhandle] = extension;
         }

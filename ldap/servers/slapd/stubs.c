@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <stdio.h>
@@ -17,19 +17,22 @@
 #include "slap.h"
 
 
-int type_to_ACCESS_bit( char *p __attribute__((unused)))
+int
+type_to_ACCESS_bit(char *p __attribute__((unused)))
 {
-	return 0;
+    return 0;
 }
 
-void *PT_Lock( PRLock *x_mutex __attribute__((unused)))
+void *
+PT_Lock(PRLock *x_mutex __attribute__((unused)))
 {
-	return NULL;
+    return NULL;
 }
 
-int lcache_init(LDAP *ld __attribute__((unused)), void *arg __attribute__((unused)))
+int
+lcache_init(LDAP *ld __attribute__((unused)), void *arg __attribute__((unused)))
 {
-	slapi_log_err(SLAPI_LOG_ERR, 
-		"lcache_init", "Shouldn't have been called\n");
-	return -1;
+    slapi_log_err(SLAPI_LOG_ERR,
+                  "lcache_init", "Shouldn't have been called\n");
+    return -1;
 }

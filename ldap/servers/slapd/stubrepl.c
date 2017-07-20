@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* stubrepl.c - stubs of functions required for the evil stuff in the tools directory  */
@@ -18,33 +18,33 @@
 int connection_type = -1;
 
 void
-ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t chgnum )
+ps_service_persistent_searches(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t chgnum)
 {
 }
 
 void
-ps_wakeup_all( void )
+ps_wakeup_all(void)
 {
 }
 
 int
 slapd_ssl_init()
 {
-	return( -1 );
+    return (-1);
 }
 
 int
 slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 {
-	return( -1 );
+    return (-1);
 }
 
 void
-connection_abandon_operations( Connection *conn )
+connection_abandon_operations(Connection *conn)
 {
 }
 
 void
-disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
+disconnect_server(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error)
 {
 }

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* vlv.c */
@@ -18,8 +18,8 @@
  * References to on-line documentation here.
  *
  * http://BLUES/users/dboreham/publish/Design_Documentation/RFCs/draft-ietf-asid-ldapv3-virtuallistview-01.html
- * http://warp.mcom.com/server/directory-server/clientsdk/hammerhead/design/virtuallistview.html 
- * ftp://ftp.ietf.org/internet-drafts/draft-ietf-ldapext-ldapv3-vlv-00.txt 
+ * http://warp.mcom.com/server/directory-server/clientsdk/hammerhead/design/virtuallistview.html
+ * ftp://ftp.ietf.org/internet-drafts/draft-ietf-ldapext-ldapv3-vlv-00.txt
  * http://rocknroll/users/merrells/publish/vlvimplementation.html
  */
 
@@ -29,32 +29,33 @@
 #include "vlv_key.h"
 
 static PRUint32 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control);
-static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, back_txn *txn);
-static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked, back_txn *txn);
+static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, back_txn *txn);
+static int vlv_build_candidate_list(backend *be, struct vlvIndex *p, const struct vlv_request *vlv_request_control, IDList **candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked, back_txn *txn);
 
 /* New mutex for vlv locking
 Slapi_RWLock * vlvSearchList_lock=NULL;
-static struct vlvSearch *vlvSearchList= NULL; 
+static struct vlvSearch *vlvSearchList= NULL;
 */
 
-#define ISLEGACY(be) (be?(be->be_instance_info?(((ldbm_instance *)be->be_instance_info)->inst_li?(((ldbm_instance *)be->be_instance_info)->inst_li->li_legacy_errcode):0):0):0)
+#define ISLEGACY(be) (be ? (be->be_instance_info ? (((ldbm_instance *)be->be_instance_info)->inst_li ? (((ldbm_instance *)be->be_instance_info)->inst_li->li_legacy_errcode) : 0) : 0) : 0)
 
 /* Callback to add a new VLV Search specification. Added write lock.*/
 
-int vlv_AddSearchEntry(Slapi_PBlock *pb,
-                       Slapi_Entry* entryBefore,
-                       Slapi_Entry* entryAfter __attribute__((unused)),
-                       int *returncode __attribute__((unused)),
-                       char *returntext __attribute__((unused)),
-                       void *arg)
+int
+vlv_AddSearchEntry(Slapi_PBlock *pb,
+                   Slapi_Entry *entryBefore,
+                   Slapi_Entry *entryAfter __attribute__((unused)),
+                   int *returncode __attribute__((unused)),
+                   char *returntext __attribute__((unused)),
+                   void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
-    struct vlvSearch* newVlvSearch= vlvSearch_new();
+    struct vlvSearch *newVlvSearch = vlvSearch_new();
     backend *be = NULL;
     if (inst) {
         be = inst->inst_be;
     }
-    
+
     if (NULL == be) { /* backend is not associated */
         vlvSearch_delete(&newVlvSearch);
         return SLAPI_DSE_CALLBACK_ERROR;
@@ -69,25 +70,25 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb,
 
 /* Callback to add a new VLV Index specification. Added write lock.*/
 
-int vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
-                      Slapi_Entry* entryBefore,
-                      Slapi_Entry* entryAfter __attribute__((unused)),
-                      int *returncode __attribute__((unused)),
-                      char *returntext __attribute__((unused)),
-                      void *arg)
-{ 
+int
+vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                  Slapi_Entry *entryBefore,
+                  Slapi_Entry *entryAfter __attribute__((unused)),
+                  int *returncode __attribute__((unused)),
+                  char *returntext __attribute__((unused)),
+                  void *arg)
+{
     struct vlvSearch *parent;
-    backend *be= ((ldbm_instance*)arg)->inst_be;
+    backend *be = ((ldbm_instance *)arg)->inst_be;
     Slapi_DN parentdn;
 
     slapi_sdn_init(&parentdn);
-    slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
+    slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore), &parentdn);
 
     /* vlvIndex list is modified; need Wlock */
     slapi_rwlock_wrlock(be->vlvSearchList_lock);
-    parent= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
-    if(parent!=NULL)
-    {
+    parent = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
+    if (parent != NULL) {
         char *name = slapi_entry_attr_get_charptr(entryBefore, type_vlvName);
         if (vlvSearch_findname(parent, name)) {
             /* The vlvindex is already in the vlvSearchList. Skip adding it. */
@@ -95,8 +96,8 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
                           "vlv_AddIndexEntry", "%s is already in vlvSearchList\n",
                           slapi_entry_get_dn_const(entryBefore));
         } else {
-            struct vlvIndex* newVlvIndex= vlvIndex_new();
-            newVlvIndex->vlv_be=be;
+            struct vlvIndex *newVlvIndex = vlvIndex_new();
+            newVlvIndex->vlv_be = be;
             vlvIndex_init(newVlvIndex, be, parent, entryBefore);
             vlvSearch_addIndex(parent, newVlvIndex);
         }
@@ -108,33 +109,32 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 /* Callback to delete a  VLV Index specification. Added write lock.*/
- 
-int vlv_DeleteSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
-                          Slapi_Entry* entryBefore,
-                          Slapi_Entry* entryAfter __attribute__((unused)),
-                          int *returncode __attribute__((unused)),
-                          char *returntext __attribute__((unused)),
-                          void *arg)
+
+int
+vlv_DeleteSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
+                      Slapi_Entry *entryBefore,
+                      Slapi_Entry *entryAfter __attribute__((unused)),
+                      int *returncode __attribute__((unused)),
+                      char *returntext __attribute__((unused)),
+                      void *arg)
 {
-    struct vlvSearch* p=NULL;
-    ldbm_instance *inst = (ldbm_instance*)arg;
-    backend *be= inst->inst_be;
-    
-    if (instance_set_busy(inst) != 0)
-    {
+    struct vlvSearch *p = NULL;
+    ldbm_instance *inst = (ldbm_instance *)arg;
+    backend *be = inst->inst_be;
+
+    if (instance_set_busy(inst) != 0) {
         slapi_log_err(SLAPI_LOG_WARNING,
-            "vlv_DeleteSearchEntry", "Backend instance: '%s' is already in the middle of "
-            "another task and cannot be disturbed.\n",
-            inst->inst_name);
+                      "vlv_DeleteSearchEntry", "Backend instance: '%s' is already in the middle of "
+                                               "another task and cannot be disturbed.\n",
+                      inst->inst_name);
         return SLAPI_DSE_CALLBACK_ERROR;
     }
     /* vlvSearchList is modified; need Wlock */
     slapi_rwlock_wrlock(be->vlvSearchList_lock);
     p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
-    if(p!=NULL)
-    {
+    if (p != NULL) {
         slapi_log_err(SLAPI_LOG_INFO, "vlv_DeleteSearchEntry", "Deleted Virtual List View Search (%s).\n", p->vlv_name);
-        vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
+        vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList, p->vlv_dn);
         vlvSearch_delete(&p);
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
@@ -144,61 +144,64 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
 
 
 /* Stub Callback to delete a  VLV Index specification.*/
- 
-int vlv_DeleteIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
-                         Slapi_Entry* entryBefore __attribute__((unused)),
-                         Slapi_Entry* entryAfter __attribute__((unused)),
-                         int *returncode __attribute__((unused)),
-                         char *returntext __attribute__((unused)),
-                         void *arg)
+
+int
+vlv_DeleteIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                     Slapi_Entry *entryBefore __attribute__((unused)),
+                     Slapi_Entry *entryAfter __attribute__((unused)),
+                     int *returncode __attribute__((unused)),
+                     char *returntext __attribute__((unused)),
+                     void *arg)
 {
-    ldbm_instance *inst = (ldbm_instance*)arg;
+    ldbm_instance *inst = (ldbm_instance *)arg;
     if (inst && is_instance_busy(inst)) {
         slapi_log_err(SLAPI_LOG_WARNING,
-            "vlv_DeleteIndexEntry", "Backend instance: '%s' is already in the middle of "
-            "another task and cannot be disturbed.\n",
-            inst->inst_name);
+                      "vlv_DeleteIndexEntry", "Backend instance: '%s' is already in the middle of "
+                                              "another task and cannot be disturbed.\n",
+                      inst->inst_name);
         return SLAPI_DSE_CALLBACK_ERROR;
     } else {
-        slapi_log_err(SLAPI_LOG_INFO, 
-            "vlv_DeleteIndexEntry", "Deleted Virtual List View Index.\n");
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "vlv_DeleteIndexEntry", "Deleted Virtual List View Index.\n");
         return SLAPI_DSE_CALLBACK_OK;
     }
 }
 
 
 /* Callback to modify a  VLV Search specification. Added read lock.*/
- 
-int vlv_ModifySearchEntry(Slapi_PBlock *pb __attribute__((unused)),
-                          Slapi_Entry* entryBefore,
-                          Slapi_Entry* entryAfter __attribute__((unused)),
-                          int *returncode __attribute__((unused)),
-                          char *returntext __attribute__((unused)),
-                          void *arg)
+
+int
+vlv_ModifySearchEntry(Slapi_PBlock *pb __attribute__((unused)),
+                      Slapi_Entry *entryBefore,
+                      Slapi_Entry *entryAfter __attribute__((unused)),
+                      int *returncode __attribute__((unused)),
+                      char *returntext __attribute__((unused)),
+                      void *arg)
 {
-	struct vlvSearch* p=NULL;
-	backend *be= ((ldbm_instance*)arg)->inst_be;
-	
-	slapi_rwlock_rdlock(be->vlvSearchList_lock); 
-    p= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
-    if(p!=NULL)
-    {
-       	slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifySearchEntry", "Modified Virtual List View Search (%s), "
-            "which will be enabled when the database is rebuilt.\n", p->vlv_name);
+    struct vlvSearch *p = NULL;
+    backend *be = ((ldbm_instance *)arg)->inst_be;
+
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
+    if (p != NULL) {
+        slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifySearchEntry", "Modified Virtual List View Search (%s), "
+                                                               "which will be enabled when the database is rebuilt.\n",
+                      p->vlv_name);
     }
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
 
 /* Stub callback to modify a  VLV Index specification. */
 
-int vlv_ModifyIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
-                         Slapi_Entry* entryBefore __attribute__((unused)),
-                         Slapi_Entry* entryAfter __attribute__((unused)),
-                         int *returncode __attribute__((unused)),
-                         char *returntext __attribute__((unused)),
-                         void *arg __attribute__((unused)))
+int
+vlv_ModifyIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                     Slapi_Entry *entryBefore __attribute__((unused)),
+                     Slapi_Entry *entryAfter __attribute__((unused)),
+                     int *returncode __attribute__((unused)),
+                     char *returntext __attribute__((unused)),
+                     void *arg __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyIndexEntry", "Modified Virtual List View Index.\n");
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
@@ -207,64 +210,61 @@ int vlv_ModifyIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
 
 /* Callback to rename a  VLV Search specification. Added read lock.*/
 
-int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
-                             Slapi_Entry* entryBefore,
-                             Slapi_Entry* entryAfter __attribute__((unused)),
-                             int *returncode __attribute__((unused)),
-                             char *returntext __attribute__((unused)),
-                             void *arg)
+int
+vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry *entryBefore,
+                         Slapi_Entry *entryAfter __attribute__((unused)),
+                         int *returncode __attribute__((unused)),
+                         char *returntext __attribute__((unused)),
+                         void *arg)
 {
-	struct vlvSearch* p=NULL;
-	backend *be= ((ldbm_instance*)arg)->inst_be;
-	
-	slapi_rwlock_rdlock(be->vlvSearchList_lock); 
-    p= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
-    if(p!=NULL)
-    {
-       	slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyRDNSearchEntry",
-       		"Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name);
+    struct vlvSearch *p = NULL;
+    backend *be = ((ldbm_instance *)arg)->inst_be;
+
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
+    if (p != NULL) {
+        slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyRDNSearchEntry",
+                      "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name);
     }
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
 
 /* Stub callback to modify a  VLV Index specification. */
 
-int vlv_ModifyRDNIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
-                            Slapi_Entry* entryBefore __attribute__((unused)),
-                            Slapi_Entry* entryAfter __attribute__((unused)),
-                            int *returncode __attribute__((unused)),
-                            char *returntext __attribute__((unused)),
-                            void *arg __attribute__((unused)))
-{   
+int
+vlv_ModifyRDNIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                        Slapi_Entry *entryBefore __attribute__((unused)),
+                        Slapi_Entry *entryAfter __attribute__((unused)),
+                        int *returncode __attribute__((unused)),
+                        char *returntext __attribute__((unused)),
+                        void *arg __attribute__((unused)))
+{
     slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyRDNIndexEntry", "Modified Virtual List View Index.\n");
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
 /* Something may have just read a VLV Entry. */
 
-int vlv_SearchIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
-                         Slapi_Entry* entryBefore,
-                         Slapi_Entry* entryAfter __attribute__((unused)),
-                         int *returncode __attribute__((unused)),
-                         char *returntext __attribute__((unused)),
-                         void *arg)
+int
+vlv_SearchIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
+                     Slapi_Entry *entryBefore,
+                     Slapi_Entry *entryAfter __attribute__((unused)),
+                     int *returncode __attribute__((unused)),
+                     char *returntext __attribute__((unused)),
+                     void *arg)
 {
-    char *name= slapi_entry_attr_get_charptr(entryBefore,type_vlvName);
-    backend *be= ((ldbm_instance*)arg)->inst_be;
-    if (name!=NULL)
-    {
-        struct vlvIndex* p= vlv_find_searchname(name, be); /* lock list */
-        slapi_ch_free((void **) &name);
-        if(p!=NULL)
-        {
-            if(vlvIndex_enabled(p))
-            {
+    char *name = slapi_entry_attr_get_charptr(entryBefore, type_vlvName);
+    backend *be = ((ldbm_instance *)arg)->inst_be;
+    if (name != NULL) {
+        struct vlvIndex *p = vlv_find_searchname(name, be); /* lock list */
+        slapi_ch_free((void **)&name);
+        if (p != NULL) {
+            if (vlvIndex_enabled(p)) {
                 slapi_entry_attr_set_charptr(entryBefore, type_vlvEnabled, "1");
-            }
-            else
-            {
+            } else {
                 slapi_entry_attr_set_charptr(entryBefore, type_vlvEnabled, "0");
             }
             slapi_entry_attr_set_ulong(entryBefore, type_vlvUses, p->vlv_uses);
@@ -277,33 +277,31 @@ int vlv_SearchIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
 
 static int
 vlv_init_index_entry(Slapi_PBlock *pb __attribute__((unused)),
-                     Slapi_Entry* entryBefore,
-                     Slapi_Entry* entryAfter __attribute__((unused)),
+                     Slapi_Entry *entryBefore,
+                     Slapi_Entry *entryAfter __attribute__((unused)),
                      int *returncode __attribute__((unused)),
                      char *returntext __attribute__((unused)),
                      void *arg)
 {
-    struct vlvIndex* newVlvIndex;
-    struct vlvSearch* pSearch;
-    Slapi_Backend *be= ((ldbm_instance*)arg)->inst_be;
-	
-    if(be!=NULL)
-    {
+    struct vlvIndex *newVlvIndex;
+    struct vlvSearch *pSearch;
+    Slapi_Backend *be = ((ldbm_instance *)arg)->inst_be;
+
+    if (be != NULL) {
         Slapi_DN parentdn;
-		
+
         slapi_sdn_init(&parentdn);
-        newVlvIndex= vlvIndex_new();
-        slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
-        pSearch= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
-		if (pSearch == NULL) { 
-			slapi_log_err(SLAPI_LOG_WARNING, "vlv_init_index_entry", "Parent doesn't exist for entry %s.\n",
-				slapi_entry_get_dn(entryBefore)); 
-			vlvIndex_delete(&newVlvIndex);
-		} 
-		else { 
-			vlvIndex_init(newVlvIndex, be, pSearch, entryBefore);
-			vlvSearch_addIndex(pSearch, newVlvIndex);
-		}
+        newVlvIndex = vlvIndex_new();
+        slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore), &parentdn);
+        pSearch = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
+        if (pSearch == NULL) {
+            slapi_log_err(SLAPI_LOG_WARNING, "vlv_init_index_entry", "Parent doesn't exist for entry %s.\n",
+                          slapi_entry_get_dn(entryBefore));
+            vlvIndex_delete(&newVlvIndex);
+        } else {
+            vlvIndex_init(newVlvIndex, be, pSearch, entryBefore);
+            vlvSearch_addIndex(pSearch, newVlvIndex);
+        }
         slapi_sdn_done(&parentdn);
     }
     return SLAPI_DSE_CALLBACK_OK;
@@ -313,15 +311,15 @@ vlv_init_index_entry(Slapi_PBlock *pb __attribute__((unused)),
 
 static int
 vlv_init_search_entry(Slapi_PBlock *pb,
-                      Slapi_Entry* entryBefore,
-                      Slapi_Entry* entryAfter __attribute__((unused)),
+                      Slapi_Entry *entryBefore,
+                      Slapi_Entry *entryAfter __attribute__((unused)),
                       int *returncode __attribute__((unused)),
                       char *returntext __attribute__((unused)),
                       void *arg)
 {
-    struct vlvSearch* newVlvSearch= vlvSearch_new();
-	ldbm_instance *inst = (ldbm_instance*)arg;
-	backend *be= inst->inst_be;
+    struct vlvSearch *newVlvSearch = vlvSearch_new();
+    ldbm_instance *inst = (ldbm_instance *)arg;
+    backend *be = inst->inst_be;
 
     if (NULL == be) { /* backend is not associated */
         vlvSearch_delete(&newVlvSearch);
@@ -332,40 +330,41 @@ vlv_init_search_entry(Slapi_PBlock *pb,
     return SLAPI_DSE_CALLBACK_OK;
 }
 
-/* Look at a new entry, and the set of VLV searches, and see whether 
+/* Look at a new entry, and the set of VLV searches, and see whether
 there are any which have deferred initialization and which can now
 be initialized given the new entry. Added write lock. */
 
 
-void vlv_grok_new_import_entry(const struct backentry *e, backend *be)
+void
+vlv_grok_new_import_entry(const struct backentry *e, backend *be)
 {
-    struct vlvSearch* p = NULL;
+    struct vlvSearch *p = NULL;
     static int seen_them_all = 0;
     int any_not_done = 0;
 
 
-    slapi_rwlock_wrlock(be->vlvSearchList_lock); 
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
     if (seen_them_all) {
-		slapi_rwlock_unlock(be->vlvSearchList_lock);
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
         return;
     }
-	p=(struct vlvSearch *)be->vlvSearchList;
+    p = (struct vlvSearch *)be->vlvSearchList;
 
     /* Walk the list of searches */
-    for(;p!=NULL;p= p->vlv_next)
-	/* is this one not initialized ? */
-	if (0 == p->vlv_initialized) {
+    for (; p != NULL; p = p->vlv_next)
+        /* is this one not initialized ? */
+        if (0 == p->vlv_initialized) {
             any_not_done = 1;
             /* Is its base the entry we have here ? */
-            if (0 == slapi_sdn_compare(backentry_get_sdn(e),p->vlv_base) ) {
+            if (0 == slapi_sdn_compare(backentry_get_sdn(e), p->vlv_base)) {
                 /* Then initialize it */
-                vlvSearch_reinit(p,e);
+                vlvSearch_reinit(p, e);
             }
-	}
+        }
     if (!any_not_done) {
         seen_them_all = 1;
     }
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
 }
 
 void
@@ -373,7 +372,7 @@ vlv_close(ldbm_instance *inst)
 {
     backend *be = inst->inst_be;
 
-    if(be->vlvSearchList_lock){
+    if (be->vlvSearchList_lock) {
         slapi_destroy_rwlock(be->vlvSearchList_lock);
     }
 }
@@ -388,8 +387,8 @@ int
 vlv_init(ldbm_instance *inst)
 {
     /* The FE DSE *must* be initialised before we get here */
-    int return_value= LDAP_SUCCESS;
-    int scope= LDAP_SCOPE_SUBTREE;
+    int return_value = LDAP_SUCCESS;
+    int scope = LDAP_SCOPE_SUBTREE;
     char *basedn = NULL;
     const char *searchfilter = "(objectclass=vlvsearch)";
     const char *indexfilter = "(objectclass=vlvindex)";
@@ -404,19 +403,17 @@ vlv_init(ldbm_instance *inst)
     be = inst->inst_be;
 
     /* Initialize lock first time through */
-    if(be->vlvSearchList_lock == NULL) {
+    if (be->vlvSearchList_lock == NULL) {
         char *rwlockname = slapi_ch_smprintf("vlvSearchList_%s", inst->inst_name);
         be->vlvSearchList_lock = slapi_new_rwlock();
-        slapi_ch_free((void**)&rwlockname);
+        slapi_ch_free((void **)&rwlockname);
     }
-    if (NULL != (struct vlvSearch *)be->vlvSearchList)
-    {
+    if (NULL != (struct vlvSearch *)be->vlvSearchList) {
         struct vlvSearch *t = NULL;
         struct vlvSearch *nt = NULL;
         /* vlvSearchList is modified; need Wlock */
         slapi_rwlock_wrlock(be->vlvSearchList_lock);
-        for (t = (struct vlvSearch *)be->vlvSearchList; NULL != t; )
-        {
+        for (t = (struct vlvSearch *)be->vlvSearchList; NULL != t;) {
             nt = t->vlv_next;
             vlvSearch_delete(&t);
             t = nt;
@@ -427,11 +424,11 @@ vlv_init(ldbm_instance *inst)
 
     {
         basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
-                           inst->inst_name, inst->inst_li->li_plugin->plg_name);
+                                        inst->inst_name, inst->inst_li->li_plugin->plg_name);
         if (NULL == basedn) {
             slapi_log_err(SLAPI_LOG_ERR,
-               "vlv_init", "Failed to create vlv dn for plugin %s, instance %s\n",
-               inst->inst_name, inst->inst_li->li_plugin->plg_name);
+                          "vlv_init", "Failed to create vlv dn for plugin %s, instance %s\n",
+                          inst->inst_name, inst->inst_li->li_plugin->plg_name);
             return_value = LDAP_PARAM_ERROR;
             return return_value;
         }
@@ -440,9 +437,9 @@ vlv_init(ldbm_instance *inst)
     /* Find the VLV Search Entries */
     {
         Slapi_PBlock *tmp_pb;
-        slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_init_search_entry,(void *)inst);
-        tmp_pb= slapi_search_internal(basedn, scope, searchfilter, NULL, NULL, 0);
-        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_init_search_entry);
+        slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_init_search_entry, (void *)inst);
+        tmp_pb = slapi_search_internal(basedn, scope, searchfilter, NULL, NULL, 0);
+        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_init_search_entry);
         slapi_free_search_results_internal(tmp_pb);
         slapi_pblock_destroy(tmp_pb);
     }
@@ -450,36 +447,35 @@ vlv_init(ldbm_instance *inst)
     /* Find the VLV Index Entries */
     {
         Slapi_PBlock *tmp_pb;
-        slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_init_index_entry,(void*)inst);
-        tmp_pb= slapi_search_internal(basedn, scope, indexfilter, NULL, NULL, 0);
-        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_init_index_entry);
+        slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_init_index_entry, (void *)inst);
+        tmp_pb = slapi_search_internal(basedn, scope, indexfilter, NULL, NULL, 0);
+        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_init_index_entry);
         slapi_free_search_results_internal(tmp_pb);
         slapi_pblock_destroy(tmp_pb);
     }
 
     /* Only need to register these callbacks for SLAPD mode... */
-    if(basedn)
-    {
+    if (basedn) {
         /* In case the vlv indexes are already registered, clean them up before register them. */
-        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_SearchIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_AddSearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_AddIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifySearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_DeleteSearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_SearchIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_AddSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_AddIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_ModifySearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_ModifyIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_DeleteSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_DeleteIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_ModifyRDNSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_ModifyRDNIndexEntry);
 
-        slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_SearchIndexEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_AddSearchEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_AddIndexEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifySearchEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyIndexEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_DeleteSearchEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry,(void*)inst);
-        slapi_config_register_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry,(void*)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_SearchIndexEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_AddSearchEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_AddIndexEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_ModifySearchEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_ModifyIndexEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_DeleteSearchEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_DeleteIndexEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_ModifyRDNSearchEntry, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_ModifyRDNIndexEntry, (void *)inst);
         slapi_ch_free_string(&basedn);
     }
 
@@ -489,11 +485,11 @@ out:
 
 /* Removes callbacks from above when  instance is removed. */
 
-int 
+int
 vlv_remove_callbacks(ldbm_instance *inst)
 {
-    int return_value= LDAP_SUCCESS;
-    int scope= LDAP_SCOPE_SUBTREE;
+    int return_value = LDAP_SUCCESS;
+    int scope = LDAP_SCOPE_SUBTREE;
     char *basedn = NULL;
     const char *searchfilter = "(objectclass=vlvsearch)";
     const char *indexfilter = "(objectclass=vlvindex)";
@@ -502,26 +498,25 @@ vlv_remove_callbacks(ldbm_instance *inst)
         basedn = NULL;
     } else {
         basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
-                           inst->inst_name, inst->inst_li->li_plugin->plg_name);
+                                        inst->inst_name, inst->inst_li->li_plugin->plg_name);
         if (NULL == basedn) {
             slapi_log_err(SLAPI_LOG_ERR,
-                 "vlv_remove_callbacks", "Failed to create vlv dn for plugin %s, "
-                 "instance %s\n",
-                 inst->inst_name, inst->inst_li->li_plugin->plg_name);
+                          "vlv_remove_callbacks", "Failed to create vlv dn for plugin %s, "
+                                                  "instance %s\n",
+                          inst->inst_name, inst->inst_li->li_plugin->plg_name);
             return_value = LDAP_PARAM_ERROR;
         }
     }
-    if(basedn!=NULL)
-    {
-        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_SearchIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_AddSearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_AddIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifySearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_DeleteSearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry);
+    if (basedn != NULL) {
+        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_SearchIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_AddSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_AddIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_ModifySearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_ModifyIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_DeleteSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_DeleteIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, basedn, scope, searchfilter, vlv_ModifyRDNSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, basedn, scope, indexfilter, vlv_ModifyRDNIndexEntry);
         slapi_ch_free_string(&basedn);
     }
     return return_value;
@@ -529,38 +524,38 @@ vlv_remove_callbacks(ldbm_instance *inst)
 
 /* Find an enabled index which matches this description. */
 
-static struct vlvIndex*
-vlv_find_search(backend *be, const Slapi_DN *base, int scope, const char *filter, const sort_spec* sort_control)
+static struct vlvIndex *
+vlv_find_search(backend *be, const Slapi_DN *base, int scope, const char *filter, const sort_spec *sort_control)
 {
-    return vlvSearch_findenabled(be,(struct vlvSearch *)be->vlvSearchList,base,scope,filter,sort_control);
+    return vlvSearch_findenabled(be, (struct vlvSearch *)be->vlvSearchList, base, scope, filter, sort_control);
 }
 
 
 /* Find a search which matches this name. Added read lock. */
 
-struct vlvIndex*
-vlv_find_searchname(const char * name, backend *be)
+struct vlvIndex *
+vlv_find_searchname(const char *name, backend *be)
 {
-	struct vlvIndex *p=NULL;
+    struct vlvIndex *p = NULL;
 
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	p=vlvSearch_findname((struct vlvSearch *)be->vlvSearchList,name);
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
-	return p;
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    p = vlvSearch_findname((struct vlvSearch *)be->vlvSearchList, name);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
+    return p;
 }
 
 /* Find a search which matches this indexname. Added to read lock */
 
-struct vlvIndex*
-vlv_find_indexname(const char * name, backend *be)
+struct vlvIndex *
+vlv_find_indexname(const char *name, backend *be)
 {
-    
-	struct vlvIndex *p=NULL;
 
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	p=vlvSearch_findindexname((struct vlvSearch *)be->vlvSearchList,name);
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
-	return p;
+    struct vlvIndex *p = NULL;
+
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    p = vlvSearch_findindexname((struct vlvSearch *)be->vlvSearchList, name);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
+    return p;
 }
 
 
@@ -569,33 +564,31 @@ vlv_find_indexname(const char * name, backend *be)
 char *
 vlv_getindexnames(backend *be)
 {
-    char *n=NULL;
+    char *n = NULL;
 
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	n=vlvSearch_getnames((struct vlvSearch *)be->vlvSearchList);
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
-	return n;
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    n = vlvSearch_getnames((struct vlvSearch *)be->vlvSearchList);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
+    return n;
 }
 
 /* Return the list of VLV indices to the import code. Added read lock */
 
-void 
-vlv_getindices(IFP callback_fn,void *param, backend *be)
+void
+vlv_getindices(IFP callback_fn, void *param, backend *be)
 {
     /* Traverse the list, calling the import code's callback function */
-    struct vlvSearch* ps = NULL;
-	
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	ps = (struct vlvSearch *)be->vlvSearchList;
-    for(;ps!=NULL;ps= ps->vlv_next)
-    {
-        struct vlvIndex* pi= ps->vlv_index;
-        for(;pi!=NULL;pi= pi->vlv_next)
-        {
-            callback_fn(pi->vlv_attrinfo,param);
+    struct vlvSearch *ps = NULL;
+
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    ps = (struct vlvSearch *)be->vlvSearchList;
+    for (; ps != NULL; ps = ps->vlv_next) {
+        struct vlvIndex *pi = ps->vlv_index;
+        for (; pi != NULL; pi = pi->vlv_next) {
+            callback_fn(pi->vlv_attrinfo, param);
         }
     }
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
 }
 
 /*
@@ -616,68 +609,61 @@ vlv_getindices(IFP callback_fn,void *param, backend *be)
  * Always creates a key. Never returns NULL.
  */
 static struct vlv_key *
-vlv_create_key(struct vlvIndex* p, struct backentry* e)
+vlv_create_key(struct vlvIndex *p, struct backentry *e)
 {
     struct berval val;
     unsigned char char_min = 0x00;
     unsigned char char_max = 0xFF;
-    struct vlv_key *key= vlv_key_new();
+    struct vlv_key *key = vlv_key_new();
     struct berval **value = NULL;
     int free_value = 0;
 
-    if(p->vlv_sortkey!=NULL)
-    {
+    if (p->vlv_sortkey != NULL) {
         /* Foreach sorted attribute... */
-        int sortattr= 0;
-        while(p->vlv_sortkey[sortattr]!=NULL)
-        {
-            Slapi_Attr* attr= attrlist_find(e->ep_entry->e_attrs, p->vlv_sortkey[sortattr]->sk_attrtype);
+        int sortattr = 0;
+        while (p->vlv_sortkey[sortattr] != NULL) {
+            Slapi_Attr *attr = attrlist_find(e->ep_entry->e_attrs, p->vlv_sortkey[sortattr]->sk_attrtype);
             {
                 /*
                  * If there's a matching rule associated with the sorted
                  * attribute then use the indexer to mangle the attr values.
-                 * This ensures that the international characters will 
+                 * This ensures that the international characters will
                  * collate in the correct order.
                  */
 
-				/* xxxPINAKI */
-				/* need to free some stuff! */
-		        Slapi_Value **cvalue = NULL;
+                /* xxxPINAKI */
+                /* need to free some stuff! */
+                Slapi_Value **cvalue = NULL;
                 struct berval *lowest_value = NULL;
 
-                if (attr != NULL && !valueset_isempty(&attr->a_present_values))
-				{
+                if (attr != NULL && !valueset_isempty(&attr->a_present_values)) {
                     /* Sorted attribute found. */
                     int totalattrs;
-            		if (p->vlv_sortkey[sortattr]->sk_matchruleoid==NULL)
-            		{
-            			/* No matching rule. mangle values according to matching rule or syntax */
-						Slapi_Value **va= valueset_get_valuearray(&attr->a_present_values);
-                		slapi_attr_values2keys_sv( attr, va, &cvalue, LDAP_FILTER_EQUALITY );
-						valuearray_get_bervalarray(cvalue,&value);
+                    if (p->vlv_sortkey[sortattr]->sk_matchruleoid == NULL) {
+                        /* No matching rule. mangle values according to matching rule or syntax */
+                        Slapi_Value **va = valueset_get_valuearray(&attr->a_present_values);
+                        slapi_attr_values2keys_sv(attr, va, &cvalue, LDAP_FILTER_EQUALITY);
+                        valuearray_get_bervalarray(cvalue, &value);
 
-				/* XXXSD need to free some more stuff */
-				{
-					int numval;
-					for (numval=0; cvalue&&cvalue[numval];numval++) {
-						slapi_value_free(&cvalue[numval]);
-					}
-					if (cvalue)
-						slapi_ch_free((void **)&cvalue);
-				}
-				
-                        free_value= 1;  
-            		}
-            		else
-            		{
-            			/* Matching rule. Do the magic mangling. Plugin owns the memory. */
-                        if(p->vlv_mrpb[sortattr]!=NULL)
+                        /* XXXSD need to free some more stuff */
                         {
-						    /* xxxPINAKI */
-						    struct berval **bval=NULL;
-							Slapi_Value **va= valueset_get_valuearray(&attr->a_present_values);
-						    valuearray_get_bervalarray(va,&bval);
-                			matchrule_values_to_keys(p->vlv_mrpb[sortattr],bval,&value);
+                            int numval;
+                            for (numval = 0; cvalue && cvalue[numval]; numval++) {
+                                slapi_value_free(&cvalue[numval]);
+                            }
+                            if (cvalue)
+                                slapi_ch_free((void **)&cvalue);
+                        }
+
+                        free_value = 1;
+                    } else {
+                        /* Matching rule. Do the magic mangling. Plugin owns the memory. */
+                        if (p->vlv_mrpb[sortattr] != NULL) {
+                            /* xxxPINAKI */
+                            struct berval **bval = NULL;
+                            Slapi_Value **va = valueset_get_valuearray(&attr->a_present_values);
+                            valuearray_get_bervalarray(va, &bval);
+                            matchrule_values_to_keys(p->vlv_mrpb[sortattr], bval, &value);
                         }
                     }
 
@@ -685,20 +671,17 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                         goto error;
                     }
 
-                    for(totalattrs=0;value[totalattrs]!=NULL;totalattrs++) {}; /* Total Number of Attributes */
-                    if(totalattrs==1)
-                    {
-                        lowest_value= value[0];
-                    }
-                    else
-                    {
+                    for (totalattrs = 0; value[totalattrs] != NULL; totalattrs++) {
+                    }; /* Total Number of Attributes */
+                    if (totalattrs == 1) {
+                        lowest_value = value[0];
+                    } else {
                         lowest_value = attr_value_lowest(value, slapi_berval_cmp);
                     }
                 } /* end of if (attr != NULL && ...) */
-                if(p->vlv_sortkey[sortattr]->sk_reverseorder)
-                {
+                if (p->vlv_sortkey[sortattr]->sk_reverseorder) {
                     /*
-                     * This attribute is reverse sorted, so we must 
+                     * This attribute is reverse sorted, so we must
                      * invert the attribute value so that the keys
                      * will be in the correct order.
                      */
@@ -706,55 +689,50 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                     char *attributeValue = NULL;
                     /* Bug 605477 : Don't malloc 0 bytes */
                     if (attr != NULL && lowest_value && lowest_value->bv_len != 0) {
-                         attributeValue = (char*)slapi_ch_malloc(lowest_value->bv_len);
-                         for(i=0;i<lowest_value->bv_len;i++)
-                       	 {
-                   		    attributeValue[i]= UCHAR_MAX - ((char*)lowest_value->bv_val)[i];
-                         }
-                       	val.bv_len= lowest_value->bv_len;
-                       	val.bv_val= (void*)attributeValue;
-                     } else { 
-                       /* Reverse Sort: We use an attribute value of 0x00 when 
-                        * there is no attribute value or attrbute is absent 
+                        attributeValue = (char *)slapi_ch_malloc(lowest_value->bv_len);
+                        for (i = 0; i < lowest_value->bv_len; i++) {
+                            attributeValue[i] = UCHAR_MAX - ((char *)lowest_value->bv_val)[i];
+                        }
+                        val.bv_len = lowest_value->bv_len;
+                        val.bv_val = (void *)attributeValue;
+                    } else {
+                        /* Reverse Sort: We use an attribute value of 0x00 when
+                        * there is no attribute value or attrbute is absent
                         */
-                        val.bv_val= (void*)&char_min;
-                        val.bv_len= 1;
-                     }
-                     vlv_key_addattr(key,&val);
-                     slapi_ch_free((void**)&attributeValue);
-                }
-                else
-                {
+                        val.bv_val = (void *)&char_min;
+                        val.bv_len = 1;
+                    }
+                    vlv_key_addattr(key, &val);
+                    slapi_ch_free((void **)&attributeValue);
+                } else {
                     /*
                      * This attribute is forward sorted, so add the
                      * attribute value to the end of all the keys.
                      */
 
-                    /* If the forward-sorted attribute is absent or has no 
+                    /* If the forward-sorted attribute is absent or has no
                      * value, we need to use the value of 0xFF.
                      */
-                     if (attr != NULL && lowest_value && lowest_value->bv_len > 0) {
-                         vlv_key_addattr(key,lowest_value);
-                     } else {
-                         val.bv_val = (void*)&char_max;
-                         val.bv_len = 1;
-                         vlv_key_addattr(key,&val);
-                     }
+                    if (attr != NULL && lowest_value && lowest_value->bv_len > 0) {
+                        vlv_key_addattr(key, lowest_value);
+                    } else {
+                        val.bv_val = (void *)&char_max;
+                        val.bv_len = 1;
+                        vlv_key_addattr(key, &val);
+                    }
                 }
-                if(sortattr==0)
-                {
+                if (sortattr == 0) {
                     /*
                      * If this is the first attribute (the typedown attribute)
                      * then it should be followed by a zero.  This is to ensure
                      * that shorter attribute values appear before longer ones.
                      */
                     char zero = 0;
-                    val.bv_len= 1;
-                    val.bv_val= (void*)&zero;
-                    vlv_key_addattr(key,&val);
+                    val.bv_len = 1;
+                    val.bv_val = (void *)&zero;
+                    vlv_key_addattr(key, &val);
                 }
-                if(free_value)
-                {
+                if (free_value) {
                     ber_bvecfree(value);
                     free_value = 0;
                 }
@@ -765,27 +743,28 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
     }
     {
         /* Append the EntryID to the key to ensure uniqueness */
-        val.bv_len= sizeof(e->ep_id);
-        val.bv_val= (void*)&e->ep_id;
-        vlv_key_addattr(key,&val);
+        val.bv_len = sizeof(e->ep_id);
+        val.bv_val = (void *)&e->ep_id;
+        vlv_key_addattr(key, &val);
     }
     return key;
 
 error:
-    if (free_value) ber_bvecfree(value);
+    if (free_value)
+        ber_bvecfree(value);
     vlv_key_delete(&key);
     return NULL;
 }
 
 /*
  * Insert or Delete the entry to or from the index
- */ 
+ */
 
 static int
-do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), Slapi_PBlock *pb, struct vlvIndex* pIndex, struct backentry* entry, int insert)
+do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), Slapi_PBlock *pb, struct vlvIndex *pIndex, struct backentry *entry, int insert)
 {
     backend *be;
-    int rc= 0;
+    int rc = 0;
     DB *db = NULL;
     DB_TXN *db_txn = NULL;
     struct vlv_key *key = NULL;
@@ -794,13 +773,13 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
 
     rc = dblayer_get_index_file(be, pIndex->vlv_attrinfo, &db, DBOPEN_CREATE);
     if (rc != 0) {
-      if(rc != DB_LOCK_DEADLOCK)
-        slapi_log_err(SLAPI_LOG_ERR, "do_vlv_update_index", "Can't get index file '%s' (err %d)\n",
-                      pIndex->vlv_attrinfo->ai_type, rc);
-      return rc;
+        if (rc != DB_LOCK_DEADLOCK)
+            slapi_log_err(SLAPI_LOG_ERR, "do_vlv_update_index", "Can't get index file '%s' (err %d)\n",
+                          pIndex->vlv_attrinfo->ai_type, rc);
+        return rc;
     }
 
-    key = vlv_create_key(pIndex,entry);
+    key = vlv_create_key(pIndex, entry);
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
     } else {
@@ -814,31 +793,31 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
         rc = db->put(db, db_txn, &key->key, &data, 0);
         if (rc == 0) {
             slapi_log_err(SLAPI_LOG_TRACE,
-                      "vlv_update_index", "%s Insert %s ID=%lu\n",
-                      pIndex->vlv_name, (char *)key->key.data, (u_long)entry->ep_id);
+                          "vlv_update_index", "%s Insert %s ID=%lu\n",
+                          pIndex->vlv_name, (char *)key->key.data, (u_long)entry->ep_id);
             vlvIndex_increment_indexlength(pIndex, db, txn);
-	} else if (rc == DB_RUNRECOVERY) {
-	    ldbm_nasty("do_vlv_update_index",pIndex->vlv_name,77,rc);
-	} else if(rc != DB_LOCK_DEADLOCK)  {
+        } else if (rc == DB_RUNRECOVERY) {
+            ldbm_nasty("do_vlv_update_index", pIndex->vlv_name, 77, rc);
+        } else if (rc != DB_LOCK_DEADLOCK) {
             /* jcm: This error is valid if the key already exists.
              * Identical multi valued attr values could do this. */
             slapi_log_err(SLAPI_LOG_TRACE,
-                      "vlv_update_index", "%s Insert %s ID=%lu FAILED\n",
-                      pIndex->vlv_name, (char *)key->key.data, (u_long)entry->ep_id);
+                          "vlv_update_index", "%s Insert %s ID=%lu FAILED\n",
+                          pIndex->vlv_name, (char *)key->key.data, (u_long)entry->ep_id);
         }
     } else {
         slapi_log_err(SLAPI_LOG_TRACE,
-                  "vlv_update_index", "%s Delete %s\n",
-                  pIndex->vlv_name, (char *)key->key.data);
+                      "vlv_update_index", "%s Delete %s\n",
+                      pIndex->vlv_name, (char *)key->key.data);
         rc = db->del(db, db_txn, &key->key, 0);
         if (rc == 0) {
             vlvIndex_decrement_indexlength(pIndex, db, txn);
-	} else if (rc == DB_RUNRECOVERY) {
-	    ldbm_nasty("do_vlv_update_index",pIndex->vlv_name,78,rc);
-	} else if (rc != DB_LOCK_DEADLOCK) {
+        } else if (rc == DB_RUNRECOVERY) {
+            ldbm_nasty("do_vlv_update_index", pIndex->vlv_name, 78, rc);
+        } else if (rc != DB_LOCK_DEADLOCK) {
             slapi_log_err(SLAPI_LOG_TRACE,
-                      "vlv_update_index", "%s Delete %s FAILED\n",
-                      pIndex->vlv_name, (char *)key->key.data);
+                          "vlv_update_index", "%s Delete %s FAILED\n",
+                          pIndex->vlv_name, (char *)key->key.data);
         }
     }
 
@@ -852,30 +831,24 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
  */
 
 int
-vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry)
+vlv_update_index(struct vlvIndex *p, back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct backentry *oldEntry, struct backentry *newEntry)
 {
-    int return_value=0;
+    int return_value = 0;
     /* Check if the old entry is in this VLV index */
-    if(oldEntry!=NULL)
-    {
-        if(slapi_sdn_scope_test(backentry_get_sdn(oldEntry),vlvIndex_getBase(p),vlvIndex_getScope(p)))
-        {
-            if(slapi_filter_test( pb, oldEntry->ep_entry, vlvIndex_getFilter(p), 0 /* No ACL Check */) == 0 )
-            {
+    if (oldEntry != NULL) {
+        if (slapi_sdn_scope_test(backentry_get_sdn(oldEntry), vlvIndex_getBase(p), vlvIndex_getScope(p))) {
+            if (slapi_filter_test(pb, oldEntry->ep_entry, vlvIndex_getFilter(p), 0 /* No ACL Check */) == 0) {
                 /* Remove the entry from the index */
-                return_value=do_vlv_update_index(txn, li, pb, p, oldEntry, 0 /* Delete Key */); 
+                return_value = do_vlv_update_index(txn, li, pb, p, oldEntry, 0 /* Delete Key */);
             }
         }
     }
     /* Check if the new entry should be in the VLV index */
-    if(newEntry!=NULL)
-    {
-        if(slapi_sdn_scope_test(backentry_get_sdn(newEntry),vlvIndex_getBase(p),vlvIndex_getScope(p)))
-        {
-            if(slapi_filter_test( pb, newEntry->ep_entry, vlvIndex_getFilter(p), 0 /* No ACL Check */) == 0 )
-            {
+    if (newEntry != NULL) {
+        if (slapi_sdn_scope_test(backentry_get_sdn(newEntry), vlvIndex_getBase(p), vlvIndex_getScope(p))) {
+            if (slapi_filter_test(pb, newEntry->ep_entry, vlvIndex_getFilter(p), 0 /* No ACL Check */) == 0) {
                 /* Add the entry to the index */
-                return_value=do_vlv_update_index(txn, li, pb, p, newEntry, 1 /* Insert Key */); 
+                return_value = do_vlv_update_index(txn, li, pb, p, newEntry, 1 /* Insert Key */);
             }
         }
     }
@@ -900,21 +873,20 @@ vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_P
  */
 
 int
-vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry)
+vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct backentry *oldEntry, struct backentry *newEntry)
 {
-    int return_value= LDAP_SUCCESS;
-    struct vlvSearch* ps=NULL;
-	struct ldbminfo *li = ((ldbm_instance *)be->be_instance_info)->inst_li;
-	
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	ps = (struct vlvSearch *)be->vlvSearchList;
-    for(;ps!=NULL;ps= ps->vlv_next)
-    {
-        struct vlvIndex* pi= ps->vlv_index;
-		for (return_value = LDAP_SUCCESS; return_value == LDAP_SUCCESS && pi!=NULL; pi=pi->vlv_next) 
-			return_value=vlv_update_index(pi, txn, li, pb, oldEntry, newEntry);
+    int return_value = LDAP_SUCCESS;
+    struct vlvSearch *ps = NULL;
+    struct ldbminfo *li = ((ldbm_instance *)be->be_instance_info)->inst_li;
+
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    ps = (struct vlvSearch *)be->vlvSearchList;
+    for (; ps != NULL; ps = ps->vlv_next) {
+        struct vlvIndex *pi = ps->vlv_index;
+        for (return_value = LDAP_SUCCESS; return_value == LDAP_SUCCESS && pi != NULL; pi = pi->vlv_next)
+            return_value = vlv_update_index(pi, txn, li, pb, oldEntry, newEntry);
     }
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     return return_value;
 }
 
@@ -922,55 +894,42 @@ vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct back
  * Determine the range of record numbers to return.
  * Prevent an underrun, or overrun.
  */
- /* jcm: Should we make sure that start < stop */
+/* jcm: Should we make sure that start < stop */
 
 static void
-determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 index, PRUint32 length, PRUint32* pstart, PRUint32 *pstop)
+determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 index, PRUint32 length, PRUint32 *pstart, PRUint32 *pstop)
 {
-	if (vlv_request_control == NULL)
-    {
-        *pstart= 0;
+    if (vlv_request_control == NULL) {
+        *pstart = 0;
         if (0 == length) /* 609377: index size could be 0 */
         {
-            *pstop= 0;
+            *pstop = 0;
+        } else {
+            *pstop = length - 1;
         }
-        else
-        {
-            *pstop= length - 1;
-        }
-    }
-    else
-    {
+    } else {
         /* Make sure we don't run off the start */
-        if((ber_int_t)index < vlv_request_control->beforeCount)
-        {
-            *pstart= 0;
-        }
-        else
-        {
-            *pstart= index - vlv_request_control->beforeCount;
+        if ((ber_int_t)index < vlv_request_control->beforeCount) {
+            *pstart = 0;
+        } else {
+            *pstart = index - vlv_request_control->beforeCount;
         }
         /* Make sure we don't run off the end */
         /*
          * if(UINT_MAX - index > vlv_request_control->afterCount), but after is int,
          * so right now, it could overflow before this condition ....
          */
-        if(INT_MAX - (ber_int_t)index > vlv_request_control->afterCount)
-        {
-            *pstop= index + vlv_request_control->afterCount;
-        }
-        else
-        {
-            *pstop= UINT_MAX;
+        if (INT_MAX - (ber_int_t)index > vlv_request_control->afterCount) {
+            *pstop = index + vlv_request_control->afterCount;
+        } else {
+            *pstop = UINT_MAX;
         }
         /* Client tried to index off the end */
         if (0 == length) /* 609377: index size could be 0 */
         {
-            *pstop= 0;
-        }
-        else if(*pstop > length - 1)
-        {
-            *pstop= length - 1;
+            *pstop = 0;
+        } else if (*pstop > length - 1) {
+            *pstop = length - 1;
         }
     }
     slapi_log_err(SLAPI_LOG_TRACE, "vlv_determine_result_range", "Result Range %u-%u\n", *pstart, *pstop);
@@ -986,28 +945,25 @@ determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 i
  */
 
 static struct berval **
-vlv_create_matching_rule_value( Slapi_PBlock* pb, struct berval *original_value)
+vlv_create_matching_rule_value(Slapi_PBlock *pb, struct berval *original_value)
 {
-    struct berval **value= NULL;
-    if(pb!=NULL)
-    {
+    struct berval **value = NULL;
+    if (pb != NULL) {
         struct berval **outvalue = NULL;
         struct berval *invalue[2];
-        invalue[0]= original_value; /* jcm: cast away const */
-        invalue[1]= NULL;
+        invalue[0] = original_value; /* jcm: cast away const */
+        invalue[1] = NULL;
         /* The plugin owns the memory it returns in outvalue */
-        matchrule_values_to_keys(pb,invalue,&outvalue);
-        if(outvalue!=NULL)
-        {
-	    value= slapi_ch_bvecdup(outvalue);
+        matchrule_values_to_keys(pb, invalue, &outvalue);
+        if (outvalue != NULL) {
+            value = slapi_ch_bvecdup(outvalue);
         }
     }
-    if(value==NULL)
-    {
+    if (value == NULL) {
         struct berval *outvalue[2];
-        outvalue[0]= original_value; /* jcm: cast away const */
-        outvalue[1]= NULL;
-	value= slapi_ch_bvecdup(outvalue);
+        outvalue[0] = original_value; /* jcm: cast away const */
+        outvalue[1] = NULL;
+        value = slapi_ch_bvecdup(outvalue);
     }
     return value;
 }
@@ -1018,89 +974,75 @@ vlv_create_matching_rule_value( Slapi_PBlock* pb, struct berval *original_value)
  * The returned index is counted from zero.
  */
 
-static PRUint32 
-vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length, const struct vlv_request *vlv_request_control)
+static PRUint32
+vlv_build_candidate_list_byvalue(struct vlvIndex *p, DBC *dbc, PRUint32 length, const struct vlv_request *vlv_request_control)
 {
-    PRUint32 si= 0; /* The Selected Index */
-    int err= 0;
-    DBT key= {0};
-    DBT data= {0};
+    PRUint32 si = 0; /* The Selected Index */
+    int err = 0;
+    DBT key = {0};
+    DBT data = {0};
     /*
      * If the primary sorted attribute has an associated
      * matching rule, then we must mangle the typedown
      * value.
      */
-    struct berval **typedown_value= NULL;
+    struct berval **typedown_value = NULL;
     struct berval *invalue[2];
-    invalue[0]= (struct berval *)&vlv_request_control->value; /* jcm: cast away const */
-    invalue[1]= NULL;
-	if (p->vlv_sortkey[0]->sk_matchruleoid==NULL)
-	{
-		Slapi_Attr sattr;
-		slapi_attr_init(&sattr, p->vlv_sortkey[0]->sk_attrtype);
-		slapi_attr_values2keys(&sattr,invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
-		attr_done(&sattr);
+    invalue[0] = (struct berval *)&vlv_request_control->value; /* jcm: cast away const */
+    invalue[1] = NULL;
+    if (p->vlv_sortkey[0]->sk_matchruleoid == NULL) {
+        Slapi_Attr sattr;
+        slapi_attr_init(&sattr, p->vlv_sortkey[0]->sk_attrtype);
+        slapi_attr_values2keys(&sattr, invalue, &typedown_value, LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
+        attr_done(&sattr);
+    } else {
+        typedown_value = vlv_create_matching_rule_value(p->vlv_mrpb[0], (struct berval *)&vlv_request_control->value); /* jcm: cast away const */
     }
-    else
-    {
-        typedown_value= vlv_create_matching_rule_value(p->vlv_mrpb[0],(struct berval *)&vlv_request_control->value); /* jcm: cast away const */
-    }
-    if(p->vlv_sortkey[0]->sk_reverseorder)
-    {
+    if (p->vlv_sortkey[0]->sk_reverseorder) {
         /*
-         * The primary attribute is reverse sorted, so we must 
+         * The primary attribute is reverse sorted, so we must
          * invert the typedown value in order to match the key.
          */
         unsigned int i;
-        for(i=0;i<(*typedown_value)->bv_len;i++)
-        {
-            ((char*)(*typedown_value)->bv_val)[i]= UCHAR_MAX - ((char*)(*typedown_value)->bv_val)[i];
+        for (i = 0; i < (*typedown_value)->bv_len; i++) {
+            ((char *)(*typedown_value)->bv_val)[i] = UCHAR_MAX - ((char *)(*typedown_value)->bv_val)[i];
         }
     }
 
-    key.flags= DB_DBT_MALLOC;
-    key.size= typedown_value[0]->bv_len;
-    key.data= typedown_value[0]->bv_val;
-    data.flags= DB_DBT_MALLOC;
-    err= dbc->c_get(dbc,&key,&data,DB_SET_RANGE);
-    if(err==0)
-    {
+    key.flags = DB_DBT_MALLOC;
+    key.size = typedown_value[0]->bv_len;
+    key.data = typedown_value[0]->bv_val;
+    data.flags = DB_DBT_MALLOC;
+    err = dbc->c_get(dbc, &key, &data, DB_SET_RANGE);
+    if (err == 0) {
         slapi_ch_free(&(data.data));
-        err= dbc->c_get(dbc,&key,&data,DB_GET_RECNO);
-        if(err==0)
-        {
-            si= *((db_recno_t*)data.data);
+        err = dbc->c_get(dbc, &key, &data, DB_GET_RECNO);
+        if (err == 0) {
+            si = *((db_recno_t *)data.data);
             /* Records are numbered from one. */
             si--;
             slapi_ch_free(&(data.data));
-        	slapi_log_err(SLAPI_LOG_TRACE, "vlv_build_candidate_list_byvalue", "Found. Index=%u\n",si);
-        }
-        else
-        {
+            slapi_log_err(SLAPI_LOG_TRACE, "vlv_build_candidate_list_byvalue", "Found. Index=%u\n", si);
+        } else {
             /* Couldn't get the record number for the record we found. */
         }
-    }
-    else
-    {
+    } else {
         /* Couldn't find an entry which matches the value,
          * so return the last entry
          * (609377) when the index file is empty, there is no "last entry".
          */
-        if (0 == length)
-        {
+        if (0 == length) {
             si = 0;
-        }
-        else
-        {
+        } else {
             si = length - 1;
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "vlv_build_candidate_list_byvalue", "Not Found. Index=%u\n",si);
+        slapi_log_err(SLAPI_LOG_TRACE, "vlv_build_candidate_list_byvalue", "Not Found. Index=%u\n", si);
     }
-    if (key.data != typedown_value[0]->bv_val) { /* in case new key is set 
+    if (key.data != typedown_value[0]->bv_val) { /* in case new key is set
                                                   in dbc->c_get(DB_SET_RANGE) */
         slapi_ch_free(&(key.data));
     }
-    ber_bvecfree((struct berval**)typedown_value);
+    ber_bvecfree((struct berval **)typedown_value);
     return si;
 }
 
@@ -1108,7 +1050,8 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
  * and the ending index (as an inclusive list).
  * returns 0 on success, or an LDAP error code.
  */
-int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db __attribute__((unused)), DBC *dbc, IDList **candidates, int dosort)
+int
+vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db __attribute__((unused)), DBC *dbc, IDList **candidates, int dosort)
 {
     IDList *idl = NULL;
     int err;
@@ -1118,47 +1061,46 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db __attribute__((unused)),
     ID id;
     int rc = LDAP_SUCCESS;
 
-    idl = idl_alloc(stop-start+1);
+    idl = idl_alloc(stop - start + 1);
     if (!idl) {
         /* out of memory :( */
         rc = LDAP_OPERATIONS_ERROR;
         goto error;
     }
-    recno = start+1;
+    recno = start + 1;
     key.size = sizeof(recno);
     key.data = &recno;
     key.flags = DB_DBT_MALLOC;
     data.ulen = sizeof(ID);
     data.data = &id;
-    data.flags = DB_DBT_USERMEM;        /* don't alloc */
+    data.flags = DB_DBT_USERMEM; /* don't alloc */
     err = dbc->c_get(dbc, &key, &data, DB_SET_RECNO);
-    while ((err == 0) && (recno <= stop+1)) {
+    while ((err == 0) && (recno <= stop + 1)) {
         if (key.data != &recno)
             slapi_ch_free(&(key.data));
         idl_append(idl, *(ID *)data.data);
-        if (++recno <= stop+1) {
+        if (++recno <= stop + 1) {
             err = dbc->c_get(dbc, &key, &data, DB_NEXT);
         }
     }
     if (err != 0) {
         /* some db error...? */
         slapi_log_err(SLAPI_LOG_ERR, "vlv_build_idl", "Can't follow db cursor "
-                  "(err %d)\n", err);
+                                                      "(err %d)\n",
+                      err);
         if (err == ENOMEM)
             slapi_log_err(SLAPI_LOG_ERR, "vlv_build_idl", "nomem: wants %d key, %d data\n",
-                      key.size, data.size);
+                          key.size, data.size);
         rc = LDAP_OPERATIONS_ERROR;
         goto error;
     }
 
-    if (!candidates)
-    {
+    if (!candidates) {
         goto error;
     }
 
     /* success! */
-    if (dosort)
-    {
+    if (dosort) {
         qsort((void *)&idl->b_ids[0], idl->b_nids,
               (size_t)sizeof(ID), idl_sort_cmp);
     }
@@ -1167,7 +1109,8 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db __attribute__((unused)),
     goto done;
 
 error:
-    if (idl) idl_free(&idl);
+    if (idl)
+        idl_free(&idl);
 
 done:
     return rc;
@@ -1177,57 +1120,56 @@ done:
 /* This function does vlv_access, searching and building list all while holding read lock
 
   1. vlv_find_search fails, set:
-	                unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+                    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
                     slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-	 return FIND_SEARCH FAILED
+     return FIND_SEARCH FAILED
 
   2. vlvIndex_accessallowed fails
      return VLV_LDBM_ACCESS_DENIED
-  
+
   3. vlv_build_candidate_list fails:
-	 return VLV_BLD_LIST_FAILED
+     return VLV_BLD_LIST_FAILED
 
   4. return LDAP_SUCCESS
 */
 
 int
-vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv_rc, const sort_spec* sort_control, 
-								const struct vlv_request *vlv_request_control, 
-								IDList** candidates, struct vlv_response *vlv_response_control) {
-	struct vlvIndex* pi = NULL;
-	backend *be;
-	int scope, rc=LDAP_SUCCESS;
-	char *fstr;
-	back_txn txn = {NULL};
+vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv_rc, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, IDList **candidates, struct vlv_response *vlv_response_control)
+{
+    struct vlvIndex *pi = NULL;
+    backend *be;
+    int scope, rc = LDAP_SUCCESS;
+    char *fstr;
+    back_txn txn = {NULL};
 
-	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
-	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-	slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
-	slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	if((pi=vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
-		unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-		int pr_idx = -1;
-		Connection *pb_conn = NULL;
-		Operation *pb_op = NULL;
+    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
+    slapi_pblock_get(pb, SLAPI_SEARCH_STRFILTER, &fstr);
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    if ((pi = vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
+        unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+        int pr_idx = -1;
+        Connection *pb_conn = NULL;
+        Operation *pb_op = NULL;
 
-		slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
-		slapi_rwlock_unlock(be->vlvSearchList_lock);
-		slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
+        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
 
-		slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-		slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-		pagedresults_set_unindexed( pb_conn, pb_op, pr_idx );
-		rc = VLV_FIND_SEARCH_FAILED;
-	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
-		slapi_rwlock_unlock(be->vlvSearchList_lock);
-		rc = VLV_ACCESS_DENIED;
-	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates, vlv_response_control, 1, &txn)) != LDAP_SUCCESS) {
-		rc = VLV_BLD_LIST_FAILED;
-		vlv_response_control->result=*vlv_rc;
-	}
-	return rc;
+        pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
+        rc = VLV_FIND_SEARCH_FAILED;
+    } else if ((*vlv_rc = vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
+        rc = VLV_ACCESS_DENIED;
+    } else if ((*vlv_rc = vlv_build_candidate_list(be, pi, vlv_request_control, candidates, vlv_response_control, 1, &txn)) != LDAP_SUCCESS) {
+        rc = VLV_BLD_LIST_FAILED;
+        vlv_response_control->result = *vlv_rc;
+    }
+    return rc;
 }
 
 /*
@@ -1243,24 +1185,24 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
  *       indexRangeError (61),
  *       other (80)
  */
- 
+
 
 static int
-vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked, back_txn *txn)
+vlv_build_candidate_list(backend *be, struct vlvIndex *p, const struct vlv_request *vlv_request_control, IDList **candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked, back_txn *txn)
 {
     int return_value = LDAP_SUCCESS;
     DB *db = NULL;
     DBC *dbc = NULL;
     int rc, err;
-    PRUint32 si = 0;       /* The Selected Index */
+    PRUint32 si = 0; /* The Selected Index */
     PRUint32 length;
-    int do_trim= 1;
+    int do_trim = 1;
     DB_TXN *db_txn = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE,
-              "vlv_build_candidate_list", "%s %s Using VLV Index %s\n",
-              slapi_sdn_get_dn(vlvIndex_getBase(p)), p->vlv_search->vlv_filter,
-              vlvIndex_getName(p));
+                  "vlv_build_candidate_list", "%s %s Using VLV Index %s\n",
+                  slapi_sdn_get_dn(vlvIndex_getBase(p)), p->vlv_search->vlv_filter,
+                  vlvIndex_getName(p));
     if (!vlvIndex_online(p)) {
         if (is_srchlist_locked) {
             slapi_rwlock_unlock(be->vlvSearchList_lock);
@@ -1271,7 +1213,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     if (rc != 0) {
         /* shouldn't happen */
         slapi_log_err(SLAPI_LOG_ERR, "vlv_build_candidate_list", "Can't get index file '%s' (err %d)\n",
-                  p->vlv_attrinfo->ai_type, rc);
+                      p->vlv_attrinfo->ai_type, rc);
         if (is_srchlist_locked) {
             slapi_rwlock_unlock(be->vlvSearchList_lock);
         }
@@ -1293,19 +1235,18 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     if (err != 0) {
         /* shouldn't happen */
         slapi_log_err(SLAPI_LOG_ERR, "vlv_build_candidate_list", "Couldn't get cursor (err %d)\n",
-                  rc);
+                      rc);
         return -1;
     }
 
-    if (vlv_request_control)
-    {
-        switch(vlv_request_control->tag) {
+    if (vlv_request_control) {
+        switch (vlv_request_control->tag) {
         case 0: /* byIndex */
             si = vlv_trim_candidates_byindex(length, vlv_request_control);
             break;
         case 1: /* byValue */
             si = vlv_build_candidate_list_byvalue(p, dbc, length, vlv_request_control);
-            if (si==length) {
+            if (si == length) {
                 do_trim = 0;
                 /* minimum idl_alloc size should be 1; 0 is considered ALLID */
                 *candidates = idl_alloc(1);
@@ -1321,7 +1262,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
             break;
         }
 
-        /* Tell the client what the real content count is. 
+        /* Tell the client what the real content count is.
          * Client counts from 1. */
         vlv_response_control->targetPosition = si + 1;
         vlv_response_control->contentCount = length;
@@ -1337,9 +1278,9 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
         return_value = vlv_build_idl(start, stop, db, dbc, candidates, 0);
     }
     dbc->c_close(dbc);
-       	
-    dblayer_release_index_file( be, p->vlv_attrinfo, db );
-    return return_value;    
+
+    dblayer_release_index_file(be, p->vlv_attrinfo, db);
+    return return_value;
 }
 
 /*
@@ -1355,103 +1296,90 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
  *       other (80)
  */
 int
-vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList** filteredCandidates, int lookthrough_limit, struct timespec *expire_time)
+vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList **filteredCandidates, int lookthrough_limit, struct timespec *expire_time)
 {
-    IDList* resultIdl= NULL;
-	int return_value = LDAP_SUCCESS;
+    IDList *resultIdl = NULL;
+    int return_value = LDAP_SUCCESS;
 
-	/* Refuse to filter a non-existent IDlist */
-	if (NULL == candidates || NULL == filteredCandidates)
-	{
-		return LDAP_UNWILLING_TO_PERFORM;
-	}
+    /* Refuse to filter a non-existent IDlist */
+    if (NULL == candidates || NULL == filteredCandidates) {
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates", "Filtering %lu Candidates\n",(u_long)candidates->b_nids);
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates", "Filtering %lu Candidates\n", (u_long)candidates->b_nids);
 
-	if (0 == return_value && candidates->b_nids>0)
-	{
+    if (0 == return_value && candidates->b_nids > 0) {
         /* jcm: Could be an idlist function. create_filtered_idlist */
         /* Iterate over the ID List applying the filter */
-        int lookedat= 0;
-        int done= 0;
-        int counter= 0;
+        int lookedat = 0;
+        int done = 0;
+        int counter = 0;
         ID id = NOID;
         back_txn txn = {NULL};
-    	idl_iterator current = idl_iterator_init(candidates);
-        resultIdl= idl_alloc(candidates->b_nids);
+        idl_iterator current = idl_iterator_init(candidates);
+        resultIdl = idl_alloc(candidates->b_nids);
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-        do
-        {
-        	id = idl_iterator_dereference_increment(&current, candidates);
-        	if ( id != NOID )
-        	{
-                int err= 0;
-                struct backentry *e= NULL;
-                e = id2entry( be, id, &txn, &err );
-            	if ( e == NULL )
-            	{
+        do {
+            id = idl_iterator_dereference_increment(&current, candidates);
+            if (id != NOID) {
+                int err = 0;
+                struct backentry *e = NULL;
+                e = id2entry(be, id, &txn, &err);
+                if (e == NULL) {
                     /*
                      * The ALLIDS ID List contains IDs for which there is no entry.
                      * This is because the entries have been deleted.  An error in
                      * this case is ok.
                      */
-                    if(!(ALLIDS(candidates) && err==DB_NOTFOUND))
-                    {
-                	    slapi_log_err(SLAPI_LOG_ERR, "vlv_filter_candidates",
-                	            "Candidate %lu not found err=%d\n", (u_long)id, err);
+                    if (!(ALLIDS(candidates) && err == DB_NOTFOUND)) {
+                        slapi_log_err(SLAPI_LOG_ERR, "vlv_filter_candidates",
+                                      "Candidate %lu not found err=%d\n", (u_long)id, err);
                     }
-            	}
-            	else
-            	{
+                } else {
                     lookedat++;
-                    if(slapi_sdn_scope_test(backentry_get_sdn(e),base,scope))
-                    {
-                	    if ( slapi_filter_test( pb, e->ep_entry, filter, 0 /* No ACL Check */) == 0 )
-                	    {
+                    if (slapi_sdn_scope_test(backentry_get_sdn(e), base, scope)) {
+                        if (slapi_filter_test(pb, e->ep_entry, filter, 0 /* No ACL Check */) == 0) {
                             /* The entry passed the filter test, add the id to the list */
-                    	    slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates",
-                    	            "Candidate %lu Passed Filter\n", (u_long)id);
-                            idl_append(resultIdl,id);
-                		}
+                            slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates",
+                                          "Candidate %lu Passed Filter\n", (u_long)id);
+                            idl_append(resultIdl, id);
+                        }
                     }
-					CACHE_RETURN(&(((ldbm_instance *) be->be_instance_info)->inst_cache), &e);
-            	}
-    	    }
+                    CACHE_RETURN(&(((ldbm_instance *)be->be_instance_info)->inst_cache), &e);
+                }
+            }
 
-            done= slapi_op_abandoned(pb);
+            done = slapi_op_abandoned(pb);
 
-        	/* Check to see if our journey is really necessary */
-        	if ( counter++ % 10 == 0 )
-        	{
-        		/* check time limit */
+            /* Check to see if our journey is really necessary */
+            if (counter++ % 10 == 0) {
+/* check time limit */
 #ifdef HAVE_CLOCK_GETTIME
                 if (slapi_timespec_expire_check(expire_time) == TIMER_EXPIRED) {
                     slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates", "LDAP_TIMELIMIT_EXCEEDED\n");
-                    return_value= LDAP_TIMELIMIT_EXCEEDED;
-                    done= 1;
+                    return_value = LDAP_TIMELIMIT_EXCEEDED;
+                    done = 1;
                 }
 #else
-        		time_t curtime = current_time();
-        		if ( time_up != -1 && curtime > time_up )
-        		{
-                    return_value= LDAP_TIMELIMIT_EXCEEDED;
-                    done= 1;
-        		}
+                time_t curtime = current_time();
+                if (time_up != -1 && curtime > time_up) {
+                    return_value = LDAP_TIMELIMIT_EXCEEDED;
+                    done = 1;
+                }
 #endif
-        		/* check lookthrough limit */
-        		if ( lookthrough_limit != -1 && lookedat>lookthrough_limit )
-        		{
-                    return_value= LDAP_ADMINLIMIT_EXCEEDED;
-                    done= 1;
-        		}
-        	}
-    	} while (!done && id!=NOID);
-	}
+                /* check lookthrough limit */
+                if (lookthrough_limit != -1 && lookedat > lookthrough_limit) {
+                    return_value = LDAP_ADMINLIMIT_EXCEEDED;
+                    done = 1;
+                }
+            }
+        } while (!done && id != NOID);
+    }
 
-        *filteredCandidates= resultIdl;
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates", "Filtering done\n");
+    *filteredCandidates = resultIdl;
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_filter_candidates", "Filtering done\n");
 
-	return return_value;
+    return return_value;
 }
 
 /*
@@ -1467,32 +1395,29 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
  *       other (80)
  */
 int
-vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** trimmedCandidates,struct vlv_response *vlv_response_control, back_txn *txn)
+vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, IDList **trimmedCandidates, struct vlv_response *vlv_response_control, back_txn *txn)
 {
-    IDList* resultIdl= NULL;
-    int return_value= LDAP_SUCCESS;
-    PRUint32 si= 0; /* The Selected Index */
-    int do_trim= 1;
+    IDList *resultIdl = NULL;
+    int return_value = LDAP_SUCCESS;
+    PRUint32 si = 0; /* The Selected Index */
+    int do_trim = 1;
 
-	/* Refuse to trim a non-existent IDlist */
-	if (NULL == candidates || candidates->b_nids==0 || NULL == trimmedCandidates)
-	{
-		return LDAP_UNWILLING_TO_PERFORM;
-	}
+    /* Refuse to trim a non-existent IDlist */
+    if (NULL == candidates || candidates->b_nids == 0 || NULL == trimmedCandidates) {
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
-    switch(vlv_request_control->tag)
-    {
+    switch (vlv_request_control->tag) {
     case 0: /* byIndex */
-        si= vlv_trim_candidates_byindex(candidates->b_nids, vlv_request_control);
+        si = vlv_trim_candidates_byindex(candidates->b_nids, vlv_request_control);
         break;
     case 1: /* byValue */
-        si= vlv_trim_candidates_byvalue(be, candidates, sort_control, vlv_request_control, txn);
+        si = vlv_trim_candidates_byvalue(be, candidates, sort_control, vlv_request_control, txn);
         /* Don't bother sending results if the attribute value wasn't found */
-        if(si==candidates->b_nids)
-        {
-            do_trim= 0;
+        if (si == candidates->b_nids) {
+            do_trim = 0;
             /* minimum idl_alloc size should be 1; 0 is considered ALLID */
-            resultIdl= idl_alloc(1);
+            resultIdl = idl_alloc(1);
         }
         break;
     default:
@@ -1506,34 +1431,32 @@ vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec* 
     }
 
     /* Tell the client what the real content count is. Clients count from 1 */
-    vlv_response_control->targetPosition= si + 1;
-    vlv_response_control->contentCount= candidates->b_nids;
+    vlv_response_control->targetPosition = si + 1;
+    vlv_response_control->contentCount = candidates->b_nids;
 
-    if(return_value==LDAP_SUCCESS && do_trim)
-    {
+    if (return_value == LDAP_SUCCESS && do_trim) {
         /* Work out the range of records to return */
         PRUint32 start, stop;
-        determine_result_range(vlv_request_control,si,candidates->b_nids,&start,&stop);
+        determine_result_range(vlv_request_control, si, candidates->b_nids, &start, &stop);
         /* Build a new list containing the (start..stop) range */
         /* JCM: Should really be a function in idlist.c to copy a range */
-        resultIdl= idl_alloc(stop-start+1);
+        resultIdl = idl_alloc(stop - start + 1);
         {
-            PRUint32 cursor= 0;
-            for(cursor=start;cursor<=stop;cursor++)
-            {
-            	slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates", "Include ID %lu\n",(u_long)candidates->b_ids[cursor]);
-                idl_append(resultIdl,candidates->b_ids[cursor]);
+            PRUint32 cursor = 0;
+            for (cursor = start; cursor <= stop; cursor++) {
+                slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates", "Include ID %lu\n", (u_long)candidates->b_ids[cursor]);
+                idl_append(resultIdl, candidates->b_ids[cursor]);
             }
         }
     }
-   	slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates",
-            "Trimmed list contains %lu entries.\n", (u_long)(resultIdl ? resultIdl->b_nids : 0));
-    *trimmedCandidates= resultIdl;
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates",
+                  "Trimmed list contains %lu entries.\n", (u_long)(resultIdl ? resultIdl->b_nids : 0));
+    *trimmedCandidates = resultIdl;
     return return_value;
 }
 
 int
-vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** trimmedCandidates,struct vlv_response *vlv_response_control)
+vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, IDList **trimmedCandidates, struct vlv_response *vlv_response_control)
 {
     return vlv_trim_candidates_txn(be, candidates, sort_control, vlv_request_control, trimmedCandidates, vlv_response_control, NULL);
 }
@@ -1548,56 +1471,42 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
 static PRUint32
 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control)
 {
-    PRUint32 si= 0; /* The Selected Index */
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byindex",
-		"length=%u index=%d size=%d\n",length, vlv_request_control->index, vlv_request_control->contentCount );
-    if(vlv_request_control->index==0)
-    {
+    PRUint32 si = 0; /* The Selected Index */
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byindex",
+                  "length=%u index=%d size=%d\n", length, vlv_request_control->index, vlv_request_control->contentCount);
+    if (vlv_request_control->index == 0) {
         /* Always select the first entry in the list */
-        si= 0;
-    }
-    else
-    {
-        if(vlv_request_control->contentCount==0)
-        {
+        si = 0;
+    } else {
+        if (vlv_request_control->contentCount == 0) {
             /* The client has no idea what the content count might be. */
             /* Can't scale the index, so use as is */
-            si= vlv_request_control->index;
+            si = vlv_request_control->index;
             if (0 == length) /* 609377: index size could be 0 */
             {
-                if (si > 0)
-                {
+                if (si > 0) {
                     si = length;
                 }
+            } else if (si > length - 1) {
+                si = length - 1;
             }
-            else if(si > length - 1)
-            {
-                si= length - 1;
-            }
-        }
-        else
-        {
-            if(vlv_request_control->index>=vlv_request_control->contentCount)
-            {
+        } else {
+            if (vlv_request_control->index >= vlv_request_control->contentCount) {
                 /* Always select the last entry in the list */
                 if (0 == length) /* 609377: index size could be 0 */
                 {
                     si = 0;
+                } else {
+                    si = length - 1;
                 }
-                else
-                {
-                    si= length-1;
-                }
-            }
-            else
-            {
+            } else {
                 /* The three components of this expression are (PRUint32) and may well have a value up to UINT_MAX */
                 /* SelectedIndex = ActualContentCount * ( ClientIndex / ClientContentCount ) */
-                si= ((PRUint32)((double)length * (double)(vlv_request_control->index / (double)vlv_request_control->contentCount )));
+                si = ((PRUint32)((double)length * (double)(vlv_request_control->index / (double)vlv_request_control->contentCount)));
             }
         }
     }
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byindex", "Selected Index %u\n",si);
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byindex", "Selected Index %u\n", si);
     return si;
 }
 
@@ -1605,26 +1514,25 @@ vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_reque
  * Iterate over the Candidate ID List looking for an entry >= the provided attribute value.
  */
 static PRUint32
-vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, back_txn *txn)
+vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, back_txn *txn)
 {
-    PRUint32 si= 0; /* The Selected Index */
-    PRUint32 low= 0;
-    PRUint32 high= candidates->b_nids-1;
-    PRUint32 current= 0;
+    PRUint32 si = 0; /* The Selected Index */
+    PRUint32 low = 0;
+    PRUint32 high = candidates->b_nids - 1;
+    PRUint32 current = 0;
     ID id = NOID;
-    int found= 0;
+    int found = 0;
     struct berval **typedown_value = NULL;
 
     /* For non-matchrule indexing */
-    value_compare_fn_type compare_fn= NULL;
+    value_compare_fn_type compare_fn = NULL;
 
     /*
      * If the primary sorted attribute has an associated
      * matching rule, then we must mangle the typedown
      * value.
      */
-    if (sort_control->matchrule==NULL)
-    {
+    if (sort_control->matchrule == NULL) {
         attr_get_value_cmp_fn(&sort_control->sattr, &compare_fn);
         if (compare_fn == NULL) {
             slapi_log_err(SLAPI_LOG_WARNING, "vlv_trim_candidates_byvalue",
@@ -1635,20 +1543,18 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
 
         {
             struct berval *invalue[2];
-            invalue[0]= (struct berval *)&vlv_request_control->value; /* jcm: cast away const */
-            invalue[1]= NULL;
-            slapi_attr_values2keys(&sort_control->sattr,invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
+            invalue[0] = (struct berval *)&vlv_request_control->value; /* jcm: cast away const */
+            invalue[1] = NULL;
+            slapi_attr_values2keys(&sort_control->sattr, invalue, &typedown_value, LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
             if (compare_fn == NULL) {
                 slapi_log_err(SLAPI_LOG_WARNING, "vlv_trim_candidates_byvalue",
-                          "Attempt to compare an unordered attribute");
+                              "Attempt to compare an unordered attribute");
                 compare_fn = slapi_berval_cmp;
             }
         }
-    }
-    else
-    {
-        typedown_value= vlv_create_matching_rule_value(sort_control->mr_pb,(struct berval *)&vlv_request_control->value);
-        compare_fn= slapi_berval_cmp;
+    } else {
+        typedown_value = vlv_create_matching_rule_value(sort_control->mr_pb, (struct berval *)&vlv_request_control->value);
+        compare_fn = slapi_berval_cmp;
     }
 retry:
     /*
@@ -1656,134 +1562,103 @@ retry:
      */
     if (0 == candidates->b_nids) { /* idlist is empty */
         slapi_log_err(SLAPI_LOG_ERR, "vlv_trim_candidates_byvalue", "Candidate ID List is empty.\n");
-        ber_bvecfree((struct berval**)typedown_value);
+        ber_bvecfree((struct berval **)typedown_value);
         return candidates->b_nids; /* not found */
     }
-    low= 0;
-    high= candidates->b_nids-1;
+    low = 0;
+    high = candidates->b_nids - 1;
     do {
-        int err= 0;
-        struct backentry *e= NULL;
-        if(!sort_control->order)
-        {
-            current = (low + high)/2;
+        int err = 0;
+        struct backentry *e = NULL;
+        if (!sort_control->order) {
+            current = (low + high) / 2;
+        } else {
+            current = (1 + low + high) / 2;
         }
-        else
-        {
-            current = (1 + low + high)/2;
-        }
-        id= candidates->b_ids[current];
-        e = id2entry( be, id, txn, &err );
-        if ( e == NULL )
-        {
+        id = candidates->b_ids[current];
+        e = id2entry(be, id, txn, &err);
+        if (e == NULL) {
             int rval;
             slapi_log_err(SLAPI_LOG_ERR, "vlv_trim_candidates_byvalue",
-                    "Candidate ID %lu not found err=%d\n", (u_long)id, err);
+                          "Candidate ID %lu not found err=%d\n", (u_long)id, err);
             rval = idl_delete((IDList **)&candidates, id);
             if (0 == rval || 1 == rval || 2 == rval) {
                 goto retry;
             } else {
-                ber_bvecfree((struct berval**)typedown_value);
+                ber_bvecfree((struct berval **)typedown_value);
                 return candidates->b_nids; /* not found */
             }
-        }
-        else
-        {
+        } else {
             /* Check if vlv_request_control->value is greater than or equal to the primary key. */
             int match;
             Slapi_Attr *attr;
-            if ( (NULL != compare_fn) && (slapi_entry_attr_find( e->ep_entry, sort_control->type, &attr ) == 0) )
-            {
+            if ((NULL != compare_fn) && (slapi_entry_attr_find(e->ep_entry, sort_control->type, &attr) == 0)) {
                 /*
                  * If there's a matching rule associated with the primary
                  * attribute then use the indexer to mangle the attr values.
                  */
                 Slapi_Value **csn_value = valueset_get_valuearray(&attr->a_present_values);
-                   struct berval **entry_value = /* xxxPINAKI needs modification attr->a_vals */NULL;
+                struct berval **entry_value = /* xxxPINAKI needs modification attr->a_vals */ NULL;
                 PRBool needFree = PR_FALSE;
 
-                if(sort_control->mr_pb!=NULL)
-                {
+                if (sort_control->mr_pb != NULL) {
                     struct berval **tmp_entry_value = NULL;
 
-                    valuearray_get_bervalarray(csn_value,&tmp_entry_value);
+                    valuearray_get_bervalarray(csn_value, &tmp_entry_value);
                     /* Matching rule. Do the magic mangling. Plugin owns the memory. */
-                    matchrule_values_to_keys(sort_control->mr_pb,/* xxxPINAKI needs modification attr->a_vals */tmp_entry_value,&entry_value);
-                }
-                else
-                {
-                    valuearray_get_bervalarray(csn_value,&entry_value);
+                    matchrule_values_to_keys(sort_control->mr_pb, /* xxxPINAKI needs modification attr->a_vals */ tmp_entry_value, &entry_value);
+                } else {
+                    valuearray_get_bervalarray(csn_value, &entry_value);
                     needFree = PR_TRUE; /* entry_value is a copy */
                 }
-                if(!sort_control->order)
-                {
-                    match= sort_attr_compare(entry_value, (struct berval**)typedown_value, compare_fn);
-                }
-                else
-                {
-                    match= sort_attr_compare((struct berval**)typedown_value, entry_value, compare_fn);
+                if (!sort_control->order) {
+                    match = sort_attr_compare(entry_value, (struct berval **)typedown_value, compare_fn);
+                } else {
+                    match = sort_attr_compare((struct berval **)typedown_value, entry_value, compare_fn);
                 }
                 if (needFree) {
-                    ber_bvecfree((struct berval**)entry_value);
+                    ber_bvecfree((struct berval **)entry_value);
                     entry_value = NULL;
                 }
-            }
-            else
-            {
+            } else {
                 /*
                  * This attribute doesn't exist on this entry.
                  */
-                if(sort_control->order)
-                {
-                    match= 1;
-                }
-                else
-                {
-                    match= 0;
+                if (sort_control->order) {
+                    match = 1;
+                } else {
+                    match = 0;
                 }
             }
-            if(!sort_control->order)
-            {
-                if (match>=0)
-                {
-                    high= current;
+            if (!sort_control->order) {
+                if (match >= 0) {
+                    high = current;
+                } else {
+                    low = current + 1;
                 }
-                else
-                {
-                    low= current+1;
-                }
-            }
-            else
-            {
-                if (match>=0)
-                {
-                    high= current-1;
-                }
-                else
-                {
-                    low= current;
+            } else {
+                if (match >= 0) {
+                    high = current - 1;
+                } else {
+                    low = current;
                 }
             }
-            if (low>=high)
-            {
-                found= 1;
-                si= high;
-                if(si==candidates->b_nids && !match)
-                {
+            if (low >= high) {
+                found = 1;
+                si = high;
+                if (si == candidates->b_nids && !match) {
                     /* Couldn't find an entry which matches the value, so return contentCount */
-                    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byvalue", "Not Found. Index %u\n",si);
-                    si= candidates->b_nids;
-                }
-                else
-                {
-                    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byvalue", "Found. Index %u\n",si);
+                    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byvalue", "Not Found. Index %u\n", si);
+                    si = candidates->b_nids;
+                } else {
+                    slapi_log_err(SLAPI_LOG_TRACE, "vlv_trim_candidates_byvalue", "Found. Index %u\n", si);
                 }
             }
             CACHE_RETURN(&(((ldbm_instance *)be->be_instance_info)->inst_cache),
                          &e);
         }
     } while (!found);
-    ber_bvecfree((struct berval**)typedown_value);
+    ber_bvecfree((struct berval **)typedown_value);
     return si;
 }
 
@@ -1798,13 +1673,13 @@ retry:
  *   operationsError (1),
  */
 int
-vlv_make_response_control (Slapi_PBlock *pb, const struct vlv_response* vlvp)
+vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp)
 {
-    BerElement *ber= NULL;    
-	struct berval *bvp = NULL;
-	int rc = -1;
+    BerElement *ber = NULL;
+    struct berval *bvp = NULL;
+    int rc = -1;
 
-	/*
+    /*
      VirtualListViewResponse ::= SEQUENCE {
              targetPosition    INTEGER (0 .. maxInt),
              contentCount     INTEGER (0 .. maxInt),
@@ -1819,93 +1694,88 @@ vlv_make_response_control (Slapi_PBlock *pb, const struct vlv_response* vlvp)
                      sortControlMissing (60),
                      indexRangeError (61),
                      other (80) }  }
-	 */
+     */
 
-    if ( ( ber = ber_alloc()) == NULL )
-    {
-		return rc;
+    if ((ber = ber_alloc()) == NULL) {
+        return rc;
     }
 
-    rc = ber_printf( ber, "{iie}", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
-    if ( rc != -1 )
-    {
-		rc = ber_flatten( ber, &bvp );
+    rc = ber_printf(ber, "{iie}", vlvp->targetPosition, vlvp->contentCount, vlvp->result);
+    if (rc != -1) {
+        rc = ber_flatten(ber, &bvp);
     }
-    
-	ber_free( ber, 1 );
 
-    if ( rc != -1 )
-    {        
-    	LDAPControl	new_ctrl = {0};
-    	new_ctrl.ldctl_oid = LDAP_CONTROL_VLVRESPONSE;
-    	new_ctrl.ldctl_value = *bvp;
-    	new_ctrl.ldctl_iscritical = 1;         
-    	rc= slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &new_ctrl );
+    ber_free(ber, 1);
+
+    if (rc != -1) {
+        LDAPControl new_ctrl = {0};
+        new_ctrl.ldctl_oid = LDAP_CONTROL_VLVRESPONSE;
+        new_ctrl.ldctl_value = *bvp;
+        new_ctrl.ldctl_iscritical = 1;
+        rc = slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &new_ctrl);
         ber_bvfree(bvp);
     }
 
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_make_response_control", "Index=%d Size=%d Result=%d\n",
-		vlvp->targetPosition, vlvp->contentCount, vlvp->result );
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_make_response_control", "Index=%d Size=%d Result=%d\n",
+                  vlvp->targetPosition, vlvp->contentCount, vlvp->result);
 
-	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
+    return (rc == -1 ? LDAP_OPERATIONS_ERROR : LDAP_SUCCESS);
 }
 
-/* 
+/*
  * Generate a logging string for the vlv request and response
  */
-void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_response *vlvo)
+void
+vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo)
 {
-#define VLV_LOG_BS (21*6 + 4 + 5) /* space for 20-digit values for all parameters + 'VLV ' + status */
-	char stack_buffer[VLV_LOG_BS];
-	char *buffer = stack_buffer;
-	char *p;
-	
-	if (vlvi->value.bv_len > 20) {
-		buffer = slapi_ch_malloc(VLV_LOG_BS + vlvi->value.bv_len);
-	}
-	p = buffer;
-	p+= sprintf(p,"VLV ");
-	if (0 == vlvi->tag) {
-		/* By Index case */
-		p+= sprintf(p,"%d:%d:%d:%d",
-			vlvi->beforeCount ,
-			vlvi->afterCount ,
-			vlvi->index ,
-			vlvi->contentCount 
-			);	
-	} else {
-		/* By value case */
+#define VLV_LOG_BS (21 * 6 + 4 + 5) /* space for 20-digit values for all parameters + 'VLV ' + status */
+    char stack_buffer[VLV_LOG_BS];
+    char *buffer = stack_buffer;
+    char *p;
+
+    if (vlvi->value.bv_len > 20) {
+        buffer = slapi_ch_malloc(VLV_LOG_BS + vlvi->value.bv_len);
+    }
+    p = buffer;
+    p += sprintf(p, "VLV ");
+    if (0 == vlvi->tag) {
+        /* By Index case */
+        p += sprintf(p, "%d:%d:%d:%d",
+                     vlvi->beforeCount,
+                     vlvi->afterCount,
+                     vlvi->index,
+                     vlvi->contentCount);
+    } else {
+/* By value case */
 #define VLV_LOG_SS 32
-		char stack_string[VLV_LOG_SS];
-		char *string = stack_string;
+        char stack_string[VLV_LOG_SS];
+        char *string = stack_string;
 
-		if (vlvi->value.bv_len >= VLV_LOG_SS) {
-            string = slapi_ch_malloc(vlvi->value.bv_len+1);
-		}
-        strncpy(string,vlvi->value.bv_val,vlvi->value.bv_len);
+        if (vlvi->value.bv_len >= VLV_LOG_SS) {
+            string = slapi_ch_malloc(vlvi->value.bv_len + 1);
+        }
+        strncpy(string, vlvi->value.bv_val, vlvi->value.bv_len);
         string[vlvi->value.bv_len] = '\0';
-		p += sprintf(p,"%d:%d:%s",
-			vlvi->beforeCount ,
-			vlvi->afterCount ,
-			string
-			);	
-		if (string != stack_string) {
-			slapi_ch_free( (void**)&string);
-		}
-	}
-	/* Now the response info */
-	p += sprintf(p," %d:%d (%d)",
-		vlvo->targetPosition ,
-		vlvo->contentCount,
-		vlvo->result
-		);	
-	
+        p += sprintf(p, "%d:%d:%s",
+                     vlvi->beforeCount,
+                     vlvi->afterCount,
+                     string);
+        if (string != stack_string) {
+            slapi_ch_free((void **)&string);
+        }
+    }
+    /* Now the response info */
+    p += sprintf(p, " %d:%d (%d)",
+                 vlvo->targetPosition,
+                 vlvo->contentCount,
+                 vlvo->result);
 
-	ldbm_log_access_message(pb,buffer);
 
-	if (buffer != stack_buffer) {
-		slapi_ch_free( (void**)&buffer);
-	}
+    ldbm_log_access_message(pb, buffer);
+
+    if (buffer != stack_buffer) {
+        slapi_ch_free((void **)&buffer);
+    }
 }
 
 /*
@@ -1919,9 +1789,9 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
  *
  */
 int
-vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_request* vlvp)
+vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request *vlvp)
 {
-	/* This control looks like this : 
+    /* This control looks like this :
 
      VirtualListViewRequest ::= SEQUENCE {
              beforeCount    INTEGER (0 .. maxInt),
@@ -1931,63 +1801,50 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
                      index           INTEGER (0 .. maxInt),
                      contentCount    INTEGER (0 .. maxInt) }
                      greaterThanOrEqual [1] assertionValue }
-   	*/
+       */
     BerElement *ber = NULL;
     int return_value = LDAP_SUCCESS;
 
     vlvp->value.bv_len = 0;
     vlvp->value.bv_val = NULL;
 
-    if (!BV_HAS_DATA(vlv_spec_ber))
-    {
-        return_value= LDAP_OPERATIONS_ERROR;
+    if (!BV_HAS_DATA(vlv_spec_ber)) {
+        return_value = LDAP_OPERATIONS_ERROR;
         return return_value;
     }
 
     ber = ber_init(vlv_spec_ber);
-    if (ber_scanf(ber, "{ii", &vlvp->beforeCount, &vlvp->afterCount) == LBER_ERROR)
-    {
-        return_value= LDAP_OPERATIONS_ERROR;
-    }
-    else
-    {
+    if (ber_scanf(ber, "{ii", &vlvp->beforeCount, &vlvp->afterCount) == LBER_ERROR) {
+        return_value = LDAP_OPERATIONS_ERROR;
+    } else {
         slapi_log_err(SLAPI_LOG_TRACE, "vlv_parse_request_control", "Before=%d After=%d\n",
-                   vlvp->beforeCount, vlvp->afterCount);
-        if (ber_scanf(ber,"t",&vlvp->tag) == LBER_ERROR)
-        {
-            return_value= LDAP_OPERATIONS_ERROR;
-        }
-        else
-        {
-            switch(vlvp->tag)
-            {
+                      vlvp->beforeCount, vlvp->afterCount);
+        if (ber_scanf(ber, "t", &vlvp->tag) == LBER_ERROR) {
+            return_value = LDAP_OPERATIONS_ERROR;
+        } else {
+            switch (vlvp->tag) {
             case LDAP_TAG_VLV_BY_INDEX:
                 /* byIndex */
-                vlvp->tag= 0;
-                if (ber_scanf(ber, "{ii}}", &vlvp->index, &vlvp->contentCount) == LBER_ERROR)
-                {
+                vlvp->tag = 0;
+                if (ber_scanf(ber, "{ii}}", &vlvp->index, &vlvp->contentCount) == LBER_ERROR) {
                     if (ISLEGACY(be)) {
                         return_value = LDAP_OPERATIONS_ERROR;
                     } else {
                         return_value = LDAP_VIRTUAL_LIST_VIEW_ERROR;
                     }
-                }
-                else
-                {
+                } else {
                     /* Client Counts from 1. */
-                    if(vlvp->index!=0)
-                    {
+                    if (vlvp->index != 0) {
                         vlvp->index--;
                     }
                     slapi_log_err(SLAPI_LOG_TRACE, "vlv_parse_request_control", "Index=%d Content=%d\n",
-                    	vlvp->index, vlvp->contentCount);
+                                  vlvp->index, vlvp->contentCount);
                 }
                 break;
             case LDAP_TAG_VLV_BY_VALUE:
                 /* byValue */
-                vlvp->tag= 1;
-                if (ber_scanf(ber,"o}",&vlvp->value) == LBER_ERROR)
-                {
+                vlvp->tag = 1;
+                if (ber_scanf(ber, "o}", &vlvp->value) == LBER_ERROR) {
                     if (ISLEGACY(be)) {
                         return_value = LDAP_OPERATIONS_ERROR;
                     } else {
@@ -1996,11 +1853,11 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
                 }
                 {
                     /* jcm: isn't there a utility fn to do this? */
-                    char *p= slapi_ch_malloc(vlvp->value.bv_len+1);
-                    strncpy(p,vlvp->value.bv_val,vlvp->value.bv_len);
-                    p[vlvp->value.bv_len]= '\0';
+                    char *p = slapi_ch_malloc(vlvp->value.bv_len + 1);
+                    strncpy(p, vlvp->value.bv_val, vlvp->value.bv_len);
+                    p[vlvp->value.bv_len] = '\0';
                     slapi_log_err(SLAPI_LOG_TRACE, "vlv_parse_request_control", "Value=%s\n", p);
-                    slapi_ch_free( (void**)&p);
+                    slapi_ch_free((void **)&p);
                 }
                 break;
             default:
@@ -2013,10 +1870,10 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
         }
     }
 
-   	/* the ber encoding is no longer needed */
-   	ber_free(ber,1);
+    /* the ber encoding is no longer needed */
+    ber_free(ber, 1);
 
-	return return_value;
+    return return_value;
 }
 
 /* given a slapi_filter, check if there's a vlv index that matches that
@@ -2025,8 +1882,8 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
  * has the same search base and search filter.
  * added read lock */
 
-IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base, 
-                                     Slapi_Filter *f, back_txn *txn)
+IDList *
+vlv_find_index_by_filter_txn(struct backend *be, const char *base, Slapi_Filter *f, back_txn *txn)
 {
     struct vlvSearch *t = NULL;
     struct vlvIndex *vi;
@@ -2043,59 +1900,57 @@ IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base,
         db_txn = txn->back_txn_txn;
     }
 
-	slapi_sdn_init_dn_byref(&base_sdn, base);
-	slapi_rwlock_rdlock(be->vlvSearchList_lock);
-	for (t = (struct vlvSearch *)be->vlvSearchList; t; t = t->vlv_next) {
-		/* all vlv "filters" start with (|(xxx)(objectclass=referral)).
-		 * we only care about the (xxx) part.
-		 */
-		vlv_f = t->vlv_slapifilter->f_or;
-		if ((t->vlv_scope == LDAP_SCOPE_SUBTREE) &&
-			(slapi_sdn_compare(t->vlv_base, &base_sdn) == 0) &&
-			(slapi_filter_compare(vlv_f, f) == 0)) {
-			/* found match! */
-			slapi_sdn_done(&base_sdn);
-			
-			/* is there an index that's ready? */
-			vi = t->vlv_index;
-			while (!vlvIndex_online(vi) && vi) {
-				vi = vi->vlv_next;
-			}
-			if (!vi) {
-				/* no match */
-				slapi_log_err(SLAPI_LOG_TRACE, "vlv_find_index_by_filter_txn", "No index online for %s\n",
-					t->vlv_filter);
-				slapi_rwlock_unlock(be->vlvSearchList_lock);
-				return NULL;
-			}
-			
-			if (dblayer_get_index_file(be, vi->vlv_attrinfo, &db, 0) == 0) {
-				length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
-				slapi_rwlock_unlock(be->vlvSearchList_lock);
-				err = db->cursor(db, db_txn, &dbc, 0);
-				if (err == 0) {
-					if (length == 0) /* 609377: index size could be 0 */
-					{
-						slapi_log_err(SLAPI_LOG_TRACE, "vlv_find_index_by_filter_txn", "Index %s is empty\n",
-								t->vlv_filter);
-						idl = NULL;
-					}
-					else
-					{
-						err = vlv_build_idl(0, length-1, db, dbc, &idl, 1 /* dosort */);
-					}
-					dbc->c_close(dbc);
-				}
-				dblayer_release_index_file(be, vi->vlv_attrinfo, db);
-				if (err == 0) {
-					return idl;
-				} else {
-					slapi_log_err(SLAPI_LOG_ERR, "vlv_find_index_by_filter_txn", "vlv find index: err %d\n",
-						err);
-					return NULL;
-				}
-			}
-		}
+    slapi_sdn_init_dn_byref(&base_sdn, base);
+    slapi_rwlock_rdlock(be->vlvSearchList_lock);
+    for (t = (struct vlvSearch *)be->vlvSearchList; t; t = t->vlv_next) {
+        /* all vlv "filters" start with (|(xxx)(objectclass=referral)).
+         * we only care about the (xxx) part.
+         */
+        vlv_f = t->vlv_slapifilter->f_or;
+        if ((t->vlv_scope == LDAP_SCOPE_SUBTREE) &&
+            (slapi_sdn_compare(t->vlv_base, &base_sdn) == 0) &&
+            (slapi_filter_compare(vlv_f, f) == 0)) {
+            /* found match! */
+            slapi_sdn_done(&base_sdn);
+
+            /* is there an index that's ready? */
+            vi = t->vlv_index;
+            while (!vlvIndex_online(vi) && vi) {
+                vi = vi->vlv_next;
+            }
+            if (!vi) {
+                /* no match */
+                slapi_log_err(SLAPI_LOG_TRACE, "vlv_find_index_by_filter_txn", "No index online for %s\n",
+                              t->vlv_filter);
+                slapi_rwlock_unlock(be->vlvSearchList_lock);
+                return NULL;
+            }
+
+            if (dblayer_get_index_file(be, vi->vlv_attrinfo, &db, 0) == 0) {
+                length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
+                slapi_rwlock_unlock(be->vlvSearchList_lock);
+                err = db->cursor(db, db_txn, &dbc, 0);
+                if (err == 0) {
+                    if (length == 0) /* 609377: index size could be 0 */
+                    {
+                        slapi_log_err(SLAPI_LOG_TRACE, "vlv_find_index_by_filter_txn", "Index %s is empty\n",
+                                      t->vlv_filter);
+                        idl = NULL;
+                    } else {
+                        err = vlv_build_idl(0, length - 1, db, dbc, &idl, 1 /* dosort */);
+                    }
+                    dbc->c_close(dbc);
+                }
+                dblayer_release_index_file(be, vi->vlv_attrinfo, db);
+                if (err == 0) {
+                    return idl;
+                } else {
+                    slapi_log_err(SLAPI_LOG_ERR, "vlv_find_index_by_filter_txn", "vlv find index: err %d\n",
+                                  err);
+                    return NULL;
+                }
+            }
+        }
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
     /* no match */
@@ -2103,140 +1958,142 @@ IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base,
     return NULL;
 }
 
-IDList *vlv_find_index_by_filter(struct backend *be, const char *base, 
-				 Slapi_Filter *f)
+IDList *
+vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f)
 {
     return vlv_find_index_by_filter_txn(be, base, f, NULL);
 }
 
 /* replace c with c2 in string -- probably exists somewhere but I can't find it slapi maybe? */
 
-static void replace_char(char *name, char c, char c2)
-{   
-        int x;
+static void
+replace_char(char *name, char c, char c2)
+{
+    int x;
 
-        for (x = 0; name[x] != '\0'; x++) {
-                if (c == name[x]) {
-                        name[x] = c2;
-                }
+    for (x = 0; name[x] != '\0'; x++) {
+        if (c == name[x]) {
+            name[x] = c2;
         }
+    }
 }
 
 /* similar to what the console GUI does */
 
-char *create_vlv_search_tag(const char* dn) {
-	char  *tmp2=slapi_ch_strdup(dn);
+char *
+create_vlv_search_tag(const char *dn)
+{
+    char *tmp2 = slapi_ch_strdup(dn);
 
-	replace_char(tmp2,',',' ');
-	replace_char(tmp2,'"','-');
-	replace_char(tmp2,'+','_');
-	return tmp2;
+    replace_char(tmp2, ',', ' ');
+    replace_char(tmp2, '"', '-');
+    replace_char(tmp2, '+', '_');
+    return tmp2;
 }
 
 /* Builds strings from Slapi_DN similar console GUI. Uses those dns to
    delete vlvsearch's if they match. New write lock.
  */
-int vlv_delete_search_entry(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry* e, ldbm_instance *inst)
+int
+vlv_delete_search_entry(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *e, ldbm_instance *inst)
 {
-	int rc=0;
-	Slapi_PBlock *tmppb;
-	Slapi_DN *newdn;
-	struct vlvSearch* p=NULL;
-	char *base1 = NULL, *base2 = NULL, *tag1 = NULL, *tag2 = NULL; 
-	const char *dn= slapi_sdn_get_dn(&e->e_sdn);
-	backend *be= NULL;
-	if (NULL == inst) {
-		return LDAP_OPERATIONS_ERROR;
-	}
-	be= inst->inst_be;
+    int rc = 0;
+    Slapi_PBlock *tmppb;
+    Slapi_DN *newdn;
+    struct vlvSearch *p = NULL;
+    char *base1 = NULL, *base2 = NULL, *tag1 = NULL, *tag2 = NULL;
+    const char *dn = slapi_sdn_get_dn(&e->e_sdn);
+    backend *be = NULL;
+    if (NULL == inst) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+    be = inst->inst_be;
 
-	if (instance_set_busy(inst) != 0)
-	{
-		slapi_log_err(SLAPI_LOG_ERR,
-			"vlv_delete_search_entry",
-			"Backend instance: '%s' is already in the middle of "
-			"another task and cannot be disturbed.\n",
-			inst->inst_name);
-		return LDAP_OPERATIONS_ERROR;
-	}
-	tag1=create_vlv_search_tag(dn);
-	base1 = slapi_create_dn_string("cn=MCC %s,cn=%s,cn=%s,cn=plugins,cn=config",
-					tag1, inst->inst_name, inst->inst_li->li_plugin->plg_name);
-	if (NULL == base1) {
-		slapi_log_err(SLAPI_LOG_ERR,
-				  "vlv_delete_search_entry",
-				  "failed to craete vlv search entry dn (rdn: cn=MCC %s) for "
-				  "plugin %s, instance %s\n",
-				  tag1, inst->inst_li->li_plugin->plg_name, inst->inst_name); 
-		rc = LDAP_PARAM_ERROR;
-		goto bail;
-	}
-	newdn = slapi_sdn_new_dn_byval(base1);
-	/* vlvSearchList is modified; need Wlock */
-	slapi_rwlock_wrlock(be->vlvSearchList_lock);
-	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
-	if(p!=NULL)
-	{
-		slapi_log_err(SLAPI_LOG_ERR, "vlv_delete_search_entry",
-			"Deleted Virtual List View Search (%s).\n", p->vlv_name);
-		tag2=create_vlv_search_tag(dn);
-		base2 = slapi_create_dn_string("cn=by MCC %s,%s", tag2, base1);
-		if (NULL == base2) {
-			slapi_log_err(SLAPI_LOG_ERR,
-					  "vlv_delete_search_entry", "Failed to create "
-					  "vlv search entry dn (rdn: cn=by MCC %s) for "
-					  "plugin %s, instance %s\n",
-					  tag2, inst->inst_li->li_plugin->plg_name, inst->inst_name); 
-			rc = LDAP_PARAM_ERROR;
-			slapi_ch_free((void **)&tag2);
-			slapi_rwlock_unlock(be->vlvSearchList_lock);
-			goto bail;
-		}
-		vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
-		/* This line release lock to prevent recursive deadlock caused by slapi_internal_delete calling vlvDeleteSearchEntry */
-		slapi_rwlock_unlock(be->vlvSearchList_lock); 
-		vlvSearch_delete(&p);	
-		tmppb = slapi_pblock_new();
-		slapi_delete_internal_set_pb(tmppb, base2, NULL, NULL,
-								 (void *)plugin_get_default_component_id(), 0);
-		slapi_delete_internal_pb(tmppb);
-		slapi_pblock_get (tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc); 
-		if(rc != LDAP_SUCCESS) {
-			slapi_log_err(SLAPI_LOG_ERR, "vlv_delete_search_entry", "Can't delete dse entry '%s' error %d\n", base2, rc);			
-		}
-		pblock_done(tmppb);
-		pblock_init(tmppb);
-		slapi_delete_internal_set_pb(tmppb, base1, NULL, NULL,
-								 (void *)plugin_get_default_component_id(), 0);
-		slapi_delete_internal_pb(tmppb);
-		slapi_pblock_get (tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc); 
-		if(rc != LDAP_SUCCESS) {
-			  slapi_log_err(SLAPI_LOG_ERR, "vlv_delete_search_entry", "Can't delete dse entry '%s' error %d\n", base1, rc);
-		}
-		slapi_pblock_destroy(tmppb);
-		slapi_ch_free((void **)&tag2);
-		slapi_ch_free((void **)&base2);
+    if (instance_set_busy(inst) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "vlv_delete_search_entry",
+                      "Backend instance: '%s' is already in the middle of "
+                      "another task and cannot be disturbed.\n",
+                      inst->inst_name);
+        return LDAP_OPERATIONS_ERROR;
+    }
+    tag1 = create_vlv_search_tag(dn);
+    base1 = slapi_create_dn_string("cn=MCC %s,cn=%s,cn=%s,cn=plugins,cn=config",
+                                   tag1, inst->inst_name, inst->inst_li->li_plugin->plg_name);
+    if (NULL == base1) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "vlv_delete_search_entry",
+                      "failed to craete vlv search entry dn (rdn: cn=MCC %s) for "
+                      "plugin %s, instance %s\n",
+                      tag1, inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        rc = LDAP_PARAM_ERROR;
+        goto bail;
+    }
+    newdn = slapi_sdn_new_dn_byval(base1);
+    /* vlvSearchList is modified; need Wlock */
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
+    p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
+    if (p != NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "vlv_delete_search_entry",
+                      "Deleted Virtual List View Search (%s).\n", p->vlv_name);
+        tag2 = create_vlv_search_tag(dn);
+        base2 = slapi_create_dn_string("cn=by MCC %s,%s", tag2, base1);
+        if (NULL == base2) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "vlv_delete_search_entry", "Failed to create "
+                                                     "vlv search entry dn (rdn: cn=by MCC %s) for "
+                                                     "plugin %s, instance %s\n",
+                          tag2, inst->inst_li->li_plugin->plg_name, inst->inst_name);
+            rc = LDAP_PARAM_ERROR;
+            slapi_ch_free((void **)&tag2);
+            slapi_rwlock_unlock(be->vlvSearchList_lock);
+            goto bail;
+        }
+        vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList, p->vlv_dn);
+        /* This line release lock to prevent recursive deadlock caused by slapi_internal_delete calling vlvDeleteSearchEntry */
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
+        vlvSearch_delete(&p);
+        tmppb = slapi_pblock_new();
+        slapi_delete_internal_set_pb(tmppb, base2, NULL, NULL,
+                                     (void *)plugin_get_default_component_id(), 0);
+        slapi_delete_internal_pb(tmppb);
+        slapi_pblock_get(tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (rc != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "vlv_delete_search_entry", "Can't delete dse entry '%s' error %d\n", base2, rc);
+        }
+        pblock_done(tmppb);
+        pblock_init(tmppb);
+        slapi_delete_internal_set_pb(tmppb, base1, NULL, NULL,
+                                     (void *)plugin_get_default_component_id(), 0);
+        slapi_delete_internal_pb(tmppb);
+        slapi_pblock_get(tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (rc != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "vlv_delete_search_entry", "Can't delete dse entry '%s' error %d\n", base1, rc);
+        }
+        slapi_pblock_destroy(tmppb);
+        slapi_ch_free((void **)&tag2);
+        slapi_ch_free((void **)&base2);
     } else {
-		slapi_rwlock_unlock(be->vlvSearchList_lock);
-	}
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
+    }
 bail:
-	instance_set_not_busy(inst);
-	slapi_ch_free((void **)&tag1);
-	slapi_ch_free((void **)&base1);
-	slapi_sdn_free(&newdn);
-	return rc;
+    instance_set_not_busy(inst);
+    slapi_ch_free((void **)&tag1);
+    slapi_ch_free((void **)&base1);
+    slapi_sdn_free(&newdn);
+    return rc;
 }
 
 void
 vlv_acquire_lock(backend *be)
 {
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_acquire_lock", "Trying to acquire the lock\n");
-	slapi_rwlock_wrlock(be->vlvSearchList_lock);
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_acquire_lock", "Trying to acquire the lock\n");
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
 }
 
 void
 vlv_release_lock(backend *be)
 {
-	slapi_log_err(SLAPI_LOG_TRACE, "vlv_release_lock", "Trying to release the lock\n");
-	slapi_rwlock_unlock(be->vlvSearchList_lock);
+    slapi_log_err(SLAPI_LOG_TRACE, "vlv_release_lock", "Trying to release the lock\n");
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
 }

@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * --- END COPYRIGHT BLOCK --- */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -30,7 +30,8 @@ server_instance *server_head = NULL;
 static int keep_running;
 
 RETSIGTYPE
-stop_server(int signum) {
+stop_server(int signum)
+{
     if (signum == SIGUSR1) {
         snmp_log(LOG_WARNING, "Detected attempt to start ldap-agent again.\n");
     } else {
@@ -40,18 +41,19 @@ stop_server(int signum) {
 }
 
 int
-main (int argc, char *argv[]) {
-    char                *config_file = NULL;
+main(int argc, char *argv[])
+{
+    char *config_file = NULL;
     netsnmp_log_handler *log_hdl = NULL;
-    int                 c, log_level = LOG_WARNING;
-    struct stat         logdir_s;
-    pid_t               child_pid = 0;
-    FILE                *pid_fp;
+    int c, log_level = LOG_WARNING;
+    struct stat logdir_s;
+    pid_t child_pid = 0;
+    FILE *pid_fp;
 
     /* Pause for the debugger if DEBUG_SLEEP is set in the environment */
     {
-        char *s = getenv( "DEBUG_SLEEP" );
-        if ( (s != NULL) && isdigit(*s) ) {
+        char *s = getenv("DEBUG_SLEEP");
+        if ((s != NULL) && isdigit(*s)) {
             int secs = atoi(s);
             printf("%s pid is %d\n", argv[0], getpid());
             sleep(secs);
@@ -118,7 +120,7 @@ main (int argc, char *argv[]) {
                     /* Can we write to it? */
                     if (access(agent_logdir, W_OK) < 0) {
                         printf("ldap-agent: Unable to write to logdir: %s\n",
-                                agent_logdir);
+                               agent_logdir);
                         exit(1);
                     }
                 } else {
@@ -129,21 +131,21 @@ main (int argc, char *argv[]) {
 
             /* agent-logdir setting looks ok */
             if ((log_hdl->token = malloc(strlen(agent_logdir) +
-                                   strlen(LDAP_AGENT_LOGFILE) + 2)) != NULL) {
-                strncpy((char *) log_hdl->token, agent_logdir, strlen(agent_logdir) + 1);
+                                         strlen(LDAP_AGENT_LOGFILE) + 2)) != NULL) {
+                strncpy((char *)log_hdl->token, agent_logdir, strlen(agent_logdir) + 1);
                 /* add a trailing slash if needed */
                 if (*(agent_logdir + strlen(agent_logdir)) != '/')
-                    strcat((char *) log_hdl->token, "/");
-                strcat((char *) log_hdl->token, LDAP_AGENT_LOGFILE);
-                ((char*)log_hdl->token)[(strlen(agent_logdir) + strlen(LDAP_AGENT_LOGFILE) + 1)] = (char)0;
+                    strcat((char *)log_hdl->token, "/");
+                strcat((char *)log_hdl->token, LDAP_AGENT_LOGFILE);
+                ((char *)log_hdl->token)[(strlen(agent_logdir) + strlen(LDAP_AGENT_LOGFILE) + 1)] = (char)0;
             }
         } else {
             /* agent-logdir not set */
             printf("ldap-agent: Error determining log directory.\n");
             exit(1);
-        } 
+        }
 
-        snmp_enable_filelog((char*)log_hdl->token, 1);
+        snmp_enable_filelog((char *)log_hdl->token, 1);
     } else {
         printf("Error starting logging.");
         exit(1);
@@ -164,14 +166,14 @@ main (int argc, char *argv[]) {
         int rc;
 
         /* sleep to allow pidfile to be created by child */
-        for (i=0; i < 3; i++) {
+        for (i = 0; i < 3; i++) {
             sleep(5);
-            if((pid_fp = fopen(pidfile,"r")) != NULL) {
+            if ((pid_fp = fopen(pidfile, "r")) != NULL) {
                 break;
             }
         }
 
-        if(!pid_fp) {
+        if (!pid_fp) {
             printf("ldap-agent: Not started after 15 seconds!  Check log file for details.\n");
             exit(1);
         }
@@ -188,7 +190,7 @@ main (int argc, char *argv[]) {
 
     /* initialize the agent */
     init_agent("ldap-agent");
-    init_ldap_agent();  
+    init_ldap_agent();
     init_snmp("ldap-agent");
 
     /* listen for signals */
@@ -214,15 +216,15 @@ main (int argc, char *argv[]) {
     snmp_log(LOG_WARNING, "Started ldap-agent as pid %d\n", child_pid);
 
     /* loop here until asked to stop */
-    while(keep_running) {
-      agent_check_and_process(1);
+    while (keep_running) {
+        agent_check_and_process(1);
     }
 
     /* say goodbye */
     snmp_shutdown("ldap-agent");
     snmp_log(LOG_WARNING, "ldap-agent stopped.\n");
 
-    /* remove pidfile */ 
+    /* remove pidfile */
     remove(pidfile);
 
     return 0;
@@ -272,11 +274,11 @@ load_config(char *conf_path)
         printf("ldap-agent: Error opening config file: %s\n", conf_path);
         error = 1;
         goto close_and_exit;
-    } 
+    }
 
     /* set pidfile path */
     if ((pidfile = malloc(strlen(LOCALSTATEDIR) + strlen("/run/") +
-        strlen(LDAP_AGENT_PIDFILE) + 1)) != NULL) {
+                          strlen(LDAP_AGENT_PIDFILE) + 1)) != NULL) {
         strncpy(pidfile, LOCALSTATEDIR, strlen(LOCALSTATEDIR));
         /* The above will likely not be NULL terminated, but we need to
          * be sure that we're properly NULL terminated for the below
@@ -314,10 +316,10 @@ load_config(char *conf_path)
             /* load agentx-master setting */
             p = p + 13;
             if ((p = strtok(p, " \t\n")) != NULL) {
-                if (agentx_master){
+                if (agentx_master) {
                     free(agentx_master);
                 }
-                if ((agentx_master = (char *) malloc(strlen(p) + 1)) != NULL)
+                if ((agentx_master = (char *)malloc(strlen(p) + 1)) != NULL)
                     strcpy(agentx_master, p);
             }
         } else if ((p = strstr(line, "agent-logdir")) != NULL) {
@@ -329,7 +331,7 @@ load_config(char *conf_path)
             /* load agent-logdir setting */
             p = p + 12;
             if ((p = strtok(p, " \t\n")) != NULL) {
-                if ((agent_logdir = (char *) malloc(strlen(p) + 1)) != NULL)
+                if ((agent_logdir = (char *)malloc(strlen(p) + 1)) != NULL)
                     strcpy(agent_logdir, p);
             }
         } else if ((p = strstr(line, "server")) != NULL) {
@@ -354,11 +356,12 @@ load_config(char *conf_path)
                 /* first token is the instance name */
                 instancename = strdup(p);
                 serv_p->dse_ldif = malloc(strlen(p) + strlen(SYSCONFDIR) +
-                                           strlen(PACKAGE_NAME) + 12);
+                                          strlen(PACKAGE_NAME) + 12);
                 if (serv_p->dse_ldif != NULL) {
                     snprintf(serv_p->dse_ldif, strlen(p) + strlen(SYSCONFDIR) +
-                         strlen(PACKAGE_NAME) + 12, "%s/%s/%s/dse.ldif", 
-                         SYSCONFDIR, PACKAGE_NAME, p);
+                                                   strlen(PACKAGE_NAME) + 12,
+                             "%s/%s/%s/dse.ldif",
+                             SYSCONFDIR, PACKAGE_NAME, p);
                     serv_p->dse_ldif[(strlen(p) + strlen(SYSCONFDIR) +
                                       strlen(PACKAGE_NAME) + 11)] = (char)0;
                 } else {
@@ -386,8 +389,8 @@ load_config(char *conf_path)
                 error = 1;
                 goto close_and_exit;
             }
- 
-            /* Open dse.ldif */
+
+/* Open dse.ldif */
 #if defined(USE_OPENLDAP)
             dse_fp = ldif_open(serv_p->dse_ldif, "r");
             buflen = 0;
@@ -396,14 +399,14 @@ load_config(char *conf_path)
 #endif
             if (dse_fp == NULL) {
                 printf("ldap-agent: Error opening server config file: %s\n",
-                        serv_p->dse_ldif);
+                       serv_p->dse_ldif);
                 error = 1;
                 free(instancename);
                 instancename = NULL;
                 goto close_and_exit;
             }
 
-            /* ldif_get_entry will realloc the entry if it's not null,
+/* ldif_get_entry will realloc the entry if it's not null,
              * so we can just free it when we're done fetching entries
              * from the dse.ldif.  Unfortunately, ldif_getline moves
              * the pointer that is passed to it, so we need to save a
@@ -497,23 +500,25 @@ load_config(char *conf_path)
              * location of the stats file. */
             if (!got_port) {
                 printf("ldap-agent: Error reading nsslapd-port from "
-                       "server config file: %s\n", serv_p->dse_ldif);
+                       "server config file: %s\n",
+                       serv_p->dse_ldif);
                 error = 1;
                 goto close_and_exit;
             } else if (!got_rundir) {
                 printf("ldap-agent: Error reading nsslapd-rundir from "
-                       "server config file: %s\n", serv_p->dse_ldif);
+                       "server config file: %s\n",
+                       serv_p->dse_ldif);
                 error = 1;
                 goto close_and_exit;
             }
-            
+
             /* in case a snmp index is specified, it replace the nsslapd-port
              * This would allow to give an index to a snmp report, rather than using
              * the TCP interface port number (because the same port may be listen on multiple interfaces).
              * For snmp_index values <= 0 (disabled), let's keep the port
              */
             if (got_snmp_index && (snmp_index > 0)) {
-                    serv_p->port = snmp_index;
+                serv_p->port = snmp_index;
             }
 
             /* Insert server instance into linked list */

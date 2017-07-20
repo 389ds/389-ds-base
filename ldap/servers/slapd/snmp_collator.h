@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /******************************************************************************
@@ -16,20 +16,20 @@
 *       defines
 *
 ******************************************************************************/
-#define SNMP_CONFIG_DN    "cn=SNMP,cn=config"
-#define SNMP_NAME_ATTR    "nsSNMPName"
-#define SNMP_DESC_ATTR    "nsSNMPDescription"
-#define SNMP_ORG_ATTR     "nsSNMPOrganization"
-#define SNMP_LOC_ATTR     "nsSNMPLocation"
+#define SNMP_CONFIG_DN "cn=SNMP,cn=config"
+#define SNMP_NAME_ATTR "nsSNMPName"
+#define SNMP_DESC_ATTR "nsSNMPDescription"
+#define SNMP_ORG_ATTR "nsSNMPOrganization"
+#define SNMP_LOC_ATTR "nsSNMPLocation"
 #define SNMP_CONTACT_ATTR "nsSNMPContact"
 
 /******************************************************************************
 *
-*	function prototypes
+*    function prototypes
 *
 ******************************************************************************/
 
-    int snmp_collator_start(void);
-    int snmp_collator_stop(void);
-    void set_snmp_interaction_row(char *host, int port, int error);
-    void snmp_collator_update(time_t, void *);
+int snmp_collator_start(void);
+int snmp_collator_stop(void);
+void set_snmp_interaction_row(char *host, int port, int error);
+void snmp_collator_update(time_t, void *);

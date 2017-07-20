@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef PUBLIC_NSACL_PLISTDEF_H
@@ -31,21 +31,21 @@ typedef struct PListStruct_s *PList_t;
 
 /* Define error codes returned from property list routines */
 
-#define ERRPLINVPI      -1      /* invalid property index */
-#define ERRPLEXIST      -2      /* property already exists */
-#define ERRPLFULL       -3      /* property list is full */
-#define ERRPLNOMEM      -4      /* insufficient dynamic memory */
-#define ERRPLUNDEF      -5      /* undefined property name */
+#define ERRPLINVPI -1 /* invalid property index */
+#define ERRPLEXIST -2 /* property already exists */
+#define ERRPLFULL -3  /* property list is full */
+#define ERRPLNOMEM -4 /* insufficient dynamic memory */
+#define ERRPLUNDEF -5 /* undefined property name */
 
-#define PLFLG_OLD_MPOOL	0	/* use the plist memory pool */
-#define PLFLG_NEW_MPOOL	1	/* use the input memory pool */
-#define PLFLG_IGN_RES	2	/* ignore the reserved properties */
-#define PLFLG_USE_RES	3	/* use the reserved properties */
+#define PLFLG_OLD_MPOOL 0 /* use the plist memory pool */
+#define PLFLG_NEW_MPOOL 1 /* use the input memory pool */
+#define PLFLG_IGN_RES 2   /* ignore the reserved properties */
+#define PLFLG_USE_RES 3   /* use the reserved properties */
 
 #ifdef __cplusplus
-typedef void (PListFunc_t)(char*, const void*, void*);
+typedef void(PListFunc_t)(char *, const void *, void *);
 #else
-typedef void (PListFunc_t)(void);
+typedef void(PListFunc_t)(void);
 #endif
 
 #ifndef INTNSACL

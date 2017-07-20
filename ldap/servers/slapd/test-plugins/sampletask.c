@@ -3,12 +3,12 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
-/* 
+/*
  * sample task plugin
- * 
+ *
  * [How to set up the plugin for testing]
  * 1. compile and package with the other plugins
  * 2. put the plugin libsampletask-plugin.so at <prefix>/usr/lib/<PACKAGE_NAME>/plugins
@@ -43,7 +43,7 @@
  * cn: sample task 0
  * myarg: sample task myarg
  *
- * Result is in the errors log 
+ * Result is in the errors log
  * [...] - Sample task starts (arg: sample task myarg) ...
  * [...] - Sample task finished.
  */
@@ -51,28 +51,26 @@
 #include "slapi-plugin.h"
 #include "nspr.h"
 
-static int task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                    Slapi_Entry *eAfter, int *returncode, char *returntext,
-                    void *arg);
+static int task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int task_sampletask_start(Slapi_PBlock *pb);
 
-/* 
+/*
  * Init function
  * Specified in the plugin entry as "nsslapd-pluginInitfunc: sampletask_init"
  */
 int
-sampletask_init( Slapi_PBlock *pb )
+sampletask_init(Slapi_PBlock *pb)
 {
     int rc = 0;
-	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-                                    (void *) SLAPI_PLUGIN_VERSION_03 );
-    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
-                                    (void *) task_sampletask_start );
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                          (void *)SLAPI_PLUGIN_VERSION_03);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
+                           (void *)task_sampletask_start);
 
     return rc;
 }
 
-/* 
+/*
  * Task start function
  * Register the function task_sampletask_add, which invokes the task on demand.
  */
@@ -80,7 +78,7 @@ static int
 task_sampletask_start(Slapi_PBlock *pb)
 {
     int rc = slapi_task_register_handler("sample task", task_sampletask_add);
-	return rc;
+    return rc;
 }
 
 /*
@@ -122,8 +120,8 @@ task_sampletask_thread(void *arg)
  * entry, the default will be returned (which can be NULL).
  * you do not need to free anything returned by this.
  */
-static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
-                                              const char *default_val)
+static const char *
+fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -151,9 +149,7 @@ task_sampletask_destructor(Slapi_Task *task)
  * the task.
  */
 static int
-task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                    Slapi_Entry *eAfter, int *returncode, char *returntext,
-                    void *arg)
+task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     PRThread *thread = NULL;
     const char *cn;
@@ -197,7 +193,7 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "sampletask",
-                  "unable to create sample task thread!\n");
+                      "unable to create sample task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);

@@ -12,20 +12,23 @@
 #include <pwdstorage.h>
 
 int
-test_plugin_pwdstorage_nss_setup(void **state __attribute__((unused))) {
-    int result = NSS_Initialize(NULL, "", "", SECMOD_DB, NSS_INIT_READONLY|NSS_INIT_NOCERTDB|NSS_INIT_NOMODDB);
+test_plugin_pwdstorage_nss_setup(void **state __attribute__((unused)))
+{
+    int result = NSS_Initialize(NULL, "", "", SECMOD_DB, NSS_INIT_READONLY | NSS_INIT_NOCERTDB | NSS_INIT_NOMODDB);
     assert_true(result == 0);
     return result;
 }
 
 int
-test_plugin_pwdstorage_nss_stop(void **state __attribute__((unused))) {
+test_plugin_pwdstorage_nss_stop(void **state __attribute__((unused)))
+{
     NSS_Shutdown();
     return 0;
 }
 
 void
-test_plugin_pwdstorage_pbkdf2_auth(void **state __attribute__((unused))) {
+test_plugin_pwdstorage_pbkdf2_auth(void **state __attribute__((unused)))
+{
 
 #if (NSS_VMAJOR * 100 + NSS_VMINOR) > 328
     /* Check that given various known passwords and hashes they validate (or don't) */
@@ -54,7 +57,8 @@ test_plugin_pwdstorage_pbkdf2_auth(void **state __attribute__((unused))) {
 }
 
 void
-test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused))){
+test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused)))
+{
 #if (NSS_VMAJOR * 100 + NSS_VMINOR) > 328
     /* Check the benchmark, and make sure we get a valid timestamp */
     assert_true(pbkdf2_sha256_benchmark_iterations() > 0);
@@ -74,4 +78,3 @@ test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused))){
     assert_true(pbkdf2_sha256_calculate_iterations(50000000) == 40000);
 #endif
 }
-

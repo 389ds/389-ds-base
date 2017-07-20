@@ -2,22 +2,22 @@
  * Copyright (C) 2015  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -30,7 +30,7 @@
  * --- END COPYRIGHT BLOCK ---
  */
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -55,14 +55,24 @@ event_logger_cb(int severity, const char *msg)
     char *text = NULL;
 
     switch (severity) {
-        case _EVENT_LOG_DEBUG: priority = LOG_DEBUG; break;
-        case _EVENT_LOG_MSG:   priority = LOG_DEBUG; break;
-        case _EVENT_LOG_WARN:  priority = LOG_DEBUG; break;
-        case _EVENT_LOG_ERR:   priority = LOG_ERR; break;
-        default:               priority = LOG_ERR; break; /* never reached */
+    case _EVENT_LOG_DEBUG:
+        priority = LOG_DEBUG;
+        break;
+    case _EVENT_LOG_MSG:
+        priority = LOG_DEBUG;
+        break;
+    case _EVENT_LOG_WARN:
+        priority = LOG_DEBUG;
+        break;
+    case _EVENT_LOG_ERR:
+        priority = LOG_ERR;
+        break;
+    default:
+        priority = LOG_ERR;
+        break; /* never reached */
     }
     /* need to append newline */
-    text = PR_smprintf("%s\n",msg);
+    text = PR_smprintf("%s\n", msg);
     ns_log(priority, text);
     ns_free(text);
 }
@@ -156,8 +166,7 @@ ns_event_fw_destroy(ns_event_fw_ctx_t *event_ctx_t)
 static void
 ns_event_fw_io_event_remove(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     event_del(job->ns_event_fw_fd);
 }
@@ -165,8 +174,7 @@ ns_event_fw_io_event_remove(
 static void
 ns_event_fw_io_event_done(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     ns_event_fw_io_event_remove(ns_event_fw_ctx, job);
     job->free_event_context(job->ns_event_fw_fd, job);
@@ -176,8 +184,7 @@ ns_event_fw_io_event_done(
 static void
 ns_event_fw_timer_event_remove(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     evtimer_del(job->ns_event_fw_time);
 }
@@ -185,8 +192,7 @@ ns_event_fw_timer_event_remove(
 static void
 ns_event_fw_timer_event_done(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     ns_event_fw_timer_event_remove(ns_event_fw_ctx, job);
     job->free_event_context(job->ns_event_fw_time, job);
@@ -196,8 +202,7 @@ ns_event_fw_timer_event_done(
 static void
 ns_event_fw_signal_event_remove(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     evsignal_del(job->ns_event_fw_sig);
 }
@@ -205,8 +210,7 @@ ns_event_fw_signal_event_remove(
 static void
 ns_event_fw_signal_event_done(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     ns_event_fw_signal_event_remove(ns_event_fw_ctx, job);
     job->free_event_context(job->ns_event_fw_sig, job);
@@ -216,8 +220,7 @@ ns_event_fw_signal_event_done(
 static void
 ns_event_fw_add_io(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     struct timeval *tv = NULL;
     /* allocate a new event structure - use the job for the memory context */
@@ -236,8 +239,7 @@ ns_event_fw_add_io(
 static void
 ns_event_fw_mod_io(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     struct timeval *tv = NULL;
     short events = job_type_to_flags(job->job_type);
@@ -257,8 +259,7 @@ ns_event_fw_mod_io(
 static void
 ns_event_fw_add_timer(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     /* allocate a new event structure - use the job for the memory context */
     struct event *ev = job->alloc_event_context(sizeof(struct event), job);
@@ -270,8 +271,7 @@ ns_event_fw_add_timer(
 static void
 ns_event_fw_mod_timer(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     evtimer_add(job->ns_event_fw_time, &job->tv);
 }
@@ -279,8 +279,7 @@ ns_event_fw_mod_timer(
 static void
 ns_event_fw_add_signal(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     /* allocate a new event structure - use the job for the memory context */
     struct event *ev = job->alloc_event_context(sizeof(struct event), job);
@@ -292,8 +291,7 @@ ns_event_fw_add_signal(
 static void
 ns_event_fw_mod_signal(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     /* If the event in the ev argument already has a scheduled timeout, calling event_add() replaces the old timeout with the new one, or clears the old timeout if the timeout argument is NULL. */
     evsignal_add(job->ns_event_fw_sig, NULL);
@@ -329,8 +327,7 @@ static ns_event_fw_t ns_event_fw_event = {
     ns_event_fw_mod_signal,
     ns_event_fw_io_event_done,
     ns_event_fw_timer_event_done,
-    ns_event_fw_signal_event_done
-};
+    ns_event_fw_signal_event_done};
 
 ns_event_fw_t *
 get_event_framework_event()

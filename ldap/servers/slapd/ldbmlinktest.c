@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #if 0
@@ -18,19 +18,19 @@ int error_logfp;
 
 main()
 {
-	ldbm_back_bind();
-	ldbm_back_unbind();
-	ldbm_back_search();
-	ldbm_back_compare();
-	ldbm_back_modify();
-	ldbm_back_modrdn();
-	ldbm_back_add();
-	ldbm_back_delete();
-	ldbm_back_abandon();
-	ldbm_back_config();
-	ldbm_back_init();
-	ldbm_back_close();
-	ldbm_back_flush();
+    ldbm_back_bind();
+    ldbm_back_unbind();
+    ldbm_back_search();
+    ldbm_back_compare();
+    ldbm_back_modify();
+    ldbm_back_modrdn();
+    ldbm_back_add();
+    ldbm_back_delete();
+    ldbm_back_abandon();
+    ldbm_back_config();
+    ldbm_back_init();
+    ldbm_back_close();
+    ldbm_back_flush();
 }
 
 #if 0

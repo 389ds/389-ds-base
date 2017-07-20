@@ -20,7 +20,8 @@
 #define GC_HISTORY 32
 
 /* Due to the masking in sds.h, you don't need to typedef this */
-struct _sds_lqueue {
+struct _sds_lqueue
+{
     /**
      * The lfds queue state.
      */
@@ -36,7 +37,8 @@ struct _sds_lqueue {
     PRUintn gc_index;
 };
 
-typedef struct _sds_lqueue_gc {
+typedef struct _sds_lqueue_gc
+{
     uint64_t current_generation;
     struct lfds711_queue_umm_element *garbage[GC_HISTORY];
 } sds_lqueue_gc;
@@ -81,7 +83,8 @@ typedef struct _sds_lqueue_gc {
  */
 
 static void
-sds_lqueue_tprivate_cleanup(void *priv) {
+sds_lqueue_tprivate_cleanup(void *priv)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_lqueue_tprivate_cleanup", "Closing thread GC");
 #endif
@@ -98,7 +101,8 @@ sds_lqueue_tprivate_cleanup(void *priv) {
 }
 
 sds_result
-sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
+sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value))
+{
 #ifdef SDS_DEBUG
     sds_log("sds_lqueue_init", "Creating lock free queue");
 #endif
@@ -126,7 +130,8 @@ sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
 }
 
 sds_result
-sds_lqueue_tprep(sds_lqueue *q) {
+sds_lqueue_tprep(sds_lqueue *q)
+{
     /* Get ready to run on this core. It's essentially a load barrier or full barrier */
     LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE;
     sds_lqueue_gc *gc = NULL;
@@ -147,9 +152,10 @@ sds_lqueue_tprep(sds_lqueue *q) {
 }
 
 sds_result
-sds_lqueue_enqueue(sds_lqueue *q, void *elem) {
+sds_lqueue_enqueue(sds_lqueue *q, void *elem)
+{
 #ifdef SDS_DEBUG
-        sds_log("sds_lqueue_enqueue", "<== lf Queue %p elem %p", q, elem);
+    sds_log("sds_lqueue_enqueue", "<== lf Queue %p elem %p", q, elem);
 #endif
     struct lfds711_queue_umm_element *qe = sds_malloc(sizeof(struct lfds711_queue_umm_element));
     LFDS711_QUEUE_UMM_SET_VALUE_IN_ELEMENT(*qe, elem);
@@ -158,9 +164,10 @@ sds_lqueue_enqueue(sds_lqueue *q, void *elem) {
 }
 
 sds_result
-sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
+sds_lqueue_dequeue(sds_lqueue *q, void **elem)
+{
 #ifdef SDS_DEBUG
-        sds_log("sds_lqueue_dequeue", "==> lf Queue %p elem %p", q, elem);
+    sds_log("sds_lqueue_dequeue", "==> lf Queue %p elem %p", q, elem);
 #endif
     if (elem == NULL) {
         return SDS_NULL_POINTER;
@@ -171,7 +178,7 @@ sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
         return SDS_UNKNOWN_ERROR;
     }
     if (lfds711_queue_umm_dequeue(&(q->queue), &qe) && qe) {
-        *elem = LFDS711_QUEUE_UMM_GET_VALUE_FROM_ELEMENT( *qe );
+        *elem = LFDS711_QUEUE_UMM_GET_VALUE_FROM_ELEMENT(*qe);
         if (gc->garbage[gc->current_generation] != NULL) {
             sds_free(gc->garbage[gc->current_generation]);
         }
@@ -183,13 +190,15 @@ sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
 }
 
 void
-sds_lqueue_dummy_cleanup(struct lfds711_queue_umm_state *qs __attribute__((unused)), struct lfds711_queue_umm_element *qe, enum lfds711_misc_flag dummy_element_flag __attribute__((unused))) {
+sds_lqueue_dummy_cleanup(struct lfds711_queue_umm_state *qs __attribute__((unused)), struct lfds711_queue_umm_element *qe, enum lfds711_misc_flag dummy_element_flag __attribute__((unused)))
+{
     /* Should only be the dummy! */
     sds_free(qe);
 }
 
 sds_result
-sds_lqueue_destroy(sds_lqueue *q) {
+sds_lqueue_destroy(sds_lqueue *q)
+{
     /* All the threads should be shutdown, so they GC themself. */
     /* There is no guarantee we have been thread preped, so setup GC now if needed. */
     sds_lqueue_tprep(q);
@@ -211,29 +220,32 @@ sds_lqueue_destroy(sds_lqueue *q) {
 #else
 /* Fall back to our tqueue implementation. */
 sds_result
-sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value)) {
+sds_lqueue_init(sds_lqueue **q_ptr, void (*value_free_fn)(void *value))
+{
     return sds_tqueue_init(q_ptr, value_free_fn);
 }
 
 sds_result
-sds_lqueue_tprep(sds_lqueue *q __attribute__((unused))) {
+sds_lqueue_tprep(sds_lqueue *q __attribute__((unused)))
+{
     return SDS_SUCCESS;
 }
 
 sds_result
-sds_lqueue_enqueue(sds_lqueue *q, void *elem) {
+sds_lqueue_enqueue(sds_lqueue *q, void *elem)
+{
     return sds_tqueue_enqueue(q, elem);
 }
 
 sds_result
-sds_lqueue_dequeue(sds_lqueue *q, void **elem) {
+sds_lqueue_dequeue(sds_lqueue *q, void **elem)
+{
     return sds_tqueue_dequeue(q, elem);
 }
 
 sds_result
-sds_lqueue_destroy(sds_lqueue *q) {
+sds_lqueue_destroy(sds_lqueue *q)
+{
     return sds_tqueue_destroy(q);
 }
 #endif
-
-

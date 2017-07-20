@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -20,15 +20,14 @@
 #ifndef ACLSCAN_H
 #define ACLSCAN_H
 
-NSPR_BEGIN_EXTERN_C 
+NSPR_BEGIN_EXTERN_C
 
 extern int acl_InitScanner(NSErr_t *errp, char *filename, char *buffer);
 extern int acl_EndScanner(void);
-extern void aclerror(const char *s); 
-extern int acllex(void); 
+extern void aclerror(const char *s);
+extern int acllex(void);
 extern void acl_free_buffer(void);
 
 NSPR_END_EXTERN_C
 
 #endif
-

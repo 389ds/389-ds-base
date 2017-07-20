@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -20,10 +20,10 @@
 #include "slap.h"
 
 /* Forward Decls */
-static void adjust_referral_basedn( char **urlp, const Slapi_DN *refcontainerdn, char *opdn_norm, int isreference );
-static int dn_is_below( const char *dn_norm, const char *ancestor_norm );
+static void adjust_referral_basedn(char **urlp, const Slapi_DN *refcontainerdn, char *opdn_norm, int isreference);
+static int dn_is_below(const char *dn_norm, const char *ancestor_norm);
 static Ref_Array *g_get_global_referrals(void);
-static void ref_free (Ref **goner);
+static void ref_free(Ref **goner);
 static Ref_Array global_referrals;
 
 #define SLAPD_DEFAULT_REFARRAY_SIZE 10
@@ -40,24 +40,23 @@ static Ref_Array global_referrals;
 static Ref_Array *
 g_get_global_referrals(void)
 {
-    if (global_referrals.ra_rwlock == NULL)
-	{
+    if (global_referrals.ra_rwlock == NULL) {
         /* Make a new lock */
         global_referrals.ra_rwlock = slapi_new_rwlock();
-      
+
         if (global_referrals.ra_rwlock == NULL) {
             slapi_log_err(SLAPI_LOG_ERR,
-    		   "g_get_global_referrals", "New lock creation failed\n");
-        	exit (-1);
+                          "g_get_global_referrals", "New lock creation failed\n");
+            exit(-1);
         }
-        
+
         /* Initialize all the fields. */
         global_referrals.ra_size = SLAPD_DEFAULT_REFARRAY_SIZE;
         global_referrals.ra_nextindex = 0;
         global_referrals.ra_readcount = 0;
-        global_referrals.ra_refs = (Ref **) slapi_ch_calloc(SLAPD_DEFAULT_REFARRAY_SIZE, sizeof( Ref * ));
-	}
-    return( &global_referrals );
+        global_referrals.ra_refs = (Ref **)slapi_ch_calloc(SLAPD_DEFAULT_REFARRAY_SIZE, sizeof(Ref *));
+    }
+    return (&global_referrals);
 }
 
 
@@ -72,11 +71,11 @@ g_get_global_referrals(void)
  *
  */
 static void
-ref_free (Ref **goner)
+ref_free(Ref **goner)
 {
-  slapi_ch_free((void**) &((*goner)->ref_dn));
-  ber_bvfree( (*goner)->ref_referral );
-  slapi_ch_free((void**) goner);
+    slapi_ch_free((void **)&((*goner)->ref_dn));
+    ber_bvfree((*goner)->ref_referral);
+    slapi_ch_free((void **)goner);
 }
 
 
@@ -91,26 +90,25 @@ ref_free (Ref **goner)
  *
  */
 void
-referrals_free (void)
+referrals_free(void)
 {
-  int walker;
-  Ref_Array *grefs = NULL;
+    int walker;
+    Ref_Array *grefs = NULL;
 
-  grefs = g_get_global_referrals();
+    grefs = g_get_global_referrals();
 
-  GR_LOCK_WRITE();
+    GR_LOCK_WRITE();
 
-  /* Walk down the array, deleting each referral */
-  for (walker = 0; walker < grefs->ra_nextindex; walker++){
-   ref_free (&grefs->ra_refs[walker]);
+    /* Walk down the array, deleting each referral */
+    for (walker = 0; walker < grefs->ra_nextindex; walker++) {
+        ref_free(&grefs->ra_refs[walker]);
+    }
 
-  } 
-  
-  slapi_ch_free ((void **) &grefs->ra_refs);
+    slapi_ch_free((void **)&grefs->ra_refs);
 
-  GR_UNLOCK_WRITE();
+    GR_UNLOCK_WRITE();
 
-  slapi_destroy_rwlock( grefs->ra_rwlock );
+    slapi_destroy_rwlock(grefs->ra_rwlock);
 }
 
 /*
@@ -153,104 +151,101 @@ referrals_free (void)
  * use the correct scope when chasing the reference.
  */
 struct berval **
-ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
-	int is_reference )
+ref_adjust(Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn, int is_reference)
 {
-    int			i, len, scope;
-    Slapi_DN    *sdn = NULL;
-    char		*p, *opdn_norm;
-    struct berval	**urlscopy;
-    Operation		*op;
+    int i, len, scope;
+    Slapi_DN *sdn = NULL;
+    char *p, *opdn_norm;
+    struct berval **urlscopy;
+    Operation *op;
 
-    if ( NULL == urls || NULL == urls[0] ) {
-        return( NULL );
+    if (NULL == urls || NULL == urls[0]) {
+        return (NULL);
     }
 
-    PR_ASSERT( pb != NULL );
+    PR_ASSERT(pb != NULL);
 
     /*
      * grab the operation target DN and operation structure.
      * if the operation is a search, get the scope as well.
      */
-    if ( slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn ) != 0 || sdn == NULL ||
-         slapi_pblock_get( pb, SLAPI_OPERATION, &op ) != 0 || op == NULL ||
-         ( operation_get_type(op) == SLAPI_OPERATION_SEARCH && slapi_pblock_get( pb,
-        SLAPI_SEARCH_SCOPE, &scope ) != 0 )) {
+    if (slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn) != 0 || sdn == NULL ||
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op) != 0 || op == NULL ||
+        (operation_get_type(op) == SLAPI_OPERATION_SEARCH && slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope) != 0)) {
         slapi_log_err(SLAPI_LOG_ERR, "ref_adjust",
-                "Referrals suppressed (could not get target DN, operation, "
-                "or scope from pblock)\n" );
-        return( NULL );
+                      "Referrals suppressed (could not get target DN, operation, "
+                      "or scope from pblock)\n");
+        return (NULL);
     }
 
     /*
      * normalize the DNs we plan to compare with others later.
      */
-    opdn_norm = slapi_ch_strdup( slapi_sdn_get_dn(sdn) );
+    opdn_norm = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
 
 
     /*
      * count referrals and duplicate the array
      */
-    for ( i = 0; urls[i] != NULL; ++i ) {
-	;
+    for (i = 0; urls[i] != NULL; ++i) {
+        ;
     }
-    urlscopy = (struct berval **) slapi_ch_malloc(( i + 1 ) *
-	    sizeof( struct berval * ));
+    urlscopy = (struct berval **)slapi_ch_malloc((i + 1) *
+                                                 sizeof(struct berval *));
 
-    for ( i = 0; urls[i] != NULL; ++i ) {
-	/*
-	 * duplicate the URL, stripping off the label if there is one and
-	 * leaving extra room for "??base" in case we need to append that.
-	 */
-	urlscopy[i] = (struct berval *)slapi_ch_malloc(
-		sizeof( struct berval ));
-	if (( p = strchr( urls[i]->bv_val, ' ' )) == NULL ) {
-	    len = strlen( urls[i]->bv_val );
-	} else {
-	    len = p - urls[i]->bv_val;
-	}
-	urlscopy[i]->bv_val = (char *)slapi_ch_malloc( len + 7 );
-	memcpy( urlscopy[i]->bv_val, urls[i]->bv_val, len );
-	urlscopy[i]->bv_val[len] = '\0';
+    for (i = 0; urls[i] != NULL; ++i) {
+        /*
+     * duplicate the URL, stripping off the label if there is one and
+     * leaving extra room for "??base" in case we need to append that.
+     */
+        urlscopy[i] = (struct berval *)slapi_ch_malloc(
+            sizeof(struct berval));
+        if ((p = strchr(urls[i]->bv_val, ' ')) == NULL) {
+            len = strlen(urls[i]->bv_val);
+        } else {
+            len = p - urls[i]->bv_val;
+        }
+        urlscopy[i]->bv_val = (char *)slapi_ch_malloc(len + 7);
+        memcpy(urlscopy[i]->bv_val, urls[i]->bv_val, len);
+        urlscopy[i]->bv_val[len] = '\0';
 
-	/*
-	 * adjust the baseDN as needed and set the length
-	 */
-	adjust_referral_basedn( &urlscopy[i]->bv_val, refsdn,
-		opdn_norm, is_reference );
-	urlscopy[i]->bv_len = strlen( urlscopy[i]->bv_val );
+        /*
+     * adjust the baseDN as needed and set the length
+     */
+        adjust_referral_basedn(&urlscopy[i]->bv_val, refsdn,
+                               opdn_norm, is_reference);
+        urlscopy[i]->bv_len = strlen(urlscopy[i]->bv_val);
 
-	/*
-	 * if we are dealing with a continuation reference that resulted
-	 * from a one-level search, add a scope of base to the URL.
-	 */
-	if ( is_reference && operation_get_type(op) == SLAPI_OPERATION_SEARCH &&
-		scope == LDAP_SCOPE_ONELEVEL ) {
-	    strcat( urlscopy[i]->bv_val, "??base" );
-	    urlscopy[i]->bv_len += 6;
-	}
+        /*
+     * if we are dealing with a continuation reference that resulted
+     * from a one-level search, add a scope of base to the URL.
+     */
+        if (is_reference && operation_get_type(op) == SLAPI_OPERATION_SEARCH &&
+            scope == LDAP_SCOPE_ONELEVEL) {
+            strcat(urlscopy[i]->bv_val, "??base");
+            urlscopy[i]->bv_len += 6;
+        }
     }
 
-    urlscopy[i] = NULL;	/* NULL terminate the new referrals array */
+    urlscopy[i] = NULL; /* NULL terminate the new referrals array */
 
     /*
      * log what we did (for debugging purposes)
      */
-    if ( loglevel_is_set( LDAP_DEBUG_ARGS )) {
-        for ( i = 0; urlscopy[i] != NULL; ++i ) {
+    if (loglevel_is_set(LDAP_DEBUG_ARGS)) {
+        for (i = 0; urlscopy[i] != NULL; ++i) {
             slapi_log_err(SLAPI_LOG_ARGS, "ref_adjust", "\"%s\" -> \"%s\"\n",
-                    urls[i]->bv_val, urlscopy[i]->bv_val);
+                          urls[i]->bv_val, urlscopy[i]->bv_val);
         }
     }
 
     /*
      * done -- clean up and return the new referrals array
      */
-    slapi_ch_free( (void **)&opdn_norm );
+    slapi_ch_free((void **)&opdn_norm);
 
-    return( urlscopy );
+    return (urlscopy);
 }
-
 
 
 /*
@@ -281,92 +276,90 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
  * This later assumption NEED to be removed and code changed appropriately.
  */
 static void
-adjust_referral_basedn( char **urlp, const Slapi_DN *refsdn,
-	char *opdn_norm, int isreference )
+adjust_referral_basedn(char **urlp, const Slapi_DN *refsdn, char *opdn_norm, int isreference)
 {
-    LDAPURLDesc		*ludp = NULL;
-    char		*p, *refdn_norm;
-	int rc = 0;
+    LDAPURLDesc *ludp = NULL;
+    char *p, *refdn_norm;
+    int rc = 0;
     int secure = 0;
-	
-    PR_ASSERT( urlp != NULL );
-    PR_ASSERT( *urlp != NULL );
-    PR_ASSERT( refsdn != NULL );
-    PR_ASSERT( opdn_norm != NULL );
 
-	if (opdn_norm == NULL){
-		/* Be safe but this should never ever happen */
-		return;
-	}
-	
-	rc = slapi_ldap_url_parse( *urlp, &ludp, 0, &secure );
+    PR_ASSERT(urlp != NULL);
+    PR_ASSERT(*urlp != NULL);
+    PR_ASSERT(refsdn != NULL);
+    PR_ASSERT(opdn_norm != NULL);
 
-	if	(rc != 0)
-	{
-		/* Nothing to do, just return */
-		/* log bogus url? */
-		return;
-	}
-	
+    if (opdn_norm == NULL) {
+        /* Be safe but this should never ever happen */
+        return;
+    }
+
+    rc = slapi_ldap_url_parse(*urlp, &ludp, 0, &secure);
+
+    if (rc != 0) {
+        /* Nothing to do, just return */
+        /* log bogus url? */
+        return;
+    }
+
     if (ludp && (ludp->lud_dn != NULL) && (ludp->lud_dn[0])) {
 
-		refdn_norm = slapi_dn_normalize( slapi_ch_strdup( ludp->lud_dn ));
-		
-		if ( dn_is_below( opdn_norm, refdn_norm )) {
-			/*
-			 * Strip off the baseDN.
-			 */
-			if (( p = strrchr( *urlp, '/' )) != NULL ) {
-				*p = '\0';
-			}
+        refdn_norm = slapi_dn_normalize(slapi_ch_strdup(ludp->lud_dn));
 
-		} else if ( dn_is_below( opdn_norm, slapi_sdn_get_ndn(refsdn) )) {
-			int		cur_len, add_len;
-			
-			/*
-			 * Prepend the portion of the operation DN that does not match
-			 * the ref container DN to the referral baseDN.
-			 */
-			add_len = strlen( opdn_norm ) - slapi_sdn_get_ndn_len( refsdn );
-			cur_len = strlen( *urlp );
-			/* + 7 because we keep extra space in case we add ??base */
-			*urlp = slapi_ch_realloc( *urlp, cur_len + add_len + 7 );
-			
-			if (( p = strrchr( *urlp, '/' )) != NULL ) {
-				++p;
-				memmove( p + add_len, p, strlen( p ) + 1 );
-				memmove( p, opdn_norm, add_len );
-			}
-			
-		}	/* else: leave the original referral baseDN intact. */
-		
-		slapi_ch_free( (void **)&refdn_norm );
-    } else if (isreference) { 
-		int		cur_len, add_len;
+        if (dn_is_below(opdn_norm, refdn_norm)) {
+            /*
+             * Strip off the baseDN.
+             */
+            if ((p = strrchr(*urlp, '/')) != NULL) {
+                *p = '\0';
+            }
 
-		/* If ludp->lud_dn == NULL and isreference : Add the DN of the ref entry*/
-		if ( dn_is_below( opdn_norm, slapi_sdn_get_ndn(refsdn) )){
-			add_len = strlen(opdn_norm);
-			p = opdn_norm;
-		} else {
-			add_len = slapi_sdn_get_ndn_len(refsdn);
-			p = (char *)slapi_sdn_get_ndn(refsdn);
-		}
-		
-		cur_len = strlen( *urlp );
-		/* + 8 because we keep extra space in case we add a / and/or ??base  */
-		*urlp = slapi_ch_realloc( *urlp, cur_len + add_len + 8 );
-		if ((*urlp)[cur_len - 1] != '/'){
-			/* The URL is not ending with a /, let's add one */
-			strcat(*urlp, "/");
-		}
-		strcat(*urlp, p);
-	}
-	
-    if ( ludp != NULL ) {
-		ldap_free_urldesc( ludp );
+        } else if (dn_is_below(opdn_norm, slapi_sdn_get_ndn(refsdn))) {
+            int cur_len, add_len;
+
+            /*
+             * Prepend the portion of the operation DN that does not match
+             * the ref container DN to the referral baseDN.
+             */
+            add_len = strlen(opdn_norm) - slapi_sdn_get_ndn_len(refsdn);
+            cur_len = strlen(*urlp);
+            /* + 7 because we keep extra space in case we add ??base */
+            *urlp = slapi_ch_realloc(*urlp, cur_len + add_len + 7);
+
+            if ((p = strrchr(*urlp, '/')) != NULL) {
+                ++p;
+                memmove(p + add_len, p, strlen(p) + 1);
+                memmove(p, opdn_norm, add_len);
+            }
+
+        } /* else: leave the original referral baseDN intact. */
+
+        slapi_ch_free((void **)&refdn_norm);
+    } else if (isreference) {
+        int cur_len, add_len;
+
+        /* If ludp->lud_dn == NULL and isreference : Add the DN of the ref entry*/
+        if (dn_is_below(opdn_norm, slapi_sdn_get_ndn(refsdn))) {
+            add_len = strlen(opdn_norm);
+            p = opdn_norm;
+        } else {
+            add_len = slapi_sdn_get_ndn_len(refsdn);
+            p = (char *)slapi_sdn_get_ndn(refsdn);
+        }
+
+        cur_len = strlen(*urlp);
+        /* + 8 because we keep extra space in case we add a / and/or ??base  */
+        *urlp = slapi_ch_realloc(*urlp, cur_len + add_len + 8);
+        if ((*urlp)[cur_len - 1] != '/') {
+            /* The URL is not ending with a /, let's add one */
+            strcat(*urlp, "/");
+        }
+        strcat(*urlp, p);
     }
-	return;
+
+    if (ludp != NULL) {
+        ldap_free_urldesc(ludp);
+    }
+    return;
 }
 
 
@@ -375,18 +368,17 @@ adjust_referral_basedn( char **urlp, const Slapi_DN *refsdn,
  * the DIT and return zero if not.
  */
 static int
-dn_is_below( const char *dn_norm, const char *ancestor_norm )
+dn_is_below(const char *dn_norm, const char *ancestor_norm)
 {
-    PR_ASSERT( dn_norm != NULL );
-    PR_ASSERT( ancestor_norm != NULL );
+    PR_ASSERT(dn_norm != NULL);
+    PR_ASSERT(ancestor_norm != NULL);
 
-    if ( 0 == strcasecmp( dn_norm, ancestor_norm )) {
-	return( 0 );	/* same DN --> not an ancestor relationship */
+    if (0 == strcasecmp(dn_norm, ancestor_norm)) {
+        return (0); /* same DN --> not an ancestor relationship */
     }
 
-    return( slapi_dn_issuffix( dn_norm, ancestor_norm ));
+    return (slapi_dn_issuffix(dn_norm, ancestor_norm));
 }
-
 
 
 /*
@@ -398,23 +390,23 @@ dn_is_below( const char *dn_norm, const char *ancestor_norm )
  * attribute. If such an attribute is found get the server hostname
  * and port in the form "ldap://hostname:port".
  * Else return NULL.
- * 
+ *
  * ORC extension: if orc == 1, this function will search for copyingFrom
  * which will refer searches and compares on trees that are half-baked.
  *
  * ORC extension: if cf_refs is NULL, then global_referrals is consulted,
- * otherwise, cf_refs is consulted. 
+ * otherwise, cf_refs is consulted.
  */
 struct berval **
 get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
 {
-    int             walker;
+    int walker;
     struct berval **bvp;
-    struct berval  *bv;
-    int             found_it;
-    Ref_Array      *grefs = NULL;
-    Ref_Array      *the_refs = NULL;
-    Ref_Array      *cf_refs = (Ref_Array *)cfrp;
+    struct berval *bv;
+    int found_it;
+    Ref_Array *grefs = NULL;
+    Ref_Array *the_refs = NULL;
+    Ref_Array *cf_refs = (Ref_Array *)cfrp;
 
     /* If no Ref_Array is given, use global_referrals */
     if (cf_refs == NULL) {
@@ -439,8 +431,8 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
     found_it = 0;
 
     /* Walk down the array, testing each dn to make see if it's a parent of "dn" */
-    for (walker = 0; walker < the_refs->ra_nextindex; walker++){
-        if ( slapi_dn_issuffix(slapi_sdn_get_ndn(sdn), the_refs->ra_refs[walker]->ref_dn)) {
+    for (walker = 0; walker < the_refs->ra_nextindex; walker++) {
+        if (slapi_dn_issuffix(slapi_sdn_get_ndn(sdn), the_refs->ra_refs[walker]->ref_dn)) {
             found_it = 1;
             break;
         }
@@ -453,7 +445,7 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
         return (NULL);
     }
 
-    /* 
+    /*
     * Gotta make sure we're returning the right one. If orc is 1, then
     * only return a read referral. if orc is 0, then only return a
     * write referral.
@@ -472,14 +464,14 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
         return (NULL);
     }
 
-    Connection  *pb_conn;
+    Connection *pb_conn;
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
     /* Fix for 310968 --- return an SSL referral to an SSL client */
-    if ( 0 != ( pb_conn->c_flags & CONN_FLAG_SSL )) {
+    if (0 != (pb_conn->c_flags & CONN_FLAG_SSL)) {
         /* SSL connection */
-        char * old_referral_string = NULL;
-        char * new_referral_string = NULL;
+        char *old_referral_string = NULL;
+        char *new_referral_string = NULL;
         char *p = NULL;
         /* Get the basic referral */
         bv = slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
@@ -488,10 +480,11 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
         /* The original string will look like this: ldap://host:port */
         /* We need to make it look like this: ldaps://host */
         /* Potentially the ":port" part might be missing from the original */
-        new_referral_string = slapi_ch_smprintf("%s%s" , LDAPS_URL_PREFIX, old_referral_string + strlen(LDAP_URL_PREFIX) );
+        new_referral_string = slapi_ch_smprintf("%s%s", LDAPS_URL_PREFIX, old_referral_string + strlen(LDAP_URL_PREFIX));
         /* Go looking for the port */
         p = new_referral_string + (strlen(LDAPS_URL_PREFIX) + 1);
-        while (*p != '\0' && *p != ':') p++;
+        while (*p != '\0' && *p != ':')
+            p++;
         if (':' == *p) {
             /* It had a port, zap it */
             *p = '\0';
@@ -501,14 +494,14 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
         /* Fix its length */
         bv->bv_len = strlen(bv->bv_val);
         /* Free the copy we made of the original */
-        slapi_ch_free((void**)&old_referral_string);
+        slapi_ch_free((void **)&old_referral_string);
     } else {
         /* regular connection */
-        bv = (struct berval *) slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
+        bv = (struct berval *)slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
     }
 
     /* Package it up and send that puppy. */
-    bvp = (struct berval **) slapi_ch_malloc( 2 * sizeof(struct berval *) );
+    bvp = (struct berval **)slapi_ch_malloc(2 * sizeof(struct berval *));
     bvp[0] = bv;
     bvp[1] = NULL;
 
@@ -516,6 +509,5 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
         GR_UNLOCK_READ();
     }
 
-    return(bvp);
-
+    return (bvp);
 }

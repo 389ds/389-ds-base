@@ -17,7 +17,7 @@
  $Id: posix-winsync.c 40 2011-06-10 08:28:56Z grzemba $
  **/
 
-/* 
+/*
  * - AD needs for Posix attributes a NIS Domainname, this software expect a attribute nisDomain with the name in a upper container on DS side
  * - currently the winsync API has no callbacks for new created entries on DS side
 
@@ -52,7 +52,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifdef WINSYNC_TEST_POSIX
@@ -81,8 +81,8 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
  * Plugin identifiers
  */
 static Slapi_PluginDesc posix_winsync_pdesc =
-    { "posix-winsync-plugin", VENDOR, DS_PACKAGE_VERSION,
-      "Sync Posix Attributs for users and groups between AD and DS if available" };
+    {"posix-winsync-plugin", VENDOR, DS_PACKAGE_VERSION,
+     "Sync Posix Attributs for users and groups between AD and DS if available"};
 typedef struct _windows_attr_map
 {
     char *windows_attribute_name;
@@ -91,30 +91,29 @@ typedef struct _windows_attr_map
 } windows_attribute_map;
 
 static windows_attribute_map user_attribute_map[] = {
-    { "unixHomeDirectory", "homeDirectory", 1 },
-    { "loginShell", "loginShell", 0 },
-    { "uidNumber", "uidNumber", 1 },
-    { "gidNumber", "gidNumber", 1 },
-    { "gecos", "gecos", 0 },
-    { NULL, NULL, 0 }
-};
+    {"unixHomeDirectory", "homeDirectory", 1},
+    {"loginShell", "loginShell", 0},
+    {"uidNumber", "uidNumber", 1},
+    {"gidNumber", "gidNumber", 1},
+    {"gecos", "gecos", 0},
+    {NULL, NULL, 0}};
 
 static windows_attribute_map user_mssfu_attribute_map[] =
-    { { "msSFU30homedirectory", "homeDirectory", 1 },
-      { "msSFU30loginshell", "loginShell", 0 },
-      { "msSFU30uidnumber", "uidNumber", 1 },
-      { "msSFU30gidnumber", "gidNumber", 1 },
-      { "msSFU30gecos", "gecos", 0 },
-      { NULL, NULL, 0 } };
+    {{"msSFU30homedirectory", "homeDirectory", 1},
+     {"msSFU30loginshell", "loginShell", 0},
+     {"msSFU30uidnumber", "uidNumber", 1},
+     {"msSFU30gidnumber", "gidNumber", 1},
+     {"msSFU30gecos", "gecos", 0},
+     {NULL, NULL, 0}};
 
 /* memberUid must be first element or fixup in pre_ad_mod/add_group is required */
-static windows_attribute_map group_attribute_map[] = { { "memberUid", "memberUid", 0 },
-                                                       { "gidNumber", "gidNumber", 1 },
-                                                       { NULL, NULL, 0 } };
+static windows_attribute_map group_attribute_map[] = {{"memberUid", "memberUid", 0},
+                                                      {"gidNumber", "gidNumber", 1},
+                                                      {NULL, NULL, 0}};
 
-static windows_attribute_map group_mssfu_attribute_map[] = { { "msSFU30memberUid", "memberUid", 0 },
-                                                             { "msSFU30gidNumber", "gidNumber", 1 },
-                                                             { NULL, NULL, 0 } };
+static windows_attribute_map group_mssfu_attribute_map[] = {{"msSFU30memberUid", "memberUid", 0},
+                                                            {"msSFU30gidNumber", "gidNumber", 1},
+                                                            {NULL, NULL, 0}};
 
 static char *posix_winsync_plugin_name = POSIX_WINSYNC_PLUGIN_NAME;
 static PRUint64 g_plugin_started = 0;
@@ -128,11 +127,11 @@ static Slapi_Counter *op_counter = NULL;
 enum
 {
     ACCT_DISABLE_INVALID, /* the invalid value */
-    ACCT_DISABLE_NONE, /* do not sync acct disable status */
-    ACCT_DISABLE_TO_AD, /* sync only from ds to ad */
-    ACCT_DISABLE_TO_DS, /* sync only from ad to ds */
+    ACCT_DISABLE_NONE,    /* do not sync acct disable status */
+    ACCT_DISABLE_TO_AD,   /* sync only from ds to ad */
+    ACCT_DISABLE_TO_DS,   /* sync only from ad to ds */
     ACCT_DISABLE_BOTH
-/* bi-directional sync */
+    /* bi-directional sync */
 };
 
 /*
@@ -166,9 +165,9 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
         }
         slapi_ch_free_string(&strval);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- _check_account_lock - entry [%s] has real "
-                            "attribute nsAccountLock and entry %s locked\n",
-                        slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
+                      "<-- _check_account_lock - entry [%s] has real "
+                      "attribute nsAccountLock and entry %s locked\n",
+                      slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
         return rc;
     }
 
@@ -195,15 +194,15 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
             slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
         }
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- _check_account_lock - entry [%s] has virtual "
-                            "attribute nsAccountLock and entry %s locked\n",
-                        slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
+                      "<-- _check_account_lock - entry [%s] has virtual "
+                      "attribute nsAccountLock and entry %s locked\n",
+                      slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
     } else {
         rc = 1; /* no attr == entry is enabled */
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- _check_account_lock - entry [%s] does not "
-                            "have attribute nsAccountLock - entry is not locked\n",
-                        slapi_entry_get_dn_const(ds_entry));
+                      "<-- _check_account_lock - entry [%s] does not "
+                      "have attribute nsAccountLock - entry is not locked\n",
+                      slapi_entry_get_dn_const(ds_entry));
     }
 
     return rc;
@@ -224,17 +223,17 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
  */
 static void
 sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain config data */
-    const Slapi_Entry *ad_entry, /* the AD entry */
-    Slapi_Entry *ds_entry, /* the DS entry */
-    int direction, /* the direction - TO_AD or TO_DS */
-    Slapi_Entry *update_entry, /* the entry to update for ADDs */
-    Slapi_Mods *smods, /* the mod list for MODIFYs */
-    int *do_modify /* if not NULL, set this to true if mods were added */
-)
+                  const Slapi_Entry *ad_entry,          /* the AD entry */
+                  Slapi_Entry *ds_entry,                /* the DS entry */
+                  int direction,                        /* the direction - TO_AD or TO_DS */
+                  Slapi_Entry *update_entry,            /* the entry to update for ADDs */
+                  Slapi_Mods *smods,                    /* the mod list for MODIFYs */
+                  int *do_modify                        /* if not NULL, set this to true if mods were added */
+                  )
 {
     int ds_is_enabled = 1; /* default to true */
     int ad_is_enabled = 1; /* default to true */
-    uint64_t adval = 0; /* raw account val from ad entry */
+    uint64_t adval = 0;    /* raw account val from ad entry */
     int isvirt = 0;
 
     /* get the account lock state of the ds entry */
@@ -243,8 +242,8 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
     }
     if (isvirt)
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- sync_acct_disable - %s DS nsaccountlock is virtual!!!!\n",
-                        slapi_entry_get_dn_const(ds_entry));
+                      "<-- sync_acct_disable - %s DS nsaccountlock is virtual!!!!\n",
+                      slapi_entry_get_dn_const(ds_entry));
     /* get the account lock state of the ad entry */
     adval = slapi_entry_attr_get_ulong(ad_entry, "UserAccountControl");
     if (adval & 0x2) {
@@ -270,8 +269,8 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
         if (update_entry) {
             slapi_entry_attr_set_ulong(update_entry, "userAccountControl", adval);
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
-				(ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(update_entry), adval);
+                          "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
+                          (ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(update_entry), adval);
         } else {
             /* iterate through the mods - if there is already a mod
              for userAccountControl, change it - otherwise, add it */
@@ -279,15 +278,14 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
             LDAPMod *mod = NULL;
             struct berval *mod_bval = NULL;
             for (mod = slapi_mods_get_first_mod(smods); mod; mod = slapi_mods_get_next_mod(smods)) {
-                if (!PL_strcasecmp(mod->mod_type, "userAccountControl") && mod->mod_bvalues
-                    && mod->mod_bvalues[0]) {
+                if (!PL_strcasecmp(mod->mod_type, "userAccountControl") && mod->mod_bvalues && mod->mod_bvalues[0]) {
                     mod_bval = mod->mod_bvalues[0];
                     /* mod_bval points directly to value inside mod list */
                     break;
                 }
             }
             if (!mod_bval) { /* not found - add it */
-                struct berval tmpbval = { 0, NULL };
+                struct berval tmpbval = {0, NULL};
                 Slapi_Mod *smod = slapi_mod_new();
                 slapi_mod_init(smod, 1); /* one element */
                 slapi_mod_set_type(smod, "userAccountControl");
@@ -326,8 +324,8 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
                 mod_bval->bv_len = strlen(acctvalstr);
             }
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
-				(ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(ad_entry), adval);
+                          "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
+                          (ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(ad_entry), adval);
         }
     }
 
@@ -352,8 +350,10 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
         if (update_entry) {
             slapi_entry_attr_set_charptr(update_entry, attrtype, attrval);
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "<-- sync_acct_disable - %s DS account [%s]\n", (ad_is_enabled)
-                                ? "enable" : "disable", slapi_entry_get_dn_const(ds_entry));
+                          "<-- sync_acct_disable - %s DS account [%s]\n", (ad_is_enabled)
+                                                                              ? "enable"
+                                                                              : "disable",
+                          slapi_entry_get_dn_const(ds_entry));
         } else { /* do mod */
             Slapi_Mod *smod = slapi_mod_new();
 
@@ -372,8 +372,10 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
             slapi_mod_free(&smod);
 
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "<-- sync_acct_disable - %s DS account [%s]\n", (ad_is_enabled)
-                                ? "enable" : "disable", slapi_entry_get_dn_const(ds_entry));
+                          "<-- sync_acct_disable - %s DS account [%s]\n", (ad_is_enabled)
+                                                                              ? "enable"
+                                                                              : "disable",
+                          slapi_entry_get_dn_const(ds_entry));
             if (do_modify) {
                 *do_modify = 1; /* added mods */
             }
@@ -383,14 +385,14 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
     return;
 }
 
-#if 0 
-/* 
- * attr_compare_equal provided in 
+#if 0
+/*
+ * attr_compare_equal provided in
  * https://fedorahosted.org/389/attachment/ticket/47763/0025-posix-winsync.rawentry.patch
  * Since there is no strong reason to switch to this new attr_compare_equal,
  * continue using the original code.
  */
-/* 
+/*
  * Compare the first value of attr a and b.
  *
  * If the sizes of each value are equal AND the first values match, return TRUE.
@@ -416,7 +418,7 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
         slapi_attr_first_value(b, &vb);
 
         /* If either val is less than n, then check if the length, then values are
-         * equal.  If both are n or greater, then only compare the first n chars. 
+         * equal.  If both are n or greater, then only compare the first n chars.
          * If n is 0, then just compare the entire attribute. */
         if (slapi_value_get_length(va) == slapi_value_get_length(vb)) {
             if (slapi_attr_value_find(b, slapi_value_get_berval(va)) != 0) {
@@ -454,22 +456,22 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
 char *
 getNisDomainName(const Slapi_Entry *ds_entry)
 {
-    Slapi_DN* entry_sdn = slapi_entry_get_sdn((Slapi_Entry *) ds_entry);
-    Slapi_DN* subtree_sdn = slapi_sdn_new();
+    Slapi_DN *entry_sdn = slapi_entry_get_sdn((Slapi_Entry *)ds_entry);
+    Slapi_DN *subtree_sdn = slapi_sdn_new();
     char *type_NisDomain = "nisDomain";
-    Slapi_PBlock * pb;
+    Slapi_PBlock *pb;
     Slapi_DN *childparent = slapi_sdn_new();
-    char* nisdomainname = NULL;
+    char *nisdomainname = NULL;
     Slapi_Entry *entry = NULL;
     int rc = -1;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "getNisDomainName start DN:%s\n",
-                    slapi_sdn_get_dn(entry_sdn));
+                  slapi_sdn_get_dn(entry_sdn));
     /* search NIS domain name */
     slapi_sdn_get_parent(entry_sdn, subtree_sdn);
     pb = slapi_pblock_new();
     do {
-        char *nisDomainAttr[] = { type_NisDomain, NULL };
+        char *nisDomainAttr[] = {type_NisDomain, NULL};
 
         slapi_sdn_get_parent(subtree_sdn, childparent);
         if (slapi_sdn_isempty(childparent)) {
@@ -481,26 +483,26 @@ getNisDomainName(const Slapi_Entry *ds_entry)
         if (rc == 0) {
             if (rc == 0 && entry) {
                 nisdomainname = slapi_entry_attr_get_charptr(entry, type_NisDomain);
-                if (nisdomainname != NULL){
+                if (nisdomainname != NULL) {
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "getNisDomainName NisDomain %s found in DN:%s\n", 
-                            nisdomainname, slapi_sdn_get_dn(childparent));
-                    break; 
+                                  "getNisDomainName NisDomain %s found in DN:%s\n",
+                                  nisdomainname, slapi_sdn_get_dn(childparent));
+                    break;
                 }
             }
         }
         slapi_sdn_copy(childparent, subtree_sdn);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "getNisDomainName iterate DN:%s\n", slapi_sdn_get_dn(subtree_sdn));
+                      "getNisDomainName iterate DN:%s\n", slapi_sdn_get_dn(subtree_sdn));
         slapi_entry_free(entry);
         entry = NULL;
     } while (PR_TRUE);
     slapi_pblock_destroy(pb);
 
-    if (rc != 0 || nisdomainname == NULL ) {
+    if (rc != 0 || nisdomainname == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, posix_winsync_plugin_name,
-                        "getNisDomainName: no nisdomainname found in %s, LDAP Err%d\n",
-                        slapi_sdn_get_dn(subtree_sdn), rc);
+                      "getNisDomainName: no nisdomainname found in %s, LDAP Err%d\n",
+                      slapi_sdn_get_dn(subtree_sdn), rc);
     }
     slapi_sdn_free(&childparent);
     slapi_entry_free(entry);
@@ -513,26 +515,26 @@ static int
 addNisDomainName(Slapi_Mod *smod, const Slapi_Entry *ds_entry)
 {
     int rc = LDAP_SUCCESS;
-    char* nisdomainname = getNisDomainName(ds_entry);
+    char *nisdomainname = getNisDomainName(ds_entry);
 
-    if ( nisdomainname == NULL ) {
+    if (nisdomainname == NULL) {
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "addNisDomainName NisDomain not found\n");    
+                      "addNisDomainName NisDomain not found\n");
         rc = LDAP_NO_SUCH_ATTRIBUTE;
     } else {
-         struct berval bval;
+        struct berval bval;
 
         slapi_mod_init(smod, 1);
         slapi_mod_set_type(smod, "msSFU30NisDomain");
         slapi_mod_set_operation(smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
         bval.bv_val = nisdomainname;
-        bval.bv_len = sizeof (nisdomainname);
+        bval.bv_len = sizeof(nisdomainname);
         slapi_mod_add_value(smod, &bval);
 
         if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN))
-            slapi_mod_dump((LDAPMod*) slapi_mod_get_ldapmod_byref(smod), 0);
+            slapi_mod_dump((LDAPMod *)slapi_mod_get_ldapmod_byref(smod), 0);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "addNisDomainName NisDomain %s found\n", nisdomainname);    
+                      "addNisDomainName NisDomain %s found\n", nisdomainname);
         slapi_ch_free_string(&nisdomainname); /* allocated by slapi_entry_attr_getchrptr */
     }
     return rc;
@@ -548,10 +550,10 @@ posix_winsync_dirsync_search_params_cb(void *cbdata __attribute__((unused)),
                                        LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_dirsync_search_params_cb -- begin\n");
+                  "--> posix_winsync_dirsync_search_params_cb -- begin\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_dirsync_search_params_cb -- end\n");
+                  "<-- posix_winsync_dirsync_search_params_cb -- end\n");
 
     return;
 }
@@ -567,10 +569,10 @@ posix_winsync_pre_ad_search_cb(void *cbdata __attribute__((unused)),
                                LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_pre_ad_search_cb -- begin\n");
+                  "--> posix_winsync_pre_ad_search_cb -- begin\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_pre_ad_search_cb -- end\n");
+                  "<-- posix_winsync_pre_ad_search_cb -- end\n");
 
     return;
 }
@@ -609,8 +611,9 @@ posix_winsync_pre_ds_search_entry_cb(void *cbdata __attribute__((unused)),
      }
      */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "-- _pre_ds_search_cb - base [%s] "
-                        "scope [%d] filter [%s]\n", *base, *scope, *filter);
+                  "-- _pre_ds_search_cb - base [%s] "
+                  "scope [%d] filter [%s]\n",
+                  *base, *scope, *filter);
     /*    slapi_ch_free_string(&tmpbase); */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_search_cb -- end\n");
     return;
@@ -627,21 +630,20 @@ posix_winsync_pre_ds_search_all_cb(void *cbdata __attribute__((unused)),
                                    LDAPControl ***serverctrls __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_pre_ds_search_all_cb -- orig filter [%s] -- begin\n",
-                    ((filter && *filter) ? *filter : "NULL"));
+                  "--> posix_winsync_pre_ds_search_all_cb -- orig filter [%s] -- begin\n",
+                  ((filter && *filter) ? *filter : "NULL"));
 
     /*    slapi_ch_free_string(filter);
      *filter = slapi_ch_strdup("(|(objectclass=posixaccount)(objectclass=posixgroup))");
      */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_pre_ds_search_all_cb -- end\n");
+                  "<-- posix_winsync_pre_ds_search_all_cb -- end\n");
 
     return;
 }
 
 static void
-posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry,
-    Slapi_Entry *ds_entry, Slapi_Mods *smods, int *do_modify)
+posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *do_modify)
 {
     LDAPMod *mod = NULL;
     int rc = 0;
@@ -649,14 +651,14 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     windows_attribute_map *attr_map = user_attribute_map;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_pre_ad_mod_user_cb -- begin DS account [%s]\n",
-                    slapi_entry_get_dn_const(ds_entry));
+                  "--> posix_winsync_pre_ad_mod_user_cb -- begin DS account [%s]\n",
+                  slapi_entry_get_dn_const(ds_entry));
     if (posix_winsync_config_get_msSFUSchema()) {
         attr_map = user_mssfu_attribute_map;
     }
@@ -670,7 +672,7 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
 
         slapi_attr_get_type(attr, &type);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "_pre_ad_mod_user_cb -- check modify type %s\n", type);
+                      "_pre_ad_mod_user_cb -- check modify type %s\n", type);
         for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
@@ -688,10 +690,10 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                     values_equal = attr_compare_equal(attr, ad_attr);
                     if (!values_equal) {
                         slapi_log_err(SLAPI_LOG_PLUGIN,
-                                        posix_winsync_plugin_name,
-                                        "_pre_ad_mod_user_cb -- update mods: %s, %s : values are different -> modify\n",
-                                        slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
-                                        ad_type);
+                                      posix_winsync_plugin_name,
+                                      "_pre_ad_mod_user_cb -- update mods: %s, %s : values are different -> modify\n",
+                                      slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
+                                      ad_type);
 
                         slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, ad_type,
                                                   valueset_get_valuearray(vs));
@@ -708,14 +710,13 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                     }
                     *do_modify = 1;
                 }
-                slapi_ch_free((void**) &ad_type);
+                slapi_ch_free((void **)&ad_type);
                 slapi_valueset_free(vs);
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "_pre_ad_mod_user_cb -- add modify %s DS account [%s]\n",
-                                attr_map[i].windows_attribute_name,
-                                slapi_entry_get_dn_const(ds_entry));
-
+                              "_pre_ad_mod_user_cb -- add modify %s DS account [%s]\n",
+                              attr_map[i].windows_attribute_name,
+                              slapi_entry_get_dn_const(ds_entry));
             }
         }
         if (0 == slapi_attr_type_cmp(type, "nsAccountLock", SLAPI_TYPE_CMP_SUBTYPE))
@@ -729,7 +730,7 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_pre_ad_mod_user_cb -- end\n");
+                  "<-- posix_winsync_pre_ad_mod_user_cb -- end\n");
 
     return;
 }
@@ -748,7 +749,7 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
     windows_attribute_map *attr_map = group_attribute_map;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
@@ -757,8 +758,8 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
         attr_map = group_mssfu_attribute_map;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ad_mod_group_cb -- begin DS account [%s]\n",
-                    slapi_entry_get_dn_const(ds_entry));
+                  "--> _pre_ad_mod_group_cb -- begin DS account [%s]\n",
+                  slapi_entry_get_dn_const(ds_entry));
 
     /* called if init Replica: add nisDomain, gidnumber, memberuid, if avail */
     for (rc = slapi_entry_first_attr(ds_entry, &attr); rc == 0;
@@ -768,7 +769,7 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
 
         slapi_attr_get_type(attr, &type);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "_pre_ad_mod_group_cb -- check modify type %s\n", type);
+                      "_pre_ad_mod_group_cb -- check modify type %s\n", type);
         for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
@@ -797,7 +798,8 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
                                 }
                             }
 
-                            slapi_valueset_free(dsmuid_vs); dsmuid_vs = NULL;
+                            slapi_valueset_free(dsmuid_vs);
+                            dsmuid_vs = NULL;
                         }
                     }
                 }
@@ -814,10 +816,10 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
                     values_equal = attr_compare_equal(attr, ad_attr);
                     if (!values_equal) {
                         slapi_log_err(SLAPI_LOG_PLUGIN,
-                                        posix_winsync_plugin_name,
-                                        "_pre_ad_mod_group_cb -- update mods: %s, %s : values are different -> modify\n",
-                                        slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
-                                        ad_type);
+                                      posix_winsync_plugin_name,
+                                      "_pre_ad_mod_group_cb -- update mods: %s, %s : values are different -> modify\n",
+                                      slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
+                                      ad_type);
 
                         slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, ad_type,
                                                   valueset_get_valuearray(vs));
@@ -834,13 +836,13 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
                     }
                     *do_modify = 1;
                 }
-                slapi_ch_free((void**) &ad_type);
+                slapi_ch_free((void **)&ad_type);
                 slapi_valueset_free(vs);
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "_pre_ad_mod_group_cb -- add modify %s DS account [%s]\n",
-                                attr_map[i].windows_attribute_name,
-                                slapi_entry_get_dn_const(ds_entry));
+                              "_pre_ad_mod_group_cb -- add modify %s DS account [%s]\n",
+                              attr_map[i].windows_attribute_name,
+                              slapi_entry_get_dn_const(ds_entry));
             }
         }
     }
@@ -852,7 +854,7 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata __attribute__((unused)),
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ad_mod_group_cb -- end\n");
+                  "<-- _pre_ad_mod_group_cb -- end\n");
 
     return;
 }
@@ -865,7 +867,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
                                  Slapi_Mods *smods,
                                  int *do_modify)
 {
-    LDAPMod* mod = NULL;
+    LDAPMod *mod = NULL;
     Slapi_Attr *attr = NULL;
     int is_present_local = 0;
     int do_modify_local = 0;
@@ -875,18 +877,18 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
     PRBool posixval = PR_TRUE;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ds_mod_user_cb -- begin\n");
+                  "--> _pre_ds_mod_user_cb -- begin\n");
 
     if ((NULL == ad_entry) || (NULL == ds_entry)) {
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- _pre_ds_mod_user_cb -- Empty %s entry.\n",
-                        (NULL==ad_entry)?"ad entry":"ds entry");
+                      "<-- _pre_ds_mod_user_cb -- Empty %s entry.\n",
+                      (NULL == ad_entry) ? "ad entry" : "ds entry");
         plugin_op_finished();
         return;
     }
@@ -907,9 +909,9 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
             /* required attribute does not exist */
             posixval = PR_FALSE;
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "AD entry %s does not have required attribute %s for posixAccount objectclass.\n",
-                            slapi_entry_get_dn_const(ad_entry),
-                            attr_map[i].ldap_attribute_name);
+                          "AD entry %s does not have required attribute %s for posixAccount objectclass.\n",
+                          slapi_entry_get_dn_const(ad_entry),
+                          attr_map[i].ldap_attribute_name);
         }
     }
 
@@ -939,9 +941,9 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
                     values_equal = attr_compare_equal(attr, local_attr);
                     if (!values_equal) {
                         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                        "_pre_ds_mod_user_cb -- update mods: %s, %s : values are different -> modify\n",
-                                        slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
-                                        local_type);
+                                      "_pre_ds_mod_user_cb -- update mods: %s, %s : values are different -> modify\n",
+                                      slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
+                                      local_type);
 
                         slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, local_type,
                                                   valueset_get_valuearray(vs));
@@ -954,15 +956,15 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
                     *do_modify = do_modify_local = 1;
                 }
                 slapi_valueset_free(vs);
-                slapi_ch_free((void**) &local_type);
+                slapi_ch_free((void **)&local_type);
                 /* what about if delete all values on windows ????? */
             }
         }
     }
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ds_mod_user_cb present %d modify %d isPosixaccount %s\n",
-                    is_present_local, do_modify_local,
-                    posixval?"yes":"no");
+                  "<-- _pre_ds_mod_user_cb present %d modify %d isPosixaccount %s\n",
+                  is_present_local, do_modify_local,
+                  posixval ? "yes" : "no");
 
     if (!is_present_local && do_modify_local && posixval) {
         Slapi_Attr *oc_attr = NULL;
@@ -980,7 +982,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
                 slapi_value_init_string(oc_nv, "posixAccount");
                 slapi_valueset_add_value(oc_vs, oc_nv);
                 slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "<-- _pre_ds_mod_user_cb add oc:posixAccount\n");
+                              "<-- _pre_ds_mod_user_cb add oc:posixAccount\n");
 
                 slapi_value_init_string(voc, "shadowAccount");
                 if (slapi_attr_value_find(oc_attr, slapi_value_get_berval(voc)) != 0) {
@@ -989,7 +991,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
                     slapi_value_init_string(oc_nv, "shadowAccount");
                     slapi_valueset_add_value(oc_vs, oc_nv);
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                    "<-- _pre_ds_mod_user_cb add oc:shadowAccount\n");
+                                  "<-- _pre_ds_mod_user_cb add oc:shadowAccount\n");
                 }
                 slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, "objectClass",
                                           valueset_get_valuearray(oc_vs));
@@ -1007,8 +1009,8 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
     }
     sync_acct_disable(cbdata, ad_entry, ds_entry, ACCT_DISABLE_TO_DS, NULL, smods, do_modify);
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_mod_user_cb %s %s\n",
-                    slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)), (do_modify) ? "modified"
-                        : "not modified");
+                  slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)), (do_modify) ? "modified"
+                                                                                     : "not modified");
 
     if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
         for (mod = slapi_mods_get_first_mod(smods); mod; mod = slapi_mods_get_next_mod(smods)) {
@@ -1029,7 +1031,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
                                   Slapi_Mods *smods,
                                   int *do_modify)
 {
-    LDAPMod* mod = NULL;
+    LDAPMod *mod = NULL;
     Slapi_Attr *attr = NULL;
     int is_present_local = 0;
     int do_modify_local = 0;
@@ -1037,7 +1039,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
     windows_attribute_map *attr_map = group_attribute_map;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
@@ -1046,10 +1048,9 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
         attr_map = group_mssfu_attribute_map;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ds_mod_group_cb -- begin\n");
+                  "--> _pre_ds_mod_group_cb -- begin\n");
     /* in the ad to ds case we have no changelog, so we have to compare the entries */
-    for (rc = slapi_entry_first_attr(ad_entry, &attr); rc == 0; rc
-        = slapi_entry_next_attr(ad_entry, attr, &attr)) {
+    for (rc = slapi_entry_first_attr(ad_entry, &attr); rc == 0; rc = slapi_entry_next_attr(ad_entry, attr, &attr)) {
         char *type = NULL;
         Slapi_ValueSet *vs = NULL;
         size_t i = 0;
@@ -1061,51 +1062,51 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
                 Slapi_Attr *local_attr = NULL;
                 char *local_type = NULL;
 
-                slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
-                                "_pre_ds_mod_group_cb -- found AD attr %s\n", type);
+                slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                              "_pre_ds_mod_group_cb -- found AD attr %s\n", type);
                 slapi_attr_get_valueset(attr, &vs);
                 local_type = slapi_ch_strdup(attr_map[i].ldap_attribute_name);
                 slapi_entry_attr_find(ds_entry, local_type, &local_attr);
                 is_present_local = (NULL == local_attr) ? 0 : 1;
                 if (is_present_local) {
                     int values_equal = 0;
-                    slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
-                                    "_pre_ds_mod_group_cb -- compare with DS attr %s\n", local_type);
+                    slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                                  "_pre_ds_mod_group_cb -- compare with DS attr %s\n", local_type);
                     values_equal = attr_compare_equal(attr, local_attr);
                     if (!values_equal) {
                         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                        "_pre_ds_mod_group_cb -- update mods: %s, %s : values are different -> modify\n",
-                                        slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
-                                        local_type);
+                                      "_pre_ds_mod_group_cb -- update mods: %s, %s : values are different -> modify\n",
+                                      slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)),
+                                      local_type);
 
                         slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, local_type,
                                                   valueset_get_valuearray(vs));
                         *do_modify = 1;
                     }
                 } else {
-                    slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
-                                    "_pre_ds_mod_group_cb --  add attr\n");
+                    slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                                  "_pre_ds_mod_group_cb --  add attr\n");
 
                     slapi_mods_add_mod_values(smods, LDAP_MOD_ADD, local_type,
                                               valueset_get_valuearray(vs));
                     *do_modify = do_modify_local = 1;
                 }
-                slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
-                                "_pre_ds_mod_group_cb -- values compared\n");
+                slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                              "_pre_ds_mod_group_cb -- values compared\n");
 
-                slapi_ch_free((void**) &local_type);
+                slapi_ch_free((void **)&local_type);
                 slapi_valueset_free(vs);
                 /* what about if delete all values on windows ???? */
             }
         }
     }
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "_pre_ds_mod_group_cb present %d modify %d before\n", is_present_local,
-                    do_modify_local);
+                  "_pre_ds_mod_group_cb present %d modify %d before\n", is_present_local,
+                  do_modify_local);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "_pre_ds_mod_group_cb present %d modify %d\n", is_present_local,
-                    do_modify_local);
+                  "_pre_ds_mod_group_cb present %d modify %d\n", is_present_local,
+                  do_modify_local);
 
     if (!is_present_local && do_modify_local) {
         Slapi_Attr *oc_attr = NULL;
@@ -1121,7 +1122,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
             slapi_value_init_string(oc_nv, "posixGroup");
             slapi_valueset_add_value(oc_vs, oc_nv);
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "_pre_ds_mod_group_cb add oc:posixGroup\n");
+                          "_pre_ds_mod_group_cb add oc:posixGroup\n");
             slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, "objectClass",
                                       valueset_get_valuearray(oc_vs));
             slapi_value_free(&oc_nv);
@@ -1143,7 +1144,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ds_mod_group_cb -- end\n");
+                  "<-- _pre_ds_mod_group_cb -- end\n");
 
     return;
 }
@@ -1161,7 +1162,7 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata,
     int i = 0;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
@@ -1171,7 +1172,7 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata,
 
     /* add objectclass: posixAccount, uidnumber, gidnumber, homeDirectory, loginShell */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ds_add_user_cb -- begin\n");
+                  "--> _pre_ds_add_user_cb -- begin\n");
 
     /* check all of the required attributes are in the ad_entry:
      * MUST (cn $ uid $ uidNumber $ gidNumber $ homeDirectory).
@@ -1186,9 +1187,9 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata,
             /* required attribute does not exist */
             posixval = PR_FALSE;
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "AD entry %s does not have required attribute %s for posixAccount objectclass.\n",
-                            slapi_entry_get_dn_const(ad_entry),
-                            attr_map[i].ldap_attribute_name);
+                          "AD entry %s does not have required attribute %s for posixAccount objectclass.\n",
+                          slapi_entry_get_dn_const(ad_entry),
+                          attr_map[i].ldap_attribute_name);
         }
     }
 
@@ -1205,22 +1206,22 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata,
             }
 
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "--> _pre_ds_add_user_cb -- "
-                            "look for [%s] to new entry [%s]\n",
-                            type, slapi_entry_get_dn_const(ds_entry));
+                          "--> _pre_ds_add_user_cb -- "
+                          "look for [%s] to new entry [%s]\n",
+                          type, slapi_entry_get_dn_const(ds_entry));
             for (i = 0; attr_map[i].windows_attribute_name != NULL; i++) {
                 if (slapi_attr_type_cmp(attr_map[i].windows_attribute_name,
                                         type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
                     Slapi_ValueSet *svs = NULL;
                     slapi_attr_get_valueset(attr, &svs);
                     slapi_entry_add_valueset(ds_entry,
-                                          attr_map[i].ldap_attribute_name, svs);
+                                             attr_map[i].ldap_attribute_name, svs);
                     slapi_valueset_free(svs);
 
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                    "--> _pre_ds_add_user_cb -- "
-                                    "adding val for [%s] to new entry [%s]\n",
-                                    type, slapi_entry_get_dn_const(ds_entry));
+                                  "--> _pre_ds_add_user_cb -- "
+                                  "adding val for [%s] to new entry [%s]\n",
+                                  type, slapi_entry_get_dn_const(ds_entry));
                 }
             }
         }
@@ -1229,8 +1230,8 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata,
         rc |= slapi_entry_add_string(ds_entry, "objectClass", "inetUser");
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "<-- _pre_ds_add_user_cb -- adding objectclass for new entry failed %d\n",
-                            rc);
+                          "<-- _pre_ds_add_user_cb -- adding objectclass for new entry failed %d\n",
+                          rc);
         } else {
             if (posix_winsync_config_get_mapNestedGrouping()) {
                 memberUidLock();
@@ -1258,7 +1259,7 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)),
     windows_attribute_map *attr_map = group_attribute_map;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
@@ -1267,7 +1268,7 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)),
         attr_map = group_mssfu_attribute_map;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_pre_ds_add_group_cb -- begin\n");
+                  "--> posix_winsync_pre_ds_add_group_cb -- begin\n");
 
     for (slapi_entry_first_attr(ad_entry, &attr); attr; slapi_entry_next_attr(ad_entry, attr, &attr)) {
         size_t i = 0;
@@ -1278,7 +1279,8 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)),
         }
 
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "--> _pre_ds_add_group_cb -- "
-            "look for [%s] to new entry [%s]\n", type, slapi_entry_get_dn_const(ds_entry));
+                                                                   "look for [%s] to new entry [%s]\n",
+                      type, slapi_entry_get_dn_const(ds_entry));
         for (i = 0; attr_map && attr_map[i].windows_attribute_name != NULL; i++) {
             if (slapi_attr_type_cmp(attr_map[i].windows_attribute_name, type,
                                     SLAPI_TYPE_CMP_SUBTYPE) == 0) {
@@ -1288,9 +1290,10 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)),
                 slapi_valueset_free(svs);
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "--> _pre_ds_add_group_cb -- "
-                                    "adding val for [%s] to new entry [%s]\n", type,
-                                slapi_entry_get_dn_const(ds_entry));
+                              "--> _pre_ds_add_group_cb -- "
+                              "adding val for [%s] to new entry [%s]\n",
+                              type,
+                              slapi_entry_get_dn_const(ds_entry));
                 posixval = PR_TRUE;
             }
         }
@@ -1300,8 +1303,8 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)),
         rc = slapi_entry_add_string(ds_entry, "objectClass", "posixGroup");
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "<-- _pre_ds_add_group_cb -- adding objectclass for new entry failed %d\n",
-                            rc);
+                          "<-- _pre_ds_add_group_cb -- adding objectclass for new entry failed %d\n",
+                          rc);
         }
     }
     if (posix_winsync_config_get_mapMemberUid() || posix_winsync_config_get_mapNestedGrouping()) {
@@ -1311,7 +1314,7 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata __attribute__((unused)),
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_pre_ds_add_group_cb -- end\n");
+                  "<-- posix_winsync_pre_ds_add_group_cb -- end\n");
 
     return;
 }
@@ -1325,12 +1328,12 @@ posix_winsync_get_new_ds_user_dn_cb(void *cbdata __attribute__((unused)),
                                     const Slapi_DN *ad_suffix __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_get_new_ds_user_dn_cb -- old dn [%s] -- begin\n",
-                    *new_dn_string);
+                  "--> posix_winsync_get_new_ds_user_dn_cb -- old dn [%s] -- begin\n",
+                  *new_dn_string);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_get_new_ds_user_dn_cb -- new dn [%s] -- end\n",
-                    *new_dn_string);
+                  "<-- posix_winsync_get_new_ds_user_dn_cb -- new dn [%s] -- end\n",
+                  *new_dn_string);
 
     return;
 }
@@ -1344,10 +1347,10 @@ posix_winsync_get_new_ds_group_dn_cb(void *cbdata __attribute__((unused)),
                                      const Slapi_DN *ad_suffix __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_get_new_ds_group_dn_cb -- begin\n");
+                  "--> posix_winsync_get_new_ds_group_dn_cb -- begin\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_get_new_ds_group_dn_cb -- end\n");
+                  "<-- posix_winsync_get_new_ds_group_dn_cb -- end\n");
 
     return;
 }
@@ -1357,7 +1360,7 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata,
                                       const Slapi_Entry *rawentry,
                                       const Slapi_DN *local_dn __attribute__((unused)),
                                       const Slapi_Entry *ds_entry,
-                                      LDAPMod * const *origmods,
+                                      LDAPMod *const *origmods,
                                       Slapi_DN *remote_dn __attribute__((unused)),
                                       LDAPMod ***modstosend)
 {
@@ -1367,7 +1370,7 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata,
     windows_attribute_map *attr_map = user_attribute_map;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
@@ -1379,17 +1382,17 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata,
 
     /* mod if changed objectclass: posixAccount, uidnumber, gidnumber, homeDirectory, loginShell */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ad_mod_user_mods_cb -- begin DS account [%s] \n",
-                    slapi_entry_get_dn_const(ds_entry));
+                  "--> _pre_ad_mod_user_mods_cb -- begin DS account [%s] \n",
+                  slapi_entry_get_dn_const(ds_entry));
 
     /* wrap the modstosend in a Slapi_Mods for convenience */
     slapi_mods_init_passin(new_smods, *modstosend);
-    slapi_mods_init_byref(smods, (LDAPMod**) origmods);
+    slapi_mods_init_byref(smods, (LDAPMod **)origmods);
 
     for (mod = slapi_mods_get_first_mod(smods); mod; mod = slapi_mods_get_next_mod(smods)) {
         size_t i = 0;
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "_pre_ad_mod_user_mods_cb -- check modify type %s\n", mod->mod_type);
+                      "_pre_ad_mod_user_mods_cb -- check modify type %s\n", mod->mod_type);
         for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(mod->mod_type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
@@ -1399,13 +1402,13 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata,
                 slapi_mods_add_ldapmod(new_smods, slapi_mod_get_ldapmod_passout(mysmod));
                 slapi_mod_free(&mysmod);
                 slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "_pre_ad_mod_user_mods_cb -- add modify %s DS account [%s]\n",
-                                attr_map[i].windows_attribute_name,
-                                slapi_entry_get_dn_const(ds_entry));
+                              "_pre_ad_mod_user_mods_cb -- add modify %s DS account [%s]\n",
+                              attr_map[i].windows_attribute_name,
+                              slapi_entry_get_dn_const(ds_entry));
                 if (0 == slapi_attr_type_cmp(mod->mod_type, "uidNumber", SLAPI_TYPE_CMP_SUBTYPE)) {
                     Slapi_Mod *ocsmod = slapi_mod_new();
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                    "_pre_ad_mod_user_mods_cb -- add NisDomain\n");
+                                  "_pre_ad_mod_user_mods_cb -- add NisDomain\n");
                     addNisDomainName(ocsmod, ds_entry);
                     slapi_mods_add_ldapmod(new_smods, slapi_mod_get_ldapmod_passout(ocsmod));
                     slapi_mod_free(&ocsmod);
@@ -1414,13 +1417,12 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata,
         }
         if (0 == slapi_attr_type_cmp(mod->mod_type, "nsRoleDN", SLAPI_TYPE_CMP_SUBTYPE)) {
             int dummy = 0;
-            sync_acct_disable(cbdata, rawentry, (Slapi_Entry *) ds_entry, ACCT_DISABLE_TO_AD, NULL,
+            sync_acct_disable(cbdata, rawentry, (Slapi_Entry *)ds_entry, ACCT_DISABLE_TO_AD, NULL,
                               new_smods, &dummy);
         }
     }
     if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
-        for (mod = slapi_mods_get_first_mod(new_smods); mod; mod
-            = slapi_mods_get_next_mod(new_smods)) {
+        for (mod = slapi_mods_get_first_mod(new_smods); mod; mod = slapi_mods_get_next_mod(new_smods)) {
             slapi_mod_dump(mod, 0);
         }
     }
@@ -1430,7 +1432,7 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata,
     slapi_mods_free(&new_smods);
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ad_mod_user_mods_cb -- end\n");
+                  "<-- _pre_ad_mod_user_mods_cb -- end\n");
 
     return;
 }
@@ -1440,7 +1442,7 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)),
                                        const Slapi_Entry *rawentry __attribute__((unused)),
                                        const Slapi_DN *local_dn __attribute__((unused)),
                                        const Slapi_Entry *ds_entry,
-                                       LDAPMod * const *origmods,
+                                       LDAPMod *const *origmods,
                                        Slapi_DN *remote_dn __attribute__((unused)),
                                        LDAPMod ***modstosend)
 {
@@ -1450,7 +1452,7 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)),
     windows_attribute_map *attr_map = group_attribute_map;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
@@ -1462,15 +1464,15 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)),
         attr_map = group_mssfu_attribute_map;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ad_mod_group_mods_cb -- begin\n");
+                  "--> _pre_ad_mod_group_mods_cb -- begin\n");
     /* wrap the modstosend in a Slapi_Mods for convenience */
     slapi_mods_init_passin(new_smods, *modstosend);
-    slapi_mods_init_byref(smods, (LDAPMod**) origmods);
+    slapi_mods_init_byref(smods, (LDAPMod **)origmods);
 
     for (mod = slapi_mods_get_first_mod(smods); mod; mod = slapi_mods_get_next_mod(smods)) {
         size_t i = 0;
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "_pre_ad_mod_group_mods_cb -- check modify type %s\n", mod->mod_type);
+                      "_pre_ad_mod_group_mods_cb -- check modify type %s\n", mod->mod_type);
         for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(mod->mod_type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
@@ -1485,7 +1487,7 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)),
                     if (0 == slapi_attr_type_cmp(mod->mod_type, "gidNumber", SLAPI_TYPE_CMP_SUBTYPE)) {
                         Slapi_Mod *ocsmod = slapi_mod_new();
                         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                        "_pre_ad_mod_group_mods_cb -- add NisDomain\n");
+                                      "_pre_ad_mod_group_mods_cb -- add NisDomain\n");
                         addNisDomainName(ocsmod, ds_entry);
                         slapi_mods_add_ldapmod(new_smods, slapi_mod_get_ldapmod_passout(ocsmod));
                         slapi_mod_free(&ocsmod);
@@ -1494,9 +1496,9 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)),
                 slapi_mods_add_ldapmod(new_smods, slapi_mod_get_ldapmod_passout(mysmod));
                 slapi_mod_free(&mysmod);
                 slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "_pre_ad_mod_group_mods_cb -- add modify %s DS account [%s]\n",
-                                attr_map[i].windows_attribute_name,
-                                slapi_entry_get_dn_const(ds_entry));
+                              "_pre_ad_mod_group_mods_cb -- add modify %s DS account [%s]\n",
+                              attr_map[i].windows_attribute_name,
+                              slapi_entry_get_dn_const(ds_entry));
             }
         }
     }
@@ -1512,7 +1514,7 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata __attribute__((unused)),
     plugin_op_finished();
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ad_mod_group_mods_cb -- end\n");
+                  "<-- _pre_ad_mod_group_mods_cb -- end\n");
 
     return;
 }
@@ -1523,10 +1525,10 @@ posix_winsync_can_add_entry_to_ad_cb(void *cbdata __attribute__((unused)),
                                      const Slapi_DN *remote_dn __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_can_add_entry_to_ad_cb -- begin\n");
+                  "--> posix_winsync_can_add_entry_to_ad_cb -- begin\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_can_add_entry_to_ad_cb -- end\n");
+                  "<-- posix_winsync_can_add_entry_to_ad_cb -- end\n");
 
     return 1; /* false - do not allow entries to be added to ad */
 }
@@ -1538,18 +1540,18 @@ posix_winsync_begin_update_cb(void *cbdata __attribute__((unused)),
                               int is_total __attribute__((unused)))
 {
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_begin_update_cb -- begin\n");
+                  "--> posix_winsync_begin_update_cb -- begin\n");
     posix_winsync_config_reset_MOFTaskCreated();
     plugin_op_finished();
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_begin_update_cb -- end\n");
+                  "<-- posix_winsync_begin_update_cb -- end\n");
 
     return;
 }
@@ -1562,15 +1564,15 @@ posix_winsync_end_update_cb(void *cbdata __attribute__((unused)),
 {
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_end_update_cb -- begin %d %d\n",
-                    posix_winsync_config_get_MOFTaskCreated(),
-                    posix_winsync_config_get_createMOFTask());
+                  "--> posix_winsync_end_update_cb -- begin %d %d\n",
+                  posix_winsync_config_get_MOFTaskCreated(),
+                  posix_winsync_config_get_createMOFTask());
     if (1 && posix_winsync_config_get_createMOFTask()) {
         /* add a task to schedule memberof Plugin for fix memebrof attributs */
         Slapi_PBlock *pb = slapi_pblock_new();
@@ -1583,16 +1585,16 @@ posix_winsync_end_update_cb(void *cbdata __attribute__((unused)),
             slapi_pblock_destroy(pb);
             slapi_entry_free(e_task);
             slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name,
-                            "posix_winsync_end_update_cb: "
-                                "failed to create task dn: cn=%s,%s,cn=tasks,cn=config\n",
-                            posix_winsync_plugin_name, MEMBEROFTASK);
+                          "posix_winsync_end_update_cb: "
+                          "failed to create task dn: cn=%s,%s,cn=tasks,cn=config\n",
+                          posix_winsync_plugin_name, MEMBEROFTASK);
             plugin_op_finished();
             return;
         }
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "--> posix_winsync_end_update_cb, create task %s\n", dn);
+                      "--> posix_winsync_end_update_cb, create task %s\n", dn);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "--> posix_winsync_end_update_cb, init'ing task\n");
+                      "--> posix_winsync_end_update_cb, init'ing task\n");
 
         slapi_entry_init(e_task, dn, NULL);
         slapi_entry_add_string(e_task, "cn", slapi_ch_strdup(posix_winsync_plugin_name));
@@ -1603,25 +1605,26 @@ posix_winsync_end_update_cb(void *cbdata __attribute__((unused)),
 
 
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "--> posix_winsync_end_update_cb, adding task\n");
+                      "--> posix_winsync_end_update_cb, adding task\n");
         slapi_add_internal_pb(pb);
 
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "--> posix_winsync_end_update_cb, retrieving return code\n");
+                      "--> posix_winsync_end_update_cb, retrieving return code\n");
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         if (LDAP_ALREADY_EXISTS == rc) {
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "posix_winsync_end_update_cb: "
-                                "task entry %s already exists\n",
-                                posix_winsync_plugin_name);
+                          "posix_winsync_end_update_cb: "
+                          "task entry %s already exists\n",
+                          posix_winsync_plugin_name);
         } else if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name,
-                            "posix_winsync_end_update_cb: "
-                                "failed to add task entry (%d)\n", rc);
+                          "posix_winsync_end_update_cb: "
+                          "failed to add task entry (%d)\n",
+                          rc);
         } else {
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "posix_winsync_end_update_cb: "
-                                "add task entry\n");
+                          "posix_winsync_end_update_cb: "
+                          "add task entry\n");
         }
         /* slapi_entry_free(e_task); */
         slapi_pblock_destroy(pb);
@@ -1630,7 +1633,7 @@ posix_winsync_end_update_cb(void *cbdata __attribute__((unused)),
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_end_update_cb -- end\n");
+                  "<-- posix_winsync_end_update_cb -- end\n");
 
     return;
 }
@@ -1641,10 +1644,10 @@ posix_winsync_destroy_agmt_cb(void *cbdata __attribute__((unused)),
                               const Slapi_DN *ad_subtree __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_destroy_agmt_cb -- begin\n");
+                  "--> posix_winsync_destroy_agmt_cb -- begin\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_destroy_agmt_cb -- end\n");
+                  "<-- posix_winsync_destroy_agmt_cb -- end\n");
 
     return;
 }
@@ -1658,16 +1661,16 @@ posix_winsync_post_ad_mod_user_cb(void *cookie __attribute__((unused)),
                                   int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ad_mod_user_cb -- begin\n");
+                  "--> posix_winsync_post_ad_mod_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of modifying AD entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+                  "Result of modifying AD entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ad_mod_user_cb -- end\n");
+                  "<-- posix_winsync_post_ad_mod_user_cb -- end\n");
 
     return;
 }
@@ -1681,16 +1684,16 @@ posix_winsync_post_ad_mod_group_cb(void *cookie __attribute__((unused)),
                                    int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ad_mod_group_cb -- begin\n");
+                  "--> posix_winsync_post_ad_mod_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of modifying AD entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+                  "Result of modifying AD entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ad_mod_group_cb -- end\n");
+                  "<-- posix_winsync_post_ad_mod_group_cb -- end\n");
 
     return;
 }
@@ -1704,16 +1707,16 @@ posix_winsync_post_ds_mod_user_cb(void *cookie __attribute__((unused)),
                                   int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ds_mod_user_cb -- begin\n");
+                  "--> posix_winsync_post_ds_mod_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of modifying DS entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+                  "Result of modifying DS entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ds_mod_user_cb -- end\n");
+                  "<-- posix_winsync_post_ds_mod_user_cb -- end\n");
 
     return;
 }
@@ -1727,16 +1730,16 @@ posix_winsync_post_ds_mod_group_cb(void *cookie __attribute__((unused)),
                                    int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ds_mod_group_cb -- begin\n");
+                  "--> posix_winsync_post_ds_mod_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of modifying DS entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+                  "Result of modifying DS entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ds_mod_group_cb -- end\n");
+                  "<-- posix_winsync_post_ds_mod_group_cb -- end\n");
 
     return;
 }
@@ -1749,16 +1752,16 @@ posix_winsync_post_ds_add_user_cb(void *cookie __attribute__((unused)),
                                   int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ds_add_user_cb -- begin\n");
+                  "--> posix_winsync_post_ds_add_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of adding DS entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+                  "Result of adding DS entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ds_add_user_cb -- end\n");
+                  "<-- posix_winsync_post_ds_add_user_cb -- end\n");
 
     return;
 }
@@ -1771,94 +1774,92 @@ posix_winsync_post_ds_add_group_cb(void *cookie __attribute__((unused)),
                                    int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ds_add_group_cb -- begin\n");
+                  "--> posix_winsync_post_ds_add_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of adding DS entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+                  "Result of adding DS entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ds_add_group_cb -- end\n");
+                  "<-- posix_winsync_post_ds_add_group_cb -- end\n");
 
     return;
 }
 
-/* 			winsync_plugin_call_pre_ad_add_user_cb(prp->agmt, mapped_entry, e); */ 
+/*             winsync_plugin_call_pre_ad_add_user_cb(prp->agmt, mapped_entry, e); */
 static void
 posix_winsync_pre_ad_add_user_cb(void *cookie __attribute__((unused)),
                                  Slapi_Entry *ad_entry,
                                  Slapi_Entry *ds_entry)
 {
-    Slapi_Attr * obj_attr = NULL; /* Entry attributes */
-    windows_attribute_map *attr_map=user_attribute_map;
+    Slapi_Attr *obj_attr = NULL; /* Entry attributes */
+    windows_attribute_map *attr_map = user_attribute_map;
     int rc = 0;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
 
-    if(posix_winsync_config_get_msSFUSchema())
-        attr_map=user_mssfu_attribute_map;
-    
-/* if ds_entry has oc posixAccount add uidnumber, gidnumber, homeDirectory, loginShell, gecos */
-/* syncing/mapping of nsaccountlock -> userAccountControl will already done by the normal Win Sync-Service */
+    if (posix_winsync_config_get_msSFUSchema())
+        attr_map = user_mssfu_attribute_map;
+
+    /* if ds_entry has oc posixAccount add uidnumber, gidnumber, homeDirectory, loginShell, gecos */
+    /* syncing/mapping of nsaccountlock -> userAccountControl will already done by the normal Win Sync-Service */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ad_add_user_cb -- begin DS account [%s] \n", slapi_entry_get_dn_const(ds_entry));
+                  "--> _pre_ad_add_user_cb -- begin DS account [%s] \n", slapi_entry_get_dn_const(ds_entry));
 
     rc = slapi_entry_attr_find(ds_entry, "objectclass", &obj_attr);
     if (rc == 0) { /* Found objectclasses, so... */
         int i;
-        Slapi_Value * value = NULL; /* Attribute values */
-        
-        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,"_pre_ad_add_user_cb -- test objectclass posixAccount\n");
+        Slapi_Value *value = NULL; /* Attribute values */
+
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "_pre_ad_add_user_cb -- test objectclass posixAccount\n");
         for (
             i = slapi_attr_first_value(obj_attr, &value);
             i != -1;
-            i = slapi_attr_next_value(obj_attr, i, &value)
-        ) {
-            const char * oc = NULL;
-            
+            i = slapi_attr_next_value(obj_attr, i, &value)) {
+            const char *oc = NULL;
+
             oc = slapi_value_get_string(value);
-            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,"_pre_ad_add_user_cb -- oc: %s \n", oc);
-            if (strncasecmp(oc,"posixAccount",13)==0){ /* entry has objectclass posixAccount */
+            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "_pre_ad_add_user_cb -- oc: %s \n", oc);
+            if (strncasecmp(oc, "posixAccount", 13) == 0) { /* entry has objectclass posixAccount */
                 Slapi_Attr *attr = NULL;
                 char *nisdomainname = getNisDomainName(ds_entry);
-                 
+
                 for (rc = slapi_entry_first_attr(ds_entry, &attr); attr && (rc == 0);
-                        rc = slapi_entry_next_attr(ds_entry, attr, &attr))
-                {
+                     rc = slapi_entry_next_attr(ds_entry, attr, &attr)) {
                     char *type = NULL;
                     size_t i = 0;
-                    
-                    slapi_attr_get_type( attr, &type );
+
+                    slapi_attr_get_type(attr, &type);
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "_pre_ad_add_user_cb -- check add attr: %s\n", type);
+                                  "_pre_ad_add_user_cb -- check add attr: %s\n", type);
                     for (; attr_map[i].windows_attribute_name != NULL; i++) {
-                        if (0 == slapi_attr_type_cmp(type,attr_map[i].ldap_attribute_name, SLAPI_TYPE_CMP_SUBTYPE)){
+                        if (0 == slapi_attr_type_cmp(type, attr_map[i].ldap_attribute_name, SLAPI_TYPE_CMP_SUBTYPE)) {
                             Slapi_ValueSet *vs = NULL;
-                           
-                            slapi_attr_get_valueset(attr,&vs);
+
+                            slapi_attr_get_valueset(attr, &vs);
                             slapi_entry_add_valueset(ad_entry, attr_map[i].windows_attribute_name, vs);
                             slapi_valueset_free(vs);
-                
+
                             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                                "--> _pre_ad_add_user_cb -- "
-                                                "adding val for [%s] to new entry [%s]\n",
-                                                type, slapi_entry_get_dn_const(ad_entry));
+                                          "--> _pre_ad_add_user_cb -- "
+                                          "adding val for [%s] to new entry [%s]\n",
+                                          type, slapi_entry_get_dn_const(ad_entry));
                         }
                     }
                 }
                 if (nisdomainname) {
-                    slapi_entry_add_value(ad_entry,  
-                        "msSFU30NisDomain", slapi_value_new_string(nisdomainname));
+                    slapi_entry_add_value(ad_entry,
+                                          "msSFU30NisDomain", slapi_value_new_string(nisdomainname));
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                                "--> _pre_ad_add_user_cb -- "
-                                                "adding val for [%s] to new entry [%s]\n",
-                                                "msSFU30NisDomain", nisdomainname);
+                                  "--> _pre_ad_add_user_cb -- "
+                                  "adding val for [%s] to new entry [%s]\n",
+                                  "msSFU30NisDomain", nisdomainname);
                     slapi_ch_free_string(&nisdomainname);
                 }
             }
@@ -1866,7 +1867,7 @@ posix_winsync_pre_ad_add_user_cb(void *cookie __attribute__((unused)),
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ad_add_user_cb -- end\n");
+                  "<-- _pre_ad_add_user_cb -- end\n");
 
     return;
 }
@@ -1876,70 +1877,69 @@ posix_winsync_pre_ad_add_group_cb(void *cookie __attribute__((unused)),
                                   Slapi_Entry *ad_entry,
                                   Slapi_Entry *ds_entry)
 {
-    Slapi_Attr * obj_attr = NULL; /* Entry attributes */
+    Slapi_Attr *obj_attr = NULL; /* Entry attributes */
     windows_attribute_map *attr_map = group_attribute_map;
     int rc = 0;
 
     plugin_op_started();
-    if(!get_plugin_started()){
+    if (!get_plugin_started()) {
         plugin_op_finished();
         return;
     }
 
     if (posix_winsync_config_get_msSFUSchema()) {
-        attr_map=group_mssfu_attribute_map;
+        attr_map = group_mssfu_attribute_map;
     }
-    
-/* if ds_entry has oc posixGroup add gidnumber, ... */
+
+    /* if ds_entry has oc posixGroup add gidnumber, ... */
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> _pre_ad_add_group_cb -- begin DS account [%s] \n", slapi_entry_get_dn_const(ds_entry));
+                  "--> _pre_ad_add_group_cb -- begin DS account [%s] \n", slapi_entry_get_dn_const(ds_entry));
 
     rc = slapi_entry_attr_find(ds_entry, "objectclass", &obj_attr);
     if (rc == 0) { /* Found objectclasses, so... */
         int i;
-        Slapi_Value * value = NULL; /* Attribute values */
-        
-        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,"_pre_ad_add_group_cb -- test objectclass posixGroup\n");
+        Slapi_Value *value = NULL; /* Attribute values */
+
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "_pre_ad_add_group_cb -- test objectclass posixGroup\n");
         for (i = slapi_attr_first_value(obj_attr, &value);
              i != -1;
              i = slapi_attr_next_value(obj_attr, i, &value)) {
-            const char * oc = NULL;
-            
+            const char *oc = NULL;
+
             oc = slapi_value_get_string(value);
-            if (strncasecmp(oc,"posixGroup",11)==0){ /* entry has objectclass posixGroup */
+            if (strncasecmp(oc, "posixGroup", 11) == 0) { /* entry has objectclass posixGroup */
                 Slapi_Attr *attr = NULL;
                 char *nisdomainname = getNisDomainName(ds_entry);
-                
+
                 for (rc = slapi_entry_first_attr(ds_entry, &attr); rc == 0;
-                        rc = slapi_entry_next_attr(ds_entry, attr, &attr))
-                {
+                     rc = slapi_entry_next_attr(ds_entry, attr, &attr)) {
                     char *type = NULL;
                     int j = 0;
-                    
-                    slapi_attr_get_type( attr, &type );
+
+                    slapi_attr_get_type(attr, &type);
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "_pre_ad_add_group_cb -- check add attr: %s\n", type);
+                                  "_pre_ad_add_group_cb -- check add attr: %s\n", type);
                     for (j = 0; attr_map && attr_map[j].windows_attribute_name != NULL; j++) {
-                        if (0 == slapi_attr_type_cmp(type,attr_map[j].ldap_attribute_name, SLAPI_TYPE_CMP_SUBTYPE)){
+                        if (0 == slapi_attr_type_cmp(type, attr_map[j].ldap_attribute_name, SLAPI_TYPE_CMP_SUBTYPE)) {
                             Slapi_ValueSet *vs = NULL;
-                           
-                            slapi_attr_get_valueset(attr,&vs);
+
+                            slapi_attr_get_valueset(attr, &vs);
                             slapi_entry_add_valueset(ad_entry, attr_map[j].windows_attribute_name, vs);
                             slapi_valueset_free(vs);
-                
+
                             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                                "--> _pre_ad_add_group_cb -- "
-                                                "adding val for [%s] to new entry [%s]\n",
-                                                type, slapi_entry_get_dn_const(ad_entry));
+                                          "--> _pre_ad_add_group_cb -- "
+                                          "adding val for [%s] to new entry [%s]\n",
+                                          type, slapi_entry_get_dn_const(ad_entry));
                         }
                     }
                 }
                 if (nisdomainname) {
                     slapi_entry_add_value(ad_entry, "msSFU30NisDomain", slapi_value_new_string(nisdomainname));
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                                    "--> _pre_ad_add_group_cb -- "
-                                                    "adding val for [%s] to new entry [%s]\n",
-                                                    "msSFU30NisDomain", nisdomainname);
+                                  "--> _pre_ad_add_group_cb -- "
+                                  "adding val for [%s] to new entry [%s]\n",
+                                  "msSFU30NisDomain", nisdomainname);
                     slapi_ch_free_string(&nisdomainname);
                 }
             }
@@ -1947,7 +1947,7 @@ posix_winsync_pre_ad_add_group_cb(void *cookie __attribute__((unused)),
     }
     plugin_op_finished();
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ad_add_group_cb -- end\n");
+                  "<-- _pre_ad_add_group_cb -- end\n");
 
     return;
 }
@@ -1959,16 +1959,16 @@ posix_winsync_post_ad_add_user_cb(void *cookie __attribute__((unused)),
                                   int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ad_add_user_cb -- begin\n");
+                  "--> posix_winsync_post_ad_add_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of adding AD entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+                  "Result of adding AD entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ad_add_user_cb -- end\n");
+                  "<-- posix_winsync_post_ad_add_user_cb -- end\n");
 
     return;
 }
@@ -1980,16 +1980,16 @@ posix_winsync_post_ad_add_group_cb(void *cookie __attribute__((unused)),
                                    int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ad_add_group_cb -- begin\n");
+                  "--> posix_winsync_post_ad_add_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of adding AD entry [%s] was [%d:%s]\n",
-                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+                  "Result of adding AD entry [%s] was [%d:%s]\n",
+                  slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ad_add_group_cb -- end\n");
+                  "<-- posix_winsync_post_ad_add_group_cb -- end\n");
 
     return;
 }
@@ -1999,22 +1999,22 @@ posix_winsync_post_ad_mod_user_mods_cb(void *cookie __attribute__((unused)),
                                        const Slapi_Entry *rawentry __attribute__((unused)),
                                        const Slapi_DN *local_dn __attribute__((unused)),
                                        const Slapi_Entry *ds_entry __attribute__((unused)),
-                                       LDAPMod * const *origmods __attribute__((unused)),
+                                       LDAPMod *const *origmods __attribute__((unused)),
                                        Slapi_DN *remote_dn __attribute__((unused)),
                                        LDAPMod ***modstosend __attribute__((unused)),
                                        int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ad_mod_user_mods_cb  -- begin\n");
+                  "--> posix_winsync_post_ad_mod_user_mods_cb  -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of modifying AD entry [%s] was [%d:%s]\n",
-                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+                  "Result of modifying AD entry [%s] was [%d:%s]\n",
+                  slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ad_mod_user_mods_cb -- end\n");
+                  "<-- posix_winsync_post_ad_mod_user_mods_cb -- end\n");
 
     return;
 }
@@ -2024,22 +2024,22 @@ posix_winsync_post_ad_mod_group_mods_cb(void *cookie __attribute__((unused)),
                                         const Slapi_Entry *rawentry __attribute__((unused)),
                                         const Slapi_DN *local_dn __attribute__((unused)),
                                         const Slapi_Entry *ds_entry __attribute__((unused)),
-                                        LDAPMod * const *origmods __attribute__((unused)),
+                                        LDAPMod *const *origmods __attribute__((unused)),
                                         Slapi_DN *remote_dn __attribute__((unused)),
                                         LDAPMod ***modstosend __attribute__((unused)),
                                         int *result __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_post_ad_mod_group_mods_cb  -- begin\n");
+                  "--> posix_winsync_post_ad_mod_group_mods_cb  -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "Result of modifying AD entry [%s] was [%d:%s]\n",
-                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+                  "Result of modifying AD entry [%s] was [%d:%s]\n",
+                  slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
 #endif
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_post_ad_mod_group_mods_cb -- end\n");
+                  "<-- posix_winsync_post_ad_mod_group_mods_cb -- end\n");
 
     return;
 }
@@ -2047,45 +2047,45 @@ posix_winsync_post_ad_mod_group_mods_cb(void *cookie __attribute__((unused)),
 #define DEFAULT_PRECEDENCE 25
 static int precedence = DEFAULT_PRECEDENCE; /* default */
 
-static int posix_winsync_precedence(void)
+static int
+posix_winsync_precedence(void)
 {
     return precedence;
 }
 
-static void *posix_winsync_api[] = { NULL, /* reserved for api broker use, must be zero */
-                                     posix_winsync_agmt_init,
-                                     posix_winsync_dirsync_search_params_cb,
-                                     posix_winsync_pre_ad_search_cb,
-                                     posix_winsync_pre_ds_search_entry_cb,
-                                     posix_winsync_pre_ds_search_all_cb,
-                                     posix_winsync_pre_ad_mod_user_cb,
-                                     posix_winsync_pre_ad_mod_group_cb,
-                                     posix_winsync_pre_ds_mod_user_cb,
-                                     posix_winsync_pre_ds_mod_group_cb,
-                                     posix_winsync_pre_ds_add_user_cb,
-                                     posix_winsync_pre_ds_add_group_cb,
-                                     posix_winsync_get_new_ds_user_dn_cb,
-                                     posix_winsync_get_new_ds_group_dn_cb,
-                                     posix_winsync_pre_ad_mod_user_mods_cb,
-                                     posix_winsync_pre_ad_mod_group_mods_cb,
-                                     posix_winsync_can_add_entry_to_ad_cb,
-                                     posix_winsync_begin_update_cb,
-                                     posix_winsync_end_update_cb,
-                                     posix_winsync_destroy_agmt_cb,
-                                     posix_winsync_post_ad_mod_user_cb,
-                                     posix_winsync_post_ad_mod_group_cb,
-                                     posix_winsync_post_ds_mod_user_cb,
-                                     posix_winsync_post_ds_mod_group_cb,
-                                     posix_winsync_post_ds_add_user_cb,
-                                     posix_winsync_post_ds_add_group_cb,
-                                     posix_winsync_pre_ad_add_user_cb,
-                                     posix_winsync_pre_ad_add_group_cb,
-                                     posix_winsync_post_ad_add_user_cb,
-                                     posix_winsync_post_ad_add_group_cb,
-                                     posix_winsync_post_ad_mod_user_mods_cb,
-                                     posix_winsync_post_ad_mod_group_mods_cb,
-                                     posix_winsync_precedence
-};
+static void *posix_winsync_api[] = {NULL, /* reserved for api broker use, must be zero */
+                                    posix_winsync_agmt_init,
+                                    posix_winsync_dirsync_search_params_cb,
+                                    posix_winsync_pre_ad_search_cb,
+                                    posix_winsync_pre_ds_search_entry_cb,
+                                    posix_winsync_pre_ds_search_all_cb,
+                                    posix_winsync_pre_ad_mod_user_cb,
+                                    posix_winsync_pre_ad_mod_group_cb,
+                                    posix_winsync_pre_ds_mod_user_cb,
+                                    posix_winsync_pre_ds_mod_group_cb,
+                                    posix_winsync_pre_ds_add_user_cb,
+                                    posix_winsync_pre_ds_add_group_cb,
+                                    posix_winsync_get_new_ds_user_dn_cb,
+                                    posix_winsync_get_new_ds_group_dn_cb,
+                                    posix_winsync_pre_ad_mod_user_mods_cb,
+                                    posix_winsync_pre_ad_mod_group_mods_cb,
+                                    posix_winsync_can_add_entry_to_ad_cb,
+                                    posix_winsync_begin_update_cb,
+                                    posix_winsync_end_update_cb,
+                                    posix_winsync_destroy_agmt_cb,
+                                    posix_winsync_post_ad_mod_user_cb,
+                                    posix_winsync_post_ad_mod_group_cb,
+                                    posix_winsync_post_ds_mod_user_cb,
+                                    posix_winsync_post_ds_mod_group_cb,
+                                    posix_winsync_post_ds_add_user_cb,
+                                    posix_winsync_post_ds_add_group_cb,
+                                    posix_winsync_pre_ad_add_user_cb,
+                                    posix_winsync_pre_ad_add_group_cb,
+                                    posix_winsync_post_ad_add_user_cb,
+                                    posix_winsync_post_ad_add_group_cb,
+                                    posix_winsync_post_ad_mod_user_mods_cb,
+                                    posix_winsync_post_ad_mod_group_mods_cb,
+                                    posix_winsync_precedence};
 
 static Slapi_ComponentId *posix_winsync_plugin_id = NULL;
 
@@ -2094,7 +2094,7 @@ static Slapi_ComponentId *posix_winsync_plugin_id = NULL;
  */
 
 void
-posix_winsync_set_plugin_identity(void * identity)
+posix_winsync_set_plugin_identity(void *identity)
 {
     posix_winsync_plugin_id = identity;
 }
@@ -2112,29 +2112,30 @@ posix_winsync_plugin_start(Slapi_PBlock *pb)
     Slapi_Entry *config_e = NULL; /* entry containing plugin config */
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_plugin_start -- begin\n");
+                  "--> posix_winsync_plugin_start -- begin\n");
 
     if (slapi_apib_register(WINSYNC_v3_0_GUID, posix_winsync_api)) {
         slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name,
-                        "<-- posix_winsync_plugin_start -- failed to register winsync api -- end\n");
+                      "<-- posix_winsync_plugin_start -- failed to register winsync api -- end\n");
         return -1;
     }
 
     if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &config_e) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name, "posix_winsync_plugin_start - "
-                "Missing config entry\n");
+                                                                "Missing config entry\n");
         return (-1);
     }
     if ((rc = posix_winsync_config(config_e)) != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name, "posix_winsync_plugin_start - "
-                "configuration failed (%s)\n", ldap_err2string(rc));
+                                                                "configuration failed (%s)\n",
+                      ldap_err2string(rc));
         return (-1);
     }
     g_plugin_started = 1;
     op_counter = slapi_counter_new();
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_plugin_start -- registered; end\n");
+                  "<-- posix_winsync_plugin_start -- registered; end\n");
     return 0;
 }
 
@@ -2142,7 +2143,7 @@ static int
 posix_winsync_plugin_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_plugin_close -- begin\n");
+                  "--> posix_winsync_plugin_close -- begin\n");
 
     g_plugin_started = 0;
     posix_winsync_plugin_op_all_finished();
@@ -2150,7 +2151,7 @@ posix_winsync_plugin_close(Slapi_PBlock *pb __attribute__((unused)))
     posix_winsync_config_free();
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_plugin_close -- end\n");
+                  "<-- posix_winsync_plugin_close -- end\n");
     return 0;
 }
 
@@ -2164,7 +2165,7 @@ posix_winsync_plugin_init(Slapi_PBlock *pb)
     Slapi_Entry *confige = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "--> posix_winsync_plugin_init -- begin\n");
+                  "--> posix_winsync_plugin_init -- begin\n");
 
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &confige) && confige) {
         precedence = slapi_entry_attr_get_int(confige, "nsslapd-pluginprecedence");
@@ -2173,12 +2174,9 @@ posix_winsync_plugin_init(Slapi_PBlock *pb)
         }
     }
 
-    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0
-        || slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *) posix_winsync_plugin_start) != 0
-        || slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) posix_winsync_plugin_close) != 0
-        || slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *) &posix_winsync_pdesc) != 0) {
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 || slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)posix_winsync_plugin_start) != 0 || slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)posix_winsync_plugin_close) != 0 || slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&posix_winsync_pdesc) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name,
-                        "posix_winsync_plugin_init - Failed to register plugin -- end\n");
+                      "posix_winsync_plugin_init - Failed to register plugin -- end\n");
         return -1;
     }
 
@@ -2186,14 +2184,14 @@ posix_winsync_plugin_init(Slapi_PBlock *pb)
      internal operations */
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &plugin_id) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, posix_winsync_plugin_name,
-                        "posix_winsync_plugin_init - Failed to retrieve plugin identity -- end\n");
+                      "posix_winsync_plugin_init - Failed to retrieve plugin identity -- end\n");
         return -1;
     }
 
     posix_winsync_set_plugin_identity(plugin_id);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- posix_winsync_plugin_init -- end\n");
+                  "<-- posix_winsync_plugin_init -- end\n");
     return 0;
 }
 
@@ -2218,7 +2216,7 @@ plugin_op_finished()
 void
 posix_winsync_plugin_op_all_finished()
 {
-    while(slapi_counter_get_value(op_counter) > 0){
+    while (slapi_counter_get_value(op_counter) > 0) {
         PR_Sleep(PR_MillisecondsToInterval(100));
     }
     slapi_counter_destroy(&op_counter);

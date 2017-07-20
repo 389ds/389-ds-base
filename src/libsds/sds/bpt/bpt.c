@@ -11,7 +11,8 @@
 #include "bpt.h"
 
 sds_result
-sds_bptree_init(sds_bptree_instance **binst_ptr, uint16_t checksumming, int64_t (*key_cmp_fn)(void *a, void *b), void (*value_free_fn)(void *value), void (*key_free_fn)(void *key), void *(*key_dup_fn)(void *key) ) {
+sds_bptree_init(sds_bptree_instance **binst_ptr, uint16_t checksumming, int64_t (*key_cmp_fn)(void *a, void *b), void (*value_free_fn)(void *value), void (*key_free_fn)(void *key), void *(*key_dup_fn)(void *key))
+{
     if (binst_ptr == NULL) {
 #ifdef SDS_DEBUG
         sds_log("sds_btree_init", "Invalid pointer");
@@ -30,7 +31,7 @@ sds_bptree_init(sds_bptree_instance **binst_ptr, uint16_t checksumming, int64_t 
 
     (*binst_ptr)->root = sds_bptree_node_create();
 
-    // Now update the checksums
+// Now update the checksums
 #ifdef SDS_DEBUG
     if ((*binst_ptr)->offline_checksumming) {
         sds_bptree_crc32c_update_node((*binst_ptr)->root);
@@ -42,7 +43,8 @@ sds_bptree_init(sds_bptree_instance **binst_ptr, uint16_t checksumming, int64_t 
 }
 
 sds_result
-sds_bptree_load(sds_bptree_instance *binst, void **keys, void **values, size_t count) {
+sds_bptree_load(sds_bptree_instance *binst, void **keys, void **values, size_t count)
+{
     sds_result result = sds_bptree_map_nodes(binst, binst->root, sds_bptree_node_destroy);
     if (result != SDS_SUCCESS) {
         return result;
@@ -57,12 +59,14 @@ sds_bptree_load(sds_bptree_instance *binst, void **keys, void **values, size_t c
 /* Searching functions */
 
 sds_result
-sds_bptree_search(sds_bptree_instance *binst, void *key) {
+sds_bptree_search(sds_bptree_instance *binst, void *key)
+{
     return sds_bptree_search_internal(binst, binst->root, key);
 }
 
 sds_result
-sds_bptree_retrieve(sds_bptree_instance *binst, void *key, void **target) {
+sds_bptree_retrieve(sds_bptree_instance *binst, void *key, void **target)
+{
     return sds_bptree_retrieve_internal(binst, binst->root, key, target);
 }
 
@@ -70,7 +74,8 @@ sds_bptree_retrieve(sds_bptree_instance *binst, void *key, void **target) {
 /* Insertion functions */
 
 sds_result
-sds_bptree_insert(sds_bptree_instance *binst, void *key, void *value) {
+sds_bptree_insert(sds_bptree_instance *binst, void *key, void *value)
+{
 
     sds_result result = SDS_SUCCESS;
     sds_bptree_node *target_node = NULL;
@@ -115,7 +120,6 @@ sds_bptree_insert(sds_bptree_instance *binst, void *key, void *value) {
         /* This now walks up the branches and inserts as needed. */
 
         result = sds_bptree_insert_leaf_node(binst, target_node, next_node, next_key);
-
     }
 
 #ifdef SDS_DEBUG
@@ -128,7 +132,8 @@ sds_bptree_insert(sds_bptree_instance *binst, void *key, void *value) {
 /* Deletion functions */
 
 sds_result
-sds_bptree_delete(sds_bptree_instance *binst, void *key) {
+sds_bptree_delete(sds_bptree_instance *binst, void *key)
+{
     sds_result result = SDS_SUCCESS;
     sds_bptree_node *target_node = NULL;
     sds_bptree_node *next_node = NULL;
@@ -178,7 +183,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
      */
 
     /*
-     * Delete is insane, so there are some values running about here. 
+     * Delete is insane, so there are some values running about here.
      *
      * key - The key we have been asked to delete.
      * next_key and next_node - If we have compacted, the key and node to remove..
@@ -208,7 +213,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
         }
 #endif
         if (right != NULL && right->item_count > SDS_BPTREE_HALF_CAPACITY) {
-            /* Does right have excess keys? */
+/* Does right have excess keys? */
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_delete", "Right leaf borrow");
 #endif
@@ -216,13 +221,13 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
             /* We setup next_node to be right now, so that key fixing on the path works */
             next_node = right;
         } else if (left != NULL && left->item_count > SDS_BPTREE_HALF_CAPACITY) {
-            /* Does left have excess keys? */
+/* Does left have excess keys? */
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_delete", "Left leaf borrow");
 #endif
             sds_bptree_leaf_left_borrow(binst, left, next_node);
         } else if (right != NULL && right->item_count <= SDS_BPTREE_HALF_CAPACITY) {
-            /* Does right want to merge? */
+/* Does right want to merge? */
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_delete", "Right leaf contract");
 #endif
@@ -230,7 +235,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
             /* Setup the branch delete properly */
             deleted_node = right;
         } else if (left != NULL && left->item_count <= SDS_BPTREE_HALF_CAPACITY) {
-            /* Does left want to merge? */
+/* Does left want to merge? */
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_delete", "Left leaf contract");
 #endif
@@ -267,7 +272,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
              */
 
             if (deleted_node != NULL) {
-                /* Make sure we delete this value from our branch */
+/* Make sure we delete this value from our branch */
 #ifdef SDS_DEBUG
                 sds_log("sds_bptree_delete", "Should be removing %p from branch %p here!", deleted_node, target_node);
 #endif
@@ -275,7 +280,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
                 /* The deed is done, remove the next reference */
                 deleted_node = NULL;
             } else {
-                /* It means a borrow was probably done somewhere, so we need to fix the path */
+/* It means a borrow was probably done somewhere, so we need to fix the path */
 #ifdef SDS_DEBUG
                 sds_log("sds_bptree_delete", "Should be fixing %p key to child %p here!", target_node, next_node);
 #endif
@@ -287,7 +292,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
             next_node = target_node;
             target_node = target_node->parent;
 
-    /* IMPROVE THIS!!! This could allow a key to bounce back and forth.
+            /* IMPROVE THIS!!! This could allow a key to bounce back and forth.
      * Instead, check if node < half and node->item_count + right/left->item_count < MAX
      */
 
@@ -297,7 +302,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
                 left = NULL;
                 right = NULL;
                 sds_bptree_node_siblings(next_node, &left, &right);
-                /* Note the conditions for HALF_CAPACITY change here due to 
+/* Note the conditions for HALF_CAPACITY change here due to
                  * space requirements. we only merge if < half. IE for 7 keys
                  * we have 8 links. If we have a node at 3 keys, and one at 4 keys
                  * they have 4 and 5 links each. Too many! So we have to delay
@@ -316,7 +321,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
 #endif
 
                 if (right != NULL && right->item_count >= SDS_BPTREE_HALF_CAPACITY) {
-                    /* Does right have excess keys? */
+/* Does right have excess keys? */
 #ifdef SDS_DEBUG
                     sds_log("sds_bptree_delete", "Right branch borrow");
 #endif
@@ -324,13 +329,13 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
                     /* We setup next_node to be right now, so that key fixing on the path works */
                     next_node = right;
                 } else if (left != NULL && left->item_count >= SDS_BPTREE_HALF_CAPACITY) {
-                    /* Does left have excess keys? */
+/* Does left have excess keys? */
 #ifdef SDS_DEBUG
                     sds_log("sds_bptree_delete", "Left branch borrow");
 #endif
                     sds_bptree_branch_left_borrow(binst, left, next_node);
                 } else if (right != NULL && right->item_count < SDS_BPTREE_HALF_CAPACITY) {
-                    /* Does right want to merge? */
+/* Does right want to merge? */
 #ifdef SDS_DEBUG
                     sds_log("sds_bptree_delete", "Right branch contract");
 #endif
@@ -339,7 +344,7 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
                     next_node = right;
                     deleted_node = right;
                 } else if (left != NULL && left->item_count < SDS_BPTREE_HALF_CAPACITY) {
-                    /* Does left want to merge? */
+/* Does left want to merge? */
 #ifdef SDS_DEBUG
                     sds_log("sds_bptree_delete", "Left branch contract");
 #endif
@@ -350,8 +355,8 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
                     return SDS_INVALID_NODE;
                 }
             } else if (target_node == NULL && next_node->item_count == 0) {
-                /* It's time to compact the root! */
-                /* We only have one child at this point, so they become the new root */
+/* It's time to compact the root! */
+/* We only have one child at this point, so they become the new root */
 #ifdef SDS_DEBUG
                 sds_log("sds_bptree_delete", "Should be deleting root here!");
                 if (binst->root != next_node) {
@@ -362,8 +367,8 @@ sds_bptree_delete(sds_bptree_instance *binst, void *key) {
                 sds_bptree_root_promote(binst, next_node);
             }
 
-        } // While target node
-    } // If under half capacity
+        }  // While target node
+    }      // If under half capacity
 
 #ifdef SDS_DEBUG
 fail:
@@ -375,7 +380,8 @@ fail:
 
 
 sds_result
-sds_bptree_destroy(sds_bptree_instance *binst) {
+sds_bptree_destroy(sds_bptree_instance *binst)
+{
     // Remove all the other elements
     sds_result result = SDS_SUCCESS;
     result = sds_bptree_map_nodes(binst, binst->root, sds_bptree_node_destroy);
@@ -383,5 +389,3 @@ sds_bptree_destroy(sds_bptree_instance *binst) {
     sds_free(binst);
     return result;
 }
-
-

@@ -9,11 +9,11 @@
  *     Bugfix for bug #193297
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -29,12 +29,14 @@ static char *serverfqdn;
 /*
  * utility functions needed by the sasl library
  */
-void *nssasl_mutex_alloc(void)
+void *
+nssasl_mutex_alloc(void)
 {
     return PR_NewLock();
 }
 
-int nssasl_mutex_lock(void *mutex)
+int
+nssasl_mutex_lock(void *mutex)
 {
     if (mutex) {
         PR_Lock(mutex);
@@ -42,31 +44,36 @@ int nssasl_mutex_lock(void *mutex)
     return SASL_OK;
 }
 
-int nssasl_mutex_unlock(void *mutex)
+int
+nssasl_mutex_unlock(void *mutex)
 {
     if (mutex) {
-        if (PR_Unlock(mutex) == PR_SUCCESS) return SASL_OK;
+        if (PR_Unlock(mutex) == PR_SUCCESS)
+            return SASL_OK;
         return SASL_FAIL;
     } else {
         return SASL_OK;
     }
 }
 
-void nssasl_mutex_free(void *mutex)
+void
+nssasl_mutex_free(void *mutex)
 {
     if (mutex) {
         PR_DestroyLock(mutex);
     }
 }
 
-void nssasl_free(void *ptr)
+void
+nssasl_free(void *ptr)
 {
     slapi_ch_free(&ptr);
 }
 
 static Slapi_ComponentId *sasl_component_id = NULL;
 
-static void generate_component_id(void)
+static void
+generate_component_id(void)
 {
     if (NULL == sasl_component_id) {
         sasl_component_id = generate_componentid(NULL /* Not a plugin */,
@@ -74,12 +81,13 @@ static void generate_component_id(void)
     }
 }
 
-static Slapi_ComponentId *sasl_get_component_id(void)
+static Slapi_ComponentId *
+sasl_get_component_id(void)
 {
     return sasl_component_id;
 }
 
-/* 
+/*
  * sasl library callbacks
  */
 
@@ -97,17 +105,19 @@ static Slapi_ComponentId *sasl_get_component_id(void)
  * properties we need - it's more efficient that way.
  */
 #if SASL_AUXPROP_PLUG_VERSION > 4
-static int ids_auxprop_lookup
+static int
+ids_auxprop_lookup
 #else
-static void ids_auxprop_lookup
+static void
+ids_auxprop_lookup
 #endif
-				  ( void *glob_context __attribute__((unused)),
-				    sasl_server_params_t *sparams __attribute__((unused)),
-				    unsigned flags __attribute__((unused)),
-				    const char *user __attribute__((unused)),
-				    unsigned ulen __attribute__((unused)) )
+    (void *glob_context __attribute__((unused)),
+     sasl_server_params_t *sparams __attribute__((unused)),
+     unsigned flags __attribute__((unused)),
+     const char *user __attribute__((unused)),
+     unsigned ulen __attribute__((unused)))
 {
-    /* do nothing - we don't need auxprops - we just do this to avoid
+/* do nothing - we don't need auxprops - we just do this to avoid
        sasldb_auxprop_lookup */
 #if SASL_AUXPROP_PLUG_VERSION > 4
     return 0;
@@ -115,25 +125,28 @@ static void ids_auxprop_lookup
 }
 
 static sasl_auxprop_plug_t ids_auxprop_plugin = {
-    0,           		/* Features */
-    0,           		/* spare */
-    NULL,        		/* glob_context */
-    NULL,        		/* auxprop_free */
-    ids_auxprop_lookup,	/* auxprop_lookup */
-    "iDS",			/* name */
-    NULL	/* auxprop_store */
+    0,                  /* Features */
+    0,                  /* spare */
+    NULL,               /* glob_context */
+    NULL,               /* auxprop_free */
+    ids_auxprop_lookup, /* auxprop_lookup */
+    "iDS",              /* name */
+    NULL                /* auxprop_store */
 };
 
-int ids_auxprop_plug_init(const sasl_utils_t *utils __attribute__((unused)),
-                          int max_version,
-                          int *out_version,
-                          sasl_auxprop_plug_t **plug,
-                          const char *plugname __attribute__((unused)))
+int
+ids_auxprop_plug_init(const sasl_utils_t *utils __attribute__((unused)),
+                      int max_version,
+                      int *out_version,
+                      sasl_auxprop_plug_t **plug,
+                      const char *plugname __attribute__((unused)))
 {
-    if(!out_version || !plug) return SASL_BADPARAM;
+    if (!out_version || !plug)
+        return SASL_BADPARAM;
 
-    if(max_version < SASL_AUXPROP_PLUG_VERSION) return SASL_BADVERS;
-    
+    if (max_version < SASL_AUXPROP_PLUG_VERSION)
+        return SASL_BADVERS;
+
     *out_version = SASL_AUXPROP_PLUG_VERSION;
 
     *plug = &ids_auxprop_plugin;
@@ -141,20 +154,21 @@ int ids_auxprop_plug_init(const sasl_utils_t *utils __attribute__((unused)),
     return SASL_OK;
 }
 
-static int ids_sasl_getopt(
+static int
+ids_sasl_getopt(
     void *context __attribute__((unused)),
     const char *plugin_name,
     const char *option,
-    const char **result, 
-    unsigned *len
-)
+    const char **result,
+    unsigned *len)
 {
     unsigned tmplen;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_getopt", "plugin=%s option=%s\n",
-              plugin_name ? plugin_name : "", option);
+                  plugin_name ? plugin_name : "", option);
 
-    if (len == NULL) len = &tmplen;
+    if (len == NULL)
+        len = &tmplen;
 
     *result = NULL;
     *len = 0;
@@ -169,44 +183,46 @@ static int ids_sasl_getopt(
         }
     } else if (strcasecmp(option, "auxprop_plugin") == 0) {
         *result = "iDS";
-    } else if (strcasecmp(option, "mech_list") == 0){
+    } else if (strcasecmp(option, "mech_list") == 0) {
         *result = config_get_allowed_sasl_mechs();
     }
 
-    if (*result) *len = strlen(*result);
+    if (*result)
+        *len = strlen(*result);
 
     return SASL_OK;
 }
 
-static int ids_sasl_log(
-    void       *context __attribute__((unused)),
-    int        level,
-    const char *message
-)
+static int
+ids_sasl_log(
+    void *context __attribute__((unused)),
+    int level,
+    const char *message)
 {
     switch (level) {
-    case SASL_LOG_ERR:          /* log unusual errors (default) */
+    case SASL_LOG_ERR: /* log unusual errors (default) */
         slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_log", "%s\n", message);
         break;
 
-    case SASL_LOG_FAIL:         /* log all authentication failures */
-    case SASL_LOG_WARN:         /* log non-fatal warnings */
-    case SASL_LOG_NOTE:         /* more verbose than LOG_WARN */
-    case SASL_LOG_DEBUG:        /* more verbose than LOG_NOTE */
-    case SASL_LOG_TRACE:        /* traces of internal protocols */
-    case SASL_LOG_PASS:         /* traces of internal protocols, including
+    case SASL_LOG_FAIL:  /* log all authentication failures */
+    case SASL_LOG_WARN:  /* log non-fatal warnings */
+    case SASL_LOG_NOTE:  /* more verbose than LOG_WARN */
+    case SASL_LOG_DEBUG: /* more verbose than LOG_NOTE */
+    case SASL_LOG_TRACE: /* traces of internal protocols */
+    case SASL_LOG_PASS:  /* traces of internal protocols, including
                                  * passwords */
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_log", "(%d): %s\n", level, message);
         break;
 
-    case SASL_LOG_NONE:         /* don't log anything */
+    case SASL_LOG_NONE: /* don't log anything */
     default:
         break;
     }
     return SASL_OK;
 }
 
-static void ids_sasl_user_search(
+static void
+ids_sasl_user_search(
     char *basedn,
     int scope,
     char *filter,
@@ -214,15 +230,14 @@ static void ids_sasl_user_search(
     char **attrs,
     int attrsonly,
     Slapi_Entry **ep,
-    int *foundp
-)
+    int *foundp)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *pb = NULL;
     int i, ret;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
-            "sasl user search basedn=\"%s\" filter=\"%s\"\n", basedn, filter);
+                  "sasl user search basedn=\"%s\" filter=\"%s\"\n", basedn, filter);
 
     /* TODO: set size and time limits */
     pb = slapi_pblock_new();
@@ -231,23 +246,23 @@ static void ids_sasl_user_search(
         goto out;
     }
 
-    slapi_search_internal_set_pb(pb, basedn, scope, filter, attrs, attrsonly, ctrls, 
-                                 NULL, sasl_get_component_id(), 0); 
+    slapi_search_internal_set_pb(pb, basedn, scope, filter, attrs, attrsonly, ctrls,
+                                 NULL, sasl_get_component_id(), 0);
 
     slapi_search_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search", 
-                "sasl user search failed basedn=\"%s\" filter=\"%s\": %s\n", 
-                basedn, filter, ldap_err2string(ret));
+        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
+                      "sasl user search failed basedn=\"%s\" filter=\"%s\": %s\n",
+                      basedn, filter, ldap_err2string(ret));
         goto out;
     }
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if ((entries == NULL) || (entries[0] == NULL)) {
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
-                "sasl user search found no entries\n");
+                      "sasl user search found no entries\n");
         goto out;
     }
 
@@ -258,10 +273,10 @@ static void ids_sasl_user_search(
         }
         *ep = slapi_entry_dup(entries[i]);
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
-                "sasl user search found dn=%s\n", slapi_entry_get_dn(*ep));
+                      "sasl user search found dn=%s\n", slapi_entry_get_dn(*ep));
     }
 
- out:
+out:
 
     if (pb) {
         slapi_free_search_results_internal(pb);
@@ -274,12 +289,12 @@ static void ids_sasl_user_search(
 /*
  * Search for an entry representing the sasl user.
  */
-static Slapi_Entry *ids_sasl_user_to_entry(
+static Slapi_Entry *
+ids_sasl_user_to_entry(
     sasl_conn_t *conn __attribute__((unused)),
     void *context __attribute__((unused)),
     const char *user,
-    const char *user_realm
-)
+    const char *user_realm)
 {
     LDAPControl **ctrls = NULL;
     sasl_map_data *map = NULL;
@@ -295,34 +310,36 @@ static Slapi_Entry *ids_sasl_user_to_entry(
      * just fail the mapping without performing a costly internal search. */
     if (user && strchr(user, '*')) {
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
-                "sasl user search encountered a wildcard in "
-                "the authid.  Not attempting to map to entry. (authid=%s)\n", user);
+                      "sasl user search encountered a wildcard in "
+                      "the authid.  Not attempting to map to entry. (authid=%s)\n",
+                      user);
         return NULL;
     } else if (user_realm && strchr(user_realm, '*')) {
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
-                "sasl user search encountered a wildcard in "
-                "the realm.  Not attempting to map to entry. (realm=%s)\n", user_realm);
+                      "sasl user search encountered a wildcard in "
+                      "the realm.  Not attempting to map to entry. (realm=%s)\n",
+                      user_realm);
         return NULL;
     }
 
     /* New regex-based identity mapping */
     sasl_map_read_lock();
-    while(1){
-        regexmatch = sasl_map_domap(&map, (char*)user, (char*)user_realm, &base, &filter);
+    while (1) {
+        regexmatch = sasl_map_domap(&map, (char *)user, (char *)user_realm, &base, &filter);
         if (regexmatch) {
             ids_sasl_user_search(base, scope, filter,
                                  ctrls, attrs, attrsonly,
                                  &entry, &found);
             if (found == 1) {
                 slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
-                        "sasl user search found this entry: dn:%s, matching filter=%s\n",
-                        entry->e_sdn.dn, filter);
+                              "sasl user search found this entry: dn:%s, matching filter=%s\n",
+                              entry->e_sdn.dn, filter);
             } else if (found == 0) {
                 slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
-                        "sasl user search found no entries matchingfilter=%s\n", filter);
+                              "sasl user search found no entries matchingfilter=%s\n", filter);
             } else {
                 slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
-                        "sasl user search found more than one entry matching filter=%s\n", filter);
+                              "sasl user search found more than one entry matching filter=%s\n", filter);
                 if (entry) {
                     slapi_entry_free(entry);
                     entry = NULL;
@@ -334,12 +351,12 @@ static Slapi_Entry *ids_sasl_user_to_entry(
             slapi_ch_free_string(&filter);
 
             /* If we didn't find an entry, look at the other maps */
-            if(found){
+            if (found) {
                 break;
             }
         }
         /* break if the next map is NULL, or we are not checking all the mappings */
-        if(map == NULL || !config_get_sasl_mapping_fallback()){
+        if (map == NULL || !config_get_sasl_mapping_fallback()) {
             break;
         }
     }
@@ -348,11 +365,12 @@ static Slapi_Entry *ids_sasl_user_to_entry(
     return entry;
 }
 
-static char *buf2str(const char *buf, unsigned buflen)
+static char *
+buf2str(const char *buf, unsigned buflen)
 {
     char *ret;
 
-    ret = (char*)slapi_ch_malloc(buflen+1);
+    ret = (char *)slapi_ch_malloc(buflen + 1);
     memcpy(ret, buf, buflen);
     ret[buflen] = '\0';
 
@@ -360,16 +378,17 @@ static char *buf2str(const char *buf, unsigned buflen)
 }
 
 /* Note that in this sasl1 API, when it says 'authid' it really means 'authzid'. */
-static int ids_sasl_canon_user(
+static int
+ids_sasl_canon_user(
     sasl_conn_t *conn,
     void *context,
-    const char *userbuf, unsigned ulen,
+    const char *userbuf,
+    unsigned ulen,
     unsigned flags __attribute__((unused)),
     const char *user_realm,
     char *out_user,
     unsigned out_umax,
-    unsigned *out_ulen
-)
+    unsigned *out_ulen)
 {
     struct propctx *propctx = sasl_auxprop_getctx(conn);
     Slapi_Entry *entry = NULL;
@@ -385,21 +404,21 @@ static int ids_sasl_canon_user(
     user = buf2str(userbuf, ulen);
     if (user == NULL) {
         goto fail;
-    } 
-    slapi_log_err(SLAPI_LOG_TRACE, 
-              "ids_sasl_canon_user", "(user=%s, realm=%s)\n", 
-              user, user_realm ? user_realm : "");
+    }
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "ids_sasl_canon_user", "(user=%s, realm=%s)\n",
+                  user, user_realm ? user_realm : "");
 
-    sasl_getprop(conn, SASL_MECHNAME, (const void**)&mech);
+    sasl_getprop(conn, SASL_MECHNAME, (const void **)&mech);
     if (mech == NULL) {
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_canon_user",
-                "Unable to read SASL mechanism while canonifying user.\n");
+                      "Unable to read SASL mechanism while canonifying user.\n");
         goto fail;
     }
 
     if (strncasecmp(user, "dn:", 3) == 0) {
         sdn = slapi_sdn_new();
-        slapi_sdn_set_dn_byval(sdn, user+3);
+        slapi_sdn_set_dn_byval(sdn, user + 3);
         isroot = slapi_dn_isroot(slapi_sdn_get_ndn(sdn));
     }
 
@@ -419,7 +438,7 @@ static int ids_sasl_canon_user(
         /* map the sasl username into an entry */
         entry = ids_sasl_user_to_entry(conn, context, user, user_realm);
         if (entry == NULL) {
-            /* Specific return value is supposed to be set instead of 
+            /* Specific return value is supposed to be set instead of
                an generic error (SASL_FAIL) for Cyrus SASL */
             returnvalue = SASL_NOAUTHZ;
             goto fail;
@@ -445,16 +464,16 @@ static int ids_sasl_canon_user(
      * brace since strstr will simply return it's first argument if
      * it is an empty string. */
     if (pw && (*pw == '{')) {
-        if (strchr( pw, '}' )) {
+        if (strchr(pw, '}')) {
             /* This password is stored in a non-cleartext format.
              * Any SASL mechanism that actually needs the
              * password is going to fail.  We should print a warning
              * to aid in troubleshooting. */
             slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_canon_user",
-                    "Warning: Detected a sasl bind attempt by an "
-                    "entry whose password is stored in a non-cleartext format.  This "
-                    "will not work for mechanisms which require a cleartext password "
-                    "such as DIGEST-MD5 and CRAM-MD5.\n");
+                          "Warning: Detected a sasl bind attempt by an "
+                          "entry whose password is stored in a non-cleartext format.  This "
+                          "will not work for mechanisms which require a cleartext password "
+                          "such as DIGEST-MD5 and CRAM-MD5.\n");
         } else {
             /* This password doesn't have a storage prefix but
              * just happens to start with the '{' character.  We'll
@@ -473,33 +492,34 @@ static int ids_sasl_canon_user(
         if (prop_set(propctx, SASL_AUX_PASSWORD_PROP, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*slapi_log_err(SLAPI_LOG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
-            goto fail */ ;
+            goto fail */;
         }
 #endif /* SASL_AUX_PASSWORD_PROP */
         if (prop_set(propctx, SASL_AUX_PASSWORD, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*slapi_log_err(SLAPI_LOG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
-            goto fail */ ;
+            goto fail */;
         }
     }
 
     slapi_entry_free(entry);
-    slapi_ch_free((void**)&user);
-    slapi_ch_free((void**)&pw);
+    slapi_ch_free((void **)&user);
+    slapi_ch_free((void **)&pw);
     slapi_sdn_free(&sdn);
 
     return SASL_OK;
 
 fail:
     slapi_entry_free(entry);
-    slapi_ch_free((void**)&user);
-    slapi_ch_free((void**)&pw);
+    slapi_ch_free((void **)&user);
+    slapi_ch_free((void **)&pw);
     slapi_sdn_free(&sdn);
 
     return returnvalue;
 }
 
-static int ids_sasl_getpluginpath(sasl_conn_t *conn __attribute__((unused)), const char **path)
+static int
+ids_sasl_getpluginpath(sasl_conn_t *conn __attribute__((unused)), const char **path)
 {
     /* Try to get path from config, otherwise check for SASL_PATH environment
      * variable.  If neither of these are set, default to /usr/lib64/sasl2 on
@@ -514,12 +534,13 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn __attribute__((unused)), con
     return SASL_OK;
 }
 
-static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
-                                     void *context __attribute__((unused)),
-                                     const char *user,
-                                     const char *pass,
-                                     unsigned passlen,
-                                     struct propctx *propctx __attribute__((unused)))
+static int
+ids_sasl_userdb_checkpass(sasl_conn_t *conn,
+                          void *context __attribute__((unused)),
+                          const char *user,
+                          const char *pass,
+                          unsigned passlen,
+                          struct propctx *propctx __attribute__((unused)))
 {
     /*
      * Based on the mech
@@ -529,7 +550,7 @@ static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
     int bind_result = SLAPI_BIND_FAIL;
     struct berval cred;
 
-    sasl_getprop(conn, SASL_MECHNAME, (const void**)&mech);
+    sasl_getprop(conn, SASL_MECHNAME, (const void **)&mech);
     if (mech == NULL) {
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_userdb_checkpass", "Unable to read SASL mechanism while verifying userdb password.\n");
         goto out;
@@ -541,7 +562,7 @@ static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
     }
 
     if (strncasecmp(user, "dn: ", 4) == 0) {
-        isroot = slapi_dn_isroot(user+4);
+        isroot = slapi_dn_isroot(user + 4);
     } else {
         /* The sasl request probably didn't come from us ... */
         goto out;
@@ -554,15 +575,15 @@ static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
     if (isroot) {
         Slapi_Value sv_cred;
         /* Turn the creds into a Slapi Value */
-        slapi_value_init_berval(&sv_cred,&cred);
-        bind_result = pw_verify_root_dn(user+4, &sv_cred);
+        slapi_value_init_berval(&sv_cred, &cred);
+        bind_result = pw_verify_root_dn(user + 4, &sv_cred);
         value_done(&sv_cred);
     } else {
         /* Convert the dn char str to an SDN */
         ber_tag_t method = LDAP_AUTH_SIMPLE;
         Slapi_Entry *referral = NULL;
         Slapi_DN *sdn = slapi_sdn_new();
-        slapi_sdn_set_dn_byval(sdn, user+4);
+        slapi_sdn_set_dn_byval(sdn, user + 4);
         /* Create a pblock */
         Slapi_PBlock *pb = slapi_pblock_new();
         /* We have to make a fake operation for the targetsdn spec. */
@@ -572,7 +593,7 @@ static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
         /* For mapping tree to work */
         operation_set_target_spec(op, sdn);
         slapi_pblock_set(pb, SLAPI_OPERATION, op);
-        /* Equivalent to SLAPI_BIND_TARGET_SDN 
+        /* Equivalent to SLAPI_BIND_TARGET_SDN
          * Used by ldbm bind to know who to bind to.
          */
         slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void *)sdn);
@@ -603,45 +624,33 @@ out:
 }
 
 static sasl_callback_t ids_sasl_callbacks[] =
-{
     {
-      SASL_CB_GETOPT,
-      (IFP) ids_sasl_getopt,
-      NULL
-    },
-    {
-      SASL_CB_LOG,
-      (IFP) ids_sasl_log,
-      NULL
-    },
-    {
-      SASL_CB_CANON_USER,
-      (IFP) ids_sasl_canon_user,
-      NULL
-    },
-    {
-      SASL_CB_GETPATH,
-      (IFP) ids_sasl_getpluginpath,
-      NULL
-    },
-    {
-      SASL_CB_SERVER_USERDB_CHECKPASS,
-      (IFP) ids_sasl_userdb_checkpass,
-      NULL
-    },
-    {
-      SASL_CB_LIST_END,
-      (IFP) NULL,
-      NULL
-    }
-};
+        {SASL_CB_GETOPT,
+         (IFP)ids_sasl_getopt,
+         NULL},
+        {SASL_CB_LOG,
+         (IFP)ids_sasl_log,
+         NULL},
+        {SASL_CB_CANON_USER,
+         (IFP)ids_sasl_canon_user,
+         NULL},
+        {SASL_CB_GETPATH,
+         (IFP)ids_sasl_getpluginpath,
+         NULL},
+        {SASL_CB_SERVER_USERDB_CHECKPASS,
+         (IFP)ids_sasl_userdb_checkpass,
+         NULL},
+        {SASL_CB_LIST_END,
+         (IFP)NULL,
+         NULL}};
 
-static const char *dn_propnames[] = { "dn", 0 };
+static const char *dn_propnames[] = {"dn", 0};
 
 /*
  * initialize the sasl library
  */
-int ids_sasl_init(void)
+int
+ids_sasl_init(void)
 {
     static int inited = 0;
     int result;
@@ -656,7 +665,7 @@ int ids_sasl_init(void)
 
     serverfqdn = get_localhost_DNS();
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_init", "sasl service fqdn is: %s\n", 
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_init", "sasl service fqdn is: %s\n",
                   serverfqdn);
 
     /* get component ID for internal operations */
@@ -667,7 +676,7 @@ int ids_sasl_init(void)
         (sasl_malloc_t *)slapi_ch_malloc,
         (sasl_calloc_t *)slapi_ch_calloc,
         (sasl_realloc_t *)slapi_ch_realloc,
-        (sasl_free_t *)nssasl_free );
+        (sasl_free_t *)nssasl_free);
 
     /* Set SASL mutex callbacks */
     sasl_set_mutex(
@@ -693,7 +702,8 @@ int ids_sasl_init(void)
 /*
  * create a sasl server connection
  */
-void ids_sasl_server_new(Connection *conn)
+void
+ids_sasl_server_new(Connection *conn)
 {
     int rc;
     sasl_conn_t *sasl_conn = NULL;
@@ -702,18 +712,18 @@ void ids_sasl_server_new(Connection *conn)
 
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_new", "=> (%s)\n", serverfqdn);
 
-    rc = sasl_server_new("ldap", 
+    rc = sasl_server_new("ldap",
                          serverfqdn,
-                         NULL,  /* user_realm */
-                         NULL,  /* iplocalport */
-                         NULL,  /* ipremoteport */
+                         NULL, /* user_realm */
+                         NULL, /* iplocalport */
+                         NULL, /* ipremoteport */
                          ids_sasl_callbacks,
-                         SASL_SUCCESS_DATA, 
+                         SASL_SUCCESS_DATA,
                          &sasl_conn);
 
     if (rc != SASL_OK) {
-        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "%s\n", 
-                  sasl_errstring(rc, NULL, NULL));
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "%s\n",
+                      sasl_errstring(rc, NULL, NULL));
     }
 
     if (rc == SASL_OK) {
@@ -736,9 +746,9 @@ void ids_sasl_server_new(Connection *conn)
 
     if (rc != SASL_OK) {
         slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "sasl_setprop: %s\n",
-                  sasl_errstring(rc, NULL, NULL));
+                      sasl_errstring(rc, NULL, NULL));
     }
-    
+
     conn->c_sasl_conn = sasl_conn;
     conn->c_sasl_ssf = 0;
 
@@ -751,7 +761,8 @@ void ids_sasl_server_new(Connection *conn)
  * return sasl mechanisms available on this connection.
  * caller must free returned charray.
  */
-char **ids_sasl_listmech(Slapi_PBlock *pb)
+char **
+ids_sasl_listmech(Slapi_PBlock *pb)
 {
     char **ret;
     char **config_ret;
@@ -773,12 +784,12 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
 
     /* If we have a connection, get the provided list from SASL */
     if (pb_conn != NULL) {
-        sasl_conn = (sasl_conn_t*)pb_conn->c_sasl_conn;
+        sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
         if (sasl_conn != NULL) {
             /* sasl library mechanisms are connection dependent */
             PR_EnterMonitor(pb_conn->c_mutex);
             if (sasl_listmech(sasl_conn,
-                              NULL,     /* username */
+                              NULL, /* username */
                               "", ",", "",
                               &str, NULL, NULL) == SASL_OK) {
                 slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "sasl library mechs: %s\n", str);
@@ -787,7 +798,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
                 others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
                 charray_merge(&sup_ret, others, 1);
                 charray_free(others);
-                slapi_ch_free((void**)&dupstr);
+                slapi_ch_free((void **)&dupstr);
             }
             PR_ExitMonitor(pb_conn->c_mutex);
         }
@@ -829,50 +840,51 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
 static int
 ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 {
-  int i, ret = 0;
-  char **mechs;
-  char *dupstr;
-  const char *str;
-  int sasl_result = 0;
-  Connection *pb_conn = NULL;
-  slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    int i, ret = 0;
+    char **mechs;
+    char *dupstr;
+    const char *str;
+    int sasl_result = 0;
+    Connection *pb_conn = NULL;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-  sasl_conn_t *sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
+    sasl_conn_t *sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
 
-  slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "=>\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "=>\n");
 
 
-  /* sasl_listmech is not thread-safe - caller must lock pb_conn */
-  sasl_result = sasl_listmech(sasl_conn, 
-                    NULL,     /* username */
-                    "", ",", "",
-                    &str, NULL, NULL);
-  if (sasl_result != SASL_OK) {
-    return 0;
-  }
-
-  dupstr = slapi_ch_strdup(str);
-  mechs = slapi_str2charray(dupstr, ",");
-
-  for (i = 0; mechs[i] != NULL; i++) {
-    if (strcasecmp(mech, mechs[i]) == 0) {
-      ret = 1;
-      break;
+    /* sasl_listmech is not thread-safe - caller must lock pb_conn */
+    sasl_result = sasl_listmech(sasl_conn,
+                                NULL, /* username */
+                                "", ",", "",
+                                &str, NULL, NULL);
+    if (sasl_result != SASL_OK) {
+        return 0;
     }
-  }
 
-  charray_free(mechs);
-  slapi_ch_free((void**)&dupstr);
+    dupstr = slapi_ch_strdup(str);
+    mechs = slapi_str2charray(dupstr, ",");
 
-  slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "<=\n");
+    for (i = 0; mechs[i] != NULL; i++) {
+        if (strcasecmp(mech, mechs[i]) == 0) {
+            ret = 1;
+            break;
+        }
+    }
 
-  return ret;
+    charray_free(mechs);
+    slapi_ch_free((void **)&dupstr);
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "<=\n");
+
+    return ret;
 }
 
 /*
  * do a sasl bind and return a result
  */
-void ids_sasl_check_bind(Slapi_PBlock *pb)
+void
+ids_sasl_check_bind(Slapi_PBlock *pb)
 {
     int rc, isroot;
     long t;
@@ -905,23 +917,23 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     continuing = pb_conn->c_flags & CONN_FLAG_SASL_CONTINUE;
     pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE; /* reset flag */
 
-    sasl_conn = (sasl_conn_t*)pb_conn->c_sasl_conn;
+    sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
     if (sasl_conn == NULL) {
         PR_ExitMonitor(pb_conn->c_mutex); /* BIG LOCK */
-        send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
-                          "sasl library unavailable", 0, NULL );
+        send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
+                         "sasl library unavailable", 0, NULL);
         return;
     }
 
     slapi_pblock_get(pb, SLAPI_BIND_SASLMECHANISM, &mech);
     if (NULL == mech) {
-      rc = SASL_NOMECH;
-      goto sasl_check_result;
+        rc = SASL_NOMECH;
+        goto sasl_check_result;
     }
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
     if (NULL == cred) {
-      rc = SASL_BADPARAM;
-      goto sasl_check_result;
+        rc = SASL_BADPARAM;
+        goto sasl_check_result;
     }
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &pwresponse_requested);
 
@@ -931,38 +943,39 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
      * while holding the pb_conn lock
      */
     if (!ids_sasl_mech_supported(pb, mech)) {
-      rc = SASL_NOMECH;
-      goto sasl_check_result;
+        rc = SASL_NOMECH;
+        goto sasl_check_result;
     }
 
     /* can't do any harm */
-    if (cred->bv_len == 0) cred->bv_val = NULL;
+    if (cred->bv_len == 0)
+        cred->bv_val = NULL;
 
     if (continuing) {
-        /* 
+        /*
          * RFC 2251: a client may abort a sasl bind negotiation by
          * sending a bindrequest with a different value in the
          * mechanism field.
          */
-        sasl_getprop(sasl_conn, SASL_MECHNAME, (const void**)&activemech);
+        sasl_getprop(sasl_conn, SASL_MECHNAME, (const void **)&activemech);
         if (activemech == NULL) {
             slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind",
-                    "Could not get active sasl mechanism\n");
+                          "Could not get active sasl mechanism\n");
             goto sasl_start;
         }
         if (strcasecmp(activemech, mech) != 0) {
             slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind",
-                    "sasl mechanisms differ: active=%s current=%s\n", activemech, mech);
+                          "sasl mechanisms differ: active=%s current=%s\n", activemech, mech);
             goto sasl_start;
         }
 
-        rc = sasl_server_step(sasl_conn, 
-                              cred->bv_val, cred->bv_len, 
+        rc = sasl_server_step(sasl_conn,
+                              cred->bv_val, cred->bv_len,
                               &sdata, &slen);
         goto sasl_check_result;
     }
 
- sasl_start:
+sasl_start:
 
     /* Check if we are already authenticated via sasl.  If so,
      * dispose of the current sasl_conn and create a new one
@@ -971,11 +984,11 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
      * process. */
     if ((pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
         Slapi_Operation *operation;
-        slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
+        slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
         slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
-                        "cleaning up sasl IO conn=%" PRIu64 " op=%d complete=%d continuing=%d\n",
-                        pb_conn->c_connid, operation->o_opid,
-                        (pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE), continuing);
+                      "cleaning up sasl IO conn=%" PRIu64 " op=%d complete=%d continuing=%d\n",
+                      pb_conn->c_connid, operation->o_opid,
+                      (pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE), continuing);
         /* reset flag */
         pb_conn->c_flags &= ~CONN_FLAG_SASL_COMPLETE;
 
@@ -985,27 +998,27 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         /* dispose of sasl_conn and create a new sasl_conn */
         sasl_dispose(&sasl_conn);
         ids_sasl_server_new(pb_conn);
-        sasl_conn = (sasl_conn_t*)pb_conn->c_sasl_conn;
+        sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
 
         if (sasl_conn == NULL) {
-            send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
-                          "sasl library unavailable", 0, NULL );
+            send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
+                             "sasl library unavailable", 0, NULL);
             PR_ExitMonitor(pb_conn->c_mutex); /* BIG LOCK */
             return;
         }
     }
 
-    rc = sasl_server_start(sasl_conn, mech, 
-                           cred->bv_val, cred->bv_len, 
+    rc = sasl_server_start(sasl_conn, mech,
+                           cred->bv_val, cred->bv_len,
                            &sdata, &slen);
 
 sasl_check_result:
 
     switch (rc) {
-    case SASL_OK:               /* complete */
+    case SASL_OK: /* complete */
         /* retrieve the authenticated username */
         if (sasl_getprop(sasl_conn, SASL_USERNAME,
-                         (const void**)&username) != SASL_OK) {
+                         (const void **)&username) != SASL_OK) {
             PR_ExitMonitor(pb_conn->c_mutex); /* BIG LOCK */
             send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
                              "could not obtain sasl username", 0, NULL);
@@ -1013,9 +1026,9 @@ sasl_check_result:
         }
 
         slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "sasl authenticated mech=%s user=%s\n",
-                  mech, username);
+                      mech, username);
 
-        /* 
+        /*
          * Retrieve the DN corresponding to the authenticated user.
          * This should have been set by the user canon callback
          * in an auxiliary property called "dn".
@@ -1040,10 +1053,11 @@ sasl_check_result:
         sdn = slapi_sdn_new_dn_passin(dn);
         normdn = slapi_sdn_get_dn(sdn);
 
-        slapi_pblock_set( pb, SLAPI_BIND_TARGET_SDN, sdn );
+        slapi_pblock_set(pb, SLAPI_BIND_TARGET_SDN, sdn);
 
-        if ((sasl_getprop(sasl_conn, SASL_SSF, 
-                          (const void**)&ssfp) == SASL_OK) && (*ssfp > 0)) {
+        if ((sasl_getprop(sasl_conn, SASL_SSF,
+                          (const void **)&ssfp) == SASL_OK) &&
+            (*ssfp > 0)) {
             slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "sasl ssf=%u\n", (unsigned)*ssfp);
         } else {
             *ssfp = 0;
@@ -1064,53 +1078,51 @@ sasl_check_result:
         /* set the connection bind credentials */
         PR_snprintf(authtype, sizeof(authtype), "%s%s", SLAPD_AUTH_SASL, mech);
         /* normdn is consumed by bind_credentials_set_nolock */
-        bind_credentials_set_nolock(pb_conn, authtype, 
-                                    slapi_ch_strdup(normdn), 
+        bind_credentials_set_nolock(pb_conn, authtype,
+                                    slapi_ch_strdup(normdn),
                                     NULL, NULL, NULL, bind_target_entry);
 
         PR_ExitMonitor(pb_conn->c_mutex); /* BIG LOCK */
 
-        if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
+        if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_BIND_FN) != 0) {
             break;
         }
 
         isroot = slapi_dn_isroot(normdn);
 
-        if (!isroot )
-        {
+        if (!isroot) {
             /* check if the account is locked */
-            bind_target_entry = get_entry(pb,  normdn);
-            if ( bind_target_entry == NULL )
-            {
+            bind_target_entry = get_entry(pb, normdn);
+            if (bind_target_entry == NULL) {
                 goto out;
-            } 
-            if ( slapi_check_account_lock(pb, bind_target_entry, pwresponse_requested, 1, 1) == 1) {
+            }
+            if (slapi_check_account_lock(pb, bind_target_entry, pwresponse_requested, 1, 1) == 1) {
                 goto out;
             }
         }
 
         /* set the auth response control if requested */
         slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrls);
-        if (slapi_control_present(ctrls, LDAP_CONTROL_AUTH_REQUEST, 
+        if (slapi_control_present(ctrls, LDAP_CONTROL_AUTH_REQUEST,
                                   NULL, NULL)) {
             slapi_add_auth_response_control(pb, normdn);
         }
 
         if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
-            send_nobackend_ldap_result( pb );
+            send_nobackend_ldap_result(pb);
             be = NULL;
             slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "<=\n");
-            return; 
+            return;
         }
 
         if (referral) {
-            send_referrals_from_entry(pb,referral);
+            send_referrals_from_entry(pb, referral);
             goto out;
         }
 
-        slapi_pblock_set( pb, SLAPI_BACKEND, be );
+        slapi_pblock_set(pb, SLAPI_BACKEND, be);
 
-        slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
+        slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
         set_db_default_result_handlers(pb);
 
         /* check password expiry */
@@ -1118,7 +1130,7 @@ sasl_check_result:
             int pwrc;
 
             pwrc = need_new_pw(pb, &t, bind_target_entry, pwresponse_requested);
-            
+
             switch (pwrc) {
             case 1:
                 slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
@@ -1135,7 +1147,7 @@ sasl_check_result:
 
         /* attach the sasl data */
         if (slen != 0) {
-            bvr.bv_val = (char*)sdata;
+            bvr.bv_val = (char *)sdata;
             bvr.bv_len = slen;
             slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, &bvr);
         }
@@ -1149,29 +1161,29 @@ sasl_check_result:
         }
 
         /* send successful result */
-        send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
+        send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
 
         /* remove the sasl data from the pblock */
         slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, NULL);
 
         break;
 
-    case SASL_CONTINUE:         /* another step needed */
+    case SASL_CONTINUE: /* another step needed */
         pb_conn->c_flags |= CONN_FLAG_SASL_CONTINUE;
         PR_ExitMonitor(pb_conn->c_mutex); /* BIG LOCK */
 
-        if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
+        if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_BIND_FN) != 0) {
             break;
         }
 
         /* attach the sasl data */
-        bvr.bv_val = (char*)sdata;
+        bvr.bv_val = (char *)sdata;
         bvr.bv_len = slen;
         slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, &bvr);
 
         /* send continuation result */
-        send_ldap_result( pb, LDAP_SASL_BIND_IN_PROGRESS, NULL, 
-                          NULL, 0, NULL );
+        send_ldap_result(pb, LDAP_SASL_BIND_IN_PROGRESS, NULL,
+                         NULL, 0, NULL);
 
         /* remove the sasl data from the pblock */
         slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, NULL);
@@ -1185,7 +1197,7 @@ sasl_check_result:
                          "sasl mechanism not supported", 0, NULL);
         break;
 
-    default:                    /* other error */
+    default: /* other error */
         errstr = sasl_errdetail(sasl_conn);
 
         PR_ExitMonitor(pb_conn->c_mutex); /* BIG LOCK */
@@ -1194,13 +1206,13 @@ sasl_check_result:
         break;
     }
 
-    out:
-        if (referral)
-            slapi_entry_free(referral);
-        if (be)
-            slapi_be_Unlock(be);
-        if (bind_target_entry)
-            slapi_entry_free(bind_target_entry);
+out:
+    if (referral)
+        slapi_entry_free(referral);
+    if (be)
+        slapi_be_Unlock(be);
+    if (bind_target_entry)
+        slapi_entry_free(bind_target_entry);
 
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "<=\n");
 

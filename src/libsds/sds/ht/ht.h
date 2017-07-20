@@ -33,6 +33,3 @@ void sds_ht_crc32c_update_value(sds_ht_value *value);
 
 sds_result sds_ht_crc32c_verify_node(sds_ht_node *node);
 sds_result sds_ht_crc32c_verify_instance(sds_ht_instance *inst);
-
-
-

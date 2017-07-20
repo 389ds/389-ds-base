@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _PLIST_PVT_H
@@ -45,26 +45,27 @@ typedef struct PListStruct_s PListStruct_t;
 
 #include <stddef.h>
 
-struct PLValueStruct_s {
-    pb_entry pv_pbentry;	/* used for pblock compatibility */
-    pb_param pv_pbparam;	/* property name and value pointers */
-    PLValueStruct_t *pv_next;   /* property name hash collision link */
-    PListStruct_t *pv_type;     /* property value type reference */
-    int pv_pi;                  /* property index */
-    int pv_flags;               /* bit flags */
+struct PLValueStruct_s
+{
+    pb_entry pv_pbentry;      /* used for pblock compatibility */
+    pb_param pv_pbparam;      /* property name and value pointers */
+    PLValueStruct_t *pv_next; /* property name hash collision link */
+    PListStruct_t *pv_type;   /* property value type reference */
+    int pv_pi;                /* property index */
+    int pv_flags;             /* bit flags */
 };
 
 #define pv_name pv_pbparam.name
 #define pv_value pv_pbparam.value
 
 /* pv_flags definitions */
-#define PVF_MALLOC              0x1     /* allocated via MALLOC */
+#define PVF_MALLOC 0x1 /* allocated via MALLOC */
 
 /* Offset to pv_pbparam in PLValueStruct_t */
-#define PVPBOFFSET offsetof(struct PLValueStruct_s,pv_pbparam)
+#define PVPBOFFSET offsetof(struct PLValueStruct_s, pv_pbparam)
 
 /* Convert pb_param pointer to PLValueStruct_t pointer */
-#define PATOPV(p) ((PLValueStruct_t *)((char *)(p) - PVPBOFFSET))
+#define PATOPV(p) ((PLValueStruct_t *)((char *)(p)-PVPBOFFSET))
 
 /*
  * TYPE:        PLSymbolTable_t
@@ -76,13 +77,17 @@ struct PLValueStruct_s {
  *      property is named.
  */
 
-#define PLSTSIZES       {7, 19, 31, 67, 123, 257, 513}
-#define PLMAXSIZENDX    (sizeof(plistHashSizes)/sizeof(plistHashSizes[0]))
+#define PLSTSIZES                    \
+    {                                \
+        7, 19, 31, 67, 123, 257, 513 \
+    }
+#define PLMAXSIZENDX (sizeof(plistHashSizes) / sizeof(plistHashSizes[0]))
 
-struct PLSymbolTable_s {
-    int pt_sizendx;             /* pt_hash size, as an index in PLSTSIZES */
-    int pt_nsyms;               /* number of symbols in table */
-    PLValueStruct_t *pt_hash[1];/* variable-length array */
+struct PLSymbolTable_s
+{
+    int pt_sizendx;              /* pt_hash size, as an index in PLSTSIZES */
+    int pt_nsyms;                /* number of symbols in table */
+    PLValueStruct_t *pt_hash[1]; /* variable-length array */
 };
 
 /*
@@ -97,11 +102,12 @@ struct PLSymbolTable_s {
  *      structures (PLValueStruct_t).
  */
 
-#define PLIST_DEFSIZE   8       /* default initial entries in pl_ppval */
-#define PLIST_DEFGROW   16      /* default incremental entries for pl_ppval */
+#define PLIST_DEFSIZE 8  /* default initial entries in pl_ppval */
+#define PLIST_DEFGROW 16 /* default incremental entries for pl_ppval */
 
-struct PListStruct_s {
-    pblock pl_pb;		/* pblock subset of property list head */
+struct PListStruct_s
+{
+    pblock pl_pb;               /* pblock subset of property list head */
     PLSymbolTable_t *pl_symtab; /* property name to index symbol table */
     pool_handle_t *pl_mempool;  /* associated memory pool handle */
     int pl_maxprop;             /* maximum number of properties */
@@ -110,15 +116,15 @@ struct PListStruct_s {
     int pl_cursize;             /* current size of pl_ppval in entries */
 };
 
-#define pl_initpi pl_pb.hsize    /* number of pl_ppval entries initialized */
-#define pl_ppval pl_pb.ht	/* pointer to array of value pointers */
+#define pl_initpi pl_pb.hsize /* number of pl_ppval entries initialized */
+#define pl_ppval pl_pb.ht     /* pointer to array of value pointers */
 
 /* Convert pblock pointer to PListStruct_t pointer */
 #define PBTOPL(p) ((PListStruct_t *)(p))
 
 #define PLSIZENDX(i) (plistHashSizes[i])
 #define PLHASHSIZE(i) (sizeof(PLSymbolTable_t) + \
-                       (PLSIZENDX(i) - 1)*sizeof(PLValueStruct_t *))
+                       (PLSIZENDX(i) - 1) * sizeof(PLValueStruct_t *))
 
 extern int plistHashSizes[7];
 

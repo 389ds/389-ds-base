@@ -2,22 +2,22 @@
  * Copyright (C) 2015  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -30,7 +30,7 @@
  * --- END COPYRIGHT BLOCK ---
  */
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -66,14 +66,24 @@ tevent_logger_cb(void *context __attribute__((unused)), enum tevent_debug_level 
     char *msg = NULL;
 
     switch (level) {
-        case TEVENT_DEBUG_FATAL:   priority = LOG_ERR; break;
-        case TEVENT_DEBUG_ERROR:   priority = LOG_ERR; break;
-        case TEVENT_DEBUG_WARNING: priority = LOG_DEBUG; break;
-        case TEVENT_DEBUG_TRACE:   priority = LOG_DEBUG; break;
-        default:                   priority = LOG_DEBUG; break; /* never reached */
+    case TEVENT_DEBUG_FATAL:
+        priority = LOG_ERR;
+        break;
+    case TEVENT_DEBUG_ERROR:
+        priority = LOG_ERR;
+        break;
+    case TEVENT_DEBUG_WARNING:
+        priority = LOG_DEBUG;
+        break;
+    case TEVENT_DEBUG_TRACE:
+        priority = LOG_DEBUG;
+        break;
+    default:
+        priority = LOG_DEBUG;
+        break; /* never reached */
     }
 
-    msg = PR_smprintf("%s\n",fmt);
+    msg = PR_smprintf("%s\n", fmt);
     ns_log_valist(priority, msg, ap);
     ns_free(msg);
 }
@@ -95,8 +105,7 @@ event_flags_to_type(uint16_t flags)
    is triggered - this "maps" the event library interface
    to our nspr/thrpool interface */
 static void
-fd_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_fd *fde __attribute__((unused)),
-            uint16_t flags, void *arg)
+fd_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_fd *fde __attribute__((unused)), uint16_t flags, void *arg)
 {
     ns_job_t *job = (ns_job_t *)arg;
 
@@ -114,8 +123,7 @@ fd_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_fd 
    is triggered - this "maps" the event library interface
    to our nspr/thrpool interface */
 static void
-timer_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_timer *te __attribute__((unused)),
-               struct timeval current_time __attribute__((unused)), void *arg)
+timer_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_timer *te __attribute__((unused)), struct timeval current_time __attribute__((unused)), void *arg)
 {
     ns_job_t *job = (ns_job_t *)arg;
 
@@ -133,8 +141,7 @@ timer_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_
    is triggered - this "maps" the event library interface
    to our nspr/thrpool interface */
 static void
-signal_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_signal *se __attribute__((unused)),
-                int signum, int count __attribute__((unused)), void *siginfo __attribute__((unused)), void *arg)
+signal_event_cb(struct tevent_context *ev __attribute__((unused)), struct tevent_signal *se __attribute__((unused)), int signum, int count __attribute__((unused)), void *siginfo __attribute__((unused)), void *arg)
 {
     ns_job_t *job = (ns_job_t *)arg;
 
@@ -182,8 +189,7 @@ ns_event_fw_destroy(ns_event_fw_ctx_t *ns_event_fw_ctx_t)
 static void
 ns_event_fw_io_event_remove(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     tevent_fd_set_flags(job->ns_event_fw_fd, 0);
 }
@@ -191,8 +197,7 @@ ns_event_fw_io_event_remove(
 static void
 ns_event_fw_io_event_done(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     ns_event_fw_io_event_remove(ns_event_fw_ctx, job);
     talloc_free(job->ns_event_fw_fd);
@@ -202,8 +207,7 @@ ns_event_fw_io_event_done(
 static void
 ns_event_fw_timer_event_done(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     talloc_free(job->ns_event_fw_time);
     job->ns_event_fw_time = NULL;
@@ -212,8 +216,7 @@ ns_event_fw_timer_event_done(
 static void
 ns_event_fw_signal_event_done(
     ns_event_fw_ctx_t *ns_event_fw_ctx __attribute__((unused)),
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     talloc_free(job->ns_event_fw_sig);
     job->ns_event_fw_sig = NULL;
@@ -222,8 +225,7 @@ ns_event_fw_signal_event_done(
 static void
 ns_event_fw_add_io(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     /* set the fields in the event */
     uint16_t flags = job_type_to_flags(job->job_type);
@@ -241,8 +243,7 @@ ns_event_fw_add_io(
 static void
 ns_event_fw_mod_io(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     uint16_t events = job_type_to_flags(job->job_type);
 
@@ -255,8 +256,7 @@ ns_event_fw_mod_io(
 static void
 ns_event_fw_add_timer(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     job->ns_event_fw_time = tevent_add_timer(ns_event_fw_ctx, ns_event_fw_ctx,
                                              job->tv, timer_event_cb, job);
@@ -265,8 +265,7 @@ ns_event_fw_add_timer(
 static void
 ns_event_fw_mod_timer(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     ns_event_fw_timer_event_done(ns_event_fw_ctx, job);
     ns_event_fw_add_timer(ns_event_fw_ctx, job);
@@ -275,8 +274,7 @@ ns_event_fw_mod_timer(
 static void
 ns_event_fw_add_signal(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     job->ns_event_fw_sig = tevent_add_signal(ns_event_fw_ctx, ns_event_fw_ctx,
                                              job->signal, 0, signal_event_cb, job);
@@ -285,8 +283,7 @@ ns_event_fw_add_signal(
 static void
 ns_event_fw_mod_signal(
     ns_event_fw_ctx_t *ns_event_fw_ctx,
-    ns_job_t *job
-)
+    ns_job_t *job)
 {
     ns_event_fw_signal_event_done(ns_event_fw_ctx, job);
     ns_event_fw_add_signal(ns_event_fw_ctx, job);
@@ -322,8 +319,7 @@ static ns_event_fw_t ns_event_fw_tevent = {
     ns_event_fw_mod_signal,
     ns_event_fw_io_event_done,
     ns_event_fw_timer_event_done,
-    ns_event_fw_signal_event_done
-};
+    ns_event_fw_signal_event_done};
 
 ns_event_fw_t *
 get_event_framework_tevent()

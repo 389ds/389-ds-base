@@ -5,21 +5,23 @@
  * large the maxbersize needs to be set.
  * Borrowed from liblber/lber-int.h
  */
-struct lber_options {
+struct lber_options
+{
     short lbo_valid;
-    unsigned short      lbo_options;
-    int         lbo_debug;
+    unsigned short lbo_options;
+    int lbo_debug;
 };
-struct berelement {
-    struct      lber_options ber_opts;
-    ber_tag_t   ber_tag;
-    ber_len_t   ber_len;
-    ber_tag_t   ber_usertag;
-    char        *ber_buf;
-    char        *ber_ptr;
-    char        *ber_end;
-    char        *ber_sos_ptr;
-    char        *ber_rwptr;
-    void        *ber_memctx;
+struct berelement
+{
+    struct lber_options ber_opts;
+    ber_tag_t ber_tag;
+    ber_len_t ber_len;
+    ber_tag_t ber_usertag;
+    char *ber_buf;
+    char *ber_ptr;
+    char *ber_end;
+    char *ber_sos_ptr;
+    char *ber_rwptr;
+    void *ber_memctx;
 };
 typedef struct berelement OLBerElement;

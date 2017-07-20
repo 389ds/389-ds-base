@@ -11,7 +11,8 @@
 
 /* Will be used for transactions. */
 void
-sds_bptree_node_list_push(sds_bptree_node_list **list, sds_bptree_node *node) {
+sds_bptree_node_list_push(sds_bptree_node_list **list, sds_bptree_node *node)
+{
     // node, next
     if (list == NULL) {
         return;
@@ -24,7 +25,8 @@ sds_bptree_node_list_push(sds_bptree_node_list **list, sds_bptree_node *node) {
 }
 
 sds_bptree_node *
-sds_bptree_node_list_pop(sds_bptree_node_list **list) {
+sds_bptree_node_list_pop(sds_bptree_node_list **list)
+{
     // Pop and free the list element.
     if (list == NULL || *list == NULL) {
         return NULL;
@@ -38,7 +40,8 @@ sds_bptree_node_list_pop(sds_bptree_node_list **list) {
 }
 
 void
-sds_bptree_node_list_release(sds_bptree_node_list **list) {
+sds_bptree_node_list_release(sds_bptree_node_list **list)
+{
     if (list == NULL || *list == NULL) {
         return;
     }
@@ -50,6 +53,3 @@ sds_bptree_node_list_release(sds_bptree_node_list **list) {
         sds_free(old);
     }
 }
-
-
-

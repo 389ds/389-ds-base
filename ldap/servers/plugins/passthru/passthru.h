@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -33,70 +33,74 @@
 /*
  * macros
  */
-#define PASSTHRU_PLUGIN_SUBSYSTEM	"passthru-plugin"   /* for logging */
+#define PASSTHRU_PLUGIN_SUBSYSTEM "passthru-plugin" /* for logging */
 
-#define PASSTHRU_ASSERT( expr )		PR_ASSERT( expr )
+#define PASSTHRU_ASSERT(expr) PR_ASSERT(expr)
 
-#define PASSTHRU_LDAP_CONN_ERROR( err )	( (err) == LDAP_SERVER_DOWN || \
-					     (err) == LDAP_CONNECT_ERROR )
+#define PASSTHRU_LDAP_CONN_ERROR(err) ((err) == LDAP_SERVER_DOWN || \
+                                       (err) == LDAP_CONNECT_ERROR)
 
-#define PASSTHRU_OP_NOT_HANDLED		0
-#define PASSTHRU_OP_HANDLED		1
+#define PASSTHRU_OP_NOT_HANDLED 0
+#define PASSTHRU_OP_HANDLED 1
 
-#define PASSTHRU_CONN_TRIES		2
+#define PASSTHRU_CONN_TRIES 2
 
-/* #define	PASSTHRU_VERBOSE_LOGGING	*/
+/* #define    PASSTHRU_VERBOSE_LOGGING    */
 
 /* defaults */
-#define PASSTHRU_DEF_SRVR_MAXCONNECTIONS	3
-#define PASSTHRU_DEF_SRVR_MAXCONCURRENCY	5
-#define PASSTHRU_DEF_SRVR_TIMEOUT		300	/* seconds */
-#define PASSTHRU_DEF_SRVR_PROTOCOL_VERSION	LDAP_VERSION3
-#define PASSTHRU_DEF_SRVR_CONNLIFETIME		0	/* seconds */
-#define PASSTHRU_DEF_SRVR_FAILOVERCONNLIFETIME	300	/* seconds */
+#define PASSTHRU_DEF_SRVR_MAXCONNECTIONS 3
+#define PASSTHRU_DEF_SRVR_MAXCONCURRENCY 5
+#define PASSTHRU_DEF_SRVR_TIMEOUT 300 /* seconds */
+#define PASSTHRU_DEF_SRVR_PROTOCOL_VERSION LDAP_VERSION3
+#define PASSTHRU_DEF_SRVR_CONNLIFETIME 0           /* seconds */
+#define PASSTHRU_DEF_SRVR_FAILOVERCONNLIFETIME 300 /* seconds */
 
 /*
  * structs
  */
-typedef struct passthrusuffix {
-    int				ptsuffix_len;
-    char			*ptsuffix_normsuffix; /* not case normalized */
-    struct passthrusuffix	*ptsuffix_next;
+typedef struct passthrusuffix
+{
+    int ptsuffix_len;
+    char *ptsuffix_normsuffix; /* not case normalized */
+    struct passthrusuffix *ptsuffix_next;
 } PassThruSuffix;
 
-typedef struct passthruconnection {
-    LDAP			*ptconn_ld;
-    int				ptconn_ldapversion;
-    int				ptconn_usecount;
-#define PASSTHRU_CONNSTATUS_OK			0
-#define PASSTHRU_CONNSTATUS_DOWN		1
-#define PASSTHRU_CONNSTATUS_STALE		2
-    int				ptconn_status;
-    time_t			ptconn_opentime;
-    struct passthruconnection	*ptconn_prev;
-    struct passthruconnection	*ptconn_next;
+typedef struct passthruconnection
+{
+    LDAP *ptconn_ld;
+    int ptconn_ldapversion;
+    int ptconn_usecount;
+#define PASSTHRU_CONNSTATUS_OK 0
+#define PASSTHRU_CONNSTATUS_DOWN 1
+#define PASSTHRU_CONNSTATUS_STALE 2
+    int ptconn_status;
+    time_t ptconn_opentime;
+    struct passthruconnection *ptconn_prev;
+    struct passthruconnection *ptconn_next;
 } PassThruConnection;
 
-typedef struct passthruserver {
-    char			*ptsrvr_url;		/* copy from argv[i] */
-    char			*ptsrvr_hostname;
-    int				ptsrvr_port;
-    int				ptsrvr_secure;		/* use SSL? or TLS == 2 */
-    int				ptsrvr_ldapversion;
-    int				ptsrvr_maxconnections;
-    int				ptsrvr_maxconcurrency;
-    int				ptsrvr_connlifetime;	/* in seconds */
-    struct timeval		*ptsrvr_timeout;	/* for ldap_result() */
-    PassThruSuffix		*ptsrvr_suffixes;
-    Slapi_CondVar		*ptsrvr_connlist_cv;
-    Slapi_Mutex			*ptsrvr_connlist_mutex;	/* protects connlist */
-    int				ptsrvr_connlist_count;
-    PassThruConnection		*ptsrvr_connlist;
-    struct passthruserver	*ptsrvr_next;
+typedef struct passthruserver
+{
+    char *ptsrvr_url; /* copy from argv[i] */
+    char *ptsrvr_hostname;
+    int ptsrvr_port;
+    int ptsrvr_secure; /* use SSL? or TLS == 2 */
+    int ptsrvr_ldapversion;
+    int ptsrvr_maxconnections;
+    int ptsrvr_maxconcurrency;
+    int ptsrvr_connlifetime;        /* in seconds */
+    struct timeval *ptsrvr_timeout; /* for ldap_result() */
+    PassThruSuffix *ptsrvr_suffixes;
+    Slapi_CondVar *ptsrvr_connlist_cv;
+    Slapi_Mutex *ptsrvr_connlist_mutex; /* protects connlist */
+    int ptsrvr_connlist_count;
+    PassThruConnection *ptsrvr_connlist;
+    struct passthruserver *ptsrvr_next;
 } PassThruServer;
 
-typedef struct passthruconfig {
-    PassThruServer	*ptconfig_serverlist;
+typedef struct passthruconfig
+{
+    PassThruServer *ptconfig_serverlist;
 } PassThruConfig;
 
 
@@ -106,36 +110,32 @@ typedef struct passthruconfig {
 /*
  * ptbind.c:
  */
-int passthru_simple_bind_s( Slapi_PBlock *pb, PassThruServer *srvr, int tries,
-	const char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
-	char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
-	LDAPControl ***resctrlsp );
+int passthru_simple_bind_s(Slapi_PBlock *pb, PassThruServer *srvr, int tries, const char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop, char **matcheddnp, char **errmsgp, struct berval ***refurlsp, LDAPControl ***resctrlsp);
 
 /*
  * ptconfig.c:
  */
-int passthru_config( int argc, char **argv );
-PassThruConfig *passthru_get_config( void );
+int passthru_config(int argc, char **argv);
+PassThruConfig *passthru_get_config(void);
 
 /*
  * ptconn.c:
  */
-int passthru_dn2server( PassThruConfig *cfg, const char *normdn,
-	PassThruServer **srvrp );
-int passthru_get_connection( PassThruServer *srvr, LDAP **ldp );
-void passthru_release_connection( PassThruServer *srvr, LDAP *ld, int dispose );
-void passthru_close_all_connections( PassThruConfig *cfg );
+int passthru_dn2server(PassThruConfig *cfg, const char *normdn, PassThruServer **srvrp);
+int passthru_get_connection(PassThruServer *srvr, LDAP **ldp);
+void passthru_release_connection(PassThruServer *srvr, LDAP *ld, int dispose);
+void passthru_close_all_connections(PassThruConfig *cfg);
 
 /*
  * ptutil.c:
  */
-struct berval **passthru_strs2bervals( char **ss );
-char ** passthru_bervals2strs( struct berval **bvs );
-void passthru_free_bervals( struct berval **bvs );
+struct berval **passthru_strs2bervals(char **ss);
+char **passthru_bervals2strs(struct berval **bvs);
+void passthru_free_bervals(struct berval **bvs);
 
 /*
  * ptpreop.c
  */
 void passthru_free_config(void);
 
-#endif	/* _PASSTHRU_H_ */
+#endif /* _PASSTHRU_H_ */

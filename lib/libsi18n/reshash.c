@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <stdio.h>
@@ -18,7 +18,8 @@
 #include "reshash.h"
 
 /* ======================== Value with Language list ==================== */
-int ValueAddLanguageItem(ValueNode *node, char *value, char *language)
+int
+ValueAddLanguageItem(ValueNode *node, char *value, char *language)
 {
     ValueNode *prev, *pvalue;
 
@@ -31,8 +32,8 @@ int ValueAddLanguageItem(ValueNode *node, char *value, char *language)
 
     prev = pvalue = node;
     while (pvalue != NULL) {
-        if ((pvalue->language == NULL) || 
-                (strcmp(pvalue->language,language) == 0)) {
+        if ((pvalue->language == NULL) ||
+            (strcmp(pvalue->language, language) == 0)) {
             /* if value for the language is already there
                replace it with latest one.
              */
@@ -46,7 +47,7 @@ int ValueAddLanguageItem(ValueNode *node, char *value, char *language)
         prev = pvalue;
         pvalue = pvalue->next;
     }
-    pvalue = (ValueNode *) malloc(sizeof(ValueNode));
+    pvalue = (ValueNode *)malloc(sizeof(ValueNode));
     memset(pvalue, 0, sizeof(ValueNode));
 
     prev->next = pvalue;
@@ -56,7 +57,8 @@ int ValueAddLanguageItem(ValueNode *node, char *value, char *language)
     return 0;
 }
 
-const char *ValueSearchItem(ValueNode *node, char *language)
+const char *
+ValueSearchItem(ValueNode *node, char *language)
 {
     ValueNode *pvalue;
 
@@ -64,8 +66,8 @@ const char *ValueSearchItem(ValueNode *node, char *language)
         return NULL;
 
     pvalue = node;
-    while (pvalue  && pvalue->language) {
-        if (strcmp(pvalue->language,language) == 0) {
+    while (pvalue && pvalue->language) {
+        if (strcmp(pvalue->language, language) == 0) {
             return pvalue->value;
         }
         pvalue = pvalue->next;
@@ -73,7 +75,8 @@ const char *ValueSearchItem(ValueNode *node, char *language)
     return NULL;
 }
 
-void ValueDestroy(ValueNode *node)
+void
+ValueDestroy(ValueNode *node)
 {
     ValueNode *p, *current;
     p = node;
@@ -82,35 +85,33 @@ void ValueDestroy(ValueNode *node)
         current = p;
         p = p->next;
         if (current->language)
-            free (current->language);
+            free(current->language);
         if (current->value)
-            free (current->value);
+            free(current->value);
     }
 }
 
 /* ======================== End of Value with Language list ==================== */
 
 
-
 /* ======================== Tree List Implementation============================ */
 
-const char * TreeSearchItem(TreeNode *res, char *key, char *language)
+const char *
+TreeSearchItem(TreeNode *res, char *key, char *language)
 {
     int k;
     const char *result;
 
-    if (res == NULL || res->key == NULL) 
+    if (res == NULL || res->key == NULL)
         return NULL;
 
     k = strcmp(key, res->key);
-    
+
     if (k > 0) {
         return TreeSearchItem(res->right, key, language);
-    }
-    else if (k < 0) {
+    } else if (k < 0) {
         return TreeSearchItem(res->left, key, language);
-    }
-    else {
+    } else {
         /* Add to the current node; */
         if (language == NULL || *language == '\0')
             return res->value;
@@ -129,7 +130,8 @@ const char * TreeSearchItem(TreeNode *res, char *key, char *language)
 
     Using binary tree now  --> Balanced tree later
  */
-int TreeAddItem(TreeNode *res, char *key, char *value, char *language)
+int
+TreeAddItem(TreeNode *res, char *key, char *value, char *language)
 {
     TreeNode *node;
     ValueNode *vnode;
@@ -138,18 +140,17 @@ int TreeAddItem(TreeNode *res, char *key, char *value, char *language)
     if (res->key == NULL) {
         res->key = strdup(key);
         k = 0;
-    }
-    else {
+    } else {
         k = strcmp(key, res->key);
     }
-    
+
     if (k > 0) {
         if (res->right == NULL) {
             /* Create node and it's value sub list
              */
-            node = (TreeNode *) malloc (sizeof(TreeNode));
+            node = (TreeNode *)malloc(sizeof(TreeNode));
             memset(node, 0, sizeof(TreeNode));
-            vnode = (ValueNode *) malloc(sizeof(ValueNode));
+            vnode = (ValueNode *)malloc(sizeof(ValueNode));
             memset(vnode, 0, sizeof(ValueNode));
             node->vlist = vnode;
 
@@ -161,16 +162,14 @@ int TreeAddItem(TreeNode *res, char *key, char *value, char *language)
                 node->value = strdup(value);
             else
                 ValueAddLanguageItem(node->vlist, value, language);
-        }
-        else {
+        } else {
             return TreeAddItem(res->right, key, value, language);
         }
-    }
-    else if (k < 0) {
+    } else if (k < 0) {
         if (res->left == NULL) {
-            node = (TreeNode *) malloc (sizeof(TreeNode));
+            node = (TreeNode *)malloc(sizeof(TreeNode));
             memset(node, 0, sizeof(TreeNode));
-            vnode = (ValueNode *) malloc(sizeof(ValueNode));
+            vnode = (ValueNode *)malloc(sizeof(ValueNode));
             memset(vnode, 0, sizeof(ValueNode));
             node->vlist = vnode;
 
@@ -182,12 +181,10 @@ int TreeAddItem(TreeNode *res, char *key, char *value, char *language)
                 node->value = strdup(value);
             else
                 return ValueAddLanguageItem(node->vlist, value, language);
-        }
-        else {
+        } else {
             return TreeAddItem(res->left, key, value, language);
         }
-    }
-    else {
+    } else {
         /* Add to the current node; */
         if (language == NULL)
             res->value = strdup(value);
@@ -197,7 +194,8 @@ int TreeAddItem(TreeNode *res, char *key, char *value, char *language)
     return 0;
 }
 
-void TreeDestroy(TreeNode *tree)
+void
+TreeDestroy(TreeNode *tree)
 {
     if (tree == NULL)
         return;
@@ -217,12 +215,13 @@ void TreeDestroy(TreeNode *tree)
 
 
 /* ====================== Tree controller (hash ?) ================ */
-ResHash * ResHashCreate(char * name)
+ResHash *
+ResHashCreate(char *name)
 {
     ResHash *pResHash;
 
     /* Create hash table  */
-    pResHash = (ResHash *) malloc (sizeof(ResHash));
+    pResHash = (ResHash *)malloc(sizeof(ResHash));
     if (pResHash == NULL)
         goto error;
 
@@ -232,13 +231,13 @@ ResHash * ResHashCreate(char * name)
         pResHash->name = strdup(name);
 
     /* Create initial tree item and it's valuelist to hash table */
-    pResHash->treelist = (TreeNode *) malloc(sizeof(TreeNode));
+    pResHash->treelist = (TreeNode *)malloc(sizeof(TreeNode));
     if (pResHash->treelist == NULL)
         goto error;
 
     memset(pResHash->treelist, 0, sizeof(TreeNode));
 
-    pResHash->treelist->vlist = (ValueNode *) malloc(sizeof(ValueNode));
+    pResHash->treelist->vlist = (ValueNode *)malloc(sizeof(ValueNode));
     if (pResHash->treelist->vlist == NULL)
         goto error;
 
@@ -247,16 +246,20 @@ ResHash * ResHashCreate(char * name)
     goto done;
 
 error:
-    if (pResHash && pResHash->treelist && pResHash->treelist->vlist) free(pResHash->treelist->vlist);
-    if (pResHash && pResHash->treelist) free(pResHash->treelist);
-    if (pResHash) free(pResHash);
+    if (pResHash && pResHash->treelist && pResHash->treelist->vlist)
+        free(pResHash->treelist->vlist);
+    if (pResHash && pResHash->treelist)
+        free(pResHash->treelist);
+    if (pResHash)
+        free(pResHash);
     return NULL;
 
 done:
     return pResHash;
 }
 
-int ResHashAdd(ResHash *res, char *key, char *value, char *language)
+int
+ResHashAdd(ResHash *res, char *key, char *value, char *language)
 {
 #if 0
     hash = get hash value from key
@@ -265,7 +268,8 @@ int ResHashAdd(ResHash *res, char *key, char *value, char *language)
     return TreeAddItem(res->treelist, key, value, language);
 }
 
-const char *ResHashSearch(ResHash *res, char *key, char *language)
+const char *
+ResHashSearch(ResHash *res, char *key, char *language)
 {
 #if 0
     hash = get hash value from key
@@ -274,7 +278,8 @@ const char *ResHashSearch(ResHash *res, char *key, char *language)
     return TreeSearchItem(res->treelist, key, language);
 }
 
-void ResHashDestroy(ResHash *res)
+void
+ResHashDestroy(ResHash *res)
 {
     if (res == NULL)
         return;

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _LDAPU_INIT_H
@@ -18,11 +18,11 @@
 extern "C" {
 #endif
 
-NSAPI_PUBLIC extern int ldaputil_init (const char *config_file,
-				       const char *dllname,
-				       const char *serv_root,
-				       const char *serv_type,
-				       const char *serv_id);
+NSAPI_PUBLIC extern int ldaputil_init(const char *config_file,
+                                      const char *dllname,
+                                      const char *serv_root,
+                                      const char *serv_type,
+                                      const char *serv_id);
 
 #ifdef __cplusplus
 }

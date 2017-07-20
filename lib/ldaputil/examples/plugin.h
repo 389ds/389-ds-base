@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _CERTMAP_PLUGIN_H
@@ -20,19 +20,13 @@ extern CertSearchFn_t default_searchfn;
 extern "C" {
 #endif
 
-extern int plugin_mapping_fn (void *cert, LDAP *ld, void *certmap_info,
-			      char **ldapDN, char **filter);
+extern int plugin_mapping_fn(void *cert, LDAP *ld, void *certmap_info, char **ldapDN, char **filter);
 
-extern int plugin_search_fn (void *cert, LDAP *ld, void *certmap_info,
-			     const char *basedn,
-			     const char *dn, const char *filter,
-			     const char **attrs, LDAPMessage **res);
+extern int plugin_search_fn(void *cert, LDAP *ld, void *certmap_info, const char *basedn, const char *dn, const char *filter, const char **attrs, LDAPMessage **res);
 
-extern int plugin_verify_fn (void *cert, LDAP *ld, void *certmap_info,
-			     LDAPMessage *res, LDAPMessage **entry);
+extern int plugin_verify_fn(void *cert, LDAP *ld, void *certmap_info, LDAPMessage *res, LDAPMessage **entry);
 
-NSAPI_PUBLIC int plugin_init_fn (void *certmap_info, const char *issuerName,
-				 const char *issuerDN, const char *dllname);
+NSAPI_PUBLIC int plugin_init_fn(void *certmap_info, const char *issuerName, const char *issuerDN, const char *dllname);
 
 #ifdef __cplusplus
 }

@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "back-ldbm.h"
@@ -31,7 +31,7 @@ static int usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn);
  */
 
 void
-ldbm_usn_init(struct ldbminfo  *li)
+ldbm_usn_init(struct ldbminfo *li)
 {
     Slapi_DN *sdn = NULL;
     void *node = NULL;
@@ -48,14 +48,14 @@ ldbm_usn_init(struct ldbminfo  *li)
     }
 
     /* Search each namingContext in turn */
-    for ( sdn = slapi_get_first_suffix( &node, 0 ); sdn != NULL;
-          sdn = slapi_get_next_suffix_ext( &node, 0 )) {
+    for (sdn = slapi_get_first_suffix(&node, 0); sdn != NULL;
+         sdn = slapi_get_next_suffix_ext(&node, 0)) {
         be = slapi_mapping_tree_find_backend_for_sdn(sdn);
         rc = usn_get_last_usn(be, &last_usn);
         if (0 == rc) { /* only when the last usn is available */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_usn_init",
-                            "backend: %s%s\n", be->be_name, 
-                            isglobal?" (global mode)":"");
+                          "backend: %s%s\n", be->be_name,
+                          isglobal ? " (global mode)" : "");
             if (isglobal) {
                 if (isfirst) {
                     li->li_global_usn_counter = slapi_counter_new();
@@ -66,7 +66,7 @@ ldbm_usn_init(struct ldbminfo  *li)
                 /* Initialize global_last_usn;
                  * Set the largest last_usn among backends */
                 if ((global_last_usn == INITIALUSN) ||
-                   ((last_usn != INITIALUSN) && (global_last_usn < last_usn))) {
+                    ((last_usn != INITIALUSN) && (global_last_usn < last_usn))) {
                     global_last_usn = last_usn;
                 }
                 slapi_counter_set_value(be->be_usn_counter, global_last_usn);
@@ -94,7 +94,7 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     int rc = -1;
     DB *db = NULL;
     DBC *dbc = NULL;
-    DBT key;              /* For the last usn */
+    DBT key; /* For the last usn */
     DBT value;
     PRInt64 signed_last_usn;
 
@@ -114,19 +114,19 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     rc = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
     if (0 != rc) {
         /* entryusn.db# is missing; it would be the first time. */
-        slapi_log_err(SLAPI_LOG_ERR, "usn_get_last_usn", 
-                        "Failed to open the entryusn index: %d; Creating it...\n", rc);
+        slapi_log_err(SLAPI_LOG_ERR, "usn_get_last_usn",
+                      "Failed to open the entryusn index: %d; Creating it...\n", rc);
         goto bail;
     }
 
     /* Get a cursor */
     rc = db->cursor(db, NULL, &dbc, 0);
     if (0 != rc) {
-        slapi_log_err(SLAPI_LOG_ERR, "usn_get_last_usn", 
-                        "Failed to create a cursor: %d", rc);
+        slapi_log_err(SLAPI_LOG_ERR, "usn_get_last_usn",
+                      "Failed to create a cursor: %d", rc);
         goto bail;
     }
-    
+
     key.flags = DB_DBT_MALLOC;
     value.flags = DB_DBT_MALLOC;
     rc = dbc->c_get(dbc, &key, &value, DB_LAST);
@@ -182,18 +182,18 @@ ldbm_set_last_usn(Slapi_Backend *be)
 
     if (NULL == be) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_set_last_usn",
-                        "Empty backend\n");
+                      "Empty backend\n");
         return rc;
     }
 
     if (isglobal) {
-       struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-       /* destroy old counter, if any */
-       slapi_counter_destroy(&(li->li_global_usn_counter));
-       ldbm_usn_init(li);
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        /* destroy old counter, if any */
+        slapi_counter_destroy(&(li->li_global_usn_counter));
+        ldbm_usn_init(li);
     } else {
         slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_set_last_usn",
-                        "backend: %s\n", be->be_name);
+                      "backend: %s\n", be->be_name);
         rc = usn_get_last_usn(be, &last_usn);
         if (0 == rc) { /* only when the last usn is available */
             /* destroy old counter, if any */

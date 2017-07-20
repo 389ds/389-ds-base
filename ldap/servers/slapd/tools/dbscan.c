@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -31,47 +31,47 @@
 #include <inttypes.h>
 
 
-#if ( defined( hpux ) )
+#if (defined(hpux))
 #ifdef _XOPEN_SOURCE_EXTENDED
-#include <arpa/inet.h>    /* for ntohl, et al. */
+#include <arpa/inet.h> /* for ntohl, et al. */
 #endif
 #endif
 
 /* file type */
-#define ENTRYTYPE     0x1
-#define INDEXTYPE     0x2
-#define VLVINDEXTYPE  0x4
+#define ENTRYTYPE 0x1
+#define INDEXTYPE 0x2
+#define VLVINDEXTYPE 0x4
 #define CHANGELOGTYPE 0x8
-#define ENTRYRDNINDEXTYPE  0x10
+#define ENTRYRDNINDEXTYPE 0x10
 
 /* display mode */
-#define RAWDATA     0x1
-#define SHOWCOUNT   0x2
-#define SHOWDATA    0x4
+#define RAWDATA 0x1
+#define SHOWCOUNT 0x2
+#define SHOWDATA 0x4
 #define SHOWSUMMARY 0x8
 
 /* stolen from slapi-plugin.h */
-#define SLAPI_OPERATION_BIND     0x00000001UL
-#define SLAPI_OPERATION_UNBIND   0x00000002UL
-#define SLAPI_OPERATION_SEARCH   0x00000004UL
-#define SLAPI_OPERATION_MODIFY   0x00000008UL
-#define SLAPI_OPERATION_ADD      0x00000010UL
-#define SLAPI_OPERATION_DELETE   0x00000020UL
-#define SLAPI_OPERATION_MODDN    0x00000040UL
-#define SLAPI_OPERATION_MODRDN   SLAPI_OPERATION_MODDN
-#define SLAPI_OPERATION_COMPARE  0x00000080UL
-#define SLAPI_OPERATION_ABANDON  0x00000100UL
+#define SLAPI_OPERATION_BIND 0x00000001UL
+#define SLAPI_OPERATION_UNBIND 0x00000002UL
+#define SLAPI_OPERATION_SEARCH 0x00000004UL
+#define SLAPI_OPERATION_MODIFY 0x00000008UL
+#define SLAPI_OPERATION_ADD 0x00000010UL
+#define SLAPI_OPERATION_DELETE 0x00000020UL
+#define SLAPI_OPERATION_MODDN 0x00000040UL
+#define SLAPI_OPERATION_MODRDN SLAPI_OPERATION_MODDN
+#define SLAPI_OPERATION_COMPARE 0x00000080UL
+#define SLAPI_OPERATION_ABANDON 0x00000100UL
 #define SLAPI_OPERATION_EXTENDED 0x00000200UL
-#define SLAPI_OPERATION_ANY      0xFFFFFFFFUL
-#define SLAPI_OPERATION_NONE     0x00000000UL
+#define SLAPI_OPERATION_ANY 0xFFFFFFFFUL
+#define SLAPI_OPERATION_NONE 0x00000000UL
 
 /* changelog ruv info.  These correspond with some special csn
  * timestamps from cl5_api.c */
-#define ENTRY_COUNT_KEY    "0000006f" /* 111 csn timestamp */
-#define PURGE_RUV_KEY    "000000de" /* 222 csn timestamp */
-#define MAX_RUV_KEY    "0000014d" /* 333 csn timestamp */
+#define ENTRY_COUNT_KEY "0000006f" /* 111 csn timestamp */
+#define PURGE_RUV_KEY "000000de"   /* 222 csn timestamp */
+#define MAX_RUV_KEY "0000014d"     /* 333 csn timestamp */
 
-#define ONEMEG (1024*1024)
+#define ONEMEG (1024 * 1024)
 
 #ifndef DB_BUFFER_SMALL
 #define DB_BUFFER_SMALL ENOMEM
@@ -83,14 +83,16 @@
 
 typedef PRUint32 ID;
 
-typedef struct {
+typedef struct
+{
     PRUint32 max;
     PRUint32 used;
     PRUint32 id[1];
 } IDL;
 
-#define RDN_BULK_FETCH_BUFFER_SIZE (8*1024)
-typedef struct _rdn_elem {
+#define RDN_BULK_FETCH_BUFFER_SIZE (8 * 1024)
+typedef struct _rdn_elem
+{
     char rdn_elem_id[sizeof(ID)];
     char rdn_elem_nrdn_len[2]; /* ushort; length including '\0' */
     char rdn_elem_rdn_len[2];  /* ushort; length including '\0' */
@@ -98,7 +100,7 @@ typedef struct _rdn_elem {
 } rdn_elem;
 
 
-#define RDN_ADDR(elem) \
+#define RDN_ADDR(elem)           \
     ((elem)->rdn_elem_nrdn_rdn + \
      sizeushort_stored_to_internal((elem)->rdn_elem_nrdn_len))
 
@@ -122,7 +124,8 @@ long other_cnt = 0;
 
 /** db_printf - functioning same as printf but a place for manipluating output.
 */
-void db_printf(char *fmt, ...)
+void
+db_printf(char *fmt, ...)
 {
     va_list ap;
 
@@ -131,7 +134,8 @@ void db_printf(char *fmt, ...)
     va_end(ap);
 }
 
-void db_printfln(char *fmt, ...)
+void
+db_printfln(char *fmt, ...)
 {
     va_list ap;
 
@@ -144,13 +148,14 @@ void db_printfln(char *fmt, ...)
 size_t MAX_BUFFER = 4096;
 size_t MIN_BUFFER = 20;
 
-static IDL *idl_make(DBT *data)
+static IDL *
+idl_make(DBT *data)
 {
     IDL *idl = NULL, *xidl;
 
-    if (data->size < 2*sizeof(PRUint32)) {
-        idl = (IDL *)malloc(sizeof(IDL) + 64*sizeof(ID));
-        if (! idl)
+    if (data->size < 2 * sizeof(PRUint32)) {
+        idl = (IDL *)malloc(sizeof(IDL) + 64 * sizeof(ID));
+        if (!idl)
             return NULL;
         idl->max = 64;
         idl->used = 1;
@@ -160,27 +165,29 @@ static IDL *idl_make(DBT *data)
 
     xidl = (IDL *)(data->data);
     idl = (IDL *)malloc(data->size);
-    if (! idl)
+    if (!idl)
         return NULL;
 
     memcpy(idl, xidl, data->size);
     return idl;
 }
 
-static void idl_free(IDL *idl)
+static void
+idl_free(IDL *idl)
 {
     idl->max = 0;
     idl->used = 0;
     free(idl);
 }
 
-static IDL *idl_append(IDL *idl, ID id)
+static IDL *
+idl_append(IDL *idl, ID id)
 {
     if (idl->used >= idl->max) {
         /* must grow */
         idl->max *= 2;
         idl = realloc(idl, sizeof(IDL) + idl->max * sizeof(ID));
-        if (! idl)
+        if (!idl)
             return NULL;
     }
     idl->id[idl->used++] = id;
@@ -189,10 +196,10 @@ static IDL *idl_append(IDL *idl, ID id)
 
 
 /* format a string for easy printing */
-#define FMT_LF_OK       1
-#define FMT_SP_OK       2
-static char *format_raw(unsigned char *s, int len, int flags,
-                        unsigned char *buf, int buflen)
+#define FMT_LF_OK 1
+#define FMT_SP_OK 2
+static char *
+format_raw(unsigned char *s, int len, int flags, unsigned char *buf, int buflen)
 {
     static char hex[] = "0123456789ABCDEF";
     unsigned char *p, *o, *bufend = buf + buflen - 1;
@@ -205,7 +212,7 @@ static char *format_raw(unsigned char *s, int len, int flags,
         int ishex = 0;
         if ((*p == '%') || (*p <= ' ') || (*p >= 126)) {
             /* index keys are stored with their trailing NUL */
-            if ((*p == 0) && (i == len-1))
+            if ((*p == 0) && (i == len - 1))
                 continue;
             if ((flags & FMT_LF_OK) && (*p == '\n')) {
                 *o++ = '\n';
@@ -229,9 +236,9 @@ static char *format_raw(unsigned char *s, int len, int flags,
              */
             o = bufend - 5;
             if (ishex) {
-                if ((o > buf) && *(o-1) == '%') {
+                if ((o > buf) && *(o - 1) == '%') {
                     o -= 1;
-                } else if ((o > buf + 1) && *(o-2) == '%') {
+                } else if ((o > buf + 1) && *(o - 2) == '%') {
                     o -= 2;
                 }
             }
@@ -245,22 +252,24 @@ static char *format_raw(unsigned char *s, int len, int flags,
     return (char *)buf;
 }
 
-static char *format(unsigned char *s, int len, unsigned char *buf, int buflen)
+static char *
+format(unsigned char *s, int len, unsigned char *buf, int buflen)
 {
     return format_raw(s, len, 0, buf, buflen);
 }
 
-static char *format_entry(unsigned char *s, int len,
-                          unsigned char *buf, int buflen)
+static char *
+format_entry(unsigned char *s, int len, unsigned char *buf, int buflen)
 {
     return format_raw(s, len, FMT_LF_OK | FMT_SP_OK, buf, buflen);
 }
 
-static char *idl_format(IDL *idl, int isfirsttime, int *done)
+static char *
+idl_format(IDL *idl, int isfirsttime, int *done)
 {
     static char *buf = NULL;
     static ID i = 0;
-    
+
     if (buf == NULL) {
         buf = (char *)malloc(MAX_BUFFER);
         if (buf == NULL)
@@ -274,7 +283,7 @@ static char *idl_format(IDL *idl, int isfirsttime, int *done)
     for (; i < idl->used; i++) {
         sprintf((char *)buf + strlen(buf), "%d ", idl->id[i]);
 
-        if (strlen(buf) > (size_t)MAX_BUFFER-MIN_BUFFER) {
+        if (strlen(buf) > (size_t)MAX_BUFFER - MIN_BUFFER) {
             i++;
             done = 0;
             return (char *)buf;
@@ -286,48 +295,46 @@ static char *idl_format(IDL *idl, int isfirsttime, int *done)
 
 
 /*** Copied from cl5_api.c: _cl5ReadString ***/
-void _cl5ReadString (char **str, char **buff)
+void
+_cl5ReadString(char **str, char **buff)
 {
-    if (str)
-    {
-        int len = strlen (*buff);
-        
-        if (len)
-        { 
+    if (str) {
+        int len = strlen(*buff);
+
+        if (len) {
             *str = strdup(*buff);
             (*buff) += len + 1;
-        }
-        else /* just null char - skip it */
+        } else /* just null char - skip it */
         {
             *str = NULL;
-            (*buff) ++;
+            (*buff)++;
         }
-    }
-    else /* just skip this string */
+    } else /* just skip this string */
     {
-        (*buff) += strlen (*buff) + 1;        
+        (*buff) += strlen(*buff) + 1;
     }
 }
 
 /** print_attr - print attribute name followed by one value.
     assume the value stored as null terminated string.
 */
-void print_attr(char *attrname, char **buff)
+void
+print_attr(char *attrname, char **buff)
 {
     char *val = NULL;
 
     _cl5ReadString(&val, buff);
-    if(attrname == NULL && val == NULL) {
+    if (attrname == NULL && val == NULL) {
         return;
     }
     db_printf("\t");
 
-    if(attrname) {
+    if (attrname) {
         db_printf("%s: ", attrname);
     } else {
         db_printf("unknown attribute: ");
     }
-    if(val) {
+    if (val) {
         db_printf("%s\n", val);
         free(val);
     } else {
@@ -343,12 +350,13 @@ void print_attr(char *attrname, char **buff)
    mod format:
    -----------
    <1 byte modop><null terminated attr name><4 byte count>
-   {<4 byte size><value1><4 byte size><value2>... || 
+   {<4 byte size><value1><4 byte size><value2>... ||
         <null terminated str1> <null terminated str2>...}
  */
 void _cl5ReadMod(char **buff);
 
-void _cl5ReadMods(char **buff)
+void
+_cl5ReadMods(char **buff)
 {
     char *pos = *buff;
     ID i;
@@ -358,14 +366,13 @@ void _cl5ReadMods(char **buff)
        architectures */
     memcpy((char *)&mod_count, *buff, sizeof(mod_count));
     mod_count = ntohl(mod_count);
-    pos += sizeof (mod_count);
-    
+    pos += sizeof(mod_count);
 
-    for (i = 0; i < mod_count; i++)
-    {        
-        _cl5ReadMod (&pos);
+
+    for (i = 0; i < mod_count; i++) {
+        _cl5ReadMod(&pos);
     }
- 
+
     *buff = pos;
 }
 
@@ -373,24 +380,25 @@ void _cl5ReadMods(char **buff)
 /** print_ber_attr - print one line of attribute, the value was stored
                      in ber format, length followed by string.
 */
-void print_ber_attr(char* attrname, char** buff)
+void
+print_ber_attr(char *attrname, char **buff)
 {
     char *val = NULL;
     PRUint32 bv_len;
 
     memcpy((char *)&bv_len, *buff, sizeof(bv_len));
     bv_len = ntohl(bv_len);
-    *buff += sizeof (uint32);
+    *buff += sizeof(uint32);
     if (bv_len > 0) {
 
         db_printf("\t\t");
 
-        if(attrname != NULL) {
+        if (attrname != NULL) {
             db_printf("%s: ", attrname);
         }
 
         val = malloc(bv_len + 1);
-        memcpy (val, *buff, bv_len);
+        memcpy(val, *buff, bv_len);
         val[bv_len] = 0;
         *buff += bv_len;
         db_printf("%s\n", val);
@@ -400,9 +408,10 @@ void print_ber_attr(char* attrname, char** buff)
 
 /*
  *  Conversion routines between host byte order and
- *  big-endian (which is how we store data in the db). 
+ *  big-endian (which is how we store data in the db).
  */
-static ID id_stored_to_internal(char* b)
+static ID
+id_stored_to_internal(char *b)
 {
     ID i;
     i = (ID)b[3] & 0x000000ff;
@@ -412,10 +421,11 @@ static ID id_stored_to_internal(char* b)
     return i;
 }
 
-static void id_internal_to_stored(ID i,char *b)
+static void
+id_internal_to_stored(ID i, char *b)
 {
-    if ( sizeof(ID) > 4 ) {
-        (void)memset (b+4, 0, sizeof(ID)-4);
+    if (sizeof(ID) > 4) {
+        (void)memset(b + 4, 0, sizeof(ID) - 4);
     }
 
     b[0] = (char)(i >> 24);
@@ -424,7 +434,8 @@ static void id_internal_to_stored(ID i,char *b)
     b[3] = (char)i;
 }
 
-static size_t sizeushort_stored_to_internal(char* b)
+static size_t
+sizeushort_stored_to_internal(char *b)
 {
     size_t i;
     i = (PRUint16)b[1] & 0x000000ff;
@@ -432,24 +443,24 @@ static size_t sizeushort_stored_to_internal(char* b)
     return i;
 }
 
-void _cl5ReadMod(char **buff)
+void
+_cl5ReadMod(char **buff)
 {
     char *pos = *buff;
     PRUint32 i;
     PRUint32 val_count;
     char *type = NULL;
 
-    pos ++;
-    _cl5ReadString (&type, &pos);
+    pos++;
+    _cl5ReadString(&type, &pos);
 
     /* need to do the copy first, to skirt around alignment problems on
        certain architectures */
     memcpy((char *)&val_count, pos, sizeof(val_count));
     val_count = ntohl(val_count);
-    pos += sizeof (PRUint32);
+    pos += sizeof(PRUint32);
 
-    for (i = 0; i < val_count; i++)
-    {
+    for (i = 0; i < val_count; i++) {
         print_ber_attr(type, &pos);
     }
 
@@ -458,7 +469,8 @@ void _cl5ReadMod(char **buff)
 }
 
 /* data format: <value count> <value size> <value> <value size> <value> ..... */
-void print_ruv(unsigned char *buff)
+void
+print_ruv(unsigned char *buff)
 {
     char *pos = (char *)buff;
     PRUint32 i;
@@ -468,10 +480,9 @@ void print_ruv(unsigned char *buff)
        certain architectures */
     memcpy((char *)&val_count, pos, sizeof(val_count));
     val_count = ntohl(val_count);
-    pos += sizeof (PRUint32);
+    pos += sizeof(PRUint32);
 
-    for (i = 0; i < val_count; i++)
-    {
+    for (i = 0; i < val_count; i++) {
         print_ber_attr(NULL, &pos);
     }
 }
@@ -492,7 +503,8 @@ width of long (32-bit or 64-bit), it's stored using 4bytes by the server [153306
    <0 byte modop><null terminated attr name><4 byte value count>
    <4 byte value size><value1><4 byte value size><value2>
 */
-void print_changelog(unsigned char *data, int len __attribute__((unused)))
+void
+print_changelog(unsigned char *data, int len __attribute__((unused)))
 {
     uint8_t version;
     unsigned long operation_type;
@@ -503,8 +515,7 @@ void print_changelog(unsigned char *data, int len __attribute__((unused)))
 
     /* read byte of version */
     version = *((uint8_t *)pos);
-    if (version != 5)
-    {
+    if (version != 5) {
         db_printf("Invalid changelog db version %i\nWorks for version 5 only.\n", version);
         exit(1);
     }
@@ -512,8 +523,8 @@ void print_changelog(unsigned char *data, int len __attribute__((unused)))
 
     /* read change type */
     operation_type = (unsigned long)(*(uint8_t *)pos);
-    pos ++;
-    
+    pos++;
+
     /* need to do the copy first, to skirt around alignment problems on
        certain architectures */
     memcpy((char *)&thetime32, pos, sizeof(thetime32));
@@ -526,48 +537,46 @@ void print_changelog(unsigned char *data, int len __attribute__((unused)))
     /* read csn */
     print_attr("csn", &pos);
     /* read UniqueID */
-    print_attr("uniqueid", &pos);    
-    
+    print_attr("uniqueid", &pos);
+
     /* figure out what else we need to read depending on the operation type */
-    switch (operation_type)
-    {
-        case SLAPI_OPERATION_ADD:        
-            print_attr("parentuniqueid", &pos);
-            print_attr("dn", &pos);
-            /* convert mods to entry */
-            db_printf("\toperation: add\n");
-            _cl5ReadMods(&pos);
-            break;
+    switch (operation_type) {
+    case SLAPI_OPERATION_ADD:
+        print_attr("parentuniqueid", &pos);
+        print_attr("dn", &pos);
+        /* convert mods to entry */
+        db_printf("\toperation: add\n");
+        _cl5ReadMods(&pos);
+        break;
 
-        case SLAPI_OPERATION_MODIFY:    
-            print_attr("dn", &pos);
-            db_printf("\toperation: modify\n");
-            _cl5ReadMods(&pos);
-            break;
+    case SLAPI_OPERATION_MODIFY:
+        print_attr("dn", &pos);
+        db_printf("\toperation: modify\n");
+        _cl5ReadMods(&pos);
+        break;
 
-        case SLAPI_OPERATION_MODRDN:    
-        {
-            print_attr("dn", &pos);
-            db_printf("\toperation: modrdn\n");
-            print_attr("newrdn", &pos);
-            db_printf("\tdeleteoldrdn: %d\n", (int )(*pos++));
-            print_attr("newsuperior", &pos);
-            _cl5ReadMods(&pos);
-            break;
-        }
-        case SLAPI_OPERATION_DELETE:    
-            print_attr("dn", &pos);
-            db_printf("\toperation: delete\n");
-            break;
+    case SLAPI_OPERATION_MODRDN: {
+        print_attr("dn", &pos);
+        db_printf("\toperation: modrdn\n");
+        print_attr("newrdn", &pos);
+        db_printf("\tdeleteoldrdn: %d\n", (int)(*pos++));
+        print_attr("newsuperior", &pos);
+        _cl5ReadMods(&pos);
+        break;
+    }
+    case SLAPI_OPERATION_DELETE:
+        print_attr("dn", &pos);
+        db_printf("\toperation: delete\n");
+        break;
 
-        default:                            
-            db_printf("Failed to format entry\n");
-            break;
+    default:
+        db_printf("Failed to format entry\n");
+        break;
     }
 }
 
-static void display_index_item(DBC *cursor, DBT *key, DBT *data,
-                               unsigned char *buf, int buflen)
+static void
+display_index_item(DBC *cursor, DBT *key, DBT *data, unsigned char *buf, int buflen)
 {
     IDL *idl = NULL;
     int ret = 0;
@@ -578,9 +587,9 @@ static void display_index_item(DBC *cursor, DBT *key, DBT *data,
         return;
     }
 
-    if (file_type & VLVINDEXTYPE) {  /* vlv index file */
-        if (1 > min_display) { /* recno is always 1 */
-            if (display_mode & SHOWCOUNT) {  /* key  size=1 */
+    if (file_type & VLVINDEXTYPE) {         /* vlv index file */
+        if (1 > min_display) {              /* recno is always 1 */
+            if (display_mode & SHOWCOUNT) { /* key  size=1 */
                 printf("%-40s         1\n",
                        format(key->data, key->size, buf, buflen));
             } else {
@@ -615,19 +624,19 @@ static void display_index_item(DBC *cursor, DBT *key, DBT *data,
 
     if (idl->max == 0) {
         /* allids; should not exist in the new idl world */
-        if ( allids_cnt == 0 && (display_mode & SHOWSUMMARY)) {
+        if (allids_cnt == 0 && (display_mode & SHOWSUMMARY)) {
             printf("The following index keys reached allids:\n");
         }
         printf("%-40s(allids)\n", format(key->data, key->size, buf, buflen));
         allids_cnt++;
     } else {
         if (idl->used < min_display) {
-            goto index_done;  /* less than minimum display count */
-        } else if (display_mode & SHOWCOUNT) {  /* key  size */
-            printf("%-40s%d\n", 
+            goto index_done;                   /* less than minimum display count */
+        } else if (display_mode & SHOWCOUNT) { /* key  size */
+            printf("%-40s%d\n",
                    format(key->data, key->size, buf, buflen), idl->used);
         } else if (!(display_mode & SHOWSUMMARY) || (display_mode & SHOWDATA)) {
-            /* show keys only if show summary is not set or 
+            /* show keys only if show summary is not set or
                          * even if it's set, but with show data */
             printf("%-40s\n", format(key->data, key->size, buf, buflen));
         }
@@ -650,48 +659,49 @@ static void display_index_item(DBC *cursor, DBT *key, DBT *data,
             }
             printf("\n");
         }
-    } 
+    }
 index_done:
-    if ( display_mode & SHOWSUMMARY ) {
+    if (display_mode & SHOWSUMMARY) {
         char firstchar;
 
-        firstchar = ((char*)key->data)[0];
+        firstchar = ((char *)key->data)[0];
 
-        switch ( firstchar ) {
-            case '+':
-                pres_cnt += idl->used;
-                break;
+        switch (firstchar) {
+        case '+':
+            pres_cnt += idl->used;
+            break;
 
-            case '=':
-                eq_cnt += idl->used;
-                break;
+        case '=':
+            eq_cnt += idl->used;
+            break;
 
-            case '~':
-                app_cnt += idl->used;
-                break;
+        case '~':
+            app_cnt += idl->used;
+            break;
 
-            case '*':
-                sub_cnt += idl->used;
-                break;
-            
-            case ':':
-                match_cnt += idl->used;
-                break;
+        case '*':
+            sub_cnt += idl->used;
+            break;
 
-            case '\\':
-                ind_cnt += idl->used;
-                break;
+        case ':':
+            match_cnt += idl->used;
+            break;
 
-            default:
-                other_cnt += idl->used;
-                break;
+        case '\\':
+            ind_cnt += idl->used;
+            break;
+
+        default:
+            other_cnt += idl->used;
+            break;
         }
     }
     idl_free(idl);
     return;
 }
 
-static void display_item(DBC *cursor, DBT *key, DBT *data)
+static void
+display_item(DBC *cursor, DBT *key, DBT *data)
 {
     static unsigned char *buf = NULL;
     static int buflen = 0;
@@ -725,11 +735,11 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
             /* changelog db file */
             printf("\ndbid: %s\n", format(key->data, key->size, buf, buflen));
             if (strncasecmp((char *)key->data, ENTRY_COUNT_KEY, 8) == 0) {
-                printf("\tentry count: %d\n", *(int*)data->data);
+                printf("\tentry count: %d\n", *(int *)data->data);
             } else if (strncasecmp((char *)key->data, PURGE_RUV_KEY, 8) == 0) {
                 printf("\tpurge ruv:\n");
                 print_ruv(data->data);
-        } else if (strncasecmp((char *)key->data, MAX_RUV_KEY, 8) == 0) {
+            } else if (strncasecmp((char *)key->data, MAX_RUV_KEY, 8) == 0) {
                 printf("\tmax ruv:\n");
                 print_ruv(data->data);
             } else {
@@ -756,8 +766,9 @@ _entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
     char *indentp = (char *)malloc(indent + 1);
     char *p, *endp = indentp + indent;
 
-    for (p = indentp; p < endp; p++) *p = ' ';
-    *p = '\0';    
+    for (p = indentp; p < endp; p++)
+        *p = ' ';
+    *p = '\0';
     printf("%s\n", key);
     printf("%sID: %u; RDN: \"%s\"; NRDN: \"%s\"\n",
            indentp, id_stored_to_internal(elem->rdn_elem_id),
@@ -773,7 +784,7 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn __attribute__((unused)), i
     char *keybuf = NULL;
     int rc = 0;
     rdn_elem *elem;
-    char buffer[1024]; 
+    char buffer[1024];
 
     rc = db->cursor(db, NULL, &cursor, 0);
     if (rc) {
@@ -792,7 +803,8 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn __attribute__((unused)), i
     rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
+                        "(%d)\n",
+                (char *)key.data, db_strerror(rc), rc);
         goto bail;
     }
 
@@ -817,7 +829,7 @@ display_entryrdn_parent(DB *db, ID id, const char *nrdn __attribute__((unused)),
     char *keybuf = NULL;
     int rc = 0;
     rdn_elem *elem;
-    char buffer[1024]; 
+    char buffer[1024];
 
     rc = db->cursor(db, NULL, &cursor, 0);
     if (rc) {
@@ -836,7 +848,8 @@ display_entryrdn_parent(DB *db, ID id, const char *nrdn __attribute__((unused)),
     rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
+                        "(%d)\n",
+                (char *)key.data, db_strerror(rc), rc);
         goto bail;
     }
 
@@ -856,8 +869,9 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn __attribute__((unused)
     DBT key, data;
     char *keybuf = NULL;
     int rc = 0;
-    rdn_elem *elem = NULL;;
-    char buffer[1024]; 
+    rdn_elem *elem = NULL;
+    ;
+    char buffer[1024];
 
     rc = db->cursor(db, NULL, &cursor, 0);
     if (rc) {
@@ -884,10 +898,11 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn __attribute__((unused)
             fprintf(stderr, "Entryrdn index is corrupt; "
                             "data item for key %s is too large for our "
                             "buffer (need=%d actual=%d)\n",
-                            (char *)key.data, data.size, data.ulen);
+                    (char *)key.data, data.size, data.ulen);
         } else if (rc != DB_NOTFOUND) {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
+                            "(%d)\n",
+                    (char *)key.data, db_strerror(rc), rc);
         }
         goto bail;
     }
@@ -908,10 +923,11 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn __attribute__((unused)
             fprintf(stderr, "Entryrdn index is corrupt; "
                             "data item for key %s is too large for our "
                             "buffer (need=%d actual=%d)\n",
-                            (char *)key.data, data.size, data.ulen);
+                    (char *)key.data, data.size, data.ulen);
         } else if (rc != DB_NOTFOUND) {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
+                            "(%d)\n",
+                    (char *)key.data, db_strerror(rc), rc);
         }
     }
 bail:
@@ -921,7 +937,7 @@ bail:
     return;
 }
 
-static void 
+static void
 display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
 {
     rdn_elem *elem = NULL;
@@ -929,7 +945,7 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
     DBT data;
     int rc;
     PRUint32 flags = 0;
-    char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
+    char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
     DBT dataret;
     int find_key_flag = 0;
 
@@ -942,10 +958,10 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
 
     if (key->data) { /* key is given */
         /* Position cursor at the matching key */
-        flags = DB_SET|DB_MULTIPLE;
+        flags = DB_SET | DB_MULTIPLE;
         find_key_flag = 1;
     } else { /* key is not given; scan all */
-        flags = DB_FIRST|DB_MULTIPLE;
+        flags = DB_FIRST | DB_MULTIPLE;
     }
     do {
         /* Position cursor at the matching key */
@@ -955,17 +971,17 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
                 fprintf(stderr, "Entryrdn index is corrupt; "
                                 "data item for key %s is too large for our "
                                 "buffer (need=%d actual=%d)\n",
-                                (char *)key->data, data.size, data.ulen);
+                        (char *)key->data, data.size, data.ulen);
             } else {
                 if (rc != DB_NOTFOUND) {
                     fprintf(stderr, "Failed to position cursor "
                                     "at the key: %s: %s (%d)\n",
-                                    (char *)key->data, db_strerror(rc), rc);
+                            (char *)key->data, db_strerror(rc), rc);
                 }
             }
             goto bail;
         }
-    
+
         /* Iterate over the duplicates */
         for (;;) {
             void *ptr;
@@ -977,13 +993,13 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
                     break;
                 if (ptr == NULL)
                     break;
-    
+
                 elem = (rdn_elem *)dataret.data;
                 _entryrdn_dump_rdn_elem((char *)key->data, elem, indent);
                 display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
                                           elem->rdn_elem_nrdn_rdn, indent);
             }
-            rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
+            rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP | DB_MULTIPLE);
             if (rc) {
                 break;
             }
@@ -993,20 +1009,21 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
             fprintf(stderr, "Entryrdn index is corrupt; "
                             "data item for key %s is too large for our "
                             "buffer (need=%d actual=%d)\n",
-                            (char *)key->data, data.size, data.ulen);
+                    (char *)key->data, data.size, data.ulen);
             goto bail;
         } else if (rc == DB_NOTFOUND) {
             if (find_key_flag) { /* key is given */
-                goto bail; /* done */
-            } else { /* otherwise, continue scanning. */
+                goto bail;       /* done */
+            } else {             /* otherwise, continue scanning. */
                 rc = 0;
             }
         } else {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", (char *)key->data, db_strerror(rc), rc);
+                            "(%d)\n",
+                    (char *)key->data, db_strerror(rc), rc);
             goto bail;
         }
-        flags = DB_NEXT|DB_MULTIPLE;
+        flags = DB_NEXT | DB_MULTIPLE;
     } while (0 == rc);
 bail:
     return;
@@ -1053,7 +1070,8 @@ is_changelog(char *filename)
     return 0;
 }
 
-static void usage(char *argv0)
+static void
+usage(char *argv0)
 {
     char *copy = strdup(argv0);
     char *p0 = NULL, *p1 = NULL;
@@ -1070,7 +1088,7 @@ static void usage(char *argv0)
         if (NULL != p1) {
             *p1 = '\0';
         }
-    } 
+    }
     if (NULL == p0) {
         p0 = argv0;
     }
@@ -1104,7 +1122,8 @@ static void usage(char *argv0)
     exit(1);
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
     DB_ENV *env = NULL;
     DB *db = NULL;
@@ -1126,17 +1145,18 @@ int main(int argc, char **argv)
         case 'R':
             display_mode |= RAWDATA;
             break;
-        case 'l':
-        {
+        case 'l': {
             PRUint32 tmpmaxbufsz = atoi(optarg);
             if (tmpmaxbufsz > ONEMEG) {
                 tmpmaxbufsz = ONEMEG;
                 printf("WARNING: max length of dumped id list too long, "
-                       "reduced to %d\n", tmpmaxbufsz);
+                       "reduced to %d\n",
+                       tmpmaxbufsz);
             } else if (tmpmaxbufsz < MIN_BUFFER * 2) {
                 tmpmaxbufsz = MIN_BUFFER * 2;
                 printf("WARNING: max length of dumped id list too short, "
-                       "increased to %d\n", tmpmaxbufsz);
+                       "increased to %d\n",
+                       tmpmaxbufsz);
             }
             MAX_BUFFER = tmpmaxbufsz;
             break;
@@ -1145,7 +1165,7 @@ int main(int argc, char **argv)
             display_mode |= SHOWCOUNT;
             break;
         case 'G':
-            min_display = atoi(optarg)+1;
+            min_display = atoi(optarg) + 1;
             break;
         case 'r':
             display_mode |= SHOWDATA;
@@ -1168,7 +1188,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(filename == NULL) {
+    if (filename == NULL) {
         usage(argv[0]);
     }
     if (NULL != strstr(filename, "id2entry.db")) {
@@ -1183,13 +1203,13 @@ int main(int argc, char **argv)
             file_type |= ENTRYRDNINDEXTYPE;
         }
     }
-        
+
     ret = db_env_create(&env, 0);
     if (ret != 0) {
         printf("Can't create dbenv: %s\n", db_strerror(ret));
         exit(1);
     }
-    ret = env->open(env, NULL, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0);
+    ret = env->open(env, NULL, DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE, 0);
     if (ret != 0) {
         printf("Can't open dbenv: %s\n", db_strerror(ret));
         exit(1);
@@ -1224,7 +1244,7 @@ int main(int argc, char **argv)
     }
 
     if (find_key) {
-        key.size = strlen(find_key)+1;
+        key.size = strlen(find_key) + 1;
         key.data = find_key;
         ret = db->get(db, NULL, &key, &data, 0);
         if (ret != 0) {
@@ -1294,40 +1314,39 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if ( display_mode & SHOWSUMMARY) {
+    if (display_mode & SHOWSUMMARY) {
 
-        if ( allids_cnt > 0 ) {
+        if (allids_cnt > 0) {
             printf("Index keys that reached ALLIDs threshold: %ld\n", allids_cnt);
         }
 
-        if ( pres_cnt > 0 ) {
+        if (pres_cnt > 0) {
             printf("Presence index keys: %ld\n", pres_cnt);
         }
 
-        if ( eq_cnt > 0 ) {
+        if (eq_cnt > 0) {
             printf("Equality index keys: %ld\n", eq_cnt);
         }
 
-        if ( app_cnt > 0 ) {
+        if (app_cnt > 0) {
             printf("Approximate index keys: %ld\n", app_cnt);
         }
 
-        if ( sub_cnt > 0 ) {
+        if (sub_cnt > 0) {
             printf("Substring index keys: %ld\n", sub_cnt);
         }
 
-        if ( match_cnt > 0 ) {
+        if (match_cnt > 0) {
             printf("Match index keys: %ld\n", match_cnt);
         }
 
-        if ( ind_cnt > 0 ) {
+        if (ind_cnt > 0) {
             printf("Indirect index keys: %ld\n", ind_cnt);
         }
 
-        if ( other_cnt > 0 ) {
-            printf("This file contains %ld number of unknown type ( possible corruption)\n",other_cnt);
+        if (other_cnt > 0) {
+            printf("This file contains %ld number of unknown type ( possible corruption)\n", other_cnt);
         }
-
     }
 
     ret = env->close(env, 0);

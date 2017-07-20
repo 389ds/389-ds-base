@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* uuid.h - interface  to uuid layer. UUID is generated in accordance
@@ -43,52 +43,52 @@
 #define I64(C) C##LL
 
 /***** uuid related data types *****/
-/* 
+/*
  * DBDB These types were broken on 64-bit architectures
  * This file has been modified to fix that problem.
  */
-#if defined(__LP64__) || defined (_LP64)
-typedef unsigned int   unsigned32;
+#if defined(__LP64__) || defined(_LP64)
+typedef unsigned int unsigned32;
 #else
-typedef unsigned long   unsigned32;
+typedef unsigned long unsigned32;
 #endif
-typedef unsigned short  unsigned16;
-typedef unsigned char   unsigned8;
+typedef unsigned short unsigned16;
+typedef unsigned char unsigned8;
 typedef unsigned64_t uuid_time_t;
-typedef struct 
+typedef struct
 {
-	char nodeID[6];
+    char nodeID[6];
 } uuid_node_t;
 
-typedef struct _guid_t 
+typedef struct _guid_t
 {
-	unsigned32 time_low;
-	unsigned16 time_mid;
-	unsigned16 time_hi_and_version;
-	unsigned8  clock_seq_hi_and_reserved;
-	unsigned8  clock_seq_low;
-	PRUint8    node[6];
+    unsigned32 time_low;
+    unsigned16 time_mid;
+    unsigned16 time_hi_and_version;
+    unsigned8 clock_seq_hi_and_reserved;
+    unsigned8 clock_seq_low;
+    PRUint8 node[6];
 } guid_t;
 
 enum
 {
-    UUID_SUCCESS,   	/* operation succeded */
-    UUID_IO_ERROR,		/* file I/O failed */
-    UUID_LOCK_ERROR,	/* lock creation failed */
-    UUID_TIME_ERROR,	/* ran out of time sequence numbers, need 
-						   time update to generate the id          */
-    UUID_BAD_FORMAT,	/* data in a string buffer is not in UUID format */
-	UUID_MEMORY_ERROR,	/* memory allocation failed */
-	UUID_LDAP_ERROR,	/* LDAP operation failed */
-	UUID_NOTFOUND,		/* generator state is missing */
-	UUID_FORMAT_ERROR,	/* state entry does not contain right data */
-	UUID_UNKNOWN_ERROR
+    UUID_SUCCESS,      /* operation succeded */
+    UUID_IO_ERROR,     /* file I/O failed */
+    UUID_LOCK_ERROR,   /* lock creation failed */
+    UUID_TIME_ERROR,   /* ran out of time sequence numbers, need
+                           time update to generate the id          */
+    UUID_BAD_FORMAT,   /* data in a string buffer is not in UUID format */
+    UUID_MEMORY_ERROR, /* memory allocation failed */
+    UUID_LDAP_ERROR,   /* LDAP operation failed */
+    UUID_NOTFOUND,     /* generator state is missing */
+    UUID_FORMAT_ERROR, /* state entry does not contain right data */
+    UUID_UNKNOWN_ERROR
 };
 
 /***** uuid interface *****/
-  
+
 /* uuid_init -- initialize uuid layer */
-int  uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen);
+int uuid_init(const char *configDir, const Slapi_DN *configDN, PRBool mtGen);
 
 /* uuid_cleanup -- cleanup of uuid layer */
 void uuid_cleanup(void);
@@ -97,9 +97,9 @@ void uuid_cleanup(void);
 int uuid_create(guid_t *uuid);
 
 /* uuid_compare --  Compare two UUID's "lexically" and return
-					  -1   u1 is lexically before u2
-					   0   u1 is equal to u2
-					   1   u1 is lexically after u2
+                      -1   u1 is lexically before u2
+                       0   u1 is equal to u2
+                       1   u1 is lexically after u2
    Note:   lexical ordering is not temporal ordering!
 */
 int uuid_compare(const guid_t *u1, const guid_t *u2);
@@ -110,10 +110,10 @@ int uuid_compare(const guid_t *u1, const guid_t *u2);
 void uuid_format(const guid_t *u, char *buff);
 
 /* uuid_create_from_name -- create a UUID using a "name" from a "name space" */
-void uuid_create_from_name(guid_t * uuid,        /* resulting UUID */
-						   const guid_t nsid,    /* UUID to serve as context, so identical
-												    names from different name spaces generate
+void uuid_create_from_name(guid_t *uuid,      /* resulting UUID */
+                           const guid_t nsid, /* UUID to serve as context, so identical
+                                                    names from different name spaces generate
                                                     different UUIDs */
-						   const void * name,    /* the name from which to generate a UUID */
-						   int namelen);         /* the length of the name */
+                           const void *name,  /* the name from which to generate a UUID */
+                           int namelen);      /* the length of the name */
 #endif

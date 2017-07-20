@@ -4,22 +4,22 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
-#include	<stdio.h>
-#include	<ctype.h>
-#include	<string.h>
-#include	<time.h>
-#include	<stdlib.h>
-#include        <ldap.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <time.h>
+#include <stdlib.h>
+#include <ldap.h>
 
-#define	stricmp	strcasecmp
+#define stricmp strcasecmp
 
 #include <nss.h>
 #include <pk11func.h>
@@ -40,61 +40,64 @@
 /*
  * VSTRING was defined in PMDF headers.
  */
-typedef struct vstring {
-  int length;
-  char body[252];
+typedef struct vstring
+{
+    int length;
+    char body[252];
 } MM_VSTRING;
 
 /*
  * Base64 declarations.
  */
 
-typedef struct Enc64_s {
-	struct Enc64_s *	next;
-	unsigned char *		source;
-	int			slen;
+typedef struct Enc64_s
+{
+    struct Enc64_s *next;
+    unsigned char *source;
+    int slen;
 } Enc64_t;
 
-typedef struct Dec64_s {
-	struct Dec64_s *	next;
-	unsigned char *		dest;
-	int			maxlen;
-	int			curlen;
-	int			nextra;
-	unsigned char			extra[3];
+typedef struct Dec64_s
+{
+    struct Dec64_s *next;
+    unsigned char *dest;
+    int maxlen;
+    int curlen;
+    int nextra;
+    unsigned char extra[3];
 } Dec64_t;
 
-Enc64_t * initEnc64(unsigned char * source, int slen);
-int Enc64(Enc64_t * this, unsigned char *dest, int maxlen, int *len);
+Enc64_t *initEnc64(unsigned char *source, int slen);
+int Enc64(Enc64_t *this, unsigned char *dest, int maxlen, int *len);
 void freeEnc64(Enc64_t *this);
-Dec64_t * initDec64(unsigned char * dest, int maxlen);
+Dec64_t *initDec64(unsigned char *dest, int maxlen);
 int freeDec64(Dec64_t *this);
-int Dec64(Dec64_t * this, unsigned char *source);
+int Dec64(Dec64_t *this, unsigned char *source);
 
 /*
  * License check declarations.
  */
 
-int	license_limit = -1;
-int	license_count;
+int license_limit = -1;
+int license_count;
 
 /*
  * Public declarations.(potentially).
  */
 
-#define IDDS_MM_OK      0
-#define IDDS_MM_EOF     -1
-#define IDDS_MM_ABSENT  -2
-#define IDDS_MM_FIO     -3
-#define IDDS_MM_BAD     -4
+#define IDDS_MM_OK 0
+#define IDDS_MM_EOF -1
+#define IDDS_MM_ABSENT -2
+#define IDDS_MM_FIO -3
+#define IDDS_MM_BAD -4
 
 /* attrib_t is used to hold each record in memory.  The emphasis here is
  * on size, although compromising simplicity rather than speed.  In reality
- * the way this is used is that there is a block of bytes defined.  within 
+ * the way this is used is that there is a block of bytes defined.  within
  * that block are a sequence of records each alligned on whatever is needed
- * to read shorts happilly.  each record consists of a name, a value and 
+ * to read shorts happilly.  each record consists of a name, a value and
  * their lengths.  The value length is first, because it has to be aligned
- * then the name value, because we need it first, then the name, null 
+ * then the name value, because we need it first, then the name, null
  * terminated, then the value, null terminated.  Thus if "thing" is a pointer
  * to one of these things,
  * thing->data          is the name
@@ -102,105 +105,107 @@ int	license_count;
  * (thing->data + ((namelen + 1 + valuelen + 1 + 3) & ~3)       is the next one
  *      (if we're aligned on 4 byte boundaries)
  */
-typedef int     Boolean;
-typedef struct {
-        int     valuelen;
-        char    namelen;
-        char    data[1];
+typedef int Boolean;
+typedef struct
+{
+    int valuelen;
+    char namelen;
+    char data[1];
 } attrib_t;
 
-#define attribname(thing)       (thing)->data
-#define attribvalue(thing)      ((thing)->data + (thing)->namelen + 1)
-#define attribalign     4
-#define attribsize(thing)       (((thing)->namelen + (thing)->valuelen + 1 \
-                                        + attribalign) & ~(attribalign-1))
-#define attribnext(thing)       (attrib_t *)(((char *)thing) \
-                + (((thing)->namelen + (thing)->valuelen \
-                + sizeof(int) + 2 + attribalign) & ~(attribalign-1)))
+#define attribname(thing) (thing)->data
+#define attribvalue(thing) ((thing)->data + (thing)->namelen + 1)
+#define attribalign 4
+#define attribsize(thing) (((thing)->namelen + (thing)->valuelen + 1 + attribalign) & ~(attribalign - 1))
+#define attribnext(thing) (attrib_t *)(((char *)thing) + (((thing)->namelen + (thing)->valuelen + sizeof(int) + 2 + attribalign) & ~(attribalign - 1)))
 
 /* record_t     is used to hold a record once it had been squeezed
  *      obviously it has to be allocated carefully so that it is the right size
  */
-typedef struct {
-    short       nattrs;
-    attrib_t    data;
+typedef struct
+{
+    short nattrs;
+    attrib_t data;
 } record_t;
 
 /* attrib1_t is used to read in and sort a record */
-typedef struct attrib1_s {
+typedef struct attrib1_s
+{
     struct attrib1_s *next;
-    char    namelen;
-    char    name[64];
-    int     valuelen;
-    char    value[0x20000];
+    char namelen;
+    char name[64];
+    int valuelen;
+    char value[0x20000];
 } attrib1_t;
 
-typedef struct ignore_s {
+typedef struct ignore_s
+{
     struct ignore_s *next;
-    char    name[65];
+    char name[65];
 } ignore_t;
 
 /* entry_t is the structure used to carry the fingerprint in the hash table */
-typedef struct entry_s {
-    struct entry_s *overflow;       /* we hash into buckets.  This
+typedef struct entry_s
+{
+    struct entry_s *overflow; /* we hash into buckets.  This
                                      * is the chain of entries */
-    char            key[20];        /* this is the hash of the DN */
-    int             present[4];     /* actually treated as a 128 bit array*/
-                                    /* this is the bitmap of which 
+    char key[20];             /* this is the hash of the DN */
+    int present[4];           /* actually treated as a 128 bit array*/
+                              /* this is the bitmap of which
                                      * directories contain this DN */
-    int             db;             /* this is the directory number which
+    int db;                   /* this is the directory number which
                                      * provided the data for this entry */
-    record_t *      first;          /* this it the actual data */
-    char            fingerprint[20];/* this is the hash of the data */
-    char    flags;                  /* the status of this entry */
-#define EMPTY           0
-#define IDENTITY        1
-#define MODIFIED        2
-#define LOADED          0x10
+    record_t *first;          /* this it the actual data */
+    char fingerprint[20];     /* this is the hash of the data */
+    char flags;               /* the status of this entry */
+#define EMPTY 0
+#define IDENTITY 1
+#define MODIFIED 2
+#define LOADED 0x10
 } entry_t;
 
-typedef struct {
-    time_t  start_time;
-    int     records;
-    int     records_away;
-    time_t  end_time;
+typedef struct
+{
+    time_t start_time;
+    int records;
+    int records_away;
+    time_t end_time;
 } cookstats_t;
 
-typedef struct {
-    cookstats_t     cook;
+typedef struct
+{
+    cookstats_t cook;
 
-    time_t  comb_start_time;
-    int     authoritative_records;
-    time_t  comb_end_time;
+    time_t comb_start_time;
+    int authoritative_records;
+    time_t comb_end_time;
 
-    time_t  diff_start_time;
-    int     num_identities;
-    int     num_unchanged;
-    int     num_deletes;
-    int     num_adds;
-    int     num_modifies;
-    time_t  diff_end_time;
+    time_t diff_start_time;
+    int num_identities;
+    int num_unchanged;
+    int num_deletes;
+    int num_adds;
+    int num_modifies;
+    time_t diff_end_time;
 
-    cookstats_t     uncook;
+    cookstats_t uncook;
 } stats_t;
 
-extern int mm_init(int argc, char * argv[]);
+extern int mm_init(int argc, char *argv[]);
 extern int mm_diff(stats_t *statsp);
 
 extern int mm_getvalue(
-    record_t  *first, 
-    attrib1_t *a, 
-    int       directory, 
-    char      *name, 
-    char      **value, 
-    int       *length
-);
+    record_t *first,
+    attrib1_t *a,
+    int directory,
+    char *name,
+    char **value,
+    int *length);
 
 extern int mm_is_deleted(
-    record_t  *first, 
-    attrib1_t *a, 
-    int       directory
-);
+    record_t *first,
+    attrib1_t *a,
+    int directory);
 
 extern int mm_get_winner(record_t *first, attrib1_t *a);
 extern void mm_init_winner(void);
@@ -218,7 +223,8 @@ extern void mm_fin_winner(void);
  * is used for that purpose. Memory for blocks of entries are allocated
  * and strung in a linked list.
  */
-struct entryblock {
+struct entryblock
+{
     entry_t *eb_block;
     unsigned n;
     struct entryblock *next;
@@ -226,13 +232,14 @@ struct entryblock {
 
 static struct entryblock *eb_head = NULL, *eb_cur = NULL;
 
-entry_t *entryalloc(void)
+entry_t *
+entryalloc(void)
 {
     if (eb_head == NULL || eb_cur->n == 0x1000) {
         struct entryblock *newblock;
-        newblock = 
+        newblock =
             (struct entryblock *)calloc(1, sizeof(struct entryblock));
-        newblock->eb_block = (entry_t*)calloc(0x1000, sizeof(entry_t));
+        newblock->eb_block = (entry_t *)calloc(0x1000, sizeof(entry_t));
         if (eb_head == NULL) {
             eb_cur = eb_head = newblock;
         } else {
@@ -242,78 +249,79 @@ entry_t *entryalloc(void)
     return &eb_cur->eb_block[eb_cur->n++];
 }
 
-typedef struct {
-	FILE *	fp;
-	int	end;
+typedef struct
+{
+    FILE *fp;
+    int end;
 } edfFILE;
 
-static int	ndirectories;
-static edfFILE	edfin[128];
-static FILE *	edfout[128];
-static FILE *   ofp;
-static char	line[2048];
-static char	seed;
-static int	hashmask;
+static int ndirectories;
+static edfFILE edfin[128];
+static FILE *edfout[128];
+static FILE *ofp;
+static char line[2048];
+static char seed;
+static int hashmask;
 static entry_t **hashtable;
-static int      emitchanges;
+static int emitchanges;
 
-static int readrec(edfFILE * edf1, attrib1_t ** attrib); 
-static void freefreelist(attrib1_t * freelist);
-static void hashname(char seed, attrib1_t * attrib, char * hashkey);
-static void hashvalue(char seed, attrib1_t * attrib, char * fingerprint);
-static record_t * newrecord(attrib1_t * big);
-static int adddelete(FILE * edf3, attrib1_t * attrib);
-static int addnew(FILE * edf3, const char *changetype, record_t * first);
-static int addmodified(FILE * edf3, attrib1_t * attrib, record_t * first);
-static int simpletext(unsigned char * body, int length);
-static int simpletextbody(unsigned char * body, int length);
+static int readrec(edfFILE *edf1, attrib1_t **attrib);
+static void freefreelist(attrib1_t *freelist);
+static void hashname(char seed, attrib1_t *attrib, char *hashkey);
+static void hashvalue(char seed, attrib1_t *attrib, char *fingerprint);
+static record_t *newrecord(attrib1_t *big);
+static int adddelete(FILE *edf3, attrib1_t *attrib);
+static int addnew(FILE *edf3, const char *changetype, record_t *first);
+static int addmodified(FILE *edf3, attrib1_t *attrib, record_t *first);
+static int simpletext(unsigned char *body, int length);
+static int simpletextbody(unsigned char *body, int length);
 static int putvalue(
-    FILE * fh, 
-    const char *tag, 
-    char * name, 
-    int namelen, 
-    char * value, 
-    int valuelen
-);
+    FILE *fh,
+    const char *tag,
+    char *name,
+    int namelen,
+    char *value,
+    int valuelen);
 static int signedmemcmp(
-    unsigned char * a, 
-    int lena, 
-    unsigned char * b, 
-    int lenb
-);
-static void makeupper(MM_VSTRING * v, char * body, int len);
+    unsigned char *a,
+    int lena,
+    unsigned char *b,
+    int lenb);
+static void makeupper(MM_VSTRING *v, char *body, int len);
 
 static void commententry(FILE *fp, attrib1_t *attrib);
 
-int mm_diff(stats_t *statsp)
+int
+mm_diff(stats_t *statsp)
 {
     unsigned int h;
-    entry_t *   overflow;
+    entry_t *overflow;
     int i;
     int pindex;
     int pmask;
-    attrib1_t * attrib = 0;
-    entry_t *   hashentry;
-    entry_t *   hashentry2;
-    char        fingerprint[16];
+    attrib1_t *attrib = 0;
+    entry_t *hashentry;
+    entry_t *hashentry2;
+    char fingerprint[16];
     int stat;
     int records = 0;
     int added;
     struct entryblock *block, *next;
 
-    union {
-        unsigned int    key;
-        char    data[16];
+    union
+    {
+        unsigned int key;
+        char data[16];
     } hashkey;
 
-    unsigned int        key;
+    unsigned int key;
 
     time(&statsp->diff_start_time);
     license_count = 0;
 
     NSS_NoDB_Init(".");
 
-/*
+    /*
  *      read all entries from all directories hashing name and value, and make
  *      a bitmaps of who has each entry.  Flag those entries where at least
  *      one directory differs from any other.
@@ -325,8 +333,8 @@ int mm_diff(stats_t *statsp)
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
-                slapi_log_err(SLAPI_LOG_TRACE, "ignored: %s: %s\n", 
-                                 attrib->name, attrib->value, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "ignored: %s: %s\n",
+                              attrib->name, attrib->value, 0);
                 continue;
             }
             if (stat == IDDS_MM_EOF)
@@ -336,22 +344,22 @@ int mm_diff(stats_t *statsp)
                 return stat;
             }
             records++;
-            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n", 
-                             i, attrib->name, attrib->value);
+            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n",
+                          i, attrib->name, attrib->value);
             hashname(seed, attrib, hashkey.data);
             key = hashkey.key & hashmask;
             if (!hashtable[key]) {
                 hashentry = hashtable[key] = entryalloc();
             } else {
                 hashentry = hashtable[key];
-                while (hashentry && 
+                while (hashentry &&
                        memcmp(hashkey.data, hashentry->key, 16))
                     hashentry = hashentry->overflow;
                 if (hashentry != NULL) {
                     if (hashentry->present[pindex] & pmask) {
-                        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", 
-                                         "duplicate DN <%s=%s> (ignored)\n",
-                                         attrib->name, attrib->value);
+                        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff",
+                                      "duplicate DN <%s=%s> (ignored)\n",
+                                      attrib->name, attrib->value);
                         if (emitchanges) {
                             fprintf(edfout[i], "\n# Duplicate DN:\n");
                             commententry(edfout[i], attrib);
@@ -365,8 +373,8 @@ int mm_diff(stats_t *statsp)
                         hashentry->present[pindex] |= pmask;
                         hashvalue(seed, attrib, fingerprint);
                         if (memcmp(fingerprint, hashentry->fingerprint, 16)) {
-                            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", 
-                            		"...data modified - key %u\n", key);
+                            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff",
+                                          "...data modified - key %u\n", key);
                             hashentry->flags = MODIFIED;
                         }
                     }
@@ -393,7 +401,7 @@ int mm_diff(stats_t *statsp)
         records = 0;
     }
 
-/*
+    /*
  *      read all the directories again.  This time we load the data into memory
  *      We use a fairly tight (and ugly) structure to hold the data.
  *      There are three possibilities to consider:
@@ -408,13 +416,13 @@ int mm_diff(stats_t *statsp)
         edfin[i].end = FALSE;
 
         slapi_log_err(SLAPI_LOG_TRACE, "mm_diff",
-		  "loading authoritative data from directory %d\n", i);
+                      "loading authoritative data from directory %d\n", i);
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
-                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "ignored: %s: %s\n", 
-			  attrib->name, attrib->value);
-                    continue;
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "ignored: %s: %s\n",
+                              attrib->name, attrib->value);
+                continue;
             }
             if (stat == IDDS_MM_EOF)
                 break;
@@ -422,24 +430,23 @@ int mm_diff(stats_t *statsp)
                 free(hashtable);
                 return stat;
             }
-            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n", 
-		      i, attrib->name, attrib->value);
+            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n",
+                          i, attrib->name, attrib->value);
             hashname(seed, attrib, hashkey.data);
             key = hashkey.key & hashmask;
             hashentry = hashtable[key];
-            while (hashentry && 
+            while (hashentry &&
                    memcmp(hashentry->key, hashkey.data, 16))
                 hashentry = hashentry->overflow;
             if (hashentry == NULL) {
                 slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "...hash entry not found\n");
-                    continue;
+                continue;
             }
-            if (!(hashentry->flags & LOADED))
-            {
+            if (!(hashentry->flags & LOADED)) {
                 hashentry->first = newrecord(attrib);
                 hashentry->flags |= LOADED;
                 slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...data loaded\n");
-                    hashentry->db = i;
+                hashentry->db = i;
                 continue;
             }
             if (hashentry->flags & IDENTITY)
@@ -451,15 +458,16 @@ int mm_diff(stats_t *statsp)
                 free(hashentry->first);
                 hashentry->first = newrecord(attrib);
                 hashvalue(seed, attrib, hashentry->fingerprint);
-                                /* must take new fingerprint */
+                /* must take new fingerprint */
                 continue;
             }
         }
     }
 
-    if (!emitchanges) goto afterchanges;
+    if (!emitchanges)
+        goto afterchanges;
 
-/*
+    /*
  *      Now we have the "authoritative" data in memory.  Hey, that's what
  *      VM is for.  Now we are able to go through each directory (again)
  *      and generate the differences.  There are a number of possibilities
@@ -474,13 +482,13 @@ int mm_diff(stats_t *statsp)
         rewind(edfin[i].fp);
         edfin[i].end = FALSE;
 
-        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", 
-		  "generating differences for directory %d\n", i);
+        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff",
+                      "generating differences for directory %d\n", i);
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
-                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "ignored: %s: %s\n", 
-			  attrib->name, attrib->value);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "ignored: %s: %s\n",
+                              attrib->name, attrib->value);
                 continue;
             }
             if (stat == IDDS_MM_EOF)
@@ -489,17 +497,17 @@ int mm_diff(stats_t *statsp)
                 free(hashtable);
                 return stat;
             }
-            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n", 
-		      i, attrib->name, attrib->value);
+            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n",
+                          i, attrib->name, attrib->value);
             hashname(seed, attrib, hashkey.data);
             key = hashkey.key & hashmask;
             hashentry = hashtable[key];
-            while (hashentry && 
+            while (hashentry &&
                    memcmp(hashentry->key, hashkey.data, 16))
                 hashentry = hashentry->overflow;
             if (hashentry == NULL) {
                 slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "...hash entry not found\n");
-                    continue;
+                continue;
             }
             if (hashentry->flags & IDENTITY)
                 continue;
@@ -518,9 +526,9 @@ int mm_diff(stats_t *statsp)
         }
     }
 
- afterchanges:
+afterchanges:
 
-/*
+    /*
  *      Nearly done.  Now we need to go through each entry in the hash table
  *      and for each directory check the "present" bit.  If this is set
  *      no action is needed here.  Otherwise we emit an add.
@@ -537,9 +545,11 @@ int mm_diff(stats_t *statsp)
                 pmask = 1 << (i % 32);
                 if (hashentry->present[pindex] & pmask)
                     continue;
-                if (mm_is_deleted(hashentry->first, NULL, 0)) continue;
+                if (mm_is_deleted(hashentry->first, NULL, 0))
+                    continue;
                 added++;
-                if (!emitchanges) continue;
+                if (!emitchanges)
+                    continue;
                 slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...add new\n");
                 addnew(edfout[i], "add", hashentry->first);
             }
@@ -548,7 +558,7 @@ int mm_diff(stats_t *statsp)
                 statsp->num_adds++;
             } else if (hashentry->flags & MODIFIED) {
                 statsp->num_modifies++;
-            } else  {
+            } else {
                 statsp->num_unchanged++;
             }
 
@@ -578,20 +588,22 @@ int mm_diff(stats_t *statsp)
     return IDDS_MM_OK;
 }
 
-static void usage(char *m)
+static void
+usage(char *m)
 {
-    fprintf(stderr,"usage: %s [-c] [-D] [-o out.ldif] in1.ldif in2.ldif ...\n\n", m);
-    fprintf(stderr,"-c\tWrite a change file (.delta) for each input file\n");
-    fprintf(stderr,"-D\tPrint debugging information\n");
-    fprintf(stderr,"-o\tWrite authoritative data to this file\n");
-    fprintf(stderr,"\n");
+    fprintf(stderr, "usage: %s [-c] [-D] [-o out.ldif] in1.ldif in2.ldif ...\n\n", m);
+    fprintf(stderr, "-c\tWrite a change file (.delta) for each input file\n");
+    fprintf(stderr, "-D\tPrint debugging information\n");
+    fprintf(stderr, "-o\tWrite authoritative data to this file\n");
+    fprintf(stderr, "\n");
     exit(1);
 }
 
-int mm_init(int argc, char * argv[])
+int
+mm_init(int argc, char *argv[])
 {
-    char	deltaname[255];
-    time_t	tl;
+    char deltaname[255];
+    time_t tl;
     int c;
     char *ofn = NULL;
     char *prog = argv[0];
@@ -615,7 +627,8 @@ int mm_init(int argc, char * argv[])
             slapd_ldap_debug = 65535;
             break;
         case 'o':
-            if(ofn) free (ofn);
+            if (ofn)
+                free(ofn);
             ofn = strdup(optarg);
             break;
         case 'h':
@@ -663,31 +676,31 @@ int mm_init(int argc, char * argv[])
     }
 
     hashmask = 0xfff;
-    hashtable = (entry_t **)calloc(0x1000, sizeof(entry_t*));
+    hashtable = (entry_t **)calloc(0x1000, sizeof(entry_t *));
     return 0;
 }
 
 /* this clears the attrib structure if there is one, and reads in the data
  * sorting lines 2 to n by name, and eliminating comments
  */
-static int 
-readrec(edfFILE * edf1, attrib1_t ** attrib)
+static int
+readrec(edfFILE *edf1, attrib1_t **attrib)
 {
-    Dec64_t *	b64;
-    char *  vptr;
-    char *  lptr;
-    char *	ptr;
-    int	len;
-    int	lookahead = 0;
-    int	toolong = FALSE;
-    int	rc;
+    Dec64_t *b64;
+    char *vptr;
+    char *lptr;
+    char *ptr;
+    int len;
+    int lookahead = 0;
+    int toolong = FALSE;
+    int rc;
     int cmp;
-    attrib1_t *	att = NULL;
-    attrib1_t **	prev;
-    attrib1_t *	freelist = *attrib;
-    attrib1_t *	newlist = NULL;
-    attrib1_t *	a;
-    int		ignore_rec = FALSE;
+    attrib1_t *att = NULL;
+    attrib1_t **prev;
+    attrib1_t *freelist = *attrib;
+    attrib1_t *newlist = NULL;
+    attrib1_t *a;
+    int ignore_rec = FALSE;
     int free_it = 0;
 
     *attrib = NULL;
@@ -702,19 +715,18 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 break; /* return */
             }
             line[0] = lookahead;
-            lptr = line+1;
+            lptr = line + 1;
             lookahead = 0;
-        }
-        else
+        } else
             lptr = line;
-        if (!fgets(lptr, sizeof(line)-1, edf1->fp)) {
+        if (!fgets(lptr, sizeof(line) - 1, edf1->fp)) {
             edf1->end = TRUE;
             if (!newlist) {
                 /* that's for the case where the file */
                 /* has a trailing blank line */
                 freefreelist(freelist);
-                if(free_it){
-                	freefreelist(att);
+                if (free_it) {
+                    freefreelist(att);
                 }
                 return IDDS_MM_EOF;
             }
@@ -728,19 +740,19 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             break; /* an empty line terminates a record */
         }
         if (line[0] == '#')
-            continue;           /* skip comment lines */
+            continue; /* skip comment lines */
 
         len = strlen(line);
-        for (lptr = line+len-1; len; len--, lptr--) {
+        for (lptr = line + len - 1; len; len--, lptr--) {
             if ((*lptr != '\n') && (*lptr != '\r'))
                 break;
             *lptr = 0;
         }
         vptr = strchr(line, ':');
         if (!vptr) {
-            slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n", 
-                             line);
-            continue;           /* invalid line, but we'll just skip it */
+            slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n",
+                          line);
+            continue; /* invalid line, but we'll just skip it */
         }
         *vptr = 0;
         if (!stricmp(line, "authoritative"))
@@ -753,22 +765,23 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             freelist = freelist->next;
             free_it = 0;
         }
-        att->namelen = vptr-line;
-		
+        att->namelen = vptr - line;
+
         if (att->namelen > 63) {
             att->namelen = 63;
-            *(line+64) = 0;
+            *(line + 64) = 0;
         }
 
-        memcpy(att->name, line, att->namelen+1);
+        memcpy(att->name, line, att->namelen + 1);
         vptr++;
         if (*vptr == ':') {
             vptr++;
-            while (*vptr == ' ') vptr++; /* skip optional spaces */
+            while (*vptr == ' ')
+                vptr++; /* skip optional spaces */
             b64 = initDec64((unsigned char *)att->value, 0x20000);
-            if (Dec64(b64, (unsigned char *) vptr)) {
+            if (Dec64(b64, (unsigned char *)vptr)) {
                 slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n", line);
-                continue;       /* invalid line, but we'll just skip it */
+                continue; /* invalid line, but we'll just skip it */
             }
             toolong = FALSE;
             while (TRUE) {
@@ -781,16 +794,15 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                     break;
                 }
                 len = strlen(line);
-                for (lptr = line+len-1; len; len--, lptr--) {
+                for (lptr = line + len - 1; len; len--, lptr--) {
                     if ((*lptr != '\n') && (*lptr != '\r'))
                         break;
                     *lptr = 0;
                 }
                 rc = Dec64(b64, (unsigned char *)line);
-                if (rc == -1)
-                {
+                if (rc == -1) {
                     slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n", line);
-                    continue;   /* invalid line, but we'll just skip it */
+                    continue; /* invalid line, but we'll just skip it */
                 }
 
                 if (rc) {
@@ -806,7 +818,8 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             if (!*vptr) {
                 att->valuelen = 0;
             }
-            while (*vptr == ' ') vptr++; /* skip optional spaces */
+            while (*vptr == ' ')
+                vptr++; /* skip optional spaces */
 
             att->valuelen = strlen(vptr);
             memcpy(att->value, vptr, att->valuelen);
@@ -820,7 +833,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                     break;
                 }
                 len = strlen(line);
-                for (lptr = line+len-1; len; len--, lptr--) {
+                for (lptr = line + len - 1; len; len--, lptr--) {
                     if ((*lptr != '\n') && (*lptr != '\r'))
                         break;
                     *lptr = 0;
@@ -831,11 +844,11 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             }
             *ptr = 0;
         }
-			
+
         if (newlist) {
             if (newlist->next) {
                 for (a = newlist->next, prev = &(newlist->next);
-                     a; prev=&(a->next), a = a->next) {
+                     a; prev = &(a->next), a = a->next) {
                     cmp = stricmp(a->name, att->name);
                     if (cmp > 0) {
                         att->next = *prev;
@@ -843,9 +856,9 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                         goto f1;
                     }
                     if (cmp == 0) {
-                        cmp = signedmemcmp((unsigned char *)a->value, 
-                                           a->valuelen, 
-                                           (unsigned char *)att->value, 
+                        cmp = signedmemcmp((unsigned char *)a->value,
+                                           a->valuelen,
+                                           (unsigned char *)att->value,
                                            att->valuelen);
                         if (cmp > 0) {
                             att->next = *prev;
@@ -856,7 +869,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 }
                 *prev = att;
                 att->next = NULL;
-            f1:			;
+            f1:;
             } else {
                 newlist->next = att;
                 att->next = NULL;
@@ -874,84 +887,82 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
 }
 
 static void
-freefreelist(attrib1_t * freelist)
+freefreelist(attrib1_t *freelist)
 {
-    attrib1_t *	next;
-    for (;freelist; freelist = next) {
+    attrib1_t *next;
+    for (; freelist; freelist = next) {
         next = freelist->next;
         free(freelist);
     }
 }
 
-static void 
-hashname(char _seed, attrib1_t * attrib, char * hashkey)
+static void
+hashname(char _seed, attrib1_t *attrib, char *hashkey)
 {
-    MM_VSTRING	upper;
-    PK11Context	*context;
-	unsigned int hashLen;
-	
-/* we want the name to be case insensitive, and if the name DN, we want 
+    MM_VSTRING upper;
+    PK11Context *context;
+    unsigned int hashLen;
+
+    /* we want the name to be case insensitive, and if the name DN, we want
  * the value to be case insensitive. */
-/* this creates a hash key based on the first line in attrib */
+    /* this creates a hash key based on the first line in attrib */
     makeupper(&upper, attrib->name, attrib->namelen);
     context = PK11_CreateDigestContext(SEC_OID_MD5);
-	if (context != NULL) {
-    	PK11_DigestBegin(context);
-    	PK11_DigestOp(context, (unsigned char *)&_seed, 1);
-    	PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
-    	PK11_DigestOp(context, (unsigned char *)"=", 1);
-    	if (!memcmp(upper.body, "DN", 2)) {
-        	makeupper(&upper, attrib->value, attrib->valuelen);
-        	PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
-    	} else
-        	PK11_DigestOp(context, (unsigned char *)attrib->value, attrib->valuelen);
-    	PK11_DigestFinal(context, (unsigned char *)hashkey, &hashLen, 16);
-    	PK11_DestroyContext(context, PR_TRUE);
-	}
-	else { /* Probably desesperate but at least deterministic... */
-		memset(hashkey, 0, 16);
-	}
+    if (context != NULL) {
+        PK11_DigestBegin(context);
+        PK11_DigestOp(context, (unsigned char *)&_seed, 1);
+        PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
+        PK11_DigestOp(context, (unsigned char *)"=", 1);
+        if (!memcmp(upper.body, "DN", 2)) {
+            makeupper(&upper, attrib->value, attrib->valuelen);
+            PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
+        } else
+            PK11_DigestOp(context, (unsigned char *)attrib->value, attrib->valuelen);
+        PK11_DigestFinal(context, (unsigned char *)hashkey, &hashLen, 16);
+        PK11_DestroyContext(context, PR_TRUE);
+    } else { /* Probably desesperate but at least deterministic... */
+        memset(hashkey, 0, 16);
+    }
 }
 
 /* this creates a hash key base on all but the first line in attrib */
-static void 
-hashvalue(char _seed, attrib1_t * attrib, char * fingerprint)
+static void
+hashvalue(char _seed, attrib1_t *attrib, char *fingerprint)
 {
-    MM_VSTRING	upper;
-    attrib1_t *	a;
-    PK11Context	*context;
-	unsigned int fgLen;
+    MM_VSTRING upper;
+    attrib1_t *a;
+    PK11Context *context;
+    unsigned int fgLen;
 
     context = PK11_CreateDigestContext(SEC_OID_MD5);
-	if (context != NULL) {
-    	PK11_DigestBegin(context);
-    	PK11_DigestOp(context, (unsigned char *)&_seed, 1);
-    	for (a = attrib->next; a; a = a->next) {
-        	if (!stricmp(a->name, "authoritative"))
-            	continue;
-	/* we want the name to be case insensitive, and if the name DN, we want 
-	 * the value to be case insensitive. */
-        	makeupper(&upper, a->name, a->namelen);
-        	PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
-        	PK11_DigestOp(context, (unsigned char *)"=", 1);
-        	if (!memcmp(upper.body, "DN", 2)) {
-            	makeupper(&upper, a->value, a->valuelen);
-            	PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
-        	} else
-            	PK11_DigestOp(context, (unsigned char *)a->value, a->valuelen);
-        	PK11_DigestOp(context, (unsigned char *)";", 1);
-    	}
-    	PK11_DigestFinal(context, (unsigned char *)fingerprint, &fgLen, 16);
-    	PK11_DestroyContext(context, PR_TRUE);
-	}
-	else { /* Probably desesperate but at least deterministic... */
-		memset(fingerprint, 0, 16);
-	}
+    if (context != NULL) {
+        PK11_DigestBegin(context);
+        PK11_DigestOp(context, (unsigned char *)&_seed, 1);
+        for (a = attrib->next; a; a = a->next) {
+            if (!stricmp(a->name, "authoritative"))
+                continue;
+            /* we want the name to be case insensitive, and if the name DN, we want
+     * the value to be case insensitive. */
+            makeupper(&upper, a->name, a->namelen);
+            PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
+            PK11_DigestOp(context, (unsigned char *)"=", 1);
+            if (!memcmp(upper.body, "DN", 2)) {
+                makeupper(&upper, a->value, a->valuelen);
+                PK11_DigestOp(context, (unsigned char *)upper.body, upper.length);
+            } else
+                PK11_DigestOp(context, (unsigned char *)a->value, a->valuelen);
+            PK11_DigestOp(context, (unsigned char *)";", 1);
+        }
+        PK11_DigestFinal(context, (unsigned char *)fingerprint, &fgLen, 16);
+        PK11_DestroyContext(context, PR_TRUE);
+    } else { /* Probably desesperate but at least deterministic... */
+        memset(fingerprint, 0, 16);
+    }
 }
 
 /* this writes a record deletion record based on the first line in attrib */
-static int 
-adddelete(FILE * edf3, attrib1_t * attrib)
+static int
+adddelete(FILE *edf3, attrib1_t *attrib)
 {
     if (!putvalue(edf3, NULL, attrib->name, attrib->namelen,
                   attrib->value, attrib->valuelen)) {
@@ -963,11 +974,11 @@ adddelete(FILE * edf3, attrib1_t * attrib)
 }
 
 /* this writes a record addition record based on attrib */
-static int 
-addnew(FILE * edf3, const char *changetype, record_t * first)
+static int
+addnew(FILE *edf3, const char *changetype, record_t *first)
 {
-    attrib_t *	att;
-    int	attnum;
+    attrib_t *att;
+    int attnum;
 
     for (attnum = 1, att = &first->data;
          attnum <= first->nattrs;
@@ -993,14 +1004,14 @@ addnew(FILE * edf3, const char *changetype, record_t * first)
 /* this writes a record modification record based on the information in
  * first and attrib
  */
-static int 
-addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
+static int
+addmodified(FILE *edf3, attrib1_t *attrib, record_t *first)
 {
     attrib_t *b;
     attrib1_t *a;
-    int	num_b;
+    int num_b;
     int tot_b;
-    int	cmp;
+    int cmp;
     char *attrname;
 
     if (!putvalue(edf3, NULL, attrib->name, attrib->namelen,
@@ -1019,16 +1030,18 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
 
     /* advance past dn attrs */
     a = attrib->next;
-    b = attribnext(b); num_b++;
+    b = attribnext(b);
+    num_b++;
 
-    /* 
+    /*
      * Lock-step through the two attr lists while there are still
      * attrs remaining in either.
      */
     while (a != NULL || num_b <= tot_b) {
         /* ignore operational attrs */
-        if ( num_b <= tot_b && slapi_attr_is_last_mod(attribname(b)) ){
-            b = attribnext(b); num_b++;
+        if (num_b <= tot_b && slapi_attr_is_last_mod(attribname(b))) {
+            b = attribnext(b);
+            num_b++;
             continue;
         }
         if (a != NULL && slapi_attr_is_last_mod(a->name)) {
@@ -1061,7 +1074,8 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
                     log_write_error();
                     return IDDS_MM_FIO;
                 }
-                b = attribnext(b); num_b++;
+                b = attribnext(b);
+                num_b++;
             } while (num_b <= tot_b && stricmp(attribname(b), attrname) == 0);
             fprintf(edf3, "-\n");
             continue;
@@ -1086,9 +1100,9 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
                 } else if (a == NULL || stricmp(a->name, attrname) != 0) {
                     cmp = 1;
                 } else {
-                    cmp = signedmemcmp((unsigned char *)a->value, 
+                    cmp = signedmemcmp((unsigned char *)a->value,
                                        a->valuelen,
-                                       (unsigned char *)attribvalue(b), 
+                                       (unsigned char *)attribvalue(b),
                                        b->valuelen);
                 }
                 if (cmp < 0) {
@@ -1098,18 +1112,20 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
                 } else if (cmp > 0) {
                     nmods++;
                     v_add = b;
-                    b = attribnext(b); num_b++;
+                    b = attribnext(b);
+                    num_b++;
                 } else {
                     a = a->next;
-                    b = attribnext(b); num_b++;
+                    b = attribnext(b);
+                    num_b++;
                 }
-            } while ((a != NULL && 
+            } while ((a != NULL &&
                       stricmp(a->name, attrname) == 0) ||
-                     (num_b <= tot_b && 
+                     (num_b <= tot_b &&
                       stricmp(attribname(b), attrname) == 0));
             if (nmods == 1) {
                 if (v_add != NULL) {
-                    if (!putvalue(edf3, "add", 
+                    if (!putvalue(edf3, "add",
                                   attribname(v_add), v_add->namelen,
                                   attribvalue(v_add), v_add->valuelen)) {
                         log_write_error();
@@ -1126,13 +1142,14 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
             } else if (nmods > 1) {
                 fprintf(edf3, "replace: %s\n", attrname);
                 do {
-                    if (!putvalue(edf3, NULL, 
+                    if (!putvalue(edf3, NULL,
                                   attribname(begin_b), begin_b->namelen,
                                   attribvalue(begin_b), begin_b->valuelen)) {
                         log_write_error();
                         return IDDS_MM_FIO;
                     }
-                    begin_b = attribnext(begin_b); begin_num_b++;
+                    begin_b = attribnext(begin_b);
+                    begin_num_b++;
                 } while (begin_num_b <= tot_b && begin_b != b);
                 fprintf(edf3, "-\n");
             }
@@ -1146,36 +1163,37 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
     return IDDS_MM_OK;
 }
 
-static record_t * newrecord(attrib1_t * big)
+static record_t *
+newrecord(attrib1_t *big)
 {
-    record_t * smll;
-    attrib_t * b;
-    attrib1_t *	a;
-    int	len = 0;
-    int	count = 0;
+    record_t *smll;
+    attrib_t *b;
+    attrib1_t *a;
+    int len = 0;
+    int count = 0;
 
-    for (a=big; a; a = a->next) {
+    for (a = big; a; a = a->next) {
         count++;
-        len += (a->namelen + a->valuelen + sizeof(attrib_t) + attribalign) & 
-            ~ (attribalign-1);
+        len += (a->namelen + a->valuelen + sizeof(attrib_t) + attribalign) &
+               ~(attribalign - 1);
     }
     len += sizeof(short);
     smll = (record_t *)malloc(len);
-	
-    for (a=big, b=&smll->data; a; a = a->next, b = attribnext(b)) {
+
+    for (a = big, b = &smll->data; a; a = a->next, b = attribnext(b)) {
         b->valuelen = a->valuelen;
         b->namelen = a->namelen;
-        memcpy(attribname(b), a->name, a->namelen+1);
-        memcpy(attribvalue(b), a->value, a->valuelen+1);
+        memcpy(attribname(b), a->name, a->namelen + 1);
+        memcpy(attribvalue(b), a->value, a->valuelen + 1);
     }
     smll->nattrs = count;
     return smll;
 }
 
 static int
-simpletextbody(unsigned char * body, int length)
+simpletextbody(unsigned char *body, int length)
 {
-    int	i;
+    int i;
     for (i = length; --i >= 0; body++) {
         if ((*body < ' ') || (*body >= 0x7f))
             return FALSE;
@@ -1184,7 +1202,7 @@ simpletextbody(unsigned char * body, int length)
 }
 
 static int
-simpletext(unsigned char * body, int length)
+simpletext(unsigned char *body, int length)
 {
     if ((*body == ':') || (*body == '<') || (*body == ' '))
         return FALSE;
@@ -1194,21 +1212,20 @@ simpletext(unsigned char * body, int length)
 /* output a string value */
 static int
 putvalue(
-    FILE * fh, 
-    const char * tag, 
-    char * name, 
-    int    namelen, 
-    char * value, 
-    int    valuelen
-)
+    FILE *fh,
+    const char *tag,
+    char *name,
+    int namelen,
+    char *value,
+    int valuelen)
 {
-    Enc64_t *	b64 = NULL;
-    char *	lptr;
-    char	_line[255];
-    int	return_code;
-    int	len;
-    char *	sptr;
-    int	rc;
+    Enc64_t *b64 = NULL;
+    char *lptr;
+    char _line[255];
+    int return_code;
+    int len;
+    char *sptr;
+    int rc;
 
     lptr = _line;
     if (tag != NULL) {
@@ -1225,21 +1242,21 @@ putvalue(
 
     if (!valuelen) {
         *lptr = '\n';
-        *(lptr+1) = 0;
+        *(lptr + 1) = 0;
         return_code = fputs(_line, fh);
         goto return_bit;
     }
 
     if (simpletext((unsigned char *)value, valuelen)) {
         *lptr = ' ';
-        if (valuelen + (lptr+1 - _line) < 80) {
-            strcpy(lptr+1, value);
-            strcpy(lptr+1 + valuelen, "\n");
+        if (valuelen + (lptr + 1 - _line) < 80) {
+            strcpy(lptr + 1, value);
+            strcpy(lptr + 1 + valuelen, "\n");
             return_code = fputs(_line, fh);
             goto return_bit;
         }
-        len = 80 - (lptr+1 - _line);
-        memcpy(lptr+1, value, len);
+        len = 80 - (lptr + 1 - _line);
+        memcpy(lptr + 1, value, len);
         _line[80] = '\n';
         _line[81] = 0;
         return_code = fputs(_line, fh);
@@ -1249,7 +1266,7 @@ putvalue(
         len = valuelen - len;
         _line[0] = ' ';
         while (len > 79) {
-            memcpy(_line+1, sptr, 79);
+            memcpy(_line + 1, sptr, 79);
             return_code = fputs(_line, fh);
             if (return_code < 0)
                 goto return_bit;
@@ -1257,9 +1274,9 @@ putvalue(
             len -= 79;
         }
         if (len) {
-            memcpy(_line+1, sptr, len);
-            _line[len+1] = '\n';
-            _line[len+2] = 0;
+            memcpy(_line + 1, sptr, len);
+            _line[len + 1] = '\n';
+            _line[len + 2] = 0;
             return_code = fputs(_line, fh);
         }
         goto return_bit;
@@ -1267,27 +1284,28 @@ putvalue(
 
     b64 = initEnc64((unsigned char *)value, valuelen);
     *lptr = ':';
-    *(lptr+1) = ' ';
-    Enc64(b64, (unsigned char *)(lptr+2), 80-(lptr-_line), &len);
-    *(lptr+len+2) = '\n';
-    *(lptr+len+3) = 0;
+    *(lptr + 1) = ' ';
+    Enc64(b64, (unsigned char *)(lptr + 2), 80 - (lptr - _line), &len);
+    *(lptr + len + 2) = '\n';
+    *(lptr + len + 3) = 0;
     return_code = fputs(_line, fh);
     if (return_code < 0)
         goto return_bit;
     while (TRUE) {
         _line[0] = ' ';
-        rc = Enc64(b64, (unsigned char *)_line+1, 79, &len);
+        rc = Enc64(b64, (unsigned char *)_line + 1, 79, &len);
         if (rc)
             break;
-        _line[len+1] = '\n';
-        _line[len+2] = 0;
+        _line[len + 1] = '\n';
+        _line[len + 2] = 0;
         return_code = fputs(_line, fh);
         if (return_code < 0)
             goto return_bit;
     }
 
- return_bit:
-    if (b64) freeEnc64(b64);
+return_bit:
+    if (b64)
+        freeEnc64(b64);
     if (tag != NULL) {
         fputs("-\n", fh);
     }
@@ -1297,16 +1315,16 @@ putvalue(
 }
 
 static int
-signedmemcmp(unsigned char * a, int lena, unsigned char * b, int lenb)
+signedmemcmp(unsigned char *a, int lena, unsigned char *b, int lenb)
 {
-    int	c;
+    int c;
 
     for (;; a++, b++) {
         if (!lenb)
             return lena;
         if (!lena)
             return -1;
-        if ((c=(int)*a - (int)*b))
+        if ((c = (int)*a - (int)*b))
             return c;
         lena--;
         lenb--;
@@ -1314,28 +1332,27 @@ signedmemcmp(unsigned char * a, int lena, unsigned char * b, int lenb)
 }
 
 static void
-makeupper(MM_VSTRING * v, char * body, int len)
+makeupper(MM_VSTRING *v, char *body, int len)
 {
-    char *	vp;
+    char *vp;
     v->length = len;
     for (vp = v->body; len > 0; len--, vp++, body++)
         *vp = toupper(*body);
-} 
+}
 
 int
 mm_getvalue(
-    record_t  *first, 
-    attrib1_t *a, 
-    int       directory, 
-    char      *name, 
-    char      **value, 
-    int       *length
-)
+    record_t *first,
+    attrib1_t *a,
+    int directory,
+    char *name,
+    char **value,
+    int *length)
 {
-    int	attnum;
-    attrib_t *	att;
+    int attnum;
+    attrib_t *att;
     if (directory) {
-        for ( ; a; a = a->next) {
+        for (; a; a = a->next) {
             if (!stricmp(a->name, name)) {
                 if (!*value) {
                     *value = a->value;
@@ -1367,17 +1384,17 @@ mm_getvalue(
     return FALSE;
 }
 
-int mm_is_deleted(
-    record_t  *first, 
-    attrib1_t *attrib, 
-    int       directory
-)
+int
+mm_is_deleted(
+    record_t *first,
+    attrib1_t *attrib,
+    int directory)
 {
-    char *      value = NULL;
-    int         len;
+    char *value = NULL;
+    int len;
 
-    while (mm_getvalue(first, attrib, directory, 
-                       "objectclass", 
+    while (mm_getvalue(first, attrib, directory,
+                       "objectclass",
                        &value, &len)) {
         if (stricmp(value, "nsTombstone") == 0) {
             return 1;
@@ -1385,7 +1402,7 @@ int mm_is_deleted(
     }
 
     if (mm_getvalue(first, attrib, directory, "isdeleted", &value, &len)) {
-        if ((len == 1 && *value == '1') || 
+        if ((len == 1 && *value == '1') ||
             (len == 4 && stricmp(value, "true") == 0)) {
             return 1;
         }
@@ -1398,15 +1415,17 @@ int mm_is_deleted(
     return 0;
 }
 
-static void commententry(FILE *fp, attrib1_t *attrib)
+static void
+commententry(FILE *fp, attrib1_t *attrib)
 {
     attrib1_t *a;
 
-    if (attrib == NULL) return;
+    if (attrib == NULL)
+        return;
 
     fprintf(fp, "#  %s: %s\n", attrib->name, attrib->value);
     for (a = attrib->next; a; a = a->next) {
-        if (simpletext((unsigned char *)a->value, 
+        if (simpletext((unsigned char *)a->value,
                        a->valuelen)) {
             fprintf(fp, "#  %*.*s: %*.*s\n",
                     a->namelen, a->namelen,
@@ -1418,10 +1437,11 @@ static void commententry(FILE *fp, attrib1_t *attrib)
     fprintf(fp, "\n");
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
-    stats_t	stats;
-    int	rc;
+    stats_t stats;
+    int rc;
     float difftime;
 
     memset(&stats, 0, sizeof(stats));
@@ -1429,8 +1449,7 @@ int main(int argc, char *argv[])
     if ((rc = mm_init(argc, argv)))
         return rc;
 
-    if ((mm_diff(&stats) == IDDS_MM_OK)
-	&&  (license_limit > 0)) {
+    if ((mm_diff(&stats) == IDDS_MM_OK) && (license_limit > 0)) {
         if (license_count > license_limit * 98.0 / 100)
             fprintf(stderr, "That was over 98%% of your license limit.\n");
         else if (license_count > license_limit * 95.0 / 100)
@@ -1452,7 +1471,7 @@ int main(int argc, char *argv[])
         printf("differencing took <= 1 second\n");
     else
         printf("differencing took %u seconds, %u records per second\n",
-               (unsigned int)difftime, 
+               (unsigned int)difftime,
                (unsigned int)(stats.num_identities / difftime));
     exit(0);
 }
@@ -1461,19 +1480,22 @@ int main(int argc, char *argv[])
  * Conflict resolution.
  */
 
-void mm_init_winner()
+void
+mm_init_winner()
 {
 }
 
-void mm_fin_winner()
+void
+mm_fin_winner()
 {
 }
 
-int mm_get_winner(record_t * first, attrib1_t * a)
+int
+mm_get_winner(record_t *first, attrib1_t *a)
 {
-    int	len;
-    char *	modified0 = NULL;
-    char *	modified1 = NULL;
+    int len;
+    char *modified0 = NULL;
+    char *modified1 = NULL;
 
     mm_getvalue(first, a, 0, "modifytimestamp", &modified0, &len);
     mm_getvalue(first, a, 1, "modifytimestamp", &modified1, &len);
@@ -1505,228 +1527,212 @@ int mm_get_winner(record_t * first, attrib1_t * a)
  * Base64 Implementation.
  */
 
-                           /* 0123456789ABCDEF */
+/* 0123456789ABCDEF */
 static unsigned char b64[] = "ABCDEFGHIJKLMNOP"
                              "QRSTUVWXYZabcdef"
                              "ghijklmnopqrstuv"
                              "wxyz0123456789+/";
 
 static unsigned char ub64[] = {
-/*	0	1	2	3	4	5	6	7
- *	8	9	A	B	C	C	E	F
+    /*    0    1    2    3    4    5    6    7
+ *    8    9    A    B    C    C    E    F
  */
-/*0-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*0-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*1-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*1-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*2-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*2-*/	0xFF,	0xFF,	0xFF,	62,	0xFF,	0xFF,	0xFF,	63,
-/*3-*/	52,	53,	54,	55,	56,	57,	58,	59,
-/*3-*/	60,	61,	0xFF,	0xFF,	0xFF,	64,	0xFF,	0xFF,
-/*4-*/	0xFF,	0,	1,	2,	3,	4,	5,	6,
-/*4-*/	7,	8,	9,	10,	11,	12,	13,	14,
-/*5-*/	15,	16,	17,	18,	19,	20,	21,	22,
-/*5-*/	23,	24,	25,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*6-*/	0xFF,	26,	27,	28,	29,	30,	31,	32,
-/*6-*/	33,	34,	35,	36,	37,	38,	39,	40,
-/*7-*/	41,	42,	43,	44,	45,	46,	47,	48,
-/*7-*/	49,	50,	51,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*8-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*8-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*9-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*9-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*A-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*A-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*B-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*B-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*C-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*C-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*D-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*D-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*E-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*E-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*F-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-/*F-*/	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF};
+    /*0-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*0-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*1-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*1-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*2-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*2-*/ 0xFF, 0xFF, 0xFF, 62, 0xFF, 0xFF, 0xFF, 63,
+    /*3-*/ 52, 53, 54, 55, 56, 57, 58, 59,
+    /*3-*/ 60, 61, 0xFF, 0xFF, 0xFF, 64, 0xFF, 0xFF,
+    /*4-*/ 0xFF, 0, 1, 2, 3, 4, 5, 6,
+    /*4-*/ 7, 8, 9, 10, 11, 12, 13, 14,
+    /*5-*/ 15, 16, 17, 18, 19, 20, 21, 22,
+    /*5-*/ 23, 24, 25, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*6-*/ 0xFF, 26, 27, 28, 29, 30, 31, 32,
+    /*6-*/ 33, 34, 35, 36, 37, 38, 39, 40,
+    /*7-*/ 41, 42, 43, 44, 45, 46, 47, 48,
+    /*7-*/ 49, 50, 51, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*8-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*8-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*9-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*9-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*A-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*A-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*B-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*B-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*C-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*C-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*D-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*D-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*E-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*E-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*F-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    /*F-*/ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
-static Enc64_t * freeEnc64List = NULL;
-static Dec64_t * freeDec64List = NULL;
+static Enc64_t *freeEnc64List = NULL;
+static Dec64_t *freeDec64List = NULL;
 
 Enc64_t *
-initEnc64(unsigned char * source, int slen)
+initEnc64(unsigned char *source, int slen)
 {
-	Enc64_t *	this = freeEnc64List;
-	if (this)
-		freeEnc64List = freeEnc64List->next;
-	else
-		this = (Enc64_t *)malloc(sizeof(Enc64_t));
-	this->source = source;
-	this->slen = slen;
-	return this;
-	}
+    Enc64_t *this = freeEnc64List;
+    if (this)
+        freeEnc64List = freeEnc64List->next;
+    else
+        this = (Enc64_t *)malloc(sizeof(Enc64_t));
+    this->source = source;
+    this->slen = slen;
+    return this;
+}
 
 int
-Enc64(Enc64_t * this, unsigned char *dest, int maxlen, int *len)
+Enc64(Enc64_t *this, unsigned char *dest, int maxlen, int *len)
 {
-	/* returns 0 normally
-	 *         +1 on end of string
-	 *         -1 on badi
-	 */
-	int	l;
-	unsigned char *	s;
-	unsigned char *	d;
-	int	reml;
-	int	i;
+    /* returns 0 normally
+     *         +1 on end of string
+     *         -1 on badi
+     */
+    int l;
+    unsigned char *s;
+    unsigned char *d;
+    int reml;
+    int i;
 
-	if (!this->slen)
-		return 1;
-	l = this->slen / 3;
-	s = this->source;
-	if (l > maxlen / 4)
-	{
-		l = maxlen / 4;
-		this->slen -= l*3;
-		reml = 0;
-		this->source += l*3;
-		}
-	else
-	{
-		reml = this->slen % 3;
-		this->slen = 0;
-		}
-	for (d = dest, i = 0; i < l; i++)
-	{
-		*d++ = b64[(*s >> 2) & 0x3f];
-		*d++ = b64[((*s << 4) & 0x30) + ((*(s+1) >> 4) & 0x0f)];
-		s++;
-		*d++ = b64[((*s << 2) & 0x3c) + ((*(s+1) >> 6) & 0x03)];
-		s++;
-		*d++ = b64[*s & 0x3f];
-		s++;
-		}
-	if (reml--)
-		*d++ = b64[(*s >> 2) & 0x3f];
-	else
-	{
-		*d = 0;
-		*len = l*4;
-		return 0;
-		}
-	if (reml)
-	{
-		*d++ = b64[((*s << 4) & 0x30) + ((*(s+1) >> 4) & 0x0f)];
-		s++;
-		*d++ = b64[((*s << 2) & 0x3c)];
-		}
-	else
-	{
-		*d++ = b64[((*s << 4) & 0x30) + ((*(s+1) >> 4) & 0x0f)];
-		*d++ = '=';
-		}
-	*d++ = '=';
-	*d = 0;
-	*len = (l+1)*4;
-	return 0;
-	}
+    if (!this->slen)
+        return 1;
+    l = this->slen / 3;
+    s = this->source;
+    if (l > maxlen / 4) {
+        l = maxlen / 4;
+        this->slen -= l * 3;
+        reml = 0;
+        this->source += l * 3;
+    } else {
+        reml = this->slen % 3;
+        this->slen = 0;
+    }
+    for (d = dest, i = 0; i < l; i++) {
+        *d++ = b64[(*s >> 2) & 0x3f];
+        *d++ = b64[((*s << 4) & 0x30) + ((*(s + 1) >> 4) & 0x0f)];
+        s++;
+        *d++ = b64[((*s << 2) & 0x3c) + ((*(s + 1) >> 6) & 0x03)];
+        s++;
+        *d++ = b64[*s & 0x3f];
+        s++;
+    }
+    if (reml--)
+        *d++ = b64[(*s >> 2) & 0x3f];
+    else {
+        *d = 0;
+        *len = l * 4;
+        return 0;
+    }
+    if (reml) {
+        *d++ = b64[((*s << 4) & 0x30) + ((*(s + 1) >> 4) & 0x0f)];
+        s++;
+        *d++ = b64[((*s << 2) & 0x3c)];
+    } else {
+        *d++ = b64[((*s << 4) & 0x30) + ((*(s + 1) >> 4) & 0x0f)];
+        *d++ = '=';
+    }
+    *d++ = '=';
+    *d = 0;
+    *len = (l + 1) * 4;
+    return 0;
+}
 
 void
 freeEnc64(Enc64_t *this)
 {
-	this->next = freeEnc64List;
-	freeEnc64List = this;
-	}
+    this->next = freeEnc64List;
+    freeEnc64List = this;
+}
 
 Dec64_t *
-initDec64(unsigned char * dest, int maxlen)
+initDec64(unsigned char *dest, int maxlen)
 {
-	Dec64_t *	this = freeDec64List;
-	if (this)
-		freeDec64List = freeDec64List->next;
-	else
-		this = (Dec64_t *)malloc(sizeof(Dec64_t));
-	this->dest = dest;
-	this->maxlen = maxlen;
-	this->curlen = 0;
-	this->nextra = 0;
-	return this;
-	}
+    Dec64_t *this = freeDec64List;
+    if (this)
+        freeDec64List = freeDec64List->next;
+    else
+        this = (Dec64_t *)malloc(sizeof(Dec64_t));
+    this->dest = dest;
+    this->maxlen = maxlen;
+    this->curlen = 0;
+    this->nextra = 0;
+    return this;
+}
 
 int
 freeDec64(Dec64_t *this)
 {
-	this->next = freeDec64List;
-	freeDec64List = this;
-	return this->curlen;
-	}
+    this->next = freeDec64List;
+    freeDec64List = this;
+    return this->curlen;
+}
 
 int
-Dec64(Dec64_t * this, unsigned char *source)
+Dec64(Dec64_t *this, unsigned char *source)
 {
-	/* returns 0 normally
-	 *         -1 on badi
-	 *	   1  on too long
-	 */
-	unsigned char *	s;
-	unsigned char *	d;
-	unsigned char * e;
-	unsigned char	s1, s2, s3, s4;
-	int	i;
-	int	slen;
-	int	len;
-	int	nextra;
-	int	newnextra;
-	unsigned char	newextra[3];
+    /* returns 0 normally
+     *         -1 on badi
+     *       1  on too long
+     */
+    unsigned char *s;
+    unsigned char *d;
+    unsigned char *e;
+    unsigned char s1, s2, s3, s4;
+    int i;
+    int slen;
+    int len;
+    int nextra;
+    int newnextra;
+    unsigned char newextra[3];
 
-	nextra = this->nextra;
-	slen = strlen((char *)source);
-	len = (slen + nextra) / 4;
-	newnextra = (slen + nextra) - len * 4;
-	for (i = 0; i < newnextra; i++)
-	{
-		newextra[i] = source[slen-newnextra+i];
-		}
-	
-	if (len * 3 > this->maxlen - this->curlen)
-		return 1;
-	for (d = this->dest + this->curlen, s = source, e = this->extra, i = 0;
-			 i < len; i++)
-	{
-		if (nextra)
-		{
-			nextra--;
-			s1 = ub64[*e++];
-			}
-		else
-			s1 = ub64[*s++];
-		if (nextra)
-		{
-			nextra--;
-			s2 = ub64[*e++];
-			}
-		else
-			s2 = ub64[*s++];
-		if (nextra)
-		{
-			nextra--;
-			s3 = ub64[*e++];
-			}
-		else
-			s3 = ub64[*s++];
-		s4 = ub64[*s++];
-		if ((s1 | s2 | s3 | s4) & 0x80)
-			return -1;
-		*d++ = (s1 << 2) + (s2 >> 4);
-		this->curlen++;
-		if (s3 == 64)
-			break;
-		*d++ = (s2 << 4) + (s3 >> 2);
-		this->curlen++;
-		if (s4 == 64)
-			break;
-		*d++ = (s3 << 6) + s4;
-		this->curlen++;
-		}
-	this->nextra = newnextra;
-	memcpy(this->extra, newextra, 3);
-	return 0;
-	}
+    nextra = this->nextra;
+    slen = strlen((char *)source);
+    len = (slen + nextra) / 4;
+    newnextra = (slen + nextra) - len * 4;
+    for (i = 0; i < newnextra; i++) {
+        newextra[i] = source[slen - newnextra + i];
+    }
+
+    if (len * 3 > this->maxlen - this->curlen)
+        return 1;
+    for (d = this->dest + this->curlen, s = source, e = this->extra, i = 0;
+         i < len; i++) {
+        if (nextra) {
+            nextra--;
+            s1 = ub64[*e++];
+        } else
+            s1 = ub64[*s++];
+        if (nextra) {
+            nextra--;
+            s2 = ub64[*e++];
+        } else
+            s2 = ub64[*s++];
+        if (nextra) {
+            nextra--;
+            s3 = ub64[*e++];
+        } else
+            s3 = ub64[*s++];
+        s4 = ub64[*s++];
+        if ((s1 | s2 | s3 | s4) & 0x80)
+            return -1;
+        *d++ = (s1 << 2) + (s2 >> 4);
+        this->curlen++;
+        if (s3 == 64)
+            break;
+        *d++ = (s2 << 4) + (s3 >> 2);
+        this->curlen++;
+        if (s4 == 64)
+            break;
+        *d++ = (s3 << 6) + s4;
+        this->curlen++;
+    }
+    this->nextra = newnextra;
+    memcpy(this->extra, newextra, 3);
+    return 0;
+}

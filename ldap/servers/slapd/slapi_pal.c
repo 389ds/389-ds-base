@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 /*
@@ -31,12 +31,13 @@
 #include <sys/procfs.h>
 #endif
 
-#if defined ( hpux )
+#if defined(hpux)
 #include <sys/pstat.h>
 #endif
 
 static int_fast32_t
-_spal_rlimit_get(int resource, uint64_t *soft_limit, uint64_t *hard_limit) {
+_spal_rlimit_get(int resource, uint64_t *soft_limit, uint64_t *hard_limit)
+{
     struct rlimit rl = {0};
 
     if (getrlimit(resource, &rl) != 0) {
@@ -58,7 +59,8 @@ _spal_rlimit_get(int resource, uint64_t *soft_limit, uint64_t *hard_limit) {
 
 #ifdef LINUX
 static int_fast32_t
-_spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest) {
+_spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest)
+{
     FILE *f;
     char s[40] = {0};
     size_t prefix_len = 0;
@@ -71,14 +73,14 @@ _spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest) {
     assert((prefix_len + 20) < 39);
 
     f = fopen(name, "r");
-    if (!f) {    /* fopen failed */
+    if (!f) { /* fopen failed */
         int errsrv = errno;
-        slapi_log_err(SLAPI_LOG_ERR,"_spal_get_uint64_t_file", "Unable to open file \"%s\". errno=%d\n", name, errsrv);
+        slapi_log_err(SLAPI_LOG_ERR, "_spal_get_uint64_t_file", "Unable to open file \"%s\". errno=%d\n", name, errsrv);
         return 1;
     }
 
     int_fast32_t retval = 0;
-    while (! feof(f)) {
+    while (!feof(f)) {
         if (!fgets(s, 39, f)) {
             retval = 1;
             break; /* error or eof */
@@ -88,10 +90,10 @@ _spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest) {
             break;
         }
         if (prefix_len > 0 && strncmp(s, prefix, prefix_len) == 0) {
-            sscanf(s + prefix_len, "%"SCNu64, dest);
+            sscanf(s + prefix_len, "%" SCNu64, dest);
             break;
         } else if (prefix_len == 0) {
-            sscanf(s, "%"SCNu64, dest);
+            sscanf(s, "%" SCNu64, dest);
             break;
         }
     }
@@ -100,9 +102,9 @@ _spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest) {
 }
 
 
-
 slapi_pal_meminfo *
-spal_meminfo_get() {
+spal_meminfo_get()
+{
     slapi_pal_meminfo *mi = (slapi_pal_meminfo *)slapi_ch_calloc(1, sizeof(slapi_pal_meminfo));
 
     mi->pagesize_bytes = getpagesize();
@@ -201,10 +203,8 @@ spal_meminfo_get() {
     /* System Total memory */
     /*                       If we have a memtotal, OR if no memtotal but rlimit */
     if (rl_mem_hard != 0 &&
-            ((memtotal != 0 && rl_mem_hard < memtotal) || memtotal == 0) &&
-            ((cg_mem_hard != 0 && rl_mem_hard < cg_mem_hard) || cg_mem_hard == 0)
-        )
-    {
+        ((memtotal != 0 && rl_mem_hard < memtotal) || memtotal == 0) &&
+        ((cg_mem_hard != 0 && rl_mem_hard < cg_mem_hard) || cg_mem_hard == 0)) {
         slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_total_bytes - using rlimit\n");
         mi->system_total_bytes = rl_mem_hard;
         mi->system_total_pages = rl_mem_hard / mi->pagesize_bytes;
@@ -225,10 +225,8 @@ spal_meminfo_get() {
     /* System Available memory */
 
     if (rl_mem_soft_avail != 0 &&
-            ((memavail != 0 && (rl_mem_soft_avail) < memavail) || memavail == 0) &&
-            ((cg_mem_soft_avail != 0 && rl_mem_soft_avail < cg_mem_soft_avail) || cg_mem_soft_avail == 0)
-        )
-    {
+        ((memavail != 0 && (rl_mem_soft_avail) < memavail) || memavail == 0) &&
+        ((cg_mem_soft_avail != 0 && rl_mem_soft_avail < cg_mem_soft_avail) || cg_mem_soft_avail == 0)) {
         slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "system_available_bytes - using rlimit\n");
         mi->system_available_bytes = rl_mem_soft_avail;
         mi->system_available_pages = rl_mem_soft_avail / mi->pagesize_bytes;
@@ -246,8 +244,8 @@ spal_meminfo_get() {
         return NULL;
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "{pagesize_bytes = %"PRIu64", system_total_pages = %"PRIu64", system_total_bytes = %"PRIu64", process_consumed_pages = %"PRIu64", process_consumed_bytes = %"PRIu64", system_available_pages = %"PRIu64", system_available_bytes = %"PRIu64"},\n",
-        mi->pagesize_bytes, mi->system_total_pages, mi->system_total_bytes, mi->process_consumed_pages, mi->process_consumed_bytes, mi->system_available_pages, mi->system_available_bytes);
+    slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "{pagesize_bytes = %" PRIu64 ", system_total_pages = %" PRIu64 ", system_total_bytes = %" PRIu64 ", process_consumed_pages = %" PRIu64 ", process_consumed_bytes = %" PRIu64 ", system_available_pages = %" PRIu64 ", system_available_bytes = %" PRIu64 "},\n",
+                  mi->pagesize_bytes, mi->system_total_pages, mi->system_total_bytes, mi->process_consumed_pages, mi->process_consumed_bytes, mi->system_available_pages, mi->system_available_bytes);
 
     return mi;
 }
@@ -257,7 +255,8 @@ spal_meminfo_get() {
 
 #ifdef OS_solaris
 uint64_t
-_spal_solaris_resident_pages_get() {
+_spal_solaris_resident_pages_get()
+{
     uint64_t procpages = 0;
     struct prpsinfo psi = {0};
     char fn[40];
@@ -275,7 +274,8 @@ _spal_solaris_resident_pages_get() {
 }
 
 slapi_pal_meminfo *
-spal_meminfo_get() {
+spal_meminfo_get()
+{
     slapi_pal_meminfo *mi = (slapi_pal_meminfo *)slapi_ch_calloc(1, sizeof(slapi_pal_meminfo));
 
     uint64_t rl_mem_soft = 0;
@@ -296,7 +296,6 @@ spal_meminfo_get() {
     mi->process_consumed_bytes = mi->process_consumed_pages * mi->pagesize_bytes;
 
     return mi;
-
 }
 #endif
 
@@ -304,6 +303,7 @@ spal_meminfo_get() {
 #endif
 
 void
-spal_meminfo_destroy(slapi_pal_meminfo *mi) {
+spal_meminfo_destroy(slapi_pal_meminfo *mi)
+{
     slapi_ch_free((void **)&mi);
 }

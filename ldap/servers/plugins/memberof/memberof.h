@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -32,37 +32,38 @@
 /*
  * macros
  */
-#define MEMBEROF_PLUGIN_SUBSYSTEM "memberof-plugin"   /* used for logging */
-#define MEMBEROF_INT_PREOP_DESC "memberOf internal postop plugin"
-#define MEMBEROF_PREOP_DESC "memberof preop plugin"
-#define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
-#define MEMBEROF_ATTR "memberOfAttr"
-#define MEMBEROF_BACKEND_ATTR "memberOfAllBackends"
+#define MEMBEROF_PLUGIN_SUBSYSTEM "memberof-plugin" /* used for logging */
+#define MEMBEROF_INT_PREOP_DESC   "memberOf internal postop plugin"
+#define MEMBEROF_PREOP_DESC       "memberof preop plugin"
+#define MEMBEROF_GROUP_ATTR       "memberOfGroupAttr"
+#define MEMBEROF_ATTR             "memberOfAttr"
+#define MEMBEROF_BACKEND_ATTR     "memberOfAllBackends"
 #define MEMBEROF_ENTRY_SCOPE_ATTR "memberOfEntryScope"
-#define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
 #define MEMBEROF_SKIP_NESTED_ATTR "memberOfSkipNested"
-#define MEMBEROF_AUTO_ADD_OC "memberOfAutoAddOC"
-#define NSMEMBEROF "nsMemberOf"
-#define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
-#define NAME_OPT_UID_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.34"
+#define MEMBEROF_AUTO_ADD_OC      "memberOfAutoAddOC"
+#define NSMEMBEROF                "nsMemberOf"
+#define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
+#define DN_SYNTAX_OID             "1.3.6.1.4.1.1466.115.121.1.12"
+#define NAME_OPT_UID_SYNTAX_OID   "1.3.6.1.4.1.1466.115.121.1.34"
 
 
 /*
  * structs
  */
-typedef struct memberofconfig {
-	char **groupattrs;
-	char *memberof_attr;
-	int allBackends;
-	Slapi_DN **entryScopes;
-	int entryScopeCount;
-	Slapi_DN **entryScopeExcludeSubtrees;
-	int entryExcludeScopeCount;
-	Slapi_Filter *group_filter;
-	Slapi_Attr **group_slapiattrs;
-	int skip_nested;
-	int fixup_task;
-	char *auto_add_oc;
+typedef struct memberofconfig
+{
+    char **groupattrs;
+    char *memberof_attr;
+    int allBackends;
+    Slapi_DN **entryScopes;
+    int entryScopeCount;
+    Slapi_DN **entryScopeExcludeSubtrees;
+    int entryExcludeScopeCount;
+    Slapi_Filter *group_filter;
+    Slapi_Attr **group_slapiattrs;
+    int skip_nested;
+    int fixup_task;
+    char *auto_add_oc;
 } MemberOfConfig;
 
 
@@ -80,14 +81,13 @@ void memberof_wlock_config(void);
 void memberof_unlock_config(void);
 int memberof_config_get_all_backends(void);
 void memberof_set_config_area(Slapi_DN *sdn);
-Slapi_DN * memberof_get_config_area(void);
+Slapi_DN *memberof_get_config_area(void);
 void memberof_set_plugin_area(Slapi_DN *sdn);
-Slapi_DN * memberof_get_plugin_area(void);
+Slapi_DN *memberof_get_plugin_area(void);
 int memberof_shared_config_validate(Slapi_PBlock *pb);
-int memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-	int *returncode, char *returntext, void *arg);
+int memberof_apply_config(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg);
 void *memberof_get_plugin_id(void);
 void memberof_release_config(void);
 PRUint64 get_plugin_started(void);
 
-#endif	/* _MEMBEROF_H_ */
+#endif /* _MEMBEROF_H_ */

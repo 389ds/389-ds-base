@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -23,8 +23,8 @@
  * Note that Slapi_Mutex and Slapi_CondVar are defined like this in
  * slapi-plugin.h:
  *
- *	typedef struct slapi_mutex	Slapi_Mutex;
- *	typedef struct slapi_condvar	Slapi_CondVar;
+ *    typedef struct slapi_mutex    Slapi_Mutex;
+ *    typedef struct slapi_condvar    Slapi_CondVar;
  *
  * but there is no definition for struct slapi_mutex or struct slapi_condvar.
  * This seems to work okay since we always use them in pointer form and cast
@@ -42,9 +42,9 @@
  * Returns: a pointer to the new mutex (NULL if a mutex can't be created).
  */
 Slapi_Mutex *
-slapi_new_mutex( void )
+slapi_new_mutex(void)
 {
-    return( (Slapi_Mutex *)PR_NewLock());
+    return ((Slapi_Mutex *)PR_NewLock());
 }
 
 
@@ -53,10 +53,10 @@ slapi_new_mutex( void )
  * Description: behaves just like PR_DestroyLock().
  */
 void
-slapi_destroy_mutex( Slapi_Mutex *mutex )
+slapi_destroy_mutex(Slapi_Mutex *mutex)
 {
-    if ( mutex != NULL ) {
-	PR_DestroyLock( (PRLock *)mutex );
+    if (mutex != NULL) {
+        PR_DestroyLock((PRLock *)mutex);
     }
 }
 
@@ -66,10 +66,10 @@ slapi_destroy_mutex( Slapi_Mutex *mutex )
  * Description: behaves just like PR_Lock().
  */
 void
-slapi_lock_mutex( Slapi_Mutex *mutex )
+slapi_lock_mutex(Slapi_Mutex *mutex)
 {
-    if ( mutex != NULL ) {
-	PR_Lock( (PRLock *)mutex );
+    if (mutex != NULL) {
+        PR_Lock((PRLock *)mutex);
     }
 }
 
@@ -78,16 +78,16 @@ slapi_lock_mutex( Slapi_Mutex *mutex )
  * Function: slapi_unlock_mutex
  * Description: behaves just like PR_Unlock().
  * Returns:
- *	non-zero if mutex was successfully unlocked.
- *	0 if mutex is NULL or is not locked by the calling thread.
+ *    non-zero if mutex was successfully unlocked.
+ *    0 if mutex is NULL or is not locked by the calling thread.
  */
 int
-slapi_unlock_mutex( Slapi_Mutex *mutex )
+slapi_unlock_mutex(Slapi_Mutex *mutex)
 {
-    if ( mutex == NULL || PR_Unlock( (PRLock *)mutex ) == PR_FAILURE ) {
-	return( 0 );
+    if (mutex == NULL || PR_Unlock((PRLock *)mutex) == PR_FAILURE) {
+        return (0);
     } else {
-	return( 1 );
+        return (1);
     }
 }
 
@@ -98,13 +98,13 @@ slapi_unlock_mutex( Slapi_Mutex *mutex )
  * Returns: pointer to a new condition variable (NULL if one can't be created).
  */
 Slapi_CondVar *
-slapi_new_condvar( Slapi_Mutex *mutex )
+slapi_new_condvar(Slapi_Mutex *mutex)
 {
-    if ( mutex == NULL ) {
-	return( NULL );
+    if (mutex == NULL) {
+        return (NULL);
     }
 
-    return( (Slapi_CondVar *)PR_NewCondVar( (PRLock *)mutex ));
+    return ((Slapi_CondVar *)PR_NewCondVar((PRLock *)mutex));
 }
 
 
@@ -113,10 +113,10 @@ slapi_new_condvar( Slapi_Mutex *mutex )
  * Description: behaves just like PR_DestroyCondVar().
  */
 void
-slapi_destroy_condvar( Slapi_CondVar *cvar )
+slapi_destroy_condvar(Slapi_CondVar *cvar)
 {
-    if ( cvar != NULL ) {
-	PR_DestroyCondVar( (PRCondVar *)cvar );
+    if (cvar != NULL) {
+        PR_DestroyCondVar((PRCondVar *)cvar);
     }
 }
 
@@ -124,62 +124,61 @@ slapi_destroy_condvar( Slapi_CondVar *cvar )
 /*
  * Function: slapi_wait_condvar
  * Description: behaves just like PR_WaitCondVar() except timeout is
- *	in seconds and microseconds instead of PRIntervalTime units.
- *	If timeout is NULL, this call blocks indefinitely.
+ *    in seconds and microseconds instead of PRIntervalTime units.
+ *    If timeout is NULL, this call blocks indefinitely.
  * Returns:
- *	non-zero is all goes well.
- *	0 if cvar is NULL, the caller has not locked the mutex associated
- *		with cvar, or the waiting thread was interrupted.
+ *    non-zero is all goes well.
+ *    0 if cvar is NULL, the caller has not locked the mutex associated
+ *        with cvar, or the waiting thread was interrupted.
  */
 int
-slapi_wait_condvar( Slapi_CondVar *cvar, struct timeval *timeout )
+slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout)
 {
-    PRIntervalTime	prit;
+    PRIntervalTime prit;
 
-    if ( cvar == NULL ) {
-	return( 0 );
+    if (cvar == NULL) {
+        return (0);
     }
 
-    if ( timeout == NULL ) {
-	prit = PR_INTERVAL_NO_TIMEOUT;
+    if (timeout == NULL) {
+        prit = PR_INTERVAL_NO_TIMEOUT;
     } else {
-	prit = PR_SecondsToInterval( timeout->tv_sec )
-		+ PR_MicrosecondsToInterval( timeout->tv_usec ); 
+        prit = PR_SecondsToInterval(timeout->tv_sec) + PR_MicrosecondsToInterval(timeout->tv_usec);
     }
 
-    if ( PR_WaitCondVar( (PRCondVar *)cvar, prit ) != PR_SUCCESS ) {
-	return( 0 );
+    if (PR_WaitCondVar((PRCondVar *)cvar, prit) != PR_SUCCESS) {
+        return (0);
     }
 
-    return( 1 );
+    return (1);
 }
 
 
 /*
  * Function: slapi_notify_condvar
  * Description: if notify_all is zero, behaves just like PR_NotifyCondVar().
- *	if notify_all is non-zero, behaves just like PR_NotifyAllCondVar().
+ *    if notify_all is non-zero, behaves just like PR_NotifyAllCondVar().
  * Returns:
- *	non-zero if all goes well.
- *	0 if cvar is NULL or the caller has not locked the mutex associated
- *		with cvar.
+ *    non-zero if all goes well.
+ *    0 if cvar is NULL or the caller has not locked the mutex associated
+ *        with cvar.
  */
 int
-slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all )
+slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all)
 {
-    PRStatus	prrc;
+    PRStatus prrc;
 
-    if ( cvar == NULL ) {
-	return( 0 );
+    if (cvar == NULL) {
+        return (0);
     }
 
-    if ( notify_all ) {
-	prrc = PR_NotifyAllCondVar( (PRCondVar *)cvar );
+    if (notify_all) {
+        prrc = PR_NotifyAllCondVar((PRCondVar *)cvar);
     } else {
-	prrc = PR_NotifyCondVar( (PRCondVar *)cvar );
+        prrc = PR_NotifyCondVar((PRCondVar *)cvar);
     }
 
-    return( prrc == PR_SUCCESS ? 1 : 0 );
+    return (prrc == PR_SUCCESS ? 1 : 0);
 }
 
 Slapi_RWLock *
@@ -193,9 +192,9 @@ slapi_new_rwlock(void)
         pthread_rwlock_init(rwlock, NULL);
     }
 
-    return((Slapi_RWLock *)rwlock);
+    return ((Slapi_RWLock *)rwlock);
 #else
-    return((Slapi_RWLock *)PR_NewRWLock(PR_RWLOCK_RANK_NONE, "slapi_rwlock"));
+    return ((Slapi_RWLock *)PR_NewRWLock(PR_RWLOCK_RANK_NONE, "slapi_rwlock"));
 #endif
 }
 
@@ -213,7 +212,7 @@ slapi_destroy_rwlock(Slapi_RWLock *rwlock)
 }
 
 int
-slapi_rwlock_rdlock( Slapi_RWLock *rwlock )
+slapi_rwlock_rdlock(Slapi_RWLock *rwlock)
 {
     int ret = 0;
 
@@ -229,7 +228,7 @@ slapi_rwlock_rdlock( Slapi_RWLock *rwlock )
 }
 
 int
-slapi_rwlock_wrlock( Slapi_RWLock *rwlock )
+slapi_rwlock_wrlock(Slapi_RWLock *rwlock)
 {
     int ret = 0;
 
@@ -245,7 +244,7 @@ slapi_rwlock_wrlock( Slapi_RWLock *rwlock )
 }
 
 int
-slapi_rwlock_unlock( Slapi_RWLock *rwlock )
+slapi_rwlock_unlock(Slapi_RWLock *rwlock)
 {
     int ret = 0;
 
@@ -261,16 +260,15 @@ slapi_rwlock_unlock( Slapi_RWLock *rwlock )
 }
 
 int
-slapi_rwlock_get_size( void )
+slapi_rwlock_get_size(void)
 {
 #ifdef USE_POSIX_RWLOCKS
     return sizeof(pthread_rwlock_t);
 #else
-    /* 
+    /*
      * NSPR does not provide the size of PRRWLock.
      * This is a rough estimate to maintain the entry size sane.
      */
     return sizeof("slapi_rwlock") + sizeof(void *) * 6;
 #endif
 }
-

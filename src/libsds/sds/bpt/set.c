@@ -11,7 +11,8 @@
 /* This is just used by the sets to clone instances */
 
 sds_result
-sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **binst_ptr) {
+sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **binst_ptr)
+{
     if (binst_ptr == NULL) {
 #ifdef SDS_DEBUG
         sds_log("sds_btree_init", "Invalid pointer");
@@ -28,7 +29,7 @@ sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **bins
     (*binst_ptr)->key_free_fn = binst->key_free_fn;
     (*binst_ptr)->key_dup_fn = binst->key_dup_fn;
 
-    // Now update the checksums
+// Now update the checksums
 #ifdef SDS_DEBUG
     if ((*binst_ptr)->offline_checksumming) {
         sds_bptree_crc32c_update_instance(*binst_ptr);
@@ -39,10 +40,11 @@ sds_bptree_instance_clone(sds_bptree_instance *binst, sds_bptree_instance **bins
 
 /* If we can, get the requested key */
 sds_result
-sds_bptree_list_advance(sds_bptree_node **item, size_t *index) {
+sds_bptree_list_advance(sds_bptree_node **item, size_t *index)
+{
 
 #ifdef SDS_DEBUG
-    sds_log("sds_bptree_list_advance", "%p current index is %" PRIu64"", *item, *index);
+    sds_log("sds_bptree_list_advance", "%p current index is %" PRIu64 "", *item, *index);
 #endif
     /* Now, if we have the ability */
     if (*index < (size_t)((*item)->item_count - 1)) {
@@ -64,7 +66,8 @@ sds_bptree_list_advance(sds_bptree_node **item, size_t *index) {
 /* Tree mapping functions */
 /* Shouldn't this make a set of results? */
 sds_result
-sds_bptree_map(sds_bptree_instance *binst, void (*fn)(void *k, void *v)) {
+sds_bptree_map(sds_bptree_instance *binst, void (*fn)(void *k, void *v))
+{
     /* If this is the non-cow tree, this is easy. */
     /* Find the bottom left node, then iterate to the right! */
     sds_bptree_node *work_node = sds_bptree_node_min(binst);
@@ -78,7 +81,9 @@ sds_bptree_map(sds_bptree_instance *binst, void (*fn)(void *k, void *v)) {
     return SDS_SUCCESS;
 }
 
-sds_result sds_bptree_filter(sds_bptree_instance *binst_a, int64_t (*fn)(void *k, void *v), sds_bptree_instance **binst_subset) {
+sds_result
+sds_bptree_filter(sds_bptree_instance *binst_a, int64_t (*fn)(void *k, void *v), sds_bptree_instance **binst_subset)
+{
     /* */
     sds_result result = sds_bptree_instance_clone(binst_a, binst_subset);
     if (result != SDS_SUCCESS) {
@@ -107,7 +112,8 @@ sds_result sds_bptree_filter(sds_bptree_instance *binst_a, int64_t (*fn)(void *k
 }
 
 static sds_result
-sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_out, uint16_t both, uint16_t diff, uint16_t alist) {
+sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_out, uint16_t both, uint16_t diff, uint16_t alist)
+{
 
     /* Based on a set of flags we choose to include the element from:
      * - Both lists
@@ -254,25 +260,26 @@ sds_bptree_set_operation(sds_bptree_instance *binst_a, sds_bptree_instance *bins
 }
 
 
-
-
 sds_result
-sds_bptree_difference(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_difference) {
+sds_bptree_difference(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_difference)
+{
     return sds_bptree_set_operation(binst_a, binst_b, binst_difference, 0, 1, 0);
 }
 
 sds_result
-sds_bptree_union(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_union) {
+sds_bptree_union(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_union)
+{
     return sds_bptree_set_operation(binst_a, binst_b, binst_union, 1, 1, 0);
 }
 
 sds_result
-sds_bptree_intersect(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_intersect) {
+sds_bptree_intersect(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_intersect)
+{
     return sds_bptree_set_operation(binst_a, binst_b, binst_intersect, 1, 0, 0);
 }
 
 sds_result
-sds_bptree_compliment(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_compliment) {
+sds_bptree_compliment(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_compliment)
+{
     return sds_bptree_set_operation(binst_a, binst_b, binst_compliment, 0, 0, 1);
 }
-

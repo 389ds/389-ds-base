@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -40,94 +40,99 @@
 #define DLL_SUFFIX ".so"
 #endif
 
-static int load_server_libs (const char *dir)
+static int
+load_server_libs(const char *dir)
 {
     int rv = LDAPU_SUCCESS;
-    PRDir* ds;
+    PRDir *ds;
     int suffix_len = strlen(DLL_SUFFIX);
 
     if ((ds = PR_OpenDir(dir)) != NULL) {
-	PRDirEntry *d;
+        PRDirEntry *d;
 
-	/* Dir exists */
-        while( (d = PR_ReadDir(ds, PR_SKIP_BOTH)) )  {
-	    PRLibrary *lib = 0;
-		const char *libname = d->name;
-	    int len = strlen(libname);
-	    int is_lib;
+        /* Dir exists */
+        while ((d = PR_ReadDir(ds, PR_SKIP_BOTH))) {
+            PRLibrary *lib = 0;
+            const char *libname = d->name;
+            int len = strlen(libname);
+            int is_lib;
 
-	    is_lib = (len > suffix_len && !strcmp(libname+len-suffix_len,
-						  DLL_SUFFIX));
+            is_lib = (len > suffix_len && !strcmp(libname + len - suffix_len, DLL_SUFFIX));
 
-            if(is_lib) {
-		char path[1024];
+            if (is_lib) {
+                char path[1024];
 
-		PR_snprintf(path, sizeof(path), "%s%c%s", dir, FILE_PATHSEP, libname);
-		lib = PR_LoadLibrary(path);
-		if (!lib) rv = LDAPU_ERR_UNABLE_TO_LOAD_PLUGIN;
-	    }
-	}
+                PR_snprintf(path, sizeof(path), "%s%c%s", dir, FILE_PATHSEP, libname);
+                lib = PR_LoadLibrary(path);
+                if (!lib)
+                    rv = LDAPU_ERR_UNABLE_TO_LOAD_PLUGIN;
+            }
+        }
+    } else {
+        /* It's ok if dir doesn't exists */
     }
-    else {
-	/* It's ok if dir doesn't exists */
-    }
-    
+
     return rv;
 }
 
-NSAPI_PUBLIC int ldaputil_init (const char *config_file,
-				const char *dllname,
-				const char *serv_root,
-				const char *serv_type,
-				const char *serv_id)
+NSAPI_PUBLIC int
+ldaputil_init(const char *config_file,
+              const char *dllname,
+              const char *serv_root,
+              const char *serv_type,
+              const char *serv_id)
 {
     int rv = LDAPU_SUCCESS;
     static int initialized = 0;
 
     /* If already initialized, cleanup the old structures */
-    if (initialized) ldaputil_exit();
+    if (initialized)
+        ldaputil_exit();
 
     if (config_file && *config_file) {
-	char dir[1024];
+        char dir[1024];
 
-	LDAPUCertMapListInfo_t *certmap_list;
-	LDAPUCertMapInfo_t *certmap_default;
+        LDAPUCertMapListInfo_t *certmap_list;
+        LDAPUCertMapInfo_t *certmap_default;
 
-	if (serv_root && *serv_root) {
-	    /* Load common libraries */
-	    PR_snprintf(dir, sizeof(dir), "%s%clib%c%s", serv_root, FILE_PATHSEP,
-		    FILE_PATHSEP, "common");
-	    rv = load_server_libs(dir);
+        if (serv_root && *serv_root) {
+            /* Load common libraries */
+            PR_snprintf(dir, sizeof(dir), "%s%clib%c%s", serv_root, FILE_PATHSEP,
+                        FILE_PATHSEP, "common");
+            rv = load_server_libs(dir);
 
-	    if (rv != LDAPU_SUCCESS) return rv;
+            if (rv != LDAPU_SUCCESS)
+                return rv;
 
-	    if (serv_type && *serv_type) {
-		/* Load server type specific libraries */
-		sprintf(dir, "%s%clib%c%s", serv_root, FILE_PATHSEP,
-			FILE_PATHSEP, serv_type);
-		rv = load_server_libs(dir);
+            if (serv_type && *serv_type) {
+                /* Load server type specific libraries */
+                sprintf(dir, "%s%clib%c%s", serv_root, FILE_PATHSEP,
+                        FILE_PATHSEP, serv_type);
+                rv = load_server_libs(dir);
 
-		if (rv != LDAPU_SUCCESS) return rv;
+                if (rv != LDAPU_SUCCESS)
+                    return rv;
 
-		if (serv_id && *serv_id) {
-		    /* Load server instance specific libraries */
-		    sprintf(dir, "%s%clib%c%s", serv_root, FILE_PATHSEP,
-			    FILE_PATHSEP, serv_id);
-		    rv = load_server_libs(dir);
+                if (serv_id && *serv_id) {
+                    /* Load server instance specific libraries */
+                    sprintf(dir, "%s%clib%c%s", serv_root, FILE_PATHSEP,
+                            FILE_PATHSEP, serv_id);
+                    rv = load_server_libs(dir);
 
-		    if (rv != LDAPU_SUCCESS) return rv;
-		}
-	    }
-	}
+                    if (rv != LDAPU_SUCCESS)
+                        return rv;
+                }
+            }
+        }
 
-	rv = ldapu_certmap_init (config_file, dllname, &certmap_list,
-				 &certmap_default);
+        rv = ldapu_certmap_init(config_file, dllname, &certmap_list,
+                                &certmap_default);
     }
 
     initialized = 1;
 
-    if (rv != LDAPU_SUCCESS) return rv;
+    if (rv != LDAPU_SUCCESS)
+        return rv;
 
     return rv;
 }
-

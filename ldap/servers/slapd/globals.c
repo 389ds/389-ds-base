@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -38,19 +38,19 @@
 #include "slap.h"
 #include "fe.h"
 
-int     should_detach = 0;
-time_t      starttime;
-PRThread    *listener_tid;
-Slapi_PBlock    *repl_pb = NULL;
+int should_detach = 0;
+time_t starttime;
+PRThread *listener_tid;
+Slapi_PBlock *repl_pb = NULL;
 
 /*
  * global variables that need mutex protection
  */
-Slapi_Counter	*ops_initiated;
-Slapi_Counter	*ops_completed;
-Slapi_Counter	*num_conns;
-Slapi_Counter	*max_threads_count;
-Slapi_Counter	*conns_in_maxthreads;
+Slapi_Counter *ops_initiated;
+Slapi_Counter *ops_completed;
+Slapi_Counter *num_conns;
+Slapi_Counter *max_threads_count;
+Slapi_Counter *conns_in_maxthreads;
 Connection_Table *the_connection_table = NULL;
 
 char *pid_file = "/dev/null";
@@ -58,35 +58,35 @@ char *start_pid_file = NULL;
 
 char *attr_dataversion = ATTR_DATAVERSION;
 
-extern void set_dll_entry_points( slapdEntryPoints *sep );
+extern void set_dll_entry_points(slapdEntryPoints *sep);
 void
 set_entry_points()
 {
     slapdEntryPoints *sep;
 
-    sep = (slapdEntryPoints *) slapi_ch_malloc( sizeof( slapdEntryPoints ));
+    sep = (slapdEntryPoints *)slapi_ch_malloc(sizeof(slapdEntryPoints));
     sep->sep_ps_wakeup_all = (caddr_t)ps_wakeup_all;
     sep->sep_ps_service = (caddr_t)ps_service_persistent_searches;
     sep->sep_disconnect_server = (caddr_t)disconnect_server;
     sep->sep_slapd_ssl_init = (caddr_t)slapd_ssl_init;
     sep->sep_slapd_ssl_init2 = (caddr_t)slapd_ssl_init2;
-    set_dll_entry_points( sep );
-   
-	/* To apply the nsslapd-counters config value properly,
-	   these values are initialized here after config file is read */
-	if (config_get_slapi_counters()) {
-		ops_initiated = slapi_counter_new();
-		ops_completed = slapi_counter_new();
-		max_threads_count = slapi_counter_new();
-		conns_in_maxthreads = slapi_counter_new();
-		g_set_num_entries_sent( slapi_counter_new() );
-		g_set_num_bytes_sent( slapi_counter_new() );
-	} else {
-		ops_initiated = NULL;
-		ops_completed = NULL;
-		max_threads_count = NULL;
-		conns_in_maxthreads = NULL;
-		g_set_num_entries_sent( NULL );
-		g_set_num_bytes_sent( NULL );
-	}
+    set_dll_entry_points(sep);
+
+    /* To apply the nsslapd-counters config value properly,
+       these values are initialized here after config file is read */
+    if (config_get_slapi_counters()) {
+        ops_initiated = slapi_counter_new();
+        ops_completed = slapi_counter_new();
+        max_threads_count = slapi_counter_new();
+        conns_in_maxthreads = slapi_counter_new();
+        g_set_num_entries_sent(slapi_counter_new());
+        g_set_num_bytes_sent(slapi_counter_new());
+    } else {
+        ops_initiated = NULL;
+        ops_completed = NULL;
+        max_threads_count = NULL;
+        conns_in_maxthreads = NULL;
+        g_set_num_entries_sent(NULL);
+        g_set_num_bytes_sent(NULL);
+    }
 }

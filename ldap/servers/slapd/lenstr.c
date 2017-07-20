@@ -4,18 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
 #include <string.h>
 #include "slapi-private.h"
 
-#define	LS_INCRSIZE	256
+#define LS_INCRSIZE 256
 
 /*
  * Function: addlenstr
@@ -25,33 +25,33 @@
  * Description: Add "str" to the lenstr, increasing the size if needed.
  */
 void
-addlenstr( lenstr *l, const char *str )
+addlenstr(lenstr *l, const char *str)
 {
     size_t len;
 
-    if ( NULL == l || NULL == str ) return;
+    if (NULL == l || NULL == str)
+        return;
 
-    len = strlen( str );
+    len = strlen(str);
 
-    if ( l->ls_buf == NULL ) {
-	/* string is empty */
-	l->ls_maxlen = ( len > LS_INCRSIZE ) ? len : LS_INCRSIZE;
-	l->ls_len = len;
-	l->ls_buf = slapi_ch_malloc( l->ls_maxlen + 1 );
-	memcpy( l->ls_buf, str, len + 1 );
+    if (l->ls_buf == NULL) {
+        /* string is empty */
+        l->ls_maxlen = (len > LS_INCRSIZE) ? len : LS_INCRSIZE;
+        l->ls_len = len;
+        l->ls_buf = slapi_ch_malloc(l->ls_maxlen + 1);
+        memcpy(l->ls_buf, str, len + 1);
     } else {
-	if ( l->ls_len + len > l->ls_maxlen ) {
-	    l->ls_maxlen *= 2;
-	    if (l->ls_maxlen < l->ls_len + len) {
-		l->ls_maxlen += len;
-	    }
-	    l->ls_buf = slapi_ch_realloc( l->ls_buf, l->ls_maxlen + 1 );
-	}
-	memcpy( l->ls_buf + l->ls_len, str, len + 1 );
-	l->ls_len += len;
+        if (l->ls_len + len > l->ls_maxlen) {
+            l->ls_maxlen *= 2;
+            if (l->ls_maxlen < l->ls_len + len) {
+                l->ls_maxlen += len;
+            }
+            l->ls_buf = slapi_ch_realloc(l->ls_buf, l->ls_maxlen + 1);
+        }
+        memcpy(l->ls_buf + l->ls_len, str, len + 1);
+        l->ls_len += len;
     }
 }
-
 
 
 /*
@@ -61,17 +61,16 @@ addlenstr( lenstr *l, const char *str )
  * Description: Free a lenstr.
  */
 void
-lenstr_free( lenstr **l )
+lenstr_free(lenstr **l)
 {
-    if ( NULL != l && NULL != *l ) {
-	lenstr *tl = *l;
-	if ( tl->ls_buf != NULL ) {
-	    slapi_ch_free((void **) &tl->ls_buf );
-	}
-	slapi_ch_free((void **) l );
+    if (NULL != l && NULL != *l) {
+        lenstr *tl = *l;
+        if (tl->ls_buf != NULL) {
+            slapi_ch_free((void **)&tl->ls_buf);
+        }
+        slapi_ch_free((void **)l);
     }
 }
-
 
 
 /*
@@ -83,10 +82,8 @@ lenstr_new()
 {
     lenstr *l;
 
-    l = ( lenstr * ) slapi_ch_malloc( sizeof( lenstr ));
+    l = (lenstr *)slapi_ch_malloc(sizeof(lenstr));
     l->ls_buf = NULL;
     l->ls_len = l->ls_maxlen = 0;
     return l;
 }
-    
-

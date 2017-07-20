@@ -7,7 +7,7 @@
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* For cmocka */
@@ -32,7 +32,8 @@
 
 #include <assert.h>
 
-struct test_params {
+struct test_params
+{
     int32_t client_thread_count;
     int32_t server_thread_count;
     int32_t jobs;
@@ -41,4 +42,3 @@ struct test_params {
 
 int ns_stress_teardown(void **state);
 void ns_stress_test(void **state);
-

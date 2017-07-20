@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 
@@ -16,22 +16,24 @@
 static int32_t cb_count = 0;
 
 static void
-test_31_map_cb(void *k __attribute__((unused)), void *v __attribute__((unused))) {
+test_31_map_cb(void *k __attribute__((unused)), void *v __attribute__((unused)))
+{
     cb_count++;
 }
 
 static void
-test_31_map(void **state) {
+test_31_map(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
     cb_count = 0;
 
-    for (uint64_t i = 1; i < 200 ; i++) {
+    for (uint64_t i = 1; i < 200; i++) {
         /* Make a new string */
         char *ptr = sds_malloc(sizeof(char) * 4);
         /*  */
-        sprintf(ptr, "%03"PRIu64, i);
+        sprintf(ptr, "%03" PRIu64, i);
         result = sds_bptree_insert(binst, (void *)&i, ptr);
         assert_int_equal(result, SDS_SUCCESS);
         result = sds_bptree_verify(binst);
@@ -45,14 +47,16 @@ test_31_map(void **state) {
  * from the stack arrays
  */
 static void
-_build_ptr_array(uint64_t **dest, const uint64_t *src, size_t capacity) {
+_build_ptr_array(uint64_t **dest, const uint64_t *src, size_t capacity)
+{
     for (size_t i = 0; i < capacity; i++) {
         dest[i] = sds_uint64_t_dup((void *)&(src[i]));
     }
 }
 
 static void
-test_32_build_simple_tree(void **state) {
+test_32_build_simple_tree(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -67,7 +71,8 @@ test_32_build_simple_tree(void **state) {
 }
 
 static void
-test_33_build_small_tree(void **state) {
+test_33_build_small_tree(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -82,7 +87,8 @@ test_33_build_small_tree(void **state) {
 }
 
 static void
-test_34_build_large_tree(void **state) {
+test_34_build_large_tree(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -100,16 +106,20 @@ test_34_build_large_tree(void **state) {
 
 static void
 run_set_test(void **state,
-            uint64_t *set_a, size_t set_a_count,
-            uint64_t *set_b, size_t set_b_count,
-            uint64_t *expect, size_t expect_count,
-            uint64_t *exclude, size_t exclude_count,
-            sds_result (*fn)(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_difference))
+             uint64_t *set_a,
+             size_t set_a_count,
+             uint64_t *set_b,
+             size_t set_b_count,
+             uint64_t *expect,
+             size_t expect_count,
+             uint64_t *exclude,
+             size_t exclude_count,
+             sds_result (*fn)(sds_bptree_instance *binst_a, sds_bptree_instance *binst_b, sds_bptree_instance **binst_difference))
 {
     void **binst = *state;
-    sds_bptree_instance *binst_a = (sds_bptree_instance *) binst[0];
-    sds_bptree_instance *binst_b = (sds_bptree_instance *) binst[1];
-    sds_bptree_instance *binst_out = (sds_bptree_instance *) binst[2];
+    sds_bptree_instance *binst_a = (sds_bptree_instance *)binst[0];
+    sds_bptree_instance *binst_b = (sds_bptree_instance *)binst[1];
+    sds_bptree_instance *binst_out = (sds_bptree_instance *)binst[2];
     sds_result result = SDS_SUCCESS;
 
 
@@ -140,36 +150,37 @@ run_set_test(void **state,
     for (size_t i = 0; i < exclude_count; i++) {
         assert_int_equal(SDS_KEY_NOT_PRESENT, sds_bptree_search(binst_out, (void *)&(exclude[i])));
     }
-
-
 }
 
 static void
-test_35_set_difference_1(void **state) {
+test_35_set_difference_1(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 2, 3, 6, 7, 8, 9};
     uint64_t set_b[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
-    uint64_t expect[] = {4, 5, 7, 8, 9, 10, 11, 12 ,13};
+    uint64_t expect[] = {4, 5, 7, 8, 9, 10, 11, 12, 13};
     uint64_t exclude[] = {1, 3, 6};
 
     run_set_test(state, set_a, 7, set_b, 9, expect, 9, exclude, 3, sds_bptree_difference);
 }
 
 static void
-test_35_set_difference_2(void **state) {
+test_35_set_difference_2(void **state)
+{
     uint64_t set_a[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
     uint64_t set_b[] = {1, 2, 3, 6, 7, 8, 9};
-    uint64_t expect[] = {4, 5, 7, 8, 9, 10, 11, 12 ,13};
+    uint64_t expect[] = {4, 5, 7, 8, 9, 10, 11, 12, 13};
     uint64_t exclude[] = {1, 3, 6};
 
     run_set_test(state, set_a, 9, set_b, 7, expect, 9, exclude, 3, sds_bptree_difference);
 }
 
 static void
-test_35_set_difference_3(void **state) {
+test_35_set_difference_3(void **state)
+{
     uint64_t set_a[] = {1, 9};
     uint64_t set_b[] = {2, 3, 6, 7, 8, 9};
-    uint64_t expect[] = {1,2,3,6,7,8};
+    uint64_t expect[] = {1, 2, 3, 6, 7, 8};
     uint64_t exclude[] = {9};
 
     run_set_test(state, set_a, 2, set_b, 6, expect, 6, exclude, 1, sds_bptree_difference);
@@ -177,7 +188,8 @@ test_35_set_difference_3(void **state) {
 
 
 static void
-test_36_set_union_1(void **state) {
+test_36_set_union_1(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 2, 3, 6, 7, 8, 9, 13};
     uint64_t set_b[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
@@ -188,7 +200,8 @@ test_36_set_union_1(void **state) {
 }
 
 static void
-test_36_set_union_2(void **state) {
+test_36_set_union_2(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
     uint64_t set_b[] = {1, 2, 3, 6, 7, 8, 9, 13};
@@ -199,7 +212,8 @@ test_36_set_union_2(void **state) {
 }
 
 static void
-test_36_set_union_3(void **state) {
+test_36_set_union_3(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {};
     uint64_t set_b[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
@@ -210,7 +224,8 @@ test_36_set_union_3(void **state) {
 }
 
 static void
-test_37_set_intersect_1(void **state) {
+test_37_set_intersect_1(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 2, 3, 6, 7, 8, 9, 13};
     uint64_t set_b[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
@@ -222,7 +237,8 @@ test_37_set_intersect_1(void **state) {
 }
 
 static void
-test_37_set_intersect_2(void **state) {
+test_37_set_intersect_2(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 3, 4, 5, 6, 10, 11, 12, 13};
     uint64_t set_b[] = {1, 2, 3, 6, 7, 8, 9, 13};
@@ -234,7 +250,8 @@ test_37_set_intersect_2(void **state) {
 }
 
 static void
-test_37_set_intersect_3(void **state) {
+test_37_set_intersect_3(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
     uint64_t set_b[] = {10, 11, 12, 13, 14, 15};
@@ -246,7 +263,8 @@ test_37_set_intersect_3(void **state) {
 }
 
 static void
-test_38_set_compliment_1(void **state) {
+test_38_set_compliment_1(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 2, 3, 4, 5, 6, 7};
     uint64_t set_b[] = {1, 2, 3, 4, 5, 8, 9};
@@ -258,7 +276,8 @@ test_38_set_compliment_1(void **state) {
 }
 
 static void
-test_38_set_compliment_2(void **state) {
+test_38_set_compliment_2(void **state)
+{
     /* Populate the two sets with different values */
     uint64_t set_a[] = {1, 2, 3, 4, 5, 8, 9};
     uint64_t set_b[] = {1, 2, 3, 4, 5, 6, 7};
@@ -270,7 +289,8 @@ test_38_set_compliment_2(void **state) {
 }
 
 static int64_t
-test_39_filter_cb(void *k, void *v __attribute__((unused))) {
+test_39_filter_cb(void *k, void *v __attribute__((unused)))
+{
     if (*(uint64_t *)k % 2 == 0) {
         return 1;
     }
@@ -278,16 +298,17 @@ test_39_filter_cb(void *k, void *v __attribute__((unused))) {
 }
 
 static void
-test_39_set_filter(void **state) {
+test_39_set_filter(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_bptree_instance *binst_filtered = NULL;
     sds_result result = SDS_SUCCESS;
 
-    for (uint64_t i = 1; i < 200 ; i++) {
+    for (uint64_t i = 1; i < 200; i++) {
         /* Make a new string */
         char *ptr = sds_malloc(sizeof(char) * 4);
         /*  */
-        sprintf(ptr, "%03"PRIu64, i);
+        sprintf(ptr, "%03" PRIu64, i);
         result = sds_bptree_insert(binst, (void *)&i, ptr);
         assert_int_equal(result, SDS_SUCCESS);
         result = sds_bptree_verify(binst);
@@ -295,7 +316,7 @@ test_39_set_filter(void **state) {
     }
     sds_bptree_filter(binst, test_39_filter_cb, &binst_filtered);
 
-    for (uint64_t i = 1; i < 200 ; i++) {
+    for (uint64_t i = 1; i < 200; i++) {
         result = sds_bptree_search(binst_filtered, (void *)&i);
         if (i % 2 == 0) {
             assert_int_equal(result, SDS_KEY_PRESENT);
@@ -308,7 +329,8 @@ test_39_set_filter(void **state) {
 }
 
 int
-run_set_tests(void) {
+run_set_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_31_map,
                                         bptree_str_test_setup,
@@ -362,6 +384,3 @@ run_set_tests(void) {
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-
-

@@ -34,7 +34,8 @@ sds_ht_value_create(void *key, void *value)
 }
 
 void
-sds_ht_value_destroy(sds_ht_instance *ht_ptr, sds_ht_value *value) {
+sds_ht_value_destroy(sds_ht_instance *ht_ptr, sds_ht_value *value)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_ht_value_destroy", "Destroying ht_value_%p", value);
 #endif
@@ -60,6 +61,3 @@ sds_ht_node_destroy(sds_ht_instance *ht_ptr, sds_ht_node *node)
     sds_free(node);
     return SDS_SUCCESS;
 }
-
-
-

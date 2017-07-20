@@ -13,7 +13,8 @@
 //__attribute__ ((visibility ("hidden")))
 
 sds_result
-sds_queue_init(sds_queue **q_ptr, void (*value_free_fn)(void *value)) {
+sds_queue_init(sds_queue **q_ptr, void (*value_free_fn)(void *value))
+{
     if (q_ptr == NULL) {
 #ifdef SDS_DEBUG
         sds_log("sds_queue_init", "Invalid p_ptr");
@@ -30,7 +31,8 @@ sds_queue_init(sds_queue **q_ptr, void (*value_free_fn)(void *value)) {
 /* Enqueue */
 
 sds_result
-sds_queue_enqueue(sds_queue *q, void *elem) {
+sds_queue_enqueue(sds_queue *q, void *elem)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_queue_dequeue", "Queue %p - <== enqueuing", q);
 #endif
@@ -44,7 +46,7 @@ sds_queue_enqueue(sds_queue *q, void *elem) {
     if (q->tail != NULL) {
         q->tail->next = node;
     } else {
-        /* If tail is null, head must ALSO be null. */
+/* If tail is null, head must ALSO be null. */
 #ifdef SDS_DEBUG
         sds_log("sds_queue_enqueue", "Queue %p - empty, adding %p to head and tail", q, node);
 #endif
@@ -60,7 +62,8 @@ sds_queue_enqueue(sds_queue *q, void *elem) {
 /* Dequeue */
 
 sds_result
-sds_queue_dequeue(sds_queue *q, void **elem) {
+sds_queue_dequeue(sds_queue *q, void **elem)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_queue_dequeue", "Queue %p - ==> dequeuing", q);
 #endif
@@ -98,7 +101,8 @@ sds_queue_dequeue(sds_queue *q, void **elem) {
 /* Destroy */
 
 sds_result
-sds_queue_destroy(sds_queue *q) {
+sds_queue_destroy(sds_queue *q)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_queue_destroy", "Queue %p - destroying", q);
 #endif
@@ -119,5 +123,3 @@ sds_queue_destroy(sds_queue *q) {
     sds_free(q);
     return SDS_SUCCESS;
 }
-
-

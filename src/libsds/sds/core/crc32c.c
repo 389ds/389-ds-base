@@ -8,7 +8,7 @@
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <stdint.h>
@@ -25,30 +25,30 @@
 #define SCALE_F 4
 #endif
 
-uint32_t __attribute__ ((pure))
+uint32_t __attribute__((pure))
 crc32c_intel_le_hw_byte(uint32_t crc, const unsigned char *data, size_t length)
 {
 
     while (length--) {
         __asm__ __volatile__(
             ".byte 0xf2, 0xf, 0x38, 0xf0, 0xf1"
-            :"=S"(crc)
-            :"0"(crc), "c"(*data)
-        );
+            : "=S"(crc)
+            : "0"(crc), "c"(*data));
         data++;
     }
 
     return crc;
 }
 
-uint32_t sds_crc32c(uint32_t crc, unsigned char const *data, uint64_t length)
+uint32_t
+sds_crc32c(uint32_t crc, unsigned char const *data, uint64_t length)
 {
     uint64_t iquotient = length / SCALE_F;
     uint64_t iremainder = length % SCALE_F;
 #if BITS_PER_LONG == 64
-    uint64_t *ptmp = (uint64_t *) data;
+    uint64_t *ptmp = (uint64_t *)data;
 #else
-    uint32_t *ptmp = (uint32_t *) data;
+    uint32_t *ptmp = (uint32_t *)data;
 #endif
 
     // uint32_t crc = ~0;
@@ -56,9 +56,8 @@ uint32_t sds_crc32c(uint32_t crc, unsigned char const *data, uint64_t length)
     while (iquotient--) {
         __asm__ __volatile__(
             ".byte 0xf2, " REX_PRE "0xf, 0x38, 0xf1, 0xf1;"
-            :"=S"(crc)
-            :"0"(crc), "c"(*ptmp)
-        );
+            : "=S"(crc)
+            : "0"(crc), "c"(*ptmp));
         ptmp++;
     }
     if (iremainder) {
@@ -133,8 +132,7 @@ static const uint32_t crc32c_table[256] = {
     0xF36E6F75L, 0x0105EC76L, 0x12551F82L, 0xE03E9C81L,
     0x34F4F86AL, 0xC69F7B69L, 0xD5CF889DL, 0x27A40B9EL,
     0x79B737BAL, 0x8BDCB4B9L, 0x988C474DL, 0x6AE7C44EL,
-    0xBE2DA0A5L, 0x4C4623A6L, 0x5F16D052L, 0xAD7D5351L
-};
+    0xBE2DA0A5L, 0x4C4623A6L, 0x5F16D052L, 0xAD7D5351L};
 
 uint32_t __attribute__((pure))
 sds_crc32c(uint32_t crc, const unsigned char *data, size_t length)
@@ -147,4 +145,3 @@ sds_crc32c(uint32_t crc, const unsigned char *data, size_t length)
 }
 
 #endif /* __SSE4_2__ */
-

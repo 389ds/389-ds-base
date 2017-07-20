@@ -16,7 +16,8 @@
  */
 
 void
-test_libslapd_pal_meminfo(void **state __attribute__((unused))) {
+test_libslapd_pal_meminfo(void **state __attribute__((unused)))
+{
     slapi_pal_meminfo *mi = spal_meminfo_get();
     assert_true(mi->pagesize_bytes > 0);
     assert_true(mi->system_total_pages > 0);
@@ -29,7 +30,8 @@ test_libslapd_pal_meminfo(void **state __attribute__((unused))) {
 }
 
 void
-test_libslapd_util_cachesane(void **state __attribute__((unused))) {
+test_libslapd_util_cachesane(void **state __attribute__((unused)))
+{
     slapi_pal_meminfo *mi = spal_meminfo_get();
     uint64_t request = 0;
     mi->system_available_bytes = 0;
@@ -64,6 +66,3 @@ test_libslapd_util_cachesane(void **state __attribute__((unused))) {
 
     spal_meminfo_destroy(mi);
 }
-
-
-

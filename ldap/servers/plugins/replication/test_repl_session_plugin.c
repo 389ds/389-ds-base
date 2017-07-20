@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #include "slapi-plugin.h"
@@ -21,8 +21,7 @@ static Slapi_PluginDesc test_repl_session_pdesc = {
     "test-repl-session-plugin",
     "Test Vendor",
     "1.0",
-    "test replication session plugin"
-};
+    "test replication session plugin"};
 
 static Slapi_ComponentId *test_repl_session_plugin_id = NULL;
 
@@ -41,15 +40,15 @@ test_repl_session_plugin_agmt_init_cb(const Slapi_DN *repl_subtree)
     char *cookie = NULL;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_init_cb() called for suffix \"%s\".\n",
-        slapi_sdn_get_ndn(repl_subtree));
+                  "test_repl_session_plugin_init_cb() called for suffix \"%s\".\n",
+                  slapi_sdn_get_ndn(repl_subtree));
 
     /* allocate a string and set as the cookie */
     cookie = slapi_ch_smprintf("cookie test");
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_init_cb(): Setting cookie: \"%s\".\n",
-        cookie);
+                  "test_repl_session_plugin_init_cb(): Setting cookie: \"%s\".\n",
+                  cookie);
 
     return cookie;
 }
@@ -67,15 +66,15 @@ test_repl_session_plugin_agmt_init_cb(const Slapi_DN *repl_subtree)
  * results in the master going into incremental backoff mode.
  */
 static int
-test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtree,
-                                        int is_total, char **data_guid, struct berval **data)
+test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtree, int is_total, char **data_guid, struct berval **data)
 {
     int rc = 0;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_pre_acquire_cb() called for suffix \"%s\", "
-        "is_total: \"%s\", cookie: \"%s\".\n", slapi_sdn_get_ndn(repl_subtree),
-        is_total ? "TRUE" : "FALSE", cookie ? (char *)cookie : "NULL");
+                  "test_repl_session_plugin_pre_acquire_cb() called for suffix \"%s\", "
+                  "is_total: \"%s\", cookie: \"%s\".\n",
+                  slapi_sdn_get_ndn(repl_subtree),
+                  is_total ? "TRUE" : "FALSE", cookie ? (char *)cookie : "NULL");
 
     /* allocate some data to be sent to the replica */
     *data_guid = slapi_ch_smprintf("test-guid");
@@ -84,8 +83,8 @@ test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtr
     (*data)->bv_len = strlen((*data)->bv_val) + 1;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_pre_acquire_cb() sending data: guid: \"%s\" data: \"%s\".\n",
-	*data_guid, (*data)->bv_val);
+                  "test_repl_session_plugin_pre_acquire_cb() sending data: guid: \"%s\" data: \"%s\".\n",
+                  *data_guid, (*data)->bv_val);
 
     return rc;
 }
@@ -103,14 +102,13 @@ test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtr
  * results in the master going into incremental backoff mode.
  */
 static int
-test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total,
-                                          char **data_guid, struct berval **data)
+test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total, char **data_guid, struct berval **data)
 {
     int rc = 0;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_reply_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
-        repl_subtree, is_total ? "TRUE" : "FALSE");
+                  "test_repl_session_plugin_reply_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
+                  repl_subtree, is_total ? "TRUE" : "FALSE");
 
     /* allocate some data to be sent to the master */
     *data_guid = slapi_ch_smprintf("test-reply-guid");
@@ -119,8 +117,8 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
     (*data)->bv_len = strlen((*data)->bv_val) + 1;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_reply_acquire_cb() sending data: guid: \"%s\" data: \"%s\".\n",
-        *data_guid, (*data)->bv_val);
+                  "test_repl_session_plugin_reply_acquire_cb() sending data: guid: \"%s\" data: \"%s\".\n",
+                  *data_guid, (*data)->bv_val);
 
     return rc;
 }
@@ -140,21 +138,21 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
  * results in the master going into incremental backoff mode.
  */
 static int
-test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subtree, int is_total,
-                                         const char *data_guid, const struct berval *data)
+test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subtree, int is_total, const char *data_guid, const struct berval *data)
 {
     int rc = 0;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_post_acquire_cb() called for suffix \"%s\", "
-        "is_total: \"%s\" cookie: \"%s\".\n", slapi_sdn_get_ndn(repl_subtree),
-        is_total ? "TRUE" : "FALSE", cookie ? (char *)cookie : "NULL");
+                  "test_repl_session_plugin_post_acquire_cb() called for suffix \"%s\", "
+                  "is_total: \"%s\" cookie: \"%s\".\n",
+                  slapi_sdn_get_ndn(repl_subtree),
+                  is_total ? "TRUE" : "FALSE", cookie ? (char *)cookie : "NULL");
 
     /* log any extra data that was sent from the replica */
     if (data_guid && data) {
         slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-            "test_repl_session_plugin_post_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
-            data_guid, data->bv_val);
+                      "test_repl_session_plugin_post_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
+                      data_guid, data->bv_val);
     }
 
     return rc;
@@ -174,20 +172,19 @@ test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subt
  * results in the master going into incremental backoff mode.
  */
 static int
-test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total,
-                                         const char *data_guid, const struct berval *data)
+test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total, const char *data_guid, const struct berval *data)
 {
     int rc = 0;
 
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_recv_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
-        repl_subtree, is_total ? "TRUE" : "FALSE");
+                  "test_repl_session_plugin_recv_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
+                  repl_subtree, is_total ? "TRUE" : "FALSE");
 
     /* log any extra data that was sent from the master */
     if (data_guid && data) {
         slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-            "test_repl_session_plugin_recv_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
-            data_guid, data->bv_val);
+                      "test_repl_session_plugin_recv_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
+                      data_guid, data->bv_val);
     }
 
     return rc;
@@ -202,8 +199,8 @@ static void
 test_repl_session_plugin_destroy_cb(void *cookie, const Slapi_DN *repl_subtree)
 {
     slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-        "test_repl_session_plugin_destroy_cb() called for suffix \"%s\".\n",
-        slapi_sdn_get_ndn(repl_subtree));
+                  "test_repl_session_plugin_destroy_cb() called for suffix \"%s\".\n",
+                  slapi_sdn_get_ndn(repl_subtree));
 
     /* free cookie */
     slapi_ch_free_string((char **)&cookie);
@@ -221,8 +218,7 @@ static void *test_repl_session_api[] = {
     test_repl_session_plugin_reply_acquire_cb,
     test_repl_session_plugin_post_acquire_cb,
     test_repl_session_plugin_recv_acquire_cb,
-    test_repl_session_plugin_destroy_cb
-};
+    test_repl_session_plugin_destroy_cb};
 
 /*
  * Plug-in framework functions
@@ -231,10 +227,10 @@ static int
 test_repl_session_plugin_start(Slapi_PBlock *pb)
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
-                    "--> test_repl_session_plugin_start -- begin\n");
+                  "--> test_repl_session_plugin_start -- begin\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
-                    "<-- test_repl_session_plugin_start -- end\n");
+                  "<-- test_repl_session_plugin_start -- end\n");
     return 0;
 }
 
@@ -242,37 +238,37 @@ static int
 test_repl_session_plugin_close(Slapi_PBlock *pb)
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
-                    "--> test_repl_session_plugin_close -- begin\n");
+                  "--> test_repl_session_plugin_close -- begin\n");
 
     slapi_apib_unregister(REPL_SESSION_v1_0_GUID);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
-                    "<-- test_repl_session_plugin_close -- end\n");
+                  "<-- test_repl_session_plugin_close -- end\n");
     return 0;
 }
 
-int test_repl_session_plugin_init(Slapi_PBlock *pb)
+int
+test_repl_session_plugin_init(Slapi_PBlock *pb)
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
-                    "--> test_repl_session_plugin_init -- begin\n");
+                  "--> test_repl_session_plugin_init -- begin\n");
 
-    if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-                           SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-                          (void *) test_repl_session_plugin_start ) != 0 ||
-         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                          (void *) test_repl_session_plugin_close ) != 0 ||
-         slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-                           (void *)&test_repl_session_pdesc ) != 0 )
-    {
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                         SLAPI_PLUGIN_VERSION_01) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
+                         (void *)test_repl_session_plugin_start) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
+                         (void *)test_repl_session_plugin_close) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                         (void *)&test_repl_session_pdesc) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, test_repl_session_plugin_name,
-                         "<-- test_repl_session_plugin_init -- failed to register plugin -- end\n");
+                      "<-- test_repl_session_plugin_init -- failed to register plugin -- end\n");
         return -1;
     }
 
-    if( slapi_apib_register(REPL_SESSION_v1_0_GUID, test_repl_session_api) ) {
+    if (slapi_apib_register(REPL_SESSION_v1_0_GUID, test_repl_session_api)) {
         slapi_log_err(SLAPI_LOG_DEBUG, test_repl_session_plugin_name,
-                         "<-- test_repl_session_plugin_start -- failed to register repl_session api -- end\n");
+                      "<-- test_repl_session_plugin_start -- failed to register repl_session api -- end\n");
         return -1;
     }
 
@@ -281,12 +277,12 @@ int test_repl_session_plugin_init(Slapi_PBlock *pb)
        internal operations */
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &test_repl_session_plugin_id) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, test_repl_session_plugin_name,
-                         "<-- test_repl_session_plugin_init -- failed to retrieve plugin identity -- end\n");
+                      "<-- test_repl_session_plugin_init -- failed to retrieve plugin identity -- end\n");
         return -1;
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
-                     "<-- test_repl_session_plugin_init -- end\n");
+                  "<-- test_repl_session_plugin_init -- end\n");
     return 0;
 }
 
@@ -303,4 +299,3 @@ nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 nsslapd-plugin-depends-on-named: Multimaster Replication Plugin
 */
-

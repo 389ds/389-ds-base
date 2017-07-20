@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "cb.h"
@@ -17,7 +17,7 @@
 /*
 ** 1 set/get function for each parameter of a backend instance
 ** NOTE: Some parameters won't be taken into account until the server has restarted
-** In such cases, the internal conf is not updated but the new value is stored in the 
+** In such cases, the internal conf is not updated but the new value is stored in the
 ** dse.ldif file.
 **/
 
@@ -75,85 +75,80 @@ static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf, int 
 /* Default hardwired values */
 
 cb_instance_config_info cb_the_instance_config[] = {
-{CB_CONFIG_HOSTURL,CB_CONFIG_TYPE_STRING,"",&cb_instance_hosturl_get,&cb_instance_hosturl_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_BINDUSER, CB_CONFIG_TYPE_STRING, "", &cb_instance_binduser_get, &cb_instance_binduser_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_USERPASSWORD,CB_CONFIG_TYPE_STRING,"",&cb_instance_userpassword_get,&cb_instance_userpassword_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_MAXBINDCONNECTIONS,CB_CONFIG_TYPE_INT,CB_DEF_BIND_MAXCONNECTIONS,&cb_instance_maxbconn_get, &cb_instance_maxbconn_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_MAXCONNECTIONS,CB_CONFIG_TYPE_INT,CB_DEF_MAXCONNECTIONS,&cb_instance_maxconn_get, &cb_instance_maxconn_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_ABANDONTIMEOUT,CB_CONFIG_TYPE_INT,CB_DEF_ABANDON_TIMEOUT,&cb_instance_abandonto_get, &cb_instance_abandonto_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_MAXBINDCONCURRENCY,CB_CONFIG_TYPE_INT,CB_DEF_BIND_MAXCONCURRENCY,&cb_instance_maxbconc_get, &cb_instance_maxbconc_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_MAXCONCURRENCY,CB_CONFIG_TYPE_INT,CB_DEF_MAXCONCURRENCY,&cb_instance_maxconc_get, &cb_instance_maxconc_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_IMPERSONATION,CB_CONFIG_TYPE_ONOFF,CB_DEF_IMPERSONATION,&cb_instance_imperson_get, &cb_instance_imperson_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_CONNLIFETIME,CB_CONFIG_TYPE_INT,CB_DEF_CONNLIFETIME,&cb_instance_connlife_get, &cb_instance_connlife_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_BINDTIMEOUT,CB_CONFIG_TYPE_INT,CB_DEF_BINDTIMEOUT,&cb_instance_bindto_get, &cb_instance_bindto_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_TIMEOUT,CB_CONFIG_TYPE_INT,"0",&cb_instance_opto_get, &cb_instance_opto_set,0},
-{CB_CONFIG_REFERRAL,CB_CONFIG_TYPE_ONOFF,CB_DEF_SEARCHREFERRAL,&cb_instance_ref_get, &cb_instance_ref_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_LOCALACL,CB_CONFIG_TYPE_ONOFF,CB_DEF_LOCALACL,&cb_instance_acl_get, &cb_instance_acl_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_BINDRETRY,CB_CONFIG_TYPE_INT,CB_DEF_BINDRETRY,&cb_instance_bindretry_get, &cb_instance_bindretry_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_SIZELIMIT,CB_CONFIG_TYPE_INT,CB_DEF_SIZELIMIT,&cb_instance_sizelimit_get, &cb_instance_sizelimit_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_TIMELIMIT,CB_CONFIG_TYPE_INT,CB_DEF_TIMELIMIT,&cb_instance_timelimit_get, &cb_instance_timelimit_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_HOPLIMIT,CB_CONFIG_TYPE_INT,CB_DEF_HOPLIMIT,&cb_instance_hoplimit_get, &cb_instance_hoplimit_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_MAX_IDLE_TIME,CB_CONFIG_TYPE_INT,CB_DEF_MAX_IDLE_TIME,&cb_instance_max_idle_get, &cb_instance_max_idle_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_MAX_TEST_TIME,CB_CONFIG_TYPE_INT,CB_DEF_MAX_TEST_TIME,&cb_instance_max_test_get, &cb_instance_max_test_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_STARTTLS,CB_CONFIG_TYPE_ONOFF,CB_DEF_STARTTLS,&cb_instance_starttls_get, &cb_instance_starttls_set,CB_ALWAYS_SHOW},
-{CB_CONFIG_BINDMECH,CB_CONFIG_TYPE_STRING,CB_DEF_BINDMECH,&cb_instance_bindmech_get, &cb_instance_bindmech_set,CB_ALWAYS_SHOW},
-{NULL, 0, NULL, NULL, NULL, 0}
-};
+    {CB_CONFIG_HOSTURL, CB_CONFIG_TYPE_STRING, "", &cb_instance_hosturl_get, &cb_instance_hosturl_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_BINDUSER, CB_CONFIG_TYPE_STRING, "", &cb_instance_binduser_get, &cb_instance_binduser_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_USERPASSWORD, CB_CONFIG_TYPE_STRING, "", &cb_instance_userpassword_get, &cb_instance_userpassword_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_MAXBINDCONNECTIONS, CB_CONFIG_TYPE_INT, CB_DEF_BIND_MAXCONNECTIONS, &cb_instance_maxbconn_get, &cb_instance_maxbconn_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_MAXCONNECTIONS, CB_CONFIG_TYPE_INT, CB_DEF_MAXCONNECTIONS, &cb_instance_maxconn_get, &cb_instance_maxconn_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_ABANDONTIMEOUT, CB_CONFIG_TYPE_INT, CB_DEF_ABANDON_TIMEOUT, &cb_instance_abandonto_get, &cb_instance_abandonto_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_MAXBINDCONCURRENCY, CB_CONFIG_TYPE_INT, CB_DEF_BIND_MAXCONCURRENCY, &cb_instance_maxbconc_get, &cb_instance_maxbconc_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_MAXCONCURRENCY, CB_CONFIG_TYPE_INT, CB_DEF_MAXCONCURRENCY, &cb_instance_maxconc_get, &cb_instance_maxconc_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_IMPERSONATION, CB_CONFIG_TYPE_ONOFF, CB_DEF_IMPERSONATION, &cb_instance_imperson_get, &cb_instance_imperson_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_CONNLIFETIME, CB_CONFIG_TYPE_INT, CB_DEF_CONNLIFETIME, &cb_instance_connlife_get, &cb_instance_connlife_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_BINDTIMEOUT, CB_CONFIG_TYPE_INT, CB_DEF_BINDTIMEOUT, &cb_instance_bindto_get, &cb_instance_bindto_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_TIMEOUT, CB_CONFIG_TYPE_INT, "0", &cb_instance_opto_get, &cb_instance_opto_set, 0},
+    {CB_CONFIG_REFERRAL, CB_CONFIG_TYPE_ONOFF, CB_DEF_SEARCHREFERRAL, &cb_instance_ref_get, &cb_instance_ref_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_LOCALACL, CB_CONFIG_TYPE_ONOFF, CB_DEF_LOCALACL, &cb_instance_acl_get, &cb_instance_acl_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_BINDRETRY, CB_CONFIG_TYPE_INT, CB_DEF_BINDRETRY, &cb_instance_bindretry_get, &cb_instance_bindretry_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_SIZELIMIT, CB_CONFIG_TYPE_INT, CB_DEF_SIZELIMIT, &cb_instance_sizelimit_get, &cb_instance_sizelimit_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_TIMELIMIT, CB_CONFIG_TYPE_INT, CB_DEF_TIMELIMIT, &cb_instance_timelimit_get, &cb_instance_timelimit_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_HOPLIMIT, CB_CONFIG_TYPE_INT, CB_DEF_HOPLIMIT, &cb_instance_hoplimit_get, &cb_instance_hoplimit_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_MAX_IDLE_TIME, CB_CONFIG_TYPE_INT, CB_DEF_MAX_IDLE_TIME, &cb_instance_max_idle_get, &cb_instance_max_idle_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_MAX_TEST_TIME, CB_CONFIG_TYPE_INT, CB_DEF_MAX_TEST_TIME, &cb_instance_max_test_get, &cb_instance_max_test_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_STARTTLS, CB_CONFIG_TYPE_ONOFF, CB_DEF_STARTTLS, &cb_instance_starttls_get, &cb_instance_starttls_set, CB_ALWAYS_SHOW},
+    {CB_CONFIG_BINDMECH, CB_CONFIG_TYPE_STRING, CB_DEF_BINDMECH, &cb_instance_bindmech_get, &cb_instance_bindmech_set, CB_ALWAYS_SHOW},
+    {NULL, 0, NULL, NULL, NULL, 0}};
 
 /* Others forward declarations */
 
-int cb_instance_delete_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2,
-       int *returncode, char *returntext, void *arg);
-int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
-        int *returncode, char *returntext, void *arg);
-int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2,
-       int *returncode, char *returntext, void *arg);
+int cb_instance_delete_config_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e2, int *returncode, char *returntext, void *arg);
+int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg);
+int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e2, int *returncode, char *returntext, void *arg);
 static int
-cb_instance_config_set(void *arg, char *attr_name, cb_instance_config_info *config_array,
-struct berval *bval, char *err_buf, int phase, int apply_mod);
+cb_instance_config_set(void *arg, char *attr_name, cb_instance_config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod);
 
 
 int
 cb_dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
-                   Slapi_Entry* entryBefore __attribute__((unused)),
-                   Slapi_Entry* e __attribute__((unused)),
+                   Slapi_Entry *entryBefore __attribute__((unused)),
+                   Slapi_Entry *e __attribute__((unused)),
                    int *returncode,
                    char *returntext __attribute__((unused)),
                    void *arg __attribute__((unused)))
 {
-    *returncode=LDAP_UNWILLING_TO_PERFORM;
+    *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
 static char *cb_skeleton_entries[] =
-{
+    {
 
-    "dn: cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config\n"
-    "objectclass: top\n"
-    "objectclass: extensibleObject\n"
-    "cn: monitor\n",
+        "dn: cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: extensibleObject\n"
+        "cn: monitor\n",
 
-        ""
-};
+        ""};
 
 /*
 ** Initialize a backend instance with a default configuration
 */
 
-static void cb_instance_config_set_default(cb_backend_instance *inst)
+static void
+cb_instance_config_set_default(cb_backend_instance *inst)
 {
-        cb_instance_config_info *config;
-        char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
+    cb_instance_config_info *config;
+    char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
 
-        for (config = cb_the_instance_config; config->config_name != NULL; config++) {
-                cb_instance_config_set((void *)inst, 
-		config->config_name, cb_the_instance_config, NULL /* use default */, err_buf, 
-		CB_CONFIG_PHASE_INITIALIZATION, 1 /* apply */);
-        }
+    for (config = cb_the_instance_config; config->config_name != NULL; config++) {
+        cb_instance_config_set((void *)inst,
+                               config->config_name, cb_the_instance_config, NULL /* use default */, err_buf,
+                               CB_CONFIG_PHASE_INITIALIZATION, 1 /* apply */);
+    }
 
-	/* Set backend instance flags */
-	if (inst->inst_be) 
-		slapi_be_set_flag(inst->inst_be,SLAPI_BE_FLAG_REMOTE_DATA);
+    /* Set backend instance flags */
+    if (inst->inst_be)
+        slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_REMOTE_DATA);
 }
 
 /*
@@ -163,103 +158,102 @@ static void cb_instance_config_set_default(cb_backend_instance *inst)
 static cb_backend_instance *
 cb_instance_alloc(cb_backend *cb, char *name, char *basedn)
 {
-	int i;
+    int i;
 
-	cb_backend_instance * inst =
-		(cb_backend_instance *)slapi_ch_calloc(1, sizeof(cb_backend_instance));
+    cb_backend_instance *inst =
+        (cb_backend_instance *)slapi_ch_calloc(1, sizeof(cb_backend_instance));
 
-	/* associated_be_is_disabled defaults to 0 - this may be a problem if the associated
-	   be is disabled at instance creation time
-	 */
-        inst->inst_name = slapi_ch_strdup(name);
-        inst->monitor.mutex = slapi_new_mutex();
-	inst->monitor_availability.cpt_lock = slapi_new_mutex();
-	inst->monitor_availability.lock_timeLimit = slapi_new_mutex();
-        inst->pool= (cb_conn_pool *) slapi_ch_calloc(1,sizeof(cb_conn_pool));
-        inst->pool->conn.conn_list_mutex = slapi_new_mutex();
-        inst->pool->conn.conn_list_cv = slapi_new_condvar(inst->pool->conn.conn_list_mutex);
-        inst->pool->bindit=1;
+    /* associated_be_is_disabled defaults to 0 - this may be a problem if the associated
+       be is disabled at instance creation time
+     */
+    inst->inst_name = slapi_ch_strdup(name);
+    inst->monitor.mutex = slapi_new_mutex();
+    inst->monitor_availability.cpt_lock = slapi_new_mutex();
+    inst->monitor_availability.lock_timeLimit = slapi_new_mutex();
+    inst->pool = (cb_conn_pool *)slapi_ch_calloc(1, sizeof(cb_conn_pool));
+    inst->pool->conn.conn_list_mutex = slapi_new_mutex();
+    inst->pool->conn.conn_list_cv = slapi_new_condvar(inst->pool->conn.conn_list_mutex);
+    inst->pool->bindit = 1;
 
-        inst->bind_pool= (cb_conn_pool *) slapi_ch_calloc(1,sizeof(cb_conn_pool));
-        inst->bind_pool->conn.conn_list_mutex = slapi_new_mutex();
-        inst->bind_pool->conn.conn_list_cv = slapi_new_condvar(inst->bind_pool->conn.conn_list_mutex);
-	
-	inst->backend_type=cb;
-	/* initialize monitor_availability */
-	inst->monitor_availability.farmserver_state = FARMSERVER_AVAILABLE ; /* we expect the farm to be available */
-	inst->monitor_availability.cpt              = 0 ;					 /* set up the failed conn counter to 0 */
+    inst->bind_pool = (cb_conn_pool *)slapi_ch_calloc(1, sizeof(cb_conn_pool));
+    inst->bind_pool->conn.conn_list_mutex = slapi_new_mutex();
+    inst->bind_pool->conn.conn_list_cv = slapi_new_condvar(inst->bind_pool->conn.conn_list_mutex);
 
-	/* create RW lock to protect the config */
-	inst->rwl_config_lock = slapi_new_rwlock();
+    inst->backend_type = cb;
+    /* initialize monitor_availability */
+    inst->monitor_availability.farmserver_state = FARMSERVER_AVAILABLE; /* we expect the farm to be available */
+    inst->monitor_availability.cpt = 0;                                 /* set up the failed conn counter to 0 */
 
-	/* quick hack 				    */
-	/* put a ref to the config lock in the pool */
-	/* so that the connection mgmt module can   */
-	/* access the config safely		    */
+    /* create RW lock to protect the config */
+    inst->rwl_config_lock = slapi_new_rwlock();
 
-	inst->pool->rwl_config_lock = inst->rwl_config_lock;
-	inst->bind_pool->rwl_config_lock = inst->rwl_config_lock;
+    /* quick hack                     */
+    /* put a ref to the config lock in the pool */
+    /* so that the connection mgmt module can   */
+    /* access the config safely            */
 
-	for (i=0; i < MAX_CONN_ARRAY; i++) {
-		inst->pool->connarray[i] = NULL;
-		inst->bind_pool->connarray[i] = NULL;
-	}
+    inst->pool->rwl_config_lock = inst->rwl_config_lock;
+    inst->bind_pool->rwl_config_lock = inst->rwl_config_lock;
 
-	/* Config is now merged with the backend entry */
-	inst->configDn=slapi_ch_strdup(basedn);
+    for (i = 0; i < MAX_CONN_ARRAY; i++) {
+        inst->pool->connarray[i] = NULL;
+        inst->bind_pool->connarray[i] = NULL;
+    }
 
-	inst->monitorDn=slapi_ch_smprintf("cn=monitor,%s",basedn); 
+    /* Config is now merged with the backend entry */
+    inst->configDn = slapi_ch_strdup(basedn);
 
-	inst->eq_ctx = NULL;
+    inst->monitorDn = slapi_ch_smprintf("cn=monitor,%s", basedn);
 
-	return inst;
+    inst->eq_ctx = NULL;
+
+    return inst;
 }
 
-void cb_instance_free(cb_backend_instance * inst) {
+void
+cb_instance_free(cb_backend_instance *inst)
+{
 
-	if (inst) {
-		slapi_rwlock_wrlock(inst->rwl_config_lock);
+    if (inst) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
 
-		if ( inst->eq_ctx != NULL )
-		{
-			slapi_eq_cancel(inst->eq_ctx);
-			inst->eq_ctx = NULL;
-		}
+        if (inst->eq_ctx != NULL) {
+            slapi_eq_cancel(inst->eq_ctx);
+            inst->eq_ctx = NULL;
+        }
 
-		if (inst->bind_pool)
-		{
-			cb_close_conn_pool(inst->bind_pool);
-			slapi_destroy_condvar(inst->bind_pool->conn.conn_list_cv);
-			slapi_destroy_mutex(inst->bind_pool->conn.conn_list_mutex);
-			slapi_ch_free((void **) &inst->bind_pool);
-		}
+        if (inst->bind_pool) {
+            cb_close_conn_pool(inst->bind_pool);
+            slapi_destroy_condvar(inst->bind_pool->conn.conn_list_cv);
+            slapi_destroy_mutex(inst->bind_pool->conn.conn_list_mutex);
+            slapi_ch_free((void **)&inst->bind_pool);
+        }
 
-		if (inst->pool)
-		{
-			cb_close_conn_pool(inst->pool);
-			slapi_destroy_condvar(inst->pool->conn.conn_list_cv);
-			slapi_ch_free_string(&inst->pool->password);
-			slapi_ch_free_string(&inst->pool->binddn);
-			slapi_ch_free_string(&inst->pool->binddn2);
-			slapi_ch_free_string(&inst->pool->url);
-			slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
-			slapi_ch_free((void **) &inst->pool);
-		}
+        if (inst->pool) {
+            cb_close_conn_pool(inst->pool);
+            slapi_destroy_condvar(inst->pool->conn.conn_list_cv);
+            slapi_ch_free_string(&inst->pool->password);
+            slapi_ch_free_string(&inst->pool->binddn);
+            slapi_ch_free_string(&inst->pool->binddn2);
+            slapi_ch_free_string(&inst->pool->url);
+            slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
+            slapi_ch_free((void **)&inst->pool);
+        }
 
-		slapi_destroy_mutex(inst->monitor.mutex);
-		slapi_destroy_mutex(inst->monitor_availability.cpt_lock);
-		slapi_destroy_mutex(inst->monitor_availability.lock_timeLimit);
-		slapi_ch_free_string(&inst->configDn);
-		slapi_ch_free_string(&inst->monitorDn);
-		slapi_ch_free_string(&inst->inst_name);
-		charray_free(inst->every_attribute);
+        slapi_destroy_mutex(inst->monitor.mutex);
+        slapi_destroy_mutex(inst->monitor_availability.cpt_lock);
+        slapi_destroy_mutex(inst->monitor_availability.lock_timeLimit);
+        slapi_ch_free_string(&inst->configDn);
+        slapi_ch_free_string(&inst->monitorDn);
+        slapi_ch_free_string(&inst->inst_name);
+        charray_free(inst->every_attribute);
 
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-		slapi_destroy_rwlock(inst->rwl_config_lock);
-		charray_free(inst->url_array);
-		slapi_ch_free((void **) &inst);
-	}
-/* XXXSD */
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+        slapi_destroy_rwlock(inst->rwl_config_lock);
+        charray_free(inst->url_array);
+        slapi_ch_free((void **)&inst);
+    }
+    /* XXXSD */
 }
 
 /*
@@ -267,73 +261,72 @@ void cb_instance_free(cb_backend_instance * inst) {
 ** backend instance.
 */
 
-int cb_instance_modify_config_check_callback(Slapi_PBlock *pb,
-                                             Slapi_Entry* entryBefore __attribute__((unused)),
-                                             Slapi_Entry* e __attribute__((unused)),
-                                             int *returncode,
-                                             char *returntext,
-                                             void *arg) {
+int
+cb_instance_modify_config_check_callback(Slapi_PBlock *pb,
+                                         Slapi_Entry *entryBefore __attribute__((unused)),
+                                         Slapi_Entry *e __attribute__((unused)),
+                                         int *returncode,
+                                         char *returntext,
+                                         void *arg)
+{
 
-	cb_backend_instance * inst = (cb_backend_instance *) arg;
-        LDAPMod **mods;
-        int rc = LDAP_SUCCESS;
-	int i;
-	char * attr_name;
-        returntext[0] = '\0';
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    LDAPMod **mods;
+    int rc = LDAP_SUCCESS;
+    int i;
+    char *attr_name;
+    returntext[0] = '\0';
 
-	CB_ASSERT(inst!=NULL);
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+    CB_ASSERT(inst != NULL);
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 
-	/* First pass to validate input */
-        for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
-                attr_name = mods[i]->mod_type;
+    /* First pass to validate input */
+    for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
+        attr_name = mods[i]->mod_type;
 
-		/* specific processing for multi-valued attributes */
-		if ( !strcasecmp ( attr_name, CB_CONFIG_SUFFIX )) {
-                        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "suffix modification not allowed\n");
-                        rc = LDAP_UNWILLING_TO_PERFORM;
-			continue;
-		} else
-                if ( !strcasecmp ( attr_name, CB_CONFIG_ILLEGAL_ATTRS )) {
-			continue;
-		} else
-		if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
-			continue;
-		} else
+        /* specific processing for multi-valued attributes */
+        if (!strcasecmp(attr_name, CB_CONFIG_SUFFIX)) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "suffix modification not allowed\n");
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            continue;
+        } else if (!strcasecmp(attr_name, CB_CONFIG_ILLEGAL_ATTRS)) {
+            continue;
+        } else if (!strcasecmp(attr_name, CB_CONFIG_CHAINING_COMPONENTS)) {
+            continue;
+        } else
 
-		/* CB_CONFIG_BINDUSER & CB_CONFIG_USERPASSWORD may be added */
-		/* or deleted						    */
+            /* CB_CONFIG_BINDUSER & CB_CONFIG_USERPASSWORD may be added */
+            /* or deleted                            */
 
-		if ( !strcasecmp ( attr_name, CB_CONFIG_USERPASSWORD ))  {
-			continue;
-		} else
-		if ( !strcasecmp ( attr_name, CB_CONFIG_BINDUSER ))  {
+            if (!strcasecmp(attr_name, CB_CONFIG_USERPASSWORD)) {
+            continue;
+        } else if (!strcasecmp(attr_name, CB_CONFIG_BINDUSER)) {
 
-			/* Make sure value is not forbidden */
-                	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op) ||
-                        	SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+            /* Make sure value is not forbidden */
+            if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op) ||
+                SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 
-                        	rc = cb_instance_config_set((void *) inst, attr_name,
-                  	      	cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
-                              	CB_CONFIG_PHASE_RUNNING, 0);
-				continue;
-			}
-		} 
-		
-                if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) ||
-                        SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-                        rc= LDAP_UNWILLING_TO_PERFORM;
-                        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
-                                (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
-                } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
-                        /* This assumes there is only one bval for this mod. */
-                        rc = cb_instance_config_set((void *) inst, attr_name,
-                  	      cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
-                              CB_CONFIG_PHASE_RUNNING, 0);
-                }
-	}
-        *returncode= rc;
-		return ((LDAP_SUCCESS == rc) ? 1:-1);
+                rc = cb_instance_config_set((void *)inst, attr_name,
+                                            cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
+                                            CB_CONFIG_PHASE_RUNNING, 0);
+                continue;
+            }
+        }
+
+        if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) ||
+            SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
+                        (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
+        } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
+            /* This assumes there is only one bval for this mod. */
+            rc = cb_instance_config_set((void *)inst, attr_name,
+                                        cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
+                                        CB_CONFIG_PHASE_RUNNING, 0);
+        }
+    }
+    *returncode = rc;
+    return ((LDAP_SUCCESS == rc) ? 1 : -1);
 }
 
 
@@ -342,336 +335,338 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb,
 ** backend instance.
 */
 
-int cb_instance_modify_config_callback(Slapi_PBlock *pb,
-                                       Slapi_Entry* entryBefore __attribute__((unused)),
-                                       Slapi_Entry* e __attribute__((unused)),
-                                       int *returncode,
-                                       char *returntext,
-                                       void *arg) {
+int
+cb_instance_modify_config_callback(Slapi_PBlock *pb,
+                                   Slapi_Entry *entryBefore __attribute__((unused)),
+                                   Slapi_Entry *e __attribute__((unused)),
+                                   int *returncode,
+                                   char *returntext,
+                                   void *arg)
+{
 
-	cb_backend_instance * inst = (cb_backend_instance *) arg;
-        LDAPMod **mods;
-        int rc = LDAP_SUCCESS;
-	int i;
-	int reopen_conn=0;
-	char * attr_name;
-        returntext[0] = '\0';
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    LDAPMod **mods;
+    int rc = LDAP_SUCCESS;
+    int i;
+    int reopen_conn = 0;
+    char *attr_name;
+    returntext[0] = '\0';
 
-	CB_ASSERT(inst!=NULL);
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+    CB_ASSERT(inst != NULL);
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 
-	/* input checked in the preop modify callback */
+    /* input checked in the preop modify callback */
 
-        for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
-                attr_name = mods[i]->mod_type;
+    for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
+        attr_name = mods[i]->mod_type;
 
-		/* specific processing for multi-valued attributes */
-		if ( !strcasecmp ( attr_name, CB_CONFIG_ILLEGAL_ATTRS )) {
-               		char * config_attr_value;
-                       	int done=0;
-			int j;
+        /* specific processing for multi-valued attributes */
+        if (!strcasecmp(attr_name, CB_CONFIG_ILLEGAL_ATTRS)) {
+            char *config_attr_value;
+            int done = 0;
+            int j;
 
-       			slapi_rwlock_wrlock(inst->rwl_config_lock);
-                        for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-                               	config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                               	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
-                                       	if (!done) {
-                                               	charray_free(inst->illegal_attributes);
-                                               	inst->illegal_attributes=NULL;
-                                               	done=1;
-                                       	}
-                                       	charray_add(&inst->illegal_attributes,
-						slapi_ch_strdup(config_attr_value));
-                               	} else
-                               	if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-                                       	charray_add(&inst->illegal_attributes,
-                                               	slapi_ch_strdup(config_attr_value));
-                               	} else
-                               	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-                                       	charray_remove(inst->illegal_attributes,
-                                               	config_attr_value,
-												0 /* freeit */);
-                               	}
-                        }
-                        if (NULL == mods[i]->mod_bvalues) {
-                               	charray_free(inst->illegal_attributes);
-                               	inst->illegal_attributes=NULL;
-                        }
-        		slapi_rwlock_unlock(inst->rwl_config_lock);
-                        continue;
-		} 
-		if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
-			char *config_attr_value;
-			char *attr_val;
-			int done=0;
-			int j;
-
-			slapi_rwlock_wrlock(inst->rwl_config_lock);
-			for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-				config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-				if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
-					if (!done) {
-						charray_free(inst->chaining_components);
-						inst->chaining_components=NULL;
-						done=1;
-					}
-					/* XXXSD assume dns */
-					charray_add(&inst->chaining_components,
-									slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-				} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-					charray_add(&inst->chaining_components,
-								slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-				} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-					attr_val = slapi_dn_normalize(slapi_ch_strdup(config_attr_value));
-					charray_remove(inst->chaining_components,attr_val, 0 /* freeit */);
-					slapi_ch_free_string(&attr_val);
-				}
-			}
-			if (NULL == mods[i]->mod_bvalues) {
-				charray_free(inst->chaining_components);
-				inst->chaining_components=NULL;
-			}
-			slapi_rwlock_unlock(inst->rwl_config_lock);
-			continue;
-		} 
-
-		if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) || 
-                        SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-
-			/* Special processing for binddn & password */
-			/* because they are optional		    */
-
-			if (( !strcasecmp ( attr_name, CB_CONFIG_BINDUSER )) || 
-			    ( !strcasecmp ( attr_name, CB_CONFIG_USERPASSWORD ))) {
-
-				if (mods[i]->mod_op & LDAP_MOD_DELETE) {
-                        		rc = cb_instance_config_set((void *) inst, attr_name, 
-					cb_the_instance_config, NULL, returntext,
-					CB_CONFIG_PHASE_RUNNING, 1); }
-				else {
-                        		rc = cb_instance_config_set((void *) inst, attr_name, 
-					cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
-					CB_CONFIG_PHASE_RUNNING, 1);
-				}
-				if (rc==CB_REOPEN_CONN) {
-					reopen_conn=1;
-					rc=LDAP_SUCCESS;
-				}
-				continue;
-			}
-			
-                        rc= LDAP_UNWILLING_TO_PERFORM;
-                        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
-                              (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
-                } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
-                        /* This assumes there is only one bval for this mod. */
-                        rc = cb_instance_config_set((void *) inst, attr_name, 
-			cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
-				CB_CONFIG_PHASE_RUNNING, 1);
-		
-			/* Update requires to reopen connections  */
-			/* Expensive operation so do it only once */
-			if (rc==CB_REOPEN_CONN) {
-				reopen_conn=1;
-				rc=LDAP_SUCCESS;
-			}
+            slapi_rwlock_wrlock(inst->rwl_config_lock);
+            for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+                config_attr_value = (char *)mods[i]->mod_bvalues[j]->bv_val;
+                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+                    if (!done) {
+                        charray_free(inst->illegal_attributes);
+                        inst->illegal_attributes = NULL;
+                        done = 1;
+                    }
+                    charray_add(&inst->illegal_attributes,
+                                slapi_ch_strdup(config_attr_value));
+                } else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+                    charray_add(&inst->illegal_attributes,
+                                slapi_ch_strdup(config_attr_value));
+                } else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+                    charray_remove(inst->illegal_attributes,
+                                   config_attr_value,
+                                   0 /* freeit */);
                 }
-	}
+            }
+            if (NULL == mods[i]->mod_bvalues) {
+                charray_free(inst->illegal_attributes);
+                inst->illegal_attributes = NULL;
+            }
+            slapi_rwlock_unlock(inst->rwl_config_lock);
+            continue;
+        }
+        if (!strcasecmp(attr_name, CB_CONFIG_CHAINING_COMPONENTS)) {
+            char *config_attr_value;
+            char *attr_val;
+            int done = 0;
+            int j;
 
-        *returncode= rc; 
+            slapi_rwlock_wrlock(inst->rwl_config_lock);
+            for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+                config_attr_value = (char *)mods[i]->mod_bvalues[j]->bv_val;
+                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+                    if (!done) {
+                        charray_free(inst->chaining_components);
+                        inst->chaining_components = NULL;
+                        done = 1;
+                    }
+                    /* XXXSD assume dns */
+                    charray_add(&inst->chaining_components,
+                                slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+                } else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+                    charray_add(&inst->chaining_components,
+                                slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+                } else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+                    attr_val = slapi_dn_normalize(slapi_ch_strdup(config_attr_value));
+                    charray_remove(inst->chaining_components, attr_val, 0 /* freeit */);
+                    slapi_ch_free_string(&attr_val);
+                }
+            }
+            if (NULL == mods[i]->mod_bvalues) {
+                charray_free(inst->chaining_components);
+                inst->chaining_components = NULL;
+            }
+            slapi_rwlock_unlock(inst->rwl_config_lock);
+            continue;
+        }
 
-	if (reopen_conn) {
-		cb_stale_all_connections(inst);
-	}
+        if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) ||
+            SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 
-        return ((LDAP_SUCCESS == rc) ? SLAPI_DSE_CALLBACK_OK:SLAPI_DSE_CALLBACK_ERROR);
+            /* Special processing for binddn & password */
+            /* because they are optional            */
+
+            if ((!strcasecmp(attr_name, CB_CONFIG_BINDUSER)) ||
+                (!strcasecmp(attr_name, CB_CONFIG_USERPASSWORD))) {
+
+                if (mods[i]->mod_op & LDAP_MOD_DELETE) {
+                    rc = cb_instance_config_set((void *)inst, attr_name,
+                                                cb_the_instance_config, NULL, returntext,
+                                                CB_CONFIG_PHASE_RUNNING, 1);
+                } else {
+                    rc = cb_instance_config_set((void *)inst, attr_name,
+                                                cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
+                                                CB_CONFIG_PHASE_RUNNING, 1);
+                }
+                if (rc == CB_REOPEN_CONN) {
+                    reopen_conn = 1;
+                    rc = LDAP_SUCCESS;
+                }
+                continue;
+            }
+
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
+                        (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
+        } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
+            /* This assumes there is only one bval for this mod. */
+            rc = cb_instance_config_set((void *)inst, attr_name,
+                                        cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
+                                        CB_CONFIG_PHASE_RUNNING, 1);
+
+            /* Update requires to reopen connections  */
+            /* Expensive operation so do it only once */
+            if (rc == CB_REOPEN_CONN) {
+                reopen_conn = 1;
+                rc = LDAP_SUCCESS;
+            }
+        }
+    }
+
+    *returncode = rc;
+
+    if (reopen_conn) {
+        cb_stale_all_connections(inst);
+    }
+
+    return ((LDAP_SUCCESS == rc) ? SLAPI_DSE_CALLBACK_OK : SLAPI_DSE_CALLBACK_ERROR);
 }
 
 /*
-** Parse and instantiate backend instances 
+** Parse and instantiate backend instances
 */
 
 int
-cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e)
+cb_parse_instance_config_entry(cb_backend *cb, Slapi_Entry *e)
 {
-	cb_backend_instance *inst = NULL;
-	Slapi_Attr *attr = NULL;
-	Slapi_Value *sval;
-	const struct berval *attrValue;
-	char *instname;
-	char retmsg[CB_BUFSIZE];
-	int rc = LDAP_SUCCESS;
+    cb_backend_instance *inst = NULL;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *sval;
+    const struct berval *attrValue;
+    char *instname;
+    char retmsg[CB_BUFSIZE];
+    int rc = LDAP_SUCCESS;
 
-	CB_ASSERT(e!=NULL);
-	
-	/*
-	** Retrieve the instance name and make sure it is not 
-	** already declared.
-	*/
-	
-	if ( 0 == slapi_entry_attr_find( e, CB_CONFIG_INSTNAME, &attr )) {
-		slapi_attr_first_value(attr, &sval);
-		attrValue = slapi_value_get_berval(sval);
-		instname = attrValue->bv_val;
-	} else {
-		slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, 
-			"cb_parse_instance_config_entry - Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME); 
-		return -1;
-	}
+    CB_ASSERT(e != NULL);
 
-	/* Allocate a new backend internal data structure */
-	inst = cb_instance_alloc(cb,instname,slapi_entry_get_dn(e));
+    /*
+    ** Retrieve the instance name and make sure it is not
+    ** already declared.
+    */
 
-	/* Emulate a add config entry to configure */
-	/* this backend instance.		   */
+    if (0 == slapi_entry_attr_find(e, CB_CONFIG_INSTNAME, &attr)) {
+        slapi_attr_first_value(attr, &sval);
+        attrValue = slapi_value_get_berval(sval);
+        instname = attrValue->bv_val;
+    } else {
+        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                      "cb_parse_instance_config_entry - Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
+        return -1;
+    }
 
-	cb_instance_add_config_callback(NULL,e,NULL,&rc,retmsg,inst);
-	if ( rc != LDAP_SUCCESS ) {
-		cb_instance_free(inst);
-	}
-	return rc;
+    /* Allocate a new backend internal data structure */
+    inst = cb_instance_alloc(cb, instname, slapi_entry_get_dn(e));
+
+    /* Emulate a add config entry to configure */
+    /* this backend instance.           */
+
+    cb_instance_add_config_callback(NULL, e, NULL, &rc, retmsg, inst);
+    if (rc != LDAP_SUCCESS) {
+        cb_instance_free(inst);
+    }
+    return rc;
 }
 
 /*
 ** Update the instance configuration
 */
 
-static int 
-cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int phase, int apply)
+static int
+cb_instance_config_initialize(cb_backend_instance *inst, Slapi_Entry *e, int phase, int apply)
 {
-	Slapi_Attr *attr = NULL;
-	Slapi_Value *sval;
-	Slapi_DN *suffix;
-	struct berval *bval;
-	char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
-	char *attr_name = NULL;
-	char *rootdn;
-	int using_def_connlifetime, i;
-	int urlfound = 0;
-	int rc = LDAP_SUCCESS;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *sval;
+    Slapi_DN *suffix;
+    struct berval *bval;
+    char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
+    char *attr_name = NULL;
+    char *rootdn;
+    int using_def_connlifetime, i;
+    int urlfound = 0;
+    int rc = LDAP_SUCCESS;
 
-	using_def_connlifetime=1;
+    using_def_connlifetime = 1;
 
-	for (slapi_entry_first_attr(e, &attr); attr; slapi_entry_next_attr(e, attr, &attr)) {
-		attr_name = NULL;
-		slapi_attr_get_type(attr, &attr_name);
+    for (slapi_entry_first_attr(e, &attr); attr; slapi_entry_next_attr(e, attr, &attr)) {
+        attr_name = NULL;
+        slapi_attr_get_type(attr, &attr_name);
 
-		if ( !strcasecmp ( attr_name, CB_CONFIG_SUFFIX )) {
-			if (apply && ( inst->inst_be != NULL )) {
-				suffix = slapi_sdn_new();
-				i = slapi_attr_first_value(attr, &sval);
-				while (i != -1 ) {
-					bval = (struct berval *) slapi_value_get_berval(sval);
-					slapi_sdn_set_dn_byref(suffix, bval->bv_val);
+        if (!strcasecmp(attr_name, CB_CONFIG_SUFFIX)) {
+            if (apply && (inst->inst_be != NULL)) {
+                suffix = slapi_sdn_new();
+                i = slapi_attr_first_value(attr, &sval);
+                while (i != -1) {
+                    bval = (struct berval *)slapi_value_get_berval(sval);
+                    slapi_sdn_set_dn_byref(suffix, bval->bv_val);
 
-					if (!slapi_be_issuffix(inst->inst_be, suffix)) {
-							slapi_be_addsuffix(inst->inst_be, suffix);
-					}
-					i = slapi_attr_next_value(attr, i, &sval);
-				}
-				slapi_sdn_free(&suffix);
-			}
-			continue;
-		} else if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
-			if (apply) {
-				slapi_rwlock_wrlock(inst->rwl_config_lock);
-				i = slapi_attr_first_value(attr, &sval);
-				charray_free(inst->chaining_components);
-				inst->chaining_components=NULL;
-				while (i != -1 ) {
-					bval = (struct berval *) slapi_value_get_berval(sval);
-					charray_add(&inst->chaining_components,
-					slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
-					i = slapi_attr_next_value(attr, i, &sval);
-				}
-				slapi_rwlock_unlock(inst->rwl_config_lock);
-			}
-			continue;
-		} else if ( !strcasecmp ( attr_name, CB_CONFIG_ILLEGAL_ATTRS )) {
-			if (apply) {
-				slapi_rwlock_wrlock(inst->rwl_config_lock);
-				i = slapi_attr_first_value(attr, &sval);
-				charray_free(inst->illegal_attributes);
-				inst->illegal_attributes=NULL;
-				while (i != -1 ) {
-					bval = (struct berval *) slapi_value_get_berval(sval);
-					charray_add(&inst->illegal_attributes,
-					slapi_ch_strdup(bval->bv_val));
-					i = slapi_attr_next_value(attr, i, &sval);
-				}
-				slapi_rwlock_unlock(inst->rwl_config_lock);
-			}
-			continue;
-		}
-
-
-		if ( !strcasecmp ( attr_name, CB_CONFIG_HOSTURL )) {
-			urlfound=1;
-		}
-
-		/*
-		 * We are assuming that each of these attributes are to have
-		 * only one value.  If they have more than one value, like
-		 * the nsslapd-suffix attribute, then they need to be
-		 * handled differently.
-		 */
-
-		slapi_attr_first_value(attr, &sval);
-		bval = (struct berval *) slapi_value_get_berval(sval);
-
-		if (cb_instance_config_set((void *) inst, attr_name,
-			cb_the_instance_config, bval, err_buf, phase, apply ) != LDAP_SUCCESS) {
-			slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,"cb_instance_config_initialize - "
-				"Error with config attribute %s : %s\n",
-				attr_name, err_buf);
-			rc = -1;
-			break;
-		}
-		if ( !strcasecmp ( attr_name, CB_CONFIG_CONNLIFETIME )) {
-			using_def_connlifetime=0;
-		}
-	}
+                    if (!slapi_be_issuffix(inst->inst_be, suffix)) {
+                        slapi_be_addsuffix(inst->inst_be, suffix);
+                    }
+                    i = slapi_attr_next_value(attr, i, &sval);
+                }
+                slapi_sdn_free(&suffix);
+            }
+            continue;
+        } else if (!strcasecmp(attr_name, CB_CONFIG_CHAINING_COMPONENTS)) {
+            if (apply) {
+                slapi_rwlock_wrlock(inst->rwl_config_lock);
+                i = slapi_attr_first_value(attr, &sval);
+                charray_free(inst->chaining_components);
+                inst->chaining_components = NULL;
+                while (i != -1) {
+                    bval = (struct berval *)slapi_value_get_berval(sval);
+                    charray_add(&inst->chaining_components,
+                                slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
+                    i = slapi_attr_next_value(attr, i, &sval);
+                }
+                slapi_rwlock_unlock(inst->rwl_config_lock);
+            }
+            continue;
+        } else if (!strcasecmp(attr_name, CB_CONFIG_ILLEGAL_ATTRS)) {
+            if (apply) {
+                slapi_rwlock_wrlock(inst->rwl_config_lock);
+                i = slapi_attr_first_value(attr, &sval);
+                charray_free(inst->illegal_attributes);
+                inst->illegal_attributes = NULL;
+                while (i != -1) {
+                    bval = (struct berval *)slapi_value_get_berval(sval);
+                    charray_add(&inst->illegal_attributes,
+                                slapi_ch_strdup(bval->bv_val));
+                    i = slapi_attr_next_value(attr, i, &sval);
+                }
+                slapi_rwlock_unlock(inst->rwl_config_lock);
+            }
+            continue;
+        }
 
 
-	/*
-	** Check for mandatory attributes
-	** Post-Processing
-	*/
+        if (!strcasecmp(attr_name, CB_CONFIG_HOSTURL)) {
+            urlfound = 1;
+        }
 
-	if (LDAP_SUCCESS == rc) {
-		if (!urlfound) {
-			slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-				"cb_instance_config_initialize - "
-				"Malformed backend instance entry. Mandatory attr <%s> missing\n",CB_CONFIG_HOSTURL);
-			rc = -1;
-		}
+        /*
+         * We are assuming that each of these attributes are to have
+         * only one value.  If they have more than one value, like
+         * the nsslapd-suffix attribute, then they need to be
+         * handled differently.
+         */
 
-		if (apply ) {
-    		if ( using_def_connlifetime && strchr( inst->pool->hostname, ' ' ) != NULL ) {
-    			cb_instance_config_set((void *)inst, CB_CONFIG_CONNLIFETIME,
-    			cb_the_instance_config, NULL /* use default */, err_buf,
-					CB_CONFIG_PHASE_INITIALIZATION, 1 );
-    		}
-		}
-	}
+        slapi_attr_first_value(attr, &sval);
+        bval = (struct berval *)slapi_value_get_berval(sval);
 
-	/* 
-	** Additional checks
-	** It is forbidden to use directory manager as proxy user
-	** due to a bug in the acl check
-	*/
-	rootdn = cb_get_rootdn();
+        if (cb_instance_config_set((void *)inst, attr_name,
+                                   cb_the_instance_config, bval, err_buf, phase, apply) != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "cb_instance_config_initialize - "
+                                                              "Error with config attribute %s : %s\n",
+                          attr_name, err_buf);
+            rc = -1;
+            break;
+        }
+        if (!strcasecmp(attr_name, CB_CONFIG_CONNLIFETIME)) {
+            using_def_connlifetime = 0;
+        }
+    }
 
-	if (inst->impersonate && inst->pool && inst->pool->binddn && 
-		!strcmp(inst->pool->binddn,rootdn)) {	/* UTF8 aware */
-		slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-			"cb_instance_config_initialize - "
-			"Error with config attribute %s (%s: forbidden value)\n", CB_CONFIG_BINDUSER, rootdn);
-		rc= -1;
-	}
-	slapi_ch_free((void **)&rootdn);
 
-	return rc;
+    /*
+    ** Check for mandatory attributes
+    ** Post-Processing
+    */
+
+    if (LDAP_SUCCESS == rc) {
+        if (!urlfound) {
+            slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+                          "cb_instance_config_initialize - "
+                          "Malformed backend instance entry. Mandatory attr <%s> missing\n",
+                          CB_CONFIG_HOSTURL);
+            rc = -1;
+        }
+
+        if (apply) {
+            if (using_def_connlifetime && strchr(inst->pool->hostname, ' ') != NULL) {
+                cb_instance_config_set((void *)inst, CB_CONFIG_CONNLIFETIME,
+                                       cb_the_instance_config, NULL /* use default */, err_buf,
+                                       CB_CONFIG_PHASE_INITIALIZATION, 1);
+            }
+        }
+    }
+
+    /*
+    ** Additional checks
+    ** It is forbidden to use directory manager as proxy user
+    ** due to a bug in the acl check
+    */
+    rootdn = cb_get_rootdn();
+
+    if (inst->impersonate && inst->pool && inst->pool->binddn &&
+        !strcmp(inst->pool->binddn, rootdn)) { /* UTF8 aware */
+        slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+                      "cb_instance_config_initialize - "
+                      "Error with config attribute %s (%s: forbidden value)\n",
+                      CB_CONFIG_BINDUSER, rootdn);
+        rc = -1;
+    }
+    slapi_ch_free((void **)&rootdn);
+
+    return rc;
 }
 
 /********************************************************
@@ -679,781 +674,825 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 *********************************************************
 */
 
-static void *cb_instance_hosturl_get(void *arg)
+static void *
+cb_instance_hosturl_get(void *arg)
 {
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	char * data;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    char *data;
 
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = slapi_ch_strdup(inst->pool->url);
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return data;
+}
+
+static int
+cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    char *url = (char *)value;
+    LDAPURLDesc *ludp = NULL;
+    int rc = LDAP_SUCCESS;
+    int secure = 0;
+
+    if (!inst) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
+        rc = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
+
+    if ((rc = slapi_ldap_url_parse(url, &ludp, 0, &secure)) != 0 || !ludp) {
+        PL_strncpyz(errorbuf, slapi_urlparse_err2string(rc), SLAPI_DSE_RETURNTEXT_SIZE);
+        if (CB_CONFIG_PHASE_INITIALIZATION == phase)
+            inst->pool->url = slapi_ch_strdup("");
+        rc = LDAP_INVALID_SYNTAX;
+        goto done;
+    }
+
+    if (secure && inst->rwl_config_lock) {
+        int isgss = 0;
         slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = slapi_ch_strdup(inst->pool->url);
+        isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
         slapi_rwlock_unlock(inst->rwl_config_lock);
-	return data;
-}
-
-static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int phase, int apply)
-{
-	cb_backend_instance 	*inst=(cb_backend_instance *) arg;
-	char 			*url = (char *) value;
-        LDAPURLDesc         	*ludp=NULL;
-	int 			rc=LDAP_SUCCESS;
-	int			secure = 0;
-
-	if (!inst) {
-		PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
-		rc = LDAP_OPERATIONS_ERROR;
-		goto done;
-	}
-
- 	if (( rc = slapi_ldap_url_parse( url, &ludp, 0, &secure )) != 0 || !ludp) {
-		PL_strncpyz(errorbuf,slapi_urlparse_err2string( rc ), SLAPI_DSE_RETURNTEXT_SIZE);
-		if (CB_CONFIG_PHASE_INITIALIZATION == phase)
-			inst->pool->url=slapi_ch_strdup("");
-		rc = LDAP_INVALID_SYNTAX;
-		goto done;
-	}
- 
-	if (secure && inst->rwl_config_lock) {
-		int isgss = 0;
-		slapi_rwlock_rdlock(inst->rwl_config_lock);
-		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-		if (isgss) {
-			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use LDAPS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use LDAPS", CB_CONFIG_BINDMECH);
-			rc = LDAP_UNWILLING_TO_PERFORM;
-		}
-	}
-
-	if ((LDAP_SUCCESS == rc) && apply) {
-
-		slapi_rwlock_wrlock(inst->rwl_config_lock);
-
-		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-			( phase != CB_CONFIG_PHASE_STARTUP ))
-		{
-			/* Dynamic modification				*/
-			/* Don't free char * pointer now		*/
-			/* STore them in a waste basket 		*/
-			/* Will be relesase when the backend stops 	*/
-			
-			if (inst->pool->hostname)
-				charray_add(&inst->pool->waste_basket,inst->pool->hostname);
-			if (inst->pool->url)
-				charray_add(&inst->pool->waste_basket,inst->pool->url);
-			
-			if (inst->bind_pool->hostname)
-				charray_add(&inst->bind_pool->waste_basket,inst->bind_pool->hostname);
-			if (inst->bind_pool->url)
-				charray_add(&inst->bind_pool->waste_basket,inst->bind_pool->url);
-
-			/* Require connection cleanup */
-			rc=CB_REOPEN_CONN;
-		}
-
-		/* Normal case. Extract useful data from */
-		/* the url and update the configuration  */
-
-		if ((ludp->lud_host==NULL) || (strlen(ludp->lud_host)==0)) {
-			inst->pool->hostname = get_localhost_DNS();
-		} else {
-			inst->pool->hostname = slapi_ch_strdup( ludp->lud_host );
-		}
-		inst->pool->url = slapi_ch_strdup( url);
-		inst->pool->secure = secure;
-
-		if ((ludp->lud_port==0) && inst->pool->secure)
-			inst->pool->port=CB_LDAP_SECURE_PORT;
-		else
-			inst->pool->port = ludp->lud_port;
-
-		/* Build a charray of <host>:<port> */
-		/* hostname is of the form <host>[:port] <host>[:port] */
-
-		{ char * aBufCopy, * aHostName;
-			char * iter = NULL;
-			aBufCopy=slapi_ch_strdup(inst->pool->hostname);
-
-			aHostName=ldap_utf8strtok_r(aBufCopy," ", &iter);
-			charray_free(inst->url_array);
-			inst->url_array=NULL;
-			while (aHostName) {
-			
-				char * aHostPort;
-				if ( NULL == strstr(aHostName,":")) {
-					aHostPort = slapi_ch_smprintf("%s://%s:%d/",
-												  inst->pool->secure ? "ldaps" : "ldap", 
-												  aHostName,inst->pool->port);
-				} else {
-					aHostPort = slapi_ch_smprintf("%s://%s/", 
-												  inst->pool->secure ? "ldaps" : "ldap",
-												  aHostName);
-				}
-
-				charray_add(&inst->url_array,aHostPort);
-				aHostName=ldap_utf8strtok_r(NULL," ", &iter);
-			}
-
-			slapi_ch_free((void **) &aBufCopy);
-		}
-
-		inst->bind_pool->port=inst->pool->port;
-		inst->bind_pool->secure=inst->pool->secure;
-		inst->bind_pool->hostname=slapi_ch_strdup(inst->pool->hostname);
-
-	        slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-done:
-    	if ( ludp != NULL ) {
-       		ldap_free_urldesc( ludp );
-	}
-        return rc;
-}
-
-static void *cb_instance_binduser_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	char * data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = slapi_ch_strdup(inst->pool->binddn2);	/* not normalized */	
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return data;
-}
-
-static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int phase, int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int rc=LDAP_SUCCESS;
-
-	if (apply) {
-
-		slapi_rwlock_wrlock(inst->rwl_config_lock);
-		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-		    ( phase != CB_CONFIG_PHASE_STARTUP )) {
-
-			/* Dynamic modif   */
-			/* Free user later */
-
-			charray_add(&inst->pool->waste_basket,inst->pool->binddn);
-			charray_add(&inst->pool->waste_basket,inst->pool->binddn2);
-			rc=CB_REOPEN_CONN;
-		}
-
-		/* normalize and ignore the case */
-		slapi_ch_free_string(&inst->pool->binddn);
-		inst->pool->binddn = slapi_create_dn_string_case("%s", (char *)value);
-		/* not normalized */
-		inst->pool->binddn2=slapi_ch_strdup((char *) value);
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-	} else {
-
-		/* Security check */
-		/* directory manager of the farm server should not be used as */
-		/* proxing user. This is hard to check, so assume same directory */
-		/* manager across servers.					   */
-		
-		char * rootdn = cb_get_rootdn();
-		char * theValueCopy = NULL;
-
-		if (value) {
-			theValueCopy = slapi_create_dn_string_case("%s", (char *) value);
-		}
-
-		slapi_rwlock_rdlock(inst->rwl_config_lock);
-		if (inst->impersonate && theValueCopy && 
-		    !strcmp(theValueCopy,rootdn)) {	/* UTF8-aware. See cb_get_dn() */
-			rc=LDAP_UNWILLING_TO_PERFORM; 
-			if (errorbuf) {
-				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "value %s not allowed",rootdn);
-			}
-		}
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-
-		slapi_ch_free((void **)&theValueCopy);
-		slapi_ch_free((void **)&rootdn);
-	}
-
-	return rc;
-}
-
-
-static void *cb_instance_userpassword_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	char * data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = slapi_ch_strdup(inst->pool->password);
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return data;
-}
-
-static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int rc=LDAP_SUCCESS;
-
-	if (apply) {
-               	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-    			( phase != CB_CONFIG_PHASE_STARTUP )) {
-
-			/* Dynamic modif */
-			charray_add(&inst->pool->waste_basket,inst->pool->password);
-			rc=CB_REOPEN_CONN;
-		}
-
-		inst->pool->password=slapi_ch_strdup((char *) value);
-               	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return rc;
-}
-
-static void *cb_instance_sizelimit_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->sizelimit;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-            inst->sizelimit=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-		if (inst->inst_be) 
-			be_set_sizelimit(inst->inst_be, (int) ((uintptr_t)value));
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_timelimit_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->timelimit;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_timelimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->timelimit=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-		if (inst->inst_be) 
-			be_set_timelimit(inst->inst_be, (int) ((uintptr_t)value));
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_max_test_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->max_test_time;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->max_test_time=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_max_idle_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->max_idle_time;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_max_idle_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->max_idle_time=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-
-static void *cb_instance_hoplimit_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->hoplimit;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->hoplimit=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_maxbconn_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->bind_pool->conn.maxconnections;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->bind_pool->conn.maxconnections=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_maxconn_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->pool->conn.maxconnections;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->pool->conn.maxconnections=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_abandonto_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->abandon_timeout.tv_sec;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_abandonto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-
-	if (apply) {
-		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-    			( phase != CB_CONFIG_PHASE_STARTUP )) {
-
-			/* Dynamic modif not supported     */
-			/* Stored in ldif only		   */
-			return LDAP_SUCCESS;
-		}
-
-               	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->abandon_timeout.tv_sec=(int) ((uintptr_t)value);
-		inst->abandon_timeout.tv_usec=0;
-               	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_maxbconc_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->bind_pool->conn.maxconcurrency;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-        	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->bind_pool->conn.maxconcurrency=(int) ((uintptr_t)value);
-        	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_maxconc_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = inst->pool->conn.maxconcurrency;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-	return (void *) data;
-}
-
-static int cb_instance_maxconc_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->pool->conn.maxconcurrency=(int) ((uintptr_t)value);
-                slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-        return LDAP_SUCCESS;   
-}
-
-static void *cb_instance_imperson_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data;
-
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-        data = inst->impersonate;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-        return (void *) data;
-}
-
-static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int rc=LDAP_SUCCESS;
-
-	if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock); 
-		inst->impersonate=(int) ((uintptr_t)value);
-                slapi_rwlock_unlock(inst->rwl_config_lock); 
-	} else {
-		/* Security check: Make sure the proxing user is */
-		/* not the directory manager.			 */
-
-		char * rootdn=cb_get_rootdn();
-
-                slapi_rwlock_rdlock(inst->rwl_config_lock); 
-		if (((int) ((uintptr_t)value)) && inst->pool && inst->pool->binddn &&
-	                !strcmp(inst->pool->binddn,rootdn)) {	/* UTF-8 aware */
-		  	rc=LDAP_UNWILLING_TO_PERFORM;
-			if (errorbuf)
-				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "Proxy mode incompatible with %s value (%s not allowed)",
-					CB_CONFIG_BINDUSER,rootdn);
-		}
-                slapi_rwlock_unlock(inst->rwl_config_lock); 
-		slapi_ch_free((void **)&rootdn);
-	}
-
-        return rc;   
-}
-
-static void *cb_instance_connlife_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data; 
- 
-        slapi_rwlock_rdlock(inst->rwl_config_lock); 
-        data=inst->pool->conn.connlifetime;
-        slapi_rwlock_unlock(inst->rwl_config_lock); 
-        return (void *) data; 
-}
-
-static int cb_instance_connlife_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock);  
-		inst->pool->conn.connlifetime=(int) ((uintptr_t)value);
-                slapi_rwlock_unlock(inst->rwl_config_lock);  
-	}
-        return LDAP_SUCCESS;     
-}
-
-static void *cb_instance_bindto_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data;  
- 
-        slapi_rwlock_rdlock(inst->rwl_config_lock);  
-        data=inst->bind_pool->conn.op_timeout.tv_sec;
-        slapi_rwlock_unlock(inst->rwl_config_lock);  
-        return (void *) data;   
-}
-
-static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock);   
-		inst->bind_pool->conn.op_timeout.tv_sec=(int) ((uintptr_t)value);
-		inst->bind_pool->conn.op_timeout.tv_usec=0;
-		inst->bind_pool->conn.bind_timeout.tv_sec=(int) ((uintptr_t)value);
-		inst->bind_pool->conn.bind_timeout.tv_usec=0;
-		/* Used to bind to the farm server */
-		inst->pool->conn.bind_timeout.tv_sec=(int) ((uintptr_t)value);
-		inst->pool->conn.bind_timeout.tv_usec=0;
-                slapi_rwlock_unlock(inst->rwl_config_lock);   
-	}
-	return LDAP_SUCCESS;
-}
-
-static void *cb_instance_opto_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data;  
- 
-        slapi_rwlock_rdlock(inst->rwl_config_lock);  
-        data=inst->pool->conn.op_timeout.tv_sec;
-        slapi_rwlock_unlock(inst->rwl_config_lock);  
-        return (void *) data;   
-}
-
-static int cb_instance_opto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-        cb_backend_instance * inst=(cb_backend_instance *) arg;
-        if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock);
-                inst->pool->conn.op_timeout.tv_sec=(int) ((uintptr_t)value);
-                inst->pool->conn.op_timeout.tv_usec=0;
-                slapi_rwlock_unlock(inst->rwl_config_lock);
+        if (isgss) {
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use LDAPS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use LDAPS", CB_CONFIG_BINDMECH);
+            rc = LDAP_UNWILLING_TO_PERFORM;
         }
-        return LDAP_SUCCESS;
-}
+    }
 
-static void *cb_instance_ref_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data;   
-  
-        slapi_rwlock_rdlock(inst->rwl_config_lock);   
-        data=inst->searchreferral;
-        slapi_rwlock_unlock(inst->rwl_config_lock);   
-        return (void *) data;    
-}
+    if ((LDAP_SUCCESS == rc) && apply) {
 
-static int cb_instance_ref_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock);    
-		inst->searchreferral=(int) ((uintptr_t)value);
-                slapi_rwlock_unlock(inst->rwl_config_lock);    
-	}
-	return LDAP_SUCCESS;
-}
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
 
-static void *cb_instance_acl_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data;
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+            /* Dynamic modification                */
+            /* Don't free char * pointer now        */
+            /* STore them in a waste basket         */
+            /* Will be relesase when the backend stops     */
 
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
-        data=inst->local_acl;
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-        return (void *) data;
-}
+            if (inst->pool->hostname)
+                charray_add(&inst->pool->waste_basket, inst->pool->hostname);
+            if (inst->pool->url)
+                charray_add(&inst->pool->waste_basket, inst->pool->url);
 
-static int cb_instance_acl_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
+            if (inst->bind_pool->hostname)
+                charray_add(&inst->bind_pool->waste_basket, inst->bind_pool->hostname);
+            if (inst->bind_pool->url)
+                charray_add(&inst->bind_pool->waste_basket, inst->bind_pool->url);
 
-	if (apply) {
-    		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-                        ( phase != CB_CONFIG_PHASE_STARTUP )) {
+            /* Require connection cleanup */
+            rc = CB_REOPEN_CONN;
+        }
 
-                        /* Dynamic modif not supported     */
-                        /* Stored in ldif only             */
-                        return LDAP_SUCCESS;
+        /* Normal case. Extract useful data from */
+        /* the url and update the configuration  */
+
+        if ((ludp->lud_host == NULL) || (strlen(ludp->lud_host) == 0)) {
+            inst->pool->hostname = get_localhost_DNS();
+        } else {
+            inst->pool->hostname = slapi_ch_strdup(ludp->lud_host);
+        }
+        inst->pool->url = slapi_ch_strdup(url);
+        inst->pool->secure = secure;
+
+        if ((ludp->lud_port == 0) && inst->pool->secure)
+            inst->pool->port = CB_LDAP_SECURE_PORT;
+        else
+            inst->pool->port = ludp->lud_port;
+
+        /* Build a charray of <host>:<port> */
+        /* hostname is of the form <host>[:port] <host>[:port] */
+
+        {
+            char *aBufCopy, *aHostName;
+            char *iter = NULL;
+            aBufCopy = slapi_ch_strdup(inst->pool->hostname);
+
+            aHostName = ldap_utf8strtok_r(aBufCopy, " ", &iter);
+            charray_free(inst->url_array);
+            inst->url_array = NULL;
+            while (aHostName) {
+
+                char *aHostPort;
+                if (NULL == strstr(aHostName, ":")) {
+                    aHostPort = slapi_ch_smprintf("%s://%s:%d/",
+                                                  inst->pool->secure ? "ldaps" : "ldap",
+                                                  aHostName, inst->pool->port);
+                } else {
+                    aHostPort = slapi_ch_smprintf("%s://%s/",
+                                                  inst->pool->secure ? "ldaps" : "ldap",
+                                                  aHostName);
                 }
-	        slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->local_acl=(int) ((uintptr_t)value);
-	        slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
+
+                charray_add(&inst->url_array, aHostPort);
+                aHostName = ldap_utf8strtok_r(NULL, " ", &iter);
+            }
+
+            slapi_ch_free((void **)&aBufCopy);
+        }
+
+        inst->bind_pool->port = inst->pool->port;
+        inst->bind_pool->secure = inst->pool->secure;
+        inst->bind_pool->hostname = slapi_ch_strdup(inst->pool->hostname);
+
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+done:
+    if (ludp != NULL) {
+        ldap_free_urldesc(ludp);
+    }
+    return rc;
 }
 
-static void *cb_instance_bindretry_get(void *arg)
+static void *
+cb_instance_binduser_get(void *arg)
 {
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	uintptr_t data;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    char *data;
 
-        slapi_rwlock_rdlock(inst->rwl_config_lock); 
-        data=inst->bind_retry;
-        slapi_rwlock_unlock(inst->rwl_config_lock); 
-        return (void *) data; 
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = slapi_ch_strdup(inst->pool->binddn2); /* not normalized */
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return data;
 }
 
-static int cb_instance_bindretry_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+static int
+cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int phase, int apply)
 {
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	if (apply) {
-                slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->bind_retry=(int) ((uintptr_t)value);
-                slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-	return LDAP_SUCCESS;
-}
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    int rc = LDAP_SUCCESS;
 
+    if (apply) {
 
-static void *cb_instance_starttls_get(void *arg)
-{
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        uintptr_t data;
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+
+            /* Dynamic modif   */
+            /* Free user later */
+
+            charray_add(&inst->pool->waste_basket, inst->pool->binddn);
+            charray_add(&inst->pool->waste_basket, inst->pool->binddn2);
+            rc = CB_REOPEN_CONN;
+        }
+
+        /* normalize and ignore the case */
+        slapi_ch_free_string(&inst->pool->binddn);
+        inst->pool->binddn = slapi_create_dn_string_case("%s", (char *)value);
+        /* not normalized */
+        inst->pool->binddn2 = slapi_ch_strdup((char *)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    } else {
+
+        /* Security check */
+        /* directory manager of the farm server should not be used as */
+        /* proxing user. This is hard to check, so assume same directory */
+        /* manager across servers.                       */
+
+        char *rootdn = cb_get_rootdn();
+        char *theValueCopy = NULL;
+
+        if (value) {
+            theValueCopy = slapi_create_dn_string_case("%s", (char *)value);
+        }
 
         slapi_rwlock_rdlock(inst->rwl_config_lock);
-        data=inst->pool->starttls;
+        if (inst->impersonate && theValueCopy &&
+            !strcmp(theValueCopy, rootdn)) { /* UTF8-aware. See cb_get_dn() */
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            if (errorbuf) {
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "value %s not allowed", rootdn);
+            }
+        }
         slapi_rwlock_unlock(inst->rwl_config_lock);
-        return (void *) data;
+
+        slapi_ch_free((void **)&theValueCopy);
+        slapi_ch_free((void **)&rootdn);
+    }
+
+    return rc;
 }
 
-static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+
+static void *
+cb_instance_userpassword_get(void *arg)
 {
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int rc = LDAP_SUCCESS;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    char *data;
 
-	if (!inst) {
-		PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
-		rc = LDAP_OPERATIONS_ERROR;
-		goto done;
-	}
-
-	if (value && inst->rwl_config_lock) {
-		int isgss = 0;
-		slapi_rwlock_rdlock(inst->rwl_config_lock);
-		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-		if (isgss) {
-			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use startTLS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use startTLS", CB_CONFIG_BINDMECH);
-			rc = LDAP_UNWILLING_TO_PERFORM;
-		}
-	}
-
-	if ((LDAP_SUCCESS == rc) && apply) {
-	        slapi_rwlock_wrlock(inst->rwl_config_lock);
-		inst->pool->starttls=(int) ((uintptr_t)value);
-		inst->bind_pool->starttls=inst->pool->starttls;
-	        slapi_rwlock_unlock(inst->rwl_config_lock);
-		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-    			( phase != CB_CONFIG_PHASE_STARTUP )) {
-		    rc=CB_REOPEN_CONN; /* reconnect with the new starttls setting */
-		}
-	}
-done:
-	return rc;
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = slapi_ch_strdup(inst->pool->password);
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return data;
 }
 
-static void *cb_instance_bindmech_get(void *arg)
+static int
+cb_instance_userpassword_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
 {
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	char * data;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    int rc = LDAP_SUCCESS;
+
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+
+            /* Dynamic modif */
+            charray_add(&inst->pool->waste_basket, inst->pool->password);
+            rc = CB_REOPEN_CONN;
+        }
+
+        inst->pool->password = slapi_ch_strdup((char *)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return rc;
+}
+
+static void *
+cb_instance_sizelimit_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->sizelimit;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->sizelimit = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+        if (inst->inst_be)
+            be_set_sizelimit(inst->inst_be, (int)((uintptr_t)value));
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_timelimit_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->timelimit;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_timelimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->timelimit = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+        if (inst->inst_be)
+            be_set_timelimit(inst->inst_be, (int)((uintptr_t)value));
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_max_test_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->max_test_time;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_max_test_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->max_test_time = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_max_idle_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->max_idle_time;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_max_idle_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->max_idle_time = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+
+static void *
+cb_instance_hoplimit_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->hoplimit;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->hoplimit = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_maxbconn_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->bind_pool->conn.maxconnections;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->bind_pool->conn.maxconnections = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_maxconn_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->pool->conn.maxconnections;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_maxconn_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->pool->conn.maxconnections = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_abandonto_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->abandon_timeout.tv_sec;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_abandonto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+
+    if (apply) {
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+
+            /* Dynamic modif not supported     */
+            /* Stored in ldif only           */
+            return LDAP_SUCCESS;
+        }
+
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->abandon_timeout.tv_sec = (int)((uintptr_t)value);
+        inst->abandon_timeout.tv_usec = 0;
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_maxbconc_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->bind_pool->conn.maxconcurrency;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->bind_pool->conn.maxconcurrency = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_maxconc_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->pool->conn.maxconcurrency;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_maxconc_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->pool->conn.maxconcurrency = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_imperson_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->impersonate;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    int rc = LDAP_SUCCESS;
+
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->impersonate = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    } else {
+        /* Security check: Make sure the proxing user is */
+        /* not the directory manager.             */
+
+        char *rootdn = cb_get_rootdn();
 
         slapi_rwlock_rdlock(inst->rwl_config_lock);
-	data = slapi_ch_strdup(inst->pool->mech);
+        if (((int)((uintptr_t)value)) && inst->pool && inst->pool->binddn &&
+            !strcmp(inst->pool->binddn, rootdn)) { /* UTF-8 aware */
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            if (errorbuf)
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Proxy mode incompatible with %s value (%s not allowed)",
+                            CB_CONFIG_BINDUSER, rootdn);
+        }
         slapi_rwlock_unlock(inst->rwl_config_lock);
-	return data;
+        slapi_ch_free((void **)&rootdn);
+    }
+
+    return rc;
 }
 
-static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+static void *
+cb_instance_connlife_get(void *arg)
 {
-	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int rc=LDAP_SUCCESS;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
 
-	if (!inst) {
-		PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
-		rc = LDAP_OPERATIONS_ERROR;
-		goto done;
-	}
-
-	if (value && !PL_strcasecmp((char *) value, "GSSAPI") && inst->rwl_config_lock) {
-		int secure = 0;
-		slapi_rwlock_rdlock(inst->rwl_config_lock);
-		secure = inst->pool->secure || inst->pool->starttls;
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-		if (secure) {
-			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use SASL/GSSAPI if using SSL or TLS - please change the connection to use no security before changing %s to use GSSAPI", CB_CONFIG_BINDMECH);
-			rc = LDAP_UNWILLING_TO_PERFORM;
-		}
-	}
-
-	if ((LDAP_SUCCESS == rc) && apply) {
-               	slapi_rwlock_wrlock(inst->rwl_config_lock);
-		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-    			( phase != CB_CONFIG_PHASE_STARTUP )) {
-
-			/* Dynamic modif */
-			if (inst->pool->mech) {
-			    charray_add(&inst->pool->waste_basket,inst->pool->mech);
-			}
-			if (inst->bind_pool->mech) {
-			    charray_add(&inst->bind_pool->waste_basket,inst->bind_pool->mech);
-			}
-			rc=CB_REOPEN_CONN;
-		}
-
-		if (value && !PL_strcasecmp((char *) value, CB_SIMPLE_BINDMECH)) {
-		    inst->pool->mech=slapi_ch_strdup(LDAP_SASL_SIMPLE);
-		} else {
-		    inst->pool->mech=slapi_ch_strdup((char *) value);
-		}
-		inst->bind_pool->mech = slapi_ch_strdup(inst->pool->mech);
-               	slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
-done:
-	return rc;
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->pool->conn.connlifetime;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
 }
 
+static int
+cb_instance_connlife_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->pool->conn.connlifetime = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_bindto_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->bind_pool->conn.op_timeout.tv_sec;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_bindto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->bind_pool->conn.op_timeout.tv_sec = (int)((uintptr_t)value);
+        inst->bind_pool->conn.op_timeout.tv_usec = 0;
+        inst->bind_pool->conn.bind_timeout.tv_sec = (int)((uintptr_t)value);
+        inst->bind_pool->conn.bind_timeout.tv_usec = 0;
+        /* Used to bind to the farm server */
+        inst->pool->conn.bind_timeout.tv_sec = (int)((uintptr_t)value);
+        inst->pool->conn.bind_timeout.tv_usec = 0;
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_opto_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->pool->conn.op_timeout.tv_sec;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_opto_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->pool->conn.op_timeout.tv_sec = (int)((uintptr_t)value);
+        inst->pool->conn.op_timeout.tv_usec = 0;
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_ref_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->searchreferral;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_ref_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->searchreferral = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_acl_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->local_acl;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_acl_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase, int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+
+    if (apply) {
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+
+            /* Dynamic modif not supported     */
+            /* Stored in ldif only             */
+            return LDAP_SUCCESS;
+        }
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->local_acl = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+cb_instance_bindretry_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->bind_retry;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_bindretry_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    if (apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->bind_retry = (int)((uintptr_t)value);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+    return LDAP_SUCCESS;
+}
+
+
+static void *
+cb_instance_starttls_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    uintptr_t data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = inst->pool->starttls;
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return (void *)data;
+}
+
+static int
+cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    int rc = LDAP_SUCCESS;
+
+    if (!inst) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
+        rc = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
+
+    if (value && inst->rwl_config_lock) {
+        int isgss = 0;
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
+        isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+        if (isgss) {
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use startTLS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use startTLS", CB_CONFIG_BINDMECH);
+            rc = LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
+    if ((LDAP_SUCCESS == rc) && apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        inst->pool->starttls = (int)((uintptr_t)value);
+        inst->bind_pool->starttls = inst->pool->starttls;
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+            rc = CB_REOPEN_CONN; /* reconnect with the new starttls setting */
+        }
+    }
+done:
+    return rc;
+}
+
+static void *
+cb_instance_bindmech_get(void *arg)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    char *data;
+
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
+    data = slapi_ch_strdup(inst->pool->mech);
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+    return data;
+}
+
+static int
+cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    int rc = LDAP_SUCCESS;
+
+    if (!inst) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
+        rc = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
+
+    if (value && !PL_strcasecmp((char *)value, "GSSAPI") && inst->rwl_config_lock) {
+        int secure = 0;
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
+        secure = inst->pool->secure || inst->pool->starttls;
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+        if (secure) {
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use SASL/GSSAPI if using SSL or TLS - please change the connection to use no security before changing %s to use GSSAPI", CB_CONFIG_BINDMECH);
+            rc = LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
+    if ((LDAP_SUCCESS == rc) && apply) {
+        slapi_rwlock_wrlock(inst->rwl_config_lock);
+        if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&
+            (phase != CB_CONFIG_PHASE_STARTUP)) {
+
+            /* Dynamic modif */
+            if (inst->pool->mech) {
+                charray_add(&inst->pool->waste_basket, inst->pool->mech);
+            }
+            if (inst->bind_pool->mech) {
+                charray_add(&inst->bind_pool->waste_basket, inst->bind_pool->mech);
+            }
+            rc = CB_REOPEN_CONN;
+        }
+
+        if (value && !PL_strcasecmp((char *)value, CB_SIMPLE_BINDMECH)) {
+            inst->pool->mech = slapi_ch_strdup(LDAP_SASL_SIMPLE);
+        } else {
+            inst->pool->mech = slapi_ch_strdup((char *)value);
+        }
+        inst->bind_pool->mech = slapi_ch_strdup(inst->pool->mech);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
+done:
+    return rc;
+}
 
 
 /* Finds an entry in a config_info array with the given name.  Returns
  * the entry on success and NULL when not found.
  */
-static cb_instance_config_info *cb_get_config_info(cb_instance_config_info *config_array, char *attr_name)
+static cb_instance_config_info *
+cb_get_config_info(cb_instance_config_info *config_array, char *attr_name)
 {
-        int x;
+    int x;
 
-        for(x = 0; config_array[x].config_name != NULL; x++) {
-                if (!strcasecmp(config_array[x].config_name, attr_name)) {
-                        return &(config_array[x]);
-                }
+    for (x = 0; config_array[x].config_name != NULL; x++) {
+        if (!strcasecmp(config_array[x].config_name, attr_name)) {
+            return &(config_array[x]);
         }
-        return NULL;
+    }
+    return NULL;
 }
 
 /*
@@ -1463,76 +1502,75 @@ static cb_instance_config_info *cb_get_config_info(cb_instance_config_info *conf
 ** update requires to close open connections.
 ** err_buf is size SLAPI_DSE_RETURNTEXT_SIZE
 */
-static int 
-cb_instance_config_set(void *arg, char *attr_name, cb_instance_config_info *config_array, 
-struct berval *bval, char *err_buf, int phase, int apply_mod)
+static int
+cb_instance_config_set(void *arg, char *attr_name, cb_instance_config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod)
 {
-        cb_instance_config_info *config;
-        int use_default;
-        int int_val;
-        long long_val;
-        int retval = -1;
+    cb_instance_config_info *config;
+    int use_default;
+    int int_val;
+    long long_val;
+    int retval = -1;
 
-        config = cb_get_config_info(config_array, attr_name);
-        if (NULL == config) {
-		/* Ignore unknown attributes */
-                return LDAP_SUCCESS;
-        }
+    config = cb_get_config_info(config_array, attr_name);
+    if (NULL == config) {
+        /* Ignore unknown attributes */
+        return LDAP_SUCCESS;
+    }
 
-        /* If the config phase is initialization or if bval is NULL, we will use
+    /* If the config phase is initialization or if bval is NULL, we will use
          * the default value for the attribute. */
-        if (CB_CONFIG_PHASE_INITIALIZATION == phase || NULL == bval) {
-                use_default = 1;
-        } else { 
-                use_default = 0;
-                /* Since we are setting the value for the config attribute, we
+    if (CB_CONFIG_PHASE_INITIALIZATION == phase || NULL == bval) {
+        use_default = 1;
+    } else {
+        use_default = 0;
+        /* Since we are setting the value for the config attribute, we
                  * need to turn on the CB_PREVIOUSLY_SET flag to make
                  * sure this attribute is shown. */
-                config->config_flags |= CB_PREVIOUSLY_SET;
-        }
+        config->config_flags |= CB_PREVIOUSLY_SET;
+    }
 
-        switch(config->config_type) {
-        case CB_CONFIG_TYPE_INT:
-                if (use_default) {
-                        int_val = cb_atoi(config->config_default_value);
-                } else {
-                        int_val = cb_atoi((char *)bval->bv_val);
-                }
-                retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
-                break;
-        case CB_CONFIG_TYPE_INT_OCTAL:
-                if (use_default) {
-                        int_val = (int) strtol(config->config_default_value, NULL, 8);
-                } else {
-                        int_val = (int) strtol((char *)bval->bv_val, NULL, 8);
-                }
-                retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
-                break;
-        case CB_CONFIG_TYPE_LONG:
-                if (use_default) {
-                        long_val = cb_atol(config->config_default_value);
-                } else {
-                        long_val = cb_atol((char *)bval->bv_val);
-                }
-                retval = config->config_set_fn(arg, (void *) long_val, err_buf, phase, apply_mod);
-                break;
-        case CB_CONFIG_TYPE_STRING:
-                if (use_default) {
-                        retval = config->config_set_fn(arg, config->config_default_value, err_buf, phase, apply_mod);
-                } else {
-                        retval = config->config_set_fn(arg, bval->bv_val, err_buf, phase, apply_mod);
-                }
-                break;
-        case CB_CONFIG_TYPE_ONOFF:
-                if (use_default) {
-                        int_val = !strcasecmp(config->config_default_value, "on");
-                } else {
-                        int_val = !strcasecmp((char *) bval->bv_val, "on");
-                }
-                retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
-                break;
-        }        
-        return retval;
+    switch (config->config_type) {
+    case CB_CONFIG_TYPE_INT:
+        if (use_default) {
+            int_val = cb_atoi(config->config_default_value);
+        } else {
+            int_val = cb_atoi((char *)bval->bv_val);
+        }
+        retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
+        break;
+    case CB_CONFIG_TYPE_INT_OCTAL:
+        if (use_default) {
+            int_val = (int)strtol(config->config_default_value, NULL, 8);
+        } else {
+            int_val = (int)strtol((char *)bval->bv_val, NULL, 8);
+        }
+        retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
+        break;
+    case CB_CONFIG_TYPE_LONG:
+        if (use_default) {
+            long_val = cb_atol(config->config_default_value);
+        } else {
+            long_val = cb_atol((char *)bval->bv_val);
+        }
+        retval = config->config_set_fn(arg, (void *)long_val, err_buf, phase, apply_mod);
+        break;
+    case CB_CONFIG_TYPE_STRING:
+        if (use_default) {
+            retval = config->config_set_fn(arg, config->config_default_value, err_buf, phase, apply_mod);
+        } else {
+            retval = config->config_set_fn(arg, bval->bv_val, err_buf, phase, apply_mod);
+        }
+        break;
+    case CB_CONFIG_TYPE_ONOFF:
+        if (use_default) {
+            int_val = !strcasecmp(config->config_default_value, "on");
+        } else {
+            int_val = !strcasecmp((char *)bval->bv_val, "on");
+        }
+        retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
+        break;
+    }
+    return retval;
 }
 
 /* Utility function used in creating config entries.  Using the
@@ -1540,48 +1578,48 @@ struct berval *bval, char *err_buf, int phase, int apply_mod)
  * way.
  * buf is CB_BUFSIZE size
  */
-void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *buf)
+void
+cb_instance_config_get(void *arg, cb_instance_config_info *config, char *buf)
 {
-        char *tmp_string;
+    char *tmp_string;
 
-        if (config == NULL) {
-                buf[0] = '\0';
-		return;
-        }
- 
-        switch(config->config_type) {
-        case CB_CONFIG_TYPE_INT:
-                sprintf(buf, "%d", (int) ((uintptr_t)config->config_get_fn(arg)));
-                break;
-        case CB_CONFIG_TYPE_INT_OCTAL:
-                sprintf(buf, "%o", (int) ((uintptr_t)config->config_get_fn(arg)));
-                break;
-        case CB_CONFIG_TYPE_LONG:
-                sprintf(buf, "%ld", (long) ((uintptr_t)config->config_get_fn(arg)));
-                break;
-        case CB_CONFIG_TYPE_STRING:
-                /* Remember the get function for strings returns memory
+    if (config == NULL) {
+        buf[0] = '\0';
+        return;
+    }
+
+    switch (config->config_type) {
+    case CB_CONFIG_TYPE_INT:
+        sprintf(buf, "%d", (int)((uintptr_t)config->config_get_fn(arg)));
+        break;
+    case CB_CONFIG_TYPE_INT_OCTAL:
+        sprintf(buf, "%o", (int)((uintptr_t)config->config_get_fn(arg)));
+        break;
+    case CB_CONFIG_TYPE_LONG:
+        sprintf(buf, "%ld", (long)((uintptr_t)config->config_get_fn(arg)));
+        break;
+    case CB_CONFIG_TYPE_STRING:
+        /* Remember the get function for strings returns memory
                  * that must be freed. */
-                tmp_string = (char *) config->config_get_fn(arg);
-                if (tmp_string) {
-                    PR_snprintf(buf, CB_BUFSIZE, "%s", (char *) tmp_string);
-                    slapi_ch_free_string(&tmp_string);
-                } else {
-                    buf[0] = '\0';
-                }
-                break;
-        case CB_CONFIG_TYPE_ONOFF:
-                if ((int) ((uintptr_t)config->config_get_fn(arg))) {
-                        sprintf(buf,"%s","on");
-                } else {
-                        sprintf(buf,"%s","off");
-                }
-                break;
-	default:
-                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        "cb_instance_config_get - Invalid attribute syntax.\n");
-	
+        tmp_string = (char *)config->config_get_fn(arg);
+        if (tmp_string) {
+            PR_snprintf(buf, CB_BUFSIZE, "%s", (char *)tmp_string);
+            slapi_ch_free_string(&tmp_string);
+        } else {
+            buf[0] = '\0';
         }
+        break;
+    case CB_CONFIG_TYPE_ONOFF:
+        if ((int)((uintptr_t)config->config_get_fn(arg))) {
+            sprintf(buf, "%s", "on");
+        } else {
+            sprintf(buf, "%s", "off");
+        }
+        break;
+    default:
+        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                      "cb_instance_config_get - Invalid attribute syntax.\n");
+    }
 }
 
 /*
@@ -1590,457 +1628,465 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
 ** won't be taken into account until the server restarts
 */
 
-int cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
-                                       Slapi_Entry* e,
-                                       Slapi_Entry* entryAfter __attribute__((unused)),
-                                       int *returncode,
-                                       char *returntext __attribute__((unused)),
-                                       void *arg) {
+int
+cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                   Slapi_Entry *e,
+                                   Slapi_Entry *entryAfter __attribute__((unused)),
+                                   int *returncode,
+                                   char *returntext __attribute__((unused)),
+                                   void *arg)
+{
 
-        char                    buf[CB_BUFSIZE];
-        struct berval           val;
-        struct berval           *vals[2];
-        int                     i = 0;
-        cb_backend_instance     *inst = (cb_backend_instance *)arg;
-        cb_instance_config_info * config;
+    char buf[CB_BUFSIZE];
+    struct berval val;
+    struct berval *vals[2];
+    int i = 0;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    cb_instance_config_info *config;
 
-        vals[0] = &val;
-        vals[1] = NULL;
+    vals[0] = &val;
+    vals[1] = NULL;
 
-        /* suffixes */
+    /* suffixes */
 
-        slapi_rwlock_rdlock(inst->rwl_config_lock);
+    slapi_rwlock_rdlock(inst->rwl_config_lock);
 
-        {
-                const Slapi_DN *aSuffix;
-                i=0;
-		if (inst->inst_be) {
-                while ((aSuffix=slapi_be_getsuffix(inst->inst_be,i))) {
-                        val.bv_val = (char *)slapi_sdn_get_dn(aSuffix);
-                        val.bv_len = strlen( val.bv_val );
-			if (val.bv_len) {
-                        	if (i==0)
-                                	slapi_entry_attr_replace(e,CB_CONFIG_SUFFIX,(struct berval **)vals );
-                        	else
-                                	slapi_entry_attr_merge(e,CB_CONFIG_SUFFIX,(struct berval **)vals );
-			}
-                        i++;
-                }
-		}
-        }
-
-	for (i=0; inst->chaining_components && inst->chaining_components[i]; i++) {
-                val.bv_val = inst->chaining_components[i];
-                val.bv_len = strlen( val.bv_val );
-		if (val.bv_len) {
-        		if (i==0)
-                		slapi_entry_attr_replace(e,CB_CONFIG_CHAINING_COMPONENTS,(struct berval **)vals );
-                	else
-                        	slapi_entry_attr_merge(e,CB_CONFIG_CHAINING_COMPONENTS,(struct berval **)vals );
-		}
-	}
-	
-	for (i=0; inst->illegal_attributes && inst->illegal_attributes[i]; i++) {
-                val.bv_val = inst->illegal_attributes[i];
-                val.bv_len = strlen( val.bv_val );
-		if (val.bv_len) {
-        		if (i==0)
-                		slapi_entry_attr_replace(e,CB_CONFIG_ILLEGAL_ATTRS,(struct berval **)vals );
-                	else
-                        	slapi_entry_attr_merge(e,CB_CONFIG_ILLEGAL_ATTRS,(struct berval **)vals );
-		}
-	}
-
-        slapi_rwlock_unlock(inst->rwl_config_lock);
-
-	/* standard attributes */
-        for(config = cb_the_instance_config; config->config_name != NULL; config++) {
-                if (!(config->config_flags & (CB_ALWAYS_SHOW | CB_PREVIOUSLY_SET))) {
-                        /* This config option shouldn't be shown */
-                        continue;
-                }
-
-                cb_instance_config_get((void *) inst, config, buf);
-
-                val.bv_val = buf;
-                val.bv_len = strlen(buf);
+    {
+        const Slapi_DN *aSuffix;
+        i = 0;
+        if (inst->inst_be) {
+            while ((aSuffix = slapi_be_getsuffix(inst->inst_be, i))) {
+                val.bv_val = (char *)slapi_sdn_get_dn(aSuffix);
+                val.bv_len = strlen(val.bv_val);
                 if (val.bv_len) {
-                    slapi_entry_attr_replace(e, config->config_name, vals);
-                } else {
-                    slapi_entry_attr_delete(e, config->config_name);
+                    if (i == 0)
+                        slapi_entry_attr_replace(e, CB_CONFIG_SUFFIX, (struct berval **)vals);
+                    else
+                        slapi_entry_attr_merge(e, CB_CONFIG_SUFFIX, (struct berval **)vals);
                 }
+                i++;
+            }
+        }
+    }
+
+    for (i = 0; inst->chaining_components && inst->chaining_components[i]; i++) {
+        val.bv_val = inst->chaining_components[i];
+        val.bv_len = strlen(val.bv_val);
+        if (val.bv_len) {
+            if (i == 0)
+                slapi_entry_attr_replace(e, CB_CONFIG_CHAINING_COMPONENTS, (struct berval **)vals);
+            else
+                slapi_entry_attr_merge(e, CB_CONFIG_CHAINING_COMPONENTS, (struct berval **)vals);
+        }
+    }
+
+    for (i = 0; inst->illegal_attributes && inst->illegal_attributes[i]; i++) {
+        val.bv_val = inst->illegal_attributes[i];
+        val.bv_len = strlen(val.bv_val);
+        if (val.bv_len) {
+            if (i == 0)
+                slapi_entry_attr_replace(e, CB_CONFIG_ILLEGAL_ATTRS, (struct berval **)vals);
+            else
+                slapi_entry_attr_merge(e, CB_CONFIG_ILLEGAL_ATTRS, (struct berval **)vals);
+        }
+    }
+
+    slapi_rwlock_unlock(inst->rwl_config_lock);
+
+    /* standard attributes */
+    for (config = cb_the_instance_config; config->config_name != NULL; config++) {
+        if (!(config->config_flags & (CB_ALWAYS_SHOW | CB_PREVIOUSLY_SET))) {
+            /* This config option shouldn't be shown */
+            continue;
         }
 
-        *returncode = LDAP_SUCCESS;
-        return SLAPI_DSE_CALLBACK_OK;
+        cb_instance_config_get((void *)inst, config, buf);
+
+        val.bv_val = buf;
+        val.bv_len = strlen(buf);
+        if (val.bv_len) {
+            slapi_entry_attr_replace(e, config->config_name, vals);
+        } else {
+            slapi_entry_attr_delete(e, config->config_name);
+        }
+    }
+
+    *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 /*
 ** Ooops!!! The backend instance is being deleted
 */
 
-int cb_instance_delete_config_callback(Slapi_PBlock *pb __attribute__((unused)),
-                                       Slapi_Entry* e __attribute__((unused)),
-                                       Slapi_Entry* e2 __attribute__((unused)),
-                                       int *returncode __attribute__((unused)),
-                                       char *returntext __attribute__((unused)),
-                                       void *arg) {
+int
+cb_instance_delete_config_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                   Slapi_Entry *e __attribute__((unused)),
+                                   Slapi_Entry *e2 __attribute__((unused)),
+                                   int *returncode __attribute__((unused)),
+                                   char *returntext __attribute__((unused)),
+                                   void *arg)
+{
 
-	cb_backend_instance * inst = (cb_backend_instance *) arg;
-	int rc;
-	Slapi_Entry * anEntry=NULL;
-	Slapi_DN * aDn;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
+    int rc;
+    Slapi_Entry *anEntry = NULL;
+    Slapi_DN *aDn;
 
-	CB_ASSERT( inst!=NULL );
+    CB_ASSERT(inst != NULL);
 
-	/* notify the front-end */
-	slapi_mtn_be_stopping(inst->inst_be);
+    /* notify the front-end */
+    slapi_mtn_be_stopping(inst->inst_be);
 
-	/* Now it is safe to stop */
-	/* No pending op          */
+    /* Now it is safe to stop */
+    /* No pending op          */
 
-	/* unregister callbacks */
-	slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn,
-		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_search_config_callback);
-	slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
-		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_delete_config_callback);
-	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn,
-		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_check_callback);
-	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn,
-		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_callback);
+    /* unregister callbacks */
+    slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_search_config_callback);
+    slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_delete_config_callback);
+    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_check_callback);
+    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_callback);
 
-	/* At this point, the monitor entry should have been removed */
-	/* If not, manually call delete callback 		     */
+    /* At this point, the monitor entry should have been removed */
+    /* If not, manually call delete callback              */
 
-	aDn = slapi_sdn_new_dn_byref(inst->monitorDn);
-	if ( LDAP_SUCCESS==(slapi_search_internal_get_entry(aDn,NULL, &anEntry,inst->backend_type->identity))) {
-		cb_delete_monitor_callback( NULL, anEntry, NULL, &rc , NULL, inst );
-		if (anEntry) 
-			slapi_entry_free(anEntry);
-	}
-	slapi_sdn_done(aDn);
-	slapi_sdn_free(&aDn);
+    aDn = slapi_sdn_new_dn_byref(inst->monitorDn);
+    if (LDAP_SUCCESS == (slapi_search_internal_get_entry(aDn, NULL, &anEntry, inst->backend_type->identity))) {
+        cb_delete_monitor_callback(NULL, anEntry, NULL, &rc, NULL, inst);
+        if (anEntry)
+            slapi_entry_free(anEntry);
+    }
+    slapi_sdn_done(aDn);
+    slapi_sdn_free(&aDn);
 
-	/* free resources */
-	cb_close_conn_pool(inst->bind_pool);
-	cb_close_conn_pool(inst->pool);
-	slapi_be_free(&(inst->inst_be));
-	cb_instance_free(inst);
+    /* free resources */
+    cb_close_conn_pool(inst->bind_pool);
+    cb_close_conn_pool(inst->pool);
+    slapi_be_free(&(inst->inst_be));
+    cb_instance_free(inst);
 
-	return SLAPI_DSE_CALLBACK_OK;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
-static void cb_instance_add_monitor_later(time_t when __attribute__((unused)), void *arg) {
+static void
+cb_instance_add_monitor_later(time_t when __attribute__((unused)), void *arg)
+{
 
-	cb_backend_instance * inst = (cb_backend_instance *) arg;
+    cb_backend_instance *inst = (cb_backend_instance *)arg;
 
-	if ( inst != NULL )
-	{
-		slapi_rwlock_rdlock(inst->rwl_config_lock);
+    if (inst != NULL) {
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 
-		/* create the monitor entry if it is not there yet */
-		if (LDAP_SUCCESS == cb_config_add_dse_entries(inst->backend_type, cb_skeleton_entries,
-			inst->inst_name,CB_PLUGIN_NAME, NULL)) 
-		{
-			/* add monitor callbacks */
-			slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->monitorDn, LDAP_SCOPE_BASE,
-					"(objectclass=*)", cb_search_monitor_callback, (void *) inst);
+        /* create the monitor entry if it is not there yet */
+        if (LDAP_SUCCESS == cb_config_add_dse_entries(inst->backend_type, cb_skeleton_entries,
+                                                      inst->inst_name, CB_PLUGIN_NAME, NULL)) {
+            /* add monitor callbacks */
+            slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->monitorDn, LDAP_SCOPE_BASE,
+                                           "(objectclass=*)", cb_search_monitor_callback, (void *)inst);
 
-			slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->monitorDn, LDAP_SCOPE_BASE,
-					"(objectclass=*)", cb_dont_allow_that, (void *) NULL);
+            slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->monitorDn, LDAP_SCOPE_BASE,
+                                           "(objectclass=*)", cb_dont_allow_that, (void *)NULL);
 
-			slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP , inst->monitorDn, LDAP_SCOPE_BASE,
-					"(objectclass=*)", cb_delete_monitor_callback, (void *) inst);
-		}
-		slapi_rwlock_unlock(inst->rwl_config_lock);
-	}
+            slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, inst->monitorDn, LDAP_SCOPE_BASE,
+                                           "(objectclass=*)", cb_delete_monitor_callback, (void *)inst);
+        }
+        slapi_rwlock_unlock(inst->rwl_config_lock);
+    }
 }
 
 
-int cb_instance_add_config_check_callback(Slapi_PBlock *pb __attribute__((unused)),
-                                          Slapi_Entry* e,
-                                          Slapi_Entry* e2 __attribute__((unused)),
-                                          int *returncode,
-                                          char *returntext,
-                                          void *arg) {
+int
+cb_instance_add_config_check_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                      Slapi_Entry *e,
+                                      Slapi_Entry *e2 __attribute__((unused)),
+                                      int *returncode,
+                                      char *returntext,
+                                      void *arg)
+{
 
-       	int 			rc=LDAP_SUCCESS;
-	cb_backend_instance 	*inst;
-	cb_backend 		*cb=(cb_backend *) arg;
-        Slapi_Attr              *attr = NULL;
-        Slapi_Value             *sval;
-        const struct berval     *attrValue;
-	char 			*instname=NULL;
+    int rc = LDAP_SUCCESS;
+    cb_backend_instance *inst;
+    cb_backend *cb = (cb_backend *)arg;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *sval;
+    const struct berval *attrValue;
+    char *instname = NULL;
 
-	if (returntext)
-		returntext[0]='\0';
+    if (returntext)
+        returntext[0] = '\0';
 
-	/* Basic entry check */
-        if ( 0 == slapi_entry_attr_find( e, CB_CONFIG_INSTNAME, &attr )) {
-                slapi_attr_first_value(attr, &sval);
-                attrValue = slapi_value_get_berval(sval);
-                instname=attrValue->bv_val;
-        }
-	if ( instname == NULL ) {
-                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        "cb_instance_add_config_check_callback - Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
-				*returncode = LDAP_LOCAL_ERROR;
-                return SLAPI_DSE_CALLBACK_ERROR;
-        }
+    /* Basic entry check */
+    if (0 == slapi_entry_attr_find(e, CB_CONFIG_INSTNAME, &attr)) {
+        slapi_attr_first_value(attr, &sval);
+        attrValue = slapi_value_get_berval(sval);
+        instname = attrValue->bv_val;
+    }
+    if (instname == NULL) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                      "cb_instance_add_config_check_callback - Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
+        *returncode = LDAP_LOCAL_ERROR;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
-        /* Allocate a new backend internal data structure */
-        inst = cb_instance_alloc(cb,instname,slapi_entry_get_dn(e));
+    /* Allocate a new backend internal data structure */
+    inst = cb_instance_alloc(cb, instname, slapi_entry_get_dn(e));
 
-	/* build the backend instance from the default hardcoded conf,  */
-	/* the default instance config and the specific entry specified */
-	if ((rc=cb_build_backend_instance_config(inst,e,0))
-		!= LDAP_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-                	"cb_instance_add_config_check_callback - Can't instantiate chaining backend instance %s.\n",inst->inst_name);
-		*returncode=rc;
-                cb_instance_free(inst);
-                return SLAPI_DSE_CALLBACK_ERROR;
-        }
-
-	/* Free the dummy instance */
-	*returncode=rc;
+    /* build the backend instance from the default hardcoded conf,  */
+    /* the default instance config and the specific entry specified */
+    if ((rc = cb_build_backend_instance_config(inst, e, 0)) != LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+                      "cb_instance_add_config_check_callback - Can't instantiate chaining backend instance %s.\n", inst->inst_name);
+        *returncode = rc;
         cb_instance_free(inst);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
-        return SLAPI_DSE_CALLBACK_OK;
+    /* Free the dummy instance */
+    *returncode = rc;
+    cb_instance_free(inst);
+
+    return SLAPI_DSE_CALLBACK_OK;
 }
- 
+
 
 /* Create the default instance config from hard-coded values */
 /*
-** Initialize the backend instance with the config entry 
+** Initialize the backend instance with the config entry
 ** passed in arguments.
 ** <arg> : (cb_backend *)
 */
 
-int cb_instance_add_config_callback(Slapi_PBlock *pb __attribute__((unused)),
-                                    Slapi_Entry* e,
-                                    Slapi_Entry* e2 __attribute__((unused)),
-                                    int *returncode,
-                                    char *returntext,
-                                    void *arg) {
+int
+cb_instance_add_config_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                Slapi_Entry *e,
+                                Slapi_Entry *e2 __attribute__((unused)),
+                                int *returncode,
+                                char *returntext,
+                                void *arg)
+{
 
-       	int 			rc=LDAP_SUCCESS;
-	cb_backend_instance 	*inst;
-	cb_backend 		*cb=(cb_backend *) arg;
-        Slapi_Attr              *attr = NULL;
-        Slapi_Value             *sval;
-        const struct berval     *attrValue;
-	char 			*instname=NULL;
+    int rc = LDAP_SUCCESS;
+    cb_backend_instance *inst;
+    cb_backend *cb = (cb_backend *)arg;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *sval;
+    const struct berval *attrValue;
+    char *instname = NULL;
 
-	if (returntext)
-		returntext[0]='\0';
+    if (returntext)
+        returntext[0] = '\0';
 
-	/* Basic entry check */
-        if ( 0 == slapi_entry_attr_find( e, CB_CONFIG_INSTNAME, &attr )) {
-                slapi_attr_first_value(attr, &sval);
-                attrValue = slapi_value_get_berval(sval);
-                instname=attrValue->bv_val;
-        }
-	if ( instname == NULL ) {
-                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        "cb_instance_add_config_callback - Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
-				*returncode = LDAP_LOCAL_ERROR;
-                return SLAPI_DSE_CALLBACK_ERROR;
-        }
+    /* Basic entry check */
+    if (0 == slapi_entry_attr_find(e, CB_CONFIG_INSTNAME, &attr)) {
+        slapi_attr_first_value(attr, &sval);
+        attrValue = slapi_value_get_berval(sval);
+        instname = attrValue->bv_val;
+    }
+    if (instname == NULL) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                      "cb_instance_add_config_callback - Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
+        *returncode = LDAP_LOCAL_ERROR;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
-        /* Allocate a new backend internal data structure */
-        inst = cb_instance_alloc(cb,instname,slapi_entry_get_dn(e));
+    /* Allocate a new backend internal data structure */
+    inst = cb_instance_alloc(cb, instname, slapi_entry_get_dn(e));
 
-	/* build the backend instance from the default hardcoded conf,  */
-	/* the default instance config and the specific entry specified */
-	if ((rc=cb_build_backend_instance_config(inst,e,0))
-		!= LDAP_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-                	"cb_instance_add_config_callback - Can't instantiate chaining backend instance %s.\n",inst->inst_name);
-		*returncode=rc;
-                cb_instance_free(inst);
-                return SLAPI_DSE_CALLBACK_ERROR;
-        }
+    /* build the backend instance from the default hardcoded conf,  */
+    /* the default instance config and the specific entry specified */
+    if ((rc = cb_build_backend_instance_config(inst, e, 0)) != LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+                      "cb_instance_add_config_callback - Can't instantiate chaining backend instance %s.\n", inst->inst_name);
+        *returncode = rc;
+        cb_instance_free(inst);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
-	/* Instantiate a Slapi_Backend if necessary */
-	if (!inst->isconfigured) {
+    /* Instantiate a Slapi_Backend if necessary */
+    if (!inst->isconfigured) {
 
-		Slapi_PBlock 		*aPb=NULL;
+        Slapi_PBlock *aPb = NULL;
 
-        	inst->inst_be = slapi_be_new(CB_CHAINING_BACKEND_TYPE,inst->inst_name,0,0);
-        	aPb=slapi_pblock_new();
-        	slapi_pblock_set(aPb, SLAPI_PLUGIN, inst->backend_type->plugin);
-        	slapi_be_setentrypoint(inst->inst_be,0,(void *)NULL,aPb);
-        	slapi_be_set_instance_info(inst->inst_be,inst);
-        	slapi_pblock_set(aPb, SLAPI_PLUGIN, NULL);
-        	slapi_pblock_destroy(aPb);
-	}
+        inst->inst_be = slapi_be_new(CB_CHAINING_BACKEND_TYPE, inst->inst_name, 0, 0);
+        aPb = slapi_pblock_new();
+        slapi_pblock_set(aPb, SLAPI_PLUGIN, inst->backend_type->plugin);
+        slapi_be_setentrypoint(inst->inst_be, 0, (void *)NULL, aPb);
+        slapi_be_set_instance_info(inst->inst_be, inst);
+        slapi_pblock_set(aPb, SLAPI_PLUGIN, NULL);
+        slapi_pblock_destroy(aPb);
+    }
 
-	cb_build_backend_instance_config(inst,e,1);
-	
-	/* kexcoff: the order of the following calls is very important to prevent the deletion of the
-		instance to happen before the creation of the monitor part of the config.
-		However, not sure it solves all the situations, but at least it is worth to maintain
-		this order. */
+    cb_build_backend_instance_config(inst, e, 1);
 
-	if (!inst->isconfigured) 
-	{ 
-		/* Add monitor entry and callback on it 
-		 * called from an add...
-		 * we can't call recursively into the DSE to do more adds, they'll
-		 * silently fail.  instead, schedule the adds to happen in 1 second.
-		 */
-		inst->eq_ctx = slapi_eq_once(cb_instance_add_monitor_later, (void *)inst, time(NULL)+1);
-	}
+    /* kexcoff: the order of the following calls is very important to prevent the deletion of the
+        instance to happen before the creation of the monitor part of the config.
+        However, not sure it solves all the situations, but at least it is worth to maintain
+        this order. */
 
-	/* Get the list of operational attrs defined in the schema */
-	/* see cb_search file for a reason for that		   */
+    if (!inst->isconfigured) {
+        /* Add monitor entry and callback on it
+         * called from an add...
+         * we can't call recursively into the DSE to do more adds, they'll
+         * silently fail.  instead, schedule the adds to happen in 1 second.
+         */
+        inst->eq_ctx = slapi_eq_once(cb_instance_add_monitor_later, (void *)inst, time(NULL) + 1);
+    }
 
-	inst->every_attribute=slapi_schema_list_attribute_names(SLAPI_ATTR_FLAG_OPATTR);
-	charray_add(&inst->every_attribute,slapi_ch_strdup(LDAP_ALL_USER_ATTRS));
+    /* Get the list of operational attrs defined in the schema */
+    /* see cb_search file for a reason for that           */
 
-	if (!inst->isconfigured) 
-	{ 
-		slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn,
-		        LDAP_SCOPE_BASE,"(objectclass=*)",cb_instance_modify_config_check_callback, (void *) inst);
-		slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn,
-		        LDAP_SCOPE_BASE,"(objectclass=*)",cb_instance_modify_config_callback, (void *) inst);
-		slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn, 
-		        LDAP_SCOPE_BASE,"(objectclass=*)", cb_instance_search_config_callback, (void *) inst);
+    inst->every_attribute = slapi_schema_list_attribute_names(SLAPI_ATTR_FLAG_OPATTR);
+    charray_add(&inst->every_attribute, slapi_ch_strdup(LDAP_ALL_USER_ATTRS));
 
-		/* allow deletion otherwise impossible to remote a backend instance */
-		/* dynamically...							  */
+    if (!inst->isconfigured) {
+        slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn,
+                                       LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_check_callback, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn,
+                                       LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_callback, (void *)inst);
+        slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn,
+                                       LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_search_config_callback, (void *)inst);
 
-		slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
-		        LDAP_SCOPE_BASE,"(objectclass=*)", cb_instance_delete_config_callback, (void *) inst);
-	}
+        /* allow deletion otherwise impossible to remote a backend instance */
+        /* dynamically...                              */
 
-	/* Notify the front-end */
-	/* After the call below, we can receive ops */
-	slapi_mtn_be_started(inst->inst_be);
+        slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
+                                       LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_delete_config_callback, (void *)inst);
+    }
 
-	inst->isconfigured=1;
-	return SLAPI_DSE_CALLBACK_OK;
+    /* Notify the front-end */
+    /* After the call below, we can receive ops */
+    slapi_mtn_be_started(inst->inst_be);
+
+    inst->isconfigured = 1;
+    return SLAPI_DSE_CALLBACK_OK;
 }
- 
+
 
 /* Create the default instance config from hard-coded values */
 
-int cb_create_default_backend_instance_config(cb_backend * cb) {
+int
+cb_create_default_backend_instance_config(cb_backend *cb)
+{
 
 
-	int 			rc;
-	cb_backend_instance 	*dummy;
-	Slapi_Entry 		*e=slapi_entry_alloc();
-	char            	*defaultDn;
-	char 			*olddn;
-        struct berval           val;
-        struct berval           *vals[2];
-	Slapi_PBlock 		*pb;
+    int rc;
+    cb_backend_instance *dummy;
+    Slapi_Entry *e = slapi_entry_alloc();
+    char *defaultDn;
+    char *olddn;
+    struct berval val;
+    struct berval *vals[2];
+    Slapi_PBlock *pb;
 
-	dummy = cb_instance_alloc(cb, "dummy", "o=dummy");
-        cb_instance_config_set_default(dummy);
-	cb_instance_search_config_callback(NULL,e,NULL, &rc, NULL,(void *) dummy);
+    dummy = cb_instance_alloc(cb, "dummy", "o=dummy");
+    cb_instance_config_set_default(dummy);
+    cb_instance_search_config_callback(NULL, e, NULL, &rc, NULL, (void *)dummy);
 
 
-	/* set right dn	 and objectclass */
+    /* set right dn     and objectclass */
 
-	defaultDn = PR_smprintf("cn=default instance config,%s",cb->pluginDN);
-	olddn = slapi_entry_get_dn(e);
-	slapi_ch_free((void **) &olddn);
-	
-	slapi_entry_set_dn(e,slapi_ch_strdup(defaultDn));
+    defaultDn = PR_smprintf("cn=default instance config,%s", cb->pluginDN);
+    olddn = slapi_entry_get_dn(e);
+    slapi_ch_free((void **)&olddn);
 
- 	vals[0] = &val;
-        vals[1] = NULL;
+    slapi_entry_set_dn(e, slapi_ch_strdup(defaultDn));
 
- 	val.bv_val = "top";
-        val.bv_len = strlen( val.bv_val );
-        slapi_entry_attr_replace( e, "objectclass", (struct berval **)vals );
-        val.bv_val = CB_CONFIG_EXTENSIBLEOCL;
-        val.bv_len = strlen( val.bv_val );
-        slapi_entry_attr_merge( e, "objectclass", (struct berval **)vals );
- 	val.bv_val = "default instance config";
-        val.bv_len = strlen( val.bv_val );
-        slapi_entry_attr_replace( e, "cn", (struct berval **)vals );
+    vals[0] = &val;
+    vals[1] = NULL;
 
-	/* create entry */
- 	pb = slapi_pblock_new();
-        slapi_add_entry_internal_set_pb(pb, e, NULL, cb->identity, 0);
-	slapi_add_internal_pb(pb);
-	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-	if ( LDAP_SUCCESS != rc ) {
-	  slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-			  "cb_create_default_backend_instance_config - Add %s failed (%s)\n",defaultDn,ldap_err2string(rc));
-	}
+    val.bv_val = "top";
+    val.bv_len = strlen(val.bv_val);
+    slapi_entry_attr_replace(e, "objectclass", (struct berval **)vals);
+    val.bv_val = CB_CONFIG_EXTENSIBLEOCL;
+    val.bv_len = strlen(val.bv_val);
+    slapi_entry_attr_merge(e, "objectclass", (struct berval **)vals);
+    val.bv_val = "default instance config";
+    val.bv_len = strlen(val.bv_val);
+    slapi_entry_attr_replace(e, "cn", (struct berval **)vals);
 
-        slapi_pblock_destroy(pb); 
-	/* cleanup */
-        cb_instance_free(dummy);
-	/* BEWARE: entry is consummed */
-		PR_smprintf_free(defaultDn);
-	return rc;
+    /* create entry */
+    pb = slapi_pblock_new();
+    slapi_add_entry_internal_set_pb(pb, e, NULL, cb->identity, 0);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (LDAP_SUCCESS != rc) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                      "cb_create_default_backend_instance_config - Add %s failed (%s)\n", defaultDn, ldap_err2string(rc));
+    }
+
+    slapi_pblock_destroy(pb);
+    /* cleanup */
+    cb_instance_free(dummy);
+    /* BEWARE: entry is consummed */
+    PR_smprintf_free(defaultDn);
+    return rc;
 }
 
 /* Extract backend instance configuration from the LDAP entry */
 
-int cb_build_backend_instance_config(cb_backend_instance *inst, Slapi_Entry * conf, int apply) {
+int
+cb_build_backend_instance_config(cb_backend_instance *inst, Slapi_Entry *conf, int apply)
+{
 
-	cb_backend 	*cb = inst->backend_type;
-        Slapi_PBlock    *default_pb;
-	Slapi_Entry     **default_entries = NULL;
-	Slapi_Entry 	*default_conf=NULL;
-	int 		default_res, rc;
-	char 		*defaultDn;
-	cb_backend_instance * current_inst;
+    cb_backend *cb = inst->backend_type;
+    Slapi_PBlock *default_pb;
+    Slapi_Entry **default_entries = NULL;
+    Slapi_Entry *default_conf = NULL;
+    int default_res, rc;
+    char *defaultDn;
+    cb_backend_instance *current_inst;
 
-	rc=LDAP_SUCCESS;
+    rc = LDAP_SUCCESS;
 
-	if (apply)
-		current_inst=inst;
-	else
-		current_inst=cb_instance_alloc(cb,inst->inst_name,"cn=dummy");
+    if (apply)
+        current_inst = inst;
+    else
+        current_inst = cb_instance_alloc(cb, inst->inst_name, "cn=dummy");
 
-	/* set default configuration */
-	cb_instance_config_set_default(current_inst);
+    /* set default configuration */
+    cb_instance_config_set_default(current_inst);
 
-        /* 2: Overwrite values present in the default instance config */
- 
-        defaultDn = PR_smprintf("cn=default instance config,%s",cb->pluginDN);
- 
-        default_pb = slapi_pblock_new();
-        slapi_search_internal_set_pb(default_pb, defaultDn, LDAP_SCOPE_BASE,
-                "objectclass=*", NULL, 0, NULL, NULL, cb->identity, 0);
-        slapi_search_internal_pb (default_pb);
-		PR_smprintf_free(defaultDn);
-        slapi_pblock_get(default_pb, SLAPI_PLUGIN_INTOP_RESULT, &default_res);
-        if ( LDAP_SUCCESS == default_res ) {
-                slapi_pblock_get(default_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &default_entries);
-                if (default_entries && default_entries[0] ) {
-                               
-                        struct berval           val;
-                        struct berval           *vals[2];
-                        vals[0] = &val;
-                        vals[1] = NULL;
-                        default_conf=default_entries[0];
- 
-                        /* hack: add a dummy url (mandatory) to avoid error */
-                        /* will be overwritten by the one in conf entry     */
-                        val.bv_val = "ldap://localhost/";
-                        val.bv_len = strlen( val.bv_val );
-                        slapi_entry_attr_replace( default_conf, CB_CONFIG_HOSTURL, (struct berval **)vals );
-                                
-                        rc=cb_instance_config_initialize(current_inst,default_conf,CB_CONFIG_PHASE_STARTUP,1);
-                }
+    /* 2: Overwrite values present in the default instance config */
+
+    defaultDn = PR_smprintf("cn=default instance config,%s", cb->pluginDN);
+
+    default_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(default_pb, defaultDn, LDAP_SCOPE_BASE,
+                                 "objectclass=*", NULL, 0, NULL, NULL, cb->identity, 0);
+    slapi_search_internal_pb(default_pb);
+    PR_smprintf_free(defaultDn);
+    slapi_pblock_get(default_pb, SLAPI_PLUGIN_INTOP_RESULT, &default_res);
+    if (LDAP_SUCCESS == default_res) {
+        slapi_pblock_get(default_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &default_entries);
+        if (default_entries && default_entries[0]) {
+
+            struct berval val;
+            struct berval *vals[2];
+            vals[0] = &val;
+            vals[1] = NULL;
+            default_conf = default_entries[0];
+
+            /* hack: add a dummy url (mandatory) to avoid error */
+            /* will be overwritten by the one in conf entry     */
+            val.bv_val = "ldap://localhost/";
+            val.bv_len = strlen(val.bv_val);
+            slapi_entry_attr_replace(default_conf, CB_CONFIG_HOSTURL, (struct berval **)vals);
+
+            rc = cb_instance_config_initialize(current_inst, default_conf, CB_CONFIG_PHASE_STARTUP, 1);
         }
-        slapi_free_search_results_internal(default_pb);
-        slapi_pblock_destroy(default_pb);  
+    }
+    slapi_free_search_results_internal(default_pb);
+    slapi_pblock_destroy(default_pb);
 
-	if (rc == LDAP_SUCCESS)
-		rc=cb_instance_config_initialize(current_inst,conf,CB_CONFIG_PHASE_STARTUP,1);
-	
-	if (!apply)
-		cb_instance_free(current_inst);
+    if (rc == LDAP_SUCCESS)
+        rc = cb_instance_config_initialize(current_inst, conf, CB_CONFIG_PHASE_STARTUP, 1);
 
-	return rc;
+    if (!apply)
+        cb_instance_free(current_inst);
+
+    return rc;
 }

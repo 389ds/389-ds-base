@@ -4,15 +4,16 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
-typedef	struct LASDnsContext {
-	PRHashTable	*Table;	
-	pool_handle_t   *pool;
+typedef struct LASDnsContext
+{
+    PRHashTable *Table;
+    pool_handle_t *pool;
 } LASDnsContext_t;

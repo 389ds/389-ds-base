@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_FILE_H
@@ -40,7 +40,7 @@ NSAPI_PUBLIC SYS_FILE INTsystem_fopenWA(char *path);
 NSAPI_PUBLIC SYS_FILE INTsystem_fopenRW(char *path);
 NSAPI_PUBLIC SYS_FILE INTsystem_fopenWT(char *path);
 NSAPI_PUBLIC int INTsystem_fread(SYS_FILE fd, char *buf, int sz);
-NSAPI_PUBLIC int INTsystem_fwrite(SYS_FILE fd,char *buf,int sz);
+NSAPI_PUBLIC int INTsystem_fwrite(SYS_FILE fd, char *buf, int sz);
 NSAPI_PUBLIC int INTsystem_fwrite_atomic(SYS_FILE fd, char *buf, int sz);
 NSAPI_PUBLIC int INTsystem_lseek(SYS_FILE fd, int off, int wh);
 NSAPI_PUBLIC int INTsystem_fclose(SYS_FILE fd);

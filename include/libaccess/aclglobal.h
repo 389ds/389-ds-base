@@ -4,53 +4,54 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
-**	Header file containing global data elements.  These are duplicated
-**	when a cache flush is done.
+**    Header file containing global data elements.  These are duplicated
+**    when a cache flush is done.
 */
 
-#include	<libaccess/acl.h>
+#include <libaccess/acl.h>
 
-struct ACLGlobal_s {
-	ACLListHandle_t	*masterlist;
-	pool_handle_t	*pool;	/* Deallocate at the start of cache flush */
-	pool_handle_t	*databasepool;
-	pool_handle_t	*methodpool;
-	PRHashTable	*urihash;
-	PRHashTable	*urigethash;
-	PRHashTable	*listhash;
-	PRHashTable	*evalhash;
-	PRHashTable	*flushhash;
-	PRHashTable	*methodhash;
-	PRHashTable	*dbtypehash;
-	PRHashTable	*dbnamehash;
-	PRHashTable	*attrgetterhash;
-	PRHashTable	*userLdbHash; /* user's LDAP handle hash */
+struct ACLGlobal_s
+{
+    ACLListHandle_t *masterlist;
+    pool_handle_t *pool; /* Deallocate at the start of cache flush */
+    pool_handle_t *databasepool;
+    pool_handle_t *methodpool;
+    PRHashTable *urihash;
+    PRHashTable *urigethash;
+    PRHashTable *listhash;
+    PRHashTable *evalhash;
+    PRHashTable *flushhash;
+    PRHashTable *methodhash;
+    PRHashTable *dbtypehash;
+    PRHashTable *dbnamehash;
+    PRHashTable *attrgetterhash;
+    PRHashTable *userLdbHash; /* user's LDAP handle hash */
 };
 
 typedef struct ACLGlobal_s ACLGlobal_t;
 typedef struct ACLGlobal_s *ACLGlobal_p;
 
-#define acl_uri_hash_pool	ACLGlobal->pool
-#define acl_uri_hash		ACLGlobal->urihash
-#define acl_uri_get_hash	ACLGlobal->urigethash
-#define ACLListHash		ACLGlobal->listhash
-#define	ACLLasEvalHash		ACLGlobal->evalhash
-#define ACLLasFlushHash		ACLGlobal->flushhash
-#define ACLMethodHash		ACLGlobal->methodhash
-#define	ACLDbTypeHash		ACLGlobal->dbtypehash
-#define	ACLDbNameHash		ACLGlobal->dbnamehash
-#define	ACLAttrGetterHash	ACLGlobal->attrgetterhash
-#define	ACLUserLdbHash		ACLGlobal->userLdbHash
-#define ACL_DATABASE_POOL	ACLGlobal->databasepool
-#define ACL_METHOD_POOL		ACLGlobal->methodpool
+#define acl_uri_hash_pool ACLGlobal->pool
+#define acl_uri_hash ACLGlobal->urihash
+#define acl_uri_get_hash ACLGlobal->urigethash
+#define ACLListHash ACLGlobal->listhash
+#define ACLLasEvalHash ACLGlobal->evalhash
+#define ACLLasFlushHash ACLGlobal->flushhash
+#define ACLMethodHash ACLGlobal->methodhash
+#define ACLDbTypeHash ACLGlobal->dbtypehash
+#define ACLDbNameHash ACLGlobal->dbnamehash
+#define ACLAttrGetterHash ACLGlobal->attrgetterhash
+#define ACLUserLdbHash ACLGlobal->userLdbHash
+#define ACL_DATABASE_POOL ACLGlobal->databasepool
+#define ACL_METHOD_POOL ACLGlobal->methodpool
 
 NSPR_BEGIN_EXTERN_C
 

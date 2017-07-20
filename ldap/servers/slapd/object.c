@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -23,9 +23,9 @@
 
 typedef struct object
 {
-	uint64_t refcnt; /* reference count for the object */
-	FNFree destructor; /* Destructor for the object */
-	void *data;	/* pointer to actual node data */
+    uint64_t refcnt;   /* reference count for the object */
+    FNFree destructor; /* Destructor for the object */
+    void *data;        /* pointer to actual node data */
 } object;
 
 
@@ -42,12 +42,12 @@ typedef struct object
 Object *
 object_new(void *user_data, FNFree destructor)
 {
-	Object *o;
-	o = (object *)slapi_ch_malloc(sizeof(object));
-	o->destructor = destructor;
-	o->data = user_data;
-	__atomic_store_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
-	return o;
+    Object *o;
+    o = (object *)slapi_ch_malloc(sizeof(object));
+    o->destructor = destructor;
+    o->data = user_data;
+    __atomic_store_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
+    return o;
 }
 
 
@@ -59,8 +59,8 @@ object_new(void *user_data, FNFree destructor)
 void
 object_acquire(Object *o)
 {
-	PR_ASSERT(NULL != o);
-	__atomic_add_fetch_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
+    PR_ASSERT(NULL != o);
+    __atomic_add_fetch_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
 }
 
 
@@ -72,20 +72,19 @@ object_acquire(Object *o)
 void
 object_release(Object *o)
 {
-	PRInt32 refcnt_after_release;
+    PRInt32 refcnt_after_release;
 
-	PR_ASSERT(NULL != o);
-	refcnt_after_release = __atomic_sub_fetch_8(&(o->refcnt), 1, __ATOMIC_ACQ_REL);
-	if (refcnt_after_release == 0)
-	{
-		/* Object can be destroyed */
+    PR_ASSERT(NULL != o);
+    refcnt_after_release = __atomic_sub_fetch_8(&(o->refcnt), 1, __ATOMIC_ACQ_REL);
+    if (refcnt_after_release == 0) {
+        /* Object can be destroyed */
         if (o->destructor)
-		    o->destructor(&o->data);
-		/* Make it harder to reuse a dangling pointer */
-		o->data = NULL;
-		o->destructor = NULL;
-		slapi_ch_free((void **)&o);
-	}
+            o->destructor(&o->data);
+        /* Make it harder to reuse a dangling pointer */
+        o->data = NULL;
+        o->destructor = NULL;
+        slapi_ch_free((void **)&o);
+    }
 }
 
 /*
@@ -96,6 +95,6 @@ object_release(Object *o)
 void *
 object_get_data(Object *o)
 {
-	PR_ASSERT(NULL != o);
-	return o->data;
+    PR_ASSERT(NULL != o);
+    return o->data;
 }

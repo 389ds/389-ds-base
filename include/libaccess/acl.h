@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef ACL_HEADER
@@ -24,10 +24,10 @@
 #include <libaccess/nserror.h>
 
 #ifndef FALSE
-#define	FALSE			0
+#define FALSE 0
 #endif
 #ifndef TRUE
-#define	TRUE			1
+#define TRUE 1
 #endif
 
 #ifndef PUBLIC_NSACL_ACLAPI_H
@@ -38,8 +38,8 @@
 
 NSPR_BEGIN_EXTERN_C
 
-extern	const char	*generic_rights[];
-extern	const char	*http_generic[];
+extern const char *generic_rights[];
+extern const char *http_generic[];
 
 NSPR_END_EXTERN_C
 

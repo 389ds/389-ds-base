@@ -4,35 +4,29 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
- 
+
 #include "back-ldbm.h"
 
 static void
 mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename)
 {
-    if (li)
-    {
-        if (is_fullpath((char *)directory))
-        {
-            PR_snprintf(filename, MAXPATHLEN*2, "%s/%s", directory, DBVERSION_FILENAME);
-        }
-        else
-        {
+    if (li) {
+        if (is_fullpath((char *)directory)) {
+            PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s", directory, DBVERSION_FILENAME);
+        } else {
             char *home_dir = dblayer_get_home_dir(li, NULL);
             /* if relpath, nsslapd-dbhome_directory should be set */
-            PR_snprintf(filename, MAXPATHLEN*2,"%s/%s/%s", home_dir,directory,DBVERSION_FILENAME);
+            PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s/%s", home_dir, directory, DBVERSION_FILENAME);
         }
-    }
-    else
-    {
-        PR_snprintf(filename, MAXPATHLEN*2, "%s/%s", directory, DBVERSION_FILENAME);
+    } else {
+        PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s", directory, DBVERSION_FILENAME);
     }
 }
 
@@ -40,14 +34,13 @@ mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename
  *  Function: dbversion_write
  *
  *  Returns: returns 0 on success, -1 on failure
- *  
+ *
  *  Description: This function writes the DB version file.
  */
 int
-dbversion_write(struct ldbminfo *li, const char *directory,
-                const char *dataversion, PRUint32 flags)
+dbversion_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags)
 {
-    char filename[ MAXPATHLEN*2 ];
+    char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
     int rc = 0;
 
@@ -55,23 +48,19 @@ dbversion_write(struct ldbminfo *li, const char *directory,
         rc = -1;
         return rc;
     }
-        
+
     mk_dbversion_fullpath(li, directory, filename);
-  
+
     /* Open the file */
-    if (( prfd = PR_Open( filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
-                          SLAPD_DEFAULT_FILE_MODE  )) == NULL )
-    {
+    if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
+                        SLAPD_DEFAULT_FILE_MODE)) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "dbversion_write - "
-                   "Could not open file \"%s\" for writing "
-                   SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
-                   filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
-        rc= -1;
-    }
-    else
-    {
+                                     "Could not open file \"%s\" for writing " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
+                      filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+        rc = -1;
+    } else {
         /* Write the file */
-        char buf[ LDBM_VERSION_MAXBUF ];
+        char buf[LDBM_VERSION_MAXBUF];
         char *ptr = NULL;
         size_t len = 0;
         /* Base DB Version */
@@ -85,7 +74,7 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             ptr = buf + len;
         }
         if (entryrdn_get_switch() && (flags & DBVERSION_RDNFORMAT)) {
-            PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s", 
+            PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
                         BDB_RDNFORMAT, BDB_RDNFORMAT_VERSION);
             len = strlen(buf);
             ptr = buf + len;
@@ -99,22 +88,19 @@ dbversion_write(struct ldbminfo *li, const char *directory,
         /* end in a newline */
         PL_strncpyz(ptr, "\n", sizeof(buf) - len);
         len = strlen(buf);
-        if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
-        {
-            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename );
-            rc= -1;
+        if (slapi_write_buffer(prfd, buf, len) != (PRInt32)len) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename);
+            rc = -1;
         }
-        if(rc==0 && dataversion!=NULL)
-        {
-            sprintf( buf, "%s\n", dataversion );
-            len = strlen( buf );
-            if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
-            {
-                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename );
-                rc= -1;
+        if (rc == 0 && dataversion != NULL) {
+            sprintf(buf, "%s\n", dataversion);
+            len = strlen(buf);
+            if (slapi_write_buffer(prfd, buf, len) != (PRInt32)len) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename);
+                rc = -1;
             }
         }
-        (void)PR_Close( prfd );
+        (void)PR_Close(prfd);
     }
     return rc;
 }
@@ -123,16 +109,15 @@ dbversion_write(struct ldbminfo *li, const char *directory,
  *  Function: dbversion_read
  *
  *  Returns: returns 0 on success, -1 on failure
- *  
+ *
  *  Description: This function reads the DB version file.
  */
 int
-dbversion_read(struct ldbminfo *li, const char *directory,
-               char **ldbmversion, char **dataversion)
+dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion)
 {
-    char filename[ MAXPATHLEN*2 ];
+    char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
-    char * iter = NULL;
+    char *iter = NULL;
     PRFileInfo64 fileinfo;
     int rc;
 
@@ -151,7 +136,7 @@ dbversion_read(struct ldbminfo *li, const char *directory,
     }
 
     mk_dbversion_fullpath(li, directory, filename);
-    
+
     /* Open the file */
     prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
     if (prfd == NULL) {
@@ -159,28 +144,25 @@ dbversion_read(struct ldbminfo *li, const char *directory,
         return EACCES;
     } else {
         char buf[LDBM_VERSION_MAXBUF] = {0};
-        PRInt32 nr = slapi_read_buffer(prfd, buf, (PRInt32)LDBM_VERSION_MAXBUF-1);
-        if ( nr > 0 && nr != (PRInt32)LDBM_VERSION_MAXBUF-1 )
-        {
+        PRInt32 nr = slapi_read_buffer(prfd, buf, (PRInt32)LDBM_VERSION_MAXBUF - 1);
+        if (nr > 0 && nr != (PRInt32)LDBM_VERSION_MAXBUF - 1) {
             char *t;
             buf[nr] = '\0';
-            t = ldap_utf8strtok_r(buf,"\n", &iter);
-            if(NULL != t)
-            {
+            t = ldap_utf8strtok_r(buf, "\n", &iter);
+            if (NULL != t) {
                 *ldbmversion = slapi_ch_strdup(t);
-                t = ldap_utf8strtok_r(NULL,"\n", &iter);
-                if(NULL != dataversion && t != NULL && t[0] != '\0')
-                {
+                t = ldap_utf8strtok_r(NULL, "\n", &iter);
+                if (NULL != dataversion && t != NULL && t[0] != '\0') {
                     *dataversion = slapi_ch_strdup(t);
                 }
             }
         }
-        (void)PR_Close( prfd );
+        (void)PR_Close(prfd);
 
-        if (*dataversion == NULL ) {
+        if (*dataversion == NULL) {
             slapi_log_err(SLAPI_LOG_DEBUG, "dbversion_read", "dataversion not present in \"%s\"\n", filename);
         }
-        if (*ldbmversion == NULL ) {
+        if (*ldbmversion == NULL) {
             /* DBVERSIOn is corrupt, COMPLAIN! */
             /* This is IDRM           Identifier removed (POSIX.1)
              * which seems appropriate for the error here :)
@@ -198,23 +180,21 @@ dbversion_read(struct ldbminfo *li, const char *directory,
  *  Function: dbversion_exists
  *
  *  Returns: 1 for exists, 0 for not.
- *  
+ *
  *  Description: This function checks if the DB version file exists.
  */
 int
 dbversion_exists(struct ldbminfo *li, const char *directory)
 {
-    char filename[ MAXPATHLEN*2 ];
+    char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
 
     mk_dbversion_fullpath(li, directory, filename);
 
-    if (( prfd = PR_Open( filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE )) ==
-         NULL )
-    {
+    if ((prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) ==
+        NULL) {
         return 0;
     }
-    (void)PR_Close( prfd );
+    (void)PR_Close(prfd);
     return 1;
 }
-

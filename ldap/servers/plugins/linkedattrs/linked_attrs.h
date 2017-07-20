@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -27,28 +27,29 @@
 /*
  * Plug-in defines
  */
-#define LINK_PLUGIN_SUBSYSTEM  "linkedattrs-plugin"
-#define LINK_FEATURE_DESC      "Linked Attributes"
-#define LINK_PLUGIN_DESC       "Linked Attributes plugin"
-#define LINK_INT_POSTOP_DESC   "Linked Attributes internal postop plugin"
-#define LINK_POSTOP_DESC       "Linked Attributes postop plugin"
+#define LINK_PLUGIN_SUBSYSTEM "linkedattrs-plugin"
+#define LINK_FEATURE_DESC     "Linked Attributes"
+#define LINK_PLUGIN_DESC      "Linked Attributes plugin"
+#define LINK_INT_POSTOP_DESC  "Linked Attributes internal postop plugin"
+#define LINK_POSTOP_DESC      "Linked Attributes postop plugin"
 
 /*
  * Config type defines
  */
-#define LINK_LINK_TYPE         "linkType"
-#define LINK_MANAGED_TYPE      "managedType"
-#define LINK_SCOPE             "linkScope"
+#define LINK_LINK_TYPE    "linkType"
+#define LINK_MANAGED_TYPE "managedType"
+#define LINK_SCOPE        "linkScope"
 
 /*
  * Other defines
  */
-#define DN_SYNTAX_OID          "1.3.6.1.4.1.1466.115.121.1.12"
+#define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 
 /*
  * Linked list of config entries.
  */
-struct configEntry {
+struct configEntry
+{
     PRCList list;
     char *dn;
     char *linktype;
@@ -62,7 +63,8 @@ struct configEntry {
  * Linked list used for indexing config entries
  * by managed type.
  */
-struct configIndex {
+struct configIndex
+{
     PRCList list;
     struct configEntry *config;
 };
@@ -107,8 +109,6 @@ char *linked_attrs_get_plugin_dn(void);
 /*
  * Fixup task callback
  */
-int linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                           Slapi_Entry *eAfter, int *returncode,
-                           char *returntext, void *arg);
+int linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 
 extern int plugin_is_betxn;

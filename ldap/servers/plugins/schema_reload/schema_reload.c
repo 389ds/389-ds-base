@@ -3,16 +3,16 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-/* 
+/*
  * Dynamic schema file reload plugin
- * 
+ *
  * plugin entry in dse.ldif
  * dn: cn=Schema Reload,cn=plugins,cn=config
  * objectClass: top
@@ -49,38 +49,36 @@
 
 static PRLock *schemareload_lock = NULL;
 
-static Slapi_PluginDesc pdesc = { "schemareload",
-    VENDOR, DS_PACKAGE_VERSION,
-    "task plugin to reload schema files" };
+static Slapi_PluginDesc pdesc = {"schemareload",
+                                 VENDOR, DS_PACKAGE_VERSION,
+                                 "task plugin to reload schema files"};
 
-static int schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
-                    Slapi_Entry *eAfter, int *returncode, char *returntext,
-                    void *arg);
+static int schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int schemareload_start(Slapi_PBlock *pb);
 static int schemareload_close(Slapi_PBlock *pb);
 static void schemareload_destructor(Slapi_Task *task);
 
-/* 
+/*
  * Init function
  * Specified in the plugin entry as "nsslapd-pluginInitfunc: schemareload_init"
  */
 int
-schemareload_init( Slapi_PBlock *pb )
+schemareload_init(Slapi_PBlock *pb)
 {
     int rc = 0;
 
-    rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-                                    (void *) SLAPI_PLUGIN_VERSION_03 );
-    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-        (void *)&pdesc );
-    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
-                                    (void *) schemareload_start );
-    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) schemareload_close );
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                          (void *)SLAPI_PLUGIN_VERSION_03);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                           (void *)&pdesc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
+                           (void *)schemareload_start);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)schemareload_close);
 
     return rc;
 }
 
-/* 
+/*
  * Task start function
  * Register the function schemareload_add, which invokes the task on demand.
  */
@@ -94,7 +92,7 @@ schemareload_start(Slapi_PBlock *pb)
         return -1;
     }
     rc = slapi_plugin_task_register_handler("schema reload task", schemareload_add, pb);
-    if(rc != LDAP_SUCCESS){
+    if (rc != LDAP_SUCCESS) {
         PR_DestroyLock(schemareload_lock);
     }
 
@@ -113,8 +111,8 @@ schemareload_close(Slapi_PBlock *pb __attribute__((unused)))
 
 typedef struct _task_data
 {
-	char *schemadir;
-	char *bind_dn;
+    char *schemadir;
+    char *bind_dn;
 } task_data;
 
 /*
@@ -137,7 +135,7 @@ schemareload_thread(void *arg)
     }
     slapi_task_inc_refcount(task);
     slapi_log_err(SLAPI_LOG_PLUGIN, "schemareload",
-                    "schemareload_thread --> refcount incremented.\n" );
+                  "schemareload_thread --> refcount incremented.\n");
     /* Fetch our task data from the task */
     td = (task_data *)slapi_task_get_data(task);
 
@@ -146,9 +144,9 @@ schemareload_thread(void *arg)
 
     /* update task state to show it's running */
     slapi_task_begin(task, total_work);
-    PR_Lock(schemareload_lock);    /* make schema reload serialized */
-    slapi_task_log_notice(task, "Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
-    slapi_log_err(SLAPI_LOG_INFO, "schemareload", "schemareload_thread - Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
+    PR_Lock(schemareload_lock); /* make schema reload serialized */
+    slapi_task_log_notice(task, "Schema reload task starts (schema dir: %s) ...\n", td->schemadir ? td->schemadir : "default");
+    slapi_log_err(SLAPI_LOG_INFO, "schemareload", "schemareload_thread - Schema reload task starts (schema dir: %s) ...\n", td->schemadir ? td->schemadir : "default");
 
     rv = slapi_validate_schema_files(td->schemadir);
     slapi_task_inc_progress(task);
@@ -186,15 +184,15 @@ schemareload_thread(void *arg)
     slapi_task_finish(task, rv);
     slapi_task_dec_refcount(task);
     slapi_log_err(SLAPI_LOG_PLUGIN, "schemareload",
-                    "schemareload_thread <-- refcount decremented.\n");
+                  "schemareload_thread <-- refcount decremented.\n");
 }
 
 /* extract a single value from the entry (as a string) -- if it's not in the
  * entry, the default will be returned (which can be NULL).
  * you do not need to free anything returned by this.
  */
-static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
-                                              const char *default_val)
+static const char *
+fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -213,7 +211,7 @@ schemareload_destructor(Slapi_Task *task)
         task_data *mydata = (task_data *)slapi_task_get_data(task);
         while (slapi_task_get_refcount(task) > 0) {
             /* Yield to wait for the fixup task finishes. */
-            DS_Sleep (PR_MillisecondsToInterval(100));
+            DS_Sleep(PR_MillisecondsToInterval(100));
         }
         if (mydata) {
             slapi_ch_free_string(&mydata->schemadir);
@@ -266,9 +264,8 @@ schemareload_add(Slapi_PBlock *pb,
         goto out;
     }
 
-    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
-    if (mytaskdata == NULL)
-    {
+    mytaskdata = (task_data *)slapi_ch_malloc(sizeof(task_data));
+    if (mytaskdata == NULL) {
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -289,7 +286,7 @@ schemareload_add(Slapi_PBlock *pb,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "schemareload",
-                  "schemareload_add - Unable to create schema reload task thread!\n");
+                      "schemareload_add - Unable to create schema reload task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
     } else {

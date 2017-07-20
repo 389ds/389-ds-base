@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* resourcelimit.c - binder-based resource limits implementation */
@@ -45,13 +45,12 @@
  * later to refer to the limit in question.  Here's a sample call:
  */
 #if SLAPI_RESLIMIT_SAMPLE_CODE
-	static int  sizelimit_reslimit_handle = -1;
+static int sizelimit_reslimit_handle = -1;
 
-	if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT, "nsSizeLimit",
-			&sizelimit_reslimit_handle ) != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		/* limit could not be registered -- fatal error? */
-	}
- 	...
+if (slapi_reslimit_register(SLAPI_RESLIMIT_TYPE_INT, "nsSizeLimit", &sizelimit_reslimit_handle) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+    /* limit could not be registered -- fatal error? */
+}
+...
 #endif
 
 /*
@@ -68,20 +67,20 @@
  * returned.  Other errors may be returned also.  Here's a sample call:
  */
 #if SLAPI_RESLIMIT_SAMPLE_CODE
-	int	rc, sizelimit;
+    int rc,
+    sizelimit;
 
-	rc = slapi_reslimit_get_integer_limit( conn, sizelimit_reslimit_handle,
-			&sizelimit );
+rc = slapi_reslimit_get_integer_limit(conn, sizelimit_reslimit_handle, &sizelimit);
 
-	switch( rc ) {
-	case SLAPI_RESLIMIT_STATUS_SUCCESS:		/* got a value */
-		break;
-	case SLAPI_RESLIMIT_STATUS_NOVALUE:		/* no limit value available */
-		sizelimit = 500;	/* use a default value */
-		break;
-	default:								/* some other error occurred */
-		sizelimit = 500;	/* use a default value */
-	}
+switch (rc) {
+case SLAPI_RESLIMIT_STATUS_SUCCESS: /* got a value */
+    break;
+case SLAPI_RESLIMIT_STATUS_NOVALUE: /* no limit value available */
+    sizelimit = 500;                /* use a default value */
+    break;
+default:             /* some other error occurred */
+    sizelimit = 500; /* use a default value */
+}
 #endif
 
 /*
@@ -96,15 +95,15 @@
 /*
  * Macros.
  */
-#define SLAPI_RESLIMIT_MODULE		"binder-based resource limits"
-/* #define SLAPI_RESLIMIT_DEBUG */	/* define this to enable extra logging */
-									/* also forces trace log messages to */
-									/* always be logged */
+#define SLAPI_RESLIMIT_MODULE "binder-based resource limits"
+    /* #define SLAPI_RESLIMIT_DEBUG */ /* define this to enable extra logging */
+                                       /* also forces trace log messages to */
+                                       /* always be logged */
 
 #ifdef SLAPI_RESLIMIT_DEBUG
-#define SLAPI_RESLIMIT_TRACELEVEL	SLAPI_LOG_INFO
+#define SLAPI_RESLIMIT_TRACELEVEL SLAPI_LOG_INFO
 #else /* SLAPI_RESLIMIT_DEBUG */
-#define SLAPI_RESLIMIT_TRACELEVEL	SLAPI_LOG_TRACE
+#define SLAPI_RESLIMIT_TRACELEVEL SLAPI_LOG_TRACE
 #endif /* SLAPI_RESLIMIT_DEBUG */
 
 
@@ -112,47 +111,47 @@
  * Structures and types.
  */
 /* Per-connection resource limits data */
-typedef struct slapi_reslimit_conndata {
-	Slapi_RWLock	*rlcd_rwlock;			 /* to serialize access to the rest */
-	int			rlcd_integer_count;		 /* size of rlcd_integer_limit array */
-	PRBool		*rlcd_integer_available; /* array that says whether each */
-										 /*           value is available */
-	int			*rlcd_integer_value;	 /* array that holds limit values */
+typedef struct slapi_reslimit_conndata
+{
+    Slapi_RWLock *rlcd_rwlock;      /* to serialize access to the rest */
+    int rlcd_integer_count;         /* size of rlcd_integer_limit array */
+    PRBool *rlcd_integer_available; /* array that says whether each */
+                                    /*           value is available */
+    int *rlcd_integer_value;        /* array that holds limit values */
 } SLAPIResLimitConnData;
 
 /* Mapping between attribute and limit */
-typedef struct slapi_reslimit_map {
-	int		rlmap_type;				/* always SLAPI_RESLIMIT_TYPE_INT for now */
-	char	*rlmap_at;				/* attribute type name */
+typedef struct slapi_reslimit_map
+{
+    int rlmap_type; /* always SLAPI_RESLIMIT_TYPE_INT for now */
+    char *rlmap_at; /* attribute type name */
 } SLAPIResLimitMap;
 
 
 /*
  * Static variables (module globals).
  */
-static int							reslimit_inited = 0;
-static int							reslimit_connext_objtype = 0;
-static int							reslimit_connext_handle = 0;
-static struct slapi_reslimit_map	*reslimit_map = NULL;
-static int							reslimit_map_count = 0;
-static struct slapi_componentid 				*reslimit_componentid=NULL;
+static int reslimit_inited = 0;
+static int reslimit_connext_objtype = 0;
+static int reslimit_connext_handle = 0;
+static struct slapi_reslimit_map *reslimit_map = NULL;
+static int reslimit_map_count = 0;
+static struct slapi_componentid *reslimit_componentid = NULL;
 
 /*
  * reslimit_map_rwlock is used to serialize access to
  * reslimit_map and reslimit_map_count
  */
-static Slapi_RWLock   					*reslimit_map_rwlock = NULL;
+static Slapi_RWLock *reslimit_map_rwlock = NULL;
 
 /*
  * Static functions.
  */
-static int reslimit_init( void );
-static void *reslimit_connext_constructor( void *object, void *parent );
-static void reslimit_connext_destructor( void *extension, void *object,
-		void *parent );
-static int reslimit_get_ext( Slapi_Connection *conn, const char *logname,
-		SLAPIResLimitConnData **rlcdpp );
-static char ** reslimit_get_registered_attributes(void);
+static int reslimit_init(void);
+static void *reslimit_connext_constructor(void *object, void *parent);
+static void reslimit_connext_destructor(void *extension, void *object, void *parent);
+static int reslimit_get_ext(Slapi_Connection *conn, const char *logname, SLAPIResLimitConnData **rlcdpp);
+static char **reslimit_get_registered_attributes(void);
 
 
 /*
@@ -163,34 +162,31 @@ static char ** reslimit_get_registered_attributes(void);
  * Returns zero if all goes well and non-zero if not.
  */
 static int
-reslimit_init( void )
+reslimit_init(void)
 {
-	if ( reslimit_inited == 0 ) {
-		if ( slapi_register_object_extension( SLAPI_RESLIMIT_MODULE,
-				SLAPI_EXT_CONNECTION, reslimit_connext_constructor,
-				reslimit_connext_destructor,
-				&reslimit_connext_objtype, &reslimit_connext_handle )
-				!= 0 ) {
-			slapi_log_err(SLAPI_LOG_ERR, "reslimit_init",
-				"slapi_register_object_extension() failed\n" );
-			return( -1 );
-		}
+    if (reslimit_inited == 0) {
+        if (slapi_register_object_extension(SLAPI_RESLIMIT_MODULE,
+                                            SLAPI_EXT_CONNECTION, reslimit_connext_constructor,
+                                            reslimit_connext_destructor,
+                                            &reslimit_connext_objtype, &reslimit_connext_handle) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "reslimit_init",
+                          "slapi_register_object_extension() failed\n");
+            return (-1);
+        }
 
-		if (( reslimit_map_rwlock = slapi_new_rwlock()) == NULL ) {
-			slapi_log_err(SLAPI_LOG_ERR, "reslimit_init",
-				"slapi_new_rwlock() failed\n" );
-			return( -1 );
-		}
+        if ((reslimit_map_rwlock = slapi_new_rwlock()) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "reslimit_init",
+                          "slapi_new_rwlock() failed\n");
+            return (-1);
+        }
 
-		reslimit_inited = 1;
-	}
+        reslimit_inited = 1;
+    }
 
-	reslimit_componentid=generate_componentid(NULL,COMPONENT_RESLIMIT);
+    reslimit_componentid = generate_componentid(NULL, COMPONENT_RESLIMIT);
 
-	return( 0 );
+    return (0);
 }
-
-
 
 
 /*
@@ -198,26 +194,26 @@ reslimit_init( void )
  * server is shutting down.
  */
 void
-reslimit_cleanup( void )
+reslimit_cleanup(void)
 {
-	int			i;
+    int i;
 
-	if ( reslimit_map != NULL ) {
-		for ( i = 0; i < reslimit_map_count; ++i ) {
-			if ( reslimit_map[ i ].rlmap_at != NULL ) {
-				slapi_ch_free( (void **)&reslimit_map[ i ].rlmap_at );
-			}
-		}
-		slapi_ch_free( (void **)&reslimit_map );
-	}
+    if (reslimit_map != NULL) {
+        for (i = 0; i < reslimit_map_count; ++i) {
+            if (reslimit_map[i].rlmap_at != NULL) {
+                slapi_ch_free((void **)&reslimit_map[i].rlmap_at);
+            }
+        }
+        slapi_ch_free((void **)&reslimit_map);
+    }
 
-	if ( reslimit_map_rwlock != NULL ) {
-		slapi_destroy_rwlock( reslimit_map_rwlock );
-	}
+    if (reslimit_map_rwlock != NULL) {
+        slapi_destroy_rwlock(reslimit_map_rwlock);
+    }
 
-	if ( reslimit_componentid != NULL ) {
-		release_componentid( reslimit_componentid );
-	}
+    if (reslimit_componentid != NULL) {
+        release_componentid(reslimit_componentid);
+    }
 }
 
 
@@ -225,22 +221,22 @@ reslimit_cleanup( void )
  * constructor for the connection object extension.
  */
 static void *
-reslimit_connext_constructor( void *object __attribute__((unused)), void *parent __attribute__((unused)))
+reslimit_connext_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
-	SLAPIResLimitConnData	*rlcdp;
-	Slapi_RWLock				*rwlock;
+    SLAPIResLimitConnData *rlcdp;
+    Slapi_RWLock *rwlock;
 
-	if (( rwlock = slapi_new_rwlock()) == NULL ) {
-		slapi_log_err(SLAPI_LOG_ERR, "reslimit_connext_constructor",
-			"slapi_new_rwlock() failed\n" );
-		return( NULL );
-	}
+    if ((rwlock = slapi_new_rwlock()) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "reslimit_connext_constructor",
+                      "slapi_new_rwlock() failed\n");
+        return (NULL);
+    }
 
-	rlcdp = (SLAPIResLimitConnData *)slapi_ch_calloc( 1,
-			sizeof( SLAPIResLimitConnData ));
-	rlcdp->rlcd_rwlock = rwlock;
+    rlcdp = (SLAPIResLimitConnData *)slapi_ch_calloc(1,
+                                                     sizeof(SLAPIResLimitConnData));
+    rlcdp->rlcd_rwlock = rwlock;
 
-	return( rlcdp );
+    return (rlcdp);
 }
 
 
@@ -248,18 +244,18 @@ reslimit_connext_constructor( void *object __attribute__((unused)), void *parent
  * destructor for the connection object extension.
  */
 static void
-reslimit_connext_destructor( void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+reslimit_connext_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
-	SLAPIResLimitConnData	*rlcdp = (SLAPIResLimitConnData *)extension;
+    SLAPIResLimitConnData *rlcdp = (SLAPIResLimitConnData *)extension;
 
-	if ( rlcdp->rlcd_integer_available != NULL ) {
-			slapi_ch_free( (void **)&rlcdp->rlcd_integer_available );
-	}
-	if ( rlcdp->rlcd_integer_value != NULL ) {
-			slapi_ch_free( (void **)&rlcdp->rlcd_integer_value );
-	}
-	slapi_destroy_rwlock( rlcdp->rlcd_rwlock );
-	slapi_ch_free( (void **)&rlcdp );
+    if (rlcdp->rlcd_integer_available != NULL) {
+        slapi_ch_free((void **)&rlcdp->rlcd_integer_available);
+    }
+    if (rlcdp->rlcd_integer_value != NULL) {
+        slapi_ch_free((void **)&rlcdp->rlcd_integer_value);
+    }
+    slapi_destroy_rwlock(rlcdp->rlcd_rwlock);
+    slapi_ch_free((void **)&rlcdp);
 }
 
 
@@ -269,28 +265,27 @@ reslimit_connext_destructor( void *extension, void *object __attribute__((unused
  * if logname is non-NULL, errors are logged.
  */
 static int
-reslimit_get_ext( Slapi_Connection *conn, const char *logname,
-		SLAPIResLimitConnData **rlcdpp )
+reslimit_get_ext(Slapi_Connection *conn, const char *logname, SLAPIResLimitConnData **rlcdpp)
 {
-	if ( !reslimit_inited && reslimit_init() != 0 ) {
-		if ( NULL != logname ) {
-			slapi_log_err(SLAPI_LOG_ERR, "reslimit_get_ext",
-				"%s: reslimit_init() failed\n", logname );
-		}
-		return( SLAPI_RESLIMIT_STATUS_INIT_FAILURE );
-	}
+    if (!reslimit_inited && reslimit_init() != 0) {
+        if (NULL != logname) {
+            slapi_log_err(SLAPI_LOG_ERR, "reslimit_get_ext",
+                          "%s: reslimit_init() failed\n", logname);
+        }
+        return (SLAPI_RESLIMIT_STATUS_INIT_FAILURE);
+    }
 
-	if (( *rlcdpp = (SLAPIResLimitConnData *)slapi_get_object_extension(
-			reslimit_connext_objtype, conn,
-			reslimit_connext_handle )) == NULL ) {
-		if ( NULL != logname ) {
-			slapi_log_err(SLAPI_LOG_ERR, "reslimit_get_ext",
-					"%s: slapi_get_object_extension() returned NULL\n", logname );
-		}
-		return( SLAPI_RESLIMIT_STATUS_INTERNAL_ERROR );
-	}
+    if ((*rlcdpp = (SLAPIResLimitConnData *)slapi_get_object_extension(
+             reslimit_connext_objtype, conn,
+             reslimit_connext_handle)) == NULL) {
+        if (NULL != logname) {
+            slapi_log_err(SLAPI_LOG_ERR, "reslimit_get_ext",
+                          "%s: slapi_get_object_extension() returned NULL\n", logname);
+        }
+        return (SLAPI_RESLIMIT_STATUS_INTERNAL_ERROR);
+    }
 
-	return( SLAPI_RESLIMIT_STATUS_SUCCESS );
+    return (SLAPI_RESLIMIT_STATUS_SUCCESS);
 }
 
 
@@ -306,28 +301,28 @@ reslimit_get_ext( Slapi_Connection *conn, const char *logname,
  * default state.
  *
  * A SLAPI_RESLIMIT_STATUS_... code is returned.
- */ 
+ */
 int
-reslimit_update_from_dn( Slapi_Connection *conn, Slapi_DN *dn )
+reslimit_update_from_dn(Slapi_Connection *conn, Slapi_DN *dn)
 {
-	Slapi_Entry		*e;
-	int				rc;
+    Slapi_Entry *e;
+    int rc;
 
-	e = NULL;
-	if ( dn != NULL ) {
+    e = NULL;
+    if (dn != NULL) {
 
-		char ** attrs = reslimit_get_registered_attributes();
-		(void) slapi_search_internal_get_entry( dn, attrs, &e , reslimit_componentid);
-		charray_free(attrs);
-	}
+        char **attrs = reslimit_get_registered_attributes();
+        (void)slapi_search_internal_get_entry(dn, attrs, &e, reslimit_componentid);
+        charray_free(attrs);
+    }
 
-	rc = reslimit_update_from_entry( conn, e );
+    rc = reslimit_update_from_entry(conn, e);
 
-	if ( NULL != e ) {
-		slapi_entry_free( e );
-	}
+    if (NULL != e) {
+        slapi_entry_free(e);
+    }
 
-	return( rc );
+    return (rc);
 }
 
 
@@ -337,131 +332,130 @@ reslimit_update_from_dn( Slapi_Connection *conn, Slapi_DN *dn )
  * If `conn' is NULL, nothing is done.
  *
  * A SLAPI_RESLIMIT_STATUS_... code is returned.
- */ 
+ */
 int
-reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
+reslimit_update_from_entry(Slapi_Connection *conn, Slapi_Entry *e)
 {
-	SLAPIResLimitConnData *rlcdp = NULL;
-	Slapi_ValueSet *vs = NULL;
-	char *actual_type_name = NULL;
-	char *get_ext_logname = NULL;
-	int type_name_disposition = 0;
-	int free_flags = 0;
-	int rc, i;
+    SLAPIResLimitConnData *rlcdp = NULL;
+    Slapi_ValueSet *vs = NULL;
+    char *actual_type_name = NULL;
+    char *get_ext_logname = NULL;
+    int type_name_disposition = 0;
+    int free_flags = 0;
+    int rc, i;
 
-	slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
-		"=> conn=0x%p, entry=0x%p\n", conn, e );
+    slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
+                  "=> conn=0x%p, entry=0x%p\n", conn, e);
 
-	rc = SLAPI_RESLIMIT_STATUS_SUCCESS;		/* optimistic */
+    rc = SLAPI_RESLIMIT_STATUS_SUCCESS; /* optimistic */
 
-	/* if conn is NULL, there is nothing to be done */
-	if ( conn == NULL ) {
-		goto log_and_return;
-	}
+    /* if conn is NULL, there is nothing to be done */
+    if (conn == NULL) {
+        goto log_and_return;
+    }
 
-	
-	if ( NULL == e ) {
-		get_ext_logname = NULL; /* do not log errors if resetting limits */
-	} else {
-		get_ext_logname = "reslimit_update_from_entry";
-	}
-	if (( rc = reslimit_get_ext( conn, get_ext_logname, &rlcdp )) !=
-			SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		goto log_and_return;
-	}
 
-	/* LOCK FOR READ -- map lock */
-	slapi_rwlock_rdlock( reslimit_map_rwlock );
-	/* LOCK FOR WRITE -- conn. data lock */
-	slapi_rwlock_wrlock( rlcdp->rlcd_rwlock );
+    if (NULL == e) {
+        get_ext_logname = NULL; /* do not log errors if resetting limits */
+    } else {
+        get_ext_logname = "reslimit_update_from_entry";
+    }
+    if ((rc = reslimit_get_ext(conn, get_ext_logname, &rlcdp)) !=
+        SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        goto log_and_return;
+    }
 
-	if ( rlcdp->rlcd_integer_value == NULL ) {
-		rlcdp->rlcd_integer_count = reslimit_map_count;
-		if ( rlcdp->rlcd_integer_count > 0 ) {
-			rlcdp->rlcd_integer_available = (PRBool *)slapi_ch_calloc(
-					rlcdp->rlcd_integer_count, sizeof( PRBool ));
-			rlcdp->rlcd_integer_value = (int *)slapi_ch_calloc(
-					rlcdp->rlcd_integer_count, sizeof( int ));
-		}
-	}
+    /* LOCK FOR READ -- map lock */
+    slapi_rwlock_rdlock(reslimit_map_rwlock);
+    /* LOCK FOR WRITE -- conn. data lock */
+    slapi_rwlock_wrlock(rlcdp->rlcd_rwlock);
 
-	for ( i = 0; i < rlcdp->rlcd_integer_count; ++i ) {
-		if ( reslimit_map[ i ].rlmap_type != SLAPI_RESLIMIT_TYPE_INT ) {
-			continue;
-		}
+    if (rlcdp->rlcd_integer_value == NULL) {
+        rlcdp->rlcd_integer_count = reslimit_map_count;
+        if (rlcdp->rlcd_integer_count > 0) {
+            rlcdp->rlcd_integer_available = (PRBool *)slapi_ch_calloc(
+                rlcdp->rlcd_integer_count, sizeof(PRBool));
+            rlcdp->rlcd_integer_value = (int *)slapi_ch_calloc(
+                rlcdp->rlcd_integer_count, sizeof(int));
+        }
+    }
 
-		slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
-				"Setting limit for handle %d (based on %s)\n",
-				i, reslimit_map[ i ].rlmap_at );
+    for (i = 0; i < rlcdp->rlcd_integer_count; ++i) {
+        if (reslimit_map[i].rlmap_type != SLAPI_RESLIMIT_TYPE_INT) {
+            continue;
+        }
 
-		rlcdp->rlcd_integer_available[ i ] = PR_FALSE;
+        slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
+                      "Setting limit for handle %d (based on %s)\n",
+                      i, reslimit_map[i].rlmap_at);
 
-		if ( NULL != e && 0 == slapi_vattr_values_get( e,
-				reslimit_map[ i ].rlmap_at, &vs, &type_name_disposition,
-				&actual_type_name, 0, &free_flags )) {
-			Slapi_Value			*v;
-			int					index;
+        rlcdp->rlcd_integer_available[i] = PR_FALSE;
 
-			if ((( index = slapi_valueset_first_value( vs, &v )) != -1) &&
-				( v != NULL )) {
-				rlcdp->rlcd_integer_value[ i ] = slapi_value_get_int( v );
-				rlcdp->rlcd_integer_available[ i ] = PR_TRUE;
+        if (NULL != e && 0 == slapi_vattr_values_get(e, reslimit_map[i].rlmap_at, &vs, &type_name_disposition, &actual_type_name, 0, &free_flags)) {
+            Slapi_Value *v;
+            int index;
 
-				slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
-						"Set limit based on %s to %d\n",
-						reslimit_map[ i ].rlmap_at,
-						rlcdp->rlcd_integer_value[ i ] );
+            if (((index = slapi_valueset_first_value(vs, &v)) != -1) &&
+                (v != NULL)) {
+                rlcdp->rlcd_integer_value[i] = slapi_value_get_int(v);
+                rlcdp->rlcd_integer_available[i] = PR_TRUE;
 
-				if ( slapi_valueset_next_value( vs, index, &v ) != -1 ) {
-					slapi_log_err(SLAPI_LOG_WARNING, "reslimit_update_from_entry",
-							"Ignoring multiple values for %s in entry %s\n",
-							reslimit_map[ i ].rlmap_at,
-							slapi_entry_get_dn_const( e ));
-				}
-			}
+                slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
+                              "Set limit based on %s to %d\n",
+                              reslimit_map[i].rlmap_at,
+                              rlcdp->rlcd_integer_value[i]);
 
-			slapi_vattr_values_free( &vs, &actual_type_name, free_flags);
-		}
-	}
+                if (slapi_valueset_next_value(vs, index, &v) != -1) {
+                    slapi_log_err(SLAPI_LOG_WARNING, "reslimit_update_from_entry",
+                                  "Ignoring multiple values for %s in entry %s\n",
+                                  reslimit_map[i].rlmap_at,
+                                  slapi_entry_get_dn_const(e));
+                }
+            }
 
-	slapi_rwlock_unlock( rlcdp->rlcd_rwlock );
-	/* UNLOCKED -- conn. data lock */
-	slapi_rwlock_unlock( reslimit_map_rwlock );
-	/* UNLOCKED -- map lock */
+            slapi_vattr_values_free(&vs, &actual_type_name, free_flags);
+        }
+    }
+
+    slapi_rwlock_unlock(rlcdp->rlcd_rwlock);
+    /* UNLOCKED -- conn. data lock */
+    slapi_rwlock_unlock(reslimit_map_rwlock);
+/* UNLOCKED -- map lock */
 
 log_and_return:
-	slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
-		"<= returning status %d\n", rc);
+    slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "reslimit_update_from_entry",
+                  "<= returning status %d\n", rc);
 
-	return( rc );
+    return (rc);
 }
 
 /* return the list of registered attributes */
 
-static char ** reslimit_get_registered_attributes(void)
+static char **
+reslimit_get_registered_attributes(void)
 {
 
-	int 		i;
-	char 		**attrs=NULL;
+    int i;
+    char **attrs = NULL;
 
-    	/* LOCK FOR READ -- map lock */
-        slapi_rwlock_rdlock( reslimit_map_rwlock );
+    /* LOCK FOR READ -- map lock */
+    slapi_rwlock_rdlock(reslimit_map_rwlock);
 
-        for ( i = 0; i < reslimit_map_count; ++i ) {
-                if ( reslimit_map[ i ].rlmap_at != NULL ) {
-			charray_add(&attrs, slapi_ch_strdup(reslimit_map[ i ].rlmap_at));
-                }
+    for (i = 0; i < reslimit_map_count; ++i) {
+        if (reslimit_map[i].rlmap_at != NULL) {
+            charray_add(&attrs, slapi_ch_strdup(reslimit_map[i].rlmap_at));
         }
- 
-        slapi_rwlock_unlock( reslimit_map_rwlock );
+    }
 
-	return attrs;
+    slapi_rwlock_unlock(reslimit_map_rwlock);
+
+    return attrs;
 }
 
 
 /**** Public functions can be found below this point *********************/
 /*
- * These functions are exposed to plugins, i.e., they are part of the 
+ * These functions are exposed to plugins, i.e., they are part of the
  * official SLAPI API.
  */
 
@@ -475,71 +469,69 @@ static char ** reslimit_get_registered_attributes(void)
  * subsequent calls to slapi_reslimit_get_integer_limit().
  */
 int
-slapi_reslimit_register( int type, const char *attrname, int *handlep )
+slapi_reslimit_register(int type, const char *attrname, int *handlep)
 {
-	int		i, rc;
+    int i, rc;
 
-	slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_register",
-			"=> attrname=%s\n", attrname);
+    slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_register",
+                  "=> attrname=%s\n", attrname);
 
-	rc = SLAPI_RESLIMIT_STATUS_SUCCESS;		/* optimistic */
+    rc = SLAPI_RESLIMIT_STATUS_SUCCESS; /* optimistic */
 
-	/* initialize if necessary */
-	if ( !reslimit_inited && reslimit_init() != 0 ) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_register",
-				"reslimit_init() failed\n");
-		rc = SLAPI_RESLIMIT_STATUS_INIT_FAILURE;
-		goto log_and_return;
-	}
+    /* initialize if necessary */
+    if (!reslimit_inited && reslimit_init() != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_register",
+                      "reslimit_init() failed\n");
+        rc = SLAPI_RESLIMIT_STATUS_INIT_FAILURE;
+        goto log_and_return;
+    }
 
-	/* sanity check parameters */
-	if ( type != SLAPI_RESLIMIT_TYPE_INT || attrname == NULL
-			|| handlep == NULL ) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_register",
-				"Parameter error\n");
-		rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
-		goto log_and_return;
-	}
+    /* sanity check parameters */
+    if (type != SLAPI_RESLIMIT_TYPE_INT || attrname == NULL || handlep == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_register",
+                      "Parameter error\n");
+        rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
+        goto log_and_return;
+    }
 
-	/* LOCK FOR WRITE -- map lock */
-	slapi_rwlock_wrlock( reslimit_map_rwlock );
+    /* LOCK FOR WRITE -- map lock */
+    slapi_rwlock_wrlock(reslimit_map_rwlock);
 
-	/*
-	 * check that attrname is not already registered
-	 */
-	for ( i = 0; i < reslimit_map_count; ++i ) {
-		if ( 0 == slapi_attr_type_cmp( reslimit_map[ i ].rlmap_at,
-				attrname, SLAPI_TYPE_CMP_EXACT )) {
-			slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_register",
-					"Parameter error (%s already registered)\n",
-					attrname);
-			rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
-			goto unlock_and_return;
-		}
-	}
+    /*
+     * check that attrname is not already registered
+     */
+    for (i = 0; i < reslimit_map_count; ++i) {
+        if (0 == slapi_attr_type_cmp(reslimit_map[i].rlmap_at,
+                                     attrname, SLAPI_TYPE_CMP_EXACT)) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_register",
+                          "Parameter error (%s already registered)\n",
+                          attrname);
+            rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
+            goto unlock_and_return;
+        }
+    }
 
-	/*
+    /*
      * expand the map array and add the new element
-	 */
+     */
     reslimit_map = (SLAPIResLimitMap *)slapi_ch_realloc(
-			(char *)reslimit_map,
-			(1 + reslimit_map_count) * sizeof( SLAPIResLimitMap ));
-	reslimit_map[ reslimit_map_count ].rlmap_type = type;
-	reslimit_map[ reslimit_map_count ].rlmap_at
-			= slapi_ch_strdup( attrname );
-	*handlep = reslimit_map_count;
-	++reslimit_map_count;
+        (char *)reslimit_map,
+        (1 + reslimit_map_count) * sizeof(SLAPIResLimitMap));
+    reslimit_map[reslimit_map_count].rlmap_type = type;
+    reslimit_map[reslimit_map_count].rlmap_at = slapi_ch_strdup(attrname);
+    *handlep = reslimit_map_count;
+    ++reslimit_map_count;
 
 unlock_and_return:
-	slapi_rwlock_unlock( reslimit_map_rwlock );
-	/* UNLOCKED -- map lock */
+    slapi_rwlock_unlock(reslimit_map_rwlock);
+/* UNLOCKED -- map lock */
 
 log_and_return:
-	slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_register",
-			"<= returning status=%d, handle=%d\n", rc,
-			(handlep == NULL) ? -1 : *handlep );
+    slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_register",
+                  "<= returning status=%d, handle=%d\n", rc,
+                  (handlep == NULL) ? -1 : *handlep);
 
-	return( rc );
+    return (rc);
 }
 
 
@@ -554,69 +546,68 @@ log_and_return:
  *  Another SLAPI_RESLIMIT_STATUS_... code -- some more fatal error occurred.
  *
  * If `conn' is NULL, SLAPI_RESLIMIT_STATUS_NOVALUE is returned.
- */ 
+ */
 int
-slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
-		int *limitp )
+slapi_reslimit_get_integer_limit(Slapi_Connection *conn, int handle, int *limitp)
 {
-	int						rc;
-	SLAPIResLimitConnData	*rlcdp;
+    int rc;
+    SLAPIResLimitConnData *rlcdp;
 
-	slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
-		"=> conn=0x%p, handle=%d\n", conn, handle );
+    slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
+                  "=> conn=0x%p, handle=%d\n", conn, handle);
 
-	rc = SLAPI_RESLIMIT_STATUS_SUCCESS;		/* optimistic */
+    rc = SLAPI_RESLIMIT_STATUS_SUCCESS; /* optimistic */
 
-	/* sanity check parameters */
-	if ( limitp == NULL ) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_get_integer_limit",
-				"Parameter error\n");
-		rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
-		goto log_and_return;
-	}
+    /* sanity check parameters */
+    if (limitp == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_get_integer_limit",
+                      "Parameter error\n");
+        rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
+        goto log_and_return;
+    }
 
-	if ( conn == NULL ) {
-		rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
-		goto log_and_return;
-	}
+    if (conn == NULL) {
+        rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
+        goto log_and_return;
+    }
 
-	if (( rc = reslimit_get_ext( conn, "slapi_reslimit_get_integer_limit", &rlcdp )) !=
-			SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		goto log_and_return;
-	}
-	if(rlcdp->rlcd_integer_count==0) { /* peek at it to avoid lock */
-		rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
-	} else {
-		slapi_rwlock_rdlock( rlcdp->rlcd_rwlock );
-		if(rlcdp->rlcd_integer_count==0) {
-			rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
-		} else if ( handle < 0 || handle >= rlcdp->rlcd_integer_count ) {
-			slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_get_integer_limit",
-				"Uunknown handle %d\n", handle );
-			rc = SLAPI_RESLIMIT_STATUS_UNKNOWN_HANDLE;
-		} else if ( rlcdp->rlcd_integer_available[ handle ] ) {
-			*limitp = rlcdp->rlcd_integer_value[ handle ];
-		} else {
-			rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
-		}
-		slapi_rwlock_unlock( rlcdp->rlcd_rwlock );
-	}
+    if ((rc = reslimit_get_ext(conn, "slapi_reslimit_get_integer_limit", &rlcdp)) !=
+        SLAPI_RESLIMIT_STATUS_SUCCESS) {
+        goto log_and_return;
+    }
+    if (rlcdp->rlcd_integer_count == 0) { /* peek at it to avoid lock */
+        rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
+    } else {
+        slapi_rwlock_rdlock(rlcdp->rlcd_rwlock);
+        if (rlcdp->rlcd_integer_count == 0) {
+            rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
+        } else if (handle < 0 || handle >= rlcdp->rlcd_integer_count) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapi_reslimit_get_integer_limit",
+                          "Uunknown handle %d\n", handle);
+            rc = SLAPI_RESLIMIT_STATUS_UNKNOWN_HANDLE;
+        } else if (rlcdp->rlcd_integer_available[handle]) {
+            *limitp = rlcdp->rlcd_integer_value[handle];
+        } else {
+            rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
+        }
+        slapi_rwlock_unlock(rlcdp->rlcd_rwlock);
+    }
 
 
 log_and_return:
-	if ( loglevel_is_set( LDAP_DEBUG_TRACE )) {
-		if ( rc == SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-			slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
-					"<= returning SUCCESS, value=%d\n", *limitp);
-		} else if ( rc == SLAPI_RESLIMIT_STATUS_NOVALUE ) {
-			slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
-					"<= returning NO VALUE\n");
-		} else {
-			slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
-					"<= returning ERROR %d\n", rc);
-		}
-	}
+    if (loglevel_is_set(LDAP_DEBUG_TRACE)) {
+        if (rc == SLAPI_RESLIMIT_STATUS_SUCCESS) {
+            slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
+                          "<= returning SUCCESS, value=%d\n", *limitp);
+        } else if (rc == SLAPI_RESLIMIT_STATUS_NOVALUE) {
+            slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
+                          "<= returning NO VALUE\n");
+        } else {
+            slapi_log_err(SLAPI_RESLIMIT_TRACELEVEL, "slapi_reslimit_get_integer_limit",
+                          "<= returning ERROR %d\n", rc);
+        }
+    }
 
-	return( rc );
+    return (rc);
 }
 /**** Public functions END ***********************************************/

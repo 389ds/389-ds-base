@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef PUBLIC_BASE_SYSTEMS_H
@@ -16,7 +16,7 @@
 
 /*
  * File:        systems.h
- * 
+ *
  * Description:
  *
  *      This file defines various platform-dependent symbols, which are
@@ -33,18 +33,18 @@
 #define SEM_FLOCK
 /* warning: mmap doesn't work under 9.04 */
 #define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
+#define ZERO(ptr, len) memset(ptr, 0, len)
 
-#elif defined(SOLARIS) || defined (SOLARISx86)
+#elif defined(SOLARIS) || defined(SOLARISx86)
 
-#undef	FILE_UNIX	/* avoid redefinition message */
+#undef FILE_UNIX /* avoid redefinition message */
 #define FILE_UNIX
 #define FILE_UNIX_MMAP
 #define MALLOC_POOLS
 /* The Solaris routines return ENOSPC when too many semaphores are SEM_UNDO. */
 #define SEM_FLOCK
 #define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
+#define ZERO(ptr, len) memset(ptr, 0, len)
 
 #elif defined(SUNOS4)
 
@@ -54,7 +54,7 @@
 #define MALLOC_POOLS
 #define SEM_FLOCK
 #define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
+#define ZERO(ptr, len) memset(ptr, 0, len)
 
 #elif defined(LINUX)
 
@@ -63,7 +63,7 @@
 #define MALLOC_POOLS
 #define SEM_FLOCK
 #define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
+#define ZERO(ptr, len) memset(ptr, 0, len)
 
 #elif defined(__FreeBSD__)
 
@@ -72,7 +72,7 @@
 #define MALLOC_POOLS
 #define SEM_FLOCK
 #define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
+#define ZERO(ptr, len) memset(ptr, 0, len)
 
 #else
 #error "Missing defines in ns/netsite/include/public/base/systems.h"
@@ -80,8 +80,8 @@
 
 #ifndef NSPR_BEGIN_EXTERN_C
 #ifdef __cplusplus
-#define NSPR_BEGIN_EXTERN_C	extern "C" {
-#define NSPR_END_EXTERN_C	}
+#define NSPR_BEGIN_EXTERN_C extern "C" {
+#define NSPR_END_EXTERN_C }
 #else
 #define NSPR_BEGIN_EXTERN_C
 #define NSPR_END_EXTERN_C

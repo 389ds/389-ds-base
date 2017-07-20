@@ -2,22 +2,22 @@
  * Copyright (C) 2015  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -42,7 +42,8 @@
 #include <syslog.h>
 #include "ns_private.h"
 
-struct ns_sec_ctx_t {
+struct ns_sec_ctx_t
+{
     NSSInitContext *initctx;
     NSSInitParameters init_params;
     PRFileDesc *model_fd;
@@ -63,17 +64,17 @@ create_tls_model_sock(const char *certname, PRBool is_client)
     PRFileDesc *model_sock = NULL;
     int rv;
     SECStatus secStatus;
-    PRBool disableSSL2     = PR_TRUE;
-    PRBool disableSSL3     = PR_FALSE;
-    PRBool disableTLS      = PR_FALSE;
+    PRBool disableSSL2 = PR_TRUE;
+    PRBool disableSSL3 = PR_FALSE;
+    PRBool disableTLS = PR_FALSE;
     PRBool disableRollBack = PR_FALSE;
-    PRBool NoReuse         = PR_FALSE;
+    PRBool NoReuse = PR_FALSE;
     PRBool disableStepDown = PR_FALSE;
-    PRBool bypassPKCS11    = PR_FALSE;
-    PRBool disableLocking  = PR_FALSE;
-    PRBool enableFDX       = PR_FALSE;
+    PRBool bypassPKCS11 = PR_FALSE;
+    PRBool disableLocking = PR_FALSE;
+    PRBool enableFDX = PR_FALSE;
     PRBool enableSessionTickets = PR_FALSE;
-    PRBool enableCompression    = PR_FALSE;
+    PRBool enableCompression = PR_FALSE;
     SSLKEAType certKEA;
 
     model_sock = PR_NewTCPSocket();
@@ -87,71 +88,71 @@ create_tls_model_sock(const char *certname, PRBool is_client)
 
     /* do SSL configuration. */
     rv = SSL_OptionSet(model_sock, SSL_SECURITY,
-        !(disableSSL2 && disableSSL3 && disableTLS));
+                       !(disableSSL2 && disableSSL3 && disableTLS));
     if (rv != SECSuccess) {
-	errExit("SSL_OptionSet SSL_SECURITY");
+        errExit("SSL_OptionSet SSL_SECURITY");
     }
 
     rv = SSL_OptionSet(model_sock, SSL_ENABLE_SSL3, !disableSSL3);
     if (rv != SECSuccess) {
-	errExit("error enabling SSLv3 ");
+        errExit("error enabling SSLv3 ");
     }
 
     rv = SSL_OptionSet(model_sock, SSL_ENABLE_TLS, !disableTLS);
     if (rv != SECSuccess) {
-	errExit("error enabling TLS ");
+        errExit("error enabling TLS ");
     }
 
     rv = SSL_OptionSet(model_sock, SSL_ENABLE_SSL2, !disableSSL2);
     if (rv != SECSuccess) {
-	errExit("error enabling SSLv2 ");
+        errExit("error enabling SSLv2 ");
     }
-    
+
     rv = SSL_OptionSet(model_sock, SSL_ROLLBACK_DETECTION, !disableRollBack);
     if (rv != SECSuccess) {
-	errExit("error enabling RollBack detection ");
+        errExit("error enabling RollBack detection ");
     }
 
     rv = SSL_OptionSet(model_sock, SSL_HANDSHAKE_AS_CLIENT, is_client);
     if (rv != SECSuccess) {
-	errExit("error handshake as client ");
+        errExit("error handshake as client ");
     }
 
     rv = SSL_OptionSet(model_sock, SSL_HANDSHAKE_AS_SERVER, !is_client);
     if (rv != SECSuccess) {
-	errExit("error handshake as server ");
+        errExit("error handshake as server ");
     }
 
     if (disableStepDown) {
-	rv = SSL_OptionSet(model_sock, SSL_NO_STEP_DOWN, PR_TRUE);
-	if (rv != SECSuccess) {
-	    errExit("error disabling SSL StepDown ");
-	}
+        rv = SSL_OptionSet(model_sock, SSL_NO_STEP_DOWN, PR_TRUE);
+        if (rv != SECSuccess) {
+            errExit("error disabling SSL StepDown ");
+        }
     }
     if (bypassPKCS11) {
         rv = SSL_OptionSet(model_sock, SSL_BYPASS_PKCS11, PR_TRUE);
-	if (rv != SECSuccess) {
-	    errExit("error enabling PKCS11 bypass ");
-	}
+        if (rv != SECSuccess) {
+            errExit("error enabling PKCS11 bypass ");
+        }
     }
     if (disableLocking) {
         rv = SSL_OptionSet(model_sock, SSL_NO_LOCKS, PR_TRUE);
-	if (rv != SECSuccess) {
-	    errExit("error disabling SSL socket locking ");
-	}
-    } 
+        if (rv != SECSuccess) {
+            errExit("error disabling SSL socket locking ");
+        }
+    }
     if (enableSessionTickets) {
-	rv = SSL_OptionSet(model_sock, SSL_ENABLE_SESSION_TICKETS, PR_TRUE);
-	if (rv != SECSuccess) {
-	    errExit("error enabling Session Ticket extension ");
-	}
+        rv = SSL_OptionSet(model_sock, SSL_ENABLE_SESSION_TICKETS, PR_TRUE);
+        if (rv != SECSuccess) {
+            errExit("error enabling Session Ticket extension ");
+        }
     }
 
     if (enableCompression) {
-	rv = SSL_OptionSet(model_sock, SSL_ENABLE_DEFLATE, PR_TRUE);
-	if (rv != SECSuccess) {
-	    errExit("error enabling compression ");
-	}
+        rv = SSL_OptionSet(model_sock, SSL_ENABLE_DEFLATE, PR_TRUE);
+        if (rv != SECSuccess) {
+            errExit("error enabling compression ");
+        }
     }
 
     /* handle ciphers here - SSL_CipherPrefSetDefault etc. */
@@ -168,16 +169,16 @@ create_tls_model_sock(const char *certname, PRBool is_client)
         CERTCertificate *cert;
         SECKEYPrivateKey *privKey;
 
-	cert = PK11_FindCertFromNickname(certname, NULL);
-	if (cert == NULL) {
-	    ns_log(LOG_ERR, "selfserv: Can't find certificate %s\n", certname);
-	    exit(10);
-	}
-	privKey = PK11_FindKeyByAnyCert(cert, NULL);
-	if (privKey == NULL) {
-	    ns_log(LOG_ERR, "selfserv: Can't find Private Key for cert %s\n", certname);
-	    exit(11);
-	}
+        cert = PK11_FindCertFromNickname(certname, NULL);
+        if (cert == NULL) {
+            ns_log(LOG_ERR, "selfserv: Can't find certificate %s\n", certname);
+            exit(10);
+        }
+        privKey = PK11_FindKeyByAnyCert(cert, NULL);
+        if (privKey == NULL) {
+            ns_log(LOG_ERR, "selfserv: Can't find Private Key for cert %s\n", certname);
+            exit(11);
+        }
         certKEA = NSS_FindCertKEAType(cert);
         secStatus = SSL_ConfigSecureServer(model_sock, cert, privKey, certKEA);
         if (secStatus != SECSuccess) {
@@ -189,10 +190,10 @@ create_tls_model_sock(const char *certname, PRBool is_client)
     }
 
     if (enableFDX) { /* doing FDX */
-	rv = SSL_OptionSet(model_sock, SSL_ENABLE_FDX, 1);
-	if (rv != SECSuccess) {
-	    errExit("SSL_OptionSet SSL_ENABLE_FDX");
-	}
+        rv = SSL_OptionSet(model_sock, SSL_ENABLE_FDX, 1);
+        if (rv != SECSuccess) {
+            errExit("SSL_OptionSet SSL_ENABLE_FDX");
+        }
     }
 
     if (NoReuse) {
@@ -210,8 +211,8 @@ create_tls_model_sock(const char *certname, PRBool is_client)
     */
 
     /*
-    SSL_AuthCertificateHook(model_sock, mySSLAuthCertificate, 
-	                        (void *)CERT_GetDefaultCertDB());
+    SSL_AuthCertificateHook(model_sock, mySSLAuthCertificate,
+                            (void *)CERT_GetDefaultCertDB());
     */
 
     rv = SSL_OptionSet(model_sock, SSL_REQUEST_CERTIFICATE, PR_TRUE);
@@ -237,7 +238,7 @@ ns_tls_done(ns_sec_ctx_t *ctx)
         NSS_ShutdownContext(ctx->initctx);
     }
     ns_free(ctx);
-}    
+}
 
 ns_sec_ctx_t *
 ns_tls_init(const char *dir, const char *prefix, const char *certname, PRBool is_client)

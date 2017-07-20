@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -27,18 +27,18 @@ static void *_PluginID = NULL;
 static Slapi_DN *_PluginDN = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
 
-static Slapi_PluginDesc pdesc = { MEP_FEATURE_DESC,
-                                  VENDOR,
-                                  DS_PACKAGE_VERSION,
-                                  MEP_PLUGIN_DESC };
+static Slapi_PluginDesc pdesc = {MEP_FEATURE_DESC,
+                                 VENDOR,
+                                 DS_PACKAGE_VERSION,
+                                 MEP_PLUGIN_DESC};
 
 /*
  * Plug-in management functions
  */
-int mep_init(Slapi_PBlock * pb);
-static int mep_start(Slapi_PBlock * pb);
-static int mep_close(Slapi_PBlock * pb);
-static int mep_postop_init(Slapi_PBlock * pb);
+int mep_init(Slapi_PBlock *pb);
+static int mep_start(Slapi_PBlock *pb);
+static int mep_close(Slapi_PBlock *pb);
+static int mep_postop_init(Slapi_PBlock *pb);
 static int mep_internal_postop_init(Slapi_PBlock *pb);
 
 /*
@@ -59,38 +59,39 @@ static int mep_modrdn_pre_op(Slapi_PBlock *pb);
  */
 static int mep_load_config(void);
 static void mep_delete_config(void);
-static int mep_parse_config_entry(Slapi_Entry * e, int apply);
-static void mep_free_config_entry(struct configEntry ** entry);
+static int mep_parse_config_entry(Slapi_Entry *e, int apply);
+static void mep_free_config_entry(struct configEntry **entry);
 
 /*
  * helpers
  */
-static Slapi_DN *mep_get_sdn(Slapi_PBlock * pb);
+static Slapi_DN *mep_get_sdn(Slapi_PBlock *pb);
 static Slapi_DN *mep_get_config_area(void);
 static void mep_set_config_area(Slapi_DN *sdn);
 static int mep_dn_is_config(Slapi_DN *sdn);
 static int mep_dn_is_template(Slapi_DN *dn);
 static void mep_find_config(Slapi_Entry *e, struct configEntry **config);
 static void mep_find_config_by_template_dn(Slapi_DN *template_dn,
-    struct configEntry **config);
+                                           struct configEntry **config);
 static int mep_oktodo(Slapi_PBlock *pb);
 static int mep_isrepl(Slapi_PBlock *pb);
 static Slapi_Entry *mep_create_managed_entry(struct configEntry *config,
-    Slapi_Entry *origin);
+                                             Slapi_Entry *origin);
 static int mep_add_managed_entry(struct configEntry *config,
-    Slapi_Entry *origin);
+                                 Slapi_Entry *origin);
 static int mep_rename_managed_entry(Slapi_Entry *origin,
-    Slapi_DN *new_dn, Slapi_DN *old_dn);
+                                    Slapi_DN *new_dn,
+                                    Slapi_DN *old_dn);
 static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
-    Slapi_Entry *origin, char **mapped_dn);
-static int mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
-    char **type, char **value);
+                                       Slapi_Entry *origin,
+                                       char **mapped_dn);
+static int mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin, char **type, char **value);
 static int mep_is_managed_entry(Slapi_Entry *e);
 static int mep_is_mapped_attr(Slapi_Entry *template, char *type);
-static int mep_has_tombstone_value(Slapi_Entry * e);
+static int mep_has_tombstone_value(Slapi_Entry *e);
 static int mep_parse_mapped_origin_attr(char *mapping, char **origin_type);
 static int mep_is_mapped_origin_attr(char **vals, char *type);
-static char** mep_extract_origin_attrs(Slapi_Entry *entry);
+static char **mep_extract_origin_attrs(Slapi_Entry *entry);
 
 /*
  * Config cache locking functions
@@ -160,7 +161,7 @@ mep_init(Slapi_PBlock *pb)
     int premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_init\n");
+                  "--> mep_init\n");
 
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
@@ -184,52 +185,52 @@ mep_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-                         (void *) mep_start) != 0 ||
+                         (void *)mep_start) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                         (void *) mep_close) != 0 ||
+                         (void *)mep_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, premod, (void *) mep_mod_pre_op) != 0 ||
-        slapi_pblock_set(pb, preadd, (void *) mep_add_pre_op) != 0 ||
-        slapi_pblock_set(pb, predel, (void *) mep_del_pre_op) != 0 ||
-        slapi_pblock_set(pb, premdn, (void *) mep_modrdn_pre_op) != 0) {
+                         (void *)&pdesc) != 0 ||
+        slapi_pblock_set(pb, premod, (void *)mep_mod_pre_op) != 0 ||
+        slapi_pblock_set(pb, preadd, (void *)mep_add_pre_op) != 0 ||
+        slapi_pblock_set(pb, predel, (void *)mep_del_pre_op) != 0 ||
+        slapi_pblock_set(pb, premdn, (void *)mep_modrdn_pre_op) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_init - Failed to register plugin\n");
+                      "mep_init - Failed to register plugin\n");
         status = -1;
     }
 
     if (!status && !plugin_is_betxn &&
         slapi_register_plugin("internalpostoperation",  /* op type */
-                              1,        /* Enabled */
-                              "mep_init",   /* this function desc */
-                              mep_internal_postop_init,  /* init func */
+                              1,                        /* Enabled */
+                              "mep_init",               /* this function desc */
+                              mep_internal_postop_init, /* init func */
                               MEP_INT_POSTOP_DESC,      /* plugin desc */
-                              NULL,     /* ? */
-                              plugin_identity   /* access control */
-        )) {
+                              NULL,                     /* ? */
+                              plugin_identity           /* access control */
+                              )) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_init - Failed to register internalpostoperation plugin\n");
+                      "mep_init - Failed to register internalpostoperation plugin\n");
         status = -1;
     }
 
     if (!status) {
         plugin_type = plugin_is_betxn ? "betxnpostoperation" : "postoperation";
-        if (slapi_register_plugin(plugin_type,  /* op type */
-                                  1,        /* Enabled */
-                                  "mep_init",   /* this function desc */
-                                  mep_postop_init,  /* init func for post op */
-                                  MEP_POSTOP_DESC,      /* plugin desc */
-                                  NULL,     /* ? */
-                                  plugin_identity   /* access control */
-        )) {
+        if (slapi_register_plugin(plugin_type,     /* op type */
+                                  1,               /* Enabled */
+                                  "mep_init",      /* this function desc */
+                                  mep_postop_init, /* init func for post op */
+                                  MEP_POSTOP_DESC, /* plugin desc */
+                                  NULL,            /* ? */
+                                  plugin_identity  /* access control */
+                                  )) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_init - Failed to register plugin\n");
+                          "mep_init - Failed to register plugin\n");
             status = -1;
         }
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_init\n");
+                  "<-- mep_init\n");
     return status;
 }
 
@@ -242,20 +243,20 @@ mep_internal_postop_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
+                         (void *)&pdesc) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN,
-                         (void *) mep_add_post_op) != 0 ||
+                         (void *)mep_add_post_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
-                         (void *) mep_del_post_op) != 0 ||
+                         (void *)mep_del_post_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN,
-                         (void *) mep_mod_post_op) != 0 ||
+                         (void *)mep_mod_post_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN,
-                         (void *) mep_modrdn_post_op) != 0) {
+                         (void *)mep_modrdn_post_op) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_internal_postop_init - Failed to register plugin\n");
+                      "mep_internal_postop_init - Failed to register plugin\n");
         status = -1;
     }
- 
+
     return status;
 }
 
@@ -278,13 +279,13 @@ mep_postop_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, addfn, (void *) mep_add_post_op) != 0 ||
-        slapi_pblock_set(pb, delfn, (void *) mep_del_post_op) != 0 ||
-        slapi_pblock_set(pb, modfn, (void *) mep_mod_post_op) != 0 ||
-        slapi_pblock_set(pb, mdnfn, (void *) mep_modrdn_post_op) != 0) {
+                         (void *)&pdesc) != 0 ||
+        slapi_pblock_set(pb, addfn, (void *)mep_add_post_op) != 0 ||
+        slapi_pblock_set(pb, delfn, (void *)mep_del_post_op) != 0 ||
+        slapi_pblock_set(pb, modfn, (void *)mep_mod_post_op) != 0 ||
+        slapi_pblock_set(pb, mdnfn, (void *)mep_modrdn_post_op) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_postop_init - Failed to register plugin\n");
+                      "mep_postop_init - Failed to register plugin\n");
         status = -1;
     }
 
@@ -298,19 +299,19 @@ mep_postop_init(Slapi_PBlock *pb)
  * Creates config lock and loads config cache.
  */
 static int
-mep_start(Slapi_PBlock * pb)
+mep_start(Slapi_PBlock *pb)
 {
     Slapi_DN *plugindn = NULL;
     char *config_area = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_start\n");
+                  "--> mep_start\n");
 
     g_mep_config_lock = slapi_new_rwlock();
 
     if (!g_mep_config_lock) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_start - Lock creation failed\n");
+                      "mep_start - Lock creation failed\n");
 
         return -1;
     }
@@ -321,7 +322,7 @@ mep_start(Slapi_PBlock * pb)
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &plugindn);
     if (NULL == plugindn || 0 == slapi_sdn_get_ndn_len(plugindn)) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_start - Unable to retrieve plugin dn\n");
+                      "mep_start - Unable to retrieve plugin dn\n");
         return -1;
     }
 
@@ -341,14 +342,14 @@ mep_start(Slapi_PBlock * pb)
 
     if (mep_load_config() != 0) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_start - Unable to load plug-in configuration\n");
+                      "mep_start - Unable to load plug-in configuration\n");
         return -1;
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_start - Ready for service\n");
+                  "mep_start - Ready for service\n");
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_start\n");
+                  "<-- mep_start\n");
 
     return 0;
 }
@@ -359,10 +360,10 @@ mep_start(Slapi_PBlock * pb)
  * Cleans up the config cache.
  */
 static int
-mep_close(Slapi_PBlock * pb __attribute__((unused)))
+mep_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_close\n");
+                  "--> mep_close\n");
 
     mep_delete_config();
     slapi_destroy_rwlock(g_mep_config_lock);
@@ -372,7 +373,7 @@ mep_close(Slapi_PBlock * pb __attribute__((unused)))
     slapi_sdn_free(&_ConfigAreaDN);
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_close\n");
+                  "<-- mep_close\n");
 
     return 0;
 }
@@ -383,7 +384,7 @@ mep_get_config()
     return g_mep_config;
 }
 
-/* 
+/*
  * config looks like this
  * - cn=Managed Entries,cn=plugins,cn=config
  * --- cn=user private groups,...
@@ -399,7 +400,7 @@ mep_load_config(void)
     Slapi_Entry **entries = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_load_config\n");
+                  "--> mep_load_config\n");
 
     /* Clear out any old config. */
     mep_config_write_lock();
@@ -414,17 +415,18 @@ mep_load_config(void)
     if (mep_get_config_area()) {
         /* Find the config entries beneath the alternate config area. */
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_load_config - Looking for config entries "
-                        "beneath \"%s\".\n", slapi_sdn_get_ndn(mep_get_config_area()));
+                      "mep_load_config - Looking for config entries "
+                      "beneath \"%s\".\n",
+                      slapi_sdn_get_ndn(mep_get_config_area()));
         slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(mep_get_config_area()),
                                      LDAP_SCOPE_SUBTREE, "objectclass=*",
                                      NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
     } else {
         /* Find the config entries beneath our plugin entry. */
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_load_config - Looking for config entries "
-                        "beneath \"%s\".\n",
-                         slapi_sdn_get_ndn(mep_get_plugin_sdn()));
+                      "mep_load_config - Looking for config entries "
+                      "beneath \"%s\".\n",
+                      slapi_sdn_get_ndn(mep_get_plugin_sdn()));
         slapi_search_internal_set_pb(search_pb,
                                      slapi_sdn_get_ndn(mep_get_plugin_sdn()),
                                      LDAP_SCOPE_SUBTREE, "objectclass=*",
@@ -437,8 +439,9 @@ mep_load_config(void)
     if (LDAP_SUCCESS != result) {
         if (mep_get_config_area() && (result == LDAP_NO_SUCH_OBJECT)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_load_config - Config container \"%s\" does "
-                            "not exist.\n", slapi_sdn_get_ndn(mep_get_config_area()));
+                          "mep_load_config - Config container \"%s\" does "
+                          "not exist.\n",
+                          slapi_sdn_get_ndn(mep_get_config_area()));
             goto cleanup;
         } else {
             status = -1;
@@ -457,12 +460,12 @@ mep_load_config(void)
         mep_parse_config_entry(entries[i], 1);
     }
 
-  cleanup:
+cleanup:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
     mep_config_unlock();
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_load_config\n");
+                  "<-- mep_load_config\n");
 
     return status;
 }
@@ -478,7 +481,7 @@ mep_load_config(void)
  * Returns 0 if the entry is valid and -1 if it is invalid.
  */
 static int
-mep_parse_config_entry(Slapi_Entry * e, int apply)
+mep_parse_config_entry(Slapi_Entry *e, int apply)
 {
     char *value;
     struct configEntry *entry = NULL;
@@ -488,13 +491,13 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_parse_config_entry\n");
+                  "--> mep_parse_config_entry\n");
 
     /* If this is the main plug-in
      * config entry, just bail. */
     if ((slapi_sdn_compare(mep_get_plugin_sdn(), slapi_entry_get_sdn(e)) == 0) ||
         (mep_get_config_area() && (slapi_sdn_compare(mep_get_config_area(),
-        slapi_entry_get_sdn(e)) == 0))) {
+                                                     slapi_entry_get_sdn(e)) == 0))) {
         ret = -1;
         goto bail;
     }
@@ -505,17 +508,17 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
         goto bail;
     }
 
-    entry->sdn = slapi_sdn_dup(slapi_entry_get_sdn(e)); 
-    if(entry->sdn == NULL){ 
+    entry->sdn = slapi_sdn_dup(slapi_entry_get_sdn(e));
+    if (entry->sdn == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_config_entry - Error "
-                        "reading dn from config entry\n");
+                      "mep_parse_config_entry - Error "
+                      "reading dn from config entry\n");
         ret = -1;
         goto bail;
     }
 
     slapi_log_err(SLAPI_LOG_CONFIG, MEP_PLUGIN_SUBSYSTEM,
-                    "----------> dn [%s]\n", slapi_sdn_get_dn(entry->sdn));
+                  "----------> dn [%s]\n", slapi_sdn_get_dn(entry->sdn));
 
     /* Load the origin scope */
     value = slapi_entry_attr_get_charptr(e, MEP_SCOPE_TYPE);
@@ -523,9 +526,9 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
         entry->origin_scope = value;
     } else {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_config_entry - The %s config "
-                        "setting is required for config entry \"%s\".\n",
-                        MEP_SCOPE_TYPE, slapi_sdn_get_dn(entry->sdn));
+                      "mep_parse_config_entry - The %s config "
+                      "setting is required for config entry \"%s\".\n",
+                      MEP_SCOPE_TYPE, slapi_sdn_get_dn(entry->sdn));
         ret = -1;
         goto bail;
     }
@@ -535,10 +538,11 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
     if (value) {
         /* Convert to a Slapi_Filter to improve performance. */
         if (NULL == (entry->origin_filter = slapi_str2filter(value))) {
-            slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM ,
-                "mep_parse_config_entry - Invalid search filter in "
-                "%s config setting for config entry \"%s\" "
-                "(filter = \"%s\").\n", MEP_FILTER_TYPE, slapi_sdn_get_dn(entry->sdn), value);
+            slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
+                          "mep_parse_config_entry - Invalid search filter in "
+                          "%s config setting for config entry \"%s\" "
+                          "(filter = \"%s\").\n",
+                          MEP_FILTER_TYPE, slapi_sdn_get_dn(entry->sdn), value);
             ret = -1;
         }
 
@@ -549,9 +553,9 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_config_entry - The %s config "
-                        "setting is required for config entry \"%s\".\n",
-                        MEP_FILTER_TYPE, slapi_sdn_get_dn(entry->sdn));
+                      "mep_parse_config_entry - The %s config "
+                      "setting is required for config entry \"%s\".\n",
+                      MEP_FILTER_TYPE, slapi_sdn_get_dn(entry->sdn));
         ret = -1;
         goto bail;
     }
@@ -559,12 +563,12 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
     /* Load the managed base */
     value = slapi_entry_attr_get_charptr(e, MEP_MANAGED_BASE_TYPE);
     if (value) {
-        entry->managed_base = value; 
+        entry->managed_base = value;
     } else {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_config_entry - The %s config "
-                        "setting is required for config entry \"%s\".\n",
-                        MEP_MANAGED_BASE_TYPE, slapi_sdn_get_dn(entry->sdn));
+                      "mep_parse_config_entry - The %s config "
+                      "setting is required for config entry \"%s\".\n",
+                      MEP_MANAGED_BASE_TYPE, slapi_sdn_get_dn(entry->sdn));
         ret = -1;
         goto bail;
     }
@@ -579,15 +583,16 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
 
         /*  Fetch the managed entry template */
         slapi_search_internal_get_entry(entry->template_sdn, 0,
-                &entry->template_entry, mep_get_plugin_id());
+                                        &entry->template_entry, mep_get_plugin_id());
 
         if (entry->template_entry == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_parse_config_entry - The managed entry "
-                            "template \"%s\" does not exist.  Please "
-                            "add it or correct the %s config setting for "
-                            "config entry \"%s\"\n", slapi_sdn_get_dn(entry->template_sdn),
-                            MEP_MANAGED_TEMPLATE_TYPE, slapi_sdn_get_dn(entry->sdn));
+                          "mep_parse_config_entry - The managed entry "
+                          "template \"%s\" does not exist.  Please "
+                          "add it or correct the %s config setting for "
+                          "config entry \"%s\"\n",
+                          slapi_sdn_get_dn(entry->template_sdn),
+                          MEP_MANAGED_TEMPLATE_TYPE, slapi_sdn_get_dn(entry->sdn));
             ret = -1;
             goto bail;
         }
@@ -597,10 +602,11 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
         test_entry = mep_create_managed_entry(entry, NULL);
         if (test_entry == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_parse_config_entry - Unable to create "
-                            "a test managed entry from managed entry "
-                            "template \"%s\".  Please check the template "
-                            "entry for errors.\n", slapi_sdn_get_dn(entry->template_sdn));
+                          "mep_parse_config_entry - Unable to create "
+                          "a test managed entry from managed entry "
+                          "template \"%s\".  Please check the template "
+                          "entry for errors.\n",
+                          slapi_sdn_get_dn(entry->template_sdn));
             ret = -1;
             goto bail;
         }
@@ -608,11 +614,11 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
         /* Check the schema */
         if (slapi_entry_schema_check(NULL, test_entry) != 0) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_parse_config_entry - Test managed "
-                            "entry created from managed entry template "
-                            "\"%s\" violates the schema.  Please check "
-                            "the template entry for schema errors.\n",
-                            slapi_sdn_get_dn(entry->template_sdn));
+                          "mep_parse_config_entry - Test managed "
+                          "entry created from managed entry template "
+                          "\"%s\" violates the schema.  Please check "
+                          "the template entry for schema errors.\n",
+                          slapi_sdn_get_dn(entry->template_sdn));
             slapi_entry_free(test_entry);
             ret = -1;
             goto bail;
@@ -628,9 +634,9 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
 
     } else {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_config_entry - The %s config "
-                        "setting is required for config entry \"%s\".\n",
-                        MEP_MANAGED_TEMPLATE_TYPE, slapi_sdn_get_dn(entry->sdn));
+                      "mep_parse_config_entry - The %s config "
+                      "setting is required for config entry \"%s\".\n",
+                      MEP_MANAGED_TEMPLATE_TYPE, slapi_sdn_get_dn(entry->sdn));
         ret = -1;
         goto bail;
     }
@@ -645,7 +651,7 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
     if (!PR_CLIST_IS_EMPTY(g_mep_config)) {
         list = PR_LIST_HEAD(g_mep_config);
         while (list != g_mep_config) {
-            config_entry = (struct configEntry *) list;
+            config_entry = (struct configEntry *)list;
 
             /* If the config entry we are adding has a scope that is
              * a child of the scope of the current list item, we insert
@@ -653,8 +659,8 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
             if (slapi_dn_issuffix(entry->origin_scope, config_entry->origin_scope)) {
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_parse_config_entry - store [%s] before [%s] \n", slapi_sdn_get_dn(entry->sdn),
-                                slapi_sdn_get_dn(config_entry->sdn));
+                              "mep_parse_config_entry - store [%s] before [%s] \n", slapi_sdn_get_dn(entry->sdn),
+                              slapi_sdn_get_dn(config_entry->sdn));
 
                 entry_added = 1;
                 break;
@@ -666,7 +672,7 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
             if (g_mep_config == list) {
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_parse_config_entry - store [%s] at tail\n", slapi_sdn_get_dn(entry->sdn));
+                              "mep_parse_config_entry - store [%s] at tail\n", slapi_sdn_get_dn(entry->sdn));
 
                 entry_added = 1;
                 break;
@@ -676,18 +682,19 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
         /* first entry */
         PR_INSERT_LINK(&(entry->list), g_mep_config);
         slapi_log_err(SLAPI_LOG_CONFIG, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_config_entry - store [%s] at head \n", slapi_sdn_get_dn(entry->sdn));
+                      "mep_parse_config_entry - store [%s] at head \n", slapi_sdn_get_dn(entry->sdn));
 
         entry_added = 1;
     }
 
-  bail:
+bail:
     if (0 == entry_added) {
         /* Don't log error if we weren't asked to apply config */
         if ((apply != 0) && (entry != NULL)) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_parse_config_entry - Invalid config entry "
-                            "[%s] skipped\n", slapi_sdn_get_dn(entry->sdn));
+                          "mep_parse_config_entry - Invalid config entry "
+                          "[%s] skipped\n",
+                          slapi_sdn_get_dn(entry->sdn));
         }
         mep_free_config_entry(&entry);
     } else {
@@ -695,13 +702,13 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_parse_config_entry\n");
+                  "<-- mep_parse_config_entry\n");
 
     return ret;
 }
 
 static void
-mep_free_config_entry(struct configEntry ** entry)
+mep_free_config_entry(struct configEntry **entry)
 {
     struct configEntry *e = *entry;
 
@@ -710,7 +717,7 @@ mep_free_config_entry(struct configEntry ** entry)
 
     if (e->sdn) {
         slapi_log_err(SLAPI_LOG_CONFIG, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_free_config_entry - Freeing config entry [%s]\n", slapi_sdn_get_dn(e->sdn));
+                      "mep_free_config_entry - Freeing config entry [%s]\n", slapi_sdn_get_dn(e->sdn));
         slapi_sdn_free(&e->sdn);
     }
 
@@ -734,18 +741,18 @@ mep_free_config_entry(struct configEntry ** entry)
         slapi_entry_free(e->template_entry);
     }
 
-    if(e->origin_attrs){
+    if (e->origin_attrs) {
         slapi_ch_array_free(e->origin_attrs);
     }
 
-    slapi_ch_free((void **) entry);
+    slapi_ch_free((void **)entry);
 }
 
 static void
 mep_delete_configEntry(PRCList *entry)
 {
     PR_REMOVE_LINK(entry);
-    mep_free_config_entry((struct configEntry **) &entry);
+    mep_free_config_entry((struct configEntry **)&entry);
 }
 
 static void
@@ -790,9 +797,9 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
     /* split out the type from the value (use the first ':') */
     if ((p = strchr(mapping, ':')) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_mapped_origin_attr - Value for mapped attribute "
-                        "is not in the correct format. (value: \"%s\").\n",
-                        mapping);
+                      "mep_parse_mapped_origin_attr - Value for mapped attribute "
+                      "is not in the correct format. (value: \"%s\").\n",
+                      mapping);
         ret = 1;
         goto bail;
     }
@@ -800,10 +807,10 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
     /* Ensure the type is not empty. */
     if (p == mapping) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_mapped_origin_attr - Value for mapped attribute "
-                        "is not in the correct format. The type is missing. "
-                        "(value: \"%s\").\n",
-                        mapping);
+                      "mep_parse_mapped_origin_attr - Value for mapped attribute "
+                      "is not in the correct format. The type is missing. "
+                      "(value: \"%s\").\n",
+                      mapping);
         ret = 1;
         goto bail;
     }
@@ -825,8 +832,9 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
         if (*p == '$') {
             if (p == end) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_parse_mapped_origin_attr - Invalid mapped "
-                                "attribute value for type \"%s\".\n", mapping);
+                              "mep_parse_mapped_origin_attr - Invalid mapped "
+                              "attribute value for type \"%s\".\n",
+                              mapping);
                 ret = 1;
                 goto bail;
             }
@@ -835,7 +843,7 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
                 /* This is an escaped $.  Eliminate the escape character
                  * to prevent if from being a part of the value. */
                 p++;
-                memmove(p, p+1, end-(p+1)+1);
+                memmove(p, p + 1, end - (p + 1) + 1);
                 *end = '\0';
                 end--;
             } else {
@@ -854,8 +862,9 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
                         p++;
                     } else {
                         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                        "mep_parse_mapped_origin_attr - Invalid mapped "
-                                        "attribute value for type \"%s\".\n", mapping);
+                                      "mep_parse_mapped_origin_attr - Invalid mapped "
+                                      "attribute value for type \"%s\".\n",
+                                      mapping);
                         ret = 1;
                         goto bail;
                     }
@@ -874,11 +883,12 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
                 /* If the variable is quoted and this is not a closing
                  * brace, there is a syntax error in the mapping rule. */
                 if (quoted && (*p != '}')) {
-                        slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                        "mep_parse_mapped_origin_attr - Invalid mapped "
-                                        "attribute value for type \"%s\".\n", mapping);
-                        ret = 1;
-                        goto bail;
+                    slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
+                                  "mep_parse_mapped_origin_attr - Invalid mapped "
+                                  "attribute value for type \"%s\".\n",
+                                  mapping);
+                    ret = 1;
+                    goto bail;
                 }
 
                 /* Check for a missing variable name. */
@@ -911,7 +921,7 @@ mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
         }
     }
 
-  bail:
+bail:
     if (ret != 0) {
         slapi_ch_free_string(origin_type);
     }
@@ -937,7 +947,7 @@ mep_extract_origin_attrs(Slapi_Entry *template)
         vals = slapi_entry_attr_get_charray(template, MEP_MAPPED_ATTR_TYPE);
         for (i = 0; vals && vals[i]; ++i) {
             if (mep_parse_mapped_origin_attr(vals[i], &origin_type) == 0) {
-                slapi_ch_array_add(&origin_attrs,origin_type);
+                slapi_ch_array_add(&origin_attrs, origin_type);
             }
         }
         slapi_ch_array_free(vals);
@@ -971,14 +981,14 @@ mep_is_mapped_origin_attr(char **vals, char *type)
 }
 
 static Slapi_DN *
-mep_get_sdn(Slapi_PBlock * pb)
+mep_get_sdn(Slapi_PBlock *pb)
 {
     Slapi_DN *sdn = 0;
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_get_sdn\n");
+                  "--> mep_get_sdn\n");
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_get_sdn\n");
+                  "<-- mep_get_sdn\n");
 
     return sdn;
 }
@@ -1006,7 +1016,7 @@ mep_dn_is_config(Slapi_DN *sdn)
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_dn_is_config\n");
+                  "--> mep_dn_is_config\n");
 
     if (sdn == NULL) {
         goto bail;
@@ -1030,7 +1040,7 @@ mep_dn_is_config(Slapi_DN *sdn)
 
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_dn_is_config\n");
+                  "<-- mep_dn_is_config\n");
 
     return ret;
 }
@@ -1121,7 +1131,7 @@ mep_find_config(Slapi_Entry *e, struct configEntry **config)
  */
 static void
 mep_find_config_by_template_dn(Slapi_DN *template_sdn,
-    struct configEntry **config)
+                               struct configEntry **config)
 {
     PRCList *list = NULL;
     Slapi_DN *config_sdn = NULL;
@@ -1156,21 +1166,21 @@ mep_oktodo(Slapi_PBlock *pb)
     int oprc = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                 "--> mep_oktodo\n" );
+                  "--> mep_oktodo\n");
 
-    if(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0) {
+    if (slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                "mep_oktodo: Could not get parameters\n" );
+                      "mep_oktodo: Could not get parameters\n");
         ret = -1;
     }
 
     /* This plugin should only execute if the operation succeeded. */
-    if(oprc != 0) {
+    if (oprc != 0) {
         ret = 0;
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                 "<-- mep_oktodo\n" );
+                  "<-- mep_oktodo\n");
 
     return ret;
 }
@@ -1187,12 +1197,12 @@ mep_isrepl(Slapi_PBlock *pb)
     int is_repl = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                 "--> mep_isrepl\n" );
+                  "--> mep_isrepl\n");
 
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_repl);
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                 "<-- mep_isrepl\n" );
+                  "<-- mep_isrepl\n");
 
     return is_repl;
 }
@@ -1230,9 +1240,10 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
     /* Ensure that a RDN type was specified in the template. */
     if ((rdn_type = slapi_entry_attr_get_charptr(template, MEP_RDN_ATTR_TYPE)) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_create_managed_entry - The %s config attribute "
-                    "was not found in template \"%s\".  This attribute "
-                    "is required.\n", MEP_RDN_ATTR_TYPE, slapi_sdn_get_dn(config->template_sdn));
+                      "mep_create_managed_entry - The %s config attribute "
+                      "was not found in template \"%s\".  This attribute "
+                      "is required.\n",
+                      MEP_RDN_ATTR_TYPE, slapi_sdn_get_dn(config->template_sdn));
         err = 1;
         goto done;
     }
@@ -1249,10 +1260,11 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
         int freeval = 0;
         if (slapi_ldif_parse_line(vals[i], &bvtype, &bvvalue, &freeval) != 0) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_create_managed_entry - Value for %s config setting  "
-                        "is not in the correct format in template \"%s\". "
-                        "(value: \"%s\")\n", MEP_STATIC_ATTR_TYPE,
-                        slapi_sdn_get_dn(config->template_sdn), vals[i]);
+                          "mep_create_managed_entry - Value for %s config setting  "
+                          "is not in the correct format in template \"%s\". "
+                          "(value: \"%s\")\n",
+                          MEP_STATIC_ATTR_TYPE,
+                          slapi_sdn_get_dn(config->template_sdn), vals[i]);
             err = 1;
             goto done;
         } else {
@@ -1290,8 +1302,9 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
             slapi_ch_free_string(&value);
         } else {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_create_managed_entry - Error parsing mapped attribute "
-                    "in template \"%s\".\n", slapi_sdn_get_dn(config->template_sdn));
+                          "mep_create_managed_entry - Error parsing mapped attribute "
+                          "in template \"%s\".\n",
+                          slapi_sdn_get_dn(config->template_sdn));
             err = 1;
             goto done;
         }
@@ -1301,10 +1314,10 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
      * we need to bail. */
     if (!found_rdn_map) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_create_managed_entry - The RDN type \"%s\" "
-                        "was not found as a mapped attribute in template "
-                        "\"%s\".  It must be a mapped attribute.\n",
-                        rdn_type, slapi_sdn_get_dn(config->template_sdn));
+                      "mep_create_managed_entry - The RDN type \"%s\" "
+                      "was not found as a mapped attribute in template "
+                      "\"%s\".  It must be a mapped attribute.\n",
+                      rdn_type, slapi_sdn_get_dn(config->template_sdn));
         err = 1;
         goto done;
     } else {
@@ -1316,7 +1329,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
         /* If an origin entry was supplied, the RDN value will be
          * the mapped value.  If no origin entry was supplied, the
          * value will be the mapping rule from the template. */
-        if (origin){
+        if (origin) {
             const char *origin_dn = slapi_entry_get_dn(origin);
             rdn_vals = slapi_ldap_explode_dn(origin_dn, 1);
             rdn_val = rdn_vals[0];
@@ -1327,7 +1340,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
         /* Create the DN using the mapped RDN value
          * and the base specified in the config. */
         dn = slapi_ch_smprintf("%s=%s,%s", rdn_type, rdn_val, config->managed_base);
-        if(origin){
+        if (origin) {
             slapi_ldap_value_free(rdn_vals);
         } else {
             slapi_ch_free_string(&rdn_val);
@@ -1337,11 +1350,11 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
             slapi_sdn_set_dn_passin(slapi_entry_get_sdn(managed_entry), dn);
         } else {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_create_managed_entry - Error setting DN "
-                            "in managed entry based off of template entry "
-                            "\"%s\" (origin entry \"%s\").\n",
-                            slapi_sdn_get_dn(config->template_sdn),
-                            origin ? slapi_entry_get_dn(origin) : "NULL");
+                          "mep_create_managed_entry - Error setting DN "
+                          "in managed entry based off of template entry "
+                          "\"%s\" (origin entry \"%s\").\n",
+                          slapi_sdn_get_dn(config->template_sdn),
+                          origin ? slapi_entry_get_dn(origin) : "NULL");
             err = 1;
             goto done;
         }
@@ -1351,12 +1364,12 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
      * origin in the managed entry. */
     if (origin) {
         slapi_entry_add_string(managed_entry,
-                SLAPI_ATTR_OBJECTCLASS, MEP_MANAGED_OC);
+                               SLAPI_ATTR_OBJECTCLASS, MEP_MANAGED_OC);
         slapi_entry_add_string(managed_entry, MEP_MANAGED_BY_TYPE,
-                slapi_entry_get_dn(origin));
+                               slapi_entry_get_dn(origin));
     }
 
-  done:
+done:
     slapi_ch_array_free(vals);
     slapi_ch_free_string(&rdn_type);
 
@@ -1377,7 +1390,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
  */
 static int
 mep_add_managed_entry(struct configEntry *config,
-    Slapi_Entry *origin)
+                      Slapi_Entry *origin)
 {
     Slapi_Entry *managed_entry = NULL;
     char *managed_dn = NULL;
@@ -1386,16 +1399,18 @@ mep_add_managed_entry(struct configEntry *config,
 
     /* Create the managed entry */
     slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_add_managed_entry - Creating a managed "
-                    "entry from origin entry \"%s\" using "
-                    "config \"%s\".\n", slapi_entry_get_dn(origin),
-                    slapi_sdn_get_dn(config->sdn));
+                  "mep_add_managed_entry - Creating a managed "
+                  "entry from origin entry \"%s\" using "
+                  "config \"%s\".\n",
+                  slapi_entry_get_dn(origin),
+                  slapi_sdn_get_dn(config->sdn));
     managed_entry = mep_create_managed_entry(config, origin);
     if (managed_entry == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_add_managed_entry - Unable to create a managed "
-                    "entry from origin entry \"%s\" using config "
-                    "\"%s\".\n", slapi_entry_get_dn(origin), slapi_sdn_get_dn(config->sdn));
+                      "mep_add_managed_entry - Unable to create a managed "
+                      "entry from origin entry \"%s\" using config "
+                      "\"%s\".\n",
+                      slapi_entry_get_dn(origin), slapi_sdn_get_dn(config->sdn));
         result = -1;
         goto bail;
     } else {
@@ -1405,8 +1420,9 @@ mep_add_managed_entry(struct configEntry *config,
 
         /* Add managed entry to db.  The entry will be consumed. */
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_add_managed_entry - Adding managed entry \"%s\" for origin "
-                    "entry \"%s\"\n.", managed_dn, slapi_entry_get_dn(origin));
+                      "mep_add_managed_entry - Adding managed entry \"%s\" for origin "
+                      "entry \"%s\"\n.",
+                      managed_dn, slapi_entry_get_dn(origin));
         slapi_add_entry_internal_set_pb(mod_pb, managed_entry, NULL,
                                         mep_get_plugin_id(), 0);
         slapi_add_internal_pb(mod_pb);
@@ -1414,10 +1430,10 @@ mep_add_managed_entry(struct configEntry *config,
 
         if (result != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_add_managed_entry - Unable to add managed "
-                        "entry \"%s\" for origin entry \"%s\" (%s).\n",
-                        managed_dn, slapi_entry_get_dn(origin),
-                        ldap_err2string(result));
+                          "mep_add_managed_entry - Unable to add managed "
+                          "entry \"%s\" for origin entry \"%s\" (%s).\n",
+                          managed_dn, slapi_entry_get_dn(origin),
+                          ldap_err2string(result));
             goto bail;
         } else {
             /* Add forward link to origin entry. */
@@ -1447,11 +1463,11 @@ mep_add_managed_entry(struct configEntry *config,
                                              mods, 0, 0, mep_get_plugin_id(), 0);
             slapi_modify_internal_pb(mod_pb);
             slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-            if (result != LDAP_SUCCESS && result != LDAP_TYPE_OR_VALUE_EXISTS){
+            if (result != LDAP_SUCCESS && result != LDAP_TYPE_OR_VALUE_EXISTS) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_add_managed_entry - Failed to add managed entry "
-                                "objectclass in origin entry \"%s\", error (%s)\n",
-                                slapi_entry_get_dn(origin), ldap_err2string(result));
+                              "mep_add_managed_entry - Failed to add managed entry "
+                              "objectclass in origin entry \"%s\", error (%s)\n",
+                              slapi_entry_get_dn(origin), ldap_err2string(result));
                 goto bail;
             }
             slapi_pblock_init(mod_pb);
@@ -1468,8 +1484,8 @@ mep_add_managed_entry(struct configEntry *config,
             mods[1] = NULL;
 
             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_add_managed_entry - Adding %s pointer to \"%s\" in entry \"%s\"\n.",
-                    MEP_MANAGED_ENTRY_TYPE, managed_dn, slapi_entry_get_dn(origin));
+                          "mep_add_managed_entry - Adding %s pointer to \"%s\" in entry \"%s\"\n.",
+                          MEP_MANAGED_ENTRY_TYPE, managed_dn, slapi_entry_get_dn(origin));
 
             slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(origin),
                                              mods, 0, 0, mep_get_plugin_id(), 0);
@@ -1478,10 +1494,11 @@ mep_add_managed_entry(struct configEntry *config,
 
             if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_add_managed_entry - Unable to add pointer to "
-                            "managed entry \"%s\" in origin entry \"%s\" "
-                            "(%s).\n", managed_dn, slapi_entry_get_dn(origin),
-                            ldap_err2string(result));
+                              "mep_add_managed_entry - Unable to add pointer to "
+                              "managed entry \"%s\" in origin entry \"%s\" "
+                              "(%s).\n",
+                              managed_dn, slapi_entry_get_dn(origin),
+                              ldap_err2string(result));
             }
         }
     }
@@ -1499,7 +1516,8 @@ bail:
  */
 static int
 mep_rename_managed_entry(Slapi_Entry *origin,
-                         Slapi_DN *new_dn, Slapi_DN *old_dn)
+                         Slapi_DN *new_dn,
+                         Slapi_DN *old_dn)
 {
     Slapi_RDN *srdn = slapi_rdn_new();
     Slapi_PBlock *mep_pb = slapi_pblock_new();
@@ -1518,16 +1536,17 @@ mep_rename_managed_entry(Slapi_Entry *origin,
 
     /* Rename the managed entry. */
     slapi_rename_internal_set_pb_ext(mep_pb, old_dn,
-                                 slapi_rdn_get_rdn(srdn),
-                                 NULL, 1, NULL, NULL, mep_get_plugin_id(), 0);
+                                     slapi_rdn_get_rdn(srdn),
+                                     NULL, 1, NULL, NULL, mep_get_plugin_id(), 0);
     slapi_modrdn_internal_pb(mep_pb);
     slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
     if (result != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_rename_managed_entry - Unable to rename managed "
-                    "entry \"%s\" to \"%s\" (%s).\n", slapi_sdn_get_dn(old_dn),
-                    slapi_sdn_get_dn(new_dn), ldap_err2string(result));
+                      "mep_rename_managed_entry - Unable to rename managed "
+                      "entry \"%s\" to \"%s\" (%s).\n",
+                      slapi_sdn_get_dn(old_dn),
+                      slapi_sdn_get_dn(new_dn), ldap_err2string(result));
     } else {
         /* Clear out the pblock for reuse. */
         slapi_pblock_init(mep_pb);
@@ -1543,9 +1562,10 @@ mep_rename_managed_entry(Slapi_Entry *origin,
 
         /* Perform the modify operation. */
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                "mep_rename_managed_entry - Updating %s pointer to "
-                "\"%s\" in entry \"%s\"\n.", MEP_MANAGED_ENTRY_TYPE,
-                vals[0], slapi_entry_get_dn(origin));
+                      "mep_rename_managed_entry - Updating %s pointer to "
+                      "\"%s\" in entry \"%s\"\n.",
+                      MEP_MANAGED_ENTRY_TYPE,
+                      vals[0], slapi_entry_get_dn(origin));
         slapi_modify_internal_set_pb_ext(mep_pb, slapi_entry_get_sdn(origin),
                                          mods, 0, 0, mep_get_plugin_id(), 0);
         slapi_modify_internal_pb(mep_pb);
@@ -1553,9 +1573,10 @@ mep_rename_managed_entry(Slapi_Entry *origin,
 
         if (result != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_rename_managed_entry - Unable to update %s "
-                    "pointer in entry \"%s\" (%s).\n", MEP_MANAGED_ENTRY_TYPE,
-                    slapi_entry_get_dn(origin), ldap_err2string(result));
+                          "mep_rename_managed_entry - Unable to update %s "
+                          "pointer in entry \"%s\" (%s).\n",
+                          MEP_MANAGED_ENTRY_TYPE,
+                          slapi_entry_get_dn(origin), ldap_err2string(result));
         }
     }
 
@@ -1573,8 +1594,10 @@ bail:
  * in a managed entry.  It is up to the caller to free the
  * returned mods when it is finished using them.
  */
-static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
-    Slapi_Entry *origin, char **mapped_dn)
+static Slapi_Mods *
+mep_get_mapped_mods(struct configEntry *config,
+                    Slapi_Entry *origin,
+                    char **mapped_dn)
 {
     Slapi_Mods *smods = NULL;
     Slapi_Entry *template = NULL;
@@ -1604,8 +1627,9 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
     /* Find the the RDN type for the managed entry. */
     if ((rdn_type = slapi_entry_attr_get_charptr(template, MEP_RDN_ATTR_TYPE)) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                "mep_get_mapped_mods - Error getting RDN type from tempate "
-                "\"%s\".\n", slapi_sdn_get_dn(config->template_sdn));
+                      "mep_get_mapped_mods - Error getting RDN type from tempate "
+                      "\"%s\".\n",
+                      slapi_sdn_get_dn(config->template_sdn));
         slapi_mods_free(&smods);
         goto bail;
     }
@@ -1620,7 +1644,7 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
             if (slapi_attr_type_cmp(type, rdn_type, SLAPI_TYPE_CMP_EXACT) == 0) {
                 if (mapped_dn) {
                     *mapped_dn = slapi_create_dn_string("%s=%s,%s", rdn_type,
-                            value, config->managed_base);
+                                                        value, config->managed_base);
                 }
             } else {
                 /* Add a modify that replaces all values with the new value. */
@@ -1630,14 +1654,15 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
             slapi_ch_free_string(&value);
         } else {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_get_mapped_mods - Error parsing mapped attribute "
-                    "in template \"%s\".\n", slapi_sdn_get_dn(config->template_sdn));
+                          "mep_get_mapped_mods - Error parsing mapped attribute "
+                          "in template \"%s\".\n",
+                          slapi_sdn_get_dn(config->template_sdn));
             slapi_mods_free(&smods);
             goto bail;
         }
     }
 
-  bail:
+bail:
     slapi_ch_free_string(&rdn_type);
     slapi_ch_array_free(vals);
 
@@ -1653,8 +1678,7 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
  * is simply the mapping rule.
  */
 static int
-mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
-    char **type, char **value)
+mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin, char **type, char **value)
 {
     int ret = 0;
     char *p = NULL;
@@ -1671,9 +1695,9 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     /* split out the type from the value (use the first ':') */
     if ((p = strchr(mapping, ':')) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_mapped_attr - Value for mapped attribute "
-                        "is not in the correct format. (value: \"%s\").\n", 
-                        mapping);
+                      "mep_parse_mapped_attr - Value for mapped attribute "
+                      "is not in the correct format. (value: \"%s\").\n",
+                      mapping);
         ret = 1;
         goto bail;
     }
@@ -1681,10 +1705,10 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     /* Ensure the type is not empty. */
     if (p == mapping) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_parse_mapped_attr - Value for mapped attribute "
-                        "is not in the correct format. The type is missing. "
-                        "(value: \"%s\").\n",
-                        mapping);
+                      "mep_parse_mapped_attr - Value for mapped attribute "
+                      "is not in the correct format. The type is missing. "
+                      "(value: \"%s\").\n",
+                      mapping);
         ret = 1;
         goto bail;
     }
@@ -1711,8 +1735,9 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
         if (*p == '$') {
             if (p == end) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_parse_mapped_attr - Invalid mapped "
-                                "attribute value for type \"%s\".\n", mapping);
+                              "mep_parse_mapped_attr - Invalid mapped "
+                              "attribute value for type \"%s\".\n",
+                              mapping);
                 ret = 1;
                 goto bail;
             }
@@ -1721,7 +1746,7 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 /* This is an escaped $.  Eliminate the escape character
                  * to prevent if from being a part of the value. */
                 p++;
-                memmove(p, p+1, end-(p+1)+1);
+                memmove(p, p + 1, end - (p + 1) + 1);
                 *end = '\0';
                 end--;
             } else {
@@ -1740,8 +1765,9 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                         p++;
                     } else {
                         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                        "mep_parse_mapped_attr - Invalid mapped "
-                                        "attribute value for type \"%s\".\n", mapping);
+                                      "mep_parse_mapped_attr - Invalid mapped "
+                                      "attribute value for type \"%s\".\n",
+                                      mapping);
                         ret = 1;
                         goto bail;
                     }
@@ -1760,11 +1786,12 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 /* If the variable is quoted and this is not a closing
                  * brace, there is a syntax error in the mapping rule. */
                 if (quoted && (*p != '}')) {
-                        slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                        "mep_parse_mapped_attr - Invalid mapped "
-                                        "attribute value for type \"%s\".\n", mapping);
-                        ret = 1;
-                        goto bail;
+                    slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
+                                  "mep_parse_mapped_attr - Invalid mapped "
+                                  "attribute value for type \"%s\".\n",
+                                  mapping);
+                    ret = 1;
+                    goto bail;
                 }
 
                 /* Check for a missing variable name. */
@@ -1795,7 +1822,7 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                     /* If the variable is quoted, don't include
                      * the closing brace in the post string. */
                     if (quoted) {
-                        post_str = p+1;
+                        post_str = p + 1;
                     } else {
                         post_str = p;
                     }
@@ -1804,16 +1831,17 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 /* Process the post string to remove any escapes. */
                 for (p = post_str; p && (p <= end); p++) {
                     if (*p == '$') {
-                        if ((p == end) || (*(p+1) != '$')) {
+                        if ((p == end) || (*(p + 1) != '$')) {
                             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                        "mep_parse_mapped_attr - Invalid mapped "
-                                        "attribute value for type \"%s\".\n", mapping);
+                                          "mep_parse_mapped_attr - Invalid mapped "
+                                          "attribute value for type \"%s\".\n",
+                                          mapping);
                             ret = 1;
                             goto bail;
                         } else {
                             /* This is an escaped '$'.  Remove the escape char. */
                             p++;
-                            memmove(p, p+1, end-(p+1)+1);
+                            memmove(p, p + 1, end - (p + 1) + 1);
                             *end = '\0';
                             end--;
                         }
@@ -1848,29 +1876,30 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 }
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_parse_mapped_attr - Mapped attribute \"%s\" "
-                    "is not present in origin entry \"%s\".  Please "
-                    "correct template to only map attributes "
-                    "required by the schema.\n", map_type,
-                    slapi_entry_get_dn(origin));
+                              "mep_parse_mapped_attr - Mapped attribute \"%s\" "
+                              "is not present in origin entry \"%s\".  Please "
+                              "correct template to only map attributes "
+                              "required by the schema.\n",
+                              map_type,
+                              slapi_entry_get_dn(origin));
                 ret = 1;
                 goto bail;
             }
         } else {
             /* Just use the mapping since we have no origin entry. */
             *value = slapi_ch_smprintf("%s$%s%s", pre_str, map_type,
-                                      post_str);
+                                       post_str);
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                "mep_parse_mapped_attr - No variable found in "
-                "mapped attribute value for type \"%s\".\n",
-                mapping);
+                      "mep_parse_mapped_attr - No variable found in "
+                      "mapped attribute value for type \"%s\".\n",
+                      mapping);
         ret = 1;
         goto bail;
     }
 
-  bail:
+bail:
     slapi_ch_free_string(&map_type);
 
     if (ret != 0) {
@@ -1953,11 +1982,11 @@ mep_is_mapped_attr(Slapi_Entry *template, char *type)
 /*
  * mep_pre_op()
  *
- * Checks if an operation is modifying the managed 
+ * Checks if an operation is modifying the managed
  * entries config and validates the config changes.
  */
 static int
-mep_pre_op(Slapi_PBlock * pb, int modop)
+mep_pre_op(Slapi_PBlock *pb, int modop)
 {
     Slapi_DN *sdn = NULL;
     Slapi_Entry *e = 0;
@@ -1970,10 +1999,10 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
     int ret = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_pre_op\n");
+                  "--> mep_pre_op\n");
 
     /* See if we're calling ourselves. */
-    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 
     if (0 == (sdn = mep_get_sdn(pb)))
         goto bail;
@@ -2012,9 +2041,9 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                  * to let the main server handle it. */
                 goto bailmod;
             }
-        } else if (LDAP_CHANGETYPE_DELETE == modop){
+        } else if (LDAP_CHANGETYPE_DELETE == modop) {
             /* we allow for deletes, so goto bail to we can skip the config parsing */
-            goto bail; 
+            goto bail;
         } else {
             /* Refuse other operations. */
             ret = LDAP_UNWILLING_TO_PERFORM;
@@ -2071,7 +2100,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                                            "the associated config entry instead.");
                 ret = LDAP_UNWILLING_TO_PERFORM;
                 break;
-            case LDAP_CHANGETYPE_MODIFY: 
+            case LDAP_CHANGETYPE_MODIFY:
                 /* Fetch the existing template entry. */
                 if (sdn) {
                     slapi_search_internal_get_entry(sdn, 0, &e, mep_get_plugin_id());
@@ -2128,7 +2157,8 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
          * renamed and reject if it's not being done by
          * this plugin. */
         if (((modop == LDAP_CHANGETYPE_DELETE) || (modop == LDAP_CHANGETYPE_MODDN) ||
-            (modop == LDAP_CHANGETYPE_MODIFY)) && (caller_id != mep_get_plugin_id())) {
+             (modop == LDAP_CHANGETYPE_MODIFY)) &&
+            (caller_id != mep_get_plugin_id())) {
             Slapi_Entry *origin_e = NULL;
             Slapi_Mod *smod = NULL;
             Slapi_Mod *next_mod = NULL;
@@ -2153,7 +2183,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                     if (origin_dn) {
                         origin_sdn = slapi_sdn_new_normdn_byref(origin_dn);
                         slapi_search_internal_get_entry(origin_sdn, 0,
-                                &origin_e, mep_get_plugin_id());
+                                                        &origin_e, mep_get_plugin_id());
                         slapi_sdn_free(&origin_sdn);
                     }
 
@@ -2179,15 +2209,16 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
 
                             next_mod = slapi_mod_new();
                             smod = slapi_mods_get_first_smod(smods, next_mod);
-                            while(smod) {
+                            while (smod) {
                                 char *type = (char *)slapi_mod_get_type(smod);
 
                                 /* If this is a mapped attribute, reject the op. */
                                 if (mep_is_mapped_attr(config->template_entry, type)) {
                                     errstr = slapi_ch_smprintf("Modifying a mapped attribute "
-                                                       " in a managed entry is not allowed. "
-                                                       "The \"%s\" attribute is mapped for "
-                                                       "this entry.", type);
+                                                               " in a managed entry is not allowed. "
+                                                               "The \"%s\" attribute is mapped for "
+                                                               "this entry.",
+                                                               type);
                                     ret = LDAP_UNWILLING_TO_PERFORM;
                                     break;
                                 }
@@ -2199,8 +2230,9 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                             slapi_mod_free(&next_mod);
                         } else {
                             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                        "mep_pre_op - Unable to fetch config for "
-                                        "origin entry \"%s\".\n", origin_dn);
+                                          "mep_pre_op - Unable to fetch config for "
+                                          "origin entry \"%s\".\n",
+                                          origin_dn);
                         }
 
                         slapi_entry_free(origin_e);
@@ -2209,42 +2241,44 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                         Slapi_Operation *op;
 
                         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-                        if(operation_is_flag_set(op, OP_FLAG_INTERNAL)){
+                        if (operation_is_flag_set(op, OP_FLAG_INTERNAL)) {
                             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_pre_op - (internal operation) Unable to fetch "
-                                    "origin entry \"%s\".\n", origin_dn);
+                                          "mep_pre_op - (internal operation) Unable to fetch "
+                                          "origin entry \"%s\".\n",
+                                          origin_dn);
                         } else {
                             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_pre_op - Unable to fetch origin entry "
-                                    "\"%s\".\n", origin_dn);
+                                          "mep_pre_op - Unable to fetch origin entry "
+                                          "\"%s\".\n",
+                                          origin_dn);
                         }
                     }
 
                     slapi_ch_free_string(&origin_dn);
                 } else {
                     errstr = slapi_ch_smprintf("%s a managed entry is not allowed. "
-                                           "It needs to be manually unlinked first.",
-                                           modop == LDAP_CHANGETYPE_DELETE ? "Deleting"
-                                           : "Renaming");
+                                               "It needs to be manually unlinked first.",
+                                               modop == LDAP_CHANGETYPE_DELETE ? "Deleting"
+                                                                               : "Renaming");
                     ret = LDAP_UNWILLING_TO_PERFORM;
                 }
             }
         }
     }
 
-  bailmod:
+bailmod:
     /* Clean up smods. */
     if (LDAP_CHANGETYPE_MODIFY == modop) {
         slapi_mods_free(&smods);
     }
 
-  bail:
+bail:
     if (free_entry && e)
         slapi_entry_free(e);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_pre_op - Operation failure [%d]\n", ret);
+                      "mep_pre_op - Operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
@@ -2252,31 +2286,31 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_pre_op\n");
+                  "<-- mep_pre_op\n");
 
     return ret;
 }
 
 static int
-mep_add_pre_op(Slapi_PBlock * pb)
+mep_add_pre_op(Slapi_PBlock *pb)
 {
     return mep_pre_op(pb, LDAP_CHANGETYPE_ADD);
 }
 
 static int
-mep_del_pre_op(Slapi_PBlock * pb)
+mep_del_pre_op(Slapi_PBlock *pb)
 {
     return mep_pre_op(pb, LDAP_CHANGETYPE_DELETE);
 }
 
 static int
-mep_mod_pre_op(Slapi_PBlock * pb)
+mep_mod_pre_op(Slapi_PBlock *pb)
 {
     return mep_pre_op(pb, LDAP_CHANGETYPE_MODIFY);
 }
 
 static int
-mep_modrdn_pre_op(Slapi_PBlock * pb)
+mep_modrdn_pre_op(Slapi_PBlock *pb)
 {
     return mep_pre_op(pb, LDAP_CHANGETYPE_MODDN);
 }
@@ -2294,11 +2328,11 @@ mep_mod_post_op(Slapi_PBlock *pb)
     Slapi_DN *mapped_sdn = NULL;
     struct configEntry *config = NULL;
     int result = SLAPI_PLUGIN_SUCCESS;
-    LDAPMod	**mods = NULL;
+    LDAPMod **mods = NULL;
     int i, abort_mod = 1;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_mod_post_op\n");
+                  "--> mep_mod_post_op\n");
 
     if (mep_oktodo(pb) && (sdn = mep_get_sdn(pb))) {
         /* First check if the config or a template is being modified. */
@@ -2316,7 +2350,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
         if (e == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_mod_post_op - Unable to fetch postop entry.\n");
+                          "mep_mod_post_op - Unable to fetch postop entry.\n");
             result = SLAPI_PLUGIN_FAILURE;
             goto bail;
         }
@@ -2345,20 +2379,20 @@ mep_mod_post_op(Slapi_PBlock *pb)
                  *  If they are not, then we don't need to modify the mapped entry
                  *  as it has not changed.
                  */
-                slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &mods);
-                for(i = 0; mods && mods[i]; i++){
-                    if(mep_is_mapped_origin_attr(config->origin_attrs,mods[i]->mod_type)){
+                slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+                for (i = 0; mods && mods[i]; i++) {
+                    if (mep_is_mapped_origin_attr(config->origin_attrs, mods[i]->mod_type)) {
                         /*
                          * We are modifying a managed origin attr, so we can proceed with
                          * modifying the managed entry.  Otherwise we would modify the
                          * managed entry for no reason.
-                         */    
+                         */
                         abort_mod = 0;
                         break;
                     }
                 }
 
-                if(abort_mod){
+                if (abort_mod) {
                     mep_config_unlock();
                     goto bail;
                 }
@@ -2370,20 +2404,22 @@ mep_mod_post_op(Slapi_PBlock *pb)
 
                     /* Perform the modify operation. */
                     slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_mod_post_op - Updating mapped attributes "
-                            "in entry \"%s\"\n.", managed_dn);
+                                  "mep_mod_post_op - Updating mapped attributes "
+                                  "in entry \"%s\"\n.",
+                                  managed_dn);
                     slapi_modify_internal_set_pb(mep_pb, managed_dn,
-                                    slapi_mods_get_ldapmods_byref(smods), 0, 0,
-                                    mep_get_plugin_id(), 0);
+                                                 slapi_mods_get_ldapmods_byref(smods), 0, 0,
+                                                 mep_get_plugin_id(), 0);
                     slapi_modify_internal_pb(mep_pb);
                     slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
                     if (result != LDAP_SUCCESS) {
                         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_mod_post_op - Unable to update mapped "
-                                    "attributes from origin entry \"%s\" in managed "
-                                    "entry \"%s\" (%s).\n", slapi_sdn_get_dn(sdn), managed_dn,
-                                    ldap_err2string(result));
+                                      "mep_mod_post_op - Unable to update mapped "
+                                      "attributes from origin entry \"%s\" in managed "
+                                      "entry \"%s\" (%s).\n",
+                                      slapi_sdn_get_dn(sdn), managed_dn,
+                                      ldap_err2string(result));
                     }
 
                     slapi_mods_free(&smods);
@@ -2404,21 +2440,22 @@ mep_mod_post_op(Slapi_PBlock *pb)
                 }
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_mod_post_op - Unable to find config for origin "
-                        "entry \"%s\".\n", slapi_sdn_get_dn(sdn));
+                              "mep_mod_post_op - Unable to find config for origin "
+                              "entry \"%s\".\n",
+                              slapi_sdn_get_dn(sdn));
             }
             mep_config_unlock();
         }
     }
 
 bail:
-    if(result){
+    if (result) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
         result = SLAPI_PLUGIN_FAILURE;
     }
     slapi_ch_free_string(&managed_dn);
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_mod_post_op\n");
+                  "<-- mep_mod_post_op\n");
 
     return result;
 }
@@ -2432,7 +2469,7 @@ mep_add_post_op(Slapi_PBlock *pb)
     int result = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_add_post_op\n");
+                  "--> mep_add_post_op\n");
 
     /* Reload config if a config entry was added. */
     if ((sdn = mep_get_sdn(pb))) {
@@ -2441,7 +2478,7 @@ mep_add_post_op(Slapi_PBlock *pb)
         }
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_add_post_op - Error retrieving dn\n");
+                      "mep_add_post_op - Error retrieving dn\n");
     }
 
     /* If replication, just bail. */
@@ -2470,12 +2507,12 @@ mep_add_post_op(Slapi_PBlock *pb)
 
         mep_find_config(e, &config);
         if (config) {
-            if(mep_add_managed_entry(config, e)){
+            if (mep_add_managed_entry(config, e)) {
                 char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
                 int rc = LDAP_UNWILLING_TO_PERFORM;
 
                 PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "Managed Entry Plugin rejected add operation (see errors log).\n");
+                            "Managed Entry Plugin rejected add operation (see errors log).\n");
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
                 slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
                 result = SLAPI_PLUGIN_FAILURE;
@@ -2485,12 +2522,13 @@ mep_add_post_op(Slapi_PBlock *pb)
         mep_config_unlock();
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_add_post_op - Error "
-                        "retrieving post-op entry %s\n", slapi_sdn_get_dn(sdn));
+                      "mep_add_post_op - Error "
+                      "retrieving post-op entry %s\n",
+                      slapi_sdn_get_dn(sdn));
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_add_post_op\n");
+                  "<-- mep_add_post_op\n");
 
     return result;
 }
@@ -2503,7 +2541,7 @@ mep_del_post_op(Slapi_PBlock *pb)
     int result = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_del_post_op\n");
+                  "--> mep_del_post_op\n");
 
     /* Reload config if a config entry was deleted. */
     if ((sdn = mep_get_sdn(pb))) {
@@ -2511,7 +2549,7 @@ mep_del_post_op(Slapi_PBlock *pb)
             mep_load_config();
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_del_post_op - Error retrieving dn\n");
+                      "mep_del_post_op - Error retrieving dn\n");
     }
 
     /* If replication, just bail. */
@@ -2520,7 +2558,7 @@ mep_del_post_op(Slapi_PBlock *pb)
     }
 
     /* Get deleted entry, then go through types to find config. */
-    slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e );
+    slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
 
     if (e) {
         char *managed_dn = NULL;
@@ -2537,34 +2575,37 @@ mep_del_post_op(Slapi_PBlock *pb)
 
             /* Delete the managed entry. */
             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_del_post_op - Deleting managed entry "
-                            "\"%s\" due to deletion of origin entry "
-                            "\"%s\".\n ", managed_dn, slapi_sdn_get_dn(sdn));
+                          "mep_del_post_op - Deleting managed entry "
+                          "\"%s\" due to deletion of origin entry "
+                          "\"%s\".\n ",
+                          managed_dn, slapi_sdn_get_dn(sdn));
             slapi_delete_internal_set_pb(mep_pb, managed_dn, NULL,
                                          NULL, mep_get_plugin_id(), 0);
             slapi_delete_internal_pb(mep_pb);
             slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-            if(result){
+            if (result) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_del_post_op - Failed to delete managed entry "
-                                "(%s) - error (%d)\n",managed_dn, result);
+                              "mep_del_post_op - Failed to delete managed entry "
+                              "(%s) - error (%d)\n",
+                              managed_dn, result);
             }
             slapi_ch_free_string(&managed_dn);
             slapi_pblock_destroy(mep_pb);
         }
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_del_post_op - Error "
-                        "retrieving pre-op entry %s\n", slapi_sdn_get_dn(sdn));
+                      "mep_del_post_op - Error "
+                      "retrieving pre-op entry %s\n",
+                      slapi_sdn_get_dn(sdn));
     }
 
-    if(result){
+    if (result) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
         result = SLAPI_PLUGIN_FAILURE;
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_del_post_op\n");
+                  "<-- mep_del_post_op\n");
 
     return result;
 }
@@ -2581,10 +2622,10 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
     int result = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "--> mep_modrdn_post_op\n");
+                  "--> mep_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!mep_oktodo(pb)){
+    if (!mep_oktodo(pb)) {
         return SLAPI_PLUGIN_SUCCESS;
     }
     /* Reload config if an existing config entry was renamed,
@@ -2596,8 +2637,8 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         new_dn = slapi_sdn_get_dn(new_sdn);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_modrdn_post_op -Error "
-                        "retrieving post-op entry\n");
+                      "mep_modrdn_post_op -Error "
+                      "retrieving post-op entry\n");
         return SLAPI_PLUGIN_FAILURE;
     }
 
@@ -2606,8 +2647,8 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
             mep_load_config();
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_modrdn_post_op - Error "
-                        "retrieving dn\n");
+                      "mep_modrdn_post_op - Error "
+                      "retrieving dn\n");
     }
 
     /* If replication, just bail. */
@@ -2650,17 +2691,18 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
             /* Delete the associated managed entry. */
             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_modrdn_post_op - Removing managed entry \"%s\" "
-                    "since origin entry \"%s\" was moved out of scope.\n",
-                    managed_dn, slapi_sdn_get_dn(old_sdn));
-            slapi_delete_internal_set_pb (mep_pb, managed_dn, NULL, NULL,
-                                          mep_get_plugin_id(), 0);
+                          "mep_modrdn_post_op - Removing managed entry \"%s\" "
+                          "since origin entry \"%s\" was moved out of scope.\n",
+                          managed_dn, slapi_sdn_get_dn(old_sdn));
+            slapi_delete_internal_set_pb(mep_pb, managed_dn, NULL, NULL,
+                                         mep_get_plugin_id(), 0);
             slapi_delete_internal_pb(mep_pb);
             slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-            if(result){
+            if (result) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_modrdn_post_op - Failed to delete managed entry "
-                                "(%s) - error (%d)\n",managed_dn, result);
+                              "mep_modrdn_post_op - Failed to delete managed entry "
+                              "(%s) - error (%d)\n",
+                              managed_dn, result);
                 goto bailmod;
             }
             /* Clear out the pblock for reuse. */
@@ -2685,9 +2727,9 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
             /* Perform the modify operation. */
             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_modrdn_post_op - Removing %s pointer and %s "
-                    "objectclass from entry \"%s\".\n",
-                    MEP_MANAGED_ENTRY_TYPE, MEP_ORIGIN_OC, new_dn);
+                          "mep_modrdn_post_op - Removing %s pointer and %s "
+                          "objectclass from entry \"%s\".\n",
+                          MEP_MANAGED_ENTRY_TYPE, MEP_ORIGIN_OC, new_dn);
             slapi_modify_internal_set_pb_ext(mep_pb, new_sdn, mods, 0, 0,
                                              mep_get_plugin_id(), 0);
             slapi_modify_internal_pb(mep_pb);
@@ -2695,10 +2737,11 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
             if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_modrdn_post_op - Unable to remove %s "
-                                "pointer and %s objectclass from entry "
-                                "\"%s\".\n", MEP_MANAGED_ENTRY_TYPE,
-                                MEP_ORIGIN_OC, new_dn);
+                              "mep_modrdn_post_op - Unable to remove %s "
+                              "pointer and %s objectclass from entry "
+                              "\"%s\".\n",
+                              MEP_MANAGED_ENTRY_TYPE,
+                              MEP_ORIGIN_OC, new_dn);
             }
         } else {
             /* Update backlink to new origin DN in managed entry. */
@@ -2716,8 +2759,9 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
             new_managed_entry = mep_create_managed_entry(config, post_e);
             if (new_managed_entry == NULL) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                        "mep_modrdn_post_op - Unable to create in-memory "
-                        "managed entry from origin entry \"%s\".\n", new_dn);
+                              "mep_modrdn_post_op - Unable to create in-memory "
+                              "managed entry from origin entry \"%s\".\n",
+                              new_dn);
                 result = SLAPI_PLUGIN_FAILURE;
                 goto bailmod;
             }
@@ -2729,7 +2773,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
             managed_sdn = slapi_sdn_new_normdn_byref(managed_dn);
 
             if (slapi_search_internal_get_entry(managed_sdn, 0,
-                    NULL, mep_get_plugin_id()) == LDAP_NO_SUCH_OBJECT) {
+                                                NULL, mep_get_plugin_id()) == LDAP_NO_SUCH_OBJECT) {
                 slapi_ch_free_string(&managed_dn);
                 /* This DN is not a copy, so we don't want to free it later. */
                 managed_dn = slapi_entry_get_dn(new_managed_entry);
@@ -2739,8 +2783,9 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
             /* Perform the modify operation. */
             slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                    "mep_modrdn_post_op - Updating %s pointer to \"%s\" "
-                    "in entry \"%s\".\n", MEP_MANAGED_BY_TYPE, new_dn, managed_dn);
+                          "mep_modrdn_post_op - Updating %s pointer to \"%s\" "
+                          "in entry \"%s\".\n",
+                          MEP_MANAGED_BY_TYPE, new_dn, managed_dn);
             slapi_modify_internal_set_pb(mep_pb, managed_dn, mods, 0, 0,
                                          mep_get_plugin_id(), 0);
             slapi_modify_internal_pb(mep_pb);
@@ -2748,24 +2793,25 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
             if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_modrdn_post_op - Unable to update pointer to "
-                            "origin entry \"%s\" in managed entry \"%s\" "
-                            "(%s).\n", new_dn, managed_dn, ldap_err2string(result));
+                              "mep_modrdn_post_op - Unable to update pointer to "
+                              "origin entry \"%s\" in managed entry \"%s\" "
+                              "(%s).\n",
+                              new_dn, managed_dn, ldap_err2string(result));
 
             } else {
                 /* See if we need to rename the managed entry. */
                 if (slapi_sdn_compare(slapi_entry_get_sdn(new_managed_entry), managed_sdn) != 0) {
                     /* Rename the managed entry. */
                     slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_modrdn_post_op - Renaming managed entry "
-                                    "\"%s\" to \"%s\" due to rename of origin "
-                                    "entry \"%s\".\n ", managed_dn,
-                                    slapi_entry_get_dn(new_managed_entry),
-                                    slapi_sdn_get_dn(old_sdn));
-                    if((result = mep_rename_managed_entry(post_e,
-                                             slapi_entry_get_sdn(new_managed_entry),
-                                             managed_sdn)))
-                    {
+                                  "mep_modrdn_post_op - Renaming managed entry "
+                                  "\"%s\" to \"%s\" due to rename of origin "
+                                  "entry \"%s\".\n ",
+                                  managed_dn,
+                                  slapi_entry_get_dn(new_managed_entry),
+                                  slapi_sdn_get_dn(old_sdn));
+                    if ((result = mep_rename_managed_entry(post_e,
+                                                           slapi_entry_get_sdn(new_managed_entry),
+                                                           managed_sdn))) {
                         goto bailmod;
                     }
                 }
@@ -2779,29 +2825,30 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
                     /* Perform the modify operation. */
                     slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                            "mep_modrdn_post_op - Updating mapped attributes "
-                            "in entry \"%s\"\n.", managed_dn);
+                                  "mep_modrdn_post_op - Updating mapped attributes "
+                                  "in entry \"%s\"\n.",
+                                  managed_dn);
                     slapi_modify_internal_set_pb_ext(mep_pb,
-                                    slapi_entry_get_sdn(new_managed_entry),
-                                    slapi_mods_get_ldapmods_byref(smods), 0, 0,
-                                    mep_get_plugin_id(), 0);
+                                                     slapi_entry_get_sdn(new_managed_entry),
+                                                     slapi_mods_get_ldapmods_byref(smods), 0, 0,
+                                                     mep_get_plugin_id(), 0);
                     slapi_modify_internal_pb(mep_pb);
                     slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
                     if (result != LDAP_SUCCESS) {
                         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_modrdn_post_op - Unable to update mapped "
-                                    "attributes from origin entry \"%s\" in managed "
-                                    "entry \"%s\" (%s).\n", new_dn,
-                                    slapi_entry_get_dn(new_managed_entry),
-                                    ldap_err2string(result));
+                                      "mep_modrdn_post_op - Unable to update mapped "
+                                      "attributes from origin entry \"%s\" in managed "
+                                      "entry \"%s\" (%s).\n",
+                                      new_dn,
+                                      slapi_entry_get_dn(new_managed_entry),
+                                      ldap_err2string(result));
                     }
 
                     slapi_mods_free(&smods);
                 }
-
             }
-bailmod:
+        bailmod:
             slapi_entry_free(new_managed_entry);
             slapi_sdn_free(&managed_sdn);
         }
@@ -2827,32 +2874,31 @@ bailmod:
 
         mep_find_config(post_e, &config);
         if (config) {
-            if(mep_add_managed_entry(config, post_e)){
+            if (mep_add_managed_entry(config, post_e)) {
                 char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
                 result = LDAP_UNWILLING_TO_PERFORM;
 
                 PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "Managed Entry Plugin rejected modrdn operation (see errors log).\n");
+                            "Managed Entry Plugin rejected modrdn operation (see errors log).\n");
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
-
             }
         }
 
         mep_config_unlock();
     }
 
-    if(result){
+    if (result) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
         result = SLAPI_PLUGIN_FAILURE;
     }
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
-                    "<-- mep_modrdn_post_op\n");
+                  "<-- mep_modrdn_post_op\n");
 
     return result;
 }
 
 static int
-mep_has_tombstone_value(Slapi_Entry * e)
+mep_has_tombstone_value(Slapi_Entry *e)
 {
     Slapi_Value *tombstone = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
     int rc = slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS,

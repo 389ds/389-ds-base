@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -27,18 +27,18 @@ static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
 int plugin_is_betxn = 0;
 
-static Slapi_PluginDesc pdesc = { LINK_FEATURE_DESC,
-                                  VENDOR,
-                                  DS_PACKAGE_VERSION,
-                                  LINK_PLUGIN_DESC };
+static Slapi_PluginDesc pdesc = {LINK_FEATURE_DESC,
+                                 VENDOR,
+                                 DS_PACKAGE_VERSION,
+                                 LINK_PLUGIN_DESC};
 
 /*
  * Plug-in management functions
  */
-int linked_attrs_init(Slapi_PBlock * pb);
-static int linked_attrs_start(Slapi_PBlock * pb);
-static int linked_attrs_close(Slapi_PBlock * pb);
-static int linked_attrs_postop_init(Slapi_PBlock * pb);
+int linked_attrs_init(Slapi_PBlock *pb);
+static int linked_attrs_start(Slapi_PBlock *pb);
+static int linked_attrs_close(Slapi_PBlock *pb);
+static int linked_attrs_postop_init(Slapi_PBlock *pb);
 static int linked_attrs_internal_postop_init(Slapi_PBlock *pb);
 
 /*
@@ -57,34 +57,30 @@ static int linked_attrs_add_pre_op(Slapi_PBlock *pb);
  */
 static int linked_attrs_load_config(void);
 static void linked_attrs_delete_config(void);
-static int linked_attrs_parse_config_entry(Slapi_Entry * e, int apply);
+static int linked_attrs_parse_config_entry(Slapi_Entry *e, int apply);
 static void linked_attrs_insert_config_index(struct configEntry *entry);
-static void linked_attrs_free_config_entry(struct configEntry ** entry);
+static void linked_attrs_free_config_entry(struct configEntry **entry);
 
 /*
  * helpers
  */
-static char *linked_attrs_get_dn(Slapi_PBlock * pb);
-static Slapi_DN *linked_attrs_get_sdn(Slapi_PBlock * pb);
+static char *linked_attrs_get_dn(Slapi_PBlock *pb);
+static Slapi_DN *linked_attrs_get_sdn(Slapi_PBlock *pb);
 static int linked_attrs_dn_is_config(char *dn);
-static void linked_attrs_find_config(const char *dn, const char *type,
-    struct configEntry **config);
+static void linked_attrs_find_config(const char *dn, const char *type, struct configEntry **config);
 static void linked_attrs_find_config_reverse(const char *dn,
-    const char *type, struct configEntry **config);
+                                             const char *type,
+                                             struct configEntry **config);
 static int linked_attrs_config_index_has_type(char *type);
 static int linked_attrs_config_exists(struct configEntry *entry);
 static int linked_attrs_config_exists_reverse(struct configEntry *entry);
 static int linked_attrs_oktodo(Slapi_PBlock *pb);
 void linked_attrs_load_array(Slapi_Value **array, Slapi_Attr *attr);
 int linked_attrs_compare(const void *a, const void *b);
-static int linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config,
-    Slapi_Mod *smod);
-static int linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
-    struct configEntry *config, Slapi_Mod *smod);
-static int linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
-    struct configEntry *config, Slapi_Mod *smod);
-static int linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
-    char *scope, int modop, Slapi_ValueSet *targetvals);
+static int linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config, Slapi_Mod *smod);
+static int linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config, Slapi_Mod *smod);
+static int linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config, Slapi_Mod *smod);
+static int linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type, char *scope, int modop, Slapi_ValueSet *targetvals);
 
 /*
  * Config cache locking functions
@@ -149,7 +145,7 @@ linked_attrs_init(Slapi_PBlock *pb)
     int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_init\n");
+                  "--> linked_attrs_init\n");
 
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
@@ -171,29 +167,29 @@ linked_attrs_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-                         (void *) linked_attrs_start) != 0 ||
+                         (void *)linked_attrs_start) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                         (void *) linked_attrs_close) != 0 ||
+                         (void *)linked_attrs_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, premod, (void *) linked_attrs_mod_pre_op) != 0 ||
-        slapi_pblock_set(pb, preadd, (void *) linked_attrs_add_pre_op) != 0) {
+                         (void *)&pdesc) != 0 ||
+        slapi_pblock_set(pb, premod, (void *)linked_attrs_mod_pre_op) != 0 ||
+        slapi_pblock_set(pb, preadd, (void *)linked_attrs_add_pre_op) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_init - Failed to register plugin\n");
+                      "linked_attrs_init - Failed to register plugin\n");
         status = -1;
     }
 
     if (!status && !plugin_is_betxn &&
-        slapi_register_plugin("internalpostoperation",  /* op type */
-                              1,        /* Enabled */
-                              "linked_attrs_init",   /* this function desc */
-                              linked_attrs_internal_postop_init,  /* init func */
-                              LINK_INT_POSTOP_DESC,      /* plugin desc */
-                              NULL,     /* ? */
-                              plugin_identity   /* access control */
-        )) {
+        slapi_register_plugin("internalpostoperation",           /* op type */
+                              1,                                 /* Enabled */
+                              "linked_attrs_init",               /* this function desc */
+                              linked_attrs_internal_postop_init, /* init func */
+                              LINK_INT_POSTOP_DESC,              /* plugin desc */
+                              NULL,                              /* ? */
+                              plugin_identity                    /* access control */
+                              )) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_init - Failed to register internalpostoperation plugin\n");
+                      "linked_attrs_init - Failed to register internalpostoperation plugin\n");
         status = -1;
     }
 
@@ -202,22 +198,22 @@ linked_attrs_init(Slapi_PBlock *pb)
         if (plugin_is_betxn) {
             plugin_type = "betxnpostoperation";
         }
-        if (slapi_register_plugin(plugin_type,  /* op type */
-                                  1,        /* Enabled */
-                                  "linked_attrs_init",   /* this function desc */
-                                  linked_attrs_postop_init,  /* init func for post op */
-                                  LINK_POSTOP_DESC,      /* plugin desc */
-                                  NULL,     /* ? */
-                                  plugin_identity   /* access control */
-        )) {
+        if (slapi_register_plugin(plugin_type,              /* op type */
+                                  1,                        /* Enabled */
+                                  "linked_attrs_init",      /* this function desc */
+                                  linked_attrs_postop_init, /* init func for post op */
+                                  LINK_POSTOP_DESC,         /* plugin desc */
+                                  NULL,                     /* ? */
+                                  plugin_identity           /* access control */
+                                  )) {
             slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_init - Failed to register postop plugin\n");
+                          "linked_attrs_init - Failed to register postop plugin\n");
             status = -1;
         }
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_init\n");
+                  "<-- linked_attrs_init\n");
     return status;
 }
 
@@ -230,20 +226,20 @@ linked_attrs_internal_postop_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
+                         (void *)&pdesc) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN,
-                         (void *) linked_attrs_add_post_op) != 0 ||
+                         (void *)linked_attrs_add_post_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
-                         (void *) linked_attrs_del_post_op) != 0 ||
+                         (void *)linked_attrs_del_post_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN,
-                         (void *) linked_attrs_mod_post_op) != 0 ||
+                         (void *)linked_attrs_mod_post_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN,
-                         (void *) linked_attrs_modrdn_post_op) != 0) {
+                         (void *)linked_attrs_modrdn_post_op) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_internal_postop_init - Failed to register plugin\n");
+                      "linked_attrs_internal_postop_init - Failed to register plugin\n");
         status = -1;
     }
- 
+
     return status;
 }
 
@@ -266,13 +262,13 @@ linked_attrs_postop_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, addfn, (void *) linked_attrs_add_post_op) != 0 ||
-        slapi_pblock_set(pb, delfn, (void *) linked_attrs_del_post_op) != 0 ||
-        slapi_pblock_set(pb, modfn, (void *) linked_attrs_mod_post_op) != 0 ||
-        slapi_pblock_set(pb, mdnfn, (void *) linked_attrs_modrdn_post_op) != 0) {
+                         (void *)&pdesc) != 0 ||
+        slapi_pblock_set(pb, addfn, (void *)linked_attrs_add_post_op) != 0 ||
+        slapi_pblock_set(pb, delfn, (void *)linked_attrs_del_post_op) != 0 ||
+        slapi_pblock_set(pb, modfn, (void *)linked_attrs_mod_post_op) != 0 ||
+        slapi_pblock_set(pb, mdnfn, (void *)linked_attrs_modrdn_post_op) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_postop_init - Failed to register plugin\n");
+                      "linked_attrs_postop_init - Failed to register plugin\n");
         status = -1;
     }
 
@@ -286,18 +282,18 @@ linked_attrs_postop_init(Slapi_PBlock *pb)
  * Creates config lock and loads config cache.
  */
 static int
-linked_attrs_start(Slapi_PBlock * pb)
+linked_attrs_start(Slapi_PBlock *pb)
 {
     Slapi_DN *plugindn = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_start\n");
+                  "--> linked_attrs_start\n");
 
     g_config_lock = slapi_new_rwlock();
 
     if (!g_config_lock) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_start - Lock creation failed\n");
+                      "linked_attrs_start - Lock creation failed\n");
 
         return -1;
     }
@@ -308,7 +304,7 @@ linked_attrs_start(Slapi_PBlock * pb)
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &plugindn);
     if (NULL == plugindn || 0 == slapi_sdn_get_ndn_len(plugindn)) {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_start - Unable to retrieve plugin dn\n");
+                      "linked_attrs_start - Unable to retrieve plugin dn\n");
         return -1;
     }
 
@@ -324,7 +320,7 @@ linked_attrs_start(Slapi_PBlock * pb)
 
     if (linked_attrs_load_config() != 0) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_start - Unable to load plug-in configuration\n");
+                      "linked_attrs_start - Unable to load plug-in configuration\n");
         return -1;
     }
 
@@ -334,9 +330,9 @@ linked_attrs_start(Slapi_PBlock * pb)
     slapi_plugin_task_register_handler("fixup linked attributes", linked_attrs_fixup_task_add, pb);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                    "linked_attrs_start: ready for service\n");
+                  "linked_attrs_start: ready for service\n");
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_start\n");
+                  "<-- linked_attrs_start\n");
 
     return 0;
 }
@@ -347,10 +343,10 @@ linked_attrs_start(Slapi_PBlock * pb)
  * Cleans up the config cache.
  */
 static int
-linked_attrs_close(Slapi_PBlock * pb __attribute__((unused)))
+linked_attrs_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_close\n");
+                  "--> linked_attrs_close\n");
 
     slapi_plugin_task_unregister_handler("fixup linked attributes", linked_attrs_fixup_task_add);
 
@@ -361,7 +357,7 @@ linked_attrs_close(Slapi_PBlock * pb __attribute__((unused)))
     slapi_ch_free((void **)&g_managed_config_index);
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_close\n");
+                  "<-- linked_attrs_close\n");
 
     return 0;
 }
@@ -389,7 +385,7 @@ linked_attrs_load_config(void)
     Slapi_Entry **entries = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_load_config\n");
+                  "--> linked_attrs_load_config\n");
 
     /* Clear out any old config. */
     linked_attrs_write_lock();
@@ -423,12 +419,12 @@ linked_attrs_load_config(void)
         linked_attrs_parse_config_entry(entries[i], 1);
     }
 
-  cleanup:
+cleanup:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
     linked_attrs_unlock();
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_load_config\n");
+                  "<-- linked_attrs_load_config\n");
 
     return status;
 }
@@ -444,7 +440,7 @@ linked_attrs_load_config(void)
  * Returns 0 if the entry is valid and -1 if it is invalid.
  */
 static int
-linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
+linked_attrs_parse_config_entry(Slapi_Entry *e, int apply)
 {
     char *value;
     struct configEntry *entry = NULL;
@@ -454,7 +450,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_parse_config_entry\n");
+                  "--> linked_attrs_parse_config_entry\n");
 
     /* If this is the main plug-in
      * config entry, just bail. */
@@ -474,14 +470,14 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
         entry->dn = slapi_ch_strdup(value);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - Error "
-                        "reading dn from config entry\n");
+                      "linked_attrs_parse_config_entry - Error "
+                      "reading dn from config entry\n");
         ret = -1;
         goto bail;
     }
 
     slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                    "----------> dn [%s]\n", entry->dn);
+                  "----------> dn [%s]\n", entry->dn);
 
     value = slapi_entry_attr_get_charptr(e, LINK_LINK_TYPE);
     if (value) {
@@ -494,7 +490,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
 
         /* Gather some information about this attribute. */
         slapi_attr_init(attr, value);
-        slapi_attr_get_syntax_oid_copy(attr, &syntaxoid );
+        slapi_attr_get_syntax_oid_copy(attr, &syntaxoid);
         not_dn_syntax = strcmp(syntaxoid, DN_SYNTAX_OID);
         slapi_ch_free_string(&syntaxoid);
         slapi_attr_free(&attr);
@@ -503,22 +499,23 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
          * We only treat this as a warning. */
         if (not_dn_syntax) {
             slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_parse_config_entry - The %s config "
-                            "setting must be set to an attribute with the "
-                            "Distinguished Name syntax for linked attribute "
-                            "pair \"%s\" attribute \"%s\".\n", LINK_LINK_TYPE, entry->dn, value);
+                          "linked_attrs_parse_config_entry - The %s config "
+                          "setting must be set to an attribute with the "
+                          "Distinguished Name syntax for linked attribute "
+                          "pair \"%s\" attribute \"%s\".\n",
+                          LINK_LINK_TYPE, entry->dn, value);
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - The %s config "
-                        "setting is required for linked attribute pair \"%s\".\n",
-                        LINK_LINK_TYPE, entry->dn);
+                      "linked_attrs_parse_config_entry - The %s config "
+                      "setting is required for linked attribute pair \"%s\".\n",
+                      LINK_LINK_TYPE, entry->dn);
         ret = -1;
         goto bail;
     }
 
     slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                    "linked_attrs_parse_config_entry - %s [%s]\n", LINK_LINK_TYPE, entry->linktype);
+                  "linked_attrs_parse_config_entry - %s [%s]\n", LINK_LINK_TYPE, entry->linktype);
 
     value = slapi_entry_attr_get_charptr(e, LINK_MANAGED_TYPE);
     if (value) {
@@ -532,7 +529,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
 
         /* Gather some information about this attribute. */
         slapi_attr_init(attr, value);
-        slapi_attr_get_syntax_oid_copy(attr, &syntaxoid );
+        slapi_attr_get_syntax_oid_copy(attr, &syntaxoid);
         not_dn_syntax = strcmp(syntaxoid, DN_SYNTAX_OID);
         single_valued = slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE);
         slapi_ch_free_string(&syntaxoid);
@@ -541,33 +538,34 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
         /* Ensure that the managed type is a multi-valued attribute. */
         if (single_valued) {
             slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_parse_config_entry - The %s config "
-                            "setting must be set to a multi-valued attribute "
-                            "for linked attribute pair \"%s\".\n",
-                            LINK_MANAGED_TYPE, entry->dn);
+                          "linked_attrs_parse_config_entry - The %s config "
+                          "setting must be set to a multi-valued attribute "
+                          "for linked attribute pair \"%s\".\n",
+                          LINK_MANAGED_TYPE, entry->dn);
             ret = -1;
             goto bail;
-        /* Check if the link type's syntax is Distinguished Name.
+            /* Check if the link type's syntax is Distinguished Name.
          * We only treat this as a warning. */
         } else if (not_dn_syntax) {
             slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_parse_config_entry - The %s config "
-                            "setting must be set to an attribute with the "
-                            "Distinguished Name syntax for linked attribute "
-                            "pair \"%s\".\n", LINK_MANAGED_TYPE, entry->dn);
+                          "linked_attrs_parse_config_entry - The %s config "
+                          "setting must be set to an attribute with the "
+                          "Distinguished Name syntax for linked attribute "
+                          "pair \"%s\".\n",
+                          LINK_MANAGED_TYPE, entry->dn);
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - The %s config "
-                        "setting is required for linked attribute pair \"%s\".\n",
-                        LINK_MANAGED_TYPE, entry->dn);
+                      "linked_attrs_parse_config_entry - The %s config "
+                      "setting is required for linked attribute pair \"%s\".\n",
+                      LINK_MANAGED_TYPE, entry->dn);
         ret = -1;
         goto bail;
     }
 
     slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                    "linked_attrs_parse_config_entry - %s [%s]\n", LINK_MANAGED_TYPE,
-                    entry->managedtype);
+                  "linked_attrs_parse_config_entry - %s [%s]\n", LINK_MANAGED_TYPE,
+                  entry->managedtype);
 
     /* A scope is not required.  No scope means it
      * applies to any part of the DIT. */
@@ -577,17 +575,18 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", LINK_SCOPE,
-                    entry->scope ? entry->scope : "NULL");
+                  "----------> %s [%s]\n", LINK_SCOPE,
+                  entry->scope ? entry->scope : "NULL");
 
     /* Check if config already exists for
      * the link type at the same scope. */
     if (linked_attrs_config_exists(entry)) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - A config "
-                        "entry for the link attribute %s already "
-                        "exists at a scope of \"%s\".\n", entry->linktype,
-                        entry->scope);
+                      "linked_attrs_parse_config_entry - A config "
+                      "entry for the link attribute %s already "
+                      "exists at a scope of \"%s\".\n",
+                      entry->linktype,
+                      entry->scope);
         ret = -1;
         goto bail;
     }
@@ -596,10 +595,11 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
      * the managed type at the same scope. */
     if (linked_attrs_config_exists_reverse(entry)) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - A config "
-                        "entry for the managed attribute %s already "
-                        "exists at a scope of \"%s\".\n", entry->managedtype,
-                        entry->scope);
+                      "linked_attrs_parse_config_entry - A config "
+                      "entry for the managed attribute %s already "
+                      "exists at a scope of \"%s\".\n",
+                      entry->managedtype,
+                      entry->scope);
         ret = -1;
         goto bail;
     }
@@ -614,8 +614,9 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
     entry->lock = slapi_new_mutex();
     if (!entry->lock) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - Unable to create "
-                        "lock for linked attribute pair \"%s\".\n", entry->dn);
+                      "linked_attrs_parse_config_entry - Unable to create "
+                      "lock for linked attribute pair \"%s\".\n",
+                      entry->dn);
         ret = -1;
         goto bail;
     }
@@ -625,15 +626,15 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
     if (!PR_CLIST_IS_EMPTY(g_link_config)) {
         list = PR_LIST_HEAD(g_link_config);
         while (list != g_link_config) {
-            config_entry = (struct configEntry *) list;
+            config_entry = (struct configEntry *)list;
 
             /* See if the types match.  We want to group
              * entries for the same link type together. */
             if (slapi_attr_type_cmp(config_entry->linktype, entry->linktype, 1) == 0) {
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_parse_config_entry - store [%s] before [%s] \n", entry->dn,
-                                config_entry->dn);
+                              "linked_attrs_parse_config_entry - store [%s] before [%s] \n", entry->dn,
+                              config_entry->dn);
 
                 /* add to managed type index */
                 linked_attrs_insert_config_index(entry);
@@ -648,7 +649,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
                 /* add to tail */
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_parse_config_entry - store [%s] at tail\n", entry->dn);
+                              "linked_attrs_parse_config_entry - store [%s] at tail\n", entry->dn);
 
                 /* add to managed type index */
                 linked_attrs_insert_config_index(entry);
@@ -661,7 +662,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
         /* first entry */
         PR_INSERT_LINK(&(entry->list), g_link_config);
         slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_parse_config_entry - store [%s] at head \n", entry->dn);
+                      "linked_attrs_parse_config_entry - store [%s] at head \n", entry->dn);
 
         /* add to managed type index */
         linked_attrs_insert_config_index(entry);
@@ -669,13 +670,14 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
         entry_added = 1;
     }
 
-  bail:
+bail:
     if (0 == entry_added) {
         /* Don't log error if we weren't asked to apply config */
         if ((apply != 0) && (entry != NULL)) {
             slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_parse_config_entry - Invalid config entry "
-                            "[%s] skipped\n", entry->dn);
+                          "linked_attrs_parse_config_entry - Invalid config entry "
+                          "[%s] skipped\n",
+                          entry->dn);
         }
         linked_attrs_free_config_entry(&entry);
     } else {
@@ -683,7 +685,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_parse_config_entry\n");
+                  "<-- linked_attrs_parse_config_entry\n");
 
     return ret;
 }
@@ -698,7 +700,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
  * is useful for the case where an entry with backpointers
  * is renamed and we need to updated the forward link.
  */
-static void 
+static void
 linked_attrs_insert_config_index(struct configEntry *entry)
 {
     struct configEntry *config_entry = NULL;
@@ -712,24 +714,24 @@ linked_attrs_insert_config_index(struct configEntry *entry)
     if (!PR_CLIST_IS_EMPTY(g_managed_config_index)) {
         while (list != g_managed_config_index) {
             config_entry = ((struct configIndex *)list)->config;
-    
+
             /* See if the types match. */
             if (slapi_attr_type_cmp(config_entry->managedtype, entry->managedtype, 1) == 0) {
                 PR_INSERT_BEFORE(&(index_entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_insert_config_index - store [%s] before [%s] \n", entry->dn,
-                                config_entry->dn);
+                              "linked_attrs_insert_config_index - store [%s] before [%s] \n", entry->dn,
+                              config_entry->dn);
                 inserted = 1;
                 break;
             }
-    
+
             list = PR_NEXT_LINK(list);
 
             if (g_managed_config_index == list) {
                 /* add to tail */
                 PR_INSERT_BEFORE(&(index_entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_insert_config_index - store [%s] at tail\n", entry->dn);
+                              "linked_attrs_insert_config_index - store [%s] at tail\n", entry->dn);
                 inserted = 1;
                 break;
             }
@@ -737,17 +739,17 @@ linked_attrs_insert_config_index(struct configEntry *entry)
     } else {
         /* first entry */
         slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_insert_config_index - store [%s] at head \n", entry->dn);
+                      "linked_attrs_insert_config_index - store [%s] at head \n", entry->dn);
         PR_INSERT_LINK(&(index_entry->list), g_managed_config_index);
         inserted = 1;
     }
-    if(!inserted){
-    	slapi_ch_free((void **)&index_entry);
+    if (!inserted) {
+        slapi_ch_free((void **)&index_entry);
     }
 }
 
 static void
-linked_attrs_free_config_entry(struct configEntry ** entry)
+linked_attrs_free_config_entry(struct configEntry **entry)
 {
     struct configEntry *e = *entry;
 
@@ -756,7 +758,7 @@ linked_attrs_free_config_entry(struct configEntry ** entry)
 
     if (e->dn) {
         slapi_log_err(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_free_config_entry - freeing config entry [%s]\n", e->dn);
+                      "linked_attrs_free_config_entry - freeing config entry [%s]\n", e->dn);
         slapi_ch_free_string(&e->dn);
     }
 
@@ -772,14 +774,14 @@ linked_attrs_free_config_entry(struct configEntry ** entry)
     if (e->lock)
         slapi_destroy_mutex(e->lock);
 
-    slapi_ch_free((void **) entry);
+    slapi_ch_free((void **)entry);
 }
 
 static void
 linked_attrs_delete_configEntry(PRCList *entry)
 {
     PR_REMOVE_LINK(entry);
-    linked_attrs_free_config_entry((struct configEntry **) &entry);
+    linked_attrs_free_config_entry((struct configEntry **)&entry);
 }
 
 static void
@@ -808,36 +810,36 @@ linked_attrs_delete_config(void)
  * Helper functions
  */
 static char *
-linked_attrs_get_dn(Slapi_PBlock * pb)
+linked_attrs_get_dn(Slapi_PBlock *pb)
 {
     const char *dn = 0;
     Slapi_DN *sdn = NULL;
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_get_dn\n");
+                  "--> linked_attrs_get_dn\n");
 
     if (slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn)) {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_get_dn - Failed to get dn of changed entry");
+                      "linked_attrs_get_dn - Failed to get dn of changed entry");
         goto bail;
     }
     dn = slapi_sdn_get_dn(sdn);
 
-  bail:
+bail:
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_get_dn\n");
+                  "<-- linked_attrs_get_dn\n");
 
     return (char *)dn;
 }
 
 static Slapi_DN *
-linked_attrs_get_sdn(Slapi_PBlock * pb)
+linked_attrs_get_sdn(Slapi_PBlock *pb)
 {
     Slapi_DN *sdn = 0;
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_get_sdn\n");
+                  "--> linked_attrs_get_sdn\n");
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_get_sdn\n");
+                  "<-- linked_attrs_get_sdn\n");
 
     return sdn;
 }
@@ -853,7 +855,7 @@ linked_attrs_dn_is_config(char *dn)
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_dn_is_config\n");
+                  "--> linked_attrs_dn_is_config\n");
 
     /* Return 1 if the passed in dn is a child of the main
      * plugin config entry. */
@@ -863,7 +865,7 @@ linked_attrs_dn_is_config(char *dn)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_dn_is_config\n");
+                  "<-- linked_attrs_dn_is_config\n");
 
     return ret;
 }
@@ -883,7 +885,8 @@ linked_attrs_dn_is_config(char *dn)
  */
 static void
 linked_attrs_find_config(const char *dn,
-    const char *type, struct configEntry **config)
+                         const char *type,
+                         struct configEntry **config)
 {
     int found_type = 0;
     PRCList *list = NULL;
@@ -894,7 +897,7 @@ linked_attrs_find_config(const char *dn,
         list = PR_LIST_HEAD(g_link_config);
         while (list != g_link_config) {
             if (slapi_attr_type_cmp(((struct configEntry *)list)->linktype,
-                type, 1) == 0) {
+                                    type, 1) == 0) {
                 /* Set a flag indicating that we found a config entry
                  * for this type. We use this flag so we can stop
                  * processing early if we don't find a matching scope. */
@@ -926,7 +929,7 @@ linked_attrs_find_config(const char *dn,
  * linked_attrs_find_config_reverse()
  *
  * Finds the appropriate config entry for a given dn and
- * managed type.  A read lock must be held on the config 
+ * managed type.  A read lock must be held on the config
  * before calling this function.  The configEntry that is
  * returned is a pointer to the actual config entry in
  * the config cache.  It should not be modified in any
@@ -934,11 +937,12 @@ linked_attrs_find_config(const char *dn,
  * are finished with the config entry that is returned.
 
  * Returns NULL if no applicable config entry is found.
- */ 
+ */
 static void
 linked_attrs_find_config_reverse(const char *dn,
-    const char *type, struct configEntry **config)
-{   
+                                 const char *type,
+                                 struct configEntry **config)
+{
     int found_type = 0;
     PRCList *list = NULL;
 
@@ -1036,7 +1040,7 @@ linked_attrs_config_exists(struct configEntry *entry)
                                     entry->linktype, 1) == 0) {
                 found_type = 1;
                 /* We don't allow nested config for the same type.  We
-                 * need to check for nesting in both directions here. 
+                 * need to check for nesting in both directions here.
                  * If no scope is set, we consider the entry global. */
                 if ((((struct configEntry *)list)->scope == NULL) ||
                     slapi_dn_issuffix(entry->scope, ((struct configEntry *)list)->scope) ||
@@ -1098,9 +1102,9 @@ linked_attrs_config_exists_reverse(struct configEntry *entry)
                  * need to check for nesting in both directions here. */
                 if ((((struct configIndex *)list)->config->scope == NULL) ||
                     slapi_dn_issuffix(entry->scope,
-                    ((struct configIndex *)list)->config->scope) ||
+                                      ((struct configIndex *)list)->config->scope) ||
                     slapi_dn_issuffix(((struct configIndex *)list)->config->scope,
-                    entry->scope)) {
+                                      entry->scope)) {
                     /* Make sure that this isn't the same exact entry
                      * in the list already.  This can happen if a config
                      * entry is being modified.  Both of these were already
@@ -1137,81 +1141,78 @@ linked_attrs_config_exists_reverse(struct configEntry *entry)
 static int
 linked_attrs_oktodo(Slapi_PBlock *pb)
 {
-        int ret = 1;
-        int oprc = 0;
+    int ret = 1;
+    int oprc = 0;
 
-        slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                     "--> linked_attrs_oktodo\n" );
+    slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
+                  "--> linked_attrs_oktodo\n");
 
-        if(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0)
-        {
-                slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_oktodo - Could not get parameters\n" );
-                ret = -1;
-        }
+    if (slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+                      "linked_attrs_oktodo - Could not get parameters\n");
+        ret = -1;
+    }
 
-        /* This plugin should only execute if the operation succeeded. */
-        if(oprc != 0)
-        {
-                ret = 0;
-        }
+    /* This plugin should only execute if the operation succeeded. */
+    if (oprc != 0) {
+        ret = 0;
+    }
 
-        slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                     "<-- linked_attrs_oktodo\n" );
+    slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
+                  "<-- linked_attrs_oktodo\n");
 
-        return ret;
+    return ret;
 }
 
 /* linked_attrs_load_array()
- * 
+ *
  * put attribute values in array structure
  */
 void
 linked_attrs_load_array(Slapi_Value **array, Slapi_Attr *attr)
 {
-        Slapi_Value *val = 0;
-        int hint = slapi_attr_first_value(attr, &val);
+    Slapi_Value *val = 0;
+    int hint = slapi_attr_first_value(attr, &val);
 
-        while(val)
-        {
-                *array = val;
-                array++;
-                hint = slapi_attr_next_value(attr, hint, &val);
-        }
+    while (val) {
+        *array = val;
+        array++;
+        hint = slapi_attr_next_value(attr, hint, &val);
+    }
 }
 
 /* linked_attrs_compare()
- * 
+ *
  * Compare two attr values using the DN syntax.
  */
 int
 linked_attrs_compare(const void *a, const void *b)
 {
-        Slapi_Value *val1;
-        Slapi_Value *val2;
-        Slapi_Attr *linkattr;
-        int rc = 0;
+    Slapi_Value *val1;
+    Slapi_Value *val2;
+    Slapi_Attr *linkattr;
+    int rc = 0;
 
-        if(a == NULL && b != NULL){
-            return 1;
-        } else if(a != NULL && b == NULL){
-            return -1;
-        } else if(a == NULL && b == NULL){
-            return 0;
-        }
-        val1 = *((Slapi_Value **)a);
-        val2 = *((Slapi_Value **)b);
-        linkattr = slapi_attr_new();
+    if (a == NULL && b != NULL) {
+        return 1;
+    } else if (a != NULL && b == NULL) {
+        return -1;
+    } else if (a == NULL && b == NULL) {
+        return 0;
+    }
+    val1 = *((Slapi_Value **)a);
+    val2 = *((Slapi_Value **)b);
+    linkattr = slapi_attr_new();
 
-        slapi_attr_init(linkattr, "distinguishedName");
+    slapi_attr_init(linkattr, "distinguishedName");
 
-        rc = slapi_attr_value_cmp(linkattr,
-                slapi_value_get_berval(val1),
-                slapi_value_get_berval(val2));
+    rc = slapi_attr_value_cmp(linkattr,
+                              slapi_value_get_berval(val1),
+                              slapi_value_get_berval(val2));
 
-        slapi_attr_free(&linkattr);
+    slapi_attr_free(&linkattr);
 
-        return rc;
+    return rc;
 }
 
 /*
@@ -1221,15 +1222,14 @@ linked_attrs_compare(const void *a, const void *b)
  * by the values in smod.
  */
 static int
-linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config,
-    Slapi_Mod *smod)
+linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config, Slapi_Mod *smod)
 {
     Slapi_ValueSet *vals = slapi_valueset_new();
     int rc = LDAP_SUCCESS;
 
     slapi_valueset_set_from_smod(vals, smod);
     rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype, config->scope,
-                                  LDAP_MOD_ADD, vals);
+                                       LDAP_MOD_ADD, vals);
 
     slapi_valueset_free(vals);
     return rc;
@@ -1242,8 +1242,7 @@ linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry
  * to by the values in smod.
  */
 static int
-linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
-    struct configEntry *config, Slapi_Mod *smod)
+linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config, Slapi_Mod *smod)
 {
     Slapi_ValueSet *vals = NULL;
     int rc = LDAP_SUCCESS;
@@ -1255,8 +1254,8 @@ linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
         Slapi_Entry *pre_e = NULL;
         Slapi_Attr *pre_attr = NULL;
 
-        slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &pre_e );
-        slapi_entry_attr_find( pre_e, config->linktype, &pre_attr );
+        slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_e);
+        slapi_entry_attr_find(pre_e, config->linktype, &pre_attr);
         slapi_attr_get_valueset(pre_attr, &vals);
     } else {
         vals = slapi_valueset_new();
@@ -1264,7 +1263,7 @@ linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
     }
 
     rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype, config->scope,
-                                  LDAP_MOD_DELETE, vals);
+                                       LDAP_MOD_DELETE, vals);
     slapi_valueset_free(vals);
 
     return rc;
@@ -1279,8 +1278,7 @@ linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
  * replace operation.
  */
 static int
-linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
-    struct configEntry *config, Slapi_Mod *smod __attribute__((unused)))
+linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config, Slapi_Mod *smod __attribute__((unused)))
 {
     Slapi_Entry *pre_e = NULL;
     Slapi_Entry *post_e = NULL;
@@ -1293,12 +1291,12 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_e);
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_e);
 
-    if(pre_e && post_e) {
+    if (pre_e && post_e) {
         slapi_entry_attr_find(pre_e, config->linktype, &pre_attr);
         slapi_entry_attr_find(post_e, config->linktype, &post_attr);
     }
 
-    if(pre_attr || post_attr) {
+    if (pre_attr || post_attr) {
         int pre_total = 0;
         int post_total = 0;
         Slapi_Value **pre_array = 0;
@@ -1309,24 +1307,24 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
         Slapi_ValueSet *delvals = NULL;
 
         /* create arrays of values */
-        if(pre_attr) {
+        if (pre_attr) {
             slapi_attr_get_numvalues(pre_attr, &pre_total);
         }
 
-        if(post_attr) {
+        if (post_attr) {
             slapi_attr_get_numvalues(post_attr, &post_total);
         }
 
-        if(pre_total) {
-            pre_array = (Slapi_Value**) slapi_ch_malloc(sizeof(Slapi_Value*)*pre_total);
+        if (pre_total) {
+            pre_array = (Slapi_Value **)slapi_ch_malloc(sizeof(Slapi_Value *) * pre_total);
             linked_attrs_load_array(pre_array, pre_attr);
-            qsort(pre_array, pre_total, sizeof(Slapi_Value*), linked_attrs_compare);
+            qsort(pre_array, pre_total, sizeof(Slapi_Value *), linked_attrs_compare);
         }
 
-        if(post_total) {
-            post_array = (Slapi_Value**) slapi_ch_malloc(sizeof(Slapi_Value*)*post_total);
+        if (post_total) {
+            post_array = (Slapi_Value **)slapi_ch_malloc(sizeof(Slapi_Value *) * post_total);
             linked_attrs_load_array(post_array, post_attr);
-            qsort(post_array, post_total, sizeof(Slapi_Value*), linked_attrs_compare);
+            qsort(post_array, post_total, sizeof(Slapi_Value *), linked_attrs_compare);
         }
 
         /* Work through arrays, following these rules:
@@ -1334,8 +1332,8 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
          *   - in pre, not in post, delete from entry
          *   - not in pre, in post, add to entry
          */
-        while(pre_index < pre_total || post_index < post_total) {
-            if(pre_index == pre_total) {
+        while (pre_index < pre_total || post_index < post_total) {
+            if (pre_index == pre_total) {
                 /* add the rest of post */
                 if (addvals == NULL) {
                     addvals = slapi_valueset_new();
@@ -1343,7 +1341,7 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
 
                 slapi_valueset_add_value(addvals, post_array[post_index]);
                 post_index++;
-            } else if(post_index == post_total) {
+            } else if (post_index == post_total) {
                 /* delete the rest of pre */
                 if (delvals == NULL) {
                     delvals = slapi_valueset_new();
@@ -1356,7 +1354,7 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
                 int cmp = linked_attrs_compare(&(pre_array[pre_index]),
                                                &(post_array[post_index]));
 
-                if(cmp < 0) {
+                if (cmp < 0) {
                     /* delete pre array */
                     if (delvals == NULL) {
                         delvals = slapi_valueset_new();
@@ -1364,7 +1362,7 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
 
                     slapi_valueset_add_value(delvals, pre_array[pre_index]);
                     pre_index++;
-                } else if(cmp > 0) {
+                } else if (cmp > 0) {
                     /* add post array */
                     if (addvals == NULL) {
                         addvals = slapi_valueset_new();
@@ -1383,13 +1381,13 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
         /* Perform the actual updates to the target entries. */
         if (delvals) {
             rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype,
-                                          config->scope, LDAP_MOD_DELETE, delvals);
+                                               config->scope, LDAP_MOD_DELETE, delvals);
             slapi_valueset_free(delvals);
         }
 
         if (rc == LDAP_SUCCESS && addvals) {
             rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype,
-                                          config->scope, LDAP_MOD_ADD, addvals);
+                                               config->scope, LDAP_MOD_ADD, addvals);
             slapi_valueset_free(addvals);
         }
 
@@ -1406,8 +1404,7 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
  * Performs backpointer management.
  */
 static int
-linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
-    char *scope, int modop, Slapi_ValueSet *targetvals)
+linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type, char *scope, int modop, Slapi_ValueSet *targetvals)
 {
     char *val[2];
     int i = 0;
@@ -1430,8 +1427,7 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
     mods[1] = 0;
 
     i = slapi_valueset_first_value(targetvals, &targetval);
-    while(targetval)
-    {
+    while (targetval) {
         int perform_update = 0;
         const char *targetdn = slapi_value_get_string(targetval);
         Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
@@ -1454,9 +1450,9 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
 
         if (perform_update) {
             slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_mod_backpointers - %s backpointer (%s) in entry (%s)\n",
-                            (modop == LDAP_MOD_ADD) ? "Adding" : "Removing",
-                            linkdn, targetdn);
+                          "linked_attrs_mod_backpointers - %s backpointer (%s) in entry (%s)\n",
+                          (modop == LDAP_MOD_ADD) ? "Adding" : "Removing",
+                          linkdn, targetdn);
 
             /* Perform the modify operation. */
             slapi_modify_internal_set_pb_ext(mod_pb, targetsdn, mods, 0, 0,
@@ -1475,8 +1471,8 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
                 char *err_msg = NULL;
 
                 slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_mod_backpointers - Failed to update link to target entry (%s) error %d",
-                                targetdn, rc);
+                              "linked_attrs_mod_backpointers - Failed to update link to target entry (%s) error %d",
+                              targetdn, rc);
                 err_msg = PR_smprintf("linked_attrs_mod_backpointers - Failed to update "
                                       "link to target entry (%s) error %d",
                                       targetdn, rc);
@@ -1529,7 +1525,7 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
  * attribute config and validates the config changes.
  */
 static int
-linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
+linked_attrs_pre_op(Slapi_PBlock *pb, int modop)
 {
     char *dn = 0;
     Slapi_Entry *e = 0;
@@ -1539,7 +1535,7 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
     int ret = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_pre_op\n");
+                  "--> linked_attrs_pre_op\n");
 
     if (0 == (dn = linked_attrs_get_dn(pb)))
         goto bail;
@@ -1590,13 +1586,13 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
         }
     }
 
-  bail:
+bail:
     if (free_entry && e)
         slapi_entry_free(e);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_pre_op - Operation failure [%d]\n", ret);
+                      "linked_attrs_pre_op - Operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
@@ -1604,19 +1600,19 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_pre_op\n");
+                  "<-- linked_attrs_pre_op\n");
 
     return ret;
 }
 
 static int
-linked_attrs_add_pre_op(Slapi_PBlock * pb)
+linked_attrs_add_pre_op(Slapi_PBlock *pb)
 {
     return linked_attrs_pre_op(pb, LDAP_CHANGETYPE_ADD);
 }
 
 static int
-linked_attrs_mod_pre_op(Slapi_PBlock * pb)
+linked_attrs_mod_pre_op(Slapi_PBlock *pb)
 {
     return linked_attrs_pre_op(pb, LDAP_CHANGETYPE_MODIFY);
 }
@@ -1634,12 +1630,12 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_mod_post_op\n");
+                  "--> linked_attrs_mod_post_op\n");
 
     /* We don't want to process internal modify
      * operations that originate from this plugin.
      * Doing so could cause a deadlock. */
-    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 
     if (caller_id == linked_attrs_get_plugin_id()) {
         /* Just return without processing */
@@ -1660,7 +1656,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
 
         next_mod = slapi_mod_new();
         smod = slapi_mods_get_first_smod(smods, next_mod);
-        while(smod) {
+        while (smod) {
             char *type = (char *)slapi_mod_get_type(smod);
 
             /* See if there is an applicable link configured. */
@@ -1681,11 +1677,11 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
             if (config) {
                 int op = slapi_mod_get_operation(smod);
 
-                /* Prevent other threads from managing 
+                /* Prevent other threads from managing
                  * this specific link at the same time. */
                 slapi_lock_mutex(config->lock);
 
-                switch(op & ~LDAP_MOD_BVALUES) {
+                switch (op & ~LDAP_MOD_BVALUES) {
                 case LDAP_MOD_ADD:
                     /* Find the entries pointed to by the new
                      * values and add the backpointers. */
@@ -1705,20 +1701,19 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
                     break;
                 default:
                     slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                                    "linked_attrs_mod_post_op - Unknown mod type\n" );
+                                  "linked_attrs_mod_post_op - Unknown mod type\n");
                     rc = SLAPI_PLUGIN_FAILURE;
                     break;
                 }
 
                 slapi_unlock_mutex(config->lock);
-                if(rc != LDAP_SUCCESS){
+                if (rc != LDAP_SUCCESS) {
                     slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                    "linked_attrs_mod_post_op - Update failed (%d)\n",rc);
+                                  "linked_attrs_mod_post_op - Update failed (%d)\n", rc);
                     linked_attrs_unlock();
                     slapi_mod_done(next_mod);
                     break;
                 }
-
             }
 
             config = NULL;
@@ -1736,7 +1731,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
         rc = SLAPI_PLUGIN_FAILURE;
     }
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_mod_post_op (%d)\n", rc);
+                  "<-- linked_attrs_mod_post_op (%d)\n", rc);
 
     return rc;
 }
@@ -1749,7 +1744,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_add_post_op\n");
+                  "--> linked_attrs_add_post_op\n");
 
     /* Reload config if a config entry was added. */
     if ((dn = linked_attrs_get_dn(pb))) {
@@ -1757,8 +1752,8 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
             linked_attrs_load_config();
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_add_post_op - Error "
-                        "retrieving dn\n");
+                      "linked_attrs_add_post_op - Error "
+                      "retrieving dn\n");
     }
 
     /* Get the newly added entry. */
@@ -1792,13 +1787,13 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
                 slapi_lock_mutex(config->lock);
 
                 rc = linked_attrs_mod_backpointers(pb, dn, config->managedtype,
-                                              config->scope, LDAP_MOD_ADD, vals);
+                                                   config->scope, LDAP_MOD_ADD, vals);
 
                 slapi_unlock_mutex(config->lock);
                 slapi_valueset_free(vals);
-                if(rc != LDAP_SUCCESS){
+                if (rc != LDAP_SUCCESS) {
                     slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                    "linked_attrs_add_post_op - Update failed (%d)\n",rc);
+                                  "linked_attrs_add_post_op - Update failed (%d)\n", rc);
                     linked_attrs_unlock();
                     break;
                 }
@@ -1811,8 +1806,9 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
         }
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_add_post_op - Error "
-                        "retrieving post-op entry %s\n", dn);
+                      "linked_attrs_add_post_op - Error "
+                      "retrieving post-op entry %s\n",
+                      dn);
     }
 
     if (rc) {
@@ -1820,7 +1816,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
         rc = SLAPI_PLUGIN_FAILURE;
     }
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_add_post_op\n");
+                  "<-- linked_attrs_add_post_op\n");
 
     return rc;
 }
@@ -1833,10 +1829,10 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_del_post_op\n");
+                  "--> linked_attrs_del_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!linked_attrs_oktodo(pb)){
+    if (!linked_attrs_oktodo(pb)) {
         return rc;
     }
 
@@ -1846,12 +1842,12 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
             linked_attrs_load_config();
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_del_post_op - Error "
-                        "retrieving dn\n");
+                      "linked_attrs_del_post_op - Error "
+                      "retrieving dn\n");
     }
 
     /* Get deleted entry, then go through types to find config. */
-    slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e );
+    slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
 
     if (e) {
         Slapi_Attr *attr = NULL;
@@ -1881,13 +1877,13 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
                 slapi_lock_mutex(config->lock);
 
                 rc = linked_attrs_mod_backpointers(pb, dn, config->managedtype,
-                                              config->scope, LDAP_MOD_DELETE, vals);
+                                                   config->scope, LDAP_MOD_DELETE, vals);
 
                 slapi_unlock_mutex(config->lock);
                 slapi_valueset_free(vals);
-                if (rc != LDAP_SUCCESS){
+                if (rc != LDAP_SUCCESS) {
                     slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                    "linked_attrs_del_post_op - Update failed (%d)\n",rc);
+                                  "linked_attrs_del_post_op - Update failed (%d)\n", rc);
                     linked_attrs_unlock();
                     break;
                 }
@@ -1905,7 +1901,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
                 hint = slapi_attr_first_value(attr, &val);
                 while (val) {
                     linked_attrs_find_config_reverse(slapi_value_get_string(val),
-                                                      type, &config);
+                                                     type, &config);
 
                     if (config) {
                         Slapi_ValueSet *vals = slapi_valueset_new();
@@ -1915,14 +1911,14 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
 
                         /* Delete forward link value. */
                         rc = linked_attrs_mod_backpointers(pb, dn, config->linktype,
-                            config->scope, LDAP_MOD_DELETE, vals);
+                                                           config->scope, LDAP_MOD_DELETE, vals);
 
                         slapi_unlock_mutex(config->lock);
                         slapi_valueset_free(vals);
                         config = NULL;
-                        if(rc != LDAP_SUCCESS){
+                        if (rc != LDAP_SUCCESS) {
                             slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                            "linked_attrs_del_post_op - Update failed (%d)\n",rc);
+                                          "linked_attrs_del_post_op - Update failed (%d)\n", rc);
                             linked_attrs_unlock();
                             goto bail;
                         }
@@ -1938,8 +1934,9 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_del_post_op - Error "
-                        "retrieving pre-op entry %s\n", dn);
+                      "linked_attrs_del_post_op - Error "
+                      "retrieving pre-op entry %s\n",
+                      dn);
         rc = SLAPI_PLUGIN_FAILURE;
     }
 
@@ -1949,7 +1946,7 @@ bail:
         rc = SLAPI_PLUGIN_FAILURE;
     }
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_del_post_op\n");
+                  "<-- linked_attrs_del_post_op\n");
 
     return rc;
 }
@@ -1966,7 +1963,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "--> linked_attrs_modrdn_post_op\n");
+                  "--> linked_attrs_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!linked_attrs_oktodo(pb)) {
@@ -1981,8 +1978,8 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
         new_dn = slapi_entry_get_ndn(post_e);
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_modrdn_post_op - Error "
-                        "retrieving post-op entry\n");
+                      "linked_attrs_modrdn_post_op - Error "
+                      "retrieving post-op entry\n");
         rc = LDAP_OPERATIONS_ERROR;
         goto done;
     }
@@ -1992,8 +1989,8 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
             linked_attrs_load_config();
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                        "linked_attrs_modrdn_post_op - Error "
-                        "retrieving dn\n");
+                      "linked_attrs_modrdn_post_op - Error "
+                      "retrieving dn\n");
         rc = LDAP_OPERATIONS_ERROR;
         goto done;
     }
@@ -2024,14 +2021,14 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
             /* Delete old dn value. */
             rc = linked_attrs_mod_backpointers(pb, old_dn, config->managedtype,
-                                          config->scope, LDAP_MOD_DELETE, vals);
+                                               config->scope, LDAP_MOD_DELETE, vals);
 
             slapi_unlock_mutex(config->lock);
             slapi_valueset_free(vals);
             config = NULL;
-            if(rc != LDAP_SUCCESS){
+            if (rc != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_modrdn_post_op - Update failed(old type) (%d)\n",rc);
+                              "linked_attrs_modrdn_post_op - Update failed(old type) (%d)\n", rc);
                 linked_attrs_unlock();
                 break;
             }
@@ -2051,14 +2048,14 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
             /* Add new dn value. */
             rc = linked_attrs_mod_backpointers(pb, new_dn, config->managedtype,
-                config->scope, LDAP_MOD_ADD, vals);
+                                               config->scope, LDAP_MOD_ADD, vals);
 
             slapi_unlock_mutex(config->lock);
             slapi_valueset_free(vals);
             config = NULL;
-            if(rc != LDAP_SUCCESS){
+            if (rc != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                "linked_attrs_modrdn_post_op - Update failed(new type) (%d)\n",rc);
+                              "linked_attrs_modrdn_post_op - Update failed(new type) (%d)\n", rc);
                 linked_attrs_unlock();
                 break;
             }
@@ -2074,7 +2071,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
             hint = slapi_attr_first_value(attr, &val);
             while (val) {
                 linked_attrs_find_config_reverse(slapi_value_get_string(val),
-                                                  type, &config);
+                                                 type, &config);
 
                 /* If the new DN is within scope, we should fixup the forward links. */
                 if (config && slapi_dn_issuffix(new_dn, (config->scope))) {
@@ -2085,10 +2082,10 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
                     /* Delete old dn value. */
                     rc = linked_attrs_mod_backpointers(pb, old_dn, config->linktype,
-                                                  config->scope, LDAP_MOD_DELETE, vals);
-                    if(rc != LDAP_SUCCESS){
+                                                       config->scope, LDAP_MOD_DELETE, vals);
+                    if (rc != LDAP_SUCCESS) {
                         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                       "linked_attrs_modrdn_post_op - Update failed(old dn) (%d)\n",rc);
+                                      "linked_attrs_modrdn_post_op - Update failed(old dn) (%d)\n", rc);
                         slapi_unlock_mutex(config->lock);
                         slapi_valueset_free(vals);
                         linked_attrs_unlock();
@@ -2097,14 +2094,14 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
                     /* Add new dn value. */
                     rc = linked_attrs_mod_backpointers(pb, new_dn, config->linktype,
-                        config->scope, LDAP_MOD_ADD, vals);
+                                                       config->scope, LDAP_MOD_ADD, vals);
 
                     slapi_unlock_mutex(config->lock);
                     slapi_valueset_free(vals);
                     config = NULL;
-                    if(rc != LDAP_SUCCESS){
+                    if (rc != LDAP_SUCCESS) {
                         slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
-                                       "linked_attrs_modrdn_post_op - Update failed(new dn) (%d)\n",rc);
+                                      "linked_attrs_modrdn_post_op - Update failed(new dn) (%d)\n", rc);
                         linked_attrs_unlock();
                         goto done;
                     }
@@ -2121,7 +2118,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
 done:
     slapi_log_err(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
-                    "<-- linked_attrs_modrdn_post_op\n");
+                  "<-- linked_attrs_modrdn_post_op\n");
     if (rc) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
@@ -2172,16 +2169,16 @@ linked_attrs_dump_config_index()
 
 
 void
-linked_attrs_dump_config_entry(struct configEntry * entry)
+linked_attrs_dump_config_entry(struct configEntry *entry)
 {
     slapi_log_err(SLAPI_LOG_DEBUG, LINK_PLUGIN_SUBSYSTEM,
-                    "<==== Linked Attribute Pair =====>\n");
+                  "<==== Linked Attribute Pair =====>\n");
     slapi_log_err(SLAPI_LOG_DEBUG, LINK_PLUGIN_SUBSYSTEM,
-                    "<---- config entry dn -----> %s\n", entry->dn);
+                  "<---- config entry dn -----> %s\n", entry->dn);
     slapi_log_err(SLAPI_LOG_DEBUG, LINK_PLUGIN_SUBSYSTEM,
-                    "<---- link type -----------> %s\n", entry->linktype);
+                  "<---- link type -----------> %s\n", entry->linktype);
     slapi_log_err(SLAPI_LOG_DEBUG, LINK_PLUGIN_SUBSYSTEM,
-                    "<---- managed type --------> %s\n", entry->managedtype);
+                  "<---- managed type --------> %s\n", entry->managedtype);
     slapi_log_err(SLAPI_LOG_DEBUG, LINK_PLUGIN_SUBSYSTEM,
-                    "<---- scope ---------------> %s\n", entry->scope);
+                  "<---- scope ---------------> %s\n", entry->scope);
 }

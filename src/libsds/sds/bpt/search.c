@@ -15,12 +15,13 @@
 #include "bpt.h"
 
 sds_result
-sds_bptree_search_node(sds_bptree_instance *binst, sds_bptree_node *root, void *key, sds_bptree_node **target_out_node) {
+sds_bptree_search_node(sds_bptree_instance *binst, sds_bptree_node *root, void *key, sds_bptree_node **target_out_node)
+{
     sds_bptree_node *target_node = root;
     uint64_t i = 0;
     int64_t (*key_cmp_fn)(void *a, void *b) = binst->key_cmp_fn;
 
-    /* We do this first, as we need the node to pass before we access it! */
+/* We do this first, as we need the node to pass before we access it! */
 #ifdef SDS_DEBUG
     if (binst->search_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_instance(binst);
@@ -61,7 +62,8 @@ branch_loop:
 }
 
 sds_result
-sds_bptree_search_internal(sds_bptree_instance *binst, sds_bptree_node *root, void *key) {
+sds_bptree_search_internal(sds_bptree_instance *binst, sds_bptree_node *root, void *key)
+{
 
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_search_internal", "<== Beginning search of %d", key);
@@ -93,9 +95,10 @@ sds_bptree_search_internal(sds_bptree_instance *binst, sds_bptree_node *root, vo
 
 
 sds_result
-sds_bptree_retrieve_internal(sds_bptree_instance *binst, sds_bptree_node *root, void *key, void **target) {
-    // This is the public retrieve function
-    // It's basically the same as search.
+sds_bptree_retrieve_internal(sds_bptree_instance *binst, sds_bptree_node *root, void *key, void **target)
+{
+// This is the public retrieve function
+// It's basically the same as search.
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_retrieve_internal", "==> Beginning retrieve of %d", key);
 #endif
@@ -118,13 +121,10 @@ sds_bptree_retrieve_internal(sds_bptree_instance *binst, sds_bptree_node *root, 
 #else
     sds_bptree_search_node(binst, root, key, &target_node);
 #endif
-    /* Now get the key from the node. */
+/* Now get the key from the node. */
 
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_retrieve_internal", "==> Completing retrieve of %d", key);
 #endif
     return sds_bptree_node_retrieve_key(binst->key_cmp_fn, target_node, key, target);
 }
-
-
-

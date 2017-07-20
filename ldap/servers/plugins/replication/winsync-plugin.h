@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 #ifndef WINSYNC_PLUGIN_PUBLIC_API
 #define WINSYNC_PLUGIN_PUBLIC_API
@@ -27,7 +27,7 @@
  * that the private data can be freed.  This private data is passed
  * to every other callback function as the void *cookie argument.
  */
-typedef void * (*winsync_plugin_init_cb)(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
+typedef void *(*winsync_plugin_init_cb)(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
 #define WINSYNC_PLUGIN_INIT_CB 1
 #define WINSYNC_PLUGIN_VERSION_1_BEGIN WINSYNC_PLUGIN_INIT_CB
 
@@ -101,8 +101,7 @@ typedef void (*winsync_pre_add_cb)(void *cookie, const Slapi_Entry *rawentry, Sl
  * ds_suffix - the suffix from the DS side of the sync agreement
  * ad_suffix - the suffix from the AD side of the sync agreement
  */
-typedef void (*winsync_get_new_dn_cb)(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, char **new_dn_string,
-  const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix);
+typedef void (*winsync_get_new_dn_cb)(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, char **new_dn_string, const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix);
 #define WINSYNC_PLUGIN_GET_NEW_DS_USER_DN_CB 12
 #define WINSYNC_PLUGIN_GET_NEW_DS_GROUP_DN_CB 13
 /*
@@ -118,9 +117,9 @@ typedef void (*winsync_get_new_dn_cb)(void *cookie, const Slapi_Entry *rawentry,
  *             to AD - the winsync code may have already attempted to calculate its value
  * modstosend - this is the list of modifications which will be sent - the winsync
  *              code will already have done its default mapping to these values
- * 
+ *
  */
-typedef void (*winsync_pre_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
+typedef void (*winsync_pre_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod *const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
 #define WINSYNC_PLUGIN_PRE_AD_MOD_USER_MODS_CB 14
 #define WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_MODS_CB 15
 
@@ -135,7 +134,7 @@ typedef int (*winsync_can_add_to_ad_cb)(void *cookie, const Slapi_Entry *local_e
 
 /*
  * Callbacks called at begin and end of update
- * 
+ *
  * The ds subtree and the ad subtree from the sync agreement are passed in.
  * These are read only.
  * is_total will be true if this is a total update, or false if this
@@ -147,7 +146,7 @@ typedef void (*winsync_plugin_update_cb)(void *cookie, const Slapi_DN *ds_subtre
 
 /*
  * Callbacks called when the agreement is destroyed.
- * 
+ *
  * The ds subtree and the ad subtree from the sync agreement are passed in.
  * These are read only.
  * The plugin must define this function to free the cookie allocated
@@ -236,9 +235,9 @@ typedef void (*winsync_post_ad_add_cb)(void *cookie, Slapi_Entry *ds_entry, Slap
  * remote_dn - the DN of the AD entry
  * modstosend - the mods sent to AD
  * result   - the result code of the modify operation
- * 
+ *
  */
-typedef void (*winsync_post_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod **modstosend, int *result);
+typedef void (*winsync_post_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod *const *origmods, Slapi_DN *remote_dn, LDAPMod **modstosend, int *result);
 #define WINSYNC_PLUGIN_POST_AD_MOD_USER_MODS_CB 30
 #define WINSYNC_PLUGIN_POST_AD_MOD_GROUP_MODS_CB 31
 #define WINSYNC_PLUGIN_VERSION_2_END WINSYNC_PLUGIN_POST_AD_MOD_GROUP_MODS_CB

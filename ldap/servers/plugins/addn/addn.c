@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -23,15 +23,14 @@
 /* is there a better type we can use here? */
 #define ADDN_FAILURE 1
 
-static void* plugin_identity = NULL;
+static void *plugin_identity = NULL;
 static char *plugin_name = "addn_plugin";
 
 static Slapi_PluginDesc addn_description = {
     "addn",
     VENDOR,
     DS_PACKAGE_VERSION,
-    "Allow AD DN style bind names to LDAP"
-};
+    "Allow AD DN style bind names to LDAP"};
 
 int
 addn_filter_validate(char *config_filter)
@@ -102,7 +101,7 @@ addn_get_subconfig(Slapi_PBlock *pb, char *identifier)
 
     slapi_search_internal_set_pb_ext(search_pblock, config_sdn, LDAP_SCOPE_ONELEVEL,
                                      filter, NULL, 0 /* attrs only */,
-                                     NULL /* controls */, NULL /* uniqueid */, 
+                                     NULL /* controls */, NULL /* uniqueid */,
                                      plugin_identity, 0 /* actions */);
     slapi_search_internal_pb(search_pblock);
 
@@ -179,7 +178,7 @@ addn_prebind(Slapi_PBlock *pb)
     char *config_filter = NULL;
     char *filter = NULL;
     int result = 0;
-    static char *attrs[] = { "dn", NULL };
+    static char *attrs[] = {"dn", NULL};
 
     Slapi_PBlock *search_pblock = NULL;
     int search_result = 0;
@@ -288,7 +287,7 @@ addn_prebind(Slapi_PBlock *pb)
 
     slapi_search_internal_set_pb_ext(search_pblock, be_suffix_dn, LDAP_SCOPE_SUBTREE,
                                      filter, attrs, 0 /* attrs only */,
-                                     NULL /* controls */, NULL /* uniqueid */, 
+                                     NULL /* controls */, NULL /* uniqueid */,
                                      plugin_identity, 0 /* actions */);
     slapi_search_internal_pb(search_pblock);
 
@@ -416,8 +415,8 @@ addn_start(Slapi_PBlock *pb)
 
     if (domain == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-                "addn_start: No default domain in configuration, you must set addn_default_domain!\n");
-        slapi_ch_free((void**)&config);
+                      "addn_start: No default domain in configuration, you must set addn_default_domain!\n");
+        slapi_ch_free((void **)&config);
         return SLAPI_PLUGIN_FAILURE;
     }
 
@@ -425,7 +424,7 @@ addn_start(Slapi_PBlock *pb)
     config->default_domain_len = strlen(config->default_domain);
 
     /* Set into the pblock */
-    slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void *) config);
+    slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void *)config);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_start: startup complete\n");
 
@@ -447,7 +446,7 @@ addn_close(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
     if (config != NULL) {
         slapi_ch_free_string(&config->default_domain);
-        slapi_ch_free((void **) &config);
+        slapi_ch_free((void **)&config);
         slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
     }
 
@@ -473,24 +472,24 @@ addn_init(Slapi_PBlock *pb)
     }
 
     /* Get and stash our plugin identity */
-    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &plugin_identity);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &plugin_identity);
 
-    result = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void*)&addn_description);
+    result = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&addn_description);
     if (result != LDAP_SUCCESS) {
         goto out;
     }
 
-    result = slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void*)addn_start);
+    result = slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)addn_start);
     if (result != LDAP_SUCCESS) {
         goto out;
     }
 
-    result = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void*)addn_close);
+    result = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)addn_close);
     if (result != LDAP_SUCCESS) {
         goto out;
     }
 
-    result = slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_BIND_FN, (void*)addn_prebind);
+    result = slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_BIND_FN, (void *)addn_prebind);
     if (result != LDAP_SUCCESS) {
         goto out;
     }
@@ -504,5 +503,3 @@ out:
     }
     return result;
 }
-
-

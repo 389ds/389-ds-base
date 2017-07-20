@@ -2,22 +2,22 @@
  * Copyright (C) 2015  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -35,7 +35,7 @@
     This is the public API for Nunc Stans
 */
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef NS_THRPOOL_H
@@ -326,7 +326,7 @@ typedef uint_fast16_t ns_job_type_t;
  * Used to test an #ns_job_type_t value to see if it is any sort of I/O job
  * \sa NS_JOB_IS_ACCEPT, NS_JOB_IS_READ, NS_JOB_IS_CONNECT, NS_JOB_IS_WRITE, ns_job_get_type, ns_job_get_output_type
  */
-#define NS_JOB_IS_IO(eee) (NS_JOB_IS_ACCEPT(eee)||NS_JOB_IS_READ(eee)||NS_JOB_IS_CONNECT(eee)||NS_JOB_IS_WRITE(eee))
+#define NS_JOB_IS_IO(eee) (NS_JOB_IS_ACCEPT(eee) || NS_JOB_IS_READ(eee) || NS_JOB_IS_CONNECT(eee) || NS_JOB_IS_WRITE(eee))
 /**
  * Used to test an #ns_job_type_t value for #NS_JOB_THREAD
  * \sa NS_JOB_THREAD, ns_job_get_type, ns_job_get_output_type
@@ -381,24 +381,25 @@ typedef uint_fast16_t ns_job_type_t;
  * \endcode
  * \sa ns_thrpool_config_init, ns_thrpool_new
  */
-struct ns_thrpool_config {
+struct ns_thrpool_config
+{
     /** \cond */
     int32_t init_flag;
     /** \endcond */
     size_t max_threads; /**< Do not grow the thread pool greater than this size */
-    size_t stacksize; /**< Thread stack size */
+    size_t stacksize;   /**< Thread stack size */
 
     /* pluggable logging functions  */
     void (*log_fct)(int, const char *, va_list); /**< Provide a function that works like vsyslog */
-    void (*log_start_fct)( void ); /**< Function to call to initialize the logging system */
-    void (*log_close_fct)( void ); /**< Function to call to shutdown the logging system */
+    void (*log_start_fct)(void);                 /**< Function to call to initialize the logging system */
+    void (*log_close_fct)(void);                 /**< Function to call to shutdown the logging system */
 
     /* pluggable memory functions */
-    void* (*malloc_fct)(size_t); /**< malloc() replacement */
-    void* (*memalign_fct)(size_t size, size_t alignment); /**< posix_memalign() replacement. Note the argument order! */
-    void* (*calloc_fct)(size_t, size_t); /**< calloc() replacement */
-    void* (*realloc_fct)(void *, size_t); /**< realloc() replacement */
-    void (*free_fct)(void *); /**< free() replacement */
+    void *(*malloc_fct)(size_t);                          /**< malloc() replacement */
+    void *(*memalign_fct)(size_t size, size_t alignment); /**< posix_memalign() replacement. Note the argument order! */
+    void *(*calloc_fct)(size_t, size_t);                  /**< calloc() replacement */
+    void *(*realloc_fct)(void *, size_t);                 /**< realloc() replacement */
+    void (*free_fct)(void *);                             /**< free() replacement */
 };
 
 /**
@@ -533,11 +534,11 @@ ns_create_job(struct ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t fun
  * \sa ns_job_t, ns_job_get_data, NS_JOB_READ, NS_JOB_WRITE, NS_JOB_ACCEPT, NS_JOB_CONNECT, NS_JOB_IS_IO, ns_job_done
  */
 ns_result_t ns_add_io_job(struct ns_thrpool_t *tp,
-                       PRFileDesc *fd,
-                       ns_job_type_t job_type,
-                       ns_job_func_t func,
-                       void *data,
-                       struct ns_job_t **job);
+                          PRFileDesc *fd,
+                          ns_job_type_t job_type,
+                          ns_job_func_t func,
+                          void *data,
+                          struct ns_job_t **job);
 
 /**
  * Adds a timeout job to the thread pool
@@ -560,11 +561,11 @@ ns_result_t ns_add_io_job(struct ns_thrpool_t *tp,
  * \sa ns_job_t, ns_job_get_data, NS_JOB_TIMER, NS_JOB_IS_TIMER, ns_job_done
  */
 ns_result_t ns_add_timeout_job(struct ns_thrpool_t *tp,
-                            struct timeval *tv,
-                            ns_job_type_t job_type,
-                            ns_job_func_t func,
-                            void *data,
-                            struct ns_job_t **job);
+                               struct timeval *tv,
+                               ns_job_type_t job_type,
+                               ns_job_func_t func,
+                               void *data,
+                               struct ns_job_t **job);
 
 /**
  * Adds an I/O job to the thread pool's work queue with a timeout.
@@ -611,12 +612,12 @@ ns_result_t ns_add_timeout_job(struct ns_thrpool_t *tp,
  * \sa ns_job_t, ns_job_get_data, NS_JOB_READ, NS_JOB_WRITE, NS_JOB_ACCEPT, NS_JOB_CONNECT, NS_JOB_IS_IO, ns_job_done, NS_JOB_TIMER, NS_JOB_IS_TIMER
  */
 ns_result_t ns_add_io_timeout_job(struct ns_thrpool_t *tp,
-                               PRFileDesc *fd,
-                               struct timeval *tv,
-                               ns_job_type_t job_type,
-                               ns_job_func_t func,
-                               void *data,
-                               struct ns_job_t **job);
+                                  PRFileDesc *fd,
+                                  struct timeval *tv,
+                                  ns_job_type_t job_type,
+                                  ns_job_func_t func,
+                                  void *data,
+                                  struct ns_job_t **job);
 
 /**
  * Adds a signal job to the thread pool
@@ -637,11 +638,11 @@ ns_result_t ns_add_io_timeout_job(struct ns_thrpool_t *tp,
  * \sa ns_job_t, ns_job_get_data, NS_JOB_SIGNAL, NS_JOB_IS_SIGNAL
  */
 ns_result_t ns_add_signal_job(ns_thrpool_t *tp,
-                           int32_t signum,
-                           ns_job_type_t job_type,
-                           ns_job_func_t func,
-                           void *data,
-                           struct ns_job_t **job);
+                              int32_t signum,
+                              ns_job_type_t job_type,
+                              ns_job_func_t func,
+                              void *data,
+                              struct ns_job_t **job);
 
 /**
  * Add a non-event related job to the thread pool

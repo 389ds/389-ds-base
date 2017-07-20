@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* dbverify.c - verify database files */
@@ -15,30 +15,30 @@
 #include "back-ldbm.h"
 #include "dblayer.h"
 
-static int 
-dbverify_ext( ldbm_instance *inst, int verbose )
+static int
+dbverify_ext(ldbm_instance *inst, int verbose)
 {
     char dbdir[MAXPATHLEN];
-    char *filep           = NULL;
-    PRDir *dirhandle      = NULL;
-    PRDirEntry *direntry  = NULL;
-    DB *dbp               = NULL;
-    size_t tmplen            = 0;
-    size_t filelen           = 0;
-    int rval              = 1;
-    int rval_main         = 0;
-    struct ldbminfo *li   = inst->inst_li;
-    dblayer_private *priv = (dblayer_private*)li->li_dblayer_private;
+    char *filep = NULL;
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    DB *dbp = NULL;
+    size_t tmplen = 0;
+    size_t filelen = 0;
+    int rval = 1;
+    int rval_main = 0;
+    struct ldbminfo *li = inst->inst_li;
+    dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
     struct dblayer_private_env *pEnv = priv->dblayer_env;
 
-    dbdir[sizeof(dbdir)-1] = '\0';
+    dbdir[sizeof(dbdir) - 1] = '\0';
     PR_snprintf(dbdir, sizeof(dbdir), "%s/%s", inst->inst_parent_dir_name,
-                                               inst->inst_dir_name);
-    if ('\0' != dbdir[sizeof(dbdir)-1]) /* overflown */
+                inst->inst_dir_name);
+    if ('\0' != dbdir[sizeof(dbdir) - 1]) /* overflown */
     {
         slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                        "db path too long: %s/%s\n",
-                         inst->inst_parent_dir_name, inst->inst_dir_name);
+                      "db path too long: %s/%s\n",
+                      inst->inst_parent_dir_name, inst->inst_dir_name);
         return 1;
     }
     tmplen = strlen(dbdir);
@@ -47,126 +47,104 @@ dbverify_ext( ldbm_instance *inst, int verbose )
 
     /* run dbverify on each each db file */
     dirhandle = PR_OpenDir(dbdir);
-    if (! dirhandle)
-    {
+    if (!dirhandle) {
         slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                        "PR_OpenDir (%s) failed (%d): %s\n", 
-                        dbdir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
+                      "PR_OpenDir (%s) failed (%d): %s\n",
+                      dbdir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         return 1;
     }
     while (NULL !=
-          (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
-    {
+           (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
         /* struct attrinfo *ai = NULL; */
         dbp = NULL;
 
-        if (!direntry->name)
-        {
+        if (!direntry->name) {
             break;
         }
         if (!strstr(direntry->name, LDBM_FILENAME_SUFFIX)) /* non db file */
         {
             continue;
         }
-        if (sizeof(direntry->name) + 2 > filelen)
-        {
+        if (sizeof(direntry->name) + 2 > filelen) {
             slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                                        "db path too long: %s/%s\n",
-                                         dbdir, direntry->name);
+                          "db path too long: %s/%s\n",
+                          dbdir, direntry->name);
             continue;
         }
         PR_snprintf(filep, filelen, "/%s", direntry->name);
         rval = db_create(&dbp, pEnv->dblayer_DB_ENV, 0);
-        if (0 != rval)
-        {
+        if (0 != rval) {
             slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                        "Unable to create id2entry db file %d\n", rval);
+                          "Unable to create id2entry db file %d\n", rval);
             return rval;
         }
 
 #define VLVPREFIX "vlv#"
-        if (0 != strncmp(direntry->name, ID2ENTRY, strlen(ID2ENTRY)))
-        {
+        if (0 != strncmp(direntry->name, ID2ENTRY, strlen(ID2ENTRY))) {
             struct attrinfo *ai = NULL;
             char *p = NULL;
             p = strstr(filep, LDBM_FILENAME_SUFFIX); /* since already checked,
                                                         it must have it */
-            if(p)
+            if (p)
                 *p = '\0';
-            ainfo_get( inst->inst_be, filep+1, &ai );
-            if(p)
+            ainfo_get(inst->inst_be, filep + 1, &ai);
+            if (p)
                 *p = '.';
             if (ai->ai_key_cmp_fn) {
                 dbp->app_private = (void *)ai->ai_key_cmp_fn;
                 dbp->set_bt_compare(dbp, dblayer_bt_compare);
             }
-            if (idl_get_idl_new())
-            {
+            if (idl_get_idl_new()) {
                 rval = dbp->set_pagesize(dbp,
-                        (priv->dblayer_index_page_size == 0) ?
-                        DBLAYER_INDEX_PAGESIZE : priv->dblayer_index_page_size);
-            }
-            else
-            {
+                                         (priv->dblayer_index_page_size == 0) ? DBLAYER_INDEX_PAGESIZE : priv->dblayer_index_page_size);
+            } else {
                 rval = dbp->set_pagesize(dbp,
-                        (priv->dblayer_page_size == 0) ?
-                        DBLAYER_PAGESIZE : priv->dblayer_page_size);
+                                         (priv->dblayer_page_size == 0) ? DBLAYER_PAGESIZE : priv->dblayer_page_size);
             }
-            if (0 != rval)
-            {
+            if (0 != rval) {
                 slapi_log_err(SLAPI_LOG_ERR, "DB verify",
-                         "Unable to set pagesize flags to db (%d)\n", rval);
+                              "Unable to set pagesize flags to db (%d)\n", rval);
                 return rval;
             }
-            if (0 == strncmp(direntry->name, VLVPREFIX, strlen(VLVPREFIX)))
-            {
+            if (0 == strncmp(direntry->name, VLVPREFIX, strlen(VLVPREFIX))) {
                 rval = dbp->set_flags(dbp, DB_RECNUM);
-                if (0 != rval)
-                {
+                if (0 != rval) {
                     slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                         "Unable to set RECNUM flag to vlv index (%d)\n", rval);
+                                  "Unable to set RECNUM flag to vlv index (%d)\n", rval);
                     return rval;
                 }
-            }
-            else if (idl_get_idl_new())
-            {
+            } else if (idl_get_idl_new()) {
                 rval = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
-                if (0 != rval)
-                {
+                if (0 != rval) {
                     slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                           "Unable to set DUP flags to db (%d)\n", rval);
+                                  "Unable to set DUP flags to db (%d)\n", rval);
                     return rval;
                 }
-    
-				if (ai->ai_dup_cmp_fn) {
-					/* If set, use the special dup compare callback */
-					rval = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
-				} else {
-					rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
-				}
 
-                if (0 != rval)
-                {
+                if (ai->ai_dup_cmp_fn) {
+                    /* If set, use the special dup compare callback */
+                    rval = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
+                } else {
+                    rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+                }
+
+                if (0 != rval) {
                     slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                           "Unable to set dup_compare to db (%d)\n", rval);
+                                  "Unable to set dup_compare to db (%d)\n", rval);
                     return rval;
                 }
             }
         }
 #undef VLVPREFIX
         rval = dbp->verify(dbp, dbdir, NULL, NULL, 0);
-        if (0 == rval)
-        {
-            if (verbose)
-            {
+        if (0 == rval) {
+            if (verbose) {
                 slapi_log_err(SLAPI_LOG_INFO, "dbverify_ext",
-                                                 "%s: ok\n", dbdir);
+                              "%s: ok\n", dbdir);
             }
-        }
-        else
-        {
+        } else {
             slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
-                            "verify failed(%d): %s\n", rval, dbdir);
+                          "verify failed(%d): %s\n", rval, dbdir);
         }
         rval_main |= rval;
         *filep = '\0';
@@ -176,17 +154,17 @@ dbverify_ext( ldbm_instance *inst, int verbose )
     return rval_main;
 }
 
-int 
-ldbm_back_dbverify( Slapi_PBlock *pb )
+int
+ldbm_back_dbverify(Slapi_PBlock *pb)
 {
-    struct ldbminfo *li   = NULL;
-    Object *inst_obj      = NULL;
-    ldbm_instance *inst   = NULL;
-    int verbose           = 0;
-    int rval              = 1;
-    int rval_main         = 0;
+    struct ldbminfo *li = NULL;
+    Object *inst_obj = NULL;
+    ldbm_instance *inst = NULL;
+    int verbose = 0;
+    int rval = 1;
+    int rval_main = 0;
     char **instance_names = NULL;
-    char *dbdir           = NULL;
+    char *dbdir = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_dbverify", "Verifying db files...\n");
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
@@ -197,10 +175,9 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
     ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
     /* no write needed; choose EXPORT MODE */
-    if (0 != dblayer_start(li, DBLAYER_EXPORT_MODE))
-    {
+    if (0 != dblayer_start(li, DBLAYER_EXPORT_MODE)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_dbverify",
-                "dbverify: Failed to init database\n");
+                      "dbverify: Failed to init database\n");
         return rval;
     }
 
@@ -209,41 +186,34 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
     if (instance_names) /* instance is specified */
     {
         char **inp = NULL;
-        for (inp = instance_names; inp && *inp; inp++)
-        {
+        for (inp = instance_names; inp && *inp; inp++) {
             inst = ldbm_instance_find_by_name(li, *inp);
-            if (inst)
-            {
-                if (dbdir){
+            if (inst) {
+                if (dbdir) {
                     /* verifying backup */
                     slapi_ch_free_string(&inst->inst_parent_dir_name);
                     inst->inst_parent_dir_name = slapi_ch_strdup(dbdir);
                 }
                 rval_main |= dbverify_ext(inst, verbose);
-            }
-            else
-            {
-                rval_main |= 1;    /* no such instance */
+            } else {
+                rval_main |= 1; /* no such instance */
             }
         }
-    }
-    else /* all instances */
+    } else /* all instances */
     {
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-              inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
-        {
+             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
             /* check if an import/restore is already ongoing... */
-            if (instance_set_busy(inst) != 0)
-            {
+            if (instance_set_busy(inst) != 0) {
                 /* standalone, only.  never happens */
                 slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_dbverify",
-                            "Backend '%s' is already in the middle of "
-                            "another task and cannot be disturbed.\n",
-                            inst->inst_name);
+                              "Backend '%s' is already in the middle of "
+                              "another task and cannot be disturbed.\n",
+                              inst->inst_name);
                 continue; /* skip this instance and go to the next*/
             }
-            if (dbdir){
+            if (dbdir) {
                 /* verifying backup */
                 slapi_ch_free_string(&inst->inst_parent_dir_name);
                 inst->inst_parent_dir_name = slapi_ch_strdup(dbdir);
@@ -254,10 +224,9 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
 
     /* close the database down again */
     rval = dblayer_post_close(li, DBLAYER_EXPORT_MODE);
-    if (0 != rval)
-    {
+    if (0 != rval) {
         slapi_log_err(SLAPI_LOG_ERR,
-                        "ldbm_back_dbverify", "Failed to close database\n");
+                      "ldbm_back_dbverify", "Failed to close database\n");
     }
 
     return rval_main;

@@ -9,7 +9,8 @@
 #include "../../test_slapd.h"
 
 void
-test_libslapd_counters_atomic_usage(void **state __attribute__((unused))) {
+test_libslapd_counters_atomic_usage(void **state __attribute__((unused)))
+{
     Slapi_Counter *tc = slapi_counter_new();
 
     uint64_t value = 0;
@@ -45,11 +46,11 @@ test_libslapd_counters_atomic_usage(void **state __attribute__((unused))) {
     slapi_counter_destroy(&tc);
 
     /* We could attempt a more complex thread test later? */
-
 }
 
 void
-test_libslapd_counters_atomic_overflow(void **state __attribute__((unused))) {
+test_libslapd_counters_atomic_overflow(void **state __attribute__((unused)))
+{
     Slapi_Counter *tc = slapi_counter_new();
     /* This is intmax ... */
     uint32_t value_32 = 0xFFFFFFFF;
@@ -66,4 +67,3 @@ test_libslapd_counters_atomic_overflow(void **state __attribute__((unused))) {
 
     slapi_counter_destroy(&tc);
 }
-

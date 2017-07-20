@@ -4,18 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
 #include "retrocl.h"
 
-/* 
-The changelog is created by 
+/*
+The changelog is created by
  - changing the node in the dse tree which represents the changelog plugin
    to enabled on,
  - shutting down the server,
@@ -28,15 +28,16 @@ The changelog is created by
  * Function: retrocl_create_be
  *
  * Returns: LDAP_
- * 
+ *
  * Arguments: location in file system to put changelog, or NULL for default
  *
- * Description: 
+ * Description:
  * add an entry of class nsBackendInstance below cn=ldbm,cn=plugins,cn=config
  *
  */
 
-static int retrocl_create_be(const char *bedir)
+static int
+retrocl_create_be(const char *bedir)
 {
     Slapi_PBlock *pb = NULL;
     Slapi_Entry *e;
@@ -45,70 +46,70 @@ static int retrocl_create_be(const char *bedir)
     int rc;
 
     vals[0] = &val;
-    vals[1] = NULL; 
+    vals[1] = NULL;
 
     e = slapi_entry_alloc();
     /* RETROCL_LDBM_DN is no need to be normalized. */
-    slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_LDBM_DN));
+    slapi_entry_set_dn(e, slapi_ch_strdup(RETROCL_LDBM_DN));
 
     /* Set the objectclass attribute */
     val.bv_val = "top";
     val.bv_len = 3;
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     /* Set the objectclass attribute */
     val.bv_val = "extensibleObject";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     /* Set the objectclass attribute */
     val.bv_val = "nsBackendInstance";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     val.bv_val = "changelog";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "cn", vals );
+    slapi_entry_add_values(e, "cn", vals);
 
     val.bv_val = RETROCL_BE_CACHESIZE;
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsslapd-cachesize", vals );
+    slapi_entry_add_values(e, "nsslapd-cachesize", vals);
 
     val.bv_val = RETROCL_CHANGELOG_DN;
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsslapd-suffix", vals );
+    slapi_entry_add_values(e, "nsslapd-suffix", vals);
 
     val.bv_val = RETROCL_BE_CACHEMEMSIZE;
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsslapd-cachememsize", vals );
+    slapi_entry_add_values(e, "nsslapd-cachememsize", vals);
 
     val.bv_val = "off";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsslapd-readonly", vals );
-    
+    slapi_entry_add_values(e, "nsslapd-readonly", vals);
+
     if (bedir) {
-        val.bv_val = (char *)bedir;  /* cast const */
-	val.bv_len = strlen(val.bv_val);
-	slapi_entry_add_values( e, "nsslapd-directory", vals );
+        val.bv_val = (char *)bedir; /* cast const */
+        val.bv_len = strlen(val.bv_val);
+        slapi_entry_add_values(e, "nsslapd-directory", vals);
     }
 
-    pb = slapi_pblock_new ();
-    slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
-				     g_plg_identity[PLUGIN_RETROCL], 
-				     0 /* actions */ );
-    slapi_add_internal_pb (pb);
-    slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
+    pb = slapi_pblock_new();
+    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */,
+                                    g_plg_identity[PLUGIN_RETROCL],
+                                    0 /* actions */);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);
-    
+
     if (rc == 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-			 "created changelog database node\n");
+                      "created changelog database node\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-			 "changelog database node already existed\n");
+                      "changelog database node already existed\n");
     } else {
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                "Changelog LDBM backend could not be created (%d)\n", rc);
+                      "Changelog LDBM backend could not be created (%d)\n", rc);
         return rc;
     }
 
@@ -116,51 +117,51 @@ static int retrocl_create_be(const char *bedir)
     /* we need the changenumber indexed */
     e = slapi_entry_alloc();
     /* RETROCL_INDEX_DN is no need to be normalized. */
-    slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_INDEX_DN));
+    slapi_entry_set_dn(e, slapi_ch_strdup(RETROCL_INDEX_DN));
 
     /* Set the objectclass attribute */
     val.bv_val = "top";
     val.bv_len = 3;
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     /* Set the objectclass attribute */
     val.bv_val = "nsIndex";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     val.bv_val = "changenumber";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "cn", vals );
+    slapi_entry_add_values(e, "cn", vals);
 
     val.bv_val = "false";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nssystemindex", vals );
+    slapi_entry_add_values(e, "nssystemindex", vals);
 
     val.bv_val = "eq";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsindextype", vals );
+    slapi_entry_add_values(e, "nsindextype", vals);
 
     val.bv_val = "integerOrderingMatch";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsMatchingRule", vals );
+    slapi_entry_add_values(e, "nsMatchingRule", vals);
 
-    pb = slapi_pblock_new ();
-    slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
-				     g_plg_identity[PLUGIN_RETROCL], 
-				     0 /* actions */ );
-    slapi_add_internal_pb (pb);
-    slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
+    pb = slapi_pblock_new();
+    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */,
+                                    g_plg_identity[PLUGIN_RETROCL],
+                                    0 /* actions */);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);
-    
+
     if (rc == 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-			 "created changenumber index node\n");
+                      "created changenumber index node\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-			 "changelog index node already existed\n");
+                      "changelog index node already existed\n");
     } else {
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                "Changelog LDBM backend changenumber index could not be created (%d)\n", rc);
+                      "Changelog LDBM backend changenumber index could not be created (%d)\n", rc);
         return rc;
     }
 
@@ -171,14 +172,15 @@ static int retrocl_create_be(const char *bedir)
  * Function: retrocl_create_config
  *
  * Returns: LDAP_
- * 
+ *
  * Arguments: none
  *
  * Description:
- * This function is called if there was no mapping tree node or backend for 
+ * This function is called if there was no mapping tree node or backend for
  * cn=changelog.
  */
-int retrocl_create_config(void)
+int
+retrocl_create_config(void)
 {
     Slapi_PBlock *pb = NULL;
     Slapi_Entry *e;
@@ -188,9 +190,9 @@ int retrocl_create_config(void)
     char *mappingtree_dn = NULL;
 
     vals[0] = &val;
-    vals[1] = NULL; 
+    vals[1] = NULL;
 
-    /* Assume the mapping tree node is missing.  It doesn't hurt to 
+    /* Assume the mapping tree node is missing.  It doesn't hurt to
      * attempt to add it if it already exists.  You will see a warning
      * in the errors file when the referenced backend does not exist.
      */
@@ -199,57 +201,58 @@ int retrocl_create_config(void)
     mappingtree_dn = slapi_create_dn_string("%s", RETROCL_MAPPINGTREE_DN);
     if (NULL == mappingtree_dn) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-                         "retrocl_create_config: failed to normalize "
-                         "mappingtree dn %s\n", RETROCL_MAPPINGTREE_DN);
+                      "retrocl_create_config: failed to normalize "
+                      "mappingtree dn %s\n",
+                      RETROCL_MAPPINGTREE_DN);
         return LDAP_PARAM_ERROR;
     }
     slapi_entry_set_dn(e, mappingtree_dn); /* mappingtree_dn is consumed */
-    
+
     /* Set the objectclass attribute */
     val.bv_val = "top";
     val.bv_len = 3;
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
-    
+
     /* Set the objectclass attribute */
     val.bv_val = "extensibleObject";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     /* Set the objectclass attribute */
     val.bv_val = "nsMappingTree";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
     val.bv_val = "backend";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsslapd-state", vals );
+    slapi_entry_add_values(e, "nsslapd-state", vals);
 
     val.bv_val = RETROCL_CHANGELOG_DN;
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "cn", vals );
+    slapi_entry_add_values(e, "cn", vals);
 
     val.bv_val = "changelog";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "nsslapd-backend", vals );
-    
-    pb = slapi_pblock_new ();
-    slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
-				     g_plg_identity[PLUGIN_RETROCL], 
-				     0 /* actions */ );
-    slapi_add_internal_pb (pb);
-    slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
+    slapi_entry_add_values(e, "nsslapd-backend", vals);
+
+    pb = slapi_pblock_new();
+    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */,
+                                    g_plg_identity[PLUGIN_RETROCL],
+                                    0 /* actions */);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);
-    
+
     if (rc == 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-                "created changelog mapping tree node\n");
+                      "created changelog mapping tree node\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-                "changelog mapping tree node already existed\n");
+                      "changelog mapping tree node already existed\n");
     } else {
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                "cn=\"cn=changelog\",cn=mapping tree,cn=config could not be created (%d)\n", rc);
+                      "cn=\"cn=changelog\",cn=mapping tree,cn=config could not be created (%d)\n", rc);
         return rc;
     }
 
@@ -285,7 +288,8 @@ int retrocl_create_config(void)
  * exist.
  */
 
-void retrocl_create_cle (void)
+void
+retrocl_create_cle(void)
 {
     Slapi_PBlock *pb = NULL;
     Slapi_Entry *e;
@@ -297,42 +301,41 @@ void retrocl_create_cle (void)
     vals[1] = NULL;
 
     e = slapi_entry_alloc();
-    slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_CHANGELOG_DN));
-    
+    slapi_entry_set_dn(e, slapi_ch_strdup(RETROCL_CHANGELOG_DN));
+
     /* Set the objectclass attribute */
     val.bv_val = "top";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
+    slapi_entry_add_values(e, "objectclass", vals);
 
-    
+
     /* Set the objectclass attribute */
     val.bv_val = "nsContainer";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "objectclass", vals );
-    
+    slapi_entry_add_values(e, "objectclass", vals);
+
 
     /* Set the objectclass attribute */
     val.bv_val = "changelog";
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "cn", vals );  
-    
-    pb = slapi_pblock_new ();
-    slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
-				     g_plg_identity[PLUGIN_RETROCL], 
-				     0 /* actions */ );
-    slapi_add_internal_pb (pb);
-    slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
+    slapi_entry_add_values(e, "cn", vals);
+
+    pb = slapi_pblock_new();
+    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */,
+                                    g_plg_identity[PLUGIN_RETROCL],
+                                    0 /* actions */);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);
-    
+
     if (rc == 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-			 "created cn=changelog\n");
+                      "created cn=changelog\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-			 "cn=changelog already existed\n");
+                      "cn=changelog already existed\n");
     } else {
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                "cn=changelog could not be created (%d)\n", rc);
+                      "cn=changelog could not be created (%d)\n", rc);
     }
 }
-

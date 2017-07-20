@@ -4,31 +4,31 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
 /* New IDL code for new indexing scheme */
 
-/* Note to future editors: 
-   This file is now full of redundant code 
+/* Note to future editors:
+   This file is now full of redundant code
    (the DB_ALLIDS_ON_WRITE==true).
-   It should be stripped out at the beginning of a 
-   major release cycle. 
+   It should be stripped out at the beginning of a
+   major release cycle.
  */
 
 #include "back-ldbm.h"
 
-static char* filename = "idl_new.c";
+static char *filename = "idl_new.c";
 
 #define DB_USE_BULK_FETCH 1
-#define BULK_FETCH_BUFFER_SIZE (8*1024)
+#define BULK_FETCH_BUFFER_SIZE (8 * 1024)
 
-/* We used to implement allids for inserts, but that's a bad idea. 
+/* We used to implement allids for inserts, but that's a bad idea.
    Why ? Because:
    1) Allids results in hard to understand query behavior.
    2) The get() calls needed to check for allids on insert cost performance.
@@ -40,9 +40,10 @@ static char* filename = "idl_new.c";
 #define DB_ALLIDS_ON_READ 1
 
 /* Structure used to hide private idl-specific data in the attrinfo object */
-struct idl_private {
-	size_t	idl_allidslimit;
-	int dummy;
+struct idl_private
+{
+    size_t idl_allidslimit;
+    int dummy;
 };
 
 static int idl_tune = DEFAULT_IDL_TUNE; /* tuning parameters for IDL code */
@@ -52,16 +53,20 @@ static int idl_tune = DEFAULT_IDL_TUNE; /* tuning parameters for IDL code */
 static int idl_new_store_allids(backend *be, DB *db, DBT *key, DB_TXN *txn);
 #endif
 
-void idl_new_set_tune(int val)
+void
+idl_new_set_tune(int val)
 {
-	idl_tune = val;
+    idl_tune = val;
 }
 
-int idl_new_get_tune(void) {
-  return idl_tune;
+int
+idl_new_get_tune(void)
+{
+    return idl_tune;
 }
 
-size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit)
+size_t
+idl_new_get_allidslimit(struct attrinfo *a, int allidslimit)
 {
     idl_private *priv = NULL;
 
@@ -73,11 +78,12 @@ size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit)
     PR_ASSERT(NULL != a->ai_idl);
 
     priv = a->ai_idl;
-    
+
     return priv->idl_allidslimit;
 }
 
-int idl_new_exceeds_allidslimit(size_t count, struct attrinfo *a, int allidslimit)
+int
+idl_new_exceeds_allidslimit(size_t count, struct attrinfo *a, int allidslimit)
 {
     size_t limit = idl_new_get_allidslimit(a, allidslimit);
     return (limit != (size_t)-1) && (count > limit);
@@ -85,45 +91,45 @@ int idl_new_exceeds_allidslimit(size_t count, struct attrinfo *a, int allidslimi
 
 
 /* routine to initialize the private data used by the IDL code per-attribute */
-int idl_new_init_private(backend *be,struct attrinfo *a)
+int
+idl_new_init_private(backend *be, struct attrinfo *a)
 {
-	idl_private *priv = NULL;
-	struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    idl_private *priv = NULL;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
-	PR_ASSERT(NULL != a);
-	PR_ASSERT(NULL == a->ai_idl);
+    PR_ASSERT(NULL != a);
+    PR_ASSERT(NULL == a->ai_idl);
 
-	priv = (idl_private*) slapi_ch_calloc(sizeof(idl_private),1);
-	if (NULL == priv) {
-		return -1; /* Memory allocation failure */
-	}
-	priv->idl_allidslimit = (size_t)li->li_allidsthreshold;
-	/* Initialize the structure */
-	a->ai_idl = (void*)priv;
-	return 0;
+    priv = (idl_private *)slapi_ch_calloc(sizeof(idl_private), 1);
+    if (NULL == priv) {
+        return -1; /* Memory allocation failure */
+    }
+    priv->idl_allidslimit = (size_t)li->li_allidsthreshold;
+    /* Initialize the structure */
+    a->ai_idl = (void *)priv;
+    return 0;
 }
 
 /* routine to release resources used by IDL private data structure */
-int idl_new_release_private(struct attrinfo *a)
+int
+idl_new_release_private(struct attrinfo *a)
 {
-	PR_ASSERT(NULL != a);
-	if (NULL != a->ai_idl)
-	{
-		slapi_ch_free((void**)&(a->ai_idl) );
-	}
-	return 0;
+    PR_ASSERT(NULL != a);
+    if (NULL != a->ai_idl) {
+        slapi_ch_free((void **)&(a->ai_idl));
+    }
+    return 0;
 }
 
 IDList *
 idl_new_fetch(
-    backend *be, 
-    DB* db, 
-    DBT *inkey, 
-    DB_TXN *txn, 
-    struct attrinfo *a, 
+    backend *be,
+    DB *db,
+    DBT *inkey,
+    DB_TXN *txn,
+    struct attrinfo *a,
     int *flag_err,
-    int allidslimit
-)
+    int allidslimit)
 {
     int ret = 0;
     int idl_rc = 0;
@@ -134,14 +140,13 @@ idl_new_fetch(
     ID id = 0;
     size_t count = 0;
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
-    char buffer[BULK_FETCH_BUFFER_SIZE]; 
+    char buffer[BULK_FETCH_BUFFER_SIZE];
     void *ptr;
     DBT dataret;
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
-    if (NEW_IDL_NOOP == *flag_err)
-    {
+    if (NEW_IDL_NOOP == *flag_err) {
         *flag_err = 0;
         return NULL;
     }
@@ -152,9 +157,9 @@ idl_new_fetch(
     }
 
     /* Make a cursor */
-    ret = db->cursor(db,txn,&cursor,0);
+    ret = db->cursor(db, txn, &cursor, 0);
     if (0 != ret) {
-        ldbm_nasty("idl_new_fetch",filename,1,ret);
+        ldbm_nasty("idl_new_fetch", filename, 1, ret);
         cursor = NULL;
         goto error;
     }
@@ -177,16 +182,16 @@ idl_new_fetch(
     key.flags = DB_DBT_USERMEM;
 
     /* Position cursor at the first matching key */
-    ret = cursor->c_get(cursor,&key,&data,DB_SET|DB_MULTIPLE);
+    ret = cursor->c_get(cursor, &key, &data, DB_SET | DB_MULTIPLE);
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
             if (ret == DB_BUFFER_SMALL) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Database index is corrupt; "
-                          "data item for key %s is too large for our buffer "
-                          "(need=%d actual=%d)\n",
-                          (char *)key.data, data.size, data.ulen);
+                                                              "data item for key %s is too large for our buffer "
+                                                              "(need=%d actual=%d)\n",
+                              (char *)key.data, data.size, data.ulen);
             }
-            ldbm_nasty("idl_new_fetch",filename,2,ret);
+            ldbm_nasty("idl_new_fetch", filename, 2, ret);
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
@@ -202,26 +207,29 @@ idl_new_fetch(
 
         for (;;) {
             DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
-            if (dataret.data == NULL) break;
-            if (ptr == NULL) break;
+            if (dataret.data == NULL)
+                break;
+            if (ptr == NULL)
+                break;
 
             if (*(int32_t *)ptr < -1) {
                 slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch",
-                        "DB_MULTIPLE buffer is corrupt; next offset [%d] is less than zero\n",
-                         *(int32_t *)ptr);
+                              "DB_MULTIPLE buffer is corrupt; next offset [%d] is less than zero\n",
+                              *(int32_t *)ptr);
                 /* retry the read */
                 break;
             }
             if (dataret.size != sizeof(ID)) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Database index is corrupt; "
-                          "key %s has a data item with the wrong size (%d)\n", 
-                          (char *)key.data, dataret.size);
+                                                              "key %s has a data item with the wrong size (%d)\n",
+                              (char *)key.data, dataret.size);
                 goto error;
             }
             memcpy(&id, dataret.data, sizeof(ID));
             if (id == lastid) { /* dup */
                 slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "Detected duplicate id "
-                              "%d due to DB_MULTIPLE error - skipping\n", id);
+                                                                "%d due to DB_MULTIPLE error - skipping\n",
+                              id);
                 continue; /* get next one */
             }
             /* note the last id read to check for dups */
@@ -237,8 +245,8 @@ idl_new_fetch(
             count++;
         }
 
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "bulk fetch buffer nids=%lu\n", count); 
-#if defined(DB_ALLIDS_ON_READ)	
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "bulk fetch buffer nids=%lu\n", count);
+#if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
             (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
@@ -246,12 +254,12 @@ idl_new_fetch(
             idl->b_ids[0] = ALLID;
             ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "idl_new_fetch", "Search for key for attribute index %s "
-                  "exceeded allidslimit %d - count is %lu\n",
-                  a->ai_type, allidslimit, count);
+                                                               "exceeded allidslimit %d - count is %lu\n",
+                          a->ai_type, allidslimit, count);
             break;
         }
 #endif
-        ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP|DB_MULTIPLE);
+        ret = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP | DB_MULTIPLE);
         if (0 != ret) {
             break;
         }
@@ -259,7 +267,7 @@ idl_new_fetch(
 
     if (ret != DB_NOTFOUND) {
         idl_free(&idl);
-        ldbm_nasty("idl_new_fetch",filename,59,ret);
+        ldbm_nasty("idl_new_fetch", filename, 59, ret);
         goto error;
     }
 
@@ -269,11 +277,11 @@ idl_new_fetch(
     if (idl != NULL && idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
         idl_free(&idl);
         idl = idl_allids(be);
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns allids\n", 
-                  (char *)key.data);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns allids\n",
+                      (char *)key.data);
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns nids=%lu\n", 
-                  (char *)key.data, (u_long)IDL_NIDS(idl));
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns nids=%lu\n",
+                      (char *)key.data, (u_long)IDL_NIDS(idl));
     }
 
 error:
@@ -281,7 +289,7 @@ error:
     if (NULL != cursor) {
         int ret2 = cursor->c_close(cursor);
         if (ret2) {
-            ldbm_nasty("idl_new_fetch",filename,3,ret2);
+            ldbm_nasty("idl_new_fetch", filename, 3, ret2);
             if (!ret) {
                 /* if cursor close returns DEADLOCK, we must bubble that up
                    to the higher layers for retries */
@@ -298,11 +306,12 @@ error:
     return idl;
 }
 
-typedef struct _range_id_pair {
+typedef struct _range_id_pair
+{
     ID key;
     ID id;
 } idl_range_id_pair;
-/* 
+/*
  * Perform the range search in the idl layer instead of the index layer
  * to improve the performance.
  */
@@ -319,7 +328,7 @@ typedef struct _range_id_pair {
 IDList *
 idl_new_range_fetch(
     backend *be,
-    DB* db,
+    DB *db,
     DBT *lowerkey,
     DBT *upperkey,
     DB_TXN *txn,
@@ -329,8 +338,8 @@ idl_new_range_fetch(
     int sizelimit,
     struct timespec *expire_time,
     int lookthrough_limit,
-    int operator
-)
+    int
+    operator)
 {
     int ret = 0;
     int idl_rc = 0;
@@ -347,7 +356,7 @@ idl_new_range_fetch(
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     void *saved_key = NULL;
-    int coreop = operator & SLAPI_OP_RANGE;
+    int coreop = operator&SLAPI_OP_RANGE;
     ID key = 0xff; /* random- to suppress compiler warning */
     ID suffix = 0; /* random- to suppress compiler warning */
     idl_range_id_pair *leftover = NULL;
@@ -370,7 +379,7 @@ idl_new_range_fetch(
     /* Make a cursor */
     ret = db->cursor(db, txn, &cursor, 0);
     if (0 != ret) {
-        ldbm_nasty("idl_new_range_fetch",filename,1,ret);
+        ldbm_nasty("idl_new_range_fetch", filename, 1, ret);
         cursor = NULL;
         goto error;
     }
@@ -394,15 +403,15 @@ idl_new_range_fetch(
     cur_key.flags = DB_DBT_MALLOC;
 
     /* Position cursor at the first matching key */
-    ret = cursor->c_get(cursor, &cur_key, &data, DB_SET|DB_MULTIPLE);
+    ret = cursor->c_get(cursor, &cur_key, &data, DB_SET | DB_MULTIPLE);
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
             if (ret == DB_BUFFER_SMALL) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
-                        "data item for key %s is too large for our buffer (need=%d actual=%d)\n",
-                        (char *)cur_key.data, data.size, data.ulen);
+                                                                    "data item for key %s is too large for our buffer (need=%d actual=%d)\n",
+                              (char *)cur_key.data, data.size, data.ulen);
             }
-            ldbm_nasty("idl_new_range_fetch",filename,2,ret);
+            ldbm_nasty("idl_new_range_fetch", filename, 2, ret);
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
@@ -412,11 +421,7 @@ idl_new_range_fetch(
 
     /* Iterate over the duplicates, amassing them into an IDL */
     while (cur_key.data &&
-           (upperkey && upperkey->data ?
-            ((coreop == SLAPI_OP_LESS) ?
-             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
-             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
-            PR_TRUE /* e.g., (x > a) */)) {
+           (upperkey && upperkey->data ? ((coreop == SLAPI_OP_LESS) ? DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 : DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) : PR_TRUE /* e.g., (x > a) */)) {
         ID lastid = 0;
 
         DB_MULTIPLE_INIT(ptr, &data);
@@ -426,15 +431,15 @@ idl_new_range_fetch(
             if ((lookthrough_limit != -1) &&
                 (idl->b_nids > (ID)lookthrough_limit)) {
                 idl_free(&idl);
-                idl = idl_allids( be );
+                idl = idl_allids(be);
                 slapi_log_err(SLAPI_LOG_TRACE,
-                          "idl_new_range_fetch", "lookthrough_limit exceeded\n");
+                              "idl_new_range_fetch", "lookthrough_limit exceeded\n");
                 *flag_err = LDAP_ADMINLIMIT_EXCEEDED;
                 goto error;
             }
             if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
                 slapi_log_err(SLAPI_LOG_TRACE,
-                               "idl_new_range_fetch", "sizelimit exceeded\n");
+                              "idl_new_range_fetch", "sizelimit exceeded\n");
                 *flag_err = LDAP_SIZELIMIT_EXCEEDED;
                 goto error;
             }
@@ -450,36 +455,39 @@ idl_new_range_fetch(
             *flag_err = LDAP_TIMELIMIT_EXCEEDED;
             goto error;
         }
-        if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
-            key = (ID)strtol((char *)cur_key.data+1 , (char **)NULL, 10);
+        if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
+            key = (ID)strtol((char *)cur_key.data + 1, (char **)NULL, 10);
         }
         while (PR_TRUE) {
             DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
-            if (dataret.data == NULL) break;
-            if (ptr == NULL) break;
+            if (dataret.data == NULL)
+                break;
+            if (ptr == NULL)
+                break;
 
             if (*(int32_t *)ptr < -1) {
                 slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "DB_MULTIPLE buffer is corrupt; "
-                    "next offset [%d] is less than zero\n", *(int32_t *)ptr);
+                                                                      "next offset [%d] is less than zero\n",
+                              *(int32_t *)ptr);
                 /* retry the read */
                 break;
             }
             if (dataret.size != sizeof(ID)) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
-                          "key %s has a data item with the wrong size (%d)\n", 
-                          (char *)cur_key.data, dataret.size);
+                                                                    "key %s has a data item with the wrong size (%d)\n",
+                              (char *)cur_key.data, dataret.size);
                 goto error;
             }
             memcpy(&id, dataret.data, sizeof(ID));
             if (id == lastid) { /* dup */
                 slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch",
-                    "Detected duplicate id %d due to DB_MULTIPLE error - skipping\n", id);
+                              "Detected duplicate id %d due to DB_MULTIPLE error - skipping\n", id);
                 continue; /* get next one */
             }
             /* note the last id read to check for dups */
             lastid = id;
             /* we got another ID, add it to our IDL */
-            if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+            if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
                 if (!idl) {
                     /* First time.  Keep the suffix ID. */
                     suffix = key;
@@ -504,7 +512,7 @@ idl_new_range_fetch(
             }
             if (idl_rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                        "Unable to extend id list (err=%d)\n", idl_rc);
+                              "Unable to extend id list (err=%d)\n", idl_rc);
                 idl_free(&idl);
                 goto error;
             }
@@ -513,7 +521,7 @@ idl_new_range_fetch(
         }
 
         slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch",
-                "Bulk fetch buffer nids=%lu\n", count); 
+                      "Bulk fetch buffer nids=%lu\n", count);
 #if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && ai && (idl != NULL) &&
@@ -524,7 +532,7 @@ idl_new_range_fetch(
             break;
         }
 #endif
-        ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_DUP|DB_MULTIPLE);
+        ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_DUP | DB_MULTIPLE);
         if (saved_key != cur_key.data) {
             /* key was allocated in c_get */
             slapi_ch_free(&saved_key);
@@ -546,7 +554,7 @@ idl_new_range_fetch(
                 break;
             }
             /* Read the dup data */
-            ret = cursor->c_get(cursor, &cur_key, &data, DB_SET|DB_MULTIPLE);
+            ret = cursor->c_get(cursor, &cur_key, &data, DB_SET | DB_MULTIPLE);
             if (saved_key != cur_key.data) {
                 /* key was allocated in c_get */
                 slapi_ch_free(&saved_key);
@@ -563,7 +571,7 @@ idl_new_range_fetch(
             ret = 0; /* normal case */
         } else {
             idl_free(&idl);
-            ldbm_nasty("idl_new_range_fetch",filename,59,ret);
+            ldbm_nasty("idl_new_range_fetch", filename, 59, ret);
             goto error;
         }
     }
@@ -572,11 +580,11 @@ idl_new_range_fetch(
     if (idl && (idl->b_nids == 1) && (idl->b_ids[0] == ALLID)) {
         idl_free(&idl);
         idl = idl_allids(be);
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns allids\n", 
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns allids\n",
                       (char *)cur_key.data);
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns nids=%lu\n", 
-        		(char *)cur_key.data, (u_long)IDL_NIDS(idl));
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns nids=%lu\n",
+                      (char *)cur_key.data, (u_long)IDL_NIDS(idl));
     }
 
 error:
@@ -585,7 +593,7 @@ error:
     if (NULL != cursor) {
         int ret2 = cursor->c_close(cursor);
         if (ret2) {
-            ldbm_nasty("idl_new_range_fetch",filename,3,ret2);
+            ldbm_nasty("idl_new_range_fetch", filename, 3, ret2);
             if (!ret) {
                 /* if cursor close returns DEADLOCK, we must bubble that up
                    to the higher layers for retries */
@@ -601,16 +609,16 @@ error:
     *flag_err = ret;
 
     /* sort idl */
-    if (idl && !ALLIDS(idl) && !(operator & SLAPI_OP_RANGE_NO_IDL_SORT)) {
+    if (idl && !ALLIDS(idl) && !(operator&SLAPI_OP_RANGE_NO_IDL_SORT)) {
         qsort((void *)&idl->b_ids[0], idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
     }
-    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+    if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
         for (size_t i = 0; i < leftovercnt; i++) {
             if (leftover[i].key && idl_id_is_in_idlist(idl, leftover[i].key) == 0) {
                 idl_rc = idl_append_extend(&idl, leftover[i].id);
                 if (idl_rc) {
                     slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                        "Unable to extend id list (err=%d)\n", idl_rc);
+                                  "Unable to extend id list (err=%d)\n", idl_rc);
                     idl_free(&idl);
                     return NULL;
                 }
@@ -622,15 +630,15 @@ error:
     return idl;
 }
 
-int idl_new_insert_key(
+int
+idl_new_insert_key(
     backend *be __attribute__((unused)),
-    DB* db, 
-    DBT *key, 
-    ID id, 
-    DB_TXN *txn, 
+    DB *db,
+    DBT *key,
+    ID id,
+    DB_TXN *txn,
     struct attrinfo *a __attribute__((unused)),
-    int *disposition 
-)
+    int *disposition)
 {
     int ret = 0;
     DBT data;
@@ -640,9 +648,9 @@ int idl_new_insert_key(
     db_recno_t count;
     ID tmpid = 0;
     /* Make a cursor */
-    ret = db->cursor(db,txn,&cursor,0);
+    ret = db->cursor(db, txn, &cursor, 0);
     if (0 != ret) {
-        ldbm_nasty("idl_new_insert_key",filename,58,ret);
+        ldbm_nasty("idl_new_insert_key", filename, 58, ret);
         cursor = NULL;
         goto error;
     }
@@ -651,16 +659,16 @@ int idl_new_insert_key(
     data.size = sizeof(id);
     data.flags = DB_DBT_USERMEM;
     data.data = &tmpid;
-    ret = cursor->c_get(cursor,key,&data,DB_SET);
+    ret = cursor->c_get(cursor, key, &data, DB_SET);
     if (0 == ret) {
         if (tmpid == ALLID) {
             if (NULL != disposition) {
                 *disposition = IDL_INSERT_ALLIDS;
             }
-            goto error;  /* allid: don't bother inserting any more */
+            goto error; /* allid: don't bother inserting any more */
         }
     } else if (DB_NOTFOUND != ret) {
-        ldbm_nasty("idl_new_insert_key",filename,12,ret);
+        ldbm_nasty("idl_new_insert_key", filename, 12, ret);
         goto error;
     }
     if (NULL != disposition) {
@@ -676,18 +684,18 @@ int idl_new_insert_key(
             /* this is okay */
             ret = 0;
         } else {
-            ldbm_nasty("idl_new_insert_key",filename,50,ret);
+            ldbm_nasty("idl_new_insert_key", filename, 50, ret);
         }
     } else {
         /* check for allidslimit exceeded in database */
         if (cursor->c_count(cursor, &count, 0) != 0) {
             slapi_log_err(SLAPI_LOG_ERR, "idl_new_insert_key", "Could not obtain count for key %s\n",
-            		(char *)key->data);
+                          (char *)key->data);
             goto error;
         }
         if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
             slapi_log_err(SLAPI_LOG_TRACE, "idl_new_insert_key", "allidslimit exceeded for key %s\n",
-            		(char *)key->data);
+                          (char *)key->data);
             cursor->c_close(cursor);
             cursor = NULL;
             if ((ret = idl_new_store_allids(be, db, key, txn)) == 0) {
@@ -696,14 +704,14 @@ int idl_new_insert_key(
                 }
             }
         }
-error:
-    /* Close the cursor */
-    if (NULL != cursor) {
-        int ret2 = cursor->c_close(cursor);
-        if (ret2) {
-            ldbm_nasty("idl_new_insert_key",filename,56,ret2);
+    error:
+        /* Close the cursor */
+        if (NULL != cursor) {
+            int ret2 = cursor->c_close(cursor);
+            if (ret2) {
+                ldbm_nasty("idl_new_insert_key", filename, 56, ret2);
+            }
         }
-    }
 #else
     memset(&data, 0, sizeof(data)); /* bdb says data = {0} is not sufficient */
     data.ulen = sizeof(id);
@@ -721,258 +729,254 @@ error:
             /* this is okay */
             ret = 0;
         } else {
-            ldbm_nasty("idl_new_insert_key",filename,60,ret);
+            ldbm_nasty("idl_new_insert_key", filename, 60, ret);
         }
     }
 #endif
 
-    return ret;
-}
-
-int idl_new_delete_key(
-    backend *be __attribute__((unused)),
-    DB *db, 
-    DBT *key, 
-    ID id, 
-    DB_TXN *txn, 
-    struct attrinfo *a __attribute__((unused))
-)
-{
-    int ret = 0;
-    DBC *cursor = NULL;
-    DBT data = {0};
-
-    /* Make a cursor */
-    ret = db->cursor(db,txn,&cursor,0);
-    if (0 != ret) {
-        ldbm_nasty("idl_new_delete_key",filename,21,ret);
-        cursor = NULL;
-        goto error;
-    }
-    data.ulen = sizeof(id);
-    data.size = sizeof(id);
-    data.flags = DB_DBT_USERMEM;
-    data.data = &id;
-    /* Position cursor at the key, value pair */
-    ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
-    if (0 == ret) {
-        if (id == ALLID) {
-            goto error;  /* allid: never delete it */
-        }
-    } else {
-        if (DB_NOTFOUND == ret) {
-            ret = 0; /* Not Found is OK, return immediately */
-        } else {
-            ldbm_nasty("idl_new_delete_key",filename,22,ret);
-        }
-        goto error; 
-    }
-    /* We found it, so delete it */
-    ret = cursor->c_del(cursor,0);
-error:
-    /* Close the cursor */
-    if (NULL != cursor) {
-        int ret2 = cursor->c_close(cursor);
-        if (ret2) {
-            ldbm_nasty("idl_new_delete_key",filename,24,ret2);
-            if (!ret) {
-                /* if cursor close returns DEADLOCK, we must bubble that up
-                   to the higher layers for retries */
-                ret = ret2;
-            }
-        }
-    }
-    return ret;
-}
-
-#if defined(DB_ALLIDS_ON_WRITE)
-static int idl_new_store_allids(backend *be, DB *db, DBT *key, DB_TXN *txn)
-{
-    int ret = 0;
-    DBC *cursor = NULL;
-    DBT data = {0};
-    ID id = 0;
-
-    /* Make a cursor */
-    ret = db->cursor(db,txn,&cursor,0);
-    if (0 != ret) {
-        ldbm_nasty(filename,31,ret);
-        cursor = NULL;
-        goto error;
-    }
-    data.ulen = sizeof(ID);
-    data.size = sizeof(ID);
-    data.data = &id;
-    data.flags = DB_DBT_USERMEM;
-
-    /* Position cursor at the key */
-    ret = cursor->c_get(cursor,key,&data,DB_SET);
-    if (ret == 0) {
-        /* We found it, so delete all duplicates */
-        ret = cursor->c_del(cursor,0);
-        while (0 == ret) {
-            ret = cursor->c_get(cursor,key,&data,DB_NEXT_DUP);
-            if (0 != ret) {
-                break;
-            }
-            ret = cursor->c_del(cursor,0);
-        }
-        if (0 != ret && DB_NOTFOUND != ret) {
-            ldbm_nasty("idl_new_store_allids",filename,54,ret);
-            goto error; 
-        } else {
-            ret = 0;
-        }
-    } else {
-        if (DB_NOTFOUND == ret) {
-            ret = 0; /* Not Found is OK */
-        } else {
-            ldbm_nasty("idl_new_store_allids",filename,32,ret);
-            goto error; 
-        }
-    }
-
-    /* store the ALLID value */
-    id = ALLID;
-    ret = cursor->c_put(cursor, key, &data, DB_NODUPDATA);
-    if (0 != ret) {
-        ldbm_nasty("idl_new_store_allids",filename,53,ret);
-        goto error;
-    }
-
-    slapi_log_err(SLAPI_LOG_TRACE, "idl_new_store_allids", "Key %s has been set to allids\n",
-    		(char *)key->data);
-
-error:
-    /* Close the cursor */
-    if (NULL != cursor) {
-        int ret2 = cursor->c_close(cursor);
-        if (ret2) {
-            ldbm_nasty("idl_new_store_allids",filename,33,ret2);
-        }
-    }
-    return ret;
-#ifdef KRAZY_K0DE
-    /* If this function is called in "no-allids" mode, then it's a bug */
-    ldbm_nasty(filename,63,0);
-    return -1;
-#endif
-}
-#endif
-
-int idl_new_store_block(
-    backend *be __attribute__((unused)),
-    DB *db,
-    DBT *key,
-    IDList *idl,
-    DB_TXN *txn,
-    struct attrinfo *a __attribute__((unused))
-)
-{
-    int ret = 0;
-    DBC *cursor = NULL;
-    DBT data = {0};
-    ID id = 0;
-    size_t x = 0;
-#if defined(DB_ALLIDS_ON_WRITE)
-    db_recno_t count;
-#endif
-
-    if (NULL == idl)
-    {
         return ret;
     }
 
-    /* 
-     * Really we need an extra entry point to the DB here, which
-     * inserts a list of duplicate keys. In the meantime, we'll
-     * just do it by brute force. 
-     */
-#if defined(DB_ALLIDS_ON_WRITE)
-    /* allids check on input idl */
-    if (ALLIDS(idl) || (idl->b_nids > (ID)idl_new_get_allidslimit(a, 0))) {
-        return idl_new_store_allids(be, db, key, txn);
-    }
-#endif
+    int idl_new_delete_key(
+        backend * be __attribute__((unused)),
+        DB * db,
+        DBT * key,
+        ID id,
+        DB_TXN * txn,
+        struct attrinfo * a __attribute__((unused)))
+    {
+        int ret = 0;
+        DBC *cursor = NULL;
+        DBT data = {0};
 
-    /* Make a cursor */
-    ret = db->cursor(db,txn,&cursor,0);
-    if (0 != ret) {
-        ldbm_nasty("idl_new_store_block",filename,41,ret);
-        cursor = NULL;
-        goto error;
-    }
-
-    /* initialize data DBT */
-    data.data = &id;
-    data.ulen = sizeof(id);
-    data.size = sizeof(id);
-    data.flags = DB_DBT_USERMEM;
-
-    /* Position cursor at the key, value pair */
-    ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
-    if (ret == DB_NOTFOUND) {
-        ret = 0;
-    } else if (ret != 0) {
-        ldbm_nasty("idl_new_store_block",filename,47,ret);
-        goto error;
-    } 
-
-    /* Iterate over the IDs in the idl */
-    for (x = 0; x < idl->b_nids; x++) {
-        /* insert an id */
-        id = idl->b_ids[x];
-        ret = cursor->c_put(cursor, key, &data, DB_NODUPDATA);
+        /* Make a cursor */
+        ret = db->cursor(db, txn, &cursor, 0);
         if (0 != ret) {
-            if (DB_KEYEXIST == ret) {
-                ret = 0;   /* exist is okay */
-            } else {
-                ldbm_nasty("idl_new_store_block",filename,48,ret);
-                goto error;
+            ldbm_nasty("idl_new_delete_key", filename, 21, ret);
+            cursor = NULL;
+            goto error;
+        }
+        data.ulen = sizeof(id);
+        data.size = sizeof(id);
+        data.flags = DB_DBT_USERMEM;
+        data.data = &id;
+        /* Position cursor at the key, value pair */
+        ret = cursor->c_get(cursor, key, &data, DB_GET_BOTH);
+        if (0 == ret) {
+            if (id == ALLID) {
+                goto error; /* allid: never delete it */
             }
-        } 
-    }
-#if defined(DB_ALLIDS_ON_WRITE)
-    /* check for allidslimit exceeded in database */
-    if (cursor->c_count(cursor, &count, 0) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "idl_new_store_block",
-                "could not obtain count for key %s\n", (char *)key->data);
-        goto error;
-    }
-    if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_store_block",
-                "allidslimit exceeded for key %s\n", (char *)key->data);
-        cursor->c_close(cursor);
-        cursor = NULL;
-        ret = idl_new_store_allids(be, db, key, txn);
-    }
-#endif
-
-error:
-    /* Close the cursor */
-    if (NULL != cursor) {
-        int ret2 = cursor->c_close(cursor);
-        if (ret2) {
-            ldbm_nasty("idl_new_store_block",filename,49,ret2);
-            if (!ret) {
-                /* if cursor close returns DEADLOCK, we must bubble that up
+        } else {
+            if (DB_NOTFOUND == ret) {
+                ret = 0; /* Not Found is OK, return immediately */
+            } else {
+                ldbm_nasty("idl_new_delete_key", filename, 22, ret);
+            }
+            goto error;
+        }
+        /* We found it, so delete it */
+        ret = cursor->c_del(cursor, 0);
+    error:
+        /* Close the cursor */
+        if (NULL != cursor) {
+            int ret2 = cursor->c_close(cursor);
+            if (ret2) {
+                ldbm_nasty("idl_new_delete_key", filename, 24, ret2);
+                if (!ret) {
+                    /* if cursor close returns DEADLOCK, we must bubble that up
                    to the higher layers for retries */
-                ret = ret2;
+                    ret = ret2;
+                }
             }
         }
+        return ret;
     }
-    return ret;
-}
 
-/* idl_new_compare_dups: comparing ID, pass to libdb for callback */
-int idl_new_compare_dups(
-    DB *db __attribute__((unused)),
-    const DBT *a, 
-    const DBT *b
-)
-{
-	ID a_copy, b_copy;
-	memmove(&a_copy, a->data, sizeof(ID));
-	memmove(&b_copy, b->data, sizeof(ID));
-	return a_copy - b_copy;
-}
+#if defined(DB_ALLIDS_ON_WRITE)
+    static int idl_new_store_allids(backend * be, DB * db, DBT * key, DB_TXN * txn)
+    {
+        int ret = 0;
+        DBC *cursor = NULL;
+        DBT data = {0};
+        ID id = 0;
+
+        /* Make a cursor */
+        ret = db->cursor(db, txn, &cursor, 0);
+        if (0 != ret) {
+            ldbm_nasty(filename, 31, ret);
+            cursor = NULL;
+            goto error;
+        }
+        data.ulen = sizeof(ID);
+        data.size = sizeof(ID);
+        data.data = &id;
+        data.flags = DB_DBT_USERMEM;
+
+        /* Position cursor at the key */
+        ret = cursor->c_get(cursor, key, &data, DB_SET);
+        if (ret == 0) {
+            /* We found it, so delete all duplicates */
+            ret = cursor->c_del(cursor, 0);
+            while (0 == ret) {
+                ret = cursor->c_get(cursor, key, &data, DB_NEXT_DUP);
+                if (0 != ret) {
+                    break;
+                }
+                ret = cursor->c_del(cursor, 0);
+            }
+            if (0 != ret && DB_NOTFOUND != ret) {
+                ldbm_nasty("idl_new_store_allids", filename, 54, ret);
+                goto error;
+            } else {
+                ret = 0;
+            }
+        } else {
+            if (DB_NOTFOUND == ret) {
+                ret = 0; /* Not Found is OK */
+            } else {
+                ldbm_nasty("idl_new_store_allids", filename, 32, ret);
+                goto error;
+            }
+        }
+
+        /* store the ALLID value */
+        id = ALLID;
+        ret = cursor->c_put(cursor, key, &data, DB_NODUPDATA);
+        if (0 != ret) {
+            ldbm_nasty("idl_new_store_allids", filename, 53, ret);
+            goto error;
+        }
+
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_store_allids", "Key %s has been set to allids\n",
+                      (char *)key->data);
+
+    error:
+        /* Close the cursor */
+        if (NULL != cursor) {
+            int ret2 = cursor->c_close(cursor);
+            if (ret2) {
+                ldbm_nasty("idl_new_store_allids", filename, 33, ret2);
+            }
+        }
+        return ret;
+#ifdef KRAZY_K0DE
+        /* If this function is called in "no-allids" mode, then it's a bug */
+        ldbm_nasty(filename, 63, 0);
+        return -1;
+#endif
+    }
+#endif
+
+    int idl_new_store_block(
+        backend * be __attribute__((unused)),
+        DB * db,
+        DBT * key,
+        IDList * idl,
+        DB_TXN * txn,
+        struct attrinfo * a __attribute__((unused)))
+    {
+        int ret = 0;
+        DBC *cursor = NULL;
+        DBT data = {0};
+        ID id = 0;
+        size_t x = 0;
+#if defined(DB_ALLIDS_ON_WRITE)
+        db_recno_t count;
+#endif
+
+        if (NULL == idl) {
+            return ret;
+        }
+
+/*
+     * Really we need an extra entry point to the DB here, which
+     * inserts a list of duplicate keys. In the meantime, we'll
+     * just do it by brute force.
+     */
+#if defined(DB_ALLIDS_ON_WRITE)
+        /* allids check on input idl */
+        if (ALLIDS(idl) || (idl->b_nids > (ID)idl_new_get_allidslimit(a, 0))) {
+            return idl_new_store_allids(be, db, key, txn);
+        }
+#endif
+
+        /* Make a cursor */
+        ret = db->cursor(db, txn, &cursor, 0);
+        if (0 != ret) {
+            ldbm_nasty("idl_new_store_block", filename, 41, ret);
+            cursor = NULL;
+            goto error;
+        }
+
+        /* initialize data DBT */
+        data.data = &id;
+        data.ulen = sizeof(id);
+        data.size = sizeof(id);
+        data.flags = DB_DBT_USERMEM;
+
+        /* Position cursor at the key, value pair */
+        ret = cursor->c_get(cursor, key, &data, DB_GET_BOTH);
+        if (ret == DB_NOTFOUND) {
+            ret = 0;
+        } else if (ret != 0) {
+            ldbm_nasty("idl_new_store_block", filename, 47, ret);
+            goto error;
+        }
+
+        /* Iterate over the IDs in the idl */
+        for (x = 0; x < idl->b_nids; x++) {
+            /* insert an id */
+            id = idl->b_ids[x];
+            ret = cursor->c_put(cursor, key, &data, DB_NODUPDATA);
+            if (0 != ret) {
+                if (DB_KEYEXIST == ret) {
+                    ret = 0; /* exist is okay */
+                } else {
+                    ldbm_nasty("idl_new_store_block", filename, 48, ret);
+                    goto error;
+                }
+            }
+        }
+#if defined(DB_ALLIDS_ON_WRITE)
+        /* check for allidslimit exceeded in database */
+        if (cursor->c_count(cursor, &count, 0) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "idl_new_store_block",
+                          "could not obtain count for key %s\n", (char *)key->data);
+            goto error;
+        }
+        if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
+            slapi_log_err(SLAPI_LOG_TRACE, "idl_new_store_block",
+                          "allidslimit exceeded for key %s\n", (char *)key->data);
+            cursor->c_close(cursor);
+            cursor = NULL;
+            ret = idl_new_store_allids(be, db, key, txn);
+        }
+#endif
+
+    error:
+        /* Close the cursor */
+        if (NULL != cursor) {
+            int ret2 = cursor->c_close(cursor);
+            if (ret2) {
+                ldbm_nasty("idl_new_store_block", filename, 49, ret2);
+                if (!ret) {
+                    /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                    ret = ret2;
+                }
+            }
+        }
+        return ret;
+    }
+
+    /* idl_new_compare_dups: comparing ID, pass to libdb for callback */
+    int idl_new_compare_dups(
+        DB * db __attribute__((unused)),
+        const DBT *a,
+        const DBT *b)
+    {
+        ID a_copy, b_copy;
+        memmove(&a_copy, a->data, sizeof(ID));
+        memmove(&b_copy, b->data, sizeof(ID));
+        return a_copy - b_copy;
+    }

@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -34,8 +34,8 @@ static Slapi_DN *_ConfigArea = NULL;
 
 /*
  * function prototypes
- */ 
-static int pam_passthru_apply_config (Slapi_Entry* e);
+ */
+static int pam_passthru_apply_config(Slapi_Entry *e);
 
 /*
  * Read and load configuration.  Validation will also
@@ -53,7 +53,7 @@ pam_passthru_load_config(int skip_validate)
     Slapi_Entry **entries = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                     "=> pam_passthru_load_config\n");
+                  "=> pam_passthru_load_config\n");
 
     pam_passthru_write_lock();
     pam_passthru_delete_config();
@@ -83,7 +83,7 @@ pam_passthru_load_config(int skip_validate)
     /* Check if we are using an alternate config area.  We do this here
      * so we don't have to check each every time in the loop below. */
     if (slapi_sdn_compare(pam_passthru_get_config_area(),
-            pam_passthruauth_get_plugin_sdn()) != 0) {
+                          pam_passthruauth_get_plugin_sdn()) != 0) {
         alternate = 1;
     }
 
@@ -94,29 +94,31 @@ pam_passthru_load_config(int skip_validate)
         /* If this is the alternate config container, skip it since
          * we don't consider it to be an actual config entry. */
         if (alternate && (slapi_sdn_compare(pam_passthru_get_config_area(),
-                slapi_entry_get_sdn(entries[i])) == 0)) {
+                                            slapi_entry_get_sdn(entries[i])) == 0)) {
             continue;
         }
 
         if (skip_validate || (PAM_PASSTHRU_SUCCESS == pam_passthru_validate_config(entries[i], NULL))) {
             if (PAM_PASSTHRU_FAILURE == pam_passthru_apply_config(entries[i])) {
                 slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                                 "pam_passthru_load_config - Unable to apply config "
-                                 "for entry \"%s\"\n", slapi_entry_get_ndn(entries[i]));
+                              "pam_passthru_load_config - Unable to apply config "
+                              "for entry \"%s\"\n",
+                              slapi_entry_get_ndn(entries[i]));
             }
         } else {
             slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                             "pam_passthru_load_config - Skipping invalid config "
-                             "entry \"%s\"\n", slapi_entry_get_ndn(entries[i]));
+                          "pam_passthru_load_config - Skipping invalid config "
+                          "entry \"%s\"\n",
+                          slapi_entry_get_ndn(entries[i]));
         }
     }
 
-  cleanup:
+cleanup:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
     pam_passthru_unlock();
     slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                    "<= pam_passthru_load_config\n");
+                  "<= pam_passthru_load_config\n");
 
     return status;
 }
@@ -160,7 +162,7 @@ pam_passthru_free_config_entry(Pam_PassthruConfig **entry)
     slapi_ch_free_string(&e->filter_str);
     slapi_filter_free(e->slapi_filter, 1);
 
-    slapi_ch_free((void **) entry);
+    slapi_ch_free((void **)entry);
 }
 
 /*
@@ -170,7 +172,7 @@ static void
 pam_passthru_delete_configEntry(PRCList *entry)
 {
     PR_REMOVE_LINK(entry);
-    pam_passthru_free_config_entry((Pam_PassthruConfig **) &entry);
+    pam_passthru_free_config_entry((Pam_PassthruConfig **)&entry);
 }
 
 /*
@@ -192,160 +194,167 @@ pam_passthru_delete_config()
 static int
 missing_suffix_to_int(char *missing_suffix)
 {
-	int retval = -1; /* -1 is error */
-	if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ERROR_STRING)) {
-		retval = PAMPT_MISSING_SUFFIX_ERROR;
-	} else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ALLOW_STRING)) {
-		retval = PAMPT_MISSING_SUFFIX_ALLOW;
-	} else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_IGNORE_STRING)) {
-		retval = PAMPT_MISSING_SUFFIX_IGNORE;
-	}
+    int retval = -1; /* -1 is error */
+    if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ERROR_STRING)) {
+        retval = PAMPT_MISSING_SUFFIX_ERROR;
+    } else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ALLOW_STRING)) {
+        retval = PAMPT_MISSING_SUFFIX_ALLOW;
+    } else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_IGNORE_STRING)) {
+        retval = PAMPT_MISSING_SUFFIX_IGNORE;
+    }
 
-	return retval;
+    return retval;
 }
 
 static PRBool
-check_missing_suffix_flag(int val) {
-	if (val == PAMPT_MISSING_SUFFIX_ERROR ||
-		val == PAMPT_MISSING_SUFFIX_ALLOW ||
-		val == PAMPT_MISSING_SUFFIX_IGNORE) {
-		return PR_TRUE;
-	}
+check_missing_suffix_flag(int val)
+{
+    if (val == PAMPT_MISSING_SUFFIX_ERROR ||
+        val == PAMPT_MISSING_SUFFIX_ALLOW ||
+        val == PAMPT_MISSING_SUFFIX_IGNORE) {
+        return PR_TRUE;
+    }
 
-	return PR_FALSE;
+    return PR_FALSE;
 }
 
-static char *get_missing_suffix_values(void)
+static char *
+get_missing_suffix_values(void)
 {
-	return PAMPT_MISSING_SUFFIX_ERROR_STRING ", " PAMPT_MISSING_SUFFIX_ALLOW_STRING ", "
-		PAMPT_MISSING_SUFFIX_IGNORE_STRING;
+    return PAMPT_MISSING_SUFFIX_ERROR_STRING ", " PAMPT_MISSING_SUFFIX_ALLOW_STRING ", " PAMPT_MISSING_SUFFIX_IGNORE_STRING;
 }
 
-static char *get_map_method_values(void)
+static char *
+get_map_method_values(void)
 {
-	return PAMPT_MAP_METHOD_DN_STRING " or " PAMPT_MAP_METHOD_RDN_STRING " or " PAMPT_MAP_METHOD_ENTRY_STRING;
+    return PAMPT_MAP_METHOD_DN_STRING " or " PAMPT_MAP_METHOD_RDN_STRING " or " PAMPT_MAP_METHOD_ENTRY_STRING;
 }
 
 static int
 meth_to_int(char **map_method, int *err)
 {
-	char *end;
-	int len;
-	int ret = PAMPT_MAP_METHOD_NONE;
+    char *end;
+    int len;
+    int ret = PAMPT_MAP_METHOD_NONE;
 
-	*err = 0;
-	if (!map_method || !*map_method) {
-		return ret;
-	}
+    *err = 0;
+    if (!map_method || !*map_method) {
+        return ret;
+    }
 
-	end = strchr(*map_method, ' ');
-	if (!end) {
-		len = strlen(*map_method);
-	} else {
-		len = end - *map_method;
-	}
-	if (!PL_strncasecmp(*map_method, PAMPT_MAP_METHOD_DN_STRING, len)) {
-		ret = PAMPT_MAP_METHOD_DN;
-	} else if (!PL_strncasecmp(*map_method, PAMPT_MAP_METHOD_RDN_STRING, len)) {
-		ret = PAMPT_MAP_METHOD_RDN;
-	} else if (!PL_strncasecmp(*map_method, PAMPT_MAP_METHOD_ENTRY_STRING, len)) {
-		ret = PAMPT_MAP_METHOD_ENTRY;
-	} else {
-		*err = 1;
-	}
+    end = strchr(*map_method, ' ');
+    if (!end) {
+        len = strlen(*map_method);
+    } else {
+        len = end - *map_method;
+    }
+    if (!PL_strncasecmp(*map_method, PAMPT_MAP_METHOD_DN_STRING, len)) {
+        ret = PAMPT_MAP_METHOD_DN;
+    } else if (!PL_strncasecmp(*map_method, PAMPT_MAP_METHOD_RDN_STRING, len)) {
+        ret = PAMPT_MAP_METHOD_RDN;
+    } else if (!PL_strncasecmp(*map_method, PAMPT_MAP_METHOD_ENTRY_STRING, len)) {
+        ret = PAMPT_MAP_METHOD_ENTRY;
+    } else {
+        *err = 1;
+    }
 
-	if (!*err) {
-		if (end && *end) {
-			*map_method = end + 1;
-		} else {
-			*map_method = NULL;
-		}
-	}
+    if (!*err) {
+        if (end && *end) {
+            *map_method = end + 1;
+        } else {
+            *map_method = NULL;
+        }
+    }
 
-	return ret;
+    return ret;
 }
 
 static int
 parse_map_method(char *map_method, int *one, int *two, int *three, char *returntext)
 {
-	int err = PAM_PASSTHRU_SUCCESS;
-	char **ptr = &map_method;
+    int err = PAM_PASSTHRU_SUCCESS;
+    char **ptr = &map_method;
 
-	*one = *two = *three = PAMPT_MAP_METHOD_NONE;
-	*one = meth_to_int(ptr, &err);
-	if (err) {
-		if (returntext) {
-			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-						"The map method in the string [%s] is invalid: must be "
-						"one of %s", map_method, get_map_method_values());
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"parse_map_method - The map method in the string [%s] is invalid: must be "
-						"one of %s\n", map_method, get_map_method_values());
-		}
-		err = PAM_PASSTHRU_FAILURE;
-		goto bail;
-	}
-	*two = meth_to_int(ptr, &err);
-	if (err) {
-		if (returntext) {
-			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-						"The map method in the string [%s] is invalid: must be "
-						"one of %s", map_method, get_map_method_values());
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"parse_map_method - The map method in the string [%s] is invalid: must be "
-						"one of %s\n", map_method, get_map_method_values());
-		}
-		err = PAM_PASSTHRU_FAILURE;
-                goto bail;
-	}
-	*three = meth_to_int(ptr, &err);
-	if (err) {
-		if (returntext) {
-			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-						"The map method in the string [%s] is invalid: must be "
-						"one of %s", map_method, get_map_method_values());
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"parse_map_method - The map method in the string [%s] is invalid: must be "
-						"one of %s\n", map_method, get_map_method_values());
-		}
-		err = PAM_PASSTHRU_FAILURE;
-                goto bail;
-	}
-	if ((meth_to_int(ptr, &err) != PAMPT_MAP_METHOD_NONE) || err) {
-		if (returntext) {
-			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-						"Invalid extra text [%s] after last map method",
-						((ptr && *ptr) ? *ptr : "(null)"));
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"parse_map_method - Invalid extra text [%s] after last map method\n",
-						((ptr && *ptr) ? *ptr : "(null)"));
-		}
-		err = PAM_PASSTHRU_FAILURE;
-                goto bail;
-	}
+    *one = *two = *three = PAMPT_MAP_METHOD_NONE;
+    *one = meth_to_int(ptr, &err);
+    if (err) {
+        if (returntext) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "The map method in the string [%s] is invalid: must be "
+                        "one of %s",
+                        map_method, get_map_method_values());
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                          "parse_map_method - The map method in the string [%s] is invalid: must be "
+                          "one of %s\n",
+                          map_method, get_map_method_values());
+        }
+        err = PAM_PASSTHRU_FAILURE;
+        goto bail;
+    }
+    *two = meth_to_int(ptr, &err);
+    if (err) {
+        if (returntext) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "The map method in the string [%s] is invalid: must be "
+                        "one of %s",
+                        map_method, get_map_method_values());
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                          "parse_map_method - The map method in the string [%s] is invalid: must be "
+                          "one of %s\n",
+                          map_method, get_map_method_values());
+        }
+        err = PAM_PASSTHRU_FAILURE;
+        goto bail;
+    }
+    *three = meth_to_int(ptr, &err);
+    if (err) {
+        if (returntext) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "The map method in the string [%s] is invalid: must be "
+                        "one of %s",
+                        map_method, get_map_method_values());
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                          "parse_map_method - The map method in the string [%s] is invalid: must be "
+                          "one of %s\n",
+                          map_method, get_map_method_values());
+        }
+        err = PAM_PASSTHRU_FAILURE;
+        goto bail;
+    }
+    if ((meth_to_int(ptr, &err) != PAMPT_MAP_METHOD_NONE) || err) {
+        if (returntext) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Invalid extra text [%s] after last map method",
+                        ((ptr && *ptr) ? *ptr : "(null)"));
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                          "parse_map_method - Invalid extra text [%s] after last map method\n",
+                          ((ptr && *ptr) ? *ptr : "(null)"));
+        }
+        err = PAM_PASSTHRU_FAILURE;
+        goto bail;
+    }
 
-  bail:
-	return err;
+bail:
+    return err;
 }
 
 static void
 print_suffixes(void)
 {
-	void *cookie = NULL;
-	Slapi_DN *sdn = NULL;
-	slapi_log_err(SLAPI_LOG_INFO, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-					"print_suffixes - The following is the list of valid suffixes to use with "
-					PAMPT_EXCLUDES_ATTR " and " PAMPT_INCLUDES_ATTR ":\n");
-	for (sdn = slapi_get_first_suffix(&cookie, 1);
-		 sdn && cookie;
-		 sdn = slapi_get_next_suffix(&cookie, 1)) {
-		slapi_log_err(SLAPI_LOG_INFO, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"print_suffixes -\t%s\n", slapi_sdn_get_dn(sdn));
-	}
+    void *cookie = NULL;
+    Slapi_DN *sdn = NULL;
+    slapi_log_err(SLAPI_LOG_INFO, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                  "print_suffixes - The following is the list of valid suffixes to use with " PAMPT_EXCLUDES_ATTR " and " PAMPT_INCLUDES_ATTR ":\n");
+    for (sdn = slapi_get_first_suffix(&cookie, 1);
+         sdn && cookie;
+         sdn = slapi_get_next_suffix(&cookie, 1)) {
+        slapi_log_err(SLAPI_LOG_INFO, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                      "print_suffixes -\t%s\n", slapi_sdn_get_dn(sdn));
+    }
 }
 
 /*
@@ -353,212 +362,216 @@ print_suffixes(void)
  * If returntext is NULL, we log messages about invalid config
  * to the errors log.
  */
-int 
-pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
+int
+pam_passthru_validate_config(Slapi_Entry *e, char *returntext)
 {
-	int rc = PAM_PASSTHRU_FAILURE;
-	char *missing_suffix_str = NULL;
-	int missing_suffix;
-	int ii;
-	char **excludes = NULL;
-	char **includes = NULL;
-	char *pam_ident_attr = NULL;
-	char *map_method = NULL;
-	char *pam_filter_str = NULL;
-	Slapi_Filter *pam_filter = NULL;
+    int rc = PAM_PASSTHRU_FAILURE;
+    char *missing_suffix_str = NULL;
+    int missing_suffix;
+    int ii;
+    char **excludes = NULL;
+    char **includes = NULL;
+    char *pam_ident_attr = NULL;
+    char *map_method = NULL;
+    char *pam_filter_str = NULL;
+    Slapi_Filter *pam_filter = NULL;
 
-	/* first, get the missing_suffix flag and validate it */
-	missing_suffix_str = slapi_entry_attr_get_charptr(e, PAMPT_MISSING_SUFFIX_ATTR);
-	if ((missing_suffix = missing_suffix_to_int(missing_suffix_str)) < 0 ||
-		!check_missing_suffix_flag(missing_suffix)) {
-		if (returntext) {
-			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-					"Error: valid values for %s are %s",
-					PAMPT_MISSING_SUFFIX_ATTR, get_missing_suffix_values());
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-					"pam_passthru_validate_config - Valid values for %s are %s\n",
-					PAMPT_MISSING_SUFFIX_ATTR, get_missing_suffix_values());
-		}
-		goto done;
-	}
+    /* first, get the missing_suffix flag and validate it */
+    missing_suffix_str = slapi_entry_attr_get_charptr(e, PAMPT_MISSING_SUFFIX_ATTR);
+    if ((missing_suffix = missing_suffix_to_int(missing_suffix_str)) < 0 ||
+        !check_missing_suffix_flag(missing_suffix)) {
+        if (returntext) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: valid values for %s are %s",
+                        PAMPT_MISSING_SUFFIX_ATTR, get_missing_suffix_values());
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                          "pam_passthru_validate_config - Valid values for %s are %s\n",
+                          PAMPT_MISSING_SUFFIX_ATTR, get_missing_suffix_values());
+        }
+        goto done;
+    }
 
-	if (missing_suffix != PAMPT_MISSING_SUFFIX_IGNORE) {
-		char **missing_list = NULL;
+    if (missing_suffix != PAMPT_MISSING_SUFFIX_IGNORE) {
+        char **missing_list = NULL;
 
-		/* get the list of excluded suffixes */
-		excludes = slapi_entry_attr_get_charray(e, PAMPT_EXCLUDES_ATTR);
-		for (ii = 0; excludes && excludes[ii]; ++ii) {
-			/* The excludes DNs are already normalized. */
-			Slapi_DN *comp_dn = slapi_sdn_new_normdn_byref(excludes[ii]);
-			if (!slapi_be_exist(comp_dn)) {
-				charray_add(&missing_list, slapi_ch_strdup(excludes[ii]));
-			}
-			slapi_sdn_free(&comp_dn);
-		}
+        /* get the list of excluded suffixes */
+        excludes = slapi_entry_attr_get_charray(e, PAMPT_EXCLUDES_ATTR);
+        for (ii = 0; excludes && excludes[ii]; ++ii) {
+            /* The excludes DNs are already normalized. */
+            Slapi_DN *comp_dn = slapi_sdn_new_normdn_byref(excludes[ii]);
+            if (!slapi_be_exist(comp_dn)) {
+                charray_add(&missing_list, slapi_ch_strdup(excludes[ii]));
+            }
+            slapi_sdn_free(&comp_dn);
+        }
 
-		/* get the list of included suffixes */
-		includes = slapi_entry_attr_get_charray(e, PAMPT_INCLUDES_ATTR);
-		for (ii = 0; includes && includes[ii]; ++ii) {
-			/* The includes DNs are already normalized. */
-			Slapi_DN *comp_dn = slapi_sdn_new_normdn_byref(includes[ii]);
-			if (!slapi_be_exist(comp_dn)) {
-				charray_add(&missing_list, slapi_ch_strdup(includes[ii]));
-			}
-			slapi_sdn_free(&comp_dn);
-		}
+        /* get the list of included suffixes */
+        includes = slapi_entry_attr_get_charray(e, PAMPT_INCLUDES_ATTR);
+        for (ii = 0; includes && includes[ii]; ++ii) {
+            /* The includes DNs are already normalized. */
+            Slapi_DN *comp_dn = slapi_sdn_new_normdn_byref(includes[ii]);
+            if (!slapi_be_exist(comp_dn)) {
+                charray_add(&missing_list, slapi_ch_strdup(includes[ii]));
+            }
+            slapi_sdn_free(&comp_dn);
+        }
 
-		if (missing_list) {
-			if (returntext) {
-				PRUint32 size =
-					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-								"The following suffixes listed in %s or %s are not present in this "
-								"server: ", PAMPT_EXCLUDES_ATTR, PAMPT_INCLUDES_ATTR);
-				for (ii = 0; missing_list[ii]; ++ii) {
-					if (size < SLAPI_DSE_RETURNTEXT_SIZE) {
-						size += PR_snprintf(returntext+size, SLAPI_DSE_RETURNTEXT_SIZE-size,
-											"%s%s", (ii > 0) ? "; " : "",
-											missing_list[ii]);
-					}
-				}
-			} else {
-				slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"pam_passthru_validate_config - The suffixes listed in %s or %s are not present in "
-							"this server\n", PAMPT_EXCLUDES_ATTR, PAMPT_INCLUDES_ATTR);
-			}
+        if (missing_list) {
+            if (returntext) {
+                PRUint32 size =
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                "The following suffixes listed in %s or %s are not present in this "
+                                "server: ",
+                                PAMPT_EXCLUDES_ATTR, PAMPT_INCLUDES_ATTR);
+                for (ii = 0; missing_list[ii]; ++ii) {
+                    if (size < SLAPI_DSE_RETURNTEXT_SIZE) {
+                        size += PR_snprintf(returntext + size, SLAPI_DSE_RETURNTEXT_SIZE - size,
+                                            "%s%s", (ii > 0) ? "; " : "",
+                                            missing_list[ii]);
+                    }
+                }
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                              "pam_passthru_validate_config - The suffixes listed in %s or %s are not present in "
+                              "this server\n",
+                              PAMPT_EXCLUDES_ATTR, PAMPT_INCLUDES_ATTR);
+            }
 
-			slapi_ch_array_free(missing_list);
-			missing_list = NULL;
-			print_suffixes();
-			if (missing_suffix != PAMPT_MISSING_SUFFIX_ERROR) {
-				if (returntext) {
-					slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-									"pam_passthru_validate_config - Warning: %s\n", returntext);
-					*returntext = 0; /* log error, don't report back to user */
-				}
-			} else {
-				goto done;
-			}
-		}
-	}
+            slapi_ch_array_free(missing_list);
+            missing_list = NULL;
+            print_suffixes();
+            if (missing_suffix != PAMPT_MISSING_SUFFIX_ERROR) {
+                if (returntext) {
+                    slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                                  "pam_passthru_validate_config - Warning: %s\n", returntext);
+                    *returntext = 0; /* log error, don't report back to user */
+                }
+            } else {
+                goto done;
+            }
+        }
+    }
 
-	pam_ident_attr = slapi_entry_attr_get_charptr(e, PAMPT_PAM_IDENT_ATTR);
-	map_method = slapi_entry_attr_get_charptr(e, PAMPT_MAP_METHOD_ATTR);
-	if (map_method) {
-		int one, two, three;
-		if (PAM_PASSTHRU_SUCCESS !=
-			(rc = parse_map_method(map_method, &one, &two, &three, returntext))) {
-			goto done; /* returntext set already (or error logged) */
-		}
-		if (!pam_ident_attr &&
-			((one == PAMPT_MAP_METHOD_ENTRY) || (two == PAMPT_MAP_METHOD_ENTRY) ||
-			 (three == PAMPT_MAP_METHOD_ENTRY))) {
-			if (returntext) {
-				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: the %s method"
-							" was specified, but no %s was given",
-							PAMPT_MAP_METHOD_ENTRY_STRING, PAMPT_PAM_IDENT_ATTR);
-			} else {
-				slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"pam_passthru_validate_config - The %s method was specified, but no %s was given\n",
-							PAMPT_MAP_METHOD_ENTRY_STRING, PAMPT_PAM_IDENT_ATTR);
-			}
-			rc = PAM_PASSTHRU_FAILURE;
-			goto done;
-		}
-		if ((one == PAMPT_MAP_METHOD_NONE) && (two == PAMPT_MAP_METHOD_NONE) &&
-			(three == PAMPT_MAP_METHOD_NONE)) {
-			if (returntext) {
-				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: no method(s)"
-							" specified for %s, should be one or more of %s",
-							PAMPT_MAP_METHOD_ATTR, get_map_method_values());
-			} else {
-				slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"pam_passthru_validate_config - No method(s) specified for %s, should be "
-							"one or more of %s\n", PAMPT_MAP_METHOD_ATTR,
-							get_map_method_values());
-			}
-			rc = PAM_PASSTHRU_FAILURE;
-			goto done;
-		}
-	}
+    pam_ident_attr = slapi_entry_attr_get_charptr(e, PAMPT_PAM_IDENT_ATTR);
+    map_method = slapi_entry_attr_get_charptr(e, PAMPT_MAP_METHOD_ATTR);
+    if (map_method) {
+        int one, two, three;
+        if (PAM_PASSTHRU_SUCCESS !=
+            (rc = parse_map_method(map_method, &one, &two, &three, returntext))) {
+            goto done; /* returntext set already (or error logged) */
+        }
+        if (!pam_ident_attr &&
+            ((one == PAMPT_MAP_METHOD_ENTRY) || (two == PAMPT_MAP_METHOD_ENTRY) ||
+             (three == PAMPT_MAP_METHOD_ENTRY))) {
+            if (returntext) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: the %s method"
+                                                                   " was specified, but no %s was given",
+                            PAMPT_MAP_METHOD_ENTRY_STRING, PAMPT_PAM_IDENT_ATTR);
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                              "pam_passthru_validate_config - The %s method was specified, but no %s was given\n",
+                              PAMPT_MAP_METHOD_ENTRY_STRING, PAMPT_PAM_IDENT_ATTR);
+            }
+            rc = PAM_PASSTHRU_FAILURE;
+            goto done;
+        }
+        if ((one == PAMPT_MAP_METHOD_NONE) && (two == PAMPT_MAP_METHOD_NONE) &&
+            (three == PAMPT_MAP_METHOD_NONE)) {
+            if (returntext) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: no method(s)"
+                                                                   " specified for %s, should be one or more of %s",
+                            PAMPT_MAP_METHOD_ATTR, get_map_method_values());
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                              "pam_passthru_validate_config - No method(s) specified for %s, should be "
+                              "one or more of %s\n",
+                              PAMPT_MAP_METHOD_ATTR,
+                              get_map_method_values());
+            }
+            rc = PAM_PASSTHRU_FAILURE;
+            goto done;
+        }
+    }
 
-	/* Validate filter by converting to Slapi_Filter */
-	pam_filter_str = slapi_entry_attr_get_charptr(e, PAMPT_FILTER_ATTR);
-	if (pam_filter_str) {
-		pam_filter = slapi_str2filter(pam_filter_str);
-		if (pam_filter == NULL) {
-			if (returntext) {
-				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: invalid "
-							"filter specified for %s (filter: \"%s\")",
-							PAMPT_FILTER_ATTR, pam_filter_str);
-			} else {
-				slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"pam_passthru_validate_config - Invalid filter specified for %s "
-							"(filter: \"%s\")\n", PAMPT_FILTER_ATTR,
-							pam_filter_str);
-			}
-			rc = PAM_PASSTHRU_FAILURE;
-			goto done;
-		}
-	}
+    /* Validate filter by converting to Slapi_Filter */
+    pam_filter_str = slapi_entry_attr_get_charptr(e, PAMPT_FILTER_ATTR);
+    if (pam_filter_str) {
+        pam_filter = slapi_str2filter(pam_filter_str);
+        if (pam_filter == NULL) {
+            if (returntext) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: invalid "
+                                                                   "filter specified for %s (filter: \"%s\")",
+                            PAMPT_FILTER_ATTR, pam_filter_str);
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                              "pam_passthru_validate_config - Invalid filter specified for %s "
+                              "(filter: \"%s\")\n",
+                              PAMPT_FILTER_ATTR,
+                              pam_filter_str);
+            }
+            rc = PAM_PASSTHRU_FAILURE;
+            goto done;
+        }
+    }
 
-	/* success */
-	rc = PAM_PASSTHRU_SUCCESS;
+    /* success */
+    rc = PAM_PASSTHRU_SUCCESS;
 
 done:
-	slapi_ch_free_string(&map_method);
-	slapi_ch_free_string(&pam_ident_attr);
-	slapi_ch_array_free(excludes);
-	excludes = NULL;
-	slapi_ch_array_free(includes);
-	includes = NULL;
-	slapi_ch_free_string(&missing_suffix_str);
-	slapi_ch_free_string(&pam_filter_str);
-	slapi_filter_free(pam_filter, 1);
+    slapi_ch_free_string(&map_method);
+    slapi_ch_free_string(&pam_ident_attr);
+    slapi_ch_array_free(excludes);
+    excludes = NULL;
+    slapi_ch_array_free(includes);
+    includes = NULL;
+    slapi_ch_free_string(&missing_suffix_str);
+    slapi_ch_free_string(&pam_filter_str);
+    slapi_filter_free(pam_filter, 1);
 
-	return rc;
+    return rc;
 }
 
 static Pam_PassthruSuffix *
 New_Pam_PassthruSuffix(char *suffix)
 {
-	Pam_PassthruSuffix *newone = NULL;
-	if (suffix) {
-		newone = (Pam_PassthruSuffix *)slapi_ch_malloc(sizeof(Pam_PassthruSuffix));
-		/* The passed in suffix should already be normalized. */
-		newone->pamptsuffix_dn = slapi_sdn_new_normdn_byval(suffix);
-		newone->pamptsuffix_next = NULL;
-	}
-	return newone;
+    Pam_PassthruSuffix *newone = NULL;
+    if (suffix) {
+        newone = (Pam_PassthruSuffix *)slapi_ch_malloc(sizeof(Pam_PassthruSuffix));
+        /* The passed in suffix should already be normalized. */
+        newone->pamptsuffix_dn = slapi_sdn_new_normdn_byval(suffix);
+        newone->pamptsuffix_next = NULL;
+    }
+    return newone;
 }
 
 static Pam_PassthruSuffix *
 pam_ptconfig_add_suffixes(char **str_list)
 {
-	Pam_PassthruSuffix *head = NULL;
-	Pam_PassthruSuffix *suffixent = NULL;
+    Pam_PassthruSuffix *head = NULL;
+    Pam_PassthruSuffix *suffixent = NULL;
 
-	if (str_list && *str_list) {
-		int ii;
-		for (ii = 0; str_list[ii]; ++ii) {
-			Pam_PassthruSuffix *tmp = New_Pam_PassthruSuffix(str_list[ii]);
-			if (!suffixent) {
-				head = suffixent = tmp;
-			} else {
-				suffixent->pamptsuffix_next = tmp;
-				suffixent = suffixent->pamptsuffix_next;
-			}
-		}
-	}
-	return head;
+    if (str_list && *str_list) {
+        int ii;
+        for (ii = 0; str_list[ii]; ++ii) {
+            Pam_PassthruSuffix *tmp = New_Pam_PassthruSuffix(str_list[ii]);
+            if (!suffixent) {
+                head = suffixent = tmp;
+            } else {
+                suffixent->pamptsuffix_next = tmp;
+                suffixent = suffixent->pamptsuffix_next;
+            }
+        }
+    }
+    return head;
 }
 
 /*
   Apply the pending changes in the e entry to our config struct.
   validate must have already been called
 */
-static int 
-pam_passthru_apply_config (Slapi_Entry* e)
+static int
+pam_passthru_apply_config(Slapi_Entry *e)
 {
     int rc = PAM_PASSTHRU_SUCCESS;
     char **excludes = NULL;
@@ -637,10 +650,10 @@ pam_passthru_apply_config (Slapi_Entry* e)
 
     if (map_method) {
         parse_map_method(map_method,
-        &entry->pamptconfig_map_method1,
-        &entry->pamptconfig_map_method2,
-        &entry->pamptconfig_map_method3,
-        NULL);
+                         &entry->pamptconfig_map_method1,
+                         &entry->pamptconfig_map_method2,
+                         &entry->pamptconfig_map_method3,
+                         NULL);
     }
 
     if (filter_str) {
@@ -659,7 +672,7 @@ pam_passthru_apply_config (Slapi_Entry* e)
                 /* add to tail */
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_err(SLAPI_LOG_CONFIG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                                "pam_passthru_apply_config - store [%s] at tail\n", entry->dn);
+                              "pam_passthru_apply_config - store [%s] at tail\n", entry->dn);
                 inserted = 1;
                 break;
             }
@@ -668,13 +681,13 @@ pam_passthru_apply_config (Slapi_Entry* e)
         /* first entry */
         PR_INSERT_LINK(&(entry->list), pam_passthru_global_config);
         slapi_log_err(SLAPI_LOG_CONFIG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                        "pam_passthru_apply_config - store [%s] at head \n", entry->dn);
+                      "pam_passthru_apply_config - store [%s] at head \n", entry->dn);
         inserted = 1;
     }
 
-  bail:
-    if(!inserted){
-    	pam_passthru_free_config_entry(&entry);
+bail:
+    if (!inserted) {
+        pam_passthru_free_config_entry(&entry);
     }
     slapi_ch_free_string(&new_service);
     slapi_ch_free_string(&map_method);
@@ -689,36 +702,37 @@ pam_passthru_apply_config (Slapi_Entry* e)
 static int
 pam_passthru_check_suffix(Pam_PassthruConfig *cfg, const Slapi_DN *bindsdn)
 {
-	Pam_PassthruSuffix *try;
-	int ret = LDAP_SUCCESS;
+    Pam_PassthruSuffix *try
+        ;
+    int ret = LDAP_SUCCESS;
 
-	if (!cfg->pamptconfig_includes && !cfg->pamptconfig_excludes) {
-		goto done; /* NULL means allow */
-	}
+    if (!cfg->pamptconfig_includes && !cfg->pamptconfig_excludes) {
+        goto done; /* NULL means allow */
+    }
 
-	/* exclude trumps include - if suffix is on exclude list, then
-	   deny */
-	for (try = cfg->pamptconfig_excludes; try; try = try->pamptsuffix_next) {
-		if (slapi_sdn_issuffix(bindsdn, try->pamptsuffix_dn)) {
-			ret = LDAP_UNWILLING_TO_PERFORM; /* suffix is excluded */
-			goto done;
-		}
-	}
+    /* exclude trumps include - if suffix is on exclude list, then
+       deny */
+    for (try = cfg->pamptconfig_excludes; try; try = try->pamptsuffix_next) {
+        if (slapi_sdn_issuffix(bindsdn, try->pamptsuffix_dn)) {
+            ret = LDAP_UNWILLING_TO_PERFORM; /* suffix is excluded */
+            goto done;
+        }
+    }
 
-	/* ok, now flip it - deny access unless dn is on include list */
-	if (cfg->pamptconfig_includes) {
-		ret = LDAP_UNWILLING_TO_PERFORM; /* suffix is excluded */
-		for (try = cfg->pamptconfig_includes; try; try = try->pamptsuffix_next) {
-			if (slapi_sdn_issuffix(bindsdn, try->pamptsuffix_dn)) {
-				ret = LDAP_SUCCESS; /* suffix is included */
-				goto done;
-			}
-		}
-	}
-		
+    /* ok, now flip it - deny access unless dn is on include list */
+    if (cfg->pamptconfig_includes) {
+        ret = LDAP_UNWILLING_TO_PERFORM; /* suffix is excluded */
+        for (try = cfg->pamptconfig_includes; try; try = try->pamptsuffix_next) {
+            if (slapi_sdn_issuffix(bindsdn, try->pamptsuffix_dn)) {
+                ret = LDAP_SUCCESS; /* suffix is included */
+                goto done;
+            }
+        }
+    }
+
 done:
 
-	return ret;
+    return ret;
 }
 
 
@@ -726,7 +740,7 @@ done:
  * Find the config entry that matches the passed in bind DN
  */
 Pam_PassthruConfig *
-pam_passthru_get_config( Slapi_DN *bind_sdn )
+pam_passthru_get_config(Slapi_DN *bind_sdn)
 {
     PRCList *list = NULL;
     Pam_PassthruConfig *cfg = NULL;
@@ -736,7 +750,7 @@ pam_passthru_get_config( Slapi_DN *bind_sdn )
         list = PR_LIST_HEAD(pam_passthru_global_config);
         while (list != pam_passthru_global_config) {
             cfg = (Pam_PassthruConfig *)list;
-            if (pam_passthru_check_suffix( cfg, bind_sdn ) == LDAP_SUCCESS) {
+            if (pam_passthru_check_suffix(cfg, bind_sdn) == LDAP_SUCCESS) {
                 if (cfg->slapi_filter) {
                     /* A filter is configured, so see if the bind entry is a match. */
                     Slapi_Entry *test_e = NULL;
@@ -748,7 +762,7 @@ pam_passthru_get_config( Slapi_DN *bind_sdn )
                     /* If the entry doesn't exist, just fall through to the main server code */
                     if (test_e) {
                         /* Evaluate the filter. */
-                        if (LDAP_SUCCESS == slapi_filter_test_simple(test_e, cfg-> slapi_filter)) {
+                        if (LDAP_SUCCESS == slapi_filter_test_simple(test_e, cfg->slapi_filter)) {
                             /* This is a match. */
                             slapi_entry_free(test_e);
                             goto done;
@@ -767,8 +781,8 @@ pam_passthru_get_config( Slapi_DN *bind_sdn )
         }
     }
 
-  done:
-    return(cfg);
+done:
+    return (cfg);
 }
 
 /*
@@ -792,7 +806,7 @@ pam_passthru_dn_is_config(Slapi_DN *sdn)
 
     /* Check if we're using the standard config area. */
     if (slapi_sdn_compare(pam_passthru_get_config_area(),
-            pam_passthruauth_get_plugin_sdn()) == 0) {
+                          pam_passthruauth_get_plugin_sdn()) == 0) {
         /* We're using the standard config area, so both
          * the container and the children are considered
          * to be config entries. */
@@ -803,12 +817,12 @@ pam_passthru_dn_is_config(Slapi_DN *sdn)
         /* We're using an alternative config area, so only
          * the children are considered to be config entries. */
         if (slapi_sdn_issuffix(sdn, pam_passthru_get_config_area()) &&
-                slapi_sdn_compare(sdn, pam_passthru_get_config_area())) {
+            slapi_sdn_compare(sdn, pam_passthru_get_config_area())) {
             rc = 1;
         }
     }
 
-  bail:
+bail:
     return rc;
 }
 
@@ -838,4 +852,3 @@ pam_passthru_free_config_area()
 {
     slapi_sdn_free(&_ConfigArea);
 }
-

@@ -10,10 +10,11 @@
 #include "../../test_slapd.h"
 
 /* Define this here to access the symbol in libslapd */
-uint64_t pblock_analytics_query( Slapi_PBlock *pb, int access_type);
+uint64_t pblock_analytics_query(Slapi_PBlock *pb, int access_type);
 
 void
-test_libslapd_pblock_analytics(void **state __attribute__((unused))) {
+test_libslapd_pblock_analytics(void **state __attribute__((unused)))
+{
 #ifdef PBLOCK_ANALYTICS
     /* Create a pblock */
     Slapi_PBlock *pb = slapi_pblock_new();
@@ -32,4 +33,3 @@ test_libslapd_pblock_analytics(void **state __attribute__((unused))) {
     slapi_pblock_destroy(pb);
 #endif
 }
-

@@ -2,37 +2,35 @@
 #include "lfds711_list_addonly_singlylinked_ordered_internal.h"
 
 
-
-
-
 /****************************************************************************/
-enum lfds711_list_aso_insert_result lfds711_list_aso_insert( struct lfds711_list_aso_state *lasos,
-                                                             struct lfds711_list_aso_element *lasoe,
-                                                             struct lfds711_list_aso_element **existing_lasoe )
+enum lfds711_list_aso_insert_result
+lfds711_list_aso_insert(struct lfds711_list_aso_state *lasos,
+                        struct lfds711_list_aso_element *lasoe,
+                        struct lfds711_list_aso_element **existing_lasoe)
 {
-  char unsigned 
-    result;
+    char unsigned
+        result;
 
-  enum lfds711_misc_flag
-    finished_flag = LFDS711_MISC_FLAG_LOWERED;
+    enum lfds711_misc_flag
+        finished_flag = LFDS711_MISC_FLAG_LOWERED;
 
-  int
-    compare_result = 0;
+    int
+        compare_result = 0;
 
-  lfds711_pal_uint_t
-    backoff_iteration = LFDS711_BACKOFF_INITIAL_VALUE;
+    lfds711_pal_uint_t
+        backoff_iteration = LFDS711_BACKOFF_INITIAL_VALUE;
 
-  struct lfds711_list_aso_element
-    *volatile lasoe_temp = NULL,
-    *volatile lasoe_trailing;
+    struct lfds711_list_aso_element
+        *volatile lasoe_temp = NULL,
+                  *volatile lasoe_trailing;
 
-  LFDS711_PAL_ASSERT( lasos != NULL );
-  LFDS711_PAL_ASSERT( lasoe != NULL );
-  LFDS711_PAL_ASSERT( (lfds711_pal_uint_t) &lasoe->next % LFDS711_PAL_ALIGN_SINGLE_POINTER == 0 );
-  LFDS711_PAL_ASSERT( (lfds711_pal_uint_t) &lasoe->value % LFDS711_PAL_ALIGN_SINGLE_POINTER == 0 );
-  // TRD : existing_lasoe can be NULL
+    LFDS711_PAL_ASSERT(lasos != NULL);
+    LFDS711_PAL_ASSERT(lasoe != NULL);
+    LFDS711_PAL_ASSERT((lfds711_pal_uint_t)&lasoe->next % LFDS711_PAL_ALIGN_SINGLE_POINTER == 0);
+    LFDS711_PAL_ASSERT((lfds711_pal_uint_t)&lasoe->value % LFDS711_PAL_ALIGN_SINGLE_POINTER == 0);
+    // TRD : existing_lasoe can be NULL
 
-  /* TRD : imagine a list, sorted small to large
+    /* TRD : imagine a list, sorted small to large
 
            we arrive at an element
            we obtain its next pointer
@@ -59,78 +57,70 @@ enum lfds711_list_aso_insert_result lfds711_list_aso_insert( struct lfds711_list
            element
   */
 
-  LFDS711_MISC_BARRIER_LOAD;
+    LFDS711_MISC_BARRIER_LOAD;
 
-  /* TRD : we need to begin with the leading dummy element
+    /* TRD : we need to begin with the leading dummy element
            as the element to be inserted
            may be smaller than all elements in the list
   */
 
-  lasoe_trailing = lasos->start;
-  lasoe_temp = lasos->start->next;
+    lasoe_trailing = lasos->start;
+    lasoe_temp = lasos->start->next;
 
-  while( finished_flag == LFDS711_MISC_FLAG_LOWERED )
-  {
-    if( lasoe_temp == NULL )
-      compare_result = -1;
+    while (finished_flag == LFDS711_MISC_FLAG_LOWERED) {
+        if (lasoe_temp == NULL)
+            compare_result = -1;
 
-    if( lasoe_temp != NULL )
-    {
-      LFDS711_MISC_BARRIER_LOAD;
-      compare_result = lasos->key_compare_function( lasoe->key, lasoe_temp->key );
-    }
+        if (lasoe_temp != NULL) {
+            LFDS711_MISC_BARRIER_LOAD;
+            compare_result = lasos->key_compare_function(lasoe->key, lasoe_temp->key);
+        }
 
-    if( compare_result == 0 )
-    {
-      if( existing_lasoe != NULL )
-        *existing_lasoe = lasoe_temp;
+        if (compare_result == 0) {
+            if (existing_lasoe != NULL)
+                *existing_lasoe = lasoe_temp;
 
-      switch( lasos->existing_key )
-      {
-        case LFDS711_LIST_ASO_EXISTING_KEY_OVERWRITE:
-          LFDS711_LIST_ASO_SET_VALUE_IN_ELEMENT( *lasoe_temp, lasoe->value );
-          return LFDS711_LIST_ASO_INSERT_RESULT_SUCCESS_OVERWRITE;
-        break;
+            switch (lasos->existing_key) {
+            case LFDS711_LIST_ASO_EXISTING_KEY_OVERWRITE:
+                LFDS711_LIST_ASO_SET_VALUE_IN_ELEMENT(*lasoe_temp, lasoe->value);
+                return LFDS711_LIST_ASO_INSERT_RESULT_SUCCESS_OVERWRITE;
+                break;
 
-        case LFDS711_LIST_ASO_EXISTING_KEY_FAIL:
-          return LFDS711_LIST_ASO_INSERT_RESULT_FAILURE_EXISTING_KEY;
-        break;
-      }
+            case LFDS711_LIST_ASO_EXISTING_KEY_FAIL:
+                return LFDS711_LIST_ASO_INSERT_RESULT_FAILURE_EXISTING_KEY;
+                break;
+            }
 
-      finished_flag = LFDS711_MISC_FLAG_RAISED;
-    }
+            finished_flag = LFDS711_MISC_FLAG_RAISED;
+        }
 
-    if( compare_result < 0 )
-    {
-      lasoe->next = lasoe_temp;
-      LFDS711_MISC_BARRIER_STORE;
-      LFDS711_PAL_ATOMIC_CAS( &lasoe_trailing->next, (struct lfds711_list_aso_element **) &lasoe->next, lasoe, LFDS711_MISC_CAS_STRENGTH_WEAK, result );
+        if (compare_result < 0) {
+            lasoe->next = lasoe_temp;
+            LFDS711_MISC_BARRIER_STORE;
+            LFDS711_PAL_ATOMIC_CAS(&lasoe_trailing->next, (struct lfds711_list_aso_element **)&lasoe->next, lasoe, LFDS711_MISC_CAS_STRENGTH_WEAK, result);
 
-      if( result == 1 )
-        finished_flag = LFDS711_MISC_FLAG_RAISED;
-      else
-      {
-        LFDS711_BACKOFF_EXPONENTIAL_BACKOFF( lasos->insert_backoff, backoff_iteration );
-        // TRD : if we fail to link, someone else has linked and so we need to redetermine our position is correct
-        lasoe_temp = lasoe_trailing->next;
-      }
-    }
+            if (result == 1)
+                finished_flag = LFDS711_MISC_FLAG_RAISED;
+            else {
+                LFDS711_BACKOFF_EXPONENTIAL_BACKOFF(lasos->insert_backoff, backoff_iteration);
+                // TRD : if we fail to link, someone else has linked and so we need to redetermine our position is correct
+                lasoe_temp = lasoe_trailing->next;
+            }
+        }
 
-    if( compare_result > 0 )
-    {
-      // TRD : move trailing along by one element
-      lasoe_trailing = lasoe_trailing->next;
+        if (compare_result > 0) {
+            // TRD : move trailing along by one element
+            lasoe_trailing = lasoe_trailing->next;
 
-      /* TRD : set temp as the element after trailing
+            /* TRD : set temp as the element after trailing
                if the new element we're linking is larger than all elements in the list,
                lasoe_temp will now go to NULL and we'll link at the end
       */
-      lasoe_temp = lasoe_trailing->next;
+            lasoe_temp = lasoe_trailing->next;
+        }
     }
-  }
 
-  LFDS711_BACKOFF_AUTOTUNE( lasos->insert_backoff, backoff_iteration );
+    LFDS711_BACKOFF_AUTOTUNE(lasos->insert_backoff, backoff_iteration);
 
-  return LFDS711_LIST_ASO_INSERT_RESULT_SUCCESS;
+    return LFDS711_LIST_ASO_INSERT_RESULT_SUCCESS;
 }
-

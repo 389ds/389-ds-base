@@ -4,19 +4,20 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* abandon.c - ldbm backend abandon routine */
 
 #include "back-ldbm.h"
 
-int ldbm_back_abandon(Slapi_PBlock *pb __attribute__((unused)))
+int
+ldbm_back_abandon(Slapi_PBlock *pb __attribute__((unused)))
 {
-	/* DBDB need to implement this */
-	return 0;
+    /* DBDB need to implement this */
+    return 0;
 }

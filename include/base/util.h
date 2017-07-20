@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_UTIL_H
@@ -19,9 +19,9 @@
 #endif /* !NOINTNSAPI */
 
 /*
- * util.h: A hodge podge of utility functions and standard functions which 
+ * util.h: A hodge podge of utility functions and standard functions which
  *         are unavailable on certain systems
- * 
+ *
  * Rob McCool
  */
 
@@ -44,20 +44,19 @@ NSAPI_PUBLIC
 int INTutil_vsprintf(char *s, register const char *fmt, va_list args);
 
 NSAPI_PUBLIC int INTutil_sprintf(char *s, const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
 #else
-        ;
+    ;
 #endif
 
-NSAPI_PUBLIC int INTutil_vsnprintf(char *s, int n, register const char *fmt, 
-                                  va_list args);
+NSAPI_PUBLIC int INTutil_vsnprintf(char *s, int n, register const char *fmt, va_list args);
 
 NSAPI_PUBLIC int INTutil_snprintf(char *s, int n, const char *fmt, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 3, 4)));
+#ifdef __GNUC__
+    __attribute__((format(printf, 3, 4)));
 #else
-        ;
+    ;
 #endif
 
 NSAPI_PUBLIC int INTutil_strftime(char *s, const char *format, const struct tm *t);

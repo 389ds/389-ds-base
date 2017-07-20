@@ -3,22 +3,22 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* cl_crypt.c - handles changelog encryption. */
 
 #include <errno.h>
 #include <sys/stat.h>
-#if defined( OS_solaris ) || defined( hpux )
+#if defined(OS_solaris) || defined(hpux)
 #include <sys/types.h>
 #include <sys/statvfs.h>
 #endif
-#if defined( linux )
+#if defined(linux)
 #include <sys/vfs.h>
 #endif
 
@@ -65,29 +65,30 @@ clcrypt_init(const CL5DBConfig *config, void **clcrypt_handle)
     }
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
-                    "<- clcrypt_init : %d\n", rc);
+                  "<- clcrypt_init : %d\n", rc);
     return rc;
 }
 
 /*
  * return values:  0 - success
  *              :  1 - no encryption
- *              : -1 - error 
+ *              : -1 - error
  *
  * output value: out: non-NULL - encryption successful
  *                  :     NULL - no encryption or failure
  */
 int
 clcrypt_encrypt_value(void *clcrypt_handle,
-                      struct berval *in, struct berval **out)
+                      struct berval *in,
+                      struct berval **out)
 {
     int rc = -1;
     char *cookie = NULL;
     Slapi_Backend *be = NULL;
     back_info_crypt_value crypt_value = {0};
 
-    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name, 
-                    "-> clcrypt_encrypt_value\n");
+    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
+                  "-> clcrypt_encrypt_value\n");
     if (NULL == out) {
         goto bail;
     }
@@ -116,30 +117,31 @@ clcrypt_encrypt_value(void *clcrypt_handle,
         rc = -1;
     }
 bail:
-    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name, 
-                    "<- clcrypt_encrypt_entry (returning %d)\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
+                  "<- clcrypt_encrypt_entry (returning %d)\n", rc);
     return rc;
 }
 
 /*
  * return values:  0 - success
  *              :  1 - no encryption
- *              : -1 - error 
+ *              : -1 - error
  *
  * output value: out: non-NULL - encryption successful
  *                  :     NULL - no encryption or failure
  */
-int 
+int
 clcrypt_decrypt_value(void *clcrypt_handle,
-                      struct berval *in, struct berval **out)
+                      struct berval *in,
+                      struct berval **out)
 {
     int rc = -1;
     char *cookie = NULL;
     Slapi_Backend *be = NULL;
     back_info_crypt_value crypt_value = {0};
 
-    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name, 
-                    "-> clcrypt_decrypt_value\n");
+    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
+                  "-> clcrypt_decrypt_value\n");
     if (NULL == out) {
         goto bail;
     }
@@ -168,7 +170,7 @@ clcrypt_decrypt_value(void *clcrypt_handle,
         rc = -1;
     }
 bail:
-    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name, 
-                    "<- clcrypt_decrypt_entry (returning %d)\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
+                  "<- clcrypt_decrypt_entry (returning %d)\n", rc);
     return rc;
 }

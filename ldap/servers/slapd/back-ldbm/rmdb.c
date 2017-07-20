@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -21,42 +21,40 @@
 #include "back-ldbm.h"
 
 int
-ldbm_back_rmdb( Slapi_PBlock *pb )
+ldbm_back_rmdb(Slapi_PBlock *pb)
 {
-	struct ldbminfo		*li = NULL;
-	/* char			*directory = NULL;*/
-	int			return_value = -1;
-	Slapi_Backend *be;
+    struct ldbminfo *li = NULL;
+    /* char            *directory = NULL;*/
+    int return_value = -1;
+    Slapi_Backend *be;
 
-	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
-	if (be->be_state != BE_STATE_STOPPED)
-	{
-		slapi_log_err(SLAPI_LOG_TRACE, 
-				  "ldbm_back_rmdb", "Warning - backend is in a wrong state - %d\n", 
-				  be->be_state);
-		return 0;
-	}
+    if (be->be_state != BE_STATE_STOPPED) {
+        slapi_log_err(SLAPI_LOG_TRACE,
+                      "ldbm_back_rmdb", "Warning - backend is in a wrong state - %d\n",
+                      be->be_state);
+        return 0;
+    }
 
-	PR_Lock (be->be_state_lock);
+    PR_Lock(be->be_state_lock);
 
-	if (be->be_state != BE_STATE_STOPPED)
-	{
-		slapi_log_err(SLAPI_LOG_TRACE, 
-				  "ldbm_back_rmdb", "Warning - backend is in a wrong state 2 - %d\n", 
-				  be->be_state);
-		PR_Unlock (be->be_state_lock);
-		return 0;
-	}
+    if (be->be_state != BE_STATE_STOPPED) {
+        slapi_log_err(SLAPI_LOG_TRACE,
+                      "ldbm_back_rmdb", "Warning - backend is in a wrong state 2 - %d\n",
+                      be->be_state);
+        PR_Unlock(be->be_state_lock);
+        return 0;
+    }
 
-	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-/*	slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );*/
-	return_value = dblayer_delete_database( li );
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    /*    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );*/
+    return_value = dblayer_delete_database(li);
 
-	if (return_value == 0)
-		be->be_state = BE_STATE_DELETED;
+    if (return_value == 0)
+        be->be_state = BE_STATE_DELETED;
 
-	PR_Unlock (be->be_state_lock);
+    PR_Unlock(be->be_state_lock);
 
-	return return_value;
+    return return_value;
 }

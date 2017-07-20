@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /***********************************************************************
@@ -51,14 +51,15 @@
 #endif
 
 #define BEGIN do {
-#define END } while(0);
+#define END   \
+    }         \
+    while (0) \
+        ;
 
 int op_error(int internal_error);
-Slapi_PBlock *readPblockAndEntry( Slapi_DN *baseDN, const char *filter,
-								  char *attrs[] );
-int entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
-						const char *objectClass);
-Slapi_PBlock *dnHasObjectClass( Slapi_DN *baseDN, const char *objectClass );
-Slapi_PBlock *dnHasAttribute( const char *baseDN, const char *attrName );
+Slapi_PBlock *readPblockAndEntry(Slapi_DN *baseDN, const char *filter, char *attrs[]);
+int entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e, const char *objectClass);
+Slapi_PBlock *dnHasObjectClass(Slapi_DN *baseDN, const char *objectClass);
+Slapi_PBlock *dnHasAttribute(const char *baseDN, const char *attrName);
 
 #endif /* _PLUGIN_UTILS_H_ */

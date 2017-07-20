@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* util.c   -- utility functions -- functions available form libslapd */
@@ -27,8 +27,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#define UTIL_ESCAPE_NONE      0
-#define UTIL_ESCAPE_HEX       1
+#define UTIL_ESCAPE_NONE 0
+#define UTIL_ESCAPE_HEX 1
 #define UTIL_ESCAPE_BACKSLASH 2
 
 #define _PSEP "/"
@@ -43,27 +43,30 @@
 /* slapi-private contains the pal. */
 #include <slapi-private.h>
 
-static int special_filename(unsigned char c)
+static int
+special_filename(unsigned char c)
 {
     if ((c < 45) || (c == '/') || ((c > 57) && (c < 65)) ||
-        ((c > 90) && (c < 95)) || (c == 96) ||(c > 122) ) {
+        ((c > 90) && (c < 95)) || (c == 96) || (c > 122)) {
         return UTIL_ESCAPE_HEX;
-    } 
+    }
     return UTIL_ESCAPE_NONE;
 }
 
-static int special_np(unsigned char c)
+static int
+special_np(unsigned char c)
 {
     if (c == '\\') {
         return UTIL_ESCAPE_BACKSLASH;
     }
     if (c < 32 || c > 126 || c == '"') {
         return UTIL_ESCAPE_HEX;
-    } 
+    }
     return UTIL_ESCAPE_NONE;
 }
 
-static int special_np_and_punct(unsigned char c)
+static int
+special_np_and_punct(unsigned char c)
 {
     if (c == '\\') {
         return UTIL_ESCAPE_BACKSLASH;
@@ -75,20 +78,23 @@ static int special_np_and_punct(unsigned char c)
 }
 
 #ifndef USE_OPENLDAP
-static int special_filter(unsigned char c)
+static int
+special_filter(unsigned char c)
 {
     /*
-     * Escape all non-printing chars and double-quotes in addition 
+     * Escape all non-printing chars and double-quotes in addition
      * to those required by RFC 2254 so that we can use the string
      * in log files.
      */
-    return (c < 32 || 
-            c > 126 || 
-            c == '*' || 
-            c == '(' || 
-            c == ')' || 
-            c == '\\' || 
-            c == '"') ? UTIL_ESCAPE_HEX : UTIL_ESCAPE_NONE;
+    return (c < 32 ||
+            c > 126 ||
+            c == '*' ||
+            c == '(' ||
+            c == ')' ||
+            c == '\\' ||
+            c == '"')
+               ? UTIL_ESCAPE_HEX
+               : UTIL_ESCAPE_NONE;
 }
 #endif
 
@@ -115,38 +121,40 @@ special_attr_char(unsigned char c)
 /* No '\\' */
 #define DOESCAPE_FLAGS_HEX_NOESC 0x1
 
-static const char*
-do_escape_string (
-    const char* str, 
-    int len,                    /* -1 means str is nul-terminated */
+static const char *
+do_escape_string(
+    const char *str,
+    int len, /* -1 means str is nul-terminated */
     char buf[BUFSIZ],
     int (*special)(unsigned char),
-    int flags
-)
+    int flags)
 {
-    const char* s;
-    const char* last;
+    const char *s;
+    const char *last;
     int esc;
 
     if (str == NULL) {
-        *buf = '\0'; 
+        *buf = '\0';
         return buf;
     }
 
-    if (len == -1) len = strlen (str);
-    if (len == 0) return str;
+    if (len == -1)
+        len = strlen(str);
+    if (len == 0)
+        return str;
 
     last = str + len - 1;
     for (s = str; s <= last; ++s) {
-        if ( (esc = (*special)((unsigned char)*s))) {
-            const char* first = str;
-            char* bufNext = buf;
+        if ((esc = (*special)((unsigned char)*s))) {
+            const char *first = str;
+            char *bufNext = buf;
             int bufSpace = BUFSIZ - 4;
             while (1) {
-                if (bufSpace < (s - first)) s = first + bufSpace - 1;
+                if (bufSpace < (s - first))
+                    s = first + bufSpace - 1;
                 if (s > first) {
-                    memcpy (bufNext, first, s - first);
-                    bufNext  += (s - first);
+                    memcpy(bufNext, first, s - first);
+                    bufNext += (s - first);
                     bufSpace -= (s - first);
                 }
                 if (s > last) {
@@ -157,33 +165,38 @@ do_escape_string (
                         /* *s is '\\' */
                         /* If *(s+1) and *(s+2) are both hex digits,
                          * the char is already escaped. */
-                        if (isxdigit(*(s+1)) && isxdigit(*(s+2))) {
+                        if (isxdigit(*(s + 1)) && isxdigit(*(s + 2))) {
                             memcpy(bufNext, s, 3);
                             bufNext += 3;
                             bufSpace -= 3;
                             s += 2;
                         } else {
-                            *bufNext++ = *s; --bufSpace;
+                            *bufNext++ = *s;
+                            --bufSpace;
                         }
-                    } else {    /* UTIL_ESCAPE_HEX */
+                    } else { /* UTIL_ESCAPE_HEX */
                         if (!(flags & DOESCAPE_FLAGS_HEX_NOESC)) {
-                            *bufNext++ = '\\'; --bufSpace;
+                            *bufNext++ = '\\';
+                            --bufSpace;
                         }
                         if (bufSpace < 3) {
                             memcpy(bufNext, "..", 2);
                             bufNext += 2;
                             goto bail;
                         }
-                        PR_snprintf(bufNext, 3, "%02x", *(unsigned char*)s);
-                        bufNext += 2; bufSpace -= 2;
+                        PR_snprintf(bufNext, 3, "%02x", *(unsigned char *)s);
+                        bufNext += 2;
+                        bufSpace -= 2;
                     }
-                } while (++s <= last && 
+                } while (++s <= last &&
                          (esc = (*special)((unsigned char)*s)));
-                if (s > last) break;
+                if (s > last)
+                    break;
                 first = s;
-                while ( (esc = (*special)((unsigned char)*s)) == UTIL_ESCAPE_NONE && s <= last) ++s;
+                while ((esc = (*special)((unsigned char)*s)) == UTIL_ESCAPE_NONE && s <= last)
+                    ++s;
             }
-bail:
+        bail:
             *bufNext = '\0';
             return buf;
         }
@@ -201,36 +214,37 @@ bail:
  *
  * This function should only be used for generating loggable strings.
  */
-const char*
-escape_string (const char* str, char buf[BUFSIZ])
+const char *
+escape_string(const char *str, char buf[BUFSIZ])
 {
-  return do_escape_string(str,-1,buf,special_np, 0);
+    return do_escape_string(str, -1, buf, special_np, 0);
 }
 
-const char*
-escape_string_with_punctuation(const char* str, char buf[BUFSIZ])
+const char *
+escape_string_with_punctuation(const char *str, char buf[BUFSIZ])
 {
-  return do_escape_string(str,-1,buf,special_np_and_punct, 0);
+    return do_escape_string(str, -1, buf, special_np_and_punct, 0);
 }
 
-const char*
+const char *
 escape_string_for_filename(const char *str, char buf[BUFSIZ])
 {
-  return do_escape_string(str,-1,buf,special_filename, DOESCAPE_FLAGS_HEX_NOESC);
+    return do_escape_string(str, -1, buf, special_filename, DOESCAPE_FLAGS_HEX_NOESC);
 }
 
 #define ESCAPE_FILTER 1
 #define NORM_FILTER 2
 
-struct filter_ctx {
-  char *buf;
-  char attr[ATTRSIZE];
-  int attr_position;
-  int attr_found;
-  int buf_size;
-  int buf_len;
-  int next_arg_needs_esc_norm;
-  int skip_escape;
+struct filter_ctx
+{
+    char *buf;
+    char attr[ATTRSIZE];
+    int attr_position;
+    int attr_found;
+    int buf_size;
+    int buf_len;
+    int next_arg_needs_esc_norm;
+    int skip_escape;
 };
 
 /*
@@ -240,7 +254,7 @@ static PRIntn
 filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 {
     struct filter_ctx *ctx = (struct filter_ctx *)arg;
-#if defined (USE_OPENLDAP)
+#if defined(USE_OPENLDAP)
     struct berval escaped_filter;
     struct berval raw_filter;
 #endif
@@ -249,15 +263,15 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
     int filter_len = (int)slen;
 
     /* look at val - if val is one of our special keywords, and make a note of it for the next pass */
-    if (strcmp(val, ESC_NEXT_VAL) == 0){
+    if (strcmp(val, ESC_NEXT_VAL) == 0) {
         ctx->next_arg_needs_esc_norm |= ESCAPE_FILTER;
         return 0;
     }
-    if (strcmp(val, NORM_NEXT_VAL) == 0){
+    if (strcmp(val, NORM_NEXT_VAL) == 0) {
         ctx->next_arg_needs_esc_norm |= NORM_FILTER;
         return 0;
     }
-    if (strcmp(val, ESC_AND_NORM_NEXT_VAL) == 0){
+    if (strcmp(val, ESC_AND_NORM_NEXT_VAL) == 0) {
         ctx->next_arg_needs_esc_norm = NORM_FILTER | ESCAPE_FILTER;
         return 0;
     }
@@ -265,11 +279,11 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
      *  Start collecting the attribute name so we can use the correct
      *  syntax normalization func.
      */
-    if(ctx->attr_found == 0 && ctx->attr_position < (ATTRSIZE - 1)){
-        if(ctx->attr[0] == '\0'){
-            if(strstr(val,"=")){
+    if (ctx->attr_found == 0 && ctx->attr_position < (ATTRSIZE - 1)) {
+        if (ctx->attr[0] == '\0') {
+            if (strstr(val, "=")) {
                 /* we have an attr we need to record */
-                if(!special_attr_char(val[0])){
+                if (!special_attr_char(val[0])) {
                     memcpy(ctx->attr, val, 1);
                     ctx->attr_position++;
                 }
@@ -283,10 +297,10 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
                 ctx->attr_position = slen;
             }
         } else {
-            if(val[0] == '='){ /* hit the end of the attribute name */
+            if (val[0] == '=') { /* hit the end of the attribute name */
                 ctx->attr_found = 1;
             } else {
-                if(special_attr_char(val[0])){
+                if (special_attr_char(val[0])) {
                     /* this is not an attribute, we should not be collecting this, reset everything */
                     memset(ctx->attr, '\0', ATTRSIZE);
                     ctx->attr_position = 0;
@@ -298,16 +312,16 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         }
     }
 
-    if (ctx->next_arg_needs_esc_norm && !ctx->skip_escape){
+    if (ctx->next_arg_needs_esc_norm && !ctx->skip_escape) {
         /*
          *  Normalize the filter value first
          */
-        if(ctx->next_arg_needs_esc_norm & NORM_FILTER){
+        if (ctx->next_arg_needs_esc_norm & NORM_FILTER) {
             char *norm_val = NULL;
 
-            if(ctx->attr_found){
-                slapi_attr_value_normalize(NULL, NULL, ctx->attr , buf, 1, &norm_val );
-                if(norm_val){
+            if (ctx->attr_found) {
+                slapi_attr_value_normalize(NULL, NULL, ctx->attr, buf, 1, &norm_val);
+                if (norm_val) {
                     buf = norm_val;
                     filter_len = strlen(buf);
                 }
@@ -316,12 +330,12 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         /*
          *  Escape the filter value
          */
-        if(ctx->next_arg_needs_esc_norm & ESCAPE_FILTER){
-#if defined (USE_OPENLDAP)
+        if (ctx->next_arg_needs_esc_norm & ESCAPE_FILTER) {
+#if defined(USE_OPENLDAP)
             raw_filter.bv_val = (char *)buf;
             raw_filter.bv_len = filter_len;
-            if(ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0){
-                slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Failed to escape filter value(%s)\n",val);
+            if (ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0) {
+                slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Failed to escape filter value(%s)\n", val);
                 ctx->next_arg_needs_esc_norm = 0;
                 return -1;
             } else {
@@ -330,15 +344,15 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             }
 #else
             char *val2 = NULL;
-            buf = slapi_ch_calloc(sizeof(char), filter_len*3 + 1);
+            buf = slapi_ch_calloc(sizeof(char), filter_len * 3 + 1);
             val2 = (char *)do_escape_string(val, filter_len, buf, special_filter);
-            if(val2 == NULL){
-                slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Failed to escape filter value(%s)\n",val);
+            if (val2 == NULL) {
+                slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Failed to escape filter value(%s)\n", val);
                 ctx->next_arg_needs_esc_norm = 0;
                 slapi_ch_free_string(&buf);
                 return -1;
             } else if (val == val2) { /* value did not need escaping and was just returned */
-                strcpy(buf, val); /* just use value as-is - len did not change */
+                strcpy(buf, val);     /* just use value as-is - len did not change */
             } else {
                 filter_len = strlen(buf);
             }
@@ -348,7 +362,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         /*
          *  Now add the new value to the buffer, and allocate more memory if needed
          */
-        if (ctx->buf_size + filter_len >= ctx->buf_len){
+        if (ctx->buf_size + filter_len >= ctx->buf_len) {
             /* increase buffer for this filter */
             extra_space = (ctx->buf_len + filter_len + BUF_INCR);
             ctx->buf = slapi_ch_realloc(ctx->buf, sizeof(char) * extra_space);
@@ -369,7 +383,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         return filter_len;
     } else { /* process arg as is */
         /* check if we have enough room in our buffer */
-        if (ctx->buf_size + (int)slen >= ctx->buf_len){
+        if (ctx->buf_size + (int)slen >= ctx->buf_len) {
             /* increase buffer for this filter */
             extra_space = (ctx->buf_len + slen + BUF_INCR);
             ctx->buf = slapi_ch_realloc((char *)ctx->buf, sizeof(char) * extra_space);
@@ -397,7 +411,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
  *
  *  Note: you need a string format specifier(%s) for each keyword
  */
-char*
+char *
 slapi_filter_sprintf(const char *fmt, ...)
 {
     struct filter_ctx ctx = {0};
@@ -407,7 +421,7 @@ slapi_filter_sprintf(const char *fmt, ...)
 
     buf = slapi_ch_calloc(sizeof(char), FILTER_BUF + 1);
     ctx.buf = buf;
-    memset(ctx.attr,'\0', ATTRSIZE);
+    memset(ctx.attr, '\0', ATTRSIZE);
     ctx.attr_position = 0;
     ctx.attr_found = 0;
     ctx.buf_len = FILTER_BUF;
@@ -417,7 +431,7 @@ slapi_filter_sprintf(const char *fmt, ...)
 
     va_start(args, fmt);
     rc = PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
-    if(rc == -1){
+    if (rc == -1) {
         /* transformation failed, just return non-normalized/escaped string */
         ctx.skip_escape = 1;
         PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
@@ -432,10 +446,10 @@ slapi_filter_sprintf(const char *fmt, ...)
  *
  *  caller must free the returned value
  */
-char*
-slapi_escape_filter_value(char* filter_str, int len)
+char *
+slapi_escape_filter_value(char *filter_str, int len)
 {
-#if defined (USE_OPENLDAP)
+#if defined(USE_OPENLDAP)
     struct berval escaped_filter;
     struct berval raw_filter;
 #endif
@@ -444,34 +458,34 @@ slapi_escape_filter_value(char* filter_str, int len)
     /*
      *  Check the length for special cases
      */
-    if(len == -1){
+    if (len == -1) {
         /* filter str is null terminated */
         filter_len = strlen(filter_str);
-    } else if (len == 0){
+    } else if (len == 0) {
         /* return the filter as is */
         return slapi_ch_strdup(filter_str);
     } else {
         /* the len is the length */
         filter_len = len;
     }
-#if defined (USE_OPENLDAP)
+#if defined(USE_OPENLDAP)
     /*
      *  Construct the berval and escape it
      */
     raw_filter.bv_val = filter_str;
     raw_filter.bv_len = filter_len;
-    if(ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0){
+    if (ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0) {
         slapi_log_err(SLAPI_LOG_TRACE, "slapi_escape_filter_value",
-                "Failed to escape filter value(%s)\n",filter_str);
+                      "Failed to escape filter value(%s)\n", filter_str);
         return NULL;
     } else {
         return escaped_filter.bv_val;
     }
 #else
-    char *buf = slapi_ch_calloc(sizeof(char), filter_len*3+1);
+    char *buf = slapi_ch_calloc(sizeof(char), filter_len * 3 + 1);
     char *esc_str = (char *)do_escape_string(filter_str, filter_len, buf, special_filter);
 
-    if(esc_str != buf){
+    if (esc_str != buf) {
         slapi_ch_free_string(&buf);
         return slapi_ch_strdup(esc_str);
     } else {
@@ -487,23 +501,21 @@ slapi_escape_filter_value(char* filter_str, int len)
 **
 */
 void
-strcpy_unescape_value( char *d, const char *s )
+strcpy_unescape_value(char *d, const char *s)
 {
     int gotesc = 0;
     const char *end = s + strlen(s);
-    for ( ; *s; s++ )
-    {
-        switch ( *s )
-        {
+    for (; *s; s++) {
+        switch (*s) {
         case '"':
             break;
         case '\\':
             gotesc = 1;
-            if ( s+2 < end ) {
-                int n = slapi_hexchar2int( s[1] );
-                if ( n >= 0 && n < 16 ) {
-                    int n2 = slapi_hexchar2int( s[2] );
-                    if ( n2 >= 0 ) {
+            if (s + 2 < end) {
+                int n = slapi_hexchar2int(s[1]);
+                if (n >= 0 && n < 16) {
+                    int n2 = slapi_hexchar2int(s[2]);
+                    if (n2 >= 0) {
                         n = (n << 4) + n2;
                         if (n == 0) { /* don't change \00 */
                             *d++ = *s++;
@@ -521,7 +533,7 @@ strcpy_unescape_value( char *d, const char *s )
              * just copy the special character and not the escape.
              * We need to be careful to not go past the end of
              * the string when the loop increments s. */
-            if (gotesc && (s+1 < end)) {
+            if (gotesc && (s + 1 < end)) {
                 s++;
                 *d++ = *s;
                 gotesc = 0;
@@ -536,25 +548,25 @@ strcpy_unescape_value( char *d, const char *s )
 }
 
 /* functions to convert between an entry and a set of mods */
-int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
+int
+slapi_mods2entry(Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
 {
-    int             i, rc = LDAP_SUCCESS;
-    LDAPMod         **attrs= NULL;
+    int i, rc = LDAP_SUCCESS;
+    LDAPMod **attrs = NULL;
 
-    PR_ASSERT (idn);
-    PR_ASSERT (iattrs);
-    PR_ASSERT (e);
+    PR_ASSERT(idn);
+    PR_ASSERT(iattrs);
+    PR_ASSERT(e);
 
     attrs = normalize_mods2bvals((const LDAPMod **)iattrs);
-    PR_ASSERT (attrs);
+    PR_ASSERT(attrs);
 
     /* Construct an entry */
     *e = slapi_entry_alloc();
-    PR_ASSERT (*e);
+    PR_ASSERT(*e);
     slapi_entry_init(*e, slapi_ch_strdup(idn), NULL);
 
-    for (i = 0; rc==LDAP_SUCCESS && attrs[ i ]!=NULL; i++)
-    {
+    for (i = 0; rc == LDAP_SUCCESS && attrs[i] != NULL; i++) {
         char *normtype;
         Slapi_Value **vals;
 
@@ -579,18 +591,17 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
 #endif
         }
 
-        normtype = slapi_attr_syntax_normalize(attrs[ i ]->mod_type);
-        valuearray_init_bervalarray(attrs[ i ]->mod_bvalues, &vals);
-        if (strcasecmp(normtype, SLAPI_USERPWD_ATTR) == 0)
-        {
+        normtype = slapi_attr_syntax_normalize(attrs[i]->mod_type);
+        valuearray_init_bervalarray(attrs[i]->mod_bvalues, &vals);
+        if (strcasecmp(normtype, SLAPI_USERPWD_ATTR) == 0) {
             pw_encodevals(vals);
         }
 
         /* set entry uniqueid - also adds attribute to the list */
         if (strcasecmp(normtype, SLAPI_ATTR_UNIQUEID) == 0) {
             if (vals) {
-                slapi_entry_set_uniqueid (*e,
-                            slapi_ch_strdup (slapi_value_get_string(vals[0])));
+                slapi_entry_set_uniqueid(*e,
+                                         slapi_ch_strdup(slapi_value_get_string(vals[0])));
             } else {
                 rc = LDAP_NO_SUCH_ATTRIBUTE;
             }
@@ -599,15 +610,14 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
         }
 
         valuearray_free(&vals);
-        if (rc != LDAP_SUCCESS)
-        {
+        if (rc != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR,
-                "slapi_mods2entry", "Add_values for type %s failed (rc: %d)\n",
-                normtype, rc );
-            slapi_entry_free (*e);
+                          "slapi_mods2entry", "Add_values for type %s failed (rc: %d)\n",
+                          normtype, rc);
+            slapi_entry_free(*e);
             *e = NULL;
         }
-        slapi_ch_free((void **) &normtype);
+        slapi_ch_free((void **)&normtype);
     }
     freepmods(attrs);
 
@@ -615,48 +625,47 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
 }
 
 int
-slapi_entry2mods (const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
+slapi_entry2mods(const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
 {
-	Slapi_Mods smods;
-	Slapi_Attr *attr;
-	Slapi_Value **va;
-	char *type;
-	int rc;
+    Slapi_Mods smods;
+    Slapi_Attr *attr;
+    Slapi_Value **va;
+    char *type;
+    int rc;
 
-	PR_ASSERT (e && attrs);
+    PR_ASSERT(e && attrs);
 
-	if (dn)
-		*dn = slapi_ch_strdup (slapi_entry_get_dn ((Slapi_Entry *)e));
-	slapi_mods_init (&smods, 0);
+    if (dn)
+        *dn = slapi_ch_strdup(slapi_entry_get_dn((Slapi_Entry *)e));
+    slapi_mods_init(&smods, 0);
 
-	rc = slapi_entry_first_attr(e, &attr);
-	while (rc == 0)
-	{
-		if ( NULL != ( va = attr_get_present_values( attr ))) {
-			slapi_attr_get_type(attr, &type);
-			slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va );
-		}
-		rc = slapi_entry_next_attr(e, attr, &attr);
-	}
+    rc = slapi_entry_first_attr(e, &attr);
+    while (rc == 0) {
+        if (NULL != (va = attr_get_present_values(attr))) {
+            slapi_attr_get_type(attr, &type);
+            slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va);
+        }
+        rc = slapi_entry_next_attr(e, attr, &attr);
+    }
 
 #if !defined(USE_OLD_UNHASHED)
-	if (SLAPD_UNHASHED_PW_ON == config_get_unhashed_pw_switch()) {
-		/* store unhashed passwd is enabled */
-		/* In case USE_OLD_UNHASHED, unhashed pw is already in mods */
-		/* add extension to mods */
-		rc = slapi_pw_get_entry_ext((Slapi_Entry *)e, &va);
-		if (LDAP_SUCCESS == rc) {
-			/* va is copied and set to smods */
-			slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD,
-			                          PSEUDO_ATTR_UNHASHEDUSERPASSWORD, va);
-		}
-	}
+    if (SLAPD_UNHASHED_PW_ON == config_get_unhashed_pw_switch()) {
+        /* store unhashed passwd is enabled */
+        /* In case USE_OLD_UNHASHED, unhashed pw is already in mods */
+        /* add extension to mods */
+        rc = slapi_pw_get_entry_ext((Slapi_Entry *)e, &va);
+        if (LDAP_SUCCESS == rc) {
+            /* va is copied and set to smods */
+            slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD,
+                                      PSEUDO_ATTR_UNHASHEDUSERPASSWORD, va);
+        }
+    }
 #endif
 
-	*attrs = slapi_mods_get_ldapmods_passout (&smods);
-	slapi_mods_done (&smods);
+    *attrs = slapi_mods_get_ldapmods_passout(&smods);
+    slapi_mods_done(&smods);
 
-	return 0;
+    return 0;
 }
 
 /******************************************************************************
@@ -672,29 +681,28 @@ slapi_entry2mods (const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
 LDAPMod **
 normalize_mods2bvals(const LDAPMod **mods)
 {
-    int        w, x, vlen, num_values, num_mods;
-    LDAPMod    **normalized_mods;
+    int w, x, vlen, num_values, num_mods;
+    LDAPMod **normalized_mods;
 
-    if (mods == NULL) 
-    {
+    if (mods == NULL) {
         return NULL;
     }
 
     /* first normalize the mods so they are bvalues */
     /* count the number of mods -- sucks but should be small */
     num_mods = 1;
-    for (w=0; mods[w] != NULL; w++) num_mods++;
-    
-    normalized_mods = (LDAPMod **) slapi_ch_calloc(num_mods, sizeof(LDAPMod *));
+    for (w = 0; mods[w] != NULL; w++)
+        num_mods++;
 
-    for (w = 0; mods[w] != NULL; w++) 
-    {
+    normalized_mods = (LDAPMod **)slapi_ch_calloc(num_mods, sizeof(LDAPMod *));
+
+    for (w = 0; mods[w] != NULL; w++) {
         Slapi_Attr a = {0};
         slapi_attr_init(&a, mods[w]->mod_type);
         int is_dn_syntax = 0;
         struct berval **normmbvp = NULL;
 
-        /* Check if the type of the to-be-added values has DN syntax 
+        /* Check if the type of the to-be-added values has DN syntax
          * or not. */
         if (slapi_attr_is_dn_syntax_attr(&a)) {
             is_dn_syntax = 1;
@@ -702,7 +710,7 @@ normalize_mods2bvals(const LDAPMod **mods)
         attr_done(&a);
 
         /* copy each mod into a normalized modbvalue */
-        normalized_mods[w] = (LDAPMod *) slapi_ch_calloc(1, sizeof(LDAPMod));
+        normalized_mods[w] = (LDAPMod *)slapi_ch_calloc(1, sizeof(LDAPMod));
         normalized_mods[w]->mod_op = mods[w]->mod_op | LDAP_MOD_BVALUES;
 
         normalized_mods[w]->mod_type = slapi_ch_strdup(mods[w]->mod_type);
@@ -713,44 +721,40 @@ normalize_mods2bvals(const LDAPMod **mods)
          * should typically be very small
          */
         num_values = 0;
-        if (mods[w]->mod_op & LDAP_MOD_BVALUES) 
-        {
-            for (x = 0; mods[w]->mod_bvalues != NULL && 
-                    mods[w]->mod_bvalues[x] != NULL; x++) 
-            {
+        if (mods[w]->mod_op & LDAP_MOD_BVALUES) {
+            for (x = 0; mods[w]->mod_bvalues != NULL &&
+                        mods[w]->mod_bvalues[x] != NULL;
+                 x++) {
                 num_values++;
             }
         } else {
             for (x = 0; mods[w]->mod_values != NULL &&
-                    mods[w]->mod_values[x] != NULL; x++) 
-            {
+                        mods[w]->mod_values[x] != NULL;
+                 x++) {
                 num_values++;
             }
         }
 
-        if (num_values > 0)
-        {
+        if (num_values > 0) {
             normalized_mods[w]->mod_bvalues = (struct berval **)
                 slapi_ch_calloc(num_values + 1, sizeof(struct berval *));
         } else {
             normalized_mods[w]->mod_bvalues = NULL;
         }
-       
-        if (mods[w]->mod_op & LDAP_MOD_BVALUES) 
-        {
+
+        if (mods[w]->mod_op & LDAP_MOD_BVALUES) {
             struct berval **mbvp = NULL;
 
             for (mbvp = mods[w]->mod_bvalues,
-                 normmbvp = normalized_mods[w]->mod_bvalues; 
-                 mbvp && *mbvp; mbvp++, normmbvp++)
-            {
+                normmbvp = normalized_mods[w]->mod_bvalues;
+                 mbvp && *mbvp; mbvp++, normmbvp++) {
                 if (is_dn_syntax) {
                     Slapi_DN *sdn = slapi_sdn_new_dn_byref((*mbvp)->bv_val);
                     if (slapi_sdn_get_dn(sdn)) {
-                        *normmbvp = 
-                        (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-                        (*normmbvp)->bv_val = 
-                                  slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+                        *normmbvp =
+                            (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+                        (*normmbvp)->bv_val =
+                            slapi_ch_strdup(slapi_sdn_get_dn(sdn));
                         (*normmbvp)->bv_len = slapi_sdn_get_ndn_len(sdn);
                     } else {
                         /* normalization failed; use the original */
@@ -764,22 +768,21 @@ normalize_mods2bvals(const LDAPMod **mods)
         } else {
             char **mvp = NULL;
 
-            for (mvp = mods[w]->mod_values, 
-                 normmbvp = normalized_mods[w]->mod_bvalues; 
-                 mvp && *mvp; mvp++, normmbvp++)
-            {
+            for (mvp = mods[w]->mod_values,
+                normmbvp = normalized_mods[w]->mod_bvalues;
+                 mvp && *mvp; mvp++, normmbvp++) {
                 vlen = strlen(*mvp);
 
-                *normmbvp = 
+                *normmbvp =
                     (struct berval *)slapi_ch_malloc(sizeof(struct berval));
                 if (is_dn_syntax) {
                     Slapi_DN *sdn = slapi_sdn_new_dn_byref(*mvp);
                     if (slapi_sdn_get_dn(sdn)) {
-                        (*normmbvp)->bv_val = 
-                                  slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+                        (*normmbvp)->bv_val =
+                            slapi_ch_strdup(slapi_sdn_get_dn(sdn));
                         (*normmbvp)->bv_len = slapi_sdn_get_ndn_len(sdn);
                     } else {
-                         /* normalization failed; use the original */
+                        /* normalization failed; use the original */
                         (*normmbvp)->bv_val = slapi_ch_malloc(vlen + 1);
                         memcpy((*normmbvp)->bv_val, *mvp, vlen);
                         (*normmbvp)->bv_val[vlen] = '\0';
@@ -798,16 +801,15 @@ normalize_mods2bvals(const LDAPMod **mods)
         PR_ASSERT(normmbvp - normalized_mods[w]->mod_bvalues <= num_values);
 
         /* don't forget to null terminate it */
-        if (num_values > 0)
-        {
+        if (num_values > 0) {
             *normmbvp = NULL;
         }
     }
-    
+
     /* don't forget to null terminate the normalize list of mods */
     normalized_mods[w] = NULL;
 
-    return(normalized_mods);
+    return (normalized_mods);
 }
 
 /*
@@ -816,15 +818,15 @@ normalize_mods2bvals(const LDAPMod **mods)
 int
 is_abspath(const char *path)
 {
-	if (path == NULL || *path == '\0') {
-		return 0; /* empty path is not absolute? */
-	}
+    if (path == NULL || *path == '\0') {
+        return 0; /* empty path is not absolute? */
+    }
 
-	if (path[0] == '/') {
-		return 1; /* unix abs path */
-	}
+    if (path[0] == '/') {
+        return 1; /* unix abs path */
+    }
 
-	return 0; /* not an abs path */
+    return 0; /* not an abs path */
 }
 
 static void
@@ -834,7 +836,7 @@ clean_path(char **norm_path)
 
     for (np = norm_path; np && *np; np++)
         slapi_ch_free_string(np);
-    slapi_ch_free((void  **)&norm_path);
+    slapi_ch_free((void **)&norm_path);
 }
 
 static char **
@@ -868,13 +870,13 @@ normalize_path(char *path)
         if (0 != strcmp(dnamep, ".") && strlen(dnamep) > 0) {
             *dp++ = slapi_ch_strdup(dnamep); /* rm "/./" and "//" in the path */
         }
-    } while ( dnamep > dname /* == -> no more _CSEP */ );
+    } while (dnamep > dname /* == -> no more _CSEP */);
     slapi_ch_free_string(&dname);
 
     /* remove "xxx/.." in the path */
     for (dp = dirs, rdp = rdirs; dp && *dp; dp++) {
         while (*dp && 0 == strcmp(*dp, "..")) {
-            dp++; 
+            dp++;
             elimdots++;
         }
         if (elimdots > 0) {
@@ -897,56 +899,54 @@ normalize_path(char *path)
 /*
  * Take "relpath" and prepend the current working directory to it
  * if it isn't an absolute pathname already.  The caller is responsible
- * for freeing the returned string. 
+ * for freeing the returned string.
  */
 char *
-rel2abspath( char *relpath )
+rel2abspath(char *relpath)
 {
-    return rel2abspath_ext( relpath, NULL );
+    return rel2abspath_ext(relpath, NULL);
 }
 
 char *
-rel2abspath_ext( char *relpath, char *cwd )
+rel2abspath_ext(char *relpath, char *cwd)
 {
-    char abspath[ MAXPATHLEN + 1 ];
+    char abspath[MAXPATHLEN + 1];
     char *retpath = NULL;
 
-    if ( relpath == NULL ) {
+    if (relpath == NULL) {
         return NULL;
     }
 
-    if ( relpath[ 0 ] == _CSEP ) {     /* absolute path */
+    if (relpath[0] == _CSEP) { /* absolute path */
         PR_snprintf(abspath, sizeof(abspath), "%s", relpath);
-    } else {                        /* relative path */
-        if ( NULL == cwd ) {
-            if ( getcwd( abspath, MAXPATHLEN ) == NULL ) {
-                perror( "getcwd" );
+    } else { /* relative path */
+        if (NULL == cwd) {
+            if (getcwd(abspath, MAXPATHLEN) == NULL) {
+                perror("getcwd");
                 slapi_log_err(SLAPI_LOG_ERR, "rel2abspath_ext", "Cannot determine current directory\n");
-                exit( 1 );
+                exit(1);
             }
         } else {
             PR_snprintf(abspath, sizeof(abspath), "%s", cwd);
         }
-    
-        if ( strlen( relpath ) + strlen( abspath ) + 1  > MAXPATHLEN ) {
+
+        if (strlen(relpath) + strlen(abspath) + 1 > MAXPATHLEN) {
             slapi_log_err(SLAPI_LOG_ERR, "rel2abspath_ext", "Pathname \"%s" _PSEP "%s\" too long\n",
-                    abspath, relpath);
-            exit( 1 );
+                          abspath, relpath);
+            exit(1);
         }
-    
-        if ( strcmp( relpath, "." )) {
-            if ( abspath[ 0 ] != '\0' &&
-                 abspath[ strlen( abspath ) - 1 ] != _CSEP )
-            {
-                PL_strcatn( abspath, sizeof(abspath), _PSEP );
+
+        if (strcmp(relpath, ".")) {
+            if (abspath[0] != '\0' &&
+                abspath[strlen(abspath) - 1] != _CSEP) {
+                PL_strcatn(abspath, sizeof(abspath), _PSEP);
             }
-            PL_strcatn( abspath, sizeof(abspath), relpath );
+            PL_strcatn(abspath, sizeof(abspath), relpath);
         }
     }
     retpath = slapi_ch_strdup(abspath);
     /* if there's no '.' or separators, no need to call normalize_path */
-    if (NULL != strchr(abspath, '.') || NULL != strstr(abspath, _PSEP))
-    {
+    if (NULL != strchr(abspath, '.') || NULL != strstr(abspath, _PSEP)) {
         char **norm_path = normalize_path(abspath);
         char **np, *rp;
         int pathlen = strlen(abspath) + 1;
@@ -973,47 +973,46 @@ rel2abspath_ext( char *relpath, char *cwd )
 char *
 slapi_berval_get_string_copy(const struct berval *bval)
 {
-	char *return_value = NULL;
-	if (NULL != bval && NULL != bval->bv_val)
-	{
-		return_value = slapi_ch_malloc(bval->bv_len + 1);
-		memcpy(return_value, bval->bv_val, bval->bv_len);
-		return_value[bval->bv_len] = '\0';
-	}
-	return return_value;
+    char *return_value = NULL;
+    if (NULL != bval && NULL != bval->bv_val) {
+        return_value = slapi_ch_malloc(bval->bv_len + 1);
+        memcpy(return_value, bval->bv_val, bval->bv_len);
+        return_value[bval->bv_len] = '\0';
+    }
+    return return_value;
 }
 
 
-	/* Takes a return code supposed to be errno or from a plugin
+/* Takes a return code supposed to be errno or from a plugin
    which we don't expect to see and prints a handy log message */
-void slapd_nasty(char* str, int c, int err)
+void
+slapd_nasty(char *str, int c, int err)
 {
-	char *msg = NULL;
-	char buffer[100];
-	PR_snprintf(buffer,sizeof(buffer), "%s BAD %d",str,c);
-	slapi_log_err(SLAPI_LOG_ERR,"%s, err=%d %s\n",buffer,err,(msg = strerror( err )) ? msg : "");
+    char *msg = NULL;
+    char buffer[100];
+    PR_snprintf(buffer, sizeof(buffer), "%s BAD %d", str, c);
+    slapi_log_err(SLAPI_LOG_ERR, "%s, err=%d %s\n", buffer, err, (msg = strerror(err)) ? msg : "");
 }
 
 /* ***************************************************
-	Random function (very similar to rand_r())
+    Random function (very similar to rand_r())
    *************************************************** */
 int
 slapi_rand_r(unsigned int *randx)
 {
-    if (*randx)
-	{
-	    PK11_RandomUpdate(randx, sizeof(*randx));
-	}
+    if (*randx) {
+        PK11_RandomUpdate(randx, sizeof(*randx));
+    }
     PK11_GenerateRandom((unsigned char *)randx, (int)sizeof(*randx));
-	return (int)(*randx & 0x7FFFFFFF);
+    return (int)(*randx & 0x7FFFFFFF);
 }
 
 /* ***************************************************
-	Random function (very similar to rand_r() but takes and returns an array)
-	Note: there is an identical function in plugins/pwdstorage/ssha_pwd.c.
-	That module can't use a libslapd function because the module is included
-	in libds_admin, which doesn't link to libslapd. Eventually, shared
-	functions should be moved to a shared library.
+    Random function (very similar to rand_r() but takes and returns an array)
+    Note: there is an identical function in plugins/pwdstorage/ssha_pwd.c.
+    That module can't use a libslapd function because the module is included
+    in libds_admin, which doesn't link to libslapd. Eventually, shared
+    functions should be moved to a shared library.
    *************************************************** */
 void
 slapi_rand_array(void *randx, size_t len)
@@ -1023,102 +1022,100 @@ slapi_rand_array(void *randx, size_t len)
 }
 
 /* ***************************************************
-	Random function (very similar to rand()...)
+    Random function (very similar to rand()...)
    *************************************************** */
 int
 slapi_rand()
 {
     unsigned int randx = 0;
-	return slapi_rand_r(&randx);
+    return slapi_rand_r(&randx);
 }
 
 
-
 /************************************************************************
-Function:	DS_Sleep(PRIntervalTime ticks)
+Function:    DS_Sleep(PRIntervalTime ticks)
 
-Purpose:	To replace PR_Sleep()
+Purpose:    To replace PR_Sleep()
 
-Author:		Scott Hopson <shopson@netscape.com>
+Author:        Scott Hopson <shopson@netscape.com>
 
 Description:
-		Causes the current thread to wait for ticks number of intervals.
+        Causes the current thread to wait for ticks number of intervals.
 
-		In UNIX this is accomplished by using select()
-		which should be supported across all UNIX platforms.
+        In UNIX this is accomplished by using select()
+        which should be supported across all UNIX platforms.
 
 ************************************************************************/
 void
 DS_Sleep(PRIntervalTime ticks)
 {
-	long mSecs = PR_IntervalToMilliseconds(ticks);
-	struct timeval tm;
+    long mSecs = PR_IntervalToMilliseconds(ticks);
+    struct timeval tm;
 
-	tm.tv_sec = mSecs / 1000;
-	tm.tv_usec = (mSecs % 1000) * 1000;
+    tm.tv_sec = mSecs / 1000;
+    tm.tv_usec = (mSecs % 1000) * 1000;
 
-	select(0,NULL,NULL,NULL,&tm);
+    select(0, NULL, NULL, NULL, &tm);
 }
-
 
 
 /*****************************************************************************
  * strarray2str(): convert the array of strings in "a" into a single
  * space-separated string like:
- *		str1 str2 str3
+ *        str1 str2 str3
  * If buf is too small, the result will be truncated and end with "...".
  * If include_quotes is non-zero, double quote marks are included around
  * the string, e.g.,
- *		"str2 str2 str3"
+ *        "str2 str2 str3"
  *
  * Returns: 0 if completely successful and -1 if result is truncated.
  */
 int
-strarray2str( char **a, char *buf, size_t buflen, int include_quotes )
+strarray2str(char **a, char *buf, size_t buflen, int include_quotes)
 {
-	int		rc = 0;		/* optimistic */
-	char	*p = buf;
-	size_t	totlen = 0;
+    int rc = 0; /* optimistic */
+    char *p = buf;
+    size_t totlen = 0;
 
 
-	if ( include_quotes ) {
-		if ( buflen < 3 ) {
-			return -1;		/* not enough room for the quote marks! */
-		}
-		*p++ = '"';
-		++totlen;
-	}
+    if (include_quotes) {
+        if (buflen < 3) {
+            return -1; /* not enough room for the quote marks! */
+        }
+        *p++ = '"';
+        ++totlen;
+    }
 
-	if ( NULL != a ) {
-		int ii;
-		size_t len = 0;
-		for ( ii = 0; a[ ii ] != NULL; ii++ ) {
-			if ( ii > 0 ) {
-				*p++ = ' ';
-				totlen++;
-			}
-			len = strlen( a[ ii ]);
-			if ( totlen + len > buflen - 5 ) {
-				strcpy ( p, "..." );
-				p += 3;
-				totlen += 3;
-				rc = -1;
-				break;		/* result truncated */
-			} else {
-				strcpy( p, a[ ii ]);
-				p += len;
-				totlen += len;
-			}
-		}
-	}
+    if (NULL != a) {
+        int ii;
+        size_t len = 0;
+        for (ii = 0; a[ii] != NULL; ii++) {
+            if (ii > 0) {
+                *p++ = ' ';
+                totlen++;
+            }
+            len = strlen(a[ii]);
+            if (totlen + len > buflen - 5) {
+                strcpy(p, "...");
+                p += 3;
+                totlen += 3;
+                rc = -1;
+                break; /* result truncated */
+            } else {
+                strcpy(p, a[ii]);
+                p += len;
+                totlen += len;
+            }
+        }
+    }
 
-	if ( include_quotes ) {
-		*p++ = '"';
-		++totlen;
-	}
-	buf[ totlen ] = '\0';
+    if (include_quotes) {
+        *p++ = '"';
+        ++totlen;
+    }
+    buf[totlen] = '\0';
 
-	return( rc );
+    return (rc);
 }
 /*****************************************************************************/
 
@@ -1130,28 +1127,26 @@ strarray2str( char **a, char *buf, size_t buflen, int include_quotes )
 int
 slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 {
-        int fd = -1;
-        struct stat statbuf = {0};
-        int result = 1;
-        if (!filename) {
-            return result;
-        }
-
-        fd = open(filename, O_RDONLY);
-        if (fd == -1) {
-            return result;
-        }
-        if (!(result = fstat(fd, &statbuf)))
-        {
-                if (((uid != -1) && (uid != statbuf.st_uid)) ||
-                    ((gid != -1) && (gid != statbuf.st_gid)))
-                {
-                        result = fchown(fd, uid, gid);
-                }
-        }
-
-        close(fd);
+    int fd = -1;
+    struct stat statbuf = {0};
+    int result = 1;
+    if (!filename) {
         return result;
+    }
+
+    fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        return result;
+    }
+    if (!(result = fstat(fd, &statbuf))) {
+        if (((uid != -1) && (uid != statbuf.st_uid)) ||
+            ((gid != -1) && (gid != statbuf.st_gid))) {
+            result = fchown(fd, uid, gid);
+        }
+    }
+
+    close(fd);
+    return result;
 }
 
 /*
@@ -1162,187 +1157,190 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 int
 slapd_comp_path(char *p0, char *p1)
 {
-	int rval = 0;
-	char *norm_p0 = rel2abspath(p0);
-	char *norm_p1 = rel2abspath(p1);
+    int rval = 0;
+    char *norm_p0 = rel2abspath(p0);
+    char *norm_p1 = rel2abspath(p1);
 
-	rval = strcmp(norm_p0, norm_p1);
-	slapi_ch_free_string(&norm_p0);
-	slapi_ch_free_string(&norm_p1);
-	return rval;
+    rval = strcmp(norm_p0, norm_p1);
+    slapi_ch_free_string(&norm_p0);
+    slapi_ch_free_string(&norm_p1);
+    return rval;
 }
 
 /*
   Takes an unsigned char value and converts it to a hex string.
   The string s is written, and the caller must ensure s has enough
-  space.  For hex numbers, the upper argument says to use a-f or A-F. 
+  space.  For hex numbers, the upper argument says to use a-f or A-F.
   The return value is the address of the next char after the last one written.
 */
 char *
-slapi_u8_to_hex(uint8_t val, char *s, uint8_t upper) {
-	static char ldigits[] = "0123456789abcdef";
-	static char udigits[] = "0123456789ABCDEF";
-	char *digits;
+slapi_u8_to_hex(uint8_t val, char *s, uint8_t upper)
+{
+    static char ldigits[] = "0123456789abcdef";
+    static char udigits[] = "0123456789ABCDEF";
+    char *digits;
 
-	if (upper) {
-		digits = udigits;
-	} else {
-		digits = ldigits;
-	}
-	s[0] = digits[val >> 4];
-	s[1] = digits[val & 0xf];
-	return &s[2];
+    if (upper) {
+        digits = udigits;
+    } else {
+        digits = ldigits;
+    }
+    s[0] = digits[val >> 4];
+    s[1] = digits[val & 0xf];
+    return &s[2];
 }
 
 char *
-slapi_u16_to_hex(uint16_t val, char *s, uint8_t upper) {
-	static char ldigits[] = "0123456789abcdef";
-	static char udigits[] = "0123456789ABCDEF";
-	char *digits;
+slapi_u16_to_hex(uint16_t val, char *s, uint8_t upper)
+{
+    static char ldigits[] = "0123456789abcdef";
+    static char udigits[] = "0123456789ABCDEF";
+    char *digits;
 
-	if (upper) {
-		digits = udigits;
-	} else {
-		digits = ldigits;
-	}
-	s[0] = digits[val >> 12];
-	s[1] = digits[(val >> 8) & 0xf];
-	s[2] = digits[(val >> 4) & 0xf];
-	s[3] = digits[val & 0xf];
-	return &s[4];
+    if (upper) {
+        digits = udigits;
+    } else {
+        digits = ldigits;
+    }
+    s[0] = digits[val >> 12];
+    s[1] = digits[(val >> 8) & 0xf];
+    s[2] = digits[(val >> 4) & 0xf];
+    s[3] = digits[val & 0xf];
+    return &s[4];
 }
 
 char *
-slapi_u32_to_hex(uint32_t val, char *s, uint8_t upper) {
-	static char ldigits[] = "0123456789abcdef";
-	static char udigits[] = "0123456789ABCDEF";
-	char *digits;
+slapi_u32_to_hex(uint32_t val, char *s, uint8_t upper)
+{
+    static char ldigits[] = "0123456789abcdef";
+    static char udigits[] = "0123456789ABCDEF";
+    char *digits;
 
-	if (upper) {
-		digits = udigits;
-	} else {
-		digits = ldigits;
-	}
-	s[0] = digits[val >> 28];
-	s[1] = digits[(val >> 24) & 0xf];
-	s[2] = digits[(val >> 20) & 0xf];
-	s[3] = digits[(val >> 16) & 0xf];
-	s[4] = digits[(val >> 12) & 0xf];
-	s[5] = digits[(val >> 8) & 0xf];
-	s[6] = digits[(val >> 4) & 0xf];
-	s[7] = digits[val & 0xf];
-	return &s[8];
+    if (upper) {
+        digits = udigits;
+    } else {
+        digits = ldigits;
+    }
+    s[0] = digits[val >> 28];
+    s[1] = digits[(val >> 24) & 0xf];
+    s[2] = digits[(val >> 20) & 0xf];
+    s[3] = digits[(val >> 16) & 0xf];
+    s[4] = digits[(val >> 12) & 0xf];
+    s[5] = digits[(val >> 8) & 0xf];
+    s[6] = digits[(val >> 4) & 0xf];
+    s[7] = digits[val & 0xf];
+    return &s[8];
 }
 
 char *
-slapi_u64_to_hex(uint64_t val, char *s, uint8_t upper) {
-	static char ldigits[] = "0123456789abcdef";
-	static char udigits[] = "0123456789ABCDEF";
-	char *digits;
+slapi_u64_to_hex(uint64_t val, char *s, uint8_t upper)
+{
+    static char ldigits[] = "0123456789abcdef";
+    static char udigits[] = "0123456789ABCDEF";
+    char *digits;
 
-	if (upper) {
-		digits = udigits;
-	} else {
-		digits = ldigits;
-	}
-	s[0] = digits[val >> 60];
-	s[1] = digits[(val >> 56) & 0xf];
-	s[2] = digits[(val >> 52) & 0xf];
-	s[3] = digits[(val >> 48) & 0xf];
-	s[4] = digits[(val >> 44) & 0xf];
-	s[5] = digits[(val >> 40) & 0xf];
-	s[6] = digits[(val >> 36) & 0xf];
-	s[7] = digits[(val >> 32) & 0xf];
-	s[8] = digits[(val >> 28) & 0xf];
-	s[9] = digits[(val >> 24) & 0xf];
-	s[10] = digits[(val >> 20) & 0xf];
-	s[11] = digits[(val >> 16) & 0xf];
-	s[12] = digits[(val >> 12) & 0xf];
-	s[13] = digits[(val >> 8) & 0xf];
-	s[14] = digits[(val >> 4) & 0xf];
-	s[15] = digits[val & 0xf];
-	return &s[16];
+    if (upper) {
+        digits = udigits;
+    } else {
+        digits = ldigits;
+    }
+    s[0] = digits[val >> 60];
+    s[1] = digits[(val >> 56) & 0xf];
+    s[2] = digits[(val >> 52) & 0xf];
+    s[3] = digits[(val >> 48) & 0xf];
+    s[4] = digits[(val >> 44) & 0xf];
+    s[5] = digits[(val >> 40) & 0xf];
+    s[6] = digits[(val >> 36) & 0xf];
+    s[7] = digits[(val >> 32) & 0xf];
+    s[8] = digits[(val >> 28) & 0xf];
+    s[9] = digits[(val >> 24) & 0xf];
+    s[10] = digits[(val >> 20) & 0xf];
+    s[11] = digits[(val >> 16) & 0xf];
+    s[12] = digits[(val >> 12) & 0xf];
+    s[13] = digits[(val >> 8) & 0xf];
+    s[14] = digits[(val >> 4) & 0xf];
+    s[15] = digits[val & 0xf];
+    return &s[16];
 }
 
 static const int char2intarray[] = {
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1,
-	-1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-};
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
 int
 slapi_hexchar2int(char c)
 {
-	return char2intarray[(unsigned char)c];
+    return char2intarray[(unsigned char)c];
 }
-    
+
 uint8_t
 slapi_str_to_u8(const char *s)
 {
-	uint8_t v0 = (uint8_t)slapi_hexchar2int(s[0]);
-	uint8_t v1 = (uint8_t)slapi_hexchar2int(s[1]);
-	return (v0 << 4) | v1;
+    uint8_t v0 = (uint8_t)slapi_hexchar2int(s[0]);
+    uint8_t v1 = (uint8_t)slapi_hexchar2int(s[1]);
+    return (v0 << 4) | v1;
 }
 
 uint16_t
 slapi_str_to_u16(const char *s)
 {
-	uint16_t v0 = (uint16_t)slapi_hexchar2int(s[0]);
-	uint16_t v1 = (uint16_t)slapi_hexchar2int(s[1]);
-	uint16_t v2 = (uint16_t)slapi_hexchar2int(s[2]);
-	uint16_t v3 = (uint16_t)slapi_hexchar2int(s[3]);
-	return (v0 << 12) | (v1 << 8) | (v2 << 4) | v3;
+    uint16_t v0 = (uint16_t)slapi_hexchar2int(s[0]);
+    uint16_t v1 = (uint16_t)slapi_hexchar2int(s[1]);
+    uint16_t v2 = (uint16_t)slapi_hexchar2int(s[2]);
+    uint16_t v3 = (uint16_t)slapi_hexchar2int(s[3]);
+    return (v0 << 12) | (v1 << 8) | (v2 << 4) | v3;
 }
 
 uint32_t
 slapi_str_to_u32(const char *s)
 {
-	uint32_t v0 = (uint32_t)slapi_hexchar2int(s[0]);
-	uint32_t v1 = (uint32_t)slapi_hexchar2int(s[1]);
-	uint32_t v2 = (uint32_t)slapi_hexchar2int(s[2]);
-	uint32_t v3 = (uint32_t)slapi_hexchar2int(s[3]);
-	uint32_t v4 = (uint32_t)slapi_hexchar2int(s[4]);
-	uint32_t v5 = (uint32_t)slapi_hexchar2int(s[5]);
-	uint32_t v6 = (uint32_t)slapi_hexchar2int(s[6]);
-	uint32_t v7 = (uint32_t)slapi_hexchar2int(s[7]);
-	return (v0 << 28) | (v1 << 24) | (v2 << 20) | (v3 << 16) | (v4 << 12) | (v5 << 8) | (v6 << 4) | v7;
+    uint32_t v0 = (uint32_t)slapi_hexchar2int(s[0]);
+    uint32_t v1 = (uint32_t)slapi_hexchar2int(s[1]);
+    uint32_t v2 = (uint32_t)slapi_hexchar2int(s[2]);
+    uint32_t v3 = (uint32_t)slapi_hexchar2int(s[3]);
+    uint32_t v4 = (uint32_t)slapi_hexchar2int(s[4]);
+    uint32_t v5 = (uint32_t)slapi_hexchar2int(s[5]);
+    uint32_t v6 = (uint32_t)slapi_hexchar2int(s[6]);
+    uint32_t v7 = (uint32_t)slapi_hexchar2int(s[7]);
+    return (v0 << 28) | (v1 << 24) | (v2 << 20) | (v3 << 16) | (v4 << 12) | (v5 << 8) | (v6 << 4) | v7;
 }
 
 uint64_t
 slapi_str_to_u64(const char *s)
 {
-	uint64_t v0 = (uint64_t)slapi_hexchar2int(s[0]);
-	uint64_t v1 = (uint64_t)slapi_hexchar2int(s[1]);
-	uint64_t v2 = (uint64_t)slapi_hexchar2int(s[2]);
-	uint64_t v3 = (uint64_t)slapi_hexchar2int(s[3]);
-	uint64_t v4 = (uint64_t)slapi_hexchar2int(s[4]);
-	uint64_t v5 = (uint64_t)slapi_hexchar2int(s[5]);
-	uint64_t v6 = (uint64_t)slapi_hexchar2int(s[6]);
-	uint64_t v7 = (uint64_t)slapi_hexchar2int(s[7]);
-	uint64_t v8 = (uint64_t)slapi_hexchar2int(s[8]);
-	uint64_t v9 = (uint64_t)slapi_hexchar2int(s[9]);
-	uint64_t v10 = (uint64_t)slapi_hexchar2int(s[10]);
-	uint64_t v11 = (uint64_t)slapi_hexchar2int(s[11]);
-	uint64_t v12 = (uint64_t)slapi_hexchar2int(s[12]);
-	uint64_t v13 = (uint64_t)slapi_hexchar2int(s[13]);
-	uint64_t v14 = (uint64_t)slapi_hexchar2int(s[14]);
-	uint64_t v15 = (uint64_t)slapi_hexchar2int(s[15]);
-	return (v0 << 60) | (v1 << 56) | (v2 << 52) | (v3 << 48) | (v4 << 44) | (v5 << 40) |
-		(v6 << 36) | (v7 << 32) | (v8 << 28) | (v9 << 24) | (v10 << 20) | (v11 << 16) |
-		(v12 << 12) | (v13 << 8) | (v14 << 4) | v15;
+    uint64_t v0 = (uint64_t)slapi_hexchar2int(s[0]);
+    uint64_t v1 = (uint64_t)slapi_hexchar2int(s[1]);
+    uint64_t v2 = (uint64_t)slapi_hexchar2int(s[2]);
+    uint64_t v3 = (uint64_t)slapi_hexchar2int(s[3]);
+    uint64_t v4 = (uint64_t)slapi_hexchar2int(s[4]);
+    uint64_t v5 = (uint64_t)slapi_hexchar2int(s[5]);
+    uint64_t v6 = (uint64_t)slapi_hexchar2int(s[6]);
+    uint64_t v7 = (uint64_t)slapi_hexchar2int(s[7]);
+    uint64_t v8 = (uint64_t)slapi_hexchar2int(s[8]);
+    uint64_t v9 = (uint64_t)slapi_hexchar2int(s[9]);
+    uint64_t v10 = (uint64_t)slapi_hexchar2int(s[10]);
+    uint64_t v11 = (uint64_t)slapi_hexchar2int(s[11]);
+    uint64_t v12 = (uint64_t)slapi_hexchar2int(s[12]);
+    uint64_t v13 = (uint64_t)slapi_hexchar2int(s[13]);
+    uint64_t v14 = (uint64_t)slapi_hexchar2int(s[14]);
+    uint64_t v15 = (uint64_t)slapi_hexchar2int(s[15]);
+    return (v0 << 60) | (v1 << 56) | (v2 << 52) | (v3 << 48) | (v4 << 44) | (v5 << 40) |
+           (v6 << 36) | (v7 << 32) | (v8 << 28) | (v9 << 24) | (v10 << 20) | (v11 << 16) |
+           (v12 << 12) | (v13 << 8) | (v14 << 4) | v15;
 }
 
 /* PR_GetLibraryName does almost everything we need, and unfortunately
@@ -1372,14 +1370,14 @@ slapi_get_plugin_name(const char *path, const char *lib)
         if (0 == PL_strncmp(ptr, libstr, libstrlen)) {
             /* just copy the remainder of the string on top of here */
             ptr++; /* ptr now points at the "l" in "/lib" - keep the "/" */
-            memmove(ptr, ptr+3, strlen(ptr+3)+1);
+            memmove(ptr, ptr + 3, strlen(ptr + 3) + 1);
         }
     } else if ((NULL == path) && (0 == strncmp(fullname, "lib", 3))) {
-        /* 
+        /*
          * case: /path/libfoo -> lib/path/libfoo.so
          * remove "lib".
          */
-        memmove(fullname, fullname+3, strlen(fullname)-2);
+        memmove(fullname, fullname + 3, strlen(fullname) - 2);
     }
 
     return fullname;
@@ -1395,68 +1393,68 @@ static int util_uniqueidlen = 0;
 int
 slapi_is_special_rdn(const char *rdn, int flag)
 {
-	char *rp;
-	int plus = 0;
-	if (!util_uniqueidlen) {
-		util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/;
-	}
+    char *rp;
+    int plus = 0;
+    if (!util_uniqueidlen) {
+        util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1 /*=*/;
+    }
 
-	if ((RDN_IS_TOMBSTONE != flag) && (RDN_IS_CONFLICT != flag)) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_is_special_rdn", "Invalid flag %d\n", flag);
-		return 0; /* not a special rdn/dn */
-	}
-	if (!rdn) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapi_is_special_rdn", "NULL rdn\n");
-		return 0; /* not a special rdn/dn */
-	}
+    if ((RDN_IS_TOMBSTONE != flag) && (RDN_IS_CONFLICT != flag)) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_is_special_rdn", "Invalid flag %d\n", flag);
+        return 0; /* not a special rdn/dn */
+    }
+    if (!rdn) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_is_special_rdn", "NULL rdn\n");
+        return 0; /* not a special rdn/dn */
+    }
 
-	if (strlen(rdn) < (size_t)util_uniqueidlen) {
-		return 0; /* not a special rdn/dn */
-	}
-	rp = (char *)rdn;
-	while (rp) {
-		char *endp = NULL;
-		if (!PL_strncasecmp(rp, SLAPI_ATTR_UNIQUEID, SLAPI_ATTR_UNIQUEID_LENGTH) &&
-		    (*(rp + SLAPI_ATTR_UNIQUEID_LENGTH) == '=')) {
-			if (RDN_IS_TOMBSTONE == flag) {
-				if ((*(rp + util_uniqueidlen) == ',') ||
-				    (*(rp + util_uniqueidlen) == '\0')) {
-					return 1;
-				} else {
-					return 0;
-				}
-			} else {
-				if ((*(rp + util_uniqueidlen) == '+') ||
-				    (plus && ((*(rp + util_uniqueidlen) == ',') ||
-				              (*(rp + util_uniqueidlen) == '\0')))) {
-					return 1;
-				}
-			}
-		} else if (RDN_IS_TOMBSTONE == flag) {
-			/* If the first part of rdn does not start with SLAPI_ATTR_UNIQUEID,
-			 * it's not a tombstone RDN. */
-			return 0;
-		}
-		endp = PL_strchr(rp, ',');
-		if (!endp) {
-			endp = rp + strlen(rp);
-		}
-		rp = PL_strchr(rp, '+');
-		if (rp && (rp < endp)) {
-			plus = 1;
-			rp++;
-		}
-	}
-	return 0;
+    if (strlen(rdn) < (size_t)util_uniqueidlen) {
+        return 0; /* not a special rdn/dn */
+    }
+    rp = (char *)rdn;
+    while (rp) {
+        char *endp = NULL;
+        if (!PL_strncasecmp(rp, SLAPI_ATTR_UNIQUEID, SLAPI_ATTR_UNIQUEID_LENGTH) &&
+            (*(rp + SLAPI_ATTR_UNIQUEID_LENGTH) == '=')) {
+            if (RDN_IS_TOMBSTONE == flag) {
+                if ((*(rp + util_uniqueidlen) == ',') ||
+                    (*(rp + util_uniqueidlen) == '\0')) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            } else {
+                if ((*(rp + util_uniqueidlen) == '+') ||
+                    (plus && ((*(rp + util_uniqueidlen) == ',') ||
+                              (*(rp + util_uniqueidlen) == '\0')))) {
+                    return 1;
+                }
+            }
+        } else if (RDN_IS_TOMBSTONE == flag) {
+            /* If the first part of rdn does not start with SLAPI_ATTR_UNIQUEID,
+             * it's not a tombstone RDN. */
+            return 0;
+        }
+        endp = PL_strchr(rp, ',');
+        if (!endp) {
+            endp = rp + strlen(rp);
+        }
+        rp = PL_strchr(rp, '+');
+        if (rp && (rp < endp)) {
+            plus = 1;
+            rp++;
+        }
+    }
+    return 0;
 }
 
 int
 slapi_uniqueIDRdnSize(void)
 {
-	if (!util_uniqueidlen) {
-		util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/;
-	}
-	return util_uniqueidlen;
+    if (!util_uniqueidlen) {
+        util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1 /*=*/;
+    }
+    return util_uniqueidlen;
 }
 
 util_cachesize_result
@@ -1469,14 +1467,14 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
     }
 
     util_cachesize_result result = UTIL_CACHESIZE_VALID;
-    slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Available bytes %"PRIu64", requested bytes %"PRIu64"\n", mi->system_available_bytes, *cachesize);
+    slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Available bytes %" PRIu64 ", requested bytes %" PRIu64 "\n", mi->system_available_bytes, *cachesize);
     if (*cachesize > mi->system_available_bytes) {
         /* Since we are ask for more than what's available, we give 1/2 of the remaining.
          * the remaining system mem to the cachesize instead, and log a warning
          */
         uint64_t adjust_cachesize = (mi->system_available_bytes * 0.5);
         if (adjust_cachesize > *cachesize) {
-            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %"PRIu64, adjust_cachesize);
+            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %" PRIu64, adjust_cachesize);
             return UTIL_CACHESIZE_ERROR;
         }
         if (adjust_cachesize < (16 * mi->pagesize_bytes)) {
@@ -1484,14 +1482,15 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
             adjust_cachesize = 16 * mi->pagesize_bytes;
         }
         *cachesize = adjust_cachesize;
-        slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Adjusted cachesize down to %"PRIu64"\n", *cachesize);
+        slapi_log_err(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Adjusted cachesize down to %" PRIu64 "\n", *cachesize);
         result = UTIL_CACHESIZE_REDUCED;
     }
     return result;
 }
 
 long
-util_get_hardware_threads(void) {
+util_get_hardware_threads(void)
+{
 #ifdef LINUX
     long hw_threads = sysconf(_SC_NPROCESSORS_ONLN);
     long threads = 0;
@@ -1540,18 +1539,15 @@ util_get_hardware_threads(void) {
 
 void
 slapi_create_errormsg(
-    char        *errorbuf,
-    size_t      len,
-    const char  *fmt,
-    ...
-)
+    char *errorbuf,
+    size_t len,
+    const char *fmt,
+    ...)
 {
-    if (errorbuf) { 
-        va_list     ap;
+    if (errorbuf) {
+        va_list ap;
         va_start(ap, fmt);
-        (void)PR_vsnprintf(errorbuf, len?len-1:sizeof(errorbuf)-1, fmt, ap);
-        va_end( ap );
+        (void)PR_vsnprintf(errorbuf, len ? len - 1 : sizeof(errorbuf) - 1, fmt, ap);
+        va_end(ap);
     }
 }
-
-

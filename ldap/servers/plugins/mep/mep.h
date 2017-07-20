@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -27,11 +27,11 @@
 /*
  * Plug-in defines
  */
-#define MEP_PLUGIN_SUBSYSTEM  "managed-entries-plugin"
-#define MEP_FEATURE_DESC      "Managed Entries"
-#define MEP_PLUGIN_DESC       "Managed Entries plugin"
-#define MEP_INT_POSTOP_DESC   "Managed Entries internal postop plugin"
-#define MEP_POSTOP_DESC       "Managed Entries postop plugin"
+#define MEP_PLUGIN_SUBSYSTEM "managed-entries-plugin"
+#define MEP_FEATURE_DESC     "Managed Entries"
+#define MEP_PLUGIN_DESC      "Managed Entries plugin"
+#define MEP_INT_POSTOP_DESC  "Managed Entries internal postop plugin"
+#define MEP_POSTOP_DESC      "Managed Entries postop plugin"
 
 /*
  * Config type defines
@@ -64,12 +64,13 @@
 /*
  * Helper defines
  */
-#define IS_ATTRDESC_CHAR(c) ( isalnum(c) || (c == '.') || (c == ';') || (c == '-') )
+#define IS_ATTRDESC_CHAR(c) (isalnum(c) || (c == '.') || (c == ';') || (c == '-'))
 
 /*
  * Linked list of config entries.
  */
-struct configEntry {
+struct configEntry
+{
     PRCList list;
     Slapi_DN *sdn;
     char *origin_scope;
@@ -99,4 +100,3 @@ void mep_set_plugin_id(void *pluginID);
 void *mep_get_plugin_id(void);
 void mep_set_plugin_dn(char *pluginDN);
 char *mep_get_plugin_dn(void);
-

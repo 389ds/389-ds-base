@@ -12,23 +12,21 @@
 #include <config.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h> // for uint64_t
-#include <stdarg.h> // For va_start / va_end
-#include <inttypes.h> // For PRI*
-#include <string.h> // for memset
+#include <stdint.h>    // for uint64_t
+#include <stdarg.h>    // For va_start / va_end
+#include <inttypes.h>  // For PRI*
+#include <string.h>    // for memset
 // #include <pratom.h> // For atomic increments.
 // We use gcc atomic operations instead.
-#include <prlog.h> // For pr_assert
+#include <prlog.h>  // For pr_assert
 #include <prthread.h>
 
 
-#include <assert.h> // For assertions.
-#include <pthread.h> // for threads
+#include <assert.h>   // For assertions.
+#include <pthread.h>  // for threads
 
 #define SDS_CACHE_ALIGNMENT 64
 
 #ifdef SDS_DEBUG
 void sds_log(char *id, char *msg, ...);
 #endif
-
-

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -17,7 +17,7 @@
  * routines to "register" matching rules with the server
  *
  *
- * 
+ *
  *
  */
 
@@ -30,22 +30,22 @@ int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule);
 int slapi_matchingrule_unregister(char *oid);
 Slapi_MatchingRuleEntry *slapi_matchingrule_new(void);
 void slapi_matchingrule_free(Slapi_MatchingRuleEntry **mrEntry,
-			     int freeMembers);
+                             int freeMembers);
 int slapi_matchingrule_get(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_set(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 
 
 static int _mr_alloc_new(struct matchingRuleList **mrl);
 
-static struct matchingRuleList *global_mrl=NULL;
+static struct matchingRuleList *global_mrl = NULL;
 
-struct matchingRuleList* 
+struct matchingRuleList *
 g_get_global_mrl(void)
 {
     return global_mrl;
 }
 
-void 
+void
 g_set_global_mrl(struct matchingRuleList *newglobalmrl)
 {
     global_mrl = newglobalmrl;
@@ -54,106 +54,94 @@ g_set_global_mrl(struct matchingRuleList *newglobalmrl)
 int
 slapi_matchingrule_set(Slapi_MatchingRuleEntry *mr, int arg, void *value)
 {
-    if(NULL == mr) {
-	return(-1);
+    if (NULL == mr) {
+        return (-1);
     }
-    switch(arg) {
-    case SLAPI_MATCHINGRULE_NAME:
-	{
-	    mr->mr_name = (char *)value;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_OID:
-	{
-	    mr->mr_oid = (char *)value;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_DESC:
-	{
-	    mr->mr_desc = (char *)value;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_SYNTAX:
-	{
-	    mr->mr_syntax = (char *)value;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_OBSOLETE:
-	{
-	    mr->mr_obsolete = *((int *)value);
-	    break;
-	}
-    default:
-	{
-	    break;
-	}
+    switch (arg) {
+    case SLAPI_MATCHINGRULE_NAME: {
+        mr->mr_name = (char *)value;
+        break;
     }
-    return(0);
+    case SLAPI_MATCHINGRULE_OID: {
+        mr->mr_oid = (char *)value;
+        break;
+    }
+    case SLAPI_MATCHINGRULE_DESC: {
+        mr->mr_desc = (char *)value;
+        break;
+    }
+    case SLAPI_MATCHINGRULE_SYNTAX: {
+        mr->mr_syntax = (char *)value;
+        break;
+    }
+    case SLAPI_MATCHINGRULE_OBSOLETE: {
+        mr->mr_obsolete = *((int *)value);
+        break;
+    }
+    default: {
+        break;
+    }
+    }
+    return (0);
 }
 
 int
 slapi_matchingrule_get(Slapi_MatchingRuleEntry *mr, int arg, void *value)
 {
-    if((NULL == mr) || (NULL == value)) {
-	return(-1);
+    if ((NULL == mr) || (NULL == value)) {
+        return (-1);
     }
-    switch(arg) {
-    case SLAPI_MATCHINGRULE_NAME:
-	{
-	    (*(char **)value) = mr->mr_name;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_OID:
-	{
-	    (*(char **)value) = mr->mr_oid;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_DESC:
-	{
-	    (*(char **)value) = mr->mr_desc;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_SYNTAX:
-	{
-	    (*(char **)value) = mr->mr_syntax;
-	    break;
-	}
-    case SLAPI_MATCHINGRULE_OBSOLETE:
-	{
-	    (*(int *)value) = mr->mr_obsolete;
-	    break;
-	}
-    default:
-	{
-	    return(-1);
-	}
+    switch (arg) {
+    case SLAPI_MATCHINGRULE_NAME: {
+        (*(char **)value) = mr->mr_name;
+        break;
     }
-    return(0);
+    case SLAPI_MATCHINGRULE_OID: {
+        (*(char **)value) = mr->mr_oid;
+        break;
+    }
+    case SLAPI_MATCHINGRULE_DESC: {
+        (*(char **)value) = mr->mr_desc;
+        break;
+    }
+    case SLAPI_MATCHINGRULE_SYNTAX: {
+        (*(char **)value) = mr->mr_syntax;
+        break;
+    }
+    case SLAPI_MATCHINGRULE_OBSOLETE: {
+        (*(int *)value) = mr->mr_obsolete;
+        break;
+    }
+    default: {
+        return (-1);
+    }
+    }
+    return (0);
 }
 
 Slapi_MatchingRuleEntry *
 slapi_matchingrule_new(void)
 {
-    Slapi_MatchingRuleEntry *mrEntry=NULL;
+    Slapi_MatchingRuleEntry *mrEntry = NULL;
     mrEntry = (Slapi_MatchingRuleEntry *)
-	slapi_ch_calloc(1, sizeof(Slapi_MatchingRuleEntry));
-    return(mrEntry);
+        slapi_ch_calloc(1, sizeof(Slapi_MatchingRuleEntry));
+    return (mrEntry);
 }
 
 void
 slapi_matchingrule_free(Slapi_MatchingRuleEntry **mrEntry,
-			int freeMembers)
+                        int freeMembers)
 {
-    if((NULL == mrEntry) || (NULL == *mrEntry)) {
-	return;
+    if ((NULL == mrEntry) || (NULL == *mrEntry)) {
+        return;
     }
-    if(freeMembers) {
-	slapi_ch_free((void **)&((*mrEntry)->mr_name));
-	slapi_ch_free((void **)&((*mrEntry)->mr_oid));
-	slapi_ch_free((void **)&((*mrEntry)->mr_desc));
-	slapi_ch_free((void **)&((*mrEntry)->mr_syntax));
-	slapi_ch_free((void **)&((*mrEntry)->mr_oidalias));
-	slapi_ch_array_free((*mrEntry)->mr_compat_syntax);
+    if (freeMembers) {
+        slapi_ch_free((void **)&((*mrEntry)->mr_name));
+        slapi_ch_free((void **)&((*mrEntry)->mr_oid));
+        slapi_ch_free((void **)&((*mrEntry)->mr_desc));
+        slapi_ch_free((void **)&((*mrEntry)->mr_syntax));
+        slapi_ch_free((void **)&((*mrEntry)->mr_oidalias));
+        slapi_ch_array_free((*mrEntry)->mr_compat_syntax);
     }
     slapi_ch_free((void **)mrEntry);
     return;
@@ -162,17 +150,17 @@ slapi_matchingrule_free(Slapi_MatchingRuleEntry **mrEntry,
 static int
 _mr_alloc_new(struct matchingRuleList **mrl)
 {
-    if(!mrl) {
-        return(-1);
+    if (!mrl) {
+        return (-1);
     }
     *mrl = NULL;
     *mrl = (struct matchingRuleList *)
         slapi_ch_calloc(1, sizeof(struct matchingRuleList));
- 
- 
+
+
     (*mrl)->mr_entry = (Slapi_MatchingRuleEntry *)
         slapi_ch_calloc(1, sizeof(Slapi_MatchingRuleEntry));
-    return(0);
+    return (0);
 }
 
 #if 0
@@ -184,62 +172,65 @@ _mr_free(struct matchingRuleList **mrl /*, int freeEntry */)
 }
 #endif
 
-int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule)
+int
+slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule)
 {
-    struct matchingRuleList *mrl=NULL;
-    struct matchingRuleList *newmrl=NULL;
-    
-    if(NULL == mrule) {
-	return(-1);
+    struct matchingRuleList *mrl = NULL;
+    struct matchingRuleList *newmrl = NULL;
+
+    if (NULL == mrule) {
+        return (-1);
     }
-    if(_mr_alloc_new(&newmrl) != 0) {
-        return(-1);
+    if (_mr_alloc_new(&newmrl) != 0) {
+        return (-1);
     }
-    if(NULL != mrule->mr_name) {
-	newmrl->mr_entry->mr_name =
-	    slapi_ch_strdup((char *) mrule->mr_name);
+    if (NULL != mrule->mr_name) {
+        newmrl->mr_entry->mr_name =
+            slapi_ch_strdup((char *)mrule->mr_name);
     }
-    if(NULL != mrule->mr_oid) {
-	newmrl->mr_entry->mr_oid =
-	    slapi_ch_strdup((char *) mrule->mr_oid);
+    if (NULL != mrule->mr_oid) {
+        newmrl->mr_entry->mr_oid =
+            slapi_ch_strdup((char *)mrule->mr_oid);
     }
-    if(NULL != mrule->mr_oidalias) {
-	newmrl->mr_entry->mr_oidalias =
-	    slapi_ch_strdup((char *) mrule->mr_oidalias);
+    if (NULL != mrule->mr_oidalias) {
+        newmrl->mr_entry->mr_oidalias =
+            slapi_ch_strdup((char *)mrule->mr_oidalias);
     }
-    if(NULL != mrule->mr_desc) {
-	newmrl->mr_entry->mr_desc = 
-	    slapi_ch_strdup((char *) mrule->mr_desc);
+    if (NULL != mrule->mr_desc) {
+        newmrl->mr_entry->mr_desc =
+            slapi_ch_strdup((char *)mrule->mr_desc);
     }
-    if(NULL != mrule->mr_syntax) {
-	newmrl->mr_entry->mr_syntax = 
-	    slapi_ch_strdup((char *) mrule->mr_syntax);
+    if (NULL != mrule->mr_syntax) {
+        newmrl->mr_entry->mr_syntax =
+            slapi_ch_strdup((char *)mrule->mr_syntax);
     }
     newmrl->mr_entry->mr_obsolete = mrule->mr_obsolete;
     newmrl->mr_entry->mr_compat_syntax = charray_dup(mrule->mr_compat_syntax);
 
-    for(mrl = g_get_global_mrl();
-        ((NULL != mrl) && (NULL != mrl->mrl_next));
-        mrl = mrl->mrl_next);
+    for (mrl = g_get_global_mrl();
+         ((NULL != mrl) && (NULL != mrl->mrl_next));
+         mrl = mrl->mrl_next)
+        ;
 
-    if(NULL == mrl) {
+    if (NULL == mrl) {
         g_set_global_mrl(newmrl);
         mrl = newmrl;
     }
     mrl->mrl_next = newmrl;
     newmrl->mrl_next = NULL;
-    return(LDAP_SUCCESS);
+    return (LDAP_SUCCESS);
 }
 
-int slapi_matchingrule_unregister(char *oid __attribute__((unused)))
+int
+slapi_matchingrule_unregister(char *oid __attribute__((unused)))
 {
-    /* 
+    /*
      * Currently, not implemented.
      * For now, the matching rules are read at startup and cannot be modified.
      * If and when, we do allow dynamic modifications, this routine will
      * have to do some work.
      */
-    return(0);
+    return (0);
 }
 
 /*
@@ -247,9 +238,10 @@ int slapi_matchingrule_unregister(char *oid __attribute__((unused)))
   is registered and is an ORDERING matching rule that applies
   to the given syntax.
 */
-int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid)
+int
+slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid)
 {
-    struct matchingRuleList *mrl=NULL;
+    struct matchingRuleList *mrl = NULL;
 
     if (slapi_matchingrule_is_compat(oid_or_name, syntax_oid)) {
         for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {
@@ -271,9 +263,10 @@ int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_o
   See if a matching rule for this name or OID
   is compatible with the given syntax.
 */
-int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_oid)
+int
+slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_oid)
 {
-    struct matchingRuleList *mrl=NULL;
+    struct matchingRuleList *mrl = NULL;
     int found = 0;
 
     for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {
@@ -300,7 +293,7 @@ int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_
             }
         }
     }
-            
+
 
     return 0;
 }
@@ -315,9 +308,10 @@ int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_
   See if a matching rule for this name or OID
   can use a simple compare function for generating index entries
 */
-int slapi_matchingrule_can_use_compare_fn(const char *mr_oid_or_name)
+int
+slapi_matchingrule_can_use_compare_fn(const char *mr_oid_or_name)
 {
-    struct matchingRuleList *mrl=NULL;
+    struct matchingRuleList *mrl = NULL;
     int found = 0;
 
     for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {

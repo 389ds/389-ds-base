@@ -15,15 +15,16 @@
 #include "test_sds.h"
 
 #if defined(HAVE_SYS_ENDIAN_H)
-#  include <sys/endian.h>
+#include <sys/endian.h>
 #elif defined(HAVE_ENDIAN_H)
-#  include <endian.h>
+#include <endian.h>
 #else
-#  error platform header for endian detection not found.
+#error platform header for endian detection not found.
 #endif
 
 static void
-test_siphash(void **state __attribute__((unused))) {
+test_siphash(void **state __attribute__((unused)))
+{
 
     //
     uint64_t value = 0;
@@ -44,12 +45,10 @@ test_siphash(void **state __attribute__((unused))) {
 }
 
 int
-run_siphash_tests (void) {
+run_siphash_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_siphash),
     };
     return cmocka_run_group_tests_name("siphash", tests, NULL, NULL);
 }
-
-
-

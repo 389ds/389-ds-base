@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -17,7 +17,7 @@
 
 /* mechanics */
 
-typedef IDList *(*api_idl_alloc)( NIDS nids );
+typedef IDList *(*api_idl_alloc)(NIDS nids);
 typedef void (*api_idl_insert)(IDList **idl, ID id);
 
 /* API ID for slapi_apib_get_interface */
@@ -29,10 +29,10 @@ typedef void (*api_idl_insert)(IDList **idl, ID id);
 /* the api broker reserves api[0] for its use */
 
 #define IDList_alloc(api, nids) \
-	((api_idl_alloc*)(api))[1](nids)
+    ((api_idl_alloc *)(api))[1](nids)
 
 #define IDList_insert(api, idl, id) \
-	((api_idl_insert*)(api))[2](idl, id)
+    ((api_idl_insert *)(api))[2](idl, id)
 
 
 #endif /*_IDL_API_H_*/

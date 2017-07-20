@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -20,19 +20,20 @@
 
 static roles_check_fn_type roles_check_exported = NULL;
 
-int slapi_role_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present)
+int
+slapi_role_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present)
 {
-	int rc = 0;
+    int rc = 0;
 
-	if ( roles_check_exported != NULL )
-	{
-		rc = (roles_check_exported)(entry_to_check, role_dn, present);
-	}
+    if (roles_check_exported != NULL) {
+        rc = (roles_check_exported)(entry_to_check, role_dn, present);
+    }
 
-	return rc;
+    return rc;
 }
 
-void slapi_register_role_check(roles_check_fn_type check_fn)
+void
+slapi_register_role_check(roles_check_fn_type check_fn)
 {
-	roles_check_exported = check_fn;
+    roles_check_exported = check_fn;
 }

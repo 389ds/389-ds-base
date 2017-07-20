@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -37,22 +37,24 @@ eq_stop().
  * module (eventq.c) should know about the layout of
  * this structure.
  */
-typedef struct _slapi_eq_context {
-	time_t ec_when;
-	time_t ec_interval;
-	slapi_eq_fn_t ec_fn;
-	void *ec_arg;
-	Slapi_Eq_Context ec_id;
-	struct _slapi_eq_context *ec_next;
+typedef struct _slapi_eq_context
+{
+    time_t ec_when;
+    time_t ec_interval;
+    slapi_eq_fn_t ec_fn;
+    void *ec_arg;
+    Slapi_Eq_Context ec_id;
+    struct _slapi_eq_context *ec_next;
 } slapi_eq_context;
 
 /*
  * Definition of the event queue.
- */ 
-typedef struct _event_queue {
-	PRLock *eq_lock;
-	PRCondVar *eq_cv;
-	slapi_eq_context *eq_queue;
+ */
+typedef struct _event_queue
+{
+    PRLock *eq_lock;
+    PRCondVar *eq_cv;
+    slapi_eq_context *eq_queue;
 } event_queue;
 
 /*
@@ -77,8 +79,7 @@ PRCondVar *ss_cv = NULL;
 PRCallOnceType init_once = {0};
 
 /* Forward declarations */
-static slapi_eq_context *eq_new(slapi_eq_fn_t fn, void *arg,
-		time_t when, unsigned long interval);
+static slapi_eq_context *eq_new(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval);
 static void eq_enqueue(slapi_eq_context *newec);
 static slapi_eq_context *eq_dequeue(time_t now);
 static PRStatus eq_create(void);
@@ -87,10 +88,9 @@ static PRStatus eq_create(void);
 /* ******************************************************** */
 
 
-
 /*
  * slapi_eq_once: cause an event to happen exactly once.
- * 
+ *
  * Arguments:
  *  fn: the function to call
  *  arg: an argument to pass to the called function
@@ -103,35 +103,33 @@ static PRStatus eq_create(void);
 Slapi_Eq_Context
 slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when)
 {
-	slapi_eq_context *tmp;
-	PR_ASSERT(eq_initialized);
-	if (!eq_stopped) {
-		
-		Slapi_Eq_Context id;
+    slapi_eq_context *tmp;
+    PR_ASSERT(eq_initialized);
+    if (!eq_stopped) {
 
-		tmp = eq_new(fn, arg, when, 0UL);
-		id = tmp->ec_id;
+        Slapi_Eq_Context id;
 
-		eq_enqueue(tmp);
+        tmp = eq_new(fn, arg, when, 0UL);
+        id = tmp->ec_id;
 
-		/* After this point, <tmp> may have      */
-		/* been freed, depending on the thread   */
-		/* scheduling. Too bad			 */
+        eq_enqueue(tmp);
 
-		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
-				"added one-time event id %p at time %ld\n",
-				id, when);
-		return(id);
-	}
-	return NULL; /* JCM - Not sure if this should be 0 or something else. */
+        /* After this point, <tmp> may have      */
+        /* been freed, depending on the thread   */
+        /* scheduling. Too bad             */
+
+        slapi_log_err(SLAPI_LOG_HOUSE, NULL,
+                      "added one-time event id %p at time %ld\n",
+                      id, when);
+        return (id);
+    }
+    return NULL; /* JCM - Not sure if this should be 0 or something else. */
 }
-		
-
 
 
 /*
  * slapi_eq_repeat: cause an event to happen repeatedly.
- * 
+ *
  * Arguments:
  *  fn: the function to call
  *  arg: an argument to pass to the called function
@@ -145,19 +143,18 @@ slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when)
 Slapi_Eq_Context
 slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval)
 {
-	slapi_eq_context *tmp ;
-	PR_ASSERT(eq_initialized);
-	if (!eq_stopped) {
-		tmp = eq_new(fn, arg, when, interval);
-		eq_enqueue(tmp);
-		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
-				"added repeating event id %p at time %ld, interval %lu\n",
-				tmp->ec_id, when, interval);
-		return(tmp->ec_id);
-	}
-	return NULL; /* JCM - Not sure if this should be 0 or something else. */
+    slapi_eq_context *tmp;
+    PR_ASSERT(eq_initialized);
+    if (!eq_stopped) {
+        tmp = eq_new(fn, arg, when, interval);
+        eq_enqueue(tmp);
+        slapi_log_err(SLAPI_LOG_HOUSE, NULL,
+                      "added repeating event id %p at time %ld, interval %lu\n",
+                      tmp->ec_id, when, interval);
+        return (tmp->ec_id);
+    }
+    return NULL; /* JCM - Not sure if this should be 0 or something else. */
 }
-
 
 
 /*
@@ -166,34 +163,32 @@ slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval
  *  ctx: the context of the event which should be de-scheduled
  */
 int
-slapi_eq_cancel(Slapi_Eq_Context ctx) 
+slapi_eq_cancel(Slapi_Eq_Context ctx)
 {
-	slapi_eq_context **p, *tmp = NULL;
-	int found = 0;
+    slapi_eq_context **p, *tmp = NULL;
+    int found = 0;
 
-	PR_ASSERT(eq_initialized);
-	if (!eq_stopped) {
-		PR_Lock(eq->eq_lock);
-		p = &(eq->eq_queue);
-		while (!found && *p != NULL) {		
-			if ((*p)->ec_id == ctx) {
-				tmp = *p;
-				*p = (*p)->ec_next;
-				slapi_ch_free((void**)&tmp);
-				found = 1;
-			} else {
-				p = &((*p)->ec_next);
-			}
-		}
-		PR_Unlock(eq->eq_lock);
-	}
-	slapi_log_err(SLAPI_LOG_HOUSE, NULL,
-			"cancellation of event id %p requested: %s\n",
-			ctx, found ? "cancellation succeeded" : "event not found");
-	return found;
+    PR_ASSERT(eq_initialized);
+    if (!eq_stopped) {
+        PR_Lock(eq->eq_lock);
+        p = &(eq->eq_queue);
+        while (!found && *p != NULL) {
+            if ((*p)->ec_id == ctx) {
+                tmp = *p;
+                *p = (*p)->ec_next;
+                slapi_ch_free((void **)&tmp);
+                found = 1;
+            } else {
+                p = &((*p)->ec_next);
+            }
+        }
+        PR_Unlock(eq->eq_lock);
+    }
+    slapi_log_err(SLAPI_LOG_HOUSE, NULL,
+                  "cancellation of event id %p requested: %s\n",
+                  ctx, found ? "cancellation succeeded" : "event not found");
+    return found;
 }
-
-
 
 
 /*
@@ -219,35 +214,31 @@ eq_new(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval)
 }
 
 
-
-
 /*
  * Add a new event to the event queue.
  */
 static void
 eq_enqueue(slapi_eq_context *newec)
 {
-	slapi_eq_context **p;
+    slapi_eq_context **p;
 
-	PR_ASSERT(NULL != newec);
-	PR_Lock(eq->eq_lock);
-	/* Insert <newec> in order (sorted by start time) in the list */
-	for (p = &(eq->eq_queue); *p != NULL; p = &((*p)->ec_next)) {
-		if ((*p)->ec_when > newec->ec_when) {
-			break;
-		}
-	}
-	if (NULL != *p) {
-		newec->ec_next = *p;
-	} else {
-		newec->ec_next = NULL;
-	}
-	*p = newec;
-	PR_NotifyCondVar(eq->eq_cv); /* wake up scheduler thread */
-	PR_Unlock(eq->eq_lock);
+    PR_ASSERT(NULL != newec);
+    PR_Lock(eq->eq_lock);
+    /* Insert <newec> in order (sorted by start time) in the list */
+    for (p = &(eq->eq_queue); *p != NULL; p = &((*p)->ec_next)) {
+        if ((*p)->ec_when > newec->ec_when) {
+            break;
+        }
+    }
+    if (NULL != *p) {
+        newec->ec_next = *p;
+    } else {
+        newec->ec_next = NULL;
+    }
+    *p = newec;
+    PR_NotifyCondVar(eq->eq_cv); /* wake up scheduler thread */
+    PR_Unlock(eq->eq_lock);
 }
-
-
 
 
 /*
@@ -258,17 +249,16 @@ eq_enqueue(slapi_eq_context *newec)
 static slapi_eq_context *
 eq_dequeue(time_t now)
 {
-	slapi_eq_context *retptr = NULL;
+    slapi_eq_context *retptr = NULL;
 
-	PR_Lock(eq->eq_lock);
-	if (NULL != eq->eq_queue && eq->eq_queue->ec_when <= now) {
-		retptr = eq->eq_queue;
-		eq->eq_queue = retptr->ec_next;
-	}
-	PR_Unlock(eq->eq_lock);
-	return retptr;
+    PR_Lock(eq->eq_lock);
+    if (NULL != eq->eq_queue && eq->eq_queue->ec_when <= now) {
+        retptr = eq->eq_queue;
+        eq->eq_queue = retptr->ec_next;
+    }
+    PR_Unlock(eq->eq_lock);
+    return retptr;
 }
-
 
 
 /*
@@ -280,28 +270,26 @@ eq_dequeue(time_t now)
 static void
 eq_call_all(void)
 {
-	slapi_eq_context *p;
+    slapi_eq_context *p;
     time_t curtime = slapi_current_utc_time();
 
-	while ((p = eq_dequeue(curtime)) != NULL) {
-		/* Call the scheduled function */
-		p->ec_fn(p->ec_when, p->ec_arg);
-		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
-				"Event id %p called at %ld (scheduled for %ld)\n",
-				p->ec_id, curtime, p->ec_when);
-		if (0UL != p->ec_interval) {
-			/* This is a repeating event. Requeue it. */
-			do {
-				p->ec_when += p->ec_interval;
-			} while (p->ec_when < curtime);
-			eq_enqueue(p);
-		} else {
-			slapi_ch_free((void **)&p);
-		}
-	}
+    while ((p = eq_dequeue(curtime)) != NULL) {
+        /* Call the scheduled function */
+        p->ec_fn(p->ec_when, p->ec_arg);
+        slapi_log_err(SLAPI_LOG_HOUSE, NULL,
+                      "Event id %p called at %ld (scheduled for %ld)\n",
+                      p->ec_id, curtime, p->ec_when);
+        if (0UL != p->ec_interval) {
+            /* This is a repeating event. Requeue it. */
+            do {
+                p->ec_when += p->ec_interval;
+            } while (p->ec_when < curtime);
+            eq_enqueue(p);
+        } else {
+            slapi_ch_free((void **)&p);
+        }
+    }
 }
-
-
 
 
 /*
@@ -310,36 +298,35 @@ eq_call_all(void)
 static void
 eq_loop(void *arg __attribute__((unused)))
 {
-	while (eq_running) {
+    while (eq_running) {
         time_t curtime = slapi_current_utc_time();
-		PRIntervalTime timeout;
-		int until;
-		PR_Lock(eq->eq_lock);
-       while (!((NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= curtime))) {
-			if (!eq_running) {
-				PR_Unlock(eq->eq_lock);
-				goto bye;
-			}
-			/* Compute new timeout */
-			if (NULL != eq->eq_queue) {
-				until = eq->eq_queue->ec_when - curtime;
-				timeout = PR_SecondsToInterval(until);
-			} else {
-				timeout = PR_INTERVAL_NO_TIMEOUT;
-			}
-			PR_WaitCondVar(eq->eq_cv, timeout);
-		}
-		/* There is some work to do */
-		PR_Unlock(eq->eq_lock);
-		eq_call_all();
-	}
+        PRIntervalTime timeout;
+        int until;
+        PR_Lock(eq->eq_lock);
+        while (!((NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= curtime))) {
+            if (!eq_running) {
+                PR_Unlock(eq->eq_lock);
+                goto bye;
+            }
+            /* Compute new timeout */
+            if (NULL != eq->eq_queue) {
+                until = eq->eq_queue->ec_when - curtime;
+                timeout = PR_SecondsToInterval(until);
+            } else {
+                timeout = PR_INTERVAL_NO_TIMEOUT;
+            }
+            PR_WaitCondVar(eq->eq_cv, timeout);
+        }
+        /* There is some work to do */
+        PR_Unlock(eq->eq_lock);
+        eq_call_all();
+    }
 bye:
-	eq_stopped = 1;
-	PR_Lock(ss_lock);
-	PR_NotifyAllCondVar(ss_cv);
-	PR_Unlock(ss_lock);
+    eq_stopped = 1;
+    PR_Lock(ss_lock);
+    PR_NotifyAllCondVar(ss_cv);
+    PR_Unlock(ss_lock);
 }
-
 
 
 /*
@@ -348,52 +335,48 @@ bye:
 static PRStatus
 eq_create(void)
 {
-	PR_ASSERT(NULL == eq->eq_lock);
-	if ((eq->eq_lock = PR_NewLock()) == NULL) {
-		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
-		exit(1);
-	}
-	if ((eq->eq_cv = PR_NewCondVar(eq->eq_lock)) == NULL) {
-		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
-		exit(1);
-	}
-	if ((ss_lock = PR_NewLock()) == NULL) {
-		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
-		exit(1);
-	}
-	if ((ss_cv = PR_NewCondVar(ss_lock)) == NULL) {
-		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
-		exit(1);
-	}
-	eq->eq_queue = NULL;
-	eq_initialized = 1;
-	return PR_SUCCESS;
+    PR_ASSERT(NULL == eq->eq_lock);
+    if ((eq->eq_lock = PR_NewLock()) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
+        exit(1);
+    }
+    if ((eq->eq_cv = PR_NewCondVar(eq->eq_lock)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
+        exit(1);
+    }
+    if ((ss_lock = PR_NewLock()) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
+        exit(1);
+    }
+    if ((ss_cv = PR_NewCondVar(ss_lock)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
+        exit(1);
+    }
+    eq->eq_queue = NULL;
+    eq_initialized = 1;
+    return PR_SUCCESS;
 }
 
 
-
-
-
 /*
- * eq_start: start the event queue system. 
- * 
+ * eq_start: start the event queue system.
+ *
  * This should be called exactly once. It will start a
  * thread which wakes up periodically and schedules events.
  */
 void
 eq_start()
 {
-	PR_ASSERT(eq_initialized);
-	eq_running = 1;
-	if ((eq_loop_tid = PR_CreateThread(PR_USER_THREAD, (VFP)eq_loop,
-			NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD,
-			SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL) {
-		slapi_log_err(SLAPI_LOG_ERR, "eq_start", "eq_loop PR_CreateThread failed\n");
-		exit(1);
-	}
-	slapi_log_err(SLAPI_LOG_HOUSE, NULL, "event queue services have started\n");
+    PR_ASSERT(eq_initialized);
+    eq_running = 1;
+    if ((eq_loop_tid = PR_CreateThread(PR_USER_THREAD, (VFP)eq_loop,
+                                       NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD,
+                                       SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_start", "eq_loop PR_CreateThread failed\n");
+        exit(1);
+    }
+    slapi_log_err(SLAPI_LOG_HOUSE, NULL, "event queue services have started\n");
 }
-
 
 
 /*
@@ -409,13 +392,12 @@ eq_start()
 void
 eq_init()
 {
-	if (!eq_initialized) {
-		if (PR_SUCCESS != PR_CallOnce(&init_once, eq_create)) {
-			slapi_log_err(SLAPI_LOG_ERR, "eq_init", "eq_create failed\n");
-		}
-	}
+    if (!eq_initialized) {
+        if (PR_SUCCESS != PR_CallOnce(&init_once, eq_create)) {
+            slapi_log_err(SLAPI_LOG_ERR, "eq_init", "eq_create failed\n");
+        }
+    }
 }
-
 
 
 /*
@@ -428,14 +410,14 @@ eq_stop()
 {
     slapi_eq_context *p, *q;
 
-    if ( NULL == eq || NULL == eq->eq_lock ) {    /* never started */
+    if (NULL == eq || NULL == eq->eq_lock) { /* never started */
         eq_stopped = 1;
         return;
     }
 
     eq_stopped = 0;
     eq_running = 0;
-    /* 
+    /*
      * Signal the eq thread function to stop, and wait until
      * it acknowledges by setting eq_stopped.
      */
@@ -458,13 +440,13 @@ eq_stop()
     PR_Lock(eq->eq_lock);
     p = eq->eq_queue;
     while (p != NULL) {
-         q = p->ec_next;
-         slapi_ch_free((void**)&p);
+        q = p->ec_next;
+        slapi_ch_free((void **)&p);
         /* Some ec_arg could get leaked here in shutdown (e.g., replica_name)
          * This can be fixed by specifying a flag when the context is queued.
          * [After 6.2]
          */
-         p = q;
+        p = q;
     }
     PR_Unlock(eq->eq_lock);
     slapi_log_err(SLAPI_LOG_HOUSE, NULL, "event queue services have shut down\n");
@@ -474,7 +456,7 @@ eq_stop()
  * return arg (ec_arg) only if the context is in the event queue
  */
 void *
-slapi_eq_get_arg ( Slapi_Eq_Context ctx )
+slapi_eq_get_arg(Slapi_Eq_Context ctx)
 {
     slapi_eq_context **p;
 
@@ -482,7 +464,7 @@ slapi_eq_get_arg ( Slapi_Eq_Context ctx )
     if (!eq_stopped) {
         PR_Lock(eq->eq_lock);
         p = &(eq->eq_queue);
-        while (p && *p != NULL) {        
+        while (p && *p != NULL) {
             if ((*p)->ec_id == ctx) {
                 PR_Unlock(eq->eq_lock);
                 return (*p)->ec_arg;

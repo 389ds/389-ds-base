@@ -5,11 +5,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* misc.c - backend misc routines */
@@ -18,38 +18,41 @@
 
 /* Takes a return code supposed to be errno or from lidb
    which we don't expect to see and prints a handy log message */
-void ldbm_nasty(char *func, const char* str, int c, int err)
+void
+ldbm_nasty(char *func, const char *str, int c, int err)
 {
     char *msg = NULL;
     char buffer[200];
     if (err == DB_LOCK_DEADLOCK) {
-        PR_snprintf(buffer,200,"%s WARNING %d",str,c);
+        PR_snprintf(buffer, 200, "%s WARNING %d", str, c);
         slapi_log_err(SLAPI_LOG_BACKLDBM, func, "%s, err=%d %s\n",
-                  buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
-   } else if (err == DB_RUNRECOVERY) {
+                      buffer, err, (msg = dblayer_strerror(err)) ? msg : "");
+    } else if (err == DB_RUNRECOVERY) {
         slapi_log_err(SLAPI_LOG_ERR, func, "%s (%d); "
-                  "server stopping as database recovery needed.\n", str, c);
+                                           "server stopping as database recovery needed.\n",
+                      str, c);
         exit(1);
     } else {
-        PR_snprintf(buffer,200,"%s BAD %d",str,c);
+        PR_snprintf(buffer, 200, "%s BAD %d", str, c);
         slapi_log_err(SLAPI_LOG_ERR, func, "%s, err=%d %s\n",
-                  buffer, err, (msg = dblayer_strerror( err )) ? msg : "");
+                      buffer, err, (msg = dblayer_strerror(err)) ? msg : "");
     }
 }
 
 /* Put a message in the access log, complete with connection ID and operation ID */
-void ldbm_log_access_message(Slapi_PBlock *pblock,char *string)
+void
+ldbm_log_access_message(Slapi_PBlock *pblock, char *string)
 {
     int ret = 0;
     PRUint64 connection_id = 0;
     int operation_id = 0;
     Operation *operation = NULL; /* DBDB this is sneaky---opid should be covered by the API directly */
 
-    ret = slapi_pblock_get(pblock,SLAPI_OPERATION,&operation);
+    ret = slapi_pblock_get(pblock, SLAPI_OPERATION, &operation);
     if (0 != ret) {
         return;
     }
-    ret = slapi_pblock_get(pblock,SLAPI_CONN_ID,&connection_id);
+    ret = slapi_pblock_get(pblock, SLAPI_CONN_ID, &connection_id);
     if (0 != ret) {
         return;
     }
@@ -58,7 +61,8 @@ void ldbm_log_access_message(Slapi_PBlock *pblock,char *string)
                      connection_id, operation_id, string);
 }
 
-int return_on_disk_full(struct ldbminfo  *li)
+int
+return_on_disk_full(struct ldbminfo *li)
 {
     dblayer_remember_disk_filled(li);
     return SLAPI_FAIL_DISKFULL;
@@ -80,29 +84,24 @@ static const char *systemIndexes[] = {
     ATTR_NSDS5_REPLCONFLICT,
     SLAPI_ATTR_ENTRYUSN,
     SLAPI_ATTR_PARENTID,
-    NULL
-};
+    NULL};
 
 
 int
 ldbm_attribute_always_indexed(const char *attrtype)
 {
-    int r= 0;
-    if(NULL != attrtype)
-    {
-        int i=0;
-        while (!r && systemIndexes[i] != NULL)
-        {
-            if(!strcasecmp(attrtype,systemIndexes[i]))
-            {
-                r= 1;
+    int r = 0;
+    if (NULL != attrtype) {
+        int i = 0;
+        while (!r && systemIndexes[i] != NULL) {
+            if (!strcasecmp(attrtype, systemIndexes[i])) {
+                r = 1;
             }
             i++;
         }
     }
-    return(r);
+    return (r);
 }
-
 
 
 /*
@@ -119,9 +118,9 @@ compute_entry_tombstone_dn(const char *entrydn, const char *uniqueid)
     PR_ASSERT(NULL != uniqueid);
 
     tombstone_dn = slapi_ch_smprintf("%s=%s,%s",
-        SLAPI_ATTR_UNIQUEID,
-        uniqueid,
-        entrydn);
+                                     SLAPI_ATTR_UNIQUEID,
+                                     uniqueid,
+                                     entrydn);
     return tombstone_dn;
 }
 
@@ -134,9 +133,9 @@ compute_entry_tombstone_rdn(const char *entryrdn, const char *uniqueid)
     PR_ASSERT(NULL != uniqueid);
 
     tombstone_rdn = slapi_ch_smprintf("%s=%s,%s",
-        SLAPI_ATTR_UNIQUEID,
-        uniqueid,
-        entryrdn);
+                                      SLAPI_ATTR_UNIQUEID,
+                                      uniqueid,
+                                      entryrdn);
     return tombstone_rdn;
 }
 
@@ -144,7 +143,8 @@ compute_entry_tombstone_rdn(const char *entryrdn, const char *uniqueid)
 /* mark a backend instance "busy"
  * returns 0 on success, -1 if the instance is ALREADY busy
  */
-int instance_set_busy(ldbm_instance *inst)
+int
+instance_set_busy(ldbm_instance *inst)
 {
     PR_Lock(inst->inst_config_mutex);
     if (is_instance_busy(inst)) {
@@ -157,7 +157,8 @@ int instance_set_busy(ldbm_instance *inst)
     return 0;
 }
 
-int instance_set_busy_and_readonly(ldbm_instance *inst)
+int
+instance_set_busy_and_readonly(ldbm_instance *inst)
 {
     PR_Lock(inst->inst_config_mutex);
     if (is_instance_busy(inst)) {
@@ -173,7 +174,7 @@ int instance_set_busy_and_readonly(ldbm_instance *inst)
     } else {
         inst->inst_flags &= ~INST_FLAG_READONLY;
     }
-    /* 
+    /*
      * Normally, acquire rlock on be_lock, then lock inst_config_mutex.
      * instance_set_busy_and_readonly should release inst_config_mutex
      * before acquiring wlock on be_lock in slapi_mtn_be_set_readonly.
@@ -185,7 +186,8 @@ int instance_set_busy_and_readonly(ldbm_instance *inst)
 }
 
 /* mark a backend instance to be not "busy" anymore */
-void instance_set_not_busy(ldbm_instance *inst)
+void
+instance_set_not_busy(ldbm_instance *inst)
 {
     int readonly;
 
@@ -207,7 +209,7 @@ allinstance_set_not_busy(struct ldbminfo *li)
 
     /* server is up -- mark all backends busy */
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-        inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         instance_set_not_busy(inst);
     }
@@ -221,12 +223,12 @@ allinstance_set_busy(struct ldbminfo *li)
 
     /* server is up -- mark all backends busy */
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-        inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (instance_set_busy(inst)) {
             slapi_log_err(SLAPI_LOG_TRACE, "allinstance_set_busy",
-                    "Could not set instance [%s] as busy, probably already busy\n",
-                    inst->inst_name);
+                          "Could not set instance [%s] as busy, probably already busy\n",
+                          inst->inst_name);
         }
     }
 }
@@ -240,7 +242,7 @@ is_anyinstance_busy(struct ldbminfo *li)
 
     /* server is up -- mark all backends busy */
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-        inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         PR_Lock(inst->inst_config_mutex);
         rval = inst->inst_flags & INST_FLAG_BUSY;
@@ -273,22 +275,19 @@ ldbm_delete_dirs(char *path)
     PRFileInfo64 info;
 
     dirhandle = PR_OpenDir(path);
-    if (! dirhandle)
-    {
+    if (!dirhandle) {
         PR_Delete(path);
         return 0;
     }
 
     while (NULL != (direntry =
-                    PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
-    {
-        if (! direntry->name)
+                        PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        if (!direntry->name)
             break;
 
         PR_snprintf(fullpath, MAXPATHLEN, "%s/%s", path, direntry->name);
         rval = PR_GetFileInfo64(fullpath, &info);
-        if (PR_SUCCESS == rval)
-        {
+        if (PR_SUCCESS == rval) {
             if (PR_FILE_DIRECTORY == info.type)
                 rval += ldbm_delete_dirs(fullpath);
         }
@@ -305,12 +304,12 @@ char
 get_sep(char *path)
 {
     if (NULL == path)
-        return '/';    /* default */
+        return '/'; /* default */
     if (NULL != strchr(path, '/'))
         return '/';
     if (NULL != strchr(path, '\\'))
         return '\\';
-    return '/';    /* default */
+    return '/'; /* default */
 }
 
 /* mkdir -p */
@@ -322,22 +321,18 @@ mkdir_p(char *dir, unsigned int mode)
     char sep = get_sep(dir);
 
     rval = PR_GetFileInfo64(dir, &info);
-    if (PR_SUCCESS == rval)
-    {
-        if (PR_FILE_DIRECTORY != info.type)    /* not a directory */
+    if (PR_SUCCESS == rval) {
+        if (PR_FILE_DIRECTORY != info.type) /* not a directory */
         {
             PR_Delete(dir);
-            if (PR_SUCCESS != PR_MkDir(dir, mode))
-            {
-                slapi_log_err(SLAPI_LOG_ERR, "mkdir_p","%s: error %d (%s)\n",
-                    dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
+            if (PR_SUCCESS != PR_MkDir(dir, mode)) {
+                slapi_log_err(SLAPI_LOG_ERR, "mkdir_p", "%s: error %d (%s)\n",
+                              dir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                 return -1;
             }
         }
         return 0;
-    }
-    else
-    {
+    } else {
         /* does not exist */
         char *p, *e;
         char c[2] = {0, 0};
@@ -345,16 +340,14 @@ mkdir_p(char *dir, unsigned int mode)
         rval = 0;
 
         e = dir + len - 1;
-        if (*e == sep)
-        {
+        if (*e == sep) {
             c[1] = *e;
             *e = '\0';
         }
 
         c[0] = '/';
         p = strrchr(dir, sep);
-        if (NULL != p)
-        {
+        if (NULL != p) {
             *p = '\0';
             rval = mkdir_p(dir, mode);
             *p = c[0];
@@ -363,10 +356,9 @@ mkdir_p(char *dir, unsigned int mode)
             *e = c[1];
         if (0 != rval)
             return rval;
-        if (PR_SUCCESS != PR_MkDir(dir, mode))
-        {
+        if (PR_SUCCESS != PR_MkDir(dir, mode)) {
             slapi_log_err(SLAPI_LOG_ERR, "mkdir_p", "%s: error %d (%s)\n",
-                    dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
+                          dir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
             return -1;
         }
         return 0;
@@ -377,7 +369,7 @@ mkdir_p(char *dir, unsigned int mode)
  * RUV updates to add to the datastore transaction.  If so, it allocates a
  * modify_context for consumption by the caller. */
 int
-ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
+ldbm_txn_ruv_modify_context(Slapi_PBlock *pb, modify_context *mc)
 {
     char *uniqueid = NULL;
     backend *be;
@@ -390,7 +382,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
 
     slapi_pblock_get(pb, SLAPI_TXN_RUV_MODS_FN, (void *)&fn);
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-    
+
     if (NULL == fn) {
         return (0);
     }
@@ -405,7 +397,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
         return (rc);
     }
 
-    slapi_pblock_get( pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
     bentry_addr.sdn = NULL;
     bentry_addr.udn = NULL;
@@ -422,16 +414,16 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
         goto done;
     }
 
-    modify_init( mc, bentry );
+    modify_init(mc, bentry);
 
-    if (modify_apply_mods_ignore_error( mc, smods, LDAP_TYPE_OR_VALUE_EXISTS )) {
+    if (modify_apply_mods_ignore_error(mc, smods, LDAP_TYPE_OR_VALUE_EXISTS)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_txn_ruv_modify_context", "Failed to apply updates to RUV entry\n");
         rc = -1;
-        modify_term( mc, be );
+        modify_term(mc, be);
     }
 
 done:
-    slapi_ch_free_string( &uniqueid );
+    slapi_ch_free_string(&uniqueid);
     /* No need to free smods; they get freed along with the modify context */
 
     return (rc);
@@ -449,8 +441,7 @@ is_fullpath(char *path)
         return 1;
 
     len = strlen(path);
-    if (len > 2)
-    {
+    if (len > 2) {
         if (':' == path[1] && ('/' == path[2] || '\\' == path[2])) /* Windows */
             return 1;
     }
@@ -490,7 +481,7 @@ ldif_getline_fixline(char *start, char *end)
     return;
 }
 
-/* 
+/*
  * Get value of type from string.
  * Note: this function is very primitive.  It does not support multi values.
  * This could be used to retrieve a single value as a string from raw data
@@ -538,7 +529,7 @@ get_value_from_string(const char *string, char *type, char **value)
         if (0 > rc || NULL == tmptype.bv_val ||
             NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
             slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
-                    "parse failed: %d\n", rc);
+                          "parse failed: %d\n", rc);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
             }
@@ -547,7 +538,7 @@ get_value_from_string(const char *string, char *type, char **value)
         }
         if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
             slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
-                    "type does not match: %s != %s\n", type, tmptype.bv_val);
+                          "type does not match: %s != %s\n", type, tmptype.bv_val);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
             }
@@ -570,7 +561,7 @@ bail:
     return rc;
 }
 
-/* 
+/*
  * Get value array of type from string.
  * multi-value support for get_value_from_string
  */
@@ -624,18 +615,18 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
             char *p = PL_strchr(tmptype.bv_val, ';'); /* subtype ? */
             if (p) {
                 if (0 != strncasecmp(type, tmptype.bv_val, p - tmptype.bv_val)) {
-                    slapi_log_err(SLAPI_LOG_ERR, "get_values_from_string", 
-                                    "type does not match: %s != %s\n", 
-                                    type, tmptype.bv_val);
+                    slapi_log_err(SLAPI_LOG_ERR, "get_values_from_string",
+                                  "type does not match: %s != %s\n",
+                                  type, tmptype.bv_val);
                     if (freeval) {
                         slapi_ch_free_string(&bvvalue.bv_val);
                     }
                     goto bail;
                 }
             } else {
-                slapi_log_err(SLAPI_LOG_ERR, "get_values_from_string", 
-                                "type does not match: %s != %s\n", 
-                                type, tmptype.bv_val);
+                slapi_log_err(SLAPI_LOG_ERR, "get_values_from_string",
+                              "type does not match: %s != %s\n",
+                              type, tmptype.bv_val);
                 if (freeval) {
                     slapi_ch_free_string(&bvvalue.bv_val);
                 }
@@ -650,10 +641,10 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
             memcpy(value, bvvalue.bv_val, bvvalue.bv_len);
             *(value + bvvalue.bv_len) = '\0';
         }
-        if ((get_values_INITIALMAXCNT == maxcnt) || !valuearray || 
+        if ((get_values_INITIALMAXCNT == maxcnt) || !valuearray ||
             (idx + 1 >= maxcnt)) {
             maxcnt *= 2;
-            *valuearray = (char **)slapi_ch_realloc((char *)*valuearray, 
+            *valuearray = (char **)slapi_ch_realloc((char *)*valuearray,
                                                     sizeof(char *) * maxcnt);
         }
         (*valuearray)[idx++] = value;
@@ -681,6 +672,5 @@ normalize_dir(char *dir)
             break;
         }
     }
-    *(p+1) = '\0';
+    *(p + 1) = '\0';
 }
-

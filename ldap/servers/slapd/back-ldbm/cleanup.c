@@ -4,46 +4,45 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* cleanup.c - cleans up ldbm backend */
 
 #include "back-ldbm.h"
 
-int ldbm_back_cleanup( Slapi_PBlock *pb )
+int
+ldbm_back_cleanup(Slapi_PBlock *pb)
 {
-	struct ldbminfo	*li;
+    struct ldbminfo *li;
     Slapi_Backend *be;
 
-	slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_cleanup", "ldbm backend cleaning up\n");
-	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_cleanup", "ldbm backend cleaning up\n");
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
-	if (be->be_state != BE_STATE_STOPPED &&
-		be->be_state != BE_STATE_DELETED)
-	{
-		slapi_log_err(SLAPI_LOG_TRACE, 
-				  "ldbm_back_cleanup", "Warning - backend is in a wrong state - %d\n", 
-				  be->be_state);
-		return 0;
-	}
+    if (be->be_state != BE_STATE_STOPPED &&
+        be->be_state != BE_STATE_DELETED) {
+        slapi_log_err(SLAPI_LOG_TRACE,
+                      "ldbm_back_cleanup", "Warning - backend is in a wrong state - %d\n",
+                      be->be_state);
+        return 0;
+    }
 
-	PR_Lock (be->be_state_lock);
+    PR_Lock(be->be_state_lock);
 
-	if (be->be_state != BE_STATE_STOPPED &&
-		be->be_state != BE_STATE_DELETED)
-	{
-		slapi_log_err(SLAPI_LOG_TRACE, 
-				  "ldbm_back_cleanup", "Warning - backend is in a wrong state - %d\n", 
-				  be->be_state);
-		PR_Unlock (be->be_state_lock);
-		return 0;
-	}
+    if (be->be_state != BE_STATE_STOPPED &&
+        be->be_state != BE_STATE_DELETED) {
+        slapi_log_err(SLAPI_LOG_TRACE,
+                      "ldbm_back_cleanup", "Warning - backend is in a wrong state - %d\n",
+                      be->be_state);
+        PR_Unlock(be->be_state_lock);
+        return 0;
+    }
 
     /*
      * We check if li is NULL. Because of an issue in how we create backends
@@ -56,7 +55,7 @@ int ldbm_back_cleanup( Slapi_PBlock *pb )
      */
     if (li != NULL) {
 
-        dblayer_terminate( li );
+        dblayer_terminate(li);
 
         /* JCM I tried adding this to tidy up memory on shutdown. */
         /* JCM But, the result was very messy. */
@@ -64,12 +63,12 @@ int ldbm_back_cleanup( Slapi_PBlock *pb )
 
         ldbm_config_destroy(li);
 
-        slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, NULL );
+        slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
     }
 
     be->be_state = BE_STATE_CLEANED;
 
-    PR_Unlock (be->be_state_lock);
+    PR_Unlock(be->be_state_lock);
 
     return 0;
 }

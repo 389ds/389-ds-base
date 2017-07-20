@@ -7,7 +7,7 @@
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "back-ldbm.h"
@@ -137,14 +137,16 @@
  */
 
 IDListSet *
-idl_set_create() {
+idl_set_create()
+{
     IDListSet *idl_set = (IDListSet *)slapi_ch_calloc(1, sizeof(IDListSet));
     /* all other fields are 0 thanks to calloc */
     return idl_set;
 }
 
 static void
-idl_set_free_idls(IDListSet *idl_set) {
+idl_set_free_idls(IDListSet *idl_set)
+{
     /* Free idlists */
     IDList *idl = idl_set->head;
     IDList *next_idl = NULL;
@@ -164,12 +166,14 @@ idl_set_free_idls(IDListSet *idl_set) {
 }
 
 void
-idl_set_destroy(IDListSet *idl_set) {
+idl_set_destroy(IDListSet *idl_set)
+{
     slapi_ch_free((void **)&(idl_set));
 }
 
 void
-idl_set_insert_idl(IDListSet *idl_set, IDList *idl) {
+idl_set_insert_idl(IDListSet *idl_set, IDList *idl)
+{
     PR_ASSERT(idl);
 
     /*
@@ -210,7 +214,8 @@ idl_set_insert_idl(IDListSet *idl_set, IDList *idl) {
  * * apply complements.
  */
 void
-idl_set_insert_complement_idl(IDListSet *idl_set, IDList *idl) {
+idl_set_insert_complement_idl(IDListSet *idl_set, IDList *idl)
+{
     PR_ASSERT(idl);
     /*
      * If we complement to ALLIDS, the result is empty set.
@@ -223,14 +228,16 @@ idl_set_insert_complement_idl(IDListSet *idl_set, IDList *idl) {
 }
 
 int64_t
-idl_set_union_shortcut(IDListSet *idl_set) {
+idl_set_union_shortcut(IDListSet *idl_set)
+{
     /* Are we able to shortcut the union process? */
     /* This generally indicates the presence of allids */
     return idl_set->allids;
 }
 
 int64_t
-idl_set_intersection_shortcut(IDListSet *idl_set) {
+idl_set_intersection_shortcut(IDListSet *idl_set)
+{
     /* If we have a 0 length idl, we can never create an intersection. */
     if (idl_set->minimum != NULL && idl_set->minimum->b_nids <= FILTER_TEST_THRESHOLD) {
         return 1;
@@ -239,7 +246,8 @@ idl_set_intersection_shortcut(IDListSet *idl_set) {
 }
 
 IDList *
-idl_set_union(IDListSet *idl_set, backend *be) {
+idl_set_union(IDListSet *idl_set, backend *be)
+{
     /*
      * Check allids first, because allids = 1, may not
      * have set count > 0.
@@ -337,7 +345,8 @@ idl_set_union(IDListSet *idl_set, backend *be) {
 }
 
 IDList *
-idl_set_intersect(IDListSet *idl_set, backend *be) {
+idl_set_intersect(IDListSet *idl_set, backend *be)
+{
     IDList *result_list = NULL;
 
     if (idl_set->allids != 0 && idl_set->count == 0) {
@@ -499,7 +508,6 @@ idl_set_intersect(IDListSet *idl_set, backend *be) {
                 }
                 idl_set->head = NULL;
             }
-
         }
     }
 
@@ -533,4 +541,3 @@ idl_set_intersect(IDListSet *idl_set, backend *be) {
 
     return result_list;
 }
-

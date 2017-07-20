@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* vlv_key.c */
@@ -26,11 +26,11 @@
 struct vlv_key *
 vlv_key_new()
 {
-    struct vlv_key *p= (struct vlv_key*)slapi_ch_malloc(sizeof(struct vlv_key));
-    p->keymem= 64;
-    memset(&p->key,0,sizeof(DBT));
-    p->key.data= slapi_ch_malloc(p->keymem);
-    p->key.size= 0;
+    struct vlv_key *p = (struct vlv_key *)slapi_ch_malloc(sizeof(struct vlv_key));
+    p->keymem = 64;
+    memset(&p->key, 0, sizeof(DBT));
+    p->key.data = slapi_ch_malloc(p->keymem);
+    p->key.size = 0;
     return p;
 }
 
@@ -56,22 +56,17 @@ vlv_key_copy(const struct vlv_key *p1,struct vlv_key *p2)
  * Add an attribute value to the end of a composite key.
  */
 void
-vlv_key_addattr(struct vlv_key *p,struct berval *val)
+vlv_key_addattr(struct vlv_key *p, struct berval *val)
 {
     /* If there isn't room then allocate some more memory */
     unsigned int need = p->key.size + val->bv_len;
-    if(need > p->keymem)
-    {
-        p->keymem*= 2;
-        if(need > p->keymem)
-        {
-            p->keymem= need;
+    if (need > p->keymem) {
+        p->keymem *= 2;
+        if (need > p->keymem) {
+            p->keymem = need;
         }
-        p->key.data= slapi_ch_realloc(p->key.data,p->keymem);
+        p->key.data = slapi_ch_realloc(p->key.data, p->keymem);
     }
-    memcpy(((char*)p->key.data)+p->key.size, val->bv_val, val->bv_len);
-    p->key.size+= val->bv_len;
+    memcpy(((char *)p->key.data) + p->key.size, val->bv_val, val->bv_len);
+    p->key.size += val->bv_len;
 }
-
-
-

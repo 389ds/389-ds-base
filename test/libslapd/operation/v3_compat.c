@@ -22,7 +22,8 @@
  */
 
 void
-test_libslapd_operation_v3c_target_spec(void **state __attribute__((unused))) {
+test_libslapd_operation_v3c_target_spec(void **state __attribute__((unused)))
+{
     /* Will we need to test PB / op interactions? */
     /* Test the operation of the target spec is maintained. */
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);

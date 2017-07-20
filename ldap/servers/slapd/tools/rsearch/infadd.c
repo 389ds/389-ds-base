@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -35,10 +35,10 @@
 #include "nametable.h"
 #include "addthread.h"
 
-#define DEFAULT_HOSTNAME	"localhost"
-#define DEFAULT_PORT		389
-#define DEFAULT_THREADS		1
-#define DEFAULT_INTERVAL	10000
+#define DEFAULT_HOSTNAME "localhost"
+#define DEFAULT_PORT 389
+#define DEFAULT_THREADS 1
+#define DEFAULT_INTERVAL 10000
 
 
 /* global data for the threads to share */
@@ -59,68 +59,74 @@ unsigned long firstUID = 0;
 NameTable *given_names = NULL, *family_names = NULL;
 
 
-void usage(void)
+void
+usage(void)
 {
     fprintf(stdout,
-	   "Usage: infadd -s suffix -u bindDN -w password [options]\n"
-	   "\nOptions:\n"
-	   "-h hostname (default: %s)\n"
-	   "-p port     (default: %d)\n"
-	   "-t threads  -- number of threads to spin (default: %d)\n"
-	   "-d          -- use TCP no-delay\n"
-	   "-q          -- quiet mode (no status updates)\n"
-	   "-v          -- verbose mode (give per-thread statistics)\n"
-	   "-I num      -- first uid (default: 0)\n"
-	   "-l count    -- limit count; stops when the total count exceeds <count>\n"
-	   "-i msec     -- sample interval in milliseconds (default: %u)\n"
-	   "-R size     -- generate <size> random names instead of using\n"
-	   "               data files\n"
-	   "-z size     -- add binary blob of average size of <size> bytes\n"
-	   "\n",
-	   DEFAULT_HOSTNAME, DEFAULT_PORT, DEFAULT_THREADS,
-	   DEFAULT_INTERVAL);
+            "Usage: infadd -s suffix -u bindDN -w password [options]\n"
+            "\nOptions:\n"
+            "-h hostname (default: %s)\n"
+            "-p port     (default: %d)\n"
+            "-t threads  -- number of threads to spin (default: %d)\n"
+            "-d          -- use TCP no-delay\n"
+            "-q          -- quiet mode (no status updates)\n"
+            "-v          -- verbose mode (give per-thread statistics)\n"
+            "-I num      -- first uid (default: 0)\n"
+            "-l count    -- limit count; stops when the total count exceeds <count>\n"
+            "-i msec     -- sample interval in milliseconds (default: %u)\n"
+            "-R size     -- generate <size> random names instead of using\n"
+            "               data files\n"
+            "-z size     -- add binary blob of average size of <size> bytes\n"
+            "\n",
+            DEFAULT_HOSTNAME, DEFAULT_PORT, DEFAULT_THREADS,
+            DEFAULT_INTERVAL);
 }
 
 /* generate a random name
  * this generates 'names' like "Gxuvbnrc" but hey, there are Bosnian towns
  * with less pronouncable names...
  */
-char *randName(void)
+char *
+randName(void)
 {
     char *x;
     int i, len = (rand() % 7) + 5;
 
-    x = (char *)malloc(len+1);
-    if (!x) return NULL;
-    x[0] = (rand() % 26)+'A';
-    for (i = 1; i < len; i++) x[i] = (rand() % 26)+'a';
+    x = (char *)malloc(len + 1);
+    if (!x)
+        return NULL;
+    x[0] = (rand() % 26) + 'A';
+    for (i = 1; i < len; i++)
+        x[i] = (rand() % 26) + 'a';
     x[len] = 0;
     return x;
 }
 
-void fill_table(NameTable *nt, PRUint32 size)
+void
+fill_table(NameTable *nt, PRUint32 size)
 {
     PRUint32 i;
     char *x;
 
     fprintf(stdout, "Generating random names: 0      ");
     for (i = 0; i < size; i++) {
-	x = randName();
-	/* check for duplicates */
-	while (nt_cis_check(nt, x)) {
-	    free(x);
-	    x = randName();
-	}
-	(void)nt_push(nt, x);
-	if ((i % 100) == 0) {
-	    fprintf(stdout, "\b\b\b\b\b\b\b%-7d", i);
-	}
+        x = randName();
+        /* check for duplicates */
+        while (nt_cis_check(nt, x)) {
+            free(x);
+            x = randName();
+        }
+        (void)nt_push(nt, x);
+        if ((i % 100) == 0) {
+            fprintf(stdout, "\b\b\b\b\b\b\b%-7d", i);
+        }
     }
     fprintf(stdout, "\b\b\b\b\b\b\b%d.  Done.\n", size);
     return;
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
     int ch, index, numThreads, numDead;
     PRUint32 use_random = 0;
@@ -193,7 +199,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if ( sampleInterval <= 0 || thread_count <= 0 || lmtCount < 0 ) {
+    if (sampleInterval <= 0 || thread_count <= 0 || lmtCount < 0) {
         printf("infadd: invalid option value\n");
         usage();
         exit(-1);
@@ -209,8 +215,7 @@ int main(int argc, char **argv)
     if (use_random) {
         fill_table(given_names, use_random);
         fill_table(family_names, use_random);
-    }
-    else {
+    } else {
         strcpy(familynames, TEMPLATEDIR "/dbgen-FamilyNames");
         strcpy(givennames, TEMPLATEDIR "/dbgen-GivenNames");
         fprintf(stdout, "Loading Given-Names ...\n");
@@ -250,13 +255,13 @@ int main(int argc, char **argv)
         thr = PR_CreateThread(PR_SYSTEM_THREAD, infadd_start,
                               (void *)at, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                               PR_JOINABLE_THREAD, 0);
-        at_setThread(at, thr, index+1);
+        at_setThread(at, thr, index + 1);
         threads[index++] = at;
     }
     numThreads = index;
 
     fprintf(stdout, "infadd: %d thread%s launched.\n\n",
-                    numThreads, numThreads == 1 ? "" : "s");
+            numThreads, numThreads == 1 ? "" : "s");
 
     numDead = 0;
     counter = 0;
@@ -279,13 +284,12 @@ int main(int argc, char **argv)
                 if (alive <= -4) {
                     fprintf(stdout, " -- Dead thread being reaped.\n");
                     PR_JoinThread(tid);
-                    for (y = x+1; y < numThreads; y++)
-                        threads[y-1] = threads[y];
+                    for (y = x + 1; y < numThreads; y++)
+                        threads[y - 1] = threads[y];
                     numThreads--;
                     numDead++;
                     x--;
-                }
-                else
+                } else
                     fprintf(stdout, " (waiting)\n");
             }
         }
@@ -308,19 +312,19 @@ int main(int argc, char **argv)
         if (!quiet && (numThreads > 1 || !verbose)) {
             double val = 1000.0 * (double)total / (double)sampleInterval;
             fprintf(stdout, "Rate: %7.2f/thr (%6.2f/sec =%7.4fms/op), "
-                            "total: %u (%d thr)\n", 
-                    (double)total/(double)numThreads, val, 
-                    (double)1000.0/val, ntotal, numThreads);
+                            "total: %u (%d thr)\n",
+                    (double)total / (double)numThreads, val,
+                    (double)1000.0 / val, ntotal, numThreads);
         }
         if (lmtCount && (int)ntotal >= lmtCount) {
             if (!quiet) {
-                tmpv = (double)ntotal*1000.0/(counter*sampleInterval);
+                tmpv = (double)ntotal * 1000.0 / (counter * sampleInterval);
                 fprintf(stdout,
-                  "Total added records: %d, Average rate: %7.2f/thrd, "
-                  "%6.2f/sec = %6.4fmsec/op\n",
-                  ntotal, (double)ntotal/(double)numThreads,
-                  tmpv,
-                  (double)1000.0/tmpv);
+                        "Total added records: %d, Average rate: %7.2f/thrd, "
+                        "%6.2f/sec = %6.4fmsec/op\n",
+                        ntotal, (double)ntotal / (double)numThreads,
+                        tmpv,
+                        (double)1000.0 / tmpv);
             }
             exit(1);
         }

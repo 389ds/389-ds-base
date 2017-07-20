@@ -21,7 +21,7 @@ sds_bptree_search_node_path(sds_bptree_transaction *btxn, void *key, sds_bptree_
     size_t i = 0;
     int64_t (*key_cmp_fn)(void *a, void *b) = btxn->bi->key_cmp_fn;
 
-    /* We do this first, as we need the node to pass before we access it! */
+/* We do this first, as we need the node to pass before we access it! */
 #ifdef SDS_DEBUG
     if (btxn->bi->search_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_btxn(btxn);
@@ -77,6 +77,4 @@ branch_loop:
 #endif
     *target_out_node = target_node;
     return SDS_SUCCESS;
-
 }
-

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -20,10 +20,10 @@
 
 #include "getstrmem.h"
 
-static char*
-XP_GetStringFromMemory(const char* strLibraryName,int iToken)
+static char *
+XP_GetStringFromMemory(const char *strLibraryName, int iToken)
 {
-  /*
+    /*
    * In memory model called by XP_GetStringFromDatabase
    * does not use database (nsres, et al.).
    *
@@ -34,54 +34,53 @@ XP_GetStringFromMemory(const char* strLibraryName,int iToken)
    */
 
 
-  unsigned hashKey;
-  int      found = 0;
-  unsigned uToken = iToken;
-  const char*    cPtr;
-  DATABIN* pBucket;
+    unsigned hashKey;
+    int found = 0;
+    unsigned uToken = iToken;
+    const char *cPtr;
+    DATABIN *pBucket;
 
-  /* calculate hash key */
-  hashKey = 0;
-  cPtr = strLibraryName;
-  while (*cPtr) {
-	hashKey += *(cPtr++);
-  }
-  hashKey &= BUCKET_MASK;
-
-  /* get bucket for this hash key */
-  pBucket = buckets[hashKey];
-
-  /* search overflow buckets */
-  while (*(pBucket->pLibraryName)!='\0') {
-    if (strcmp(pBucket->pLibraryName,strLibraryName)==0) {
-	  found = 1;
-	  break;
+    /* calculate hash key */
+    hashKey = 0;
+    cPtr = strLibraryName;
+    while (*cPtr) {
+        hashKey += *(cPtr++);
     }
-    pBucket++;
-  }
+    hashKey &= BUCKET_MASK;
 
-  if (!found) {
-    return emptyString;
-  }
+    /* get bucket for this hash key */
+    pBucket = buckets[hashKey];
 
-  if (uToken<=pBucket->numberOfStringsInLibrary) {
-      return pBucket->pArrayOfLibraryStrings[uToken];
+    /* search overflow buckets */
+    while (*(pBucket->pLibraryName) != '\0') {
+        if (strcmp(pBucket->pLibraryName, strLibraryName) == 0) {
+            found = 1;
+            break;
+        }
+        pBucket++;
+    }
+
+    if (!found) {
+        return emptyString;
+    }
+
+    if (uToken <= pBucket->numberOfStringsInLibrary) {
+        return pBucket->pArrayOfLibraryStrings[uToken];
     } else {
-	  /* string token out of range */
-      return emptyString;
+        /* string token out of range */
+        return emptyString;
     }
-
 }
 
-const char*
-XP_GetStringFromDatabase(const char* strLibraryName,
-                         const char* strLanguage __attribute__((unused)),
+const char *
+XP_GetStringFromDatabase(const char *strLibraryName,
+                         const char *strLanguage __attribute__((unused)),
                          int key)
 {
     const char *result = NULL;
 
     /* we use memory strings only in ds. */
     if (result == NULL)
-        result = XP_GetStringFromMemory(strLibraryName,key);
+        result = XP_GetStringFromMemory(strLibraryName, key);
     return result;
 }

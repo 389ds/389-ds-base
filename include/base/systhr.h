@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_SYSTHR_H
@@ -20,7 +20,7 @@
 
 /*
  * systhr.h: Abstracted threading mechanisms
- * 
+ *
  * Rob McCool
  */
 
@@ -61,7 +61,7 @@ NSAPI_PUBLIC void *INTsysthread_getdata(int key);
 
 NSAPI_PUBLIC void INTsysthread_setdata(int key, void *data);
 
-NSAPI_PUBLIC 
+NSAPI_PUBLIC
 void INTsysthread_set_default_stacksize(unsigned long size);
 
 NSPR_END_EXTERN_C

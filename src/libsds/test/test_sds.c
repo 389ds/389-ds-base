@@ -10,7 +10,8 @@
 #include "test_sds.h"
 
 int
-main ( int argc __attribute__((unused)), char **argv __attribute__((unused))) {
+main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
+{
     int result = 0;
     result += run_bpt_tests();
     result += run_set_tests();
@@ -22,4 +23,3 @@ main ( int argc __attribute__((unused)), char **argv __attribute__((unused))) {
     result += run_ht_tests();
     return result;
 }
-

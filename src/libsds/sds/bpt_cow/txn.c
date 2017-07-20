@@ -22,7 +22,8 @@
 #include "bpt_cow.h"
 
 sds_bptree_transaction *
-sds_bptree_txn_create(sds_bptree_cow_instance *binst) {
+sds_bptree_txn_create(sds_bptree_cow_instance *binst)
+{
     /* Allocate the transaction id
      * The trick here is that when we do this, we do txn_id + 1 to the txn, but
      * we don't alter the id of the binst. This is because when we commit the txn
@@ -77,7 +78,8 @@ sds_bptree_txn_create(sds_bptree_cow_instance *binst) {
 
 // Should be caled by txn decrement.
 static void
-sds_bptree_txn_free(sds_bptree_transaction *btxn) {
+sds_bptree_txn_free(sds_bptree_transaction *btxn)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_txn_free", "        Freeing READ txn_%p rc %d", btxn, btxn->reference_count);
 #endif
@@ -107,10 +109,11 @@ sds_bptree_txn_free(sds_bptree_transaction *btxn) {
  */
 
 static void
-sds_bptree_txn_increment(sds_bptree_transaction *btxn) {
+sds_bptree_txn_increment(sds_bptree_transaction *btxn)
+{
     __atomic_add_fetch(&(btxn->reference_count), 1, __ATOMIC_SEQ_CST);
 
-    // PR_AtomicIncrement(&(btxn->reference_count));
+// PR_AtomicIncrement(&(btxn->reference_count));
 #ifdef SDS_DEBUG
     if (btxn->binst->bi->offline_checksumming) {
         sds_bptree_crc32c_update_btxn(btxn);
@@ -128,21 +131,22 @@ sds_bptree_txn_increment(sds_bptree_transaction *btxn) {
  */
 
 static void
-sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
+sds_bptree_txn_decrement(sds_bptree_transaction *btxn)
+{
 #ifdef SDS_DEBUG
-    sds_log("sds_bptree_txn_decrement", "    txn_%p %d - 1", btxn, btxn->reference_count );
+    sds_log("sds_bptree_txn_decrement", "    txn_%p %d - 1", btxn, btxn->reference_count);
 #endif
     sds_bptree_cow_instance *binst = btxn->binst;
 
     // Atomic dec the counter.
     // PR_AtomicDecrement returns the set value.
     uint32_t result = __atomic_sub_fetch(&(btxn->reference_count), 1, __ATOMIC_SEQ_CST);
-    /* WARNING: After this point, another thread MAY free btxn under us.
+/* WARNING: After this point, another thread MAY free btxn under us.
      * You MUST *not* deref btxn after this point.
      */
 #ifdef SDS_DEBUG
-    sds_log("sds_bptree_txn_decrement", "                        == %d", result );
-    /* WARNING: This *may* in some cases trigger a HUAF ... 
+    sds_log("sds_bptree_txn_decrement", "                        == %d", result);
+    /* WARNING: This *may* in some cases trigger a HUAF ...
      * Is this reason to ditch the checksum of the txn, or to make a txn lock?
      */
     if (result > 0 && binst->bi->offline_checksumming) {
@@ -197,7 +201,8 @@ sds_bptree_txn_decrement(sds_bptree_transaction *btxn) {
 /* Public functions */
 
 sds_result
-sds_bptree_cow_rotxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transaction **btxn) {
+sds_bptree_cow_rotxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transaction **btxn)
+{
 
 #ifdef SDS_DEBUG
     sds_result result = SDS_SUCCESS;
@@ -247,11 +252,12 @@ sds_bptree_cow_rotxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transactio
  */
 
 sds_result
-sds_bptree_cow_rotxn_close(sds_bptree_transaction **btxn) {
+sds_bptree_cow_rotxn_close(sds_bptree_transaction **btxn)
+{
     if (btxn == NULL || *btxn == NULL) {
         return SDS_INVALID_TXN;
     }
-    /* Decrement the counter */
+/* Decrement the counter */
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_rotxn_close", "==> Closing READ txn_%p rc %d - 1", *btxn, (*btxn)->reference_count);
 #endif
@@ -270,7 +276,9 @@ sds_bptree_cow_rotxn_close(sds_bptree_transaction **btxn) {
  * ==============================================================
  */
 
-sds_result sds_bptree_cow_wrtxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transaction **btxn) {
+sds_result
+sds_bptree_cow_wrtxn_begin(sds_bptree_cow_instance *binst, sds_bptree_transaction **btxn)
+{
 #ifdef SDS_DEBUG
     sds_result result = SDS_SUCCESS;
     if (binst->bi->offline_checksumming) {
@@ -305,7 +313,9 @@ sds_result sds_bptree_cow_wrtxn_begin(sds_bptree_cow_instance *binst, sds_bptree
  * ==============================================================
  */
 
-sds_result sds_bptree_cow_wrtxn_abort(sds_bptree_transaction **btxn) {
+sds_result
+sds_bptree_cow_wrtxn_abort(sds_bptree_transaction **btxn)
+{
     if (btxn == NULL || *btxn == NULL) {
         return SDS_INVALID_TXN;
     }
@@ -341,7 +351,9 @@ sds_result sds_bptree_cow_wrtxn_abort(sds_bptree_transaction **btxn) {
  * ==============================================================
  */
 
-sds_result sds_bptree_cow_wrtxn_commit(sds_bptree_transaction **btxn) {
+sds_result
+sds_bptree_cow_wrtxn_commit(sds_bptree_transaction **btxn)
+{
     if (btxn == NULL || *btxn == NULL) {
         return SDS_INVALID_TXN;
     }

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -29,9 +29,9 @@ typedef int (*api_views_entry_dn_exists)(char *view_dn, char *e_dn);
 /* the api broker reserves api[0] for its use */
 
 #define views_entry_exists(api, dn, entry) \
-	((api_views_entry_exists*)(api))[1]( dn, entry )
+    ((api_views_entry_exists *)(api))[1](dn, entry)
 
 #define views_entry_dn_exists(api, dn, entry_dn) \
-	((api_views_entry_dn_exists*)(api))[2]( dn, entry_dn )
+    ((api_views_entry_dn_exists *)(api))[2](dn, entry_dn)
 
 #endif /*_VIEWS_H_*/

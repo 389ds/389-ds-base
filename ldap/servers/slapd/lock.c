@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* lock.c - routines to open and apply an advisory lock to a file */
@@ -25,51 +25,51 @@
 #endif
 
 FILE *
-lock_fopen( char *fname, char *type, FILE **lfp )
+lock_fopen(char *fname, char *type, FILE **lfp)
 {
-	FILE	*fp;
-	char	buf[MAXPATHLEN];
+    FILE *fp;
+    char buf[MAXPATHLEN];
 
-	/* open the lock file */
-	PR_snprintf( buf, MAXPATHLEN, "%s%s", fname, ".lock" );
-	if ( (*lfp = fopen( buf, "w" )) == NULL ) {
-		slapi_log_err(SLAPI_LOG_ERR, "lock_fopen - Could not open \"%s\"\n", buf, 0, 0 );
-		return( NULL );
-	}
+    /* open the lock file */
+    PR_snprintf(buf, MAXPATHLEN, "%s%s", fname, ".lock");
+    if ((*lfp = fopen(buf, "w")) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "lock_fopen - Could not open \"%s\"\n", buf, 0, 0);
+        return (NULL);
+    }
 
-	/* acquire the lock */
+/* acquire the lock */
 #ifdef USE_LOCKF
-	while ( lockf( fileno( *lfp ), F_LOCK, 0 ) != 0 ) {
+    while (lockf(fileno(*lfp), F_LOCK, 0) != 0) {
 #else
-	while ( flock( fileno( *lfp ), LOCK_EX ) != 0 ) {
+    while (flock(fileno(*lfp), LOCK_EX) != 0) {
 #endif
-		;	/* NULL */
-	}
+        ; /* NULL */
+    }
 
-	/* open the log file */
-	if ( (fp = fopen( fname, type )) == NULL ) {
-		slapi_log_err(SLAPI_LOG_ERR, "lock_fopen - Could not open \"%s\"\n", fname, 0, 0 );
+    /* open the log file */
+    if ((fp = fopen(fname, type)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "lock_fopen - Could not open \"%s\"\n", fname, 0, 0);
 #ifdef USE_LOCKF
-		lockf( fileno( *lfp ), F_ULOCK, 0 );
+        lockf(fileno(*lfp), F_ULOCK, 0);
 #else
-		flock( fileno( *lfp ), LOCK_UN );
+        flock(fileno(*lfp), LOCK_UN);
 #endif
-		return( NULL );
-	}
+        return (NULL);
+    }
 
-	return( fp );
+    return (fp);
 }
 
 int
-lock_fclose( FILE *fp, FILE *lfp )
+lock_fclose(FILE *fp, FILE *lfp)
 {
-	/* unlock */
+/* unlock */
 #ifdef USE_LOCKF
-	lockf( fileno( lfp ), F_ULOCK, 0 );
+    lockf(fileno(lfp), F_ULOCK, 0);
 #else
-	flock( fileno( lfp ), LOCK_UN );
+    flock(fileno(lfp), LOCK_UN);
 #endif
-	fclose( lfp );
+    fclose(lfp);
 
-	return( fclose( fp ) );
+    return (fclose(fp));
 }

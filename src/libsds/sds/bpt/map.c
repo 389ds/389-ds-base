@@ -13,7 +13,8 @@ FILE *fp = NULL;
 
 
 sds_result
-sds_bptree_map_nodes(sds_bptree_instance *binst, sds_bptree_node *root, sds_result (*fn)(sds_bptree_instance *binst, sds_bptree_node *) ) {
+sds_bptree_map_nodes(sds_bptree_instance *binst, sds_bptree_node *root, sds_result (*fn)(sds_bptree_instance *binst, sds_bptree_node *))
+{
     sds_bptree_node_list *cur = sds_malloc(sizeof(sds_bptree_node_list));
     sds_bptree_node_list *prev = cur;
     sds_bptree_node_list *tail = cur;
@@ -33,7 +34,7 @@ sds_bptree_map_nodes(sds_bptree_instance *binst, sds_bptree_node *root, sds_resu
 
     while (cur != NULL) {
 #ifdef SDS_DEBUG
-        // sds_log("sds_bptree_map_nodes", "node_%p ...", cur->node);
+// sds_log("sds_bptree_map_nodes", "node_%p ...", cur->node);
 #endif
         if (cur->node->level > 0) {
             // Has to be <= here as this is access values, not keys!
@@ -66,7 +67,7 @@ sds_result
 sds_bptree_verify_instance(sds_bptree_instance *binst)
 {
     sds_result result = SDS_SUCCESS;
-    // check the checksum.
+// check the checksum.
 #ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         result = sds_bptree_crc32c_verify_instance(binst);
@@ -77,8 +78,9 @@ sds_bptree_verify_instance(sds_bptree_instance *binst)
 }
 
 sds_result
-sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
-    // - verify the hash of the node metadata
+sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node)
+{
+// - verify the hash of the node metadata
 #ifdef SDS_DEBUG
     if (binst->offline_checksumming) {
         sds_result result = sds_bptree_crc32c_verify_node(node);
@@ -90,14 +92,12 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
 
     // - item_count matches number of non-null keys.
     for (size_t i = 0; i < node->item_count; i++) {
-        if (node->keys[i] == NULL)
-        {
+        if (node->keys[i] == NULL) {
 #ifdef SDS_DEBUG
             sds_log("sds_bptree_verify_node", "%d \n", node->item_count);
 #endif
             return SDS_INVALID_KEY;
         }
-
     }
 
 
@@ -127,7 +127,7 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
         }
 
 #ifdef SDS_DEBUG
-        /*
+/*
         // - verify the value hashes
         // Now that we are sure of all value sizes and pointers, lets do the checksum of the data in the values
         // - NULL values have 0 size
@@ -244,17 +244,18 @@ sds_bptree_verify_node(sds_bptree_instance *binst, sds_bptree_node *node) {
                         sds_bptree_node_list_push(&path, rnode->values[j]);
                     }
                     rnode = sds_bptree_node_list_pop(&path);
-                } // While rnode
+                }  // While rnode
             }
-        } // end for
+        }  // end for
 
-    } // end else is_leaf
+    }  // end else is_leaf
 
     return SDS_SUCCESS;
 }
 
 sds_result
-sds_bptree_verify(sds_bptree_instance *binst) {
+sds_bptree_verify(sds_bptree_instance *binst)
+{
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_verify", "==> Beginning verification of instance %p", binst);
 #endif
@@ -285,37 +286,39 @@ sds_bptree_verify(sds_bptree_instance *binst) {
 
 /* This display code runs in two passes.  */
 static sds_result
-sds_node_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bptree_node *node) {
+sds_node_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bptree_node *node)
+{
     if (node == NULL) {
         return SDS_INVALID_NODE;
     }
     // Given the node write it out as:
-    fprintf(fp, "subgraph c%"PRIu32" { \n    rank=\"same\";\n", node->level);
-    fprintf(fp, "    node_%p [label =\" {  node=%p items=%d txn=%"PRIu64" parent=%p | { <f0> ", node, node, node->item_count, node->txn_id, node->parent );
-    for (size_t i  = 0; i < SDS_BPTREE_DEFAULT_CAPACITY; i++) {
-        fprintf(fp, "| %" PRIu64 " | <f%"PRIu64"> ", (uint64_t)node->keys[i], i + 1 );
+    fprintf(fp, "subgraph c%" PRIu32 " { \n    rank=\"same\";\n", node->level);
+    fprintf(fp, "    node_%p [label =\" {  node=%p items=%d txn=%" PRIu64 " parent=%p | { <f0> ", node, node, node->item_count, node->txn_id, node->parent);
+    for (size_t i = 0; i < SDS_BPTREE_DEFAULT_CAPACITY; i++) {
+        fprintf(fp, "| %" PRIu64 " | <f%" PRIu64 "> ", (uint64_t)node->keys[i], i + 1);
     }
     fprintf(fp, "}}\"]; \n}\n");
     return SDS_SUCCESS;
 }
 
 static sds_result
-sds_node_ptrs_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bptree_node *node) {
-    // for a given node, 
+sds_node_ptrs_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bptree_node *node)
+{
+    // for a given node,
     // printf("\"node0\":f0 -> \"node1\"");
     if (node->level == 0) {
         if (node->values[SDS_BPTREE_DEFAULT_CAPACITY] != NULL) {
             // Work around a graphviz display issue, with Left and Right pointers
-            fprintf(fp, "\"node_%p\" -> \"node_%p\"; \n", node, node->values[SDS_BPTREE_DEFAULT_CAPACITY] );
+            fprintf(fp, "\"node_%p\" -> \"node_%p\"; \n", node, node->values[SDS_BPTREE_DEFAULT_CAPACITY]);
         }
     } else {
-        for (size_t i  = 0; i < SDS_BPTREE_BRANCH; i++) {
+        for (size_t i = 0; i < SDS_BPTREE_BRANCH; i++) {
             if (node->values[i] != NULL) {
                 if (i == SDS_BPTREE_DEFAULT_CAPACITY) {
                     // Work around a graphviz display issue, with Left and Right pointers
-                    fprintf(fp, "\"node_%p\" -> \"node_%p\"; \n", node, node->values[i] );
+                    fprintf(fp, "\"node_%p\" -> \"node_%p\"; \n", node, node->values[i]);
                 } else {
-                    fprintf(fp, "\"node_%p\":f%"PRIu64" -> \"node_%p\"; \n", node, i, node->values[i] );
+                    fprintf(fp, "\"node_%p\":f%" PRIu64 " -> \"node_%p\"; \n", node, i, node->values[i]);
                 }
             }
         }
@@ -325,7 +328,8 @@ sds_node_ptrs_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bpt
 }
 
 sds_result
-sds_bptree_display(sds_bptree_instance *binst) {
+sds_bptree_display(sds_bptree_instance *binst)
+{
     sds_result result = SDS_SUCCESS;
 
     char *path = malloc(sizeof(char) * 20);
@@ -361,5 +365,3 @@ sds_bptree_display(sds_bptree_instance *binst) {
 
     return result;
 }
-
-

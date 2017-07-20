@@ -4,18 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-/* 
+/*
  *  File: unbind.c
  *
  *  Functions:
- * 
+ *
  *      ldif_back_unbind() - ldap ldif back-end unbind routine
  *
  */
@@ -24,12 +24,12 @@
 /*
  *  Function: ldif_back_unbind
  *
- *  Returns: returns 0 
- *  
+ *  Returns: returns 0
+ *
  *  Description: performs an ldap unbind.
  */
 int
-ldif_back_unbind( Slapi_PBlock *pb )
+ldif_back_unbind(Slapi_PBlock *pb)
 {
-  return( 0 );
+    return (0);
 }

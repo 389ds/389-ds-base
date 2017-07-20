@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "cb.h"
@@ -18,6 +18,8 @@
 ** are implemented in the slapi interface
 */
 
-cb_backend_instance * cb_get_instance(Slapi_Backend * be) {
-	return (cb_backend_instance *)slapi_be_get_instance_info(be);
+cb_backend_instance *
+cb_get_instance(Slapi_Backend *be)
+{
+    return (cb_backend_instance *)slapi_be_get_instance_info(be);
 }

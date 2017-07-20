@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef __ipfstruct_h
@@ -17,11 +17,11 @@
 /*
  * Description (ipfstruct.h)
  *
- *	This file defines types and structures used to represent an
- *	IP address filter in memory.  An IP address filter contains
- *	specifications of IP host and network addresses.  Each of
- *	these specifications can be associated with whatever information
- *	is appropriate for a particular use of an IP address filter.
+ *    This file defines types and structures used to represent an
+ *    IP address filter in memory.  An IP address filter contains
+ *    specifications of IP host and network addresses.  Each of
+ *    these specifications can be associated with whatever information
+ *    is appropriate for a particular use of an IP address filter.
  */
 
 /* Define a scalar IP address value */
@@ -43,26 +43,27 @@ typedef unsigned long IPAddr_t;
  */
 
 /* Define indices of links in an IPNode_t */
-#define IPN_CLEAR	0	/* link to node with ipn_bit clear */
-#define IPN_SET		1	/* link to node with ipn_bit set */
-#define IPN_MASKED	2	/* link to node with ipn_bit masked out */
-#define IPN_NLINKS	3	/* number of links */
+#define IPN_CLEAR 0  /* link to node with ipn_bit clear */
+#define IPN_SET 1    /* link to node with ipn_bit set */
+#define IPN_MASKED 2 /* link to node with ipn_bit masked out */
+#define IPN_NLINKS 3 /* number of links */
 
 typedef struct IPNode_s IPNode_t;
-struct IPNode_s {
-    char ipn_type;		/* node type */
-#define IPN_LEAF	0	/* leaf node */
-#define IPN_NODE	1	/* internal node */
+struct IPNode_s
+{
+    char ipn_type; /* node type */
+#define IPN_LEAF 0 /* leaf node */
+#define IPN_NODE 1 /* internal node */
 
-    char ipn_bit;		/* bit number (31-0) to test */
-    IPNode_t * ipn_parent;	/* link to parent node */
-    IPNode_t * ipn_links[IPN_NLINKS];	
+    char ipn_bit;         /* bit number (31-0) to test */
+    IPNode_t *ipn_parent; /* link to parent node */
+    IPNode_t *ipn_links[IPN_NLINKS];
 };
 
 /* Helper definitions */
-#define ipn_clear	ipn_links[IPN_CLEAR]
-#define ipn_set		ipn_links[IPN_SET]
-#define ipn_masked	ipn_links[IPN_MASKED]
+#define ipn_clear ipn_links[IPN_CLEAR]
+#define ipn_set ipn_links[IPN_SET]
+#define ipn_masked ipn_links[IPN_MASKED]
 
 /*
  * Description (IPLeaf_t)
@@ -74,16 +75,18 @@ struct IPNode_s {
  */
 
 typedef struct IPLeaf_s IPLeaf_t;
-struct IPLeaf_s {
-    char ipl_type;		/* see ipn_type in IPNode_t */
-    IPAddr_t ipl_netmask;	/* IP network mask */
-    IPAddr_t ipl_ipaddr;	/* IP address of host or network */
+struct IPLeaf_s
+{
+    char ipl_type;        /* see ipn_type in IPNode_t */
+    IPAddr_t ipl_netmask; /* IP network mask */
+    IPAddr_t ipl_ipaddr;  /* IP address of host or network */
 };
 
 typedef struct IPFilter_s IPFilter_t;
-struct IPFilter_s {
-    IPFilter_t * ipf_next;	/* link to next filter */
-    IPNode_t * ipf_tree;	/* pointer to radix tree structure */
+struct IPFilter_s
+{
+    IPFilter_t *ipf_next; /* link to next filter */
+    IPNode_t *ipf_tree;   /* pointer to radix tree structure */
 };
 
 #endif /* __ipfstruct_h */

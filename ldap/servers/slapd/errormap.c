@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -19,8 +19,8 @@
 #include "slap.h"
 
 #ifndef SYSERRLIST_IN_STDIO
-extern int	sys_nerr;
-extern char	*sys_errlist[];
+extern int sys_nerr;
+extern char *sys_errlist[];
 #endif
 
 /*
@@ -33,23 +33,23 @@ static const char *SECU_Strerror(PRErrorCode errNum);
  * return the string equivalent of an NSPR error
  */
 char *
-slapd_pr_strerror( const int prerrno )
+slapd_pr_strerror(const int prerrno)
 {
-    char	*s;
+    char *s;
 
-    if(prerrno == 0){
+    if (prerrno == 0) {
         s = "no error";
     } else {
-        if (( s = (char *)SECU_Strerror( (PRErrorCode)prerrno )) == NULL ) {
-             s = "unknown error";
+        if ((s = (char *)SECU_Strerror((PRErrorCode)prerrno)) == NULL) {
+            s = "unknown error";
         }
     }
 
-    return( s );
+    return (s);
 }
 
 char *
-slapi_pr_strerror( const int prerrno )
+slapi_pr_strerror(const int prerrno)
 {
     return slapd_pr_strerror(prerrno);
 }
@@ -58,22 +58,22 @@ slapi_pr_strerror( const int prerrno )
  * return the string equivalent of a system error
  */
 const char *
-slapd_system_strerror( const int syserrno )
+slapd_system_strerror(const int syserrno)
 {
-    const char	*s;
-	/* replaced
+    const char *s;
+    /* replaced
     if ( syserrno > -1 && syserrno < sys_nerr ) {
-	s = sys_errlist[ syserrno ];
+    s = sys_errlist[ syserrno ];
     } else {
-	s = "unknown";
+    s = "unknown";
     }
-	with s= strerror(syserrno)*/
-    s=strerror(syserrno);
-    return( s );
+    with s= strerror(syserrno)*/
+    s = strerror(syserrno);
+    return (s);
 }
 
 const char *
-slapi_system_strerror( const int syserrno )
+slapi_system_strerror(const int syserrno)
 {
     return slapd_system_strerror(syserrno);
 }
@@ -86,37 +86,38 @@ slapi_system_strerror( const int syserrno )
  * error code they have.
  */
 const char *
-slapd_versatile_strerror( const PRErrorCode prerrno )
+slapd_versatile_strerror(const PRErrorCode prerrno)
 {
-    const char	*s;
+    const char *s;
 
-    if (( s = (const char *)SECU_Strerror( prerrno )) == NULL ) {
-	s = slapd_system_strerror( prerrno );
+    if ((s = (const char *)SECU_Strerror(prerrno)) == NULL) {
+        s = slapd_system_strerror(prerrno);
     }
 
-    return( s );
+    return (s);
 }
 
 
 /*
  ****************************************************************************
  * The code below this point was provided by Nelson Bolyard <nelsonb> of the
- *	Netscape Certificate Server team on 27-March-1998.
- *	Taken from the file ns/security/cmd/lib/secerror.c on NSS_1_BRANCH.
- *	Last updated from there: 24-July-1998 by Mark Smith <mcs>
+ *    Netscape Certificate Server team on 27-March-1998.
+ *    Taken from the file ns/security/cmd/lib/secerror.c on NSS_1_BRANCH.
+ *    Last updated from there: 24-July-1998 by Mark Smith <mcs>
  ****************************************************************************
  */
 #include "nspr.h"
 
-struct tuple_str {
-    PRErrorCode	 errNum;
-    const char * errString;
+struct tuple_str
+{
+    PRErrorCode errNum;
+    const char *errString;
 };
 
 typedef struct tuple_str tuple_str;
 
-#define ER2(a,b)   {a, b},
-#define ER3(a,b,c) {a, c},
+#define ER2(a, b) {a, b},
+#define ER3(a, b, c) {a, c},
 
 #include "secerr.h"
 #include "sslerr.h"
@@ -138,8 +139,9 @@ static const PRInt32 numStrings = sizeof(errStrings) / sizeof(tuple_str);
  * Returns NULL of errNum is unknown.
  */
 static const char *
-SECU_Strerror(PRErrorCode errNum) {
-    PRInt32 low  = 0;
+SECU_Strerror(PRErrorCode errNum)
+{
+    PRInt32 low = 0;
     PRInt32 high = numStrings - 1;
     PRInt32 i;
     PRErrorCode num;
@@ -149,36 +151,36 @@ SECU_Strerror(PRErrorCode errNum) {
      * binary search depends on it.
      */
     if (!initDone) {
-	PRErrorCode lastNum = errStrings[low].errNum;
-    	for (i = low + 1; i <= high; ++i) {
-	    num = errStrings[i].errNum;
-	    if (num <= lastNum) {
-		slapi_log_err(SLAPI_LOG_ERR, "SECU_Strerror",
-			"Sequence error in error strings at item %d - error %d (%s)\n",
-			lastNum, num, errStrings[i-1].errString );
-		slapi_log_err(SLAPI_LOG_ERR, "SECU_Strerror",
-			"Should come after %d - error %d (%s)\n",
-			i, num, errStrings[i].errString);
-	    }
-	    lastNum = num;
-	}
-	initDone = 1;
+        PRErrorCode lastNum = errStrings[low].errNum;
+        for (i = low + 1; i <= high; ++i) {
+            num = errStrings[i].errNum;
+            if (num <= lastNum) {
+                slapi_log_err(SLAPI_LOG_ERR, "SECU_Strerror",
+                              "Sequence error in error strings at item %d - error %d (%s)\n",
+                              lastNum, num, errStrings[i - 1].errString);
+                slapi_log_err(SLAPI_LOG_ERR, "SECU_Strerror",
+                              "Should come after %d - error %d (%s)\n",
+                              i, num, errStrings[i].errString);
+            }
+            lastNum = num;
+        }
+        initDone = 1;
     }
 
     /* Do binary search of table. */
     while (low + 1 < high) {
-    	i = (low + high) / 2;
-	num = errStrings[i].errNum;
-	if (errNum == num) 
-	    return errStrings[i].errString;
+        i = (low + high) / 2;
+        num = errStrings[i].errNum;
+        if (errNum == num)
+            return errStrings[i].errString;
         if (errNum < num)
-	    high = i;
-	else 
-	    low = i;
+            high = i;
+        else
+            low = i;
     }
     if (errNum == errStrings[low].errNum)
-    	return errStrings[low].errString;
+        return errStrings[low].errString;
     if (errNum == errStrings[high].errNum)
-    	return errStrings[high].errString;
+        return errStrings[high].errString;
     return NULL;
 }

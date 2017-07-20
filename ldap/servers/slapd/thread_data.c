@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 /*
@@ -17,8 +17,8 @@ void td_dn_destructor(void *priv);
 /*
  * Thread Local Storage Indexes
  */
-static PRUintn td_requestor_dn;  /* TD_REQUESTOR_DN */
-static PRUintn td_plugin_list; /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
+static PRUintn td_requestor_dn; /* TD_REQUESTOR_DN */
+static PRUintn td_plugin_list;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
 
 /*
  *   Index types defined in slapi-plugin.h
@@ -45,20 +45,20 @@ static PRUintn td_plugin_list; /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 o
 int
 slapi_td_init(int indexType)
 {
-    switch(indexType){
-        case SLAPI_TD_REQUESTOR_DN:
-            if(PR_NewThreadPrivateIndex(&td_requestor_dn, td_dn_destructor) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-            break;
-        case SLAPI_TD_PLUGIN_LIST_LOCK:
-        	if(PR_NewThreadPrivateIndex(&td_plugin_list, NULL) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-            break;
-
-        default:
+    switch (indexType) {
+    case SLAPI_TD_REQUESTOR_DN:
+        if (PR_NewThreadPrivateIndex(&td_requestor_dn, td_dn_destructor) == PR_FAILURE) {
             return PR_FAILURE;
+        }
+        break;
+    case SLAPI_TD_PLUGIN_LIST_LOCK:
+        if (PR_NewThreadPrivateIndex(&td_plugin_list, NULL) == PR_FAILURE) {
+            return PR_FAILURE;
+        }
+        break;
+
+    default:
+        return PR_FAILURE;
     }
 
     return PR_SUCCESS;
@@ -70,27 +70,27 @@ slapi_td_init(int indexType)
 int
 slapi_td_set_val(int indexType, void *value)
 {
-    switch(indexType){
-        case SLAPI_TD_REQUESTOR_DN:
-            if(td_requestor_dn){
-                if(PR_SetThreadPrivate(td_requestor_dn, value) == PR_FAILURE){
-                    return PR_FAILURE;
-                }
-            } else {
+    switch (indexType) {
+    case SLAPI_TD_REQUESTOR_DN:
+        if (td_requestor_dn) {
+            if (PR_SetThreadPrivate(td_requestor_dn, value) == PR_FAILURE) {
                 return PR_FAILURE;
             }
-            break;
-        case SLAPI_TD_PLUGIN_LIST_LOCK:
-            if(td_plugin_list){
-                if(PR_SetThreadPrivate(td_plugin_list, value) == PR_FAILURE){
-                    return PR_FAILURE;
-                }
-            } else {
-                return PR_FAILURE;
-            }
-            break;
-        default:
+        } else {
             return PR_FAILURE;
+        }
+        break;
+    case SLAPI_TD_PLUGIN_LIST_LOCK:
+        if (td_plugin_list) {
+            if (PR_SetThreadPrivate(td_plugin_list, value) == PR_FAILURE) {
+                return PR_FAILURE;
+            }
+        } else {
+            return PR_FAILURE;
+        }
+        break;
+    default:
+        return PR_FAILURE;
     }
 
     return PR_SUCCESS;
@@ -102,24 +102,24 @@ slapi_td_set_val(int indexType, void *value)
 void
 slapi_td_get_val(int indexType, void **value)
 {
-    switch(indexType){
-        case SLAPI_TD_REQUESTOR_DN:
-            if(td_requestor_dn){
-                *value = PR_GetThreadPrivate(td_requestor_dn);
-            } else {
-                *value = NULL;
-            }
-            break;
-        case SLAPI_TD_PLUGIN_LIST_LOCK:
-            if(td_plugin_list){
-                *value = PR_GetThreadPrivate(td_plugin_list);
-            } else {
-                *value = 0;
-            }
-            break;
-        default:
+    switch (indexType) {
+    case SLAPI_TD_REQUESTOR_DN:
+        if (td_requestor_dn) {
+            *value = PR_GetThreadPrivate(td_requestor_dn);
+        } else {
             *value = NULL;
-            return;
+        }
+        break;
+    case SLAPI_TD_PLUGIN_LIST_LOCK:
+        if (td_plugin_list) {
+            *value = PR_GetThreadPrivate(td_plugin_list);
+        } else {
+            *value = 0;
+        }
+        break;
+    default:
+        *value = NULL;
+        return;
     }
 }
 
@@ -131,7 +131,7 @@ slapi_td_get_val(int indexType, void **value)
 int
 slapi_td_plugin_lock_init()
 {
-    if(slapi_td_init(SLAPI_TD_PLUGIN_LIST_LOCK) == PR_FAILURE){
+    if (slapi_td_init(SLAPI_TD_PLUGIN_LIST_LOCK) == PR_FAILURE) {
         return PR_FAILURE;
     }
 
@@ -143,7 +143,7 @@ slapi_td_set_plugin_locked()
 {
     int val = 12345;
 
-    if(slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void *)&val) == PR_FAILURE){
+    if (slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void *)&val) == PR_FAILURE) {
         return PR_FAILURE;
     }
 
@@ -153,7 +153,7 @@ slapi_td_set_plugin_locked()
 int
 slapi_td_set_plugin_unlocked()
 {
-    if(slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, NULL) == PR_FAILURE){
+    if (slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, NULL) == PR_FAILURE) {
         return PR_FAILURE;
     }
 
@@ -166,9 +166,9 @@ slapi_td_get_plugin_locked()
     int *value = 0;
 
     slapi_td_get_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void **)&value);
-    if(value){
+    if (value) {
         return 1;
-    } else{
+    } else {
         return 0;
     }
 }
@@ -177,7 +177,7 @@ slapi_td_get_plugin_locked()
 int
 slapi_td_dn_init()
 {
-    if(slapi_td_init(SLAPI_TD_REQUESTOR_DN) == PR_FAILURE){
+    if (slapi_td_init(SLAPI_TD_REQUESTOR_DN) == PR_FAILURE) {
         return PR_FAILURE;
     }
 
@@ -187,7 +187,7 @@ slapi_td_dn_init()
 int
 slapi_td_set_dn(char *value)
 {
-    if(slapi_td_set_val(SLAPI_TD_REQUESTOR_DN, (void *)value) == PR_FAILURE){
+    if (slapi_td_set_val(SLAPI_TD_REQUESTOR_DN, (void *)value) == PR_FAILURE) {
         return PR_FAILURE;
     }
 
@@ -210,5 +210,3 @@ td_dn_destructor(void *priv)
 {
     slapi_ch_free((void **)&priv);
 }
-
-

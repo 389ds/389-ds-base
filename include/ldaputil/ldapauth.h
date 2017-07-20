@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -18,20 +18,16 @@
 #include <ldap.h>
 
 #ifndef NSAPI_PUBLIC
-#define NSAPI_PUBLIC 
+#define NSAPI_PUBLIC
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int ldapu_find (LDAP *ld, const char *base, int scope,
-		       const char *filter, const char **attrs,
-		       int attrsonly, LDAPMessage **res);
+extern int ldapu_find(LDAP *ld, const char *base, int scope, const char *filter, const char **attrs, int attrsonly, LDAPMessage **res);
 
-int ldapu_find_entire_tree (LDAP *ld, int scope,
-			    const char *filter, const char **attrs,
-			    int attrsonly, LDAPMessage ***res);
+int ldapu_find_entire_tree(LDAP *ld, int scope, const char *filter, const char **attrs, int attrsonly, LDAPMessage ***res);
 
 #ifdef __cplusplus
 }

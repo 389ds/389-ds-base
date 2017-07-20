@@ -4,13 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #include <time.h>
 #include <pthread.h>
 
-struct b_tree_cb {
+struct b_tree_cb
+{
     char *name;
     void *inst;
     int64_t (*init)(void **inst);
@@ -19,4 +20,3 @@ struct b_tree_cb {
     int64_t (*delete)(void **inst, uint64_t *key);
     int64_t (*destroy)(void **inst);
 };
-

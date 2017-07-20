@@ -153,5 +153,3 @@ sds_bptree_cow_leaf_split_and_insert(sds_bptree_transaction *btxn, sds_bptree_no
 
     sds_bptree_cow_leaf_node_insert(btxn, left_node, right_node, next_key);
 }
-
-

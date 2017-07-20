@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _SLDAPD_AUTH_H_
@@ -17,7 +17,7 @@
 #include <prio.h>
 
 void client_auth_init();
-void handle_handshake_done (PRFileDesc *prfd, void* clientData);
-int handle_bad_certificate (void* clientData, PRFileDesc *prfd);
+void handle_handshake_done(PRFileDesc *prfd, void *clientData);
+int handle_bad_certificate(void *clientData, PRFileDesc *prfd);
 
 #endif

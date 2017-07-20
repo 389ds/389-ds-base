@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* repl5_replsupplier.c */
@@ -31,12 +31,13 @@ notify()
 #include "slapi-plugin.h"
 #include "repl5.h"
 
-typedef struct repl_supplier {
-	PRUint32 client_change_count; /* # of client-supplied changes */
-	PRUint32 repl_change_count; /* # of replication updates */
+typedef struct repl_supplier
+{
+    PRUint32 client_change_count; /* # of client-supplied changes */
+    PRUint32 repl_change_count;   /* # of replication updates */
 
-	PRLock *lock;
-	
+    PRLock *lock;
+
 } repl_supplier;
 
 
@@ -48,43 +49,36 @@ static void repl_supplier_free(Repl_Supplier **rsp);
 Repl_Supplier *
 replsupplier_init(Slapi_Entry *e)
 {
-	Repl_Supplier *rs;
+    Repl_Supplier *rs;
 
-	if ((rs = (Repl_Supplier *)slapi_ch_malloc(sizeof(Repl_Supplier))) == NULL)
-	{
-		goto loser;
-	}
-	if ((rs->lock = PR_NewLock()) == NULL)
-	{
-		goto loser;
-	}
-	return rs;
+    if ((rs = (Repl_Supplier *)slapi_ch_malloc(sizeof(Repl_Supplier))) == NULL) {
+        goto loser;
+    }
+    if ((rs->lock = PR_NewLock()) == NULL) {
+        goto loser;
+    }
+    return rs;
 
 loser:
-	repl_supplier_free(&rs);
-	return NULL;
+    repl_supplier_free(&rs);
+    return NULL;
 }
-
 
 
 static void
 repl_supplier_free(Repl_Supplier **rsp)
 {
-	if (NULL != rsp)
-	{
-		Repl_Supplier *rs = *rsp;
-		if (NULL != rs)
-		{
-			if (NULL != rs->lock)
-			{
-				PR_DestroyLock(rs->lock);
-				rs->lock = NULL;
-			}
-			slapi_ch_free((void **)rsp);
-		}
-	}
+    if (NULL != rsp) {
+        Repl_Supplier *rs = *rsp;
+        if (NULL != rs) {
+            if (NULL != rs->lock) {
+                PR_DestroyLock(rs->lock);
+                rs->lock = NULL;
+            }
+            slapi_ch_free((void **)rsp);
+        }
+    }
 }
-
 
 
 /*
@@ -93,10 +87,8 @@ repl_supplier_free(Repl_Supplier **rsp)
 void
 replsupplier_configure(Repl_Supplier *rs, Slapi_PBlock *pb)
 {
-	PR_ASSERT(NULL != rs);
-	
+    PR_ASSERT(NULL != rs);
 }
-
 
 
 /*
@@ -108,10 +100,8 @@ replsupplier_configure(Repl_Supplier *rs, Slapi_PBlock *pb)
 void
 replsupplier_start(Repl_Supplier *rs)
 {
-	PR_ASSERT(NULL != rs);
+    PR_ASSERT(NULL != rs);
 }
-	
-
 
 
 /*
@@ -123,10 +113,8 @@ replsupplier_start(Repl_Supplier *rs)
 void
 replsupplier_stop(Repl_Supplier *rs)
 {
-	PR_ASSERT(NULL != rs);
+    PR_ASSERT(NULL != rs);
 }
-
-
 
 
 /*
@@ -136,15 +124,14 @@ replsupplier_stop(Repl_Supplier *rs)
 void
 replsupplier_destroy(Repl_Supplier **rsp)
 {
-	Repl_Supplier *rs;
+    Repl_Supplier *rs;
 
-	PR_ASSERT(NULL != rsp && NULL != *rsp);
+    PR_ASSERT(NULL != rsp && NULL != *rsp);
 
-	rs = *rsp;
+    rs = *rsp;
 
-	slapi_ch_free((void **)rsp);
+    slapi_ch_free((void **)rsp);
 }
-
 
 
 /*
@@ -156,9 +143,8 @@ replsupplier_destroy(Repl_Supplier **rsp)
 void
 replsupplier_notify(Repl_Supplier *rs, PRUint32 eventmask)
 {
-	PR_ASSERT(NULL != rs);
+    PR_ASSERT(NULL != rs);
 }
-
 
 
 /*
@@ -169,6 +155,6 @@ replsupplier_notify(Repl_Supplier *rs, PRUint32 eventmask)
 PRUint32
 replsupplier_get_status(Repl_Supplier *rs)
 {
-	PR_ASSERT(NULL != rs);
-	return 0;
+    PR_ASSERT(NULL != rs);
+    return 0;
 }

@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -30,31 +30,33 @@
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
 
-static Slapi_PluginDesc pdesc = { DEREF_FEATURE_DESC,
-                                  VENDOR,
-                                  DS_PACKAGE_VERSION,
-                                  DEREF_PLUGIN_DESC };
+static Slapi_PluginDesc pdesc = {DEREF_FEATURE_DESC,
+                                 VENDOR,
+                                 DS_PACKAGE_VERSION,
+                                 DEREF_PLUGIN_DESC};
 
 /*
  * Plug-in management functions
  */
-int deref_init(Slapi_PBlock * pb);
-static int deref_start(Slapi_PBlock * pb);
-static int deref_close(Slapi_PBlock * pb);
+int deref_init(Slapi_PBlock *pb);
+static int deref_start(Slapi_PBlock *pb);
+static int deref_close(Slapi_PBlock *pb);
 
 /*
  * Operation callbacks (where the real work is done)
  */
-static int deref_pre_search(Slapi_PBlock * pb);
+static int deref_pre_search(Slapi_PBlock *pb);
 static int deref_pre_entry(Slapi_PBlock *pb);
 
-typedef struct _DerefSpec {
+typedef struct _DerefSpec
+{
     char *derefattr; /* attribute to deref - must have DN syntax */
-    char **attrs; /* attributes to return from dereferenced entry */
+    char **attrs;    /* attributes to return from dereferenced entry */
 } DerefSpec;
 
-static DerefSpec*
-new_DerefSpec(char *derefattr, char **attrs) {
+static DerefSpec *
+new_DerefSpec(char *derefattr, char **attrs)
+{
     DerefSpec *spec = (DerefSpec *)slapi_ch_calloc(1, sizeof(DerefSpec));
     spec->derefattr = derefattr;
     spec->attrs = attrs;
@@ -72,13 +74,15 @@ delete_DerefSpec(DerefSpec **spec)
     }
 }
 
-typedef struct _DerefSpecList {
+typedef struct _DerefSpecList
+{
     DerefSpec **list;
     int count;
 } DerefSpecList;
 
-static DerefSpecList*
-new_DerefSpecList(void) {
+static DerefSpecList *
+new_DerefSpecList(void)
+{
     DerefSpecList *speclist = (DerefSpecList *)slapi_ch_calloc(1, sizeof(DerefSpecList));
 
     return speclist;
@@ -158,7 +162,7 @@ deref_init(Slapi_PBlock *pb)
     char *plugin_identity = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "--> deref_init\n");
+                  "--> deref_init\n");
 
     /* Store the plugin identity for later use.
      * Used for internal operations. */
@@ -170,19 +174,18 @@ deref_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-                         (void *) deref_start) != 0 ||
+                         (void *)deref_start) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                         (void *) deref_close) != 0 ||
+                         (void *)deref_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
+                         (void *)&pdesc) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_SEARCH_FN,
-                         (void *) deref_pre_search) != 0 ||
+                         (void *)deref_pre_search) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ENTRY_FN,
-                         (void *) deref_pre_entry) != 0 ||
-        deref_register_operation_extension()
-        ) {
+                         (void *)deref_pre_entry) != 0 ||
+        deref_register_operation_extension()) {
         slapi_log_err(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                        "deref_init - Failed to register plugin\n");
+                      "deref_init - Failed to register plugin\n");
         status = -1;
     }
 
@@ -191,7 +194,7 @@ deref_init(Slapi_PBlock *pb)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "<-- deref_init\n");
+                  "<-- deref_init\n");
     return status;
 }
 
@@ -202,16 +205,16 @@ deref_init(Slapi_PBlock *pb)
  * Creates config lock and loads config cache.
  */
 static int
-deref_start(Slapi_PBlock * pb __attribute__((unused)))
+deref_start(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "--> deref_start\n");
+                  "--> deref_start\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                    "deref_start - Ready for service\n");
+                  "deref_start - Ready for service\n");
 
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "<-- deref_start\n");
+                  "<-- deref_start\n");
 
     return 0;
 }
@@ -222,13 +225,13 @@ deref_start(Slapi_PBlock * pb __attribute__((unused)))
  * Cleans up the config cache.
  */
 static int
-deref_close(Slapi_PBlock * pb __attribute__((unused)))
+deref_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "--> deref_close\n");
+                  "--> deref_close\n");
 
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "<-- deref_close\n");
+                  "<-- deref_close\n");
 
     return 0;
 }
@@ -259,7 +262,7 @@ deref_add_spec_to_list(DerefSpecList *speclist, DerefSpec *spec)
     speclist->count++;
     speclist->list = (DerefSpec **)slapi_ch_realloc((char *)speclist->list,
                                                     speclist->count * sizeof(DerefSpec *));
-    speclist->list[speclist->count-1] = spec; /* consumed */
+    speclist->list[speclist->count - 1] = spec; /* consumed */
 }
 
 static const DerefSpec *
@@ -318,8 +321,8 @@ deref_add_spec(DerefSpecList *speclist, char **derefattr, char ***attrs, int cri
         *ldaperrtext = "A dereference attribute was specified more than once in a dereference specification";
     } else {
         DerefSpec *spec = new_DerefSpec(*derefattr, *attrs);
-        *derefattr = NULL; /* consumed */
-        *attrs = NULL; /* consumed */
+        *derefattr = NULL;                      /* consumed */
+        *attrs = NULL;                          /* consumed */
         deref_add_spec_to_list(speclist, spec); /* consumes spec */
     }
 
@@ -354,18 +357,18 @@ deref_parse_ctrl_value(DerefSpecList *speclist, const struct berval *ctrlbv, int
     }
 
     ber = ber_init((struct berval *)ctrlbv);
-	for (tag = ber_first_element(ber, &len, &last);
+    for (tag = ber_first_element(ber, &len, &last);
          (tag != LBER_ERROR) && (tag != LBER_END_OF_SEQORSET);
          tag = ber_next_element(ber, &len, last)) {
         char *derefattr = NULL;
         char **attrs = NULL;
-		len = -1; /* reset */
+        len = -1; /* reset */
         if ((LBER_ERROR == ber_scanf(ber, "{a{v}}", &derefattr, &attrs)) ||
-            !derefattr || !attrs || !attrs[0]){
+            !derefattr || !attrs || !attrs[0]) {
             if (critical)
                 *ldapcode = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
             else
-            *ldapcode = LDAP_PROTOCOL_ERROR;
+                *ldapcode = LDAP_PROTOCOL_ERROR;
             if (!derefattr) {
                 *ldaperrtext = "Missing dereference attribute name";
             } else {
@@ -415,9 +418,9 @@ deref_pre_search(Slapi_PBlock *pb)
     int iscritical = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "--> deref_pre_search\n");
+                  "--> deref_pre_search\n");
 
-    /* see if the deref request control is in the list of 
+    /* see if the deref request control is in the list of
        controls - if so, parse and validate it */
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &reqctrls);
     for (ii = 0; (ldapcode == LDAP_SUCCESS) && reqctrls && reqctrls[ii]; ++ii) {
@@ -425,25 +428,25 @@ deref_pre_search(Slapi_PBlock *pb)
         if (!strcmp(ctrl->ldctl_oid, LDAP_CONTROL_X_DEREF)) {
             if (derefctrl) { /* already specified */
                 slapi_log_err(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "deref_pre_search - The dereference control was specified more than once - it must be specified only once in the search request\n");
+                              "deref_pre_search - The dereference control was specified more than once - it must be specified only once in the search request\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control cannot be specified more than once";
                 derefctrl = NULL;
             } else if (!ctrl->ldctl_value.bv_len) {
                 slapi_log_err(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "deref_pre_search - No control value specified for dereference control\n");
+                              "deref_pre_search - No control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a value";
                 iscritical = ctrl->ldctl_iscritical;
             } else if (!ctrl->ldctl_value.bv_val) {
                 slapi_log_err(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "deref_pre_search - No control value specified for dereference control\n");
+                              "deref_pre_search - No control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a value";
                 iscritical = ctrl->ldctl_iscritical;
             } else if (!ctrl->ldctl_value.bv_val[0] || !ctrl->ldctl_value.bv_len) {
                 slapi_log_err(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "deref_pre_search - Empty control value specified for dereference control\n");
+                              "deref_pre_search - Empty control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a non-empty value";
                 iscritical = ctrl->ldctl_iscritical;
@@ -458,8 +461,8 @@ deref_pre_search(Slapi_PBlock *pb)
 
     if (derefctrl && incompatible) {
         slapi_log_err(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                        "deref_pre_search - Cannot use the dereference control and control [%s] for the same search operation\n",
-                        incompatible);
+                      "deref_pre_search - Cannot use the dereference control and control [%s] for the same search operation\n",
+                      incompatible);
         /* not sure if this is a hard failure - the current spec says:
            The semantics of the criticality field are specified in [RFC4511].
            In detail, the criticality of the control determines whether the
@@ -496,7 +499,7 @@ deref_pre_search(Slapi_PBlock *pb)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
-                    "<-- deref_pre_search\n");
+                  "<-- deref_pre_search\n");
 
     return ldapcode;
 }
@@ -509,8 +512,7 @@ deref_pre_search(Slapi_PBlock *pb)
   array can be passed to a subsequent search operation.
 */
 static int
-deref_check_access(Slapi_PBlock *pb, const Slapi_Entry *ent, const char *entdn,
-                   const char **attrs, char ***retattrs, int rights)
+deref_check_access(Slapi_PBlock *pb, const Slapi_Entry *ent, const char *entdn, const char **attrs, char ***retattrs, int rights)
 {
     Slapi_Entry *etest = NULL;
     const char *attrname;
@@ -530,8 +532,8 @@ deref_check_access(Slapi_PBlock *pb, const Slapi_Entry *ent, const char *entdn,
         int ret = slapi_access_allowed(pb, etest, (char *)attrname, NULL, rights);
         if (ret != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                            "deref_check_access - The client does not have permission to read attribute %s in entry %s\n",
-                            attrname, slapi_entry_get_dn_const(etest));
+                          "deref_check_access - The client does not have permission to read attribute %s in entry %s\n",
+                          attrname, slapi_entry_get_dn_const(etest));
         } else {
             slapi_ch_array_add(retattrs, (char *)attrname); /* retattrs and attrs share pointer to attrname */
         }
@@ -549,9 +551,7 @@ deref_check_access(Slapi_PBlock *pb, const Slapi_Entry *ent, const char *entdn,
   must check access before calling this function
 */
 static int
-deref_get_values(const Slapi_Entry *ent, const char *attrname,
-                 Slapi_ValueSet** results, int *type_name_disposition,
-                 char** actual_type_name, int flags, int *buffer_flags)
+deref_get_values(const Slapi_Entry *ent, const char *attrname, Slapi_ValueSet **results, int *type_name_disposition, char **actual_type_name, int flags, int *buffer_flags)
 {
     int ret = slapi_vattr_values_get((Slapi_Entry *)ent, (char *)attrname, results, type_name_disposition,
                                      actual_type_name, flags, buffer_flags);
@@ -560,7 +560,7 @@ deref_get_values(const Slapi_Entry *ent, const char *attrname,
 }
 
 static void
-deref_values_free(Slapi_ValueSet** results, char** actual_type_name, int buffer_flags)
+deref_values_free(Slapi_ValueSet **results, char **actual_type_name, int buffer_flags)
 {
     slapi_vattr_values_free(results, actual_type_name, buffer_flags);
 }
@@ -573,7 +573,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
     Slapi_Entry **entries = NULL;
     int rc;
 
-/*  If the access check on the attributes is done without retrieveing the entry
+    /*  If the access check on the attributes is done without retrieveing the entry
  *  it cannot handle acis which need teh entry, eg to apply a targetfilter rule
  *  So the determination of attrs which can be dereferenced is delayed
  */
@@ -590,24 +590,25 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
             if (entries[1]) {
                 /* too many entries */
                 slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                                "deref_do_deref_attr - More than one entry matching DN [%s]\n",
-                                derefdn);
+                              "deref_do_deref_attr - More than one entry matching DN [%s]\n",
+                              derefdn);
             } else {
                 int ii;
                 int needattrvals = 1; /* need attrvals sequence? */
                 if (deref_check_access(pb, entries[0], derefdn, attrs, &retattrs,
-                          (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
+                                       (SLAPI_ACL_SEARCH | SLAPI_ACL_READ))) {
                     slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                             "deref_do_deref_attr - The client does not have permission to read the requested "
-                             "attributes in entry %s\n", derefdn);
+                                  "deref_do_deref_attr - The client does not have permission to read the requested "
+                                  "attributes in entry %s\n",
+                                  derefdn);
                 } else {
                     ber_printf(ctrlber, "{ss", derefattr, derefdn); /* begin DerefRes + derefAttr + derefVal */
                     for (ii = 0; retattrs[ii]; ++ii) {
                         Slapi_Value *sv;
                         int idx = 0;
-                        Slapi_ValueSet* results = NULL;
+                        Slapi_ValueSet *results = NULL;
                         int type_name_disposition = 0;
-                        char* actual_type_name = NULL;
+                        char *actual_type_name = NULL;
                         int flags = 0;
                         int buffer_flags = 0;
                         int needpartialattr = 1; /* need PartialAttribute sequence? */
@@ -616,7 +617,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
 #if defined(USE_OLD_UNHASHED)
                         if (is_type_forbidden(retattrs[ii])) {
                             slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                                "deref_do_deref_attr - skip forbidden attribute [%s]\n", derefdn);
+                                          "deref_do_deref_attr - skip forbidden attribute [%s]\n", derefdn);
                             continue;
                         }
 #endif
@@ -633,7 +634,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                                    DerefRes.attrVals */
                                 /* attrVals is OPTIONAL - only added if there are
                                    any values to send */
-                                ber_printf(ctrlber, "t{", (LBER_CLASS_CONTEXT|LBER_CONSTRUCTED));
+                                ber_printf(ctrlber, "t{", (LBER_CLASS_CONTEXT | LBER_CONSTRUCTED));
                                 needattrvals = 0;
                             }
                             if (needpartialattr) {
@@ -664,18 +665,17 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
             }
         } else { /* nothing */
             slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                            "deref_do_deref_attr - No entries matching [%s]\n", derefdn);
+                          "deref_do_deref_attr - No entries matching [%s]\n", derefdn);
         }
     } else {
         /* handle error */
         slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                        "deref_do_deref_attr - Could not read entry with DN [%s]: error %d:%s\n",
-                        derefdn, rc, ldap_err2string(rc));
+                      "deref_do_deref_attr - Could not read entry with DN [%s]: error %d:%s\n",
+                      derefdn, rc, ldap_err2string(rc));
     }
     slapi_free_search_results_internal(derefpb);
     slapi_pblock_destroy(derefpb);
     slapi_ch_free((void **)&retattrs); /* retattrs does not own the strings */
-
 }
 
 static int
@@ -702,9 +702,9 @@ deref_pre_entry(Slapi_PBlock *pb)
          spec = deref_get_next_spec(speclist, &ii)) {
         Slapi_Value *sv;
         int idx = 0;
-        Slapi_ValueSet* results = NULL;
+        Slapi_ValueSet *results = NULL;
         int type_name_disposition = 0;
-        char* actual_type_name = NULL;
+        char *actual_type_name = NULL;
         int flags = 0;
         int buffer_flags = 0;
         const char *attrs[2];
@@ -714,10 +714,10 @@ deref_pre_entry(Slapi_PBlock *pb)
         attrs[1] = NULL;
 
         if (deref_check_access(pb, ent, NULL, attrs, &retattrs,
-                               (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
+                               (SLAPI_ACL_SEARCH | SLAPI_ACL_READ))) {
             slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                            "deref_pre_entry - The client does not have permission to read attribute %s in entry %s\n",
-                            spec->derefattr, slapi_entry_get_dn_const(ent));
+                          "deref_pre_entry - The client does not have permission to read attribute %s in entry %s\n",
+                          spec->derefattr, slapi_entry_get_dn_const(ent));
             continue;
         }
 
@@ -732,13 +732,13 @@ deref_pre_entry(Slapi_PBlock *pb)
         for (; results && sv; idx = slapi_valueset_next_value(results, idx, &sv)) {
             const char *derefdn = slapi_value_get_string(sv);
 
-            deref_do_deref_attr(pb, ctrlber, derefdn, spec->derefattr,  (const char **)spec->attrs);
+            deref_do_deref_attr(pb, ctrlber, derefdn, spec->derefattr, (const char **)spec->attrs);
         }
         deref_values_free(&results, &actual_type_name, buffer_flags);
     }
 
     ber_printf(ctrlber, "}"); /* end control val */
- 
+
     slapi_build_control(LDAP_CONTROL_X_DEREF, ctrlber, 0, &ctrl);
     /* get the list of controls */
     slapi_pblock_get(pb, SLAPI_SEARCH_CTRLS, &searchctrls);
@@ -774,8 +774,8 @@ deref_operation_extension_dtor(void *ext, void *object __attribute__((unused)), 
 static int
 deref_register_operation_extension(void)
 {
-	return slapi_register_object_extension(DEREF_PLUGIN_SUBSYSTEM,
-                                           SLAPI_EXT_OPERATION, 
+    return slapi_register_object_extension(DEREF_PLUGIN_SUBSYSTEM,
+                                           SLAPI_EXT_OPERATION,
                                            deref_operation_extension_ctor,
                                            deref_operation_extension_dtor,
                                            &deref_extension_type,

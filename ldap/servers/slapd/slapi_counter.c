@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 /*
@@ -12,7 +12,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "slap.h"
@@ -28,7 +28,8 @@
 /*
  * Counter Structure
  */
-typedef struct slapi_counter {
+typedef struct slapi_counter
+{
     uint64_t value;
 #ifndef ATOMIC_64BIT_OPERATIONS
     pthread_mutex_t _lock;
@@ -40,7 +41,8 @@ typedef struct slapi_counter {
  *
  * Allocates and initializes a new Slapi_Counter.
  */
-Slapi_Counter *slapi_counter_new()
+Slapi_Counter *
+slapi_counter_new()
 {
     Slapi_Counter *counter = NULL;
 
@@ -58,7 +60,8 @@ Slapi_Counter *slapi_counter_new()
  *
  * Initializes a Slapi_Counter.
  */
-void slapi_counter_init(Slapi_Counter *counter)
+void
+slapi_counter_init(Slapi_Counter *counter)
 {
     if (counter != NULL) {
         /* Set the value to 0. */
@@ -75,7 +78,8 @@ void slapi_counter_init(Slapi_Counter *counter)
  * Destroy's a Slapi_Counter and sets the
  * pointer to NULL to prevent reuse.
  */
-void slapi_counter_destroy(Slapi_Counter **counter)
+void
+slapi_counter_destroy(Slapi_Counter **counter)
 {
     if ((counter != NULL) && (*counter != NULL)) {
 #ifndef ATOMIC_64BIT_OPERATIONS
@@ -90,7 +94,8 @@ void slapi_counter_destroy(Slapi_Counter **counter)
  *
  * Atomically increments a Slapi_Counter.
  */
-uint64_t slapi_counter_increment(Slapi_Counter *counter)
+uint64_t
+slapi_counter_increment(Slapi_Counter *counter)
 {
     return slapi_counter_add(counter, 1);
 }
@@ -102,7 +107,8 @@ uint64_t slapi_counter_increment(Slapi_Counter *counter)
  * that this will not prevent you from wrapping
  * around 0.
  */
-uint64_t slapi_counter_decrement(Slapi_Counter *counter)
+uint64_t
+slapi_counter_decrement(Slapi_Counter *counter)
 {
     return slapi_counter_subtract(counter, 1);
 }
@@ -112,7 +118,8 @@ uint64_t slapi_counter_decrement(Slapi_Counter *counter)
  *
  * Atomically add a value to a Slapi_Counter.
  */
-uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
+uint64_t
+slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
 {
     uint64_t newvalue = 0;
 
@@ -129,7 +136,7 @@ uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
     if (addvalue == 1) {
         newvalue = _Asm_fetchadd(_FASZ_D, _SEM_ACQ, &(counter->value), 1, _LDHINT_NONE);
         newvalue += 1;
-    } else if  (addvalue == 4) {
+    } else if (addvalue == 4) {
         newvalue = _Asm_fetchadd(_FASZ_D, _SEM_ACQ, &(counter->value), 4, _LDHINT_NONE);
         newvalue += 4;
     } else if (addvalue == 8) {
@@ -144,7 +151,7 @@ uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
             prev = slapi_counter_get_value(counter);
             newvalue = prev + addvalue;
             /* Put prev in a register for cmpxchg to compare against */
-           _Asm_mov_to_ar(_AREG_CCV, prev);
+            _Asm_mov_to_ar(_AREG_CCV, prev);
         } while (prev != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), newvalue, _LDHINT_NONE));
     }
 #else
@@ -164,7 +171,8 @@ uint64_t slapi_counter_add(Slapi_Counter *counter, uint64_t addvalue)
  * Atomically subtract a value from a Slapi_Counter.  Note
  * that this will not prevent you from wrapping around 0.
  */
-uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
+uint64_t
+slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
 {
     uint64_t newvalue = 0;
 
@@ -182,7 +190,7 @@ uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
     if (subvalue == 1) {
         newvalue = _Asm_fetchadd(_FASZ_D, _SEM_ACQ, &(counter->value), -1, _LDHINT_NONE);
         newvalue -= 1;
-    } else if  (subvalue == 4) {
+    } else if (subvalue == 4) {
         newvalue = _Asm_fetchadd(_FASZ_D, _SEM_ACQ, &(counter->value), -4, _LDHINT_NONE);
         newvalue -= 4;
     } else if (subvalue == 8) {
@@ -197,7 +205,7 @@ uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
             prev = slapi_counter_get_value(counter);
             newvalue = prev - subvalue;
             /* Put prev in a register for cmpxchg to compare against */
-           _Asm_mov_to_ar(_AREG_CCV, prev);
+            _Asm_mov_to_ar(_AREG_CCV, prev);
         } while (prev != _Asm_cmpxchg(_FASZ_D, _SEM_ACQ, &(counter->value), newvalue, _LDHINT_NONE));
     }
 #else
@@ -216,7 +224,8 @@ uint64_t slapi_counter_subtract(Slapi_Counter *counter, uint64_t subvalue)
  *
  * Atomically sets the value of a Slapi_Counter.
  */
-uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
+uint64_t
+slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
 {
     uint64_t value = 0;
 
@@ -247,7 +256,8 @@ uint64_t slapi_counter_set_value(Slapi_Counter *counter, uint64_t newvalue)
  *
  * Returns the value of a Slapi_Counter.
  */
-uint64_t slapi_counter_get_value(Slapi_Counter *counter)
+uint64_t
+slapi_counter_get_value(Slapi_Counter *counter)
 {
     uint64_t value = 0;
 
@@ -257,7 +267,7 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter)
 
 #ifdef ATOMIC_64BIT_OPERATIONS
     value = __atomic_load_8(&(counter->value), __ATOMIC_RELAXED);
-#else  /* HPUX */
+#else /* HPUX */
 #ifdef HPUX
     do {
         value = counter->value;
@@ -273,4 +283,3 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter)
 
     return value;
 }
-

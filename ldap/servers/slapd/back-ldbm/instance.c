@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "back-ldbm.h"
@@ -21,36 +21,37 @@ Slapi_Entry *ldbm_instance_init_config_entry(char *cn_val, char *v1, char *v2, c
 /* Creates and initializes a new ldbm_instance structure.
  * Also sets up some default indexes for the new instance.
  */
-int ldbm_instance_create(backend *be, char *name)
+int
+ldbm_instance_create(backend *be, char *name)
 {
-    struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = NULL;
     int rc = 0;
 
     /* Allocate storage for the ldbm_instance structure.  Information specific
      * to this instance of the ldbm backend will be held here. */
-    inst = (ldbm_instance *) slapi_ch_calloc(1, sizeof(ldbm_instance));
+    inst = (ldbm_instance *)slapi_ch_calloc(1, sizeof(ldbm_instance));
 
     /* Record the name of this instance. */
     inst->inst_name = slapi_ch_strdup(name);
 
     /* initialize the entry cache */
-    if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
-                     DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
+    if (!cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
+                    DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "cache_init failed\n");
         rc = -1;
         goto error;
     }
 
     /*
-     * initialize the dn cache 
+     * initialize the dn cache
      * We do so, regardless of the subtree-rename value.
      * It is needed when converting the db from DN to RDN format.
      */
-    if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
-                     DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
+    if (!cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
+                    DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
         slapi_log_err(SLAPI_LOG_ERR,
-                       "ldbm_instance_create", "dn cache_init failed\n");
+                      "ldbm_instance_create", "dn cache_init failed\n");
         rc = -1;
         goto error;
     }
@@ -103,7 +104,7 @@ int ldbm_instance_create(backend *be, char *name)
     {
         Object *instance_obj;
 
-        instance_obj = object_new((void *) inst, &ldbm_instance_destructor);
+        instance_obj = object_new((void *)inst, &ldbm_instance_destructor);
         objset_add_obj(li->li_instance_set, instance_obj);
         object_release(instance_obj);
     }
@@ -111,7 +112,7 @@ int ldbm_instance_create(backend *be, char *name)
 
 error:
     slapi_ch_free_string(&inst->inst_name);
-    slapi_ch_free((void**)&inst);
+    slapi_ch_free((void **)&inst);
 
 done:
     return rc;
@@ -121,7 +122,8 @@ done:
  * Take a bunch of strings, and create a index config entry
  */
 Slapi_Entry *
-ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3, char *val4){
+ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3, char *val4)
+{
     Slapi_Entry *e = slapi_entry_alloc();
     struct berval *vals[2];
     struct berval val;
@@ -129,30 +131,30 @@ ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3
     vals[0] = &val;
     vals[1] = NULL;
 
-    slapi_entry_set_dn(e,slapi_ch_strdup("cn=indexContainer"));
+    slapi_entry_set_dn(e, slapi_ch_strdup("cn=indexContainer"));
 
     val.bv_val = cn_val;
     val.bv_len = strlen(cn_val);
-    slapi_entry_add_values(e,"cn",vals);
+    slapi_entry_add_values(e, "cn", vals);
 
     val.bv_val = val1;
     val.bv_len = strlen(val1);
-    slapi_entry_add_values(e,"nsIndexType",vals);
+    slapi_entry_add_values(e, "nsIndexType", vals);
 
-    if(val2){
+    if (val2) {
         val.bv_val = val2;
         val.bv_len = strlen(val2);
-        slapi_entry_add_values(e,"nsIndexType",vals);
+        slapi_entry_add_values(e, "nsIndexType", vals);
     }
-    if(val3){
+    if (val3) {
         val.bv_val = val3;
         val.bv_len = strlen(val3);
-        slapi_entry_add_values(e,"nsIndexType",vals);
+        slapi_entry_add_values(e, "nsIndexType", vals);
     }
-    if(val4){
+    if (val4) {
         val.bv_val = val4;
         val.bv_len = strlen(val4);
-        slapi_entry_add_values(e,"nsIndexType",vals);
+        slapi_entry_add_values(e, "nsIndexType", vals);
     }
 
     return e;
@@ -162,7 +164,8 @@ ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3
  * (because when we're creating a new backend while the server is running,
  * the DSE needs to be pre-seeded first.)
  */
-int ldbm_instance_create_default_indexes(backend *be)
+int
+ldbm_instance_create_default_indexes(backend *be)
 {
     Slapi_Entry *e;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
@@ -170,69 +173,69 @@ int ldbm_instance_create_default_indexes(backend *be)
     int flags = LDBM_INSTANCE_CONFIG_DONT_WRITE;
 
     /*
-     * Always index (entrydn or entryrdn), parentid, objectclass, 
+     * Always index (entrydn or entryrdn), parentid, objectclass,
      * subordinatecount, copiedFrom, and aci,
      * since they are used by some searches, replication and the
      * ACL routines.
      */
     if (entryrdn_get_switch()) { /* subtree-rename: on */
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR,"subtree", 0, 0, 0);
+        e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0);
         ldbm_instance_config_add_index_entry(inst, e, flags);
         slapi_entry_free(e);
     } else {
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYDN_STR,"eq", 0, 0, 0);
+        e = ldbm_instance_init_config_entry(LDBM_ENTRYDN_STR, "eq", 0, 0, 0);
         ldbm_instance_config_add_index_entry(inst, e, flags);
         slapi_entry_free(e);
     }
 
-    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR,"eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry("objectclass","eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry("aci","pres", 0, 0, 0);
+    e = ldbm_instance_init_config_entry("aci", "pres", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-#if 0    /* don't need copiedfrom */
+#if 0 /* don't need copiedfrom */
     e = ldbm_instance_init_config_entry("copiedfrom","pres",0 ,0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 #endif
 
-    e = ldbm_instance_init_config_entry(LDBM_NUMSUBORDINATES_STR,"pres", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_NUMSUBORDINATES_STR, "pres", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID,"eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID, "eq", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* For MMR, we need this attribute (to replace use of dncomp in delete). */
-    e = ldbm_instance_init_config_entry(ATTR_NSDS5_REPLCONFLICT,"eq", "pres", 0, 0);
+    e = ldbm_instance_init_config_entry(ATTR_NSDS5_REPLCONFLICT, "eq", "pres", 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* write the dse file only on the final index */
-    e = ldbm_instance_init_config_entry(SLAPI_ATTR_NSCP_ENTRYDN,"eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(SLAPI_ATTR_NSCP_ENTRYDN, "eq", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* ldbm_instance_config_add_index_entry(inst, 2, argv); */
-    e = ldbm_instance_init_config_entry(LDBM_PSEUDO_ATTR_DEFAULT,"none", 0, 0, 0);
-    attr_index_config( be, "ldbm index init", 0, e, 1, 0 );
+    e = ldbm_instance_init_config_entry(LDBM_PSEUDO_ATTR_DEFAULT, "none", 0, 0, 0);
+    attr_index_config(be, "ldbm index init", 0, e, 1, 0);
     slapi_entry_free(e);
 
     if (!entryrdn_get_noancestorid()) {
-        /* 
+        /*
          * ancestorid is special, there is actually no such attr type
          * but we still want to use the attr index file APIs.
          */
-        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR,"eq", 0, 0, 0);
-        attr_index_config( be, "ldbm index init", 0, e, 1, 0 );
+        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0);
+        attr_index_config(be, "ldbm index init", 0, e, 1, 0);
         slapi_entry_free(e);
     }
 
@@ -241,25 +244,25 @@ int ldbm_instance_create_default_indexes(backend *be)
 
 
 /* Starts a backend instance */
-int 
+int
 ldbm_instance_start(backend *be)
 {
     int rc;
-    PR_Lock (be->be_state_lock);
+    PR_Lock(be->be_state_lock);
 
     if (be->be_state != BE_STATE_STOPPED &&
         be->be_state != BE_STATE_DELETED) {
         slapi_log_err(SLAPI_LOG_TRACE, "ldbm_instance_start",
                       "Warning - backend is in a wrong state - %d\n",
                       be->be_state);
-        PR_Unlock (be->be_state_lock);
+        PR_Unlock(be->be_state_lock);
         return 0;
     }
 
     rc = dblayer_instance_start(be, DBLAYER_NORMAL_MODE);
     be->be_state = BE_STATE_STARTED;
 
-    PR_Unlock (be->be_state_lock);
+    PR_Unlock(be->be_state_lock);
 
     return rc;
 }
@@ -289,7 +292,7 @@ ldbm_instance_set_flags(ldbm_instance *inst)
 }
 
 /* Walks down the set of instances, starting each one. */
-int 
+int
 ldbm_instance_startall(struct ldbminfo *li)
 {
     Object *inst_obj;
@@ -297,9 +300,9 @@ ldbm_instance_startall(struct ldbminfo *li)
     int rc = 0;
 
     inst_obj = objset_first_obj(li->li_instance_set);
-    while (inst_obj != NULL)  {
+    while (inst_obj != NULL) {
         int rc1;
-        inst = (ldbm_instance *) object_get_data(inst_obj);
+        inst = (ldbm_instance *)object_get_data(inst_obj);
         ldbm_instance_set_flags(inst);
         rc1 = ldbm_instance_start(inst->inst_be);
         if (rc1 != 0) {
@@ -317,18 +320,19 @@ ldbm_instance_startall(struct ldbminfo *li)
 
 
 /* Walks down the set of instances, stopping each one. */
-int ldbm_instance_stopall_caches(struct ldbminfo *li)
+int
+ldbm_instance_stopall_caches(struct ldbminfo *li)
 {
     Object *inst_obj;
     ldbm_instance *inst;
-    
+
     inst_obj = objset_first_obj(li->li_instance_set);
-    while (inst_obj != NULL)  {
-        inst = (ldbm_instance *) object_get_data(inst_obj);
+    while (inst_obj != NULL) {
+        inst = (ldbm_instance *)object_get_data(inst_obj);
         ldbm_instance_stop_cache(inst->inst_be);
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
     }
-    
+
     return 0;
 }
 
@@ -349,8 +353,8 @@ ldbm_instance_find_by_name(struct ldbminfo *li, char *name)
     ldbm_instance *inst;
 
     inst_obj = objset_first_obj(li->li_instance_set);
-    while (inst_obj != NULL)  {
-        inst = (ldbm_instance *) object_get_data(inst_obj);
+    while (inst_obj != NULL) {
+        inst = (ldbm_instance *)object_get_data(inst_obj);
         if (!strcasecmp(inst->inst_name, name)) {
             /* Currently we release the object here.  There is no
              * function for callers of this function to call to
@@ -366,10 +370,10 @@ ldbm_instance_find_by_name(struct ldbminfo *li, char *name)
 
 /* Called when all references to the instance are gone. */
 /* (ie, only when an instance is being deleted) */
-static void 
+static void
 ldbm_instance_destructor(void **arg)
 {
-    ldbm_instance *inst = (ldbm_instance *) *arg;
+    ldbm_instance *inst = (ldbm_instance *)*arg;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_instance_destructor",
                   "Destructor for instance %s called\n",

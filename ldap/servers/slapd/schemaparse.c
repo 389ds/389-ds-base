@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* schemaparse.c - routines to support objectclass definitions */
@@ -20,78 +20,79 @@
 
 
 /* global_oc and global_schema_csn are both protected by oc locks */
-struct objclass		*global_oc;
+struct objclass *global_oc;
 CSN *global_schema_csn = NULL; /* Timestamp for last update CSN. NULL = epoch */
-static Slapi_RWLock	*oc_lock = NULL;
+static Slapi_RWLock *oc_lock = NULL;
 
-static int      is_duplicate( char *target, char **list, int list_max );
-static void     normalize_list( char **list );
+static int is_duplicate(char *target, char **list, int list_max);
+static void normalize_list(char **list);
 
 /*
  * The oc_init_lock_callonce structure is used by NSPR to ensure
  * that oc_init_lock() is called at most once.
  */
-static PRCallOnceType oc_init_lock_callonce = { 0, 0, 0 };
+static PRCallOnceType oc_init_lock_callonce = {0, 0, 0};
 
 
 /* Create the objectclass read/write lock.  Returns PRSuccess if successful */
 static PRStatus
-oc_init_lock( void )
+oc_init_lock(void)
 {
-	if ( NULL == ( oc_lock = slapi_new_rwlock())) {
-		slapi_log_err(SLAPI_LOG_ERR, "oc_init_lock",
-				"slapi_new_rwlock() for objectclass lock failed\n" );
-		return PR_FAILURE;
-	}
+    if (NULL == (oc_lock = slapi_new_rwlock())) {
+        slapi_log_err(SLAPI_LOG_ERR, "oc_init_lock",
+                      "slapi_new_rwlock() for objectclass lock failed\n");
+        return PR_FAILURE;
+    }
 
-	return PR_SUCCESS;
+    return PR_SUCCESS;
 }
 
 
 void
-oc_lock_read( void )
+oc_lock_read(void)
 {
-	if ( NULL != oc_lock ||
-			PR_SUCCESS == PR_CallOnce( &oc_init_lock_callonce, oc_init_lock )) {
-		slapi_rwlock_rdlock( oc_lock );
-	}
+    if (NULL != oc_lock ||
+        PR_SUCCESS == PR_CallOnce(&oc_init_lock_callonce, oc_init_lock)) {
+        slapi_rwlock_rdlock(oc_lock);
+    }
 }
 
 
 void
-oc_lock_write( void )
+oc_lock_write(void)
 {
-	if ( NULL != oc_lock ||
-			PR_SUCCESS == PR_CallOnce( &oc_init_lock_callonce, oc_init_lock )) {
-		slapi_rwlock_wrlock( oc_lock );
-	}
+    if (NULL != oc_lock ||
+        PR_SUCCESS == PR_CallOnce(&oc_init_lock_callonce, oc_init_lock)) {
+        slapi_rwlock_wrlock(oc_lock);
+    }
 }
 
 
 void
-oc_unlock( void )
+oc_unlock(void)
 {
-	if ( oc_lock != NULL ) {
-		slapi_rwlock_unlock( oc_lock );
-	}
+    if (oc_lock != NULL) {
+        slapi_rwlock_unlock(oc_lock);
+    }
 }
 
 
 /*
  * Note: callers of g_get_global_oc_nolock() must hold a read or write lock
  */
-struct objclass* g_get_global_oc_nolock()
+struct objclass *
+g_get_global_oc_nolock()
 {
-	return global_oc;
+    return global_oc;
 }
 
 /*
  * Note: callers of g_set_global_oc_nolock() must hold a write lock
  */
 void
-g_set_global_oc_nolock( struct objclass *newglobaloc )
+g_set_global_oc_nolock(struct objclass *newglobaloc)
 {
-  global_oc = newglobaloc;
+    global_oc = newglobaloc;
 }
 
 /*
@@ -100,7 +101,7 @@ g_set_global_oc_nolock( struct objclass *newglobaloc )
 const CSN *
 g_get_global_schema_csn()
 {
-  return global_schema_csn;
+    return global_schema_csn;
 }
 
 /*
@@ -110,33 +111,31 @@ g_get_global_schema_csn()
 void
 g_set_global_schema_csn(CSN *csn)
 {
-	CSN *tmp = NULL;
-	if (NULL != global_schema_csn)
-	{
-		tmp = global_schema_csn;
-	}
-	global_schema_csn = csn;
-	if (NULL != tmp)
-	{
-		csn_free(&tmp);
-	}
+    CSN *tmp = NULL;
+    if (NULL != global_schema_csn) {
+        tmp = global_schema_csn;
+    }
+    global_schema_csn = csn;
+    if (NULL != tmp) {
+        csn_free(&tmp);
+    }
 }
 
 /*
- * There are two kinds of objectclasses: 
+ * There are two kinds of objectclasses:
  * Standard Objectclasses and User Defined Objectclasses
- * 
+ *
  * Standard Objectclasses are the objectclasses which come with the Directory Server.
  * These objectclasses are always expected to be there and shouldn't be accidentally
- * changed by the end user. We dont' allow these objectclasses to be deleted, and the 
- * admin CGIs will not allow the end user to change their definitions. However, we 
+ * changed by the end user. We dont' allow these objectclasses to be deleted, and the
+ * admin CGIs will not allow the end user to change their definitions. However, we
  * will allow these objectclasses to be redefined via ldap_modify, by doing an LDAP_MOD_ADD.
  * The new definition will override the previous definition. The updated objectclass
  * will be written out the 00user.ldif and the original definition will stay
  * whereever it was originally defined. At startup, slapd will use the last definition
  * read as the real definition of an objectclass.
  *
- * User Defined ObjectClasses are objectclasses which were added to the Directory Server 
+ * User Defined ObjectClasses are objectclasses which were added to the Directory Server
  * by the end user. These objectclasses are also kept in 99user.ldif. These objectclasses
  * can be deleted by the end user.
  *
@@ -147,11 +146,11 @@ g_set_global_schema_csn(CSN *csn)
  *
  * The arrays oc_required and oc_allowed contain all the required and allowed attributes for
  * that objectclass, including the ones inherited from its parent and also the ones in
- * oc_orig_required and oc_orig_allowed. 
+ * oc_orig_required and oc_orig_allowed.
  *
  * When an oc is updated, we go through the global list of objectclasses and see if
  * any ocs inherited from it. If so, we delete its oc_required and oc_allowed arrays,
- * copy the oc_orig_required and oc_orig_allowed arrays to oc_required and oc_allowed, 
+ * copy the oc_orig_required and oc_orig_allowed arrays to oc_required and oc_allowed,
  * and then merge the parent's oc_required and oc_allowed onto oc_required and oc_allowed.
  *
  *
@@ -159,14 +158,15 @@ g_set_global_schema_csn(CSN *csn)
 
 
 static int
-is_duplicate( char *target, char **list, int list_size ) {
-	  int i;
-	  for ( i = 0; i < list_size; i++ ) {
-		  if ( !strcasecmp( target, list[i] ) ) {
-			  return 1;
-		  }
-	  }
-	  return 0;
+is_duplicate(char *target, char **list, int list_size)
+{
+    int i;
+    for (i = 0; i < list_size; i++) {
+        if (!strcasecmp(target, list[i])) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /*
@@ -174,22 +174,23 @@ is_duplicate( char *target, char **list, int list_size ) {
  * values. The list is not resized.
  */
 static void
-normalize_list( char **list ) {
-	int i, j;
+normalize_list(char **list)
+{
+    int i, j;
 
-	for ( i = 0, j = 0; list != NULL && list[i] != NULL; i++ ) {
-		char *norm = slapi_attr_syntax_normalize( list[i] );
-		char *save = list[i];
-		if ( !is_duplicate( norm, list, j ) ) {
-			list[j++] = norm;
-		} else {
-			slapi_ch_free((void **)&norm );
-		}
-		slapi_ch_free((void**)&save );
-	}
-	for ( ; j < i; j++ ) {
-		list[j] = NULL;
-	}
+    for (i = 0, j = 0; list != NULL && list[i] != NULL; i++) {
+        char *norm = slapi_attr_syntax_normalize(list[i]);
+        char *save = list[i];
+        if (!is_duplicate(norm, list, j)) {
+            list[j++] = norm;
+        } else {
+            slapi_ch_free((void **)&norm);
+        }
+        slapi_ch_free((void **)&save);
+    }
+    for (; j < i; j++) {
+        list[j] = NULL;
+    }
 }
 
 /*
@@ -199,51 +200,51 @@ normalize_list( char **list ) {
  */
 
 void
-normalize_oc( void )
+normalize_oc(void)
 {
-	struct objclass	*oc;
+    struct objclass *oc;
 
-	oc_lock_write();
+    oc_lock_write();
 
-	for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	  slapi_log_err(SLAPI_LOG_PARSE, 
-				 "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
-	  /* required attributes */
-	  normalize_list( oc->oc_required );
-	  normalize_list( oc->oc_orig_required );
-	  
-	  /* optional attributes */
-	  normalize_list( oc->oc_allowed );
-	  normalize_list( oc->oc_orig_allowed );
-	}
+    for (oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next) {
+        slapi_log_err(SLAPI_LOG_PARSE,
+                      "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
+        /* required attributes */
+        normalize_list(oc->oc_required);
+        normalize_list(oc->oc_orig_required);
 
-	oc_unlock();
+        /* optional attributes */
+        normalize_list(oc->oc_allowed);
+        normalize_list(oc->oc_orig_allowed);
+    }
+
+    oc_unlock();
 }
 
 void
-normalize_oc_nolock( void )
+normalize_oc_nolock(void)
 {
-	struct objclass	*oc;
+    struct objclass *oc;
 
-	for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	  slapi_log_err(SLAPI_LOG_PARSE, 
-				 "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
-	  /* required attributes */
-	  normalize_list( oc->oc_required );
-	  normalize_list( oc->oc_orig_required );
-	  
-	  /* optional attributes */
-	  normalize_list( oc->oc_allowed );
-	  normalize_list( oc->oc_orig_allowed );
-	}
+    for (oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next) {
+        slapi_log_err(SLAPI_LOG_PARSE,
+                      "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
+        /* required attributes */
+        normalize_list(oc->oc_required);
+        normalize_list(oc->oc_orig_required);
+
+        /* optional attributes */
+        normalize_list(oc->oc_allowed);
+        normalize_list(oc->oc_orig_allowed);
+    }
 }
 
 /*
- * oc_update_inheritance_nolock: 
+ * oc_update_inheritance_nolock:
  * If an objectclass is redefined, we need to make sure that any objectclasses
  * which inherit from the redefined objectclass have their required and allowed
  * attributes updated.
- * 
+ *
  * Every objectclass contains an array of attributes called oc_orig_required,
  * which are the required attributes for that objectclass which were not inherited from
  * any other objectclass. Likewise, there's also an array called oc_orig_allowed which
@@ -251,33 +252,33 @@ normalize_oc_nolock( void )
  *
  * The arrays oc_required and oc_allowed contain all the required and allowed attributes for
  * that objectclass, including the ones inherited from its parent and also the ones in
- * oc_orig_required and oc_orig_allowed. 
+ * oc_orig_required and oc_orig_allowed.
  *
  * When an oc is updated, we go through the global list of objectclasses and see if
  * any ocs inherited from it. If so, we delete its oc_requried and oc_allowed arrays,
- * copy the oc_orig_required and oc_orig_allowed arrays to oc_required and oc_allowed, 
+ * copy the oc_orig_required and oc_orig_allowed arrays to oc_required and oc_allowed,
  * and then merge the parent's oc_required and oc_allowed onto oc_required and oc_allowed.
  */
 
 void
-oc_update_inheritance_nolock( struct objclass *psuperior_oc )
+oc_update_inheritance_nolock(struct objclass *psuperior_oc)
 {
-  struct objclass *oc;
-  
-  for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	if ( oc->oc_superior && 
-		 (strcasecmp( oc->oc_superior, psuperior_oc->oc_name ) == 0) ) {
-	  if (oc->oc_required ) {
-		charray_free (oc->oc_required);
-	  }
-	  if (oc->oc_allowed) {
-		charray_free (oc->oc_allowed);
-	  }
-	  oc->oc_required = charray_dup ( oc->oc_orig_required );
-	  oc->oc_allowed = charray_dup ( oc->oc_orig_allowed );
-	  charray_merge ( &(oc->oc_required), psuperior_oc->oc_required, 1 );
-	  charray_merge ( &(oc->oc_allowed), psuperior_oc->oc_allowed, 1 );
-	  oc_update_inheritance_nolock ( oc );
-	}
-  }
+    struct objclass *oc;
+
+    for (oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next) {
+        if (oc->oc_superior &&
+            (strcasecmp(oc->oc_superior, psuperior_oc->oc_name) == 0)) {
+            if (oc->oc_required) {
+                charray_free(oc->oc_required);
+            }
+            if (oc->oc_allowed) {
+                charray_free(oc->oc_allowed);
+            }
+            oc->oc_required = charray_dup(oc->oc_orig_required);
+            oc->oc_allowed = charray_dup(oc->oc_orig_allowed);
+            charray_merge(&(oc->oc_required), psuperior_oc->oc_required, 1);
+            charray_merge(&(oc->oc_allowed), psuperior_oc->oc_allowed, 1);
+            oc_update_inheritance_nolock(oc);
+        }
+    }
 }

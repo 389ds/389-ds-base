@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -27,36 +27,37 @@
 /*
  * Plug-in defines
  */
-#define AUTOMEMBER_PLUGIN_SUBSYSTEM  "auto-membership-plugin"
-#define AUTOMEMBER_FEATURE_DESC      "Auto Membership"
-#define AUTOMEMBER_PLUGIN_DESC       "Auto Membership plugin"
-#define AUTOMEMBER_INT_POSTOP_DESC   "Auto Membership internal postop plugin"
-#define AUTOMEMBER_POSTOP_DESC       "Auto Membership postop plugin"
+#define AUTOMEMBER_PLUGIN_SUBSYSTEM "auto-membership-plugin"
+#define AUTOMEMBER_FEATURE_DESC "Auto Membership"
+#define AUTOMEMBER_PLUGIN_DESC "Auto Membership plugin"
+#define AUTOMEMBER_INT_POSTOP_DESC "Auto Membership internal postop plugin"
+#define AUTOMEMBER_POSTOP_DESC "Auto Membership postop plugin"
 
 /*
  * Config type defines
  */
-#define AUTOMEMBER_SCOPE_TYPE         "autoMemberScope"
-#define AUTOMEMBER_FILTER_TYPE        "autoMemberFilter"
-#define AUTOMEMBER_EXC_REGEX_TYPE     "autoMemberExclusiveRegex"
-#define AUTOMEMBER_INC_REGEX_TYPE     "autoMemberInclusiveRegex"
+#define AUTOMEMBER_SCOPE_TYPE "autoMemberScope"
+#define AUTOMEMBER_FILTER_TYPE "autoMemberFilter"
+#define AUTOMEMBER_EXC_REGEX_TYPE "autoMemberExclusiveRegex"
+#define AUTOMEMBER_INC_REGEX_TYPE "autoMemberInclusiveRegex"
 #define AUTOMEMBER_DEFAULT_GROUP_TYPE "autoMemberDefaultGroup"
 #define AUTOMEMBER_GROUPING_ATTR_TYPE "autoMemberGroupingAttr"
-#define AUTOMEMBER_DISABLED_TYPE      "autoMemberDisabled"
-#define AUTOMEMBER_TARGET_GROUP_TYPE  "autoMemberTargetGroup"
+#define AUTOMEMBER_DISABLED_TYPE "autoMemberDisabled"
+#define AUTOMEMBER_TARGET_GROUP_TYPE "autoMemberTargetGroup"
 
 /*
  * Config loading filters
  */
-#define AUTOMEMBER_DEFINITION_FILTER  "objectclass=autoMemberDefinition"
-#define AUTOMEMBER_REGEX_RULE_FILTER  "objectclass=autoMemberRegexRule"
+#define AUTOMEMBER_DEFINITION_FILTER "objectclass=autoMemberDefinition"
+#define AUTOMEMBER_REGEX_RULE_FILTER "objectclass=autoMemberRegexRule"
 
 /*
  * Helper defines
  */
-#define IS_ATTRDESC_CHAR(c) ( isalnum(c) || (c == '.') || (c == ';') || (c == '-') )
+#define IS_ATTRDESC_CHAR(c) (isalnum(c) || (c == '.') || (c == ';') || (c == '-'))
 
-struct automemberRegexRule {
+struct automemberRegexRule
+{
     PRCList list;
     Slapi_DN *target_group_dn;
     char *attr;
@@ -64,7 +65,8 @@ struct automemberRegexRule {
     Slapi_Regex *regex;
 };
 
-struct automemberDNListItem {
+struct automemberDNListItem
+{
     PRCList list;
     Slapi_DN *dn;
 };
@@ -72,7 +74,8 @@ struct automemberDNListItem {
 /*
  * Linked list of config entries.
  */
-struct configEntry {
+struct configEntry
+{
     PRCList list;
     char *dn;
     char *scope;
@@ -103,4 +106,3 @@ void automember_set_plugin_id(void *pluginID);
 void *automember_get_plugin_id(void);
 void automember_set_plugin_dn(char *pluginDN);
 char *automember_get_plugin_dn(void);
-

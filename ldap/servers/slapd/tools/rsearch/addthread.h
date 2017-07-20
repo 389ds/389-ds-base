@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -21,8 +21,7 @@ AddThread *at_new(void);
 void at_setThread(AddThread *at, PRThread *tid, int id);
 int at_getThread(AddThread *at, PRThread **tid);
 void infadd_start(void *v);
-void at_getCountMinMax(AddThread *at, PRUint32 *count, PRUint32 *min,
-		       PRUint32 *max, PRUint32 *total);
+void at_getCountMinMax(AddThread *at, PRUint32 *count, PRUint32 *min, PRUint32 *max, PRUint32 *total);
 int at_alive(AddThread *at);
 void at_initID(unsigned long i);
 

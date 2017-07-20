@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -23,17 +23,17 @@
 #include "pwdstorage.h"
 
 int
-clear_pw_cmp( const char *userpwd, const char *dbpwd )
+clear_pw_cmp(const char *userpwd, const char *dbpwd)
 {
     int result = 0;
     int len_user = strlen(userpwd);
     int len_dbp = strlen(dbpwd);
-    if ( len_user != len_dbp ) {
+    if (len_user != len_dbp) {
         result = 1;
     }
     /* We have to do this comparison ANYWAY else we have a length timing attack. */
-    if ( len_user >= len_dbp ) {
-        /* 
+    if (len_user >= len_dbp) {
+        /*
          * If they are the same length, result will be 0 here, and if we pass
          * the check, we don't update result either. IE we pass.
          * However, even if the first part of userpw matches dbpwd, but len !=, we
@@ -43,7 +43,7 @@ clear_pw_cmp( const char *userpwd, const char *dbpwd )
             result = 1;
         }
     } else {
-        /* 
+        /*
          * If we stretched the userPassword, we'll allow a new timing attack, where
          * if we see a delay on a short pw, we know we are stretching.
          * when the delay goes away, it means we've found the length.
@@ -59,7 +59,7 @@ clear_pw_cmp( const char *userpwd, const char *dbpwd )
 }
 
 char *
-clear_pw_enc( const char *pwd )
+clear_pw_enc(const char *pwd)
 {
     /* Just return NULL if pwd is NULL */
     if (!pwd)
@@ -68,9 +68,9 @@ clear_pw_enc( const char *pwd )
     /* If the modify operation specified the "{clear}" storage scheme
      * prefix, we should strip it off.
      */
-    if ((*pwd == PWD_HASH_PREFIX_START) && (pwd == PL_strcasestr( pwd, "{clear}" ))) {
-        return( slapi_ch_strdup( pwd + 7 ));
+    if ((*pwd == PWD_HASH_PREFIX_START) && (pwd == PL_strcasestr(pwd, "{clear}"))) {
+        return (slapi_ch_strdup(pwd + 7));
     } else {
-        return( slapi_ch_strdup( pwd ));
+        return (slapi_ch_strdup(pwd));
     }
 }

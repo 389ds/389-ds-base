@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* vlv_srch.h */
@@ -17,20 +17,21 @@
 #if !defined(__VLV_SRCH_H)
 #define __VLV_SRCH_H
 
-extern char* const type_vlvName;
-extern char* const type_vlvBase;
-extern char* const type_vlvScope;
-extern char* const type_vlvFilter;
-extern char* const type_vlvSort;
-extern char* const type_vlvFilename;
-extern char* const type_vlvEnabled;
-extern char* const type_vlvUses;
+extern char *const type_vlvName;
+extern char *const type_vlvBase;
+extern char *const type_vlvScope;
+extern char *const type_vlvFilter;
+extern char *const type_vlvSort;
+extern char *const type_vlvFilename;
+extern char *const type_vlvEnabled;
+extern char *const type_vlvUses;
 
 #if defined(USE_OPENLDAP)
-typedef struct LDAPsortkey {    /* structure for a sort-key */
-        char *  sk_attrtype;
-        char *  sk_matchruleoid;
-        int     sk_reverseorder;
+typedef struct LDAPsortkey
+{ /* structure for a sort-key */
+    char *sk_attrtype;
+    char *sk_matchruleoid;
+    int sk_reverseorder;
 } LDAPsortkey;
 #endif
 
@@ -57,10 +58,10 @@ struct vlvSearch
     Slapi_Filter *vlv_slapifilter;
 
     /* List of Indexes for this Search */
-    struct vlvIndex* vlv_index;
+    struct vlvIndex *vlv_index;
 
     /* The next VLV Search in the list */
-    struct vlvSearch* vlv_next;
+    struct vlvSearch *vlv_next;
 };
 
 struct vlvIndex
@@ -78,15 +79,15 @@ struct vlvIndex
     struct attrinfo *vlv_attrinfo;
 
     /* Matching Rule PBlock. One for each LDAPsortkey */
-	Slapi_PBlock **vlv_mrpb;
+    Slapi_PBlock **vlv_mrpb;
 
     /* Keep track of the index length */
     PRLock *vlv_indexlength_lock;
     int vlv_indexlength_cached;
     db_recno_t vlv_indexlength;
 
-    int vlv_enabled;            /* index file is there & ready */
-    int vlv_online;             /* turned off when generating index */
+    int vlv_enabled; /* index file is there & ready */
+    int vlv_online;  /* turned off when generating index */
 
     /* The last time we checked to see if the index file was available */
     struct timespec vlv_nextcheck;
@@ -94,52 +95,52 @@ struct vlvIndex
     /* The number of uses this search has received since start up */
     uint64_t vlv_uses;
 
-	struct backend* vlv_be; /* need backend to remove the index when done */
+    struct backend *vlv_be; /* need backend to remove the index when done */
 
     /* The parent Search Specification for this Index */
-    struct vlvSearch* vlv_search;
+    struct vlvSearch *vlv_search;
 
     /* The next VLV Index in the list */
-    struct vlvIndex* vlv_next;
+    struct vlvIndex *vlv_next;
 };
 
-struct vlvSearch* vlvSearch_new(void);
-void vlvSearch_init(struct vlvSearch*, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm_instance *inst);
-void vlvSearch_reinit(struct vlvSearch* p, const struct backentry *base);
-void vlvSearch_delete(struct vlvSearch** ppvs);
-void vlvSearch_addtolist(struct vlvSearch* p, struct vlvSearch** pplist);
-struct vlvSearch* vlvSearch_find(const struct vlvSearch* plist, const char *base, int scope, const char *filter, const char *sortspec);
-struct vlvIndex* vlvSearch_findenabled(backend *be,struct vlvSearch* plist, const Slapi_DN *base, int scope, const char *filter, const sort_spec* sort_control);
-struct vlvSearch* vlvSearch_finddn(const struct vlvSearch* plist, const Slapi_DN *dn);
-struct vlvIndex* vlvSearch_findname(const struct vlvSearch* plist, const char *name);
-struct vlvIndex* vlvSearch_findindexname(const struct vlvSearch* plist, const char *name);
-char *vlvSearch_getnames(const struct vlvSearch* plist);
-void vlvSearch_removefromlist(struct vlvSearch** pplist, const Slapi_DN *dn);
+struct vlvSearch *vlvSearch_new(void);
+void vlvSearch_init(struct vlvSearch *, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm_instance *inst);
+void vlvSearch_reinit(struct vlvSearch *p, const struct backentry *base);
+void vlvSearch_delete(struct vlvSearch **ppvs);
+void vlvSearch_addtolist(struct vlvSearch *p, struct vlvSearch **pplist);
+struct vlvSearch *vlvSearch_find(const struct vlvSearch *plist, const char *base, int scope, const char *filter, const char *sortspec);
+struct vlvIndex *vlvSearch_findenabled(backend *be, struct vlvSearch *plist, const Slapi_DN *base, int scope, const char *filter, const sort_spec *sort_control);
+struct vlvSearch *vlvSearch_finddn(const struct vlvSearch *plist, const Slapi_DN *dn);
+struct vlvIndex *vlvSearch_findname(const struct vlvSearch *plist, const char *name);
+struct vlvIndex *vlvSearch_findindexname(const struct vlvSearch *plist, const char *name);
+char *vlvSearch_getnames(const struct vlvSearch *plist);
+void vlvSearch_removefromlist(struct vlvSearch **pplist, const Slapi_DN *dn);
 int vlvSearch_accessallowed(struct vlvSearch *p, Slapi_PBlock *pb);
-const Slapi_DN *vlvSearch_getBase(struct vlvSearch* p);
-int vlvSearch_getScope(struct vlvSearch* p);
-Slapi_Filter *vlvSearch_getFilter(struct vlvSearch* p);
+const Slapi_DN *vlvSearch_getBase(struct vlvSearch *p);
+int vlvSearch_getScope(struct vlvSearch *p);
+Slapi_Filter *vlvSearch_getFilter(struct vlvSearch *p);
 int vlvSearch_isVlvSearchEntry(Slapi_Entry *e);
 void vlvSearch_addIndex(struct vlvSearch *pSearch, struct vlvIndex *pIndex);
 
 
-struct vlvIndex* vlvIndex_new(void);
-void vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const Slapi_Entry *e);
-void vlvIndex_delete(struct vlvIndex** ppvs);
-PRUint32 vlvIndex_get_indexlength(struct vlvIndex* p, DB *db, back_txn *txn);
-void vlvIndex_increment_indexlength(struct vlvIndex* p, DB *db, back_txn *txn);
-void vlvIndex_decrement_indexlength(struct vlvIndex* p, DB *db, back_txn *txn);
-void vlvIndex_incrementUsage(struct vlvIndex* p);
-const char *vlvIndex_filename(const struct vlvIndex* p);
-int vlvIndex_enabled(const struct vlvIndex* p);
+struct vlvIndex *vlvIndex_new(void);
+void vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const Slapi_Entry *e);
+void vlvIndex_delete(struct vlvIndex **ppvs);
+PRUint32 vlvIndex_get_indexlength(struct vlvIndex *p, DB *db, back_txn *txn);
+void vlvIndex_increment_indexlength(struct vlvIndex *p, DB *db, back_txn *txn);
+void vlvIndex_decrement_indexlength(struct vlvIndex *p, DB *db, back_txn *txn);
+void vlvIndex_incrementUsage(struct vlvIndex *p);
+const char *vlvIndex_filename(const struct vlvIndex *p);
+int vlvIndex_enabled(const struct vlvIndex *p);
 int vlvIndex_online(const struct vlvIndex *p);
 void vlvIndex_go_offline(struct vlvIndex *p, backend *be);
 void vlvIndex_go_online(struct vlvIndex *p, backend *be);
 int vlvIndex_accessallowed(struct vlvIndex *p, Slapi_PBlock *pb);
-const Slapi_DN *vlvIndex_getBase(struct vlvIndex* p);
-int vlvIndex_getScope(struct vlvIndex* p);
-Slapi_Filter *vlvIndex_getFilter(struct vlvIndex* p);
-const char *vlvIndex_getName(struct vlvIndex* p);
+const Slapi_DN *vlvIndex_getBase(struct vlvIndex *p);
+int vlvIndex_getScope(struct vlvIndex *p);
+Slapi_Filter *vlvIndex_getFilter(struct vlvIndex *p);
+const char *vlvIndex_getName(struct vlvIndex *p);
 int vlvIndex_isVlvIndexEntry(Slapi_Entry *e);
 
 #define VLV_ACCESS_DENIED -1

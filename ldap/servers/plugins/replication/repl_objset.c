@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -24,29 +24,30 @@
 #include "repl_objset.h"
 #include <prlock.h>
 
-#define REPL_OBJSET_OBJ_FLAG_DELETED	0x1
+#define REPL_OBJSET_OBJ_FLAG_DELETED 0x1
 
 
 typedef struct repl_objset_object
 {
-	void *data; /* pointer to actual node data */
-	char *key; /* key for this object. null-terminated string */
-	int refcnt; /* reference count for this object */
-	unsigned long flags; /* state of this object */
+    void *data;          /* pointer to actual node data */
+    char *key;           /* key for this object. null-terminated string */
+    int refcnt;          /* reference count for this object */
+    unsigned long flags; /* state of this object */
 } Repl_Objset_object;
 
 typedef struct repl_objset
 {
-	LList *objects;
-	FNFree destructor; /* destructor for objects - provided by caller */
-	PRLock *lock;
+    LList *objects;
+    FNFree destructor; /* destructor for objects - provided by caller */
+    PRLock *lock;
 } repl_objset;
 
 
 /* Forward declarations */
 static void removeObjectNolock(Repl_Objset *o, Repl_Objset_object *co);
-static Repl_Objset_object *removeCurrentObjectAndGetNextNolock (Repl_Objset *o, 
-	Repl_Objset_object *co, void *iterator);
+static Repl_Objset_object *removeCurrentObjectAndGetNextNolock(Repl_Objset *o,
+                                                               Repl_Objset_object *co,
+                                                               void *iterator);
 
 /*
  * Create a new set.
@@ -60,17 +61,16 @@ static Repl_Objset_object *removeCurrentObjectAndGetNextNolock (Repl_Objset *o,
 Repl_Objset *
 repl_objset_new(FNFree destructor)
 {
-	Repl_Objset *p;
+    Repl_Objset *p;
 
-	p = (Repl_Objset *)slapi_ch_malloc(sizeof(Repl_Objset));
-	p->lock = PR_NewLock();
-	if (NULL == p->lock)
-	{
-		slapi_ch_free((void **)&p);
-	}
-	p->objects = llistNew();
-	p->destructor = destructor;
-	return p;
+    p = (Repl_Objset *)slapi_ch_malloc(sizeof(Repl_Objset));
+    p->lock = PR_NewLock();
+    if (NULL == p->lock) {
+        slapi_ch_free((void **)&p);
+    }
+    p->objects = llistNew();
+    p->destructor = destructor;
+    return p;
 }
 
 
@@ -78,7 +78,7 @@ repl_objset_new(FNFree destructor)
  * Destroy a Repl_Objset.
  * Arguments:
  *  o: the object set to be destroyed
- *  maxwait: the maximum time to wait for all object refcnts to 
+ *  maxwait: the maximum time to wait for all object refcnts to
  *           go to zero.
  *  panic_fn: a function to  be called if, after waiting "maxwait"
  *            seconds, not all object refcnts are zero.
@@ -88,86 +88,74 @@ repl_objset_new(FNFree destructor)
 void
 repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
 {
-	Repl_Objset_object *co = NULL;
-	time_t now, stop_time;
-	int really_gone;
-	int loopcount;
-	void *cookie;
+    Repl_Objset_object *co = NULL;
+    time_t now, stop_time;
+    int really_gone;
+    int loopcount;
+    void *cookie;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != *o);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != *o);
 
-	now = slapi_current_utc_time();
-	stop_time = now + maxwait;
+    now = slapi_current_utc_time();
+    stop_time = now + maxwait;
 
-	/*
-	 * Loop over the objects until they all are actually gone,
-	 * or until maxwait seconds have passed.
-	 */
-	really_gone = 0;
-	loopcount = 0;
+    /*
+     * Loop over the objects until they all are actually gone,
+     * or until maxwait seconds have passed.
+     */
+    really_gone = 0;
+    loopcount = 0;
 
-	while (now < stop_time)
-	{
-		void *cookie;
+    while (now < stop_time) {
+        void *cookie;
 
-		PR_Lock((*o)->lock);
+        PR_Lock((*o)->lock);
 
-		if ((co = llistGetFirst((*o)->objects, &cookie)) == NULL)
-		{
-			really_gone = 1;
-			PR_Unlock((*o)->lock);
-			break;
-		}
-		while (NULL != co)
-		{
-			/* Set the deleted flag so the object isn't returned by iterator */
-			co->flags |= REPL_OBJSET_OBJ_FLAG_DELETED;
-			if (0 == co->refcnt)
-			{
-				/* Remove the object */
-				co = removeCurrentObjectAndGetNextNolock ((*o), co, cookie);
-					
-			}
-			else
-				co = llistGetNext((*o)->objects, &cookie);
-		}
-		PR_Unlock((*o)->lock);
-		now = slapi_current_utc_time();
-		if (loopcount > 0)
-		{
-			DS_Sleep(PR_TicksPerSecond());
-		}
-		loopcount++;
-	}
+        if ((co = llistGetFirst((*o)->objects, &cookie)) == NULL) {
+            really_gone = 1;
+            PR_Unlock((*o)->lock);
+            break;
+        }
+        while (NULL != co) {
+            /* Set the deleted flag so the object isn't returned by iterator */
+            co->flags |= REPL_OBJSET_OBJ_FLAG_DELETED;
+            if (0 == co->refcnt) {
+                /* Remove the object */
+                co = removeCurrentObjectAndGetNextNolock((*o), co, cookie);
 
-	if (!really_gone)
-	{
-		if (NULL != panic_fn)
-		{
-			/*
-			 * Call the "aargh, this thing won't go away" panic
-			 * function for each remaining object.
-			 */
-			PR_Lock((*o)->lock);
-			co = llistGetFirst((*o)->objects, &cookie);
-			while (NULL != co)
-			{
-				panic_fn(co->data);
-				co = llistGetNext((*o)->objects, &cookie);
-			}
-			PR_Unlock((*o)->lock);
-		}
-	}
-	else
-	{
-		/* Free the linked list */
-		llistDestroy(&(*o)->objects, (*o)->destructor);
-		PR_DestroyLock((*o)->lock);
-		slapi_ch_free((void **)o);
-	}
+            } else
+                co = llistGetNext((*o)->objects, &cookie);
+        }
+        PR_Unlock((*o)->lock);
+        now = slapi_current_utc_time();
+        if (loopcount > 0) {
+            DS_Sleep(PR_TicksPerSecond());
+        }
+        loopcount++;
+    }
+
+    if (!really_gone) {
+        if (NULL != panic_fn) {
+            /*
+             * Call the "aargh, this thing won't go away" panic
+             * function for each remaining object.
+             */
+            PR_Lock((*o)->lock);
+            co = llistGetFirst((*o)->objects, &cookie);
+            while (NULL != co) {
+                panic_fn(co->data);
+                co = llistGetNext((*o)->objects, &cookie);
+            }
+            PR_Unlock((*o)->lock);
+        }
+    } else {
+        /* Free the linked list */
+        llistDestroy(&(*o)->objects, (*o)->destructor);
+        PR_DestroyLock((*o)->lock);
+        slapi_ch_free((void **)o);
+    }
 }
-
 
 
 /*
@@ -178,7 +166,7 @@ repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
  *  name: a null-terminated string that names the object. Must
  *  be unique.
  *  obj: pointer to the object to be added.
- * 
+ *
  * Return codes:
  *  REPL_OBJSET_SUCCESS: the item was added to the object set
  *  REPL_OBJSET_DUPLICATE_KEY: an item with the same key is already
@@ -188,45 +176,41 @@ repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
 int
 repl_objset_add(Repl_Objset *o, const char *name, void *obj)
 {
-	Repl_Objset_object *co = NULL;
-	Repl_Objset_object *tmp = NULL;
-	int rc = REPL_OBJSET_SUCCESS;
+    Repl_Objset_object *co = NULL;
+    Repl_Objset_object *tmp = NULL;
+    int rc = REPL_OBJSET_SUCCESS;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != name);
-	PR_ASSERT(NULL != obj);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != name);
+    PR_ASSERT(NULL != obj);
 
-	PR_Lock(o->lock);
-	tmp = llistGet(o->objects, name);
-	if (NULL != tmp)
-	{
-		rc = REPL_OBJSET_DUPLICATE_KEY;
-		goto loser;
-	}
-	co = (Repl_Objset_object *)slapi_ch_malloc(sizeof(Repl_Objset_object));
-	co->data = obj;
-	co->key = slapi_ch_strdup(name);
-	co->refcnt = 0;
-	co->flags = 0UL;
-	if (llistInsertHead(o->objects, name, co) != 0)
-	{
-		rc = REPL_OBJSET_INTERNAL_ERROR;
-		goto loser;
-	}
-	PR_Unlock(o->lock);
-	return rc;
+    PR_Lock(o->lock);
+    tmp = llistGet(o->objects, name);
+    if (NULL != tmp) {
+        rc = REPL_OBJSET_DUPLICATE_KEY;
+        goto loser;
+    }
+    co = (Repl_Objset_object *)slapi_ch_malloc(sizeof(Repl_Objset_object));
+    co->data = obj;
+    co->key = slapi_ch_strdup(name);
+    co->refcnt = 0;
+    co->flags = 0UL;
+    if (llistInsertHead(o->objects, name, co) != 0) {
+        rc = REPL_OBJSET_INTERNAL_ERROR;
+        goto loser;
+    }
+    PR_Unlock(o->lock);
+    return rc;
 
 loser:
-	PR_Unlock(o->lock);
-	if (NULL != co)
-	{
-		if (NULL != co->key)
-		{
-			slapi_ch_free((void **)&co->key);
-		}
-		slapi_ch_free((void **)&co);
-	}
-	return rc;
+    PR_Unlock(o->lock);
+    if (NULL != co) {
+        if (NULL != co->key) {
+            slapi_ch_free((void **)&co->key);
+        }
+        slapi_ch_free((void **)&co);
+    }
+    return rc;
 }
 
 
@@ -234,39 +218,39 @@ loser:
 static void
 removeObjectNolock(Repl_Objset *o, Repl_Objset_object *co)
 {
-	/* Remove from list */
-	llistRemove(o->objects, co->key);
-	/* Destroy the object */
-	o->destructor(&(co->data));
-	slapi_ch_free((void **)&(co->key));
-	/* Deallocate the container */
-	slapi_ch_free((void **)&co);
+    /* Remove from list */
+    llistRemove(o->objects, co->key);
+    /* Destroy the object */
+    o->destructor(&(co->data));
+    slapi_ch_free((void **)&(co->key));
+    /* Deallocate the container */
+    slapi_ch_free((void **)&co);
 }
 
 static Repl_Objset_object *
-removeCurrentObjectAndGetNextNolock (Repl_Objset *o, Repl_Objset_object *co, void *iterator)
+removeCurrentObjectAndGetNextNolock(Repl_Objset *o, Repl_Objset_object *co, void *iterator)
 {
-	Repl_Objset_object *ro;
+    Repl_Objset_object *ro;
 
-	PR_ASSERT (o);
-	PR_ASSERT (co);
-	PR_ASSERT (iterator);
+    PR_ASSERT(o);
+    PR_ASSERT(co);
+    PR_ASSERT(iterator);
 
-	ro = llistRemoveCurrentAndGetNext (o->objects, &iterator);
+    ro = llistRemoveCurrentAndGetNext(o->objects, &iterator);
 
-	o->destructor(&(co->data));
-	slapi_ch_free((void **)&(co->key));
-	/* Deallocate the container */
-	slapi_ch_free((void **)&co);
+    o->destructor(&(co->data));
+    slapi_ch_free((void **)&(co->key));
+    /* Deallocate the container */
+    slapi_ch_free((void **)&co);
 
-	return ro;	
+    return ro;
 }
 
 /* Must be called with the repl_objset locked */
 static void
 acquireNoLock(Repl_Objset_object *co)
 {
-	co->refcnt++;
+    co->refcnt++;
 }
 
 
@@ -274,15 +258,13 @@ acquireNoLock(Repl_Objset_object *co)
 static void
 releaseNoLock(Repl_Objset *o, Repl_Objset_object *co)
 {
-	PR_ASSERT(co->refcnt >= 1);
-	if (--co->refcnt == 0)
-	{
-		if (co->flags & REPL_OBJSET_OBJ_FLAG_DELETED)
-		{
-			/* Remove the object */
-			removeObjectNolock(o, co);
-		}
-	}
+    PR_ASSERT(co->refcnt >= 1);
+    if (--co->refcnt == 0) {
+        if (co->flags & REPL_OBJSET_OBJ_FLAG_DELETED) {
+            /* Remove the object */
+            removeObjectNolock(o, co);
+        }
+    }
 }
 
 /*
@@ -306,25 +288,24 @@ releaseNoLock(Repl_Objset *o, Repl_Objset_object *co)
 int
 repl_objset_acquire(Repl_Objset *o, const char *key, void **obj, void **handle)
 {
-	Repl_Objset_object *co = NULL;
-	int rc = REPL_OBJSET_KEY_NOT_FOUND;
+    Repl_Objset_object *co = NULL;
+    int rc = REPL_OBJSET_KEY_NOT_FOUND;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != key);
-	PR_ASSERT(NULL != obj);
-	PR_ASSERT(NULL != handle);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != key);
+    PR_ASSERT(NULL != obj);
+    PR_ASSERT(NULL != handle);
 
-	PR_Lock(o->lock);
-	co = llistGet(o->objects, key);
-	if (NULL != co && !(co->flags & REPL_OBJSET_OBJ_FLAG_DELETED))
-	{
-		acquireNoLock(co);
-		*obj = (void *)co->data;
-		*handle = (void *)co;
-		rc = REPL_OBJSET_SUCCESS;
-	}
-	PR_Unlock(o->lock);
-	return rc;
+    PR_Lock(o->lock);
+    co = llistGet(o->objects, key);
+    if (NULL != co && !(co->flags & REPL_OBJSET_OBJ_FLAG_DELETED)) {
+        acquireNoLock(co);
+        *obj = (void *)co->data;
+        *handle = (void *)co;
+        rc = REPL_OBJSET_SUCCESS;
+    }
+    PR_Unlock(o->lock);
+    return rc;
 }
 
 
@@ -339,17 +320,16 @@ repl_objset_acquire(Repl_Objset *o, const char *key, void **obj, void **handle)
 void
 repl_objset_release(Repl_Objset *o, void *handle)
 {
-	Repl_Objset_object *co;
+    Repl_Objset_object *co;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != handle);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != handle);
 
-	co = (Repl_Objset_object *)handle;
-	PR_Lock(o->lock);
-	releaseNoLock(o, co);
-	PR_Unlock(o->lock);
+    co = (Repl_Objset_object *)handle;
+    PR_Lock(o->lock);
+    releaseNoLock(o, co);
+    PR_Unlock(o->lock);
 }
-
 
 
 /*
@@ -362,30 +342,27 @@ repl_objset_release(Repl_Objset *o, void *handle)
 void
 repl_objset_delete(Repl_Objset *o, void *handle)
 {
-	Repl_Objset_object *co = (Repl_Objset_object *)handle;
+    Repl_Objset_object *co = (Repl_Objset_object *)handle;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != co);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != co);
 
-	PR_Lock(o->lock);
-	if (co->refcnt == 0)
-	{
-		removeObjectNolock(o, co);
-	}
-	else
-	{
-		/* Set deleted flag, clean up later */
-		co->flags |= REPL_OBJSET_OBJ_FLAG_DELETED;
-	}
-	PR_Unlock(o->lock);
+    PR_Lock(o->lock);
+    if (co->refcnt == 0) {
+        removeObjectNolock(o, co);
+    } else {
+        /* Set deleted flag, clean up later */
+        co->flags |= REPL_OBJSET_OBJ_FLAG_DELETED;
+    }
+    PR_Unlock(o->lock);
 }
 
 
 typedef struct _iterator
 {
-	Repl_Objset *o;			/* set for which iterator was created */
-	void *cookie;			/* for linked list */
-	Repl_Objset_object	*co;	/* our wrapper */
+    Repl_Objset *o;         /* set for which iterator was created */
+    void *cookie;           /* for linked list */
+    Repl_Objset_object *co; /* our wrapper */
 } iterator;
 
 /*
@@ -400,56 +377,52 @@ typedef struct _iterator
  * Returns:
  *  A pointer to the next object in the set, or NULL if there are no
  *  objects in the set.
- * 
+ *
  */
 void *
 repl_objset_first_object(Repl_Objset *o, void **itcontext, void **handle)
 {
-	Repl_Objset_object *co = NULL;
-	void *cookie;
-	void *retptr = NULL;
-	iterator *it;
+    Repl_Objset_object *co = NULL;
+    void *cookie;
+    void *retptr = NULL;
+    iterator *it;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != itcontext);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != itcontext);
 
-	*itcontext = NULL;
+    *itcontext = NULL;
 
-	if (NULL == o->objects) {
-		return(NULL);
-	}
+    if (NULL == o->objects) {
+        return (NULL);
+    }
 
-	/* Find the first non-deleted object */
-	PR_Lock(o->lock);
-	co = llistGetFirst(o->objects, &cookie);
-	while (NULL != co && (co->flags & REPL_OBJSET_OBJ_FLAG_DELETED))
-	{
-		co = llistGetNext(o->objects, &cookie);
-	}
+    /* Find the first non-deleted object */
+    PR_Lock(o->lock);
+    co = llistGetFirst(o->objects, &cookie);
+    while (NULL != co && (co->flags & REPL_OBJSET_OBJ_FLAG_DELETED)) {
+        co = llistGetNext(o->objects, &cookie);
+    }
 
-	if (NULL != co)
-	{
-		/* Increment refcnt until item given back to us */
-		acquireNoLock(co);
+    if (NULL != co) {
+        /* Increment refcnt until item given back to us */
+        acquireNoLock(co);
 
-		/* Save away context */
-		it = (iterator *)slapi_ch_malloc(sizeof(iterator));
-		*itcontext = it;
-		it->o = o;
-		it->cookie = cookie;
-		it->co = co;
-		retptr = co->data;
-	}
+        /* Save away context */
+        it = (iterator *)slapi_ch_malloc(sizeof(iterator));
+        *itcontext = it;
+        it->o = o;
+        it->cookie = cookie;
+        it->co = co;
+        retptr = co->data;
+    }
 
-	PR_Unlock(o->lock);
-	if (NULL != handle)
-	{
-		*handle = co;
-	}
+    PR_Unlock(o->lock);
+    if (NULL != handle) {
+        *handle = co;
+    }
 
-	return retptr;
+    return retptr;
 }
-
 
 
 /*
@@ -468,46 +441,42 @@ repl_objset_first_object(Repl_Objset *o, void **itcontext, void **handle)
 void *
 repl_objset_next_object(Repl_Objset *o, void *itcontext, void **handle)
 {
-	Repl_Objset_object *co = NULL;
-	Repl_Objset_object *tmp_co;
-	void *retptr = NULL;
-	iterator *it = (iterator *)itcontext;
+    Repl_Objset_object *co = NULL;
+    Repl_Objset_object *tmp_co;
+    void *retptr = NULL;
+    iterator *it = (iterator *)itcontext;
 
-	PR_ASSERT(NULL != o);
-	PR_ASSERT(NULL != it);
-	PR_ASSERT(NULL != it->co);
+    PR_ASSERT(NULL != o);
+    PR_ASSERT(NULL != it);
+    PR_ASSERT(NULL != it->co);
 
-	PR_Lock(o->lock);
-	tmp_co = it->co;
+    PR_Lock(o->lock);
+    tmp_co = it->co;
 
-	/* Find the next non-deleted object */
-	while ((co = llistGetNext(o->objects, &it->cookie)) != NULL &&
-			!(co->flags & REPL_OBJSET_OBJ_FLAG_DELETED));
+    /* Find the next non-deleted object */
+    while ((co = llistGetNext(o->objects, &it->cookie)) != NULL &&
+           !(co->flags & REPL_OBJSET_OBJ_FLAG_DELETED))
+        ;
 
-	if (NULL != co)
-	{
-		acquireNoLock(co);
-		it->co = co;
-		retptr = co->data;
-	}
-	else
-	{
-		/*
-		 * No more non-deleted objects - erase context (freeing
-		 * it is responsibility of caller.
-		 */ 
-		it->cookie = NULL;
-		it->co = NULL;
-	}
-	releaseNoLock(o, tmp_co);
-	PR_Unlock(o->lock);
-	if (NULL != handle)
-	{
-		*handle = co;
-	}
-	return retptr;
+    if (NULL != co) {
+        acquireNoLock(co);
+        it->co = co;
+        retptr = co->data;
+    } else {
+        /*
+         * No more non-deleted objects - erase context (freeing
+         * it is responsibility of caller.
+         */
+        it->cookie = NULL;
+        it->co = NULL;
+    }
+    releaseNoLock(o, tmp_co);
+    PR_Unlock(o->lock);
+    if (NULL != handle) {
+        *handle = co;
+    }
+    return retptr;
 }
-
 
 
 /*
@@ -515,15 +484,14 @@ repl_objset_next_object(Repl_Objset *o, void *itcontext, void **handle)
  */
 void
 repl_objset_iterator_destroy(void **itcontext)
-{	
-	if (NULL != itcontext && NULL != *itcontext)
-	{
-		/* check if we did not iterate through the entire list
-		   and need to release last accessed element */
-		iterator *it = *(iterator**)itcontext;
-		if (it->co)
-			repl_objset_release (it->o, it->co);
-		
-		slapi_ch_free((void **)itcontext);
-	}
+{
+    if (NULL != itcontext && NULL != *itcontext) {
+        /* check if we did not iterate through the entire list
+           and need to release last accessed element */
+        iterator *it = *(iterator **)itcontext;
+        if (it->co)
+            repl_objset_release(it->o, it->co);
+
+        slapi_ch_free((void **)itcontext);
+    }
 }

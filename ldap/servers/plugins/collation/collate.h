@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -19,26 +19,25 @@
 
 struct indexer_t;
 
-typedef void (*ix_destroy_t) (struct indexer_t*);
-typedef struct berval** (*ix_index_t) (struct indexer_t*, struct berval** values,
-				       struct berval** prefixes /* inserted into each key */);
+typedef void (*ix_destroy_t)(struct indexer_t *);
+typedef struct berval **(*ix_index_t)(struct indexer_t *, struct berval **values, struct berval **prefixes /* inserted into each key */);
 
 typedef struct indexer_t
 {
-    char*        ix_oid;
-    ix_index_t   ix_index; /* map values to index keys */
+    char *ix_oid;
+    ix_index_t ix_index; /* map values to index keys */
     ix_destroy_t ix_destroy;
-    void*        ix_etc; /* whatever state the implementation needs */
+    void *ix_etc; /* whatever state the implementation needs */
 } indexer_t;
 
 extern void
-collation_init( char *configpath );
+collation_init(char *configpath);
 
 extern int
-collation_config (size_t argc, char** argv, const char* fname, size_t lineno);
+collation_config(size_t argc, char **argv, const char *fname, size_t lineno);
 
-extern indexer_t*
-collation_indexer_create (const char* oid);
+extern indexer_t *
+collation_indexer_create(const char *oid);
 
 #define COLLATE_PLUGIN_SUBSYSTEM "collation-plugin"
 

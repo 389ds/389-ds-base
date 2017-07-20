@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -22,26 +22,27 @@
 /* Insert code here ... */
 
 
-int statechange_register(callback *func, char *dns)
+int
+statechange_register(callback *func, char *dns)
 {
-	int ret = -1;
+    int ret = -1;
 
-	/* create register cache */
+    /* create register cache */
 
-	return ret;
+    return ret;
 }
 
-int statechange_unregister(callback *func, char *dns)
+int
+statechange_unregister(callback *func, char *dns)
 {
-	int ret = -1;
+    int ret = -1;
 
-	return ret;
+    return ret;
 }
 
 
-int postop()
+int
+postop()
 {
-	/* state change, evaluate who it effects and notify */
-
+    /* state change, evaluate who it effects and notify */
 }
-

@@ -4,21 +4,21 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-/* 
+/*
  * libadmin.h - All functions contained in libadmin.a
  *
  * All blame goes to Mike McCool
  */
 
-#ifndef	libadmin_h
-#define	libadmin_h
+#ifndef libadmin_h
+#define libadmin_h
 
 #include <stdio.h>
 #include <limits.h>
@@ -62,12 +62,12 @@ NSAPI_PUBLIC int ADM_Init(void);
 /* Since everyone seems to be doing this independently, at least centralize
    the code.  Useful for onClicks and automatic help */
 NSAPI_PUBLIC char *helpJavaScript(void);
-NSAPI_PUBLIC char *helpJavaScriptForTopic( char *topic );
+NSAPI_PUBLIC char *helpJavaScriptForTopic(char *topic);
 
-/* Report an error.  Takes 3 args: 1. Category of error 
+/* Report an error.  Takes 3 args: 1. Category of error
  *                                 2. Some more specific category info (opt)
- *                                 3. A short explanation of the error. 
- * 
+ *                                 3. A short explanation of the error.
+ *
  * report_warning: same thing except doesn't exit when done whining
  */
 /* error.c */
@@ -76,7 +76,7 @@ NSAPI_PUBLIC void report_error(int type, char *info, char *details);
 NSAPI_PUBLIC void report_warning(int type, char *info, char *details);
 
 /* Word wrap a string to fit into a JavaScript alert box. */
-/* str is the string, width is the width to wrap to, linefeed is the string 
+/* str is the string, width is the width to wrap to, linefeed is the string
  * to use as a linefeed. */
 /* util.c */
 #define WORD_WRAP_WIDTH 80
@@ -86,8 +86,8 @@ NSAPI_PUBLIC char *alert_word_wrap(char *str, int width, char *linefeed);
 /* util.c */
 NSAPI_PUBLIC char *get_userdb_dir(void);
 
-NSAPI_PUBLIC char *cookieValue( char *, char * );
+NSAPI_PUBLIC char *cookieValue(char *, char *);
 
 NSPR_END_EXTERN_C
 
-#endif	/* libadmin_h */
+#endif /* libadmin_h */

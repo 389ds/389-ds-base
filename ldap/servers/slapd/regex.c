@@ -3,15 +3,15 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* number of elements in the output vector */
-#define OVECCOUNT 30    /* should be a multiple of 3; store up to \9 */
+#define OVECCOUNT 30 /* should be a multiple of 3; store up to \9 */
 
 #include "slap.h"
 #include "slapi-plugin.h"
@@ -19,10 +19,11 @@
 /* Perl Compatible Regular Expression */
 #include <pcre.h>
 
-struct slapi_regex_handle {
-    pcre *re_pcre;            /* contains the compiled pattern */
-    int  *re_ovector;        /* output vector */
-    int  re_oveccount;        /* count of the elements in output vector */
+struct slapi_regex_handle
+{
+    pcre *re_pcre;    /* contains the compiled pattern */
+    int *re_ovector;  /* output vector */
+    int re_oveccount; /* count of the elements in output vector */
 };
 
 /**
@@ -35,12 +36,12 @@ struct slapi_regex_handle {
  * \warning The regex handler should be released by slapi_re_free().
  */
 Slapi_Regex *
-slapi_re_comp( const char *pat, const char **error )
+slapi_re_comp(const char *pat, const char **error)
 {
     Slapi_Regex *re_handle = NULL;
-    pcre        *re = NULL;
-    const char  *myerror = NULL;
-    int         erroffset;
+    pcre *re = NULL;
+    const char *myerror = NULL;
+    int erroffset;
 
     re = pcre_compile(pat, 0, &myerror, &erroffset, NULL);
     if (error) {
@@ -68,7 +69,7 @@ slapi_re_comp( const char *pat, const char **error )
  * \warning The regex handler should be released by slapi_re_free().
  */
 int
-slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
+slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up)
 {
     int rc;
     time_t curtime = slapi_current_utc_time();
@@ -77,7 +78,7 @@ slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
         return LDAP_PARAM_ERROR;
     }
 
-    if ( time_up != -1 && curtime > time_up ) {
+    if (time_up != -1 && curtime > time_up) {
         return LDAP_TIMELIMIT_EXCEEDED;
     }
 
@@ -86,19 +87,19 @@ slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
         re_handle->re_ovector = (int *)slapi_ch_malloc(sizeof(int) * OVECCOUNT);
     }
 
-    rc = pcre_exec( re_handle->re_pcre, /* the compiled pattern */
-                    NULL,            /* no extra data */
-                    subject,         /* the subject string */
-                    strlen(subject), /* the length of the subject */
-                    0,               /* start at offset 0 in the subject */
-                    0,               /* default options */
-                    re_handle->re_ovector, /* output vector for substring info */
-                    re_handle->re_oveccount ); /* number of elems in the ovector */
+    rc = pcre_exec(re_handle->re_pcre,       /* the compiled pattern */
+                   NULL,                     /* no extra data */
+                   subject,                  /* the subject string */
+                   strlen(subject),          /* the length of the subject */
+                   0,                        /* start at offset 0 in the subject */
+                   0,                        /* default options */
+                   re_handle->re_ovector,    /* output vector for substring info */
+                   re_handle->re_oveccount); /* number of elems in the ovector */
 
     if (rc >= 0) {
-        return 1;    /* matched */
+        return 1; /* matched */
     } else {
-        return 0;    /* did not match */
+        return 0; /* did not match */
     }
 
     return rc;
@@ -120,7 +121,8 @@ slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
  * \warning The regex handler should be released by slapi_re_free().
  */
 int32_t
-slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject) {
+slapi_re_exec_nt(Slapi_Regex *re_handle, const char *subject)
+{
     int32_t rc;
 
     if (NULL == re_handle || NULL == re_handle->re_pcre || NULL == subject) {
@@ -132,19 +134,19 @@ slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject) {
         re_handle->re_ovector = (int *)slapi_ch_malloc(sizeof(int) * OVECCOUNT);
     }
 
-    rc = pcre_exec( re_handle->re_pcre, /* the compiled pattern */
-                    NULL,            /* no extra data */
-                    subject,         /* the subject string */
-                    strlen(subject), /* the length of the subject */
-                    0,               /* start at offset 0 in the subject */
-                    0,               /* default options */
-                    re_handle->re_ovector, /* output vector for substring info */
-                    re_handle->re_oveccount ); /* number of elems in the ovector */
+    rc = pcre_exec(re_handle->re_pcre,       /* the compiled pattern */
+                   NULL,                     /* no extra data */
+                   subject,                  /* the subject string */
+                   strlen(subject),          /* the length of the subject */
+                   0,                        /* start at offset 0 in the subject */
+                   0,                        /* default options */
+                   re_handle->re_ovector,    /* output vector for substring info */
+                   re_handle->re_oveccount); /* number of elems in the ovector */
 
     if (rc >= 0) {
-        return 1;    /* matched */
+        return 1; /* matched */
     } else {
-        return 0;    /* did not match */
+        return 0; /* did not match */
     }
 
     return rc;
@@ -163,21 +165,19 @@ slapi_re_exec_nt( Slapi_Regex *re_handle, const char *subject) {
  * \warning The regex handler should be released by slapi_re_free().
  */
 int
-slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
-        const char *src, char **dst, unsigned long dstlen)
+slapi_re_subs(Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen)
 {
-	return slapi_re_subs_ext(re_handle, subject, src, dst, dstlen, 0 /* not a filter */);
+    return slapi_re_subs_ext(re_handle, subject, src, dst, dstlen, 0 /* not a filter */);
 }
 
 int
-slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
-               const char *src, char **dst, unsigned long dstlen, int filter )
+slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen, int filter)
 {
-    int  thislen = 0;
+    int thislen = 0;
     /* was int, should match the type we compare to in the end! */
     unsigned long len = 0;
-    int  pin;
-    int  *ovector;
+    int pin;
+    int *ovector;
     char *mydst;
     const char *prev;
     const char *substring_start;
@@ -197,7 +197,7 @@ slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
     for (p = src; *p != '\0'; p++) {
         if ('&' == *p) {
             /* Don't replace '&' if it's a filter AND: "(&(cn=a)(sn=b))"  */
-            if(!filter || !(*prev == '(' && *(p+1) == '(')){
+            if (!filter || !(*prev == '(' && *(p + 1) == '(')) {
                 if (re_handle->re_oveccount <= 1) {
                     memset(*dst, '\0', dstlen);
                     return -1;
@@ -211,14 +211,14 @@ slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
                 thislen = 1;
                 len++;
             }
-        } else if (('\\' == *p) && ('0' <= *(p+1) && *(p+1) <= '9')) {
+        } else if (('\\' == *p) && ('0' <= *(p + 1) && *(p + 1) <= '9')) {
             pin = *(++p) - '0';
-            if (re_handle->re_oveccount <= 2*pin+1) {
+            if (re_handle->re_oveccount <= 2 * pin + 1) {
                 memset(*dst, '\0', dstlen);
                 return -1;
             }
-            substring_start = subject + ovector[2*pin];
-            thislen = ovector[2*pin+1] - ovector[2*pin];
+            substring_start = subject + ovector[2 * pin];
+            thislen = ovector[2 * pin + 1] - ovector[2 * pin];
             len += thislen;
         } else {
             substring_start = p;

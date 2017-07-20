@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_SHEXP_H
@@ -20,11 +20,11 @@
 
 /*
  * shexp.h: Defines and prototypes for shell exp. match routines
- * 
+ *
  *
  * This routine will match a string with a shell expression. The expressions
  * accepted are based loosely on the expressions accepted by zsh.
- * 
+ *
  * o * matches anything
  * o ? matches one character
  * o \ will escape a special character
@@ -37,16 +37,16 @@
  *     matching the shell expression from the match list
  * o (foo|bar) will match either the substring foo, or the substring bar.
  *             These can be shell expressions as well.
- * 
+ *
  * The public interface to these routines is documented in
  * public/base/shexp.h.
- * 
+ *
  * Rob McCool
- * 
+ *
  */
 
 /*
- * Requires that the macro MALLOC be set to a "safe" malloc that will 
+ * Requires that the macro MALLOC be set to a "safe" malloc that will
  * exit if no memory is available. If not under MCC httpd, define MALLOC
  * to be the real malloc and play with fire, or make your own function.
  */
@@ -56,7 +56,7 @@
 #endif /* !NETSITE_H */
 
 #ifndef OS_CTYPE_H
-#include <ctype.h>  /* isalnum */
+#include <ctype.h> /* isalnum */
 #define OS_CTYPE_H
 #endif /* !OS_CTYPE_H */
 

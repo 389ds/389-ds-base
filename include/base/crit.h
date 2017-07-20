@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_CRIT_H
@@ -22,9 +22,9 @@
  * crit.h: Critical section abstraction. Used in threaded servers to protect
  *         areas where two threads can interfere with each other.
  *
- *         Condvars are condition variables that are used for thread-thread 
+ *         Condvars are condition variables that are used for thread-thread
  *         synchronization.
- * 
+ *
  * Rob McCool
  */
 
@@ -43,17 +43,17 @@
 
 class NSAPI_PUBLIC CriticalSection
 {
-public:
+    public:
     CriticalSection();
     ~CriticalSection();
-    void Acquire(){PR_EnterMonitor(_crtsec);}
-    void Release(){PR_ExitMonitor(_crtsec);}
+    void Acquire() { PR_EnterMonitor(_crtsec); }
+    void Release() { PR_ExitMonitor(_crtsec); }
 
-private:
+    private:
     PRMonitor *_crtsec;
 };
 
-inline CriticalSection::CriticalSection():_crtsec(0)
+inline CriticalSection::CriticalSection() : _crtsec(0)
 {
     _crtsec = PR_NewMonitor();
     PR_ASSERT(_crtsec);
@@ -65,20 +65,21 @@ inline CriticalSection::~CriticalSection()
         PR_DestroyMonitor(_crtsec);
 }
 
-class SafeLock {
- public:
-    SafeLock (CriticalSection&);		// acquire lock
-    ~SafeLock (); 						// release lock
- private:
-    CriticalSection& lock; 
+class SafeLock
+{
+    public:
+    SafeLock(CriticalSection &);  // acquire lock
+    ~SafeLock();                  // release lock
+    private:
+    CriticalSection &lock;
 };
 
-inline SafeLock::SafeLock (CriticalSection& _lock) : lock(_lock)
+inline SafeLock::SafeLock(CriticalSection &_lock) : lock(_lock)
 {
     lock.Acquire();
 }
 
-inline SafeLock::~SafeLock ()
+inline SafeLock::~SafeLock()
 {
     lock.Release();
 }
@@ -94,7 +95,7 @@ NSPR_BEGIN_EXTERN_C
 NSAPI_PUBLIC int crit_owner_is_me(CRITICAL id);
 
 /*
- * INTcrit_init creates and returns a new critical section variable. At the 
+ * INTcrit_init creates and returns a new critical section variable. At the
  * time of creation no one has entered it.
  */
 NSAPI_PUBLIC CRITICAL INTcrit_init(void);
@@ -120,8 +121,8 @@ NSAPI_PUBLIC void INTcrit_terminate(CRITICAL id);
 
 
 /*
- * INTcondvar_init initializes and returns a new condition variable. You 
- * must provide a critical section to be associated with this condition 
+ * INTcondvar_init initializes and returns a new condition variable. You
+ * must provide a critical section to be associated with this condition
  * variable.
  */
 NSAPI_PUBLIC CONDVAR INTcondvar_init(CRITICAL id);
@@ -158,13 +159,13 @@ NSAPI_PUBLIC void INTcondvar_terminate(CONDVAR cv);
 
 
 /*
- * Create a counting semaphore.  
+ * Create a counting semaphore.
  * Return non-zero on success, 0 on failure.
  */
 NSAPI_PUBLIC COUNTING_SEMAPHORE INTcs_init(int initial_count);
 
 /*
- * Destroy a counting semaphore 
+ * Destroy a counting semaphore
  */
 NSAPI_PUBLIC void INTcs_terminate(COUNTING_SEMAPHORE csp);
 

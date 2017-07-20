@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_SYSTEMS_H
@@ -20,8 +20,8 @@
 
 /*
  * systems.h: Lists of defines for systems
- * 
- * This sets what general flavor the system is (UNIX, etc.), 
+ *
+ * This sets what general flavor the system is (UNIX, etc.),
  * and defines what extra functions your particular system needs.
  */
 
@@ -58,7 +58,7 @@
 #define JAVA_STATIC_LINK
 #undef NEED_CRYPT_H
 #define NET_SOCKETS
-#define SA_HANDLER_T(x) (void (*)(int))x
+#define SA_HANDLER_T(x) (void (*)(int)) x
 /* warning: mmap doesn't work under 9.04 */
 #define SHMEM_MMAP_FLAGS MAP_FILE | MAP_VARIABLE | MAP_SHARED
 
@@ -114,8 +114,8 @@
 #define NEED_GHN_PROTO
 #endif
 #define NET_SOCKETS
-#if OSVERSION > 504 
-#define SA_HANDLER_T(x) x 
+#if OSVERSION > 504
+#define SA_HANDLER_T(x) x
 #endif
 #define SHMEM_MMAP_FLAGS MAP_SHARED
 
@@ -186,7 +186,7 @@
 #endif /* !DAEMON_LISTEN_SIZE */
 
 #ifndef SA_HANDLER_T
-#define SA_HANDLER_T(x) (void (*)())x 
+#define SA_HANDLER_T(x) (void (*)()) x
 #endif
 
 #ifdef HAS_CONSTVALUED_STRFUNCS

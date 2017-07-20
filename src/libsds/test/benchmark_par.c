@@ -17,54 +17,54 @@
 
 struct b_tree_cow_cb bptree_test = {
     "sds b+tree without search csum", /* name */
-    NULL, /* inst */
-    bptree_init_wrapper, /* init */
-    generic_read_begin, /* read_begin */
-    generic_read_complete, /* read_complete */
-    generic_write_begin, /* write_begin */
-    generic_write_commit, /* write commit */
-    bptree_add_wrapper, /* add */
-    bptree_search_wrapper, /* search */
-    bptree_delete_wrapper, /* delete */
-    bptree_destroy_wrapper, /* destroy inst */
+    NULL,                             /* inst */
+    bptree_init_wrapper,              /* init */
+    generic_read_begin,               /* read_begin */
+    generic_read_complete,            /* read_complete */
+    generic_write_begin,              /* write_begin */
+    generic_write_commit,             /* write commit */
+    bptree_add_wrapper,               /* add */
+    bptree_search_wrapper,            /* search */
+    bptree_delete_wrapper,            /* delete */
+    bptree_destroy_wrapper,           /* destroy inst */
 };
 
 struct b_tree_cow_cb htree_test = {
-    "sds htree", /* name */
-    NULL, /* inst */
-    htree_init_wrapper, /* init */
-    generic_read_begin, /* read_begin */
+    "sds htree",           /* name */
+    NULL,                  /* inst */
+    htree_init_wrapper,    /* init */
+    generic_read_begin,    /* read_begin */
     generic_read_complete, /* read_complete */
-    generic_write_begin, /* write_begin */
-    generic_write_commit, /* write commit */
-    htree_add_wrapper, /* add */
-    htree_search_wrapper, /* search */
-    htree_delete_wrapper, /* delete */
+    generic_write_begin,   /* write_begin */
+    generic_write_commit,  /* write commit */
+    htree_add_wrapper,     /* add */
+    htree_search_wrapper,  /* search */
+    htree_delete_wrapper,  /* delete */
     htree_destroy_wrapper, /* destroy inst */
 };
 
 struct b_tree_cow_cb bptree_cow_test = {
     "sds b+tree with copy on write", /* name */
-    NULL, /* inst */
-    bptree_cow_init_wrapper, /* init */
-    bptree_cow_read_begin, /* read_begin */
-    bptree_cow_read_complete, /* read_complete */
-    bptree_cow_write_begin, /* write_begin */
-    bptree_cow_write_commit, /* write commit */
-    bptree_cow_add_wrapper, /* add */
-    bptree_cow_search_wrapper, /* search */
-    bptree_cow_delete_wrapper, /* delete */
-    bptree_cow_destroy_wrapper, /* destroy inst */
+    NULL,                            /* inst */
+    bptree_cow_init_wrapper,         /* init */
+    bptree_cow_read_begin,           /* read_begin */
+    bptree_cow_read_complete,        /* read_complete */
+    bptree_cow_write_begin,          /* write_begin */
+    bptree_cow_write_commit,         /* write commit */
+    bptree_cow_add_wrapper,          /* add */
+    bptree_cow_search_wrapper,       /* search */
+    bptree_cow_delete_wrapper,       /* delete */
+    bptree_cow_destroy_wrapper,      /* destroy inst */
 };
 
 struct b_tree_cow_cb hash_small_cb_test = {
     "pl hashmap small",
     NULL,
     hash_small_init_wrapper,
-    generic_read_begin, /* read_begin */
+    generic_read_begin,    /* read_begin */
     generic_read_complete, /* read_complete */
-    generic_write_begin, /* write_begin */
-    generic_write_commit, /* write commit */
+    generic_write_begin,   /* write_begin */
+    generic_write_commit,  /* write commit */
     hash_add_wrapper,
     hash_search_wrapper,
     hash_delete_wrapper,
@@ -75,10 +75,10 @@ struct b_tree_cow_cb hash_med_cb_test = {
     "pl hashmap med",
     NULL,
     hash_med_init_wrapper,
-    generic_read_begin, /* read_begin */
+    generic_read_begin,    /* read_begin */
     generic_read_complete, /* read_complete */
-    generic_write_begin, /* write_begin */
-    generic_write_commit, /* write commit */
+    generic_write_begin,   /* write_begin */
+    generic_write_commit,  /* write commit */
     hash_add_wrapper,
     hash_search_wrapper,
     hash_delete_wrapper,
@@ -89,10 +89,10 @@ struct b_tree_cow_cb hash_large_cb_test = {
     "pl hashmap large",
     NULL,
     hash_large_init_wrapper,
-    generic_read_begin, /* read_begin */
+    generic_read_begin,    /* read_begin */
     generic_read_complete, /* read_complete */
-    generic_write_begin, /* write_begin */
-    generic_write_commit, /* write commit */
+    generic_write_begin,   /* write_begin */
+    generic_write_commit,  /* write commit */
     hash_add_wrapper,
     hash_search_wrapper,
     hash_delete_wrapper,
@@ -104,7 +104,8 @@ struct b_tree_cow_cb hash_large_cb_test = {
 /* == Random and contended == */
 
 void
-batch_random(struct thread_info *info) {
+batch_random(struct thread_info *info)
+{
     // printf("tid %d\n", info->tid);
 
     void *read_txn = NULL;
@@ -130,7 +131,7 @@ batch_random(struct thread_info *info) {
 
         if (mod >= 8) {
             info->ds->write_begin(&(info->ds->inst), &write_txn);
-            info->ds->delete(&(info->ds->inst), write_txn, &target);
+            info->ds->delete (&(info->ds->inst), write_txn, &target);
             if (info->write_delay != 0) {
                 usleep(info->write_delay);
             }
@@ -150,14 +151,14 @@ batch_random(struct thread_info *info) {
             }
             info->ds->read_complete(&(info->ds->inst), read_txn);
         }
-
     }
 
     // printf("tid %d complete\n", info->tid);
 }
 
 void
-batch_search(struct thread_info *info) {
+batch_search(struct thread_info *info)
+{
     void *read_txn = NULL;
     size_t cf = 0;
     size_t step = 0;
@@ -180,7 +181,8 @@ batch_search(struct thread_info *info) {
 
 
 void
-batch_insert(struct thread_info *info) {
+batch_insert(struct thread_info *info)
+{
     void *write_txn = NULL;
 
     size_t cf = 0;
@@ -197,7 +199,6 @@ batch_insert(struct thread_info *info) {
             cf = step % max_factors;
             uint64_t target = fill_pattern[step % 2048] + (2048 << cf) + baseid;
             info->ds->add(&(info->ds->inst), write_txn, &target, NULL);
-
         }
         if (info->write_delay != 0) {
             usleep(info->write_delay);
@@ -207,7 +208,8 @@ batch_insert(struct thread_info *info) {
 }
 
 void
-batch_delete(struct thread_info *info) {
+batch_delete(struct thread_info *info)
+{
     void *write_txn = NULL;
 
     size_t cf = 0;
@@ -224,8 +226,7 @@ batch_delete(struct thread_info *info) {
         for (size_t j = 0; j < 10; j++) {
             cf = step % max_factors;
             uint64_t target = fill_pattern[step % 2048] + (2048 << cf) + baseid;
-            info->ds->delete(&(info->ds->inst), write_txn, &target);
-
+            info->ds->delete (&(info->ds->inst), write_txn, &target);
         }
         if (info->write_delay != 0) {
             usleep(info->write_delay);
@@ -235,7 +236,8 @@ batch_delete(struct thread_info *info) {
 }
 
 void
-bench_thread_batch(void *arg) {
+bench_thread_batch(void *arg)
+{
     struct thread_info *info = (struct thread_info *)arg;
     // printf("tid %d\n", info->tid);
     struct timespec start_time;
@@ -260,7 +262,8 @@ bench_thread_batch(void *arg) {
 }
 
 void
-batch_test_run(struct b_tree_cow_cb *ds, uint64_t iter, char *name, struct thread_info *info, size_t info_count) {
+batch_test_run(struct b_tree_cow_cb *ds, uint64_t iter, char *name, struct thread_info *info, size_t info_count)
+{
     PRThread *t[80] = {0};
 
 
@@ -281,16 +284,17 @@ batch_test_run(struct b_tree_cow_cb *ds, uint64_t iter, char *name, struct threa
 
     printf("BENCH: Complete ... \n");
 
-    printf("BENCH: %s %s %"PRIu64" times\n", ds->name, name, iter);
+    printf("BENCH: %s %s %" PRIu64 " times\n", ds->name, name, iter);
     for (size_t i = 0; i < info_count; i++) {
-        printf("      tid %"PRIu64": %" PRId64 ".%010" PRId64 "\n", info[i].tid, info[i].sec, info[i].nsec);
+        printf("      tid %" PRIu64 ": %" PRId64 ".%010" PRId64 "\n", info[i].tid, info[i].sec, info[i].nsec);
     }
 }
 
 /* Batch running */
 
 static void
-populate_ds(struct b_tree_cow_cb *ds, uint64_t iter) {
+populate_ds(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     void *write_txn;
 
     size_t max_factors = iter / 2048;
@@ -301,20 +305,21 @@ populate_ds(struct b_tree_cow_cb *ds, uint64_t iter) {
     // something to work with. we won't bench this.
     ds->write_begin(&(ds->inst), &write_txn);
     for (size_t j = 0; j < max_factors; j++) {
-        for (size_t i = 0; i < 2048 ; i++) {
+        for (size_t i = 0; i < 2048; i++) {
             uint64_t target = fill_pattern[i] + (2048 * j);
             ds->add(&(ds->inst), write_txn, &target, NULL);
             count++;
         }
     }
-    printf("Added %"PRIu64"\n", count);
+    printf("Added %" PRIu64 "\n", count);
     ds->write_commit(&(ds->inst), write_txn);
 }
 
 /* Now we can just construct some generic tests. */
 
 void
-bench_insert_search_delete_batch(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_insert_search_delete_batch(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     struct thread_info info[10] = {{0}};
 
     ds->init(&(ds->inst));
@@ -350,7 +355,8 @@ bench_insert_search_delete_batch(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_insert_search_delete_random(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_insert_search_delete_random(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     struct thread_info info[10] = {{0}};
     ds->init(&(ds->inst));
 
@@ -369,7 +375,8 @@ bench_insert_search_delete_random(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_isd_write_delay(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_isd_write_delay(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     struct thread_info info[10] = {{0}};
     ds->init(&(ds->inst));
     populate_ds(ds, iter);
@@ -405,7 +412,8 @@ bench_isd_write_delay(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_isd_read_delay(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_isd_read_delay(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     struct thread_info info[10] = {{0}};
     ds->init(&(ds->inst));
     populate_ds(ds, iter);
@@ -441,7 +449,8 @@ bench_isd_read_delay(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_high_thread_small_batch_read(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_high_thread_small_batch_read(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     /* DS can scale to many threads, so simulate high contention. */
     struct thread_info info[80] = {{0}};
     ds->init(&(ds->inst));
@@ -475,7 +484,8 @@ bench_high_thread_small_batch_read(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_high_thread_large_batch_read(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_high_thread_large_batch_read(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     /* DS can scale to many threads, so simulate high contention. */
     struct thread_info info[80] = {{0}};
     ds->init(&(ds->inst));
@@ -509,7 +519,8 @@ bench_high_thread_large_batch_read(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_high_thread_small_batch_write(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_high_thread_small_batch_write(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     /* DS can scale to many threads, so simulate high contention. */
     struct thread_info info[80] = {{0}};
     ds->init(&(ds->inst));
@@ -543,7 +554,8 @@ bench_high_thread_small_batch_write(struct b_tree_cow_cb *ds, uint64_t iter) {
 }
 
 void
-bench_high_thread_large_batch_write(struct b_tree_cow_cb *ds, uint64_t iter) {
+bench_high_thread_large_batch_write(struct b_tree_cow_cb *ds, uint64_t iter)
+{
     /* DS can scale to many threads, so simulate high contention. */
     struct thread_info info[80] = {{0}};
     ds->init(&(ds->inst));
@@ -579,7 +591,8 @@ bench_high_thread_large_batch_write(struct b_tree_cow_cb *ds, uint64_t iter) {
 /* End tests */
 
 int
-main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
+main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
+{
 
     uint64_t test_arrays[] = {5000, 10000, 100000, 500000, 1000000, 2500000, 5000000, 10000000};
 
@@ -663,6 +676,5 @@ main (int argc __attribute__((unused)), char **argv __attribute__((unused))) {
         bench_insert_search_delete_random(&bptree_cow_test, test_arrays[i]);
         bench_insert_search_delete_random(&htree_test, test_arrays[i]);
         printf("---\n");
-
     }
 }

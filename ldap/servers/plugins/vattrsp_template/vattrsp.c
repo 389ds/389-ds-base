@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <stdio.h>
@@ -23,45 +23,42 @@
 /* the global plugin handle */
 static volatile vattr_sp_handle *vattr_handle = NULL;
 
-#define VATTRSP_PLUGIN_SUBSYSTEM   "vattrsp-template-plugin"   /* used for logging */
+#define VATTRSP_PLUGIN_SUBSYSTEM "vattrsp-template-plugin" /* used for logging */
 
 /* function prototypes */
-int vattrsp_init( Slapi_PBlock *pb ); 
-static int vattrsp_start( Slapi_PBlock *pb );
-static int vattrsp_close( Slapi_PBlock *pb );
+int vattrsp_init(Slapi_PBlock *pb);
+static int vattrsp_start(Slapi_PBlock *pb);
+static int vattrsp_close(Slapi_PBlock *pb);
 static int vattrsp_vattr_get(
-	  vattr_sp_handle *handle,
-	  vattr_context *c,
-	  Slapi_Entry *e,
-	  char *type,
-	  Slapi_ValueSet** results,
-	  int *type_name_disposition,
-	  char** actual_type_name,
-	  int flags,
-	  int *free_flags,
-	  void *hint 
-	  );
+    vattr_sp_handle *handle,
+    vattr_context *c,
+    Slapi_Entry *e,
+    char *type,
+    Slapi_ValueSet **results,
+    int *type_name_disposition,
+    char **actual_type_name,
+    int flags,
+    int *free_flags,
+    void *hint);
 static int vattrsp_vattr_compare(
-		vattr_sp_handle *handle,
-		vattr_context *c,
-		Slapi_Entry *e,
-		char *type,
-		Slapi_Value *test_this,
-		int* result,
-		int flags,
-		void *hint
-		);
+    vattr_sp_handle *handle,
+    vattr_context *c,
+    Slapi_Entry *e,
+    char *type,
+    Slapi_Value *test_this,
+    int *result,
+    int flags,
+    void *hint);
 static int vattrsp_vattr_types(
-		vattr_sp_handle *handle,
-		Slapi_Entry *e,
-		vattr_type_list_context *type_context,
-		int flags
-		);
+    vattr_sp_handle *handle,
+    Slapi_Entry *e,
+    vattr_type_list_context *type_context,
+    int flags);
 
-static Slapi_PluginDesc pdesc = { "vattrexamplesp", VENDOR, DS_PACKAGE_VERSION,
-	"vattr service provider example plugin" };
+static Slapi_PluginDesc pdesc = {"vattrexamplesp", VENDOR, DS_PACKAGE_VERSION,
+                                 "vattr service provider example plugin"};
 
-static void * vattrsp_plugin_identity = NULL;
+static void *vattrsp_plugin_identity = NULL;
 
 
 /*
@@ -70,17 +67,19 @@ static void * vattrsp_plugin_identity = NULL;
  * Used for internal search api's
  */
 
-void vattrsp_set_plugin_identity(void * identity) 
+void
+vattrsp_set_plugin_identity(void *identity)
 {
-	vattrsp_plugin_identity=identity;
+    vattrsp_plugin_identity = identity;
 }
 
-void * vattrsp_get_plugin_identity()
+void *
+vattrsp_get_plugin_identity()
 {
-	return vattrsp_plugin_identity;
+    return vattrsp_plugin_identity;
 }
 
-/* 
+/*
  * vattrsp_init
  * --------
  * adds our callbacks to the list
@@ -98,37 +97,37 @@ void * vattrsp_get_plugin_identity()
  *
  * returns 0 on success
 */
-int vattrsp_init( Slapi_PBlock *pb )
+int
+vattrsp_init(Slapi_PBlock *pb)
 {
-	int ret = 0;
-	void * plugin_identity=NULL;
+    int ret = 0;
+    void *plugin_identity = NULL;
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"--> vattrsp_init\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "--> vattrsp_init\n");
 
-	/*
-	 * Store the plugin identity for later use.
-	 * Used for internal operations
-	 */
-	
-   	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &plugin_identity);
-   	PR_ASSERT (plugin_identity);
-	vattrsp_set_plugin_identity(plugin_identity);
-	
-	if (	slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    			SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-	        slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-        	         (void *) vattrsp_start ) != 0 ||
-	        slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-        	         (void *) vattrsp_close ) != 0 ||
-			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-                     (void *)&pdesc ) != 0 )
-    {
+    /*
+     * Store the plugin identity for later use.
+     * Used for internal operations
+     */
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &plugin_identity);
+    PR_ASSERT(plugin_identity);
+    vattrsp_set_plugin_identity(plugin_identity);
+
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                         SLAPI_PLUGIN_VERSION_01) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
+                         (void *)vattrsp_start) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
+                         (void *)vattrsp_close) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                         (void *)&pdesc) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, VATTRSP_PLUGIN_SUBSYSTEM,
-                         "vattrsp_init - Failed to register plugin\n" );
-		ret = -1;
+                      "vattrsp_init - Failed to register plugin\n");
+        ret = -1;
     }
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"<-- vattrsp_init\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "<-- vattrsp_init\n");
     return ret;
 }
 
@@ -154,34 +153,34 @@ int vattrsp_init( Slapi_PBlock *pb )
  *
  * returns 0 on success
 */
-int vattrsp_start( Slapi_PBlock *pb )
+int
+vattrsp_start(Slapi_PBlock *pb)
 {
-	int ret = 0;
+    int ret = 0;
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"--> vattrsp_start\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "--> vattrsp_start\n");
 
-	/* register this vattr service provider with vattr subsystem */
-    if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle, 
-                                vattrsp_vattr_get, 
-                                vattrsp_vattr_compare, 
-                                vattrsp_vattr_types) != 0)
-    {
-		slapi_log_err(SLAPI_LOG_ERR, VATTRSP_PLUGIN_SUBSYSTEM,
-			   "vattrsp_start - Cannot register as service provider\n" );
-				ret = -1;
-		goto out;
+    /* register this vattr service provider with vattr subsystem */
+    if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
+                                vattrsp_vattr_get,
+                                vattrsp_vattr_compare,
+                                vattrsp_vattr_types) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, VATTRSP_PLUGIN_SUBSYSTEM,
+                      "vattrsp_start - Cannot register as service provider\n");
+        ret = -1;
+        goto out;
     }
 
-	/* register a vattr */
-	/* TODO: change dummyAttr to your attribute type,
-	 * or write some configuration code which discovers
-	 * the attributes to register
-	 */
-	slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, "dummyAttr", NULL, NULL);
+    /* register a vattr */
+    /* TODO: change dummyAttr to your attribute type,
+     * or write some configuration code which discovers
+     * the attributes to register
+     */
+    slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, "dummyAttr", NULL, NULL);
 
 out:
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"<-- vattrsp_start\n");
-	return ret;
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "<-- vattrsp_start\n");
+    return ret;
 }
 
 /*
@@ -194,15 +193,16 @@ out:
  *
  * returns 0 on success
 */
-int vattrsp_close( Slapi_PBlock *pb )
+int
+vattrsp_close(Slapi_PBlock *pb)
 {
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"--> vattrsp_close\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "--> vattrsp_close\n");
 
-	/* clean up stuff here */
+    /* clean up stuff here */
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"<-- vattrsp_close\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "<-- vattrsp_close\n");
 
-	return 0;
+    return 0;
 }
 
 
@@ -218,82 +218,81 @@ int vattrsp_close( Slapi_PBlock *pb )
  *
  * returns 0 on success
  */
-int vattrsp_vattr_get(
-	  vattr_sp_handle *handle, /* pass through to subsequent vattr calls */
-	  vattr_context *c, /* opaque context, pass through to subsequent vattr calls */
-	  Slapi_Entry *e, /* the entry that the values are for */
-	  char *type, /* the type that the values are requested for */
-	  Slapi_ValueSet** results, /* put the values here */
-	  int *type_name_disposition, /* whether the type is a sub-type etc. */
-	  char** actual_type_name, /* maybe you call this another type */
-	  int flags, /* see slapi-plugin.h to support these flags */
-	  int *free_flags, /* let vattr subsystem know if you supplied value copies it must free */
-	  void *hint /* opaque hint, pass through to subsequent vattr calls */
-	  )
+int
+vattrsp_vattr_get(
+    vattr_sp_handle *handle,    /* pass through to subsequent vattr calls */
+    vattr_context *c,           /* opaque context, pass through to subsequent vattr calls */
+    Slapi_Entry *e,             /* the entry that the values are for */
+    char *type,                 /* the type that the values are requested for */
+    Slapi_ValueSet **results,   /* put the values here */
+    int *type_name_disposition, /* whether the type is a sub-type etc. */
+    char **actual_type_name,    /* maybe you call this another type */
+    int flags,                  /* see slapi-plugin.h to support these flags */
+    int *free_flags,            /* let vattr subsystem know if you supplied value copies it must free */
+    void *hint                  /* opaque hint, pass through to subsequent vattr calls */
+    )
 {
-	int ret = SLAPI_VIRTUALATTRS_NOT_FOUND;
+    int ret = SLAPI_VIRTUALATTRS_NOT_FOUND;
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"--> vattrsp_vattr_get\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "--> vattrsp_vattr_get\n");
 
-	/* usual to schema check an attribute
-	 * there may be sanity checks which can
-	 * be done prior to this "relatively"
-	 * slow function to ensure least work done
-	 * to fail
-	 */
-	if(!slapi_vattr_schema_check_type(e, type))
-		return ret;
+    /* usual to schema check an attribute
+     * there may be sanity checks which can
+     * be done prior to this "relatively"
+     * slow function to ensure least work done
+     * to fail
+     */
+    if (!slapi_vattr_schema_check_type(e, type))
+        return ret;
 
-	/* TODO: do your thing, resolve the attribute */
-	/* some vattr sps may look after more than one
-	 * attribute, this one does not, so no need to
-	 * check against "type", we know its our "dummyAttr"
-	 */
-	{
-		/* TODO: replace this with your resolver */
-		Slapi_Value *val = slapi_value_new_string("dummyValue");
+    /* TODO: do your thing, resolve the attribute */
+    /* some vattr sps may look after more than one
+     * attribute, this one does not, so no need to
+     * check against "type", we know its our "dummyAttr"
+     */
+    {
+        /* TODO: replace this with your resolver */
+        Slapi_Value *val = slapi_value_new_string("dummyValue");
 
-		*results = slapi_valueset_new();
-		slapi_valueset_add_value(*results, val);
+        *results = slapi_valueset_new();
+        slapi_valueset_add_value(*results, val);
 
-		ret = 0;
-	}
+        ret = 0;
+    }
 
-	if(ret == 0)
-	{
-		/* TODO: set *free_flags
-		 * if allocated memory for values
-		 * use: SLAPI_VIRTUALATTRS_RETURNED_COPIES
-		 *
-		 * otherwise, if you can guarantee that
-		 * this value will live beyond this operation
-		 * use: SLAPI_VIRTUALATTRS_RETURNED_POINTERS
-		 */
+    if (ret == 0) {
+        /* TODO: set *free_flags
+         * if allocated memory for values
+         * use: SLAPI_VIRTUALATTRS_RETURNED_COPIES
+         *
+         * otherwise, if you can guarantee that
+         * this value will live beyond this operation
+         * use: SLAPI_VIRTUALATTRS_RETURNED_POINTERS
+         */
         *free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;
 
         /* say the type is the same as the one requested
-		 * could be your vattr needs to switch types, say to
-		 * make one type look like another or something, but
-		 * that is unusual
-		 */
-		*actual_type_name = slapi_ch_strdup(type);  
-		
-		/* TODO: set *type_name_disposition
-		 * if the type matched exactly or it
-		 * is an alias for the type then
-		 * use: SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS
-		 *
-		 * otherwise, the actual_type_name is a subtype
-		 * of type
-		 * use: SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE
-		 */
-		*type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS;
-	}
+         * could be your vattr needs to switch types, say to
+         * make one type look like another or something, but
+         * that is unusual
+         */
+        *actual_type_name = slapi_ch_strdup(type);
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"<-- vattrsp_cache_vattr_get\n");
-	return ret;
+        /* TODO: set *type_name_disposition
+         * if the type matched exactly or it
+         * is an alias for the type then
+         * use: SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS
+         *
+         * otherwise, the actual_type_name is a subtype
+         * of type
+         * use: SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE
+         */
+        *type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS;
+    }
+
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "<-- vattrsp_cache_vattr_get\n");
+    return ret;
 }
-
 
 
 /*
@@ -307,27 +306,27 @@ int vattrsp_vattr_get(
  *
  * returns 0 on success
  */
-int vattrsp_vattr_compare(
-		vattr_sp_handle *handle, /* pass through to subsequent vattr calls */
-		vattr_context *c, /* opaque context, pass through to subsequent vattr calls */
-		Slapi_Entry *e, /* the entry that the values are for */
-		char *type, /* the type that the values belong to  */
-		Slapi_Value *test_this, /* the value to compare against */
-		int* result, /* 1 for matched, 0 for not matched */
-		int flags, /* see slapi-plugin.h to support these flags */
-		void *hint /* opaque hint, pass through to subsequent vattr calls */
-		)
+int
+vattrsp_vattr_compare(
+    vattr_sp_handle *handle, /* pass through to subsequent vattr calls */
+    vattr_context *c,        /* opaque context, pass through to subsequent vattr calls */
+    Slapi_Entry *e,          /* the entry that the values are for */
+    char *type,              /* the type that the values belong to  */
+    Slapi_Value *test_this,  /* the value to compare against */
+    int *result,             /* 1 for matched, 0 for not matched */
+    int flags,               /* see slapi-plugin.h to support these flags */
+    void *hint               /* opaque hint, pass through to subsequent vattr calls */
+    )
 {
-	int ret = SLAPI_VIRTUALATTRS_NOT_FOUND; /* assume failure */
+    int ret = SLAPI_VIRTUALATTRS_NOT_FOUND; /* assume failure */
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"--> vattrsp_vattr_compare\n");
-	
-	/* TODO: do your thing, compare the attribute */
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "--> vattrsp_vattr_compare\n");
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"<-- vattrsp_vattr_compare\n");
-	return ret;
+    /* TODO: do your thing, compare the attribute */
+
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "<-- vattrsp_vattr_compare\n");
+    return ret;
 }
-
 
 
 /*
@@ -352,37 +351,34 @@ int vattrsp_vattr_compare(
  *
  * returns 0 on success
  */
-int vattrsp_vattr_types(
-		vattr_sp_handle *handle, /* pass through to subsequent vattr calls */
-		Slapi_Entry *e, /* the entry that the types should have values for */
-		vattr_type_list_context *type_context, /* where we put the types */
-		int flags /* see slapi-plugin.h to support these flags */
-		)
+int
+vattrsp_vattr_types(
+    vattr_sp_handle *handle,               /* pass through to subsequent vattr calls */
+    Slapi_Entry *e,                        /* the entry that the types should have values for */
+    vattr_type_list_context *type_context, /* where we put the types */
+    int flags                              /* see slapi-plugin.h to support these flags */
+    )
 {
-	int ret = 0; /* assume success */
-	char *attr = "dummyAttr"; /* an attribute type that we will deliver */
-	int props = 0; /* properties of the attribute, make this SLAPI_ATTR_FLAG_OPATTR for operational attributes */
+    int ret = 0;              /* assume success */
+    char *attr = "dummyAttr"; /* an attribute type that we will deliver */
+    int props = 0;            /* properties of the attribute, make this SLAPI_ATTR_FLAG_OPATTR for operational attributes */
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"--> vattrsp_vattr_types\n");
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "--> vattrsp_vattr_types\n");
 
-	/* TODO: for each type you will supply... */
-	if(ret)
-	{
-		/* ...do this */
+    /* TODO: for each type you will supply... */
+    if (ret) {
+        /* ...do this */
 
-		/* entry contains this attr */
-		vattr_type_thang thang = {0};
+        /* entry contains this attr */
+        vattr_type_thang thang = {0};
 
-		thang.type_name = strcpy(thang.type_name,attr);
-		thang.type_flags = props;
+        thang.type_name = strcpy(thang.type_name, attr);
+        thang.type_flags = props;
 
-		/* add the type to the type context */
-		slapi_vattrspi_add_type(type_context,&thang,0);
-	}
+        /* add the type to the type context */
+        slapi_vattrspi_add_type(type_context, &thang, 0);
+    }
 
-	slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM,"<-- vattrsp_vattr_types\n");
-	return ret;
+    slapi_log_err(SLAPI_LOG_TRACE, VATTRSP_PLUGIN_SUBSYSTEM, "<-- vattrsp_vattr_types\n");
+    return ret;
 }
-
-
-

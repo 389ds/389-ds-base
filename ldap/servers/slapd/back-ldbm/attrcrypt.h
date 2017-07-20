@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* Private tructures and #defines used in the attribute encryption code. */
@@ -18,18 +18,18 @@
 /* structure which holds our stuff in the attrinfo objects */
 struct attrcrypt_private
 {
-	int attrcrypt_cipher;
+    int attrcrypt_cipher;
 };
 
 typedef struct _attrcrypt_cipher_entry
 {
-	int cipher_number;
-	char *cipher_display_name;
-	CK_MECHANISM_TYPE cipher_mechanism;
-	CK_MECHANISM_TYPE wrap_mechanism;
-	CK_MECHANISM_TYPE key_gen_mechanism;
-	int key_size;
-	int iv_length;
+    int cipher_number;
+    char *cipher_display_name;
+    CK_MECHANISM_TYPE cipher_mechanism;
+    CK_MECHANISM_TYPE wrap_mechanism;
+    CK_MECHANISM_TYPE key_gen_mechanism;
+    int key_size;
+    int iv_length;
 } attrcrypt_cipher_entry;
 
 extern attrcrypt_cipher_entry attrcrypt_cipher_list[];

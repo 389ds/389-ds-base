@@ -7,7 +7,7 @@
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -35,7 +35,7 @@
 #define PBKDF2_TOTAL_LENGTH (PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH + PBKDF2_HASH_LENGTH)
 /* ======== END NEVER CHANGE THESE VALUES ==== */
 
-/* 
+/*
  * WB - It's important we keep this private, and we increment it over time.
  * Administrators are likely to forget to update it, or they will set it too low.
  * We therfore keep it private, so we can increase it as our security recomendations
@@ -133,7 +133,7 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
 char *
 pbkdf2_sha256_pw_enc_rounds(const char *pwd, PRUint32 iterations)
 {
-    char hash[ PBKDF2_TOTAL_LENGTH ];
+    char hash[PBKDF2_TOTAL_LENGTH];
     size_t encsize = 3 + schemeNameLength + LDIF_BASE64_LEN(PBKDF2_TOTAL_LENGTH);
     char *enc = slapi_ch_calloc(encsize, sizeof(char));
 
@@ -165,14 +165,14 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, PRUint32 iterations)
      *                      This offset is to make the hash function put the values
      *                      In the correct part of the memory.
      */
-    if ( pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, PBKDF2_ITERATIONS) != SECSuccess ) {
+    if (pbkdf2_sha256_hash(hash + PBKDF2_ITERATIONS_LENGTH + PBKDF2_SALT_LENGTH, PBKDF2_HASH_LENGTH, &passItem, &saltItem, PBKDF2_ITERATIONS) != SECSuccess) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Could not generate pbkdf2_sha256_hash!\n");
         slapi_ch_free_string(&enc);
         return NULL;
     }
 
     sprintf(enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName, PWD_HASH_PREFIX_END);
-    (void)PL_Base64Encode( hash, PBKDF2_TOTAL_LENGTH, enc + 2 + schemeNameLength);
+    (void)PL_Base64Encode(hash, PBKDF2_TOTAL_LENGTH, enc + 2 + schemeNameLength);
     PR_ASSERT(enc[encsize - 1] == '\0');
 
     slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Generated hash %s\n", enc);
@@ -181,7 +181,8 @@ pbkdf2_sha256_pw_enc_rounds(const char *pwd, PRUint32 iterations)
 }
 
 char *
-pbkdf2_sha256_pw_enc(const char *pwd) {
+pbkdf2_sha256_pw_enc(const char *pwd)
+{
     return pbkdf2_sha256_pw_enc_rounds(pwd, PBKDF2_ITERATIONS);
 }
 
@@ -189,8 +190,8 @@ PRInt32
 pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
 {
     PRInt32 result = 1; /* Default to fail. */
-    char dbhash[ PBKDF2_TOTAL_LENGTH ] = {0};
-    char userhash[ PBKDF2_HASH_LENGTH ] = {0};
+    char dbhash[PBKDF2_TOTAL_LENGTH] = {0};
+    char userhash[PBKDF2_HASH_LENGTH] = {0};
     PRUint32 dbpwd_len = strlen(dbpwd);
     SECItem saltItem;
     SECItem passItem;
@@ -202,7 +203,7 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
     passItem.len = strlen(userpwd);
 
     /* Decode the DBpwd to bytes from b64 */
-    if ( PL_Base64Decode( dbpwd, dbpwd_len, dbhash) == NULL ) {
+    if (PL_Base64Decode(dbpwd, dbpwd_len, dbhash) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to base64 decode dbpwd value\n");
         return result;
     }
@@ -210,7 +211,7 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
     pbkdf2_sha256_extract(dbhash, &saltItem, &iterations);
 
     /* Now send the userpw to the hash function, with the salt + iter. */
-    if ( pbkdf2_sha256_hash(userhash, PBKDF2_HASH_LENGTH, &passItem, &saltItem, iterations) != SECSuccess ) {
+    if (pbkdf2_sha256_hash(userhash, PBKDF2_HASH_LENGTH, &passItem, &saltItem, iterations) != SECSuccess) {
         slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to hash userpwd value\n");
         return result;
     }
@@ -225,7 +226,8 @@ pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
 }
 
 uint64_t
-pbkdf2_sha256_benchmark_iterations() {
+pbkdf2_sha256_benchmark_iterations()
+{
     /* Time how long it takes to do PBKDF2_BENCH_LOOP attempts of PBKDF2_BENCH_ROUNDS rounds */
     uint64_t time_nsec = 0;
     char *results[PBKDF2_BENCH_LOOP] = {0};
@@ -258,7 +260,8 @@ pbkdf2_sha256_benchmark_iterations() {
 }
 
 PRUint32
-pbkdf2_sha256_calculate_iterations(uint64_t time_nsec) {
+pbkdf2_sha256_calculate_iterations(uint64_t time_nsec)
+{
     /*
      * So we know that we have nsec for a single round of PBKDF2_BENCH_ROUNDS now.
      * first, we get the cost of "every 1000 rounds"
@@ -294,21 +297,21 @@ pbkdf2_sha256_calculate_iterations(uint64_t time_nsec) {
 
 
 int
-pbkdf2_sha256_start(Slapi_PBlock *pb __attribute__((unused))) {
+pbkdf2_sha256_start(Slapi_PBlock *pb __attribute__((unused)))
+{
     /* Run the time generator */
     uint64_t time_nsec = pbkdf2_sha256_benchmark_iterations();
     /* Calculate the iterations */
     /* set it globally */
     PBKDF2_ITERATIONS = pbkdf2_sha256_calculate_iterations(time_nsec);
     /* Make a note of it. */
-    slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Based on CPU performance, chose %"PRIu32" rounds\n", PBKDF2_ITERATIONS);
+    slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Based on CPU performance, chose %" PRIu32 " rounds\n", PBKDF2_ITERATIONS);
     return 0;
 }
 
 /* Do we need the matching close function? */
 int
-pbkdf2_sha256_close(Slapi_PBlock *pb __attribute__((unused))) {
+pbkdf2_sha256_close(Slapi_PBlock *pb __attribute__((unused)))
+{
     return 0;
 }
-
-

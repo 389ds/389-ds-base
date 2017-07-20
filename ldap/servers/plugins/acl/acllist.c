@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -16,7 +16,7 @@
  *
  * ACLLIST
  *
- * All the ACLs are read when the server is started. The ACLs are 
+ * All the ACLs are read when the server is started. The ACLs are
  * parsed and kept in an AVL tree. All the ACL List management are
  * in this file.
  *
@@ -38,61 +38,61 @@
  * Some routines are called in different places with different lock
  * contexts--for these routines acl_lock_flag_t is used to
  * pass the context.
- * 
+ *
  */
 #include "acl.h"
 
 static Slapi_RWLock *aci_rwlock = NULL;
-#define ACILIST_LOCK_READ()     slapi_rwlock_rdlock  (aci_rwlock )
-#define ACILIST_UNLOCK_READ()   slapi_rwlock_unlock (aci_rwlock )
-#define ACILIST_LOCK_WRITE()    slapi_rwlock_wrlock  (aci_rwlock )
-#define ACILIST_UNLOCK_WRITE()  slapi_rwlock_unlock (aci_rwlock )
+#define ACILIST_LOCK_READ() slapi_rwlock_rdlock(aci_rwlock)
+#define ACILIST_UNLOCK_READ() slapi_rwlock_unlock(aci_rwlock)
+#define ACILIST_LOCK_WRITE() slapi_rwlock_wrlock(aci_rwlock)
+#define ACILIST_UNLOCK_WRITE() slapi_rwlock_unlock(aci_rwlock)
 
 
 /* Root of the TREE */
 static Avlnode *acllistRoot = NULL;
 
-#define CONTAINER_INCR 2000 
+#define CONTAINER_INCR 2000
 
 /* The container array */
-static AciContainer		**aciContainerArray;
-static PRUint32 		currContainerIndex =0;
-static PRUint32			maxContainerIndex = 0;	
-static int				curAciIndex = 1;
+static AciContainer **aciContainerArray;
+static PRUint32 currContainerIndex = 0;
+static PRUint32 maxContainerIndex = 0;
+static int curAciIndex = 1;
 
 /* PROTOTYPES */
-static int		__acllist_add_aci ( aci_t *aci );
-static int		__acllist_aciContainer_node_cmp ( caddr_t d1, caddr_t d2 );
-static int		__acllist_aciContainer_node_dup ( caddr_t d1, caddr_t d2 );
+static int __acllist_add_aci(aci_t *aci);
+static int __acllist_aciContainer_node_cmp(caddr_t d1, caddr_t d2);
+static int __acllist_aciContainer_node_dup(caddr_t d1, caddr_t d2);
 
-void my_print( Avlnode	*root );
+void my_print(Avlnode *root);
 
 int
 acllist_init(void)
 {
 
-	if (( aci_rwlock = slapi_new_rwlock() ) == NULL ) {
-		slapi_log_err(SLAPI_LOG_ERR, plugin_name, 
-							"acllist_init - Failed in getting the rwlock\n" );
-		return 1;
-	}
-	
-	aciContainerArray =  (AciContainer **) slapi_ch_calloc ( 1, 
-										CONTAINER_INCR * sizeof ( AciContainer * ) );
-	maxContainerIndex = CONTAINER_INCR;
-	currContainerIndex = 0;
+    if ((aci_rwlock = slapi_new_rwlock()) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                      "acllist_init - Failed in getting the rwlock\n");
+        return 1;
+    }
 
-	return 0;
+    aciContainerArray = (AciContainer **)slapi_ch_calloc(1,
+                                                         CONTAINER_INCR * sizeof(AciContainer *));
+    maxContainerIndex = CONTAINER_INCR;
+    currContainerIndex = 0;
+
+    return 0;
 }
 
 void
 acllist_free(void)
 {
-   if(aci_rwlock){
-       slapi_destroy_rwlock(aci_rwlock);
-       aci_rwlock = NULL;
-   }
-   slapi_ch_free((void **)&aciContainerArray);
+    if (aci_rwlock) {
+        slapi_destroy_rwlock(aci_rwlock);
+        aci_rwlock = NULL;
+    }
+    slapi_ch_free((void **)&aciContainerArray);
 }
 
 /*
@@ -103,225 +103,225 @@ acllist_free(void)
  * When a backend moves to the SLAPI_BE_STATE_ON then we go get all the acis
  * add them to the cache.
  * When a backend moves out of the SLAPI_BE_STATE_ON then we remove them all.
- * 
+ *
 */
 
-void acl_be_state_change_fnc ( void *handle __attribute__((unused)), char *be_name, int old_state,
-															int new_state) {
-	Slapi_Backend *be=NULL;
-	const Slapi_DN *sdn;
+void
+acl_be_state_change_fnc(void *handle __attribute__((unused)), char *be_name, int old_state, int new_state)
+{
+    Slapi_Backend *be = NULL;
+    const Slapi_DN *sdn;
 
 
-	if ( old_state == SLAPI_BE_STATE_ON && new_state != SLAPI_BE_STATE_ON) {
+    if (old_state == SLAPI_BE_STATE_ON && new_state != SLAPI_BE_STATE_ON) {
 
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			"acl_be_state_change_fnc - Backend %s is no longer STARTED--deactivating it's acis\n",
-			be_name);
-		
-		if ( (be = slapi_be_select_by_instance_name( be_name )) == NULL) {
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
-			return;
-		}
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "acl_be_state_change_fnc - Backend %s is no longer STARTED--deactivating it's acis\n",
+                      be_name);
 
-		/* 
-		 * Just get the first suffix--if there are multiple XXX ?
-		*/
+        if ((be = slapi_be_select_by_instance_name(be_name)) == NULL) {
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                          "acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
+            return;
+        }
 
-		if ( (sdn = slapi_be_getsuffix( be, 0)) == NULL ) {
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
-			return;
-		}
+        /*
+         * Just get the first suffix--if there are multiple XXX ?
+        */
 
-		aclinit_search_and_update_aci ( 1,		/* thisbeonly */
-										sdn,	/* base */
-										be_name,/* be name */
-										LDAP_SCOPE_SUBTREE,
-										ACL_REMOVE_ACIS,
-										DO_TAKE_ACLCACHE_WRITELOCK);
-		
-	} else if ( old_state != SLAPI_BE_STATE_ON && new_state == SLAPI_BE_STATE_ON) {
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			"acl_be_state_change_fnc - Backend %s is now STARTED--activating it's acis\n", be_name);
+        if ((sdn = slapi_be_getsuffix(be, 0)) == NULL) {
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                          "acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
+            return;
+        }
 
-		if ( (be = slapi_be_select_by_instance_name( be_name )) == NULL) {
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
-			return;
-		}
+        aclinit_search_and_update_aci(1,       /* thisbeonly */
+                                      sdn,     /* base */
+                                      be_name, /* be name */
+                                      LDAP_SCOPE_SUBTREE,
+                                      ACL_REMOVE_ACIS,
+                                      DO_TAKE_ACLCACHE_WRITELOCK);
 
-		/* 
-		 * In fact there can onlt be one sufffix here.
-		*/
+    } else if (old_state != SLAPI_BE_STATE_ON && new_state == SLAPI_BE_STATE_ON) {
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "acl_be_state_change_fnc - Backend %s is now STARTED--activating it's acis\n", be_name);
 
-		if ( (sdn = slapi_be_getsuffix( be, 0)) == NULL ) {
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
-			return;
-		}
-																	
-		aclinit_search_and_update_aci ( 1,	/* thisbeonly */
-										sdn,									
-										be_name,	/* be name  */
-										LDAP_SCOPE_SUBTREE,
-										ACL_ADD_ACIS,
-										DO_TAKE_ACLCACHE_WRITELOCK);
-	}
+        if ((be = slapi_be_select_by_instance_name(be_name)) == NULL) {
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                          "acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
+            return;
+        }
 
+        /*
+         * In fact there can onlt be one sufffix here.
+        */
+
+        if ((sdn = slapi_be_getsuffix(be, 0)) == NULL) {
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                          "acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
+            return;
+        }
+
+        aclinit_search_and_update_aci(1, /* thisbeonly */
+                                      sdn,
+                                      be_name, /* be name  */
+                                      LDAP_SCOPE_SUBTREE,
+                                      ACL_ADD_ACIS,
+                                      DO_TAKE_ACLCACHE_WRITELOCK);
+    }
 }
 
 /* This routine must be called with the acicache write lock taken */
 int
-acllist_insert_aci_needsLock( const Slapi_DN *e_sdn, const struct berval* aci_attr)
+acllist_insert_aci_needsLock(const Slapi_DN *e_sdn, const struct berval *aci_attr)
 {
-	return(acllist_insert_aci_needsLock_ext(NULL, e_sdn, aci_attr));
+    return (acllist_insert_aci_needsLock_ext(NULL, e_sdn, aci_attr));
 }
 
 int
-acllist_insert_aci_needsLock_ext( Slapi_PBlock *pb, const Slapi_DN *e_sdn, const struct berval* aci_attr)
+acllist_insert_aci_needsLock_ext(Slapi_PBlock *pb, const Slapi_DN *e_sdn, const struct berval *aci_attr)
 {
 
-	aci_t			*aci;
-	char			*acl_str;
-	int				rv =0;
+    aci_t *aci;
+    char *acl_str;
+    int rv = 0;
 
-	if (aci_attr->bv_len <= 0) 
-		return  0;
+    if (aci_attr->bv_len <= 0)
+        return 0;
 
-	aci = acllist_get_aci_new ();
-	slapi_sdn_set_ndn_byval ( aci->aci_sdn, slapi_sdn_get_ndn ( e_sdn ) );
+    aci = acllist_get_aci_new();
+    slapi_sdn_set_ndn_byval(aci->aci_sdn, slapi_sdn_get_ndn(e_sdn));
 
-	acl_str = slapi_ch_strdup(aci_attr->bv_val);
-	/* Parse the ACL TEXT */
-	if (  0 != (rv = acl_parse ( pb, acl_str, aci, NULL )) ) {
-		slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-				"acllist_insert_aci_needsLock_ext - ACL PARSE ERR(rv=%d): %s\n", rv, acl_str );
-		slapi_ch_free ( (void **) &acl_str );
-		acllist_free_aci ( aci );
-		
-		return 1;
-	}
+    acl_str = slapi_ch_strdup(aci_attr->bv_val);
+    /* Parse the ACL TEXT */
+    if (0 != (rv = acl_parse(pb, acl_str, aci, NULL))) {
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                      "acllist_insert_aci_needsLock_ext - ACL PARSE ERR(rv=%d): %s\n", rv, acl_str);
+        slapi_ch_free((void **)&acl_str);
+        acllist_free_aci(aci);
 
-	/* Now add it to the list */
-	if ( 0 != (rv =__acllist_add_aci ( aci ))) {
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-				"acllist_insert_aci_needsLock_ext - ACL ADD ACI ERR(rv=%d): %s\n", rv, acl_str );
-		slapi_ch_free ( (void **) &acl_str );
-		acllist_free_aci ( aci );
-		return 1;
-	}
+        return 1;
+    }
 
-	slapi_ch_free ( (void **) &acl_str );
-	acl_regen_aclsignature ();
-	if ( aci->aci_elevel == ACI_ELEVEL_USERDN_ANYONE)
-		aclanom_invalidateProfile ();
-	return 0;
+    /* Now add it to the list */
+    if (0 != (rv = __acllist_add_aci(aci))) {
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "acllist_insert_aci_needsLock_ext - ACL ADD ACI ERR(rv=%d): %s\n", rv, acl_str);
+        slapi_ch_free((void **)&acl_str);
+        acllist_free_aci(aci);
+        return 1;
+    }
+
+    slapi_ch_free((void **)&acl_str);
+    acl_regen_aclsignature();
+    if (aci->aci_elevel == ACI_ELEVEL_USERDN_ANYONE)
+        aclanom_invalidateProfile();
+    return 0;
 }
 
 /* This routine must be called with the acicache write lock taken */
 static int
-__acllist_add_aci ( aci_t *aci )
+__acllist_add_aci(aci_t *aci)
 {
 
-	int					rv = 0; /* OK */
-	AciContainer		*aciListHead;
-	AciContainer		*head;
-	PRUint32			i;
+    int rv = 0; /* OK */
+    AciContainer *aciListHead;
+    AciContainer *head;
+    PRUint32 i;
 
-	aciListHead = 	acllist_get_aciContainer_new ( );
-	slapi_sdn_set_ndn_byval ( aciListHead->acic_sdn, slapi_sdn_get_ndn ( aci->aci_sdn ) );
-	
-	/* insert the aci */
-	switch (avl_insert ( &acllistRoot, aciListHead, __acllist_aciContainer_node_cmp, 
-								__acllist_aciContainer_node_dup ) ) {
-		
-	case 1:		/* duplicate ACL on the same entry */
+    aciListHead = acllist_get_aciContainer_new();
+    slapi_sdn_set_ndn_byval(aciListHead->acic_sdn, slapi_sdn_get_ndn(aci->aci_sdn));
 
-		/* Find the node that contains the acl. */
-		if ( NULL == (head = (AciContainer *) avl_find( acllistRoot, aciListHead, 
-										(IFP) __acllist_aciContainer_node_cmp ) ) ) {
-			slapi_log_err ( SLAPI_PLUGIN_ACL, plugin_name,
-								"__acllist_add_aci - Can't insert the acl in the tree\n");
-			rv = 1;
-		} else {
-			aci_t		*t_aci;;
+    /* insert the aci */
+    switch (avl_insert(&acllistRoot, aciListHead, __acllist_aciContainer_node_cmp,
+                       __acllist_aciContainer_node_dup)) {
 
-			/* Attach the list */	
-			t_aci = head->acic_list;;
-			while ( t_aci && t_aci->aci_next ) 
-				t_aci = t_aci->aci_next;
-			
-			/* Now add the new one to the end of the list */
-			t_aci->aci_next = aci;
+    case 1: /* duplicate ACL on the same entry */
 
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added the ACL:%s to existing container:[%d]%s\n", 
-					aci->aclName, head->acic_index, slapi_sdn_get_ndn( head->acic_sdn ));
-		}
+        /* Find the node that contains the acl. */
+        if (NULL == (head = (AciContainer *)avl_find(acllistRoot, aciListHead,
+                                                     (IFP)__acllist_aciContainer_node_cmp))) {
+            slapi_log_err(SLAPI_PLUGIN_ACL, plugin_name,
+                          "__acllist_add_aci - Can't insert the acl in the tree\n");
+            rv = 1;
+        } else {
+            aci_t *t_aci;
+            ;
 
-		/* now free the tmp container */
-		aciListHead->acic_list = NULL;
-		acllist_free_aciContainer ( &aciListHead );
+            /* Attach the list */
+            t_aci = head->acic_list;
+            ;
+            while (t_aci && t_aci->aci_next)
+                t_aci = t_aci->aci_next;
 
-		break;
-	default:
-		/*  The container is inserted. Now hook up the aci and setup the 
-		 * container index. Donot free the "aciListHead" here.
-		 */
-		aciListHead->acic_list = aci;
+            /* Now add the new one to the end of the list */
+            t_aci->aci_next = aci;
 
-		/* 
-		 * First, see if we have an open slot or not - -if we have reuse it
-		 */
-		i = 0;
-		while ( (i < currContainerIndex) && aciContainerArray[i] )
-			i++;
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added the ACL:%s to existing container:[%d]%s\n",
+                          aci->aclName, head->acic_index, slapi_sdn_get_ndn(head->acic_sdn));
+        }
 
-		if ( currContainerIndex >=  (maxContainerIndex - 2)) {
-			maxContainerIndex += CONTAINER_INCR;
-			aciContainerArray =  (AciContainer **) slapi_ch_realloc ( (char *) aciContainerArray, 
-														maxContainerIndex * sizeof ( AciContainer * ) );
-		}
-		aciListHead->acic_index = i;
-		/* If i < currContainerIndex, we are just re-using an old slot.               */
-		/* We don't need to increase currContainerIndex if we just re-use an old one. */
-		if (i == currContainerIndex)
-			currContainerIndex++;
+        /* now free the tmp container */
+        aciListHead->acic_list = NULL;
+        acllist_free_aciContainer(&aciListHead);
 
-		aciContainerArray[ aciListHead->acic_index ] = aciListHead;
+        break;
+    default:
+        /*  The container is inserted. Now hook up the aci and setup the
+         * container index. Donot free the "aciListHead" here.
+         */
+        aciListHead->acic_list = aci;
 
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added %s to container:%d\n", 
-								slapi_sdn_get_ndn( aciListHead->acic_sdn ), aciListHead->acic_index );
-		break;
-	}
+        /*
+         * First, see if we have an open slot or not - -if we have reuse it
+         */
+        i = 0;
+        while ((i < currContainerIndex) && aciContainerArray[i])
+            i++;
 
-	return rv;
+        if (currContainerIndex >= (maxContainerIndex - 2)) {
+            maxContainerIndex += CONTAINER_INCR;
+            aciContainerArray = (AciContainer **)slapi_ch_realloc((char *)aciContainerArray,
+                                                                  maxContainerIndex * sizeof(AciContainer *));
+        }
+        aciListHead->acic_index = i;
+        /* If i < currContainerIndex, we are just re-using an old slot.               */
+        /* We don't need to increase currContainerIndex if we just re-use an old one. */
+        if (i == currContainerIndex)
+            currContainerIndex++;
+
+        aciContainerArray[aciListHead->acic_index] = aciListHead;
+
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added %s to container:%d\n",
+                      slapi_sdn_get_ndn(aciListHead->acic_sdn), aciListHead->acic_index);
+        break;
+    }
+
+    return rv;
 }
 
 
-
 static int
-__acllist_aciContainer_node_cmp ( caddr_t d1, caddr_t d2 )
+__acllist_aciContainer_node_cmp(caddr_t d1, caddr_t d2)
 {
 
-	int				rc =0;
-	AciContainer	*c1 =  (AciContainer *) d1;
-	AciContainer	*c2 =  (AciContainer *) d2;
+    int rc = 0;
+    AciContainer *c1 = (AciContainer *)d1;
+    AciContainer *c2 = (AciContainer *)d2;
 
 
-	rc = slapi_sdn_compare ( c1->acic_sdn, c2->acic_sdn );
-	return rc;
+    rc = slapi_sdn_compare(c1->acic_sdn, c2->acic_sdn);
+    return rc;
 }
 
 static int
-__acllist_aciContainer_node_dup ( caddr_t d1 __attribute__((unused)), caddr_t d2 __attribute__((unused)))
+__acllist_aciContainer_node_dup(caddr_t d1 __attribute__((unused)), caddr_t d2 __attribute__((unused)))
 {
 
-	/* we allow duplicates  -- they are not exactly duplicates
-	** but multiple aci value on the same node
-	*/
-	return 1;
-
+    /* we allow duplicates  -- they are not exactly duplicates
+    ** but multiple aci value on the same node
+    */
+    return 1;
 }
 
 /*
@@ -336,349 +336,352 @@ __acllist_aciContainer_node_dup ( caddr_t d1 __attribute__((unused)), caddr_t d2
 */
 
 int
-acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
+acllist_remove_aci_needsLock(const Slapi_DN *sdn, const struct berval *attr)
 {
 
-	aci_t			*head, *next;
-	int				rv = 0;
-	AciContainer	*aciListHead, *root;
-	AciContainer	*dContainer;
-	int				removed_anom_acl = 0;
+    aci_t *head, *next;
+    int rv = 0;
+    AciContainer *aciListHead, *root;
+    AciContainer *dContainer;
+    int removed_anom_acl = 0;
 
-	/* we used to delete the ACL by value but we don't do that anymore.
-	 * rather we delete all the acls in that entry and then repopulate it if 
-	 * there are any more acls.
-	 */
+    /* we used to delete the ACL by value but we don't do that anymore.
+     * rather we delete all the acls in that entry and then repopulate it if
+     * there are any more acls.
+     */
 
-	aciListHead = 	acllist_get_aciContainer_new ( );
-	slapi_sdn_set_ndn_byval ( aciListHead->acic_sdn, slapi_sdn_get_ndn ( sdn ) );
+    aciListHead = acllist_get_aciContainer_new();
+    slapi_sdn_set_ndn_byval(aciListHead->acic_sdn, slapi_sdn_get_ndn(sdn));
 
-	/* now find it */
-	if ( NULL == (root = (AciContainer *) avl_find( acllistRoot, aciListHead, 
-										(IFP) __acllist_aciContainer_node_cmp ))) {
-		/* In that case we don't have any acl for this entry. cool !!! */
+    /* now find it */
+    if (NULL == (root = (AciContainer *)avl_find(acllistRoot, aciListHead,
+                                                 (IFP)__acllist_aciContainer_node_cmp))) {
+        /* In that case we don't have any acl for this entry. cool !!! */
 
-		acllist_free_aciContainer ( &aciListHead );
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-				"acllist_remove_aci_needsLock - No acis to remove in this entry\n" );
-		return 0;
-	}
+        acllist_free_aciContainer(&aciListHead);
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "acllist_remove_aci_needsLock - No acis to remove in this entry\n");
+        return 0;
+    }
 
-	head = root->acic_list;
-	if ( head)
-		next = head->aci_next;
-	while ( head ) {
-		if ( head->aci_elevel == ACI_ELEVEL_USERDN_ANYONE)
-			removed_anom_acl = 1;
+    head = root->acic_list;
+    if (head)
+        next = head->aci_next;
+    while (head) {
+        if (head->aci_elevel == ACI_ELEVEL_USERDN_ANYONE)
+            removed_anom_acl = 1;
 
-		/* Free the acl */
-		acllist_free_aci ( head );
+        /* Free the acl */
+        acllist_free_aci(head);
 
-		head = next;
-		next = NULL;
-		if ( head && head->aci_next )
-			next = head->aci_next;
-	}
-	root->acic_list = NULL;
+        head = next;
+        next = NULL;
+        if (head && head->aci_next)
+            next = head->aci_next;
+    }
+    root->acic_list = NULL;
 
-	/* remove the container from the slot */
-	aciContainerArray[root->acic_index] = NULL;
+    /* remove the container from the slot */
+    aciContainerArray[root->acic_index] = NULL;
 
-	slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-				"acllist_remove_aci_needsLock - Removing container[%d]=%s\n",  root->acic_index,
-					slapi_sdn_get_ndn ( root->acic_sdn) );
-	dContainer = (AciContainer *) avl_delete ( &acllistRoot, aciListHead, 
-										__acllist_aciContainer_node_cmp );
-	acllist_free_aciContainer ( &dContainer );
+    slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                  "acllist_remove_aci_needsLock - Removing container[%d]=%s\n", root->acic_index,
+                  slapi_sdn_get_ndn(root->acic_sdn));
+    dContainer = (AciContainer *)avl_delete(&acllistRoot, aciListHead,
+                                            __acllist_aciContainer_node_cmp);
+    acllist_free_aciContainer(&dContainer);
 
-	acl_regen_aclsignature ();
-	if ( removed_anom_acl )
-		aclanom_invalidateProfile ();
+    acl_regen_aclsignature();
+    if (removed_anom_acl)
+        aclanom_invalidateProfile();
 
-	/*
-	 * Now read back the entry and repopulate ACLs for that entry, but
-	 * only if a specific aci was deleted, otherwise, we do a
-	 * "When Harry met Sally" and nail 'em all.
-	*/
+    /*
+     * Now read back the entry and repopulate ACLs for that entry, but
+     * only if a specific aci was deleted, otherwise, we do a
+     * "When Harry met Sally" and nail 'em all.
+    */
 
-	if ( attr != NULL) {
+    if (attr != NULL) {
 
-		if (0 != (rv = aclinit_search_and_update_aci (	0,		/* thisbeonly */
-												   	sdn,	/* base */
-													NULL,	/* be name */
-													LDAP_SCOPE_BASE,
-													ACL_ADD_ACIS,
-											DONT_TAKE_ACLCACHE_WRITELOCK))) {
-			slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-						"acllist_remove_aci_needsLock - Can't add the rest of the acls for entry:%s after delete\n",
-						slapi_sdn_get_dn ( sdn ) );
-		}
-	}
+        if (0 != (rv = aclinit_search_and_update_aci(0,    /* thisbeonly */
+                                                     sdn,  /* base */
+                                                     NULL, /* be name */
+                                                     LDAP_SCOPE_BASE,
+                                                     ACL_ADD_ACIS,
+                                                     DONT_TAKE_ACLCACHE_WRITELOCK))) {
+            slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                          "acllist_remove_aci_needsLock - Can't add the rest of the acls for entry:%s after delete\n",
+                          slapi_sdn_get_dn(sdn));
+        }
+    }
 
-	/* Now free the tmp container we used */
-	acllist_free_aciContainer ( &aciListHead );
+    /* Now free the tmp container we used */
+    acllist_free_aciContainer(&aciListHead);
 
-	/*
-	 * regenerate the anonymous profile if we have deleted
-	 * anyone acls.
-	 * We don't need the aclcache readlock because the context of
-	 * this routine is we have the write lock already.
-	*/
-	if ( removed_anom_acl )
-		aclanom_gen_anomProfile(DONT_TAKE_ACLCACHE_READLOCK);
+    /*
+     * regenerate the anonymous profile if we have deleted
+     * anyone acls.
+     * We don't need the aclcache readlock because the context of
+     * this routine is we have the write lock already.
+    */
+    if (removed_anom_acl)
+        aclanom_gen_anomProfile(DONT_TAKE_ACLCACHE_READLOCK);
 
-	return rv;
+    return rv;
 }
 
 AciContainer *
-acllist_get_aciContainer_new ( )
+acllist_get_aciContainer_new()
 {
 
-	AciContainer *head;
+    AciContainer *head;
 
-	head = (AciContainer * ) slapi_ch_calloc ( 1, sizeof ( AciContainer ) );
-	head->acic_sdn = slapi_sdn_new ( );
-	head->acic_index = -1;
+    head = (AciContainer *)slapi_ch_calloc(1, sizeof(AciContainer));
+    head->acic_sdn = slapi_sdn_new();
+    head->acic_index = -1;
 
-	return head;
-}	
-
-void
-acllist_free_aciContainer (  AciContainer **container)
-{
-
-	PR_ASSERT ( container != NULL );
-
-	if ( (*container)->acic_index >= 0 ) 
-		aciContainerArray[ (*container)->acic_index] = NULL;
-	if ( (*container)->acic_sdn )
-		slapi_sdn_free ( &(*container)->acic_sdn );
-	slapi_ch_free ( (void **) container );
-
+    return head;
 }
 
 void
-acllist_done_aciContainer ( AciContainer *head )
+acllist_free_aciContainer(AciContainer **container)
 {
 
-	PR_ASSERT ( head != NULL );
+    PR_ASSERT(container != NULL);
 
-	slapi_sdn_done ( head->acic_sdn );
-	head->acic_index = -1;
-	
-	/* The caller is responsible for taking care of list */
-	head->acic_list = NULL;
+    if ((*container)->acic_index >= 0)
+        aciContainerArray[(*container)->acic_index] = NULL;
+    if ((*container)->acic_sdn)
+        slapi_sdn_free(&(*container)->acic_sdn);
+    slapi_ch_free((void **)container);
+}
+
+void
+acllist_done_aciContainer(AciContainer *head)
+{
+
+    PR_ASSERT(head != NULL);
+
+    slapi_sdn_done(head->acic_sdn);
+    head->acic_index = -1;
+
+    /* The caller is responsible for taking care of list */
+    head->acic_list = NULL;
 }
 
 static int
 free_aci_avl_container(AciContainer *data)
 {
-	aci_t *head, *next = NULL;
+    aci_t *head, *next = NULL;
 
-	head = data->acic_list;
-	while ( head ) {
-		/* Free the acl */
-		next = head->aci_next;
-		acllist_free_aci ( head );
-		head = next;
-	}
-	data->acic_list = NULL;
+    head = data->acic_list;
+    while (head) {
+        /* Free the acl */
+        next = head->aci_next;
+        acllist_free_aci(head);
+        head = next;
+    }
+    data->acic_list = NULL;
 
-	acllist_free_aciContainer(&data);
-       return 0;
+    acllist_free_aciContainer(&data);
+    return 0;
 }
 
 void
 free_acl_avl_list(void)
 {
-	avl_free(acllistRoot,free_aci_avl_container);
-	acllistRoot = NULL;
+    avl_free(acllistRoot, free_aci_avl_container);
+    acllistRoot = NULL;
 }
 
 aci_t *
 acllist_get_aci_new(void)
 {
-	aci_t	*aci_item;
+    aci_t *aci_item;
 
-	aci_item = (aci_t *) slapi_ch_calloc (1, sizeof (aci_t));
-	aci_item->aci_sdn = slapi_sdn_new ();
-	aci_item->aci_index = curAciIndex++;
-	aci_item->aci_elevel = ACI_DEFAULT_ELEVEL;	/* by default it's a complex */
-	aci_item->targetAttr = (Targetattr **) slapi_ch_calloc (
-							ACL_INIT_ATTR_ARRAY,
-							sizeof (Targetattr *));
-	return aci_item;
-} 
+    aci_item = (aci_t *)slapi_ch_calloc(1, sizeof(aci_t));
+    aci_item->aci_sdn = slapi_sdn_new();
+    aci_item->aci_index = curAciIndex++;
+    aci_item->aci_elevel = ACI_DEFAULT_ELEVEL; /* by default it's a complex */
+    aci_item->targetAttr = (Targetattr **)slapi_ch_calloc(
+        ACL_INIT_ATTR_ARRAY,
+        sizeof(Targetattr *));
+    return aci_item;
+}
 
 void
 acllist_free_aci(aci_t *item)
 {
 
-	Targetattr			**attrArray;
+    Targetattr **attrArray;
 
-	/* The caller is responsible for taking 
-	** care of list issue
-	*/
-	if (item == NULL) return;
+    /* The caller is responsible for taking
+    ** care of list issue
+    */
+    if (item == NULL)
+        return;
 
-	slapi_sdn_free ( &item->aci_sdn );
-	slapi_filter_free (item->target, 1);
+    slapi_sdn_free(&item->aci_sdn);
+    slapi_filter_free(item->target, 1);
 
-	/* slapi_filter_free(item->targetAttr, 1); */
-	attrArray  = item->targetAttr;
-	if (attrArray) {
-		int			i = 0;
-		Targetattr		*attr;
+    /* slapi_filter_free(item->targetAttr, 1); */
+    attrArray = item->targetAttr;
+    if (attrArray) {
+        int i = 0;
+        Targetattr *attr;
 
-		while (attrArray[i] != NULL) {
-			attr = attrArray[i];
-			if (attr->attr_type & ACL_ATTR_FILTER) {
-				slapi_filter_free(attr->u.attr_filter, 1);
-			} else {
-				slapi_ch_free ( (void **) &attr->u.attr_str );
-			}
-			slapi_ch_free ( (void **) &attr );
-			i++;
-		}
-		/* Now free the array */
-		slapi_ch_free ( (void **) &attrArray );
-	}
-    
+        while (attrArray[i] != NULL) {
+            attr = attrArray[i];
+            if (attr->attr_type & ACL_ATTR_FILTER) {
+                slapi_filter_free(attr->u.attr_filter, 1);
+            } else {
+                slapi_ch_free((void **)&attr->u.attr_str);
+            }
+            slapi_ch_free((void **)&attr);
+            i++;
+        }
+        /* Now free the array */
+        slapi_ch_free((void **)&attrArray);
+    }
+
     /* Now free any targetattrfilters in this aci item */
-    
-    if ( item->targetAttrAddFilters ) {
-	    free_targetattrfilters(&item->targetAttrAddFilters);
+
+    if (item->targetAttrAddFilters) {
+        free_targetattrfilters(&item->targetAttrAddFilters);
     }
-    
-    if ( item->targetAttrDelFilters ) {
-	    free_targetattrfilters(&item->targetAttrDelFilters);
+
+    if (item->targetAttrDelFilters) {
+        free_targetattrfilters(&item->targetAttrDelFilters);
     }
-	
-	if (item->targetFilterStr) slapi_ch_free ( (void **) &item->targetFilterStr );
-	slapi_filter_free(item->targetFilter, 1);
 
-	/* free the handle */
-	if (item->aci_handle) ACL_ListDestroy(NULL, item->aci_handle);
+    if (item->targetFilterStr)
+        slapi_ch_free((void **)&item->targetFilterStr);
+    slapi_filter_free(item->targetFilter, 1);
 
-	/* Free the name */
-    if (item->aclName) slapi_ch_free((void **) &item->aclName);
+    /* free the handle */
+    if (item->aci_handle)
+        ACL_ListDestroy(NULL, item->aci_handle);
 
-	/* Free any macro info*/
-	if (item->aci_macro) {
-		slapi_ch_free((void **) &item->aci_macro->match_this);		
-		slapi_ch_free((void **) &item->aci_macro);		
-	}		
+    /* Free the name */
+    if (item->aclName)
+        slapi_ch_free((void **)&item->aclName);
 
-	/* free at last -- free at last */
-	slapi_ch_free ( (void **) &item );
+    /* Free any macro info*/
+    if (item->aci_macro) {
+        slapi_ch_free((void **)&item->aci_macro->match_this);
+        slapi_ch_free((void **)&item->aci_macro);
+    }
+
+    /* free at last -- free at last */
+    slapi_ch_free((void **)&item);
 }
 
 void
-free_targetattrfilters( Targetattrfilter ***attrFilterArray)
+free_targetattrfilters(Targetattrfilter ***attrFilterArray)
 {
     if (*attrFilterArray) {
-		int			i = 0;
-		Targetattrfilter		*attrfilter;
+        int i = 0;
+        Targetattrfilter *attrfilter;
 
-		while ((*attrFilterArray)[i] != NULL) {
-			attrfilter = (*attrFilterArray)[i];
-			
-            if ( attrfilter->attr_str != NULL) {
-				slapi_ch_free ( (void **) &attrfilter->attr_str );
-			}
-            
+        while ((*attrFilterArray)[i] != NULL) {
+            attrfilter = (*attrFilterArray)[i];
+
+            if (attrfilter->attr_str != NULL) {
+                slapi_ch_free((void **)&attrfilter->attr_str);
+            }
+
             if (attrfilter->filter != NULL) {
-				slapi_filter_free(attrfilter->filter, 1);
-			}
-            
-            if( attrfilter->filterStr != NULL) {
-				slapi_ch_free ( (void **) &attrfilter->filterStr );
-			}
-            
-			slapi_ch_free ( (void **) &attrfilter );
-			i++;
-		}
-		/* Now free the array */
-		slapi_ch_free ( (void **) attrFilterArray );
-	}
+                slapi_filter_free(attrfilter->filter, 1);
+            }
+
+            if (attrfilter->filterStr != NULL) {
+                slapi_ch_free((void **)&attrfilter->filterStr);
+            }
+
+            slapi_ch_free((void **)&attrfilter);
+            i++;
+        }
+        /* Now free the array */
+        slapi_ch_free((void **)attrFilterArray);
+    }
 }
 
 /* SEARCH */
 void
-acllist_init_scan (Slapi_PBlock *pb, int scope __attribute__((unused)), const char *base)
+acllist_init_scan(Slapi_PBlock *pb, int scope __attribute__((unused)), const char *base)
 {
-	Acl_PBlock			*aclpb;
-	AciContainer		*root;
-	char				*basedn = NULL;
-	int					index;
+    Acl_PBlock *aclpb;
+    AciContainer *root;
+    char *basedn = NULL;
+    int index;
 
-	if ( acl_skip_access_check ( pb, NULL, 0 ) ) {
-		return;
-	}
+    if (acl_skip_access_check(pb, NULL, 0)) {
+        return;
+    }
 
-	/*acllist_print_tree ( acllistRoot, &depth, "top", "top")	; */
-	/* my_print ( acllistRoot );*/
-	/* If we have an anonymous profile and I am an anom dude - let's skip it */
-	if ( aclanom_is_client_anonymous ( pb )) {
-		return;
-	}
-	aclpb = acl_get_aclpb (pb, ACLPB_BINDDN_PBLOCK );
-	if ( !aclpb ) {
-		slapi_log_err(SLAPI_LOG_ERR, plugin_name, "acllist_init_scan - Missing aclpb\n" );
-		return;
-	}
+    /*acllist_print_tree ( acllistRoot, &depth, "top", "top")    ; */
+    /* my_print ( acllistRoot );*/
+    /* If we have an anonymous profile and I am an anom dude - let's skip it */
+    if (aclanom_is_client_anonymous(pb)) {
+        return;
+    }
+    aclpb = acl_get_aclpb(pb, ACLPB_BINDDN_PBLOCK);
+    if (!aclpb) {
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "acllist_init_scan - Missing aclpb\n");
+        return;
+    }
 
-	aclpb->aclpb_handles_index[0] = -1;
+    aclpb->aclpb_handles_index[0] = -1;
 
-	/* If base is NULL - it means we are going to go thru all the ACLs
-	 * This is needed when we do anonymous profile generation.
-	 */
-	if ( NULL == base ) {
-		return;
-	}
-	
-	aclpb->aclpb_state |= ACLPB_SEARCH_BASED_ON_LIST ;
-	
-	acllist_acicache_READ_LOCK();
-	
-	basedn = slapi_ch_strdup (base);
-	index = 0;
-	slapi_ch_free_string(&aclpb->aclpb_search_base);
-	aclpb->aclpb_search_base = slapi_ch_strdup ( base );
+    /* If base is NULL - it means we are going to go thru all the ACLs
+     * This is needed when we do anonymous profile generation.
+     */
+    if (NULL == base) {
+        return;
+    }
 
-	while (basedn) {
-		char		*tmp = NULL;
-		
-		slapi_sdn_set_normdn_byref(aclpb->aclpb_aclContainer->acic_sdn, basedn);
+    aclpb->aclpb_state |= ACLPB_SEARCH_BASED_ON_LIST;
 
-		root = (AciContainer *) avl_find(acllistRoot, 
-		                                 (caddr_t) aclpb->aclpb_aclContainer, 
-		                                 (IFP) __acllist_aciContainer_node_cmp);
-		if ( index >= aclpb_max_selected_acls -2 ) {
-			aclpb->aclpb_handles_index[0] = -1;
-			slapi_ch_free_string(&basedn);
-			break;
-		} else if ( NULL != root ) {
-			aclpb->aclpb_base_handles_index[index++] = root->acic_index;
-			aclpb->aclpb_base_handles_index[index] = -1;
-		} else if ( NULL == root ) {
-			/* slapi_dn_parent returns the "parent" dn syntactically.
-			 * Most likely, basedn is above suffix (e.g., dn=com).
-			 * Thus, no need to make it FATAL. */
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name, 
-			                  "acllist_init_scan - Failed to find root for base: %s \n", basedn );
-		}
-		tmp = slapi_dn_parent ( basedn );
-		slapi_ch_free_string(&basedn);
-		basedn = tmp;
-	}
+    acllist_acicache_READ_LOCK();
 
-	acllist_done_aciContainer ( aclpb->aclpb_aclContainer);
+    basedn = slapi_ch_strdup(base);
+    index = 0;
+    slapi_ch_free_string(&aclpb->aclpb_search_base);
+    aclpb->aclpb_search_base = slapi_ch_strdup(base);
 
-	if ( aclpb->aclpb_base_handles_index[0] == -1 )	
-		aclpb->aclpb_state &= ~ACLPB_SEARCH_BASED_ON_LIST ;
+    while (basedn) {
+        char *tmp = NULL;
 
-	acllist_acicache_READ_UNLOCK();
+        slapi_sdn_set_normdn_byref(aclpb->aclpb_aclContainer->acic_sdn, basedn);
+
+        root = (AciContainer *)avl_find(acllistRoot,
+                                        (caddr_t)aclpb->aclpb_aclContainer,
+                                        (IFP)__acllist_aciContainer_node_cmp);
+        if (index >= aclpb_max_selected_acls - 2) {
+            aclpb->aclpb_handles_index[0] = -1;
+            slapi_ch_free_string(&basedn);
+            break;
+        } else if (NULL != root) {
+            aclpb->aclpb_base_handles_index[index++] = root->acic_index;
+            aclpb->aclpb_base_handles_index[index] = -1;
+        } else if (NULL == root) {
+            /* slapi_dn_parent returns the "parent" dn syntactically.
+             * Most likely, basedn is above suffix (e.g., dn=com).
+             * Thus, no need to make it FATAL. */
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                          "acllist_init_scan - Failed to find root for base: %s \n", basedn);
+        }
+        tmp = slapi_dn_parent(basedn);
+        slapi_ch_free_string(&basedn);
+        basedn = tmp;
+    }
+
+    acllist_done_aciContainer(aclpb->aclpb_aclContainer);
+
+    if (aclpb->aclpb_base_handles_index[0] == -1)
+        aclpb->aclpb_state &= ~ACLPB_SEARCH_BASED_ON_LIST;
+
+    acllist_acicache_READ_UNLOCK();
 }
 
 /*
@@ -689,315 +692,311 @@ acllist_init_scan (Slapi_PBlock *pb, int scope __attribute__((unused)), const ch
 */
 
 /* edn is normalized & case-ignored */
-void 
-acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
+void
+acllist_aciscan_update_scan(Acl_PBlock *aclpb, char *edn)
 {
 
-	int		index = 0;
-	char		*basedn = NULL;
-	AciContainer	*root;
-	int is_not_search_base = 1;
+    int index = 0;
+    char *basedn = NULL;
+    AciContainer *root;
+    int is_not_search_base = 1;
 
-	if ( !aclpb ) {
-		slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-				"acllist_aciscan_update_scan - NULL acl pblock\n");
-		return;
-	}
+    if (!aclpb) {
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                      "acllist_aciscan_update_scan - NULL acl pblock\n");
+        return;
+    }
 
-	/* First copy the containers indx from the base to the one which is
-	 * going to be used.
-	 * The base handles get done in acllist_init_scan().
-	 * This stuff is only used if it's a search operation.
-	 */
-	if ( aclpb->aclpb_search_base ) {
-		if ( strcasecmp ( edn, aclpb->aclpb_search_base) == 0) {
-			is_not_search_base = 0;
-		}
-		for (index = 0; (aclpb->aclpb_base_handles_index[index] != -1) && 
-		                (index < aclpb_max_selected_acls - 2); index++) ;
-		memcpy(aclpb->aclpb_handles_index, aclpb->aclpb_base_handles_index,
-		       sizeof(*aclpb->aclpb_handles_index) * index);
-	}
-	aclpb->aclpb_handles_index[index] = -1;
+    /* First copy the containers indx from the base to the one which is
+     * going to be used.
+     * The base handles get done in acllist_init_scan().
+     * This stuff is only used if it's a search operation.
+     */
+    if (aclpb->aclpb_search_base) {
+        if (strcasecmp(edn, aclpb->aclpb_search_base) == 0) {
+            is_not_search_base = 0;
+        }
+        for (index = 0; (aclpb->aclpb_base_handles_index[index] != -1) &&
+                        (index < aclpb_max_selected_acls - 2);
+             index++)
+            ;
+        memcpy(aclpb->aclpb_handles_index, aclpb->aclpb_base_handles_index,
+               sizeof(*aclpb->aclpb_handles_index) * index);
+    }
+    aclpb->aclpb_handles_index[index] = -1;
 
-	/*
-	 * Here, make a list of all the aci's that will apply
-	 * to edn ie. all aci's at and above edn in the DIT tree.
-	 * 
-	 * Do this by walking up edn, looking at corresponding
-	 * points in the acllistRoot aci tree.
-	 *
-	 * If is_not_search_base is true, then we need to iterate on edn, otherwise
-	 * we've already got all the base handles above.
-	 * 
-	*/ 
+    /*
+     * Here, make a list of all the aci's that will apply
+     * to edn ie. all aci's at and above edn in the DIT tree.
+     *
+     * Do this by walking up edn, looking at corresponding
+     * points in the acllistRoot aci tree.
+     *
+     * If is_not_search_base is true, then we need to iterate on edn, otherwise
+     * we've already got all the base handles above.
+     *
+    */
 
-	if (is_not_search_base) {
-		
-		basedn = slapi_ch_strdup ( edn );
+    if (is_not_search_base) {
 
-		while (basedn ) {
-			char		*tmp = NULL;
-	
-			slapi_sdn_set_ndn_byref ( aclpb->aclpb_aclContainer->acic_sdn, basedn );
+        basedn = slapi_ch_strdup(edn);
 
-			root = (AciContainer *) avl_find( acllistRoot, 
-									(caddr_t) aclpb->aclpb_aclContainer, 
-									(IFP) __acllist_aciContainer_node_cmp);
-		
-			slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-				"acllist_aciscan_update_scan - Searching AVL tree for update:%s: container:%d\n",
-				basedn, root ? root->acic_index: -1);	
-			if ( index >= aclpb_max_selected_acls -2 ) {
-				aclpb->aclpb_handles_index[0] = -1;
-				slapi_ch_free ( (void **) &basedn);
-				break;
-			} else  if ( NULL != root ) {
-				aclpb->aclpb_handles_index[index++] = root->acic_index;
-				aclpb->aclpb_handles_index[index] = -1;
-			} 
-			tmp = slapi_dn_parent ( basedn );
-			slapi_ch_free ( (void **) &basedn);
-			basedn = tmp;
-			if ( aclpb->aclpb_search_base  && tmp &&
-				( 0 ==  strcasecmp ( tmp, aclpb->aclpb_search_base))) {
-				slapi_ch_free ( (void **) &basedn);
-				tmp = NULL;
-			}
-		} /* while */
-	}
+        while (basedn) {
+            char *tmp = NULL;
 
-	acllist_done_aciContainer ( aclpb->aclpb_aclContainer );
+            slapi_sdn_set_ndn_byref(aclpb->aclpb_aclContainer->acic_sdn, basedn);
+
+            root = (AciContainer *)avl_find(acllistRoot,
+                                            (caddr_t)aclpb->aclpb_aclContainer,
+                                            (IFP)__acllist_aciContainer_node_cmp);
+
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                          "acllist_aciscan_update_scan - Searching AVL tree for update:%s: container:%d\n",
+                          basedn, root ? root->acic_index : -1);
+            if (index >= aclpb_max_selected_acls - 2) {
+                aclpb->aclpb_handles_index[0] = -1;
+                slapi_ch_free((void **)&basedn);
+                break;
+            } else if (NULL != root) {
+                aclpb->aclpb_handles_index[index++] = root->acic_index;
+                aclpb->aclpb_handles_index[index] = -1;
+            }
+            tmp = slapi_dn_parent(basedn);
+            slapi_ch_free((void **)&basedn);
+            basedn = tmp;
+            if (aclpb->aclpb_search_base && tmp &&
+                (0 == strcasecmp(tmp, aclpb->aclpb_search_base))) {
+                slapi_ch_free((void **)&basedn);
+                tmp = NULL;
+            }
+        } /* while */
+    }
+
+    acllist_done_aciContainer(aclpb->aclpb_aclContainer);
 }
 
 aci_t *
-acllist_get_first_aci (Acl_PBlock *aclpb, PRUint32 *cookie )
+acllist_get_first_aci(Acl_PBlock *aclpb, PRUint32 *cookie)
 {
 
-	int			val;
+    int val;
 
-	*cookie = val = 0;
-	if ( aclpb && aclpb->aclpb_handles_index[0] != -1 ) {
-		val = aclpb->aclpb_handles_index[*cookie];
-	}
-	if ( NULL == aciContainerArray[val]) {
-		return ( acllist_get_next_aci ( aclpb, NULL, cookie ) );
-	} 
+    *cookie = val = 0;
+    if (aclpb && aclpb->aclpb_handles_index[0] != -1) {
+        val = aclpb->aclpb_handles_index[*cookie];
+    }
+    if (NULL == aciContainerArray[val]) {
+        return (acllist_get_next_aci(aclpb, NULL, cookie));
+    }
 
-	return  (aciContainerArray[val]->acic_list );
+    return (aciContainerArray[val]->acic_list);
 }
 /*
  * acllist_get_next_aci
- *	Return the next aci in the list
+ *    Return the next aci in the list
  *
- *	 Inputs
- *	Acl_PBlock *aclpb				-- acl Main block;  if  aclpb= NULL, 
- *							-- then we scan thru the whole list.
- *							-- which is used by anom profile code.
- *	aci_t *curaci					-- the current aci
- *	PRUint32 *cookie				-- cookie -- to maintain a state (what's next)
+ *     Inputs
+ *    Acl_PBlock *aclpb                -- acl Main block;  if  aclpb= NULL,
+ *                            -- then we scan thru the whole list.
+ *                            -- which is used by anom profile code.
+ *    aci_t *curaci                    -- the current aci
+ *    PRUint32 *cookie                -- cookie -- to maintain a state (what's next)
  *
  */
 
 aci_t *
-acllist_get_next_aci ( Acl_PBlock *aclpb, aci_t *curaci, PRUint32 *cookie )
+acllist_get_next_aci(Acl_PBlock *aclpb, aci_t *curaci, PRUint32 *cookie)
 {
-	PRUint32	val;
-	int			scan_entire_list;
+    PRUint32 val;
+    int scan_entire_list;
 
-	/*
-	   Here, if we're passed a curaci and there's another aci in the same node,
-	   return that one.
-	*/
+    /*
+       Here, if we're passed a curaci and there's another aci in the same node,
+       return that one.
+    */
 
-	if ( curaci && curaci->aci_next )
-		return ( curaci->aci_next );
+    if (curaci && curaci->aci_next)
+        return (curaci->aci_next);
 
-	/*
-	   Determine if we need to scan the entire list of acis.
-	   We do if the aclpb==NULL or if the first handle index is -1.
-	   That means that we want to go through
-	   the entire aciContainerArray up to the currContainerIndex to get
-	   acis; the -1 in the first position is a special keyword which tells
-	   us that the acis have changed, so we need to go through all of them.
-	*/
+    /*
+       Determine if we need to scan the entire list of acis.
+       We do if the aclpb==NULL or if the first handle index is -1.
+       That means that we want to go through
+       the entire aciContainerArray up to the currContainerIndex to get
+       acis; the -1 in the first position is a special keyword which tells
+       us that the acis have changed, so we need to go through all of them.
+    */
 
-	scan_entire_list = (aclpb == NULL || aclpb->aclpb_handles_index[0] == -1);
+    scan_entire_list = (aclpb == NULL || aclpb->aclpb_handles_index[0] == -1);
 
 start:
-	(*cookie)++;
-	val = *cookie;
+    (*cookie)++;
+    val = *cookie;
 
-	/* if we are not scanning the entire aciContainerArray list, we only want to
-	   look at the indexes specified in the handles index */
-	if ( !scan_entire_list )
-		val = aclpb->aclpb_handles_index[*cookie];
+    /* if we are not scanning the entire aciContainerArray list, we only want to
+       look at the indexes specified in the handles index */
+    if (!scan_entire_list)
+        val = aclpb->aclpb_handles_index[*cookie];
 
-	/* the hard max end */
-	if ( val >= maxContainerIndex)
-		return NULL;
+    /* the hard max end */
+    if (val >= maxContainerIndex)
+        return NULL;
 
-	/* reached the end of the array */   
-	if ((!scan_entire_list && (*cookie >= (aclpb_max_selected_acls-1))) ||
-		(*cookie >= currContainerIndex)) {
-		return NULL;
-	}
+    /* reached the end of the array */
+    if ((!scan_entire_list && (*cookie >= (aclpb_max_selected_acls - 1))) ||
+        (*cookie >= currContainerIndex)) {
+        return NULL;
+    }
 
-	/* if we're only using the handles list for our aciContainerArray
-	   indexes, the -1 value marks the end of that list */
-	if ( !scan_entire_list && (aclpb->aclpb_handles_index[*cookie] == -1) ) {
-		return NULL;
-	}
+    /* if we're only using the handles list for our aciContainerArray
+       indexes, the -1 value marks the end of that list */
+    if (!scan_entire_list && (aclpb->aclpb_handles_index[*cookie] == -1)) {
+        return NULL;
+    }
 
-	/* if we're scanning the entire list, and we hit a null value in the
-	   middle of the list, just try the next one; this can happen if
-	   an aci was deleted - it can leave "holes" in the array */
-	if ( scan_entire_list && ( NULL == aciContainerArray[val])) {
-		goto start;
-	}
+    /* if we're scanning the entire list, and we hit a null value in the
+       middle of the list, just try the next one; this can happen if
+       an aci was deleted - it can leave "holes" in the array */
+    if (scan_entire_list && (NULL == aciContainerArray[val])) {
+        goto start;
+    }
 
-	if ( aciContainerArray[val] )
-		return (aciContainerArray[val]->acic_list );
-	else
-		return NULL;
+    if (aciContainerArray[val])
+        return (aciContainerArray[val]->acic_list);
+    else
+        return NULL;
 }
 
 void
 acllist_acicache_READ_UNLOCK(void)
 {
-	ACILIST_UNLOCK_READ ();
-
+    ACILIST_UNLOCK_READ();
 }
 
 void
 acllist_acicache_READ_LOCK(void)
 {
-	/* get a reader lock */
-	ACILIST_LOCK_READ ();	
-
+    /* get a reader lock */
+    ACILIST_LOCK_READ();
 }
 
 void
 acllist_acicache_WRITE_UNLOCK(void)
 {
-	ACILIST_UNLOCK_WRITE ();
-
+    ACILIST_UNLOCK_WRITE();
 }
 
 void
 acllist_acicache_WRITE_LOCK(void)
 {
-	ACILIST_LOCK_WRITE ();
-
+    ACILIST_LOCK_WRITE();
 }
 
 /* This routine must be called with the acicache write lock taken */
 /* newdn is normalized (no need to be case-ignored) */
 int
-acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
+acllist_moddn_aci_needsLock(Slapi_DN *oldsdn, char *newdn)
 {
-	AciContainer		*aciListHead;
-	AciContainer		*head;
-	aci_t *acip;
-	const char *oldndn;
+    AciContainer *aciListHead;
+    AciContainer *head;
+    aci_t *acip;
+    const char *oldndn;
 
-	/* first get the container */
+    /* first get the container */
 
-	aciListHead =   acllist_get_aciContainer_new ( );
-	slapi_sdn_free(&aciListHead->acic_sdn);
-	aciListHead->acic_sdn = oldsdn;
+    aciListHead = acllist_get_aciContainer_new();
+    slapi_sdn_free(&aciListHead->acic_sdn);
+    aciListHead->acic_sdn = oldsdn;
 
-	if ( NULL == (head = (AciContainer *) avl_find( acllistRoot, aciListHead,
-	     (IFP) __acllist_aciContainer_node_cmp ) ) ) {
+    if (NULL == (head = (AciContainer *)avl_find(acllistRoot, aciListHead,
+                                                 (IFP)__acllist_aciContainer_node_cmp))) {
 
-		slapi_log_err ( SLAPI_PLUGIN_ACL, plugin_name,
-		         "acllist_moddn_aci_needsLock - Can't find the acl in the tree for moddn operation:olddn%s\n",
-		         slapi_sdn_get_ndn ( oldsdn ));
-		aciListHead->acic_sdn = NULL;
-		acllist_free_aciContainer ( &aciListHead );
-		return 1;
-	}
+        slapi_log_err(SLAPI_PLUGIN_ACL, plugin_name,
+                      "acllist_moddn_aci_needsLock - Can't find the acl in the tree for moddn operation:olddn%s\n",
+                      slapi_sdn_get_ndn(oldsdn));
+        aciListHead->acic_sdn = NULL;
+        acllist_free_aciContainer(&aciListHead);
+        return 1;
+    }
 
-	/* Now set the new DN */
-	slapi_sdn_set_normdn_byval(head->acic_sdn, newdn);
+    /* Now set the new DN */
+    slapi_sdn_set_normdn_byval(head->acic_sdn, newdn);
 
-	/* If necessary, reset the target DNs, as well. */
-	oldndn = slapi_sdn_get_ndn(oldsdn);
-	for (acip = head->acic_list; acip; acip = acip->aci_next) {
-		const char *ndn = slapi_sdn_get_ndn(acip->aci_sdn);
-		char *p = PL_strstr(ndn, oldndn);
-		if (p) {
-			if (p == ndn) {
-				/* target dn is identical, replace it with new DN*/
-				slapi_sdn_set_normdn_byval(acip->aci_sdn, newdn);
-			} else {
-				/* target dn is a descendent of olddn, merge it with new DN*/
-				char *mynewdn;
-				*p = '\0';
-				mynewdn = slapi_ch_smprintf("%s%s", ndn, newdn);
-				slapi_sdn_set_normdn_passin(acip->aci_sdn, mynewdn);
-			}
-		}
-	}
-    
-	aciListHead->acic_sdn = NULL;
-	acllist_free_aciContainer ( &aciListHead );
+    /* If necessary, reset the target DNs, as well. */
+    oldndn = slapi_sdn_get_ndn(oldsdn);
+    for (acip = head->acic_list; acip; acip = acip->aci_next) {
+        const char *ndn = slapi_sdn_get_ndn(acip->aci_sdn);
+        char *p = PL_strstr(ndn, oldndn);
+        if (p) {
+            if (p == ndn) {
+                /* target dn is identical, replace it with new DN*/
+                slapi_sdn_set_normdn_byval(acip->aci_sdn, newdn);
+            } else {
+                /* target dn is a descendent of olddn, merge it with new DN*/
+                char *mynewdn;
+                *p = '\0';
+                mynewdn = slapi_ch_smprintf("%s%s", ndn, newdn);
+                slapi_sdn_set_normdn_passin(acip->aci_sdn, mynewdn);
+            }
+        }
+    }
 
-	return 0;
+    aciListHead->acic_sdn = NULL;
+    acllist_free_aciContainer(&aciListHead);
+
+    return 0;
 }
 
 void
-acllist_print_tree ( Avlnode *root, int *depth, char *start, char *side)
+acllist_print_tree(Avlnode *root, int *depth, char *start, char *side)
 {
 
-	AciContainer		*aciHeadList;
+    AciContainer *aciHeadList;
 
-	if ( NULL == root ) {
-		return;
-	}
-	aciHeadList = (AciContainer *) root->avl_data;
-	slapi_log_err(SLAPI_LOG_ACL, "plugin_name",
-						"acllist_print_tree - Container[ Depth=%d%s-%s]: %s\n", *depth, start, side,
-						slapi_sdn_get_ndn ( aciHeadList->acic_sdn ) );
+    if (NULL == root) {
+        return;
+    }
+    aciHeadList = (AciContainer *)root->avl_data;
+    slapi_log_err(SLAPI_LOG_ACL, "plugin_name",
+                  "acllist_print_tree - Container[ Depth=%d%s-%s]: %s\n", *depth, start, side,
+                  slapi_sdn_get_ndn(aciHeadList->acic_sdn));
 
-	(*depth)++;
+    (*depth)++;
 
-	acllist_print_tree ( root->avl_left,  depth, side, "L" );
-	acllist_print_tree ( root->avl_right,  depth, side, "R" );
+    acllist_print_tree(root->avl_left, depth, side, "L");
+    acllist_print_tree(root->avl_right, depth, side, "R");
 
-	(*depth)--;
-
+    (*depth)--;
 }
 
-static 
-void
-ravl_print( Avlnode	*root, int	depth )
+static void
+ravl_print(Avlnode *root, int depth)
 {
-	int	i;
+    int i;
 
-	AciContainer        *aciHeadList;
-	if ( root == 0 )
-		return;
+    AciContainer *aciHeadList;
+    if (root == 0)
+        return;
 
-	ravl_print( root->avl_right, depth+1 );
+    ravl_print(root->avl_right, depth + 1);
 
-	for ( i = 0; i < depth; i++ )
-		printf( "   " );
-	aciHeadList = (AciContainer *) root->avl_data;
-	printf( "%s\n",  slapi_sdn_get_ndn ( aciHeadList->acic_sdn ) );
+    for (i = 0; i < depth; i++)
+        printf("   ");
+    aciHeadList = (AciContainer *)root->avl_data;
+    printf("%s\n", slapi_sdn_get_ndn(aciHeadList->acic_sdn));
 
-	ravl_print( root->avl_left, depth+1 );
+    ravl_print(root->avl_left, depth + 1);
 }
 
 void
-my_print( Avlnode	*root )
+my_print(Avlnode *root)
 {
-	printf( "********\n" );
+    printf("********\n");
 
-	if ( root == 0 )
-		printf( "\tNULL\n" );
-	else
-		( void ) ravl_print( root, 0 );
+    if (root == 0)
+        printf("\tNULL\n");
+    else
+        (void)ravl_print(root, 0);
 
-	printf( "********\n" );
+    printf("********\n");
 }

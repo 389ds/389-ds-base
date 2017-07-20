@@ -4,14 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-/* 
+/*
  *  File: back-ldif.h
  *
  *  Description: This header file contains the definitions
@@ -28,63 +28,65 @@
 
 
 /*Defines*/
-#define LDIF_DB_ADD     0
-#define LDIF_DB_DELETE  1
+#define LDIF_DB_ADD 0
+#define LDIF_DB_DELETE 1
 #define LDIF_DB_REPLACE 2
 
 
-/*This structure basically allows the entries to be linked listed*/ 
-struct ldif_entry{
-  Slapi_Entry       *lde_e;      /*ptr to the Entry datatype, but you knew that*/
-  struct ldif_entry *next; /*ptr to the next list element.*/
+/*This structure basically allows the entries to be linked listed*/
+struct ldif_entry
+{
+    Slapi_Entry *lde_e;      /*ptr to the Entry datatype, but you knew that*/
+    struct ldif_entry *next; /*ptr to the next list element.*/
 };
 typedef struct ldif_entry ldif_Entry;
 
 
 /*Holds the data from the ldif file*/
-struct ldif {
-  long            ldif_n;        /*The number of entries in the database*/
-  long            ldif_tries;    /*The number of accesses to the database*/
-  long            ldif_hits;     /*The number of succesful searches to the db*/
-  char            *ldif_file;    /*From where we read the ldif data*/
-  PRLock	  *ldif_lock;     /*Write & read lock.(a simple locking model)*/
-  ldif_Entry      *ldif_entries; /*The linked list of entries*/
+struct ldif
+{
+    long ldif_n;              /*The number of entries in the database*/
+    long ldif_tries;          /*The number of accesses to the database*/
+    long ldif_hits;           /*The number of succesful searches to the db*/
+    char *ldif_file;          /*From where we read the ldif data*/
+    PRLock *ldif_lock;        /*Write & read lock.(a simple locking model)*/
+    ldif_Entry *ldif_entries; /*The linked list of entries*/
 };
 typedef struct ldif LDIF;
 
 
 /*Prototypes*/
-  int ldif_back_modify( Slapi_PBlock * );
-  int update_db(Slapi_PBlock *, LDIF *, ldif_Entry *, ldif_Entry *, int); 
-  int db2disk(Slapi_PBlock *, LDIF *);
-  void ldifentry_free(ldif_Entry *);
-  ldif_Entry *ldifentry_dup(ldif_Entry *);
-  ldif_Entry *ldif_find_entry(Slapi_PBlock *, LDIF *, char *, ldif_Entry **);
-  int apply_mods( Slapi_Entry *, LDAPMod ** );
-  
-  int ldif_back_add( Slapi_PBlock *);
-  ldif_Entry *ldifentry_init(Slapi_Entry *);
-  int ldif_back_config( Slapi_PBlock *);
-  static char * ldif_read_one_record( FILE *);
-  int ldif_back_delete( Slapi_PBlock *);
-  int has_children(LDIF *, ldif_Entry *);
-  int ldif_back_init( Slapi_PBlock *);
-  
-  int ldif_back_search( Slapi_PBlock * );
-  
-  int ldif_back_modrdn( Slapi_PBlock * );
-  static int rdn2typeval(char *, char **, struct berval *);
-  void add_mod( LDAPMod ***, int, char *, struct berval ** );
-  
-  int ldif_back_bind( Slapi_PBlock * );
-  int ldif_back_unbind( Slapi_PBlock * );
-  
-  int ldif_back_start( Slapi_PBlock * );
-  void ldif_back_close( Slapi_PBlock * );
-  void ldif_back_flush( Slapi_PBlock * );
-  void ldif_free_db(LDIF *);
-  
-  int ldif_back_compare( Slapi_PBlock * );
+int ldif_back_modify(Slapi_PBlock *);
+int update_db(Slapi_PBlock *, LDIF *, ldif_Entry *, ldif_Entry *, int);
+int db2disk(Slapi_PBlock *, LDIF *);
+void ldifentry_free(ldif_Entry *);
+ldif_Entry *ldifentry_dup(ldif_Entry *);
+ldif_Entry *ldif_find_entry(Slapi_PBlock *, LDIF *, char *, ldif_Entry **);
+int apply_mods(Slapi_Entry *, LDAPMod **);
 
-  char * get_monitordn(Slapi_PBlock * );
-  int ldif_back_monitor_info( Slapi_PBlock *pb, LDIF *db);
+int ldif_back_add(Slapi_PBlock *);
+ldif_Entry *ldifentry_init(Slapi_Entry *);
+int ldif_back_config(Slapi_PBlock *);
+static char *ldif_read_one_record(FILE *);
+int ldif_back_delete(Slapi_PBlock *);
+int has_children(LDIF *, ldif_Entry *);
+int ldif_back_init(Slapi_PBlock *);
+
+int ldif_back_search(Slapi_PBlock *);
+
+int ldif_back_modrdn(Slapi_PBlock *);
+static int rdn2typeval(char *, char **, struct berval *);
+void add_mod(LDAPMod ***, int, char *, struct berval **);
+
+int ldif_back_bind(Slapi_PBlock *);
+int ldif_back_unbind(Slapi_PBlock *);
+
+int ldif_back_start(Slapi_PBlock *);
+void ldif_back_close(Slapi_PBlock *);
+void ldif_back_flush(Slapi_PBlock *);
+void ldif_free_db(LDIF *);
+
+int ldif_back_compare(Slapi_PBlock *);
+
+char *get_monitordn(Slapi_PBlock *);
+int ldif_back_monitor_info(Slapi_PBlock *pb, LDIF *db);

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -22,26 +22,28 @@
 
 struct _import_merge_thang
 {
-	int type;
+    int type;
 #define IMPORT_MERGE_THANG_IDL 1 /* Values for type */
 #define IMPORT_MERGE_THANG_VLV 2
-	union {
-		IDList *idl; /* if type == IMPORT_MERGE_THANG_IDL */
-		DBT vlv_data; /* if type == IMPORT_MERGE_THANG_VLV */
-	} payload;
+    union
+    {
+        IDList *idl;  /* if type == IMPORT_MERGE_THANG_IDL */
+        DBT vlv_data; /* if type == IMPORT_MERGE_THANG_VLV */
+    } payload;
 };
 typedef struct _import_merge_thang import_merge_thang;
 
-struct _import_merge_queue_entry 
+struct _import_merge_queue_entry
 {
-	int *file_referenced_list;
-	import_merge_thang thang;
-	DBT key;
-	struct _import_merge_queue_entry *next;
+    int *file_referenced_list;
+    import_merge_thang thang;
+    DBT key;
+    struct _import_merge_queue_entry *next;
 };
 typedef struct _import_merge_queue_entry import_merge_queue_entry;
 
-static int import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang *thang, DBT *key, int type)
+static int
+import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang *thang, DBT *key, int type)
 {
     int ret = 0;
     DBT value = {0};
@@ -51,13 +53,13 @@ static int import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_
 
     thang->type = type;
     if (IMPORT_MERGE_THANG_IDL == type) {
-        /* IDL case */
+    /* IDL case */
     around:
         ret = cursor->c_get(cursor, key, &value, DB_NEXT_NODUP);
         if (0 == ret) {
             /* Check that we've not reached the beginning of continuation
              * blocks */
-            if (CONT_PREFIX != ((char*)key->data)[0]) {
+            if (CONT_PREFIX != ((char *)key->data)[0]) {
                 /* If not, read the IDL using idl_fetch() */
                 key->flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
@@ -72,20 +74,20 @@ static int import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_
             slapi_ch_free(&(value.data));
         } else {
             if (DB_NOTFOUND == ret) {
-               /* This means that we're at the end of the file */
+                /* This means that we're at the end of the file */
                 ret = EOF;
             }
         }
     } else {
         /* VLV case */
-        ret = cursor->c_get(cursor,key,&value,DB_NEXT);
+        ret = cursor->c_get(cursor, key, &value, DB_NEXT);
         if (0 == ret) {
             thang->payload.vlv_data = value;
             thang->payload.vlv_data.flags = 0;
             key->flags = 0;
         } else {
             if (DB_NOTFOUND == ret) {
-		/* This means that we're at the end of the file */
+                /* This means that we're at the end of the file */
                 ret = EOF;
             }
         }
@@ -94,7 +96,8 @@ static int import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_
     return ret;
 }
 
-static import_merge_queue_entry *import_merge_make_new_queue_entry(import_merge_thang *thang, DBT *key, int fileno, int passes)
+static import_merge_queue_entry *
+import_merge_make_new_queue_entry(import_merge_thang *thang, DBT *key, int fileno, int passes)
 {
     /* Make a new entry */
     import_merge_queue_entry *new_entry = (import_merge_queue_entry *)slapi_ch_calloc(1, sizeof(import_merge_queue_entry));
@@ -109,7 +112,8 @@ static import_merge_queue_entry *import_merge_make_new_queue_entry(import_merge_
 }
 
 /* Put an IDL onto the priority queue */
-static int import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue,int fileno, DBT *key, import_merge_thang *thang,int passes)
+static int
+import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue, int fileno, DBT *key, import_merge_thang *thang, int passes)
 {
     /* Walk the list, looking for a key value which is greater than or equal
      * to the presented key */
@@ -123,19 +127,19 @@ static int import_merge_insert_input_queue(backend *be, import_merge_queue_entry
     PR_ASSERT(NULL != thang);
     if (NULL == *queue) {
         /* Queue was empty--- put ourselves at the head */
-        *queue = import_merge_make_new_queue_entry(thang,key,fileno,passes);
+        *queue = import_merge_make_new_queue_entry(thang, key, fileno, passes);
         if (NULL == *queue) {
             return -1;
         }
     } else {
         for (current_entry = *queue; current_entry != NULL;
              current_entry = current_entry->next) {
-            int cmp = strcmp(key->data,current_entry->key.data);
+            int cmp = strcmp(key->data, current_entry->key.data);
 
             if (0 == cmp) {
                 if (IMPORT_MERGE_THANG_IDL == thang->type) { /* IDL case */
                     IDList *idl = thang->payload.idl;
-                    /* Equal --- merge into the stored IDL, add file ID 
+                    /* Equal --- merge into the stored IDL, add file ID
                      * to the list */
                     IDList *new_idl =
                         idl_union(be, current_entry->thang.payload.idl, idl);
@@ -161,14 +165,14 @@ static int import_merge_insert_input_queue(backend *be, import_merge_queue_entry
                     break;
                 } else {
                     /* We compare greater than this entry, so we should keep
-                     * going */ ;
+                     * going */;
                 }
             }
             previous_entry = current_entry;
         }
 
         /* Now insert */
-        {	
+        {
             import_merge_queue_entry *new_entry =
                 import_merge_make_new_queue_entry(thang, key, fileno, passes);
 
@@ -176,7 +180,7 @@ static int import_merge_insert_input_queue(backend *be, import_merge_queue_entry
                 return -1;
             }
 
-            /* If not, then we must need to insert ourselves after the last 
+            /* If not, then we must need to insert ourselves after the last
              * entry */
             new_entry->next = current_entry;
             if (NULL == previous_entry) {
@@ -191,7 +195,8 @@ done:
     return 0;
 }
 
-static int import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, import_merge_thang *thang,DBT *key,DBC **input_cursors, DB **input_files,int passes)
+static int
+import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, import_merge_thang *thang, DBT *key, DBC **input_cursors, DB **input_files, int passes)
 {
     import_merge_queue_entry *head = NULL;
     int file_referenced = 0;
@@ -212,64 +217,69 @@ static int import_merge_remove_input_queue(backend *be, import_merge_queue_entry
     PR_ASSERT(NULL != thang);
     /* Walk the list of referenced files, reading in the next IDL from each
      * one to the queue */
-    for (i = 0 ; i < passes; i++) {
+    for (i = 0; i < passes; i++) {
         import_merge_thang new_thang = {0};
         DBT new_key = {0};
 
         file_referenced = (head->file_referenced_list)[i];
         if (file_referenced) {
             ret = import_merge_get_next_thang(be, input_cursors[i],
-                input_files[i], &new_thang, &new_key, thang->type); 
+                                              input_files[i], &new_thang, &new_key, thang->type);
             if (0 != ret) {
                 if (EOF == ret) {
                     /* Means that we walked off the end of the list,
-                     * do nothing */ 
+                     * do nothing */
                     ret = 0;
                 } else {
                     /* Some other error */
                     break;
                 }
             } else {
-		/* This function is responsible for any freeing needed */
+                /* This function is responsible for any freeing needed */
                 import_merge_insert_input_queue(be, queue, i, &new_key,
-                    &new_thang, passes);
+                                                &new_thang, passes);
             }
         }
     }
-    slapi_ch_free( (void**)&(head->file_referenced_list));
-    slapi_ch_free( (void**)&head);
+    slapi_ch_free((void **)&(head->file_referenced_list));
+    slapi_ch_free((void **)&head);
 
     return ret;
 }
 
-static int import_merge_open_input_cursors(DB**files, int passes, DBC ***cursors)
+static int
+import_merge_open_input_cursors(DB **files, int passes, DBC ***cursors)
 {
-	int i = 0;
-	int ret = 0;
-	*cursors = (DBC**)slapi_ch_calloc(passes,sizeof(DBC*));
-	if (NULL == *cursors) {
-		return -1;
-	}
+    int i = 0;
+    int ret = 0;
+    *cursors = (DBC **)slapi_ch_calloc(passes, sizeof(DBC *));
+    if (NULL == *cursors) {
+        return -1;
+    }
 
-	for (i = 0; i < passes; i++) {
-		DB *pDB = files[i];
-		DBC *pDBC = NULL;
-		if (NULL != pDB) {
-			/* Try to open a cursor onto the file */
-			ret = pDB->cursor(pDB,NULL,&pDBC,0);
-			if (0 != ret)  {
-				break;
-			} else {
-				(*cursors)[i] = pDBC;
-			}
-		}
-	}
+    for (i = 0; i < passes; i++) {
+        DB *pDB = files[i];
+        DBC *pDBC = NULL;
+        if (NULL != pDB) {
+            /* Try to open a cursor onto the file */
+            ret = pDB->cursor(pDB, NULL, &pDBC, 0);
+            if (0 != ret) {
+                break;
+            } else {
+                (*cursors)[i] = pDBC;
+            }
+        }
+    }
 
-	return ret;
+    return ret;
 }
 
-static int import_count_merge_input_files(ldbm_instance *inst,
-	char *indexname, int passes, int *number_found, int *pass_number)
+static int
+import_count_merge_input_files(ldbm_instance *inst,
+                               char *indexname,
+                               int passes,
+                               int *number_found,
+                               int *pass_number)
 {
     int i = 0;
     int found_one = 0;
@@ -278,33 +288,33 @@ static int import_count_merge_input_files(ldbm_instance *inst,
     *pass_number = 0;
 
     for (i = 0; i < passes; i++) {
-	int fd;
-	char *filename = slapi_ch_smprintf("%s/%s.%d%s", inst->inst_dir_name, indexname, i+1,
-		LDBM_FILENAME_SUFFIX);
+        int fd;
+        char *filename = slapi_ch_smprintf("%s/%s.%d%s", inst->inst_dir_name, indexname, i + 1,
+                                           LDBM_FILENAME_SUFFIX);
 
-	if (NULL == filename) {
-	    return -1;
-	}
+        if (NULL == filename) {
+            return -1;
+        }
 
-	fd = dblayer_open_huge_file(filename, O_RDONLY, 0);
-	slapi_ch_free( (void**)&filename);
-	if (fd >= 0) {
-	    close(fd);
-	    if (found_one == 0) {
-		*pass_number = i+1;
-	    } 
-	    found_one = 1;
-	    (*number_found)++;
-	} else {
-	    ; /* Not finding a file is OK */
-	}
+        fd = dblayer_open_huge_file(filename, O_RDONLY, 0);
+        slapi_ch_free((void **)&filename);
+        if (fd >= 0) {
+            close(fd);
+            if (found_one == 0) {
+                *pass_number = i + 1;
+            }
+            found_one = 1;
+            (*number_found)++;
+        } else {
+            ; /* Not finding a file is OK */
+        }
     }
 
     return 0;
 }
 
-static int import_open_merge_input_files(backend *be, IndexInfo *index_info,
-	int passes, DB ***input_files, int *number_found, int *pass_number)
+static int
+import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, DB ***input_files, int *number_found, int *pass_number)
 {
     int i = 0;
     int ret = 0;
@@ -312,54 +322,54 @@ static int import_open_merge_input_files(backend *be, IndexInfo *index_info,
 
     *number_found = 0;
     *pass_number = 0;
-    *input_files = (DB**)slapi_ch_calloc(passes,sizeof(DB*));
+    *input_files = (DB **)slapi_ch_calloc(passes, sizeof(DB *));
     if (NULL == *input_files) {
-	/* Memory allocation error */
-	return -1;
+        /* Memory allocation error */
+        return -1;
     }
     for (i = 0; i < passes; i++) {
-	DB *pDB = NULL;
-	char *filename = slapi_ch_smprintf("%s.%d", index_info->name, i+1);
+        DB *pDB = NULL;
+        char *filename = slapi_ch_smprintf("%s.%d", index_info->name, i + 1);
 
-	if (NULL == filename) {
-	    return -1;
-	}
+        if (NULL == filename) {
+            return -1;
+        }
 
-	if (vlv_isvlv(filename)) {
-		/* not sure why the file would be marked as a vlv index but
-		   not the index configuration . . . but better make sure
-		   the new code works with the old semantics */
-		int saved_mask = index_info->ai->ai_indexmask;
-		index_info->ai->ai_indexmask |= INDEX_VLV;
-		ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
-		index_info->ai->ai_indexmask = saved_mask;
-	} else {
-		ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
-	}
+        if (vlv_isvlv(filename)) {
+            /* not sure why the file would be marked as a vlv index but
+           not the index configuration . . . but better make sure
+           the new code works with the old semantics */
+            int saved_mask = index_info->ai->ai_indexmask;
+            index_info->ai->ai_indexmask |= INDEX_VLV;
+            ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+            index_info->ai->ai_indexmask = saved_mask;
+        } else {
+            ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+        }
 
-	slapi_ch_free( (void**)&filename);
-	if (0 == ret) {
-	    if (found_one == 0) {
-		*pass_number = i+1;
-	    } 
-	    found_one = 1;
-	    (*number_found)++;
-	    (*input_files)[i] = pDB;
-	} else {
-	    if (ENOENT == ret) {
-		ret = 0; /* Not finding a file is OK */
-	    } else {
-		break;
-	    }
-	}
+        slapi_ch_free((void **)&filename);
+        if (0 == ret) {
+            if (found_one == 0) {
+                *pass_number = i + 1;
+            }
+            found_one = 1;
+            (*number_found)++;
+            (*input_files)[i] = pDB;
+        } else {
+            if (ENOENT == ret) {
+                ret = 0; /* Not finding a file is OK */
+            } else {
+                break;
+            }
+        }
     }
 
     return ret;
 }
 
 /* Performs the n-way merge on one file */
-static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
-				 int *key_count)
+static int
+import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
 {
     ldbm_instance *inst = worker->job->inst;
     backend *be = inst->inst_be;
@@ -372,76 +382,76 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
     DBC **input_cursors = NULL;
 
     PR_ASSERT(NULL != inst);
-    
+
     /* Try to open all the input files.
-       If we can't open file a file, we assume that is 
+       If we can't open file a file, we assume that is
        because there was no data in it. */
     ret = import_count_merge_input_files(inst, worker->index_info->name,
-					 passes, &number_found, &pass_number);
+                                         passes, &number_found, &pass_number);
     if (0 != ret) {
-	goto error;
+        goto error;
     }
     /* If there were no input files, then we're finished ! */
     if (0 == number_found) {
-	ret = 0;
-	goto error;
+        ret = 0;
+        goto error;
     }
     /* Special-case where there's only one input file---just rename it */
     if (1 == number_found) {
-	char *newname = NULL;
-	char *oldname = NULL;
+        char *newname = NULL;
+        char *oldname = NULL;
 
-	ret = import_make_merge_filenames(inst->inst_dir_name,
-		worker->index_info->name, pass_number, &oldname, &newname);
-	if (0 != ret) {
-	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
-	            "Failed making filename in merge");
-	    goto error;
-	}
-	ret = PR_Rename(newname,oldname);
-	if (0 != ret) {
-		PRErrorCode prerr = PR_GetError();
-		import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
-				"Failed to rename file \"%s\" to \"%s\" "
-				"in merge, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
-				oldname, newname, prerr, slapd_pr_strerror(prerr));
-		slapi_ch_free( (void**)&newname);
-		slapi_ch_free( (void**)&oldname);
-		goto error;
-	}
-	slapi_ch_free( (void**)&newname);
-	slapi_ch_free( (void**)&oldname);
-	*key_count = -1;
+        ret = import_make_merge_filenames(inst->inst_dir_name,
+                                          worker->index_info->name, pass_number, &oldname, &newname);
+        if (0 != ret) {
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                              "Failed making filename in merge");
+            goto error;
+        }
+        ret = PR_Rename(newname, oldname);
+        if (0 != ret) {
+            PRErrorCode prerr = PR_GetError();
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                              "Failed to rename file \"%s\" to \"%s\" "
+                              "in merge, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
+                              oldname, newname, prerr, slapd_pr_strerror(prerr));
+            slapi_ch_free((void **)&newname);
+            slapi_ch_free((void **)&oldname);
+            goto error;
+        }
+        slapi_ch_free((void **)&newname);
+        slapi_ch_free((void **)&oldname);
+        *key_count = -1;
     } else {
-	/* We really need to merge */
-	import_merge_queue_entry *merge_queue = NULL;
-	DBT key = {0};
-	import_merge_thang thang = {0};
-	int i = 0;
-	int not_finished = 1;
-	int vlv_index = (INDEX_VLV == worker->index_info->ai->ai_indexmask);
+        /* We really need to merge */
+        import_merge_queue_entry *merge_queue = NULL;
+        DBT key = {0};
+        import_merge_thang thang = {0};
+        int i = 0;
+        int not_finished = 1;
+        int vlv_index = (INDEX_VLV == worker->index_info->ai->ai_indexmask);
 
 #if 0
-	/* Close and re-open regions, bugs otherwise */
-	ret = dblayer_close(inst->inst_li, DBLAYER_IMPORT_MODE);
-	if (0 != ret) {
-	    if (ENOSPC == ret) {
-		import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "FAILED: NO DISK SPACE LEFT");
-	    } else {
-		import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8 %d", ret);
-	    }
+    /* Close and re-open regions, bugs otherwise */
+    ret = dblayer_close(inst->inst_li, DBLAYER_IMPORT_MODE);
+    if (0 != ret) {
+        if (ENOSPC == ret) {
+        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "FAILED: NO DISK SPACE LEFT");
+        } else {
+        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8 %d", ret);
+        }
             goto error;
-	}
-	ret = dblayer_start(inst->inst_li, DBLAYER_IMPORT_MODE);
-	if (0 != ret) {
-	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 9");
+    }
+    ret = dblayer_start(inst->inst_li, DBLAYER_IMPORT_MODE);
+    if (0 != ret) {
+        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 9");
             goto error;
-	}
-	ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
-	if (0 != ret) {
-	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 9A");
+    }
+    ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
+    if (0 != ret) {
+        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 9A");
             goto error;
-	}
+    }
 #else
         /* we have reason to believe that it's okay to leave the region files
          * open in db3.x, since they track which files are opened and closed.
@@ -461,168 +471,171 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
         }
 #endif
 
-	ret = import_open_merge_input_files(be, worker->index_info,
-		passes, &input_files, &number_found, &pass_number);
-	if (0 != ret) {
-	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 10");
-	    goto error;
-	}
+        ret = import_open_merge_input_files(be, worker->index_info,
+                                            passes, &input_files, &number_found, &pass_number);
+        if (0 != ret) {
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 10");
+            goto error;
+        }
 
-	ret = dblayer_open_file(be, worker->index_info->name, 1,
-				worker->index_info->ai, &output_file);
-	if (0 != ret) {
-	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "Failed to open output file for "
-			      "index %s in merge", worker->index_info->name);
-	    goto error;
-	}
+        ret = dblayer_open_file(be, worker->index_info->name, 1,
+                                worker->index_info->ai, &output_file);
+        if (0 != ret) {
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "Failed to open output file for "
+                                                                                   "index %s in merge",
+                              worker->index_info->name);
+            goto error;
+        }
 
-	/* OK, so we now have input and output files open and can proceed to 
-	 * merge */
-	/* We want to pre-fill the input IDL queue */
-	/* Open cursors onto the input files */
-	ret = import_merge_open_input_cursors(input_files, passes,
-					      &input_cursors);
-	if (0 != ret) {
-	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 2 %s %d",
-			      worker->index_info->name, ret);
-	    goto error;
-	}
+        /* OK, so we now have input and output files open and can proceed to
+     * merge */
+        /* We want to pre-fill the input IDL queue */
+        /* Open cursors onto the input files */
+        ret = import_merge_open_input_cursors(input_files, passes,
+                                              &input_cursors);
+        if (0 != ret) {
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 2 %s %d",
+                              worker->index_info->name, ret);
+            goto error;
+        }
 
-	/* Now read from the first location in each file and insert into the 
-	 * queue */
-	for (i = 0; i < passes; i++) if (input_files[i]) {
-		import_merge_thang prime_thang = {0};
+        /* Now read from the first location in each file and insert into the
+     * queue */
+        for (i = 0; i < passes; i++)
+            if (input_files[i]) {
+                import_merge_thang prime_thang = {0};
 
-		/* Read an IDL from the file */
-		ret = import_merge_get_next_thang(be, input_cursors[i],
-		input_files[i], &prime_thang, &key,
-		vlv_index ? IMPORT_MERGE_THANG_VLV : IMPORT_MERGE_THANG_IDL);
-		if (0 != ret) {
-			import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 1 %s %d",
-				  worker->index_info->name, ret);
-			goto error;
-		}
-		/* Put it on the queue */
-		ret = import_merge_insert_input_queue(be, &merge_queue, i,& key,
-						  &prime_thang, passes);
-		if (0 != ret) {
-			import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 0 %s",
-				  worker->index_info->name);
-			goto error;
-		}
-	}
+                /* Read an IDL from the file */
+                ret = import_merge_get_next_thang(be, input_cursors[i],
+                                                  input_files[i], &prime_thang, &key,
+                                                  vlv_index ? IMPORT_MERGE_THANG_VLV : IMPORT_MERGE_THANG_IDL);
+                if (0 != ret) {
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 1 %s %d",
+                                      worker->index_info->name, ret);
+                    goto error;
+                }
+                /* Put it on the queue */
+                ret = import_merge_insert_input_queue(be, &merge_queue, i, &key,
+                                                      &prime_thang, passes);
+                if (0 != ret) {
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 0 %s",
+                                      worker->index_info->name);
+                    goto error;
+                }
+            }
 
-	/* We now have a pre-filled queue, so we may now proceed to remove the
-	   head entry and write it to the output file, and repeat this process
-	   until we've finished reading all the input data */
-	while (not_finished && (0 == ret) ) {
-		ret = import_merge_remove_input_queue(be, &merge_queue, &thang,
-		&key, input_cursors, input_files, passes);
-		if (0 != ret) {
-			/* Have we finished cleanly ? */
-			if (EOF == ret) {
-				not_finished = 0;
-			} else {
-				import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 3 %s, %d",
-						  worker->index_info->name, ret);
-			}
-		} else {
-			/* Write it out */
-			(*key_count)++;
-			if (vlv_index) {
-				/* Write the vlv index */
-				ret = output_file->put(output_file, NULL, &key,
-				&(thang.payload.vlv_data),0);
-				slapi_ch_free(&(thang.payload.vlv_data.data));
-				thang.payload.vlv_data.data = NULL;
-			} else {
-				/* Write the IDL index */
-				ret = idl_store_block(be, output_file, &key,
-				thang.payload.idl, NULL, worker->index_info->ai);
-				/* Free the key we got back from the queue */
-				idl_free(&(thang.payload.idl));
-				thang.payload.idl = NULL;
-			}
-			slapi_ch_free(&(key.data));
-			key.data = NULL;
-			if (0 != ret) {
-				/* Failed to write--- most obvious cause being out of 
-				   disk space, let's make sure that we at least print a
-				   sensible error message right here. The caller should
-				   really handle this properly, but we're always bad at
-				   this. */
-				if (ret == DB_RUNRECOVERY || ret == ENOSPC) {
-					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
-						"OUT OF SPACE ON DISK, failed writing index file %s",
-						worker->index_info->name);
-				} else {
-					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
-						"Failed to write index file %s, errno=%d (%s)\n",
-						worker->index_info->name, errno,
-						dblayer_strerror(errno));
-				}
-			}
-		}
-	}
-	preclose_ret = ret;
-	/* Now close the files */
-	dblayer_close_file(&output_file);
-	/* Close the cursors */
-	/* Close and delete the files */
-	for (i = 0; i < passes; i++) {
-		DBC *cursor = input_cursors[i];
-		DB *db = input_files[i];
-		if (NULL != db) {
-			PR_ASSERT(NULL != cursor);
-			ret = cursor->c_close(cursor);
-			if (0 != ret) {
-				import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 4");
-			} 
-			ret = dblayer_close_file(&db);
-			if (0 != ret) {
-				import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 5");
-			}
-			/* Now make the filename and delete the file */
-			{
-				char *newname = NULL;
-				char *oldname = NULL;
-				ret = import_make_merge_filenames(inst->inst_dir_name,
-				worker->index_info->name, i+1, &oldname, &newname);
-				if (0 != ret) {
-					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 6");
-				} else {
-					ret = PR_Delete(newname);
-				if (0 != ret) {
-					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 7");
-				}
-				slapi_ch_free( (void**)&newname);
-				slapi_ch_free( (void**)&oldname);
-				}
-			}
-		}			
-	}
-	if (preclose_ret != 0) ret = preclose_ret;
-	}
-	if (EOF == ret) {
-	ret = 0;
-	}
+        /* We now have a pre-filled queue, so we may now proceed to remove the
+       head entry and write it to the output file, and repeat this process
+       until we've finished reading all the input data */
+        while (not_finished && (0 == ret)) {
+            ret = import_merge_remove_input_queue(be, &merge_queue, &thang,
+                                                  &key, input_cursors, input_files, passes);
+            if (0 != ret) {
+                /* Have we finished cleanly ? */
+                if (EOF == ret) {
+                    not_finished = 0;
+                } else {
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 3 %s, %d",
+                                      worker->index_info->name, ret);
+                }
+            } else {
+                /* Write it out */
+                (*key_count)++;
+                if (vlv_index) {
+                    /* Write the vlv index */
+                    ret = output_file->put(output_file, NULL, &key,
+                                           &(thang.payload.vlv_data), 0);
+                    slapi_ch_free(&(thang.payload.vlv_data.data));
+                    thang.payload.vlv_data.data = NULL;
+                } else {
+                    /* Write the IDL index */
+                    ret = idl_store_block(be, output_file, &key,
+                                          thang.payload.idl, NULL, worker->index_info->ai);
+                    /* Free the key we got back from the queue */
+                    idl_free(&(thang.payload.idl));
+                    thang.payload.idl = NULL;
+                }
+                slapi_ch_free(&(key.data));
+                key.data = NULL;
+                if (0 != ret) {
+                    /* Failed to write--- most obvious cause being out of
+                   disk space, let's make sure that we at least print a
+                   sensible error message right here. The caller should
+                   really handle this properly, but we're always bad at
+                   this. */
+                    if (ret == DB_RUNRECOVERY || ret == ENOSPC) {
+                        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                                          "OUT OF SPACE ON DISK, failed writing index file %s",
+                                          worker->index_info->name);
+                    } else {
+                        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                                          "Failed to write index file %s, errno=%d (%s)\n",
+                                          worker->index_info->name, errno,
+                                          dblayer_strerror(errno));
+                    }
+                }
+            }
+        }
+        preclose_ret = ret;
+        /* Now close the files */
+        dblayer_close_file(&output_file);
+        /* Close the cursors */
+        /* Close and delete the files */
+        for (i = 0; i < passes; i++) {
+            DBC *cursor = input_cursors[i];
+            DB *db = input_files[i];
+            if (NULL != db) {
+                PR_ASSERT(NULL != cursor);
+                ret = cursor->c_close(cursor);
+                if (0 != ret) {
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 4");
+                }
+                ret = dblayer_close_file(&db);
+                if (0 != ret) {
+                    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 5");
+                }
+                /* Now make the filename and delete the file */
+                {
+                    char *newname = NULL;
+                    char *oldname = NULL;
+                    ret = import_make_merge_filenames(inst->inst_dir_name,
+                                                      worker->index_info->name, i + 1, &oldname, &newname);
+                    if (0 != ret) {
+                        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 6");
+                    } else {
+                        ret = PR_Delete(newname);
+                        if (0 != ret) {
+                            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 7");
+                        }
+                        slapi_ch_free((void **)&newname);
+                        slapi_ch_free((void **)&oldname);
+                    }
+                }
+            }
+        }
+        if (preclose_ret != 0)
+            ret = preclose_ret;
+    }
+    if (EOF == ret) {
+        ret = 0;
+    }
 
 error:
-    slapi_ch_free((void**)&input_cursors);
-    slapi_ch_free((void**)&input_files);
+    slapi_ch_free((void **)&input_cursors);
+    slapi_ch_free((void **)&input_files);
     if (ret) {
         import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
-                "%s: Import merge failed. "
-                "If this is an online-import, shutdown the server "
-                "and try the offline command line import (ldif2db)",
-                inst->inst_name);
+                          "%s: Import merge failed. "
+                          "If this is an online-import, shutdown the server "
+                          "and try the offline command line import (ldif2db)",
+                          inst->inst_name);
     }
     return ret;
 }
 
 /********** the real deal here: **********/
 
-/* Our mission here is as follows: 
+/* Our mission here is as follows:
  * for each index job except entrydn and id2entry:
  *     open all the pass files
  *     open a new output file
@@ -630,7 +643,8 @@ error:
  *         key and combining the input IDLs into a merged IDL. Put that
  *         IDL to the output file.
  */
-int import_mega_merge(ImportJob *job)
+int
+import_mega_merge(ImportJob *job)
 {
     ImportWorkerInfo *current_worker = NULL;
     int ret = 0;
@@ -640,51 +654,52 @@ int import_mega_merge(ImportJob *job)
 
     if (1 == job->number_indexers) {
         import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge",
-                "Beginning %d-way merge of one file...", passes);
+                          "Beginning %d-way merge of one file...", passes);
     } else {
         import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge",
-                "Beginning %d-way merge of up to %lu files...",
-                passes, (long unsigned int)job->number_indexers);
+                          "Beginning %d-way merge of up to %lu files...",
+                          passes, (long unsigned int)job->number_indexers);
     }
 
     beginning = slapi_current_utc_time();
     /* Iterate over the files */
-	for (current_worker = job->worker_list; 
-	 (ret == 0) && (current_worker != NULL);
-	 current_worker = current_worker->next)
-	{
-		/* We need to ignore the primary index */
-		if ((current_worker->work_type != FOREMAN) && 
-			(current_worker->work_type != PRODUCER)) {
-			time_t file_beginning = 0;
-			time_t file_end = 0;
-			int key_count = 0;
-	
-			file_beginning = slapi_current_utc_time();
-			ret = import_merge_one_file(current_worker,passes,&key_count);
-			file_end = slapi_current_utc_time();
-			if (key_count == 0) {
-				import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "No files to merge for \"%s\".",
-					current_worker->index_info->name);
-			} else {
-				if (-1 == key_count) {
-					import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": Simple merge - "
-						"file renamed.", current_worker->index_info->name);
-				} else {
-					import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": %d keys merged "
-						"in %ld seconds.", current_worker->index_info->name,
-						key_count, file_end-file_beginning);
-				}
-			}
-		}
-	}
+    for (current_worker = job->worker_list;
+         (ret == 0) && (current_worker != NULL);
+         current_worker = current_worker->next) {
+        /* We need to ignore the primary index */
+        if ((current_worker->work_type != FOREMAN) &&
+            (current_worker->work_type != PRODUCER)) {
+            time_t file_beginning = 0;
+            time_t file_end = 0;
+            int key_count = 0;
 
-	end = slapi_current_utc_time();
-	if (0 == ret) {
-		int seconds_to_merge = end - beginning;
-		import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",
-				  seconds_to_merge);
-	}
+            file_beginning = slapi_current_utc_time();
+            ret = import_merge_one_file(current_worker, passes, &key_count);
+            file_end = slapi_current_utc_time();
+            if (key_count == 0) {
+                import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "No files to merge for \"%s\".",
+                                  current_worker->index_info->name);
+            } else {
+                if (-1 == key_count) {
+                    import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": Simple merge - "
+                                                                                "file renamed.",
+                                      current_worker->index_info->name);
+                } else {
+                    import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": %d keys merged "
+                                                                                "in %ld seconds.",
+                                      current_worker->index_info->name,
+                                      key_count, file_end - file_beginning);
+                }
+            }
+        }
+    }
+
+    end = slapi_current_utc_time();
+    if (0 == ret) {
+        int seconds_to_merge = end - beginning;
+        import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",
+                          seconds_to_merge);
+    }
 
     return ret;
 }

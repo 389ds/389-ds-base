@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -28,27 +28,27 @@
 */
 typedef struct
 {
-	char *path;
-	char *package;
+    char *path;
+    char *package;
     void *propset;
 } Resource;
 
 /*******************************************************************************/
-/* 
+/*
  * this table contains library name
  * (stored in the first string entry, with id=0),
- * and the id/string pairs which are used by library  
+ * and the id/string pairs which are used by library
  */
 
 typedef struct res_RESOURCE_TABLE
 {
-  int id;
-  char *str;
+    int id;
+    char *str;
 } res_RESOURCE_TABLE;
 
 /*******************************************************************************/
 
-/* 
+/*
  * resource global contains resource table list which is used
  * to generate the database.
  * Also used for "in memory" version of XP_GetStringFromDatabase()
@@ -56,7 +56,7 @@ typedef struct res_RESOURCE_TABLE
 
 typedef struct res_RESOURCE_GLOBAL
 {
-  res_RESOURCE_TABLE  *restable;
+    res_RESOURCE_TABLE *restable;
 } res_RESOURCE_GLOBAL;
 
 /*******************************************************************************/
@@ -79,21 +79,28 @@ typedef struct res_RESOURCE_GLOBAL
  * RESOURCE_STR is used by makstrdb.c only.  It is not used by getstrdb.c or
  * in library or application source code.
  */
- 
-#ifdef  RESOURCE_STR
+
+#ifdef RESOURCE_STR
 #define BEGIN_STR(argLibraryName) \
-                          RESOURCE_TABLE argLibraryName[] = { {0, #argLibraryName},
-#define ResDef(argToken,argID,argString) \
-                          {argID, argString},
+    RESOURCE_TABLE argLibraryName[] = {{0, #argLibraryName},
+#define ResDef(argToken, argID, argString) \
+    {argID, argString},
 #define END_STR(argLibraryName) \
-                          {0, 0} };
+    {                           \
+        0, 0                    \
+    }                           \
+    }                           \
+    ;
 #else
 #define BEGIN_STR(argLibraryName) \
-                          enum {
-#define ResDef(argToken,argID,argString) \
-                          argToken = argID,
+    enum                          \
+    {
+#define ResDef(argToken, argID, argString) \
+    argToken = argID,
 #define END_STR(argLibraryName) \
-                          argLibraryName ## top };
+    argLibraryName##top         \
+    }                           \
+    ;
 #endif
 
 #endif /* COPIED_FROM_LIBADMINUTIL_RESOURCE_H */
@@ -105,23 +112,23 @@ typedef res_RESOURCE_GLOBAL RESOURCE_GLOBAL;
 /*******************************************************************************/
 
 /*
- * In accordance with the recommendations in the 
+ * In accordance with the recommendations in the
  * "Netscape Coding Standard for Server Internationalization",
  * the following aliases are defined for fprintf, et al., and
  * these aliases should be used to clearly indicate the intended
  * destination for output.
  */
 
-#define AdminFprintf  fprintf
-#define DebugFprintf  fprintf
+#define AdminFprintf fprintf
+#define DebugFprintf fprintf
 
 #define ClientSprintf sprintf
-#define AdminSprintf  sprintf
-#define DebugSprintf  sprintf
+#define AdminSprintf sprintf
+#define DebugSprintf sprintf
 
-#define ClientFputs   fputs
-#define AdminFputs    fputs
-#define DebugFputs    fputs
+#define ClientFputs fputs
+#define AdminFputs fputs
+#define DebugFputs fputs
 
 /* more #define, as needed */
 
@@ -133,8 +140,7 @@ typedef res_RESOURCE_GLOBAL RESOURCE_GLOBAL;
 
 
 #ifdef __cplusplus
-extern "C" 
-{
+extern "C" {
 #endif
 
 
@@ -143,9 +149,9 @@ extern "C"
 /******************************/
 
 NSAPI_PUBLIC
-extern const char*
-XP_GetStringFromDatabase(const char* strLibraryName,
-                         const char* strLanguage,
+extern const char *
+XP_GetStringFromDatabase(const char *strLibraryName,
+                         const char *strLanguage,
                          int iToken);
 
 #ifdef __cplusplus
@@ -175,10 +181,10 @@ extern void XP_PrintStringDatabase(void);
  * (need one argument instead of three)
  */
 
-#define XP_GetAdminStr(DBTTokenName)                   \
-        XP_GetStringFromDatabase(LIBRARY_NAME,         \
-                                 "en",   \
-                                 DBTTokenName)
+#define XP_GetAdminStr(DBTTokenName)       \
+    XP_GetStringFromDatabase(LIBRARY_NAME, \
+                             "en",         \
+                             DBTTokenName)
 
 /*******************************************************************************/
 

@@ -28,8 +28,8 @@ sds_result sds_bptree_cow_verify_node(sds_bptree_instance *binst, sds_bptree_nod
 
 /* txn node manipulation */
 
-sds_bptree_node * sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node);
-sds_bptree_node * sds_bptree_cow_node_create(sds_bptree_transaction *btxn);
+sds_bptree_node *sds_bptree_cow_node_prepare(sds_bptree_transaction *btxn, sds_bptree_node *node);
+sds_bptree_node *sds_bptree_cow_node_create(sds_bptree_transaction *btxn);
 void sds_bptree_cow_node_update(sds_bptree_transaction *btxn, sds_bptree_node *node, void *key, void *value);
 void sds_bptree_cow_node_siblings(sds_bptree_node *target, sds_bptree_node **left, sds_bptree_node **right);
 

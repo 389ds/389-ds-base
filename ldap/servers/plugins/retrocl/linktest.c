@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -16,9 +16,10 @@
 
 #include "retrocl.h"
 
-int main(int a,char **b)
+int
+main(int a, char **b)
 {
-	int r;
+    int r;
 
-	r = retrocl_plugin_init(NULL);
+    r = retrocl_plugin_init(NULL);
 }

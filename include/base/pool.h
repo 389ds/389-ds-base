@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef BASE_POOL_H
@@ -57,17 +57,17 @@ NSAPI_PUBLIC void INTpool_destroy(pool_handle_t *pool_handle);
 
 NSAPI_PUBLIC int INTpool_enabled(void);
 
-NSAPI_PUBLIC void *INTpool_malloc(pool_handle_t *pool_handle, size_t size );
+NSAPI_PUBLIC void *INTpool_malloc(pool_handle_t *pool_handle, size_t size);
 
-NSAPI_PUBLIC void INTpool_free(pool_handle_t *pool_handle, void *ptr );
+NSAPI_PUBLIC void INTpool_free(pool_handle_t *pool_handle, void *ptr);
 
 NSAPI_PUBLIC void *INTpool_calloc(pool_handle_t *pool_handle, size_t nelem, size_t elsize);
 
-NSAPI_PUBLIC 
-void *INTpool_realloc(pool_handle_t *pool_handle, void *ptr, size_t size );
+NSAPI_PUBLIC
+void *INTpool_realloc(pool_handle_t *pool_handle, void *ptr, size_t size);
 
 NSAPI_PUBLIC
-char *INTpool_strdup(pool_handle_t *pool_handle, const char *orig_str );
+char *INTpool_strdup(pool_handle_t *pool_handle, const char *orig_str);
 
 NSPR_END_EXTERN_C
 

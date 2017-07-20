@@ -10,14 +10,16 @@
 #include "test_sds.h"
 
 static void
-test_1_lqueue_invalid_create(void **state __attribute__((unused))) {
+test_1_lqueue_invalid_create(void **state __attribute__((unused)))
+{
     sds_result result = SDS_SUCCESS;
     result = sds_lqueue_init(NULL, NULL);
     assert_int_equal(result, SDS_NULL_POINTER);
 }
 
 static void
-test_2_lqueue_enqueue(void **state) {
+test_2_lqueue_enqueue(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -29,7 +31,8 @@ test_2_lqueue_enqueue(void **state) {
 }
 
 static void
-test_3_lqueue_enqueue_multiple(void **state) {
+test_3_lqueue_enqueue_multiple(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -46,7 +49,8 @@ test_3_lqueue_enqueue_multiple(void **state) {
 }
 
 static void
-test_4_lqueue_invalid_dequeue(void **state) {
+test_4_lqueue_invalid_dequeue(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -65,7 +69,8 @@ test_4_lqueue_invalid_dequeue(void **state) {
 }
 
 static void
-test_5_lqueue_dequeue(void **state) {
+test_5_lqueue_dequeue(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -85,7 +90,8 @@ test_5_lqueue_dequeue(void **state) {
 }
 
 static void
-test_6_lqueue_dequeue_multiple(void **state) {
+test_6_lqueue_dequeue_multiple(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -114,7 +120,8 @@ test_6_lqueue_dequeue_multiple(void **state) {
 }
 
 static void
-test_7_lqueue_random(void **state) {
+test_7_lqueue_random(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -137,7 +144,8 @@ test_7_lqueue_random(void **state) {
 }
 
 static void
-test_8_lqueue_implicit_free(void **state __attribute__((unused))) {
+test_8_lqueue_implicit_free(void **state __attribute__((unused)))
+{
     sds_result result = SDS_SUCCESS;
     sds_lqueue *q = NULL;
     result = sds_lqueue_init(&q, sds_free);
@@ -155,13 +163,15 @@ test_8_lqueue_implicit_free(void **state __attribute__((unused))) {
 }
 
 static void
-test_9_lqueue_thread(void *arg) {
+test_9_lqueue_thread(void *arg)
+{
     void **state = (void **)arg;
     test_7_lqueue_random(state);
 }
 
 static void
-test_9_lqueue_parallel_stress(void **state) {
+test_9_lqueue_parallel_stress(void **state)
+{
     PRThread *t[8] = {0};
 
     /* Just launch the threads */
@@ -175,11 +185,11 @@ test_9_lqueue_parallel_stress(void **state) {
     for (size_t i = 0; i < 8; i++) {
         assert_int_equal(PR_JoinThread(t[i]), PR_SUCCESS);
     }
-
 }
 
 int
-run_lqueue_tests (void) {
+run_lqueue_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_1_lqueue_invalid_create),
         cmocka_unit_test_setup_teardown(test_2_lqueue_enqueue,
@@ -207,5 +217,3 @@ run_lqueue_tests (void) {
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-

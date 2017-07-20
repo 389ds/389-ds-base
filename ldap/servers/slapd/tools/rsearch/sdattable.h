@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -23,7 +23,7 @@
 typedef struct _sdattable SDatTable;
 
 /* size that the array should grow by when it fills up */
-#define SDT_STEP		32
+#define SDT_STEP 32
 
 SDatTable *sdt_new(int capacity);
 void sdt_destroy(SDatTable *sdt);

@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -25,22 +25,22 @@
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
 
-static Slapi_PluginDesc pdesc = { AUC_FEATURE_DESC,
-                                  VENDOR,
-                                  DS_PACKAGE_VERSION,
-                                  AUC_PLUGIN_DESC };
+static Slapi_PluginDesc pdesc = {AUC_FEATURE_DESC,
+                                 VENDOR,
+                                 DS_PACKAGE_VERSION,
+                                 AUC_PLUGIN_DESC};
 
 /*
  * Plug-in management functions
  */
-int auc_init(Slapi_PBlock * pb);
-static int auc_start(Slapi_PBlock * pb);
-static int auc_close(Slapi_PBlock * pb);
+int auc_init(Slapi_PBlock *pb);
+static int auc_start(Slapi_PBlock *pb);
+static int auc_close(Slapi_PBlock *pb);
 
 /*
  * Operation callbacks (where the real work is done)
  */
-static int auc_pre_search(Slapi_PBlock * pb);
+static int auc_pre_search(Slapi_PBlock *pb);
 static int auc_pre_entry(Slapi_PBlock *pb);
 
 /*
@@ -80,7 +80,7 @@ auc_init(Slapi_PBlock *pb)
     char *plugin_identity = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "--> auc_init\n");
+                  "--> auc_init\n");
 
     /* Store the plugin identity for later use.
      * Used for internal operations. */
@@ -92,18 +92,17 @@ auc_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-                         (void *) auc_start) != 0 ||
+                         (void *)auc_start) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                         (void *) auc_close) != 0 ||
+                         (void *)auc_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
+                         (void *)&pdesc) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_SEARCH_FN,
-                         (void *) auc_pre_search) != 0 ||
+                         (void *)auc_pre_search) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ENTRY_FN,
-                         (void *) auc_pre_entry) != 0
-        ) {
+                         (void *)auc_pre_entry) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                        "auc_init - Failed to register plugin\n");
+                      "auc_init - Failed to register plugin\n");
         status = -1;
     }
 
@@ -112,7 +111,7 @@ auc_init(Slapi_PBlock *pb)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "<-- auc_init\n");
+                  "<-- auc_init\n");
     return status;
 }
 
@@ -121,16 +120,16 @@ auc_init(Slapi_PBlock *pb)
  * auc_start()
  */
 static int
-auc_start(Slapi_PBlock * pb __attribute__((unused)))
+auc_start(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "--> auc_start\n");
+                  "--> auc_start\n");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, AUC_PLUGIN_SUBSYSTEM,
-                    "auc_start - Account usability control plug-in: ready for service\n");
+                  "auc_start - Account usability control plug-in: ready for service\n");
 
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "<-- auc_start\n");
+                  "<-- auc_start\n");
 
     return 0;
 }
@@ -139,13 +138,13 @@ auc_start(Slapi_PBlock * pb __attribute__((unused)))
  * auc_close()
  */
 static int
-auc_close(Slapi_PBlock * pb __attribute__((unused)))
+auc_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "--> auc_close\n");
+                  "--> auc_close\n");
 
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "<-- auc_close\n");
+                  "<-- auc_close\n");
 
     return 0;
 }
@@ -181,9 +180,10 @@ auc_incompatible_ctrl(const char *oid __attribute__((unused)))
  *       reset                  [1] BOOLEAN DEFAULT FALSE,
  *       expired                [2] BOOLEAN DEFAULT_FALSE,
  *       remaining_grace        [3] INTEGER OPTIONAL,
- *       seconds_before_unlock  [4] INTEGER OPTIONAL } 
+ *       seconds_before_unlock  [4] INTEGER OPTIONAL }
  */
-static LDAPControl *auc_create_response_ctrl(Slapi_Entry *e)
+static LDAPControl *
+auc_create_response_ctrl(Slapi_Entry *e)
 {
     BerElement *ctrlber = NULL;
     LDAPControl *ctrl = NULL;
@@ -201,7 +201,7 @@ static LDAPControl *auc_create_response_ctrl(Slapi_Entry *e)
 
     if (!e) {
         slapi_log_err(SLAPI_LOG_PLUGIN, AUC_PLUGIN_SUBSYSTEM,
-                        "auc_create_response_ctrl - NULL entry specified.\n");
+                      "auc_create_response_ctrl - NULL entry specified.\n");
         goto bail;
     }
 
@@ -236,7 +236,7 @@ static LDAPControl *auc_create_response_ctrl(Slapi_Entry *e)
         /* Fill in reason account is not available */
         ber_printf(ctrlber, "t{", AUC_TAG_NOT_AVAILABLE);
         ber_printf(ctrlber, "tb", AUC_TAG_INACTIVE, inactive);
-        ber_printf(ctrlber, "tb", AUC_TAG_RESET, reset); 
+        ber_printf(ctrlber, "tb", AUC_TAG_RESET, reset);
         ber_printf(ctrlber, "tb", AUC_TAG_EXPIRED, expired);
 
         if (expired) {
@@ -282,12 +282,12 @@ auc_pre_search(Slapi_PBlock *pb)
     int ii;
 
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "--> auc_pre_search\n");
+                  "--> auc_pre_search\n");
 
     /* See if the requestor is the root DN. */
-    slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
 
-    /* see if the auc request control is in the list of 
+    /* see if the auc request control is in the list of
        controls - if so, validate it */
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &reqctrls);
     for (ii = 0; (ldapcode == LDAP_SUCCESS) && reqctrls && reqctrls[ii]; ++ii) {
@@ -295,14 +295,14 @@ auc_pre_search(Slapi_PBlock *pb)
         if (!strcmp(ctrl->ldctl_oid, AUC_OID)) {
             if (aucctrl) { /* already specified */
                 slapi_log_err(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                                "auc_pre_search - The account usability control was specified more than "
-                                "once - it must be specified only once in the search request\n");
+                              "auc_pre_search - The account usability control was specified more than "
+                              "once - it must be specified only once in the search request\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The account usability control cannot be specified more than once";
                 aucctrl = NULL;
             } else if (ctrl->ldctl_value.bv_len > 0) {
                 slapi_log_err(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                                "Non-null control value specified for account usability control\n");
+                              "Non-null control value specified for account usability control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The account usability control must not have a value";
             } else {
@@ -315,8 +315,9 @@ auc_pre_search(Slapi_PBlock *pb)
 
     if (aucctrl && incompatible) {
         slapi_log_err(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                "auc_pre_search - Cannot use the account usability control and control "
-                "[%s] for the same search operation\n", incompatible);
+                      "auc_pre_search - Cannot use the account usability control and control "
+                      "[%s] for the same search operation\n",
+                      incompatible);
         /* not sure if this is a hard failure - the current spec says:
            The semantics of the criticality field are specified in [RFC4511].
            In detail, the criticality of the control determines whether the
@@ -341,7 +342,7 @@ auc_pre_search(Slapi_PBlock *pb)
 
         /* Fetch the feature entry and see if the requestor is allowed access. */
         PR_snprintf(dn, sizeof(dn), "dn: oid=%s,cn=features,cn=config", AUC_OID);
-        if ((feature = slapi_str2entry(dn,0)) != NULL) {
+        if ((feature = slapi_str2entry(dn, 0)) != NULL) {
             char *dummy_attr = "1.1";
 
             ldapcode = slapi_access_allowed(pb, feature, dummy_attr, NULL, SLAPI_ACL_READ);
@@ -363,7 +364,7 @@ auc_pre_search(Slapi_PBlock *pb)
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
-                    "<-- auc_pre_op\n");
+                  "<-- auc_pre_op\n");
 
     return ldapcode;
 }
@@ -395,7 +396,7 @@ auc_pre_entry(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_ORIG, &e);
         if (!e) {
             slapi_log_err(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                            "auc_pre_entry - Unable to fetch entry.\n");
+                          "auc_pre_entry - Unable to fetch entry.\n");
             goto bail;
         }
 
@@ -403,8 +404,8 @@ auc_pre_entry(Slapi_PBlock *pb)
         ctrl = auc_create_response_ctrl(e);
         if (!ctrl) {
             slapi_log_err(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                "auc_pre_entry - Error creating response control for entry \"%s\".\n",
-                slapi_entry_get_ndn(e) ? slapi_entry_get_ndn(e) : "null");
+                          "auc_pre_entry - Error creating response control for entry \"%s\".\n",
+                          slapi_entry_get_ndn(e) ? slapi_entry_get_ndn(e) : "null");
             goto bail;
         }
 
@@ -425,4 +426,3 @@ auc_pre_entry(Slapi_PBlock *pb)
 bail:
     return 0;
 }
-

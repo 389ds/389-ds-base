@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* facsimile.c - Facsimile Telephone Number syntax routines */
@@ -18,229 +18,217 @@
 #include <sys/types.h>
 #include "syntax.h"
 
-static int facsimile_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
-		Slapi_Value **bvals, int ftype, Slapi_Value **retVal );
-static int facsimile_filter_sub( Slapi_PBlock *pb, char *initial, char **any,
-		char *final, Slapi_Value **bvals );
-static int facsimile_values2keys( Slapi_PBlock *pb, Slapi_Value **val,
-		Slapi_Value ***ivals, int ftype );
-static int facsimile_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
-		Slapi_Value ***ivals, int ftype );
-static int facsimile_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
-		char *final, Slapi_Value ***ivals );
-static int facsimile_compare(struct berval	*v1, struct berval	*v2);
+static int facsimile_filter_ava(Slapi_PBlock *pb, struct berval *bvfilter, Slapi_Value **bvals, int ftype, Slapi_Value **retVal);
+static int facsimile_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Slapi_Value **bvals);
+static int facsimile_values2keys(Slapi_PBlock *pb, Slapi_Value **val, Slapi_Value ***ivals, int ftype);
+static int facsimile_assertion2keys_ava(Slapi_PBlock *pb, Slapi_Value *val, Slapi_Value ***ivals, int ftype);
+static int facsimile_assertion2keys_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Slapi_Value ***ivals);
+static int facsimile_compare(struct berval *v1, struct berval *v2);
 static int facsimile_validate(struct berval *val);
 static int fax_parameter_validate(const char *start, const char *end);
 static void facsimile_normalize(
-	Slapi_PBlock *pb,
-	char    *s,
-	int     trim_spaces,
-	char    **alt
-);
+    Slapi_PBlock *pb,
+    char *s,
+    int trim_spaces,
+    char **alt);
 
 /* the first name is the official one from RFC 4517 */
-static char *names[] = { "Facsimile Telephone Number", "facsimile", FACSIMILE_SYNTAX_OID, 0 };
+static char *names[] = {"Facsimile Telephone Number", "facsimile", FACSIMILE_SYNTAX_OID, 0};
 
-static Slapi_PluginDesc pdesc = { "facsimile-syntax", VENDOR, DS_PACKAGE_VERSION,
-	"Facsimile Telephone Number attribute syntax plugin" };
+static Slapi_PluginDesc pdesc = {"facsimile-syntax", VENDOR, DS_PACKAGE_VERSION,
+                                 "Facsimile Telephone Number attribute syntax plugin"};
 
 int
-facsimile_init( Slapi_PBlock *pb )
+facsimile_init(Slapi_PBlock *pb)
 {
-	int	rc, flags;
+    int rc, flags;
 
-	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> facsimile_init\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> facsimile_init\n");
 
-	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    (void *) SLAPI_PLUGIN_VERSION_01 );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-	    (void *)&pdesc );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FILTER_AVA,
-	    (void *) facsimile_filter_ava );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FILTER_SUB,
-	    (void *) facsimile_filter_sub );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALUES2KEYS,
-	    (void *) facsimile_values2keys );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA,
-	    (void *) facsimile_assertion2keys_ava );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB,
-	    (void *) facsimile_assertion2keys_sub );
-	flags = SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING;
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FLAGS,
-	    (void *) &flags );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NAMES,
-	    (void *) names );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_OID,
-	    (void *) FACSIMILE_SYNTAX_OID );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
-	    (void *) facsimile_compare );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
-	    (void *) facsimile_validate );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
-	    (void *) facsimile_normalize );
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                          (void *)SLAPI_PLUGIN_VERSION_01);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                           (void *)&pdesc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_FILTER_AVA,
+                           (void *)facsimile_filter_ava);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_FILTER_SUB,
+                           (void *)facsimile_filter_sub);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_VALUES2KEYS,
+                           (void *)facsimile_values2keys);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA,
+                           (void *)facsimile_assertion2keys_ava);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB,
+                           (void *)facsimile_assertion2keys_sub);
+    flags = SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING;
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_FLAGS,
+                           (void *)&flags);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_NAMES,
+                           (void *)names);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_OID,
+                           (void *)FACSIMILE_SYNTAX_OID);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
+                           (void *)facsimile_compare);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
+                           (void *)facsimile_validate);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+                           (void *)facsimile_normalize);
 
-	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= facsimile_init %d\n", rc);
-	return( rc );
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= facsimile_init %d\n", rc);
+    return (rc);
 }
 
 static int
 facsimile_filter_ava(
-    Slapi_PBlock		*pb,
-    struct berval	*bvfilter,
-    Slapi_Value	**bvals,
-    int			ftype,
-    Slapi_Value **retVal
-)
+    Slapi_PBlock *pb,
+    struct berval *bvfilter,
+    Slapi_Value **bvals,
+    int ftype,
+    Slapi_Value **retVal)
 {
-	int filter_normalized = 0;
-	int syntax = SYNTAX_CIS;
-	if (pb) {
-		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED,
-		                  &filter_normalized );
-		if (filter_normalized) {
-			syntax |= SYNTAX_NORM_FILT;
-		}
-	}
-	return( string_filter_ava( bvfilter, bvals, syntax,
-	    ftype, retVal ) );
+    int filter_normalized = 0;
+    int syntax = SYNTAX_CIS;
+    if (pb) {
+        slapi_pblock_get(pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED,
+                         &filter_normalized);
+        if (filter_normalized) {
+            syntax |= SYNTAX_NORM_FILT;
+        }
+    }
+    return (string_filter_ava(bvfilter, bvals, syntax,
+                              ftype, retVal));
 }
 
 
 static int
 facsimile_filter_sub(
-    Slapi_PBlock		*pb,
-    char		*initial,
-    char		**any,
-    char		*final,
-    Slapi_Value	**bvals
-)
+    Slapi_PBlock *pb,
+    char *initial,
+    char **any,
+    char * final,
+    Slapi_Value **bvals)
 {
-	return( string_filter_sub( pb, initial, any, final, bvals, SYNTAX_CIS ) );
+    return (string_filter_sub(pb, initial, any, final, bvals, SYNTAX_CIS));
 }
 
 static int
 facsimile_values2keys(
-    Slapi_PBlock		*pb,
-    Slapi_Value	**vals,
-    Slapi_Value	***ivals,
-    int			ftype
-)
+    Slapi_PBlock *pb,
+    Slapi_Value **vals,
+    Slapi_Value ***ivals,
+    int ftype)
 {
-	return( string_values2keys( pb, vals, ivals, SYNTAX_CIS,
-	    ftype ) );
+    return (string_values2keys(pb, vals, ivals, SYNTAX_CIS,
+                               ftype));
 }
 
 static int
 facsimile_assertion2keys_ava(
-    Slapi_PBlock		*pb,
-    Slapi_Value	*val,
-    Slapi_Value	***ivals,
-    int			ftype
-)
+    Slapi_PBlock *pb,
+    Slapi_Value *val,
+    Slapi_Value ***ivals,
+    int ftype)
 {
-	return(string_assertion2keys_ava( pb, val, ivals,
-	    SYNTAX_CIS, ftype ));
+    return (string_assertion2keys_ava(pb, val, ivals,
+                                      SYNTAX_CIS, ftype));
 }
 
 static int
 facsimile_assertion2keys_sub(
-    Slapi_PBlock		*pb,
-    char		*initial,
-    char		**any,
-    char		*final,
-    Slapi_Value	***ivals
-)
+    Slapi_PBlock *pb,
+    char *initial,
+    char **any,
+    char * final,
+    Slapi_Value ***ivals)
 {
-	return( string_assertion2keys_sub( pb, initial, any, final, ivals,
-	    SYNTAX_CIS ) );
+    return (string_assertion2keys_sub(pb, initial, any, final, ivals,
+                                      SYNTAX_CIS));
 }
 
-static int facsimile_compare(    
-	struct berval	*v1,
-    struct berval	*v2
-)
+static int
+facsimile_compare(
+    struct berval *v1,
+    struct berval *v2)
 {
-	return value_cmp(v1, v2, SYNTAX_CIS, 3 /* Normalise both values */);
+    return value_cmp(v1, v2, SYNTAX_CIS, 3 /* Normalise both values */);
 }
 
 static int
 facsimile_validate(
-	struct berval	*val
-)
+    struct berval *val)
 {
-	int     rc = 0;    /* assume the value is valid */
-	uint i = 0;
+    int rc = 0; /* assume the value is valid */
+    uint i = 0;
 
-	/* Per RFC4517:
-	 *
-	 * fax-number       = telephone-number *( DOLLAR fax-parameter )
-	 * telephone-number = PrintableString
-	 * fax-parameter    = "twoDimensional" /
-	 *                    "fineResolution" /
-	 *                    "unlimitedLength" /
-	 *                    "b4Length" /
-	 *                    "a3Width" /
-	 *                    "b4Width" /
-	 *                    "uncompressed"
-	 */
+    /* Per RFC4517:
+     *
+     * fax-number       = telephone-number *( DOLLAR fax-parameter )
+     * telephone-number = PrintableString
+     * fax-parameter    = "twoDimensional" /
+     *                    "fineResolution" /
+     *                    "unlimitedLength" /
+     *                    "b4Length" /
+     *                    "a3Width" /
+     *                    "b4Width" /
+     *                    "uncompressed"
+     */
 
-	/* Don't allow a 0 length string */
-	if ((val == NULL) || (val->bv_len == 0)) {
-		rc = 1;
-		goto exit;
-	}
+    /* Don't allow a 0 length string */
+    if ((val == NULL) || (val->bv_len == 0)) {
+        rc = 1;
+        goto exit;
+    }
 
-	/* Make sure all chars are a PrintableCharacter */
-	for (i=0; i < val->bv_len; i++) {
-		if (!IS_PRINTABLE(val->bv_val[i])) {
-			if (!IS_DOLLAR(val->bv_val[i])) {
-				rc = 1;
-				goto exit;
-			} else {
-				/* Process the fax-parameters */
-				const char *start = NULL;
-				const char *end = &(val->bv_val[val->bv_len - 1]);
-				const char *p = &(val->bv_val[i]);
+    /* Make sure all chars are a PrintableCharacter */
+    for (i = 0; i < val->bv_len; i++) {
+        if (!IS_PRINTABLE(val->bv_val[i])) {
+            if (!IS_DOLLAR(val->bv_val[i])) {
+                rc = 1;
+                goto exit;
+            } else {
+                /* Process the fax-parameters */
+                const char *start = NULL;
+                const char *end = &(val->bv_val[val->bv_len - 1]);
+                const char *p = &(val->bv_val[i]);
 
-				/* The value must have a printable string first,
-				 * so we can't allow it to start with a '$'.  We
-				 * also need to ensure that the string does not
-				 * end with this '$'. */
-				if ((i == 0) || (p == end)) {
-					rc = 1;
-					goto exit;
-				}
+                /* The value must have a printable string first,
+                 * so we can't allow it to start with a '$'.  We
+                 * also need to ensure that the string does not
+                 * end with this '$'. */
+                if ((i == 0) || (p == end)) {
+                    rc = 1;
+                    goto exit;
+                }
 
-				/* We're guaranteed to have at least one character
-				 * past p.  This is where the fax-parameter should
-				 * start. */
-				start = p + 1;
+                /* We're guaranteed to have at least one character
+                 * past p.  This is where the fax-parameter should
+                 * start. */
+                start = p + 1;
 
-				for (p = start; p <= end; p++) {
-					if (p == end) {
-						/* Ensure start to p is a valid fax-parameter, then
-						 * exit since we're at the end. */
-						rc = fax_parameter_validate(start, p);
-						goto exit;
-					} else if (*p == '$') { 
-						/* Ensure start to p-1 is a valid fax-parameter */
-						if ((rc = fax_parameter_validate(start, p - 1)) != 0) {
-							goto exit;
-						}
+                for (p = start; p <= end; p++) {
+                    if (p == end) {
+                        /* Ensure start to p is a valid fax-parameter, then
+                         * exit since we're at the end. */
+                        rc = fax_parameter_validate(start, p);
+                        goto exit;
+                    } else if (*p == '$') {
+                        /* Ensure start to p-1 is a valid fax-parameter */
+                        if ((rc = fax_parameter_validate(start, p - 1)) != 0) {
+                            goto exit;
+                        }
 
-						/* We're guaranteed to have another character, which
-						 * should be the beginning of the next fax-parameter.
-						 * Adjust the start pointer to point to the beginning
-						 * of this fax-parameter. */
-						start = p + 1;
-					}
-				}
-			}
-		}
-	}
+                        /* We're guaranteed to have another character, which
+                         * should be the beginning of the next fax-parameter.
+                         * Adjust the start pointer to point to the beginning
+                         * of this fax-parameter. */
+                        start = p + 1;
+                    }
+                }
+            }
+        }
+    }
 
 exit:
-	return rc;
+    return rc;
 }
 
 /*
@@ -252,71 +240,71 @@ exit:
 static int
 fax_parameter_validate(const char *start, const char *end)
 {
-	int rc = 0; /* Assume string is valid */
-	size_t length = 0;
+    int rc = 0; /* Assume string is valid */
+    size_t length = 0;
 
-	if ((start == NULL) || (end == NULL)) {
-		rc = 1;
-		goto exit;
-	}
+    if ((start == NULL) || (end == NULL)) {
+        rc = 1;
+        goto exit;
+    }
 
-	/* Per RFC4517:
-	 *
-	 * fax-parameter    = "twoDimensional" /
-	 *                    "fineResolution" /
-	 *                    "unlimitedLength" /
-	 *                    "b4Length" /
-	 *                    "a3Width" /
-	 *                    "b4Width" /
-	 *                    "uncompressed"
-	 */
+    /* Per RFC4517:
+     *
+     * fax-parameter    = "twoDimensional" /
+     *                    "fineResolution" /
+     *                    "unlimitedLength" /
+     *                    "b4Length" /
+     *                    "a3Width" /
+     *                    "b4Width" /
+     *                    "uncompressed"
+     */
 
-	/* Check length first for efficiency. */
-	length = end - start + 1;
-	switch (length) {
-		case 7:
-			if ((strncmp(start, "a3Width", length) != 0) &&
-			    (strncmp(start, "b4Width", length) != 0)) {
-				rc = 1;
-			}
-			break;
-		case 8:
-			if (strncmp(start, "b4Length", length) != 0) {
-				rc = 1;
-			}
-			break;
-		case 12:
-			if (strncmp(start, "uncompressed", length) != 0) {
-				rc = 1;
-			}
-			break;
-		case 14:
-			if ((strncmp(start, "twoDimensional", length) != 0) &&
-			    (strncmp(start, "fineResolution", length) != 0)) {
-				rc = 1;
-			}
-			break;
-		case 15:
-			if (strncmp(start, "unlimitedLength", length) != 0) {
-				rc = 1;
-			}
-			break;
-		default:
-			rc = 1;
-			break;
-	}
+    /* Check length first for efficiency. */
+    length = end - start + 1;
+    switch (length) {
+    case 7:
+        if ((strncmp(start, "a3Width", length) != 0) &&
+            (strncmp(start, "b4Width", length) != 0)) {
+            rc = 1;
+        }
+        break;
+    case 8:
+        if (strncmp(start, "b4Length", length) != 0) {
+            rc = 1;
+        }
+        break;
+    case 12:
+        if (strncmp(start, "uncompressed", length) != 0) {
+            rc = 1;
+        }
+        break;
+    case 14:
+        if ((strncmp(start, "twoDimensional", length) != 0) &&
+            (strncmp(start, "fineResolution", length) != 0)) {
+            rc = 1;
+        }
+        break;
+    case 15:
+        if (strncmp(start, "unlimitedLength", length) != 0) {
+            rc = 1;
+        }
+        break;
+    default:
+        rc = 1;
+        break;
+    }
 
 exit:
-	return rc;
+    return rc;
 }
 
-static void facsimile_normalize(
-	Slapi_PBlock	*pb __attribute__((unused)),
-	char	*s,
-	int		trim_spaces,
-	char	**alt
-)
+static void
+facsimile_normalize(
+    Slapi_PBlock *pb __attribute__((unused)),
+    char *s,
+    int trim_spaces,
+    char **alt)
 {
-	value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
-	return;
+    value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
+    return;
 }

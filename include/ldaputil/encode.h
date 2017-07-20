@@ -4,18 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef _LDAPU_ENCODE_H
 #define _LDAPU_ENCODE_H
 
 #ifndef NSAPI_PUBLIC
-#define NSAPI_PUBLIC 
+#define NSAPI_PUBLIC
 #endif
 
 #ifdef __cplusplus
@@ -24,7 +24,7 @@ extern "C" {
 
 NSAPI_PUBLIC extern char *dbconf_encodeval(const char *val);
 
-NSAPI_PUBLIC extern char *dbconf_decodeval (const char *val);
+NSAPI_PUBLIC extern char *dbconf_decodeval(const char *val);
 
 #ifdef __cplusplus
 }

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifndef AUTHDB_H
@@ -18,10 +18,11 @@
 #include <libaccess/nserror.h>
 #include <libaccess/las.h>
 
-#define URL_PREFIX_LDAP		    "ldap"
-#define URL_PREFIX_LDAP_LEN	    4
+#define URL_PREFIX_LDAP "ldap"
+#define URL_PREFIX_LDAP_LEN 4
 
-typedef struct {
+typedef struct
+{
     char *dbname;
     ACLDbType_t dbtype;
     void *dbinfo;

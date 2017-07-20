@@ -4,18 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-/*                                                  
+/*
  */
 
 /* repl_objset.h */
- /*
+/*
   *  Support for lifetime management of sets of objects.
   *  Objects are refcounted. NOTE: This API should go away
   * in favor of the objset API provided by libslapd.
@@ -25,10 +25,10 @@
 
 #include "llist.h"
 
-#define REPL_OBJSET_SUCCESS			0
-#define REPL_OBJSET_DUPLICATE_KEY	1
-#define REPL_OBJSET_INTERNAL_ERROR	2
-#define REPL_OBJSET_KEY_NOT_FOUND	3
+#define REPL_OBJSET_SUCCESS 0
+#define REPL_OBJSET_DUPLICATE_KEY 1
+#define REPL_OBJSET_INTERNAL_ERROR 2
+#define REPL_OBJSET_KEY_NOT_FOUND 3
 
 typedef struct repl_objset Repl_Objset;
 

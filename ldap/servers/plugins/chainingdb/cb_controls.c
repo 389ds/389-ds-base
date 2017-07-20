@@ -4,124 +4,128 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include "cb.h"
 
 /*
-** Controls that can't be forwarded due to the current implementation 
+** Controls that can't be forwarded due to the current implementation
 */
 
-static char * unsupported_ctrls[] = {LDAP_CONTROL_PERSISTENTSEARCH,NULL};
+static char *unsupported_ctrls[] = {LDAP_CONTROL_PERSISTENTSEARCH, NULL};
 
-int cb_is_control_forwardable(cb_backend * cb __attribute__((unused)), char *controloid) {
-    return (!(charray_inlist(unsupported_ctrls,controloid)));
+int
+cb_is_control_forwardable(cb_backend *cb __attribute__((unused)), char *controloid)
+{
+    return (!(charray_inlist(unsupported_ctrls, controloid)));
 }
 
 void
-cb_register_supported_control( cb_backend * cb, char *controloid, unsigned long controlops __attribute__((unused)))
+cb_register_supported_control(cb_backend *cb, char *controloid, unsigned long controlops __attribute__((unused)))
 {
     /* For now, ignore controlops */
-    if ( controloid != NULL ) {
+    if (controloid != NULL) {
         slapi_rwlock_wrlock(cb->config.rwl_config_lock);
-                   charray_add( &cb->config.forward_ctrls,slapi_ch_strdup( controloid ));
+        charray_add(&cb->config.forward_ctrls, slapi_ch_strdup(controloid));
         slapi_rwlock_unlock(cb->config.rwl_config_lock);
-        }
+    }
 }
 
 
 void
-cb_unregister_all_supported_control( cb_backend * cb ) {
+cb_unregister_all_supported_control(cb_backend *cb)
+{
 
     slapi_rwlock_wrlock(cb->config.rwl_config_lock);
     charray_free(cb->config.forward_ctrls);
-    cb->config.forward_ctrls=NULL;
+    cb->config.forward_ctrls = NULL;
     slapi_rwlock_unlock(cb->config.rwl_config_lock);
 }
 
 void
-cb_unregister_supported_control( cb_backend * cb, char *controloid, unsigned long controlops )
+cb_unregister_supported_control(cb_backend *cb, char *controloid, unsigned long controlops)
 {
 
     /* For now, ignore controlops */
-    if ( controloid != NULL ) {
+    if (controloid != NULL) {
         int i;
         slapi_rwlock_wrlock(cb->config.rwl_config_lock);
-        for ( i = 0; cb->config.forward_ctrls != NULL && cb->config.forward_ctrls[i] != NULL; ++i ) {
-            if ( strcmp( cb->config.forward_ctrls[i], controloid ) == 0 ) {
+        for (i = 0; cb->config.forward_ctrls != NULL && cb->config.forward_ctrls[i] != NULL; ++i) {
+            if (strcmp(cb->config.forward_ctrls[i], controloid) == 0) {
                 break;
             }
         }
-        if ( cb->config.forward_ctrls == NULL || cb->config.forward_ctrls[i] == NULL) {
+        if (cb->config.forward_ctrls == NULL || cb->config.forward_ctrls[i] == NULL) {
             slapi_rwlock_unlock(cb->config.rwl_config_lock);
             return;
         }
-        if ( controlops == 0 ) {
-            charray_remove(cb->config.forward_ctrls,controloid,0/* free it */);
+        if (controlops == 0) {
+            charray_remove(cb->config.forward_ctrls, controloid, 0 /* free it */);
         }
         slapi_rwlock_unlock(cb->config.rwl_config_lock);
     }
 }
 
-int cb_create_loop_control (
-     const ber_int_t hops,
-     LDAPControl **ctrlp)
+int
+cb_create_loop_control(
+    const ber_int_t hops,
+    LDAPControl **ctrlp)
 
 {
-    BerElement      *ber;
-    int             rc;
+    BerElement *ber;
+    int rc;
 
     if ((ber = ber_alloc()) == NULL)
         return -1;
 
-    if ( ber_printf( ber, "i", hops ) < 0) {
-        ber_free(ber,1);
+    if (ber_printf(ber, "i", hops) < 0) {
+        ber_free(ber, 1);
         return -1;
     }
 
-    rc = slapi_build_control( CB_LDAP_CONTROL_CHAIN_SERVER, ber, 0, ctrlp);
+    rc = slapi_build_control(CB_LDAP_CONTROL_CHAIN_SERVER, ber, 0, ctrlp);
 
-    ber_free(ber,1);
+    ber_free(ber, 1);
 
     return rc;
 }
 
 /*
-** Return the controls to be passed to the remote 
+** Return the controls to be passed to the remote
 ** farm server and the LDAP error to return.
 **
 ** Add the Proxied Authorization control when impersonation
-** is enabled. Other controls present in the request are added 
+** is enabled. Other controls present in the request are added
 ** to the control list
 **
 ** #622885 .abandon should not inherit the to-be-abandoned-operation's controls
 **         .controls attached to abandon should not be critical
 */
 
-int cb_update_controls( Slapi_PBlock * pb, 
-                        LDAP         * ld,
-                        LDAPControl  *** controls,
-                        int          ctrl_flags
-                      )
+int
+cb_update_controls(Slapi_PBlock *pb,
+                   LDAP *ld,
+                   LDAPControl ***controls,
+                   int ctrl_flags)
 {
 
-    int cCount=0;
-    int dCount=0;
+    int cCount = 0;
+    int dCount = 0;
     int i;
-    char * proxyDN=NULL;
-    LDAPControl ** reqControls = NULL;
-    LDAPControl ** ctrls = NULL;
-    cb_backend_instance  * cb;
-    cb_backend           * cbb;
-    Slapi_Backend        * be;
-    int rc=LDAP_SUCCESS;
-    ber_int_t hops=0;
-    int useloop=0;
+    char *proxyDN = NULL;
+    LDAPControl **reqControls = NULL;
+    LDAPControl **ctrls = NULL;
+    cb_backend_instance *cb;
+    cb_backend *cbb;
+    Slapi_Backend *be;
+    int rc = LDAP_SUCCESS;
+    ber_int_t hops = 0;
+    int useloop = 0;
     int addauth = (ctrl_flags & CB_UPDATE_CONTROLS_ADDAUTH);
     int isabandon = (ctrl_flags & CB_UPDATE_CONTROLS_ISABANDON);
     int op_type = 0;
@@ -130,10 +134,10 @@ int cb_update_controls( Slapi_PBlock * pb,
     slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &op_type);
     if (!isabandon || op_type == SLAPI_OPERATION_ABANDON) {
         /* if not abandon or abandon sent by client */
-        slapi_pblock_get( pb, SLAPI_REQCONTROLS, &reqControls );
+        slapi_pblock_get(pb, SLAPI_REQCONTROLS, &reqControls);
     }
-    slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-    slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &cbb );
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &cbb);
     cb = cb_get_instance(be);
 
     /*****************************************/
@@ -142,25 +146,26 @@ int cb_update_controls( Slapi_PBlock * pb,
     /* else remove it from the control list  */
     /*****************************************/
 
-    for ( cCount=0; reqControls && reqControls[cCount]; cCount++ );
-    ctrls = (LDAPControl **)slapi_ch_calloc(1,sizeof(LDAPControl *) * (cCount +3));
+    for (cCount = 0; reqControls && reqControls[cCount]; cCount++)
+        ;
+    ctrls = (LDAPControl **)slapi_ch_calloc(1, sizeof(LDAPControl *) * (cCount + 3));
 
     slapi_rwlock_rdlock(cbb->config.rwl_config_lock);
 
-    for ( cCount=0; reqControls && reqControls[cCount]; cCount++ ) {
+    for (cCount = 0; reqControls && reqControls[cCount]; cCount++) {
 
         /* XXXSD CASCADING */
         /* For now, allow PROXY_AUTH control forwarding only when       */
         /* local acl evaluation to prevent unauthorized access          */
 
-        if (!strcmp(reqControls[cCount]->ldctl_oid,LDAP_CONTROL_PROXYAUTH)) {
+        if (!strcmp(reqControls[cCount]->ldctl_oid, LDAP_CONTROL_PROXYAUTH)) {
 
             /* we have to force remote acl checking if the associated backend to this
             chaining backend is disabled - disabled == no acl check possible */
             if (!cb->local_acl && !cb->associated_be_is_disabled) {
-                slapi_log_err(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
-                    "local aci check required to handle proxied auth control. Deny access.\n");
-                    rc= LDAP_INSUFFICIENT_ACCESS;
+                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                              "local aci check required to handle proxied auth control. Deny access.\n");
+                rc = LDAP_INSUFFICIENT_ACCESS;
                 break;
             }
 
@@ -168,18 +173,18 @@ int cb_update_controls( Slapi_PBlock * pb,
             /* checked earlier when impersonation is on                           */
 
             if (!cb->impersonate) {
-                char * requestor,*rootdn;
-                char * requestorCopy=NULL;
+                char *requestor, *rootdn;
+                char *requestorCopy = NULL;
 
                 rootdn = cb_get_rootdn();
-                slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &requestor );
+                slapi_pblock_get(pb, SLAPI_REQUESTOR_NDN, &requestor);
                 requestorCopy = slapi_ch_strdup(requestor);
                 slapi_dn_ignore_case(requestorCopy);
 
-                if (!strcmp( requestorCopy, rootdn )) {    /* UTF8- aware */
-                    slapi_log_err(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
-                            "Use of user <%s> incompatible with proxied auth. control\n",
-                            rootdn);
+                if (!strcmp(requestorCopy, rootdn)) { /* UTF8- aware */
+                    slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                                  "Use of user <%s> incompatible with proxied auth. control\n",
+                                  rootdn);
                     rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
                     slapi_ch_free_string(&rootdn);
                     slapi_ch_free_string(&requestorCopy);
@@ -189,45 +194,44 @@ int cb_update_controls( Slapi_PBlock * pb,
                 slapi_ch_free_string(&requestorCopy);
             }
 
-            addauth=0;
-            ctrls[dCount]=slapi_dup_control(reqControls[cCount]);
+            addauth = 0;
+            ctrls[dCount] = slapi_dup_control(reqControls[cCount]);
             dCount++;
 
-        } else if (!strcmp(reqControls[cCount]->ldctl_oid,CB_LDAP_CONTROL_CHAIN_SERVER) &&
+        } else if (!strcmp(reqControls[cCount]->ldctl_oid, CB_LDAP_CONTROL_CHAIN_SERVER) &&
                    BV_HAS_DATA((&(reqControls[cCount]->ldctl_value)))) {
             /* Max hop count reached ?                 */
             /* Checked earlier by a call to cb_forward_operation()  */
 
-            BerElement      *ber = NULL;
+            BerElement *ber = NULL;
 
             ber = ber_init(&(reqControls[cCount]->ldctl_value));
-            if (LBER_ERROR == ber_scanf(ber,"i",&hops)) {
-                slapi_log_err(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
-                                 "Unable to get number of hops from the chaining control\n");
+            if (LBER_ERROR == ber_scanf(ber, "i", &hops)) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                              "Unable to get number of hops from the chaining control\n");
             }
-            ber_free(ber,1);
-            useloop=1;
+            ber_free(ber, 1);
+            useloop = 1;
 
             /* Add to the control list later */
 
         } else {
 
             int i;
-            for ( i = 0; cbb->config.forward_ctrls != NULL
-                && cbb->config.forward_ctrls[i] != NULL; ++i ) {
-                if ( strcmp( cbb->config.forward_ctrls[i], reqControls[cCount]->ldctl_oid ) == 0 ) {
+            for (i = 0; cbb->config.forward_ctrls != NULL && cbb->config.forward_ctrls[i] != NULL; ++i) {
+                if (strcmp(cbb->config.forward_ctrls[i], reqControls[cCount]->ldctl_oid) == 0) {
                     break;
                 }
             }
             /* For now, ignore optype */
-            if ( cbb->config.forward_ctrls == NULL || cbb->config.forward_ctrls[i] == NULL) {
+            if (cbb->config.forward_ctrls == NULL || cbb->config.forward_ctrls[i] == NULL) {
                 if (reqControls[cCount]->ldctl_iscritical) {
                     rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
                     break;
                 }
                 /* Skip it */
             } else {
-                ctrls[dCount]=slapi_dup_control(reqControls[cCount]);
+                ctrls[dCount] = slapi_dup_control(reqControls[cCount]);
                 dCount++;
             }
         }
@@ -244,19 +248,19 @@ int cb_update_controls( Slapi_PBlock * pb,
     /* add impersonation control if needed */
     /***************************************/
 
-    if ( !(cb->impersonate) ) {
+    if (!(cb->impersonate)) {
 
         /* don't add proxy control */
-        addauth=0;
+        addauth = 0;
     }
-        
-    if (addauth) {
-        slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &proxyDN );
 
-        if ( slapi_ldap_create_proxyauth_control(ld, proxyDN, isabandon?0:1, 0, &ctrls[dCount] )) {
+    if (addauth) {
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &proxyDN);
+
+        if (slapi_ldap_create_proxyauth_control(ld, proxyDN, isabandon ? 0 : 1, 0, &ctrls[dCount])) {
             ldap_controls_free(ctrls);
-                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                "LDAP_CONTROL_PROXYAUTH control encoding failed.\n");
+            slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                          "LDAP_CONTROL_PROXYAUTH control encoding failed.\n");
             return LDAP_OPERATIONS_ERROR;
         }
         dCount++;
@@ -268,34 +272,32 @@ int cb_update_controls( Slapi_PBlock * pb,
     /***********************************************************/
 
     if (!useloop) {
-        for ( i = 0; cbb->config.forward_ctrls != NULL
-                && cbb->config.forward_ctrls[i] != NULL; ++i ) {
-            if ( strcmp( cbb->config.forward_ctrls[i], 
-                CB_LDAP_CONTROL_CHAIN_SERVER) == 0 ) {
+        for (i = 0; cbb->config.forward_ctrls != NULL && cbb->config.forward_ctrls[i] != NULL; ++i) {
+            if (strcmp(cbb->config.forward_ctrls[i],
+                       CB_LDAP_CONTROL_CHAIN_SERVER) == 0) {
                 break;
             }
         }
     }
-    if ( useloop || (cbb->config.forward_ctrls !=NULL && cbb->config.forward_ctrls[i] !=NULL)){
-        
+    if (useloop || (cbb->config.forward_ctrls != NULL && cbb->config.forward_ctrls[i] != NULL)) {
+
         if (hops > 0) {
             hops--;
         } else {
             hops = cb->hoplimit;
         }
 
-        /* loop control's critical flag is 0; 
+        /* loop control's critical flag is 0;
          * no special treatment is needed for abandon */
-        cb_create_loop_control(hops,&ctrls[dCount]); 
+        cb_create_loop_control(hops, &ctrls[dCount]);
         dCount++;
     }
 
-    if (dCount==0) {
+    if (dCount == 0) {
         ldap_controls_free(ctrls);
     } else {
         *controls = ctrls;
     }
 
     return LDAP_SUCCESS;
-
 }

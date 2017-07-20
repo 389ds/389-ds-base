@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -19,10 +19,10 @@ static char dbtlibadminid[] = "$DBT: libadmin referenced v1 $";
 #include "i18n.h"
 
 BEGIN_STR(libadmin)
-	ResDef( DBT_LibraryID_, -1, dbtlibadminid )/* extracted from dbtlibadmin.h*/
-	ResDef( DBT_help_, 1, "  Help  " )/*extracted from template.c*/
-	ResDef( DBT_ok_, 2, "   OK   " )/*extracted from template.c*/
-	ResDef( DBT_reset_, 3, " Reset " )/*extracted from template.c*/
-	ResDef( DBT_done_, 4, "  Done  " )/*extracted from template.c*/
-	ResDef( DBT_cancel_, 5, " Cancel " )/*extracted from template.c*/
-END_STR(libadmin)
+ResDef(DBT_LibraryID_, -1, dbtlibadminid) /* extracted from dbtlibadmin.h*/
+    ResDef(DBT_help_, 1, "  Help  ")      /*extracted from template.c*/
+    ResDef(DBT_ok_, 2, "   OK   ")        /*extracted from template.c*/
+    ResDef(DBT_reset_, 3, " Reset ")      /*extracted from template.c*/
+    ResDef(DBT_done_, 4, "  Done  ")      /*extracted from template.c*/
+    ResDef(DBT_cancel_, 5, " Cancel ")    /*extracted from template.c*/
+    END_STR(libadmin)

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* cl5.h - changelog related function */
@@ -16,20 +16,20 @@
 #ifndef CL5_H
 #define CL5_H
 
-#include "cl5_api.h"	/* changelog access APIs */
+#include "cl5_api.h" /* changelog access APIs */
 
 typedef struct changelog5Config
 {
-	char *dir;
-/* These 2 parameters are needed for changelog trimming. Already present in 5.0 */
-	char *maxAge;
-	int	 maxEntries;
-/* the changelog DB configuration parameters are defined as CL5DBConfig in cl5_api.h */
-	CL5DBConfig dbconfig;	
-	char *symmetricKey;
-	long compactInterval;
-	long trimInterval;
-}changelog5Config;
+    char *dir;
+    /* These 2 parameters are needed for changelog trimming. Already present in 5.0 */
+    char *maxAge;
+    int maxEntries;
+    /* the changelog DB configuration parameters are defined as CL5DBConfig in cl5_api.h */
+    CL5DBConfig dbconfig;
+    char *symmetricKey;
+    long compactInterval;
+    long trimInterval;
+} changelog5Config;
 
 /* initializes changelog*/
 int changelog5_init(void);
@@ -40,12 +40,12 @@ int changelog5_config_init(void);
 /* cleanups config data */
 void changelog5_config_cleanup(void);
 /* reads changelog configuration */
-int changelog5_read_config (changelog5Config *config); 
+int changelog5_read_config(changelog5Config *config);
 /* cleanups the content of the config structure */
-void changelog5_config_done (changelog5Config *config);
+void changelog5_config_done(changelog5Config *config);
 /* frees the content and the config structure */
-void changelog5_config_free (changelog5Config **config);
+void changelog5_config_free(changelog5Config **config);
 
-#define MAX_TRIALS			50				/* number of retries on db operations */
+#define MAX_TRIALS 50 /* number of retries on db operations */
 
 #endif

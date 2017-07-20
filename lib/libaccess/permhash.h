@@ -4,14 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
-#ifndef	_PERMHASH_H_
+#ifndef _PERMHASH_H_
 #define _PERMHASH_H_
 
 #include <string.h>
@@ -40,7 +40,7 @@ ACL_PermAllocEntry(void *pool, const void *unused)
 static void
 ACL_PermFreeEntry(void *pool, PLHashEntry *he, PRUintn flag)
 {
-    if (flag == HT_FREE_ENTRY){
+    if (flag == HT_FREE_ENTRY) {
         pool_free((pool_handle_t *)pool, he);
     }
 }
@@ -49,8 +49,7 @@ static PLHashAllocOps ACLPermAllocOps = {
     ACL_PermAllocTable,
     ACL_PermFreeTable,
     ACL_PermAllocEntry,
-    ACL_PermFreeEntry
-};
+    ACL_PermFreeEntry};
 
 #ifndef NO_ACL_HASH_FUNCS
 static PLHashNumber
@@ -58,13 +57,13 @@ PR_HashCaseString(const void *key)
 {
     PLHashNumber h;
     const unsigned char *s;
- 
+
     h = 0;
     for (s = (const unsigned char *)key; *s; s++)
         h = (h >> 28) ^ (h << 4) ^ tolower(*s);
     return h;
 }
- 
+
 static int
 PR_CompareCaseStrings(const void *v1, const void *v2)
 {
@@ -76,4 +75,4 @@ PR_CompareCaseStrings(const void *v1, const void *v2)
 #endif /* NO_ACL_HASH_FUNCS */
 
 
-#endif	/* _PERMHASH_H */
+#endif /* _PERMHASH_H */

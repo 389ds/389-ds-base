@@ -19,7 +19,8 @@
 
 
 void
-test_libslapd_pblock_v3c_target_dn(void **state __attribute__((unused))) {
+test_libslapd_pblock_v3c_target_dn(void **state __attribute__((unused)))
+{
     /* Create a pblock */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -71,7 +72,8 @@ test_libslapd_pblock_v3c_target_dn(void **state __attribute__((unused))) {
 
 
 void
-test_libslapd_pblock_v3c_target_sdn(void **state __attribute__((unused))) {
+test_libslapd_pblock_v3c_target_sdn(void **state __attribute__((unused)))
+{
     /* SLAPI_TARGET_SDN */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -139,7 +141,8 @@ test_libslapd_pblock_v3c_target_sdn(void **state __attribute__((unused))) {
 
 /* nf here means "no implicit free". For now implies no dup */
 void
-_test_libslapi_pblock_v3c_generic_nf_char(Slapi_PBlock *pb, int type, int *conflicts) {
+_test_libslapi_pblock_v3c_generic_nf_char(Slapi_PBlock *pb, int type, int *conflicts)
+{
     /* We have to accept a valid PB, because some tests require operations etc. */
     char *out = NULL;
     char *test_a_in = slapi_ch_strdup("some awesome value");
@@ -172,7 +175,8 @@ _test_libslapi_pblock_v3c_generic_nf_char(Slapi_PBlock *pb, int type, int *confl
 }
 
 void
-test_libslapd_pblock_v3c_original_target_dn(void **state __attribute__((unused))) {
+test_libslapd_pblock_v3c_original_target_dn(void **state __attribute__((unused)))
+{
     /* SLAPI_ORIGINAL_TARGET_DN */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -189,7 +193,8 @@ test_libslapd_pblock_v3c_original_target_dn(void **state __attribute__((unused))
 }
 
 void
-test_libslapd_pblock_v3c_target_uniqueid(void **state __attribute__((unused))) {
+test_libslapd_pblock_v3c_target_uniqueid(void **state __attribute__((unused)))
+{
     /* SLAPI_TARGET_UNIQUEID */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -204,4 +209,3 @@ test_libslapd_pblock_v3c_target_uniqueid(void **state __attribute__((unused))) {
     /* It works! */
     slapi_pblock_destroy(pb);
 }
-

@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * --- END COPYRIGHT BLOCK --- */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -15,7 +15,7 @@
 #define DSOPSTABLE_H
 
 #ifdef __cplusplus
-extern          "C" {
+extern "C" {
 #endif
 
 /* net-snmp-config.h defines
@@ -67,14 +67,15 @@ extern          "C" {
 /*************************************************************
  * Trap value defines
  */
-#define SERVER_UP 6002 
+#define SERVER_UP 6002
 #define SERVER_DOWN 6001
 #define STATE_UNKNOWN 0
 
 /*************************************************************
  * Structures
  */
-typedef struct server_instance_s {
+typedef struct server_instance_s
+{
     PRUint32 port;
     int server_state;
     char *stats_file;
@@ -83,7 +84,8 @@ typedef struct server_instance_s {
     struct server_instance_s *next;
 } server_instance;
 
-typedef struct stats_table_context_s {
+typedef struct stats_table_context_s
+{
     netsnmp_index index;
     struct hdr_stats_t hdr_tbl;
     struct ops_stats_t ops_tbl;
@@ -94,45 +96,45 @@ typedef struct stats_table_context_s {
 /*************************************************************
  * Function Declarations
  */
-    void       exit_usage(void);
-    void	load_config(char *);
-    void        init_ldap_agent(void);
-    void        initialize_stats_table(void);
-    int         load_stats_table(netsnmp_cache *, void *);
-    void        free_stats_table(netsnmp_cache *, void *);
-    stats_table_context *stats_table_create_row(unsigned long);
-    stats_table_context *stats_table_find_row(unsigned long);
-    int         dsOpsTable_get_value(netsnmp_request_info *,
-                                         netsnmp_index *,
-                                         netsnmp_table_request_info *);
-    int         dsEntriesTable_get_value(netsnmp_request_info *,
-                                         netsnmp_index *,
-                                         netsnmp_table_request_info *);
-    int         dsEntityTable_get_value(netsnmp_request_info *,
-                                         netsnmp_index *,
-                                         netsnmp_table_request_info *);
-    int		send_DirectoryServerDown_trap(server_instance *);
-    int		send_DirectoryServerStart_trap(server_instance *);
+void exit_usage(void);
+void load_config(char *);
+void init_ldap_agent(void);
+void initialize_stats_table(void);
+int load_stats_table(netsnmp_cache *, void *);
+void free_stats_table(netsnmp_cache *, void *);
+stats_table_context *stats_table_create_row(unsigned long);
+stats_table_context *stats_table_find_row(unsigned long);
+int dsOpsTable_get_value(netsnmp_request_info *,
+                         netsnmp_index *,
+                         netsnmp_table_request_info *);
+int dsEntriesTable_get_value(netsnmp_request_info *,
+                             netsnmp_index *,
+                             netsnmp_table_request_info *);
+int dsEntityTable_get_value(netsnmp_request_info *,
+                            netsnmp_index *,
+                            netsnmp_table_request_info *);
+int send_DirectoryServerDown_trap(server_instance *);
+int send_DirectoryServerStart_trap(server_instance *);
 
 /*************************************************************
  * Oid Declarations
  */
-    extern oid      dsOpsTable_oid[];
-    extern size_t   dsOpsTable_oid_len;
-    extern oid      dsEntriesTable_oid[];
-    extern size_t   dsEntriesTable_oid_len;
-    extern oid      dsEntityTable_oid[];
-    extern size_t   dsEntityTable_oid_len;
-    extern oid      snmptrap_oid[];
-    extern size_t   snmptrap_oid_len;
+extern oid dsOpsTable_oid[];
+extern size_t dsOpsTable_oid_len;
+extern oid dsEntriesTable_oid[];
+extern size_t dsEntriesTable_oid_len;
+extern oid dsEntityTable_oid[];
+extern size_t dsEntityTable_oid_len;
+extern oid snmptrap_oid[];
+extern size_t snmptrap_oid_len;
 
-#define enterprise_OID 1,3,6,1,4,1,2312
-#define dsOpsTable_TABLE_OID enterprise_OID,6,1
-#define dsEntriesTable_TABLE_OID enterprise_OID,6,2
-#define dsEntityTable_TABLE_OID enterprise_OID,6,5
-#define snmptrap_OID 1,3,6,1,6,3,1,1,4,1,0
-#define DirectoryServerDown_OID enterprise_OID,0,6001
-#define DirectoryServerStart_OID enterprise_OID,0,6002
+#define enterprise_OID 1, 3, 6, 1, 4, 1, 2312
+#define dsOpsTable_TABLE_OID enterprise_OID, 6, 1
+#define dsEntriesTable_TABLE_OID enterprise_OID, 6, 2
+#define dsEntityTable_TABLE_OID enterprise_OID, 6, 5
+#define snmptrap_OID 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0
+#define DirectoryServerDown_OID enterprise_OID, 0, 6001
+#define DirectoryServerStart_OID enterprise_OID, 0, 6002
 
 /*************************************************************
  * dsOpsTable column defines

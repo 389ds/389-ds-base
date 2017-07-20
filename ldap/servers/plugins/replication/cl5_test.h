@@ -4,26 +4,24 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* cl5_test.h - changelog test cases */
 
-typedef enum
-{
-	TEST_BASIC,			/* open-close-delete, read-write-delete */
-	TEST_BACKUP_RESTORE,/* test backup and recovery */
-	TEST_ITERATION,		/* similar to iteration used by replica upsate protocol */
-	TEST_TRIMMING,		/* test changelog trimming */
-	TEST_PERFORMANCE,	/* test read/write performance */	 
-	TEST_PERFORMANCE_MT,/* test multithreaded performance */
-	TEST_LDIF,			/* test cl2ldif and ldif2cl */
-	TEST_ALL			/* collective test */
+typedef enum {
+    TEST_BASIC,          /* open-close-delete, read-write-delete */
+    TEST_BACKUP_RESTORE, /* test backup and recovery */
+    TEST_ITERATION,      /* similar to iteration used by replica upsate protocol */
+    TEST_TRIMMING,       /* test changelog trimming */
+    TEST_PERFORMANCE,    /* test read/write performance */
+    TEST_PERFORMANCE_MT, /* test multithreaded performance */
+    TEST_LDIF,           /* test cl2ldif and ldif2cl */
+    TEST_ALL             /* collective test */
 } TestType;
 
-void testChangelog (TestType type);
-
+void testChangelog(TestType type);

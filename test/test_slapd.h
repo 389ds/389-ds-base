@@ -18,8 +18,8 @@
 #include <cmocka.h>
 
 /* Test runners */
-int run_libslapd_tests (void);
-int run_plugin_tests (void);
+int run_libslapd_tests(void);
+int run_plugin_tests(void);
 
 /* == The tests == */
 
@@ -59,4 +59,3 @@ int test_plugin_pwdstorage_nss_stop(void **state);
 
 void test_plugin_pwdstorage_pbkdf2_auth(void **state);
 void test_plugin_pwdstorage_pbkdf2_rounds(void **state);
-

@@ -19,7 +19,8 @@ sds_result sds_bptree_cow_display(sds_bptree_transaction *btxn);
 #endif
 
 static void
-test_1_cow_init(void **state __attribute__((unused))) {
+test_1_cow_init(void **state __attribute__((unused)))
+{
     sds_bptree_cow_instance *binst;
     sds_result result = SDS_SUCCESS;
     // Check a null init
@@ -36,7 +37,8 @@ test_1_cow_init(void **state __attribute__((unused))) {
 // Test transactions.
 
 static void
-test_2_begin_rotxn(void **state) {
+test_2_begin_rotxn(void **state)
+{
     /* Take a read only txn */
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
@@ -54,7 +56,8 @@ test_2_begin_rotxn(void **state) {
 }
 
 static void
-test_3_begin_wrtxn_no_read(void **state) {
+test_3_begin_wrtxn_no_read(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     sds_bptree_transaction *btxn = NULL;
@@ -82,7 +85,8 @@ test_3_begin_wrtxn_no_read(void **state) {
 }
 
 static void
-test_4_begin_wrtxn_w_read(void **state) {
+test_4_begin_wrtxn_w_read(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     sds_bptree_transaction *ro1_btxn = NULL;
@@ -129,7 +133,8 @@ test_4_begin_wrtxn_w_read(void **state) {
 // Test basic insert and delete
 
 static void
-test_misuse_rotxn(void **state) {
+test_misuse_rotxn(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     sds_bptree_transaction *ro_btxn = NULL;
@@ -147,7 +152,8 @@ test_misuse_rotxn(void **state) {
 // Similar to the basic tests of bptree, we need to quickly assert that at least
 // within a write transaction, our tree operations *are* sane.
 static void
-test_basic_insert(void **state) {
+test_basic_insert(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     sds_bptree_transaction *wr_btxn = NULL;
@@ -168,7 +174,7 @@ test_basic_insert(void **state) {
     // Dump the current ro txn too.
     // THIS IS A HACK, YOU SHOULD BE TAKING AN RO TXN YOURSELF!
     // now insert enough to cause some splits and search.
-    for (uint64_t i = 10; i < (10 + SDS_BPTREE_DEFAULT_CAPACITY); i ++) {
+    for (uint64_t i = 10; i < (10 + SDS_BPTREE_DEFAULT_CAPACITY); i++) {
         result = sds_bptree_cow_insert(wr_btxn, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
         assert_int_equal(sds_bptree_cow_search(wr_btxn, (void *)&i), SDS_KEY_PRESENT);
@@ -190,13 +196,14 @@ test_basic_insert(void **state) {
 // early on.
 
 static void
-test_large_insert(void **state) {
+test_large_insert(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     sds_bptree_transaction *wr_btxn = NULL;
     sds_bptree_transaction *ro_btxn = NULL;
 
-    for (uint64_t i = 1; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 4) ; i++) {
+    for (uint64_t i = 1; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 4); i++) {
         result = sds_bptree_cow_wrtxn_begin(binst, &wr_btxn);
         assert_int_equal(result, SDS_SUCCESS);
 
@@ -226,12 +233,13 @@ test_large_insert(void **state) {
 // Test random with commits between each insert.
 
 static void
-test_random_insert(void **state) {
+test_random_insert(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     sds_bptree_transaction *wr_btxn = NULL;
 
-    for (uint64_t i = 1; i <= 200 ; i++) {
+    for (uint64_t i = 1; i <= 200; i++) {
         result = sds_bptree_cow_wrtxn_begin(binst, &wr_btxn);
         assert_int_equal(result, SDS_SUCCESS);
 
@@ -249,7 +257,8 @@ test_random_insert(void **state) {
 // Test rotxn, wrtxn + insert, rotxn then search on both and assert the difference.
 
 static void
-test_out_of_order_txn_close(void **state) {
+test_out_of_order_txn_close(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
 
     sds_bptree_transaction *wr_btxn = NULL;
@@ -262,7 +271,7 @@ test_out_of_order_txn_close(void **state) {
 
     // Prepare the tree.
     assert_int_equal(sds_bptree_cow_wrtxn_begin(binst, &wr_btxn), SDS_SUCCESS);
-    for (; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) * 2); i+=2) {
+    for (; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) * 2); i += 2) {
         // This needs to add enough nodes to trigger a split
         assert_int_equal(sds_bptree_cow_insert(wr_btxn, (void *)&i, NULL), SDS_SUCCESS);
     }
@@ -303,12 +312,12 @@ test_out_of_order_txn_close(void **state) {
     // Now close the first txn.
     assert_int_equal(sds_bptree_cow_rotxn_close(&ro_btxn_a), SDS_SUCCESS);
     assert_int_equal(sds_bptree_cow_rotxn_close(&ro_btxn_c), SDS_SUCCESS);
-
 }
 
 // Test that leaving an RO txn alive doesn't break shutdown.
 static void
-test_dangling_txn_close(void **state) {
+test_dangling_txn_close(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
 
     sds_bptree_transaction *ro_btxn_a = NULL;
@@ -321,13 +330,13 @@ test_dangling_txn_close(void **state) {
     assert_int_equal(sds_bptree_cow_rotxn_begin(binst, &ro_btxn_a), SDS_SUCCESS);
     // Now complete another write to be sure it's there in the tail.
     assert_int_equal(sds_bptree_cow_insert_atomic(binst, (void *)&key2, NULL), SDS_SUCCESS);
-
 }
 
 // Test aborting a txn doesn't cause leaks.
 
 static void
-test_txn_abort(void **state) {
+test_txn_abort(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
 
     sds_bptree_transaction *wr_btxn = NULL;
@@ -343,13 +352,13 @@ test_txn_abort(void **state) {
     assert_int_equal(sds_bptree_cow_insert(wr_btxn, (void *)&key2, NULL), SDS_SUCCESS);
     // And abort it!
     assert_int_equal(sds_bptree_cow_wrtxn_abort(&wr_btxn), SDS_SUCCESS);
-
 }
 
 // Should set and retrieve a value from the tree atomically.
 // Perhaps a string type?
 static void
-test_txn_atomic_retrieve(void **state) {
+test_txn_atomic_retrieve(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     uint64_t key5 = 5;
     assert_int_equal(sds_bptree_cow_insert_atomic(binst, (void *)&key5, sds_uint64_t_dup((void *)&key5)), SDS_SUCCESS);
@@ -363,7 +372,8 @@ test_txn_atomic_retrieve(void **state) {
 
 /* Test double free of a txn */
 static void
-test_txn_double_close(void **state) {
+test_txn_double_close(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
 
     sds_bptree_transaction *ro_btxn_a = NULL;
@@ -373,7 +383,8 @@ test_txn_double_close(void **state) {
 }
 /* Test misuse of write txn */
 static void
-test_txn_post_commit_use(void **state) {
+test_txn_post_commit_use(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
     uint64_t key1 = 1;
@@ -389,7 +400,8 @@ test_txn_post_commit_use(void **state) {
 
 /* Test that all txn search fns handle null */
 static void
-test_null_txn(void **state __attribute__((unused))) {
+test_null_txn(void **state __attribute__((unused)))
+{
     // sds_bptree_cow_instance *binst = *state;
     uint64_t key1 = 1;
     void *x = NULL;
@@ -401,7 +413,8 @@ test_null_txn(void **state __attribute__((unused))) {
 }
 
 static void
-test_txn_delete_simple(void **state) {
+test_txn_delete_simple(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
     uint64_t key1 = 1;
@@ -416,7 +429,8 @@ test_txn_delete_simple(void **state) {
 }
 
 static void
-test_txn_delete_leaf_left(void **state) {
+test_txn_delete_leaf_left(void **state)
+{
     /* Add enough to create some extra nodes */
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
@@ -439,7 +453,8 @@ test_txn_delete_leaf_left(void **state) {
 }
 
 static void
-test_txn_delete_leaf_right(void **state) {
+test_txn_delete_leaf_right(void **state)
+{
     /* Add enough to create some extra nodes */
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
@@ -462,7 +477,8 @@ test_txn_delete_leaf_right(void **state) {
 }
 
 static void
-test_txn_delete_branch_left(void **state) {
+test_txn_delete_branch_left(void **state)
+{
     /* Add enough to create some extra nodes */
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
@@ -484,7 +500,8 @@ test_txn_delete_branch_left(void **state) {
 }
 
 static void
-test_txn_delete_branch_right(void **state) {
+test_txn_delete_branch_right(void **state)
+{
     /* Add enough to create some extra nodes */
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
@@ -506,7 +523,8 @@ test_txn_delete_branch_right(void **state) {
 }
 
 static void
-test_cow_update(void **state) {
+test_cow_update(void **state)
+{
     sds_bptree_cow_instance *binst = *state;
     sds_bptree_transaction *wr_btxn = NULL;
     sds_bptree_transaction *ro_btxn_a = NULL;
@@ -545,7 +563,8 @@ test_cow_update(void **state) {
 }
 
 int
-run_cow_tests (void) {
+run_cow_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_1_cow_init),
         cmocka_unit_test_setup_teardown(test_2_begin_rotxn,
@@ -611,4 +630,3 @@ run_cow_tests (void) {
     };
     return cmocka_run_group_tests_name("bpt_cow", tests, NULL, NULL);
 }
-

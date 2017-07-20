@@ -153,7 +153,7 @@ typedef enum _sds_result {
     /**
      * SDS_KEY_PRESENT 13 is a SUCCESS condition, similar to SDS_SUCCESS. This
      * differs from SDS_SUCCESS in that it shows that a key value exists within
-     * some datastructure, and you must explcitly check for this case (vs 
+     * some datastructure, and you must explcitly check for this case (vs
      * SDS_KEY_NOT_PRESENT).
      */
     SDS_KEY_PRESENT = 13,
@@ -192,7 +192,7 @@ typedef enum _sds_result {
  * \param size the amount of memory to allocate in bytes.
  * \retval pointer to the allocated memory.
  */
-void * sds_malloc(size_t size);
+void *sds_malloc(size_t size);
 /**
  * sds_calloc wraps the system calloc call with an OOM check. This call like calloc,
  * guarantees the returned memory is zeroed before usage.
@@ -200,7 +200,7 @@ void * sds_malloc(size_t size);
  * \param size the amount of memory to allocate in bytes.
  * \retval pointer to the allocated memory.
  */
-void * sds_calloc(size_t size);
+void *sds_calloc(size_t size);
 /**
  * sds_memalign wraps the posix_memalign function with an OOM and alignment check. During debugging
  * this call guarantees that memory is zeroed before use.
@@ -209,7 +209,7 @@ void * sds_calloc(size_t size);
  * \param alignment the size to align to in bytes. Must be a power of 2.
  * \retval pointer to the allocated memory.
  */
-void * sds_memalign(size_t size, size_t alignment);
+void *sds_memalign(size_t size, size_t alignment);
 /**
  * sds_free wraps the system free call with a null check.
  *
@@ -314,7 +314,8 @@ typedef enum _sds_txn_state {
  * sds_bptree_node_list stores a linked list of sds_bptree_nodes for tracking.
  * Internally this is used extensively for transaction references.
  */
-typedef struct _sds_bptree_node_list {
+typedef struct _sds_bptree_node_list
+{
     /**
      * checksum of the node list item.
      */
@@ -333,7 +334,8 @@ typedef struct _sds_bptree_node_list {
  * sds_bptree_transaction Manages the content and lifetime of nodes within the tree. It is the basis of our
  * garbage collection system, using atomic reference counts to synchronise our behaviour.
  */
-typedef struct _sds_bptree_transaction {
+typedef struct _sds_bptree_transaction
+{
     /**
      * Checksum of the data in this structure.
      */
@@ -425,7 +427,8 @@ typedef struct _sds_bptree_transaction {
  * This is the core of the B+Tree structures. This node represents the branches
  * and leaves of the structure.
  */
-typedef struct _sds_bptree_node {
+typedef struct _sds_bptree_node
+{
 #ifdef SDS_DEBUG
     /**
      * checksum of the structure data to detect errors. Must be the first element
@@ -478,7 +481,8 @@ typedef struct _sds_bptree_node {
  * manipulation of keys and values within the tree. Maintains the root checksum
  * which estabilshes the "root of trust" to all other nodes in the tree.
  */
-typedef struct _sds_bptree_instance {
+typedef struct _sds_bptree_instance
+{
     /**
      * checksum of the instance data.
      */
@@ -655,7 +659,8 @@ typedef struct _sds_bptree_instance {
  * of the transaction guarantees the memory content of the plugin is correct due to the barriers inside of the transaction.
  *
  */
-typedef struct _sds_bptree_cow_instance {
+typedef struct _sds_bptree_cow_instance
+{
     /**
      * checksum of the instance data.
      */
@@ -727,7 +732,8 @@ typedef struct _sds_bptree_cow_instance {
 /**
  * An internal queue node element.
  */
-typedef struct _sds_queue_node {
+typedef struct _sds_queue_node
+{
     /**
      * The data this node holds.
      */
@@ -745,7 +751,8 @@ typedef struct _sds_queue_node {
 /**
  * A queue that is internally a doubly linked list.
  */
-typedef struct _sds_queue {
+typedef struct _sds_queue
+{
     /**
      * The pointer to the current active head node. This is the "next" node that
      * will be dequeued and acted upon during the dequeue (pop) operation.
@@ -813,7 +820,8 @@ sds_result sds_queue_destroy(sds_queue *q);
  * Implement a thread safe wrapper around an sds queue. This guarantees multithread
  * safety to the operations of the queue.
  */
-typedef struct _sds_tqueue {
+typedef struct _sds_tqueue
+{
     /**
      * Pointer to the underlying queue structure.
      */
@@ -1348,22 +1356,26 @@ typedef enum _sds_ht_slot_state {
     SDS_HT_BRANCH = 2,
 } sds_ht_slot_state;
 
-typedef struct _sds_ht_value {
+typedef struct _sds_ht_value
+{
     uint32_t checksum;
     void *key;
     void *value;
     // may make this a LL of values later for collisions
 } sds_ht_value;
 
-typedef struct _sds_ht_slot {
+typedef struct _sds_ht_slot
+{
     sds_ht_slot_state state;
-    union {
+    union
+    {
         sds_ht_value *value;
         struct _sds_ht_node *node;
     } slot;
 } sds_ht_slot;
 
-typedef struct _sds_ht_node {
+typedef struct _sds_ht_node
+{
     uint32_t checksum;
     uint64_t txn_id;
     uint_fast32_t count;
@@ -1375,7 +1387,8 @@ typedef struct _sds_ht_node {
     sds_ht_slot slots[HT_SLOTS];
 } sds_ht_node;
 
-typedef struct _sds_ht_instance {
+typedef struct _sds_ht_instance
+{
     uint32_t checksum;
     char hkey[16];
     sds_ht_node *root;
@@ -1395,12 +1408,10 @@ sds_ht_init(sds_ht_instance **ht_ptr,
             void (*value_free_fn)(void *value),
             void *(*key_dup_fn)(void *key),
             void (*key_free_fn)(void *key),
-            uint64_t (*key_size_fn)(void *key)
-            );
+            uint64_t (*key_size_fn)(void *key));
 
 sds_result sds_ht_insert(sds_ht_instance *ht_ptr, void *key, void *value);
 sds_result sds_ht_search(sds_ht_instance *ht_ptr, void *key, void **value);
 sds_result sds_ht_delete(sds_ht_instance *ht_ptr, void *key);
 sds_result sds_ht_verify(sds_ht_instance *ht_ptr);
 sds_result sds_ht_destroy(sds_ht_instance *ht_ptr);
-

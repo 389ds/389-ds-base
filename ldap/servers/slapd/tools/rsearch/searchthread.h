@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -21,8 +21,7 @@ SearchThread *st_new(void);
 void st_setThread(SearchThread *st, PRThread *tid, int id);
 int st_getThread(SearchThread *st, PRThread **tid);
 void search_start(void *v);
-void st_getCountMinMax(SearchThread *st, PRUint32 *count, PRUint32 *min,
-		       PRUint32 *max);
+void st_getCountMinMax(SearchThread *st, PRUint32 *count, PRUint32 *min, PRUint32 *max);
 int st_alive(SearchThread *st);
 
 #endif

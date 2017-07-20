@@ -4,22 +4,22 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
 /*
-        FILE :		remote.h
+        FILE :        remote.h
         AUTHOR :        Jean-Luc SCHWING
         VERSION :       1.0
-        DATE :		04 May 1999
-        DESCRIPTION :	
-			This file contains the definitions used by the remote 
-			control module of ldclt.
+        DATE :        04 May 1999
+        DESCRIPTION :
+            This file contains the definitions used by the remote
+            control module of ldclt.
 */
 
 /*
@@ -35,9 +35,10 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-typedef struct {
-	uint32_t	 type,res,dnSize;
-	char		 dn[sizeof(uint32_t)];
+typedef struct
+{
+    uint32_t type, res, dnSize;
+    char dn[sizeof(uint32_t)];
 } repconfirm;
 
 extern int masterPort;

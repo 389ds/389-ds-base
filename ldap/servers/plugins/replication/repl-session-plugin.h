@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 #ifndef REPL_SESSION_PLUGIN_PUBLIC_API
 #define REPL_SESSION_PLUGIN_PUBLIC_API
@@ -23,7 +23,7 @@
  * so that the private data can be freed.  This private data is passed
  * to other callback functions on a master as the void *cookie argument.
  */
-typedef void * (*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree);
+typedef void *(*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree);
 #define REPL_SESSION_PLUGIN_AGMT_INIT_CB 1
 
 /*
@@ -34,7 +34,7 @@ typedef void * (*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree)
  * side.
  *
  * Data can be exchanged between the sending and receiving sides using
- * these callbacks by using the data_guid and data parameters.  The data 
+ * these callbacks by using the data_guid and data parameters.  The data
  * guid is used as an identifier to confirm the data type.  Your callbacks
  * that receive data must consult the data_guid before attempting to read
  * the data parameter. This allows you to confirm that the same replication
@@ -56,25 +56,21 @@ typedef void * (*repl_session_plugin_agmt_init_cb)(const Slapi_DN *repl_subtree)
  * to be abandoned, causing the master to go into incremental backoff
  * mode.
  */
-typedef int (*repl_session_plugin_pre_acquire_cb)(void *cookie, const Slapi_DN *repl_subtree,
-                                           int is_total, char **data_guid, struct berval **data);
+typedef int (*repl_session_plugin_pre_acquire_cb)(void *cookie, const Slapi_DN *repl_subtree, int is_total, char **data_guid, struct berval **data);
 #define REPL_SESSION_PLUGIN_PRE_ACQUIRE_CB 2
 
-typedef int (*repl_session_plugin_reply_acquire_cb)(const char *repl_subtree, int is_total,
-                                                    char **data_guid, struct berval **data);
+typedef int (*repl_session_plugin_reply_acquire_cb)(const char *repl_subtree, int is_total, char **data_guid, struct berval **data);
 #define REPL_SESSION_PLUGIN_REPLY_ACQUIRE_CB 3
 
-typedef int (*repl_session_plugin_post_acquire_cb)(void *cookie, const Slapi_DN *repl_subtree,
-                                           int is_total, const char *data_guid, const struct berval *data);
+typedef int (*repl_session_plugin_post_acquire_cb)(void *cookie, const Slapi_DN *repl_subtree, int is_total, const char *data_guid, const struct berval *data);
 #define REPL_SESSION_PLUGIN_POST_ACQUIRE_CB 4
 
-typedef int (*repl_session_plugin_recv_acquire_cb)(const char *repl_subtree, int is_total,
-                                           const char *data_guid, const struct berval *data);
+typedef int (*repl_session_plugin_recv_acquire_cb)(const char *repl_subtree, int is_total, const char *data_guid, const struct berval *data);
 #define REPL_SESSION_PLUGIN_RECV_ACQUIRE_CB 5
 
 /*
  * Callbacks called when the agreement is destroyed.
- * 
+ *
  * The replication subtree from the agreement is passed in.
  * This is read only.
  * The plugin must define this function to free the cookie allocated

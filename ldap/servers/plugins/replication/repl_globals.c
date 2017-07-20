@@ -4,14 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
- 
+
 #include "nspr.h"
 #include "repl_shared.h"
 
@@ -21,50 +21,50 @@ char *repl_plugin_name_cl = REPL_PLUGIN_NAME " - changelog program";
 
 /* String constants (no need to change these for I18N) */
 
-#define	CHANGETYPE_ADD		"add"
-#define	CHANGETYPE_DELETE	"delete"
-#define	CHANGETYPE_MODIFY	"modify"
-#define	CHANGETYPE_MODRDN	"modrdn"
-#define	CHANGETYPE_MODDN	"moddn"
-#define	ATTR_CHANGENUMBER	"changenumber"
-#define	ATTR_TARGETDN		"targetdn"
-#define	ATTR_CHANGETYPE		"changetype"
-#define	ATTR_NEWRDN		"newrdn"
-#define	ATTR_DELETEOLDRDN	"deleteoldrdn"
-#define	ATTR_CHANGES		"changes"
-#define	ATTR_NEWSUPERIOR	"newsuperior"
-#define	ATTR_CHANGETIME		"changetime"
-#define	ATTR_DATAVERSION	"dataVersion"
-#define ATTR_CSN			"csn"
-#define	TYPE_COPYINGFROM	"copyingFrom"
-#define	TYPE_COPIEDFROM		"copiedFrom"
-#define	FILTER_COPYINGFROM	"copyingFrom=*"
-#define	FILTER_COPIEDFROM	"copiedFrom=*"
-#define	FILTER_OBJECTCLASS	"objectclass=*"
+#define CHANGETYPE_ADD "add"
+#define CHANGETYPE_DELETE "delete"
+#define CHANGETYPE_MODIFY "modify"
+#define CHANGETYPE_MODRDN "modrdn"
+#define CHANGETYPE_MODDN "moddn"
+#define ATTR_CHANGENUMBER "changenumber"
+#define ATTR_TARGETDN "targetdn"
+#define ATTR_CHANGETYPE "changetype"
+#define ATTR_NEWRDN "newrdn"
+#define ATTR_DELETEOLDRDN "deleteoldrdn"
+#define ATTR_CHANGES "changes"
+#define ATTR_NEWSUPERIOR "newsuperior"
+#define ATTR_CHANGETIME "changetime"
+#define ATTR_DATAVERSION "dataVersion"
+#define ATTR_CSN "csn"
+#define TYPE_COPYINGFROM "copyingFrom"
+#define TYPE_COPIEDFROM "copiedFrom"
+#define FILTER_COPYINGFROM "copyingFrom=*"
+#define FILTER_COPIEDFROM "copiedFrom=*"
+#define FILTER_OBJECTCLASS "objectclass=*"
 
 
-char	*changetype_add		= CHANGETYPE_ADD;
-char	*changetype_delete	= CHANGETYPE_DELETE;
-char	*changetype_modify	= CHANGETYPE_MODIFY;
-char	*changetype_modrdn	= CHANGETYPE_MODRDN;
-char	*changetype_moddn	= CHANGETYPE_MODDN;
-char	*attr_changenumber	= ATTR_CHANGENUMBER;
-char	*attr_targetdn		= ATTR_TARGETDN;
-char	*attr_changetype	= ATTR_CHANGETYPE;
-char	*attr_newrdn		= ATTR_NEWRDN;
-char	*attr_deleteoldrdn	= ATTR_DELETEOLDRDN;
-char	*attr_changes		= ATTR_CHANGES;
-char	*attr_newsuperior	= ATTR_NEWSUPERIOR;
-char	*attr_changetime	= ATTR_CHANGETIME;
-char	*attr_dataversion	= ATTR_DATAVERSION;
-char	*attr_csn			= ATTR_CSN;
-char	*type_copyingFrom	= TYPE_COPYINGFROM;
-char	*type_copiedFrom	= TYPE_COPIEDFROM;
-char	*filter_copyingFrom	= FILTER_COPYINGFROM;
-char	*filter_copiedFrom	= FILTER_COPIEDFROM;
-char	*filter_objectclass	= FILTER_OBJECTCLASS;
-char	*type_cn		= "cn";
-char	*type_objectclass	= "objectclass";
+char *changetype_add = CHANGETYPE_ADD;
+char *changetype_delete = CHANGETYPE_DELETE;
+char *changetype_modify = CHANGETYPE_MODIFY;
+char *changetype_modrdn = CHANGETYPE_MODRDN;
+char *changetype_moddn = CHANGETYPE_MODDN;
+char *attr_changenumber = ATTR_CHANGENUMBER;
+char *attr_targetdn = ATTR_TARGETDN;
+char *attr_changetype = ATTR_CHANGETYPE;
+char *attr_newrdn = ATTR_NEWRDN;
+char *attr_deleteoldrdn = ATTR_DELETEOLDRDN;
+char *attr_changes = ATTR_CHANGES;
+char *attr_newsuperior = ATTR_NEWSUPERIOR;
+char *attr_changetime = ATTR_CHANGETIME;
+char *attr_dataversion = ATTR_DATAVERSION;
+char *attr_csn = ATTR_CSN;
+char *type_copyingFrom = TYPE_COPYINGFROM;
+char *type_copiedFrom = TYPE_COPIEDFROM;
+char *filter_copyingFrom = FILTER_COPYINGFROM;
+char *filter_copiedFrom = FILTER_COPIEDFROM;
+char *filter_objectclass = FILTER_OBJECTCLASS;
+char *type_cn = "cn";
+char *type_objectclass = "objectclass";
 
 /* Names for replica attributes */
 const char *attr_replicaId = "nsDS5ReplicaId";
@@ -110,10 +110,10 @@ const char *type_nsds5ReplicaBusyWaitTime = "nsds5ReplicaBusyWaitTime";
 const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
 const char *type_nsds5ReplicaEnabled = "nsds5ReplicaEnabled";
 const char *type_nsds5ReplicaStripAttrs = "nsds5ReplicaStripAttrs";
-const char* type_nsds5ReplicaFlowControlWindow = "nsds5ReplicaFlowControlWindow";
-const char* type_nsds5ReplicaFlowControlPause = "nsds5ReplicaFlowControlPause";
+const char *type_nsds5ReplicaFlowControlWindow = "nsds5ReplicaFlowControlWindow";
+const char *type_nsds5ReplicaFlowControlPause = "nsds5ReplicaFlowControlPause";
 const char *type_nsds5WaitForAsyncResults = "nsds5ReplicaWaitForAsyncResults";
-const char* type_replicaIgnoreMissingChange = "nsds5ReplicaIgnoreMissingChange";
+const char *type_replicaIgnoreMissingChange = "nsds5ReplicaIgnoreMissingChange";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
@@ -138,12 +138,12 @@ int
 decrement_repl_active_threads()
 {
     PR_AtomicIncrement(&repl_active_threads);
-	return repl_active_threads;
+    return repl_active_threads;
 }
 
 int
 increment_repl_active_threads()
 {
-	PR_AtomicDecrement(&repl_active_threads);
+    PR_AtomicDecrement(&repl_active_threads);
     return repl_active_threads;
 }

@@ -108,7 +108,8 @@ test_ht_medium_delete(void **state)
 
 
 int
-run_ht_tests (void) {
+run_ht_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_ht_null_init),
         cmocka_unit_test_setup_teardown(test_ht_null_insert,

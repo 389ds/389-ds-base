@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 /*
@@ -25,7 +25,8 @@
  * Structure that contains our system memory information in bytes and pages.
  *
  */
-typedef struct _slapi_pal_meminfo {
+typedef struct _slapi_pal_meminfo
+{
     uint64_t pagesize_bytes;
     uint64_t system_total_pages;
     uint64_t system_total_bytes;
@@ -43,7 +44,7 @@ typedef struct _slapi_pal_meminfo {
  *
  * \return slapi_pal_meminfo * pointer to structure containing data, or NULL.
  */
-slapi_pal_meminfo * spal_meminfo_get();
+slapi_pal_meminfo *spal_meminfo_get();
 
 /**
  * Destroy an allocated memory info structure. The caller is responsible for
@@ -52,5 +53,3 @@ slapi_pal_meminfo * spal_meminfo_get();
  * \param mi the allocated slapi_pal_meminfo structure from spal_meminfo_get();
  */
 void spal_meminfo_destroy(slapi_pal_meminfo *mi);
-
-

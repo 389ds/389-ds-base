@@ -4,14 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
- 
+
 #ifndef _REPL5_PROT_PRIVATE_H_
 #define _REPL5_PROT_PRIVATE_H_
 
@@ -23,29 +23,29 @@
 
 typedef struct private_repl_protocol
 {
-	void (*delete)(struct private_repl_protocol **);
-	void (*run)(struct private_repl_protocol *);
-	int (*stop)(struct private_repl_protocol *);
-	int (*status)(struct private_repl_protocol *);
-	void (*notify_update)(struct private_repl_protocol *);
-	void (*notify_agmt_changed)(struct private_repl_protocol *);
+    void (*delete)(struct private_repl_protocol **);
+    void (*run)(struct private_repl_protocol *);
+    int (*stop)(struct private_repl_protocol *);
+    int (*status)(struct private_repl_protocol *);
+    void (*notify_update)(struct private_repl_protocol *);
+    void (*notify_agmt_changed)(struct private_repl_protocol *);
     void (*notify_window_opened)(struct private_repl_protocol *);
     void (*notify_window_closed)(struct private_repl_protocol *);
-	void (*update_now)(struct private_repl_protocol *);
-	PRLock *lock;
-	PRCondVar *cvar;
-	int stopped;
-	int terminate;
-	PRUint32 eventbits;
-	Repl_Connection *conn;
-	int last_acquire_response_code;
-	Repl_Agmt *agmt;
-	Object *replica_object;
-	void *private;
-	PRBool replica_acquired;
-	int repl50consumer; /* Flag to tell us if this is a 5.0-style consumer we're talking to */
-	int repl71consumer; /* Flag to tell us if this is a 7.1-style consumer we're talking to */
-	int repl90consumer; /* Flag to tell us if this is a 9.0-style consumer we're talking to */
+    void (*update_now)(struct private_repl_protocol *);
+    PRLock *lock;
+    PRCondVar *cvar;
+    int stopped;
+    int terminate;
+    PRUint32 eventbits;
+    Repl_Connection *conn;
+    int last_acquire_response_code;
+    Repl_Agmt *agmt;
+    Object *replica_object;
+    void *private;
+    PRBool replica_acquired;
+    int repl50consumer; /* Flag to tell us if this is a 5.0-style consumer we're talking to */
+    int repl71consumer; /* Flag to tell us if this is a 7.1-style consumer we're talking to */
+    int repl90consumer; /* Flag to tell us if this is a 9.0-style consumer we're talking to */
 } Private_Repl_Protocol;
 
 extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new(Repl_Protocol *rp);
@@ -65,7 +65,7 @@ extern Private_Repl_Protocol *Windows_Tot_Protocol_new(Repl_Protocol *rp);
 #define RESUME_SUSPEND 404
 
 /* Backoff timer settings for reconnect */
-#define PROTOCOL_BACKOFF_MINIMUM 3 /* 3 seconds */
+#define PROTOCOL_BACKOFF_MINIMUM 3        /* 3 seconds */
 #define PROTOCOL_BACKOFF_MAXIMUM (60 * 5) /* 5 minutes */
 /* Backoff timer settings for replica busy reconnect */
 #define PROTOCOL_BUSY_BACKOFF_MINIMUM PROTOCOL_BACKOFF_MINIMUM
@@ -76,7 +76,7 @@ void release_replica(Private_Repl_Protocol *prp);
 int acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv);
 BerElement *entry2bere(const Slapi_Entry *e, char **excluded_attrs);
 CSN *get_current_csn(Slapi_DN *replarea_sdn);
-char* protocol_response2string (int response);
+char *protocol_response2string(int response);
 int repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod **);
 void windows_release_replica(Private_Repl_Protocol *prp);
 int windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv);

@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* protect_db.c
@@ -16,12 +16,12 @@
  * slapd from clobbering each other
  */
 
-#define LOCK_FILE   "lock"
-#define IMPORT_DIR  "imports"
-#define EXPORT_DIR  "exports"
-#define SERVER_DIR  "server"
-#define NUM_TRIES   20
-#define WAIT_TIME   250 
+#define LOCK_FILE "lock"
+#define IMPORT_DIR "imports"
+#define EXPORT_DIR "exports"
+#define SERVER_DIR "server"
+#define NUM_TRIES 20
+#define WAIT_TIME 250
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -53,14 +53,14 @@ grab_lockfile(void)
 
     /* Get the name of the lockfile */
     snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->lockdir, LOCK_FILE);
-    lockfile[sizeof(lockfile)-1] = (char)0;
+    lockfile[sizeof(lockfile) - 1] = (char)0;
     /* Get our pid */
     pid = getpid();
 
     /* Try to grab it */
     if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644)) != -1) {
         /* We got the lock, write our pid to the file */
-        rc = write(fd, (void *) &pid, sizeof(pid_t));
+        rc = write(fd, (void *)&pid, sizeof(pid_t));
         close(fd);
         if (rc < 0) {
             fprintf(stderr, ERROR_WRITING_LOCKFILE, lockfile);
@@ -68,22 +68,22 @@ grab_lockfile(void)
         }
         return 0;
     }
-     
+
     /* We weren't able to get the lock.  Find out why. */
     if (errno != EEXIST) {
         /* Hmm, something happened that we weren't prepared to handle */
         fprintf(stderr, ERROR_ACCESSING_LOCKFILE, lockfile);
         return -1;
-    } 
+    }
 
-    while(1) {
+    while (1) {
         /* Try to grab the lockfile NUM_TRIES times waiting WAIT_TIME milliseconds after each try */
         t.tv_sec = 0;
         t.tv_usec = WAIT_TIME * 1000;
-        for(x = 0; x < NUM_TRIES; x++) {
+        for (x = 0; x < NUM_TRIES; x++) {
             if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644)) != -1) {
                 /* Got the lock */
-                rc = write(fd, (void *) &pid, sizeof(pid_t));
+                rc = write(fd, (void *)&pid, sizeof(pid_t));
                 close(fd);
                 if (rc < 0) {
                     fprintf(stderr, ERROR_WRITING_LOCKFILE, lockfile);
@@ -93,13 +93,13 @@ grab_lockfile(void)
             }
             select(0, NULL, NULL, NULL, &t);
         }
-        
-        /* We still haven't got the lockfile.  Find out who owns it and see if they are still up */
-        if ((fd = open(lockfile,  O_RDONLY)) != -1) {
-            size_t nb_bytes=0;    
 
-            nb_bytes = read(fd, (void *) &owning_pid, sizeof(pid_t));
-            if ( (nb_bytes != (size_t)(sizeof(pid_t)) ) || (owning_pid == 0) || (kill(owning_pid, 0) != 0 && errno == ESRCH) ) {
+        /* We still haven't got the lockfile.  Find out who owns it and see if they are still up */
+        if ((fd = open(lockfile, O_RDONLY)) != -1) {
+            size_t nb_bytes = 0;
+
+            nb_bytes = read(fd, (void *)&owning_pid, sizeof(pid_t));
+            if ((nb_bytes != (size_t)(sizeof(pid_t))) || (owning_pid == 0) || (kill(owning_pid, 0) != 0 && errno == ESRCH)) {
                 /* The process that owns the lock is dead. Try to remove the old lockfile. */
                 if (unlink(lockfile) != 0) {
                     /* Unable to remove the stale lockfile. */
@@ -132,16 +132,16 @@ release_lockfile(void)
     /* This function assumes that the caller owns the lock, it doesn't check to make sure! */
 
     snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->lockdir, LOCK_FILE);
-    lockfile[sizeof(lockfile)-1] = (char)0;
+    lockfile[sizeof(lockfile) - 1] = (char)0;
     unlink(lockfile);
 }
 
 
 /* Takes the pid of a process.  Returns 1 if the process seems
  * to be up, otherwise it returns 0.
- */ 
+ */
 static int
-is_process_up(pid_t pid) 
+is_process_up(pid_t pid)
 {
     if (kill(pid, 0) == -1 && errno == ESRCH) {
         return 0;
@@ -151,12 +151,12 @@ is_process_up(pid_t pid)
 }
 
 /* Make sure the directory 'dir' exists and is owned bye the user
- * the server runs as. Returns 0 if everything is ok. 
+ * the server runs as. Returns 0 if everything is ok.
  */
-static int 
+static int
 make_sure_dir_exists(char *dir)
 {
-    struct passwd* pw;
+    struct passwd *pw;
     struct stat stat_buffer;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -165,7 +165,7 @@ make_sure_dir_exists(char *dir)
         PRErrorCode prerr = PR_GetError();
         if (prerr != PR_FILE_EXISTS_ERROR) {
             slapi_log_err(SLAPI_LOG_ERR, "make_sure_dir_exists",
-            	FILE_CREATE_ERROR, dir, prerr, slapd_pr_strerror(prerr));
+                          FILE_CREATE_ERROR, dir, prerr, slapd_pr_strerror(prerr));
             return 1;
         }
     }
@@ -187,27 +187,27 @@ make_sure_dir_exists(char *dir)
 
     return 0;
 }
-    
-/* Creates a file in the directory 'dir_name' whose name is the 
- * pid for this process. 
+
+/* Creates a file in the directory 'dir_name' whose name is the
+ * pid for this process.
  */
 static void
 add_this_process_to(char *dir_name)
 {
     char file_name[MAXPATHLEN];
-    struct passwd* pw;
+    struct passwd *pw;
     struct stat stat_buffer;
-    PRFileDesc* prfd;
+    PRFileDesc *prfd;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     snprintf(file_name, sizeof(file_name), "%s/%d", dir_name, getpid());
-    file_name[sizeof(file_name)-1] = (char)0;
-    
+    file_name[sizeof(file_name) - 1] = (char)0;
+
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0644)) == NULL) {
         slapi_log_err(SLAPI_LOG_WARNING, "add_this_process_to", FILE_CREATE_WARNING, file_name);
         return;
     }
-    
+
     /* Make sure the owner is of the file is the user the server
      * runs as. */
     if (slapdFrontendConfig->localuser != NULL &&
@@ -224,11 +224,11 @@ add_this_process_to(char *dir_name)
 
 
 /* The directory 'dir_name' is expected to contain files whose
- * names are the pid of running slapd processes.  This 
+ * names are the pid of running slapd processes.  This
  * function will check each entry in the directory and remove
  * any files that represent processes that don't exist.
  * Returns 0 if there are no processes represented, or
- * the pid of one of the processes. 
+ * the pid of one of the processes.
  */
 static long
 sample_and_update(char *dir_name)
@@ -244,15 +244,15 @@ sample_and_update(char *dir_name)
         return 0;
     }
 
-    while((entry = PR_ReadDir(dir, PR_SKIP_BOTH)) != NULL) {
-        pid = (pid_t) strtol(entry->name, &endp, 0);
+    while ((entry = PR_ReadDir(dir, PR_SKIP_BOTH)) != NULL) {
+        pid = (pid_t)strtol(entry->name, &endp, 0);
         if (*endp != '\0') {
-            /* not quite sure what this file was, but we 
+            /* not quite sure what this file was, but we
              * didn't put it there */
             continue;
         }
         if (is_process_up(pid)) {
-            result = (long) pid;
+            result = (long)pid;
         } else {
             PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->name);
             PR_Delete(file_name);
@@ -264,7 +264,7 @@ sample_and_update(char *dir_name)
 
 
 /* Removes any stale pid entries and the pid entry for this
- * process from the directory 'dir_name'. 
+ * process from the directory 'dir_name'.
  */
 static void
 remove_and_update(char *dir_name)
@@ -285,19 +285,19 @@ remove_and_update(char *dir_name)
         return;
     }
 
-    while((entry = readdir(dir)) != NULL) {
-    
+    while ((entry = readdir(dir)) != NULL) {
+
         /* skip dot and dot-dot */
         if (strcmp(entry->d_name, ".") == 0 ||
             strcmp(entry->d_name, "..") == 0)
             continue;
 
-        pid = (pid_t) strtol(entry->d_name, &endp, 0);
+        pid = (pid_t)strtol(entry->d_name, &endp, 0);
         if (*endp != '\0') {
-            /* not quite sure what this file was, but we 
+            /* not quite sure what this file was, but we
              * didn't put it there */
             continue;
-        }    
+        }
         if (!is_process_up(pid) || pid == our_pid) {
             PR_snprintf(file_name, sizeof(file_name), "%s/%s", dir_name, entry->d_name);
             unlink(file_name);
@@ -305,11 +305,10 @@ remove_and_update(char *dir_name)
     }
     closedir(dir);
 }
-    
 
 
-/* Walks through all the pid directories and clears any stale 
- * pids.  It also removes the files for this process. 
+/* Walks through all the pid directories and clears any stale
+ * pids.  It also removes the files for this process.
  */
 void
 remove_slapd_process(void)
@@ -319,14 +318,14 @@ remove_slapd_process(void)
     char server_dir[MAXPATHLEN];
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    /* Create the name of the directories that hold the pids of the currently running 
+    /* Create the name of the directories that hold the pids of the currently running
      * ns-slapd processes */
     snprintf(import_dir, sizeof(import_dir), "%s/%s", slapdFrontendConfig->lockdir, IMPORT_DIR);
-    import_dir[sizeof(import_dir)-1] = (char)0;
+    import_dir[sizeof(import_dir) - 1] = (char)0;
     snprintf(export_dir, sizeof(export_dir), "%s/%s", slapdFrontendConfig->lockdir, EXPORT_DIR);
-    export_dir[sizeof(export_dir)-1] = (char)0;
+    export_dir[sizeof(export_dir) - 1] = (char)0;
     snprintf(server_dir, sizeof(server_dir), "%s/%s", slapdFrontendConfig->lockdir, SERVER_DIR);
-    server_dir[sizeof(server_dir)-1] = (char)0;
+    server_dir[sizeof(server_dir) - 1] = (char)0;
 
     /* Grab the lockfile */
     if (grab_lockfile() != 0) {
@@ -355,14 +354,14 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
         return 0;
     }
 
-    /* Create the name of the directories that hold the pids of the currently running 
+    /* Create the name of the directories that hold the pids of the currently running
      * ns-slapd processes */
     snprintf(import_dir, sizeof(import_dir), "%s/%s", slapdFrontendConfig->lockdir, IMPORT_DIR);
-    import_dir[sizeof(import_dir)-1] = (char)0;
+    import_dir[sizeof(import_dir) - 1] = (char)0;
     snprintf(export_dir, sizeof(export_dir), "%s/%s", slapdFrontendConfig->lockdir, EXPORT_DIR);
-    export_dir[sizeof(export_dir)-1] = (char)0;
+    export_dir[sizeof(export_dir) - 1] = (char)0;
     snprintf(server_dir, sizeof(server_dir), "%s/%s", slapdFrontendConfig->lockdir, SERVER_DIR);
-    server_dir[sizeof(server_dir)-1] = (char)0;
+    server_dir[sizeof(server_dir) - 1] = (char)0;
 
     /* Grab the lockfile */
     if (grab_lockfile() != 0) {
@@ -373,13 +372,13 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     /* Make sure the directories exist */
     if (make_sure_dir_exists(slapdFrontendConfig->lockdir) != 0 ||
         make_sure_dir_exists(import_dir) != 0 ||
-        make_sure_dir_exists(export_dir) != 0 || 
+        make_sure_dir_exists(export_dir) != 0 ||
         make_sure_dir_exists(server_dir) != 0) {
         release_lockfile();
         return -1;
     }
 
-    /* Go through the directories and find out what's going on.  
+    /* Go through the directories and find out what's going on.
      * Clear any stale pids encountered. */
     importing = sample_and_update(import_dir);
     exporting = sample_and_update(export_dir);
@@ -387,62 +386,62 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 
     switch (exec_mode) {
     case SLAPD_EXEMODE_SLAPD:
-    if (running) {
-        result = -1;
-        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_SERVER_DUE_TO_SERVER, running);
-    } else if (importing) {
-        result = -1;
-        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_SERVER_DUE_TO_IMPORT, importing);
-    } else {
-        add_this_process_to(server_dir);
-        result = 0;
-    }
-    break;
+        if (running) {
+            result = -1;
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_SERVER_DUE_TO_SERVER, running);
+        } else if (importing) {
+            result = -1;
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_SERVER_DUE_TO_IMPORT, importing);
+        } else {
+            add_this_process_to(server_dir);
+            result = 0;
+        }
+        break;
     case SLAPD_EXEMODE_DB2LDIF:
-    if (r_flag)  {
-        /* When the -r flag is used in db2ldif we need to make sure 
+        if (r_flag) {
+            /* When the -r flag is used in db2ldif we need to make sure
          * we get a consistent snapshot of the server.  As a result
          * it needs to run by itself, so no other slapd process can
          * change the database while it is running. */
-        if (running || importing) {
-            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process",  NO_DB2LDIFR_DUE_TO_USE);
-            result = -1;
-        } else {
-            /* Even though this is really going to export code, we will 
-             * but it in the importing dir so no other process can change 
+            if (running || importing) {
+                slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2LDIFR_DUE_TO_USE);
+                result = -1;
+            } else {
+                /* Even though this is really going to export code, we will
+             * but it in the importing dir so no other process can change
              * things while we are doing ldif2db with the -r flag. */
-             add_this_process_to(import_dir);
-             result = 0;
+                add_this_process_to(import_dir);
+                result = 0;
+            }
+        } else {
+            if (importing) {
+                slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2LDIF_DUE_TO_IMPORT, importing);
+                result = -1;
+            } else {
+                add_this_process_to(export_dir);
+                result = 0;
+            }
         }
-    } else {
+        break;
+    case SLAPD_EXEMODE_DB2ARCHIVE:
         if (importing) {
-            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2LDIF_DUE_TO_IMPORT, importing);
-            result = -1;        
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2BAK_DUE_TO_IMPORT, importing);
+            result = -1;
         } else {
             add_this_process_to(export_dir);
             result = 0;
         }
-    }
-    break;
-    case SLAPD_EXEMODE_DB2ARCHIVE:
-    if (importing) {
-        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2BAK_DUE_TO_IMPORT, importing);        
-        result = -1;
-    } else {
-        add_this_process_to(export_dir);
-        result = 0;
-    }
-    break;
+        break;
     case SLAPD_EXEMODE_ARCHIVE2DB:
     case SLAPD_EXEMODE_LDIF2DB:
-    if (running || importing || exporting) {
-        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_IMPORT_DUE_TO_USE);
-        result = -1;
-    } else {
-        add_this_process_to(import_dir);
-        result = 0;
-    }
-    break;
+        if (running || importing || exporting) {
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_IMPORT_DUE_TO_USE);
+            result = -1;
+        } else {
+            add_this_process_to(import_dir);
+            result = 0;
+        }
+        break;
     case SLAPD_EXEMODE_DB2INDEX:
         if (running || importing || exporting) {
             slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2INDEX_DUE_TO_USE);
@@ -482,7 +481,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     }
 
     release_lockfile();
-    
+
     if (result == 0) {
         atexit(remove_slapd_process);
     }
@@ -491,33 +490,33 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 }
 
 
-
 /* is_slapd_running()
  * returns 1 if slapd is running, 0 if not, -1 on error
  */
 int
-is_slapd_running(void) {
-  char server_dir[MAXPATHLEN];
-  slapdFrontendConfig_t *cfg = getFrontendConfig();
-  int running = 0;
-  
-  snprintf(server_dir, sizeof(server_dir), "%s/%s", cfg->lockdir, SERVER_DIR);
-  server_dir[sizeof(server_dir)-1] = (char)0;
-  
-  /* Grab the lockfile */
-  if (grab_lockfile() != 0) {
-    /* Unable to grab the lockfile */
-    return -1;
-  }
+is_slapd_running(void)
+{
+    char server_dir[MAXPATHLEN];
+    slapdFrontendConfig_t *cfg = getFrontendConfig();
+    int running = 0;
 
-  /* Make sure the directories exist */
-  if (make_sure_dir_exists(cfg->lockdir) != 0 ||
-      make_sure_dir_exists(server_dir) != 0) {
+    snprintf(server_dir, sizeof(server_dir), "%s/%s", cfg->lockdir, SERVER_DIR);
+    server_dir[sizeof(server_dir) - 1] = (char)0;
+
+    /* Grab the lockfile */
+    if (grab_lockfile() != 0) {
+        /* Unable to grab the lockfile */
+        return -1;
+    }
+
+    /* Make sure the directories exist */
+    if (make_sure_dir_exists(cfg->lockdir) != 0 ||
+        make_sure_dir_exists(server_dir) != 0) {
+        release_lockfile();
+        return -1;
+    }
+
+    running = sample_and_update(server_dir);
     release_lockfile();
-    return -1;
-  }
-  
-  running = sample_and_update(server_dir);
-  release_lockfile();
-  return running;
+    return running;
 }

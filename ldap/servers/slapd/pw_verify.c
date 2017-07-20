@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 /*
@@ -21,7 +21,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 #include "slap.h"
 #include "fe.h"
@@ -67,7 +67,7 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
         return SLAPI_BIND_REFERRAL;
     }
 
-    slapi_pblock_set( pb, SLAPI_BACKEND, be );
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
     /* Put the credentials into the pb */
     if (be->be_bind == NULL) {
         /* Selected backend doesn't support binds! */

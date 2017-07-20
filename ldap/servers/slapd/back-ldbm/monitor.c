@@ -4,40 +4,43 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /* monitor.c - ldbm backend monitor function */
 
 #include "back-ldbm.h"
-#include "dblayer.h"	/* XXXmcs: not sure this is good to do... */
+#include "dblayer.h" /* XXXmcs: not sure this is good to do... */
 #include <sys/stat.h>
 
 
-#define MSET(_attr) do { \
-    val.bv_val = buf; \
-    val.bv_len = strlen(buf); \
-    attrlist_replace(&e->e_attrs, (_attr), vals); \
-} while (0)
+#define MSET(_attr)                                   \
+    do {                                              \
+        val.bv_val = buf;                             \
+        val.bv_len = strlen(buf);                     \
+        attrlist_replace(&e->e_attrs, (_attr), vals); \
+    } while (0)
 
-#define MSETF(_attr, _x) do { \
-    char tmp_atype[37]; \
-    snprintf(tmp_atype, sizeof(tmp_atype), _attr, _x); \
-    MSET(tmp_atype); \
-} while (0)
+#define MSETF(_attr, _x)                                   \
+    do {                                                   \
+        char tmp_atype[37];                                \
+        snprintf(tmp_atype, sizeof(tmp_atype), _attr, _x); \
+        MSET(tmp_atype);                                   \
+    } while (0)
 
 
 /* DSE callback to monitor stats for a particular instance */
-int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
-                                      Slapi_Entry *e,
-                                      Slapi_Entry *entryAfter __attribute__((unused)),
-                                      int *returncode,
-                                      char *returntext __attribute__((unused)),
-                                      void *arg)
+int
+ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
+                                  Slapi_Entry *e,
+                                  Slapi_Entry *entryAfter __attribute__((unused)),
+                                  int *returncode,
+                                  char *returntext __attribute__((unused)),
+                                  void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     struct ldbminfo *li = NULL;
@@ -47,30 +50,29 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     PRUint64 hits, tries;
     long nentries, maxentries, count;
     size_t size, maxsize;
-/* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
+    /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
     struct stat astat;
-/* end of NPCTE fix for bugid 544365 */
+    /* end of NPCTE fix for bugid 544365 */
     DB_MPOOL_FSTAT **mpfstat = NULL;
-    int i,j;
+    int i, j;
     char *absolute_pathname = NULL;
 
     /* Get the LDBM Info structure for the ldbm backend */
     if (inst->inst_be->be_database == NULL) {
-        *returncode= LDAP_OPERATIONS_ERROR;
+        *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
     li = (struct ldbminfo *)inst->inst_be->be_database->plg_private;
     if (li == NULL) {
-        *returncode= LDAP_OPERATIONS_ERROR;
+        *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-	if (inst->inst_be->be_state != BE_STATE_STARTED)
-	{
-		*returncode = LDAP_SUCCESS;
-		return SLAPI_DSE_CALLBACK_OK;
-	}
+    if (inst->inst_be->be_state != BE_STATE_STARTED) {
+        *returncode = LDAP_SUCCESS;
+        return SLAPI_DSE_CALLBACK_OK;
+    }
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -80,17 +82,17 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     MSET("database");
 
     /* read-only status */
-    PR_snprintf( buf, sizeof(buf), "%d", inst->inst_be->be_readonly );
+    PR_snprintf(buf, sizeof(buf), "%d", inst->inst_be->be_readonly);
     MSET("readOnly");
 
     /* fetch cache statistics */
-    cache_get_stats(&(inst->inst_cache), &hits, &tries, 
-		    &nentries, &maxentries, &size, &maxsize);
+    cache_get_stats(&(inst->inst_cache), &hits, &tries,
+                    &nentries, &maxentries, &size, &maxsize);
     sprintf(buf, "%lu", (long unsigned int)hits);
     MSET("entryCacheHits");
     sprintf(buf, "%lu", (long unsigned int)tries);
     MSET("entryCacheTries");
-    sprintf(buf, "%lu", (long unsigned int)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
+    sprintf(buf, "%lu", (long unsigned int)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
     MSET("entryCacheHitRatio");
     sprintf(buf, "%lu", (long unsigned int)size);
     MSET("currentEntryCacheSize");
@@ -101,15 +103,15 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     sprintf(buf, "%ld", maxentries);
     MSET("maxEntryCacheCount");
 
-    if(entryrdn_get_switch()) {
+    if (entryrdn_get_switch()) {
         /* fetch cache statistics */
-        cache_get_stats(&(inst->inst_dncache), &hits, &tries, 
+        cache_get_stats(&(inst->inst_dncache), &hits, &tries,
                         &nentries, &maxentries, &size, &maxsize);
         sprintf(buf, "%" PRIu64, hits);
         MSET("dnCacheHits");
         sprintf(buf, "%" PRIu64, tries);
         MSET("dnCacheTries");
-        sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
+        sprintf(buf, "%lu", (unsigned long)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("dnCacheHitRatio");
         sprintf(buf, "%lu", (long unsigned int)size);
         MSET("currentDnCacheSize");
@@ -121,7 +123,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("maxDnCacheCount");
     }
     /* normalized dn cache stats */
-    if(ndn_cache_started()){
+    if (ndn_cache_started()) {
         ndn_cache_get_stats(&hits, &tries, &size, &maxsize, &count);
         sprintf(buf, "%" PRIu64, tries);
         MSET("normalizedDnCacheTries");
@@ -129,14 +131,14 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("normalizedDnCacheHits");
         sprintf(buf, "%" PRIu64, (tries - hits));
         MSET("normalizedDnCacheMisses");
-        sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
+        sprintf(buf, "%lu", (unsigned long)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("normalizedDnCacheHitRatio");
         sprintf(buf, "%lu", (long unsigned int)size);
         MSET("currentNormalizedDnCacheSize");
-        if(maxsize == 0){
-        	sprintf(buf, "%d", -1);
+        if (maxsize == 0) {
+            sprintf(buf, "%d", -1);
         } else {
-        	sprintf(buf, "%lu", (long unsigned int)maxsize);
+            sprintf(buf, "%lu", (long unsigned int)maxsize);
         }
         MSET("maxNormalizedDnCacheSize");
         sprintf(buf, "%ld", count);
@@ -160,7 +162,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    for (i = 0;(mpfstat[i] && (mpfstat[i]->file_name != NULL)); i++) {
+    for (i = 0; (mpfstat[i] && (mpfstat[i]->file_name != NULL)); i++) {
         /* only print out stats on files used by this instance */
         if (strlen(mpfstat[i]->file_name) < strlen(inst->inst_dir_name))
             continue;
@@ -170,25 +172,25 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         if (mpfstat[i]->file_name[strlen(inst->inst_dir_name)] != get_sep(mpfstat[i]->file_name))
             continue;
 
-	/* Since the filenames are now relative, we need to construct an absolute version
-	 * for the purpose of stat() etc below...
-	 */
-	slapi_ch_free_string(&absolute_pathname);
-	absolute_pathname = slapi_ch_smprintf("%s%c%s" , inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name );
+        /* Since the filenames are now relative, we need to construct an absolute version
+     * for the purpose of stat() etc below...
+     */
+        slapi_ch_free_string(&absolute_pathname);
+        absolute_pathname = slapi_ch_smprintf("%s%c%s", inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name);
 
-	/* Hide statistic of deleted files (mainly indexes) */
-	if (stat(absolute_pathname,&astat))
-	    continue;
-	/* If the file has been re-created after been deleted
-	 * We should show only statistics for the last instance 
-	 * Since SleepyCat returns the statistic of the last open file first,
-	 * we should only display the first statistic record for a given file
-	 */
-	for (j=0;j<i;j++) 
-		if (!strcmp(mpfstat[i]->file_name,mpfstat[j]->file_name))
-			break;
-	if (j<i)
-		continue;
+        /* Hide statistic of deleted files (mainly indexes) */
+        if (stat(absolute_pathname, &astat))
+            continue;
+        /* If the file has been re-created after been deleted
+     * We should show only statistics for the last instance
+     * Since SleepyCat returns the statistic of the last open file first,
+     * we should only display the first statistic record for a given file
+     */
+        for (j = 0; j < i; j++)
+            if (!strcmp(mpfstat[i]->file_name, mpfstat[j]->file_name))
+                break;
+        if (j < i)
+            continue;
 
         /* Get each file's stats */
         PR_snprintf(buf, sizeof(buf), "%s", mpfstat[i]->file_name);
@@ -210,13 +212,12 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
-
 }
 
 
 /* monitor global ldbm stats */
-int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
-    Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+int
+ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     struct berval val;
@@ -249,7 +250,7 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
     MSET("dbCacheTries");
 
     /* cache hit ratio*/
-    sprintf(buf, "%lu", (unsigned long)(100.0 * (double)mpstat->st_cache_hit / (double)(cache_tries > 0 ? cache_tries : 1) ));
+    sprintf(buf, "%lu", (unsigned long)(100.0 * (double)mpstat->st_cache_hit / (double)(cache_tries > 0 ? cache_tries : 1)));
     MSET("dbCacheHitRatio");
 
     sprintf(buf, "%lu", (unsigned long)mpstat->st_page_in);
@@ -280,15 +281,15 @@ ldbm_back_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
                            char *returntext __attribute__((unused)),
                            void *arg)
 {
-	dblayer_private		*dbpriv = NULL;
-	struct ldbminfo		*li = NULL;
+    dblayer_private *dbpriv = NULL;
+    struct ldbminfo *li = NULL;
 
-	PR_ASSERT(NULL != arg);
-	li = (struct ldbminfo*)arg;
-	dbpriv = (dblayer_private*)li->li_dblayer_private;
-	PR_ASSERT(NULL != dbpriv);
+    PR_ASSERT(NULL != arg);
+    li = (struct ldbminfo *)arg;
+    dbpriv = (dblayer_private *)li->li_dblayer_private;
+    PR_ASSERT(NULL != dbpriv);
 
-	perfctrs_as_entry( e, dbpriv->perf_private, dbpriv->dblayer_env->dblayer_DB_ENV);
+    perfctrs_as_entry(e, dbpriv->perf_private, dbpriv->dblayer_env->dblayer_DB_ENV);
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;

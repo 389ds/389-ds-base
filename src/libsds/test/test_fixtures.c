@@ -64,7 +64,9 @@ bptree_test_teardown(void **state)
     return 0;
 }
 
-int bptree_test_set_setup(void **state) {
+int
+bptree_test_set_setup(void **state)
+{
     sds_bptree_instance *binst_a = NULL;
     sds_bptree_instance *binst_b = NULL;
     sds_bptree_instance *binst_out = NULL;
@@ -83,14 +85,15 @@ int bptree_test_set_setup(void **state) {
     *state = binst;
 
     return 0;
-
 }
 
-int bptree_test_set_teardown(void **state) {
+int
+bptree_test_set_teardown(void **state)
+{
     void **binst = *state;
-    sds_bptree_instance *binst_a = (sds_bptree_instance *) binst[0];
-    sds_bptree_instance *binst_b = (sds_bptree_instance *) binst[1];
-    sds_bptree_instance *binst_out = (sds_bptree_instance *) binst[2];
+    sds_bptree_instance *binst_a = (sds_bptree_instance *)binst[0];
+    sds_bptree_instance *binst_b = (sds_bptree_instance *)binst[1];
+    sds_bptree_instance *binst_out = (sds_bptree_instance *)binst[2];
 
     sds_result result = SDS_SUCCESS;
 
@@ -145,7 +148,8 @@ bptree_test_cow_teardown(void **state)
 }
 
 int
-queue_test_setup(void **state) {
+queue_test_setup(void **state)
+{
     sds_queue *q = NULL;
     sds_result result = SDS_SUCCESS;
     result = sds_queue_init(&q, NULL);
@@ -155,7 +159,8 @@ queue_test_setup(void **state) {
 }
 
 int
-queue_test_teardown(void **state) {
+queue_test_teardown(void **state)
+{
     sds_queue *q = *state;
     sds_result result = SDS_SUCCESS;
     result = sds_queue_destroy(q);
@@ -164,7 +169,8 @@ queue_test_teardown(void **state) {
 }
 
 int
-tqueue_test_setup(void **state) {
+tqueue_test_setup(void **state)
+{
     sds_tqueue *q = NULL;
     sds_result result = SDS_SUCCESS;
     result = sds_tqueue_init(&q, NULL);
@@ -174,7 +180,8 @@ tqueue_test_setup(void **state) {
 }
 
 int
-tqueue_test_teardown(void **state) {
+tqueue_test_teardown(void **state)
+{
     sds_tqueue *q = *state;
     sds_result result = SDS_SUCCESS;
     result = sds_tqueue_destroy(q);
@@ -183,7 +190,8 @@ tqueue_test_teardown(void **state) {
 }
 
 int
-lqueue_test_setup(void **state) {
+lqueue_test_setup(void **state)
+{
     sds_lqueue *q = NULL;
     sds_result result = SDS_SUCCESS;
     result = sds_lqueue_init(&q, NULL);
@@ -193,7 +201,8 @@ lqueue_test_setup(void **state) {
 }
 
 int
-lqueue_test_teardown(void **state) {
+lqueue_test_teardown(void **state)
+{
     sds_lqueue *q = *state;
     sds_result result = SDS_SUCCESS;
     result = sds_lqueue_destroy(q);

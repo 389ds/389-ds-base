@@ -4,19 +4,21 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
-typedef struct LASIpTree {
-	struct LASIpTree	*action[2];
+typedef struct LASIpTree
+{
+    struct LASIpTree *action[2];
 } LASIpTree_t;
 
-typedef	struct LASIpContext {
-	LASIpTree_t *treetop; /* Top of the pattern tree */
-	LASIpTree_t *treetop_ipv6; /* Top of the IPv6 pattern tree */
+typedef struct LASIpContext
+{
+    LASIpTree_t *treetop;      /* Top of the pattern tree */
+    LASIpTree_t *treetop_ipv6; /* Top of the IPv6 pattern tree */
 } LASIpContext_t;

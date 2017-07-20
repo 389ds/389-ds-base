@@ -35,7 +35,7 @@ IndentWidth:     4
 TabWidth:        4
 UseTab:          Never
 SpaceBeforeAssignmentOperators: true
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Mozilla
 IndentFunctionDeclarationAfterType: false
 SpacesInParentheses: false
 SpacesInAngles:  false
@@ -44,5 +44,6 @@ SpacesInCStyleCastParentheses: false
 SpaceAfterControlStatementKeyword: true
 ContinuationIndentWidth: 4
 SortIncludes: false
+AlwaysBreakAfterReturnType: TopLevelDefinitions
 ...
 

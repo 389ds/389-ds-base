@@ -2,22 +2,22 @@
  * Copyright (C) 2015  Red Hat
  * see files 'COPYING' and 'COPYING.openssl' for use and warranty
  * information
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Additional permission under GPLv3 section 7:
- * 
+ *
  * If you modify this Program, or any covered work, by linking or
  * combining it with OpenSSL, or a modified version of OpenSSL licensed
  * under the OpenSSL license
@@ -30,7 +30,7 @@
  * --- END COPYRIGHT BLOCK ---
  */
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #ifdef HAVE_UNISTD_H
@@ -65,7 +65,8 @@
 /*
  * Threadpool
  */
-struct ns_thrpool_t {
+struct ns_thrpool_t
+{
     sds_lqueue *work_q;
     sds_lqueue *event_q;
     int32_t shutdown;
@@ -83,8 +84,9 @@ struct ns_thrpool_t {
     size_t stacksize;
 };
 
-struct ns_thread_t {
-    pthread_t thr; /* the thread */
+struct ns_thread_t
+{
+    pthread_t thr;           /* the thread */
     struct ns_thrpool_t *tp; /* pointer back to thread pool */
 };
 
@@ -99,8 +101,8 @@ static void work_q_notify(ns_job_t *job);
 
 /* logging function pointers */
 static void (*logger)(int, const char *, va_list) = NULL;
-static void (*log_start)( void ) = NULL;
-static void (*log_close)( void ) = NULL;
+static void (*log_start)(void) = NULL;
+static void (*log_close)(void) = NULL;
 
 /* memory function pointers */
 static void *(*malloc_fct)(size_t) = NULL;
@@ -117,25 +119,25 @@ ns_syslog(int priority, const char *fmt, va_list varg)
 }
 
 static void
-ns_syslog_start( void )
+ns_syslog_start(void)
 {
     openlog("nunc-stans", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 }
 
 static void
-ns_syslog_close( void )
+ns_syslog_close(void)
 {
     closelog();
 }
 
 /* default memory functions */
-static void*
+static void *
 os_malloc(size_t size)
 {
     return malloc(size);
 }
 
-static void*
+static void *
 os_memalign_malloc(size_t size, size_t alignment)
 {
     void *ptr;
@@ -145,13 +147,13 @@ os_memalign_malloc(size_t size, size_t alignment)
     return ptr;
 }
 
-static void*
+static void *
 os_calloc(size_t count, size_t size)
 {
     return calloc(count, size);
 }
 
-static void*
+static void *
 os_realloc(void *ptr, size_t size)
 {
     return realloc(ptr, size);
@@ -180,7 +182,8 @@ ns_thrpool_is_event_shutdown(struct ns_thrpool_t *tp)
 }
 
 static int32_t
-validate_event_timeout(struct timeval *tv) {
+validate_event_timeout(struct timeval *tv)
+{
     if (tv->tv_sec < 0 || tv->tv_usec < 0) {
         /* If we get here, you have done something WRONG */
         return 1;
@@ -189,7 +192,8 @@ validate_event_timeout(struct timeval *tv) {
 }
 
 static void
-job_queue_cleanup(void *arg) {
+job_queue_cleanup(void *arg)
+{
     struct ns_job_t *job = (ns_job_t *)arg;
     if (job != NULL) {
 #ifdef DEBUG
@@ -240,7 +244,7 @@ internal_ns_job_rearm(ns_job_t *job)
 {
     pthread_mutex_lock(job->monitor);
     PR_ASSERT(job->state == NS_JOB_NEEDS_ARM);
-    /* Don't think I need to check persistence here, it could be the first arm ... */
+/* Don't think I need to check persistence here, it could be the first arm ... */
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "internal_ns_rearm_job %x state %d moving to NS_JOB_ARMED\n", job, job->state);
 #endif
@@ -287,7 +291,7 @@ work_job_execute(ns_job_t *job)
     }
 
     if (job->state == NS_JOB_NEEDS_DELETE) {
-        /* Send it to the job mincer! */
+/* Send it to the job mincer! */
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "work_job_execute %x state %d job func complete, sending to job_done...\n", job, job->state);
 #endif
@@ -461,7 +465,7 @@ event_q_wake(ns_thrpool_t *tp)
 {
     int32_t len;
 
-    /* Rather than trying to make  anew event, tell the event loop to exit with no
+/* Rather than trying to make  anew event, tell the event loop to exit with no
      * events.
      */
 #ifdef DEBUG
@@ -487,7 +491,8 @@ event_q_wake(ns_thrpool_t *tp)
 }
 
 static void
-event_q_notify(ns_job_t *job) {
+event_q_notify(ns_job_t *job)
+{
     ns_thrpool_t *tp = job->tp;
     /* if we are being called from a thread other than the
        event loop thread, we have to notify that thread to
@@ -497,13 +502,13 @@ event_q_notify(ns_job_t *job) {
            loop thread, we can just update the event here */
         update_event(job);
     } else {
-        /* The event loop may be waiting for events, and may wait a long
+/* The event loop may be waiting for events, and may wait a long
            time by default if there are no events to process - since we
            want to add an event, we have to "wake up" the event loop by
            posting an event - this will cause the wakeup_cb to be called
            which will empty the event_q and add all of the events
         */
-        /* NOTE: once job is queued, it may be deleted immediately in
+/* NOTE: once job is queued, it may be deleted immediately in
          * another thread, if the event loop picks up the deletion
          * job before we can notify it below - so make sure not to
          * refer to job after the enqueue.
@@ -527,8 +532,7 @@ static void
 get_new_event_requests(ns_thrpool_t *tp)
 {
     ns_job_t *job = NULL;
-    while (sds_lqueue_dequeue(tp->event_q, (void **)&job) == SDS_SUCCESS)
-    {
+    while (sds_lqueue_dequeue(tp->event_q, (void **)&job) == SDS_SUCCESS) {
         if (job != NULL) {
 #ifdef DEBUG
             ns_log(LOG_DEBUG, "get_new_event_requests Dequeuing %x with state %d\n", job, job->state);
@@ -559,9 +563,9 @@ event_loop_thread_func(void *arg)
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "event_loop_thread_func woke event queue. rc=%d\n", rc);
 #endif
-        if (rc == -1) { /* error */
+        if (rc == -1) {       /* error */
         } else if (rc == 0) { /* exiting */
-        } else { /* no events to process */
+        } else {              /* no events to process */
             event_q_wait(tp);
         }
     }
@@ -698,8 +702,7 @@ new_ns_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type, ns_job_func
 }
 
 static ns_job_t *
-alloc_io_context(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
-        ns_job_func_t func, struct ns_job_data_t *data)
+alloc_io_context(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type, ns_job_func_t func, struct ns_job_data_t *data)
 {
     ns_job_t *job = new_ns_job(tp, fd, job_type, func, data);
 
@@ -707,8 +710,7 @@ alloc_io_context(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
 }
 
 static ns_job_t *
-alloc_timeout_context(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
-        ns_job_func_t func, struct ns_job_data_t *data)
+alloc_timeout_context(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type, ns_job_func_t func, struct ns_job_data_t *data)
 {
     ns_job_t *job = new_ns_job(tp, NULL, NS_JOB_TIMER | job_type, func, data);
     job->tv = *tv;
@@ -717,8 +719,7 @@ alloc_timeout_context(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_ty
 }
 
 static ns_job_t *
-alloc_signal_context(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type,
-        ns_job_func_t func, struct ns_job_data_t *data)
+alloc_signal_context(ns_thrpool_t *tp, PRInt32 signum, ns_job_type_t job_type, ns_job_func_t func, struct ns_job_data_t *data)
 {
     ns_job_t *job = new_ns_job(tp, NULL, NS_JOB_SIGNAL | job_type, func, data);
     job->signal = signum;
@@ -739,8 +740,8 @@ ns_job_done(ns_job_t *job)
 
     pthread_mutex_lock(job->monitor);
 
-    if (job->state == NS_JOB_NEEDS_DELETE || job->state == NS_JOB_DELETED){
-        /* Just return if the job has been marked for deletion */
+    if (job->state == NS_JOB_NEEDS_DELETE || job->state == NS_JOB_DELETED) {
+/* Just return if the job has been marked for deletion */
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> %x state %d return early\n", job, shutdown_state, job->state);
 #endif
@@ -758,8 +759,8 @@ ns_job_done(ns_job_t *job)
     }
 
     if (job->state == NS_JOB_RUNNING || job->state == NS_JOB_NEEDS_ARM) {
-        /* For this to be called, and NS_JOB_RUNNING, we *must* be the callback thread! */
-        /* Just mark it (ie do nothing), the work_job_execute function will trigger internal_ns_job_done */
+/* For this to be called, and NS_JOB_RUNNING, we *must* be the callback thread! */
+/* Just mark it (ie do nothing), the work_job_execute function will trigger internal_ns_job_done */
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> false state %d setting to async NS_JOB_NEEDS_DELETE\n", job, job->state);
 #endif
@@ -806,8 +807,7 @@ ns_create_job(struct ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t fun
 
 /* queue a file descriptor to listen for and accept new connections */
 ns_result_t
-ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
-        ns_job_func_t func, void *data, ns_job_t **job)
+ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
 {
     ns_job_t *_job = NULL;
 
@@ -820,7 +820,7 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
         return NS_SHUTDOWN;
     }
 
-    /* Don't allow an accept job to be run outside of the event thread. 
+    /* Don't allow an accept job to be run outside of the event thread.
      * We do this so a listener job won't shut down while still processing
      * current connections in other threads.
      * TODO: Need to be able to have multiple threads accept() at the same time
@@ -858,8 +858,7 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type,
 }
 
 ns_result_t
-ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
-        ns_job_func_t func, void *data, ns_job_t **job)
+ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
 {
     ns_job_t *_job = NULL;
 
@@ -900,8 +899,7 @@ ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
 
 /* queue a file descriptor to listen for and accept new connections */
 ns_result_t
-ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
-        ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
+ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv, ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
 {
     ns_job_t *_job = NULL;
 
@@ -934,7 +932,7 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
     }
 
     /* get an event context for an accept */
-    _job = alloc_io_context(tp, fd, job_type|NS_JOB_TIMER, func, data);
+    _job = alloc_io_context(tp, fd, job_type | NS_JOB_TIMER, func, data);
     if (!_job) {
         return NS_ALLOCATION_FAILURE;
     }
@@ -957,8 +955,7 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv,
 }
 
 ns_result_t
-ns_add_signal_job(ns_thrpool_t *tp, int32_t signum, ns_job_type_t job_type,
-        ns_job_func_t func, void *data, ns_job_t **job)
+ns_add_signal_job(ns_thrpool_t *tp, int32_t signum, ns_job_type_t job_type, ns_job_func_t func, void *data, ns_job_t **job)
 {
     ns_job_t *_job = NULL;
 
@@ -1026,7 +1023,8 @@ ns_add_job(ns_thrpool_t *tp, ns_job_type_t job_type, ns_job_func_t func, void *d
 }
 
 ns_result_t
-ns_add_shutdown_job(ns_thrpool_t *tp) {
+ns_add_shutdown_job(ns_thrpool_t *tp)
+{
     ns_job_t *_job = NULL;
     _job = new_ns_job(tp, NULL, NS_JOB_SHUTDOWN_WORKER, NULL, NULL);
     if (!_job) {
@@ -1047,7 +1045,7 @@ ns_add_shutdown_job(ns_thrpool_t *tp) {
  *
  * The same is true of DELETED, which represents that we are deleting things.
  * To set NEEDS_DELETE -> DELETED, we must hold the monitor, and at that point
- * the monitor is released and the job destroyed. As a result, we only need to 
+ * the monitor is released and the job destroyed. As a result, we only need to
  * assert that we are not "NEEDS_DELETE" in many cases.
  */
 
@@ -1072,7 +1070,7 @@ ns_job_set_data(ns_job_t *job, void *data)
     PR_ASSERT(job);
     pthread_mutex_lock(job->monitor);
     PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
-    if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING ) {
+    if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING) {
         job->data = data;
         pthread_mutex_unlock(job->monitor);
         return NS_SUCCESS;
@@ -1147,8 +1145,8 @@ ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func)
 {
     PR_ASSERT(job);
     pthread_mutex_lock(job->monitor);
-    PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING );
-    if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING ) {
+    PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
+    if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING) {
         job->done_cb = func;
         pthread_mutex_unlock(job->monitor);
         return NS_SUCCESS;
@@ -1182,9 +1180,9 @@ ns_job_rearm(ns_job_t *job)
         internal_ns_job_rearm(job);
         pthread_mutex_unlock(job->monitor);
         return NS_SUCCESS;
-    } else if ( !NS_JOB_IS_PERSIST(job->job_type) && job->state == NS_JOB_RUNNING) {
-        /* For this to be called, and NS_JOB_RUNNING, we *must* be the callback thread! */
-        /* Just mark it (ie do nothing), the work_job_execute function will trigger internal_ns_job_rearm */
+    } else if (!NS_JOB_IS_PERSIST(job->job_type) && job->state == NS_JOB_RUNNING) {
+/* For this to be called, and NS_JOB_RUNNING, we *must* be the callback thread! */
+/* Just mark it (ie do nothing), the work_job_execute function will trigger internal_ns_job_rearm */
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_rearm_job %x state %d setting NS_JOB_NEEDS_ARM\n", job, job->state);
 #endif
@@ -1245,12 +1243,12 @@ setup_event_q_wakeup(ns_thrpool_t *tp)
     }
     /* wakeup events are processed inside the event loop thread */
     job = alloc_io_context(tp, tp->event_q_wakeup_pipe_read,
-                            NS_JOB_READ|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD,
-                            wakeup_cb, NULL);
+                           NS_JOB_READ | NS_JOB_PERSIST | NS_JOB_PRESERVE_FD,
+                           wakeup_cb, NULL);
 
     pthread_mutex_lock(job->monitor);
 
-    /* The event_queue wakeup is ready, arm it. */
+/* The event_queue wakeup is ready, arm it. */
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "setup_event_q_wakeup %x state %d moving NS_JOB_ARMED\n", job, job->state);
 #endif
@@ -1290,19 +1288,19 @@ static ns_result_t
 ns_thrpool_process_config(struct ns_thrpool_config *tp_config)
 {
     /* Check that the config has been properly initialized */
-    if (!tp_config || tp_config->init_flag != NS_INIT_MAGIC){
+    if (!tp_config || tp_config->init_flag != NS_INIT_MAGIC) {
         return NS_INVALID_REQUEST;
     }
     /*
      * Assign our logging function pointers
      */
-    if (tp_config->log_fct){
+    if (tp_config->log_fct) {
         /* Set a logger function */
         logger = tp_config->log_fct;
-        if (tp_config->log_start_fct){
+        if (tp_config->log_start_fct) {
             log_start = tp_config->log_start_fct;
         }
-        if (tp_config->log_close_fct){
+        if (tp_config->log_close_fct) {
             log_close = tp_config->log_close_fct;
         }
     } else {
@@ -1311,7 +1309,7 @@ ns_thrpool_process_config(struct ns_thrpool_config *tp_config)
         log_start = ns_syslog_start;
         log_close = ns_syslog_close;
     }
-    if(log_start){
+    if (log_start) {
         /* Start logging */
         (log_start)();
     }
@@ -1320,32 +1318,32 @@ ns_thrpool_process_config(struct ns_thrpool_config *tp_config)
      * Set the memory function pointers
      */
     /* malloc */
-    if (tp_config->malloc_fct){
+    if (tp_config->malloc_fct) {
         malloc_fct = tp_config->malloc_fct;
     } else {
         malloc_fct = os_malloc;
     }
 
-    if (tp_config->memalign_fct){
+    if (tp_config->memalign_fct) {
         memalign_fct = tp_config->memalign_fct;
     } else {
         memalign_fct = os_memalign_malloc;
     }
 
     /* calloc */
-    if (tp_config->calloc_fct){
+    if (tp_config->calloc_fct) {
         calloc_fct = tp_config->calloc_fct;
     } else {
         calloc_fct = os_calloc;
     }
     /* realloc */
-    if (tp_config->realloc_fct){
+    if (tp_config->realloc_fct) {
         realloc_fct = tp_config->realloc_fct;
     } else {
         realloc_fct = os_realloc;
     }
     /* free */
-    if (tp_config->free_fct){
+    if (tp_config->free_fct) {
         free_fct = tp_config->free_fct;
     } else {
         free_fct = os_free;
@@ -1362,7 +1360,7 @@ ns_thrpool_new(struct ns_thrpool_config *tp_config)
     ns_thread_t *thr;
     size_t ii;
 
-    if(ns_thrpool_process_config(tp_config) != NS_SUCCESS){
+    if (ns_thrpool_process_config(tp_config) != NS_SUCCESS) {
         ns_log(LOG_ERR, "ns_thrpool_new(): config has not been properly initialized\n");
         goto failed;
     }
@@ -1374,7 +1372,7 @@ ns_thrpool_new(struct ns_thrpool_config *tp_config)
     }
 
     ns_log(LOG_DEBUG, "ns_thrpool_new():  max threads, (%d)\n"
-           "stacksize (%d), event q size (unbounded), work q size (unbounded)\n",
+                      "stacksize (%d), event q size (unbounded), work q size (unbounded)\n",
            tp_config->max_threads, tp_config->stacksize);
 
     tp->stacksize = tp_config->stacksize;
@@ -1456,8 +1454,8 @@ ns_thrpool_destroy(struct ns_thrpool_t *tp)
 
         pthread_mutex_lock(tp->event_q_wakeup_job->monitor);
 
-        // tp->event_q_wakeup_job->job_type |= NS_JOB_THREAD;
-        /* This triggers the job to "run", which will cause a shutdown cascade */
+// tp->event_q_wakeup_job->job_type |= NS_JOB_THREAD;
+/* This triggers the job to "run", which will cause a shutdown cascade */
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_thrpool_destroy %x state %d moving to NS_JOB_NEEDS_DELETE\n", tp->event_q_wakeup_job, tp->event_q_wakeup_job->state);
 #endif
@@ -1513,12 +1511,12 @@ ns_thrpool_destroy(struct ns_thrpool_t *tp)
         ns_thrpool_delete(tp);
     }
     /* Stop logging */
-    if(log_close){
+    if (log_close) {
         (log_close)();
     }
 }
 
-/* Triggers the pool of worker threads to shutdown after finishing the remaining work. 
+/* Triggers the pool of worker threads to shutdown after finishing the remaining work.
  * This must be run in a worker thread, not the event thread.  Running it in the event
  * thread could cause a deadlock. */
 void
@@ -1558,8 +1556,7 @@ ns_thrpool_wait(ns_thrpool_t *tp)
     ns_result_t retval = NS_SUCCESS;
     ns_thread_t *thr;
 
-    while (sds_queue_dequeue(tp->thread_stack, (void **)&thr) == SDS_SUCCESS)
-    {
+    while (sds_queue_dequeue(tp->thread_stack, (void **)&thr) == SDS_SUCCESS) {
         /* void *thread_retval = NULL; */
         int32_t rc = pthread_join(thr->thr, NULL);
 #ifdef DEBUG
@@ -1591,7 +1588,6 @@ ns_log(int priority, const char *fmt, ...)
     va_start(varg, fmt);
     ns_log_valist(priority, fmt, varg);
     va_end(varg);
-
 }
 
 void
@@ -1632,4 +1628,3 @@ ns_free(void *ptr)
 {
     (free_fct)(ptr);
 }
-

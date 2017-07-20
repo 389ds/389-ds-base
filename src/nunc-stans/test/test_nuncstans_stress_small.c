@@ -9,7 +9,8 @@
 #include "test_nuncstans_stress.h"
 
 int
-ns_stress_small_setup(void **state) {
+ns_stress_small_setup(void **state)
+{
     struct test_params *tparams = malloc(sizeof(struct test_params));
     tparams->client_thread_count = 4;
     tparams->server_thread_count = 1;
@@ -20,7 +21,7 @@ ns_stress_small_setup(void **state) {
 }
 
 int
-main (void)
+main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(ns_stress_test,
@@ -29,5 +30,3 @@ main (void)
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-

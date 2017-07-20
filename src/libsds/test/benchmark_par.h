@@ -4,13 +4,14 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #include <time.h>
 #include <pthread.h>
 
-struct b_tree_cow_cb {
+struct b_tree_cow_cb
+{
     char *name;
     void *inst;
     int64_t (*init)(void **inst);
@@ -24,7 +25,8 @@ struct b_tree_cow_cb {
     int64_t (*destroy)(void **inst);
 };
 
-struct thread_info {
+struct thread_info
+{
     uint64_t iter;
     size_t tid;
     struct b_tree_cow_cb *ds;

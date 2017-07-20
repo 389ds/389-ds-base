@@ -3,11 +3,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -18,12 +18,11 @@
  and used by testdatainterop.c ( plugin ); to allow
  creation of a DB and adding DN's to the DB.
  A simple example to show how external databases can
- be accessed through the datainterop plugin of 
- testdatainterop.c 
+ be accessed through the datainterop plugin of
+ testdatainterop.c
 
 **********************************************/
 
 #include "nspr.h"
 
 void db_put_dn(char *data);
-

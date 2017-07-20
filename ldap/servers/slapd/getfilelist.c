@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 /***********************************************************************
@@ -31,21 +31,24 @@
 #include "slap.h"
 #include "avl.h"
 
-struct data_wrapper {
-	char **list;
-	int n;
-	int max;
-	const char *dirname;
+struct data_wrapper
+{
+    char **list;
+    int n;
+    int max;
+    const char *dirname;
 };
 
-struct path_wrapper {
+struct path_wrapper
+{
     char *path;
     char *filename;
     int order;
 };
 
 static int
-path_wrapper_cmp(struct path_wrapper *p1, struct path_wrapper *p2) {
+path_wrapper_cmp(struct path_wrapper *p1, struct path_wrapper *p2)
+{
     if (p1->order < p2->order) {
         /* p1 is "earlier" so put it first */
         return -1;
@@ -56,7 +59,8 @@ path_wrapper_cmp(struct path_wrapper *p1, struct path_wrapper *p2) {
 }
 
 static int
-path_wrapper_free(caddr_t data) {
+path_wrapper_free(caddr_t data)
+{
     struct path_wrapper *p = (struct path_wrapper *)data;
     if (p != NULL) {
         slapi_ch_free_string(&(p->path));
@@ -87,51 +91,51 @@ add_file_to_list(caddr_t data, caddr_t arg)
 static int
 file_is_type_x(const char *dirname, const char *filename, PRFileType x)
 {
-	struct PRFileInfo64 inf;
-	int status = 0;
-	char *fullpath = slapi_ch_smprintf("%s/%s", dirname, filename);
-	if (PR_SUCCESS == PR_GetFileInfo64(fullpath, &inf) &&
-		inf.type == x)
-		status = 1;
+    struct PRFileInfo64 inf;
+    int status = 0;
+    char *fullpath = slapi_ch_smprintf("%s/%s", dirname, filename);
+    if (PR_SUCCESS == PR_GetFileInfo64(fullpath, &inf) &&
+        inf.type == x)
+        status = 1;
 
-	slapi_ch_free_string(&fullpath);
+    slapi_ch_free_string(&fullpath);
 
-	return status;
+    return status;
 }
 
 /* return true if the given path and file corresponds to a directory */
 static int
 is_a_dir(const char *dirname, const char *filename)
 {
-	return file_is_type_x(dirname, filename, PR_FILE_DIRECTORY);
+    return file_is_type_x(dirname, filename, PR_FILE_DIRECTORY);
 }
 
 /* return true if the given path and file corresponds to a regular file */
 static int
 is_a_file(const char *dirname, const char *filename)
 {
-	return file_is_type_x(dirname, filename, PR_FILE_FILE);
+    return file_is_type_x(dirname, filename, PR_FILE_FILE);
 }
 
 static int
 matches(const char *filename, const char *pattern)
 {
-	Slapi_Regex *re = NULL;
-	int match = 0;
-	const char *error = NULL;
+    Slapi_Regex *re = NULL;
+    int match = 0;
+    const char *error = NULL;
 
-	if (!pattern)
-		return 1; /* null pattern matches everything */
+    if (!pattern)
+        return 1; /* null pattern matches everything */
 
-	/* Compile the pattern */
-	re = slapi_re_comp( pattern, &error );
-	if (re) {
-		/* Matches the compiled pattern against the filename */
-		match = slapi_re_exec_nt( re, filename);
-		slapi_re_free( re );
-	}
+    /* Compile the pattern */
+    re = slapi_re_comp(pattern, &error);
+    if (re) {
+        /* Matches the compiled pattern against the filename */
+        match = slapi_re_exec_nt(re, filename);
+        slapi_re_free(re);
+    }
 
-	return match;
+    return match;
 }
 
 /**
@@ -163,12 +167,12 @@ matches(const char *filename, const char *pattern)
 char **
 get_filelist(
     const char **dirnames, /* list of directory paths; if NULL, uses "." */
-    const char *pattern, /* grep (not shell!) file pattern regex */
-    int hiddenfiles, /* if true, return hidden files and directories too */
-    int nofiles, /* if true, do not return files */
-    int nodirs, /* if true, do not return directories */
-    int dirnames_size /* Size of the dirnames array */
-)
+    const char *pattern,   /* grep (not shell!) file pattern regex */
+    int hiddenfiles,       /* if true, return hidden files and directories too */
+    int nofiles,           /* if true, do not return files */
+    int nodirs,            /* if true, do not return directories */
+    int dirnames_size      /* Size of the dirnames array */
+    )
 {
     Avlnode *filetree = 0;
     PRDir *dirptr = 0;
@@ -196,7 +200,7 @@ get_filelist(
             continue;
         }
         /* read the directory entries into an ascii sorted avl tree */
-        for (dirent = PR_ReadDir(dirptr, dirflags); dirent ;
+        for (dirent = PR_ReadDir(dirptr, dirflags); dirent;
              dirent = PR_ReadDir(dirptr, dirflags)) {
 
             if (nofiles && is_a_file(dirname, dirent->name))
@@ -207,7 +211,7 @@ get_filelist(
 
             if (1 == matches(dirent->name, pattern)) {
                 /* this strdup is free'd by path_wrapper_free */
-                pw_ptr =  (struct path_wrapper *)slapi_ch_malloc(sizeof(struct path_wrapper));
+                pw_ptr = (struct path_wrapper *)slapi_ch_malloc(sizeof(struct path_wrapper));
                 pw_ptr->path = slapi_ch_smprintf("%s/%s", dirname, dirent->name);
                 pw_ptr->filename = slapi_ch_strdup(dirent->name);
                 pw_ptr->order = i;
@@ -220,7 +224,7 @@ get_filelist(
 
     /* allocate space for the list */
     if (num > 0) {
-        retval = (char **)slapi_ch_calloc(num+1, sizeof(char *));
+        retval = (char **)slapi_ch_calloc(num + 1, sizeof(char *));
 
         /* traverse the avl tree and copy the filenames into the list */
         dw.list = retval;

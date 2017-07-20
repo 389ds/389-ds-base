@@ -15,7 +15,7 @@ test_asan_overflow(void)
 {
     char *test = sds_malloc(4 * sizeof(char));
     test[100] = 'a';
-    // At this point, ASAN should explode.
+// At this point, ASAN should explode.
 #ifdef SDS_DEBUG
     sds_log("test_asan", "FAIL: This should not be possible!");
 #endif
@@ -38,7 +38,6 @@ test_1_invalid_binst_ptr(void **state __attribute__((unused)))
     result = sds_bptree_init(NULL, 0, sds_uint64_t_compare, sds_free, sds_uint64_t_free, sds_uint64_t_dup);
 
     assert_int_equal(result, SDS_NULL_POINTER);
-
 }
 
 // Template: sds_result test_fn(sds_bptree_instance *binst) {}
@@ -84,7 +83,8 @@ test_5_single_null_mismatch_size_insert_fn(void **state)
 */
 
 static void
-test_6_insert_less_than_no_split(void **state) {
+test_6_insert_less_than_no_split(void **state)
+{
 
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
@@ -106,7 +106,8 @@ test_6_insert_less_than_no_split(void **state) {
 }
 
 static void
-test_7_insert_greater_than_no_split(void **state) {
+test_7_insert_greater_than_no_split(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -127,7 +128,8 @@ test_7_insert_greater_than_no_split(void **state) {
 }
 
 static void
-test_8_insert_duplicate(void **state) {
+test_8_insert_duplicate(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     uint64_t key2 = 2;
@@ -143,7 +145,8 @@ test_8_insert_duplicate(void **state) {
 }
 
 static void
-test_9_insert_fill_and_split(void **state) {
+test_9_insert_fill_and_split(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -157,11 +160,11 @@ test_9_insert_fill_and_split(void **state) {
         result = sds_bptree_search(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
-
 }
 
 static void
-test_10_tamper_with_inst(void **state __attribute__((unused))) {
+test_10_tamper_with_inst(void **state __attribute__((unused)))
+{
     // The verifictation in the wrapper will fail for us.
 
     // Create a new tree, and then destroy it.
@@ -182,7 +185,8 @@ test_10_tamper_with_inst(void **state __attribute__((unused))) {
 }
 
 static void
-test_11_tamper_with_node(void **state __attribute__((unused))) {
+test_11_tamper_with_node(void **state __attribute__((unused)))
+{
     // The verifictation in the wrapper will fail for us.
 
     // Create a new tree, and then destroy it.
@@ -204,12 +208,13 @@ test_11_tamper_with_node(void **state __attribute__((unused))) {
 }
 
 static void
-test_12_insert_fill_split_and_grow(void **state) {
+test_12_insert_fill_split_and_grow(void **state)
+{
     // This should make the tree grow and split enough to need to add extra heigh beyond the root.
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
-    for (uint64_t i = 0; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) ; i++) {
+    for (uint64_t i = 0; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3); i++) {
         uint64_t ti = i + 2;
         // Add two to guarantee we don't conflict
         result = sds_bptree_insert(binst, (void *)&ti, NULL);
@@ -224,7 +229,7 @@ test_12_insert_fill_split_and_grow(void **state) {
         assert_int_equal(result, SDS_SUCCESS);
     }
 
-    for (uint64_t i = 0; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) ; i++) {
+    for (uint64_t i = 0; i <= ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3); i++) {
         uint64_t ti = i + 2;
         result = sds_bptree_search(binst, (void *)&ti);
 #ifdef SDS_DEBUG
@@ -234,16 +239,16 @@ test_12_insert_fill_split_and_grow(void **state) {
 #endif
         assert_int_equal(result, SDS_KEY_PRESENT);
     }
-
 }
 
 static void
-test_13_insert_fill_split_and_grow_inverse(void **state) {
+test_13_insert_fill_split_and_grow_inverse(void **state)
+{
     // This should make the tree grow and split enough to need to add extra heigh beyond the root.
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
-    for (uint64_t i = ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) + 1; i > 0  ; i--) {
+    for (uint64_t i = ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) + 1; i > 0; i--) {
         // Add two to guarantee we don't conflict
         uint64_t ti = i + 2;
         result = sds_bptree_insert(binst, (void *)&ti, NULL);
@@ -258,7 +263,7 @@ test_13_insert_fill_split_and_grow_inverse(void **state) {
         assert_int_equal(result, SDS_SUCCESS);
     }
 
-    for (uint64_t i = ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) + 1; i > 0  ; i--) {
+    for (uint64_t i = ((SDS_BPTREE_DEFAULT_CAPACITY + 1) << 3) + 1; i > 0; i--) {
         uint64_t ti = i + 2;
         result = sds_bptree_search(binst, (void *)&ti);
 #ifdef SDS_DEBUG
@@ -272,12 +277,13 @@ test_13_insert_fill_split_and_grow_inverse(void **state) {
 
 // test14 is search
 static void
-test_14_insert_random(void **state) {
+test_14_insert_random(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
-    for (uint64_t i = 0; i < 200 ; i++) {
-        result = sds_bptree_insert(binst, (void *)&(fill_pattern[i]) , NULL);
+    for (uint64_t i = 0; i < 200; i++) {
+        result = sds_bptree_insert(binst, (void *)&(fill_pattern[i]), NULL);
         assert_int_equal(result, SDS_SUCCESS);
 
         result = sds_bptree_verify(binst);
@@ -288,11 +294,10 @@ test_14_insert_random(void **state) {
         }
 #endif
         assert_int_equal(result, SDS_SUCCESS);
-
     }
     // search
 
-    for (uint64_t i = 0; i < 200 ; i++) {
+    for (uint64_t i = 0; i < 200; i++) {
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
 #ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
@@ -307,14 +312,15 @@ test_14_insert_random(void **state) {
 // test15 is search not present
 
 static void
-test_15_search_none(void **state) {
+test_15_search_none(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
     // Add many nodes.
 
-    for (uint64_t i = 1; i <= 20  ; i++) {
+    for (uint64_t i = 1; i <= 20; i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
     // search
@@ -322,11 +328,11 @@ test_15_search_none(void **state) {
     result = sds_bptree_search(binst, (void *)&ti);
     // key should be there
     assert_int_equal(result, SDS_KEY_NOT_PRESENT);
-
 }
 
 static void
-test_16_insert_and_retrieve(void **state) {
+test_16_insert_and_retrieve(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
@@ -340,7 +346,7 @@ test_16_insert_and_retrieve(void **state) {
     result = sds_bptree_retrieve(binst, (void *)&key, (void **)&dest);
     assert_int_equal(result, SDS_KEY_PRESENT);
 
-    assert_int_equal(strncmp(dest, magic, 6 ), 0);
+    assert_int_equal(strncmp(dest, magic, 6), 0);
 
     // Freed as part of the tree release
     // sds_free(dest);
@@ -426,9 +432,8 @@ test_20_delete_non_branch_key(void **state)
 
     for (i = 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
-
     }
 
     // Inspect the internal to the tree to get the key from the node.
@@ -436,8 +441,6 @@ test_20_delete_non_branch_key(void **state)
 
     result = sds_bptree_delete(binst, (void *)&i);
     assert_int_equal(result, SDS_KEY_PRESENT);
-
-
 }
 
 static void
@@ -455,9 +458,9 @@ test_21_delete_redist_left_leaf(void **state)
     uint64_t i = 2;
     // Add many nodes.
 
-    for (i = 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3) ; i++) {
+    for (i = 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
 
@@ -472,7 +475,6 @@ test_21_delete_redist_left_leaf(void **state)
 
     // How can I test for and prove that the value was redistributed?
     // Return node of the previous?
-
 }
 
 static void
@@ -490,7 +492,7 @@ test_22_delete_redist_right_leaf(void **state)
 
     for (uint64_t i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
 
@@ -524,7 +526,6 @@ test_22_delete_redist_right_leaf(void **state)
     }
 #endif
     assert_int_equal(result, SDS_SUCCESS);
-
 }
 
 static void
@@ -544,17 +545,17 @@ test_22_5_redist_left_borrow(void **state)
 
     for (uint64_t i = 3; i <= SDS_BPTREE_DEFAULT_CAPACITY + 2; i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
     uint64_t key = 1;
-    result = sds_bptree_insert(binst, (void *)&key , NULL);
+    result = sds_bptree_insert(binst, (void *)&key, NULL);
     assert_int_equal(result, SDS_SUCCESS);
     key = 2;
-    result = sds_bptree_insert(binst, (void *)&key , NULL);
+    result = sds_bptree_insert(binst, (void *)&key, NULL);
     assert_int_equal(result, SDS_SUCCESS);
 
-    for (uint64_t i = SDS_BPTREE_DEFAULT_CAPACITY; i > 2 ; i--) {
+    for (uint64_t i = SDS_BPTREE_DEFAULT_CAPACITY; i > 2; i--) {
         key = i + 1;
         result = sds_bptree_delete(binst, (void *)&key);
         assert_int_equal(result, SDS_KEY_PRESENT);
@@ -577,7 +578,7 @@ test_23_delete_right_merge(void **state)
 
     for (uint64_t i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
 
@@ -622,7 +623,7 @@ test_24_delete_left_merge(void **state)
 
     for (i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
     // Then when we delete 11/12 from B
@@ -636,7 +637,7 @@ test_24_delete_left_merge(void **state)
     // [ - | - | - | - ] -> [ 7 | 10 | 11 | - ]
     // And A should be removed too.
 
-    for (i = SDS_BPTREE_DEFAULT_CAPACITY; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 2) ; i++) {
+    for (i = SDS_BPTREE_DEFAULT_CAPACITY; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 2); i++) {
         // Add two to guarantee we don't conflict
         result = sds_bptree_delete(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
@@ -655,7 +656,7 @@ test_25_delete_all_compress_root(void **state)
 
     for (i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 3); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
 
@@ -687,7 +688,7 @@ test_26_delete_right_branch_merge(void **state)
 
     for (i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 6); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
     // Then when we delete 8 / 9 from A
@@ -705,7 +706,6 @@ test_26_delete_right_branch_merge(void **state)
         // printf("Deleting %d\n ", i);
         result = sds_bptree_delete(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
-
     }
 
     // How do we actually assert this?
@@ -732,7 +732,7 @@ test_27_delete_left_branch_merge(void **state)
 
     for (i = 1; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 6); i++) {
         // Add two to guarantee we don't conflict
-        result = sds_bptree_insert(binst, (void *)&i , NULL);
+        result = sds_bptree_insert(binst, (void *)&i, NULL);
         assert_int_equal(result, SDS_SUCCESS);
     }
 
@@ -746,7 +746,7 @@ test_27_delete_left_branch_merge(void **state)
     // Final result.
     // [ - | - | - | - ] -> [ 7 | 10 | 11 | - ]
     // And A should be removed too.
-    for (i = SDS_BPTREE_DEFAULT_CAPACITY * 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 6) ; i++) {
+    for (i = SDS_BPTREE_DEFAULT_CAPACITY * 2; i <= (SDS_BPTREE_DEFAULT_CAPACITY * 6); i++) {
         // Add two to guarantee we don't conflict
         result = sds_bptree_delete(binst, (void *)&i);
         assert_int_equal(result, SDS_KEY_PRESENT);
@@ -759,11 +759,12 @@ test_27_delete_left_branch_merge(void **state)
 
 // stress test and random operations. Should pass
 static void
-test_28_insert_and_delete_random(void **state) {
+test_28_insert_and_delete_random(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
-    for (uint64_t i = 0; i < 200 ; i++) {
+    for (uint64_t i = 0; i < 200; i++) {
         result = sds_bptree_insert(binst, (void *)&(fill_pattern[i]), NULL);
         assert_int_equal(result, SDS_SUCCESS);
 
@@ -775,11 +776,10 @@ test_28_insert_and_delete_random(void **state) {
         }
 #endif
         assert_int_equal(result, SDS_SUCCESS);
-
     }
     // search
 
-    for (uint64_t i = 0; i < 200 ; i++) {
+    for (uint64_t i = 0; i < 200; i++) {
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
 #ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
@@ -812,17 +812,17 @@ test_28_insert_and_delete_random(void **state) {
         }
 #endif
         assert_int_equal(result, SDS_SUCCESS);
-
     }
 }
 
 // stress test and random operations. Should pass
 static void
-test_29_insert_and_delete_random_large(void **state) {
+test_29_insert_and_delete_random_large(void **state)
+{
     sds_bptree_instance *binst = *state;
     sds_result result = SDS_SUCCESS;
 
-    for (uint64_t i = 0; i < 2048 ; i++) {
+    for (uint64_t i = 0; i < 2048; i++) {
         result = sds_bptree_insert(binst, (void *)&(fill_pattern[i]), NULL);
         assert_int_equal(result, SDS_SUCCESS);
 
@@ -834,9 +834,8 @@ test_29_insert_and_delete_random_large(void **state) {
         }
 #endif
         assert_int_equal(result, SDS_SUCCESS);
-
     }
-    for (uint64_t i = 0; i < 2048 ; i++) {
+    for (uint64_t i = 0; i < 2048; i++) {
         result = sds_bptree_search(binst, (void *)&(fill_pattern[i]));
 #ifdef SDS_DEBUG
         if (result != SDS_KEY_PRESENT) {
@@ -873,7 +872,8 @@ test_29_insert_and_delete_random_large(void **state) {
 }
 
 static void
-test_30_insert_and_delete_strings(void **state  __attribute__((unused))) {
+test_30_insert_and_delete_strings(void **state __attribute__((unused)))
+{
     // Create a new tree, and then destroy it.
     sds_bptree_instance *binst = NULL;
     sds_result result = SDS_SUCCESS;
@@ -881,11 +881,11 @@ test_30_insert_and_delete_strings(void **state  __attribute__((unused))) {
     result = sds_bptree_init(&binst, 1, sds_strcmp, sds_free, sds_free, sds_strdup);
     assert_int_equal(result, SDS_SUCCESS);
 
-    for (uint64_t i = 0; i < 200 ; i++) {
+    for (uint64_t i = 0; i < 200; i++) {
         /* Make a new string */
         char *ptr = sds_malloc(sizeof(char) * 4);
         /*  */
-        sprintf(ptr, "%03"PRIu64, i);
+        sprintf(ptr, "%03" PRIu64, i);
         /* Insert CLONES this .... */
         result = sds_bptree_insert(binst, ptr, NULL);
         /* Free the string now, the tree cloned it! */
@@ -895,9 +895,9 @@ test_30_insert_and_delete_strings(void **state  __attribute__((unused))) {
         assert_int_equal(result, SDS_SUCCESS);
     }
 
-    for (uint64_t i = 20; i < 150; i+=3) {
+    for (uint64_t i = 20; i < 150; i += 3) {
         char *ptr = sds_malloc(sizeof(char) * 4);
-        sprintf(ptr, "%03"PRIu64, i);
+        sprintf(ptr, "%03" PRIu64, i);
         result = sds_bptree_delete(binst, ptr);
         assert_int_equal(result, SDS_KEY_PRESENT);
         sds_free(ptr);
@@ -907,11 +907,11 @@ test_30_insert_and_delete_strings(void **state  __attribute__((unused))) {
 
     result = sds_bptree_destroy(binst);
     assert_int_equal(result, SDS_SUCCESS);
-
 }
 
 int
-run_bpt_tests (void) {
+run_bpt_tests(void)
+{
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_1_invalid_binst_ptr),
 #ifdef SDS_DEBUG
@@ -1003,5 +1003,4 @@ run_bpt_tests (void) {
     };
 
     return cmocka_run_group_tests_name("bpt", tests, NULL, NULL);
-
 }

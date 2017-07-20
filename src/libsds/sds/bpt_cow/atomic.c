@@ -95,4 +95,3 @@ sds_bptree_cow_insert_atomic(sds_bptree_cow_instance *binst, void *key, void *va
 
     return search_result;
 }
-

@@ -2,22 +2,20 @@
 #include "lfds711_queue_bounded_singleproducer_singleconsumer_internal.h"
 
 
-
-
-
 /****************************************************************************/
-void lfds711_queue_bss_init_valid_on_current_logical_core( struct lfds711_queue_bss_state *qbsss,
-                                                           struct lfds711_queue_bss_element *element_array,
-                                                           lfds711_pal_uint_t number_elements,
-                                                           void *user_state )
+void
+lfds711_queue_bss_init_valid_on_current_logical_core(struct lfds711_queue_bss_state *qbsss,
+                                                     struct lfds711_queue_bss_element *element_array,
+                                                     lfds711_pal_uint_t number_elements,
+                                                     void *user_state)
 {
-  LFDS711_PAL_ASSERT( qbsss != NULL );
-  LFDS711_PAL_ASSERT( element_array != NULL );
-  LFDS711_PAL_ASSERT( number_elements >= 2 );
-  LFDS711_PAL_ASSERT( ( number_elements & (number_elements-1) ) == 0 ); // TRD : number_elements must be a positive integer power of 2
-  // TRD : user_state can be NULL
+    LFDS711_PAL_ASSERT(qbsss != NULL);
+    LFDS711_PAL_ASSERT(element_array != NULL);
+    LFDS711_PAL_ASSERT(number_elements >= 2);
+    LFDS711_PAL_ASSERT((number_elements & (number_elements - 1)) == 0);  // TRD : number_elements must be a positive integer power of 2
+    // TRD : user_state can be NULL
 
-  /* TRD : the use of mask and the restriction on a power of two
+    /* TRD : the use of mask and the restriction on a power of two
            upon the number of elements bears some remark
 
            in this queue, there are a fixed number of elements
@@ -47,17 +45,16 @@ void lfds711_queue_bss_init_valid_on_current_logical_core( struct lfds711_queue_
            bitwise and is much faster than modulus
   */
 
-  qbsss->number_elements = number_elements;
-  qbsss->mask = qbsss->number_elements - 1;
-  qbsss->read_index = 0;
-  qbsss->write_index = 0;
-  qbsss->element_array = element_array;
-  qbsss->user_state = user_state;
+    qbsss->number_elements = number_elements;
+    qbsss->mask = qbsss->number_elements - 1;
+    qbsss->read_index = 0;
+    qbsss->write_index = 0;
+    qbsss->element_array = element_array;
+    qbsss->user_state = user_state;
 
-  LFDS711_MISC_BARRIER_STORE;
+    LFDS711_MISC_BARRIER_STORE;
 
-  lfds711_misc_force_store();
+    lfds711_misc_force_store();
 
-  return;
+    return;
 }
-

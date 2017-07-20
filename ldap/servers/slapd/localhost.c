@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
@@ -24,7 +24,7 @@
 #include <resolv.h>
 #include <errno.h>
 #include "slap.h"
-#if defined(USE_SYSCONF) || defined(LINUX) || defined( __FreeBSD__ )
+#if defined(USE_SYSCONF) || defined(LINUX) || defined(__FreeBSD__)
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 
@@ -35,79 +35,81 @@
 #define _PATH_RESCONF "/etc/resolv.conf"
 #endif
 
-#if defined (__hpux)
+#if defined(__hpux)
 #if (MAXHOSTNAMELEN < 256)
-#   undef MAXHOSTNAMELEN
-#   define MAXHOSTNAMELEN 256
+#undef MAXHOSTNAMELEN
+#define MAXHOSTNAMELEN 256
 #endif
 #endif
 
-static char*
+static char *
 find_localhost_DNS(void)
 {
     /* This implementation could (and should) be entirely replaced by:
        dns_ip2host ("127.0.0.1", 1); defined in ldapserver/lib/base/dns.c
      */
-    char hostname [MAXHOSTNAMELEN + 1];
+    char hostname[MAXHOSTNAMELEN + 1];
     struct hostent *hp;
 #ifdef GETHOSTBYNAME_BUF_T
     struct hostent hent;
     GETHOSTBYNAME_BUF_T hbuf;
     int err;
 #endif
-    char** alias;
-    FILE* f;
-    char* cp;
-    char* domain;
-    char line [MAXHOSTNAMELEN + 8];
+    char **alias;
+    FILE *f;
+    char *cp;
+    char *domain;
+    char line[MAXHOSTNAMELEN + 8];
 
-    if (gethostname (hostname, MAXHOSTNAMELEN)) {
+    if (gethostname(hostname, MAXHOSTNAMELEN)) {
         int oserr = errno;
 
-        slapi_log_err(SLAPI_LOG_ERR, "find_localhost_DNS", 
-                "gethostname() failed, error %d (%s)\n",
-                oserr, slapd_system_strerror( oserr ));
+        slapi_log_err(SLAPI_LOG_ERR, "find_localhost_DNS",
+                      "gethostname() failed, error %d (%s)\n",
+                      oserr, slapd_system_strerror(oserr));
         return NULL;
     }
-    hp = GETHOSTBYNAME (hostname, &hent, hbuf, sizeof(hbuf), &err);
+    hp = GETHOSTBYNAME(hostname, &hent, hbuf, sizeof(hbuf), &err);
     if (hp == NULL) {
         int oserr = errno;
 
         slapi_log_err(SLAPI_LOG_ERR,
-                "find_localhost_DNS - gethostbyname(\"%s\") failed, error %d (%s)\n",
-                hostname, oserr, slapd_system_strerror( oserr ));
+                      "find_localhost_DNS - gethostbyname(\"%s\") failed, error %d (%s)\n",
+                      hostname, oserr, slapd_system_strerror(oserr));
         return NULL;
     }
     if (hp->h_name == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "find_localhost_DNS",
-                "gethostbyname(\"%s\")->h_name == NULL\n", hostname);
+                      "gethostbyname(\"%s\")->h_name == NULL\n", hostname);
         return NULL;
     }
-    if (strchr (hp->h_name, '.') != NULL) {
+    if (strchr(hp->h_name, '.') != NULL) {
         slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "h_name == %s\n", hp->h_name);
-        return slapi_ch_strdup (hp->h_name);
+        return slapi_ch_strdup(hp->h_name);
     } else if (hp->h_aliases != NULL) {
         for (alias = hp->h_aliases; *alias != NULL; ++alias) {
-            if (strchr  (*alias, '.') != NULL &&
-                strncmp (*alias, hp->h_name, strlen (hp->h_name))) {
+            if (strchr(*alias, '.') != NULL &&
+                strncmp(*alias, hp->h_name, strlen(hp->h_name))) {
                 slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "h_alias == %s\n", *alias);
-                return slapi_ch_strdup (*alias);
+                return slapi_ch_strdup(*alias);
             }
         }
     }
     /* The following is copied from dns_guess_domain(),
        in ldapserver/lib/base/dnsdmain.c */
     domain = NULL;
-    f = fopen (_PATH_RESCONF, "r");  /* This fopen() will fail on NT, as expected */
+    f = fopen(_PATH_RESCONF, "r"); /* This fopen() will fail on NT, as expected */
     if (f != NULL) {
-        while (fgets (line, sizeof(line), f)) {
-            if (strncasecmp (line, "domain", 6) == 0 && isspace (line[6])) {
+        while (fgets(line, sizeof(line), f)) {
+            if (strncasecmp(line, "domain", 6) == 0 && isspace(line[6])) {
                 slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "%s: %s\n", _PATH_RESCONF, line);
-                for (cp = &line[7]; *cp && isspace(*cp); ++cp);
+                for (cp = &line[7]; *cp && isspace(*cp); ++cp)
+                    ;
                 if (*cp) {
                     domain = cp;
                     /* ignore subsequent whitespace: */
-                    for (; *cp && ! isspace (*cp); ++cp);
+                    for (; *cp && !isspace(*cp); ++cp)
+                        ;
                     if (*cp) {
                         *cp = '\0';
                     }
@@ -115,7 +117,7 @@ find_localhost_DNS(void)
                 break;
             }
         }
-        fclose (f);
+        fclose(f);
     }
 #ifndef NO_DOMAINNAME
     if (domain == NULL) {
@@ -134,53 +136,54 @@ find_localhost_DNS(void)
     if (domain == NULL) {
         return NULL;
     }
-    PL_strncpyz (hostname, hp->h_name, sizeof(hostname));
-    if (domain[0] == '.') ++domain;
+    PL_strncpyz(hostname, hp->h_name, sizeof(hostname));
+    if (domain[0] == '.')
+        ++domain;
     if (domain[0]) {
-        PL_strcatn (hostname, sizeof(hostname), ".");
-        PL_strcatn (hostname, sizeof(hostname), domain);
+        PL_strcatn(hostname, sizeof(hostname), ".");
+        PL_strcatn(hostname, sizeof(hostname), domain);
     }
     slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "hostname == %s\n", hostname);
-    return slapi_ch_strdup (hostname);
+    return slapi_ch_strdup(hostname);
 }
 
-static const char* const RDN = "dc=";
+static const char *const RDN = "dc=";
 
-static char*
-convert_DNS_to_DN (char* DNS)
+static char *
+convert_DNS_to_DN(char *DNS)
 {
-    char* DN;
-    char* dot;
+    char *DN;
+    char *dot;
     size_t components;
     if (*DNS == '\0') {
-        return slapi_ch_strdup ("");
+        return slapi_ch_strdup("");
     }
     components = 1;
-    for (dot = strchr (DNS, '.'); dot != NULL; dot = strchr (dot + 1, '.')) {
+    for (dot = strchr(DNS, '.'); dot != NULL; dot = strchr(dot + 1, '.')) {
         ++components;
     }
-    DN = slapi_ch_malloc (strlen (DNS) + (components * strlen(RDN)) + 1);
-    strcpy (DN, RDN);
-    for (dot = strchr (DNS, '.'); dot != NULL; dot = strchr (dot + 1, '.')) {
+    DN = slapi_ch_malloc(strlen(DNS) + (components * strlen(RDN)) + 1);
+    strcpy(DN, RDN);
+    for (dot = strchr(DNS, '.'); dot != NULL; dot = strchr(dot + 1, '.')) {
         *dot = '\0';
-        strcat (DN, DNS);
-        strcat (DN, ",");
-        strcat (DN, RDN);
+        strcat(DN, DNS);
+        strcat(DN, ",");
+        strcat(DN, RDN);
         DNS = dot + 1;
         *dot = '.';
     }
-    strcat (DN, DNS);
-    slapi_dn_normalize (DN);
+    strcat(DN, DNS);
+    slapi_dn_normalize(DN);
     return DN;
 }
 
-static char* localhost_DN = NULL;
+static char *localhost_DN = NULL;
 
-char*
+char *
 get_localhost_DNS()
 {
     char *retVal;
-    if ( (retVal = config_get_localhost()) == NULL) {
+    if ((retVal = config_get_localhost()) == NULL) {
         /* find_localhost_DNS() returns strdup result */
         retVal = find_localhost_DNS();
     }
@@ -193,15 +196,15 @@ set_localhost_DN(void)
     char *localhost_DNS = config_get_localhost();
 
     if (localhost_DNS != NULL) {
-        localhost_DN = convert_DNS_to_DN (localhost_DNS);
+        localhost_DN = convert_DNS_to_DN(localhost_DNS);
         slapi_log_err(SLAPI_LOG_CONFIG, "set_localhost_DN",
-                "DNS %s -> DN %s\n", localhost_DNS, localhost_DN);
+                      "DNS %s -> DN %s\n", localhost_DNS, localhost_DN);
     }
     slapi_ch_free_string(&localhost_DNS);
 }
 
 
-char*
+char *
 get_localhost_DN()
 /* Return the Distinguished Name of the local host; that is,
    its DNS name converted to a DN according to RFC 1279.
@@ -213,28 +216,26 @@ get_localhost_DN()
     return localhost_DN;
 }
 
-static char* config_DN = NULL;
+static char *config_DN = NULL;
 
 char *
 get_config_DN()
 {
-	char *c;
-	char *host;
+    char *c;
+    char *host;
 
-	if ( config_DN == NULL )
-	{
-		host = get_localhost_DN();
-		if ( host )
-			c = slapi_ch_malloc (20 + strlen (host));
-		else {
-			slapi_log_err(SLAPI_LOG_CONFIG, "get_config_DN",
-				"Get_locahost_DN() returned \"\"\n");
-			c = slapi_ch_malloc (20);
-		}
-		sprintf (c, "cn=ldap://%s:%d", host ? host : "", config_get_port());
-		config_DN = c;
-	}
+    if (config_DN == NULL) {
+        host = get_localhost_DN();
+        if (host)
+            c = slapi_ch_malloc(20 + strlen(host));
+        else {
+            slapi_log_err(SLAPI_LOG_CONFIG, "get_config_DN",
+                          "Get_locahost_DN() returned \"\"\n");
+            c = slapi_ch_malloc(20);
+        }
+        sprintf(c, "cn=ldap://%s:%d", host ? host : "", config_get_port());
+        config_DN = c;
+    }
 
-	return config_DN;
+    return config_DN;
 }
-

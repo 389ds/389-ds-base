@@ -4,18 +4,18 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 
-#if !defined( _ROLES_CACHE_H )
+#if !defined(_ROLES_CACHE_H)
 
 #define SLAPD_ROLES_INTERFACE "roles-slapd"
-#define ROLES_PLUGIN_SUBSYSTEM   "roles-plugin"
+#define ROLES_PLUGIN_SUBSYSTEM "roles-plugin"
 #define NSROLEATTR "nsRole"
 
 #define ROLE_DEFINITION_FILTER "(&(objectclass=nsRoleDefinition)(objectclass=ldapsubentry))"
@@ -51,13 +51,13 @@ int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_v
 int roles_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present);
 
 /* From roles_plugin.c */
-int roles_init( Slapi_PBlock *pb );
-int roles_sp_get_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_ValueSet** results,int *type_name_disposition, char** actual_type_name, int flags, int *free_flags, void *hint);
+int roles_init(Slapi_PBlock *pb);
+int roles_sp_get_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_ValueSet **results, int *type_name_disposition, char **actual_type_name, int flags, int *free_flags, void *hint);
 
-int roles_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result,int flags, void *hint);
+int roles_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int *result, int flags, void *hint);
 
-int roles_sp_list_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags);
+int roles_sp_list_types(vattr_sp_handle *handle, Slapi_Entry *e, vattr_type_list_context *type_context, int flags);
 
-void * roles_get_plugin_identity(void);
+void *roles_get_plugin_identity(void);
 
 #endif /* _ROLES_CACHE_H */

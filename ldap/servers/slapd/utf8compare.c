@@ -4,11 +4,11 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <stdio.h>
@@ -18,9 +18,10 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 
-typedef struct sUpperLowerTbl {
+typedef struct sUpperLowerTbl
+{
     char *upper, *lower;
-    int tsz;	/* target size */
+    int tsz; /* target size */
 } UpperLowerTbl_t;
 
 /*
@@ -42,7 +43,7 @@ slapi_has8thBit(unsigned char *s)
     for (p = s; p < stail; p += MY8THBITWIDTH) {
         uip = (PRUint32 *)p;
         if (MY8THBITFILTER & *uip) {
-             return 1;
+            return 1;
         }
     }
 #undef MY8THBITWIDTH
@@ -50,12 +51,12 @@ slapi_has8thBit(unsigned char *s)
     for (; p < ltail; p++)
 #else
     unsigned char *p, *tail;
-    tail = s + strlen((char *)s); 
+    tail = s + strlen((char *)s);
     for (p = s; p < tail; p++)
 #endif
     {
         if (0x80 & *p) {
-             return 1;
+            return 1;
         }
     }
     return 0;
@@ -96,8 +97,7 @@ UpperLowerTbl_t Upper2LowerTbl20[] = {
     {"\303\234", "\303\274", 2},
     {"\303\235", "\303\275", 2},
     {"\303\236", "\303\276", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl21[] = {
     {"\304\200", "\304\201", 2},
@@ -132,8 +132,7 @@ UpperLowerTbl_t Upper2LowerTbl21[] = {
     {"\304\273", "\304\274", 2},
     {"\304\275", "\304\276", 2},
     {"\304\277", "\305\200", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl22[] = {
     {"\305\201", "\305\202", 2},
@@ -167,8 +166,7 @@ UpperLowerTbl_t Upper2LowerTbl22[] = {
     {"\305\271", "\305\272", 2},
     {"\305\273", "\305\274", 2},
     {"\305\275", "\305\276", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl23[] = {
     {"\306\201", "\311\223", 2},
@@ -207,8 +205,7 @@ UpperLowerTbl_t Upper2LowerTbl23[] = {
     {"\306\267", "\312\222", 2},
     {"\306\270", "\306\271", 2},
     {"\306\274", "\306\275", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl24[] = {
     {"\307\204", "\307\205", 2},
@@ -240,8 +237,7 @@ UpperLowerTbl_t Upper2LowerTbl24[] = {
     {"\307\272", "\307\273", 2},
     {"\307\274", "\307\275", 2},
     {"\307\276", "\307\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl25[] = {
     {"\310\200", "\310\201", 2},
@@ -256,8 +252,7 @@ UpperLowerTbl_t Upper2LowerTbl25[] = {
     {"\310\222", "\310\223", 2},
     {"\310\224", "\310\225", 2},
     {"\310\226", "\310\227", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl26[] = {
     {"\316\206", "\316\254", 2},
@@ -293,8 +288,7 @@ UpperLowerTbl_t Upper2LowerTbl26[] = {
     {"\316\251", "\317\211", 2},
     {"\316\252", "\317\212", 2},
     {"\316\253", "\317\213", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl27[] = {
     {"\317\222", "\317\222", 2},
@@ -311,8 +305,7 @@ UpperLowerTbl_t Upper2LowerTbl27[] = {
     {"\317\252", "\317\253", 2},
     {"\317\254", "\317\255", 2},
     {"\317\256", "\317\257", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl28[] = {
     {"\320\201", "\321\221", 2},
@@ -361,8 +354,7 @@ UpperLowerTbl_t Upper2LowerTbl28[] = {
     {"\320\255", "\321\215", 2},
     {"\320\256", "\321\216", 2},
     {"\320\257", "\321\217", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl29[] = {
     {"\321\240", "\321\241", 2},
@@ -381,8 +373,7 @@ UpperLowerTbl_t Upper2LowerTbl29[] = {
     {"\321\272", "\321\273", 2},
     {"\321\274", "\321\275", 2},
     {"\321\276", "\321\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl2a[] = {
     {"\322\200", "\322\201", 2},
@@ -410,8 +401,7 @@ UpperLowerTbl_t Upper2LowerTbl2a[] = {
     {"\322\272", "\322\273", 2},
     {"\322\274", "\322\275", 2},
     {"\322\276", "\322\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl2b[] = {
     {"\323\201", "\323\202", 2},
@@ -437,8 +427,7 @@ UpperLowerTbl_t Upper2LowerTbl2b[] = {
     {"\323\262", "\323\263", 2},
     {"\323\264", "\323\265", 2},
     {"\323\270", "\323\271", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl2c[] = {
     {"\324\261", "\325\241", 2},
@@ -456,8 +445,7 @@ UpperLowerTbl_t Upper2LowerTbl2c[] = {
     {"\324\275", "\325\255", 2},
     {"\324\276", "\325\256", 2},
     {"\324\277", "\325\257", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl2d[] = {
     {"\325\200", "\325\260", 2},
@@ -744,8 +732,7 @@ UpperLowerTbl_t Upper2LowerTbl30[] = {
     {"\341\277\272", "\341\275\274", 3},
     {"\341\277\273", "\341\275\275", 3},
     {"\341\277\274", "\341\277\263", 3},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Upper2LowerTbl31[] = {
     {"\357\274\241", "\357\275\201", 3},
@@ -779,43 +766,43 @@ UpperLowerTbl_t Upper2LowerTbl31[] = {
 };
 
 UpperLowerTbl_t *Upper2LowerTbl2[] = {
-    Upper2LowerTbl20,	/* \303 */
-    Upper2LowerTbl21,	/* \304 */
-    Upper2LowerTbl22,	/* \305 */
-    Upper2LowerTbl23,	/* \306 */
-    Upper2LowerTbl24,	/* \307 */
-    Upper2LowerTbl25,	/* \310 */
-    NULL,		/* \311 */
-    NULL,		/* \312 */
-    NULL,		/* \313 */
-    NULL,		/* \314 */
-    NULL,		/* \315 */
-    Upper2LowerTbl26,	/* \316 */
-    Upper2LowerTbl27,	/* \317 */
-    Upper2LowerTbl28,	/* \320 */
-    Upper2LowerTbl29,	/* \321 */
-    Upper2LowerTbl2a,	/* \322 */
-    Upper2LowerTbl2b,	/* \323 */
-    Upper2LowerTbl2c,	/* \324 */
-    Upper2LowerTbl2d	/* \325 */
+    Upper2LowerTbl20, /* \303 */
+    Upper2LowerTbl21, /* \304 */
+    Upper2LowerTbl22, /* \305 */
+    Upper2LowerTbl23, /* \306 */
+    Upper2LowerTbl24, /* \307 */
+    Upper2LowerTbl25, /* \310 */
+    NULL,             /* \311 */
+    NULL,             /* \312 */
+    NULL,             /* \313 */
+    NULL,             /* \314 */
+    NULL,             /* \315 */
+    Upper2LowerTbl26, /* \316 */
+    Upper2LowerTbl27, /* \317 */
+    Upper2LowerTbl28, /* \320 */
+    Upper2LowerTbl29, /* \321 */
+    Upper2LowerTbl2a, /* \322 */
+    Upper2LowerTbl2b, /* \323 */
+    Upper2LowerTbl2c, /* \324 */
+    Upper2LowerTbl2d  /* \325 */
 };
 
 UpperLowerTbl_t *Upper2LowerTbl3[] = {
-    Upper2LowerTbl30,	/* \341 */
-    NULL,		/* \342 */
-    NULL,		/* \343 */
-    NULL,		/* \344 */
-    NULL,		/* \345 */
-    NULL,		/* \346 */
-    NULL,		/* \347 */
-    NULL,		/* \350 */
-    NULL,		/* \351 */
-    NULL,		/* \352 */
-    NULL,		/* \353 */
-    NULL,		/* \354 */
-    NULL,		/* \355 */
-    NULL,		/* \356 */
-    Upper2LowerTbl31	/* \357 */
+    Upper2LowerTbl30, /* \341 */
+    NULL,             /* \342 */
+    NULL,             /* \343 */
+    NULL,             /* \344 */
+    NULL,             /* \345 */
+    NULL,             /* \346 */
+    NULL,             /* \347 */
+    NULL,             /* \350 */
+    NULL,             /* \351 */
+    NULL,             /* \352 */
+    NULL,             /* \353 */
+    NULL,             /* \354 */
+    NULL,             /* \355 */
+    NULL,             /* \356 */
+    Upper2LowerTbl31  /* \357 */
 };
 
 #define UL2S (unsigned char)'\303'
@@ -825,13 +812,13 @@ UpperLowerTbl_t *Upper2LowerTbl3[] = {
 
 /*
  * slapi_utf8StrToLower: translate upper-case string to lower-case
- * 
+ *
  *                input: a null terminated UTF-8 string
  *               output: a null terminated UTF-8 string which characters are
  *                       converted to lower-case; characters which are not
  *                       upper-case are copied as is.  If it's not considered
  *                       a UTF-8 string, NULL is returned.
- *                   
+ *
  * Notes: This function takes a string (made of multiple UTF-8 characters)
  *        for the input (not one character as in "tolower").
  *        Output string is allocated in this function, which needs to be
@@ -852,47 +839,47 @@ slapi_utf8StrToLower(unsigned char *s)
     int len, sz;
 
     if (s == NULL || *s == '\0') {
-	return s;
+        return s;
     }
     len = strlen((char *)s);
     tail = s + len;
     lphead = lp = (unsigned char *)slapi_ch_malloc(len + 1);
     p = s;
     while ((np = (unsigned char *)ldap_utf8next((char *)p)) <= tail) {
-        switch(sz = np - p) {
+        switch (sz = np - p) {
         case 1:
             *lp = tolower(*p);
             break;
         case 2:
-            if (*p < UL2S || *p > UL2E) {	/* out of range */
+            if (*p < UL2S || *p > UL2E) { /* out of range */
                 memcpy(lp, p, sz);
                 break;
-	    }
+            }
             for (ultp = Upper2LowerTbl2[*p - UL2S];
                  ultp && ultp->upper && memcmp(p, ultp->upper, sz);
                  ultp++)
                 ;
-	    if (!ultp) {		/* out of range */
+            if (!ultp) { /* out of range */
                 memcpy(lp, p, sz);
-            } else if (ultp->upper) {        /* matched */
+            } else if (ultp->upper) { /* matched */
                 memcpy(lp, ultp->lower, ultp->tsz);
-		sz = ultp->tsz;
+                sz = ultp->tsz;
             } else {
                 memcpy(lp, p, sz);
             }
-	    break;
+            break;
         case 3:
-            if (*p != UL3S && *p != UL3E) {	/* out of range */
+            if (*p != UL3S && *p != UL3E) { /* out of range */
                 memcpy(lp, p, sz);
                 break;
-	    }
+            }
             for (ultp = Upper2LowerTbl3[*p - UL3S];
                  ultp && ultp->upper && memcmp(p, ultp->upper, sz);
                  ultp++)
                 ;
-	    if (!ultp) {		/* out of range */
+            if (!ultp) { /* out of range */
                 memcpy(lp, p, sz);
-            } else if (ultp->upper) {        /* matched */
+            } else if (ultp->upper) { /* matched */
                 memcpy(lp, ultp->lower, sz);
             } else {
                 memcpy(lp, p, sz);
@@ -901,7 +888,7 @@ slapi_utf8StrToLower(unsigned char *s)
         case 4:
             memcpy(lp, p, sz);
             break;
-        default:    /* not UTF-8 */
+        default: /* not UTF-8 */
             slapi_ch_free((void **)&lphead);
             return NULL;
         }
@@ -909,7 +896,7 @@ slapi_utf8StrToLower(unsigned char *s)
         p = np;
         if (p == tail) {
             break;
-	}
+        }
     }
     *lp = '\0';
     return lphead;
@@ -917,12 +904,12 @@ slapi_utf8StrToLower(unsigned char *s)
 
 /*
  * slapi_utf8ToLower: translate upper-case character to lower-case
- * 
+ *
  *             input: a UTF-8 character (s)
  *            output: a UTF-8 character which is converted to lower-case (d)
  *                    length (in bytes) of input character (ssz) and
  *                    output character (dsz)
- *                   
+ *
  * Notes: This function takes a UTF-8 character (could be multiple bytes)
  *        for the input.  Memory for the output character is NOT allocated
  *        in this function, caller should have allocated it (d).
@@ -942,54 +929,54 @@ slapi_utf8ToLower(unsigned char *s, unsigned char *d, int *ssz, int *dsz)
     unsigned char *tail;
 
     if (s == NULL || *s == '\0') {
-	*ssz = *dsz = 0;
-	return;
+        *ssz = *dsz = 0;
+        return;
     }
-    if (!(*s & 0x80)) {	/* ASCII */
+    if (!(*s & 0x80)) { /* ASCII */
         *dsz = *ssz = 1;
         *d = tolower(*s);
         return;
     }
     tail = (unsigned char *)ldap_utf8next((char *)s);
     *dsz = *ssz = tail - s;
-    switch(*ssz) {
-    case 1:	/* ASCII */
-	*d = tolower(*s);
+    switch (*ssz) {
+    case 1: /* ASCII */
+        *d = tolower(*s);
         break;
-    case 2:	/* 2 bytes */
-        if (*s < UL2S || *s > UL2E) {	/* out of range */
+    case 2:                           /* 2 bytes */
+        if (*s < UL2S || *s > UL2E) { /* out of range */
             memmove(d, s, *ssz);
             break;
-	}
+        }
         for (ultp = Upper2LowerTbl2[*s - UL2S];
              ultp && ultp->upper && memcmp(s, ultp->upper, *ssz);
              ultp++)
             ;
-	if (!ultp) {			/* out of range */
+        if (!ultp) { /* out of range */
             memmove(d, s, *ssz);
-        } else if (ultp->upper) {	/* matched */
+        } else if (ultp->upper) { /* matched */
             memmove(d, ultp->lower, ultp->tsz);
-	    *dsz = ultp->tsz;
+            *dsz = ultp->tsz;
         } else {
             memmove(d, s, *ssz);
-	}
-	break;
-    case 3:	/* 3 bytes */
-        if (*s != UL3S && *s != UL3E) {	/* out of range */
+        }
+        break;
+    case 3:                             /* 3 bytes */
+        if (*s != UL3S && *s != UL3E) { /* out of range */
             memmove(d, s, *ssz);
             break;
-	}
+        }
         for (ultp = Upper2LowerTbl3[*s - UL3S];
              ultp && ultp->upper && memcmp(s, ultp->upper, *ssz);
              ultp++)
             ;
-	if (!ultp) {	 		/* out of range */
+        if (!ultp) { /* out of range */
             memmove(d, s, *ssz);
-        } else if (ultp->upper) {       /* matched */
+        } else if (ultp->upper) { /* matched */
             memmove(d, ultp->lower, *ssz);
         } else {
             memmove(d, s, *ssz);
-	}
+        }
         break;
     }
     return;
@@ -998,7 +985,7 @@ slapi_utf8ToLower(unsigned char *s, unsigned char *d, int *ssz, int *dsz)
 /*
  * slapi_utf8isUpper: tests for a character that is a upper-case letter in
  *                   UTF-8
- * 
+ *
  *            input: a UTF-8 character (could be multi-byte)
  *           output: 1 if the character is a upper-case letter
  *                   0 if the character is not a upper-case letter
@@ -1017,41 +1004,41 @@ slapi_utf8isUpper(unsigned char *s)
     int sz;
 
     if (s == NULL || *s == '\0') {
-	return 0;
+        return 0;
     }
-    if (!(*s & 0x80)) {	/* ASCII */
+    if (!(*s & 0x80)) { /* ASCII */
         return isupper(*s);
     }
     next = (unsigned char *)ldap_utf8next((char *)s);
-    switch(sz = next - s) {
-    case 1:	/* ASCII */
+    switch (sz = next - s) {
+    case 1: /* ASCII */
         return isupper(*s);
     case 2:
-        if (*s < UL2S || *s > UL2E) {	/* out of range */
-	    return 0;
-	}
+        if (*s < UL2S || *s > UL2E) { /* out of range */
+            return 0;
+        }
         for (ultp = Upper2LowerTbl2[*s - UL2S];
              ultp && ultp->upper && memcmp(s, ultp->upper, sz);
              ultp++)
-             ;
-	if (!ultp) {			/* out of range */
+            ;
+        if (!ultp) { /* out of range */
             return 0;
-        } else if (ultp->upper) {		/* matched */
+        } else if (ultp->upper) { /* matched */
             return 1;
         } else {
             return 0;
         }
     case 3:
-        if (*s < UL3S || *s > UL3E) {	/* out of range */
-	    return 0;
-	}
+        if (*s < UL3S || *s > UL3E) { /* out of range */
+            return 0;
+        }
         for (ultp = Upper2LowerTbl3[*s - UL3S];
              ultp && ultp->upper && memcmp(s, ultp->upper, sz);
              ultp++)
-             ;
-	if (!ultp) {			/* out of range */
+            ;
+        if (!ultp) { /* out of range */
             return 0;
-        } else if (ultp->upper) {		/* matched */
+        } else if (ultp->upper) { /* matched */
             return 1;
         } else {
             return 0;
@@ -1097,8 +1084,7 @@ UpperLowerTbl_t Lower2UpperTbl20[] = {
     {"\303\235", "\303\275", 2},
     {"\303\236", "\303\276", 2},
     {"\305\270", "\303\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl21[] = {
     {"\304\200", "\304\201", 2},
@@ -1132,8 +1118,7 @@ UpperLowerTbl_t Lower2UpperTbl21[] = {
     {"\304\271", "\304\272", 2},
     {"\304\273", "\304\274", 2},
     {"\304\275", "\304\276", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl22[] = {
     {"\304\277", "\305\200", 2},
@@ -1168,8 +1153,7 @@ UpperLowerTbl_t Lower2UpperTbl22[] = {
     {"\305\273", "\305\274", 2},
     {"\305\275", "\305\276", 2},
     {"\123", "\305\277", 1},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl23[] = {
     {"\306\202", "\306\203", 2},
@@ -1188,8 +1172,7 @@ UpperLowerTbl_t Lower2UpperTbl23[] = {
     {"\306\265", "\306\266", 2},
     {"\306\270", "\306\271", 2},
     {"\306\274", "\306\275", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl24[] = {
     {"\307\204", "\307\206", 2},
@@ -1217,8 +1200,7 @@ UpperLowerTbl_t Lower2UpperTbl24[] = {
     {"\307\272", "\307\273", 2},
     {"\307\274", "\307\275", 2},
     {"\307\276", "\307\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl25[] = {
     {"\310\200", "\310\201", 2},
@@ -1233,8 +1215,7 @@ UpperLowerTbl_t Lower2UpperTbl25[] = {
     {"\310\222", "\310\223", 2},
     {"\310\224", "\310\225", 2},
     {"\310\226", "\310\227", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl26[] = {
     {"\306\201", "\311\223", 2},
@@ -1250,8 +1231,7 @@ UpperLowerTbl_t Lower2UpperTbl26[] = {
     {"\306\226", "\311\251", 2},
     {"\306\234", "\311\257", 2},
     {"\306\235", "\311\262", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl27[] = {
     {"\306\251", "\312\203", 2},
@@ -1259,8 +1239,7 @@ UpperLowerTbl_t Lower2UpperTbl27[] = {
     {"\306\261", "\312\212", 2},
     {"\306\262", "\312\213", 2},
     {"\306\267", "\312\222", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl28[] = {
     {"\316\206", "\316\254", 2},
@@ -1282,8 +1261,7 @@ UpperLowerTbl_t Lower2UpperTbl28[] = {
     {"\316\235", "\316\275", 2},
     {"\316\236", "\316\276", 2},
     {"\316\237", "\316\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl29[] = {
     {"\316\240", "\317\200", 2},
@@ -1314,8 +1292,7 @@ UpperLowerTbl_t Lower2UpperTbl29[] = {
     {"\317\256", "\317\257", 2},
     {"\316\232", "\317\260", 2},
     {"\316\241", "\317\261", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl2a[] = {
     {"\320\220", "\320\260", 2},
@@ -1334,8 +1311,7 @@ UpperLowerTbl_t Lower2UpperTbl2a[] = {
     {"\320\235", "\320\275", 2},
     {"\320\236", "\320\276", 2},
     {"\320\237", "\320\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl2b[] = {
     {"\320\240", "\321\200", 2},
@@ -1384,8 +1360,7 @@ UpperLowerTbl_t Lower2UpperTbl2b[] = {
     {"\321\272", "\321\273", 2},
     {"\321\274", "\321\275", 2},
     {"\321\276", "\321\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl2c[] = {
     {"\322\200", "\322\201", 2},
@@ -1413,8 +1388,7 @@ UpperLowerTbl_t Lower2UpperTbl2c[] = {
     {"\322\272", "\322\273", 2},
     {"\322\274", "\322\275", 2},
     {"\322\276", "\322\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl2d[] = {
     {"\323\201", "\323\202", 2},
@@ -1440,8 +1414,7 @@ UpperLowerTbl_t Lower2UpperTbl2d[] = {
     {"\323\262", "\323\263", 2},
     {"\323\264", "\323\265", 2},
     {"\323\270", "\323\271", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl2e[] = {
     {"\324\261", "\325\241", 2},
@@ -1475,8 +1448,7 @@ UpperLowerTbl_t Lower2UpperTbl2e[] = {
     {"\325\215", "\325\275", 2},
     {"\325\216", "\325\276", 2},
     {"\325\217", "\325\277", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl2f[] = {
     {"\325\220", "\326\200", 2},
@@ -1486,8 +1458,7 @@ UpperLowerTbl_t Lower2UpperTbl2f[] = {
     {"\325\224", "\326\204", 2},
     {"\325\225", "\326\205", 2},
     {"\325\226", "\326\206", 2},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl30[] = {
     {"\341\202\240", "\341\203\220", 3},
@@ -1744,8 +1715,7 @@ UpperLowerTbl_t Lower2UpperTbl30[] = {
     {"\341\277\251", "\341\277\241", 3},
     {"\341\277\254", "\341\277\245", 3},
     {"\341\277\274", "\341\277\263", 3},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 UpperLowerTbl_t Lower2UpperTbl31[] = {
     {"\357\274\241", "\357\275\201", 3},
@@ -1779,44 +1749,44 @@ UpperLowerTbl_t Lower2UpperTbl31[] = {
 };
 
 UpperLowerTbl_t *Lower2UpperTbl2[] = {
-    Lower2UpperTbl20,	/* \303 */
-    Lower2UpperTbl21,	/* \304 */
-    Lower2UpperTbl22,	/* \305 */
-    Lower2UpperTbl23,	/* \306 */
-    Lower2UpperTbl24,	/* \307 */
-    Lower2UpperTbl25,	/* \310 */
-    Lower2UpperTbl26,	/* \311 */
-    Lower2UpperTbl27,	/* \312 */
-    NULL,		/* \313 */
-    NULL,		/* \314 */
-    NULL,		/* \315 */
-    Lower2UpperTbl28,	/* \316 */
-    Lower2UpperTbl29,	/* \317 */
-    Lower2UpperTbl2a,	/* \320 */
-    Lower2UpperTbl2b,	/* \321 */
-    Lower2UpperTbl2c,	/* \322 */
-    Lower2UpperTbl2d,	/* \323 */
-    NULL,		/* \324 */
-    Lower2UpperTbl2e,	/* \325 */
-    Lower2UpperTbl2f	/* \326 */
+    Lower2UpperTbl20, /* \303 */
+    Lower2UpperTbl21, /* \304 */
+    Lower2UpperTbl22, /* \305 */
+    Lower2UpperTbl23, /* \306 */
+    Lower2UpperTbl24, /* \307 */
+    Lower2UpperTbl25, /* \310 */
+    Lower2UpperTbl26, /* \311 */
+    Lower2UpperTbl27, /* \312 */
+    NULL,             /* \313 */
+    NULL,             /* \314 */
+    NULL,             /* \315 */
+    Lower2UpperTbl28, /* \316 */
+    Lower2UpperTbl29, /* \317 */
+    Lower2UpperTbl2a, /* \320 */
+    Lower2UpperTbl2b, /* \321 */
+    Lower2UpperTbl2c, /* \322 */
+    Lower2UpperTbl2d, /* \323 */
+    NULL,             /* \324 */
+    Lower2UpperTbl2e, /* \325 */
+    Lower2UpperTbl2f  /* \326 */
 };
 
 UpperLowerTbl_t *Lower2UpperTbl3[] = {
-    Lower2UpperTbl30,	/* \341 */
-    NULL,		/* \342 */
-    NULL,		/* \343 */
-    NULL,		/* \344 */
-    NULL,		/* \345 */
-    NULL,		/* \346 */
-    NULL,		/* \347 */
-    NULL,		/* \350 */
-    NULL,		/* \351 */
-    NULL,		/* \352 */
-    NULL,		/* \353 */
-    NULL,		/* \354 */
-    NULL,		/* \355 */
-    NULL,		/* \356 */
-    Lower2UpperTbl31	/* \357 */
+    Lower2UpperTbl30, /* \341 */
+    NULL,             /* \342 */
+    NULL,             /* \343 */
+    NULL,             /* \344 */
+    NULL,             /* \345 */
+    NULL,             /* \346 */
+    NULL,             /* \347 */
+    NULL,             /* \350 */
+    NULL,             /* \351 */
+    NULL,             /* \352 */
+    NULL,             /* \353 */
+    NULL,             /* \354 */
+    NULL,             /* \355 */
+    NULL,             /* \356 */
+    Lower2UpperTbl31  /* \357 */
 };
 
 #define LU2S (unsigned char)'\303'
@@ -1826,13 +1796,13 @@ UpperLowerTbl_t *Lower2UpperTbl3[] = {
 
 /*
  * slapi_utf8StrToUpper: translate lower-case string to upper-case
- * 
+ *
  *                input: a null terminated UTF-8 string
  *               output: a null terminated UTF-8 string which characters are
  *                       converted to upper-case; characters which are not
  *                       lower-case are copied as is.  If it's not considered
  *                       a UTF-8 string, NULL is returned.
- *                   
+ *
  * Notes: This function takes a string (made of multiple UTF-8 characters)
  *        for the input (not one character as in "toupper").
  *        Output string is allocated in this function, which needs to be
@@ -1853,47 +1823,47 @@ slapi_utf8StrToUpper(unsigned char *s)
     int len, sz;
 
     if (s == NULL || *s == '\0') {
-	return s;
+        return s;
     }
     len = strlen((char *)s);
     tail = s + len;
     uphead = up = (unsigned char *)slapi_ch_malloc(len + 1);
     p = s;
     while ((np = (unsigned char *)ldap_utf8next((char *)p)) <= tail) {
-        switch(sz = np - p) {
-        case 1:	/* ASCII */
+        switch (sz = np - p) {
+        case 1: /* ASCII */
             *up = toupper(*p);
             break;
-        case 2:	/* 2 bytes */
-            if (*p < LU2S || *p > LU2E) {	/* out of range */
+        case 2:                           /* 2 bytes */
+            if (*p < LU2S || *p > LU2E) { /* out of range */
                 memcpy(up, p, sz);
                 break;
-	    }
+            }
             for (ultp = Lower2UpperTbl2[*p - LU2S];
                  ultp && ultp->lower && memcmp(p, ultp->lower, sz);
                  ultp++)
                 ;
-	    if (!ultp) {		/* out of range */
+            if (!ultp) { /* out of range */
                 memcpy(up, p, sz);
-            } else if (ultp->lower) {        /* matched */
+            } else if (ultp->lower) { /* matched */
                 memcpy(up, ultp->upper, ultp->tsz);
-		sz = ultp->tsz;
+                sz = ultp->tsz;
             } else {
                 memcpy(up, p, sz);
             }
-	    break;
-        case 3:	/* 3 bytes */
-            if (*p != LU3S && *p != LU3E) {	/* out of range */
+            break;
+        case 3:                             /* 3 bytes */
+            if (*p != LU3S && *p != LU3E) { /* out of range */
                 memcpy(up, p, sz);
                 break;
-	    }
+            }
             for (ultp = Lower2UpperTbl3[*p - LU3S];
                  ultp && ultp->lower && memcmp(p, ultp->lower, sz);
                  ultp++)
                 ;
-	    if (!ultp) {	/* out of range */
+            if (!ultp) { /* out of range */
                 memcpy(up, p, sz);
-            } else if (ultp->lower) {        /* matched */
+            } else if (ultp->lower) { /* matched */
                 memcpy(up, ultp->upper, sz);
             } else {
                 memcpy(up, p, sz);
@@ -1902,7 +1872,7 @@ slapi_utf8StrToUpper(unsigned char *s)
         case 4:
             memcpy(up, p, sz);
             break;
-        default:    /* not UTF-8 */
+        default: /* not UTF-8 */
             slapi_ch_free((void **)&uphead);
             return NULL;
         }
@@ -1910,7 +1880,7 @@ slapi_utf8StrToUpper(unsigned char *s)
         p = np;
         if (p == tail) {
             break;
-	}
+        }
     }
     *up = '\0';
     return uphead;
@@ -1918,12 +1888,12 @@ slapi_utf8StrToUpper(unsigned char *s)
 
 /*
  * slapi_utf8ToUpper: translate lower-case character to upper-case
- * 
+ *
  *             input: a UTF-8 character (s)
  *            output: a UTF-8 character which is converted to upper-case (d)
  *                    length (in bytes) of input character (ssz) and
  *                    output character (dsz)
- *                   
+ *
  * Notes: This function takes a UTF-8 character (could be multiple bytes)
  *        for the input.  Memory for the output character is NOT allocated
  *        in this function, caller should have allocated it (d).
@@ -1943,54 +1913,54 @@ slapi_utf8ToUpper(unsigned char *s, unsigned char *d, int *ssz, int *dsz)
     unsigned char *tail;
 
     if (s == NULL || *s == '\0') {
-	*ssz = *dsz = 0;
-	return;
+        *ssz = *dsz = 0;
+        return;
     }
-    if (!(*s & 0x80)) {	/* ASCII */
+    if (!(*s & 0x80)) { /* ASCII */
         *dsz = *ssz = 1;
         *d = toupper(*s);
         return;
     }
     tail = (unsigned char *)ldap_utf8next((char *)s);
     *dsz = *ssz = tail - s;
-    switch(*ssz) {
-    case 1:	/* ASCII */
-	*d = toupper(*s);
+    switch (*ssz) {
+    case 1: /* ASCII */
+        *d = toupper(*s);
         break;
-    case 2:	/* 2 bytes */
-        if (*s < LU2S || *s > LU2E) {	/* out of range */
+    case 2:                           /* 2 bytes */
+        if (*s < LU2S || *s > LU2E) { /* out of range */
             memmove(d, s, *ssz);
             break;
-	}
+        }
         for (ultp = Lower2UpperTbl2[*s - LU2S];
              ultp && ultp->lower && memcmp(s, ultp->lower, *ssz);
              ultp++)
             ;
-        if (!ultp) {		        /* out of range */
+        if (!ultp) { /* out of range */
             memmove(d, s, *ssz);
-        } else if (ultp->lower) {	/* matched */
+        } else if (ultp->lower) { /* matched */
             memmove(d, ultp->upper, ultp->tsz);
-	    *dsz = ultp->tsz;
+            *dsz = ultp->tsz;
         } else {
             memmove(d, s, *ssz);
-	}
-	break;
-    case 3:	/* 3 bytes */
-        if (*s != LU3S && *s != LU3E) {	/* out of range */
+        }
+        break;
+    case 3:                             /* 3 bytes */
+        if (*s != LU3S && *s != LU3E) { /* out of range */
             memmove(d, s, *ssz);
             break;
-	}
+        }
         for (ultp = Lower2UpperTbl3[*s - LU3S];
              ultp && ultp->lower && memcmp(s, ultp->lower, *ssz);
              ultp++)
             ;
-        if (!ultp) {			/* out of range */
+        if (!ultp) { /* out of range */
             memmove(d, s, *ssz);
-        } else if (ultp->lower) {	/* matched */
+        } else if (ultp->lower) { /* matched */
             memmove(d, ultp->upper, *ssz);
         } else {
             memmove(d, s, *ssz);
-	}
+        }
         break;
     }
     return;
@@ -1999,7 +1969,7 @@ slapi_utf8ToUpper(unsigned char *s, unsigned char *d, int *ssz, int *dsz)
 /*
  * slapi_utf8isLower: tests for a character that is a lower-case letter in
  *                   UTF-8
- * 
+ *
  *            input: a UTF-8 character (could be multi-byte)
  *           output: 1 if the character is a lower-case letter
  *                   0 if the character is not a lower-case letter
@@ -2018,41 +1988,41 @@ slapi_utf8isLower(unsigned char *s)
     int sz;
 
     if (s == NULL || *s == '\0') {
-	return 0;
+        return 0;
     }
-    if (!(*s & 0x80)) {	/* ASCII */
+    if (!(*s & 0x80)) { /* ASCII */
         return islower(*s);
     }
     next = (unsigned char *)ldap_utf8next((char *)s);
-    switch(sz = next - s) {
-    case 1:	/* ASCII */
+    switch (sz = next - s) {
+    case 1: /* ASCII */
         return islower(*s);
     case 2:
-        if (*s < LU2S || *s > LU2E) {	/* out of range */
-	    return 0;
-	}
+        if (*s < LU2S || *s > LU2E) { /* out of range */
+            return 0;
+        }
         for (ultp = Lower2UpperTbl2[*s - LU2S];
              ultp && ultp->lower && memcmp(s, ultp->lower, sz);
              ultp++)
-             ;
-	if (!ultp) {		/* out of range */
+            ;
+        if (!ultp) { /* out of range */
             return 0;
-        } else if (ultp->lower) {	/* matched */
+        } else if (ultp->lower) { /* matched */
             return 1;
         } else {
             return 0;
         }
     case 3:
-        if (*s < LU3S || *s > LU3E) {	/* out of range */
-	    return 0;
-	}
+        if (*s < LU3S || *s > LU3E) { /* out of range */
+            return 0;
+        }
         for (ultp = Lower2UpperTbl3[*s - LU3S];
              ultp && ultp->lower && memcmp(s, ultp->lower, sz);
              ultp++)
-             ;
-	if (!ultp) {		/* out of range */
+            ;
+        if (!ultp) { /* out of range */
             return 0;
-        } else if (ultp->lower) {	/* matched */
+        } else if (ultp->lower) { /* matched */
             return 1;
         } else {
             return 0;
@@ -2064,7 +2034,7 @@ slapi_utf8isLower(unsigned char *s)
 
 /*
  * slapi_utf8casecmp: case-insensitive string compare for UTF-8 strings
- * 
+ *
  *            input: two UTF-8 strings (s0, s1) to be compared
  *           output: positive number, if s0 is after s1
  *                   0, if the two strings are identical ignoring the case
@@ -2102,13 +2072,13 @@ slapi_UTF8CASECMP(char *s0, char *s1)
 int
 slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
 {
-    unsigned char *d0, *d1;	/* store lower-case strings */
-    unsigned char *p0, *p1;	/* current UTF-8 char */
-    unsigned char *n0, *n1;	/* next UTF-8 char */
-    unsigned char *t0, *t1;	/* tail of the strings */
-    unsigned char *x0, *x1;	/* current byte in a char */
-    int i0, i1;			/* length of characters */
-    int l0, l1;			/* length of leftover */
+    unsigned char *d0, *d1; /* store lower-case strings */
+    unsigned char *p0, *p1; /* current UTF-8 char */
+    unsigned char *n0, *n1; /* next UTF-8 char */
+    unsigned char *t0, *t1; /* tail of the strings */
+    unsigned char *x0, *x1; /* current byte in a char */
+    int i0, i1;             /* length of characters */
+    int l0, l1;             /* length of leftover */
     int rval;
     int has8_s0;
     int has8_s1;
@@ -2118,22 +2088,22 @@ slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
         if (s1 == NULL || *s1 == '\0') {
             rval = 0;
         } else {
-            rval = -1;	/* regardless s1, s0 < s1 */
+            rval = -1; /* regardless s1, s0 < s1 */
         }
         goto end;
     } else if (s1 == NULL || *s1 == '\0') {
-        rval = 1;	/* regardless s0, s0 > s1 */
+        rval = 1; /* regardless s0, s0 > s1 */
         goto end;
     }
 
     has8_s0 = slapi_has8thBit(s0);
     has8_s1 = slapi_has8thBit(s1);
     if (has8_s0 == has8_s1) { /* both has-8th-bit or both do not */
-        if (has8_s0 == 0) {          /* neither has-8th-bit */
+        if (has8_s0 == 0) {   /* neither has-8th-bit */
             rval = strcasecmp((char *)s0, (char *)s1);
             goto end;
         }
-    } else {                  /* one has and the other do not */
+    } else { /* one has and the other do not */
         rval = strcasecmp((char *)s0, (char *)s1);
         goto end;
     }
@@ -2163,7 +2133,7 @@ slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
         i0 = n0 - p0;
         i1 = n1 - p1;
         rval = i0 - i1;
-        if (rval) {         /* length is different */
+        if (rval) { /* length is different */
             goto end;
         }
 
@@ -2175,7 +2145,8 @@ slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
             }
         }
 
-        p0 = n0; p1 = n1; /* goto next */
+        p0 = n0;
+        p1 = n1; /* goto next */
     }
     /* finished scanning the shared part and check the leftover */
     l0 = t0 - n0;
@@ -2194,7 +2165,7 @@ end:
 /*
  * slapi_utf8ncasecmp: case-insensitive string compare (n chars) for UTF-8
  *                    strings
- * 
+ *
  *            input: two UTF-8 strings (s0, s1) to be compared
  *                   number or characters
  *           output: positive number, if s0 is after s1
@@ -2218,13 +2189,13 @@ slapi_UTF8NCASECMP(char *s0, char *s1, int n)
 int
 slapi_utf8ncasecmp(unsigned char *s0, unsigned char *s1, int n)
 {
-    unsigned char *d0, *d1;	/* store lower-case strings */
-    unsigned char *p0, *p1;	/* current UTF-8 char */
-    unsigned char *n0, *n1;	/* next UTF-8 char */
-    unsigned char *t0, *t1;	/* tail of the strings */
-    unsigned char *x0, *x1;	/* current byte in a char */
-    int i0, i1;			/* length of characters */
-    int l0, l1;			/* length of leftover */
+    unsigned char *d0, *d1; /* store lower-case strings */
+    unsigned char *p0, *p1; /* current UTF-8 char */
+    unsigned char *n0, *n1; /* next UTF-8 char */
+    unsigned char *t0, *t1; /* tail of the strings */
+    unsigned char *x0, *x1; /* current byte in a char */
+    int i0, i1;             /* length of characters */
+    int l0, l1;             /* length of leftover */
     int cnt;
     int rval;
     int has8_s0;
@@ -2232,25 +2203,25 @@ slapi_utf8ncasecmp(unsigned char *s0, unsigned char *s1, int n)
 
     d0 = d1 = NULL;
     if (s0 == NULL || *s0 == '\0') {
-	if (s1 == NULL || *s1 == '\0') {
-	    rval = 0;
-	} else {
-	    rval = -1;	/* regardless s1, s0 < s1 */
-	}
-	goto end;
+        if (s1 == NULL || *s1 == '\0') {
+            rval = 0;
+        } else {
+            rval = -1; /* regardless s1, s0 < s1 */
+        }
+        goto end;
     } else if (s1 == NULL || *s1 == '\0') {
-	rval = 1;	/* regardless s0, s0 > s1 */
-	goto end;
+        rval = 1; /* regardless s0, s0 > s1 */
+        goto end;
     }
 
     has8_s0 = slapi_has8thBit(s0);
     has8_s1 = slapi_has8thBit(s1);
     if (has8_s0 == has8_s1) { /* both has-8th-bit or both do not */
-        if (has8_s0 == 0) {          /* neither has-8th-bit */
+        if (has8_s0 == 0) {   /* neither has-8th-bit */
             rval = strncasecmp((char *)s0, (char *)s1, n);
             goto end;
         }
-    } else {                  /* one has and the other do not */
+    } else { /* one has and the other do not */
         rval = strncasecmp((char *)s0, (char *)s1, n);
         goto end;
     }
@@ -2259,9 +2230,9 @@ slapi_utf8ncasecmp(unsigned char *s0, unsigned char *s1, int n)
     d1 = slapi_utf8StrToLower(s1);
 
     if (d0 == NULL || d1 == NULL || /* either is not a UTF-8 string */
-	(d0 && *d0 == '\0') || (d1 && *d1 == '\0')) {	
-	rval = strncasecmp((char *)s0, (char *)s1, n);
-	goto end;
+        (d0 && *d0 == '\0') || (d1 && *d1 == '\0')) {
+        rval = strncasecmp((char *)s0, (char *)s1, n);
+        goto end;
     }
 
     p0 = d0;
@@ -2276,13 +2247,13 @@ slapi_utf8ncasecmp(unsigned char *s0, unsigned char *s1, int n)
         n0 = (unsigned char *)ldap_utf8next((char *)p0);
         n1 = (unsigned char *)ldap_utf8next((char *)p1);
         if (n0 > t0 || n1 > t1 || cnt == n) {
-	    break;
-	}
+            break;
+        }
 
         i0 = n0 - p0;
         i1 = n1 - p1;
         rval = i0 - i1;
-        if (rval)         /* length is different */
+        if (rval) /* length is different */
             goto end;
 
         /* i0 == i1: same length */
@@ -2292,11 +2263,12 @@ slapi_utf8ncasecmp(unsigned char *s0, unsigned char *s1, int n)
                 goto end;
         }
 
-	p0 = n0; p1 = n1;	/* goto next */
-	cnt++;
+        p0 = n0;
+        p1 = n1; /* goto next */
+        cnt++;
     }
-    if (cnt == n) 
-	rval = 0;
+    if (cnt == n)
+        rval = 0;
     else {
         /* finished scanning the shared part and check the leftover */
         l0 = t0 - n0;
@@ -2312,4 +2284,3 @@ end:
 
     return rval;
 }
-

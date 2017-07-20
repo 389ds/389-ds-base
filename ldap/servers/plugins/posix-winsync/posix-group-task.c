@@ -6,7 +6,7 @@
 
 typedef struct _task_data
 {
-    char *dn; /* search base */
+    char *dn;         /* search base */
     char *filter_str; /* search filter */
 } task_data;
 
@@ -30,8 +30,7 @@ valueset_get_valuearray(const Slapi_ValueSet *vs); /* stolen from proto-slap.h *
 
 /* interface function */
 int
-posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode,
-    char *returntext, void *arg);
+posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 
 Slapi_Entry *
 getEntry(const char *udn, char **attrs);
@@ -79,7 +78,7 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
 
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: ==>\n");
+                  "posix_group_task_add: ==>\n");
 
     /* get arg(s) */
     /* default: set replication basedn */
@@ -90,7 +89,7 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: retrieved basedn: %s\n", dn);
+                  "posix_group_task_add: retrieved basedn: %s\n", dn);
 
     if ((filter = fetch_attr(e, "filter", "(&(objectclass=ntGroup)(|(uniquemember=*)(memberuid=*)))")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -99,10 +98,10 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: retrieved filter: %s\n", filter);
+                  "posix_group_task_add: retrieved filter: %s\n", filter);
 
     /* setup our task data */
-    mytaskdata = (task_data*) slapi_ch_malloc(sizeof(task_data));
+    mytaskdata = (task_data *)slapi_ch_malloc(sizeof(task_data));
     if (mytaskdata == NULL) {
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
@@ -112,43 +111,43 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
     mytaskdata->filter_str = slapi_ch_strdup(filter);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: task data allocated\n");
+                  "posix_group_task_add: task data allocated\n");
 
     /* allocate new task now */
-    char * ndn = slapi_entry_get_ndn(e);
+    char *ndn = slapi_entry_get_ndn(e);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: creating task object: %s\n",
-                    ndn);
+                  "posix_group_task_add: creating task object: %s\n",
+                  ndn);
 
     task = slapi_new_task(ndn);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: task object created\n");
+                  "posix_group_task_add: task object created\n");
 
     /* register our destructor for cleaning up our private data */
     slapi_task_set_destructor_fn(task, posix_group_task_destructor);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: task destructor set\n");
+                  "posix_group_task_add: task destructor set\n");
 
     /* Stash a pointer to our data in the task */
     slapi_task_set_data(task, mytaskdata);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: task object initialized\n");
+                  "posix_group_task_add: task object initialized\n");
 
     /* start the sample task as a separate thread */
-    thread = PR_CreateThread(PR_USER_THREAD, posix_group_fixup_task_thread, (void *) task,
+    thread = PR_CreateThread(PR_USER_THREAD, posix_group_fixup_task_thread, (void *)task,
                              PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
                              SLAPD_DEFAULT_THREAD_STACKSIZE);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: thread created\n");
+                  "posix_group_task_add: thread created\n");
 
     if (thread == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME,
-                        "posix_group_task_add: unable to create task thread!\n");
+                      "posix_group_task_add: unable to create task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);
@@ -156,9 +155,9 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
-out: 
+out:
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: <==\n");
+                  "posix_group_task_add: <==\n");
 
     return rv;
 }
@@ -167,20 +166,20 @@ static void
 posix_group_task_destructor(Slapi_Task *task)
 {
     if (task) {
-        task_data *mydata = (task_data *) slapi_task_get_data(task);
+        task_data *mydata = (task_data *)slapi_task_get_data(task);
         while (slapi_task_get_refcount(task) > 0) {
             /* Yield to wait for the fixup task finishes. */
-            DS_Sleep (PR_MillisecondsToInterval(100));
+            DS_Sleep(PR_MillisecondsToInterval(100));
         }
         if (mydata) {
             slapi_ch_free_string(&mydata->dn);
             slapi_ch_free_string(&mydata->filter_str);
             /* Need to cast to avoid a compiler warning */
-            slapi_ch_free((void **) &mydata);
+            slapi_ch_free((void **)&mydata);
         }
     }
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_destructor <--\n");
+                  "posix_group_task_destructor <--\n");
 }
 
 #if 0 /* NOT USED */
@@ -224,7 +223,7 @@ static int
 posix_group_fix_memberuid(char *dn, char *filter_str, void *txn)
 {
     int rc = 0;
-    struct _cb_data callback_data = { dn, txn };
+    struct _cb_data callback_data = {dn, txn};
     Slapi_PBlock *search_pb = slapi_pblock_new();
 
     /* char *attrs[]={"uniquemember","memberuid",NULL}; */
@@ -251,8 +250,8 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
 {
     int i;
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "_fix_memberuid ==>\n");
-    cb_data *the_cb_data = (cb_data *) callback_data;
+                  "_fix_memberuid ==>\n");
+    cb_data *the_cb_data = (cb_data *)callback_data;
 
     int rc = 0;
     Slapi_Attr *muid_attr = NULL;
@@ -264,7 +263,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
     LDAPMod **mods = NULL;
     int is_posix_group = 0;
 
-    /* 
+    /*
      * If the server is ordered to shutdown, stop the fixup and return an error.
      */
     if (slapi_is_shutting_down()) {
@@ -279,7 +278,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
     if (hasObjectClass(e, "posixGroup")) {
         is_posix_group = 1;
     }
-/* Clean out memberuids and dsonlymemberuids without a valid referant */
+    /* Clean out memberuids and dsonlymemberuids without a valid referant */
     rc = slapi_entry_attr_find(e, "memberuid", &muid_attr);
     if (rc == 0 && muid_attr) {
         Slapi_PBlock *search_pb = slapi_pblock_new();
@@ -287,7 +286,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         Slapi_Attr *dsmuid_attr = NULL;
         Slapi_ValueSet *dsmuid_vs = NULL;
 
-        char *attrs[] = { "uid", NULL };
+        char *attrs[] = {"uid", NULL};
 
         rc = slapi_entry_attr_find(e, "dsonlymemberuid", &dsmuid_attr);
         if (rc == 0 && dsmuid_attr) {
@@ -295,15 +294,15 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         }
 
         slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_fix_memberuid scan for orphaned memberuids\n");
+                      "_fix_memberuid scan for orphaned memberuids\n");
 
         for (i = slapi_attr_first_value(muid_attr, &v); i != -1;
              i = slapi_attr_next_value(muid_attr, i, &v)) {
             char *muid = (char *)slapi_value_get_string(v);
 
             slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                            "_fix_memberuid iterating memberuid: %s\n",
-                            muid);
+                          "_fix_memberuid iterating memberuid: %s\n",
+                          muid);
 
             size_t vallen = muid ? strlen(muid) : 0;
             char *filter_escaped_value = slapi_escape_filter_value(muid, vallen);
@@ -320,8 +319,8 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
                                          posix_winsync_get_plugin_identity(), 0);
 
             slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                            "_fix_memberuid searching %s with filter: %s\n",
-                            the_cb_data->dn, filter);
+                          "_fix_memberuid searching %s with filter: %s\n",
+                          the_cb_data->dn, filter);
 
             rc = slapi_search_internal_pb(search_pb);
 
@@ -329,15 +328,15 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
 
             if (!search_entries || !search_entries[0]) {
                 slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                                "_fix_memberuid Adding bad memberuid %s\n",
-                                slapi_value_get_string(v));
+                              "_fix_memberuid Adding bad memberuid %s\n",
+                              slapi_value_get_string(v));
 
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, "memberuid", slapi_value_get_string(v));
 
                 if (dsmuid_vs && slapi_valueset_find(dsmuid_attr, dsmuid_vs, v)) {
                     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                                    "_fix_memberuid Adding bad dsonlymemberuid %s\n",
-                                    slapi_value_get_string(v));
+                                  "_fix_memberuid Adding bad dsonlymemberuid %s\n",
+                                  slapi_value_get_string(v));
 
                     slapi_mods_add_string(smods, LDAP_MOD_DELETE, "dsonlymemberuid", slapi_value_get_string(v));
                 }
@@ -349,10 +348,12 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         }
 
         if (dsmuid_vs) {
-            slapi_valueset_free(dsmuid_vs); dsmuid_vs = NULL;
+            slapi_valueset_free(dsmuid_vs);
+            dsmuid_vs = NULL;
         }
 
-        slapi_pblock_destroy(search_pb); search_pb = NULL;
+        slapi_pblock_destroy(search_pb);
+        search_pb = NULL;
     }
 
     /* Cleanup uniquemembers without a referent, and verify memberuid otherwise */
@@ -361,22 +362,22 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
     if (rc == 0 && obj_attr) {
         int fixMembership = 0;
         Slapi_ValueSet *bad_ums = NULL;
-        Slapi_Value *uniqval = NULL;   /* uniquemeber Attribute values */
+        Slapi_Value *uniqval = NULL; /* uniquemeber Attribute values */
         Slapi_ValueSet *uids = NULL;
         slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_fix_memberuid scan uniquemember, group %s\n", dn);
+                      "_fix_memberuid scan uniquemember, group %s\n", dn);
         for (i = slapi_attr_first_value(obj_attr, &uniqval); i != -1;
              i = slapi_attr_next_value(obj_attr, i, &uniqval)) {
 
             const char *member = slapi_value_get_string(uniqval);
-            char *attrs[] = { "uid", "objectclass", NULL };
+            char *attrs[] = {"uid", "objectclass", NULL};
             Slapi_Entry *child = getEntry(member, attrs);
 
             if (child) {
                 slapi_entry_free(child);
             } else {
                 slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                                "_fix_memberuid orphaned uniquemember found: %s\n", member);
+                              "_fix_memberuid orphaned uniquemember found: %s\n", member);
 
                 if ((strncasecmp(member, "cn=", 3) == 0) ||
                     (strncasecmp(member, "uid=", 4) == 0)) {
@@ -429,21 +430,23 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         slapi_valueset_free(uids);
 
         slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_fix_memberuid Finishing...\n");
+                      "_fix_memberuid Finishing...\n");
 
         if (fixMembership && posix_winsync_config_get_mapNestedGrouping()) {
             Slapi_ValueSet *del_nested_vs = slapi_valueset_new();
 
             slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                            "_fix_memberuid group deleted, recalculating nesting\n");
+                          "_fix_memberuid group deleted, recalculating nesting\n");
             propogateDeletionsUpward(e, sdn, bad_ums, del_nested_vs, 0);
 
-            slapi_valueset_free(del_nested_vs); del_nested_vs = NULL;
+            slapi_valueset_free(del_nested_vs);
+            del_nested_vs = NULL;
         }
 
         if (bad_ums) {
             slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, "uniquemember", valueset_get_valuearray(bad_ums));
-            slapi_valueset_free(bad_ums); bad_ums = NULL;
+            slapi_valueset_free(bad_ums);
+            bad_ums = NULL;
         }
     }
 
@@ -452,7 +455,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         Slapi_PBlock *mod_pb = NULL;
         mod_pb = slapi_pblock_new();
         slapi_modify_internal_set_pb_ext(mod_pb, sdn, mods, 0, 0,
-                                        posix_winsync_get_plugin_identity(), 0);
+                                         posix_winsync_get_plugin_identity(), 0);
 
         slapi_pblock_set(mod_pb, SLAPI_TXN, the_cb_data->txn);
         slapi_modify_internal_pb(mod_pb);
@@ -463,7 +466,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
     slapi_mods_free(&smods);
 bail:
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "_fix_memberuid <==\n");
+                  "_fix_memberuid <==\n");
     /*
      * Since Ticket #481 "expand nested posix groups",
      * there's a possibility the found entry does not contain
@@ -477,9 +480,9 @@ static void
 posix_group_fixup_task_thread(void *arg)
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "_task_thread ==>\n");
+                  "_task_thread ==>\n");
 
-    Slapi_Task *task = (Slapi_Task *) arg;
+    Slapi_Task *task = (Slapi_Task *)arg;
     task_data *td = NULL;
     int rc = 0;
 
@@ -488,9 +491,9 @@ posix_group_fixup_task_thread(void *arg)
     }
     slapi_task_inc_refcount(task);
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_fixup_task_thread --> refcount incremented.\n" );
+                  "posix_group_fixup_task_thread --> refcount incremented.\n");
     /* Fetch our task data from the task */
-    td = (task_data *) slapi_task_get_data(task);
+    td = (task_data *)slapi_task_get_data(task);
 
     slapi_task_begin(task, 1);
     slapi_task_log_notice(task, "posix_group task starts (arg: %s) ...\n", td->filter_str);
@@ -503,21 +506,21 @@ posix_group_fixup_task_thread(void *arg)
 
     /* release the memberOf operation lock */
     memberUidUnlock();
-    
+
 
     slapi_task_log_notice(task, "posix_group task finished.");
     slapi_task_log_status(task, "posix_group task finished.");
     slapi_task_inc_progress(task);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "_task_thread finishing\n");
+                  "_task_thread finishing\n");
 
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rc);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "_task_thread <==\n");
+                  "_task_thread <==\n");
     slapi_task_dec_refcount(task);
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_fixup_task_thread <-- refcount decremented.\n");
+                  "posix_group_fixup_task_thread <-- refcount decremented.\n");
 }

@@ -61,6 +61,4 @@ out:
 #endif
     sds_queue_destroy(node_q);
     return result;
-
 }
-
