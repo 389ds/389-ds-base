@@ -233,7 +233,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
                 Slapi_Entry *e,
                 Slapi_Entry *eAfter __attribute__((unused)),
                 int *returncode,
-                char *returntext __attribute__((unused)),
+                char *returntext,
                 void *arg)
 {
     PRThread *thread = NULL;
@@ -271,6 +271,8 @@ usn_cleanup_add(Slapi_PBlock *pb,
     if (!suffix && !backend) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
                       "usn_cleanup_add - Both suffix and backend are missing.\n");
+        snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                 "USN cleanup task entry requires either a 'suffix' or 'backend' attribute to be provided");
         *returncode = LDAP_PARAM_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto bail;
