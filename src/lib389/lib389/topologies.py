@@ -16,8 +16,7 @@ from lib389 import DirSrv
 from lib389.utils import generate_ds_params
 from lib389.replica import Replicas
 from lib389._constants import (args_instance, SER_HOST, SER_PORT, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
-                               ROLE_STANDALONE, REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER,
-                               DEFAULT_SUFFIX, REPLICA_ID)
+                               ReplicaRole, DEFAULT_SUFFIX, REPLICA_ID)
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
@@ -35,7 +34,7 @@ def create_topology(topo_dict):
     """
 
     if not topo_dict:
-        ValueError("You need to specify the dict. For instance: {ROLE_STANDALONE: 1}")
+        ValueError("You need to specify the dict. For instance: {ReplicaRole.STANDALONE: 1}")
 
     instances = {}
     ms = {}
@@ -68,22 +67,22 @@ def create_topology(topo_dict):
                 instance.delete()
             instance.create()
             instance.open()
-            if role == ROLE_STANDALONE:
+            if role == ReplicaRole.STANDALONE:
                 ins[instance.serverid] = instance
                 instances.update(ins)
-            if role == REPLICAROLE_MASTER:
+            if role == ReplicaRole.MASTER:
                 ms[instance.serverid] = instance
                 instances.update(ms)
-            if role == REPLICAROLE_HUB:
+            if role == ReplicaRole.HUB:
                 hs[instance.serverid] = instance
                 instances.update(hs)
-            if role == REPLICAROLE_CONSUMER:
+            if role == ReplicaRole.CONSUMER:
                 cs[instance.serverid] = instance
                 instances.update(cs)
             log.info("Instance with parameters {} was created.".format(args_copied))
 
             # Set up replication
-            if role in (REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER):
+            if role in (ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER):
                 replicas = Replicas(instance)
                 replica = replicas.enable(DEFAULT_SUFFIX, role, instance_data[REPLICA_ID])
                 replica_dict[replica] = instance
@@ -91,16 +90,18 @@ def create_topology(topo_dict):
     # Create agreements
     for role_from in topo_dict.keys():
         for inst_num_from in range(1, topo_dict[role]+1):
-            roles_to = [REPLICAROLE_HUB, REPLICAROLE_CONSUMER]
-            if role == REPLICAROLE_MASTER:
-                roles_to.append(REPLICAROLE_MASTER)
+            roles_to = [ReplicaRole.HUB, ReplicaRole.CONSUMER]
+            if role == ReplicaRole.MASTER:
+                roles_to.append(ReplicaRole.MASTER)
 
             for role_to in [role for role in topo_dict if role in roles_to]:
                 for inst_num_to in range(1, topo_dict[role]+1):
                     # Exclude our instance
                     if role_from != role_to or inst_num_from != inst_num_to:
-                        inst_from = instances["{}{}".format(role_from, inst_num_from)]
-                        inst_to = instances["{}{}".format(role_to, inst_num_to)]
+                        inst_from_id = "{}{}".format(role_from.name.lower(), inst_num_from)
+                        inst_to_id = "{}{}".format(role_to.name.lower(), inst_num_to)
+                        inst_from = instances[inst_from_id]
+                        inst_to = instances[inst_to_id]
                         agmt = inst_from.agreement.create(suffix=DEFAULT_SUFFIX,
                                                           host=inst_to.host,
                                                           port=inst_to.port)
@@ -163,7 +164,7 @@ class TopologyMain(object):
 def topology_st(request):
     """Create DS standalone instance"""
 
-    topology = create_topology({ROLE_STANDALONE: 1})
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
 
     def fin():
         if DEBUGGING:
@@ -179,7 +180,7 @@ def topology_st(request):
 def topology_i2(request):
     """Create two instance DS deployment"""
 
-    topology = create_topology({ROLE_STANDALONE: 2})
+    topology = create_topology({ReplicaRole.STANDALONE: 2})
 
     def fin():
         if DEBUGGING:
@@ -195,7 +196,7 @@ def topology_i2(request):
 def topology_i3(request):
     """Create three instance DS deployment"""
 
-    topology = create_topology({ROLE_STANDALONE: 3})
+    topology = create_topology({ReplicaRole.STANDALONE: 3})
 
     def fin():
         if DEBUGGING:
@@ -211,8 +212,8 @@ def topology_i3(request):
 def topology_m1c1(request):
     """Create Replication Deployment with one master and one consumer"""
 
-    topology = create_topology({REPLICAROLE_MASTER: 1,
-                                REPLICAROLE_CONSUMER: 1})
+    topology = create_topology({ReplicaRole.MASTER: 1,
+                                ReplicaRole.CONSUMER: 1})
     replicas = Replicas(topology.ms["master1"])
     replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
@@ -230,9 +231,9 @@ def topology_m1c1(request):
 def topology_m1h1c1(request):
     """Create Replication Deployment with one master, one consumer and one hub"""
 
-    topology = create_topology({REPLICAROLE_MASTER: 1,
-                                REPLICAROLE_HUB: 1,
-                                REPLICAROLE_CONSUMER: 1})
+    topology = create_topology({ReplicaRole.MASTER: 1,
+                                ReplicaRole.HUB: 1,
+                                ReplicaRole.CONSUMER: 1})
     replicas = Replicas(topology.ms["master1"])
     replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
@@ -250,7 +251,7 @@ def topology_m1h1c1(request):
 def topology_m2(request):
     """Create Replication Deployment with two masters"""
 
-    topology = create_topology({REPLICAROLE_MASTER: 2})
+    topology = create_topology({ReplicaRole.MASTER: 2})
     replicas = Replicas(topology.ms["master1"])
     replicas.test(DEFAULT_SUFFIX, topology.ms["master2"])
 
@@ -268,7 +269,7 @@ def topology_m2(request):
 def topology_m3(request):
     """Create Replication Deployment with three masters"""
 
-    topology = create_topology({REPLICAROLE_MASTER: 3})
+    topology = create_topology({ReplicaRole.MASTER: 3})
     replicas = Replicas(topology.ms["master1"])
     replicas.test(DEFAULT_SUFFIX, topology.ms["master3"])
 
@@ -286,7 +287,7 @@ def topology_m3(request):
 def topology_m4(request):
     """Create Replication Deployment with four masters"""
 
-    topology = create_topology({REPLICAROLE_MASTER: 4})
+    topology = create_topology({ReplicaRole.MASTER: 4})
     replicas = Replicas(topology.ms["master1"])
     replicas.test(DEFAULT_SUFFIX, topology.ms["master4"])
 
@@ -304,8 +305,8 @@ def topology_m4(request):
 def topology_m2c2(request):
     """Create Replication Deployment with two masters and two consumers"""
 
-    topology = create_topology({REPLICAROLE_MASTER: 2,
-                                REPLICAROLE_CONSUMER: 2})
+    topology = create_topology({ReplicaRole.MASTER: 2,
+                                ReplicaRole.CONSUMER: 2})
     replicas = Replicas(topology.ms["master1"])
     replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 

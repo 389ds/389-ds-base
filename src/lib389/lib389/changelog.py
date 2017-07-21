@@ -26,15 +26,17 @@ class Changelog(object):
         if name in Changelog.proxied_methods:
             return DirSrv.__getattr__(self.conn, name)
 
-    def list(self, suffix=None, changelogdn=None):
-        if not changelogdn:
-            raise InvalidArgumentError("changelog DN is missing")
-
+    def list(self, suffix=None, changelogdn=DN_CHANGELOG):
         base = changelogdn
         filtr = "(objectclass=extensibleobject)"
 
         # now do the effective search
-        ents = self.conn.search_s(base, ldap.SCOPE_BASE, filtr)
+        try:
+            ents = self.conn.search_s(base, ldap.SCOPE_BASE, filtr)
+        except ldap.NO_SUCH_OBJECT:
+            # There are no objects to select from, se we return an empty array
+            # as we do in DSLdapObjects
+            ents = []
         return ents
 
     def create(self, dbname=DEFAULT_CHANGELOG_DB):

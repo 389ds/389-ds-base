@@ -160,11 +160,11 @@ class ReplTools(object):
                 ctime = _getCSNTime(inst, csnstr)
                 if ctime:
                     role = replObj.get_role()
-                    if role == REPLICAROLE_MASTER:
+                    if role == ReplicaRole.MASTER:
                         txt = ' Master (%s)' % (inst.serverid)
-                    elif role == REPLICAROLE_HUB:
+                    elif role == ReplicaRole.HUB:
                         txt = ' Hub (%s)' % (inst.serverid)
-                    elif role == REPLICAROLE_CONSUMER:
+                    elif role == ReplicaRole.CONSUMER:
                         txt = ' Consumer (%s)' % (inst.serverid)
                     else:
                         txt = '?'

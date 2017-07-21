@@ -2368,11 +2368,11 @@ class DirSrv(SimpleLDAPObject, object):
         # setup replica
         # map old style args to new style replica args
         if repArgs['type'] == MASTER_TYPE:
-            repArgs['role'] = REPLICAROLE_MASTER
+            repArgs['role'] = ReplicaRole.MASTER
         elif repArgs['type'] == LEAF_TYPE:
-            repArgs['role'] = REPLICAROLE_CONSUMER
+            repArgs['role'] = ReplicaRole.CONSUMER
         else:
-            repArgs['role'] = REPLICAROLE_HUB
+            repArgs['role'] = ReplicaRole.HUB
         repArgs['rid'] = repArgs['id']
 
         # remove invalid arguments from replica.add

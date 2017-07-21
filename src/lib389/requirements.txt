@@ -6,3 +6,4 @@ pyasn1-modules
 six
 pytest
 python-dateutil
+enum34

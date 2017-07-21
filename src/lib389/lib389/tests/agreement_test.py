@@ -61,7 +61,7 @@ def topology(request):
 
     # Enable replication
     master.replica.enableReplication(suffix=SUFFIX,
-                                     role=REPLICAROLE_MASTER,
+                                     role=ReplicaRole.MASTER,
                                      replicaId=REPLICAID_MASTER)
 
     # Consumer
@@ -80,7 +80,7 @@ def topology(request):
 
     # Enable replication
     consumer.replica.enableReplication(suffix=SUFFIX,
-                                       role=REPLICAROLE_CONSUMER)
+                                       role=ReplicaRole.CONSUMER)
 
     # Delete each instance in the end
     def fin():

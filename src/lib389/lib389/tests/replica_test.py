@@ -1,457 +1,373 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2017 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import ldap
 import os
+import ldap
 import pytest
 import logging
 
-from lib389 import InvalidArgumentError
-from lib389._constants import *
-from lib389.properties import *
-from lib389 import DirSrv, Entry
+from lib389 import NoSuchEntryError
+from lib389.replica import Replicas
+from lib389.backend import Backends
+from lib389.idm.domain import Domain
+from lib389._constants import (ReplicaRole, BACKEND_SUFFIX, BACKEND_NAME, REPLICA_RUV_FILTER, CONSUMER_REPLICAID,
+                               REPLICA_FLAGS_WRITE, REPLICA_RDWR_TYPE)
+from lib389.properties import (REPL_FLAGS, REPL_TYPE)
+from lib389.topologies import topology_i3 as topo
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-# Used for One master / One consumer topology
-HOST_MASTER = LOCALHOST
-PORT_MASTER = 40389
-SERVERID_MASTER = 'master'
-REPLICAID_MASTER = 1
-
-HOST_CONSUMER = LOCALHOST
-PORT_CONSUMER = 50389
-SERVERID_CONSUMER = 'consumer'
-
-TEST_REPL_DN = "uid=test,%s" % DEFAULT_SUFFIX
-INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'dirsrv'
-INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
-NEW_SUFFIX_1 = 'ou=test_master'
-NEW_BACKEND_1 = 'test_masterdb'
-NEW_RM_1 = "cn=replrepl,%s" % NEW_SUFFIX_1
-
-NEW_SUFFIX_2 = 'ou=test_consumer'
-NEW_BACKEND_2 = 'test_consumerdb'
-
-NEW_SUFFIX_3 = 'ou=test_enablereplication_1'
-NEW_BACKEND_3 = 'test_enablereplicationdb_1'
-
-NEW_SUFFIX_4 = 'ou=test_enablereplication_2'
-NEW_BACKEND_4 = 'test_enablereplicationdb_2'
-
-NEW_SUFFIX_5 = 'ou=test_enablereplication_3'
-NEW_BACKEND_5 = 'test_enablereplicationdb_3'
-
-
-class TopologyReplication(object):
-    def __init__(self, master, consumer):
-        master.open()
-        consumer.open()
-        self.master = master
-        self.consumer = consumer
+DEBUGGING = os.getenv('DEBUGGING', default=False)
+NEW_SUFFIX = 'dc=test,dc=com'
+NEW_BACKEND = 'test_backend'
+REPLICA_MASTER_ID = 1
 
 
 @pytest.fixture(scope="module")
-def topology(request):
-    # Create the master instance
-    master = DirSrv(verbose=False)
-    master.log.debug("Master allocated")
-    args = {SER_HOST: HOST_MASTER,
-            SER_PORT: PORT_MASTER,
-            SER_SERVERID_PROP: SERVERID_MASTER}
-    master.allocate(args)
-    if master.exists():
-        master.delete()
-    master.create()
-    master.open()
+def new_suffixes(topo):
+    """Create new suffix, backend and mapping tree"""
 
-    # Create the consumer instance
-    consumer = DirSrv(verbose=False)
-    consumer.log.debug("Consumer allocated")
-    args = {SER_HOST: HOST_CONSUMER,
-            SER_PORT: PORT_CONSUMER,
-            SER_SERVERID_PROP: SERVERID_CONSUMER}
-    consumer.allocate(args)
-    if consumer.exists():
-        consumer.delete()
-    consumer.create()
-    consumer.open()
+    for num in range(1, 4):
+        backends = Backends(topo.ins["standalone{}".format(num)])
+        backends.create(properties={BACKEND_SUFFIX: NEW_SUFFIX,
+                                    BACKEND_NAME: NEW_BACKEND})
+        domain = Domain(topo.ins["standalone{}".format(num)], NEW_SUFFIX)
+        domain.create(properties={'dc': 'test', 'description': NEW_SUFFIX})
 
-    # Delete each instance in the end
+
+@pytest.fixture(scope="function")
+def simple_replica(topo, new_suffixes, request):
+    """Enable simple multi-master replication"""
+
+    master1 = topo.ins["standalone1"]
+    master2 = topo.ins["standalone2"]
+
+    log.info("Enable two master replicas")
+    replicas_m1 = Replicas(master1)
+    replica_m1 = replicas_m1.enable(suffix=NEW_SUFFIX,
+                                    role=ReplicaRole.MASTER,
+                                    replicaID=REPLICA_MASTER_ID)
+    replicas_m2 = Replicas(master2)
+    replica_m2 = replicas_m2.enable(suffix=NEW_SUFFIX,
+                                    role=ReplicaRole.MASTER,
+                                    replicaID=REPLICA_MASTER_ID+1)
+
+    log.info("Create agreements between the instances")
+    master1.agreement.create(suffix=NEW_SUFFIX,
+                             host=master2.host,
+                             port=master2.port)
+    master2.agreement.create(suffix=NEW_SUFFIX,
+                             host=master1.host,
+                             port=master1.port)
+
+    log.info("Test replication")
+    replicas_m1.test(NEW_SUFFIX, master2)
+
     def fin():
-        master.delete()
-        consumer.delete()
+            replicas_m1.disable(NEW_SUFFIX)
+            replicas_m2.disable(NEW_SUFFIX)
     request.addfinalizer(fin)
 
-    return TopologyReplication(master, consumer)
+    return [replica_m1, replica_m2]
 
 
-def test_create(topology):
-    """This test creates
-         - suffix/backend (NEW_SUFFIX_[12], NEW_BACKEND_[12]) : Master
-         - suffix/backend (NEW_SUFFIX_[12], NEW_BACKEND_[12]) : Consumer
-         - replica NEW_SUFFIX_1 as MASTER : Master
-         - replica NEW_SUFFIX_2 as CONSUMER : Master
+@pytest.fixture(scope="function")
+def clean_up(topo, new_suffixes, request):
+    """Check that all replicas were disabled and disable if not"""
+
+    def fin():
+        for num in range(1, 4):
+            try:
+                replicas = Replicas(topo.ins["standalone{}".format(num)])
+                replicas.disable(NEW_SUFFIX)
+                log.info("standalone{} is disabled now".format(num))
+            except:
+                pass
+    request.addfinalizer(fin)
+
+
+def test_delete_agreements(topo, simple_replica):
+    """Check deleteAgreements method
+
+    :feature: Replication
+    :steps: 1. Enable replication with agreements
+            2. Delete the agreements
+            3. Check that agreements were deleted
+            4. Disable replication
+    :expectedresults: No errors happen, agreements successfully deleted
     """
 
-    log.info("\n\n##########\n### CREATE\n############")
-    #
-    # MASTER (suffix/backend)
-    #
-    backendEntry = topology.master.backend.create(
-        suffix=NEW_SUFFIX_1, properties={BACKEND_NAME: NEW_BACKEND_1})
-    backendEntry = topology.master.backend.create(
-        suffix=NEW_SUFFIX_2, properties={BACKEND_NAME: NEW_BACKEND_2})
+    master1 = topo.ins["standalone1"]
+    master2 = topo.ins["standalone2"]
 
-    ents = topology.master.mappingtree.list()
-    master_nb_mappingtree = len(ents)
+    log.info("Check that agreements in place")
+    ents = master1.agreement.list(suffix=NEW_SUFFIX)
+    assert(len(ents) == 1)
+    ents = master2.agreement.list(suffix=NEW_SUFFIX)
+    assert(len(ents) == 1)
 
-    # create a first additional mapping tree
-    topology.master.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
-    ents = topology.master.mappingtree.list()
-    assert len(ents) == (master_nb_mappingtree + 1)
-    topology.master.add_s(Entry((NEW_SUFFIX_1,
-                          {'objectclass': "top organizationalunit".split(),
-                           'ou': NEW_SUFFIX_1.split('=', 1)[1]})))
+    log.info("Delete the agreements")
+    simple_replica[0].deleteAgreements()
+    simple_replica[1].deleteAgreements()
 
-    # create a second additional mapping tree
-    topology.master.mappingtree.create(NEW_SUFFIX_2, bename=NEW_BACKEND_2)
-    ents = topology.master.mappingtree.list()
-    assert len(ents) == (master_nb_mappingtree + 2)
-    topology.master.add_s(Entry((NEW_SUFFIX_2,
-                          {'objectclass': "top organizationalunit".split(),
-                           'ou': NEW_SUFFIX_2.split('=', 1)[1]})))
-    log.info('Master it exists now %d suffix(es)' % len(ents))
-
-    #
-    # CONSUMER (suffix/backend)
-    #
-    backendEntry = topology.consumer.backend.create(
-        suffix=NEW_SUFFIX_1, properties={BACKEND_NAME: NEW_BACKEND_1})
-    backendEntry = topology.consumer.backend.create(
-        suffix=NEW_SUFFIX_2, properties={BACKEND_NAME: NEW_BACKEND_2})
-
-    ents = topology.consumer.mappingtree.list()
-    consumer_nb_mappingtree = len(ents)
-
-    # create a first additional mapping tree
-    topology.consumer.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
-    ents = topology.consumer.mappingtree.list()
-    assert len(ents) == (consumer_nb_mappingtree + 1)
-    topology.consumer.add_s(Entry((NEW_SUFFIX_1,
-                            {'objectclass': "top organizationalunit".split(),
-                             'ou': NEW_SUFFIX_1.split('=', 1)[1]})))
-
-    # create a second additional mapping tree
-    topology.consumer.mappingtree.create(NEW_SUFFIX_2, bename=NEW_BACKEND_2)
-    ents = topology.consumer.mappingtree.list()
-    assert len(ents) == (consumer_nb_mappingtree + 2)
-    topology.consumer.add_s(Entry((NEW_SUFFIX_2,
-                            {'objectclass': "top organizationalunit".split(),
-                             'ou': NEW_SUFFIX_2.split('=', 1)[1]})))
-    log.info('Consumer it exists now %d suffix(es)' % len(ents))
-
-    #
-    # Now create REPLICAS on master
-    #
-    # check it exists this entry to stores the changelogs
-    topology.master.changelog.create()
-
-    # create a master
-    topology.master.replica.create(suffix=NEW_SUFFIX_1,
-                                   role=REPLICAROLE_MASTER,
-                                   rid=1)
-    ents = topology.master.replica.list()
-    assert len(ents) == 1
-    log.info('Master replica %s' % ents[0].dn)
-
-    # create a consumer
-    topology.master.replica.create(suffix=NEW_SUFFIX_2,
-                                   role=REPLICAROLE_CONSUMER)
-    ents = topology.master.replica.list()
-    assert len(ents) == 2
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2)
-    log.info('Consumer replica %s' % ents[0].dn)
-
-    #
-    # Now create REPLICAS on consumer
-    #
-    # create a master
-    topology.consumer.replica.create(suffix=NEW_SUFFIX_1,
-                                     role=REPLICAROLE_CONSUMER)
-    ents = topology.consumer.replica.list()
-    assert len(ents) == 1
-    log.info('Consumer replica %s' % ents[0].dn)
-
-    # create a consumer
-    topology.consumer.replica.create(suffix=NEW_SUFFIX_2,
-                                     role=REPLICAROLE_CONSUMER)
-    ents = topology.consumer.replica.list()
-    assert len(ents) == 2
-    ents = topology.consumer.replica.list(suffix=NEW_SUFFIX_2)
-    log.info('Consumer replica %s' % ents[0].dn)
+    log.info("Check that agreements were deleted")
+    ents = master1.agreement.list(suffix=NEW_SUFFIX)
+    assert(len(ents) == 0)
+    ents = master2.agreement.list(suffix=NEW_SUFFIX)
+    assert(len(ents) == 0)
 
 
-def test_list(topology):
-    """This test checks:
-         - existing replicas can be retrieved
-         - access to unknown replica does not fail
+def test_get_ruv_entry(topo, simple_replica):
+    """Check get_ruv_entry method
 
-    PRE-CONDITION:
-         It exists on MASTER two replicas NEW_SUFFIX_1 and NEW_SUFFIX_2
-         created by test_create()
+    :feature: Replication
+    :steps: 1. Enable replication with agreements
+            2. Get ruv entry with get_ruv_entry() method
+            3. Get ruv entry with ldap.search
+            4. Disable replication
+    :expectedresults: Entries should be equal
     """
 
-    log.info("\n\n############\n### LIST\n############")
-    ents = topology.master.replica.list()
-    assert len(ents) == 2
+    ruv_entry = simple_replica[0].get_ruv_entry()
+    entry = topo.ins["standalone1"].search_s(NEW_SUFFIX, ldap.SCOPE_SUBTREE, REPLICA_RUV_FILTER)[0]
 
-    # Check we can retrieve a replica with its suffix
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_1)
-    assert len(ents) == 1
-    replica_dn_1 = ents[0].dn
-
-    # Check we can retrieve a replica with its suffix
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2)
-    assert len(ents) == 1
-    replica_dn_2 = ents[0].dn
-
-    # Check we can retrieve a replica with its DN
-    ents = topology.master.replica.list(replica_dn=replica_dn_1)
-    assert len(ents) == 1
-    assert replica_dn_1 == ents[0].dn
-
-    # Check we can retrieve a replica if we provide DN and suffix
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2,
-                                        replica_dn=replica_dn_2)
-    assert len(ents) == 1
-    assert replica_dn_2 == ents[0].dn
-
-    # Check DN is used before suffix name
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2,
-                                        replica_dn=replica_dn_1)
-    assert len(ents) == 1
-    assert replica_dn_1 == ents[0].dn
-
-    # Check that invalid value does not break
-    ents = topology.master.replica.list(suffix="X")
-    for ent in ents:
-        log.critical("Unexpected replica: %s" % ent.dn)
-    assert len(ents) == 0
+    assert ruv_entry == entry
 
 
-def test_create_repl_manager(topology):
-    """The tests are
-         - create the default Replication manager/Password
-         - create a specific Replication manager/ default Password
-         - Check we can bind successfully
-         - create a specific Replication manager / specific Password
-         - Check we can bind successfully
+def test_get_role(topo, simple_replica):
+    """Check get_role method
+
+    :feature: Replication
+    :steps: 1. Enable replication with agreements
+            2. Get role with get_role() method
+            3. Get repl_flags, repl_type from the replica entry with ldap.search
+            4. Compare the values
+            5. Disable replication
+    :expectedresults: The role 'master' should have flags=1 and type=3
     """
 
-    log.info("\n\n###########\n### CREATE_REPL_MANAGER\n###########")
-    # First create the default replication manager
-    topology.consumer.replica.create_repl_manager()
-    ents = topology.consumer.search_s(defaultProperties[REPLICATION_BIND_DN],
-                                      ldap.SCOPE_BASE, "objectclass=*")
-    assert len(ents) == 1
-    assert ents[0].dn == defaultProperties[REPLICATION_BIND_DN]
+    replica_role = simple_replica[0].get_role()
+    replica_flags = simple_replica[0].get_attr_val_int(REPL_FLAGS)
+    replica_type = simple_replica[0].get_attr_val_int(REPL_TYPE)
 
-    # Second create a custom replication manager under NEW_SUFFIX_2
-    rm_dn = "cn=replrepl,%s" % NEW_SUFFIX_2
-    topology.consumer.replica.create_repl_manager(repl_manager_dn=rm_dn)
-    ents = topology.consumer.search_s(rm_dn, ldap.SCOPE_BASE, "objectclass=*")
-    assert len(ents) == 1
-    assert ents[0].dn == rm_dn
-
-    # Check we can bind
-    topology.consumer.simple_bind_s(rm_dn,
-                                    defaultProperties[REPLICATION_BIND_PW])
-
-    # Check we fail to bind
-    with pytest.raises(ldap.INVALID_CREDENTIALS) as excinfo:
-        topology.consumer.simple_bind_s(rm_dn, "dummy")
-    log.info("Exception: %s" % str(excinfo.value))
-
-    # now rebind
-    topology.consumer.simple_bind_s(topology.consumer.binddn,
-                                    topology.consumer.bindpw)
-
-    # Create a custom replication manager under NEW_SUFFIX_1
-    # with a specified password
-    rm_dn = NEW_RM_1
-    topology.consumer.replica.create_repl_manager(repl_manager_dn=rm_dn,
-                                                  repl_manager_pw="Secret123")
-    ents = topology.consumer.search_s(rm_dn, ldap.SCOPE_BASE, "objectclass=*")
-    assert len(ents) == 1
-    assert ents[0].dn == rm_dn
-
-    # Check we can bind
-    topology.consumer.simple_bind_s(rm_dn, "Secret123")
-
-    # Check we fail to bind
-    with pytest.raises(ldap.INVALID_CREDENTIALS) as excinfo:
-        topology.consumer.simple_bind_s(rm_dn, "dummy")
-    log.info("Exception: %s" % str(excinfo.value))
-    topology.consumer.simple_bind_s(topology.consumer.binddn,
-                                    topology.consumer.bindpw)
+    log.info("Check that we've got role 'master', while {}=1 and {}=3".format(REPL_FLAGS, REPL_TYPE))
+    assert replica_role == ReplicaRole.MASTER and replica_flags == REPLICA_FLAGS_WRITE \
+        and replica_type == REPLICA_RDWR_TYPE, \
+        "Failure, get_role() gave {}, while {} has {} and {} has {}".format(replica_role,
+                                                                            REPL_FLAGS, replica_flags,
+                                                                            REPL_TYPE, replica_type)
 
 
-def test_enableReplication(topology):
-    """It checks
-         - Ability to enable replication on a supplier
-         - Ability to enable replication on a consumer
-         - Failure to enable replication with wrong replicaID on supplier
-         - Failure to enable replication with wrong replicaID on consumer
+def test_basic(topo, new_suffixes, clean_up):
+    """Check basic replica functionality
+
+    :feature: Replication
+    :steps: 1. Enable replication on master. hub and consumer
+            2. Create agreements: master-hub, hub-consumer
+            3. Test master-consumer replication
+            4. Disable replication
+            5. Check that replica, agreements and changelog were deleted
+    :expectedresults: No errors happen, replication is successfully enabled and disabled
     """
 
-    log.info("\n\n############\n### ENABLEREPLICATION\n##########")
-    #
-    # MASTER (suffix/backend)
-    #
-    backendEntry = topology.master.backend.create(suffix=NEW_SUFFIX_3,
-                                                  properties={BACKEND_NAME:
-                                                              NEW_BACKEND_3})
+    master = topo.ins["standalone1"]
+    hub = topo.ins["standalone2"]
+    consumer = topo.ins["standalone3"]
 
-    ents = topology.master.mappingtree.list()
-    master_nb_mappingtree = len(ents)
+    log.info("Enable replicas (create replica and changelog entries)")
+    master_replicas = Replicas(master)
+    master_replicas.enable(suffix=NEW_SUFFIX,
+                           role=ReplicaRole.MASTER,
+                           replicaID=REPLICA_MASTER_ID)
+    ents = master_replicas.list()
+    assert len(ents) == 1
+    ents = master.changelog.list()
+    assert len(ents) == 1
 
-    # create a first additional mapping tree
-    topology.master.mappingtree.create(NEW_SUFFIX_3, bename=NEW_BACKEND_3)
-    ents = topology.master.mappingtree.list()
-    assert len(ents) == (master_nb_mappingtree + 1)
-    topology.master.add_s(Entry((NEW_SUFFIX_3,
-                          {'objectclass': "top organizationalunit".split(),
-                           'ou': NEW_SUFFIX_3.split('=', 1)[1]})))
+    hub_replicas = Replicas(hub)
+    hub_replicas.enable(suffix=NEW_SUFFIX,
+                        role=ReplicaRole.HUB,
+                        replicaID=CONSUMER_REPLICAID)
+    ents = hub_replicas.list()
+    assert len(ents) == 1
+    ents = hub.changelog.list()
+    assert len(ents) == 1
 
-    # a supplier should have replicaId in [1..CONSUMER_REPLICAID[
-    with pytest.raises(ValueError) as excinfo:
-        topology.master.replica.enableReplication(suffix=NEW_SUFFIX_3,
-                                                  role=REPLICAROLE_MASTER,
-                                                  replicaId=CONSUMER_REPLICAID)
-    log.info("Exception (expected): %s" % str(excinfo.value))
-    topology.master.replica.enableReplication(suffix=NEW_SUFFIX_3,
-                                              role=REPLICAROLE_MASTER,
-                                              replicaId=1)
+    consumer_replicas = Replicas(consumer)
+    consumer_replicas.enable(suffix=NEW_SUFFIX,
+                             role=ReplicaRole.CONSUMER)
+    ents = consumer_replicas.list()
+    assert len(ents) == 1
 
-    #
-    # MASTER (suffix/backend)
-    #
-    backendEntry = topology.master.backend.create(suffix=NEW_SUFFIX_4,
-                                                  properties={BACKEND_NAME:
-                                                              NEW_BACKEND_4})
+    log.info("Create agreements between the instances")
+    master.agreement.create(suffix=NEW_SUFFIX,
+                            host=hub.host,
+                            port=hub.port)
+    ents = master.agreement.list(suffix=NEW_SUFFIX)
+    assert len(ents) == 1
+    hub.agreement.create(suffix=NEW_SUFFIX,
+                         host=consumer.host,
+                         port=consumer.port)
+    ents = hub.agreement.list(suffix=NEW_SUFFIX)
+    assert len(ents) == 1
 
-    ents = topology.master.mappingtree.list()
-    master_nb_mappingtree = len(ents)
+    log.info("Test replication")
+    master_replicas.test(NEW_SUFFIX, consumer)
 
-    # create a first additional mapping tree
-    topology.master.mappingtree.create(NEW_SUFFIX_4, bename=NEW_BACKEND_4)
-    ents = topology.master.mappingtree.list()
-    assert len(ents) == (master_nb_mappingtree + 1)
-    topology.master.add_s(Entry((NEW_SUFFIX_4,
-                          {'objectclass': "top organizationalunit".split(),
-                           'ou': NEW_SUFFIX_4.split('=', 1)[1]})))
+    log.info("Disable replication")
+    master_replicas.disable(suffix=NEW_SUFFIX)
+    hub_replicas.disable(suffix=NEW_SUFFIX)
+    consumer_replicas.disable(suffix=NEW_SUFFIX)
 
-    # A consumer should have CONSUMER_REPLICAID not '1'
-    with pytest.raises(ValueError) as excinfo:
-        topology.master.replica.enableReplication(suffix=NEW_SUFFIX_4,
-                                                  role=REPLICAROLE_CONSUMER,
-                                                  replicaId=1)
-    log.info("Exception (expected): %s" % str(excinfo.value))
-    topology.master.replica.enableReplication(suffix=NEW_SUFFIX_4,
-                                              role=REPLICAROLE_CONSUMER)
+    log.info("Check that replica, agreements and changelog were deleted")
+    for num in range(1, 4):
+        log.info("Checking standalone{} instance".format(num))
+        inst = topo.ins["standalone{}".format(num)]
+
+        log.info("Checking that replica entries don't exist")
+        replicas = Replicas(inst)
+        ents = replicas.list()
+        assert len(ents) == 0
+
+        log.info("Checking that changelog doesn't exist")
+        ents = inst.changelog.list()
+        assert len(ents) == 0
+
+        log.info("Checking that agreements can't be acquired because the replica entry doesn't exist")
+        with pytest.raises(NoSuchEntryError) as e:
+            inst.agreement.list(suffix=NEW_SUFFIX)
+            assert "no replica set up" in e.msg
 
 
-def test_disableReplication(topology):
-    """It checks
-         - Ability to disable replication on a supplier
-         - Ability to disable replication on a consumer
-         - Failure to disable replication with wrong suffix on supplier
-         - Failure to disable replication with wrong suffix on consumer
+@pytest.mark.parametrize('role_from,role_to',
+                         ((ReplicaRole.CONSUMER, ReplicaRole.HUB),
+                          (ReplicaRole.CONSUMER, ReplicaRole.MASTER),
+                          (ReplicaRole.HUB, ReplicaRole.MASTER)))
+def test_promote(topo, new_suffixes, clean_up, role_from, role_to):
+    """Check that replica promote method works properly
+
+    :feature: Replication
+    :steps: 1. Enable replication on the instance
+            2. Promote it to another role
+               (check consumer-hub, consumer-master, hub-master
+            3. Check that role was successfully changed
+            4. Disable replication
+    :expectedresults: No errors happen, replica successfully promoted
     """
 
-    log.info("\n\n############\n### DISABLEREPLICATION\n##########")
-    topology.master.replica.disableReplication(suffix=NEW_SUFFIX_3)
-    with pytest.raises(ldap.LDAPError) as excinfo:
-        topology.master.replica.disableReplication(suffix=NEW_SUFFIX_3)
-    log.info("Exception (expected): %s" % str(excinfo.value))
+    inst = topo.ins["standalone1"]
 
-    topology.master.replica.disableReplication(suffix=NEW_SUFFIX_4)
-    with pytest.raises(ldap.LDAPError) as excinfo:
-        topology.master.replica.disableReplication(suffix=NEW_SUFFIX_4)
-    log.info("Exception (expected): %s" % str(excinfo.value))
+    log.info("Enable replication on instance with a role - {}".format(role_from))
+    replicas = Replicas(inst)
+    replica = replicas.enable(suffix=NEW_SUFFIX,
+                              role=role_from)
+
+    log.info("Promote replica to {}".format(role_to))
+    replica.promote(newrole=role_to,
+                    rid=REPLICA_MASTER_ID)
+
+    log.info("Check that replica was successfully promoted")
+    replica_role = replica.get_role()
+    assert replica_role == role_to
 
 
-def test_setProperties(topology):
-    """Set some properties
-    Verified that valid properties are set
-    Verified that invalid properties raise an Exception
+@pytest.mark.parametrize('role_from,role_to',
+                         ((ReplicaRole.MASTER, ReplicaRole.HUB),
+                          (ReplicaRole.MASTER, ReplicaRole.CONSUMER),
+                          (ReplicaRole.HUB, ReplicaRole.CONSUMER)))
+def test_demote(topo, new_suffixes, clean_up, role_from, role_to):
+    """Check that replica demote method works properly
 
-    PRE-REQUISITE: it exists a replica for NEW_SUFFIX_1
+    :feature: Replication
+    :steps: 1. Enable replication on the instance
+            2. Demote it to another role
+               (check master-hub, master-consumer, hub-consumer)
+            3. Check that role was successfully changed
+            4. Disable replication
+    :expectedresults: No errors happen, replica successfully demoted
     """
 
-    log.info("\n\n##########\n### SETPROPERTIES\n############")
-    # set valid values to SUFFIX_1
-    properties = {REPLICA_LEGACY_CONS: 'off',
-                  REPLICA_BINDDN: NEW_RM_1,
-                  REPLICA_PURGE_INTERVAL: str(3600),
-                  REPLICA_PURGE_DELAY: str(5 * 24 * 3600),
-                  REPLICA_REFERRAL: "ldap://%s:1234/" % LOCALHOST}
-    topology.master.replica.setProperties(suffix=NEW_SUFFIX_1,
-                                          properties=properties)
+    inst = topo.ins["standalone1"]
 
-    # Check the values have been written
-    replicas = topology.master.replica.list(suffix=NEW_SUFFIX_1)
-    assert len(replicas) == 1
-    for prop in properties:
-        attr = REPLICA_PROPNAME_TO_ATTRNAME[prop]
-        val = replicas[0].getValue(attr)
-        log.info("Replica[%s] -> %s: %s" % (prop, attr, val))
-        assert val == properties[prop]
+    log.info("Enable replication on instance with a role - {}".format(role_from.name))
+    replicas = Replicas(inst)
+    replica = replicas.enable(suffix=NEW_SUFFIX,
+                              role=role_from,
+                              replicaID=REPLICA_MASTER_ID)
 
-    # Check invalid properties raise exception
-    with pytest.raises(ValueError) as excinfo:
-        properties = {"dummy": 'dummy'}
-        topology.master.replica.setProperties(suffix=NEW_SUFFIX_1,
-                                              properties=properties)
-    log.info("Exception (expected): %s" % str(excinfo.value))
+    log.info("Promote replica to {}".format(role_to.name))
+    replica.demote(newrole=role_to)
 
-    # check call without suffix/dn/entry raise InvalidArgumentError
-    with pytest.raises(InvalidArgumentError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
-        topology.master.replica.setProperties(properties=properties)
-    log.info("Exception (expected): %s" % str(excinfo.value))
-
-    # check that if we do not provide a valid entry it raises ValueError
-    with pytest.raises(ValueError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
-        topology.master.replica.setProperties(replica_entry="dummy",
-                                              properties=properties)
-    log.info("Exception (expected): %s" % str(excinfo.value))
-
-    # check that with an invalid suffix or replica_dn it raise ValueError
-    with pytest.raises(ValueError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
-        topology.master.replica.setProperties(suffix="dummy",
-                                              properties=properties)
-    log.info("Exception (expected): %s" % str(excinfo.value))
+    log.info("Check that replica was successfully promoted")
+    replica_role = replica.get_role()
+    assert replica_role == role_to
 
 
-def test_getProperties(topology):
-    """Currently not implemented"""
+@pytest.mark.parametrize('role_from', (ReplicaRole.MASTER,
+                                       ReplicaRole.HUB,
+                                       ReplicaRole.CONSUMER))
+def test_promote_fail(topo, new_suffixes, clean_up, role_from):
+    """Check that replica promote method fails
+    when promoted to wrong direction
 
-    log.info("\n\n############\n### GETPROPERTIES\n###########")
-    with pytest.raises(NotImplementedError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
-        topology.master.replica.getProperties(suffix=NEW_SUFFIX_1)
-    log.info("Exception (expected): %s" % str(excinfo.value))
+    :feature: Replication
+    :steps: 1. Enable replication on the instance
+            2. Try to promote it to wrong role
+               (for example, master-hub, hub-consumer)
+            3. Disable replication
+    :expectedresults: Replica shouldn't be promoted
+    """
+
+    inst = topo.ins["standalone1"]
+
+    log.info("Enable replication on instance with a role - {}".format(role_from.name))
+    replicas = Replicas(inst)
+    replica = replicas.enable(suffix=NEW_SUFFIX,
+                              role=role_from,
+                              replicaID=REPLICA_MASTER_ID)
+
+    for role_to in [x for x in range(1, 4) if x <= role_from.value]:
+        role_to = ReplicaRole(role_to)
+        log.info("Try to promote replica to {}".format(role_to.name))
+        with pytest.raises(ValueError):
+            replica.promote(newrole=role_to,
+                            rid=REPLICA_MASTER_ID)
+
+
+@pytest.mark.parametrize('role_from', (ReplicaRole.MASTER,
+                                       ReplicaRole.HUB,
+                                       ReplicaRole.CONSUMER))
+def test_demote_fail(topo, new_suffixes, clean_up, role_from):
+    """Check that replica demote method fails
+    when demoted to wrong direction
+
+    :feature: Replication
+    :steps: 1. Enable replication on the instance
+            2. Try to demote it to wrong role
+               (for example, consumer-master, hub-master)
+            3. Disable replication
+    :expectedresults: Replica shouldn't be demoted
+    """
+
+    inst = topo.ins["standalone1"]
+
+    log.info("Enable replication on instance with a role - {}".format(role_from.name))
+    replicas = Replicas(inst)
+    replica = replicas.enable(suffix=NEW_SUFFIX,
+                              role=role_from,
+                              replicaID=REPLICA_MASTER_ID)
+
+    for role_to in [x for x in range(1, 4) if x >= role_from.value]:
+        role_to = ReplicaRole(role_to)
+        log.info("Try to demote replica to {}".format(role_to.name))
+        with pytest.raises(ValueError):
+            replica.demote(newrole=role_to)
 
 
 if __name__ == "__main__":

@@ -34,6 +34,7 @@ Requires: krb5-workstation
 Requires: krb5-server
 Requires: openssl
 Requires: iproute
+Requires: python-enum34
 # Conditional will need to change later.
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 Requires: python2

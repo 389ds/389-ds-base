@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
+from enum import Enum
 from lib389.properties import *
 
 (
@@ -17,12 +18,10 @@ from lib389.properties import *
 
 INSTALL_LATEST_CONFIG = '999999999'
 
-ROLE_STANDALONE = "standalone"
-REPLICAROLE_MASTER = "master"
-REPLICAROLE_HUB = "hub"
-REPLICAROLE_CONSUMER = "consumer"
-
 REPLICA_FLAGS_CON = 0
+
+# The structure is convenient for replica promote/demote methods
+ReplicaRole = Enum("Replica role", "CONSUMER HUB MASTER STANDALONE")
 
 CONSUMER_REPLICAID = 65535
 
@@ -30,11 +29,8 @@ REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
 REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
 REPLICA_RDWR_TYPE = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
 
-REPLICA_FLAGS_RDONLY = '0'
-REPLICA_FLAGS_WRITE = '1'
-
-REPLICA_TYPE_MASTER = '3'
-REPLICA_TYPE_HUBCON = '2'
+REPLICA_FLAGS_RDONLY = 0
+REPLICA_FLAGS_WRITE = 1
 
 REPLICA_RUV_UUID = "ffffffff-ffffffff-ffffffff-ffffffff"
 REPLICA_RUV_FILTER = ('(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))')
