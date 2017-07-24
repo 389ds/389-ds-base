@@ -4350,7 +4350,7 @@ checkpoint_threadmain(void *param)
         PR_Unlock(li->li_config_mutex);
 
         /* If the checkpoint has been updated OR we have expired */
-        if (checkpoint_interval != checkpoint_interval_update &&
+        if (checkpoint_interval != checkpoint_interval_update ||
             slapi_timespec_expire_check(&checkpoint_expire) == TIMER_EXPIRED) {
 
             /* If our interval has changed, update it. */
