@@ -2841,18 +2841,22 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
  * |  0  |  1  |  2  |  3  |
  * -------------------------
  * -------------------------
- * |  A  |     |  C  |  D  |
- * |n: C |     |n:   |n: A |
- * |p: D |     |p: A |p: E |
+ * |  A  |     |  E  |  D  |
+ * |n: C |     |n: D |n: A |
+ * |p: D |     |p:   |p: E |
  * -------------------------
- *             |  E  |
- *             |n: D |
- *             |p:   |
+ *             |  C  |
+ *             |n:   |
+ *             |p: A |
  *             -------
  *
- * Now when we do a look up of "E" we'll collide on bucket 2, and then descend down til
- * we exhaust, or find our element. If we were to remove C, we would just promote E to
+ * Now when we do a look up of "C" we'll collide on bucket 2, and then descend down til
+ * we exhaust, or find our element. If we were to remove E, we would just promote C to
  * be the head of that slot.
+ *
+ * It's slightly quicker to insert at the head of the slot, and means that given we
+ * *just* added the element, we are likely to use it again sooner, so we reduce the
+ * number of comparisons.
  *
  * Again, I did test both with and without this - with was much faster, and relies on
  * how even our hash distribution is *and* that generally with small table sizes we

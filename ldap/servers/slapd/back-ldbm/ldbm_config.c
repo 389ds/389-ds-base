@@ -1855,7 +1855,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_HOME_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_db_home_directory_get, &ldbm_config_db_home_directory_set, 0},
     {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "40", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "25", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "16777216", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_IDL_UPDATE, CONFIG_TYPE_ONOFF, "on", &ldbm_config_idl_get_update, &ldbm_config_idl_set_update, 0},

@@ -102,7 +102,7 @@ ldbm_back_start_autotune(struct ldbminfo *li)
      * default from ldbm_config.c
      */
     if (li->li_cache_autosize_split == 0) {
-        autosize_db_percentage_split = 40;
+        autosize_db_percentage_split = 25;
     } else {
         autosize_db_percentage_split = li->li_cache_autosize_split;
     }
@@ -134,11 +134,12 @@ ldbm_back_start_autotune(struct ldbminfo *li)
     /* It's valid, lets divide it up and set according to user prefs */
     db_size = (autosize_db_percentage_split * zone_size) / 100;
 
-    /* Cap the DB size at 512MB, as this doesn't help perf much more (lkrispen's advice) */
+    /* Cap the DB size at 1.5G, as this doesn't help perf much more (lkrispen's advice) */
     /* NOTE: Do we need a minimum DB size? */
-    if (db_size > (512 * MEGABYTE)) {
-        db_size = (512 * MEGABYTE);
+    if (db_size > (1536 * MEGABYTE)) {
+        db_size = (1536 * MEGABYTE);
     }
+
 
     /* NOTE: Because of how we workout entry_size, even if
      * have autosize split to say ... 90% for dbcache, because
