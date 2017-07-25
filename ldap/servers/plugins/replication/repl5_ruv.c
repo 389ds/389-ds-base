@@ -1581,14 +1581,23 @@ ruv_cancel_csn_inprogress(void *repl, RUV *ruv, const CSN *csn, ReplicaId local_
     if (csn_primary(repl, csn, prim_csn)) {
         /* the prim csn is cancelled, lets remove all dependent csns */
         /* for the primary replica we can have modifications for two RIDS:
-     * - the local RID for direct or internal operations
-     * - a remote RID if the primary csn is for a replciated op.
-     */
+         * - the local RID for direct or internal operations
+         * - a remote RID if the primary csn is for a replciated op.
+         */
         ReplicaId prim_rid = csn_get_replicaid(csn);
-        repl_ruv = ruvGetReplica(ruv, local_rid);
+        repl_ruv = ruvGetReplica(ruv, prim_rid);
+        if (!repl_ruv) {
+            rc = RUV_NOTFOUND;
+            goto done;
+        }
         rc = csnplRemoveAll(repl_ruv->csnpl, prim_csn);
-        if (prim_rid != local_rid) {
-            repl_ruv = ruvGetReplica(ruv, prim_rid);
+
+        if (prim_rid != local_rid && local_rid != READ_ONLY_REPLICA_ID) {
+            repl_ruv = ruvGetReplica(ruv, local_rid);
+            if (!repl_ruv) {
+                rc = RUV_NOTFOUND;
+                goto done;
+            }
             rc = csnplRemoveAll(repl_ruv->csnpl, prim_csn);
         }
 
