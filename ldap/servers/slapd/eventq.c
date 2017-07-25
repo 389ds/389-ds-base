@@ -316,6 +316,7 @@ eq_loop(void *arg __attribute__((unused)))
                 timeout = PR_INTERVAL_NO_TIMEOUT;
             }
             PR_WaitCondVar(eq->eq_cv, timeout);
+            curtime = slapi_current_utc_time();
         }
         /* There is some work to do */
         PR_Unlock(eq->eq_lock);
