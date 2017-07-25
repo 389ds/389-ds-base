@@ -1011,7 +1011,11 @@ main(int argc, char **argv)
     }
 
     /* initialize the normalized DN cache */
-    ndn_cache_init();
+    if (ndn_cache_init() != 0) {
+        slapi_log_err(SLAPI_LOG_EMERG, "main", "Unable to create ndn cache\n");
+        return_value = 1;
+        goto cleanup;
+    }
 
     global_backend_lock_init();
 
@@ -2159,6 +2163,8 @@ slapd_exemode_ldif2db(struct main_config *mcfg)
     }
     slapi_pblock_destroy(pb);
     slapi_ch_free((void **)&(mcfg->myname));
+    charray_free(mcfg->cmd_line_instance_names);
+    charray_free(mcfg->db2ldif_include);
     charray_free(mcfg->db2index_attrs);
     charray_free(mcfg->ldif_file);
     return (return_value);
@@ -2340,6 +2346,8 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
         }
     }
     slapi_ch_free((void **)&(mcfg->myname));
+    charray_free(mcfg->cmd_line_instance_names);
+    charray_free(mcfg->db2ldif_include);
     if (mcfg->db2ldif_dump_replica) {
         eq_stop(); /* event queue should be shutdown before closing
                               all plugins (especailly, replication plugin) */
@@ -2511,6 +2519,7 @@ slapd_exemode_db2archive(struct main_config *mcfg)
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     return_value = (backend_plugin->plg_db2archive)(pb);
+    slapi_ch_free((void **)&(mcfg->myname));
     slapi_pblock_destroy(pb);
     return return_value;
 }
@@ -2558,6 +2567,7 @@ slapd_exemode_archive2db(struct main_config *mcfg)
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
     return_value = (backend_plugin->plg_archive2db)(pb);
+    slapi_ch_free((void **)&(mcfg->myname));
     slapi_pblock_destroy(pb);
     return return_value;
 }

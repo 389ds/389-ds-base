@@ -24,6 +24,8 @@
 void
 test_libslapd_operation_v3c_target_spec(void **state __attribute__((unused)))
 {
+    /* Need to start the ndn cache ... */
+    ndn_cache_init();
     /* Will we need to test PB / op interactions? */
     /* Test the operation of the target spec is maintained. */
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -53,4 +55,6 @@ test_libslapd_operation_v3c_target_spec(void **state __attribute__((unused)))
     /* target_spec in now the b_sdn, so operation free will free it */
     // slapi_sdn_free(&b_sdn);
     operation_free(&op, NULL);
+    /* Close ndn cache */
+    ndn_cache_destroy();
 }

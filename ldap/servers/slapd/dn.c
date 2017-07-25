@@ -22,6 +22,9 @@
 #include "slap.h"
 #include <plhash.h>
 
+/* For the ndn cache - this gives up siphash13 */
+#include <sds.h>
+
 #undef SDN_DEBUG
 
 static void add_rdn_av(char *avstart, char *avend, int *rdn_av_countp, struct berval **rdn_avsp, struct berval *avstack);
@@ -32,52 +35,89 @@ static void rdn_av_swap(struct berval *av1, struct berval *av2, int escape);
 static int does_cn_uses_dn_syntax_in_dns(char *type, char *dn);
 
 /* normalized dn cache related definitions*/
-struct
-    ndn_cache_lru
-{
-    struct ndn_cache_lru *prev;
-    struct ndn_cache_lru *next;
-    char *key;
-};
-
-struct
-    ndn_cache_ctx
-{
-    struct ndn_cache_lru *head;
-    struct ndn_cache_lru *tail;
+struct ndn_cache_stats {
     Slapi_Counter *cache_hits;
     Slapi_Counter *cache_tries;
-    Slapi_Counter *cache_misses;
-    size_t cache_size;
-    size_t cache_max_size;
-    long cache_count;
+    Slapi_Counter *cache_count;
+    Slapi_Counter *cache_size;
+    Slapi_Counter *cache_evicts;
+    size_t max_size;
+    size_t thread_max_size;
+    size_t slots;
 };
 
-struct
-    ndn_hash_val
-{
+struct ndn_cache_value {
+    size_t size;
+    size_t slot;
+    char *dn;
     char *ndn;
-    size_t len;
-    int size;
-    struct ndn_cache_lru *lru_node; /* used to speed up lru shuffling */
+    struct ndn_cache_value *next;
+    struct ndn_cache_value *prev;
+    struct ndn_cache_value *child;
 };
 
-#define NDN_FLUSH_COUNT 10000  /* number of DN's to remove when cache fills up */
-#define NDN_MIN_COUNT 1000     /* the minimum number of DN's to keep in the cache */
-#define NDN_CACHE_BUCKETS 2053 /* prime number */
+/*
+ * This uses a similar alloc trick to IDList to keep
+ * The amount of derefs small.
+ */
+struct ndn_cache {
+    /*
+     * We keep per thread stats and flush them occasionally
+     */
+    size_t max_size;
+    /* Need to track this because we need to provide diffs to counter */
+    size_t last_count;
+    size_t count;
+    /* Number of ops */
+    size_t tries;
+    /* hit vs miss. in theroy miss == tries - hits.*/
+    size_t hits;
+    /* How many values we kicked out */
+    size_t evicts;
+    /* Need to track this because we need to provide diffs to counter */
+    size_t last_size;
+    size_t size;
 
-static PLHashNumber ndn_hash_string(const void *key);
+    size_t slots;
+    /*
+     * This is used by siphash to prevent hash bugket attacks
+     */
+    char key[16];
+
+    struct ndn_cache_value *head;
+    struct ndn_cache_value *tail;
+    struct ndn_cache_value *table[1];
+};
+
+/*
+ * This means we need 1 MB minimum per thread
+ * 
+ */
+#define NDN_CACHE_MINIMUM_CAPACITY 1048576
+/*
+ * This helps us define the number of hashtable slots
+ * to create. We assume an average DN is 64 chars long
+ * This way we end up we a ht entry of:
+ * 8 bytes: from the table pointing to us.
+ * 8 bytes: next ptr
+ * 8 bytes: prev ptr
+ * 8 bytes + 64: dn
+ * 8 bytes + 64: ndn itself.
+ * This gives us 168 bytes. In theory this means
+ * 6241 entries, but we have to clamp this to a power of
+ * two, so we have 8192 slots. In reality, dns may be
+ * shorter *and* the dn may be the same as the ndn
+ * so we *may* store more ndns that this. Again, a good reason
+ * to round the ht size up!
+ */
+#define NDN_ENTRY_AVG_SIZE 168
+/*
+ * After how many operations do we sync our per-thread stats.
+ */
+#define NDN_STAT_COMMIT_FREQUENCY 256
+
 static int ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc);
-static void ndn_cache_update_lru(struct ndn_cache_lru **node);
 static void ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len);
-static void ndn_cache_delete(char *dn);
-static void ndn_cache_flush(void);
-static void ndn_cache_free(void);
-static int ndn_started = 0;
-static PRLock *lru_lock = NULL;
-static Slapi_RWLock *ndn_cache_lock = NULL;
-static struct ndn_cache_ctx *ndn_cache = NULL;
-static PLHashTable *ndn_cache_hashtable = NULL;
 
 #define ISBLANK(c) ((c) == ' ')
 #define ISBLANKSTR(s) (((*(s)) == '2') && (*((s) + 1) == '0'))
@@ -2699,165 +2739,420 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
  */
 
 /*
- *  Hashing function using Bernstein's method
+ * siphash13 provides a uint64_t hash of the incoming data. This means that in theory,
+ * the hash is anything between 0 -> 0xFFFFFFFFFFFFFFFF. The result is distributed
+ * evenly over the set of numbers, so we can assume that given some infinite set of
+ * inputs, we'll have even distribution of all values across 0 -> 0xFFFFFFFFFFFFFFF.
+ * In mathematics, given a set of integers, when you modulo them by a factor of the
+ * input, the result retains the same distribution properties. IE, if you modulo the
+ * numbers say 0 - 32 and they are evenly distributed, when do 0 -> 32 % 16, you will
+ * still see even distribution (but duplicates now).
+ *
+ * So we use this property - we scale the number of slots by powers of 2 so that we
+ * can do hash % slots and retain even distribution. IE:
+ *
+ * (0 -> 0xFFFFFFFFFFFFFFFF) % slots = ....
+ *
+ * This means we get even distribution: *but* it creates a scenario where we are more
+ * likely to cause a collision as a result.
+ *
+ * Anyway, so lets imagine our small hashtable:
+ *
+ * *t_cache
+ * -------------------------
+ * |  0  |  1  |  2  |  3  |
+ * -------------------------
+ *
+ * So any incoming DN will be put through:
+ *
+ * (0 -> 0xFFFFFFFFFFFFFFFF) % 4 = slot
+ *
+ * So lets say we add the values a, b, c (in that order)
+ *
+ * *t_cache
+ * head: A
+ * tail: C
+ * -------------------------
+ * |  0  |  1  |  2  |  3  |
+ * -------------------------
+ * -------------------------
+ * |  A  |  B  |  C  |     |
+ * |n:   |n: A |n: B |     |
+ * |p: B |p: C |p:   |     |
+ * -------------------------
+ *
+ * Because C was accessed (rather inserted) last, it's at the "tail". This is the
+ * *most recently used* element. Because A was inserted first, it's the *least*
+ * used. So lets do a look up on A:
+ *
+ * *t_cache
+ * head: B
+ * tail: A
+ * -------------------------
+ * |  0  |  1  |  2  |  3  |
+ * -------------------------
+ * -------------------------
+ * |  A  |  B  |  C  |     |
+ * |n: C |n:   |n: B |     |
+ * |p:   |p: C |p: A |     |
+ * -------------------------
+ *
+ * Because we did a lookup on A, we cut it out from the list and moved it to the tail.
+ * This has pushed B to the head.
+ *
+ * Now lets say we need to do a removal to fit "D". We would remove elements from the
+ * head until we have space. Here we just need to trim B.
+ *
+ * *t_cache
+ * head: C
+ * tail: D
+ * -------------------------
+ * |  0  |  1  |  2  |  3  |
+ * -------------------------
+ * -------------------------
+ * |  A  |     |  C  |  D  |
+ * |n: C |     |n:   |n: A |
+ * |p: D |     |p: A |p:   |
+ * -------------------------
+ *
+ * So we have removed B, and inserted D to the tail. Again, because A was more recently
+ * read than C, C is now at the head. This process continues until the heat death of
+ * the universe, or the server stops, what ever comes first (we write very stable code here ;)
+ *
+ * Now, lets discuss the "child" pointers in the nodes.
+ *
+ * Because of:
+ *
+ * (0 -> 0xFFFFFFFFFFFFFFFF) % 4 = slot
+ *
+ * The *smaller* the table, the more *likely* a hash collision is to occur (and in theory
+ * even at a full table size they could still occur ...).
+ *
+ * So when you have a small table like this one I originally did *not* have the ability
+ * to have multiple values per bucket, and just let the evictions take place. I did some
+ * tests and found in this case, the LL behaviours were faster than repeated evictions.
+ *
+ * So lets say in our table we add another value, and it conflicts with the hash of C:
+ *
+ * *t_cache
+ * head: C
+ * tail: E
+ * -------------------------
+ * |  0  |  1  |  2  |  3  |
+ * -------------------------
+ * -------------------------
+ * |  A  |     |  C  |  D  |
+ * |n: C |     |n:   |n: A |
+ * |p: D |     |p: A |p: E |
+ * -------------------------
+ *             |  E  |
+ *             |n: D |
+ *             |p:   |
+ *             -------
+ *
+ * Now when we do a look up of "E" we'll collide on bucket 2, and then descend down til
+ * we exhaust, or find our element. If we were to remove C, we would just promote E to
+ * be the head of that slot.
+ *
+ * Again, I did test both with and without this - with was much faster, and relies on
+ * how even our hash distribution is *and* that generally with small table sizes we
+ * have small capacity, so we evict some values and keep these chains short.
+ *
  */
-static PLHashNumber
-ndn_hash_string(const void *key)
-{
-    PLHashNumber hash = 5381;
-    unsigned char *x = (unsigned char *)key;
-    int c;
 
-    while ((c = *x++)) {
-        hash = ((hash << 5) + hash) ^ c;
-    }
-    return hash;
+static pthread_key_t ndn_cache_key;
+static pthread_once_t ndn_cache_key_once = PTHREAD_ONCE_INIT;
+static struct ndn_cache_stats t_cache_stats = {0};
+/*
+ * WARNING: For some reason we try to use the NDN cache *before*
+ * we have a chance to configure it. As a result, we need to rely
+ * on a trick in the way we start, that we start in one thread
+ * so we can manipulate ints as though they were atomics, then
+ * we start in *one* thread, so it's set, then when threads
+ * fork the get barriers, so we can go from there. However we *CANNOT*
+ * change this at runtime without expensive atomics per op, so lets
+ * not bother until we improve libglobs to be COW.
+ */
+static int32_t ndn_enabled = 0;
+
+static struct ndn_cache *
+ndn_thread_cache_create(size_t thread_max_size, size_t slots) {
+    size_t t_cache_size = sizeof(struct ndn_cache) + (slots * sizeof(struct ndn_cache_value *));
+    struct ndn_cache *t_cache = (struct ndn_cache *)slapi_ch_calloc(1, t_cache_size);
+
+    t_cache->max_size = thread_max_size;
+    t_cache->slots = slots;
+
+    return t_cache;
 }
 
-void
+static void
+ndn_thread_cache_commit_status(struct ndn_cache *t_cache) {
+    /*
+     * Every so often we commit these atomically. We do this infrequently
+     * to avoid the costly atomics.
+     */
+    if (t_cache->tries % NDN_STAT_COMMIT_FREQUENCY == 0) {
+        /* We can just add tries and hits. */
+        slapi_counter_add(t_cache_stats.cache_evicts, t_cache->evicts);
+        slapi_counter_add(t_cache_stats.cache_tries, t_cache->tries);
+        slapi_counter_add(t_cache_stats.cache_hits, t_cache->hits);
+        t_cache->hits = 0;
+        t_cache->tries = 0;
+        t_cache->evicts = 0;
+        /* Count and size need diff */
+        int64_t diff = (t_cache->size - t_cache->last_size);
+        if (diff > 0) {
+            // We have more ....
+            slapi_counter_add(t_cache_stats.cache_size, (uint64_t)diff);
+        } else if (diff < 0) {
+            slapi_counter_subtract(t_cache_stats.cache_size, (uint64_t)llabs(diff));
+        }
+        t_cache->last_size = t_cache->size;
+
+        diff = (t_cache->count - t_cache->last_count);
+        if (diff > 0) {
+            // We have more ....
+            slapi_counter_add(t_cache_stats.cache_count, (uint64_t)diff);
+        } else if (diff < 0) {
+            slapi_counter_subtract(t_cache_stats.cache_count, (uint64_t)llabs(diff));
+        }
+        t_cache->last_count = t_cache->count;
+
+    }
+}
+
+static void
+ndn_thread_cache_value_destroy(struct ndn_cache *t_cache, struct ndn_cache_value *v) {
+    /* Update stats */
+    t_cache->size = t_cache->size - v->size;
+    t_cache->count--;
+    t_cache->evicts++;
+
+    if (v == t_cache->head) {
+        t_cache->head = v->prev;
+    }
+    if (v == t_cache->tail) {
+        t_cache->tail = v->next;
+    }
+
+    /* Cut the node out. */
+    if (v->next != NULL) {
+        v->next->prev = v->prev;
+    }
+    if (v->prev != NULL) {
+        v->prev->next = v->next;
+    }
+    /* Set the pointer in the table to NULL */
+    /* Now see if we were in a list */
+    struct ndn_cache_value *slot_node = t_cache->table[v->slot];
+    if (slot_node == v) {
+        t_cache->table[v->slot] = v->child;
+    } else {
+        struct ndn_cache_value *former_slot_node = NULL;
+        do {
+            former_slot_node = slot_node;
+            slot_node = slot_node->child;
+        } while(slot_node != v);
+        /* Okay, now slot_node is us, and former is our parent */
+        former_slot_node->child = v->child;
+    }
+
+    slapi_ch_free((void **)&(v->dn));
+    slapi_ch_free((void **)&(v->ndn));
+    slapi_ch_free((void **)&v);
+}
+
+static void
+ndn_thread_cache_destroy(void *v_cache) {
+    struct ndn_cache *t_cache = (struct ndn_cache *)v_cache;
+    /*
+     * FREE ALL THE NODES!!!
+     */
+    struct ndn_cache_value *node = t_cache->tail;
+    struct ndn_cache_value *next_node = NULL;
+    while (node) {
+        next_node = node->next;
+        ndn_thread_cache_value_destroy(t_cache, node);
+        node = next_node;
+    }
+    slapi_ch_free((void **)&t_cache);
+}
+
+static void
+ndn_cache_key_init() {
+    if (pthread_key_create(&ndn_cache_key, ndn_thread_cache_destroy) != 0) {
+        /* Log a scary warning? */
+        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create pthread key, aborting.\n");
+    }
+}
+
+int32_t
 ndn_cache_init()
 {
-    if (!config_get_ndn_cache_enabled() || ndn_started) {
-        return;
+    ndn_enabled = config_get_ndn_cache_enabled();
+    if (ndn_enabled == 0) {
+        /*
+         * Don't configure the keys or anything, need a restart
+         * to enable. We'll just never use ndn cache in this
+         * run.
+         */
+        return 0;
     }
-    ndn_cache_hashtable = PL_NewHashTable(NDN_CACHE_BUCKETS, ndn_hash_string, PL_CompareStrings, PL_CompareValues, 0, 0);
-    ndn_cache = (struct ndn_cache_ctx *)slapi_ch_malloc(sizeof(struct ndn_cache_ctx));
-    ndn_cache->cache_max_size = config_get_ndn_cache_size();
-    ndn_cache->cache_hits = slapi_counter_new();
-    ndn_cache->cache_tries = slapi_counter_new();
-    ndn_cache->cache_misses = slapi_counter_new();
-    ndn_cache->cache_count = 0;
-    ndn_cache->cache_size = sizeof(struct ndn_cache_ctx) + sizeof(PLHashTable) + sizeof(PLHashTable);
-    ndn_cache->head = NULL;
-    ndn_cache->tail = NULL;
-    ndn_started = 1;
-    if (NULL == (lru_lock = PR_NewLock()) || NULL == (ndn_cache_lock = slapi_new_rwlock())) {
-        ndn_cache_destroy();
-        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n");
+
+    /* Create the pthread key */
+    (void)pthread_once(&ndn_cache_key_once, ndn_cache_key_init);
+
+    /* Create the global stats. */
+    t_cache_stats.max_size = config_get_ndn_cache_size();
+    t_cache_stats.cache_evicts = slapi_counter_new();
+    t_cache_stats.cache_tries = slapi_counter_new();
+    t_cache_stats.cache_hits = slapi_counter_new();
+    t_cache_stats.cache_count = slapi_counter_new();
+    t_cache_stats.cache_size = slapi_counter_new();
+    /* Get thread numbers and calc the per thread size */
+    int32_t maxthreads = (int32_t)config_get_threadnumber();
+    size_t tentative_size = t_cache_stats.max_size / maxthreads;
+    if (tentative_size < NDN_CACHE_MINIMUM_CAPACITY) {
+        tentative_size = NDN_CACHE_MINIMUM_CAPACITY;
+        t_cache_stats.max_size = NDN_CACHE_MINIMUM_CAPACITY * maxthreads;
     }
+    t_cache_stats.thread_max_size = tentative_size;
+
+    /*
+     * Slots *must* be a power of two, even if the number of entries
+     * we store will be *less* than this.
+     */
+    size_t possible_elements = tentative_size / NDN_ENTRY_AVG_SIZE;
+    /*
+     * So this is like 1048576 / 168, so we get 6241. Now we need to
+     * shift this to get the number of bits.
+     */
+    size_t shifts = 0;
+    while (possible_elements > 0) {
+        shifts++;
+        possible_elements = possible_elements >> 1;
+    }
+    /*
+     * So now we can use this to make the slot count.
+     */
+    t_cache_stats.slots = 1 << shifts;
+    /* Done? */
+    return 0;
 }
 
 void
 ndn_cache_destroy()
 {
-    if (!ndn_started) {
+    if (ndn_enabled == 0) {
         return;
     }
-    if (lru_lock) {
-        PR_DestroyLock(lru_lock);
-        lru_lock = NULL;
-    }
-    if (ndn_cache_lock) {
-        slapi_destroy_rwlock(ndn_cache_lock);
-        ndn_cache_lock = NULL;
-    }
-    if (ndn_cache_hashtable) {
-        ndn_cache_free();
-        PL_HashTableDestroy(ndn_cache_hashtable);
-        ndn_cache_hashtable = NULL;
-    }
-    config_set_ndn_cache_enabled(CONFIG_NDN_CACHE, "off", NULL, 1);
-    slapi_counter_destroy(&ndn_cache->cache_hits);
-    slapi_counter_destroy(&ndn_cache->cache_tries);
-    slapi_counter_destroy(&ndn_cache->cache_misses);
-    slapi_ch_free((void **)&ndn_cache);
-
-    ndn_started = 0;
+    slapi_counter_destroy(&(t_cache_stats.cache_tries));
+    slapi_counter_destroy(&(t_cache_stats.cache_hits));
+    slapi_counter_destroy(&(t_cache_stats.cache_count));
+    slapi_counter_destroy(&(t_cache_stats.cache_size));
+    slapi_counter_destroy(&(t_cache_stats.cache_evicts));
 }
 
 int
 ndn_cache_started()
 {
-    return ndn_started;
+    return ndn_enabled;
 }
 
 /*
  *  Look up this dn in the ndn cache
  */
 static int
-ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc)
+ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int *rc)
 {
-    struct ndn_hash_val *ndn_ht_val = NULL;
-    char *ndn, *key;
-    int rv = 0;
-
-    if (NULL == udn) {
-        return rv;
+    if (ndn_enabled == 0 || NULL == udn) {
+        return 0;
     }
     *udn = NULL;
-    if (ndn_started == 0) {
-        return rv;
-    }
+
     if (dn_len == 0) {
-        *result = dn;
+        *ndn = dn;
         *rc = 0;
         return 1;
     }
-    slapi_counter_increment(ndn_cache->cache_tries);
-    slapi_rwlock_rdlock(ndn_cache_lock);
-    ndn_ht_val = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
-    if (ndn_ht_val) {
-        ndn_cache_update_lru(&ndn_ht_val->lru_node);
-        slapi_counter_increment(ndn_cache->cache_hits);
-        if ((ndn_ht_val->len != dn_len) ||
-            /* even if the lengths match, dn may not be normalized yet.
-             * (e.g., 'cn="o=ABC",o=XYZ' vs. 'cn=o\3DABC,o=XYZ') */
-            (memcmp(dn, ndn_ht_val->ndn, dn_len))) {
-            *rc = 1; /* free result */
-            ndn = slapi_ch_malloc(ndn_ht_val->len + 1);
-            memcpy(ndn, ndn_ht_val->ndn, ndn_ht_val->len);
-            ndn[ndn_ht_val->len] = '\0';
-            *result = ndn;
-        } else {
-            /* the dn was already normalized, just return the dn as the result */
-            *result = dn;
-            *rc = 0;
+
+    struct ndn_cache *t_cache = pthread_getspecific(ndn_cache_key);
+    if (t_cache == NULL) {
+        t_cache = ndn_thread_cache_create(t_cache_stats.thread_max_size, t_cache_stats.slots);
+        pthread_setspecific(ndn_cache_key, t_cache);
+        /* If we have no cache, we can't look up ... */
+        return 0;
+    }
+
+    t_cache->tries++;
+
+    /*
+     * Hash our DN ...
+     */
+    uint64_t dn_hash = sds_siphash13(dn, dn_len, t_cache->key);
+    /* Where should it be? */
+    size_t expect_slot = dn_hash % t_cache->slots;
+
+    /*
+     * Is it there?
+     */
+    if (t_cache->table[expect_slot] != NULL) {
+        /*
+         * Check it really matches, could be collision.
+         */
+        struct ndn_cache_value *node = t_cache->table[expect_slot];
+        while (node != NULL) {
+            if (strcmp(dn, node->dn) == 0) {
+                /*
+                 * Update LRU
+                 * Are we already the tail? If so, we can just skip.
+                 * remember, this means in a set of 1, we will always be tail
+                 */
+                if (t_cache->tail != node) {
+                    /*
+                     * Okay, we are *not* the tail. We could be anywhere between
+                     * tail -> ... -> x -> head
+                     * or even, we are the head ourself.
+                     */
+                    if (t_cache->head == node) {
+                        /* We are the head, update head to our predecessor */
+                        t_cache->head = node->prev;
+                        /* Remember, the head has no next. */
+                        t_cache->head->next = NULL;
+                    } else {
+                        /* Right, we aren't the head, so we have a next node. */
+                        node->next->prev = node->prev;
+                    }
+                    /* Because we must be in the middle somewhere, we can assume next and prev exist. */
+                    node->prev->next = node->next;
+                    /*
+                     * Tail can't be NULL if we have a value in the cache, so we can
+                     * just deref this.
+                     */
+                    node->next = t_cache->tail;
+                    t_cache->tail->prev = node;
+                    t_cache->tail = node;
+                    node->prev = NULL;
+                }
+
+                /* Update that we have a hit.*/
+                t_cache->hits++;
+                /* Cope the NDN to the caller. */
+                *ndn = slapi_ch_strdup(node->ndn);
+                /* Indicate to the caller to free this. */
+                *rc = 1;
+                ndn_thread_cache_commit_status(t_cache);
+                return 1;
+            }
+            node = node->child;
         }
-        rv = 1;
-    } else {
-        /* copy/preserve the udn, so we can use it as the key when we add dn's to the hashtable */
-        key = slapi_ch_malloc(dn_len + 1);
-        memcpy(key, dn, dn_len);
-        key[dn_len] = '\0';
-        *udn = key;
     }
-    slapi_rwlock_unlock(ndn_cache_lock);
-
-    return rv;
-}
-
-/*
- *  Move this lru node to the top of the list
- */
-static void
-ndn_cache_update_lru(struct ndn_cache_lru **node)
-{
-    struct ndn_cache_lru *prev, *next, *curr_node = *node;
-
-    if (curr_node == NULL) {
-        return;
-    }
-    PR_Lock(lru_lock);
-    if (curr_node->prev == NULL) {
-        /* already the top node */
-        PR_Unlock(lru_lock);
-        return;
-    }
-    prev = curr_node->prev;
-    next = curr_node->next;
-    if (next) {
-        next->prev = prev;
-        prev->next = next;
-    } else {
-        /* this was the tail, so reset the tail */
-        ndn_cache->tail = prev;
-        prev->next = NULL;
-    }
-    curr_node->prev = NULL;
-    curr_node->next = ndn_cache->head;
-    ndn_cache->head->prev = curr_node;
-    ndn_cache->head = curr_node;
-    PR_Unlock(lru_lock);
+    /* If we miss, we need to duplicate dn to udn here. */
+    *udn = slapi_ch_strdup(dn);
+    *rc = 0;
+    ndn_thread_cache_commit_status(t_cache);
+    return 0;
 }
 
 /*
@@ -2866,12 +3161,10 @@ ndn_cache_update_lru(struct ndn_cache_lru **node)
 static void
 ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
 {
-    struct ndn_hash_val *ht_entry;
-    struct ndn_cache_lru *new_node = NULL;
-    PLHashEntry *he;
-    int size;
-
-    if (ndn_started == 0 || dn_len == 0) {
+    if (ndn_enabled == 0) {
+        return;
+    }
+    if (dn_len == 0) {
         return;
     }
     if (strlen(ndn) > ndn_len) {
@@ -2881,161 +3174,89 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
     /*
      *  Calculate the approximate memory footprint of the hash entry, key, and lru entry.
      */
-    size = (dn_len * 2) + ndn_len + sizeof(PLHashEntry) + sizeof(struct ndn_hash_val) + sizeof(struct ndn_cache_lru);
+    struct ndn_cache_value *new_value = (struct ndn_cache_value *)slapi_ch_calloc(1, sizeof(struct ndn_cache_value));
+    new_value->size = sizeof(struct ndn_cache_value) + dn_len + ndn_len;
+    /* DN is alloc for us */
+    new_value->dn = dn;
+    /* But we need to copy ndn */
+    new_value->ndn = slapi_ch_strdup(ndn);
+
     /*
-     *  Create our LRU node
+     * Get our local cache out.
      */
-    new_node = (struct ndn_cache_lru *)slapi_ch_malloc(sizeof(struct ndn_cache_lru));
-    if (new_node == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to allocate new lru node.\n");
-        return;
-    }
-    new_node->prev = NULL;
-    new_node->key = dn; /* dn has already been allocated */
-    /*
-     *  Its possible this dn was added to the hash by another thread.
-     */
-    slapi_rwlock_wrlock(ndn_cache_lock);
-    ht_entry = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
-    if (ht_entry) {
-        /* already exists, free the node and return */
-        slapi_rwlock_unlock(ndn_cache_lock);
-        slapi_ch_free_string(&new_node->key);
-        slapi_ch_free((void **)&new_node);
-        return;
+    struct ndn_cache *t_cache = pthread_getspecific(ndn_cache_key);
+    if (t_cache == NULL) {
+        t_cache = ndn_thread_cache_create(t_cache_stats.thread_max_size, t_cache_stats.slots);
+        pthread_setspecific(ndn_cache_key, t_cache);
     }
     /*
-     *  Create the hash entry
+     * Hash the DN
      */
-    ht_entry = (struct ndn_hash_val *)slapi_ch_malloc(sizeof(struct ndn_hash_val));
-    if (ht_entry == NULL) {
-        slapi_rwlock_unlock(ndn_cache_lock);
-        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to allocate new hash entry.\n");
-        slapi_ch_free_string(&new_node->key);
-        slapi_ch_free((void **)&new_node);
-        return;
-    }
-    ht_entry->ndn = slapi_ch_malloc(ndn_len + 1);
-    memcpy(ht_entry->ndn, ndn, ndn_len);
-    ht_entry->ndn[ndn_len] = '\0';
-    ht_entry->len = ndn_len;
-    ht_entry->size = size;
-    ht_entry->lru_node = new_node;
+    uint64_t dn_hash = sds_siphash13(new_value->dn, dn_len, t_cache->key);
     /*
-     *  Check if our cache is full
+     * Get the insert slot: This works because the number spaces of dn_hash is
+     * a 64bit int, and slots is a power of two. As a result, we end up with
+     * even distribution of the values.
      */
-    PR_Lock(lru_lock); /* grab the lru lock now, as ndn_cache_flush needs it */
-    if (ndn_cache->cache_max_size != 0 && ((ndn_cache->cache_size + size) > ndn_cache->cache_max_size)) {
-        ndn_cache_flush();
-    }
+    size_t insert_slot = dn_hash % t_cache->slots;
+    /* Track this for free */
+    new_value->slot = insert_slot;
+
     /*
-     * Set the ndn cache lru nodes
+     * Okay, check if we have space, else we need to trim nodes from
+     * the LRU
      */
-    if (ndn_cache->head == NULL && ndn_cache->tail == NULL) {
-        /* this is the first node */
-        ndn_cache->head = new_node;
-        ndn_cache->tail = new_node;
-        new_node->next = NULL;
+    while (t_cache->head && (t_cache->size + new_value->size) > t_cache->max_size) {
+        struct ndn_cache_value *trim_node = t_cache->head;
+        ndn_thread_cache_value_destroy(t_cache, trim_node);
+    }
+
+    /*
+     * Add it!
+     */
+    if (t_cache->table[insert_slot] == NULL) {
+        t_cache->table[insert_slot] = new_value;
     } else {
-        new_node->next = ndn_cache->head;
-        if (ndn_cache->head)
-            ndn_cache->head->prev = new_node;
+        /*
+         * Hash collision! We need to replace the bucket then ....
+         * insert at the head of the slot to make this simpler.
+         */
+        new_value->child = t_cache->table[insert_slot];
+        t_cache->table[insert_slot] = new_value;
     }
-    ndn_cache->head = new_node;
-    PR_Unlock(lru_lock);
+
     /*
-     *  Add the new object to the hashtable, and update our stats
+     * Finally, stick this onto the tail because it's the newest.
      */
-    he = PL_HashTableAdd(ndn_cache_hashtable, new_node->key, (void *)ht_entry);
-    if (he == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to add new entry to hash(%s)\n", dn);
-    } else {
-        ndn_cache->cache_count++;
-        ndn_cache->cache_size += size;
+    if (t_cache->head == NULL) {
+        t_cache->head = new_value;
     }
-    slapi_rwlock_unlock(ndn_cache_lock);
-}
-
-/*
- *  cache is full, remove the least used dn's.  lru_lock/ndn_cache write lock are already taken
- */
-static void
-ndn_cache_flush(void)
-{
-    struct ndn_cache_lru *node, *next, *flush_node;
-    int i;
-
-    node = ndn_cache->tail;
-    for (i = 0; node && i < NDN_FLUSH_COUNT && ndn_cache->cache_count > NDN_MIN_COUNT; i++) {
-        flush_node = node;
-        /* update the lru */
-        next = node->prev;
-        next->next = NULL;
-        ndn_cache->tail = next;
-        node = next;
-        /* now update the hash */
-        ndn_cache->cache_count--;
-        ndn_cache_delete(flush_node->key);
-        slapi_ch_free_string(&flush_node->key);
-        slapi_ch_free((void **)&flush_node);
+    if (t_cache->tail != NULL) {
+        new_value->next = t_cache->tail;
+        t_cache->tail->prev = new_value;
     }
+    t_cache->tail = new_value;
 
-    slapi_log_err(SLAPI_LOG_CACHE, "ndn_cache_flush", "Flushed cache.\n");
-}
+    /*
+     * And update the stats.
+     */
+    t_cache->size = t_cache->size + new_value->size;
+    t_cache->count++;
 
-static void
-ndn_cache_free(void)
-{
-    struct ndn_cache_lru *node, *next, *flush_node;
-
-    if (!ndn_cache) {
-        return;
-    }
-
-    node = ndn_cache->tail;
-    while (node && ndn_cache->cache_count) {
-        flush_node = node;
-        /* update the lru */
-        next = node->prev;
-        if (next) {
-            next->next = NULL;
-        }
-        ndn_cache->tail = next;
-        node = next;
-        /* now update the hash */
-        ndn_cache->cache_count--;
-        ndn_cache_delete(flush_node->key);
-        slapi_ch_free_string(&flush_node->key);
-        slapi_ch_free((void **)&flush_node);
-    }
-}
-
-/* this is already "write" locked from ndn_cache_add */
-static void
-ndn_cache_delete(char *dn)
-{
-    struct ndn_hash_val *ht_entry;
-
-    ht_entry = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
-    if (ht_entry) {
-        ndn_cache->cache_size -= ht_entry->size;
-        slapi_ch_free_string(&ht_entry->ndn);
-        slapi_ch_free((void **)&ht_entry);
-        PL_HashTableRemove(ndn_cache_hashtable, dn);
-    }
 }
 
 /* stats for monitor */
 void
-ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, long *count)
+ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, size_t *thread_size, size_t *evicts, size_t *slots, long *count)
 {
-    slapi_rwlock_rdlock(ndn_cache_lock);
-    *hits = slapi_counter_get_value(ndn_cache->cache_hits);
-    *tries = slapi_counter_get_value(ndn_cache->cache_tries);
-    *size = ndn_cache->cache_size;
-    *max_size = ndn_cache->cache_max_size;
-    *count = ndn_cache->cache_count;
-    slapi_rwlock_unlock(ndn_cache_lock);
+    *max_size = t_cache_stats.max_size;
+    *thread_size = t_cache_stats.thread_max_size;
+    *slots = t_cache_stats.slots;
+    *evicts = slapi_counter_get_value(t_cache_stats.cache_evicts);
+    *hits = slapi_counter_get_value(t_cache_stats.cache_hits);
+    *tries = slapi_counter_get_value(t_cache_stats.cache_tries);
+    *size = slapi_counter_get_value(t_cache_stats.cache_size);
+    *count = slapi_counter_get_value(t_cache_stats.cache_count);
 }
 
 /* Common ancestor sdn is allocated.

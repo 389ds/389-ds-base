@@ -2261,7 +2261,7 @@ typedef struct _slapdFrontendConfig
     char *SNMPorganization;
     char *SNMPlocation;
     char *SNMPcontact;
-    long threadnumber;
+    int32_t threadnumber;
     int timelimit;
     char *accesslog;
     struct berval **defaultreferral;
@@ -2433,7 +2433,7 @@ typedef struct _slapdFrontendConfig
 
     /* normalized dn cache */
     slapi_onoff_t ndn_cache_enabled;
-    size_t ndn_cache_max_size;
+    uint64_t ndn_cache_max_size;
 
     slapi_onoff_t return_orig_type; /* if on, search returns original type set in attr list */
     slapi_onoff_t sasl_mapping_fallback;

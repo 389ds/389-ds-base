@@ -9,6 +9,9 @@
 #include "../../test_slapd.h"
 #include <string.h>
 
+/* We need this for ndn init */
+#include <slap.h>
+
 /*
  * Assert that the compatability requirements of the plugin V3 pblock API
  * are upheld.
@@ -21,6 +24,7 @@
 void
 test_libslapd_pblock_v3c_target_dn(void **state __attribute__((unused)))
 {
+    ndn_cache_init();
     /* Create a pblock */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -68,12 +72,14 @@ test_libslapd_pblock_v3c_target_dn(void **state __attribute__((unused)))
 
     /* It works! */
     slapi_pblock_destroy(pb);
+    ndn_cache_destroy();
 }
 
 
 void
 test_libslapd_pblock_v3c_target_sdn(void **state __attribute__((unused)))
 {
+    ndn_cache_init();
     /* SLAPI_TARGET_SDN */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -137,6 +143,7 @@ test_libslapd_pblock_v3c_target_sdn(void **state __attribute__((unused)))
 
     /* It works! */
     slapi_pblock_destroy(pb);
+    ndn_cache_destroy();
 }
 
 /* nf here means "no implicit free". For now implies no dup */
@@ -177,6 +184,7 @@ _test_libslapi_pblock_v3c_generic_nf_char(Slapi_PBlock *pb, int type, int *confl
 void
 test_libslapd_pblock_v3c_original_target_dn(void **state __attribute__((unused)))
 {
+    ndn_cache_init();
     /* SLAPI_ORIGINAL_TARGET_DN */
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Operation *op = slapi_operation_new(SLAPI_OP_FLAG_INTERNAL);
@@ -190,6 +198,7 @@ test_libslapd_pblock_v3c_original_target_dn(void **state __attribute__((unused))
 
     /* It works! */
     slapi_pblock_destroy(pb);
+    ndn_cache_destroy();
 }
 
 void

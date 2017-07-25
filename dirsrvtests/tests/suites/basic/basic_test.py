@@ -325,6 +325,7 @@ def test_basic_acl(topology_st, import_example_ldif):
     """Run some basic access control(ACL) tests"""
 
     log.info('Running test_basic_acl...')
+    topology_st.standalone.start()
 
     DENY_ACI = ('(targetattr = "*") (version 3.0;acl "deny user";deny (all)' +
                 '(userdn = "ldap:///' + USER1_DN + '");)')

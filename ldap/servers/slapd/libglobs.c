@@ -1936,9 +1936,7 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
         size = NDN_DEFAULT_SIZE;
     }
     if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapdFrontendConfig->ndn_cache_max_size = size;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+        __atomic_store_8(&(slapdFrontendConfig->ndn_cache_max_size), size, __ATOMIC_RELEASE);
     }
 
     return retVal;
@@ -3894,7 +3892,7 @@ int
 config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
-    long threadnum = 0;
+    int32_t threadnum = 0;
     char *endp = NULL;
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -3917,10 +3915,7 @@ config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int a
         retVal = LDAP_OPERATIONS_ERROR;
     }
     if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        /*  max_threads = threadnum; */
-        slapdFrontendConfig->threadnumber = threadnum;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+        __atomic_store_4(&(slapdFrontendConfig->threadnumber), threadnum, __ATOMIC_RELAXED);
     }
     return retVal;
 }
@@ -5401,22 +5396,20 @@ config_get_encryptionalias(void)
     return retVal;
 }
 
-long
+int32_t
 config_get_threadnumber(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    long retVal;
+    int32_t retVal;
 
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->threadnumber;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
+    retVal = __atomic_load_4(&(slapdFrontendConfig->threadnumber), __ATOMIC_RELAXED);
 
-    if (retVal == -1) {
+    if (retVal <= 0) {
         retVal = util_get_hardware_threads();
     }
 
     /* We *still* can't detect hardware threads. Okay, return 30 :( */
-    if (retVal == -1) {
+    if (retVal <= 0) {
         retVal = 30;
     }
 
@@ -6072,16 +6065,12 @@ config_get_max_filter_nest_level()
     return __atomic_load_4(&(slapdFrontendConfig->max_filter_nest_level), __ATOMIC_ACQUIRE);
 }
 
-size_t
+uint64_t
 config_get_ndn_cache_size()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    size_t retVal;
 
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->ndn_cache_max_size;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-    return retVal;
+    return __atomic_load_8(&(slapdFrontendConfig->ndn_cache_max_size), __ATOMIC_ACQUIRE);
 }
 
 int32_t
