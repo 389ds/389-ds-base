@@ -1707,35 +1707,44 @@ int ruv_cancel_csn_inprogress (void *repl, RUV *ruv, const CSN *csn, ReplicaId l
 	goto done;
     }
     if (csn_primary(repl, csn, prim_csn)) {
-	/* the prim csn is cancelled, lets remove all dependent csns */
-	/* for the primary replica we can have modifications for two RIDS:
-	 * - the local RID for direct or internal operations
-	 * - a remote RID if the primary csn is for a replciated op.
-	 */
-	ReplicaId prim_rid = csn_get_replicaid (csn);
-	repl_ruv = ruvGetReplica (ruv, local_rid);
-	rc = csnplRemoveAll (repl_ruv->csnpl, prim_csn);
-	if (prim_rid != local_rid) {
-		repl_ruv = ruvGetReplica (ruv, prim_rid);
-		rc = csnplRemoveAll (repl_ruv->csnpl, prim_csn);
-	}
+        /* the prim csn is cancelled, lets remove all dependent csns */
+        /* for the primary replica we can have modifications for two RIDS:
+         * - the local RID for direct or internal operations
+         * - a remote RID if the primary csn is for a replciated op.
+         */
+        ReplicaId prim_rid = csn_get_replicaid(csn);
+        repl_ruv = ruvGetReplica(ruv, prim_rid);
+        if (!repl_ruv) {
+            rc = RUV_NOTFOUND;
+            goto done;
+        }
+        rc = csnplRemoveAll(repl_ruv->csnpl, prim_csn);
 
-	for (it=0; it<prim_csn->repl_cnt; it++) {
-		repl_it = prim_csn->sec_repl[it];
-		replica_lock_replica(repl_it);
-		local_rid = replica_get_rid(repl_it);
-		if( local_rid != READ_ONLY_REPLICA_ID) {
-			Object *ruv_obj = replica_get_ruv (repl_it);
-			RUV *ruv_it = object_get_data (ruv_obj);
-			repl_ruv = ruvGetReplica (ruv_it, local_rid);
-			if (repl_ruv) {
-				rc = csnplRemoveAll (repl_ruv->csnpl, prim_csn);
-			} else {
-				rc = RUV_NOTFOUND;
-			}
-		}
-		replica_unlock_replica(repl_it);
-	}
+        if (prim_rid != local_rid && local_rid != READ_ONLY_REPLICA_ID) {
+            repl_ruv = ruvGetReplica(ruv, local_rid);
+            if (!repl_ruv) {
+                rc = RUV_NOTFOUND;
+                goto done;
+            }
+            rc = csnplRemoveAll(repl_ruv->csnpl, prim_csn);
+        }
+
+        for (it = 0; it < prim_csn->repl_cnt; it++) {
+            repl_it = prim_csn->sec_repl[it];
+            replica_lock_replica(repl_it);
+            local_rid = replica_get_rid(repl_it);
+            if (local_rid != READ_ONLY_REPLICA_ID) {
+                Object *ruv_obj = replica_get_ruv(repl_it);
+                RUV *ruv_it = object_get_data(ruv_obj);
+                repl_ruv = ruvGetReplica(ruv_it, local_rid);
+                if (repl_ruv) {
+                    rc = csnplRemoveAll(repl_ruv->csnpl, prim_csn);
+                } else {
+                    rc = RUV_NOTFOUND;
+                }
+            }
+            replica_unlock_replica(repl_it);
+        }
     } else {
 	rc = csnplRemove (repl_ruv->csnpl, csn);
     }
