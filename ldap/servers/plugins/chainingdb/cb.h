@@ -16,6 +16,7 @@
 
 /*** #define CB_YIELD ***/
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <prlock.h>

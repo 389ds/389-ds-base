@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
+#include <inttypes.h>
 #include "portable.h" /* GGOODREPL - is this cheating? */
 #include "repl_shared.h"
 #include "llist.h"
