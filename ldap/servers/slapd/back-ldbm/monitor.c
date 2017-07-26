@@ -47,6 +47,9 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     PRUint64 hits, tries;
     long nentries, maxentries, count;
     size_t size, maxsize;
+    size_t thread_size;
+    size_t evicts;
+    size_t slots;
 /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
     struct stat astat;
 /* end of NPCTE fix for bugid 544365 */
@@ -122,7 +125,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     }
     /* normalized dn cache stats */
     if(ndn_cache_started()){
-        ndn_cache_get_stats(&hits, &tries, &size, &maxsize, &count);
+        ndn_cache_get_stats(&hits, &tries, &size, &maxsize, &thread_size, &evicts, &slots, &count);
         sprintf(buf, "%" PRIu64, tries);
         MSET("normalizedDnCacheTries");
         sprintf(buf, "%" PRIu64, hits);
@@ -131,6 +134,8 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("normalizedDnCacheMisses");
         sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("normalizedDnCacheHitRatio");
+        sprintf(buf, "%"PRIu64, evicts);
+        MSET("NormalizedDnCacheEvictions");
         sprintf(buf, "%lu", (long unsigned int)size);
         MSET("currentNormalizedDnCacheSize");
         if(maxsize == 0){
@@ -139,6 +144,10 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         	sprintf(buf, "%lu", (long unsigned int)maxsize);
         }
         MSET("maxNormalizedDnCacheSize");
+        sprintf(buf, "%"PRIu64, thread_size);
+        MSET("NormalizedDnCacheThreadSize");
+        sprintf(buf, "%"PRIu64, slots);
+        MSET("NormalizedDnCacheThreadSlots");
         sprintf(buf, "%ld", count);
         MSET("currentNormalizedDnCacheCount");
     }
