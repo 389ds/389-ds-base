@@ -5946,7 +5946,7 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             return_value = dblayer_copy_directory(li, task, changelogdir,
                                                   changelog_destdir,
                                                   0 /* backup */,
-                                                  &cnt, 1, 0, 0);
+                                                  &cnt, 0, 0, 1);
             if (return_value) {
                 slapi_log_err(SLAPI_LOG_ERR,
                               "dblayer_backup", "Error in copying directory "
@@ -6606,7 +6606,7 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                     *cldirname = '\0';
                     return_value = dblayer_copy_directory(li, task, filename1,
                                                           changelogdir, 1 /* restore */,
-                                                          &cnt, 1, 0, 0);
+                                                          &cnt, 0, 0, 1);
                     *cldirname = '/';
                     if (return_value) {
                         slapi_log_err(SLAPI_LOG_ERR,
