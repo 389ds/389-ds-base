@@ -17,6 +17,7 @@ from lib389.properties import *
 
 INSTALL_LATEST_CONFIG = '999999999'
 
+ROLE_STANDALONE = "standalone"
 REPLICAROLE_MASTER = "master"
 REPLICAROLE_HUB = "hub"
 REPLICAROLE_CONSUMER = "consumer"

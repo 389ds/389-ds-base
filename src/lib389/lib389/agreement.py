@@ -447,6 +447,9 @@ class Agreement(object):
             self.log.warning("create: suffix is missing")
             raise InvalidArgumentError('suffix is mandatory')
 
+        if not properties:
+            properties = {}
+
         # Compute the normalized suffix to be set in RA entry
         properties[RA_SUFFIX] = normalizeDN(suffix)
 

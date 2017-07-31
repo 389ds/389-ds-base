@@ -38,11 +38,14 @@ from contextlib import closing
 
 import lib389
 from lib389.paths import Paths
-from lib389._constants import DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX
+from lib389._constants import (
+        DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST, ROLE_STANDALONE,
+        REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER, CONSUMER_REPLICAID
+    )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
         SER_ROOT_DN, SER_ROOT_PW, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
-        SER_INST_SCRIPTS_ENABLED
+        SER_INST_SCRIPTS_ENABLED, SER_SECURE_PORT, REPLICA_ID
     )
 
 MAJOR, MINOR, _, _, _ = sys.version_info
@@ -744,6 +747,49 @@ def formatInfData(args):
     return content
 
 
+def generate_ds_params(inst_num, role=ROLE_STANDALONE):
+    """Generate a host, port, secure port, server ID and replica ID
+    for the selected role and instance number. I.e. inst_num=1, role="master".
+
+    @param inst_num - an instance number in a range from 1 to 99
+    @param role - ROLE_STANDALONE, REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER
+    @return - the dict with next keys: host, port, secure port, server id and replica id
+    """
+
+    if inst_num not in range(1, 100):
+        raise ValueError("Instance number should be in a range from 1 to 99")
+
+    if role not in (ROLE_STANDALONE, REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER):
+        raise ValueError('Role should be {}, {}, {}, {}'.format(ROLE_STANDALONE, REPLICAROLE_MASTER,
+                                                                REPLICAROLE_HUB, REPLICAROLE_CONSUMER))
+
+    instance_data = {}
+    relevant_num = 38900
+
+    # Set relevant number for ports
+    if role == REPLICAROLE_MASTER:
+        relevant_num += 100
+    elif role == REPLICAROLE_HUB:
+        relevant_num += 200
+    elif role == REPLICAROLE_CONSUMER:
+        relevant_num += 300
+
+    # Define replica ID
+    if role == REPLICAROLE_MASTER:
+        replica_id = inst_num
+    else:
+        replica_id = CONSUMER_REPLICAID
+
+    # Fill the dict with data
+    instance_data[SER_HOST] = LOCALHOST
+    instance_data[SER_PORT] = relevant_num + inst_num
+    instance_data[SER_SECURE_PORT] = relevant_num + inst_num + 24700
+    instance_data[SER_SERVERID_PROP] = "{}{}".format(role, inst_num)
+    instance_data[REPLICA_ID] = replica_id
+
+    return instance_data
+
+
 def get_ds_version():
     """
     Return version of ns-slapd installed on this system. This is determined by the defaults.inf
@@ -755,13 +801,16 @@ def get_ds_version():
     p = Paths()
     return p.version
 
+
 def ds_is_older(ver):
     """Return True if current version of ns-slapd is older than provided
     version"""
     return get_ds_version() < ver
 
+
 def ds_is_newer(ver):
     return get_ds_version() >= ver
+
 
 def getDateTime():
     """
@@ -786,24 +835,30 @@ def ensure_bytes(val):
         return val.encode()
     return val
 
+
 def ensure_str(val):
     if val != None and type(val) != str:
         return val.decode('utf-8')
     return val
+
 
 def ensure_int(val):
     if val is not None and not isinstance(val, int):
         return int(val)
     return val
 
+
 def ensure_list_bytes(val):
     return [ensure_bytes(v) for v in val]
+
 
 def ensure_list_str(val):
     return [ensure_str(v) for v in val]
 
+
 def ensure_list_int(val):
     return [ensure_int(v) for v in val]
+
 
 def ensure_dict_str(val):
     if MAJOR <= 2:

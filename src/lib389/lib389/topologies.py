@@ -6,15 +6,18 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import logging
-import sys
 import time
 
 import pytest
 
 from lib389 import DirSrv
-from lib389._constants import *
-from lib389.properties import *
+from lib389.utils import generate_ds_params
+from lib389.replica import Replicas
+from lib389._constants import (args_instance, SER_HOST, SER_PORT, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
+                               ROLE_STANDALONE, REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER,
+                               DEFAULT_SUFFIX, REPLICA_ID)
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
@@ -24,10 +27,107 @@ else:
 log = logging.getLogger(__name__)
 
 
+def create_topology(topo_dict):
+    """Create a requested topology
+
+    @param topo_dict - dictionary {REPLICAROLE: number_of_insts}
+    @return - dictionary {serverid: topology_instance}
+    """
+
+    if not topo_dict:
+        ValueError("You need to specify the dict. For instance: {ROLE_STANDALONE: 1}")
+
+    instances = {}
+    ms = {}
+    hs = {}
+    cs = {}
+    ins = {}
+    replica_dict = {}
+    agmts = {}
+
+    # Create instances
+    for role in topo_dict.keys():
+        for inst_num in range(1, topo_dict[role]+1):
+            instance_data = generate_ds_params(inst_num, role)
+            if DEBUGGING:
+                instance = DirSrv(verbose=True)
+            else:
+                instance = DirSrv(verbose=False)
+            # TODO: Put 'args_instance' to generate_ds_params.
+            # Also, we need to keep in mind that the function returns
+            # SER_SECURE_PORT and REPLICA_ID that are not used in
+            # the instance creation here.
+            args_instance[SER_HOST] = instance_data[SER_HOST]
+            args_instance[SER_PORT] = instance_data[SER_PORT]
+            args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
+            args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+            args_copied = args_instance.copy()
+            instance.allocate(args_copied)
+            instance_exists = instance.exists()
+            if instance_exists:
+                instance.delete()
+            instance.create()
+            instance.open()
+            if role == ROLE_STANDALONE:
+                ins[instance.serverid] = instance
+                instances.update(ins)
+            if role == REPLICAROLE_MASTER:
+                ms[instance.serverid] = instance
+                instances.update(ms)
+            if role == REPLICAROLE_HUB:
+                hs[instance.serverid] = instance
+                instances.update(hs)
+            if role == REPLICAROLE_CONSUMER:
+                cs[instance.serverid] = instance
+                instances.update(cs)
+            log.info("Instance with parameters {} was created.".format(args_copied))
+
+            # Set up replication
+            if role in (REPLICAROLE_MASTER, REPLICAROLE_HUB, REPLICAROLE_CONSUMER):
+                replicas = Replicas(instance)
+                replica = replicas.enable(DEFAULT_SUFFIX, role, instance_data[REPLICA_ID])
+                replica_dict[replica] = instance
+
+    # Create agreements
+    for role_from in topo_dict.keys():
+        for inst_num_from in range(1, topo_dict[role]+1):
+            roles_to = [REPLICAROLE_HUB, REPLICAROLE_CONSUMER]
+            if role == REPLICAROLE_MASTER:
+                roles_to.append(REPLICAROLE_MASTER)
+
+            for role_to in [role for role in topo_dict if role in roles_to]:
+                for inst_num_to in range(1, topo_dict[role]+1):
+                    # Exclude our instance
+                    if role_from != role_to or inst_num_from != inst_num_to:
+                        inst_from = instances["{}{}".format(role_from, inst_num_from)]
+                        inst_to = instances["{}{}".format(role_to, inst_num_to)]
+                        agmt = inst_from.agreement.create(suffix=DEFAULT_SUFFIX,
+                                                          host=inst_to.host,
+                                                          port=inst_to.port)
+                        agmts[agmt] = (inst_from, inst_to)
+
+    # Allow the replicas to get situated with the new agreements
+    if agmts:
+        time.sleep(5)
+
+    # Initialize all the agreements
+    for agmt, insts in agmts.items():
+        insts[0].agreement.init(DEFAULT_SUFFIX, insts[1].host, insts[1].port)
+        insts[0].waitForReplInit(agmt)
+
+    # Clear out the tmp dir
+    for instance in instances.values():
+        instance.clearTmpDir(__file__)
+
+    if "standalone1" in instances and len(instances) == 1:
+        return TopologyMain(standalones=instances["standalone1"])
+    else:
+        return TopologyMain(standalones=ins, masters=ms, hubs=hs, consumers=cs)
+
+
 class TopologyMain(object):
-    def __init__(self, standalones=None, masters=None,
-                 consumers=None, hubs=None):
-        insts_with_agreements = {}
+    def __init__(self, standalones=None, masters=None, consumers=None, hubs=None):
+        self.all_insts = {}
 
         if standalones:
             if isinstance(standalones, dict):
@@ -36,27 +136,25 @@ class TopologyMain(object):
                 self.standalone = standalones
         if masters:
             self.ms = masters
-            insts_with_agreements.update(self.ms)
+            self.all_insts.update(self.ms)
         if consumers:
             self.cs = consumers
-            insts_with_agreements.update(self.cs)
+            self.all_insts.update(self.cs)
         if hubs:
             self.hs = hubs
-            insts_with_agreements.update(self.hs)
-
-        self._insts = {name: inst for name, inst in insts_with_agreements.items() if not name.endswith('agmts')}
+            self.all_insts.update(self.hs)
 
     def pause_all_replicas(self):
         """Pause all agreements in the class instance"""
 
-        for inst in self._insts.values():
+        for inst in self.all_insts.values():
             for agreement in inst.agreement.list(suffix=DEFAULT_SUFFIX):
                 inst.agreement.pause(agreement.dn)
 
     def resume_all_replicas(self):
         """Resume all agreements in the class instance"""
 
-        for inst in self._insts.values():
+        for inst in self.all_insts.values():
             for agreement in inst.agreement.list(suffix=DEFAULT_SUFFIX):
                 inst.agreement.resume(agreement.dn)
 
@@ -65,1119 +163,157 @@ class TopologyMain(object):
 def topology_st(request):
     """Create DS standalone instance"""
 
-    if DEBUGGING:
-        standalone = DirSrv(verbose=True)
-    else:
-        standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE1
-    args_instance[SER_PORT] = PORT_STANDALONE1
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
+    topology = create_topology({ROLE_STANDALONE: 1})
 
     def fin():
         if DEBUGGING:
-            standalone.stop()
+            topology.standalone.stop()
         else:
-            standalone.delete()
-
+            topology.standalone.delete()
     request.addfinalizer(fin)
 
-    return TopologyMain(standalones=standalone)
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_i2(request):
     """Create two instance DS deployment"""
 
-    if DEBUGGING:
-        standalone1 = DirSrv(verbose=True)
-    else:
-        standalone1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE1
-    args_instance[SER_PORT] = PORT_STANDALONE1
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone1 = args_instance.copy()
-    standalone1.allocate(args_standalone1)
-    instance_standalone1 = standalone1.exists()
-    if instance_standalone1:
-        standalone1.delete()
-    standalone1.create()
-    standalone1.open()
-
-    if DEBUGGING:
-        standalone2 = DirSrv(verbose=True)
-    else:
-        standalone2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE2
-    args_instance[SER_PORT] = PORT_STANDALONE2
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone2 = args_instance.copy()
-    standalone2.allocate(args_standalone2)
-    instance_standalone2 = standalone2.exists()
-    if instance_standalone2:
-        standalone2.delete()
-    standalone2.create()
-    standalone2.open()
+    topology = create_topology({ROLE_STANDALONE: 2})
 
     def fin():
         if DEBUGGING:
-            standalone1.stop()
-            standalone2.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            standalone1.delete()
-            standalone2.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    return TopologyMain(standalones={"standalone1": standalone1, "standalone2": standalone2})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_i3(request):
     """Create three instance DS deployment"""
 
-    if DEBUGGING:
-        standalone1 = DirSrv(verbose=True)
-    else:
-        standalone1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE1
-    args_instance[SER_PORT] = PORT_STANDALONE1
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone1 = args_instance.copy()
-    standalone1.allocate(args_standalone1)
-    instance_standalone1 = standalone1.exists()
-    if instance_standalone1:
-        standalone1.delete()
-    standalone1.create()
-    standalone1.open()
-
-    if DEBUGGING:
-        standalone2 = DirSrv(verbose=True)
-    else:
-        standalone2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE2
-    args_instance[SER_PORT] = PORT_STANDALONE2
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone2 = args_instance.copy()
-    standalone2.allocate(args_standalone2)
-    instance_standalone2 = standalone2.exists()
-    if instance_standalone2:
-        standalone2.delete()
-    standalone2.create()
-    standalone2.open()
-
-    if DEBUGGING:
-        standalone3 = DirSrv(verbose=True)
-    else:
-        standalone3 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE3
-    args_instance[SER_PORT] = PORT_STANDALONE3
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE3
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone3 = args_instance.copy()
-    standalone3.allocate(args_standalone3)
-    instance_standalone3 = standalone3.exists()
-    if instance_standalone3:
-        standalone3.delete()
-    standalone3.create()
-    standalone3.open()
+    topology = create_topology({ROLE_STANDALONE: 3})
 
     def fin():
         if DEBUGGING:
-            standalone1.stop()
-            standalone2.stop()
-            standalone3.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            standalone1.delete()
-            standalone2.delete()
-            standalone3.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    return TopologyMain(standalones={"standalone1": standalone1,
-                                     "standalone2": standalone2,
-                                     "standalone3": standalone3})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_m1c1(request):
     """Create Replication Deployment with one master and one consumer"""
 
-    # Creating master 1...
-    if DEBUGGING:
-        master1 = DirSrv(verbose=True)
-    else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_1)
-
-    # Creating consumer 1...
-    if DEBUGGING:
-        consumer1 = DirSrv(verbose=True)
-    else:
-        consumer1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_CONSUMER_1
-    args_instance[SER_PORT] = PORT_CONSUMER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_consumer = args_instance.copy()
-    consumer1.allocate(args_consumer)
-    instance_consumer1 = consumer1.exists()
-    if instance_consumer1:
-        consumer1.delete()
-    consumer1.create()
-    consumer1.open()
-    consumer1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER,
-                                        replicaId=CONSUMER_REPLICAID)
+    topology = create_topology({REPLICAROLE_MASTER: 1,
+                                REPLICAROLE_CONSUMER: 1})
+    replicas = Replicas(topology.ms["master1"])
+    replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
     def fin():
         if DEBUGGING:
-            master1.stop()
-            consumer1.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            master1.delete()
-            consumer1.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    # Create all the agreements
-    # Creating agreement from master 1 to consumer 1
-    properties = {RA_NAME: 'meTo_{}:{}'.format(consumer1.host, str(consumer1.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_c1_agmt = master1.agreement.create(suffix=SUFFIX, host=consumer1.host,
-                                          port=consumer1.port, properties=properties)
-    if not m1_c1_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_c1_agmt))
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    master1.agreement.init(SUFFIX, HOST_CONSUMER_1, PORT_CONSUMER_1)
-    master1.waitForReplInit(m1_c1_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, consumer1):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyMain(masters={"master1": master1, "master1_agmts": {"m1_c1": m1_c1_agmt}},
-                        consumers={"consumer1": consumer1})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_m1h1c1(request):
     """Create Replication Deployment with one master, one consumer and one hub"""
 
-    # Creating master 1...
-    if DEBUGGING:
-        master1 = DirSrv(verbose=True)
-    else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_1)
-
-    # Creating hub 1...
-    if DEBUGGING:
-        hub1 = DirSrv(verbose=True)
-    else:
-        hub1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_HUB_1
-    args_instance[SER_PORT] = PORT_HUB_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_HUB_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_hub = args_instance.copy()
-    hub1.allocate(args_hub)
-    instance_hub1 = hub1.exists()
-    if instance_hub1:
-        hub1.delete()
-    hub1.create()
-    hub1.open()
-    hub1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_HUB,
-                                   replicaId=REPLICAID_HUB_1)
-
-    # Creating consumer 1...
-    if DEBUGGING:
-        consumer1 = DirSrv(verbose=True)
-    else:
-        consumer1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_CONSUMER_1
-    args_instance[SER_PORT] = PORT_CONSUMER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_consumer = args_instance.copy()
-    consumer1.allocate(args_consumer)
-    instance_consumer1 = consumer1.exists()
-    if instance_consumer1:
-        consumer1.delete()
-    consumer1.create()
-    consumer1.open()
-    consumer1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER,
-                                        replicaId=CONSUMER_REPLICAID)
+    topology = create_topology({REPLICAROLE_MASTER: 1,
+                                REPLICAROLE_HUB: 1,
+                                REPLICAROLE_CONSUMER: 1})
+    replicas = Replicas(topology.ms["master1"])
+    replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
     def fin():
         if DEBUGGING:
-            master1.stop()
-            hub1.stop()
-            consumer1.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            master1.delete()
-            hub1.delete()
-            consumer1.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    # Create all the agreements
-    # Creating agreement from master 1 to hub 1
-    properties = {RA_NAME: 'meTo_{}:{}'.format(hub1.host, str(hub1.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_h1_agmt = master1.agreement.create(suffix=SUFFIX, host=hub1.host,
-                                          port=hub1.port, properties=properties)
-    if not m1_h1_agmt:
-        log.fatal("Fail to create a master -> hub replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_h1_agmt))
-
-    # Creating agreement from hub 1 to consumer 1
-    properties = {RA_NAME: 'meTo_{}:{}'.format(consumer1.host, str(consumer1.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    h1_c1_agmt = hub1.agreement.create(suffix=SUFFIX, host=consumer1.host,
-                                       port=consumer1.port, properties=properties)
-    if not h1_c1_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(h1_c1_agmt))
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    master1.agreement.init(SUFFIX, HOST_HUB_1, PORT_HUB_1)
-    master1.waitForReplInit(m1_h1_agmt)
-    hub1.agreement.init(SUFFIX, HOST_CONSUMER_1, PORT_CONSUMER_1)
-    hub1.waitForReplInit(h1_c1_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, consumer1):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyMain(masters={"master1": master1, "master1_agmts": {"m1_h1": m1_h1_agmt}},
-                        hubs={"hub1": hub1, "hub1_agmts": {"h1_c1": h1_c1_agmt}},
-                        consumers={"consumer1": consumer1})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_m2(request):
     """Create Replication Deployment with two masters"""
 
-    # Creating master 1...
-    if DEBUGGING:
-        master1 = DirSrv(verbose=True)
-    else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    if DEBUGGING:
-        master2 = DirSrv(verbose=True)
-    else:
-        master2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_2)
+    topology = create_topology({REPLICAROLE_MASTER: 2})
+    replicas = Replicas(topology.ms["master1"])
+    replicas.test(DEFAULT_SUFFIX, topology.ms["master2"])
 
     def fin():
         if DEBUGGING:
-            master1.stop()
-            master2.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            master1.delete()
-            master2.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    # Create all the agreements
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master2.host, str(master2.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port, properties=properties)
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_m2_agmt))
-
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master1.host, str(master1.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port, properties=properties)
-    if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m2_m1_agmt))
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyMain(masters={"master1": master1, "master1_agmts": {"m1_m2": m1_m2_agmt},
-                                 "master2": master2, "master2_agmts": {"m2_m1": m2_m1_agmt}})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_m3(request):
     """Create Replication Deployment with three masters"""
 
-    # Creating master 1...
-    if DEBUGGING:
-        master1 = DirSrv(verbose=True)
-    else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    if DEBUGGING:
-        master2 = DirSrv(verbose=True)
-    else:
-        master2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_2)
-
-    # Creating master 3...
-    if DEBUGGING:
-        master3 = DirSrv(verbose=True)
-    else:
-        master3 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_3
-    args_instance[SER_PORT] = PORT_MASTER_3
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_3
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master3.allocate(args_master)
-    instance_master3 = master3.exists()
-    if instance_master3:
-        master3.delete()
-    master3.create()
-    master3.open()
-    master3.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_3)
+    topology = create_topology({REPLICAROLE_MASTER: 3})
+    replicas = Replicas(topology.ms["master1"])
+    replicas.test(DEFAULT_SUFFIX, topology.ms["master3"])
 
     def fin():
         if DEBUGGING:
-            master1.stop()
-            master2.stop()
-            master3.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            master1.delete()
-            master2.delete()
-            master3.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    # Create all the agreements
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master2.host, str(master2.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port, properties=properties)
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_m2_agmt))
-
-    # Creating agreement from master 1 to master 3
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master3.host, str(master3.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m3_agmt = master1.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port, properties=properties)
-    if not m1_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_m3_agmt))
-
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master1.host, str(master1.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port, properties=properties)
-    if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m2_m1_agmt))
-
-    # Creating agreement from master 2 to master 3
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master3.host, str(master3.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m3_agmt = master2.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port, properties=properties)
-    if not m2_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m2_m3_agmt))
-
-    # Creating agreement from master 3 to master 1
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master1.host, str(master1.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m1_agmt = master3.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port, properties=properties)
-    if not m3_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m3_m1_agmt))
-
-    # Creating agreement from master 3 to master 2
-    properties = {RA_NAME: 'meTo_{}:{}'.format(master2.host, str(master2.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m2_agmt = master3.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port, properties=properties)
-    if not m3_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m3_m2_agmt))
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-    master1.agreement.init(SUFFIX, HOST_MASTER_3, PORT_MASTER_3)
-    master1.waitForReplInit(m1_m3_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyMain(masters={"master1": master1, "master1_agmts": {"m1_m2": m1_m2_agmt,
-                                                                       "m1_m3": m1_m3_agmt},
-                                 "master2": master2, "master2_agmts": {"m2_m1": m2_m1_agmt,
-                                                                       "m2_m3": m2_m3_agmt},
-                                 "master3": master3, "master3_agmts": {"m3_m1": m3_m1_agmt,
-                                                                       "m3_m2": m3_m2_agmt}})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_m4(request):
     """Create Replication Deployment with four masters"""
 
-    # Creating master 1...
-    if DEBUGGING:
-        master1 = DirSrv(verbose=True)
-    else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    if DEBUGGING:
-        master2 = DirSrv(verbose=True)
-    else:
-        master2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_2)
-
-    # Creating master 3...
-    if DEBUGGING:
-        master3 = DirSrv(verbose=True)
-    else:
-        master3 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_3
-    args_instance[SER_PORT] = PORT_MASTER_3
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_3
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master3.allocate(args_master)
-    instance_master3 = master3.exists()
-    if instance_master3:
-        master3.delete()
-    master3.create()
-    master3.open()
-    master3.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_3)
-
-    # Creating master 4...
-    if DEBUGGING:
-        master4 = DirSrv(verbose=True)
-    else:
-        master4 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_4
-    args_instance[SER_PORT] = PORT_MASTER_4
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_4
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master4.allocate(args_master)
-    instance_master4 = master4.exists()
-    if instance_master4:
-        master4.delete()
-    master4.create()
-    master4.open()
-    master4.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
-                                      replicaId=REPLICAID_MASTER_4)
+    topology = create_topology({REPLICAROLE_MASTER: 4})
+    replicas = Replicas(topology.ms["master1"])
+    replicas.test(DEFAULT_SUFFIX, topology.ms["master4"])
 
     def fin():
         if DEBUGGING:
-            master1.stop()
-            master2.stop()
-            master3.stop()
-            master4.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            master1.delete()
-            master2.delete()
-            master3.delete()
-            master4.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    # Create all the agreements
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port, properties=properties)
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_m2_agmt))
-
-    # Creating agreement from master 1 to master 3
-    properties = {RA_NAME: 'meTo_' + master3.host + ':' + str(master3.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m3_agmt = master1.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port, properties=properties)
-    if not m1_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_m3_agmt))
-
-    # Creating agreement from master 1 to master 4
-    properties = {RA_NAME: 'meTo_' + master4.host + ':' + str(master4.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m4_agmt = master1.agreement.create(suffix=SUFFIX, host=master4.host,
-                                          port=master4.port, properties=properties)
-    if not m1_m4_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m1_m4_agmt))
-
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port, properties=properties)
-    if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m2_m1_agmt))
-
-    # Creating agreement from master 2 to master 3
-    properties = {RA_NAME: 'meTo_' + master3.host + ':' + str(master3.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m3_agmt = master2.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port, properties=properties)
-    if not m2_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m2_m3_agmt))
-
-    # Creating agreement from master 2 to master 4
-    properties = {RA_NAME: 'meTo_' + master4.host + ':' + str(master4.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m4_agmt = master2.agreement.create(suffix=SUFFIX, host=master4.host,
-                                          port=master4.port, properties=properties)
-    if not m2_m4_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m2_m4_agmt))
-
-    # Creating agreement from master 3 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m1_agmt = master3.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port, properties=properties)
-    if not m3_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m3_m1_agmt))
-
-    # Creating agreement from master 3 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m2_agmt = master3.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port, properties=properties)
-    if not m3_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m3_m2_agmt))
-
-    # Creating agreement from master 3 to master 4
-    properties = {RA_NAME: 'meTo_' + master4.host + ':' + str(master4.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m4_agmt = master3.agreement.create(suffix=SUFFIX, host=master4.host,
-                                          port=master4.port, properties=properties)
-    if not m3_m4_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m3_m4_agmt))
-
-    # Creating agreement from master 4 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m4_m1_agmt = master4.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port, properties=properties)
-    if not m4_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m4_m1_agmt))
-
-    # Creating agreement from master 4 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m4_m2_agmt = master4.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port, properties=properties)
-    if not m4_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m4_m2_agmt))
-
-    # Creating agreement from master 4 to master 3
-    properties = {RA_NAME: 'meTo_' + master3.host + ':' + str(master3.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m4_m3_agmt = master4.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port, properties=properties)
-    if not m4_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("{} created".format(m4_m3_agmt))
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-    master1.agreement.init(SUFFIX, HOST_MASTER_3, PORT_MASTER_3)
-    master1.waitForReplInit(m1_m3_agmt)
-    master1.agreement.init(SUFFIX, HOST_MASTER_4, PORT_MASTER_4)
-    master1.waitForReplInit(m1_m4_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyMain(masters={"master1": master1, "master1_agmts": {"m1_m2": m1_m2_agmt,
-                                                                       "m1_m3": m1_m3_agmt,
-                                                                       "m1_m4": m1_m4_agmt},
-                                 "master2": master2, "master2_agmts": {"m2_m1": m2_m1_agmt,
-                                                                       "m2_m3": m2_m3_agmt,
-                                                                       "m2_m4": m2_m4_agmt},
-                                 "master3": master3, "master3_agmts": {"m3_m1": m3_m1_agmt,
-                                                                       "m3_m2": m3_m2_agmt,
-                                                                       "m3_m4": m3_m4_agmt},
-                                 "master4": master4, "master4_agmts": {"m4_m1": m4_m1_agmt,
-                                                                       "m4_m2": m4_m2_agmt,
-                                                                       "m4_m3": m4_m3_agmt}})
+    return topology
 
 
 @pytest.fixture(scope="module")
 def topology_m2c2(request):
     """Create Replication Deployment with two masters and two consumers"""
 
-    # Creating master 1...
-    if DEBUGGING:
-        master1 = DirSrv(verbose=True)
-    else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    if DEBUGGING:
-        master2 = DirSrv(verbose=True)
-    else:
-        master2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
-
-    # Creating consumer 1...
-    if DEBUGGING:
-        consumer1 = DirSrv(verbose=True)
-    else:
-        consumer1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_CONSUMER_1
-    args_instance[SER_PORT] = PORT_CONSUMER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_consumer = args_instance.copy()
-    consumer1.allocate(args_consumer)
-    instance_consumer1 = consumer1.exists()
-    if instance_consumer1:
-        consumer1.delete()
-    consumer1.create()
-    consumer1.open()
-    consumer1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER, replicaId=CONSUMER_REPLICAID)
-
-    # Creating consumer 2...
-    if DEBUGGING:
-        consumer2 = DirSrv(verbose=True)
-    else:
-        consumer2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_CONSUMER_2
-    args_instance[SER_PORT] = PORT_CONSUMER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_consumer = args_instance.copy()
-    consumer2.allocate(args_consumer)
-    instance_consumer2 = consumer2.exists()
-    if instance_consumer2:
-        consumer2.delete()
-    consumer2.create()
-    consumer2.open()
-    consumer2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER, replicaId=CONSUMER_REPLICAID)
+    topology = create_topology({REPLICAROLE_MASTER: 2,
+                                REPLICAROLE_CONSUMER: 2})
+    replicas = Replicas(topology.ms["master1"])
+    replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
     def fin():
         if DEBUGGING:
-            master1.stop()
-            master2.stop()
-            consumer1.stop()
-            consumer2.stop()
+            map(lambda inst: inst.stop(), topology.all_insts.values())
         else:
-            master1.delete()
-            master2.delete()
-            consumer1.delete()
-            consumer2.delete()
-
+            map(lambda inst: inst.delete(), topology.all_insts.values())
     request.addfinalizer(fin)
 
-    # Create all the agreements
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m1_m2_agmt)
-
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
-    if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m2_m1_agmt)
-
-    # Creating agreement from master 1 to consumer 1
-    properties = {RA_NAME: 'meTo_' + consumer1.host + ':' + str(consumer1.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_c1_agmt = master1.agreement.create(suffix=SUFFIX, host=consumer1.host, port=consumer1.port,
-                                          properties=properties)
-    if not m1_c1_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m1_c1_agmt)
-
-    # Creating agreement from master 1 to consumer 2
-    properties = {RA_NAME: 'meTo_' + consumer2.host + ':' + str(consumer2.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_c2_agmt = master1.agreement.create(suffix=SUFFIX, host=consumer2.host, port=consumer2.port,
-                                          properties=properties)
-    if not m1_c2_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m1_c2_agmt)
-
-    # Creating agreement from master 2 to consumer 1
-    properties = {RA_NAME: 'meTo_' + consumer1.host + ':' + str(consumer1.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_c1_agmt = master2.agreement.create(suffix=SUFFIX, host=consumer1.host, port=consumer1.port,
-                                          properties=properties)
-    if not m2_c1_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m2_c1_agmt)
-
-    # Creating agreement from master 2 to consumer 2
-    properties = {RA_NAME: 'meTo_' + consumer2.host + ':' + str(consumer2.port),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_c2_agmt = master2.agreement.create(suffix=SUFFIX, host=consumer2.host, port=consumer2.port,
-                                          properties=properties)
-    if not m2_c2_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.debug("%s created" % m2_c2_agmt)
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-    master1.agreement.init(SUFFIX, HOST_CONSUMER_1, PORT_CONSUMER_1)
-    master1.waitForReplInit(m1_c1_agmt)
-    master1.agreement.init(SUFFIX, HOST_CONSUMER_2, PORT_CONSUMER_2)
-    master1.waitForReplInit(m1_c2_agmt)
-
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, consumer1):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyMain(masters={"master1": master1, "master1_agmts": {"m1_m2": m1_m2_agmt,
-                                                                       "m1_c1": m1_c1_agmt,
-                                                                       "m1_c2": m1_c2_agmt},
-                                 "master2": master2, "master2_agmts": {"m2_m1": m2_m1_agmt,
-                                                                       "m2_c1": m2_c1_agmt,
-                                                                       "m2_c2": m2_c2_agmt}},
-                        consumers={"consumer1": consumer1, "consumer2": consumer2})
+    return topology

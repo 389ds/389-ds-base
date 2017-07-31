@@ -38,7 +38,7 @@ def test_user_compare_m2Repl(topology_m2):
     m1 = topology_m2.ms.get('master1')
     m2 = topology_m2.ms.get('master2')
 
-    m1_m2_agmtdn = topology_m2.ms.get("master1_agmts").get("m1_m2")
+    m1_m2_agmtdn = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
     m1_users = UserAccounts(m1, DEFAULT_SUFFIX)
     m2_users = UserAccounts(m2, DEFAULT_SUFFIX)
