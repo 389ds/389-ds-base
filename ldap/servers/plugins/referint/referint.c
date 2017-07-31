@@ -311,13 +311,21 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
         rc = SLAPI_PLUGIN_FAILURE;
         goto done;
     } else {
-        /* set these to -1 for config validation */
-        tmp_config->delay = -1;
+        /* set these for config validation */
+        tmp_config->delay = -2;
         tmp_config->logchanges = -1;
     }
 
     if ((value = slapi_entry_attr_get_charptr(config_entry, REFERINT_ATTR_DELAY))) {
-        tmp_config->delay = atoi(value);
+        char *endptr = NULL;
+        tmp_config->delay = strtol(value, &endptr, 10);
+        if (!(value && !*endptr) || tmp_config->delay < -1) {
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - invalid value \"%s\" for %s; should be >= -1\n",
+                          value, REFERINT_ATTR_DELAY);
+            slapi_ch_free_string(&value);
+            rc = SLAPI_PLUGIN_FAILURE;
+            goto done;
+        }
         slapi_ch_free_string(&value);
         new_config_present = 1;
     }
@@ -337,7 +345,7 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
 
     if (new_config_present) {
         /* Verify we have everything we need */
-        if (tmp_config->delay == -1) {
+        if (tmp_config->delay == -2) {
             slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
                           REFERINT_ATTR_DELAY);
             rc = SLAPI_PLUGIN_FAILURE;
