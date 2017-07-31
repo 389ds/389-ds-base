@@ -55,7 +55,7 @@ pw_verify_root_dn(const char *dn, const Slapi_Value *cred)
 int
 pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 {
-    int rc = 0;
+    int rc = SLAPI_BIND_SUCCESS;
     Slapi_Backend *be = NULL;
 
     if (slapi_mapping_tree_select(pb, &be, referral, NULL, 0) != LDAP_SUCCESS) {
@@ -109,12 +109,8 @@ pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
     slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
 
-    if (pb_sdn != NULL || cred != NULL) {
+    if (pb_sdn == NULL) {
         return LDAP_OPERATIONS_ERROR;
-    }
-
-    if (*referral) {
-        return SLAPI_BIND_REFERRAL;
     }
 
     /* We need a slapi_sdn_isanon? */
@@ -130,7 +126,11 @@ pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     if (slapi_mapping_tree_select(pb, &be, referral, NULL, 0) != LDAP_SUCCESS) {
         return SLAPI_BIND_NO_BACKEND;
     }
-    slapi_be_Unlock(be);
+
+    if (*referral) {
+        slapi_be_Unlock(be);
+        return SLAPI_BIND_REFERRAL;
+    }
 
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
     slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
@@ -138,6 +138,7 @@ pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     set_db_default_result_handlers(pb);
 
     /* The backend associated with this identity is real. */
+    slapi_be_Unlock(be);
 
     return SLAPI_BIND_SUCCESS;
 }

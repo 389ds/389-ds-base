@@ -662,12 +662,14 @@ do_bind( Slapi_PBlock *pb )
         /* We could be serving multiple database backends.  Select the appropriate one */
         /* pw_verify_be_dn will select the backend we need for us. */
 
-        if (auto_bind) {
-            /* We have no password material. We should just check who we are binding as. */
-            rc = pw_validate_be_dn(pb, &referral);
-        } else {
-            rc = pw_verify_be_dn(pb, &referral);
-        }
+        /*
+         * WARNING: We have to validate *all* other conditions *first* before
+         * we attempt the bind!
+         *
+         * this is because ldbm_bind.c will SEND THE FAILURE.
+         */
+
+        rc = pw_validate_be_dn(pb, &referral);
 
         if (rc == SLAPI_BIND_NO_BACKEND) {
             send_nobackend_ldap_result( pb );
@@ -736,8 +738,18 @@ do_bind( Slapi_PBlock *pb )
                     myrc = 0;
                 }
                 if (!auto_bind) {
-                    /* 
-                     * There could be a race that bind_target_entry was not added 
+                    /*
+                     * Okay, we've made it here. FINALLY check if the entry really
+                     * can bind or not. THIS IS THE PASSWORD CHECK.
+                     */
+                    rc = pw_verify_be_dn(pb, &referral);
+                    if (rc != SLAPI_BIND_SUCCESS) {
+                        /* Invalid pass - lets bail ... */
+                        goto bind_failed;
+                    }
+
+                    /*
+                     * There could be a race that bind_target_entry was not added
                      * when bind_target_entry was retrieved before be_bind, but it
                      * was in be_bind.  Since be_bind returned SLAPI_BIND_SUCCESS,
                      * the entry is in the DS.  So, we need to retrieve it once more.
@@ -786,6 +798,7 @@ do_bind( Slapi_PBlock *pb )
                 }
             }
         } else { /* if auto_bind || rc == slapi_bind_success | slapi_bind_anonymous */
+        bind_failed:
             if (rc == LDAP_OPERATIONS_ERROR) {
                 send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL );
                 goto free_and_return;
