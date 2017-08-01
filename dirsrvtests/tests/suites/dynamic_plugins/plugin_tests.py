@@ -1999,7 +1999,6 @@ def test_referint(inst, args=None):
             'referint-membership-attr': 'member',
             'referint-update-delay': '0',
             'referint-logfile': REFERINT_LOGFILE,
-            'referint-logchanges': '0'
         })))
     except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to shared config entry: error ' + e.message['desc'])

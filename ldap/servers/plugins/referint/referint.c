@@ -27,7 +27,6 @@
 #define REFERINT_PLUGIN_SUBSYSTEM "referint-plugin" /* used for logging */
 #define REFERINT_PREOP_DESC       "referint preop plugin"
 #define REFERINT_ATTR_DELAY       "referint-update-delay"
-#define REFERINT_ATTR_LOGCHANGES  "referint-logchanges"
 #define REFERINT_ATTR_LOGFILE     "referint-logfile"
 #define REFERINT_ATTR_MEMBERSHIP  "referint-membership-attr"
 #define MAX_LINE     2048
@@ -39,7 +38,6 @@ typedef struct referint_config
 {
     int delay;
     char *logfile;
-    int logchanges;
     char **attrs;
 } referint_config;
 
@@ -51,14 +49,13 @@ int referint_postop_del(Slapi_PBlock *pb);
 int referint_postop_modrdn(Slapi_PBlock *pb);
 int referint_postop_start(Slapi_PBlock *pb);
 int referint_postop_close(Slapi_PBlock *pb);
-int update_integrity(Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior, int logChanges);
+int update_integrity(Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior);
 int GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
 int my_fgetc(PRFileDesc *stream);
 void referint_thread_func(void *arg);
 void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
 int load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply);
 int referint_get_delay(void);
-int referint_get_logchanges(void);
 char *referint_get_logfile(void);
 char **referint_get_attrs(void);
 int referint_postop_modify(Slapi_PBlock *pb);
@@ -69,7 +66,7 @@ Slapi_DN *referint_get_config_area(void);
 void referint_set_plugin_area(Slapi_DN *sdn);
 Slapi_DN *referint_get_plugin_area(void);
 int referint_sdn_config_cmp(Slapi_DN *sdn);
-void referint_get_config(int *delay, int *logchanges, char **logfile);
+void referint_get_config(int *delay, char **logfile);
 
 /* global thread control stuff */
 static PRLock *referint_mutex = NULL;
@@ -273,7 +270,6 @@ referint_postop_init(Slapi_PBlock *pb)
 /*
  * referint-update-delay: 0
  * referint-logfile: /var/log/dirsrv/slapd-localhost/referint
- * referint-logchanges: 0
  * referint-membership-attr: member
  * referint-membership-attr: uniquemember
  * referint-membership-attr: owner
@@ -311,9 +307,8 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
         rc = SLAPI_PLUGIN_FAILURE;
         goto done;
     } else {
-        /* set these for config validation */
+        /* set this for config validation */
         tmp_config->delay = -2;
-        tmp_config->logchanges = -1;
     }
 
     if ((value = slapi_entry_attr_get_charptr(config_entry, REFERINT_ATTR_DELAY))) {
@@ -333,11 +328,6 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
         tmp_config->logfile = value;
         new_config_present = 1;
     }
-    if ((value = slapi_entry_attr_get_charptr(config_entry, REFERINT_ATTR_LOGCHANGES))) {
-        tmp_config->logchanges = atoi(value);
-        slapi_ch_free_string(&value);
-        new_config_present = 1;
-    }
     if ((attrs = slapi_entry_attr_get_charray(config_entry, REFERINT_ATTR_MEMBERSHIP))) {
         tmp_config->attrs = attrs;
         new_config_present = 1;
@@ -352,10 +342,6 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
         } else if (!tmp_config->logfile) {
             slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
                           REFERINT_ATTR_LOGFILE);
-            rc = SLAPI_PLUGIN_FAILURE;
-        } else if (tmp_config->logchanges == -1) {
-            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
-                          REFERINT_ATTR_LOGCHANGES);
             rc = SLAPI_PLUGIN_FAILURE;
         } else if (!tmp_config->attrs) {
             slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
@@ -392,7 +378,6 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
 
             tmp_config->delay = atoi(argv[0]);
             tmp_config->logfile = slapi_ch_strdup(argv[1]);
-            tmp_config->logchanges = atoi(argv[2]);
             for (i = 3; argv[i] != NULL; i++) {
                 slapi_ch_array_add(&tmp_config->attrs, slapi_ch_strdup(argv[i]));
             }
@@ -508,18 +493,6 @@ referint_get_delay(void)
     return delay;
 }
 
-int
-referint_get_logchanges(void)
-{
-    int log_changes;
-
-    slapi_rwlock_rdlock(config_rwlock);
-    log_changes = config->logchanges;
-    slapi_rwlock_unlock(config_rwlock);
-
-    return log_changes;
-}
-
 char *
 referint_get_logfile(void)
 {
@@ -533,14 +506,11 @@ referint_get_logfile(void)
 }
 
 void
-referint_get_config(int *delay, int *logchanges, char **logfile)
+referint_get_config(int *delay, char **logfile)
 {
     slapi_rwlock_rdlock(config_rwlock);
     if (delay) {
         *delay = config->delay;
-    }
-    if (logchanges) {
-        *logchanges = config->logchanges;
     }
     if (logfile) {
         *logfile = slapi_ch_strdup(config->logfile);
@@ -617,7 +587,6 @@ referint_postop_del(Slapi_PBlock *pb)
     Slapi_DN *sdn = NULL;
     char *logfile = NULL;
     int delay;
-    int logChanges = 0;
     int isrepop = 0;
     int oprc;
     int rc = SLAPI_PLUGIN_SUCCESS;
@@ -637,7 +606,7 @@ referint_postop_del(Slapi_PBlock *pb)
         return SLAPI_PLUGIN_SUCCESS;
     }
 
-    referint_get_config(&delay, &logChanges, NULL);
+    referint_get_config(&delay, NULL);
 
     if (delay == -1) {
         /* integrity updating is off */
@@ -645,7 +614,7 @@ referint_postop_del(Slapi_PBlock *pb)
     } else if (delay == 0) { /* no delay */
         /* call function to update references to entry */
         if (referint_sdn_in_entry_scope(sdn)) {
-            rc = update_integrity(sdn, NULL, NULL, logChanges);
+            rc = update_integrity(sdn, NULL, NULL);
         }
     } else {
         /* write the entry to integrity log */
@@ -669,7 +638,6 @@ referint_postop_modrdn(Slapi_PBlock *pb)
     int oprc;
     int rc = SLAPI_PLUGIN_SUCCESS;
     int delay;
-    int logChanges = 0;
     int isrepop = 0;
 
     if (slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop) != 0 ||
@@ -689,7 +657,7 @@ referint_postop_modrdn(Slapi_PBlock *pb)
         return SLAPI_PLUGIN_SUCCESS;
     }
 
-    referint_get_config(&delay, &logChanges, NULL);
+    referint_get_config(&delay, NULL);
 
     if (delay == -1) {
         /* integrity updating is off */
@@ -698,7 +666,7 @@ referint_postop_modrdn(Slapi_PBlock *pb)
         /* call function to update references to entry */
         if (!plugin_EntryScope && !plugin_ExcludeEntryScope) {
             /* no scope defined, default always process referint */
-            rc = update_integrity(sdn, newrdn, newsuperior, logChanges);
+            rc = update_integrity(sdn, newrdn, newsuperior);
         } else {
             const char *newsuperiordn = slapi_sdn_get_dn(newsuperior);
             if ((newsuperiordn == NULL && referint_sdn_in_entry_scope(sdn)) ||
@@ -707,10 +675,10 @@ referint_postop_modrdn(Slapi_PBlock *pb)
                  * It is a modrdn inside the scope or into the scope,
                  * process normal modrdn
                  */
-                rc = update_integrity(sdn, newrdn, newsuperior, logChanges);
+                rc = update_integrity(sdn, newrdn, newsuperior);
             } else if (referint_sdn_in_entry_scope(sdn)) {
                 /* the entry is moved out of scope, treat as delete */
-                rc = update_integrity(sdn, NULL, NULL, logChanges);
+                rc = update_integrity(sdn, NULL, NULL);
             }
         }
     } else {
@@ -1100,8 +1068,7 @@ bail:
 int
 update_integrity(Slapi_DN *origSDN,
                  char *newrDN,
-                 Slapi_DN *newsuperior,
-                 int logChanges __attribute__((unused)))
+                 Slapi_DN *newsuperior)
 {
     Slapi_PBlock *search_result_pb = NULL;
     Slapi_PBlock *mod_pb = slapi_pblock_new();
@@ -1395,7 +1362,6 @@ referint_thread_func(void *arg __attribute__((unused)))
     char *iter = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_DN *tmpsuperior = NULL;
-    int logChanges = 0;
     int delay;
     int no_changes;
 
@@ -1405,7 +1371,7 @@ referint_thread_func(void *arg __attribute__((unused)))
     while (1) {
         /* refresh the config */
         slapi_ch_free_string(&logfilename);
-        referint_get_config(&delay, &logChanges, &logfilename);
+        referint_get_config(&delay, &logfilename);
 
         no_changes = 1;
         while (no_changes) {
@@ -1467,7 +1433,7 @@ referint_thread_func(void *arg __attribute__((unused)))
                 }
             }
 
-            update_integrity(sdn, tmprdn, tmpsuperior, logChanges);
+            update_integrity(sdn, tmprdn, tmpsuperior);
 
             slapi_sdn_free(&sdn);
             slapi_ch_free_string(&tmprdn);

@@ -620,7 +620,6 @@ nsslapd-pluginenabled: off
 nsslapd-pluginprecedence: 40
 referint-update-delay: 0
 referint-logfile: %log_dir%/referint
-referint-logchanges: 0
 referint-membership-attr: member
 referint-membership-attr: uniquemember
 referint-membership-attr: owner
