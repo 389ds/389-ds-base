@@ -1,6 +1,7 @@
 # Log directory   #
 ###################
 logs/
+build/
 
 *.pyc
 *.patch
