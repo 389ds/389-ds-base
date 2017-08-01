@@ -722,10 +722,7 @@ do_bind( Slapi_PBlock *pb )
             }
             slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
             set_db_default_result_handlers(pb);
-            if ( (rc != 1) && 
-                 (auto_bind || 
-                  (((rc = (*be->be_bind)( pb )) == SLAPI_BIND_SUCCESS) ||
-                   (rc == SLAPI_BIND_ANONYMOUS))) ) {
+            if ( rc != 1) {
                 long t;
                 char* authtype = NULL;
                 /* rc is SLAPI_BIND_SUCCESS or SLAPI_BIND_ANONYMOUS */
@@ -783,6 +780,10 @@ do_bind( Slapi_PBlock *pb )
                         myrc = 0;
                     }
                     if (!auto_bind) {
+                        rc = (*be->be_bind)( pb );
+                        if (rc != SLAPI_BIND_SUCCESS && rc != SLAPI_BIND_ANONYMOUS) {
+                            goto account_locked;
+                        }
                         /* 
                          * There could be a race that bind_target_entry was not added 
                          * when bind_target_entry was retrieved before be_bind, but it
