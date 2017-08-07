@@ -768,7 +768,7 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
 {
 #if defined(USE_OPENLDAP)
     LDIFFP *file = NULL;
-    int buflen;
+    int buflen = 0;
     ldif_record_lineno_t lineno = 0;
 #else
     FILE *file = NULL;
