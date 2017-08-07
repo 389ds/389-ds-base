@@ -376,7 +376,7 @@ class SetupDs(object):
         if self.verbose:
             self.log.info("ACTION: Creating dse.ldif")
         dse = ""
-        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse-minimal.ldif')) as template_dse:
+        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
@@ -451,15 +451,4 @@ class SetupDs(object):
         # In a container build we need to stop DirSrv at the end
         if self.containerised:
             ds_instance.stop()
-
-    def _remove_ds(self):
-        """
-        The opposite of install: Removes an instance from the system.
-        This takes a backup of all relevant data, and removes the paths.
-        """
-        # This probably actually would need to be able to read the ldif, to
-        # know what to remove ...
-        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
-                     'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
-            print(path)
 

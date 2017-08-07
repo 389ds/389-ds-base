@@ -88,7 +88,7 @@ class DSLdapObject(DSLogging):
         # This allows some factor objects to be overriden
         self._dn = None
         if dn is not None:
-            self._dn = dn
+            self._dn = ensure_str(dn)
 
         self._batch = batch
         self._protected = True
@@ -440,13 +440,13 @@ class DSLdapObject(DSLogging):
                 v = properties.get(self._rdn_attribute)
                 rdn = ensure_str(v[0])
 
-                erdn = ldap.dn.escape_dn_chars(rdn)
+                erdn = ensure_str(ldap.dn.escape_dn_chars(rdn))
                 self._log.debug("Using first property %s: %s as rdn" % (self._rdn_attribute, erdn))
                 # Now we compare. If we changed this value, we have to put it back to make the properties complete.
                 if erdn != rdn:
                     properties[self._rdn_attribute].append(erdn)
 
-                tdn = '%s=%s,%s' % (self._rdn_attribute, erdn, basedn)
+                tdn = ensure_str('%s=%s,%s' % (self._rdn_attribute, erdn, basedn))
 
         # We may need to map over the data in the properties dict to satisfy python-ldap
         str_props = {}
@@ -458,11 +458,12 @@ class DSLdapObject(DSLogging):
 
     def create(self, rdn=None, properties=None, basedn=None):
         assert(len(self._create_objectclasses) > 0)
+        basedn = ensure_str(basedn)
         self._log.debug('Creating "%s" under %s : %s' % (rdn, basedn, properties))
         # Add the objectClasses to the properties
         (dn, valid_props) = self._validate(rdn, properties, basedn)
         # Check if the entry exists or not? .add_s is going to error anyway ...
-        self._log.debug('Validated %s : %s' % (dn, valid_props))
+        self._log.debug('Validated dn %s : valid_props %s' % (dn, valid_props))
 
         e = Entry(dn)
         e.update({'objectclass': ensure_list_bytes(self._create_objectclasses)})

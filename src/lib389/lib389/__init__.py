@@ -916,6 +916,7 @@ class DirSrv(SimpleLDAPObject, object):
                                 instance with the same 'serverid'
         """
         # check that DirSrv was in DIRSRV_STATE_ALLOCATED state
+        self.log.debug("Server is in state %s" % self.state)
         if self.state != DIRSRV_STATE_ALLOCATED:
             raise ValueError("invalid state for calling create: %s" %
                              self.state)
@@ -927,14 +928,8 @@ class DirSrv(SimpleLDAPObject, object):
         if not self.serverid:
             raise ValueError("SER_SERVERID_PROP is missing, " +
                              "it is required to create an instance")
-
-        # Check how we want to be installed.
-        env_pyinstall = False
-        if os.getenv('PYINSTALL', False) is not False:
-            env_pyinstall = True
         # Time to create the instance and retrieve the effective sroot
-
-        if (env_pyinstall or pyinstall):
+        if (not self.ds_paths.perl_enabled or pyinstall):
             self._createPythonDirsrv(version)
         else:
             self._createDirsrv()
@@ -946,7 +941,7 @@ class DirSrv(SimpleLDAPObject, object):
         # Now the instance is created but DirSrv is not yet connected to it
         self.state = DIRSRV_STATE_OFFLINE
 
-    def delete(self):
+    def _deleteDirsrv(self):
         '''
             Deletes the instance with the parameters sets in dirsrv
             The state changes  -> DIRSRV_STATE_ALLOCATED
@@ -995,6 +990,16 @@ class DirSrv(SimpleLDAPObject, object):
                                       '(%s): error %s' % (DEFAULT_USER,
                                                           e.output))
 
+        self.state = DIRSRV_STATE_ALLOCATED
+
+    def delete(self, pyinstall=False):
+        # Time to create the instance and retrieve the effective sroot
+        if (not self.ds_paths.perl_enabled or pyinstall):
+            from lib389.instance.remove import remove_ds_instance
+            remove_ds_instance(self)
+        else:
+            self._deleteDirsrv()
+        # Now, we are still an allocated ds object so we can be re-installed
         self.state = DIRSRV_STATE_ALLOCATED
 
     def open(self, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD,
@@ -3036,7 +3041,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.set_option(ldap.OPT_SERVER_CONTROLS, [])
         return resp_data, decoded_resp_ctrls
 
-    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com'):
+    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com', pyinstall=False):
         """Generate a simple ldif file using the dbgen.pl script, and set the
            ownership and permissions to match the user that the server runs as.
 
@@ -3046,18 +3051,21 @@ class DirSrv(SimpleLDAPObject, object):
            @return - nothing
            @raise - OSError
         """
-        try:
-            os.system('%s -s %s -n %d -o %s' % (os.path.join(self.ds_paths.bin_dir, 'dbgen.pl'), suffix, num, ldif_file))
-            os.chmod(ldif_file, 0o644)
-            if os.getuid() == 0:
-                # root user - chown the ldif to the server user
-                uid = pwd.getpwnam(self.userid).pw_uid
-                gid = grp.getgrnam(self.userid).gr_gid
-                os.chown(ldif_file, uid, gid)
-        except OSError as e:
-            log.exception('Failed to create ldif file (%s): error %d - %s' %
-                          (ldif_file, e.errno, e.strerror))
-            raise e
+        if (not self.ds_paths.perl_enabled or pyinstall):
+            raise Exception("Perl tools disabled on this system. Try dbgen py module.")
+        else:
+            try:
+                os.system('%s -s %s -n %d -o %s' % (os.path.join(self.ds_paths.bin_dir, 'dbgen.pl'), suffix, num, ldif_file))
+                os.chmod(ldif_file, 0o644)
+                if os.getuid() == 0:
+                    # root user - chown the ldif to the server user
+                    uid = pwd.getpwnam(self.userid).pw_uid
+                    gid = grp.getgrnam(self.userid).gr_gid
+                    os.chown(ldif_file, uid, gid)
+            except OSError as e:
+                log.exception('Failed to create ldif file (%s): error %d - %s' %
+                              (ldif_file, e.errno, e.strerror))
+                raise e
 
     def getConsumerMaxCSN(self, replica_entry):
         """

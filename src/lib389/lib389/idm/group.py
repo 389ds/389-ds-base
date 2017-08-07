@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, ensure_str
 
 MUST_ATTRIBUTES = [
     'cn',
@@ -46,7 +46,7 @@ class Groups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = Group
-        self._basedn = '{},{}'.format(rdn, basedn)
+        self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
 
 class UniqueGroup(DSLdapObject):
     # WARNING!!!

@@ -12,6 +12,7 @@ import pytest
 from lib389 import DirSrv
 from lib389.cli_base import LogCapture
 from lib389.instance.setup import SetupDs
+from lib389.instance.remove import remove_ds_instance
 from lib389.instance.options import General2Base, Slapd2Base
 from lib389._constants import *
 
@@ -105,6 +106,8 @@ def test_setup_ds_minimal(topology):
     # Make sure we can start stop.
     topology.standalone.stop()
     topology.standalone.start()
+    # Okay, actually remove the instance
+    remove_ds_instance(topology.standalone)
 
 
 def test_setup_ds_inf_minimal(topology):

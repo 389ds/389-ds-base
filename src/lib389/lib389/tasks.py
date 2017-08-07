@@ -18,7 +18,7 @@ from lib389.exceptions import Error
 from lib389._constants import (
         DEFAULT_SUFFIX, DEFAULT_BENAME, DN_EXPORT_TASK, DN_BACKUP_TASK,
         DN_IMPORT_TASK, DN_RESTORE_TASK, DN_INDEX_TASK, DN_MBO_TASK,
-        DN_TOMB_FIXUP_TASK, DN_TASKS
+        DN_TOMB_FIXUP_TASK, DN_TASKS, DIRSRV_STATE_ONLINE
         )
 from lib389.properties import (
         TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
@@ -153,6 +153,8 @@ class Tasks(object):
         @raise ValueError
 
         '''
+        if self.conn.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid Server State %s! Must be online" % self.conn.state)
 
         # Checking the parameters
         if not benamebase and not suffix:
@@ -177,11 +179,7 @@ class Tasks(object):
             entry.setValues('nsIncludeSuffix', suffix)
 
         # start the task and possibly wait for task completion
-        try:
-            self.conn.add_s(entry)
-        except ldap.ALREADY_EXISTS:
-            self.log.error("Fail to add the import task of %s" % input_file)
-            return -1
+        self.conn.add_s(entry)
 
         exitCode = 0
         if args and args.get(TASK_WAIT, False):

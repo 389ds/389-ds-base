@@ -6,10 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+from lib389.utils import ensure_str
+
 class sampleentries(object):
     def __init__(self, instance, basedn):
         self._instance = instance
-        self._basedn = basedn
+        self._basedn = ensure_str(basedn)
         self.description = None
 
     def apply(self):

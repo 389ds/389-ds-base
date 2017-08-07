@@ -63,7 +63,6 @@ class Entry(object):
         If creating a new empty entry, data is the string DN.
         """
         self.ref = None
-        self.data = None
         if entrydata:
             if isinstance(entrydata, tuple):
                 if entrydata[0] is None:
@@ -74,12 +73,11 @@ class Entry(object):
             elif isinstance(entrydata, six.string_types):
                 if '=' not in entrydata:
                     raise ValueError('Entry dn must contain "="')
-
                 self.dn = entrydata
                 self.data = cidict()
         else:
-            self.dn = ''
             self.data = cidict()
+            self.dn = None
 
     def __bool__(self):
         """
@@ -134,7 +132,7 @@ class Entry(object):
         # We can't actually enforce this because cidict doesn't inherit Mapping
         # if not isinstance(self.data, collections.Mapping):
         #     raise Exception('Invalid data type for Entry')
-        return name in self.data
+        return ensure_str(name) in self.data
 
     def __getitem__(self, name):
         # This should probably return getValues?
@@ -234,15 +232,21 @@ class Entry(object):
         """
         # For python3, we have to make sure EVERYTHING is a byte string.
         # Else everything EXPLODES
-        lt = list(self.data.items())
+        lt = None
         if MAJOR >= 3:
-            ltnew = []
-            for l in lt:
-                vals = []
-                for v in l[1]:
-                    vals.append(ensure_bytes(v))
-                ltnew.append((l[0], vals))
-            lt = ltnew
+            # This converts the dict to a list of tuples,
+            lt = []
+            for k in self.data.keys():
+                # l here is the 
+                vals = None
+                if isinstance(self.data[k], list) or isinstance(self.data[k], tuple):
+                    vals = ensure_list_bytes(self.data[k])
+                else:
+                    vals = ensure_list_bytes([self.data[k]])
+                lt.append((k, vals))
+            # lt is now complete.
+        else:
+            lt = list(self.data.items())
         return lt
 
     def getref(self):

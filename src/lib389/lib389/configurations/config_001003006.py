@@ -25,8 +25,7 @@ class c001003006_sample_entries(sampleentries):
     # All the checks are done, apply them.
     def _apply(self):
         # Create the base domain object
-        domain = Domain(self._instance)
-        domain._dn = self._basedn
+        domain = Domain(self._instance, dn=self._basedn)
         # Explode the dn to get the first bit.
         avas = dn.str2dn(self._basedn)
         dc_ava = avas[0][0][1]
@@ -111,7 +110,7 @@ class c001003006(baseconfig):
         super(c001003006, self).__init__(instance)
         self._operations = [
             # Create plugin configs first
-            c001003006_whoami_plugin(self._instance)
+            # c001003006_whoami_plugin(self._instance)
             # Create our sample entries.
             # op001003006_sample_entries(self._instance),
         ]

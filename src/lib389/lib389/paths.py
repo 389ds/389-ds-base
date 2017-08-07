@@ -139,6 +139,7 @@ class Paths(object):
         return True
 
     def __getattr__(self, name):
+        from lib389.utils import ensure_str
         if self._defaults_cached is False:
             self._read_defaults()
             self._validate_defaults()
@@ -147,12 +148,12 @@ class Paths(object):
             # Get the online value.
             (dn, attr) = CONFIG_MAP[name]
             ent = self._instance.getEntry(dn, attrlist=[attr,])
-            return ent.getValue(attr)
+            return ensure_str(ent.getValue(attr))
 
         elif self._serverid is not None:
-            return self._config.get(SECTION, name).format(instance_name=self._serverid)
+            return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
         else:
-            return self._config.get(SECTION, name)
+            return ensure_str(self._config.get(SECTION, name))
 
     @property
     def asan_enabled(self):
@@ -173,3 +174,13 @@ class Paths(object):
             if self._config.get(SECTION, 'with_systemd') == '1':
                 return True
         return False
+
+    @property
+    def perl_enabled(self):
+        if self._defaults_cached is False:
+            self._read_defaults()
+            self._validate_defaults()
+        if self._config.has_option(SECTION, 'enable_perl'):
+            if self._config.get(SECTION, 'enable_perl') == 'no':
+                return False
+        return True
