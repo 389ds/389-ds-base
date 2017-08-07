@@ -60,7 +60,6 @@ else
 WITH_SYSTEMD = 0
 endif
 
-
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
 # values prior to their being defined.  Defining them here ensures that they are properly
@@ -278,10 +277,17 @@ defaultgroup=@defaultgroup@
 #------------------------
 # Build Products
 #------------------------
-sbin_PROGRAMS = ns-slapd ldap-agent-bin
+sbin_PROGRAMS = ns-slapd ldap-agent
 
-bin_PROGRAMS = dbscan-bin dsktune-bin infadd-bin ldclt-bin \
-	ldif-bin migratecred-bin mmldif-bin pwdhash-bin rsearch-bin
+bin_PROGRAMS = dbscan \
+	dsktune \
+	infadd \
+	ldclt \
+	ldif \
+	migratecred \
+	mmldif \
+	pwdhash \
+	rsearch
 
 server_LTLIBRARIES = libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
 
@@ -330,10 +336,6 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libwhoami-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
-
-nodist_property_DATA = ns-slapd.properties
-
-noinst_PROGRAMS = makstrdb
 
 noinst_LIBRARIES = libavl.a
 
@@ -557,12 +559,9 @@ endif
 
 dist_noinst_DATA = \
 	$(srcdir)/buildnum.pl \
-	$(srcdir)/ldap/admin/src/*.pl \
 	$(srcdir)/ldap/admin/src/*.in \
 	$(srcdir)/ldap/admin/src/scripts/*.in \
 	$(srcdir)/ldap/admin/src/scripts/*.ldif \
-	$(srcdir)/ldap/admin/src/scripts/*.pl \
-	$(srcdir)/ldap/admin/src/scripts/*.pm \
 	$(srcdir)/ldap/admin/src/scripts/*.py \
 	$(srcdir)/ldap/admin/src/scripts/*.sh \
 	$(srcdir)/ldap/admin/src/scripts/ds-replcheck \
@@ -571,8 +570,6 @@ dist_noinst_DATA = \
 	$(srcdir)/ldap/ldif/*.ldif \
 	$(srcdir)/ldap/schema/*.ldif \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
-	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl \
-	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen* \
 	$(srcdir)/ldap/servers/snmp/ldap-agent.conf \
 	$(srcdir)/ldap/servers/snmp/redhat-directory.mib \
 	$(srcdir)/lib/ldaputil/certmap.conf \
@@ -587,8 +584,16 @@ dist_noinst_DATA = \
 	$(srcdir)/setup.py.in \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/wrappers/systemd.template.sysconfig \
-	$(srcdir)/dirsrvtests \
-	$(NULL)
+	$(srcdir)/dirsrvtests
+
+if ENABLE_PERL
+dist_noinst_DATA += \
+	$(srcdir)/ldap/admin/src/*.pl \
+	$(srcdir)/ldap/admin/src/scripts/*.pl \
+	$(srcdir)/ldap/admin/src/scripts/*.pm \
+	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl \
+	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen*
+endif
 
 #------------------------
 # Installed Files
@@ -683,7 +688,12 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
-sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
+sbin_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
+	ldap/admin/src/scripts/ds_selinux_port_query \
+	wrappers/ds_systemd_ask_password_acl
+
+if ENABLE_PERL
+sbin_SCRIPTS += ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/start-dirsrv \
@@ -721,35 +731,29 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
 	ldap/admin/src/scripts/upgradedb \
-	ldap/admin/src/scripts/dbmon.sh \
-	ldap/admin/src/scripts/ds_selinux_enabled \
-	ldap/admin/src/scripts/ds_selinux_port_query \
-	wrappers/ds_systemd_ask_password_acl \
-	wrappers/ldap-agent
+	ldap/admin/src/scripts/dbmon.sh
+endif
 
-bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
-	wrappers/dbscan \
-	wrappers/dsktune \
-	wrappers/infadd \
-	wrappers/ldclt \
-	wrappers/ldif \
-	wrappers/migratecred \
-	wrappers/mmldif \
-	wrappers/pwdhash \
-	wrappers/rsearch \
+bin_SCRIPTS = \
+	wrappers/repl-monitor \
+	ldap/admin/src/scripts/readnsstate
+
+if ENABLE_PERL
+bin_SCRIPTS += ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/cl-dump \
 	ldap/admin/src/scripts/cl-dump.pl \
-	wrappers/repl-monitor \
-	ldap/admin/src/scripts/repl-monitor.pl \
-	ldap/admin/src/scripts/readnsstate
+	ldap/admin/src/scripts/repl-monitor.pl
+endif
 
 # For scripts that are "as is".
 dist_bin_SCRIPTS = ldap/admin/src/scripts/ds-replcheck \
-	ldap/admin/src/scripts/ds-logpipe.py \
-	ldap/admin/src/logconv.pl
+	ldap/admin/src/scripts/ds-logpipe.py
+
+dist_bin_SCRIPTS += ldap/admin/src/logconv.pl
 
 # SCRIPTS makes them executables - these are perl modules
 # and should not be marked as executable - so use DATA
+if ENABLE_PERL
 perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Resource.pm \
 	ldap/admin/src/scripts/DSUtil.pm \
@@ -765,6 +769,7 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DSCreate.pm \
 	ldap/admin/src/scripts/DSUpdate.pm \
 	ldap/admin/src/scripts/DSUpdateDialogs.pm
+endif
 
 python_DATA = ldap/admin/src/scripts/failedbinds.py \
 	ldap/admin/src/scripts/logregex.py
@@ -773,6 +778,7 @@ gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
 
 dist_sysctl_DATA = ldap/admin/src/70-dirsrv.conf
 
+if ENABLE_PERL
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
 
@@ -810,6 +816,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-usn-tombstone-cleanup.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
+endif
 
 if SYSTEMD
 # yes, that is an @ in the filename . . .
@@ -909,6 +916,7 @@ dist_man_MANS = man/man1/dbscan.1 \
 # processed by the update script
 # shell scripts and other files are SCRIPTS - executable
 #------------------------
+if ENABLE_PERL
 update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/exampleupdate.ldif \
 	ldap/admin/src/scripts/10cleanupldapi.pl \
@@ -965,6 +973,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/91reindex.pl
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
+endif
 
 #////////////////////////////////////////////////////////////////
 #
@@ -974,6 +983,11 @@ update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
 #------------------------
 # makstrdb
 #------------------------
+if ENABLE_PERL
+noinst_PROGRAMS = makstrdb
+
+nodist_property_DATA = ns-slapd.properties
+
 makstrdb_SOURCES = lib/libsi18n/makstrdb.c
 
 makstrdb_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
@@ -983,6 +997,8 @@ makstrdb_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 #------------------------
 ns-slapd.properties: makstrdb
 	./makstrdb
+
+endif
 
 
 #////////////////////////////////////////////////////////////////
@@ -1812,46 +1828,42 @@ libwhoami_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 # dbscan
 #------------------------
-dbscan_bin_SOURCES = ldap/servers/slapd/tools/dbscan.c
+dbscan_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
-dbscan_bin_CPPFLAGS = @db_inc@ @nspr_inc@ $(AM_CPPFLAGS)
-dbscan_bin_LDADD = $(NSPR_LINK) $(DB_LINK)
+dbscan_CPPFLAGS = @db_inc@ @nspr_inc@ $(AM_CPPFLAGS)
+dbscan_LDADD = $(NSPR_LINK) $(DB_LINK)
 
 #------------------------
 # dsktune
 #------------------------
-dsktune_bin_SOURCES = ldap/systools/idsktune.c \
-	ldap/systools/pio.c
-dsktune_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+dsktune_SOURCES = ldap/systools/idsktune.c ldap/systools/pio.c
+dsktune_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 
 #------------------------
 # infadd
 #------------------------
-infadd_bin_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
+infadd_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
 	ldap/servers/slapd/tools/rsearch/infadd.c \
 	ldap/servers/slapd/tools/rsearch/nametable.c
 
-infadd_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
+infadd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+infadd_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 #------------------------
 # ldap-agent
 #------------------------
-ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
+ldap_agent_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/snmp/ldap-agent.c \
 	ldap/servers/slapd/agtmmap.c
 
-ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @netsnmp_inc@
-ldap_agent_bin_LDADD = $(LDAPSDK_LINK_NOTHR) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
-if SOLARIS
-ldap_agent_bin_LDADD += -lrt
-endif
+ldap_agent_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @netsnmp_inc@
+ldap_agent_LDADD = $(LDAPSDK_LINK_NOTHR) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
 
 
 #------------------------
 # ldclt
 #------------------------
-ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
+ldclt_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
 	ldap/servers/slapd/tools/ldclt/ldclt.c \
@@ -1864,38 +1876,34 @@ ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c
 
-if SOLARIS
-ldclt_bin_SOURCES += ldap/servers/slapd/tools/ldclt/opCheck.c
-endif
-
-ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES)
-ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL) $(THREADLIB)
+ldclt_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES)
+ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL) $(THREADLIB)
 
 #------------------------
 # ldif
 #------------------------
-ldif_bin_SOURCES = ldap/servers/slapd/tools/ldif.c
+ldif_SOURCES = ldap/servers/slapd/tools/ldif.c
 
-ldif_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
+ldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 
 #------------------------
 # migratecred
 #------------------------
-migratecred_bin_SOURCES = ldap/servers/slapd/tools/migratecred.c
+migratecred_SOURCES = ldap/servers/slapd/tools/migratecred.c
 
-migratecred_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
-migratecred_bin_DEPENDENCIES = libslapd.la
+migratecred_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+migratecred_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+migratecred_DEPENDENCIES = libslapd.la
 
 #------------------------
 # mmldif
 #------------------------
-mmldif_bin_SOURCES = ldap/servers/slapd/tools/mmldif.c
+mmldif_SOURCES = ldap/servers/slapd/tools/mmldif.c
 
-mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
-mmldif_bin_DEPENDENCIES = libslapd.la
+mmldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+mmldif_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
+mmldif_DEPENDENCIES = libslapd.la
 
 #------------------------
 # ns-slapd
@@ -1960,22 +1968,22 @@ endif
 #------------------------
 # pwdhash
 #------------------------
-pwdhash_bin_SOURCES = ldap/servers/slapd/tools/pwenc.c
+pwdhash_SOURCES = ldap/servers/slapd/tools/pwenc.c
 
-pwdhash_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-pwdhash_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
-pwdhash_bin_DEPENDENCIES = libslapd.la
+pwdhash_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+pwdhash_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+pwdhash_DEPENDENCIES = libslapd.la
 
 #------------------------
 # rsearch
 #------------------------
-rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
+rsearch_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 	ldap/servers/slapd/tools/rsearch/rsearch.c \
 	ldap/servers/slapd/tools/rsearch/sdattable.c \
 	ldap/servers/slapd/tools/rsearch/searchthread.c
 
-rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
+rsearch_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+rsearch_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 #-------------------------
 # CMOCKA TEST PROGRAMS
@@ -2113,6 +2121,7 @@ fixupcmd = sed \
 	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 	-e 's,@enable_presence\@,$(enable_presence),g' \
 	-e 's,@enable_asan\@,$(ASAN_ON),g' \
+	-e 's,@enable_perl\@,@enable_perl@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \

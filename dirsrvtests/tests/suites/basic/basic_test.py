@@ -11,11 +11,14 @@
    :Requirement: Basic Directory Server Operations
 """
 
-from subprocess import check_output
+from subprocess import check_output, Popen
 
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
+from lib389.dbgen import dbgen
+
 from lib389._constants import DN_DM, PASSWORD, PW_DM
 from lib389.topologies import topology_st
 
@@ -44,13 +47,9 @@ def import_example_ldif(topology_st):
     ldif = '%s/Example.ldif' % get_data_dir(topology_st.standalone.prefix)
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
-    try:
-        topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
-                                                input_file=import_ldif,
-                                                args={TASK_WAIT: True})
-    except ValueError:
-        log.error('Online import failed')
-        assert False
+    topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
+                                            input_file=import_ldif,
+                                            args={TASK_WAIT: True})
 
 
 @pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
@@ -62,7 +61,7 @@ def rootdse_attr(topology_st, request):
     topology_st.standalone.start()
 
     RETURN_DEFAULT_OPATTR = "nsslapd-return-default-opattr"
-    rootdse_attr_name = request.param
+    rootdse_attr_name = ensure_bytes(request.param)
 
     log.info("        Add the %s: %s to rootdse" % (RETURN_DEFAULT_OPATTR,
                                                     rootdse_attr_name))
@@ -156,14 +155,14 @@ def test_basic_ops(topology_st, import_example_ldif):
     #
     try:
         topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_ADD, 'description',
-                                                    'New description')])
+                                                    b'New description')])
     except ldap.LDAPError as e:
         log.error('Failed to add description: error ' + e.message['desc'])
         assert False
 
     try:
         topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'description',
-                                                    'Modified description')])
+                                                    b'Modified description')])
     except ldap.LDAPError as e:
         log.error('Failed to modify description: error ' + e.message['desc'])
         assert False
@@ -250,16 +249,12 @@ def test_basic_import_export(topology_st, import_example_ldif):
     #
     # Test online/offline LDIF imports
     #
+    topology_st.standalone.start()
 
     # Generate a test ldif (50k entries)
     ldif_dir = topology_st.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
-    try:
-        topology_st.standalone.buildLDIF(50000, import_ldif)
-    except OSError as e:
-        log.fatal('test_basic_import_export: failed to create test ldif,\
-                error: %s - %s' % (e.errno, e.strerror))
-        assert False
+    dbgen(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
 
     # Online
     try:
@@ -398,10 +393,10 @@ def test_basic_acl(topology_st, import_example_ldif):
          7. Cleanup should PASS.
     """
 
+    """Run some basic access control(ACL) tests"""
     log.info('Running test_basic_acl...')
 
-    DENY_ACI = ('(targetattr = "*") (version 3.0;acl "deny user";deny (all)' +
-                '(userdn = "ldap:///' + USER1_DN + '");)')
+    DENY_ACI = ensure_bytes('(targetattr = "*")(version 3.0;acl "deny user";deny (all)(userdn = "ldap:///%s");)' % USER1_DN)
 
     #
     # Add two users
@@ -610,14 +605,14 @@ def test_basic_referrals(topology_st, import_example_ldif):
         topology_st.standalone.modify_s(SUFFIX_CONFIG,
                                         [(ldap.MOD_REPLACE,
                                           'nsslapd-referral',
-                                          'ldap://localhost.localdomain:389/o%3dnetscaperoot')])
+                                          b'ldap://localhost.localdomain:389/o%3dnetscaperoot')])
     except ldap.LDAPError as e:
         log.fatal('test_basic_referrals: Failed to set referral: error ' + e.message['desc'])
         assert False
 
     try:
         topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_REPLACE,
-                                                         'nsslapd-state', 'Referral')])
+                                                         'nsslapd-state', b'Referral')])
     except ldap.LDAPError as e:
         log.fatal('test_basic_referrals: Failed to set backend state: error '
                   + e.message['desc'])
@@ -645,7 +640,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
     #
     try:
         topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_REPLACE,
-                                                         'nsslapd-state', 'Backend')])
+                                                         'nsslapd-state', b'Backend')])
     except ldap.LDAPError as e:
         log.fatal('test_basic_referrals: Failed to set backend state: error '
                   + e.message['desc'])
@@ -761,8 +756,8 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
     log.info('Running test_basic_ldapagent...')
 
     var_dir = topology_st.standalone.get_local_state_dir()
+
     config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
-    cmd = 'sudo %s %s' % (os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), config_file)
 
     agent_config_file = open(config_file, 'w')
     agent_config_file.write('agentx-master ' + var_dir + '/agentx/master\n')
@@ -770,19 +765,16 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
     agent_config_file.write('server slapd-' + topology_st.standalone.serverid + '\n')
     agent_config_file.close()
 
-    rc = os.system(cmd)
-    if rc != 0:
-        log.fatal('test_basic_ldapagent: Failed to start snmp ldap agent %s: error %d' % (cmd, rc))
-        assert False
-
-    log.info('snmp ldap agent started')
-
-    #
-    # Cleanup - kill the agent
-    #
-    pid = check_output(['pidof', '-s', 'ldap-agent-bin'])
-    log.info('Cleanup - killing agent: ' + pid)
-    rc = os.system('sudo kill -9 ' + pid)
+    # Remember, this is *forking*
+    check_output([os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), config_file])
+    # First kill any previous agents ....
+    pidpath = os.path.join(var_dir, 'run/ldap-agent.pid')
+    pid = None
+    with open(pidpath, 'r') as pf:
+        pid = pf.readlines()[0].strip()
+    if pid:
+        log.debug('test_basic_ldapagent: Terminating agent %s', pid)
+        check_output(['kill', pid])
 
     log.info('test_basic_ldapagent: PASSED')
 
@@ -807,8 +799,8 @@ def test_basic_dse(topology_st, import_example_ldif):
     log.info('Running test_basic_dse...')
 
     dse_file = topology_st.standalone.confdir + '/dse.ldif'
-    pid = check_output(['pidof', '-s', 'ns-slapd'])
-    os.system('sudo kill -9 ' + pid)
+    pid = check_output(['pidof', '-s', 'ns-slapd']).strip()
+    check_output(['sudo', 'kill', '-9', ensure_str(pid)])
     if os.path.getsize(dse_file) == 0:
         log.fatal('test_basic_dse: dse.ldif\'s content was incorrectly removed!')
         assert False
@@ -842,9 +834,8 @@ def test_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr_name):
 
     log.info(" Assert rootdse search hasn't %s attr" % rootdse_attr_name)
     try:
-        entries = topology_st.standalone.search_s("", ldap.SCOPE_BASE)
-        entry = str(entries[0])
-        assert rootdse_attr_name not in entry
+        entry = topology_st.standalone.search_s("", ldap.SCOPE_BASE)[0]
+        assert not entry.hasAttr(rootdse_attr_name)
 
     except ldap.LDAPError as e:
         log.fatal('Search failed, error: ' + e.message['desc'])
@@ -870,9 +861,8 @@ adds nsslapd-return-default-opattr attr with value of one operation attribute.
 
     log.info(" Assert rootdse search has %s attr" % rootdse_attr)
     try:
-        entries = topology_st.standalone.search_s("", ldap.SCOPE_BASE)
-        entry = str(entries[0])
-        assert rootdse_attr in entry
+        entry = topology_st.standalone.search_s("", ldap.SCOPE_BASE)[0]
+        assert entry.hasAttr(rootdse_attr)
 
     except ldap.LDAPError as e:
         log.fatal('Search failed, error: ' + e.message['desc'])

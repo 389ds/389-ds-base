@@ -103,6 +103,21 @@ AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitize
 AC_SUBST([asan_defs])
 AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
 
+if test -z "$enable_perl" ; then
+   enable_perl=yes
+fi
+AC_MSG_CHECKING(for --enable-perl)
+AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable perl and shell script wrappers (default: yes)])
+[
+    AC_MSG_RESULT(yes)
+],
+[
+    AC_MSG_RESULT(no)
+])
+AC_SUBST([enable_perl])
+AM_CONDITIONAL(ENABLE_PERL,test "$enable_perl" = "yes")
+
+
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
 AC_MSG_CHECKING(for --enable-gcc-security)
 AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc secure compilation options (default: no)]),
@@ -776,6 +791,8 @@ AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
 
 # Build our pkgconfig files
 # This currently conflicts with %.in: rule in Makefile.am, which should be removed eventually.
+
+# AC_CONFIG_FILES([ldap/admin/src/defaults.inf])
 
 AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc])
 

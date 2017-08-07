@@ -20,6 +20,7 @@
 product = @capbrand@ Directory Server
 version = @PACKAGE_VERSION@
 asan_enabled = @enable_asan@
+enable_perl = @enable_perl@
 with_systemd = @with_systemd@
 with_selinux = @with_selinux@
 prefix = @prefixdir@

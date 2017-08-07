@@ -53,7 +53,7 @@ success()
 
 baseexec="ldap-agent"
 exec="@sbindir@/$baseexec"
-processname="ldap-agent-bin"
+processname="ldap-agent"
 prog="@package_name@-snmp"
 pidfile="@localstatedir@/run/ldap-agent.pid"
 configfile="@sysconfdir@/@package_name@/config/ldap-agent.conf"

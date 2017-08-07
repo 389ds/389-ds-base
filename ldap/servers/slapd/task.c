@@ -892,7 +892,7 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
             rv = charray_normdn_add(&include,
                                     (char *)slapi_value_get_string(val),
                                     "nsIncludeSuffix");
-            if (0 != rv) {
+            if (rv < 0) {
                 *returncode = LDAP_PARAM_ERROR;
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
@@ -904,7 +904,7 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
             rv = charray_normdn_add(&exclude,
                                     (char *)slapi_value_get_string(val),
                                     "nsExcludeSuffix");
-            if (0 != rv) {
+            if (rv < 0) {
                 *returncode = LDAP_PARAM_ERROR;
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
@@ -1243,7 +1243,7 @@ task_export_add(Slapi_PBlock *pb __attribute__((unused)),
             rv = charray_normdn_add(&include,
                                     (char *)slapi_value_get_string(val),
                                     "nsIncludeSuffix");
-            if (0 != rv) {
+            if (rv < 0) {
                 *returncode = LDAP_PARAM_ERROR;
                 goto out;
             }
@@ -1255,7 +1255,7 @@ task_export_add(Slapi_PBlock *pb __attribute__((unused)),
             rv = charray_normdn_add(&exclude,
                                     (char *)slapi_value_get_string(val),
                                     "nsExcludeSuffix");
-            if (0 != rv) {
+            if (rv < 0) {
                 *returncode = LDAP_PARAM_ERROR;
                 goto out;
             }

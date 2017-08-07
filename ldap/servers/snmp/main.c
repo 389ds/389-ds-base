@@ -95,7 +95,7 @@ main(int argc, char *argv[])
         }
         fclose(pid_fp);
         if (kill(child_pid, SIGUSR1) == 0) {
-            printf("ldap-agent: Already running as pid %d!\n", child_pid);
+            printf("ldap-agent: Already running as pid %d %s!\n", child_pid, pidfile);
             exit(1);
         } else {
             /* old pidfile exists, but the process doesn't. Cleanup pidfile */
