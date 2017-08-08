@@ -31,7 +31,7 @@ if ($opt_H) {exitHelp();}
 $platdir = $opt_p;
 
 # Get current time
-@now = gmtime;
+@now = gmtime($ENV{SOURCE_DATE_EPOCH} || time);
 
 # Format buildnum as YYYY.DDD.HHMM
 $year = $now[5] + 1900;
