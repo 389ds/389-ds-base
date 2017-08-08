@@ -97,8 +97,6 @@ ldif_back_init(Slapi_PBlock *pb)
                            (void *)ldif_back_config);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
                            (void *)ldif_back_close);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_FLUSH_FN,
-                           (void *)ldif_back_flush);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
                            (void *)ldif_back_start);
     if (rc != 0) {

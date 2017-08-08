@@ -192,7 +192,6 @@ Slapi_Backend *be_new_internal(struct dse *pdse, const char *type, const char *n
 void be_replace_dse_internal(Slapi_Backend *be, struct dse *pdse);
 int fedse_create_startOK(char *filename, char *startokfilename, const char *configdir);
 void be_cleanupall(void);
-void be_flushall(void);
 int be_remove(Slapi_Backend *be);
 void g_set_defsize(int val);
 void g_set_deftime(int val);

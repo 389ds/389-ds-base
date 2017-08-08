@@ -828,9 +828,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_PLUGIN_CLEANUP_FN:
         (*(IFP *)value) = pblock->pb_plugin->plg_cleanup;
         break;
-    case SLAPI_PLUGIN_DB_FLUSH_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_flush;
-        break;
     case SLAPI_PLUGIN_START_FN:
         (*(IFP *)value) = pblock->pb_plugin->plg_start;
         break;
@@ -2584,12 +2581,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         break;
     case SLAPI_PLUGIN_CLEANUP_FN:
         pblock->pb_plugin->plg_cleanup = (IFP)value;
-        break;
-    case SLAPI_PLUGIN_DB_FLUSH_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        pblock->pb_plugin->plg_flush = (IFP)value;
         break;
     case SLAPI_PLUGIN_START_FN:
         pblock->pb_plugin->plg_start = (IFP)value;

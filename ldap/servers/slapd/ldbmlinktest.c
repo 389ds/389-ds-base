@@ -30,7 +30,6 @@ main()
     ldbm_back_config();
     ldbm_back_init();
     ldbm_back_close();
-    ldbm_back_flush();
 }
 
 #if 0

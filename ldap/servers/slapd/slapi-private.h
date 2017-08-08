@@ -879,7 +879,6 @@ int proxyauth_get_dn(Slapi_PBlock *pb, char **proxydnp, char **errtextp);
 #define SLAPI_PLUGIN_DB_DELETE_FN                 207
 #define SLAPI_PLUGIN_DB_ABANDON_FN                208
 #define SLAPI_PLUGIN_DB_CONFIG_FN                 209
-#define SLAPI_PLUGIN_DB_FLUSH_FN                  211
 #define SLAPI_PLUGIN_DB_SEQ_FN                    213
 #define SLAPI_PLUGIN_DB_ENTRY_FN                  214
 #define SLAPI_PLUGIN_DB_REFERRAL_FN               215

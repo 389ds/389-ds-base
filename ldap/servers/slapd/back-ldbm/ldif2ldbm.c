@@ -1646,11 +1646,6 @@ bye:
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_ldbm2ldif", "<=\n");
 
     if (we_start_the_backends && NULL != li) {
-        if (0 != dblayer_flush(li)) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldbm2ldif", "db2ldif: Failed to flush database\n");
-        }
-
         if (0 != dblayer_close(li, DBLAYER_EXPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm_back_ldbm2ldif", "db2ldif: Failed to close database\n");
@@ -2597,10 +2592,6 @@ err_min:
     instance_set_not_busy(inst);
 
     if (run_from_cmdline) {
-        if (0 != dblayer_flush(li)) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldbm2index", "%s: Failed to flush database\n", inst->inst_name);
-        }
         dblayer_instance_close(be);
         if (0 != dblayer_close(li, DBLAYER_INDEX_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR,
@@ -3000,10 +2991,6 @@ ldbm_back_upgradedb(Slapi_PBlock *pb)
 
     /* close the database down again */
     if (run_from_cmdline) {
-        if (0 != dblayer_flush(li)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                          "Failed to flush database\n");
-        }
         if (0 != dblayer_close(li, DBLAYER_IMPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
                           "Failed to close database\n");
@@ -3024,9 +3011,6 @@ ldbm_back_upgradedb(Slapi_PBlock *pb)
     return 0;
 
 fail1:
-    if (0 != dblayer_flush(li))
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
-                      "Failed to flush database\n");
 
     /* we started dblayer with DBLAYER_IMPORT_MODE
      * We just want not to generate a guardian file...
@@ -3785,10 +3769,6 @@ ldbm_back_upgradednformat(Slapi_PBlock *pb)
 
     /* close the database */
     if (run_from_cmdline) {
-        if (0 != dblayer_flush(li)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
-                          "Failed to flush database\n");
-        }
         if (0 != dblayer_close(li, DBLAYER_IMPORT_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
                           "Failed to close database\n");

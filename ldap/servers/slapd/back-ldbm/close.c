@@ -28,8 +28,6 @@ ldbm_back_close(Slapi_PBlock *pb)
     li->li_shutdown = 1;
     PR_Unlock(li->li_shutdown_mutex);
 
-    dblayer_flush(li); /* just be doubly sure! */
-
     /* close down all the ldbm instances */
     dblayer_close(li, DBLAYER_NORMAL_MODE);
 
@@ -37,18 +35,6 @@ ldbm_back_close(Slapi_PBlock *pb)
     ldbm_instance_stopall_caches(li);
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_close", "ldbm backend done syncing\n");
-    return 0;
-}
-
-int
-ldbm_back_flush(Slapi_PBlock *pb)
-{
-    struct ldbminfo *li;
-
-    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_close", "ldbm backend flushing\n");
-    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
-    dblayer_flush(li);
-    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_close", "ldbm backend done flushing\n");
     return 0;
 }
 

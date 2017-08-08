@@ -83,7 +83,6 @@ int ldif_back_unbind(Slapi_PBlock *);
 
 int ldif_back_start(Slapi_PBlock *);
 void ldif_back_close(Slapi_PBlock *);
-void ldif_back_flush(Slapi_PBlock *);
 void ldif_free_db(LDIF *);
 
 int ldif_back_compare(Slapi_PBlock *);

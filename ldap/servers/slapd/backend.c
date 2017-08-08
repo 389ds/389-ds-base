@@ -392,9 +392,6 @@ slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slap
     case SLAPI_PLUGIN_CLOSE_FN:
         *ret_fnptr = (void *)be->be_close;
         break;
-    case SLAPI_PLUGIN_DB_FLUSH_FN:
-        *ret_fnptr = (void *)be->be_flush;
-        break;
     case SLAPI_PLUGIN_START_FN:
         *ret_fnptr = (void *)be->be_start;
         break;
@@ -503,9 +500,6 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
         break;
     case SLAPI_PLUGIN_CLOSE_FN:
         be->be_close = (IFP)ret_fnptr;
-        break;
-    case SLAPI_PLUGIN_DB_FLUSH_FN:
-        be->be_flush = (IFP)ret_fnptr;
         break;
     case SLAPI_PLUGIN_START_FN:
         be->be_start = (IFP)ret_fnptr;

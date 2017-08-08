@@ -2584,17 +2584,6 @@ dblayer_close(struct ldbminfo *li, int dbmode)
     return return_value;
 }
 
-/*
- * Called to tell us to flush any data not on disk to the disk
- * for the transacted database, we interpret this as an instruction
- * to write a checkpoint.
- */
-int
-dblayer_flush(struct ldbminfo *li __attribute__((unused)))
-{
-    return 0;
-}
-
 /* API to remove the environment */
 int
 dblayer_remove_env(struct ldbminfo *li)

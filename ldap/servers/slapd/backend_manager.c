@@ -288,29 +288,6 @@ be_cleanupall()
     slapi_ch_free((void **)&backends);
 }
 
-/*
- * This ifdef is needed to resolve a gcc 6 issue which throws a false positive
- * here. See also: https://bugzilla.redhat.com/show_bug.cgi?id=1386445
- *
- * It's a good idea to run this in EL7 to check the overflows etc, but with
- * GCC 6 and lsan to find memory leaks ....
- */
-void
-be_flushall()
-{
-    for (size_t i = 0; i < maxbackends; i++) {
-        if (backends[i] &&
-            backends[i]->be_state == BE_STATE_STARTED &&
-            backends[i]->be_flush != NULL) {
-            Slapi_PBlock *pb = slapi_pblock_new();
-            slapi_pblock_set(pb, SLAPI_PLUGIN, backends[i]->be_database);
-            slapi_pblock_set(pb, SLAPI_BACKEND, backends[i]);
-            (*backends[i]->be_flush)(pb);
-            slapi_pblock_destroy(pb);
-        }
-    }
-}
-
 void
 be_unbindall(Connection *conn, Operation *op)
 {

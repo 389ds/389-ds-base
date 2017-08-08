@@ -1172,8 +1172,6 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
 #endif
     }
 
-    /* Might compete with housecleaning thread, but so far so good */
-    be_flushall();
     op_thread_cleanup();
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
     disk_monitoring_stop();

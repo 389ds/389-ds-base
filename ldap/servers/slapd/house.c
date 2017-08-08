@@ -37,8 +37,6 @@ housecleaning(void *cur_time __attribute__((unused)))
         /*
          * Looks simple, but could potentially take a long time.
          */
-        be_flushall();
-
         log_access_flush();
 
         if (g_get_shutdown()) {

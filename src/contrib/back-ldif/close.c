@@ -67,18 +67,3 @@ ldif_back_close(Slapi_PBlock *pb)
     ldif_free_db(db);
     slapi_log_err(SLAPI_LOG_TRACE, "ldif backend done syncing\n", 0, 0, 0);
 }
-
-/*
- *  Function: ldif_back_flush
- *
- *  Returns: void
- *
- *  Description: does nothing
- */
-void
-ldif_back_flush(Slapi_PBlock *pb)
-{
-    slapi_log_err(SLAPI_LOG_TRACE, "ldif backend flushing\n", 0, 0, 0);
-    slapi_log_err(SLAPI_LOG_TRACE, "ldif backend done flushing\n", 0, 0, 0);
-    return;
-}

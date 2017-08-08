@@ -998,7 +998,6 @@ struct slapdplugin
             IFP plg_un_db_delete;               /* delete */
             IFP plg_un_db_abandon;              /* abandon */
             IFP plg_un_db_config;               /* config */
-            IFP plg_un_db_flush;                /* close */
             IFP plg_un_db_seq;                  /* sequence */
             IFP plg_un_db_entry;                /* entry send */
             IFP plg_un_db_referral;             /* referral send */
@@ -1041,7 +1040,6 @@ struct slapdplugin
 #define plg_delete plg_un.plg_un_db.plg_un_db_delete
 #define plg_abandon plg_un.plg_un_db.plg_un_db_abandon
 #define plg_config plg_un.plg_un_db.plg_un_db_config
-#define plg_flush plg_un.plg_un_db.plg_un_db_flush
 #define plg_seq plg_un.plg_un_db.plg_un_db_seq
 #define plg_entry plg_un.plg_un_db.plg_un_db_entry
 #define plg_referral plg_un.plg_un_db.plg_un_db_referral
@@ -1387,7 +1385,6 @@ typedef struct backend
 #define be_abandon be_database->plg_abandon
 #define be_config be_database->plg_config
 #define be_close be_database->plg_close
-#define be_flush be_database->plg_flush
 #define be_start be_database->plg_start
 #define be_poststart be_database->plg_poststart
 #define be_seq be_database->plg_seq

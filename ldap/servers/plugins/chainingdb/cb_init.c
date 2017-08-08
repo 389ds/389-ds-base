@@ -106,7 +106,6 @@ chaining_back_init(Slapi_PBlock *pb)
     /*
     ** The following callbacks are not implemented
     ** by the chaining backend
-    **    - SLAPI_PLUGIN_DB_FLUSH_FN
     **     - SLAPI_PLUGIN_DB_SEQ_FN
     **      - SLAPI_PLUGIN_DB_RMDB_FN
     **     - SLAPI_PLUGIN_DB_DB2INDEX_FN

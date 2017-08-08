@@ -1454,10 +1454,6 @@ import_main_offline(void *arg)
     }
 
     import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Flushing caches...");
-    if (0 != (ret = dblayer_flush(job->inst->inst_li))) {
-        import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", "Failed to flush database");
-        goto error;
-    }
 
 /* New way to exit the routine: check the return code.
      * If it's non-zero, delete the database files.

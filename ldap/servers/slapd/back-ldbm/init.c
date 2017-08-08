@@ -158,8 +158,6 @@ ldbm_back_init(Slapi_PBlock *pb)
                            (void *)ldbm_back_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLEANUP_FN,
                            (void *)ldbm_back_cleanup);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_FLUSH_FN,
-                           (void *)ldbm_back_flush);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
                            (void *)ldbm_back_start);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_SEQ_FN,
