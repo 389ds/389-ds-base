@@ -184,9 +184,9 @@ class DirsrvAccessLog(DirsrvLog):
         self.prog_con = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')
         self.prog_discon = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\sfd=(?P<fd>\d*)\s(?P<action>closed)\s-\s(?P<status>\w*)')
         # RESULT regex's (based off action.rem)
-        self.prog_notes = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>\d*)\snotes=(?P<notes>\w*)')
-        self.prog_repl = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>\d*)\scsn=(?P<csn>\w*)')
-        self.prog_result = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>\d*)\s(?P<rem>.*)')
+        self.prog_notes = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\snotes=(?P<notes>\w*)')
+        self.prog_repl = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\scsn=(?P<csn>\w*)')
+        self.prog_result = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\s(?P<rem>.*)')
         # Lists for each regex type
         self.full_regexs = [self.prog_m1, self.prog_con, self.prog_discon]
         self.result_regexs = [self.prog_notes, self.prog_repl,
