@@ -305,14 +305,15 @@ def test_modify_stripattrs(topo_m4):
     :expectedresults: It should be contain the value
     """
 
-    agreement = topo_m4.ms["master1_agmts"]["m1_m2"]
+    m1 = topo_m4.ms["master1"]
+    agreement = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
     attr_value = 'modifiersname modifytimestamp'
 
     log.info('Modify nsds5replicastripattrs with {}'.format(attr_value))
-    topo_m4.ms["master1"].modify_s(agreement, [(ldap.MOD_REPLACE, 'nsds5replicastripattrs', attr_value)])
+    m1.modify_s(agreement, [(ldap.MOD_REPLACE, 'nsds5replicastripattrs', attr_value)])
 
     log.info('Check nsds5replicastripattrs for {}'.format(attr_value))
-    entries = topo_m4.ms['master1'].search_s(agreement, ldap.SCOPE_BASE, "objectclass=*", ['nsds5replicastripattrs'])
+    entries = m1.search_s(agreement, ldap.SCOPE_BASE, "objectclass=*", ['nsds5replicastripattrs'])
     assert attr_value in entries[0].data['nsds5replicastripattrs']
 
 

@@ -194,7 +194,10 @@ def restore_master4(topology_m4):
         topology_m4.ms["master{}".format(num)].start(timeout=30)
         time.sleep(5)
         topology_m4.ms["master1"].agreement.init(SUFFIX, host_to, port_to)
-        topology_m4.ms["master1"].waitForReplInit(topology_m4.ms["master1_agmts"]["m1_m{}".format(num)])
+        agreement = topology_m4.ms["master1"].agreement.list(suffix=SUFFIX,
+                                                             consumer_host=host_to,
+                                                             consumer_port=port_to)[0].dn
+        topology_m4.ms["master1"].waitForReplInit(agreement)
 
     time.sleep(5)
 
