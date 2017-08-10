@@ -6,9 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import argparse
-
 from lib389.cli_base import _get_arg
+from lib389.schema import Schema
+
 
 def list_attributetype(inst, basedn, log, args):
     for attributetype in inst.schema.get_attributetypes():
@@ -16,7 +16,7 @@ def list_attributetype(inst, basedn, log, args):
 
 def query_attributetype(inst, basedn, log, args):
     # Need the query type
-    attr = _get_arg( args.attr , msg="Enter attribute to query" )
+    attr = _get_arg(args.attr, msg="Enter attribute to query")
     attributetype, must, may = inst.schema.query_attributetype(attr)
     print(attributetype)
     print("")
@@ -27,6 +27,14 @@ def query_attributetype(inst, basedn, log, args):
     print("MAY")
     for oc in may:
         print(oc)
+
+def reload_schema(inst, basedn, log, args):
+    schema = Schema(inst)
+    log.info('Attempting to add task entry... This will fail if Schema Reload plug-in is not enabled.')
+    task = schema.reload(args.schemadir)
+    log.info('Successfully added task entry ' + task.dn)
+    log.info("To verify that the schema reload operation was successful, please check the error logs.")
+
 
 def create_parser(subparsers):
     schema_parser = subparsers.add_parser('schema', help='Query and manipulate schema')
@@ -40,3 +48,6 @@ def create_parser(subparsers):
     query_attributetype_parser.set_defaults(func=query_attributetype)
     query_attributetype_parser.add_argument('attr', nargs='?', help='Attribute type to query')
 
+    reload_parser = subcommands.add_parser('reload', help='Dynamically reload schema while server is running')
+    reload_parser.set_defaults(func=reload_schema)
+    reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")

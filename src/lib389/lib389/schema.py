@@ -13,11 +13,33 @@
 import glob
 import ldap
 from ldap.schema.models import AttributeType, ObjectClass, MatchingRule
+
 from lib389._constants import *
+from lib389._constants import DN_SCHEMA
 from lib389.utils import ds_is_newer
+from lib389._mapped_object import DSLdapObject
+from lib389.tasks import SchemaReloadTask
 
 
-class Schema(object):
+class Schema(DSLdapObject):
+    def __init__(self, instance, batch=False):
+        super(Schema, self).__init__(instance=instance, batch=batch)
+        self._dn = DN_SCHEMA
+        self._rdn_attribute = 'cn'
+
+    def reload(self, schema_dir=None):
+        task = SchemaReloadTask(self._instance)
+
+        task_properties = {}
+        if schema_dir is not None:
+            task_properties['schemadir'] = schema_dir
+
+        task.create(properties=task_properties)
+
+        return task
+
+
+class SchemaLegacy(object):
 
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""

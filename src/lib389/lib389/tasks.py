@@ -90,6 +90,13 @@ class USNTombstoneCleanupTask(Task):
 
         return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
+class SchemaReloadTask(Task):
+    def __init__(self, instance, dn=None, batch=False):
+        self.cn = 'schema_reload_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
+
+        super(SchemaReloadTask, self).__init__(instance, dn, batch)
+
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()
 

@@ -305,7 +305,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.replica import Replicas
         from lib389.changelog import Changelog
         from lib389.agreement import Agreement
-        from lib389.schema import Schema
+        from lib389.schema import SchemaLegacy as Schema
         from lib389.plugins import Plugins
         from lib389.tasks import Tasks
         from lib389.index import IndexLegacy as Index

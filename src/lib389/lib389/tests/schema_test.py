@@ -7,8 +7,10 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
-from lib389._constants import *
+
 from lib389 import DirSrv
+from lib389._constants import SER_HOST, SER_PORT, SER_SERVERID_PROP, LOCALHOST
+from lib389.schema import Schema
 
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'standalone'
@@ -53,9 +55,18 @@ def test_schema(topology):
     assert topology.instance.schema.query_objectclass('account').names == \
         ('account', )
 
+def test_schema_reload(topology):
+    """Test that the appropriate task entry is created when reloading schema."""
+    schema = Schema(topology.instance)
+    task = schema.reload()
+    assert task.exists()
+    task.wait()
+    assert task.get_exit_code() == 0
+
 
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
+    import os
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
