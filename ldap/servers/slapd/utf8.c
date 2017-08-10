@@ -68,20 +68,30 @@ ldap_utf8next(char *s)
     switch (UTF8len[(*next >> 2) & 0x3F]) {
     case 0: /* erroneous: s points to the middle of a character. */
     case 6:
-        if ((*++next & 0xC0) != 0x80)
+        if ((*++next & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 5:
-        if ((*++next & 0xC0) != 0x80)
+        if ((*++next & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 4:
-        if ((*++next & 0xC0) != 0x80)
+        if ((*++next & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 3:
-        if ((*++next & 0xC0) != 0x80)
+        if ((*++next & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 2:
-        if ((*++next & 0xC0) != 0x80)
+        if ((*++next & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 1:
         ++next;
     }
@@ -161,24 +171,34 @@ ldap_utf8copy(char *dst, const char *src)
     case 0: /* erroneous: s points to the middle of a character. */
     case 6:
         *dst++ = *s++;
-        if ((*s & 0xC0) != 0x80)
+        if ((*s & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 5:
         *dst++ = *s++;
-        if ((*s & 0xC0) != 0x80)
+        if ((*s & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 4:
         *dst++ = *s++;
-        if ((*s & 0xC0) != 0x80)
+        if ((*s & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 3:
         *dst++ = *s++;
-        if ((*s & 0xC0) != 0x80)
+        if ((*s & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 2:
         *dst++ = *s++;
-        if ((*s & 0xC0) != 0x80)
+        if ((*s & 0xC0) != 0x80) {
             break;
+        }
+        /* FALLTHRU */
     case 1:
         *dst = *s++;
     }

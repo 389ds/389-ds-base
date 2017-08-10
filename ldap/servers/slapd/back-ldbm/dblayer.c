@@ -4634,42 +4634,49 @@ db_strtoul(const char *str, int *err)
     for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++)
         ;
     if ('-' == *p) {
-        if (err)
+        if (err) {
             *err = ERANGE;
+        }
         return val;
     }
     val = strtoul(str, &p, 10);
     if (errno != 0) {
-        if (err)
+        if (err) {
             *err = errno;
+        }
         return val;
     }
 
     switch (*p) {
     case 'g':
     case 'G':
-        multiplier *= 1024;
+        multiplier *= 1024 * 1024 * 1024;
+        break;
     case 'm':
     case 'M':
-        multiplier *= 1024;
+        multiplier *= 1024 * 1024;
+        break;
     case 'k':
     case 'K':
         multiplier *= 1024;
         p++;
-        if (*p == 'b' || *p == 'B')
+        if (*p == 'b' || *p == 'B') {
             p++;
+        }
         if (err) {
             /* extra chars? */
             *err = (*p != '\0') ? EINVAL : 0;
         }
         break;
     case '\0':
-        if (err)
+        if (err) {
             *err = 0;
+        }
         break;
     default:
-        if (err)
+        if (err) {
             *err = EINVAL;
+        }
         return val;
     }
 

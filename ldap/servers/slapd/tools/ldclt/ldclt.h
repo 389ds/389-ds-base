@@ -196,7 +196,7 @@ dd/mm/yy | Author    | Comments
 #define NEGATIVE_MAX_ERROR_NB (LDAP_X_CONNECTING - 1) /* Mininum ldap err number */
 #endif
 #define MAX_IGN_ERRORS 20                            /* Max errors ignored */
-#define MAX_FILTER 512                               /* Max filters length */
+#define MAX_FILTER 4096                               /* Max filters length */
 #define MAX_THREADS 1000 /* Max number of threads */ /*JLS 21-11-00*/
 #define MAX_SLAVES 20                                /* Max number of slaves */
 

@@ -2248,6 +2248,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                               err, prerr, slapd_pr_strerror(prerr));
             }
 #endif
+            break;
         /* Give the client a clear opportunity to send her certificate: */
         case SLAPD_SSLCLIENTAUTH_REQUIRED:
             if ((err = SSL_OptionSet(pr_sock, SSL_REQUEST_CERTIFICATE, PR_TRUE)) < 0) {
@@ -2256,6 +2257,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                               "SSL_OptionSet(SSL_REQUEST_CERTIFICATE,PR_TRUE) %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               err, prerr, slapd_pr_strerror(prerr));
             }
+            break;
         default:
             break;
         }

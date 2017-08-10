@@ -26,7 +26,7 @@
 static int string_filter_approx(struct berval *bvfilter,
                                 Slapi_Value **bvals,
                                 Slapi_Value **retVal);
-static void substring_comp_keys(Slapi_Value ***ivals, int *nsubs, char *str, int lenstr, int prepost, int syntax, char *comp_buf, int *substrlens);
+static void substring_comp_keys(Slapi_Value ***ivals, int *nsubs, char *str, int lenstring, int prepost, int syntax, char *comp_buf, int *substrlens);
 
 int
 string_filter_ava(struct berval *bvfilter, Slapi_Value **bvals, int syntax, int ftype, Slapi_Value **retVal)
@@ -901,7 +901,7 @@ substring_comp_keys(
     Slapi_Value ***ivals,
     int *nsubs,
     char *str,
-    int lenstr,
+    int lenstring,
     int prepost,
     int syntax __attribute__((unused)),
     char *comp_buf,
@@ -929,7 +929,7 @@ substring_comp_keys(
     }
 
     substrlen = substrlens[INDEX_SUBSTRMIDDLE];
-    for (p = str; p < (str + lenstr - substrlen + 1); p++) {
+    for (p = str; p < (str + lenstring - substrlen + 1); p++) {
         for (i = 0; i < substrlen; i++) {
             comp_buf[i] = p[i];
         }
@@ -940,7 +940,7 @@ substring_comp_keys(
 
     if (prepost == '$') {
         substrlen = substrlens[INDEX_SUBSTREND];
-        p = str + lenstr - substrlen + 1;
+        p = str + lenstring - substrlen + 1;
         for (i = 0; i < substrlen - 1; i++) {
             comp_buf[i] = p[i];
         }

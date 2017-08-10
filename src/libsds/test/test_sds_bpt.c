@@ -162,6 +162,7 @@ test_9_insert_fill_and_split(void **state)
     }
 }
 
+#ifdef SDS_DEBUG
 static void
 test_10_tamper_with_inst(void **state __attribute__((unused)))
 {
@@ -183,7 +184,9 @@ test_10_tamper_with_inst(void **state __attribute__((unused)))
     /* If this reports unknown, it means we may not have freed some nodes. */
     assert_int_equal(result, SDS_SUCCESS);
 }
+#endif
 
+#ifdef SDS_DEBUG
 static void
 test_11_tamper_with_node(void **state __attribute__((unused)))
 {
@@ -198,14 +201,13 @@ test_11_tamper_with_node(void **state __attribute__((unused)))
 
     binst->root->keys[0] = (void *)1;
 
-#ifdef SDS_DEBUG
     result = sds_bptree_verify(binst);
     assert_int_equal(result, SDS_CHECKSUM_FAILURE);
-#endif
 
     result = sds_bptree_destroy(binst);
     assert_int_equal(result, SDS_SUCCESS);
 }
+#endif
 
 static void
 test_12_insert_fill_split_and_grow(void **state)

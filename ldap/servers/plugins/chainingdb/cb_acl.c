@@ -32,13 +32,8 @@ cb_set_acl_policy(Slapi_PBlock *pb)
            or if the associated backend is disabled */
     noacl = !(cb->local_acl) || cb->associated_be_is_disabled;
 
-    /* These branches are identical. Can we remove the if condition? */
-    if (noacl) {
-        slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NO_ACL, &noacl);
-    } else {
-        /* Be very conservative about acl evaluation */
-        slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NO_ACL, &noacl);
-    }
+    /* Be very conservative about acl evaluation */
+    slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NO_ACL, &noacl);
 }
 
 int

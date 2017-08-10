@@ -163,7 +163,6 @@ sort_candidates(backend *be, int lookthrough_limit, struct timespec *expire_time
     /* Iterate over the sort types */
     for (this_s = s; this_s; this_s = this_s->next) {
         if (NULL == this_s->matchrule) {
-            int return_value = 0;
             return_value = attr_get_value_cmp_fn(&this_s->sattr, &(this_s->compare_fn));
             if (return_value != 0) {
                 slapi_log_err(SLAPI_LOG_TRACE, "sort_candidates",

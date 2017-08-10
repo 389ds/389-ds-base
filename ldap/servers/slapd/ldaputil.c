@@ -1131,11 +1131,11 @@ slapi_ldap_bind(
                 }
             }
             if (0 == myerrno) {
-                struct addrinfo *result = NULL;
-                gaierr = getaddrinfo(hostname, NULL, NULL, &result);
+                struct addrinfo *a_result = NULL;
+                gaierr = getaddrinfo(hostname, NULL, NULL, &a_result);
                 myerrno = errno;
-                if (result) {
-                    freeaddrinfo(result);
+                if (a_result) {
+                    freeaddrinfo(a_result);
                 }
             }
 
@@ -2301,14 +2301,17 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
                 plen = LDAP_UTF8LEN(p);
             break;
         case '"':
-            if (state == INQUOTE)
+            if (state == INQUOTE) {
                 state = OUTQUOTE;
-            else
+            } else {
                 state = INQUOTE;
+            }
             break;
         case '+':
-            if (nametype != LDAP_RDN)
+            if (nametype != LDAP_RDN) {
                 break;
+            }
+            /* FALLTHRU */
         case ';':
         case ',':
         case '\0':
@@ -2334,8 +2337,9 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
                 goteq = 0;
                 ++count;
                 if (rdns == NULL) {
-                    if ((rdns = (char **)slapi_ch_malloc(8 * sizeof(char *))) == NULL)
+                    if ((rdns = (char **)slapi_ch_malloc(8 * sizeof(char *))) == NULL) {
                         return (NULL);
+                    }
                 } else if (count >= 8) {
                     if ((rdns = (char **)slapi_ch_realloc(
                              (char *)rdns, (count + 1) *
@@ -2345,8 +2349,7 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
                 rdns[count] = NULL;
                 endquote = 0;
                 if (notypes) {
-                    for (q = rdnstart;
-                         q < p && *q != '='; ++q) {
+                    for (q = rdnstart; q < p && *q != '='; ++q) {
                         ;
                     }
                     if (q < p) { /* *q == '=' */
@@ -2364,14 +2367,11 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
                 }
 
                 len = p - rdnstart;
-                if ((rdns[count - 1] = (char *)slapi_ch_calloc(
-                         1, len + 1)) != NULL) {
-                    memcpy(rdns[count - 1], rdnstart,
-                           len);
+                if ((rdns[count - 1] = (char *)slapi_ch_calloc(1, len + 1)) != NULL) {
+                    memcpy(rdns[count - 1], rdnstart, len);
                     if (!endquote) {
                         /* trim trailing spaces */
-                        while (len > 0 &&
-                               (rdns[count - 1][len - 1] == ' ')) {
+                        while (len > 0 && (rdns[count - 1][len - 1] == ' ')) {
                             --len;
                         }
                     }
@@ -2383,12 +2383,14 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
                  *  it should be.  If we don't, then we will
                  *  never get past an "end quote."
                  */
-                if (endquote == 1)
+                if (endquote == 1) {
                     p++;
+                }
 
                 rdnstart = *p ? p + 1 : p;
-                while (ldap_utf8isspace(rdnstart))
+                while (ldap_utf8isspace(rdnstart)) {
                     ++rdnstart;
+                }
             }
             break;
         case '=':

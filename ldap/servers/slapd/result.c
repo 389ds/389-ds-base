@@ -1208,12 +1208,12 @@ send_all_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op, Slapi_PBlock *
             int item_count = 0;
             int iter = 0;
             Slapi_DN *namespace_dn;
-            Slapi_Backend *backend = 0;
+            Slapi_Backend *be = 0;
             vattr_context *ctx;
 
             /* get the namespace dn */
-            slapi_pblock_get(pb, SLAPI_BACKEND, (void *)&backend);
-            namespace_dn = (Slapi_DN *)slapi_be_getsuffix(backend, 0);
+            slapi_pblock_get(pb, SLAPI_BACKEND, (void *)&be);
+            namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be, 0);
 
             /* Get the attribute value from the vattr service */
             /* ctx will be freed by attr_context_ungrok() */
@@ -1345,7 +1345,7 @@ send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op, Slapi_PBl
         int item_count = 0;
         int iter = 0;
         Slapi_DN *namespace_dn;
-        Slapi_Backend *backend = 0;
+        Slapi_Backend *be = 0;
 
         /*
          * Here we call the computed attribute code to see whether
@@ -1366,8 +1366,8 @@ send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op, Slapi_PBl
         }
 
         /* get the namespace dn */
-        slapi_pblock_get(pb, SLAPI_BACKEND, (void *)&backend);
-        namespace_dn = (Slapi_DN *)slapi_be_getsuffix(backend, 0);
+        slapi_pblock_get(pb, SLAPI_BACKEND, (void *)&be);
+        namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be, 0);
 
         /* Get the attribute value from the vattr service */
         /* This call handles subtype, as well.

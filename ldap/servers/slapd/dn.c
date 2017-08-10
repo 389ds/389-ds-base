@@ -733,6 +733,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 subtypestart = d; /* prepare for '+' in the nested DN, if any */
             }
             subrdn_av_count = 0;
+            /* FALLTHRU */
         case INVALUE: /* in value; cn=ABC */
                       /*               ^  */
             if (ISESCAPE(*s)) {
@@ -958,6 +959,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 subtypestart = d; /* prepare for '+' in the quoted value, if any */
             }
             subrdn_av_count = 0;
+            /* FALLTHRU */
         case INQUOTEDVALUE:
             if (ISQUOTE(*s)) {
                 if (ISESCAPE(*(d - 1))) {            /* the quote is escaped */
@@ -2433,10 +2435,10 @@ slapi_sdn_get_parent(const Slapi_DN *sdn, Slapi_DN *sdn_parent)
 void
 slapi_sdn_get_backend_parent_ext(const Slapi_DN *sdn,
                                  Slapi_DN *sdn_parent,
-                                 const Slapi_Backend *backend,
+                                 const Slapi_Backend *be,
                                  int is_tombstone)
 {
-    if (slapi_sdn_isempty(sdn) || slapi_be_issuffix(backend, sdn)) {
+    if (slapi_sdn_isempty(sdn) || slapi_be_issuffix(be, sdn)) {
         slapi_sdn_done(sdn_parent);
     } else {
         slapi_sdn_get_parent_ext(sdn, sdn_parent, is_tombstone);
@@ -2444,9 +2446,9 @@ slapi_sdn_get_backend_parent_ext(const Slapi_DN *sdn,
 }
 
 void
-slapi_sdn_get_backend_parent(const Slapi_DN *sdn, Slapi_DN *sdn_parent, const Slapi_Backend *backend)
+slapi_sdn_get_backend_parent(const Slapi_DN *sdn, Slapi_DN *sdn_parent, const Slapi_Backend *be)
 {
-    slapi_sdn_get_backend_parent_ext(sdn, sdn_parent, backend, 0);
+    slapi_sdn_get_backend_parent_ext(sdn, sdn_parent, be, 0);
 }
 
 void
