@@ -89,7 +89,7 @@ def topology(request):
         master1.delete()
     master1.create()
     master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master1.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_1)
 
     # Creating master 2...
@@ -108,7 +108,7 @@ def topology(request):
         master2.delete()
     master2.create()
     master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master2.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_2)
 
     # Creating master 3...
@@ -127,7 +127,7 @@ def topology(request):
         master3.delete()
     master3.create()
     master3.open()
-    master3.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master3.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_3)
 
     # Creating master 4...
@@ -146,7 +146,7 @@ def topology(request):
         master4.delete()
     master4.create()
     master4.open()
-    master4.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master4.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_4)
 
     # Creating hub 1...
@@ -165,7 +165,7 @@ def topology(request):
         hub1.delete()
     hub1.create()
     hub1.open()
-    hub1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_HUB,
+    hub1.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.HUB,
                                    replicaId=REPLICAID_HUB_1)
 
     # Creating hub 2...
@@ -184,7 +184,7 @@ def topology(request):
         hub2.delete()
     hub2.create()
     hub2.open()
-    hub2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_HUB,
+    hub2.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.HUB,
                                    replicaId=REPLICAID_HUB_2)
 
     # Creating consumer 1...
@@ -204,7 +204,7 @@ def topology(request):
     consumer1.create()
     consumer1.open()
     consumer1.replica.enableReplication(suffix=SUFFIX,
-                                        role=REPLICAROLE_CONSUMER,
+                                        role=ReplicaRole.CONSUMER,
                                         replicaId=CONSUMER_REPLICAID)
 
     # Creating consumer 2...
@@ -224,7 +224,7 @@ def topology(request):
     consumer2.create()
     consumer2.open()
     consumer2.replica.enableReplication(suffix=SUFFIX,
-                                        role=REPLICAROLE_CONSUMER,
+                                        role=ReplicaRole.CONSUMER,
                                         replicaId=CONSUMER_REPLICAID)
 
     # Creating consumer 3...
@@ -244,7 +244,7 @@ def topology(request):
     consumer3.create()
     consumer3.open()
     consumer3.replica.enableReplication(suffix=SUFFIX,
-                                        role=REPLICAROLE_CONSUMER,
+                                        role=ReplicaRole.CONSUMER,
                                         replicaId=CONSUMER_REPLICAID)
 
     # Creating consumer 4...
@@ -264,7 +264,7 @@ def topology(request):
     consumer4.create()
     consumer4.open()
     consumer4.replica.enableReplication(suffix=SUFFIX,
-                                        role=REPLICAROLE_CONSUMER,
+                                        role=ReplicaRole.CONSUMER,
                                         replicaId=CONSUMER_REPLICAID)
 
     #

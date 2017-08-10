@@ -12,11 +12,11 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
-from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, REPLICAROLE_MASTER,
-                              REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
-                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, RA_NAME,
-                              RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              DN_DM, PASSWORD, REPLICA_ID, RA_CONSUMER_PORT)
+from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
+                               REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, RA_NAME,
+                               RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
+                               DN_DM, PASSWORD, REPLICA_ID, RA_CONSUMER_PORT)
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ def test_ticket47950(topology_st):
         assert False
 
     try:
-        topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER,
+        topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER,
                                                          replicaId=REPLICAID_MASTER_1)
         log.info('Successfully enabled replication.')
     except ValueError:

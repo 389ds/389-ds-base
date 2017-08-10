@@ -12,11 +12,11 @@ from lib389.utils import *
 from lib389.topologies import topology_m1c1 as topo_r # Replication
 from lib389.topologies import topology_i2 as topo_nr # No replication
 
-from lib389._constants import (REPLICAROLE_MASTER, DEFAULT_SUFFIX, REPLICAID_MASTER_1,
-                              REPLICAROLE_CONSUMER, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
-                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, DEFAULT_BACKUPDIR,
-                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              defaultProperties)
+from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_MASTER_1,
+                                REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                                REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, DEFAULT_BACKUPDIR,
+                                RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
+                                defaultProperties)
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -65,9 +65,9 @@ def replica_without_init(topo_nr):
     master = topo_nr.ins["standalone1"]
     consumer = topo_nr.ins["standalone2"]
 
-    master.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER,
+    master.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER,
                                      replicaId=REPLICAID_MASTER_1)
-    consumer.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_CONSUMER)
+    consumer.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.CONSUMER)
     properties = {RA_NAME: 'meTo_{}:{}'.format(consumer.host, str(consumer.port)),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],

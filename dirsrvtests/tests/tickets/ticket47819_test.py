@@ -12,9 +12,9 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
-from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, REPLICAROLE_MASTER,
-                              REPLICAID_MASTER_1, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
-                              REPLICA_PURGE_INTERVAL)
+from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
+                               REPLICAID_MASTER_1, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
+                               REPLICA_PURGE_INTERVAL)
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
     # Setup Replication
     #
     log.info('Setting up replication...')
-    topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER,
+    topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER,
                                                      replicaId=REPLICAID_MASTER_1)
 
     #

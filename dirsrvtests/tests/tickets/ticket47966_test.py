@@ -12,7 +12,7 @@ from lib389.utils import *
 from lib389.topologies import topology_m2
 
 from lib389._constants import (DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2,
-                              REPLICAROLE_MASTER, REPLICAID_MASTER_2, BACKEND_NAME)
+                               ReplicaRole, REPLICAID_MASTER_2, BACKEND_NAME)
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def test_ticket47966(topology_m2):
     log.info('3-1. Recreating %s and %s on Master 2.' % (vlvSrchDn, vlvIndexDn))
     M2.add_s(vlvSrchEntry)
     M2.add_s(vlvIndexEntry)
-    M2.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
+    M2.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER, replicaId=REPLICAID_MASTER_2)
     # agreement m2_m1_agmt is not needed... :p
 
     log.info('4. Initialize Master 2 from Master 1 again.')

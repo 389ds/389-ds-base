@@ -13,7 +13,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4
 
-from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, REPLICAROLE_MASTER,
+from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, ReplicaRole,
                               REPLICAID_MASTER_4, REPLICAID_MASTER_3, REPLICAID_MASTER_2,
                               REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, SUFFIX,
@@ -150,7 +150,7 @@ def restore_master4(topology_m4):
     log.info('Restoring master 4...')
 
     # Enable replication on master 4
-    topology_m4.ms["master4"].replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    topology_m4.ms["master4"].replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                                         replicaId=REPLICAID_MASTER_4)
 
     for num in range(1, 4):

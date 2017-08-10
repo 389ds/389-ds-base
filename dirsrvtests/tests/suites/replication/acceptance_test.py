@@ -12,7 +12,7 @@ from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
 
 from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLICA_RUV_FILTER,
-                              REPLICAROLE_MASTER, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                              ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
                               RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
                               DN_DM, PASSWORD, LOG_DEFAULT)
@@ -332,8 +332,8 @@ def test_new_suffix(topo_m4, new_suffix):
     m1 = topo_m4.ms["master1"]
     m2 = topo_m4.ms["master2"]
     log.info('Enable replication for new suffix {} on two masters'.format(NEW_SUFFIX))
-    m1.replica.enableReplication(NEW_SUFFIX, REPLICAROLE_MASTER, 101)
-    m2.replica.enableReplication(NEW_SUFFIX, REPLICAROLE_MASTER, 102)
+    m1.replica.enableReplication(NEW_SUFFIX, ReplicaRole.MASTER, 101)
+    m2.replica.enableReplication(NEW_SUFFIX, ReplicaRole.MASTER, 102)
 
     log.info("Creating agreement from master1 to master2")
     properties = {RA_NAME: 'newMeTo_{}:{}'.format(m2.host, str(m2.port)),

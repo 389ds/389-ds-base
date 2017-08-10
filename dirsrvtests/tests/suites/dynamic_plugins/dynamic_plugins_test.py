@@ -23,8 +23,8 @@ import stress_tests
 from lib389.topologies import topology_st
 from lib389._constants import (DN_CONFIG, DEFAULT_SUFFIX, DN_LDBM, defaultProperties,
                                PLUGIN_MEMBER_OF, PLUGIN_LINKED_ATTRS, PLUGIN_REFER_INTEGRITY,
-                               REPLICAROLE_MASTER, REPLICAROLE_CONSUMER, REPLICATION_BIND_DN,
-                               REPLICATION_BIND_PW, REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT,
+                               ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT,
                                LOCALHOST, REPLICA_RUV_FILTER, args_instance,
                                RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
 
@@ -283,10 +283,10 @@ def test_dynamic_plugins(topology_st):
 
             try:
                 topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX,
-                                                                 role=REPLICAROLE_MASTER,
+                                                                 role=ReplicaRole.MASTER,
                                                                  replicaId=1)
                 replica_inst.replica.enableReplication(suffix=DEFAULT_SUFFIX,
-                                                       role=REPLICAROLE_CONSUMER,
+                                                       role=ReplicaRole.CONSUMER,
                                                        replicaId=65535)
                 properties = {RA_NAME: r'to_replica',
                               RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],

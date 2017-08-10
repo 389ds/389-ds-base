@@ -66,7 +66,7 @@ def topology(request):
         master1.delete()
     master1.create()
     master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master1.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_1)
 
     # Creating master 2...
@@ -85,7 +85,7 @@ def topology(request):
         master2.delete()
     master2.create()
     master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master2.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_2)
 
     # Creating master 3...
@@ -104,7 +104,7 @@ def topology(request):
         master3.delete()
     master3.create()
     master3.open()
-    master3.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master3.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_3)
 
     # Creating master 4...
@@ -123,7 +123,7 @@ def topology(request):
         master4.delete()
     master4.create()
     master4.open()
-    master4.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER,
+    master4.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
                                       replicaId=REPLICAID_MASTER_4)
 
     #

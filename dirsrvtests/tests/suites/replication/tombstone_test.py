@@ -11,7 +11,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
-from lib389._constants import DEFAULT_SUFFIX, REPLICAROLE_MASTER, REPLICAID_MASTER_1
+from lib389._constants import DEFAULT_SUFFIX, ReplicaRole, REPLICAID_MASTER_1
 
 def test_purge_success(topology_st):
     """Verify that tombstones are created successfully
@@ -28,7 +28,7 @@ def test_purge_success(topology_st):
 
     log.info('Setting up replication...')
     topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX,
-                                                     role=REPLICAROLE_MASTER,
+                                                     role=ReplicaRole.MASTER,
                                                      replicaId=REPLICAID_MASTER_1)
 
     log.info("Add and then delete an entry to create a tombstone...")

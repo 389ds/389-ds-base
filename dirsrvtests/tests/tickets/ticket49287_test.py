@@ -1,6 +1,17 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
+from lib389._constants import (SUFFIX, ReplicaRole, defaultProperties, REPLICATION_BIND_DN, PLUGIN_MEMBER_OF,
+                               REPLICATION_BIND_PW, REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT)
+from lib389.properties import RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT, BACKEND_NAME
 from lib389.topologies import topology_m2
 
 DEBUGGING = os.getenv('DEBUGGING', False)
@@ -193,13 +204,13 @@ def create_backend(s1, s2, beSuffix, beName):
     s2.backend.create(beSuffix, {BACKEND_NAME: beName})
 
 def replicate_backend(s1, s2, beSuffix, rid):
-    s1.replica.enableReplication(suffix=beSuffix, role=REPLICAROLE_MASTER, replicaId=rid)
-    s2.replica.enableReplication(suffix=beSuffix, role=REPLICAROLE_MASTER, replicaId=rid+1)
+    s1.replica.enableReplication(suffix=beSuffix, role=ReplicaRole.MASTER, replicaId=rid)
+    s2.replica.enableReplication(suffix=beSuffix, role=ReplicaRole.MASTER, replicaId=rid+1)
     # agreement m2_m1_agmt is not needed... :p
 
     s1s2_agmt = create_agmt(s1, s2, beSuffix)
     s2s1_agmt = create_agmt(s2, s1, beSuffix)
-    s1.agreement.init(beSuffix, HOST_MASTER_2, PORT_MASTER_2)
+    s1.agreement.init(beSuffix, s2.host, s2.port)
     s1.waitForReplInit(s1s2_agmt)
 
 def check_group_mods(server1, server2, group, testbase):
