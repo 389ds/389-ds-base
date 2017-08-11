@@ -1055,7 +1055,7 @@ class Replica(DSLdapObject):
             entry = self._instance.getEntry(
                 agmtdn, ldap.SCOPE_BASE, "(objectclass=*)", attrlist)
         except NoSuchEntryError:
-            self.log.exception("Error reading status from agreement {}".format(agmtdn))
+            self._log.exception("Error reading status from agreement {}".format(agmtdn))
             hasError = 1
         else:
             refresh = entry.nsds5BeginReplicaRefresh
@@ -1121,7 +1121,7 @@ class Replica(DSLdapObject):
         THIS SHOULD BE IN THE NEW AGREEMENT CLASS
         """
 
-        self.log.info("Starting async replication %s" % agmtdn)
+        self._log.info("Starting async replication %s" % agmtdn)
         mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
         self._instance.modify_s(agmtdn, mod)
 
