@@ -250,7 +250,7 @@ for i in range(port_start, port_start + number_of_instances):
     exec("HOST_STANDALONE{0} = {1}".format(N, "LOCALHOST"))
     exec("PORT_STANDALONE{0} = {1}".format(N, i))
     exec("SECUREPORT_STANDALONE{0} = {1}".format(N, i + 24700))
-    exec("SERVERID_STANDALONE{0} = {1}".format(N, "\"standalone_{0}\"".format(N)))
+    exec("SERVERID_STANDALONE{0} = {1}".format(N, "\"standalone{0}\"".format(N)))
     exec("REPLICAID_STANDALONE_{0} = {1}".format(N, 65535))
 
 # For compatibility
@@ -267,7 +267,7 @@ for i in range(port_start, port_start + number_of_instances):
     exec("HOST_MASTER_{0} = {1}".format(N, "LOCALHOST"))
     exec("PORT_MASTER_{0} = {1}".format(N, i))
     exec("SECUREPORT_MASTER_{0} = {1}".format(N, i + 24700))
-    exec("SERVERID_MASTER_{0} = {1}".format(N, "\"master_{0}\"".format(N)))
+    exec("SERVERID_MASTER_{0} = {1}".format(N, "\"master{0}\"".format(N)))
     exec("REPLICAID_MASTER_{0} = {1}".format(N, N))
 
 # Replication topology - hubs
@@ -278,7 +278,7 @@ for i in range(port_start, port_start + number_of_instances):
     exec("HOST_HUB_{0} = {1}".format(N, "LOCALHOST"))
     exec("PORT_HUB_{0} = {1}".format(N, i))
     exec("SECUREPORT_HUB_{0} = {1}".format(N, i + 24700))
-    exec("SERVERID_HUB_{0} = {1}".format(N, "\"hub_{0}\"".format(N)))
+    exec("SERVERID_HUB_{0} = {1}".format(N, "\"hub{0}\"".format(N)))
     exec("REPLICAID_HUB_{0} = {1}".format(N, 65535))
 
 # Replication topology - consumers
@@ -289,7 +289,7 @@ for i in range(port_start, port_start + number_of_instances):
     exec("HOST_CONSUMER_{0} = {1}".format(N, "LOCALHOST"))
     exec("PORT_CONSUMER_{0} = {1}".format(N, i))
     exec("SECUREPORT_CONSUMER_{0} = {1}".format(N, i + 24700))
-    exec("SERVERID_CONSUMER_{0} = {1}".format(N, "\"consumer_{0}\"".format(N)))
+    exec("SERVERID_CONSUMER_{0} = {1}".format(N, "\"consumer{0}\"".format(N)))
 
 # Cleanup, we don't need to export that
 del N, port_start, number_of_instances
