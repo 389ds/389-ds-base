@@ -383,8 +383,179 @@ class WhoamiPlugin(Plugin):
         super(WhoamiPlugin, self).__init__(instance, dn, batch)
 
 class RootDNAccessControlPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'RootDN Access Control',
+        'nsslapd-pluginEnabled' : 'off',
+        'nsslapd-pluginPath' : 'librootdn-access-plugin',
+        'nsslapd-pluginInitfunc' : 'rootdn_init',
+        'nsslapd-pluginType' : 'internalpreoperation',
+        'nsslapd-plugin-depends-on-type' : 'database',
+        'nsslapd-pluginId' : 'RootDN Access Control',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.6',
+        'nsslapd-pluginDescription' : 'RootDN Access Control plugin',
+    }
+
     def __init__(self, instance, dn="cn=RootDN Access Control,cn=plugins,cn=config", batch=False):
         super(RootDNAccessControlPlugin, self).__init__(instance, dn, batch)
+        self._create_objectclasses.extend(['rootDNPluginConfig'])
+
+    def get_open_time(self):
+        return self.get_attr_val_utf8('rootdn-open-time')
+
+    def get_open_time_formatted(self):
+        return self.display_attr('rootdn-open-time')
+
+    def set_open_time(self, attr):
+        self.set('rootdn-open-time', attr)
+
+    def remove_open_time(self):
+        self.remove_all('rootdn-open-time')
+
+    def get_close_time(self):
+        return self.get_attr_val_utf8('rootdn-close-time')
+
+    def get_close_time_formatted(self):
+        return self.display_attr('rootdn-close-time')
+
+    def set_close_time(self, attr):
+        self.set('rootdn-close-time', attr)
+
+    def remove_close_time(self):
+        self.remove_all('rootdn-close-time')
+
+    def get_days_allowed(self):
+        return self.get_attr_val_utf8('rootdn-days-allowed')
+
+    def get_days_allowed_formatted(self):
+        return self.display_attr('rootdn-days-allowed')
+
+    def set_days_allowed(self, attr):
+        self.set('rootdn-days-allowed', attr)
+
+    def remove_days_allowed(self):
+        self.remove_all('rootdn-days-allowed')
+
+    def add_allow_day(self, day):
+        days = self.get_days_allowed()
+        if days is None:
+            days = ""
+        days = self.add_day_to_days(days, day)
+        if days:
+            self.set_days_allowed(days)
+        else:
+            self.remove_days_allowed()
+
+    def remove_allow_day(self, day):
+        days = self.get_days_allowed()
+        if days is None:
+            days = ""
+        days = self.remove_day_from_days(days, day)
+        if days:
+            self.set_days_allowed(days)
+        else:
+            self.remove_days_allowed()
+
+    def get_allow_host(self):
+        return self.get_attr_val_utf8('rootdn-allow-host')
+
+    def get_allow_host_formatted(self):
+        return self.display_attr('rootdn-allow-host')
+
+    def add_allow_host(self, attr):
+        self.add('rootdn-allow-host', attr)
+
+    def remove_allow_host(self, attr):
+        self.remove('rootdn-allow-host', attr)
+
+    def remove_all_allow_host(self):
+        self.remove_all('rootdn-allow-host')
+
+    def get_deny_host(self):
+        return self.get_attr_val_utf8('rootdn-deny-host')
+
+    def get_deny_host_formatted(self):
+        return self.display_attr('rootdn-deny-host')
+
+    def add_deny_host(self, attr):
+        self.add('rootdn-deny-host', attr)
+
+    def remove_deny_host(self, attr):
+        self.remove('rootdn-deny-host', attr)
+
+    def remove_all_deny_host(self):
+        self.remove_all('rootdn-deny-host')
+
+    def get_allow_ip(self):
+        return self.get_attr_val_utf8('rootdn-allow-ip')
+
+    def get_allow_ip_formatted(self):
+        return self.display_attr('rootdn-allow-ip')
+
+    def add_allow_ip(self, attr):
+        self.add('rootdn-allow-ip', attr)
+
+    def remove_allow_ip(self, attr):
+        self.remove('rootdn-allow-ip', attr)
+
+    def remove_all_allow_ip(self):
+        self.remove_all('rootdn-allow-ip')
+
+    def get_deny_ip(self):
+        return self.get_attr_val_utf8('rootdn-deny-ip')
+
+    def get_deny_ip_formatted(self):
+        return self.display_attr('rootdn-deny-ip')
+
+    def add_deny_ip(self, attr):
+        self.add('rootdn-deny-ip', attr)
+
+    def remove_deny_ip(self, attr):
+        self.remove('rootdn-deny-ip', attr)
+
+    def remove_all_deny_ip(self):
+        self.remove_all('rootdn-deny-ip')
+
+    @staticmethod
+    def add_day_to_days(string_of_days, day):
+        """
+        Append a day in a string of comma seperated days and return the string.
+        If day already exists in the string, return processed string.
+
+        Keyword arguments:
+        string_of_days -- a string of comma seperated days
+                          examples:
+                              Mon
+                              Tue, Wed, Thu
+        day            -- a day, e.g. Mon, Tue, etc.
+        """
+        days = [i.strip() for i in string_of_days.split(',') if i]
+
+        if not day in days:
+            days.append(day)
+
+        return ", ".join(days)
+
+    @staticmethod
+    def remove_day_from_days(string_of_days, day):
+        """
+        Remove a day from a string of comma seperated days and return the string.
+        If day does not exists in the string, return processed string.
+
+        Keyword arguments:
+        string_of_days -- a string of comma seperated days
+                          examples:
+                              Mon
+                              Tue, Wed, Thu
+        day            -- a day, e.g. Mon, Tue, etc.
+        """
+        days = [i.strip() for i in string_of_days.split(',') if i]
+
+        if day in days:
+            days.remove(day)
+
+        return ", ".join(days)
+
 
 class LDBMBackendPlugin(Plugin):
     def __init__(self, instance, dn="cn=ldbm database,cn=plugins,cn=config", batch=False):
