@@ -127,7 +127,7 @@ class DSLdapObject(DSLogging):
 
     def display_attr(self, attr):
         out = ""
-        for v in self.get_attr_vals(attr):
+        for v in self.get_attr_vals_utf8(attr):
             out += "%s: %s\n" % (attr, v)
         return out
 
@@ -349,19 +349,19 @@ class DSLdapObject(DSLogging):
         return ensure_bytes(self.get_attr_val(key))
 
     def get_attr_vals_bytes(self, key):
-        return ensure_list_bytes(self.get_attrs_val(key))
+        return ensure_list_bytes(self.get_attr_vals(key))
 
     def get_attr_val_utf8(self, key):
         return ensure_str(self.get_attr_val(key))
 
     def get_attr_vals_utf8(self, key):
-        return ensure_list_str(self.get_attrs_val(key))
+        return ensure_list_str(self.get_attr_vals(key))
 
     def get_attr_val_int(self, key):
         return ensure_int(self.get_attr_val(key))
 
     def get_attr_vals_int(self, key):
-        return ensure_list_int(self.get_attrs_val(key))
+        return ensure_list_int(self.get_attr_vals(key))
 
     # Duplicate, but with many values. IE a dict api.
     # This
