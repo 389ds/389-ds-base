@@ -39,7 +39,7 @@ def test_ldif2db_db2ldif_no_repl(topology_be_latest):
     args = FakeArgs()
     args.backend = 'userRoot'
     args.ldif = os.path.join(standalone.get_ldif_dir(), "test.ldif")
-    args.encrypt = False
+    args.encrypted = False
     args.replication = False
     # Stop the instance
     dbtasks_db2ldif(standalone, topology_be_latest.logcap.log, args)
@@ -57,7 +57,7 @@ def test_ldif2db_db2ldif_repl(topology_be_latest):
     args = FakeArgs()
     args.backend = 'userRoot'
     args.ldif = os.path.join(standalone.get_ldif_dir(), "test.ldif")
-    args.encrypt = False
+    args.encrypted = False
     args.replication = False
     args.archive = os.path.join(standalone.get_ldif_dir(), "test.ldif")
     # Stop the instance
