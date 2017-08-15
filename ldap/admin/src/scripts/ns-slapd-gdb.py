@@ -109,7 +109,7 @@ class DSIdleFilter():
     def filter(self, frame_iter):
         # Just return the iterator.
         if hasattr(itertools, 'imap'):
-            frame_iter = imap(DSIdleFilterDecorator, frame_iter)
+            frame_iter = itertools.imap(DSIdleFilterDecorator, frame_iter)
         else:
             frame_iter = map(DSIdleFilterDecorator, frame_iter)
         return frame_iter
