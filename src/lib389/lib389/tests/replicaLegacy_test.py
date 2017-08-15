@@ -399,8 +399,7 @@ def test_setProperties(topology):
 
     log.info("\n\n##########\n### SETPROPERTIES\n############")
     # set valid values to SUFFIX_1
-    properties = {REPLICA_LEGACY_CONS: 'off',
-                  REPLICA_BINDDN: NEW_RM_1,
+    properties = {REPLICA_BINDDN: NEW_RM_1,
                   REPLICA_PURGE_INTERVAL: str(3600),
                   REPLICA_PURGE_DELAY: str(5 * 24 * 3600),
                   REPLICA_REFERRAL: "ldap://%s:1234/" % LOCALHOST}
@@ -425,20 +424,20 @@ def test_setProperties(topology):
 
     # check call without suffix/dn/entry raise InvalidArgumentError
     with pytest.raises(InvalidArgumentError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
+        properties = {REPLICA_BINDDN: NEW_RM_1}
         topology.master.replica.setProperties(properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
 
     # check that if we do not provide a valid entry it raises ValueError
     with pytest.raises(ValueError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
+        properties = {REPLICA_BINDDN: NEW_RM_1}
         topology.master.replica.setProperties(replica_entry="dummy",
                                               properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
 
     # check that with an invalid suffix or replica_dn it raise ValueError
     with pytest.raises(ValueError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
+        properties = {REPLICA_BINDDN: NEW_RM_1}
         topology.master.replica.setProperties(suffix="dummy",
                                               properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
@@ -449,7 +448,6 @@ def test_getProperties(topology):
 
     log.info("\n\n############\n### GETPROPERTIES\n###########")
     with pytest.raises(NotImplementedError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS: 'off'}
         topology.master.replica.getProperties(suffix=NEW_SUFFIX_1)
     log.info("Exception (expected): %s" % str(excinfo.value))
 

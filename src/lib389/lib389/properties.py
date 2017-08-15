@@ -161,7 +161,6 @@ REPL_BIND_GROUP = 'nsds5replicabinddngroup'
 REPL_BIND_GROUP_INTERVAL = 'nsds5replicabinddngroupcheckinterval'
 REPL_REF = 'nsds5ReplicaReferral'
 REPL_TOMBSTONE_PURGE_INTERVAL = 'nsds5ReplicaTombstonePurgeInterval'
-REPL_LEGACY_CONS = 'nsds5ReplicaLegacyConsumer'
 REPL_CLEAN_RUV = 'nsds5ReplicaCleanRUV'
 REPL_ABORT_RUV = 'nsds5ReplicaAbortCleanRUV'
 REPL_COUNT_COUNT = 'nsds5ReplicaChangeCount'
@@ -170,7 +169,6 @@ REPL_RELEASE_TIMEOUT = 'nsds5replicaReleaseTimeout'
 
 # The values are from the REST API
 REPLICA_SUFFIX = 'suffix'
-REPLICA_LEGACY_CONS = 'ReplicaLegacyConsumer'
 REPLICA_PURGE_DELAY = 'ReplicaPurgeDelay'
 REPLICA_ROOT = 'ReplicaRoot'
 REPLICA_PROTOCOL_TIMEOUT = 'ReplicaProtocolTimeout'
@@ -198,7 +196,6 @@ REPLICA_PROPNAME_TO_ATTRNAME = {REPLICA_SUFFIX: REPL_ROOT,
                                 REPLICA_ROOT: REPL_ROOT,
                                 REPLICA_ID: REPL_ID,
                                 REPLICA_TYPE: REPL_TYPE,
-                                REPLICA_LEGACY_CONS: REPL_LEGACY_CONS,
                                 REPLICA_PURGE_INTERVAL:
                                     REPL_TOMBSTONE_PURGE_INTERVAL,
                                 REPLICA_PURGE_DELAY: REPL_PURGE_DELAY,

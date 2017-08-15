@@ -174,7 +174,6 @@ class ReplicaLegacy(object):
                 REPLICA_SUFFIX
                 REPLICA_ID
                 REPLICA_TYPE
-                REPLICA_LEGACY_CONS
                 REPLICA_BINDDN
                 REPLICA_PURGE_DELAY
                 REPLICA_PRECISE_PURGING
@@ -300,7 +299,6 @@ class ReplicaLegacy(object):
                     REPLICA_SUFFIX
                     REPLICA_ID
                     REPLICA_TYPE
-                    REPLICA_LEGACY_CONS ['off']
                     REPLICA_BINDDN [defaultProperties[REPLICATION_BIND_DN]]
                     REPLICA_PURGE_DELAY
                     REPLICA_PRECISE_PURGING
@@ -359,7 +357,6 @@ class ReplicaLegacy(object):
                 properties[prop] = args[prop]
 
         # Now set default values of unset properties
-        ReplicaLegacy._set_or_default(REPLICA_LEGACY_CONS, properties, 'off')
         ReplicaLegacy._set_or_default(REPLICA_BINDDN, properties,
                                 [defaultProperties[REPLICATION_BIND_DN]])
 
@@ -806,7 +803,7 @@ class Replica(DSLdapObject):
 
         super(Replica, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
-        self._must_attributes = ['cn', REPL_LEGACY_CONS, REPL_TYPE,
+        self._must_attributes = ['cn', REPL_TYPE,
                                  REPL_ROOT, REPL_BINDDN, REPL_ID]
 
         self._create_objectclasses = ['top', 'extensibleObject',
@@ -1259,7 +1256,7 @@ class Replicas(DSLdapObjects):
             rtype = REPLICA_RDONLY_TYPE
 
         # Set the properties provided as mandatory parameter
-        properties = {'cn': RDN_REPLICA,
+        properties = {'cn': 'replica',
                       REPL_ROOT: suffix,
                       REPL_ID: str(replicaID),
                       REPL_TYPE: str(rtype)}
@@ -1270,10 +1267,6 @@ class Replicas(DSLdapObjects):
                 if not inProperties(prop, REPLICA_PROPNAME_TO_ATTRNAME):
                     raise ValueError("unknown property: %s" % prop)
                 properties[prop] = args[prop]
-
-        # Now set default values of unset properties
-        if REPLICA_LEGACY_CONS not in properties:
-            properties[REPL_LEGACY_CONS] = 'off'
 
         # Set flags explicitly, so it will be more readable
         if role == ReplicaRole.CONSUMER:
@@ -1310,7 +1303,7 @@ class Replicas(DSLdapObjects):
 
         # Now create the replica entry
         mtents = self._instance.mappingtree.list(suffix=suffix)
-        suffix_dn = mtents[0].dn
+        self._basedn = mtents[0].dn
         replica = self.create(RDN_REPLICA, properties)
         replica._suffix = suffix
 
