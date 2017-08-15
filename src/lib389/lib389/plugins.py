@@ -8,6 +8,7 @@
 
 import ldap
 import copy
+import os.path
 
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
@@ -118,9 +119,39 @@ class ManagedEntriesPlugin(Plugin):
     # Because there are potentially many MEP configs.
 
 class ReferentialIntegrityPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'referential integrity postoperation',
+        'nsslapd-pluginEnabled': 'off',
+        'nsslapd-pluginPath': 'libreferint-plugin',
+        'nsslapd-pluginInitfunc': 'referint_postop_init',
+        'nsslapd-pluginType': 'betxnpostoperation',
+        'nsslapd-pluginprecedence': '40',
+        'nsslapd-plugin-depends-on-type': 'database',
+        'referint-update-delay': '0',
+        'referint-membership-attr': ['member', 'uniquemember', 'owner', 'seeAlso',],
+        'nsslapd-pluginId' : 'referint',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.7.0',
+        'nsslapd-pluginDescription' : 'referential integrity plugin',
+    }
+
     def __init__(self, instance, dn="cn=referential integrity postoperation,cn=plugins,cn=config", batch=False):
         super(ReferentialIntegrityPlugin, self).__init__(instance, dn, batch)
+        self._create_objectclasses.extend(['extensibleObject'])
+        self._must_attributes.extend([
+            'referint-update-delay',
+            'referint-logfile',
+            'referint-membership-attr',
+        ])
         self._lint_functions = [self._lint_update_delay]
+
+    def create(self, rdn=None, properties=None, basedn=None):
+        referint_log = os.path.join(self._instance.ds_paths.log_dir, "referint")
+        if properties is None:
+            properties = {'referint-logfile': referint_log}
+        else:
+            properties['referint-logfile'] = referint_log
+        return super(ReferentialIntegrityPlugin, self).create(rdn, properties, basedn)
 
     def _lint_update_delay(self):
         if self.status():
@@ -128,13 +159,71 @@ class ReferentialIntegrityPlugin(Plugin):
             if delay is not None and delay != 0:
                 return DSRILE0001
 
-    # referint-update-delay: 0
-    # referint-logfile: /opt/dirsrv/var/log/dirsrv/slapd-standalone_2/referint
-    # referint-logchanges: 0
-    # referint-membership-attr: member
-    # referint-membership-attr: uniquemember
-    # referint-membership-attr: owner
-    # referint-membership-attr: seeAlso
+    def get_update_delay(self):
+        return self.get_attr_val_int('referint-update-delay')
+
+    def get_update_delay_formatted(self):
+        return self.display_attr('referint-update-delay')
+
+    def set_update_delay(self, value):
+        self.set('referint-update-delay', str(value))
+
+    def get_membership_attr(self, formatted=False):
+        return self.get_attr_vals_utf8('referint-membership-attr')
+
+    def get_membership_attr_formatted(self):
+        return self.display_attr('referint-membership-attr')
+
+    def add_membership_attr(self, attr):
+        self.add('referint-membership-attr', attr)
+
+    def remove_membership_attr(self, attr):
+        self.remove('referint-membership-attr', attr)
+
+    def get_entryscope(self, formatted=False):
+        return self.get_attr_vals_utf8('nsslapd-pluginentryscope')
+
+    def get_entryscope_formatted(self):
+        return self.display_attr('nsslapd-pluginentryscope')
+
+    def add_entryscope(self, attr):
+        self.add('nsslapd-pluginentryscope', attr)
+
+    def remove_entryscope(self, attr):
+        self.remove('nsslapd-pluginentryscope', attr)
+
+    def remove_all_entryscope(self):
+        self.remove_all('nsslapd-pluginentryscope')
+
+    def get_excludescope(self):
+        return self.get_attr_vals_ut8('nsslapd-pluginexcludeentryscope')
+
+    def get_excludescope_formatted(self):
+        return self.display_attr('nsslapd-pluginexcludeentryscope')
+
+    def add_excludescope(self, attr):
+        self.add('nsslapd-pluginexcludeentryscope', attr)
+
+    def remove_excludescope(self, attr):
+        self.remove('nsslapd-pluginexcludeentryscope', attr)
+
+    def remove_all_excludescope(self):
+        self.remove_all('nsslapd-pluginexcludeentryscope')
+
+    def get_container_scope(self):
+        return self.get_attr_vals_ut8('nsslapd-plugincontainerscope')
+
+    def get_container_scope_formatted(self):
+        return self.display_attr('nsslapd-plugincontainerscope')
+
+    def add_container_scope(self, attr):
+        self.add('nsslapd-plugincontainerscope', attr)
+
+    def remove_container_scope(self, attr):
+        self.remove('nsslapd-plugincontainerscope', attr)
+
+    def remove_all_container_scope(self):
+        self.remove_all('nsslapd-plugincontainerscope')
 
 class SyntaxValidationPlugin(Plugin):
     def __init__(self, instance, dn="cn=Syntax Validation Task,cn=plugins,cn=config", batch=False):
