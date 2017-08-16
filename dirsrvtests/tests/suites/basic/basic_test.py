@@ -6,16 +6,18 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+
+"""
+   :Requirement: Basic Directory Server Operations
+"""
+
 from subprocess import check_output
 
-import time
-import ldap.sasl
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
-
 from lib389._constants import DN_DM, PASSWORD, PW_DM
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
@@ -87,10 +89,25 @@ def rootdse_attr(topology_st, request):
 
 
 def test_basic_ops(topology_st, import_example_ldif):
-    """Test doing adds, mods, modrdns, and deletes"""
+    """Tests adds, mods, modrdns, and deletes operations
 
+    :id: 33f97f55-60bf-46c7-b880-6c488517ae19
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Add 3 test users USER1, USER2 and USER3 to database
+         2. Modify (ADD, REPLACE and DELETE) description for USER1 in database
+         3. Rename USER1, USER2 and USER3 using Modrds
+         4. Delete test entries USER1, USER2 and USER3
+
+    :expectedresults:
+         1. Add operation should PASS.
+         2. Modify operations should PASS.
+         3. Rename operations should PASS.
+         4. Delete operations should PASS.
+    """
     log.info('Running test_basic_ops...')
-
     USER1_NEWDN = 'cn=user1'
     USER2_NEWDN = 'cn=user2'
     USER3_NEWDN = 'cn=user3'
@@ -100,8 +117,7 @@ def test_basic_ops(topology_st, import_example_ldif):
     USER3_RDN_DN = 'cn=user3,' + NEW_SUPERIOR  # New superior test
 
     #
-    # Adds
-    #
+    # Adds#
     try:
         topology_st.standalone.add_s(Entry((USER1_DN,
                                             {'objectclass': "top extensibleObject".split(),
@@ -172,16 +188,14 @@ def test_basic_ops(topology_st, import_example_ldif):
         topology_st.standalone.rename_s(USER2_DN, USER2_NEWDN, delold=0)
     except ldap.LDAPError as e:
         log.error('Failed to modrdn user2: error ' + e.message['desc'])
-        assert False
+        assert False  # Modrdn - New superior
 
-    # Modrdn - New superior
     try:
         topology_st.standalone.rename_s(USER3_DN, USER3_NEWDN,
                                         newsuperior=NEW_SUPERIOR, delold=1)
     except ldap.LDAPError as e:
         log.error('Failed to modrdn(new superior) user3: error ' + e.message['desc'])
         assert False
-
     #
     # Deletes
     #
@@ -202,12 +216,32 @@ def test_basic_ops(topology_st, import_example_ldif):
     except ldap.LDAPError as e:
         log.error('Failed to delete test entry3: ' + e.message['desc'])
         assert False
-
     log.info('test_basic_ops: PASSED')
 
 
 def test_basic_import_export(topology_st, import_example_ldif):
-    """Test online and offline LDIF imports & exports"""
+    """Test online and offline LDIF import & export
+
+    :id: 3ceeea11-9235-4e20-b80e-7203b2c6e149
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Generate a test ldif (50k entries)
+         2. Import test ldif file using Online import.
+         3. Import test ldif file using Offline import (ldif2db).
+         4. Export test ldif file using Online export.
+         5. Export test ldif file using Offline export (db2ldif).
+         6. Cleanup - Import the Example LDIF for the other tests in this suite
+
+    :expectedresults:
+         1. Test ldif file creation should PASS.
+         2. Online import should PASS.
+         3. Offline import should PASS.
+         4. Online export should PASS.
+         5. Offline export should PASS.
+         6. Cleanup should PASS.
+    """
 
     log.info('Running test_basic_import_export...')
 
@@ -224,7 +258,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
         topology_st.standalone.buildLDIF(50000, import_ldif)
     except OSError as e:
         log.fatal('test_basic_import_export: failed to create test ldif,\
-                  error: %s - %s' % (e.errno, e.strerror))
+                error: %s - %s' % (e.errno, e.strerror))
         assert False
 
     # Online
@@ -284,7 +318,24 @@ def test_basic_import_export(topology_st, import_example_ldif):
 
 
 def test_basic_backup(topology_st, import_example_ldif):
-    """Test online and offline back and restore"""
+    """Tests online and offline backup and restore
+
+    :id: 0e9d91f8-8748-40b6-ab03-fbd1998eb985
+
+    :setup: Standalone instance and import example.ldif
+
+    :steps:
+         1. Test online backup using db2bak.
+         2. Test online restore using bak2db.
+         3. Test offline backup using db2bak.
+         4. Test offline restore using bak2db.
+
+    :expectedresults:
+         1. Online backup should PASS.
+         2. Online restore should PASS.
+         3. Offline backup should PASS.
+         4. Offline restore should PASS.
+    """
 
     log.info('Running test_basic_backup...')
 
@@ -322,10 +373,32 @@ def test_basic_backup(topology_st, import_example_ldif):
 
 
 def test_basic_acl(topology_st, import_example_ldif):
-    """Run some basic access control(ACL) tests"""
+    """Run some basic access control (ACL) tests
+
+    :id: 4f4e705f-32f4-4065-b3a8-2b0c2525798b
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Add two test users USER1_DN and USER2_DN.
+         2. Add an aci that denies USER1 from doing anything.
+         3. Set the default anonymous access for USER2.
+         4. Try searching entries using USER1.
+         5. Try searching entries using USER2.
+         6. Try searching entries using root dn.
+         7. Cleanup - delete test users and test ACI.
+
+    :expectedresults:
+         1. Test Users should be added.
+         2. ACI should be added.
+         3. This operation should PASS.
+         4. USER1 should not be able to search anything.
+         5. USER2 should be able to search everything except password.
+         6. RootDN should be allowed to search everything.
+         7. Cleanup should PASS.
+    """
 
     log.info('Running test_basic_acl...')
-    topology_st.standalone.start()
 
     DENY_ACI = ('(targetattr = "*") (version 3.0;acl "deny user";deny (all)' +
                 '(userdn = "ldap:///' + USER1_DN + '");)')
@@ -409,7 +482,7 @@ def test_basic_acl(topology_st, import_example_ldif):
         log.fatal('test_basic_acl: Search for user1 failed(as user2): ' + e.message['desc'])
         assert False
 
-    # Make sure Root DN can also search (this also resets the bind dn to the
+    # Make sure RootDN can also search (this also resets the bind dn to the
     # Root DN for future operations)
     try:
         topology_st.standalone.simple_bind_s(DN_DM, PW_DM)
@@ -453,7 +526,20 @@ def test_basic_acl(topology_st, import_example_ldif):
 
 
 def test_basic_searches(topology_st, import_example_ldif):
-    """The search results are gathered from testing with Example.ldif"""
+    """Tests basic search operations with filters.
+
+    :id: 426a59ff-49b8-4a70-b377-0c0634a29b6f
+
+    :setup: Standalone instance, add example.ldif to the database
+
+    :steps:
+         1. Execute search command while using different filters.
+         2. Check number of entries returned by search filters.
+
+    :expectedresults:
+         1. Search command should PASS.
+         2. Number of result entries returned should match number of the database entries according to the search filter.
+    """
 
     log.info('Running test_basic_searches...')
 
@@ -481,7 +567,7 @@ def test_basic_searches(topology_st, import_example_ldif):
                                                       search_filter)
             if len(entries) != search_result:
                 log.fatal('test_basic_searches: An incorrect number of entries\
-                          was returned from filter (%s): (%d) expected (%d)' %
+                        was returned from filter (%s): (%d) expected (%d)' %
                           (search_filter, len(entries), search_result))
                 assert False
         except ldap.LDAPError as e:
@@ -492,16 +578,33 @@ def test_basic_searches(topology_st, import_example_ldif):
 
 
 def test_basic_referrals(topology_st, import_example_ldif):
-    """Set the server to referral mode,
-    and make sure we recive the referal error(10)
+    """Test LDAP server in referral mode.
+
+    :id: c586aede-7ac3-4e8d-a1cf-bfa8b8d78cc2
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Set the referral and the backenidealyd state
+         2. Set backend state to referral mode.
+         3. Set server to not follow referral.
+         4. Search using referral.
+         5. Make sure server can restart in referral mode.
+         6. Cleanup - Delete referral.
+
+    :expectedresults:
+         1. Set the referral, and the backend state should PASS.
+         2. Set backend state to referral mode should PASS.
+         3. Set server to not follow referral should PASS.
+         4. referral error(10) should occur.
+         5. Restart should PASS.
+         6. Cleanup should PASS.
     """
 
     log.info('Running test_basic_referrals...')
-
     SUFFIX_CONFIG = 'cn="dc=example,dc=com",cn=mapping tree,cn=config'
-
     #
-    # Set the referral, adn the backend state
+    # Set the referral, and the backend state
     #
     try:
         topology_st.standalone.modify_s(SUFFIX_CONFIG,
@@ -561,8 +664,27 @@ def test_basic_referrals(topology_st, import_example_ldif):
 
 
 def test_basic_systemctl(topology_st, import_example_ldif):
-    """Test systemctl/lib389 can stop and start the server.  Also test that start reports an
-    error when the instance does not start.  Only for RPM builds
+    """Tests systemctl/lib389 can stop and start the server.
+
+    :id: a92a7438-ecfa-4583-a89c-5fbfc0220b69
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Stop the server.
+         2. Start the server.
+         3. Stop the server, break the dse.ldif and dse.ldif.bak, so a start fails.
+         4. Verify that systemctl detects the failed start.
+         5. Fix the dse.ldif, and make sure the server starts up.
+         6. Verify systemctl correctly identifies the successful start.
+
+    :expectedresults:
+         1. Server should be stopped.
+         2. Server should start
+         3. Stop should work but start after breaking dse.ldif should fail.
+         4. Systemctl should be able to detect the failed start.
+         5. Server should start.
+         6. Systemctl should be able to detect the successful start.
     """
 
     log.info('Running test_basic_systemctl...')
@@ -621,7 +743,20 @@ def test_basic_systemctl(topology_st, import_example_ldif):
 
 
 def test_basic_ldapagent(topology_st, import_example_ldif):
-    """Test that the ldap agent starts"""
+    """Tests that the ldap agent starts
+
+    :id: da1d1846-8fc4-4b8c-8e53-4c9c16eff1ba
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Start SNMP ldap agent using command.
+         2. Cleanup - Kill SNMP agent process.
+
+    :expectedresults:
+         1. SNMP agent should start.
+         2. SNMP agent process should be successfully killed.
+    """
 
     log.info('Running test_basic_ldapagent...')
 
@@ -653,10 +788,22 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
 
 
 def test_basic_dse(topology_st, import_example_ldif):
-    """Test that the dse.ldif is not wipped out
-    after the process is killed (bug 910581)
-    """
+    """Tests that the dse.ldif is not wiped out after the process is killed (bug 910581)
 
+    :id: 10f141da-9b22-443a-885c-87271dcd7a59
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Check out pid of ns-slapd process and Kill ns-slapd process.
+         2. Check the contents of dse.ldif file.
+         3. Start server.
+
+    :expectedresults:
+         1. ns-slapd process should be killed.
+         2. dse.ldif should not be corrupted.
+         3. Server should start successfully.
+    """
     log.info('Running test_basic_dse...')
 
     dse_file = topology_st.standalone.confdir + '/dse.ldif'
@@ -676,13 +823,24 @@ def test_basic_dse(topology_st, import_example_ldif):
 
 @pytest.mark.parametrize("rootdse_attr_name", ROOTDSE_DEF_ATTR_LIST)
 def test_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr_name):
-    """Tests that operational attributes
-    are not returned by default in rootDSE searches
+    """Tests that operational attributes are not returned by default in rootDSE searches
+
+    :id: 4fee33cc-4019-4c27-89e8-998e6c770dc0
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Make an ldapsearch for rootdse attribute
+         2. Check the returned entries.
+
+    :expectedresults:
+         1. Search should not fail
+         2. Operational attributes should not be returned.
     """
 
     topology_st.standalone.start()
 
-    log.info("        Assert rootdse search hasn't %s attr" % rootdse_attr_name)
+    log.info(" Assert rootdse search hasn't %s attr" % rootdse_attr_name)
     try:
         entries = topology_st.standalone.search_s("", ldap.SCOPE_BASE)
         entry = str(entries[0])
@@ -694,11 +852,23 @@ def test_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr_name):
 
 
 def test_mod_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr):
-    """Tests that operational attributes are returned
-    by default in rootDSE searches after config modification
-    """
+    """Tests that operational attributes are returned by default in rootDSE searches after config modification
 
-    log.info("        Assert rootdse search has %s attr" % rootdse_attr)
+   :id: c7831e04-f458-4e23-83c7-b6f66109f639
+
+   :setup: Standalone instance and we are using rootdse_attr fixture which 
+adds nsslapd-return-default-opattr attr with value of one operation attribute.
+
+   :steps:
+         1. Make an ldapsearch for rootdse attribute
+         2. Check the returned entries.
+
+   :expectedresults:
+         1. Search should not fail
+         2. Operational attributes should be returned after the config modification
+   """
+
+    log.info(" Assert rootdse search has %s attr" % rootdse_attr)
     try:
         entries = topology_st.standalone.search_s("", ldap.SCOPE_BASE)
         entry = str(entries[0])
@@ -708,9 +878,10 @@ def test_mod_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr):
         log.fatal('Search failed, error: ' + e.message['desc'])
         assert False
 
-
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
+
+
