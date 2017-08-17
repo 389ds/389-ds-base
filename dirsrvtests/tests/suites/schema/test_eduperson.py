@@ -31,9 +31,23 @@ log = logging.getLogger(__name__)
 
 
 def test_account_locking(topology):
+    """Test the eduperson schema works
+
+    :id: f2f15449-a822-4ec6-b4ea-bd6db6240a6c
+
+    :setup: Standalone instance
+
+    :steps:
+        1. Add a common user
+        2. Extend the user with eduPerson objectClass
+        3. Add attributes in eduPerson
+
+    :expectedresults:
+        1. User should be added with its properties
+        2. User should be extended with eduPerson as the objectClass
+        3. eduPerson should be added
     """
-    Test the eduperson schema works
-    """
+
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
