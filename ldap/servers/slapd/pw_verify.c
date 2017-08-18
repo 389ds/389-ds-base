@@ -58,12 +58,14 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     int rc = SLAPI_BIND_SUCCESS;
     Slapi_Backend *be = NULL;
 
-    if (slapi_mapping_tree_select(pb, &be, referral, NULL, 0) != LDAP_SUCCESS) {
+    int mt_result = slapi_mapping_tree_select(pb, &be, referral, NULL, 0);
+    if (mt_result != LDAP_SUCCESS) {
         return SLAPI_BIND_NO_BACKEND;
     }
 
     if (*referral) {
-        slapi_be_Unlock(be);
+        /* If we have a referral, this is NULL */
+        PR_ASSERT(be == NULL);
         return SLAPI_BIND_REFERRAL;
     }
 
@@ -128,7 +130,7 @@ pw_validate_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
     }
 
     if (*referral) {
-        slapi_be_Unlock(be);
+        PR_ASSERT(be == NULL);
         return SLAPI_BIND_REFERRAL;
     }
 

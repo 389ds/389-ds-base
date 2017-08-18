@@ -1026,16 +1026,6 @@ main( int argc, char **argv)
 
 		ps_init_psearch_system();   /* must come before plugin_startall() */
 
-		/* Initailize the mapping tree */
-
-		if (mapping_tree_init())
-		{
-			slapi_log_err(SLAPI_LOG_EMERG, "main", "Failed to init mapping tree\n");
-			return_value = 1;
-			goto cleanup;
-		}
-
-
 		/* initialize UniqueID generator - must be done once backends are started
 		   and event queue is initialized but before plugins are started */
 		/* Note: This DN is no need to be normalized. */
