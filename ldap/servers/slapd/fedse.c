@@ -1870,6 +1870,16 @@ setup_internal_backends(char *configdir)
         be_addsuffix(be, &monitor);
         be_addsuffix(be, &config);
 
+        /*
+         * Now that the be's are in place, we can
+         * setup the mapping tree.
+         */
+
+        if (mapping_tree_init()) {
+            slapi_log_err(SLAPI_LOG_EMERG, "setup_internal_backends", "Failed to init mapping tree\n");
+            exit(1);
+        }
+
         add_internal_entries();
 
         add_easter_egg_entry();

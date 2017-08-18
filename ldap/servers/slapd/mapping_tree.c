@@ -87,12 +87,12 @@ struct mt_node
  *      release backend lock
  *
  */
-static Slapi_RWLock *myLock; /* global lock on the mapping tree structures */
+static Slapi_RWLock *myLock = NULL; /* global lock on the mapping tree structures */
 
 
 static mapping_tree_node *mapping_tree_root = NULL;
-static int mapping_tree_inited = 0;
-static int mapping_tree_freed = 0;
+static int32_t mapping_tree_inited = 0;
+static int32_t mapping_tree_freed = 0;
 static int extension_type = -1; /* type returned from the factory */
 
 /* The different states a mapping tree node can be in. */
@@ -1583,15 +1583,17 @@ add_internal_mapping_tree_node(const char *subtree, Slapi_Backend *be, mapping_t
     Slapi_DN *dn;
     mapping_tree_node *node;
     backend **be_list = (backend **)slapi_ch_malloc(sizeof(backend *));
+    int *be_states = (int *)slapi_ch_malloc(sizeof(int));
 
     be_list[0] = be;
+    be_states[0] = SLAPI_BE_STATE_ON;
 
     dn = slapi_sdn_new_dn_byval(subtree);
     node = mapping_tree_node_new(
         dn,
         be_list,
         NULL, /* backend_name */
-        NULL,
+        be_states, /* be state */
         1,    /* number of backends at this node */
         1,    /* size of backend list structure */
         NULL, /* referral */
@@ -1645,25 +1647,26 @@ mapping_tree_init()
 
     /* we call this function from a single thread, so it should be ok */
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown has been detected */
         return 0;
     }
 
-    if (mapping_tree_inited)
-        return 0;
-
     /* ONREPL - I have moved this up because otherwise we can endup calling this
      * function recursively */
+    if (myLock != NULL) {
+        return 0;
+    }
+    myLock = slapi_new_rwlock();
+    slapi_rwlock_wrlock(myLock);
 
+    /* Should be fenced by the rwlock. */
     mapping_tree_inited = 1;
 
     slapi_register_supported_control(MTN_CONTROL_USE_ONE_BACKEND_OID,
                                      SLAPI_OPERATION_SEARCH);
     slapi_register_supported_control(MTN_CONTROL_USE_ONE_BACKEND_EXT_OID,
                                      SLAPI_OPERATION_SEARCH);
-
-    myLock = slapi_new_rwlock();
 
     be = slapi_be_select_by_instance_name(DSE_BACKEND);
     mapping_tree_root = add_internal_mapping_tree_node("", be, NULL);
@@ -1680,6 +1683,8 @@ mapping_tree_init()
     node = add_internal_mapping_tree_node("cn=schema", be, mapping_tree_root);
     mapping_tree_node_add_child(mapping_tree_root, node);
 
+    slapi_rwlock_unlock(myLock);
+
     /*
      * Now we need to look under cn=mapping tree, cn=config to find the rest
      * of the mapping tree entries.
@@ -1687,10 +1692,14 @@ mapping_tree_init()
      * calls mapping_tree_node_get_children with the special case for the
      * root node.
      */
-    if (mapping_tree_node_get_children(mapping_tree_root, 1))
-        return -1;
 
+    if (mapping_tree_node_get_children(mapping_tree_root, 1)) {
+        return -1;
+    }
+
+    slapi_rwlock_wrlock(myLock);
     mtn_create_extension(mapping_tree_root);
+    slapi_rwlock_unlock(myLock);
 
     /* setup the dse callback functions for the ldbm instance config entry */
     {
@@ -1762,7 +1771,7 @@ mapping_tree_free()
     slapi_unregister_backend_state_change_all();
     /* recursively free tree nodes */
     mtn_free_node(&mapping_tree_root);
-    mapping_tree_freed = 1;
+    __atomic_store_4(&mapping_tree_freed, 1, __ATOMIC_RELAXED);
 }
 
 /* This function returns the first node to parse when a search is done
@@ -2013,14 +2022,12 @@ slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral)
     mapping_tree_node *target_node = NULL;
     int ret = 0;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         goto done;
     }
 
-    if (!mapping_tree_inited) {
-        mapping_tree_init();
-    }
+    PR_ASSERT(mapping_tree_inited == 1);
 
     if (target_sdn) {
         mtn_lock();
@@ -2086,7 +2093,7 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
     int fixup = 0;
 
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return LDAP_OPERATIONS_ERROR;
     }
@@ -2104,9 +2111,7 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
     target_sdn = operation_get_target_spec(op);
     fixup = operation_is_flag_set(op, OP_FLAG_TOMBSTONE_FIXUP);
 
-    if (!mapping_tree_inited) {
-        mapping_tree_init();
-    }
+    PR_ASSERT(mapping_tree_inited == 1);
 
     be[0] = NULL;
     if (referral) {
@@ -2117,8 +2122,9 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
 
     /* Get the mapping tree node that is the best match for the target dn. */
     target_node = slapi_get_mapping_tree_node_by_dn(target_sdn);
-    if (target_node == NULL)
+    if (target_node == NULL) {
         target_node = mapping_tree_root;
+    }
 
     /* The processing of the base scope root DSE search and all other LDAP operations on ""
      *  will be transferred to the internal DSE backend
@@ -2192,7 +2198,7 @@ slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list, Slapi_E
     int flag_partial_result = 0;
     int op_type;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -2212,9 +2218,7 @@ slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list, Slapi_E
     slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &op_type);
     slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
 
-    if (!mapping_tree_inited) {
-        mapping_tree_init();
-    }
+    PR_ASSERT(mapping_tree_inited == 1);
 
     mtn_lock();
 
@@ -2354,7 +2358,7 @@ slapi_mapping_tree_select_and_check(Slapi_PBlock *pb, char *newdn, Slapi_Backend
     int ret;
     int need_unlock = 0;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -2520,7 +2524,7 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
     int flag_stop = 0;
     struct slapi_componentid *cid = NULL;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shut down detected */
         return LDAP_OPERATIONS_ERROR;
     }
@@ -2602,21 +2606,22 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
                     } else {
                         /* This MTN has not been linked to its backend
                          * instance yet. */
-                        target_node->mtn_be[*index] =
-                            slapi_be_select_by_instance_name(
-                                target_node->mtn_backend_names[*index]);
-                        *be = target_node->mtn_be[*index];
-                        if (*be == NULL) {
-                            slapi_log_err(SLAPI_LOG_BACKLDBM, "mtn_get_be",
-                                          "Warning: Mapping tree node entry for %s "
-                                          "point to an unknown backend : %s\n",
-                                          slapi_sdn_get_dn(target_node->mtn_subtree),
-                                          target_node->mtn_backend_names[*index]);
-                            /* Well there's still not backend instance for
-                             * this MTN, so let's have the default backend
-                             * deal with this.
-                             */
-                            *be = defbackend_get_backend();
+                        /* WARNING: internal memory dse backends don't provide NAMES */
+                        if (target_node->mtn_backend_names != NULL) {
+                            target_node->mtn_be[*index] = slapi_be_select_by_instance_name(target_node->mtn_backend_names[*index]);
+                            *be = target_node->mtn_be[*index];
+                            if (*be == NULL) {
+                                slapi_log_err(SLAPI_LOG_BACKLDBM, "mtn_get_be",
+                                              "Warning: Mapping tree node entry for %s "
+                                              "point to an unknown backend : %s\n",
+                                              slapi_sdn_get_dn(target_node->mtn_subtree),
+                                              target_node->mtn_backend_names[*index]);
+                                /* Well there's still not backend instance for
+                                 * this MTN, so let's have the default backend
+                                 * deal with this.
+                                 */
+                                *be = defbackend_get_backend();
+                            }
                         }
                     }
                 }
@@ -2628,10 +2633,11 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
                     result = LDAP_OPERATIONS_ERROR;
                     *be = defbackend_get_backend();
                 }
-                if (flag_stop)
+                if (flag_stop) {
                     *index = SLAPI_BE_NO_BACKEND;
-                else
+                } else {
                     (*index)++;
+                }
             }
         }
     } else {
@@ -2706,7 +2712,7 @@ best_matching_child(mapping_tree_node *parent,
     mapping_tree_node *highest_match_node = NULL;
     mapping_tree_node *current;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2733,7 +2739,7 @@ mtn_get_mapping_tree_node_by_entry(mapping_tree_node *node, const Slapi_DN *dn)
 {
     mapping_tree_node *found_node = NULL;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2776,7 +2782,7 @@ slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn)
     mapping_tree_node *current_best_match = mapping_tree_root;
     mapping_tree_node *next_best_match = mapping_tree_root;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2810,7 +2816,7 @@ get_mapping_tree_node_by_name(mapping_tree_node *node, char *be_name)
     int i;
     mapping_tree_node *found_node = NULL;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2857,7 +2863,7 @@ slapi_get_mapping_tree_node_configdn(const Slapi_DN *root)
 {
     char *dn = NULL;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2884,7 +2890,7 @@ slapi_get_mapping_tree_node_configsdn(const Slapi_DN *root)
     char *dn = NULL;
     Slapi_DN *sdn = NULL;
 
-    if (mapping_tree_freed) {
+    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return NULL;
     }

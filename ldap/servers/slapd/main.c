@@ -824,6 +824,7 @@ main(int argc, char **argv)
         }
         entry_computed_attr_init();
 
+        /* This will setup the mapping tree too */
         if (0 == setup_internal_backends(slapdFrontendConfig->configdir)) {
             slapi_log_err(SLAPI_LOG_EMERG, "main",
                           "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
@@ -1076,14 +1077,6 @@ main(int argc, char **argv)
         }
 
         ps_init_psearch_system(); /* must come before plugin_startall() */
-
-        /* Initailize the mapping tree */
-
-        if (mapping_tree_init()) {
-            slapi_log_err(SLAPI_LOG_EMERG, "main", "Failed to init mapping tree\n");
-            return_value = 1;
-            goto cleanup;
-        }
 
 
         /* initialize UniqueID generator - must be done once backends are started
