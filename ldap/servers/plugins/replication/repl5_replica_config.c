@@ -103,10 +103,33 @@ dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
+/*
+ * Create the entry at the top of the replication configuration subtree.
+ */
+static int
+create_config_top(void)
+{
+    /* DN part of this entry_string: no need to be optimized. */
+    char *entry_string = slapi_ch_strdup("dn: cn=replication,cn=config\nobjectclass: top\nobjectclass: extensibleobject\ncn: replication\n");
+    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_Entry *e = slapi_str2entry(entry_string, 0);
+    int return_value;
+
+    slapi_add_entry_internal_set_pb(pb, e, NULL, /* controls */
+    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
+    slapi_pblock_destroy(pb);
+    slapi_ch_free((void **)&entry_string);
+    return return_value;
+}
+
+
 int
 replica_config_init()
 {
     s_configLock = PR_NewLock();
+    int rc = 0;
 
     if (s_configLock == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
@@ -140,6 +163,12 @@ replica_config_init()
                       PR_GetError());
         return -1;
     }
+
+    if ((rc = create_config_top()) != 0){
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
+                      "Failed to create top replication entry - error %d\n",rc);
+    }
+
 
     /* config DSE must be initialized before we get here */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_SUBTREE,
