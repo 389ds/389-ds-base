@@ -133,7 +133,7 @@ def test_ticket48755(topology_m2):
     log.info('%s => %s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, parent1, parent01, parent001))
 
     log.info("Run Consumer Initialization.")
-    m1_m2_agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    m1_m2_agmt = M1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
     M1.startReplication_async(m1_m2_agmt)
     M1.waitForReplInit(m1_m2_agmt)
     time.sleep(2)

@@ -82,7 +82,7 @@ def addSubtreePwPolicy(inst):
     except ldap.LDAPError as e:
         log.error('Failed to add COS def: error ' + e.message['desc'])
         assert False
-    time.sleep(0.5)
+    time.sleep(1)
 
 
 def delSubtreePwPolicy(inst):
@@ -109,7 +109,7 @@ def delSubtreePwPolicy(inst):
     except ldap.LDAPError as e:
         log.error('Failed to delete COS container: error ' + e.message['desc'])
         assert False
-    time.sleep(0.5)
+    time.sleep(1)
 
 
 def test_ticket47981(topology_st):

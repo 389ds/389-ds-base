@@ -22,7 +22,6 @@ USER_NUM = 10
 TEST_USER = "test_user"
 
 
-
 def test_ticket48252_setup(topology_st):
     """
     Enable USN plug-in for enabling tombstones
@@ -51,7 +50,7 @@ def test_ticket48252_setup(topology_st):
 
 def in_index_file(topology_st, id, index):
     key = "%s%s" % (TEST_USER, id)
-    log.info("	dbscan - checking %s is in index file %s..." % (key, index))
+    log.info("  dbscan - checking %s is in index file %s..." % (key, index))
     dbscanOut = topology_st.standalone.dbscan(DEFAULT_BENAME, index)
 
     if key in dbscanOut:
@@ -73,16 +72,16 @@ def test_ticket48252_run_0(topology_st):
     uas = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     del_rdn = "cn=%s0" % TEST_USER
     del_entry = uas.get('%s0' % TEST_USER)
-    log.info("	Deleting a test entry %s..." % del_entry)
+    log.info("  Deleting a test entry %s..." % del_entry)
     del_entry.delete()
 
     assert in_index_file(topology_st, 0, 'cn') == False
 
-    log.info("	db2index - reindexing %s ..." % 'cn')
+    log.info("  db2index - reindexing %s ..." % 'cn')
     assert topology_st.standalone.db2index(DEFAULT_BENAME, 'cn')
 
     assert in_index_file(topology_st, 0, 'cn') == False
-    log.info("	entry %s is not in the cn index file after reindexed." % del_rdn)
+    log.info("  entry %s is not in the cn index file after reindexed." % del_rdn)
     log.info('Case 1 - PASSED')
 
 
@@ -95,7 +94,7 @@ def test_ticket48252_run_1(topology_st):
     uas = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     del_rdn = "cn=%s1" % TEST_USER
     del_entry = uas.get('%s1' % TEST_USER)
-    log.info("	Deleting a test entry %s..." % del_rdn)
+    log.info("  Deleting a test entry %s..." % del_rdn)
 
     del_uniqueid = del_entry.get_attr_val_utf8('nsuniqueid')
 
@@ -106,20 +105,20 @@ def test_ticket48252_run_1(topology_st):
 
     entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(nsuniqueid=%s))' % del_uniqueid)
     assert len(entry) == 1
-    log.info("	entry %s is in the objectclass index file." % del_rdn)
+    log.info("  entry %s is in the objectclass index file." % del_rdn)
     entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
     assert len(entry) == 0
-    log.info("	entry %s is correctly not in the cn index file before reindexing." % del_rdn)
+    log.info("  entry %s is correctly not in the cn index file before reindexing." % del_rdn)
 
-    log.info("	db2index - reindexing %s ..." % 'objectclass')
+    log.info("  db2index - reindexing %s ..." % 'objectclass')
     assert topology_st.standalone.db2index(DEFAULT_BENAME, 'objectclass')
 
     entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(nsuniqueid=%s))' % del_uniqueid)
     assert len(entry) == 1
-    log.info("	entry %s is in the objectclass index file after reindexing." % del_rdn)
+    log.info("  entry %s is in the objectclass index file after reindexing." % del_rdn)
     entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
     assert len(entry) == 0
-    log.info("	entry %s is correctly not in the cn index file after reindexing." % del_rdn)
+    log.info("  entry %s is correctly not in the cn index file after reindexing." % del_rdn)
 
     log.info('Case 2 - PASSED')
 

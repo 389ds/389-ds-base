@@ -36,7 +36,7 @@ def waitfor_async_attr(topology_m2, request):
     # Run through all masters
     for num in range(1, 3):
         master = topology_m2.ms["master{}".format(num)]
-        agmt = topology_m2.ms["master{}_agmts".format(num)].values()[0]
+        agmt = master.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
         try:
             if attr_value:
                 log.info("Set %s: %s on %s" % (
@@ -97,9 +97,8 @@ def entries(topology_m2, request):
 
 def test_not_int_value(topology_m2):
     """Tests not integer value"""
-
     master1 = topology_m2.ms["master1"]
-    agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    agmt = master1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
     log.info("Try to set %s: wv1" % WAITFOR_ASYNC_ATTR)
     try:
@@ -111,9 +110,9 @@ def test_not_int_value(topology_m2):
 
 def test_multi_value(topology_m2):
     """Tests multi value"""
-
     master1 = topology_m2.ms["master1"]
-    agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    agmt = master1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
+
     log.info("agmt: %s" % agmt)
 
     log.info("Try to set %s: 100 and 101 in the same time (multi value test)" % (
@@ -134,7 +133,7 @@ def test_value_check(topology_m2, waitfor_async_attr):
 
     for num in range(1, 3):
         master = topology_m2.ms["master{}".format(num)]
-        agmt = topology_m2.ms["master{}_agmts".format(num)].values()[0]
+        agmt = master.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
         log.info("Check attr %s on %s" % (WAITFOR_ASYNC_ATTR, master.serverid))
         try:

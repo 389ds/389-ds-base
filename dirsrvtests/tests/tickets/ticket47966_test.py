@@ -26,7 +26,7 @@ def test_ticket47966(topology_m2):
     log.info('Testing Ticket 47966 - [VLV] slapd crashes during Dogtag clone reinstallation')
     M1 = topology_m2.ms["master1"]
     M2 = topology_m2.ms["master2"]
-    m1_m2_agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    m1_m2_agmt = M1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
     log.info('0. Create a VLV index on Master 2.')
     # get the backend entry

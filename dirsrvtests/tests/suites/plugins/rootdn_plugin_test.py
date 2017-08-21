@@ -295,7 +295,7 @@ def test_rootdn_access_denied_ip(topology_st):
     try:
         topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
     except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: : failed to bind as user1')
+        log.fatal('test_rootdn_access_denied_ip: failed to bind as user1')
         assert False
 
     try:
@@ -344,9 +344,10 @@ def test_rootdn_access_denied_host(topology_st):
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                      'rootdn-deny-host',
                                                      hostname)])
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                     'rootdn-deny-host',
-                                                     localhost)])
+        if localhost != hostname:
+            topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
+                                                         'rootdn-deny-host',
+                                                         localhost)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_host: Failed to set deny host: error ' +
                   e.message['desc'])
@@ -524,12 +525,16 @@ def test_rootdn_access_allowed_host(topology_st):
     hostname = socket.gethostname()
     localhost = DirSrvTools.getLocalhost()
     try:
+        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE,
+                                                     'rootdn-allow-host',
+                                                     None)])
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                      'rootdn-allow-host',
                                                      localhost)])
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                     'rootdn-allow-host',
-                                                     hostname)])
+        if hostname != localhost:
+            topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
+                                                         'rootdn-allow-host',
+                                                         hostname)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_allowed_host: Failed to set allowed host: error ' +
                   e.message['desc'])

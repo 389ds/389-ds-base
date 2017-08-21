@@ -13,8 +13,7 @@ import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
-
-from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
+from lib389._constants import *
 
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")
 
@@ -290,7 +289,9 @@ def config_tls_agreements(topology_m2):
     log.info("##################### master1 <- tls_clientAuth -- master2 ##################")
 
     log.info("##### Update the agreement of master1")
-    m1_m2_agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    m1 = topology_m2.ms["master1"]
+    m1_m2_agmt = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
+
     topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
 
     log.info("##### Add the cert to the repl manager on master1")
@@ -328,16 +329,18 @@ def config_tls_agreements(topology_m2):
     m1certmap = '%s/certmap.conf' % (m1confdir)
     os.system('chmod 660 %s' % m1certmap)
     m1cm = open(m1certmap, "w")
-    m1cm.write('certmap Example	%s\n' % ISSUER)
-    m1cm.write('Example:DNComps	cn\n')
+    m1cm.write('certmap Example %s\n' % ISSUER)
+    m1cm.write('Example:DNComps cn\n')
     m1cm.write('Example:FilterComps\n')
-    m1cm.write('Example:verifycert	on\n')
-    m1cm.write('Example:CmapLdapAttr	description')
+    m1cm.write('Example:verifycert  on\n')
+    m1cm.write('Example:CmapLdapAttr    description')
     m1cm.close()
     os.system('chmod 440 %s' % m1certmap)
 
     log.info("##### Update the agreement of master2")
-    m2_m1_agmt = topology_m2.ms["master2_agmts"]["m2_m1"]
+    m2 = topology_m2.ms["master2"]
+    m2_m1_agmt = m2.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
+
     topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS'),
                                                     (ldap.MOD_REPLACE, 'nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH')])
 

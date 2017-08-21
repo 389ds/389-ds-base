@@ -113,11 +113,13 @@ def config_tls_agreements(topology_m2):
     log.info("######################## master1 <-- startTLS -> master2 #####################")
 
     log.info("##### Update the agreement of master1")
-    m1_m2_agmt = topology_m2.ms["master1_agmts"]["m1_m2"]
+    m1 = topology_m2.ms["master1"]
+    m1_m2_agmt = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
     topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
 
     log.info("##### Update the agreement of master2")
-    m2_m1_agmt = topology_m2.ms["master2_agmts"]["m2_m1"]
+    m2 = topology_m2.ms["master2"]
+    m2_m1_agmt = m2.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
     topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
 
     time.sleep(1)

@@ -79,7 +79,7 @@ def check_op_result(server, op, dn, superior, exists, rc):
         else:
             opstr = 'Modifying non-existing entry'
     elif op == 'modrdn':
-        if superior != None:
+        if superior is not None:
             targetdn = superior
             if exists:
                 opstr = 'Moving to existing superior'
@@ -113,7 +113,7 @@ def check_op_result(server, op, dn, superior, exists, rc):
         elif op == 'modify':
             server.modify_s(dn, [(ldap.MOD_REPLACE, 'description', 'test')])
         elif op == 'modrdn':
-            if superior != None:
+            if superior is not None:
                 server.rename_s(dn, 'uid=new', newsuperior=superior, delold=1)
             else:
                 server.rename_s(dn, 'uid=new', delold=1)
@@ -127,7 +127,7 @@ def check_op_result(server, op, dn, superior, exists, rc):
         log.info("Exception (expected): %s" % type(e).__name__)
         log.info('Desc ' + e.message['desc'])
         assert isinstance(e, rc)
-        if e.message.has_key('matched'):
+        if 'matched' in e.message:
             log.info('Matched is returned: ' + e.message['matched'])
             if rc != ldap.NO_SUCH_OBJECT:
                 assert False
@@ -206,7 +206,7 @@ def test_ticket1347760(topology_st):
         assert isinstance(e, ldap.INVALID_CREDENTIALS)
         regex = re.compile('No such entry')
         cause = pattern_accesslog(file_obj, regex)
-        if cause == None:
+        if cause is None:
             log.fatal('Cause not found - %s' % cause)
             assert False
         else:
@@ -220,7 +220,7 @@ def test_ticket1347760(topology_st):
         topology_st.standalone.simple_bind_s(BOGUSSUFFIX, 'bogus')
     regex = re.compile('No suffix for bind')
     cause = pattern_accesslog(file_obj, regex)
-    if cause == None:
+    if cause is None:
         log.fatal('Cause not found - %s' % cause)
         assert False
     else:
@@ -238,7 +238,7 @@ def test_ticket1347760(topology_st):
         assert isinstance(e, ldap.INVALID_CREDENTIALS)
         regex = re.compile('Invalid credentials')
         cause = pattern_accesslog(file_obj, regex)
-        if cause == None:
+        if cause is None:
             log.fatal('Cause not found - %s' % cause)
             assert False
         else:
@@ -437,13 +437,13 @@ def test_ticket1347760(topology_st):
         log.info('Desc ' + e.message['desc'])
         assert isinstance(e, ldap.UNWILLING_TO_PERFORM)
 
-    log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, 'bogus', ldap.INVALID_CREDENTIALS.__name__))
+    log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, 'bogus', ldap.UNWILLING_TO_PERFORM.__name__))
     try:
         topology_st.standalone.simple_bind_s(BINDDN, 'bogus')
     except ldap.LDAPError as e:
         log.info("Exception (expected): %s" % type(e).__name__)
         log.info('Desc ' + e.message['desc'])
-        assert isinstance(e, ldap.INVALID_CREDENTIALS)
+        assert isinstance(e, ldap.UNWILLING_TO_PERFORM)
 
     log.info('SUCCESS')
 
