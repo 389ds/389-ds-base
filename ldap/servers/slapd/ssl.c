@@ -2240,21 +2240,39 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         int err;
         switch (slapd_SSLclientAuth) {
         case SLAPD_SSLCLIENTAUTH_ALLOWED:
-#ifdef SSL_REQUIRE_CERTIFICATE /* new feature */
+            /*
+             * REQUEST is true
+             * REQUIRED is false
+             */
+            if ((err = SSL_OptionSet(pr_sock, SSL_REQUEST_CERTIFICATE, PR_TRUE)) < 0) {
+                PRErrorCode prerr = PR_GetError();
+                slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
+                              "SSL_OptionSet(SSL_REQUEST_CERTIFICATE,PR_TRUE) %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                              err, prerr, slapd_pr_strerror(prerr));
+            }
             if ((err = SSL_OptionSet(pr_sock, SSL_REQUIRE_CERTIFICATE, PR_FALSE)) < 0) {
                 PRErrorCode prerr = PR_GetError();
                 slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
                               "SSL_OptionSet(SSL_REQUIRE_CERTIFICATE,PR_FALSE) %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               err, prerr, slapd_pr_strerror(prerr));
             }
-#endif
             break;
-        /* Give the client a clear opportunity to send her certificate: */
         case SLAPD_SSLCLIENTAUTH_REQUIRED:
+            /* Give the client a clear opportunity to send her certificate: */
+            /*
+             * REQUEST is true
+             * REQUIRED is true
+             */
             if ((err = SSL_OptionSet(pr_sock, SSL_REQUEST_CERTIFICATE, PR_TRUE)) < 0) {
                 PRErrorCode prerr = PR_GetError();
                 slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
                               "SSL_OptionSet(SSL_REQUEST_CERTIFICATE,PR_TRUE) %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                              err, prerr, slapd_pr_strerror(prerr));
+            }
+            if ((err = SSL_OptionSet(pr_sock, SSL_REQUIRE_CERTIFICATE, PR_TRUE)) < 0) {
+                PRErrorCode prerr = PR_GetError();
+                slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
+                              "SSL_OptionSet(SSL_REQUIRE_CERTIFICATE,PR_TRUE) %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               err, prerr, slapd_pr_strerror(prerr));
             }
             break;
