@@ -95,7 +95,7 @@ int pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd);
 
 /* For testing pbkdf2 only */
 uint64_t pbkdf2_sha256_benchmark_iterations();
-PRUint32 pbkdf2_sha256_calculate_iterations();
+PRUint32 pbkdf2_sha256_calculate_iterations(uint64_t time_nsec);
 
 /* Utility functions */
 PRUint32 pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen);
