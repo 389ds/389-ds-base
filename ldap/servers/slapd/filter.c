@@ -765,7 +765,7 @@ slapi_filter_free(struct slapi_filter *f, int recurse)
         break;
 
     default:
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_filter_free", "nknown type 0x%lX\n",
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_filter_free", "Unknown type 0x%lX\n",
                       f->f_choice);
         break;
     }
