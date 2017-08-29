@@ -40,6 +40,11 @@ cn: Sync Request Control
 aci: (targetattr != "aci")(version 3.0; acl "Sync Request Control"; allow( read
  , search ) userdn = "ldap:///all";)
 
+dn: cn=replication,cn=config
+objectclass: top
+objectclass: nsContainer
+cn: replication
+
 dn: cn=plugins,cn=config
 objectclass: top
 objectclass: nsContainer
