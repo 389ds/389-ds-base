@@ -377,7 +377,20 @@ class MappingTreeLegacy(object):
         else:
             raise InvalidArgumentError("entry or name are mandatory")
 
+
 class MappingTree(DSLdapObject):
+    """Mapping tree DSLdapObject with:
+    - must attributes = ['cn']
+    - RDN attribute is 'cn'
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     _must_attributes = ['cn']
 
     def __init__(self, instance, dn=None, batch=False):
@@ -389,6 +402,14 @@ class MappingTree(DSLdapObject):
 
 
 class MappingTrees(DSLdapObjects):
+    """DSLdapObjects that presents Mapping trees
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, batch=False):
         super(MappingTrees, self).__init__(instance=instance, batch=batch)
         self._objectclasses = [MT_OBJECTCLASS_VALUE]

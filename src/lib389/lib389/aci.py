@@ -18,9 +18,8 @@ from lib389._constants import *
 
 # Helpers to detect common patterns in aci
 def _aci_any_targetattr_ne(aci):
-    """
-    Returns if any of the targetattr types is a != type
-    """
+    """Returns True if any of the targetattr types is a != type"""
+
     potential = False
     if 'targetattr' in aci.acidata:
         for ta in aci.acidata['targetattr']:
@@ -31,19 +30,29 @@ def _aci_any_targetattr_ne(aci):
 
 
 class Aci(object):
+    """An object that helps to work with agreement entry
+
+    :param conn: An instance
+    :type conn: lib389.DirSrv
+    """
+
     def __init__(self, conn):
-        """
-        """
         self.conn = conn
         self.log = conn.log
 
     def list(self, basedn, scope=ldap.SCOPE_SUBTREE):
-        """
-        List all acis in the directory server below the basedn confined by
+        """List all acis in the directory server below the basedn confined by
         scope.
 
-        A set of EntryAcis is returned.
+        :param basedn: Base DN
+        :type basedn: str
+        :param scope: ldap.SCOPE_SUBTREE, ldap.SCOPE_BASE,
+                       ldap.SCOPE_ONELEVEL, ldap.SCOPE_SUBORDINATE
+        :type scope: int
+
+        :returns: A list of EntryAci objects
         """
+
         acis = []
         rawacientries = self.conn.search_s(basedn, scope, 'aci=*', ['aci'])
         for rawacientry in rawacientries:
@@ -51,24 +60,30 @@ class Aci(object):
         return acis
 
     def lint(self, basedn, scope=ldap.SCOPE_SUBTREE):
-        """
-        Validate and check for potential aci issues.
+        """Validate and check for potential aci issues.
 
         Given a scope and basedn, this will retrieve all the aci's below.
         A number of checks are then run on the aci in isolation, and
         in groups.
 
-        returns a tuple of (bool, list( dict ))
+        :param basedn: Base DN
+        :type basedn: str
+        :param scope: ldap.SCOPE_SUBTREE, ldap.SCOPE_BASE,
+                       ldap.SCOPE_ONELEVEL, ldap.SCOPE_SUBORDINATE
+        :type scope: int
 
-        bool represents if the acis pass or fail as a whole.
-        the list contains a list of warnings about your acis.
-        the dict is structured as:
-        {
-          name: "" # DSALEXXXX
-          severity: "" # LOW MEDIUM HIGH
-          detail: "" # explination
-        }
+        :returns: A tuple of (bool, list( dict ))
+                   - Bool represents if the acis pass or fail as a whole.
+                   - The list contains a list of warnings about your acis.
+                   - The dict is structured as::
+
+                       {
+                         name: "" # DSALEXXXX
+                         severity: "" # LOW MEDIUM HIGH
+                         detail: "" # explination
+                       }
         """
+
         result = True
         # Not thread safe!!!
         self.warnings = []
@@ -85,9 +100,14 @@ class Aci(object):
         return (result, self.warnings)
 
     def format_lint(self, warnings):
+        """Takes the array of warnings and returns a formatted string.
+
+        :param warnings: The array of warnings
+        :type warnings: dict
+
+        :returns: Formatted string or warnings
         """
-        Takes the array of warnings and returns a formatted string.
-        """
+
         buf = "-------------------------------------------------------------------------------"
 
         for warning in warnings:
@@ -113,8 +133,7 @@ Advice: {FIX}
     # These are the aci lint checks.
 
     def _lint_dsale_0001_ne_internal(self, acis):
-        """
-        Check for the presence of "not equals" attributes that will inadvertantly
+        """Check for the presence of "not equals" attributes that will inadvertantly
         allow the return / modification of internal attributes.
         """
 
@@ -151,8 +170,7 @@ Convert the aci to the form "(targetAttr="x || y || z")".
             )
 
     def _lint_dsale_0002_ne_mult_subtree(self, acis):
-        """
-        This check will show pairs or more of aci that match the same subtree
+        """This check will show pairs or more of aci that match the same subtree
         with a != rute. These can cause the other rule to be invalidated!
         """
 

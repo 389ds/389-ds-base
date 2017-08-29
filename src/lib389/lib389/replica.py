@@ -791,16 +791,21 @@ class ReplicaLegacy(object):
 
 
 class Replica(DSLdapObject):
-    """Replica object.  There is one "replica" per backend"""
+    """Replica DSLdapObject with:
+    - must attributes = ['cn', 'nsDS5ReplicaType', 'nsDS5ReplicaRoot',
+                         'nsDS5ReplicaBindDN', 'nsDS5ReplicaId']
+    - RDN attribute is 'cn'
+    - There is one "replica" per backend
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
 
     def __init__(self, instance, dn=None, batch=False):
-        """Init the Replica object
-
-        @param instance - a DirSrv object
-        @param dn - A DN of the replica entry
-        @param batch - NOT IMPLELMENTED
-        """
-
         super(Replica, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', REPL_TYPE,
@@ -815,8 +820,9 @@ class Replica(DSLdapObject):
     def _valid_role(role):
         """Return True if role is valid
 
-        @param role - A string containing the "role" name
-        @return - True if the role is a valid role name, otherwise return False
+        :param role: MASTER, HUB and CONSUMER
+        :type role: ReplicaRole
+        :returns: True if the role is a valid role object, otherwise return False
         """
 
         if role != ReplicaRole.MASTER and \
@@ -830,9 +836,11 @@ class Replica(DSLdapObject):
     def _valid_rid(role, rid=None):
         """Return True if rid is valid for the replica role
 
-        @param role - A string containing the role name
-        @param rid - Only needed if the role is a "master"
-        @return - True is rid is valid, otherwise return False
+        :param role: MASTER, HUB and CONSUMER
+        :type role: ReplicaRole
+        :param rid: Only needed if the role is a MASTER
+        :type rid: int
+        :returns: True is rid is valid, otherwise return False
         """
 
         if rid is None:
@@ -851,13 +859,13 @@ class Replica(DSLdapObject):
         """Delete a replica related to the provided suffix.
 
         If this replica role was ReplicaRole.HUB or ReplicaRole.MASTER, it
-        also deletes the changelog associated to that replica.  If it
+        also deletes the changelog associated to that replica. If it
         exists some replication agreement below that replica, they are
         deleted.
 
-        @return None
-        @raise InvalidArgumentError - if suffix is missing
-               ldap.LDAPError - for all other update failures
+        :returns: None
+        :raises: - InvalidArgumentError - if suffix is missing
+                 - ldap.LDAPError - for all other update failures
         """
 
         # Get the suffix
@@ -884,7 +892,7 @@ class Replica(DSLdapObject):
     def deleteAgreements(self):
         """Delete all the agreements for the suffix
 
-        @raise LDAPError - If failing to delete or search for agreements
+        :raises: LDAPError - If failing to delete or search for agreeme        :type binddn: strnts
         """
 
         # Delete the agreements
@@ -906,15 +914,15 @@ class Replica(DSLdapObject):
     def promote(self, newrole, binddn=None, rid=None):
         """Promote the replica to hub or master
 
-        @param newrole - The new replication role for the replica:
-                            ReplicaRole.MASTER
-                            ReplicaRole.HUB
-        @param binddn - The replication bind dn - only applied to master
-        @param rid - The replication ID, applies only to promotions to "master"
+        :param newrole: The new replication role for the replica: MASTER and HUB
+        :type newrole: ReplicaRole
+        :param binddn: The replication bind dn - only applied to master
+        :type binddn: str
+        :param rid: The replication ID, applies only to promotions to "master"
+        :type rid: int
 
-        @raise ldap.NO_SUCH_OBJECT - If suffix is not replicated
-
-        @raise ValueError
+        :returns: None
+        :raises: ValueError - If replica is not promoted
         """
 
         if not binddn:
@@ -979,11 +987,11 @@ class Replica(DSLdapObject):
     def demote(self, newrole):
         """Demote a replica to a hub or consumer
 
-        @param suffix - The replication suffix
-        @param newrole - The new replication role of this replica
-                            ReplicaRole.HUB
-                            ReplicaRole.CONSUMER
-        @raise ValueError
+        :param newrole: The new replication role for the replica: CONSUMER and HUB
+        :type newrole: ReplicaRole
+
+        :returns: None
+        :raises: ValueError - If replica is not demoted
         """
 
         # Check the role type
@@ -1012,9 +1020,9 @@ class Replica(DSLdapObject):
                 raise ValueError('Failed to update replica: ' + str(e))
 
     def get_role(self):
-        """Return the replica role:
+        """Return the replica role
 
-        @return: 3 for ReplicaRole.MASTER, 2 for ReplicaRole.HUB, 3 for ReplicaRole.CONSUMER
+        :returns: ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER
         """
 
         repltype = self.get_attr_val_int(REPL_TYPE)
@@ -1034,9 +1042,10 @@ class Replica(DSLdapObject):
     def check_init(self, agmtdn):
         """Check that a total update has completed
 
-        @returns tuple - first element is done/not done, 2nd is no error/has
-                        error
-        @param agmtdn - the agreement dn
+        :param agmtdn: The agreement DN
+        :type agmtdn: str
+
+        :returns: A tuple - first element is done/not done, 2nd is no error/has error
 
         THIS SHOULD BE IN THE NEW AGREEMENT CLASS
         """
@@ -1083,8 +1092,10 @@ class Replica(DSLdapObject):
     def wait_init(self, agmtdn):
         """Initialize replication and wait for completion.
 
-        @oaram agmtdn - agreement dn
-        @return - 0 if the initialization is complete
+        :param agmtdn: The agreement DN
+        :type agmtdn: str
+
+        :returns: 0 if the initialization is complete
 
         THIS SHOULD BE IN THE NEW AGREEMENT CLASS
         """
@@ -1113,7 +1124,11 @@ class Replica(DSLdapObject):
 
     def start_async(self, agmtdn):
         """Initialize replication without waiting.
-        @param agmtdn - agreement dn
+
+        :param agmtdn: The agreement DN
+        :type agmtdn: str
+
+        :returns: None
 
         THIS SHOULD BE IN THE NEW AGREEMENT CLASS
         """
@@ -1124,9 +1139,10 @@ class Replica(DSLdapObject):
 
     def get_ruv_entry(self):
         """Return the database RUV entry
-        @return - The database RUV entry
-        @raise ValeuError - If suffix is not setup for replication
-               LDAPError - If there is a problem trying to search for the RUV
+
+        :returns: The database RUV entry
+        :raises: ValeuError - If suffix is not setup for replication
+                 LDAPError - If there is a problem trying to search for the RUV
         """
 
         try:
@@ -1144,10 +1160,12 @@ class Replica(DSLdapObject):
         """Make a "dummy" update on the the replicated suffix, and check
         all the provided replicas to see if they received the update.
 
-        @param *replica_dirsrvs - DirSrv instance, DirSrv instance, ...
-        @return True - if all servers have recevioed the update by this
-                       replica, otherwise return False
-        @raise LDAPError - when failing to update/search database
+        :param *replica_dirsrvs: DirSrv instance, DirSrv instance, ...
+        :type *replica_dirsrvs: list of DirSrv
+
+        :returns: True - if all servers have recevioed the update by this
+                  replica, otherwise return False
+        :raises: LDAPError - when failing to update/search database
         """
 
         # Generate a unique test value
@@ -1187,15 +1205,15 @@ class Replica(DSLdapObject):
 
 
 class Replicas(DSLdapObjects):
-    """Class of all the Replicas"""
+    """Replica DSLdapObjects for all replicas
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param batch: Not implemented
+    :type batch: bool
+    """
 
     def __init__(self, instance, batch=False):
-        """Init Replicas
-
-        @param instance - a DirSrv objectc
-        @param batch - NOT IMPLELMENTED
-        """
-
         super(Replicas, self).__init__(instance=instance, batch=False)
         self._objectclasses = [REPLICA_OBJECTCLASS_VALUE]
         self._filterattrs = [REPL_ROOT]
@@ -1203,7 +1221,17 @@ class Replicas(DSLdapObjects):
         self._basedn = DN_MAPPING_TREE
 
     def get(self, selector=[], dn=None):
-        """Wrap Replicas' "get", and set the suffix after we get the replica """
+        """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
+        using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
+        After getting the replica, update the replica._suffix parameter.
+
+        :param dn: DN of wanted entry
+        :type dn: str
+        :param selector: An additional filter to objectClasses, i.e. 'backend_name'
+        :type dn: str
+
+        :returns: A child entry
+        """
 
         replica = super(Replicas, self).get(selector, dn)
         if replica:
@@ -1214,22 +1242,23 @@ class Replicas(DSLdapObjects):
     def enable(self, suffix, role, replicaID=None, args=None):
         """Enable replication for this suffix
 
-        @param suffix - The suffix to enable replication for
-        @param role   - ReplicaRole.MASTER, ReplicaRole.HUB or
-                        ReplicaRole.CONSUMER
-        @param rid    - number that identify the supplier replica
-                        (role=ReplicaRole.MASTER) in the topology.  For
-                        hub/consumer (role=ReplicaRole.HUB or
-                        ReplicaRole.CONSUMER), rid value is not used.  This
-                        parameter is mandatory for supplier.
+        :param suffix: The suffix to enable replication for
+        :type suffix: str
+        :param role: MASTER, HUB and CONSUMER
+        :type role: ReplicaRole
+        :param replicaID: number that identify the supplier replica
+                          (role=ReplicaRole.MASTER) in the topology.
+                          For hub/consumer (role=ReplicaRole.HUB or
+                          ReplicaRole.CONSUMER), rid value is not used.
+                          This parameter is mandatory for supplier.
+        :type replicaID: int
+        :param args: A dictionary of additional replica properties
+        :type args: dict
 
-        @param args   - dictionary of additional replica properties
-
-        @return replica DN
-
-        @raise InvalidArgumentError - if missing mandatory arguments
-               ValueError - argument with invalid value
-               LDAPError - failed to add replica entry
+        :returns: Replica DSLdapObject
+        :raises: - InvalidArgumentError - if missing mandatory arguments
+                 - ValueError - argument with invalid value
+                 - LDAPError - failed to add replica entry
         """
 
         # Normalize the suffix
@@ -1312,8 +1341,11 @@ class Replicas(DSLdapObjects):
     def disable(self, suffix):
         """Disable replication on the suffix specified
 
-        @param suffix - Replicated suffix to disable
-        @raise ValueError is suffix is not being replicated
+        :param suffix: Replicated suffix to disable
+        :type suffix: str
+
+        :returns: None
+        :raises: ValueError is suffix is not being replicated
         """
 
         try:
@@ -1332,17 +1364,17 @@ class Replicas(DSLdapObjects):
                              '(%s) LDAP error (%s)' % (suffix, str(e)))
 
     def promote(self, suffix, newrole, binddn=None, rid=None):
-        """Promote the replica speficied by the suffix to the new role
+        """Promote the replica to hub or master
 
-        @param suffix - The replication suffix
-        @param newrole - The new replication role for the replica:
-                            ReplicaRole.MASTER
-                            ReplicaRole.HUB
+        :param newrole: The new replication role for the replica: MASTER and HUB
+        :type newrole: ReplicaRole
+        :param binddn: The replication bind dn - only applied to master
+        :type binddn: str
+        :param rid: The replication ID, applies only to promotions to "master"
+        :type rid: int
 
-        @param binddn - The replication bind dn - only applied to master
-        @param rid - The replication ID - applies only promotions to "master"
-
-        @raise ldap.NO_SUCH_OBJECT - If suffix is not replicated
+        :returns: None
+        :raises: ValueError - If replica is not promoted
         """
 
         replica = self.get(suffix)
@@ -1353,13 +1385,13 @@ class Replicas(DSLdapObjects):
         replica.promote(newrole, binddn, rid)
 
     def demote(self, suffix, newrole):
-        """Promote the replica speficied by the suffix to the new role
+        """Demote a replica to a hub or consumer
 
-        @param suffix - The replication suffix
-        @param newrole - The new replication role of this replica
-                            ReplicaRole.HUB
-                            ReplicaRole.CONSUMER
-        @raise ldap.NO_SUCH_OBJECT - If suffix is not replicated
+        :param newrole: The new replication role for the replica: CONSUMER and HUB
+        :type newrole: ReplicaRole
+
+        :returns: None
+        :raises: ValueError - If replica is not demoted
         """
 
         replica = self.get(suffix)
@@ -1373,9 +1405,12 @@ class Replicas(DSLdapObjects):
         """Return the DN of the replica from cn=config, this is also
         known as the mapping tree entry
 
-        @param suffix - the replication suffix to get the mapping tree DN
-        @return - The DN of the replication entry from cn=config
+        :param suffix: The replication suffix to get the mapping tree DN
+        :type suffix: str
+
+        :returns: The DN of the replication entry from cn=config
         """
+
         try:
             replica = self.get(suffix)
         except ldap.NO_SUCH_OBJECT:
@@ -1385,9 +1420,9 @@ class Replicas(DSLdapObjects):
     def get_ruv_entry(self, suffix):
         """Return the database RUV entry for the provided suffix
 
-        @return - The database RUV entry
-        @raise ValeuError - If suffix is not setup for replication
-               LDAPError - If there is a problem trying to search for the RUV
+        :returns: The database RUV entry
+        :raises: - ValeuError - If suffix is not setup for replication
+                 - LDAPError - If there is a problem trying to search for the RUV
         """
 
         try:
@@ -1400,11 +1435,14 @@ class Replicas(DSLdapObjects):
         """Make a "dummy" update on the the replicated suffix, and check
         all the provided replicas to see if they received the update.
 
-        @param suffix - the replicated suffix we want to check
-        @param *replica_dirsrvs - DirSrv instance, DirSrv instance, ...
-        @return True - if all servers have recevioed the update by this
-                       replica, otherwise return False
-        @raise LDAPError - when failing to update/search database
+        :param suffix: The replicated suffix we want to check
+        :type suffix: str
+        :param *replica_dirsrvs: DirSrv instance, DirSrv instance, ...
+        :type *replica_dirsrvs: list of DirSrv
+
+        :returns: True - if all servers have received the update by this
+                  replica, otherwise return False
+        :raises: LDAPError - when failing to update/search database
         """
 
         try:

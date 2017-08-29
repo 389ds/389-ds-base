@@ -17,9 +17,20 @@ Contents
 ========
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
    guidelines.rst
+   Replication <replication.rst>
+   Configuring Databases <databases.rst>
+   Access Control <accesscontrol.rst>
+
+Work in progress
+-----------------
+.. toctree::
+   :maxdepth: 2
+
+   Identity Management <identitymanagement.rst>
+   need_to_be_triaged.rst
 
 
 Contact us

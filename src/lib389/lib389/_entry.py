@@ -392,17 +392,22 @@ class Entry(object):
 
 
 class EntryAci(object):
+    """Breaks down an aci attribute string from 389, into a dictionary
+    of terms and values. These values can then be manipulated, and
+    subsequently rebuilt into an aci string.
+
+    :param entry: An entry
+    :type entry: lib389._entry.Entry
+    :param rawaci: Aci in a raw form
+    :type rawaci: str
+    :param verbose: False by default
+    :type verbose: bool
     """
-    See https://access.redhat.com/documentation/en-US/Red_Hat_Directory_
-    Server/10/html/Administration_Guide/Managing_Access_Control-Bind_Rules.
-    html
-    https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server
-     /10/html/Administration_Guide/Managing_Access_Control-Creating_ACIs_
-     Manually.html
-    We seperate the keys into 3 groups, and one group that has overlap.
-    This is so we can not only split the aci, but rebuild it from the
-    dictionary at a later point in time.
-    """
+
+    # We seperate the keys into 3 groups, and one group that has overlap.
+    # This is so we can not only split the aci, but rebuild it from the
+    # dictionary at a later point in time.
+
     # These are top level aci comoponent keys
     _keys = ['targetscope',
              'targetattrfilters',
@@ -435,9 +440,6 @@ class EntryAci(object):
 
     def __init__(self, entry, rawaci, verbose=False):
         """
-        Breaks down an aci attribute string from 389, into a dictionary
-        of terms and values. These values can then be manipulated, and
-        subsequently rebuilt into an aci string.
         """
         self.verbose = verbose
         self.entry = entry
@@ -475,13 +477,12 @@ class EntryAci(object):
         return rawaci
 
     def getRawAci(self):
-        """
-        This method will rebuild an aci from the contents of the acidata
+        """This method will rebuild an aci from the contents of the acidata
         dict found on the object.
 
-        returns an aci attribute string.
-
+        :returns: An aci attribute string.
         """
+
         # Rebuild the aci from the .acidata.
         rawaci = ''
         # For each key in the outer segment

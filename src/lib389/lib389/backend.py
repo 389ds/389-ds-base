@@ -386,6 +386,18 @@ class BackendLegacy(object):
 
 
 class Backend(DSLdapObject):
+    """Backend DSLdapObject with:
+    - must attributes = ['cn, 'nsslapd-suffix']
+    - RDN attribute is 'cn'
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     _must_attributes = ['nsslapd-suffix', 'cn']
 
     def __init__(self, instance, dn=None, batch=False):
@@ -399,6 +411,12 @@ class Backend(DSLdapObject):
         self._mts = MappingTrees(self._instance)
 
     def create_sample_entries(self, version):
+        """Creates sample entries under nsslapd-suffix value
+
+        :param version: Sample entries version, i.e. 001003006
+        :type version: str
+        """
+
         self._log.debug('Creating sample entries at version %s....' % version)
         # Grab the correct sample entry config
         centries = get_sample_entries(version)
@@ -446,6 +464,19 @@ class Backend(DSLdapObject):
         return (dn, valid_props)
 
     def create(self, dn=None, properties=None, basedn=None):
+        """Add a new backend entry, create mapping tree,
+         and, if requested, sample entries
+
+        :param rdn: RDN of the new entry
+        :type rdn: str
+        :param properties: Attributes and parameters for the new entry
+        :type properties: dict
+        :param basedn: Base DN of the new entry
+        :type rdn: str
+
+        :returns: DSLdapObject of the created entry
+        """
+
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
         # Okay, now try to make the backend.
         super(Backend, self).create(dn, properties, basedn)
@@ -460,6 +491,13 @@ class Backend(DSLdapObject):
         return self
 
     def delete(self):
+        """Deletes the backend, it's mapping tree and all related indices.
+        This can be changed with the self._protected flag!
+
+        :raises: - UnwillingToPerform - if backend is protected
+                 - UnwillingToPerform - if nsslapd-state is not 'backend'
+        """
+
         if self._protected:
             raise ldap.UNWILLING_TO_PERFORM("This is a protected backend!")
         # First check if the mapping tree has our suffix still.
@@ -476,7 +514,7 @@ class Backend(DSLdapObject):
         except ldap.NO_SUCH_OBJECT:
             # Righto, it's already gone! Do nothing ...
             pass
-        # Delete all our related indcies
+        # Delete all our related indices
         self._instance.index.delete_all(bename)
 
         # Now remove our children, this is all ldbm config
@@ -485,13 +523,13 @@ class Backend(DSLdapObject):
         super(Backend, self).delete()
 
     def _lint_mappingtree(self):
-        """
-        Backend lint
+        """Backend lint
 
         This should check for:
         * missing mapping tree entries for the backend
-        * missing indcies if we are local and have log access?
+        * missing indices if we are local and have log access?
         """
+
         # Check for the missing mapping tree.
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
         bename = self.get_attr_val_bytes('cn')
@@ -506,18 +544,30 @@ class Backend(DSLdapObject):
         return None
 
     def get_monitor(self):
+        """Get a MonitorBackend(DSLdapObject) for the backend"""
+
         monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn, batch=self._batch)
         return monitor
 
     def get_indexes(self):
+        """Get an Indexes(DSLdapObject) for the backend"""
+
         indexes = Indexes(self._instance, basedn="cn=index,%s" % self._dn)
         return indexes
-
     # Future: add reindex task for this be.
 
-# This only does ldbm backends. Chaining backends are a special case
-# of this, so they can be subclassed off.
+
 class Backends(DSLdapObjects):
+    """DSLdapObjects that represents DN_LDBM base DN
+    This only does ldbm backends. Chaining backends are a special case
+    of this, so they can be subclassed off.
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, batch=False):
         super(Backends, self).__init__(instance=instance, batch=batch)
         self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]

@@ -32,6 +32,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.ifconfig',
+    'sphinx.ext.linkcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -112,7 +113,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = 'nature'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -292,3 +293,43 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+import lib389
+import inspect
+from os.path import relpath, dirname
+
+def linkcode_resolve(domain, info):
+    if domain != 'py':
+        return None
+    if not info['module']:
+        return None
+
+    module_name = info['module']
+    fullname = info['fullname']
+    file_name = module_name.replace('.', '/')
+
+    # Get the module object
+    submodule = sys.modules.get(module_name)
+    if not submodule:
+        return None
+
+    # Get submodules
+    next_submodule = submodule
+    for name in fullname.split('.'):
+        try:
+            next_submodule = getattr(next_submodule, name)
+        except:
+            return None
+
+    # Get line number for the submodule
+    try:
+        _, line = inspect.getsourcelines(next_submodule)
+    except:
+        line = None
+
+    if line:
+        line_fmt = "#_{}".format(line)
+    else:
+        line_fmt = ""
+
+    return "https://pagure.io/lib389/blob/master/f/{}.py{}".format(file_name, line_fmt)

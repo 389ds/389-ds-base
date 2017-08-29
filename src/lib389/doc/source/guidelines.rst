@@ -8,7 +8,6 @@ For a saving place purposes, I'll replace topology_m2.ms["master1"]
 with master1 , etc.
 
 
-
 Basic workflow
 ==============
 
@@ -167,11 +166,8 @@ Basic workflow
       commits into one commit.
 
 
-A ways to make your code better in a pytest way
-===============================================
-
 Fixtures
---------
+=========
 
 Basic info about fixtures - http://pytest.org/latest/fixture.html#fixtures
 
@@ -207,7 +203,7 @@ Parametrizing
 
 
 Test cases
-----------
+==========
 
 Parametrizing
 ~~~~~~~~~~~~~
@@ -351,11 +347,9 @@ Asserting
         assert 'maximum recursion' in str(excinfo.value)
 
 
-lib389 and python-ldap functions
-================================
 
 Constants
----------
+==========
 
 Basic constants
 ~~~~~~~~~~~~~~~
@@ -391,7 +385,7 @@ If you need a lot of constants, import with *
 
 
 Add, Modify, and Delete Operations
-----------------------------------
+===================================
 
 Please, use these methods for the operations that can't be performed
 by DSLdapObjects.
@@ -415,7 +409,7 @@ by DSLdapObjects.
 
 
 Search and Bind Operations
---------------------------
+===================================
 
 + By default when an instance is created and opened, it is already
   authenticated as the Root DN(Directory Manager).
@@ -446,7 +440,7 @@ Search and Bind Operations
 
 
 Basic instance operations
--------------------------
+===================================
 
 ::
 
@@ -485,7 +479,7 @@ Basic instance operations
 
 
 Setting up SSL/TLS
-------------------
+===================================
 
 ::
 
@@ -520,7 +514,7 @@ Setting up SSL/TLS
 
 
 Certification-based authentication
-----------------------------------
+===================================
 
 You need to setup and turn on SSL first (use the previous chapter).
 
@@ -568,10 +562,9 @@ You need to setup and turn on SSL first (use the previous chapter).
 
 
 Replication
------------
+===================================
 
 Basic configuration
-
 
 + After the instance is created, you can enable it for replication and
   set up a replication agreement.

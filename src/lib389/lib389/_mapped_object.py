@@ -19,7 +19,6 @@ from lib389.utils import (
         ensure_list_int
         )
 
-
 # This function filter and term generation provided thanks to
 # The University of Adelaide. <william@adelaide.edu.au>
 
@@ -64,10 +63,13 @@ def _gen_filter(attrtypes, values, extra=None):
 
 
 class DSLogging(object):
-    """
-    The benefit of this is automatic name detection, and correct application
+    """The benefit of this is automatic name detection, and correct application
     of level and verbosity to the object.
+
+    :param verbose: False by default
+    :type verbose: bool
     """
+
     def __init__(self, verbose=False):
         # Maybe we can think of a way to make this display the instance name or __unicode__?
         self._log = logging.getLogger(type(self).__name__)
@@ -78,11 +80,18 @@ class DSLogging(object):
 
 
 class DSLdapObject(DSLogging):
+    """A single instance of DSLdapObjects
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
 
     # TODO: Automatically create objects when they are requested to have properties added
     def __init__(self, instance, dn=None, batch=False):
-        """
-        """
         self._instance = instance
         super(DSLdapObject, self).__init__(self._instance.verbose)
         # This allows some factor objects to be overriden
@@ -111,9 +120,19 @@ class DSLdapObject(DSLogging):
         return self.__unicode__()
 
     def raw_entry(self):
+        """Get an Entry object
+
+        :returns: Entry object
+        """
+
         return self._instance.getEntry(self._dn)
 
     def exists(self):
+        """Check if the entry exists
+
+        :returns: True if it exists
+        """
+
         try:
             self._instance.search_s(self._dn, ldap.SCOPE_BASE, attrsonly=1)
         except ldap.NO_SUCH_OBJECT:
@@ -122,10 +141,20 @@ class DSLdapObject(DSLogging):
         return True
 
     def display(self):
+        """Get an entry but represent it as a string LDIF
+
+        :returns: LDIF formatted string
+        """
+
         e = self._instance.getEntry(self._dn)
         return e.__repr__()
 
     def display_attr(self, attr):
+        """Get all values of given attribute - 'attr: value'
+
+        :returns: Formatted string
+        """
+
         out = ""
         for v in self.get_attr_vals_utf8(attr):
             out += "%s: %s\n" % (attr, v)
@@ -145,14 +174,14 @@ class DSLdapObject(DSLogging):
         return response
 
     def __getattr__(self, name):
-        """
-        This enables a bit of magic to allow us to wrap any function ending with
+        """This enables a bit of magic to allow us to wrap any function ending with
         _json to it's form without json, then transformed. It means your function
         *must* return it's values as a dict of:
 
         { attr : [val, val, ...], attr : [], ... }
         to be supported.
         """
+
         if (name.endswith('_json')):
             int_name = name.replace('_json', '')
             pfunc = partial(self._jsonify, fn=getattr(self, int_name))
@@ -161,17 +190,34 @@ class DSLdapObject(DSLogging):
     # We make this a property so that we can over-ride dynamically if needed
     @property
     def dn(self):
+        """Get an object DN
+
+        :returns: DN
+        """
+
         return self._dn
 
     @property
     def rdn(self):
+        """Get an object RDN
+
+        :returns: RDN
+        """
+
         # How can we be sure this returns the primary one?
         return ensure_str(self.get_attr_val(self._rdn_attribute))
 
     def present(self, attr, value=None):
+        """Assert that some attr, or some attr / value exist on the entry.
+
+        :param attr: an attribute name
+        :type attr: str
+        :param value: an attribute value
+        :type value: str
+
+        :returns: True if attr is present
         """
-        Assert that some attr, or some attr / value exist on the entry.
-        """
+
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get presence on instance that is not ONLINE")
         self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
@@ -183,15 +229,37 @@ class DSLdapObject(DSLogging):
             return e.hasValue(attr, value)
 
     def add(self, key, value):
+        """Add an attribute with a value
+
+        :param key: an attribute name
+        :type key: str
+        :param value: an attribute value
+        :type value: str
+        """
+
         self.set(key, value, action=ldap.MOD_ADD)
 
     # Basically what it means;
     def replace(self, key, value):
+        """Replace an attribute with a value
+
+        :param key: an attribute name
+        :type key: str
+        :param value: an attribute value
+        :type value: str
+        """
         self.set(key, value, action=ldap.MOD_REPLACE)
 
     # This needs to work on key + val, and key
     def remove(self, key, value):
-        """Remove a value defined by key"""
+        """Remove a value defined by key
+
+        :param key: an attribute name
+        :type key: str
+        :param value: an attribute value
+        :type value: str
+        """
+
         # Do a mod_delete on the value.
         self.set(key, value, action=ldap.MOD_DELETE)
 
@@ -200,12 +268,31 @@ class DSLdapObject(DSLogging):
 
         If an attribute is multi-valued AND required all values except one will
         be deleted.
+
+        :param key: an attribute name
+        :type key: str
         """
+
         for val in self.get_attr_vals(key):
             self.remove(key, val)
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):
+        """Perform a specified action on a key with value
+
+        :param key: an attribute name
+        :type key: str
+        :param value: an attribute value
+        :type value: str
+        :param action: - ldap.MOD_REPLACE - by default
+                        - ldap.MOD_ADD
+                        - ldap.MOD_DELETE
+        :type action: int
+
+        :returns: result of modify_s operation
+        :raises: ValueError - if instance is not online
+        """
+
         self._log.debug("%s set(%r, %r)" % (self._dn, key, value))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot set properties on instance that is not ONLINE.")
@@ -224,10 +311,11 @@ class DSLdapObject(DSLogging):
     def apply_mods(self, mods):
         """Perform modification operation using several mods at once
 
-        @param mods - list of tuples:  [(action, key, value),]
-        @raise ValueError - if a provided mod op is invalid
-        @raise LDAPError
+        :param mods: [(action, key, value),]
+        :type mods: list of tuples
+        :raises: ValueError - if a provided mod op is invalid
         """
+
         mod_list = []
         for mod in mods:
             if len(mod) < 2:
@@ -256,18 +344,28 @@ class DSLdapObject(DSLogging):
 
     @classmethod
     def compare(cls, obj1, obj2):
-        """
-        Compare if two RDN objects have same attributes and values.
+        """Compare if two RDN objects have same attributes and values.
+
         This comparison is a loose comparison, not a strict one i.e. "this object *is* this other object"
         It will just check if the attributes are same.
         'nsUniqueId' attribute is not checked intentionally because we want to compare arbitrary objects
         i.e they may have different 'nsUniqueId' but same attributes.
-        Example:
+
+        Example::
+
             cn=user1,ou=a
             cn=user1,ou=b
+
         Comparision of these two objects should result in same, even though their 'nsUniqueId' attribute differs.
-        This function returns 'True' if objects have same attributes else returns 'False'
+
+        :param obj1: An entry to check
+        :type obj1: lib389._mapped_object.DSLdapObject
+        :param obj2: An entry to check
+        :type obj2: lib389._mapped_object.DSLdapObject
+        :returns: True if objects have same attributes else returns False
+        :raises: ValueError - if obj1 or obj2 don't inherit DSLdapObject
         """
+
         # ensuring both the objects are RDN objects
         if not issubclass(type(obj1), DSLdapObject) or not issubclass(type(obj2), DSLdapObject):
             raise ValueError("Invalid arguments: Expecting object types that inherits 'DSLdapObject' class")
@@ -287,9 +385,10 @@ class DSLdapObject(DSLogging):
         return True
 
     def get_compare_attrs(self):
+        """Get a dictionary having attributes to be compared
+        i.e. excluding self._compare_exclude
         """
-        Get a dictionary having attributes to be compared i.e. excluding self._compare_exclude
-        """
+
         self._log.debug("%s get_compare_attrs" % (self._dn))
         all_attrs_dict = self.get_all_attrs()
         # removing _compate_exclude attrs from all attrs
@@ -298,9 +397,11 @@ class DSLdapObject(DSLogging):
         return compare_attrs_dict
 
     def get_all_attrs(self):
+        """Get a dictionary having all the attributes of the entry
+
+        :returns: Dict with real attributes and operational attributes
         """
-        Get a dictionary having all the attributes i.e. real attributes + operational attributes
-        """
+
         self._log.debug("%s get_all_attrs" % (self._dn))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
@@ -320,7 +421,6 @@ class DSLdapObject(DSLogging):
             return entry.getValuesSet(keys)
 
     def get_attr_vals(self, key):
-        """Get an attribute's values from the dn"""
         self._log.debug("%s get_attr_vals(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
@@ -334,7 +434,6 @@ class DSLdapObject(DSLogging):
             return entry.getValues(key)
 
     def get_attr_val(self, key):
-        """Get a single attribute value from the dn"""
         self._log.debug("%s getVal(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
@@ -346,21 +445,69 @@ class DSLdapObject(DSLogging):
             return entry.getValue(key)
 
     def get_attr_val_bytes(self, key):
+        """Get a single attribute value from the entry in bytes type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
         return ensure_bytes(self.get_attr_val(key))
 
     def get_attr_vals_bytes(self, key):
+        """Get attribute values from the entry in bytes type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
         return ensure_list_bytes(self.get_attr_vals(key))
 
     def get_attr_val_utf8(self, key):
+        """Get a single attribute value from the entry in utf8 type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
         return ensure_str(self.get_attr_val(key))
 
     def get_attr_vals_utf8(self, key):
+        """Get attribute values from the entry in utf8 type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
         return ensure_list_str(self.get_attr_vals(key))
 
     def get_attr_val_int(self, key):
+        """Get a single attribute value from the entry in int type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
         return ensure_int(self.get_attr_val(key))
 
     def get_attr_vals_int(self, key):
+        """Get attribute values from the entry in int type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
         return ensure_list_int(self.get_attr_vals(key))
 
     # Duplicate, but with many values. IE a dict api.
@@ -377,32 +524,40 @@ class DSLdapObject(DSLogging):
     # If the account can be bound to, this will attempt to do so. We don't check
     # for exceptions, just pass them back!
     def bind(self, password=None, *args, **kwargs):
+        """Open a new connection and bind with the entry.
+        You can pass arguments that will be passed to openConnection.
+
+        :param password: An entry password
+        :type password: str
+        :returns: Connection with a binding as the entry
+        """
+
         conn = self._instance.openConnection(*args, **kwargs)
         conn.simple_bind_s(self.dn, password)
         return conn
 
     def delete(self):
-        """
-        Deletes the object defined by self._dn.
+        """Deletes the object defined by self._dn.
         This can be changed with the self._protected flag!
         """
+
         self._log.debug("%s delete" % (self._dn))
         if not self._protected:
             # Is there a way to mark this as offline and kill it
             self._instance.delete_s(self._dn)
 
     def _validate(self, rdn, properties, basedn):
-        """
-        Used to validate a create request.
+        """Used to validate a create request.
         This way, it can be over-ridden without affecting
-        the create types
+        the create types.
 
         It also checks that all the values in _must_attribute exist
-        in some form in the dictionary
+        in some form in the dictionary.
 
         It has the useful trick of returning the dn, so subtypes
         can use extra properties to create the dn's here for this.
         """
+
         if properties is None:
             raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
         if type(properties) != dict:
@@ -457,6 +612,18 @@ class DSLdapObject(DSLogging):
         return (tdn, str_props)
 
     def create(self, rdn=None, properties=None, basedn=None):
+        """Add a new entry
+
+        :param rdn: RDN of the new entry
+        :type rdn: str
+        :param properties: Attributes for the new entry
+        :type properties: dict
+        :param basedn: Base DN of the new entry
+        :type rdn: str
+
+        :returns: DSLdapObject of the created entry
+        """
+
         assert(len(self._create_objectclasses) > 0)
         basedn = ensure_str(basedn)
         self._log.debug('Creating "%s" under %s : %s' % (rdn, basedn, properties))
@@ -476,23 +643,24 @@ class DSLdapObject(DSLogging):
         return self
 
     def lint(self):
-        """
-        Override this to create a linter for a type. This means that we can detect
+        """Override this to create a linter for a type. This means that we can detect
         and report common administrative errors in the server from our cli and
         rest tools.
 
-        The structure of a result is:
-        {
-          dsle: '<identifier>'. dsle == ds lint error. Will be a code unique to
-                                this module for the error, IE DSBLE0001.
-          severity: '[HIGH:MEDIUM:LOW]'. severity of the error.
-          items: '(dn,dn,dn)'. List of affected DNs or names.
-          detail: 'msg ...'. An explination of the error.
-          fix: 'msg ...'. Steps to resolve the error.
-        }
+        The structure of a result is::
 
-        You should return an array of these dicts, on None if there are no errors.
+          {
+            dsle: '<identifier>'. dsle == ds lint error. Will be a code unique to
+                                this module for the error, IE DSBLE0001.
+            severity: '[HIGH:MEDIUM:LOW]'. severity of the error.
+            items: '(dn,dn,dn)'. List of affected DNs or names.
+            detail: 'msg ...'. An explination of the error.
+            fix: 'msg ...'. Steps to resolve the error.
+          }
+
+        :returns: An array of these dicts, on None if there are no errors.
         """
+
         if not self._lint_functions:
             return None
         results = []
@@ -505,6 +673,16 @@ class DSLdapObject(DSLogging):
 # A challenge of this, is how do we manage indexes? They have two naming attribunes....
 
 class DSLdapObjects(DSLogging):
+    """The object represents the next idea: "Everything is an instance of something
+    that exists in this way", i.e. we unite LDAP entries by some
+    set of parameters with the object.
+
+    :param instance: A instance
+    :type instance: lib389.DirSrv
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, batch=False):
         self._childobject = DSLdapObject
         self._instance = instance
@@ -530,6 +708,12 @@ class DSLdapObjects(DSLogging):
         return self._childobject(instance=self._instance, dn=dn, batch=self._batch)
 
     def list(self):
+        """Get a list of children entries (DSLdapObject, Replica, etc.) using a base DN
+        and objectClasses of our object (DSLdapObjects, Replicas, etc.)
+
+        :returns: A list of children entries
+        """
+
         # Filter based on the objectclasses and the basedn
         insts = None
         # This will yield and & filter for objectClass with as many terms as needed.
@@ -550,6 +734,17 @@ class DSLdapObjects(DSLogging):
         return insts
 
     def get(self, selector=[], dn=None):
+        """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
+        using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
+
+        :param dn: DN of wanted entry
+        :type dn: str
+        :param selector: An additional filter to objectClasses, i.e. 'backend_name'
+        :type dn: str
+
+        :returns: A child entry
+        """
+
         results = []
         if dn is not None:
             results = self._get_dn(dn)
@@ -594,9 +789,8 @@ class DSLdapObjects(DSLogging):
         )
 
     def _validate(self, rdn, properties):
-        """
-        Validate the factory part of the creation
-        """
+        """Validate the factory part of the creation"""
+
         if properties is None:
             raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
         if type(properties) != dict:
@@ -618,7 +812,16 @@ class DSLdapObjects(DSLogging):
         return (rdn, properties)
 
     def create(self, rdn=None, properties=None):
-        # Create the object
+        """Create an object under base DN of our entry
+
+        :param rdn: RDN of the new entry
+        :type rdn: str
+        :param properties: Attributes for the new entry
+        :type properties: dict
+
+        :returns: DSLdapObject of the created entry
+        """
+
         # Should we inject the rdn to properties?
         # This may not work in all cases, especially when we consider plugins.
         #

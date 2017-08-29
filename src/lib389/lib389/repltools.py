@@ -13,26 +13,32 @@ log = logging.getLogger(__name__)
 
 # Helper functions
 def _alphanum_key(s):
-    """Turn the string into a list of string and number parts.
-    """
+    """Turn the string into a list of string and number parts"""
+
     return [int(c) if c.isdigit() else c for c in
             re.split('([0-9]+)', s)]
 
 
 def smart_sort(str_list):
     """Sort the given list in the way that humans expect.
-    @param str_list - a list of strings to sort
+
+    :param str_list: A list of strings to sort
+    :type str_list: list
     """
+
     str_list.sort(key=_alphanum_key)
 
 
 def _getCSNTime(inst, csn):
     """Take a CSN and get the access log timestamp in seconds
 
-    @param inst - A DirSrv object to check access log
-    @param csn - A "csn" string that is used to find when the csn was logged in
-                 the access log, and what time in seconds it was logged.
-    @return - The time is seconds that the operation was logged.
+    :param inst: An instance to check access log
+    :type inst: lib389.DirSrv
+    :param csn: A "csn" string that is used to find when the csn was logged in
+                the access log, and what time in seconds it was logged.
+    :type csn: str
+
+    :returns: The time is seconds that the operation was logged
     """
 
     op_line = inst.ds_access_log.match('.*csn=%s' % csn)
@@ -46,9 +52,12 @@ def _getCSNTime(inst, csn):
 def _getCSNandTime(inst, line):
     """Take the line and find the CSN from the inst's access logs
 
-    @param inst - A DirSrv object to check access log
-    @param line - A "RESULT" line from the access log that contains a "csn"
-    @return - a tuple containing the "csn" value and the time in seconds when
+    :param inst: An instance to check access log
+    :type inst: lib389.DirSrv
+    :param line: A "RESULT" line from the access log that contains a "csn"
+    :type line: str
+
+    :returns: A tuple containing the "csn" value and the time in seconds when
               it was logged.
     """
 
@@ -72,21 +81,22 @@ def _getCSNandTime(inst, line):
 
 
 class ReplTools(object):
-    """Replication tools
-    """
+    """Replication tools"""
 
     @staticmethod
     def checkCSNs(dirsrv_replicas, ignoreCSNs=None):
         """Gather all the CSN strings from the access and verify all of those
         CSNs exist on all the other replicas.
 
-        @param dirsrv_replicas - a list of DirSrv objects.  The list must begin
-                                 with master replicas
-        @param ignoreCSNs - an optional string of csns to be ignored if
-                            the caller knows that some csns can differ eg.:
-                            '57e39e72000000020000|vucsn-57e39e76000000030000'
+        :param dirsrv_replicas: A list of DirSrv objects. The list must begin
+                                with master replicas
+        :type dirsrv_replicas: list of lib389.DirSrv
+        :param ignoreCSNs: An optional string of csns to be ignored if
+                           the caller knows that some csns can differ eg.:
+                           '57e39e72000000020000|vucsn-57e39e76000000030000'
+        :type ignoreCSNs: str
 
-        @return - True if all the CSNs are present, otherwise False
+        :returns: True if all the CSNs are present, otherwise False
         """
 
         csn_logs = []
@@ -128,12 +138,16 @@ class ReplTools(object):
         print a report on how fast all the "ops" replicated to the other
         replicas.
 
-        @param suffix - Replicated suffix
-        @param ops -  a list of "operations" to search for in the access logs
-        @param replica - Dirsrv object where the entries originated
-        @param all_replicas - A list of Dirsrv replicas:
-                              (suppliers, hubs, consumers)
-        @return - The longest time in seconds for an operation to fully converge
+        :param suffix: Replicated suffix
+        :type suffix: str
+        :param ops:  a list of "operations" to search for in the access logs
+        :type ops: list
+        :param replica: Instance where the entries originated
+        :type replica: lib389.DirSrv
+        :param all_replicas: Suppliers, hubs, consumers
+        :type all_replicas: list of lib389.DirSrv
+
+        :returns: The longest time in seconds for an operation to fully converge
         """
         highest_time = 0
         total_time = 0
@@ -197,10 +211,13 @@ class ReplTools(object):
         """Take a list of DirSrv Objects and check to see if all of the present
         replication agreements are idle for a particular backend
 
-        @param replicas - List of DirSrv objects that are using replication
-        @param suffix - The replicated suffix
-        @raise LDAPError - if unable to search for the replication agreements
-        @return - True if all the agreements are idle, otherwise False
+        :param replicas: Suppliers, hubs, consumers
+        :type replicas: list of lib389.DirSrv
+        :param suffix: Replicated suffix
+        :type suffix: str
+
+        :raises: LDAPError: if unable to search for the replication agreements
+        :returns: True if all the agreements are idle, otherwise False
         """
 
         IDLE_MSG = ('Replica acquired successfully: Incremental ' +
@@ -231,17 +248,21 @@ class ReplTools(object):
 
     @staticmethod
     def createReplManager(server, repl_manager_dn=None, repl_manager_pw=None):
-        '''Create an entry that will be used to bind as replication manager.
+        """Create an entry that will be used to bind as replication manager.
 
-        @param server - A DirSrv object to connect to
-        @param repl_manager_dn - DN of the bind entry. If not provided use
-                                 the default one
-        @param repl_manager_pw - Password of the entry. If not provide use
-                                 the default one
-        @return None
-        @raise KeyError - if can not find valid values of Bind DN and Pwd
-               LDAPError - if we fail to add the replication manager
-        '''
+        :param server: An instance to connect to
+        :type server: lib389.DirSrv
+        :param repl_manager_dn: DN of the bind entry. If not provided use
+                                the default one
+        :type repl_manager_dn: str
+        :param repl_manager_pw: Password of the entry. If not provide use
+                                the default one
+        :type repl_manager_pw: str
+
+        :returns: None
+        :raises: - KeyError - if can not find valid values of Bind DN and Pwd
+                 - LDAPError - if we fail to add the replication manager
+        """
 
         # check the DN and PW
         try:
