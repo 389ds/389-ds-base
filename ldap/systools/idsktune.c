@@ -1475,21 +1475,22 @@ sun_check_network_device(void)
     if (devfd == -1) {
         switch (errno) {
 
-        case EACCES:
-            if (flag_debug) {
-                printf("DEBUG  : got EACCES opening %s\n", SUN_NETWORK_DEVICE);
+            case EACCES:
+                if (flag_debug) {
+                    printf("DEBUG  : got EACCES opening %s\n", SUN_NETWORK_DEVICE);
+                }
+                break;
+            case ENOENT:
+                if (flag_debug) {
+                    printf("DEBUG  : got ENOENT opening %s\n", SUN_NETWORK_DEVICE);
+                }
+                break;
+            default:
+                if (flag_debug) {
+                    printf("DEBUG  : got %d opening %s\n", errno, SUN_NETWORK_DEVICE);
+                }
+                return;
             }
-            break;
-        case ENOENT:
-            if (flag_debug) {
-                printf("DEBUG  : got ENOENT opening %s\n", SUN_NETWORK_DEVICE);
-            }
-            break;
-        default:
-            if (flag_debug) {
-                printf("DEBUG  : got %d opening %s\n", errno, SUN_NETWORK_DEVICE);
-            }
-            return;
         }
         else
         {
@@ -1501,8 +1502,9 @@ sun_check_network_device(void)
             printf("DEBUG  : %s\n", buf);
         }
         if (iii_pio_getnum(buf, &ls) == -1) {
-            if (flag_debug)
+            if (flag_debug) {
                 printf("DEBUG  : %s link_speed variable not available\n", SUN_NETWORK_DEVICE);
+            }
         } else {
             /* XXX look at link speed */
             if (flag_debug) {
