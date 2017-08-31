@@ -65,7 +65,7 @@ loginShell: /bin/false
         digits = len('%s' % max)
 
         cmd = [
-            '%s/bin/ldclt-bin' % self.ds.prefix,
+            '%s/bin/ldclt' % self.ds.prefix,
             '-h',
             self.ds.host,
             '-p',
@@ -99,7 +99,7 @@ loginShell: /bin/false
         # The bind users will be uid=userXXXX
         digits = len('%s' % max)
         cmd = [
-            '%s/bin/ldclt-bin' % self.ds.prefix,
+            '%s/bin/ldclt' % self.ds.prefix,
             '-h',
             self.ds.host,
             '-p',
