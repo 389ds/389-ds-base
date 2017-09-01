@@ -682,6 +682,16 @@ nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
+dn: cn=Bitwise Plugin,cn=plugins,cn=config
+objectClass: top
+objectClass: nsSlapdPlugin
+objectClass: extensibleObject
+cn: Bitwise Plugin
+nsslapd-pluginPath: libbitwise-plugin
+nsslapd-pluginInitfunc: bitwise_init
+nsslapd-pluginType: matchingRule
+nsslapd-pluginEnabled: on
+
 dn: cn=Content Synchronization,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -705,6 +715,18 @@ nsslapd-pluginpath: libderef-plugin
 nsslapd-plugininitfunc: deref_init
 nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
+dn: cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: nsContainer
+cn: Distributed Numeric Assignment Plugin
+nsslapd-plugininitfunc: dna_init
+nsslapd-plugintype: bepreoperation
+nsslapd-pluginenabled: off
+nsslapd-pluginPath: libdna-plugin
 nsslapd-plugin-depends-on-type: database
 
 dn: cn=Internationalization Plugin,cn=plugins,cn=config
@@ -753,6 +775,40 @@ nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
+dn: cn=Multimaster Replication Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Multimaster Replication Plugin
+nsslapd-pluginpath: libreplication-plugin
+nsslapd-plugininitfunc: replication_multimaster_plugin_init
+nsslapd-plugintype: object
+nsslapd-pluginbetxn: on
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-named: ldbm database
+nsslapd-plugin-depends-on-named: AES
+nsslapd-plugin-depends-on-named: Class of Service
+
+dn: cn=PAM Pass Through Auth,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: pamConfig
+cn: PAM Pass Through Auth
+nsslapd-pluginpath: libpam-passthru-plugin
+nsslapd-plugininitfunc: pam_passthruauth_init
+nsslapd-plugintype: betxnpreoperation
+nsslapd-pluginenabled: off
+nsslapd-pluginLoadGlobal: true
+nsslapd-plugin-depends-on-type: database
+pamMissingSuffix: ALLOW
+pamExcludeSuffix: cn=config
+pamIDMapMethod: RDN
+pamIDAttr: notUsedWithRDNMethod
+pamFallback: FALSE
+pamSecure: TRUE
+pamService: ldapserver
+
 dn: cn=Pass Through Authentication,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -763,6 +819,23 @@ nsslapd-plugininitfunc: passthruauth_init
 nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: off
 nsslapd-plugin-depends-on-type: database
+
+dn: cn=Posix Winsync API,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Posix Winsync API
+nsslapd-pluginpath: libposix-winsync-plugin
+nsslapd-plugininitfunc: posix_winsync_plugin_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: off
+nsslapd-plugin-depends-on-type: database
+posixWinsyncMsSFUSchema: false
+posixWinsyncMapMemberUID: true
+posixWinsyncMapNestedGrouping: false
+posixWinsyncCreateMemberOfTask: false
+posixWinsyncLowerCaseUID: false
+nsslapd-pluginprecedence: 25
 
 dn: cn=USN,cn=plugins,cn=config
 objectclass: top
@@ -1061,4 +1134,30 @@ objectClass: top
 objectClass: extensibleObject
 cn: config
 alwaysrecordlogin: no
+
+dn: cn=sasl,cn=config
+objectClass: top
+objectClass: nsContainer
+cn: sasl
+
+dn: cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsContainer
+cn: mapping
+
+dn: cn=Kerberos uid mapping,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: Kerberos uid mapping
+nsSaslMapRegexString: \(.*\)@\(.*\)\.\(.*\)
+nsSaslMapBaseDNTemplate: dc=\2,dc=\3
+nsSaslMapFilterTemplate: (uid=\1)
+
+dn: cn=rfc 2829 dn syntax,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: rfc 2829 dn syntax
+nsSaslMapRegexString: ^dn:\(.*\)
+nsSaslMapBaseDNTemplate: \1
+nsSaslMapFilterTemplate: (objectclass=*)
 

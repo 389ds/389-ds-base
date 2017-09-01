@@ -622,9 +622,6 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	ldap/ldif/template-ldapi.ldif \
 	ldap/ldif/template-ldapi-default.ldif \
 	ldap/ldif/template-ldapi-autobind.ldif \
-	ldap/ldif/template-pampta.ldif \
-	ldap/ldif/template-dnaplugin.ldif \
-	ldap/ldif/template-bitwise.ldif \
 	ldap/ldif/template-org.ldif \
 	ldap/ldif/template-domain.ldif \
 	ldap/ldif/template-state.ldif \
@@ -633,7 +630,6 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	ldap/ldif/template-orgunit.ldif \
 	ldap/ldif/template-baseacis.ldif \
 	ldap/ldif/template-sasl.ldif \
-	ldap/ldif/90betxn-plugins.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits \

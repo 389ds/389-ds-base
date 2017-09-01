@@ -376,25 +376,6 @@ sub createConfigFile {
     my @ldiffiles = ("$inf->{General}->{prefix}@templatedir@/template-dse.ldif",
                      "$inf->{General}->{prefix}@templatedir@/template-suffix-db.ldif",
                      "$inf->{General}->{prefix}@templatedir@/template-sasl.ldif");
-    if ("@enable_pam_passthru@") {
-        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-pampta.ldif";
-    }
-    if ("@enable_bitwise@") {
-        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-bitwise.ldif";
-    }
-    if ("@enable_dna@") {
-        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-dnaplugin.ldif";
-    }
-    if (-f "$inf->{General}->{prefix}@updatedir@/50replication-plugins.ldif") {
-        push @ldiffiles, "$inf->{General}->{prefix}@updatedir@/50replication-plugins.ldif";
-    }
-    if (-f "$inf->{General}->{prefix}@updatedir@/50posix-winsync-plugin.ldif") {
-        push @ldiffiles, "$inf->{General}->{prefix}@updatedir@/50posix-winsync-plugin.ldif";
-    }
-
-    if (-f "$inf->{General}->{prefix}@templatedir@/90betxn-plugins.ldif") {
-        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/90betxn-plugins.ldif";
-    }
 
     # additional configuration LDIF files
     if (exists($inf->{slapd}->{ConfigFile})) {
