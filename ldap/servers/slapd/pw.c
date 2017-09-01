@@ -1780,6 +1780,27 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				goto done;
 			}
 
+			/* Set the default values */
+			pwdpolicy->pw_mintokenlength = SLAPD_DEFAULT_PW_MINTOKENLENGTH;
+			pwdpolicy->pw_minlength = SLAPD_DEFAULT_PW_MINLENGTH;
+			pwdpolicy->pw_mindigits = SLAPD_DEFAULT_PW_MINDIGITS;
+			pwdpolicy->pw_minalphas = SLAPD_DEFAULT_PW_MINALPHAS;
+			pwdpolicy->pw_minuppers = SLAPD_DEFAULT_PW_MINUPPERS;
+			pwdpolicy->pw_minlowers = SLAPD_DEFAULT_PW_MINLOWERS;
+			pwdpolicy->pw_minspecials = SLAPD_DEFAULT_PW_MINSPECIALS;
+			pwdpolicy->pw_min8bit = SLAPD_DEFAULT_PW_MIN8BIT;
+			pwdpolicy->pw_maxrepeats = SLAPD_DEFAULT_PW_MAXREPEATS;
+			pwdpolicy->pw_mincategories = SLAPD_DEFAULT_PW_MINCATEGORIES;
+			pwdpolicy->pw_mintokenlength = SLAPD_DEFAULT_PW_MINTOKENLENGTH;
+			pwdpolicy->pw_maxage = SLAPD_DEFAULT_PW_MAXAGE;
+			pwdpolicy->pw_minage = SLAPD_DEFAULT_PW_MINAGE;
+			pwdpolicy->pw_warning = SLAPD_DEFAULT_PW_WARNING;
+			pwdpolicy->pw_inhistory = SLAPD_DEFAULT_PW_INHISTORY;
+			pwdpolicy->pw_maxfailure = SLAPD_DEFAULT_PW_MAXFAILURE;
+			pwdpolicy->pw_lockduration = SLAPD_DEFAULT_PW_LOCKDURATION;
+			pwdpolicy->pw_resetfailurecount = SLAPD_DEFAULT_PW_RESETFAILURECOUNT;
+			pwdpolicy->pw_gracelimit = SLAPD_DEFAULT_PW_GRACELIMIT;
+
 			/* set the default passwordLegacyPolicy setting */
 			pwdpolicy->pw_is_legacy = 1;
 
