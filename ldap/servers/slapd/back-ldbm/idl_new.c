@@ -361,7 +361,7 @@ idl_new_range_fetch(
     ID suffix = 0; /* random- to suppress compiler warning */
     idl_range_id_pair *leftover = NULL;
     size_t leftoverlen = 32;
-    int leftovercnt = 0;
+    size_t leftovercnt = 0;
 
     if (NULL == flag_err) {
         return NULL;
@@ -488,7 +488,7 @@ idl_new_range_fetch(
             lastid = id;
             /* we got another ID, add it to our IDL */
             if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
-                if (!idl) {
+                if (count == 0) {
                     /* First time.  Keep the suffix ID. */
                     suffix = key;
                     idl_rc = idl_append_extend(&idl, id);
@@ -499,13 +499,14 @@ idl_new_range_fetch(
                     /* Otherwise, keep the {key,id} in leftover array */
                     if (!leftover) {
                         leftover = (idl_range_id_pair *)slapi_ch_calloc(leftoverlen, sizeof(idl_range_id_pair));
-                    } else if (leftovercnt == (int)leftoverlen) {
+                    } else if (leftovercnt == leftoverlen) {
                         leftover = (idl_range_id_pair *)slapi_ch_realloc((char *)leftover, 2 * leftoverlen * sizeof(idl_range_id_pair));
                         memset(leftover + leftovercnt, 0, leftoverlen);
                         leftoverlen *= 2;
                     }
                     leftover[leftovercnt].key = key;
-                    leftover[leftovercnt++].id = id;
+                    leftover[leftovercnt].id = id;
+                    leftovercnt++;
                 }
             } else {
                 idl_rc = idl_append_extend(&idl, id);
@@ -613,16 +614,20 @@ error:
         qsort((void *)&idl->b_ids[0], idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
     }
     if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
-        for (size_t i = 0; i < leftovercnt; i++) {
-            if (leftover[i].key && idl_id_is_in_idlist(idl, leftover[i].key) == 0) {
-                idl_rc = idl_append_extend(&idl, leftover[i].id);
-                if (idl_rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
-                                  "Unable to extend id list (err=%d)\n", idl_rc);
-                    idl_free(&idl);
-                    return NULL;
+        size_t remaining = leftovercnt;
+        while(remaining > 0) {
+            for (size_t i = 0; i < leftovercnt; i++) {
+                if (leftover[i].key > 0 && idl_id_is_in_idlist(idl, leftover[i].key) != 0) {
+                    idl_rc = idl_append_extend(&idl, leftover[i].id);
+                    if (idl_rc) {
+                        slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
+                                      "Unable to extend id list (err=%d)\n", idl_rc);
+                        idl_free(&idl);
+                        return NULL;
+                    }
+                    leftover[i].key = 0;
+                    remaining--;
                 }
-                leftover[i].key = 0;
             }
         }
         slapi_ch_free((void **)&leftover);

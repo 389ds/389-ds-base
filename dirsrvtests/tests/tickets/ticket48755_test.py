@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import time
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
