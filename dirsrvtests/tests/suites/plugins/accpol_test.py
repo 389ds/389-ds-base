@@ -13,7 +13,8 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 
-from lib389._constants import PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_DM, PASSWORD, DEFAULT_SUFFIX, DN_CONFIG
+from lib389._constants import (PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_DM, PASSWORD, DEFAULT_SUFFIX,
+                               DN_CONFIG, SERVERID_STANDALONE)
 
 LOCL_CONF = 'cn=AccountPolicy1,ou=people,dc=example,dc=com'
 TEMPL_COS = 'cn=TempltCoS,ou=people,dc=example,dc=com'
@@ -40,10 +41,10 @@ def accpol_global(topology_st, request):
         topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', 'accountInactivityLimit')])
         topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '12')])
         topology_st.standalone.config.set('passwordexp', 'on')
-        topology_st.standalone.config.set('passwordmaxage', '300')
+        topology_st.standalone.config.set('passwordmaxage', '400')
         topology_st.standalone.config.set('passwordwarning', '1')
         topology_st.standalone.config.set('passwordlockout', 'on')
-        topology_st.standalone.config.set('passwordlockoutduration', '10')
+        topology_st.standalone.config.set('passwordlockoutduration', '5')
         topology_st.standalone.config.set('passwordmaxfailure', '3')
         topology_st.standalone.config.set('passwordunlock', 'on')
     except ldap.LDAPError as e:
@@ -74,7 +75,7 @@ def accpol_local(topology_st, accpol_global, request):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
         topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_DELETE, 'accountInactivityLimit', None)])
-        topology_st.standalone.config.set('passwordmaxage', '300')
+        topology_st.standalone.config.set('passwordmaxage', '400')
         topology_st.standalone.add_s(Entry((LOCL_CONF, {
             'objectclass': ['top', 'ldapsubentry', 'extensibleObject', 'accountpolicy'],
             'accountInactivityLimit': '10'})))
@@ -306,7 +307,7 @@ def account_status(topology_st, suffix, subtree, userid, nousrs, ulimit, tochck)
         elif (tochck == "Expired"):
             with pytest.raises(ldap.INVALID_CREDENTIALS):
                 topology_st.standalone.simple_bind_s(userdn, USER_PASW)
-                log.error('User {} password not expired , expected error 19'.format(userdn))
+                log.error('User {} password not expired , expected error 49'.format(userdn))
         elif (tochck == "Disabled"):
             with pytest.raises(ldap.CONSTRAINT_VIOLATION):
                 topology_st.standalone.simple_bind_s(userdn, USER_PASW)
@@ -431,11 +432,11 @@ def test_glinact_limit(topology_st, accpol_global):
             6. Modify accountInactivityLimit to use the min value.
             7. Add few users to ou=groups subtree in the default suffix
             8. Wait till it reaches accountInactivityLimit and check users, expected error 19
-            9. Modify accountInactivityLimit to 10 times(120 secs) bigger than the initial value.
+            9. Modify accountInactivityLimit to 10 times(30 secs) bigger than the initial value.
             10. Add few users to ou=groups subtree in the default suffix
             11. Wait for 90 secs and check if account is not inactivated, expected 0
-            12. Wait for +31 secs and check if account is not inactivated, expected 0
-            13. Wait for +121 secs and check if account is inactivated, error 19
+            12. Wait for +27 secs and check if account is not inactivated, expected 0
+            13. Wait for +30 secs and check if account is inactivated, error 19
             14. Replace the lastLoginTime attribute and check if account is activated
             15. Modify accountInactivityLimit to 12 secs, which is the default
             16. Run ldapsearch as normal user, expected 0.
@@ -446,31 +447,35 @@ def test_glinact_limit(topology_st, accpol_global):
     subtree = "ou=groups"
     userid = "inactestusr"
     nousrs = 3
+
     log.info('AccountInactivityLimit set to 12. Account will be inactivated if not accessed in 12 secs')
     add_users(topology_st, suffix, subtree, userid, nousrs, 2)
     log.info('Sleep for 9 secs to check if account is not inactivated, expected 0')
     time.sleep(9)
     account_status(topology_st, suffix, subtree, userid, nousrs, 2, "Enabled")
+
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '20')
-    time.sleep(18)
+    time.sleep(17)
     account_status(topology_st, suffix, subtree, userid, nousrs, 2, "Enabled")
-    time.sleep(21)
+    time.sleep(20)
     account_status(topology_st, suffix, subtree, userid, nousrs, 2, "Disabled")
+
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '1')
     add_users(topology_st, suffix, subtree, userid, 2, 1)
     time.sleep(2)
     account_status(topology_st, suffix, subtree, userid, 2, 1, "Disabled")
-    modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '120')
+
+    modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '30')
     add_users(topology_st, suffix, subtree, userid, 1, 0)
-    time.sleep(90)
+    time.sleep(27)
     account_status(topology_st, suffix, subtree, userid, 1, 0, "Enabled")
-    time.sleep(31)
-    account_status(topology_st, suffix, subtree, userid, 1, 0, "Enabled")
-    time.sleep(121)
+    time.sleep(30)
     account_status(topology_st, suffix, subtree, userid, 1, 0, "Disabled")
-    add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
+
     log.info('Check if account is activated, expected 0')
+    add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
+
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '12')
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
@@ -488,14 +493,14 @@ def test_glnologin_attr(topology_st, accpol_global):
             4. Wait for 10 secs and check if account is not inactivated, expected 0
             5. Modify AccountInactivityLimit to 20 secs
             6. Wait for +9 secs and check if account is not inactivated, expected 0
-            7. Wait for +2 secs and check if account is inactivated, error 19
-            8. Modify accountInactivityLimit to 2 secs
+            7. Wait for +3 secs and check if account is inactivated, error 19
+            8. Modify accountInactivityLimit to 3 secs
             9. Add few users to ou=groups subtree in the default suffix
             10. Wait for 3 secs and check if account is inactivated, error 19
-            11. Modify accountInactivityLimit to 120 secs
+            11. Modify accountInactivityLimit to 30 secs
             12. Add few users to ou=groups subtree in the default suffix
             13. Wait for 90 secs and check if account is not inactivated, expected 0
-            14. Wait for +29 secs and check if account is not inactivated, expected 0
+            14. Wait for +28 secs and check if account is not inactivated, expected 0
             15. Wait for +2 secs and check if account is inactivated, error 19
             16. Replace the lastLoginTime attribute and check if account is activated
             17. Modify accountInactivityLimit to 12 secs, which is the default
@@ -507,6 +512,7 @@ def test_glnologin_attr(topology_st, accpol_global):
     subtree = "ou=groups"
     userid = "nologinusr"
     nousrs = 3
+
     log.info('AccountInactivityLimit set to 12. Account will be inactivated if not accessed in 12 secs')
     log.info('Set attribute StateAttrName to createTimestamp, loginTime attr wont be considered')
     modify_attr(topology_st, ACCP_CONF, 'stateattrname', 'createTimestamp')
@@ -515,25 +521,27 @@ def test_glnologin_attr(topology_st, accpol_global):
     log.info('Sleep for 9 secs to check if account is not inactivated, expected 0')
     time.sleep(9)
     account_status(topology_st, suffix, subtree, userid, nousrs, 2, "Enabled")
+
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '20')
     time.sleep(9)
     account_status(topology_st, suffix, subtree, userid, nousrs, 2, "Enabled")
     time.sleep(3)
     account_status(topology_st, suffix, subtree, userid, nousrs, 2, "Disabled")
+
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '3')
     add_users(topology_st, suffix, subtree, userid, 2, 1)
     time.sleep(2)
     account_status(topology_st, suffix, subtree, userid, 2, 1, "Enabled")
     time.sleep(2)
     account_status(topology_st, suffix, subtree, userid, 2, 1, "Disabled")
-    modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '120')
+
+    modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '30')
     add_users(topology_st, suffix, subtree, userid, 1, 0)
-    time.sleep(90)
-    account_status(topology_st, suffix, subtree, userid, 1, 0, "Enabled")
-    time.sleep(29)
+    time.sleep(28)
     account_status(topology_st, suffix, subtree, userid, 1, 0, "Enabled")
     time.sleep(2)
     account_status(topology_st, suffix, subtree, userid, 1, 0, "Disabled")
+
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '12')
     log.info('Set attribute StateAttrName to lastLoginTime, the default')
     modify_attr(topology_st, ACCP_CONF, 'stateattrname', 'lastLoginTime')
@@ -738,20 +746,24 @@ def test_glinact_acclock(topology_st, accpol_global):
     add_users(topology_st, suffix, subtree, userid, nousrs, 0)
     log.info('Sleep for 3 secs and try invalid binds to lockout the user')
     time.sleep(3)
+
     pwacc_lock(topology_st, suffix, subtree, userid, nousrs)
     log.info('Sleep for 10 secs to check if account is inactivated, expected value 19')
     time.sleep(10)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
+
     log.info('Add lastLoginTime to activate the user account')
     add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
-    log.info(
-        'Checking if account is unlocked after passwordlockoutduration, but inactivated after accountInactivityLimit')
+
+    log.info('Checking if account is unlocked after passwordlockoutduration, but inactivated after accountInactivityLimit')
     pwacc_lock(topology_st, suffix, subtree, userid, nousrs)
-    log.info('Account is expected to be unlocked after 10 secs of passwordlockoutduration')
-    log.info('Sleep for 10 secs to check if account is not inactivated, expected value 0')
-    time.sleep(10)
+    account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
+
+    log.info('Account is expected to be unlocked after 5 secs of passwordlockoutduration')
+    time.sleep(5)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
+
     log.info('Sleep 13s and check if account inactivated based on accountInactivityLimit, expected 19')
     time.sleep(13)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
@@ -790,32 +802,43 @@ def test_glnact_pwexp(topology_st, accpol_global):
     log.info('AccountInactivityLimit set to 12. Account will be inactivated if not accessed in 12 secs')
     log.info('Passwordmaxage is set to 9. Password will expire in 9 secs')
     add_users(topology_st, suffix, subtree, userid, nousrs, 0)
+
     log.info('Sleep for 9 secs and check if password expired')
     time.sleep(9)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Expired")
-    time.sleep(4)
+    time.sleep(4)  # Passed inactivity
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
+
     log.info('Add lastLoginTime to activate the user account')
     add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Expired")
     userpw_reset(topology_st, suffix, subtree, userid, nousrs, "DirMgr", PASSWORD, USER_PASW)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
+
+    # Allow password to expire again, but inactivity continues
     time.sleep(7)
+    # reset password to counter expiration, we will test expiration again later
     userpw_reset(topology_st, suffix, subtree, userid, nousrs, "DirMgr", PASSWORD, USER_PASW)
-    log.info('Sleep for 6 secs and check if account is inactivated, expected error 19')
-    time.sleep(6)
+    log.info('Sleep for 4 secs and check if account is now inactivated, expected error 19')
+    time.sleep(4)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
+
+    # Reset inactivity and check for expiration
     add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
     time.sleep(4)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Expired")
+
+    # Reset account
     userpw_reset(topology_st, suffix, subtree, userid, nousrs, "DirMgr", PASSWORD, USER_PASW)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
+
+    # Reset maxage
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
-        topology_st.standalone.config.set('passwordmaxage', '300')
+        topology_st.standalone.config.set('passwordmaxage', '400')
     except ldap.LDAPError as e:
-        log.error('Failed to change the value of passwordmaxage to 300')
+        log.error('Failed to change the value of passwordmaxage to 400')
         raise e
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
