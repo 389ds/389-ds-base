@@ -2078,6 +2078,14 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_PLUGIN_ACL_MODS_UPDATE:
         (*(IFP *)value) = pblock->pb_plugin->plg_acl_mods_update;
         break;
+    /* MMR Plugin */
+    case SLAPI_PLUGIN_MMR_BETXN_PREOP:
+        (*(IFP *)value) = pblock->pb_plugin->plg_mmr_betxn_preop;
+	break;
+    case SLAPI_PLUGIN_MMR_BETXN_POSTOP:
+        (*(IFP *)value) = pblock->pb_plugin->plg_mmr_betxn_postop;
+	break;
+
     case SLAPI_REQUESTOR_DN:
         /* NOTE: It's not a copy of the DN */
         if (pblock->pb_op != NULL) {
@@ -2257,6 +2265,12 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         break;
 
+    case SLAPI_URP_TOMBSTONE_CONFLICT_DN:
+        if (pblock->pb_intop != NULL) {
+		(*(char **)value) = pblock->pb_intop->pb_urp_tombstone_conflict_dn;
+        }
+	break;
+		
     case SLAPI_SEARCH_CTRLS:
         if (pblock->pb_intop != NULL) {
             (*(LDAPControl ***)value) = pblock->pb_intop->pb_search_ctrls;
@@ -3806,6 +3820,14 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_PLUGIN_ACL_MODS_UPDATE:
         pblock->pb_plugin->plg_acl_mods_update = (IFP)value;
         break;
+    /* MMR Plugin */
+    case SLAPI_PLUGIN_MMR_BETXN_PREOP:
+	pblock->pb_plugin->plg_mmr_betxn_preop = (IFP) value;
+	break;
+    case SLAPI_PLUGIN_MMR_BETXN_POSTOP:
+	pblock->pb_plugin->plg_mmr_betxn_postop = (IFP) value;
+	break;
+
     case SLAPI_CLIENT_DNS:
         if (pblock->pb_conn == NULL) {
             slapi_log_err(SLAPI_LOG_ERR,
@@ -3918,6 +3940,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         _pblock_assert_pb_intop(pblock);
         pblock->pb_intop->pb_urp_naming_collision_dn = (char *)value;
         break;
+
+    case SLAPI_URP_TOMBSTONE_CONFLICT_DN:
+	pblock->pb_intop->pb_urp_tombstone_conflict_dn = (char *)value;
+	break;
 
     case SLAPI_URP_TOMBSTONE_UNIQUEID:
         _pblock_assert_pb_intop(pblock);

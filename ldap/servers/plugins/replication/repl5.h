@@ -205,6 +205,8 @@ int multimaster_preop_modrdn(Slapi_PBlock *pb);
 int multimaster_preop_search(Slapi_PBlock *pb);
 int multimaster_preop_compare(Slapi_PBlock *pb);
 int multimaster_ruv_search(Slapi_PBlock *pb);
+int multimaster_mmr_preop (Slapi_PBlock *pb, int flags);
+int multimaster_mmr_postop (Slapi_PBlock *pb, int flags);
 int multimaster_bepreop_add(Slapi_PBlock *pb);
 int multimaster_bepreop_delete(Slapi_PBlock *pb);
 int multimaster_bepreop_modify(Slapi_PBlock *pb);

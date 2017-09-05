@@ -408,6 +408,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     int opreturn = 0;
     int mod_count = 0;
     int not_an_error = 0;
+    int is_noop = 0;
     int fixup_tombstone = 0;
     int ec_locked = 0;
     int result_sent = 0;
@@ -622,7 +623,10 @@ ldbm_back_modify(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_MODIFY_EXISTING_ENTRY, ec->ep_entry);
             slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 
-            opreturn = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
+            opreturn = plugin_call_mmr_plugin_preop(pb, NULL,SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
+            if (opreturn == 0) {
+                opreturn = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
+            }
             if (opreturn ||
                 (slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code) && ldap_result_code) ||
                 (slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn) && opreturn)) {
@@ -636,6 +640,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
                 }
                 if (SLAPI_PLUGIN_NOOP == opreturn) {
                     not_an_error = 1;
+                    is_noop = 1;
                     rc = opreturn = LDAP_SUCCESS;
                 } else if (!opreturn) {
                     opreturn = SLAPI_PLUGIN_FAILURE;
@@ -861,6 +866,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
         goto error_return;
     }
+    retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
 
     /* Release SERIAL LOCK */
     retval = dblayer_txn_commit(be, &txn);
@@ -911,7 +917,7 @@ error_return:
                and skip processing if they don't want do anything - some plugins that
                keep track of a counter (usn, dna) may want to "rollback" the counter
                in this case */
-            if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
+            if (!is_noop && (retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
                 slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modify",
                               "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin returned error code %d\n", retval);
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -921,6 +927,7 @@ error_return:
                     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
                 }
             }
+            retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
 
             /* It is safer not to abort when the transaction is not started. */
             /* Release SERIAL LOCK */

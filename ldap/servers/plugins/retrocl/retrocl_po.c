@@ -638,7 +638,8 @@ retrocl_postob(Slapi_PBlock *pb, int optype)
         return SLAPI_PLUGIN_SUCCESS;
     }
 
-    if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)) {
+    if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY) ||
+        operation_is_flag_set(op, OP_FLAG_NOOP)) {
         slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change for nsTombstone entries\n");
         return SLAPI_PLUGIN_SUCCESS;
     }

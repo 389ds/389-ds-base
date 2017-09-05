@@ -1510,7 +1510,7 @@ ruv_add_csn_inprogress(void *repl, RUV *ruv, const CSN *csn)
     if (ruv_covers_csn_internal(ruv, csn, PR_FALSE)) {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress - "
-                                                            "The csn %s has already be seen - ignoring\n",
+                          "The csn %s has already be seen (in ruv) - ignoring\n",
                           csn_as_string(csn, PR_FALSE, csn_str));
         }
         rc = RUV_COVERS_CSN;
@@ -1531,7 +1531,7 @@ ruv_add_csn_inprogress(void *repl, RUV *ruv, const CSN *csn)
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress - "
-                                                            "The csn %s has already be seen - ignoring\n",
+                          "The csn %s has already be seen (in csnpl) - ignoring\n",
                           csn_as_string(csn, PR_FALSE, csn_str));
         }
         set_thread_primary_csn(NULL, NULL);

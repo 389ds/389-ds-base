@@ -423,6 +423,8 @@ char *slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, s
 #define OP_FLAG_NEVER_CACHE 0x200000             /* never keep the entry in cache */
 #define OP_FLAG_TOMBSTONE_FIXUP 0x400000         /* operation is tombstone fixup op */
 #define OP_FLAG_BULK_IMPORT 0x800000             /* operation is bulk import */
+#define OP_FLAG_NOOP 0x01000000                  /* operation results from urp and
+                                                  * should be ignored */
 
 /* reverse search states */
 #define REV_STARTED 1

@@ -23,6 +23,7 @@
 int urp_modify_operation(Slapi_PBlock *pb);
 int urp_add_operation(Slapi_PBlock *pb);
 int urp_delete_operation(Slapi_PBlock *pb);
+int urp_post_add_operation(Slapi_PBlock *pb);
 int urp_post_delete_operation(Slapi_PBlock *pb);
 int urp_modrdn_operation(Slapi_PBlock *pb);
 int urp_post_modrdn_operation(Slapi_PBlock *pb);
@@ -33,6 +34,7 @@ int urp_fixup_add_entry(Slapi_Entry *e, const char *target_uniqueid, const char 
 int urp_fixup_delete_entry(const char *uniqueid, const char *dn, CSN *opcsn, int opflags);
 int urp_fixup_rename_entry(const Slapi_Entry *entry, const char *newrdn, const char *parentuniqueid, int opflags);
 int urp_fixup_modify_entry(const char *uniqueid, const Slapi_DN *sdn, CSN *opcsn, Slapi_Mods *smods, int opflags);
+int urp_fixup_modrdn_entry(const Slapi_DN *entrydn, const char *newrdn, const Slapi_DN *newsuperior, const char *entryuniqueid, const char *parentuniqueid, CSN *opcsn, int opflags);
 
 int is_suffix_dn(Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parenddn);
 int is_suffix_dn_ext(Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parenddn, int is_tombstone);
@@ -41,6 +43,7 @@ int is_suffix_dn_ext(Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parenddn, 
  * urp_glue.c
  */
 int is_glue_entry(const Slapi_Entry *entry);
+int is_conflict_entry(const Slapi_Entry *entry);
 int create_glue_entry(Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char *uniqueid, CSN *opcsn);
 int entry_to_glue(char *sessionid, const Slapi_Entry *entry, const char *reason, CSN *opcsn);
 int glue_to_entry(Slapi_PBlock *pb, Slapi_Entry *entry);
@@ -51,5 +54,8 @@ PRBool get_glue_csn(const Slapi_Entry *entry, const CSN **gluecsn);
  */
 int is_tombstone_entry(const Slapi_Entry *entry);
 int tombstone_to_glue(Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, const Slapi_DN *parentdn, const char *reason, CSN *opcsn, Slapi_DN **newparentdn);
+int tombstone_to_conflict(char *sessionid, Slapi_Entry *entry, const Slapi_DN *conflictdn, const char *reason, CSN *opcsn,     Slapi_DN **newparentdn);
+int conflict_to_tombstone(char *sessionid, Slapi_Entry *entry, CSN *opcsn);
+int tombstone_to_conflict_check_parent( char *sessionid, char *parentdn, const char *uniqueid, const char *parentuniqueid, CSN *opcsn, Slapi_DN *conflictdn);
 int entry_to_tombstone(Slapi_PBlock *pb, Slapi_Entry *entry);
 PRBool get_tombstone_csn(const Slapi_Entry *entry, const CSN **delcsn);

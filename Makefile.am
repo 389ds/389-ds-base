@@ -1197,6 +1197,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/pblock.c \
 	ldap/servers/slapd/plugin.c \
 	ldap/servers/slapd/plugin_acl.c \
+	ldap/servers/slapd/plugin_mmr.c \
 	ldap/servers/slapd/plugin_internal_op.c \
 	ldap/servers/slapd/plugin_mr.c \
 	ldap/servers/slapd/plugin_role.c \

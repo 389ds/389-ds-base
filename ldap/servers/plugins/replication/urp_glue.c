@@ -63,7 +63,7 @@ get_glue_csn(const Slapi_Entry *entry, const CSN **gluecsn)
 int
 entry_to_glue(char *sessionid, const Slapi_Entry *entry, const char *reason, CSN *opcsn)
 {
-    int op_result = 0;
+    int op_result = -1;
     const char *dn;
     const Slapi_DN *sdn;
     slapi_mods smods;

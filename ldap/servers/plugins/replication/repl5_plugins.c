@@ -581,6 +581,54 @@ purge_entry_state_information(Slapi_PBlock *pb)
         object_release(repl_obj);
     }
 }
+int
+
+multimaster_mmr_preop (Slapi_PBlock *pb, int flags)
+{
+	int rc= SLAPI_PLUGIN_SUCCESS;
+
+	switch (flags)
+	{
+	case SLAPI_PLUGIN_BE_PRE_ADD_FN:
+		rc = multimaster_bepreop_add(pb);
+		break;
+	case SLAPI_PLUGIN_BE_PRE_MODIFY_FN:
+		rc = multimaster_bepreop_modify(pb);
+		break;
+	case SLAPI_PLUGIN_BE_PRE_MODRDN_FN:
+		rc = multimaster_bepreop_modrdn(pb);
+		break;
+	case SLAPI_PLUGIN_BE_PRE_DELETE_FN:
+		rc = multimaster_bepreop_delete(pb);
+		break;
+	}
+	return rc;
+}
+
+int
+multimaster_mmr_postop (Slapi_PBlock *pb, int flags)
+{
+	int rc= SLAPI_PLUGIN_SUCCESS;
+
+	switch (flags)
+	{
+	case SLAPI_PLUGIN_BE_TXN_POST_ADD_FN:
+		rc = multimaster_be_betxnpostop_add(pb);
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN:
+		rc = multimaster_be_betxnpostop_delete(pb);
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN:
+		rc = multimaster_be_betxnpostop_modify(pb);
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN:
+		rc = multimaster_be_betxnpostop_modrdn(pb);
+		break;
+	}
+	slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                     "multimaster_mmr_postop - error %d for oparation %d.\n", rc, flags);
+	return rc;
+}
 
 /* pure bepreop's -- should be done before transaction starts */
 int
@@ -683,6 +731,18 @@ multimaster_bepreop_modrdn(Slapi_PBlock *pb)
     purge_entry_state_information(pb);
 
     return rc;
+}
+
+int
+multimaster_bepostop_add(Slapi_PBlock *pb)
+{
+    Slapi_Operation *op;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if ( ! operation_is_flag_set (op, OP_FLAG_REPL_FIXUP) ) {
+        urp_post_add_operation (pb);
+    }
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 int
@@ -793,6 +853,7 @@ multimaster_be_betxnpostop_add(Slapi_PBlock *pb)
     int rc = 0;
     /* original betxnpost */
     rc = write_changelog_and_ruv(pb);
+    rc |= multimaster_bepostop_add(pb);
     return rc;
 }
 
@@ -1003,16 +1064,23 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
         if (op_params->operation_type != SLAPI_OPERATION_MODIFY ||
             op_params->p.p_modify.modify_mods != NULL) {
             void *txn = NULL;
+            char csn_str[CSN_STRSIZE];
             if (cl5_is_diskfull() && !cl5_diskspace_is_available()) {
                 slapi_log_err(SLAPI_LOG_CRIT, repl_plugin_name,
                               "write_changelog_and_ruv - Skipped due to DISKFULL\n");
                 goto common_return;
             }
             slapi_pblock_get(pb, SLAPI_TXN, &txn);
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                          "write_changelog_and_ruv - Writing change for "
+                          "%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
+                          REPL_GET_DN(&op_params->target_address),
+                          op_params->target_address.uniqueid,
+                          op_params->operation_type,
+                          csn_as_string(op_params->csn, PR_FALSE, csn_str));
             rc = cl5WriteOperationTxn(repl_name, repl_gen, op_params,
                                       !operation_is_flag_set(op, OP_FLAG_REPLICATED), txn);
             if (rc != CL5_SUCCESS) {
-                char csn_str[CSN_STRSIZE];
                 /* ONREPL - log error */
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                               "write_changelog_and_ruv - Can't add a change for "

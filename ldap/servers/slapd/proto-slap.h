@@ -941,6 +941,12 @@ int plugin_call_acl_mods_update(Slapi_PBlock *pb, int optype);
 int plugin_call_acl_verify_syntax(Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf);
 
 /*
+ * plugin_mmr.c
+ */
+int plugin_call_mmr_plugin_preop ( Slapi_PBlock *pb, Slapi_Entry *e, int flags);
+int plugin_call_mmr_plugin_postop ( Slapi_PBlock *pb, Slapi_Entry *e, int flags);
+
+/*
  * pw_mgmt.c
  */
 void pw_init(void);

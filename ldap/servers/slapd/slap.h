@@ -860,7 +860,8 @@ struct matchingRuleList
 #define PLUGIN_LIST_INDEX                    19
 #define PLUGIN_LIST_BETXNPREOPERATION        20
 #define PLUGIN_LIST_BETXNPOSTOPERATION       21
-#define PLUGIN_LIST_GLOBAL_MAX               22
+#define PLUGIN_LIST_MMR                      22
+#define PLUGIN_LIST_GLOBAL_MAX               23
 
 /* plugin configuration attributes */
 #define ATTR_PLUGIN_PATH                   "nsslapd-pluginPath"
@@ -1281,6 +1282,14 @@ struct slapdplugin
 #define plg_acl_access_allowed plg_un.plg_un_acl.plg_un_acl_access_allowed
 #define plg_acl_mods_allowed plg_un.plg_un_acl.plg_un_acl_mods_allowed
 #define plg_acl_mods_update plg_un.plg_un_acl.plg_un_acl_mods_update
+
+        struct plg_un_mmr_struct
+        {
+            IFP plg_un_mmr_betxn_preop;
+            IFP plg_un_mmr_betxn_postop;
+        } plg_un_mmr;
+#define plg_mmr_betxn_preop 		plg_un.plg_un_mmr.plg_un_mmr_betxn_preop
+#define plg_mmr_betxn_postop 		plg_un.plg_un_mmr.plg_un_mmr_betxn_postop
 
         /* password storage scheme (kexcoff) */
         struct plg_un_pwd_storage_scheme_struct

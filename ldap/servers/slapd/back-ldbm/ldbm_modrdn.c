@@ -428,7 +428,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 }
                 /* Call the Backend Pre ModRDN plugins */
                 slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-                rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
+                rc = plugin_call_mmr_plugin_preop(pb, NULL,SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
+                if (rc == 0) {
+                    rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
+                }
                 if (rc < 0) {
                     if (SLAPI_PLUGIN_NOOP == rc) {
                         not_an_error = 1;
@@ -1179,6 +1182,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                       conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, myrc);
     }
 
+    if (retval == 0 && opcsn != NULL && !is_fixup_operation) {
+        slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN,
+                         slapi_ch_strdup(slapi_sdn_get_dn(sdn)));
+    }
     slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, postentry);
     /* call the transaction post modrdn plugins just before the commit */
     if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
@@ -1203,6 +1210,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
         goto error_return;
     }
+	retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
 
     /* Release SERIAL LOCK */
     retval = dblayer_txn_commit(be, &txn);
@@ -1342,6 +1350,7 @@ error_return:
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
             }
+	retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
 
             /* Release SERIAL LOCK */
             dblayer_txn_abort(be, &txn); /* abort crashes in case disk full */
@@ -1464,11 +1473,7 @@ common_return:
     backentry_free(&original_entry);
     backentry_free(&tmpentry);
     slapi_entry_free(original_targetentry);
-    slapi_ch_free((void **)&errbuf);
-    if (retval == 0 && opcsn != NULL && !is_fixup_operation) {
-        slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN,
-                         slapi_ch_strdup(slapi_sdn_get_dn(sdn)));
-    }
+    slapi_ch_free((void**)&errbuf);
     if (pb_conn) {
         slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modrdn",
                       "leave conn=%" PRIu64 " op=%d\n",

@@ -2261,6 +2261,9 @@ plugin_get_type_and_list(
     } else if (strcasecmp(plugintype, "accesscontrol") == 0) {
         *type = SLAPI_PLUGIN_ACL;
         plugin_list_index = PLUGIN_LIST_ACL;
+    } else if ( strcasecmp( plugintype, "mmr" ) == 0 ) {
+        *type = SLAPI_PLUGIN_MMR;
+        plugin_list_index = PLUGIN_LIST_MMR;
     } else if (strcasecmp(plugintype, "bepreoperation") == 0) {
         *type = SLAPI_PLUGIN_BEPREOPERATION;
         plugin_list_index = PLUGIN_LIST_BEPREOPERATION;
@@ -2337,6 +2340,8 @@ plugin_get_type_str(int type)
         return "syntax";
     } else if (type == SLAPI_PLUGIN_ACL) {
         return "accesscontrol";
+    } else if (type == SLAPI_PLUGIN_MMR){
+        return "mmr";
     } else if (type == SLAPI_PLUGIN_BEPREOPERATION) {
         return "bepreoperation";
     } else if (type == SLAPI_PLUGIN_BEPOSTOPERATION) {

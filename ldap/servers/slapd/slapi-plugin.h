@@ -6902,6 +6902,7 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 #define SLAPI_PLUGIN_BETXNEXTENDEDOP          21
 #define SLAPI_PLUGIN_PREEXTOPERATION          22
 #define SLAPI_PLUGIN_POSTEXTOPERATION         23
+#define SLAPI_PLUGIN_MMR                      24
 
 /*
  * special return values for extended operation plugins (zero or positive
@@ -6920,6 +6921,13 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
                                  * Treat as SUCCESS, but skip the backend op.
                                  * Also, return SUCCESS to the client/supplier.
                                  * Necessary for the replication conflicts. */
+#define SLAPI_PLUGIN_NOOP_COMMIT -3 /* Special in be_pre_op/be_txn_pre_op.
+                                     * main op should be noop, but plugin made
+                                     * changes which need to be committed
+                                     */
+#define SLAPI_PLUGIN_NOOP_TOMBSTONE -4  /* Ignore the add and turn entry
+                                         * into tombstone
+                                         */
 
 /*
  * the following can be used as the second argument to the
@@ -6993,6 +7001,7 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 /* urp flags */
 #define SLAPI_URP_NAMING_COLLISION_DN 286
 #define SLAPI_URP_TOMBSTONE_UNIQUEID  288
+#define SLAPI_URP_TOMBSTONE_CONFLICT_DN	293
 
 /* common to all plugins */
 #define SLAPI_PLUGIN              3
@@ -7191,6 +7200,10 @@ typedef struct slapi_plugindesc
 #define ACLPLUGIN_ACCESS_READ_ON_VLV          3
 #define ACLPLUGIN_ACCESS_MODRDN               4
 #define ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS 5
+
+/* MMR plugin functions and arguments */
+#define SLAPI_PLUGIN_MMR_BETXN_PREOP		761
+#define SLAPI_PLUGIN_MMR_BETXN_POSTOP		762
 
 /* Authorization types */
 #define SLAPI_BE_MAXNESTLEVEL 742

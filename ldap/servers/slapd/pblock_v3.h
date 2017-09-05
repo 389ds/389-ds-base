@@ -141,6 +141,7 @@ typedef struct _slapi_pblock_intop
     char *pb_result_text;             /* result text when available */
     char *pb_urp_naming_collision_dn; /* replication naming conflict removal */
     char *pb_urp_tombstone_uniqueid;  /* replication change tombstone */
+    char * pb_urp_tombstone_conflict_dn; /* urp changed tombstone to conflict */
     int pb_opreturn;
     /* controls we know about */
     int pb_managedsait;

@@ -109,6 +109,7 @@ static Slapi_PluginDesc multimasterpostopdesc = {"replication-multimaster-postop
 static Slapi_PluginDesc multimasterinternalpreopdesc = {"replication-multimaster-internalpreop", VENDOR, DS_PACKAGE_VERSION, "Multi-master replication internal pre-operation plugin"};
 static Slapi_PluginDesc multimasterinternalpostopdesc = {"replication-multimaster-internalpostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication internal post-operation plugin"};
 static Slapi_PluginDesc multimasterbepreopdesc = {"replication-multimaster-bepreop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication bepre-operation plugin"};
+static Slapi_PluginDesc multimasterbemmrdesc = {"replication-multimaster-bepreop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication be plugin"};
 static Slapi_PluginDesc multimasterbepostopdesc = {"replication-multimaster-bepostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication bepost-operation plugin"};
 static Slapi_PluginDesc multimasterbetxnpostopdesc = {"replication-multimaster-betxnpostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication be transaction post-operation plugin"};
 static Slapi_PluginDesc multimasterextopdesc = {"replication-multimaster-extop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication extended-operation plugin"};
@@ -337,10 +338,6 @@ multimaster_bepreop_init(Slapi_PBlock *pb)
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepreopdesc) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN, (void *)multimaster_bepreop_add) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN, (void *)multimaster_bepreop_delete) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN, (void *)multimaster_bepreop_modify) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN, (void *)multimaster_bepreop_modrdn) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *)cl5Close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN, (void *)cl5WriteRUV) != 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepreop_init - Failed\n");
@@ -350,6 +347,21 @@ multimaster_bepreop_init(Slapi_PBlock *pb)
     return rc;
 }
 
+int
+multimaster_mmr_init( Slapi_PBlock *pb )
+{
+    int rc= 0; /* OK */
+
+    if(slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+       slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbemmrdesc ) != 0 ||
+       slapi_pblock_set(pb, SLAPI_PLUGIN_MMR_BETXN_PREOP, (void *) multimaster_mmr_preop ) != 0 ||
+       slapi_pblock_set(pb, SLAPI_PLUGIN_MMR_BETXN_POSTOP, (void *) multimaster_mmr_postop ) != 0) {
+       slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_mmr_init - Failed\n" );
+       rc= -1;
+}
+
+return rc;
+}
 /*
  * betxnpreop: if betxn is on, call preop urp at betxnpreop.
  */
@@ -415,27 +427,35 @@ multimaster_betxnpostop_init(Slapi_PBlock *pb)
     void *mdn_fn;
 
     if (repl5_is_betxn) {
-        add_fn = multimaster_be_betxnpostop_add;
+        /* add_fn = multimaster_be_betxnpostop_add;
         del_fn = multimaster_be_betxnpostop_delete;
         mod_fn = multimaster_be_betxnpostop_modify;
         mdn_fn = multimaster_be_betxnpostop_modrdn;
+        */
+        if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) ||
+            slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                             (void *)&multimasterbetxnpostopdesc)) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
+                          "multimaster_betxnpostop_init - Failed\n");
+            rc = -1;
+        }
     } else {
         add_fn = multimaster_betxnpostop_add;
         del_fn = multimaster_betxnpostop_delete;
         mod_fn = multimaster_betxnpostop_modify;
         mdn_fn = multimaster_betxnpostop_modrdn;
-    }
 
-    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *)&multimasterbetxnpostopdesc) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN, add_fn) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN, del_fn) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN, mdn_fn) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN, mod_fn)) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
-                      "multimaster_betxnpostop_init - Failed\n");
-        rc = -1;
+        if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) ||
+            slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                             (void *)&multimasterbetxnpostopdesc) ||
+            slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN, add_fn) ||
+            slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN, del_fn) ||
+            slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN, mdn_fn) ||
+            slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN, mod_fn)) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
+                          "multimaster_betxnpostop_init - Failed\n");
+            rc = -1;
+        }
     }
 
     return rc;
@@ -886,6 +906,12 @@ replication_multimaster_plugin_init(Slapi_PBlock *pb)
                                    "multimaster_preop_init",
                                    multimaster_preop_init,
                                    "Multimaster replication preoperation plugin",
+                                   NULL, identity);
+        /* Register the main mmr backend plugins */
+        rc = slapi_register_plugin("mmr", 1 /* Enabled */,
+                                   "multimaster_mmr_init",
+                                   multimaster_mmr_init,
+                                   "Multimaster replication be operation plugin",
                                    NULL, identity);
         /* bepreop: setting SLAPI_TXN_RUV_MODS_FN and cleanup old stateinfo
          * -- should be done before transaction */
