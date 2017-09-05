@@ -567,10 +567,11 @@ struct ldbminfo
                                                * use for the libdb cache.
                                                * the rest is split up among
                                                * the instance entry caches */
-    unsigned long li_cache_autosize_ec; /* new instances created while
+    uint64_t li_cache_autosize_ec;      /* new instances created while
                                                * the server is up, should
                                                * use this as the entry cache
                                                * size (0 = autosize off) */
+    uint64_t li_dncache_autosize_ec;    /* Same as above, but dncache. */
     size_t li_import_cachesize;         /* size of the mpool for
                                                * imports */
     PRLock *li_dbcache_mutex;

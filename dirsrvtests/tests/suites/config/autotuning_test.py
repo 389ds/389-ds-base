@@ -37,7 +37,7 @@ def test_threads_basic(topo):
     topo.standalone.config.set("nsslapd-threadnumber", "-1")
 
     log.info("Assert nsslapd-threadnumber is equal to the documented expected value")
-    assert topo.standalone.config.get_attr_val("nsslapd-threadnumber") > 0
+    assert topo.standalone.config.get_attr_val_int("nsslapd-threadnumber") > 0
 
 
 @pytest.mark.parametrize("invalid_value", ('-2', '0', 'invalid'))
@@ -71,18 +71,18 @@ def test_threads_back_from_manual_value(topo):
 
     log.info("Set nsslapd-threadnumber: -1 to enable autotuning and save the new value")
     topo.standalone.config.set("nsslapd-threadnumber", "-1")
-    autotuned_value = topo.standalone.config.get_attr_val("nsslapd-threadnumber")
+    autotuned_value = topo.standalone.config.get_attr_val_utf8("nsslapd-threadnumber")
 
     log.info("Set nsslapd-threadnumber to the autotuned value decreased by 2")
     new_value = str(int(autotuned_value) - 2)
     topo.standalone.config.set("nsslapd-threadnumber", new_value)
-    assert topo.standalone.config.get_attr_val("nsslapd-threadnumber") == new_value
+    assert topo.standalone.config.get_attr_val_utf8("nsslapd-threadnumber") == new_value
 
     log.info("Set nsslapd-threadnumber: -1 to enable autotuning")
     topo.standalone.config.set("nsslapd-threadnumber", "-1")
 
     log.info("Assert nsslapd-threadnumber is back to the autotuned value")
-    assert topo.standalone.config.get_attr_val("nsslapd-threadnumber") == autotuned_value
+    assert topo.standalone.config.get_attr_val_utf8("nsslapd-threadnumber") == autotuned_value
 
 
 @pytest.mark.parametrize("autosize,autosize_split", (('', ''), ('', '0'), ('10', '40'), ('', '40'),
@@ -114,12 +114,14 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
 
     dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
     cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
+    dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
     autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
     autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
     log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize before the test")
     log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
     log.info("nsslapd-cachememsize == {}".format(cachenensize_val))
+    log.info("nsslapd-dncachememsize == {}".format(dncachenensize_val))
     log.info("nsslapd-cache-autosize == {}".format(autosize_val))
     log.info("nsslapd-cache-autosize-split == {}".format(autosize_split_val))
 
@@ -153,18 +155,19 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
 
     dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
     cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
+    dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
     autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
     autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
     log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize in the appropriate range.")
     log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
     log.info("nsslapd-cachememsize == {}".format(cachenensize_val))
+    log.info("nsslapd-dncachememsize == {}".format(dncachenensize_val))
     log.info("nsslapd-cache-autosize == {}".format(autosize_val))
     log.info("nsslapd-cache-autosize-split == {}".format(autosize_split_val))
     assert int(dbcachesize_val) >= 512000
-    assert int(dbcachesize_val) <= sys.maxint
     assert int(cachenensize_val) >= 512000
-    assert int(cachenensize_val) <= sys.maxint
+    assert int(dncachenensize_val) >= 512000
 
 
 @pytest.mark.parametrize("autosize_split", ('0', '', '40'))
@@ -196,6 +199,7 @@ def test_cache_autosize_basic_sane(topo, autosize_split):
     for cachesize in ('0', '33333333'):
         dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
         cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
+        dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
         autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
         autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
@@ -223,18 +227,19 @@ def test_cache_autosize_basic_sane(topo, autosize_split):
 
         dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
         cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
+        dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
         autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
         autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
         log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize in the appropriate range.")
         log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
         log.info("nsslapd-cachememsize == {}".format(cachenensize_val))
+        log.info("nsslapd-dncachememsize == {}".format(dncachenensize_val))
         log.info("nsslapd-cache-autosize == {}".format(autosize_val))
         log.info("nsslapd-cache-autosize-split == {}".format(autosize_split_val))
         assert int(dbcachesize_val) >= 512000
-        assert int(dbcachesize_val) <= sys.maxint
         assert int(cachenensize_val) >= 512000
-        assert int(cachenensize_val) <= sys.maxint
+        assert int(dncachenensize_val) >= 512000
 
 
 @pytest.mark.parametrize("invalid_value", ('-2', '102', 'invalid'))

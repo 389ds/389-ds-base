@@ -34,9 +34,9 @@ ldbm_back_start_autotune(struct ldbminfo *li)
     /* size_t is a platform unsigned int, IE uint64_t */
     uint64_t total_cache_size = 0;
     uint64_t entry_size = 0;
+    uint64_t dn_size = 0;
     uint64_t zone_size = 0;
     uint64_t import_size = 0;
-    uint64_t cache_size = 0;
     uint64_t db_size = 0;
     /* For clamping the autotune value to a 64Mb boundary */
     uint64_t clamp_div = 0;
@@ -151,6 +151,9 @@ ldbm_back_start_autotune(struct ldbminfo *li)
     if (backend_count > 0) {
         /* Number of entry cache pages per backend. */
         entry_size = (zone_size - db_size) / backend_count;
+        /* Now split this into dn and entry */
+        dn_size = entry_size * 0.1;
+        entry_size = entry_size * 0.9;
         /* Now, clamp this value to a 64mb boundary. */
         /* Now divide the entry pages by this, and also mod. If mod != 0, we need
          * to add 1 to the diveded number. This should give us:
@@ -166,6 +169,11 @@ ldbm_back_start_autotune(struct ldbminfo *li)
             /* If we want to clamp down, remove the "+1". This would change the above from 510mb -> 448mb. */
             clamp_div = (entry_size / (64 * MEGABYTE)) + 1;
             entry_size = clamp_div * (64 * MEGABYTE);
+        }
+        if (dn_size % (64 * MEGABYTE) != 0) {
+            /* If we want to clamp down, remove the "+1". This would change the above from 510mb -> 448mb. */
+            clamp_div = (dn_size / (64 * MEGABYTE)) + 1;
+            dn_size = clamp_div * (64 * MEGABYTE);
         }
     }
 
@@ -199,13 +207,15 @@ ldbm_back_start_autotune(struct ldbminfo *li)
     /*   apply the appropriate cache size if 0 */
     if (backend_count > 0) {
         li->li_cache_autosize_ec = entry_size;
+        li->li_dncache_autosize_ec = dn_size;
     }
 
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
 
         inst = (ldbm_instance *)object_get_data(inst_obj);
-        cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
+        uint64_t cache_size = (uint64_t)cache_get_max_size(&(inst->inst_cache));
+        uint64_t dncache_size = (uint64_t)cache_get_max_size(&(inst->inst_dncache));
 
         /* This is the point where we decide to apply or not.
          * We have to check for the mincachesize as setting 0 resets
@@ -216,6 +226,11 @@ ldbm_back_start_autotune(struct ldbminfo *li)
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%lu total): %luk\n", inst->inst_name, backend_count, entry_size / 1024);
             cache_set_max_entries(&(inst->inst_cache), -1);
             cache_set_max_size(&(inst->inst_cache), li->li_cache_autosize_ec, CACHE_TYPE_ENTRY);
+        }
+        if (dncache_size == 0 || dncache_size == MINCACHESIZE || li->li_cache_autosize > 0) {
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s dn cache (%lu total): %luk\n", inst->inst_name, backend_count, dn_size / 1024);
+            cache_set_max_entries(&(inst->inst_dncache), -1);
+            cache_set_max_size(&(inst->inst_dncache), li->li_dncache_autosize_ec, CACHE_TYPE_DN);
         }
         /* Refresh this value now. */
         cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
@@ -228,11 +243,8 @@ ldbm_back_start_autotune(struct ldbminfo *li)
                           "nsslapd-cachememsize.\n",
                           inst->inst_name, cache_size, db_size);
         }
-        /* We need to get each instances dncache size to add to the total */
-        /* Else we can't properly check the cache allocations below */
-        /* Trac 48831 exists to allow this to be auto-sized too ... */
-        total_cache_size += (PRUint64)cache_get_max_size(&(inst->inst_dncache));
         total_cache_size += cache_size;
+        total_cache_size += dncache_size;
     }
     /* autosizing importCache */
     if (li->li_import_cache_autosize > 0) {
