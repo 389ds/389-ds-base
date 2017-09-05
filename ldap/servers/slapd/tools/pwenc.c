@@ -214,7 +214,13 @@ main(int argc, char *argv[])
     }
 
     if (cmppwsp == NULL && pwsp == NULL) {
-        pwsp = pw_name2scheme(DEFAULT_PASSWORD_SCHEME_NAME);
+        if (slapdFrontendConfig != NULL) {
+            char *rootschemename = config_get_rootpwstoragescheme();
+            pwsp = pw_name2scheme(rootschemename);
+            free(rootschemename);
+        } else {
+            pwsp = pw_name2scheme(DEFAULT_PASSWORD_SCHEME_NAME);
+        }
     }
 
     if (argc <= optind) {
@@ -284,10 +290,12 @@ slapd_config(const char *configdir, const char *givenconfigfile)
     char *buf = 0;
     char *lastp = 0;
     char *entrystr = 0;
+    char *rootschemename = NULL;
 
     if (!givenconfigfile) {
         givenconfigfile = CONFIG_FILENAME;
     }
+
 
     PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, givenconfigfile);
     if ((rc = PR_GetFileInfo64(configfile, &prfinfo)) != PR_SUCCESS) {
@@ -318,6 +326,8 @@ slapd_config(const char *configdir, const char *givenconfigfile)
             /* Convert LDIF to entry structures */
             Slapi_DN plug_dn;
             slapi_sdn_init_dn_byref(&plug_dn, PLUGIN_BASE_DN);
+            Slapi_DN config_dn;
+            slapi_sdn_init_dn_byref(&config_dn, SLAPD_CONFIG_DN);
             while ((entrystr = dse_read_next_entry(buf, &lastp)) != NULL) {
                 /*
                  * XXXmcs: it would be better to also pass
@@ -349,18 +359,29 @@ slapd_config(const char *configdir, const char *givenconfigfile)
                             exit(1); /* yes this sucks, but who knows what else would go on if I did the right thing */
                         }
                     }
+                } else if (slapi_sdn_compare(&config_dn, slapi_entry_get_sdn_const(e)) == 0) {
+                    /* Get the root scheme out and initialise it (if it exists) */
+                    rootschemename = slapi_entry_attr_get_charptr(e, CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE);
                 }
 
                 slapi_entry_free(e);
             }
 
-            /* kexcoff: initialize rootpwstoragescheme and pw_storagescheme
-             *            if not explicilty set in the config file
-             */
-            config_set_storagescheme();
-
             slapi_sdn_done(&plug_dn);
+            slapi_sdn_done(&config_dn);
             rc = 1; /* OK */
+        }
+
+        /* initialize rootpwstoragescheme and pw_storagescheme
+         * in case they are not set by the configuration file.
+         * This needs to be after we init the plugins else this fails to create the
+         * scheme.
+         */
+        config_set_storagescheme();
+
+        if (rootschemename != NULL) {
+            config_set_rootpwstoragescheme(CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE, rootschemename, NULL, 1);
+            free(rootschemename);
         }
 
         slapi_ch_free_string(&buf);
