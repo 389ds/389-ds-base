@@ -93,13 +93,14 @@ def test_filter_logic_not_eq(topology_st_f):
 # More not cases?
 
 def test_filter_logic_range(topology_st_f):
-    _check_filter(topology_st_f, '(uid>=user5)', 15, [
+    ### REMEMBER: user10 is less than user5 because it's strcmp!!!
+    _check_filter(topology_st_f, '(uid>=user5)', 5, [
             USER5_DN, USER6_DN, USER7_DN, USER8_DN, USER9_DN,
+        ])
+    _check_filter(topology_st_f, '(uid<=user4)', 15, [
+            USER0_DN, USER1_DN, USER2_DN, USER3_DN, USER4_DN,
             USER10_DN, USER11_DN, USER12_DN, USER13_DN, USER14_DN,
             USER15_DN, USER16_DN, USER17_DN, USER18_DN, USER19_DN
-        ])
-    _check_filter(topology_st_f, '(uid<=user4)', 5, [
-            USER0_DN, USER1_DN, USER2_DN, USER3_DN, USER4_DN
         ])
     _check_filter(topology_st_f, '(uid>=ZZZZ)', 0, [])
     _check_filter(topology_st_f, '(uid<=aaaa)', 0, [])
@@ -152,29 +153,21 @@ def test_filter_logic_and_range(topology_st_f):
     _check_filter(topology_st_f, '(&(uid>=user5)(uid=user0)(sn=0))', 0, [])
     _check_filter(topology_st_f, '(&(uid>=user5)(uid=user0)(sn=1))', 0, [])
     # These all take 2-way or k-way cases.
-    _check_filter(topology_st_f, '(&(uid>=user5)(uid>=user6))', 15, [
-            USER5_DN, USER6_DN, USER7_DN, USER8_DN, USER9_DN,
-            USER10_DN, USER11_DN, USER12_DN, USER13_DN, USER14_DN,
-            USER15_DN, USER16_DN, USER17_DN, USER18_DN, USER19_DN
+    _check_filter(topology_st_f, '(&(uid>=user5)(uid>=user6))', 4, [
+            USER6_DN, USER7_DN, USER8_DN, USER9_DN,
         ])
-    _check_filter(topology_st_f, '(&(uid>=user5)(uid>=user6)(uid>=user7))', 15, [
-            USER5_DN, USER6_DN, USER7_DN, USER8_DN, USER9_DN,
-            USER10_DN, USER11_DN, USER12_DN, USER13_DN, USER14_DN,
-            USER15_DN, USER16_DN, USER17_DN, USER18_DN, USER19_DN
+    _check_filter(topology_st_f, '(&(uid>=user5)(uid>=user6)(uid>=user7))', 3, [
+            USER7_DN, USER8_DN, USER9_DN,
         ])
 
 
 def test_filter_logic_or_range(topology_st_f):
-    _check_filter(topology_st_f, '(|(uid>=user5)(uid=user6))', 15, [
+    _check_filter(topology_st_f, '(|(uid>=user5)(uid=user6))', 5, [
             USER5_DN, USER6_DN, USER7_DN, USER8_DN, USER9_DN,
-            USER10_DN, USER11_DN, USER12_DN, USER13_DN, USER14_DN,
-            USER15_DN, USER16_DN, USER17_DN, USER18_DN, USER19_DN
         ])
-    _check_filter(topology_st_f, '(|(uid>=user5)(uid=user0))', 16, [
+    _check_filter(topology_st_f, '(|(uid>=user5)(uid=user0))', 6, [
             USER0_DN,
             USER5_DN, USER6_DN, USER7_DN, USER8_DN, USER9_DN,
-            USER10_DN, USER11_DN, USER12_DN, USER13_DN, USER14_DN,
-            USER15_DN, USER16_DN, USER17_DN, USER18_DN, USER19_DN
         ])
 
 def test_filter_logic_and_and_eq(topology_st_f):

@@ -133,8 +133,10 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
     """
 
     if regular_user:
+        log.info("bound as: %s", TEST_USER_DN)
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
     else:
+        log.info("bound as: %s", DN_DM)
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     search_filter = ['+']
@@ -144,9 +146,12 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
     else:
         expected_attrs = sorted(oper_attr_list)
 
+    log.info("suffix: %s filter: %s" % (search_suffix, search_filter))
     entries = topology_st.standalone.search_s(search_suffix, ldap.SCOPE_BASE,
                                               '(objectclass=*)',
                                               search_filter)
+    log.info("results: %s" % entries)
+    assert len(entries) > 0
     found_attrs = sorted(entries[0].data.keys())
 
     if add_attr == '*':
@@ -155,7 +160,7 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
         assert all(attr in found_attrs
                    for attr in ['objectClass', expected_attrs[0]])
     else:
-        assert cmp(found_attrs, expected_attrs) == 0
+        assert set(expected_attrs).issubset(set(found_attrs))
 
 
 if __name__ == '__main__':
