@@ -1613,6 +1613,13 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
      */
     isrootdse = slapi_sdn_isempty(basesdn);
 
+    /*
+     * Now optimise the filter for use: note that unlike ldbm_search,
+     * because we don't change the outer filter container, we don't need
+     * to set back into pb.
+     */
+    slapi_filter_optimise(filter);
+
     switch (scope) {
     case LDAP_SCOPE_BASE: {
         Slapi_Entry *baseentry = NULL;

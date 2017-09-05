@@ -16,8 +16,21 @@
 import itertools
 import re
 
+from enum import IntEnum
+
 import gdb
 from gdb.FrameDecorator import FrameDecorator
+
+class LDAPFilter(IntEnum):
+    PRESENT = 0x87
+    APPROX = 0xa8
+    LE = 0xa6
+    GE = 0xa5
+    SUBSTRINGS = 0xa4
+    EQUALITY = 0xa3
+    NOT = 0xa2
+    OR = 0xa1
+    AND = 0xa0
 
 class DSAccessLog (gdb.Command):
     """Display the Directory Server access log."""
@@ -114,7 +127,64 @@ class DSIdleFilter():
             frame_iter = map(DSIdleFilterDecorator, frame_iter)
         return frame_iter
 
+class DSFilterPrint (gdb.Command):
+    """Display a filter's contents"""
+    def __init__ (self):
+        super (DSFilterPrint, self).__init__ ("ds-filter-print", gdb.COMMAND_DATA)
+
+    def display_filter(self, filter_element, depth=0):
+        pad = " " * depth
+        # Extract the choice, that determines what we access next.
+        f_choice = filter_element['f_choice']
+        f_un = filter_element['f_un']
+        f_flags = filter_element['f_flags']
+        if f_choice == LDAPFilter.PRESENT:
+            print("%s(%s=*) flags:%s" % (pad, f_un['f_un_type'], f_flags))
+        elif f_choice == LDAPFilter.APPROX:
+            print("%sAPPROX ???" % pad)
+        elif f_choice == LDAPFilter.LE:
+            print("%sLE ???" % pad)
+        elif f_choice == LDAPFilter.GE:
+            print("%sGE ???" % pad)
+        elif f_choice == LDAPFilter.SUBSTRINGS:
+            f_un_sub = f_un['f_un_sub']
+            value = f_un_sub['sf_initial']
+            print("%s(%s=%s*) flags:%s" % (pad, f_un_sub['sf_type'], value, f_flags))
+        elif f_choice == LDAPFilter.EQUALITY:
+            f_un_ava = f_un['f_un_ava']
+            value = f_un_ava['ava_value']['bv_val']
+            print("%s(%s=%s) flags:%s" % (pad, f_un_ava['ava_type'], value, f_flags))
+        elif f_choice == LDAPFilter.NOT:
+            print("%sNOT ???" % pad)
+        elif f_choice == LDAPFilter.OR:
+            print("%s(| flags:%s" % (pad, f_flags))
+            filter_child = f_un['f_un_complex'].dereference()
+            self.display_filter(filter_child, depth + 4)
+            print("%s)" % pad)
+        elif f_choice == LDAPFilter.AND:
+            # Our child filter is in f_un_complex.
+            print("%s(& flags:%s" % (pad, f_flags))
+            filter_child = f_un['f_un_complex'].dereference()
+            self.display_filter(filter_child, depth + 4)
+            print("%s)" % pad)
+        else:
+            print("Corrupted filter, no such value %s" % f_choice)
+
+        f_next = filter_element['f_next']
+        if f_next != 0:
+            self.display_filter(f_next.dereference(), depth)
+
+    def invoke (self, arg, from_tty):
+        # Select our program state
+        gdb.newest_frame()
+        cur_frame = gdb.selected_frame()
+        # We are given the name of a filter, so we need to look up that symbol.
+        filter_val = cur_frame.read_var(arg)
+        filter_root = filter_val.dereference()
+        self.display_filter(filter_root)
+
 DSAccessLog()
 DSBacktrace()
 DSIdleFilter()
+DSFilterPrint()
 

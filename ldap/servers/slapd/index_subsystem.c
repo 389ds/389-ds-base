@@ -191,6 +191,10 @@ index_subsys_assign_filter_decoders(Slapi_PBlock *pb)
     char *subsystem = "index_subsys_assign_filter_decoders";
     char logbuf[1024];
 
+    if (!theCache) {
+        return rc;
+    }
+
     /* extract the filter */
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &f);
     if (f) {
