@@ -175,7 +175,6 @@ BUILT_SOURCES = dberrstrs.h \
 
 if enable_posix_winsync
 LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
-POSIX_WINSYNC_PLUGIN_LDIF = ldap/ldif/50posix-winsync-plugin.ldif
 endif
 
 CLEANFILES =  dberrstrs.h ns-slapd.properties \
@@ -945,9 +944,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/admin/src/scripts/50targetuniqueid.ldif \
 	ldap/admin/src/scripts/50removeLegacyReplication.ldif \
-	ldap/ldif/50replication-plugins.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
-	$(POSIX_WINSYNC_PLUGIN_LDIF) \
 	ldap/admin/src/scripts/50usnplugin.ldif \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50refintprecedence.ldif \
