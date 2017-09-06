@@ -15,6 +15,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
                               HOST_STANDALONE, PORT_STANDALONE, SERVERID_STANDALONE)
+from dateutil.parser import parse as dt_parse
+import datetime
 
 CONFIG_ATTR = 'passwordSendExpiringTime'
 USER_DN = 'uid=tuser,{:s}'.format(DEFAULT_SUFFIX)
@@ -94,7 +96,7 @@ def global_policy_default(topology_st, request):
         log.info('Set the new values')
         topology_st.standalone.modify_s(DN_CONFIG, [
             (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-            (ldap.MOD_REPLACE, 'passwordMaxAge', '86400'),
+            (ldap.MOD_REPLACE, 'passwordMaxAge', '8640000'),
             (ldap.MOD_REPLACE, 'passwordWarning', '86400'),
             (ldap.MOD_REPLACE, CONFIG_ATTR, 'off')])
     except ldap.LDAPError as ex:
@@ -374,22 +376,26 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
             3. Set the system date to the current day
             4. Try to bind with the user entry and request
                the control
-    :expectedresults: 1. In the first try, the bind should fail with an
-                        INVALID_CREDENTIALS error
-                      2. In the second try, the bind should be successful
-                        and the password expiry warning time should be
-                        returned
+    :expectedresults:
+            1. In the first try, the bind should fail with an
+            INVALID_CREDENTIALS error
+            2. In the second try, the bind should be successful
+            and the password expiry warning time should be
+            returned
     """
 
     res_ctrls = None
+
+    log.info("Expiring user's password by changing" \
+             "passwordExpirationTime timestamp")
+    old_ts = topology_st.standalone.search_s(USER_DN, ldap.SCOPE_SUBTREE,
+             '(objectClass=*)', ['passwordExpirationTime'])[0].getValue('passwordExpirationTime')
+    log.info("Old passwordExpirationTime: {:s}".format(old_ts))
+    new_ts = (dt_parse(old_ts) - datetime.timedelta(31)).strftime('%Y%m%d%H%M%SZ')
+    log.info("New passwordExpirationTime: {:s}".format(new_ts))
+    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'passwordExpirationTime', new_ts)])
+
     try:
-        log.info("Expiring user's password by moving the" \
-                 " system date past the valid period")
-        subprocess.check_call(['/usr/bin/date', '-s', '+30 day'])
-
-        log.info('Wait for the server to pick up new date')
-        time.sleep(5)
-
         log.info("Attempting to bind with user {:s} and retrive the password" \
                  " expiry warning time".format(USER_DN))
         with pytest.raises(ldap.INVALID_CREDENTIALS) as ex:
@@ -397,12 +403,14 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
 
         log.info("Bind Failed, error: {:s}".format(str(ex)))
 
-        log.info("Resetting the system date")
-        subprocess.check_call(['/usr/bin/date', '-s', '-30 day'])
+    finally:
+        log.info("Rebinding as DM")
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-        log.info('Wait for the server to pick up new date')
-        time.sleep(5)
+    log.info("Reverting back user's passwordExpirationTime")
+    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'passwordExpirationTime', old_ts)])
 
+    try:
         log.info("Rebinding with {:s} and retrieving the password" \
                  " expiry warning time".format(USER_DN))
         res_ctrls = get_password_warning(topology_st)
