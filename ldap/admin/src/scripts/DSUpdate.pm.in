@@ -358,14 +358,7 @@ sub updateDSInstance {
         # other good way to process conditional features during update
         if ($stage eq $RUNINST_STAGE) {
             my @ldiffiles;
-            if ("@enable_pam_passthru@") {
-                push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-pampta.ldif";
-            }
-            if ("@enable_bitwise@") {
-                push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-bitwise.ldif";
-            }
             if ("@enable_dna@") {
-                push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-dnaplugin.ldif";
                 push @ldiffiles, $inf->{General}->{prefix} . $DS_UPDATE_PATH . "/dnaplugindepends.ldif";
             }
             push @ldiffiles, $inf->{General}->{prefix} . $DS_UPDATE_PATH . "/50updateconfig.ldif";
