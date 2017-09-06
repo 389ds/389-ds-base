@@ -392,7 +392,6 @@ dist_noinst_HEADERS = \
 	ldap/include/dblayer.h \
 	ldap/include/disptmpl.h \
 	ldap/include/ldaprot.h \
-	ldap/include/ldbm.h \
 	ldap/include/portable.h \
 	ldap/include/regex.h \
 	ldap/include/srchpref.h \
