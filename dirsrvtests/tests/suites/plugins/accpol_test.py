@@ -817,16 +817,19 @@ def test_glnact_pwexp(topology_st, accpol_global):
 
     # Allow password to expire again, but inactivity continues
     time.sleep(7)
+
     # reset password to counter expiration, we will test expiration again later
     userpw_reset(topology_st, suffix, subtree, userid, nousrs, "DirMgr", PASSWORD, USER_PASW)
     log.info('Sleep for 4 secs and check if account is now inactivated, expected error 19')
     time.sleep(4)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
+    userpw_reset(topology_st, suffix, subtree, userid, nousrs, "DirMgr", PASSWORD, USER_PASW)
+    account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
 
     # Reset inactivity and check for expiration
     add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
-    time.sleep(4)
+    time.sleep(8)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Expired")
 
     # Reset account

@@ -62,8 +62,7 @@ def enable_ssl(server, ldapsport):
     server.rsa.create()
     server.config.set('nsslapd-secureport', '%s' % ldapsport)
     server.config.set('nsslapd-security', 'on')
-
-    time.sleep(1)
+    server.sslport = SECUREPORT_STANDALONE1
     server.restart()
 
 

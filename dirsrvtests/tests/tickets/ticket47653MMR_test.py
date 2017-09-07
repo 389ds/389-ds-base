@@ -27,6 +27,8 @@ from lib389.utils import *
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.2'), reason="Not implemented")
 log = logging.getLogger(__name__)
 
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+
 TEST_REPL_DN = "cn=test_repl, %s" % SUFFIX
 OC_NAME = 'OCticket47653'
 MUST = "(postalAddress $ postalCode)"
@@ -78,10 +80,11 @@ def test_ticket47653_init(topology_m2):
         'cn': BIND_NAME,
         'userpassword': BIND_PW})))
 
-    # enable acl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(128 + 8192))]  # ACL + REPL
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
-    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
+    if DEBUGGING:
+        # enable acl error logging
+        mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(128 + 8192))]  # ACL + REPL
+        topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
+        topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
     # remove all aci's and start with a clean slate
     mod = [(ldap.MOD_DELETE, 'aci', None)]
