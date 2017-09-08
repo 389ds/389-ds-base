@@ -434,15 +434,15 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
     :setup: Standalone DS instance with,
             1. Global password policy configured as follows,
                passwordExp: on
-               passwordMaxAge: 86400
+               passwordMaxAge: 8640000
                passwordWarning: 86400
                passwordSendExpiringTime: off
             2. User entry for binding to the server
     :steps: 1. Bind as the user
             2. Request the control for the user
-    :expectedresults: Password expiry warning time should be returned by the
-                      server by the server since passwordMaxAge and
-                      passwordWarning are set to the same value
+    :expectedresults:
+            1. Bind should be successful
+            2. No control should be returned
     """
 
     res_ctrls = None
@@ -451,12 +451,9 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
                  .format(USER_DN))
         res_ctrls = get_password_warning(topology_st)
 
-        log.info('Check that control is returned even'
-                 'if passwordSendExpiringTime is set to off')
-        assert res_ctrls
+        log.info('Check that no control is returned')
+        assert not res_ctrls
 
-        log.info("user's password will expire in {:d} seconds" \
-                 .format(res_ctrls[0].timeBeforeExpiration))
     finally:
         log.info("Rebinding as DM")
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
