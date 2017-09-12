@@ -275,6 +275,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldifdir = self.ds_paths.ldif_dir
         self.instdir = self.ds_paths.inst_dir
         self.dbdir = self.ds_paths.db_dir
+        self.changelogdir = os.path.join(os.path.dirname(self.dbdir), DEFAULT_CHANGELOG_DB)
 
     def rebind(self):
         """Reconnect to the DS

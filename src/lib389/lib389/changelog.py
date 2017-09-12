@@ -26,7 +26,6 @@ class Changelog(object):
     def __init__(self, conn):
         self.conn = conn
         self.log = conn.log
-        self.changelogdir = os.path.join(os.path.dirname(self.conn.dbdir), DEFAULT_CHANGELOG_DB)
 
     def __getattr__(self, name):
         if name in Changelog.proxied_methods:
@@ -74,7 +73,7 @@ class Changelog(object):
             CHANGELOG_PROPNAME_TO_ATTRNAME[CHANGELOG_DIR]: dirpath
         })
         self.log.debug("adding changelog entry: %r" % entry)
-        self.changelogdir = dirpath
+        self.conn.changelogdir = dirpath
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
