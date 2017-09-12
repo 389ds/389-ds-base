@@ -459,6 +459,55 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
 
+def test_when_maxage_and_warning_are_the_same(topology_st, global_policy_default, add_user):
+    """Test the warning expiry when passwordMaxAge and
+    passwordWarning are set to the same value.
+
+    :id: e57a1b1c-96fc-11e7-a91b-28d244694824
+    :feature: Password Expiry Warning Time
+    :setup: Standalone DS instance with,
+            1. Global password policy configured as follows,
+               passwordExp: on
+               passwordMaxAge: 86400
+               passwordWarning: 86400
+               passwordSendExpiringTime: off
+            2. User entry for binding to the server
+    :steps: 1. Bind as the user
+            2. Change user's password to reset its password expiration time
+            3. Request the control for the user
+    :expectedresults:
+            1. Bind should be successful
+            2. Password should be changed and password's expiration time reset
+            3. Password expiry warning time should be returned by the
+            server since passwordMaxAge and passwordWarning are set
+            to the same value
+    """
+
+    log.info('Set the new values')
+    topology_st.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordMaxAge', '86400')])
+    res_ctrls = None
+    try:
+        log.info("First change user's password to reset its password expiration time")
+        topology_st.standalone.simple_bind_s(USER_DN, USER_PASSWD)
+
+        topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                        'userPassword', USER_PASSWD)])
+        log.info("Binding with {:s} and requesting the password expiry warning time" \
+                 .format(USER_DN))
+        res_ctrls = get_password_warning(topology_st)
+
+        log.info('Check that control is returned even'
+                 'if passwordSendExpiringTime is set to off')
+        assert res_ctrls
+
+        log.info("user's password will expire in {:d} seconds" \
+                 .format(res_ctrls[0].timeBeforeExpiration))
+    finally:
+        log.info("Rebinding as DM")
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+
 def test_with_local_policy(topology_st, global_policy, local_policy):
     """Test the attribute with fine grained policy
     set for the user
