@@ -68,8 +68,29 @@ def _allow_machine_account(inst, name):
 
 
 def test_gssapi_repl(topology_m2):
-    """Create a kdc, then using that, provision two masters which have a gssapi
-    authenticated replication agreement.
+    """Test gssapi authenticated replication agreement of two masters using KDC
+
+    :id: 552850aa-afc3-473e-9c39-aae802b46f11
+
+    :setup: MMR with two masters
+
+    :steps:
+         1. Create the locations on each master for the other master to bind to
+         2. Set on the cn=replica config to accept the other masters mapping under mapping tree
+         3. Create the replication agreements from M1->M2 and vice versa (M2->M1)
+         4. Set the replica bind method to sasl gssapi for both agreements
+         5. Initialize all the agreements
+         6. Create a user on M1 and check if user is created on M2
+         7. Create a user on M2 and check if user is created on M1
+
+    :expectedresults:
+         1. Locations should be added successfully
+         2. Configuration should be added successfully
+         3. Replication agreements should be added successfully
+         4. Bind method should be set to sasl gssapi for both agreements
+         5. Agreements should be initialized successfully
+         6. Test User should be created on M1 and M2 both
+         7. Test User should be created on M1 and M2 both
     """
 
     return

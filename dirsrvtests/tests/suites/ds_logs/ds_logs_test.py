@@ -58,13 +58,23 @@ def search_users(topology_st):
         log.fatal('Search failed, error: ' + e.message['desc'])
         raise e
 
-
+@pytest.mark.bz1273549
 def test_check_default(topology_st):
-    """Bug 1273549 - Check the default value of nsslapd-logging-hr-timestamps-enabled,
-    it should be ON
-    """
+    """Check the default value of nsslapd-logging-hr-timestamps-enabled,
+     it should be ON
 
-    log.info('Check the default value of nsslapd-logging-hr-timestamps-enabled, it should be ON')
+    :id: 2d15002e-9ed3-4796-b0bb-bf04e4e59bd3
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Fetch the value of nsslapd-logging-hr-timestamps-enabled attribute
+         2. Test that the attribute value should be "ON" by default
+
+    :expectedresults:
+         1. Value should be fetched successfully
+         2. Value should be "ON" by default
+    """
 
     # Get the default value of nsslapd-logging-hr-timestamps-enabled attribute
     default = topology_st.standalone.config.get_attr_val(PLUGIN_TIMESTAMP)
@@ -73,19 +83,49 @@ def test_check_default(topology_st):
     assert (default == "on")
     log.debug(default)
 
-
+@pytest.mark.bz1273549
 def test_plugin_set_invalid(topology_st):
-    """Bug 1273549 - Try to set some invalid values for the newly added attribute"""
+    """Try to set some invalid values for nsslapd-logging-hr-timestamps-enabled
+    attribute
+
+    :id: c60a68d2-703a-42bf-a5c2-4040736d511a
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Set some "JUNK" value of nsslapd-logging-hr-timestamps-enabled attribute
+
+    :expectedresults:
+         1. There should be an operation error
+    """
 
     log.info('test_plugin_set_invalid - Expect to fail with junk value')
     with pytest.raises(ldap.OPERATIONS_ERROR):
         result = topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'JUNK')
 
-
+@pytest.mark.bz1273549
 def test_log_plugin_on(topology_st):
-    """Bug 1273549 - Check access logs for milisecond, when attribute is ON"""
+    """Check access logs for millisecond, when
+    nsslapd-logging-hr-timestamps-enabled=ON
 
-    log.info('Bug 1273549 - Check access logs for milisecond, when attribute is ON')
+    :id: 65ae4e2a-295f-4222-8d69-12124bc7a872
+
+    :setup: Standalone instance
+
+    :steps:
+         1. To generate big logs, add 100 test users
+         2. Search users to generate more access logs
+         3. Restart server
+         4. Parse the logs to check the milliseconds got recorded in logs
+
+    :expectedresults:
+         1. Add operation should be successful
+         2. Search operation should be successful
+         3. Server should be restarted successfully
+         4. There should be milliseconds added in the access logs
+    """
+
+    log.info('Bug 1273549 - Check access logs for millisecond, when attribute is ON')
     log.info('perform any ldap operation, which will trigger the logs')
     add_users(topology_st, 100)
     search_users(topology_st)
@@ -98,19 +138,41 @@ def test_log_plugin_on(topology_st):
     assert len(access_log_lines) > 0
     assert topology_st.standalone.ds_access_log.match('^\[.+\d{9}.+\].+')
 
-
+@pytest.mark.bz1273549
 def test_log_plugin_off(topology_st):
-    """Bug 1273549 - Check access logs for missing milisecond, when attribute is OFF"""
+    """Milliseconds should be absent from access logs when
+    nsslapd-logging-hr-timestamps-enabled=OFF
 
-    log.info('Bug 1273549 - Check access logs for missing milisecond, when attribute is OFF')
+    :id: b3400e46-d940-4574-b399-e3f4b49bc4b5
 
-    log.info('test_log_plugin_off - set the configuraton attribute to OFF')
+    :setup: Standalone instance
+
+    :steps:
+         1. Set nsslapd-logging-hr-timestamps-enabled=OFF
+         2. Restart the server
+         3. Delete old access logs
+         4. Do search operations to generate fresh access logs
+         5. Restart the server
+         6. Check access logs
+
+    :expectedresults:
+         1. Attribute nsslapd-logging-hr-timestamps-enabled should be set to "OFF"
+         2. Server should restart
+         3. Access logs should be deleted
+         4. Search operation should PASS
+         5. Server should restart
+         6. There should not be any milliseconds added in the access logs
+    """
+
+    log.info('Bug 1273549 - Check access logs for missing millisecond, when attribute is OFF')
+
+    log.info('test_log_plugin_off - set the configuration attribute to OFF')
     topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'OFF')
 
     log.info('Restart the server to flush the logs')
     topology_st.standalone.restart(timeout=10)
 
-    log.info('test_log_plugin_off - delete the privious access logs')
+    log.info('test_log_plugin_off - delete the previous access logs')
     topology_st.standalone.deleteAccessLogs()
 
     # Now generate some fresh logs

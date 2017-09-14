@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-    # Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2017 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,13 +24,15 @@ log = logging.getLogger(__name__)
 @pytest.mark.bz1460718
 @pytest.mark.parametrize("log_level", [(LOG_REPLICA + LOG_DEFAULT), (LOG_ACL + LOG_DEFAULT), (LOG_TRACE + LOG_DEFAULT)])
 def test_default_loglevel_stripped(topo, log_level):
-    """ The default log level 16384 is stripped from the log level returned to a client
+    """The default log level 16384 is stripped from the log level returned to a client
 
     :id: c300f8f1-aa11-4621-b124-e2be51930a6b
-    :feature: Logging
+
     :setup: Standalone instance
+
     :steps: 1. Change the error log level to the default and custom value.
             2. Check if the server returns the new value.
+
     :expectedresults:
             1. Changing the error log level should be successful.
             2. Server should return the new log level.
@@ -42,13 +44,15 @@ def test_default_loglevel_stripped(topo, log_level):
 
 @pytest.mark.bz1460718
 def test_dse_config_loglevel_error(topo):
-    """ Manually setting nsslapd-errorlog-level to 64 in dse.ldif throws error
+    """Manually setting nsslapd-errorlog-level to 64 in dse.ldif throws error
 
     :id: 0eeefa17-ec1c-4208-8e7b-44d8fbc38f10
-    :feature: Logging
+
     :setup: Standalone instance
+
     :steps: 1. Stop the server, edit dse.ldif file and change nsslapd-errorlog-level value to 64
             2. Start the server and observe the error logs.
+
     :expectedresults:
             1. Server should be successfully stopped and nsslapd-errorlog-level value should be changed.
             2. Server should be successfully started without any errors being reported in the logs.

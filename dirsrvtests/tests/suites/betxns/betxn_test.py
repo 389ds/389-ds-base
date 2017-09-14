@@ -18,8 +18,9 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-def test_betxn_init(topology_st):
-    # First enable dynamic plugins - makes plugin testing much easier
+@pytest.fixture(scope='module')
+def dynamic_plugins(topology_st):
+    """Enable dynamic plugins - makes plugin testing much easier"""
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
@@ -27,10 +28,26 @@ def test_betxn_init(topology_st):
         assert False
 
 
-def test_betxt_7bit(topology_st):
-    '''
-    Test that the 7-bit plugin correctly rejects an invalid update
-    '''
+def test_betxt_7bit(topology_st, dynamic_plugins):
+    """Test that the 7-bit plugin correctly rejects an invalid update
+
+    :id: 9e2ab27b-eda9-4cd9-9968-a1a8513210fd
+
+    :setup: Standalone instance and enabled dynamic plugins
+
+    :steps: 1. Enable PLUGIN_7_BIT_CHECK to "ON"
+            2. Add test user
+            3. Try to Modify test user's RDN to have 8 bit RDN
+            4. Execute search operation for new 8 bit RDN
+            5. Remove the test user for cleanup
+
+    :expectedresults:
+            1. PLUGIN_7_BIT_CHECK should be ON
+            2. Test users should be added
+            3. Modify RDN for test user should FAIL
+            4. Search operation should FAIL
+            5. Test user should be removed
+    """
 
     log.info('Running test_betxt_7bit...')
 
@@ -67,7 +84,7 @@ def test_betxt_7bit(topology_st):
             log.fatal('test_betxt_7bit: Incorrectly found the entry using the invalid RDN')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('Error whiles earching for test entry: ' + e.message['desc'])
+        log.fatal('Error while searching for test entry: ' + e.message['desc'])
         assert False
 
     #
@@ -82,13 +99,27 @@ def test_betxt_7bit(topology_st):
     log.info('test_betxt_7bit: PASSED')
 
 
-def test_betxn_attr_uniqueness(topology_st):
-    '''
-    Test that we can not add two entries that have the same attr value that is
-    defined by the plugin.
-    '''
+def test_betxn_attr_uniqueness(topology_st, dynamic_plugins):
+    """Test that we can not add two entries that have the same attr value that is
+    defined by the plugin
 
-    log.info('Running test_betxn_attr_uniqueness...')
+    :id: 42aeb41c-fbb5-4bc6-a97b-56274034d29f
+
+    :setup: Standalone instance and enabled dynamic plugins
+
+    :steps: 1. Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"
+            2. Add a test user
+            3. Add another test user having duplicate uid as previous one
+            4. Cleanup - disable PLUGIN_ATTR_UNIQUENESS plugin as "OFF"
+            5. Cleanup - remove test user entry
+
+    :expectedresults:
+            1. PLUGIN_ATTR_UNIQUENESS plugin should be ON
+            2. Test user should be added
+            3. Add operation should FAIL
+            4. PLUGIN_ATTR_UNIQUENESS plugin should be "OFF"
+            5. Test user entry should be removed
+    """
 
     USER1_DN = 'uid=test_entry1,' + DEFAULT_SUFFIX
     USER2_DN = 'uid=test_entry2,' + DEFAULT_SUFFIX
@@ -107,7 +138,7 @@ def test_betxn_attr_uniqueness(topology_st):
                   USER1_DN + ', error ' + e.message['desc'])
         assert False
 
-    # Add the second entry with a dupliate uid
+    # Add the second entry with a duplicate uid
     try:
         topology_st.standalone.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
                                                        'sn': '2',
@@ -136,7 +167,27 @@ def test_betxn_attr_uniqueness(topology_st):
     log.info('test_betxn_attr_uniqueness: PASSED')
 
 
-def test_betxn_memberof(topology_st):
+def test_betxn_memberof(topology_st, dynamic_plugins):
+    """Test PLUGIN_MEMBER_OF plugin
+
+    :id: 70d0b96e-b693-4bf7-bbf5-102a66ac5993
+
+    :setup: Standalone instance and enabled dynamic plugins
+
+    :steps: 1. Enable and configure memberOf plugin
+            2. Set memberofgroupattr="member" and memberofAutoAddOC="referral"
+            3. Add two test groups - group1 and group2
+            4. Add group2 to group1
+            5. Add group1 to group2
+
+    :expectedresults:
+            1. memberOf plugin plugin should be ON
+            2. Set memberofgroupattr="member" and memberofAutoAddOC="referral" should PASS
+            3. Add operation should PASS
+            4. Add operation should FAIL
+            5. Add operation should FAIL
+    """
+
     ENTRY1_DN = 'cn=group1,' + DEFAULT_SUFFIX
     ENTRY2_DN = 'cn=group2,' + DEFAULT_SUFFIX
     PLUGIN_DN = 'cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config'
