@@ -972,7 +972,7 @@ int plugin_call_acl_verify_syntax ( Slapi_PBlock *pb, Slapi_Entry *e, char **err
  * pw_mgmt.c
  */
 void pw_init( void );
-int need_new_pw( Slapi_PBlock *pb, long *t,  Slapi_Entry *e, int pwresponse_req );
+int need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req);
 int update_pw_info( Slapi_PBlock *pb , char *old_pw );
 int check_pw_syntax( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, 
 	char **old_pw, Slapi_Entry *e, int mod_op );
@@ -982,7 +982,6 @@ void get_old_pw( Slapi_PBlock *pb, const Slapi_DN *sdn, char **old_pw);
 int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req, int account_inactivation_only /*no wire/no pw policy*/);
 int check_pw_minage( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals) ;
 void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );
-
 int add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e);
 
 /*

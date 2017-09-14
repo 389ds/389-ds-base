@@ -875,7 +875,6 @@ ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 void ids_sasl_check_bind(Slapi_PBlock *pb)
 {
     int rc, isroot;
-    long t;
     sasl_conn_t *sasl_conn;
     struct propctx *propctx;
     sasl_ssf_t *ssfp;
@@ -1114,23 +1113,8 @@ sasl_check_result:
         set_db_default_result_handlers(pb);
 
         /* check password expiry */
-        if (!isroot) {
-            int pwrc;
-
-            pwrc = need_new_pw(pb, &t, bind_target_entry, pwresponse_requested);
-            
-            switch (pwrc) {
-            case 1:
-                slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-                break;
-            case 2:
-                slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
-                break;
-            case -1:
-                goto out;
-            default:
-                break;
-            }
+        if (!isroot && need_new_pw(pb, bind_target_entry, pwresponse_requested) == -1) {
+            goto out;
         }
 
         /* attach the sasl data */

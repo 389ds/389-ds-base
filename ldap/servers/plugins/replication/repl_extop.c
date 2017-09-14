@@ -1173,8 +1173,9 @@ send_response:
 			 * On the supplier, we need to close the connection so
 			 * that the RA will restart a new session in a clear state 
 			 */
-			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_StartNSDS50ReplicationRequest - "
-				"already acquired replica: disconnect conn=%d\n", connid);
+			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, 
+			              "multimaster_extop_StartNSDS50ReplicationRequest - "
+			              "already acquired replica: disconnect conn=%" PRIu64 "\n", connid);
 			slapi_disconnect_server(conn);
             
 		}

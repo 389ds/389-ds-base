@@ -679,8 +679,7 @@ do_bind( Slapi_PBlock *pb )
             slapi_entry_free(referral);
             goto free_and_return;
         } else if (auto_bind || rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
-            long t;
-            char* authtype = NULL;
+            char *authtype = NULL;
             /* rc is SLAPI_BIND_SUCCESS or SLAPI_BIND_ANONYMOUS */
             if(auto_bind) {
                 rc = SLAPI_BIND_SUCCESS;
@@ -767,19 +766,8 @@ do_bind( Slapi_PBlock *pb )
                                          slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
                                          NULL, NULL, NULL, bind_target_entry);
                     if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-                        /* check if need new password before sending 
-                           the bind success result */
-                        myrc = need_new_pw(pb, &t, bind_target_entry, pw_response_requested);
-                        switch (myrc) {
-                        case 1:
-                            (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-                            break;
-                        case 2:
-                            (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
-                            break;
-                        default:
-                            break;
-                        }
+                        /* check if need new password before sending the bind success result */
+                        myrc = need_new_pw(pb, bind_target_entry, pw_response_requested);
                     }
                 }
                 if (auth_response_requested) {
