@@ -22,9 +22,14 @@
 /* prototypes                                                               */
 /****************************************************************************/
 
-/* need_new_pw() is called when non rootdn bind operation succeeds with authentication */
+/*
+ * need_new_pw() is called when non rootdn bind operation succeeds with authentication
+ *
+ * Return  0 - password is okay
+ * Return -1 - password is expired, abort bind
+ */
 int
-need_new_pw(Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req)
+need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req)
 {
     time_t cur_time, pw_exp_date;
     Slapi_Mods smods;
@@ -38,6 +43,7 @@ need_new_pw(Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req)
     int pwdGraceUserTime = 0;
     char graceUserTime[16] = {0};
     Connection *pb_conn = NULL;
+    long t;
 
     if (NULL == e) {
         return (-1);
@@ -94,7 +100,7 @@ need_new_pw(Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req)
             /* set c_needpw for this connection to be true.  this client
                now can only change its own password */
             pb_conn->c_needpw = 1;
-            *t = 0;
+            t = 0;
             /* We need to include "changeafterreset" error in
              * passwordpolicy response control. So, we will not be
              * done here. We remember this scenario by (c_needpw=1)
@@ -154,10 +160,7 @@ skip:
                                                          -1);
                 }
             }
-
-            if (pb_conn->c_needpw == 1) {
-                slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-            }
+            slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
             return (0);
         }
 
@@ -214,10 +217,10 @@ skip:
 
             slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "1");
 
-            *t = pwpolicy->pw_warning;
+            t = pwpolicy->pw_warning;
 
         } else {
-            *t = (long)diff_t; /* jcm: had to cast double to long */
+            t = (long)diff_t; /* jcm: had to cast double to long */
         }
 
         pw_apply_mods(sdn, &smods);
@@ -225,16 +228,18 @@ skip:
         if (pwresponse_req) {
             /* check for "changeafterreset" condition */
             if (pb_conn->c_needpw == 1) {
-                slapi_pwpolicy_make_response_control(pb, *t, -1, LDAP_PWPOLICY_CHGAFTERRESET);
+                slapi_pwpolicy_make_response_control(pb, t, -1, LDAP_PWPOLICY_CHGAFTERRESET);
             } else {
-                slapi_pwpolicy_make_response_control(pb, *t, -1, -1);
+                slapi_pwpolicy_make_response_control(pb, t, -1, -1);
             }
         }
 
         if (pb_conn->c_needpw == 1) {
             slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
+        } else {
+            slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
         }
-        return (2);
+        return (0);
     } else {
         if (pwresponse_req && pwpolicy->pw_send_expiring) {
             slapi_pwpolicy_make_response_control(pb, diff_t, -1, -1);
