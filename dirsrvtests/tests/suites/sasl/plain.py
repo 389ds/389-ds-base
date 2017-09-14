@@ -13,14 +13,49 @@ import ldap
 from lib389.topologies import topology_st
 # This pulls in logging I think
 from lib389.utils import *
+from lib389._constants import DEFAULT_SUFFIX, DEFAULT_SECURE_PORT
 from lib389.sasl import PlainSASL
 from lib389.idm.services import ServiceAccounts
-from lib389._constants import (SECUREPORT_STANDALONE1, DEFAULT_SUFFIX)
 
 log = logging.getLogger(__name__)
 
 
 def test_sasl_plain(topology_st):
+    """Check basic SASL functionality for PLAIN mechanism
+
+    :id: 75ddc6fa-aa5a-4025-9c71-1abad20c91fc
+    :setup: Standalone instance
+    :steps:
+        1. Stop the instance
+        2. Clean up confdir from previous cert and key files
+        3. Create RSA files: CA, key and cert
+        4. Start the instance
+        5. Create RSA entry
+        6. Set nsslapd-secureport to 636 and nsslapd-security to 'on'
+        7. Restart the instance
+        8. Create a user
+        9. Check we can bind
+        10. Check that PLAIN is listed in supported mechs
+        11. Set up Plain SASL credentials
+        12. Try to open a connection without TLS
+        13. Try to open a connection with TLS
+        14. Try to open a connection with a wrong password
+    :expectedresults:
+        1. The instance should stop
+        2. Confdir should be clean
+        3. RSA files should be created
+        4. The instance should start
+        5. RSA entry should be created
+        6. nsslapd-secureport and nsslapd-security should be set successfully
+        7. The instance should be restarted
+        8. User should be created
+        9. Bind should be successful
+        10. PLAIN should be listed in supported mechs
+        11. Plain SASL should be successfully set
+        12. AUTH_UNKNOWN exception should be raised
+        13. The connection should open
+        14. INVALID_CREDENTIALS exception should be raised
+    """
 
     standalone = topology_st.standalone
 
@@ -40,7 +75,7 @@ def test_sasl_plain(topology_st):
     standalone.rsa.create()
     # Set the secure port and nsslapd-security
     # Could this fail with selinux?
-    standalone.config.set('nsslapd-secureport', '%s' % SECUREPORT_STANDALONE1)
+    standalone.config.set('nsslapd-secureport', str(DEFAULT_SECURE_PORT))
     standalone.config.set('nsslapd-security', 'on')
     # Do we need to restart to allow starttls?
     standalone.restart()

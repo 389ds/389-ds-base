@@ -13,12 +13,15 @@ from lib389.idm.group import Groups
 import ldap
 from ldap.controls.psearch import PersistentSearchControl,EntryChangeNotificationControl
 
+
 def _run_psearch(inst, msg_id):
+    """Run a search with EntryChangeNotificationControl"""
+
     results = []
     while True:
         try:
             _, data, _, _, _, _ = inst.result4(msgid=msg_id, all=0, timeout=1.0, add_ctrls=1, add_intermediates=1,
-                                                                resp_ctrl_classes={EntryChangeNotificationControl.controlType:EntryChangeNotificationControl})
+                                               resp_ctrl_classes={EntryChangeNotificationControl.controlType:EntryChangeNotificationControl})
             # See if there are any entry changes
             for dn, entry, srv_ctrls in data:
                 ecn_ctrls = filter(lambda c: c.controlType == EntryChangeNotificationControl.controlType, srv_ctrls)
@@ -30,7 +33,24 @@ def _run_psearch(inst, msg_id):
             inst.log.info('No more results')
             return results
 
+
 def test_psearch(topology_st):
+    """Check basic Persistent Search control functionality
+
+    :id: 4b395ef4-c3ff-49d1-a680-b9fdffa633bd
+    :setup: Standalone instance
+    :steps:
+        1. Run an extended search with a Persistent Search control
+        2. Create a new group (could be any entry)
+        3. Run an extended search with a Persistent Search control again
+        4. Check that entry DN is in the result
+    :expectedresults:
+        1. Operation should be successful
+        2. Group should be successfully created
+        3. Operation should be successful
+        4. Entry DN should be in the result
+    """
+
     # Create the search control
     psc = PersistentSearchControl()
     # do a search extended with the control

@@ -264,9 +264,8 @@ if len(sys.argv) > 0:
         TEST.write('\ndef test_ticket{}(topo):\n'.format(ticket))
     else:
         TEST.write('\ndef test_something(topo):\n')
-    TEST.write('    """Write one-line test case purpose (name) here\n\n')
+    TEST.write('    """Specify a test case purpose or name here\n\n')
     TEST.write('    :id: {}\n'.format(tc_id))
-    TEST.write('    :feature: Fill in feature name here\n')
     TEST.write('    :setup: Fill in set up configuration here\n')
     TEST.write('    :steps:\n')
     TEST.write('        1. Fill in test case steps here\n')

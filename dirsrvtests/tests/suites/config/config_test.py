@@ -65,17 +65,21 @@ def test_user(topology_m2):
 def test_maxbersize_repl(topology_m2, test_user, big_file):
     """maxbersize is ignored in the replicated operations.
 
-    :ID: ad57de60-7d56-4323-bbca-5556e5cdb126
-    :feature: Config
+    :id: ad57de60-7d56-4323-bbca-5556e5cdb126
     :setup: MMR with two masters, test user,
-            1 MiB big value for attribute
-    :steps: 1. Set 20KiB small maxbersize on master2
-            2. Add big value to master2
-            3. Add big value to master1
-    :expectedresults: Adding the big value to master2 is failed,
-             adding the big value to master1 is succeed,
-             the big value is successfully replicated to master2
+            1 MiB big value for any attribute
+    :steps:
+        1. Set maxbersize attribute to a small value (20KiB) on master2
+        2. Add the big value to master2
+        3. Add the big value to master1
+        4. Check if the big value was successfully replicated to master2
+    :expectedresults:
+        1. maxbersize should be successfully set
+        2. Adding the big value to master2 failed
+        3. Adding the big value to master1 succeed
+        4. The big value is successfully replicated to master2
     """
+
     log.info("Set nsslapd-maxbersize: 20K to master2")
     try:
         topology_m2.ms["master2"].modify_s("cn=config", [(ldap.MOD_REPLACE,
@@ -138,16 +142,20 @@ def test_maxbersize_repl(topology_m2, test_user, big_file):
 def test_config_listen_backport_size(topology_m2):
     """Check that nsslapd-listen-backlog-size acted as expected
 
-    :ID: a4385d58-a6ab-491e-a604-6df0e8ed91cd
-    :feature: Config
-    :setup: An instance
-    :steps: 1. Search for nsslapd-listen-backlog-size
-            2. Set nsslapd-listen-backlog-size to a valid value
-               Try positive and negative.
-            3. Set nsslapd-listen-backlog-size to an invalid value
-            4. Set nsslapd-listen-backlog-size back to a default value
-    :expectedresults: Search and the valid modification should be a success
-             Modification with an invalid value should throw an error
+    :id: a4385d58-a6ab-491e-a604-6df0e8ed91cd
+    :setup: MMR with two masters
+    :steps:
+        1. Search for nsslapd-listen-backlog-size
+        2. Set nsslapd-listen-backlog-size to a positive value
+        3. Set nsslapd-listen-backlog-size to a negative value
+        4. Set nsslapd-listen-backlog-size to an invalid value
+        5. Set nsslapd-listen-backlog-size back to a default value
+    :expectedresults:
+        1. Search should be successful
+        2. nsslapd-listen-backlog-size should be successfully set
+        3. nsslapd-listen-backlog-size should be successfully set
+        4. Modification with an invalid value should throw an error
+        5. nsslapd-listen-backlog-size should be successfully set
     """
 
     try:
@@ -196,16 +204,20 @@ def test_config_deadlock_policy(topology_m2):
     """Check that nsslapd-db-deadlock-policy acted as expected
 
     :ID: a24e25fd-bc15-47fa-b018-372f6a2ec59c
-    :feature: Config
-    :setup: An instance
-    :steps: 1. Search for nsslapd-db-deadlock-policy and check if
-               it contains a default value
-            2. Set nsslapd-db-deadlock-policy to a valid value
-               Try positive and negative.
-            3. Set nsslapd-db-deadlock-policy to an invalid value
-            4. Set nsslapd-db-deadlock-policy back to a default value
-    :expectedresults: Search and the valid modification should be a success
-             Modification with invalid values should throw an error
+    :setup: MMR with two masters
+    :steps:
+        1. Search for nsslapd-db-deadlock-policy and check if
+           it contains a default value
+        2. Set nsslapd-db-deadlock-policy to a positive value
+        3. Set nsslapd-db-deadlock-policy to a negative value
+        4. Set nsslapd-db-deadlock-policy to an invalid value
+        5. Set nsslapd-db-deadlock-policy back to a default value
+    :expectedresults:
+        1. Search should be a successful and should contain a default value
+        2. nsslapd-db-deadlock-policy should be successfully set
+        3. nsslapd-db-deadlock-policy should be successfully set
+        4. Modification with an invalid value should throw an error
+        5. nsslapd-db-deadlock-policy should be successfully set
     """
 
     LDBM_DN = 'cn=config,cn=ldbm database,cn=plugins,cn=config'

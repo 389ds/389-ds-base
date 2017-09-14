@@ -53,9 +53,21 @@ def setup(topology_st, request):
 
 
 def test_range_search(topology_st, setup):
-    """Add a 100 entries, and run a range search.
-    When we encounter an error we still need to
-    disable valgrind before exiting
+    """Add 100 entries, and run a range search. When we encounter an error
+    we still need to disable valgrind before exiting
+
+    :id: aadccf78-a2a8-48cc-8769-4764c7966189
+    :setup: Standalone instance, Retro changelog file,
+            Enabled Valgrind if the system doesn't have asan
+    :steps:
+        1. Add 100 test entries
+        2. Issue a range search with a changenumber filter
+        3. If the system doesn't have asan, get the valgrind results file,
+           stop the server, and check for the leak
+    :expectedresults:
+        1. 100 test entries should be added
+        2. Search should be successful
+        3. There should be no leak
     """
 
     log.info('Running test_range_search...')
@@ -83,7 +95,6 @@ def test_range_search(topology_st, setup):
             log.fatal('test_range_search: Failed to search retro changelog(%s), error: %s' %
                       (RETROCL_SUFFIX, e.message('desc')))
             success = False
-
     if success and not topology_st.standalone.has_asan():
         # Get the results file, stop the server, and check for the leak
         results_file = valgrind_get_results_file(topology_st.standalone)
