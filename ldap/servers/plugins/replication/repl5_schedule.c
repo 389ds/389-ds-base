@@ -130,6 +130,10 @@ schedule_destroy(Schedule *s)
 {
 	int i;
 
+	if (s == NULL) {
+		return;
+	}
+
     /* unschedule update window event if exists */
     unschedule_window_state_change_event (s);
 
@@ -177,11 +181,15 @@ free_schedule_list(schedule_item **schedule_list)
 int
 schedule_set(Schedule *sch, Slapi_Attr *attr)
 {
-	int return_value;
+	int return_value = -1;
 	schedule_item *si = NULL;
 	schedule_item *new_schedule_list = NULL;
 	int valid = 1;
 	
+	if (sch == NULL) {
+		return return_value;
+	}
+
 	if (NULL != attr)
 	{
 		int ind;
