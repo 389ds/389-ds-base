@@ -212,7 +212,7 @@ if len(sys.argv) > 0:
     else:
         topology_import = ''
 
-    TEST.write('import logging\nimport pytest\n')
+    TEST.write('import logging\nimport pytest\nimport os\n')
     TEST.write('{}\n'.format(topology_import))
 
     TEST.write('DEBUGGING = os.getenv("DEBUGGING", default=False)\n')
