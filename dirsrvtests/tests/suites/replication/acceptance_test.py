@@ -15,7 +15,7 @@ from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLIC
                               ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
                               RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              DN_DM, PASSWORD, LOG_DEFAULT)
+                              DN_DM, PASSWORD, LOG_DEFAULT, RA_ENABLED, RA_SCHEDULE)
 
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
@@ -485,6 +485,43 @@ def test_password_repl_error(topo_m4, test_entry):
             topo_m4.ms["master{}".format(num)].simple_bind_s(DN_DM, PASSWORD)
         log.info('Set the default loglevel')
         m2.setLogLevel(LOG_DEFAULT)
+
+
+def test_invalid_agmt(topo_m4):
+    """Test adding that an invalid agreement is properly rejected and does not crash the server
+
+    :id: 6c3b2a7e-edcd-4327-a003-6bd878ff722b
+    :setup: MMR with four masters
+    :steps:
+        1. Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
+        2. Verify the server is still running
+    :expectedresults:
+        1. Invalid repl agreement should be rejected
+        2. Server should be still running
+    """
+    m1 = topo_m4.ms["master1"]
+
+    # Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
+    AGMT_DN = 'cn=whatever,cn=replica,cn="dc=example,dc=com",cn=mapping tree,cn=config'
+    try:
+        invalid_props = {RA_ENABLED: 'True',  # Invalid value
+                         RA_SCHEDULE: '0001-2359 0123456'}
+        m1.agreement.create(suffix=DEFAULT_SUFFIX, host='localhost', port=389, properties=invalid_props)
+    except ldap.UNWILLING_TO_PERFORM:
+        m1.log.info('Invalid repl agreement correctly rejected')
+    except ldap.LDAPError as e:
+        m1.log.fatal('Got unexpected error adding invalid agreement: ' + str(e))
+        assert False
+    else:
+        m1.log.fatal('Invalid agreement was incorrectly accepted by the server')
+        assert False
+
+    # Verify the server is still running
+    try:
+        m1.simple_bind_s(DN_DM, PASSWORD)
+    except ldap.LDAPError as e:
+        m1.log.fatal('Failed to bind: ' + str(e))
+        assert False
 
 
 if __name__ == '__main__':
