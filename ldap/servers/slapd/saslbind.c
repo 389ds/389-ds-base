@@ -169,8 +169,6 @@ static int ids_sasl_getopt(
         }
     } else if (strcasecmp(option, "auxprop_plugin") == 0) {
         *result = "iDS";
-    } else if (strcasecmp(option, "mech_list") == 0){
-        *result = config_get_allowed_sasl_mechs();
     }
 
     if (*result) *len = strlen(*result);
@@ -581,12 +579,8 @@ static int ids_sasl_userdb_checkpass(sasl_conn_t *conn,
         slapi_pblock_set(pb, SLAPI_BIND_METHOD, &method);
         /* Feed it to pw_verify_be_dn */
         bind_result = pw_verify_be_dn(pb, &referral);
-        /* Now check the result, and unlock be if needed. */
-        if (bind_result == SLAPI_BIND_SUCCESS || bind_result == SLAPI_BIND_ANONYMOUS) {
-            Slapi_Backend *be = NULL;
-            slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-            slapi_be_Unlock(be);
-        } else if (bind_result == SLAPI_BIND_REFERRAL) {
+        /* Now check the result. */
+        if (bind_result == SLAPI_BIND_REFERRAL) {
             /* If we have a referral do we ignore it for sasl? */
             slapi_entry_free(referral);
         }
@@ -785,6 +779,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
                 /* merge into result set */
                 dupstr = slapi_ch_strdup(str);
                 others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
+
                 charray_merge(&sup_ret, others, 1);
                 charray_free(others);
                 slapi_ch_free((void**)&dupstr);
@@ -798,7 +793,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
 
     /* Remove any content that isn't in the allowed list */
     if (config_ret != NULL) {
-        /* Get the set of supported mechs in the insection of the two */
+        /* Get the set of supported mechs in the intersection of the two */
         ret = charray_intersection(sup_ret, config_ret);
         charray_free(sup_ret);
         charray_free(config_ret);
@@ -829,44 +824,52 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
 static int
 ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 {
-  int i, ret = 0;
-  char **mechs;
-  char *dupstr;
-  const char *str;
-  int sasl_result = 0;
-  Connection *pb_conn = NULL;
-  slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    int i, ret = 0;
+    char **mechs;
+    char **allowed_mechs = NULL;
+    char *dupstr;
+    const char *str;
+    int sasl_result = 0;
+    Connection *pb_conn = NULL;
 
-  sasl_conn_t *sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    sasl_conn_t *sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "=>\n");
 
-  slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "=>\n");
-
-
-  /* sasl_listmech is not thread-safe - caller must lock pb_conn */
-  sasl_result = sasl_listmech(sasl_conn, 
-                    NULL,     /* username */
-                    "", ",", "",
-                    &str, NULL, NULL);
-  if (sasl_result != SASL_OK) {
-    return 0;
-  }
-
-  dupstr = slapi_ch_strdup(str);
-  mechs = slapi_str2charray(dupstr, ",");
-
-  for (i = 0; mechs[i] != NULL; i++) {
-    if (strcasecmp(mech, mechs[i]) == 0) {
-      ret = 1;
-      break;
+    /* sasl_listmech is not thread-safe - caller must lock pb_conn */
+    sasl_result = sasl_listmech(sasl_conn,
+                                NULL, /* username */
+                                "", ",", "",
+                                &str, NULL, NULL);
+    if (sasl_result != SASL_OK) {
+        return 0;
     }
-  }
 
-  charray_free(mechs);
-  slapi_ch_free((void**)&dupstr);
+    dupstr = slapi_ch_strdup(str);
+    mechs = slapi_str2charray(dupstr, ",");
+    allowed_mechs = config_get_allowed_sasl_mechs_array();
 
-  slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "<=\n");
+    for (i = 0; mechs[i] != NULL; i++) {
+        if (strcasecmp(mech, mechs[i]) == 0) {
+            if (allowed_mechs) {
+                if (charray_inlist(allowed_mechs, (char *)mech) == 0) {
+                    ret = 1;
+                }
+                break;
+            } else {
+                ret = 1;
+                break;
+            }
+        }
+    }
 
-  return ret;
+    charray_free(allowed_mechs);
+    charray_free(mechs);
+    slapi_ch_free((void **)&dupstr);
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "<=\n");
+
+    return ret;
 }
 
 /*
