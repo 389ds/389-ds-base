@@ -15,8 +15,10 @@ from lib389.topologies import topology_st
 from lib389.utils import *
 from lib389.sasl import PlainSASL
 from lib389.idm.services import ServiceAccounts
+from lib389._constants import (SECUREPORT_STANDALONE1, DEFAULT_SUFFIX)
 
 log = logging.getLogger(__name__)
+
 
 def test_sasl_plain(topology_st):
 
@@ -38,7 +40,7 @@ def test_sasl_plain(topology_st):
     standalone.rsa.create()
     # Set the secure port and nsslapd-security
     # Could this fail with selinux?
-    standalone.config.set('nsslapd-secureport', '%s' % SECUREPORT_STANDALONE1 )
+    standalone.config.set('nsslapd-secureport', '%s' % SECUREPORT_STANDALONE1)
     standalone.config.set('nsslapd-security', 'on')
     # Do we need to restart to allow starttls?
     standalone.restart()
@@ -65,12 +67,14 @@ def test_sasl_plain(topology_st):
     # I can not solve. I think it's leaking state across connections in start_tls_s?
 
     # Check that it works with TLS
-    conn = standalone.openConnection(saslmethod='PLAIN', sasltoken=auth_tokens, starttls=True, connOnly=True, certdir=standalone.get_cert_dir(), reqcert=ldap.OPT_X_TLS_NEVER)
+    conn = standalone.openConnection(saslmethod='PLAIN', sasltoken=auth_tokens, starttls=True, connOnly=True,
+                                    certdir=standalone.get_cert_dir(), reqcert=ldap.OPT_X_TLS_NEVER)
     conn.close()
 
     # Check that it correct fails our bind if we don't have the password.
     auth_tokens = PlainSASL("dn:%s" % sa.dn, 'password-wrong')
     with pytest.raises(ldap.INVALID_CREDENTIALS):
-        standalone.openConnection(saslmethod='PLAIN', sasltoken=auth_tokens, starttls=False, connOnly=True, certdir=standalone.get_cert_dir(), reqcert=ldap.OPT_X_TLS_NEVER)
+        standalone.openConnection(saslmethod='PLAIN', sasltoken=auth_tokens, starttls=True, connOnly=True,
+                                  certdir=standalone.get_cert_dir(), reqcert=ldap.OPT_X_TLS_NEVER)
 
     # Done!
