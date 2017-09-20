@@ -81,17 +81,23 @@ def replica_without_init(topo_nr):
 def test_mail_attr_repl(topo_r, test_user):
     """Check that no crash happens during mail attribute replication
 
-    :ID: 959edc84-05be-4bf9-a541-53afae482052
-    :feature: Single master replication
+    :id: 959edc84-05be-4bf9-a541-53afae482052
     :setup: Replication setup with master and consumer instances,
             test user on master
-    :steps: 1. Check that user was replicated to consumer
-            2. Back up mail database file
-            3. Remove mail attribute from the user entry
-            4. Restore mail database
-            5. Search for the entry with a substring 'mail=user*'
-            6. Search for the entry once again to make sure that server is alive
-    :expectedresults: No crash happens
+    :steps:
+        1. Check that user was replicated to consumer
+        2. Back up mail database file
+        3. Remove mail attribute from the user entry
+        4. Restore mail database
+        5. Search for the entry with a substring 'mail=user*'
+        6. Search for the entry once again to make sure that server is alive
+    :expectedresults:
+        1. The user should be replicated to consumer
+        2. Operation should be successful
+        3. The mail attribute should be removed
+        4. Operation should be successful
+        5. Search should be successful
+        6. No crash should happen
     """
 
     master = topo_r.ms["master1"]
@@ -144,15 +150,18 @@ def test_mail_attr_repl(topo_r, test_user):
 def test_lastupdate_attr_before_init(topo_nr, replica_without_init):
     """Check that LastUpdate replica attributes show right values
 
-    :ID: bc8ce431-ff65-41f5-9331-605cbcaaa887
-    :feature: Single master replication
+    :id: bc8ce431-ff65-41f5-9331-605cbcaaa887
     :setup: Replication setup with master and consumer instances
             without initialization
-    :steps: 1. Check nsds5replicaLastUpdateStart, nsds5replicaLastUpdateEnd,
-               nsds5replicaLastUpdateStatus attrs
-    :expectedresults: nsds5replicaLastUpdateStart: 0, nsds5replicaLastUpdateEnd: 0 and
-             nsds5replicaLastUpdateStatus is not equal to
-             "0 Replica acquired successfully: Incremental update started"
+    :steps:
+        1. Check nsds5replicaLastUpdateStart value
+        2. Check nsds5replicaLastUpdateEnd value
+        3. Check nsds5replicaLastUpdateStatus value
+    :expectedresults:
+        1. nsds5replicaLastUpdateStart should be equal to 0
+        2. nsds5replicaLastUpdateEnd should be equal to 0
+        3. nsds5replicaLastUpdateStatus should not be equal
+           to "0 Replica acquired successfully: Incremental update started"
     """
 
     master = topo_nr.ins["standalone1"]

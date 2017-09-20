@@ -12,30 +12,64 @@ import os
 from lib389.topologies import topology_st
 
 
-def test_sasl_allowed_mechs(topology_st):
+def test_basic_feature(topology_st):
     """Test the alloweed sasl mechanism feature
 
-    :ID: ab7d9f86-8cfe-48c3-8baa-739e599f006a
-    :feature: Allowed sasl mechanisms
-    :steps: 1.  Get the default list of mechanisms
-            2.  Set allowed mechanism PLAIN, and verify it's correctly listed
-            3.  Restart server, and verify list is still correct
-            4.  Test EXTERNAL is properly listed
-            5.  Add GSSAPI to the existing list, and verify it's correctly listed
-            6.  Restart server and verify list is still correct
-            7.  Add ANONYMOUS to the existing list, and veirfy it's correctly listed
-            8.  Restart server and verify list is still correct
-            9.  Remove GSSAPI and verify it's correctly listed
-            10. Restart server and verify list is still correct
-            11. Reset allowed list to nothing, verify "all" the mechanisms are returned
-            12. Restart server and verify list is still correct
-
-    :expectedresults: The supported mechanisms supported what is set for the allowed
-                      mechanisms
+    :id: ab7d9f86-8cfe-48c3-8baa-739e599f006a
+    :setup: Standalone instance
+    :steps:
+        1. Get the default list of mechanisms
+        2. Set allowed mechanism PLAIN
+        3. Verify the list
+        4. Restart the server
+        5. Verify that list is still correct
+        6. Edit mechanisms to allow just PLAIN and EXTERNAL
+        7. Verify the list
+        8. Edit mechanisms to allow just PLAIN and GSSAPI
+        9. Verify the list
+        10. Restart the server
+        11. Verify that list is still correct
+        12. Edit mechanisms to allow just PLAIN, GSSAPI, and ANONYMOUS
+        13. Verify the list
+        14. Restart the server
+        15. Verify that list is still correct
+        16. Edit mechanisms to allow just PLAIN and ANONYMOUS
+        17. Verify the list
+        18. Restart the server
+        19. Verify that list is still correct
+        20. Reset the allowed list to nothing,
+        21. Verify that the returned mechanisms are the default ones
+        22. Restart the server
+        23. Verify that list is still correct
+    :expectedresults:
+        1. GSSAPI, PLAIN and EXTERNAL mechanisms should be acquired
+        2. Operation should be successful
+        3. List should have - PLAIN, EXTERNAL; shouldn't have - GSSAPI
+        4. Server should be restarted
+        5. List should have - PLAIN, EXTERNAL; shouldn't have - GSSAPI
+        6. Operation should be successful
+        7. List should have - PLAIN, EXTERNAL; shouldn't have - GSSAPI
+        8. Operation should be successful
+        9. List should have - PLAIN, EXTERNAL, GSSAPI
+        10. Server should be restarted
+        11. List should have - PLAIN, EXTERNAL, GSSAPI
+        12. Operation should be successful
+        13. List should have - PLAIN, EXTERNAL, GSSAPI, ANONYMOUS
+        14. Server should be restarted
+        15. List should have - PLAIN, EXTERNAL, GSSAPI, ANONYMOUS
+        16. Operation should be successful
+        17. List should have - PLAIN, EXTERNAL, ANONYMOUS; shouldn't have - GSSAPI
+        18. Server should be restarted
+        19. List should have - PLAIN, EXTERNAL, ANONYMOUS; shouldn't have - GSSAPI
+        20. Operation should be successful
+        21. List should have - PLAIN, EXTERNAL, GSSAPI
+        22. Server should be restarted
+        23. List should have - PLAIN, EXTERNAL, GSSAPI
     """
+
     standalone = topology_st.standalone
 
-    # Get the supported mechs. This should contain PLAIN, GSSAPI, EXTERNAL at least
+    # Get the supported mechanisms. This should contain PLAIN, GSSAPI, EXTERNAL at least
     standalone.log.info("Test we have some of the default mechanisms")
     orig_mechs = standalone.rootdse.supported_sasl()
     print(orig_mechs)
@@ -43,7 +77,7 @@ def test_sasl_allowed_mechs(topology_st):
     assert('PLAIN' in orig_mechs)
     assert('EXTERNAL' in orig_mechs)
 
-    # Now edit the supported mechs. Check them again.
+    # Now edit the supported mechanisms. Check them again.
     standalone.log.info("Edit mechanisms to allow just PLAIN")
     standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'PLAIN')
     limit_mechs = standalone.rootdse.supported_sasl()
@@ -68,7 +102,7 @@ def test_sasl_allowed_mechs(topology_st):
     assert('EXTERNAL' in limit_mechs)
     assert('GSSAPI' not in limit_mechs)
 
-    # Now edit the supported mechs. Check them again.
+    # Now edit the supported mechanisms. Check them again.
     standalone.log.info("Edit mechanisms to allow just PLAIN and GSSAPI")
     standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'PLAIN, GSSAPI')
     limit_mechs = standalone.rootdse.supported_sasl()
@@ -86,7 +120,7 @@ def test_sasl_allowed_mechs(topology_st):
     assert('GSSAPI' in limit_mechs)
     assert(len(limit_mechs) == 3)
 
-    # Add ANONYMOUS to the supported mechs and test again.
+    # Add ANONYMOUS to the supported mechanisms and test again.
     standalone.log.info("Edit mechanisms to allow just PLAIN, GSSAPI, and ANONYMOUS")
     standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'PLAIN, GSSAPI, ANONYMOUS')
     limit_mechs = standalone.rootdse.supported_sasl()

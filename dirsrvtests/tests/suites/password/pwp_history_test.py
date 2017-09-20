@@ -17,12 +17,36 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-def test_pwp_history_test(topology_st):
-    """
-    Test password policy history feature:
-        - Test password history is enforced
-        - Test password history works after an Admin resets the password
-        - Test that the correct number of passwords are stored in history
+def test_basic(topology_st):
+    """Test basic password policy history feature functionality
+
+    :id: 83d74f7d-3036-4944-8839-1b40bbf265ff
+    :setup: Standalone instance
+    :steps:
+        1. Configure password history policy as bellow:
+             passwordHistory: on
+             passwordInHistory: 3
+             passwordChange: on
+             passwordStorageScheme: CLEAR
+        2. Add a test user
+        3. Attempt to change password to the same password
+        4. Change password four times
+        5. Check that we only have 3 passwords stored in history
+        6. Attempt to change the password to previous passwords
+        7. Reset password by Directory Manager (admin reset)
+        8. Try and change the password to the previous password before the reset
+    :expectedresults:
+        1. Password history policy should be configured successfully
+        2. User should be added successfully
+        3. Password change should be correctly rejected
+           with Constrant Violation error
+        4. Password should be successfully changed
+        5. Only 3 passwords should be stored in history
+        6. Password changes should be correctly rejected
+           with Constrant Violation error
+        7. Password should be successfully reset
+        8. Password change should be correctly rejected
+           with Constrant Violation error
     """
 
     USER_DN = 'uid=testuser,' + DEFAULT_SUFFIX
@@ -139,7 +163,7 @@ def test_pwp_history_test(topology_st):
     time.sleep(1)
 
     #
-    # Check that we only have 3 passwords stored in history\
+    # Check that we only have 3 passwords stored in history
     #
     try:
         entry = topology_st.standalone.search_s(USER_DN, ldap.SCOPE_BASE,

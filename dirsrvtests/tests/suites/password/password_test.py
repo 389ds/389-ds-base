@@ -18,9 +18,22 @@ log = logging.getLogger(__name__)
 
 
 def test_password_delete_specific_password(topology_st):
-    """ Delete a specific userpassword, and make sure
+    """Delete a specific userPassword, and make sure
     it is actually deleted from the entry
-    """
+
+    :id: 800f432a-52ab-4661-ac66-a2bdd9b984d6
+    :setup: Standalone instance
+    :steps:
+        1. Add a user with userPassword attribute in cleartext
+        2. Delete the added value of userPassword attribute
+        3. Check if the userPassword attribute is deleted
+        4. Delete the user
+    :expectedresults:
+        1. The user with userPassword in cleartext should be added successfully
+        2. Operation should be successful
+        3. UserPassword should be deleted
+        4. The user should be successfully deleted
+     """
 
     log.info('Running test_password_delete_specific_password...')
 

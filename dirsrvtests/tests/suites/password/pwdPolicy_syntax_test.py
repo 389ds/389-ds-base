@@ -22,9 +22,21 @@ logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
 
-def _create_user(inst):
+@pytest.fixture(scope="module")
+def password_policy(topology_st):
+    """Set global password policy"""
+
+    log.info('Enable global password policy. Check for syntax.')
+    topology_st.standalone.config.set('passwordCheckSyntax', 'on')
+    topology_st.standalone.config.set('nsslapd-pwpolicy-local', 'off')
+    topology_st.standalone.config.set('passwordMinCategories', '1')
+
+
+@pytest.fixture(scope="module")
+def test_user(topology_st):
     """Create the test user."""
-    inst.add_s(Entry((
+
+    topology_st.standalone.add_s(Entry((
         USER_DN, {
             'objectClass': 'top account simplesecurityobject'.split(),
             'uid': 'user',
@@ -34,6 +46,7 @@ def _create_user(inst):
 
 def setPolicy(inst, attr, value):
     """Bind as ROot DN, set polcy, and then bind as user"""
+
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError as e:
@@ -117,22 +130,82 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     setPolicy(inst, policy_attr, reset_value)
 
 
-def test_pwdPolicy_syntax(topology_st):
-    '''
-    Password policy test: Ensure that on a password change, the policy syntax
+def test_basic(topology_st, test_user, password_policy):
+    """Ensure that on a password change, the policy syntax
     is enforced correctly.
-    '''
 
-    # Create a user
-    _create_user(topology_st.standalone)
-
-    # Set the password policy globally
-    topology_st.standalone.config.set('passwordCheckSyntax', 'on')
-    topology_st.standalone.config.set('nsslapd-pwpolicy-local', 'off')
-    topology_st.standalone.config.set('passwordMinCategories', '1')
+    :id: e8de7029-7fa6-4e96-9eb6-4a121f4c8fb3
+    :setup: Standalone instance, a test user,
+            global password policy with:
+            passwordCheckSyntax - on; nsslapd-pwpolicy-local - off;
+            passwordMinCategories - 1
+    :steps:
+        1. Set passwordMinLength to 10 in cn=config
+        2. Set userPassword to 'passwd' in cn=config
+        3. Set userPassword to 'password123' in cn=config
+        4. Set passwordMinLength to 2 in cn=config
+        5. Set passwordMinDigits to 2 in cn=config
+        6. Set userPassword to 'passwd' in cn=config
+        7. Set userPassword to 'password123' in cn=config
+        8. Set passwordMinDigits to 0 in cn=config
+        9. Set passwordMinAlphas to 2 in cn=config
+        10. Set userPassword to 'p123456789' in cn=config
+        11. Set userPassword to 'password123' in cn=config
+        12. Set passwordMinAlphas to 0 in cn=config
+        13. Set passwordMaxRepeats to 2 in cn=config
+        14. Set userPassword to 'password' in cn=config
+        15. Set userPassword to 'password123' in cn=config
+        16. Set passwordMaxRepeats to 0 in cn=config
+        17. Set passwordMinSpecials to 2 in cn=config
+        18. Set userPassword to 'passwd' in cn=config
+        19. Set userPassword to 'password_#$' in cn=config
+        20. Set passwordMinSpecials to 0 in cn=config
+        21. Set passwordMinLowers to 2 in cn=config
+        22. Set userPassword to 'PASSWORD123' in cn=config
+        23. Set userPassword to 'password123' in cn=config
+        24. Set passwordMinLowers to 0 in cn=config
+        25. Set passwordMinUppers to 2 in cn=config
+        26. Set userPassword to 'password' in cn=config
+        27. Set userPassword to 'PASSWORD' in cn=config
+        28. Set passwordMinUppers to 0 in cn=config
+    :expectedresults:
+        1. passwordMinLength should be successfully set
+        2. Password should be rejected because length too short
+        3. Password should be accepted
+        4. passwordMinLength should be successfully set
+        5. passwordMinDigits should be successfully set
+        6. Password should be rejected because
+           it does not contain minimum number of digits
+        7. Password should be accepted
+        8. passwordMinDigits should be successfully set
+        9. passwordMinAlphas should be successfully set
+        10. Password should be rejected because
+            it does not contain minimum number of alphas
+        11. Password should be accepted
+        12. passwordMinAlphas should be successfully set
+        13. passwordMaxRepeats should be successfully set
+        14. Password should be rejected because too many repeating characters
+        15. Password should be accepted
+        16. passwordMaxRepeats should be successfully set
+        17. passwordMinSpecials should be successfully set
+        18. Password should be rejected because
+            it does not contain minimum number of special characters
+        19. Password should be accepted
+        20. passwordMinSpecials should be successfully set
+        21. passwordMinLowers should be successfully set
+        22. Password should be rejected because
+            it does not contain minimum number of lowercase characters
+        23. Password should be accepted
+        24. passwordMinLowers should be successfully set
+        25. passwordMinUppers should be successfully set
+        26. Password should be rejected because
+            it does not contain minimum number of lowercase characters
+        27. Password should be accepted
+        28. passwordMinUppers should be successfully set
+    """
 
     #
-    # Test each syntax catagory
+    # Test each syntax category
     #
 
     # Min Length

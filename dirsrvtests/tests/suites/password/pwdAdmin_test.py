@@ -28,13 +28,16 @@ ENTRY_DN = 'cn=%s,%s' % (ENTRY_NAME, SUFFIX)
 INVALID_PWDS = ('2_Short', 'No_Number', 'N0Special', '{SSHA}bBy8UdtPZwu8uZna9QOYG3Pr41RpIRVDl8wddw==')
 
 
-def test_pwdAdmin_init(topology_st):
-    '''
-    Create our future Password Admin entry, set the password policy, and test
-    that its working
-    '''
+@pytest.fixture(scope="module")
+def password_policy(topology_st):
+    """Set up password policy
+    Create a Password Admin entry;
+    Set up password policy attributes in config;
+    Add an aci to give everyone full access;
+    Test that the setup works
+    """
 
-    log.info('test_pwdAdmin_init: Creating Password Administator entries...')
+    log.info('test_pwdAdmin_init: Creating Password Administrator entries...')
 
     # Add Password Admin 1
     try:
@@ -100,7 +103,7 @@ def test_pwdAdmin_init(topology_st):
     #
     # Bind as the future Password Admin
     #
-    log.info('test_pwdAdmin_init: Bind as the Password Administator (before activating)...')
+    log.info('test_pwdAdmin_init: Bind as the Password Administrator (before activating)...')
     try:
         topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
     except ldap.LDAPError as e:
@@ -139,19 +142,61 @@ def test_pwdAdmin_init(topology_st):
             assert False
 
 
-def test_pwdAdmin(topology_st):
-    '''
-        Test that password administrators/root DN can
-        bypass password syntax/policy.
+def test_pwdAdmin(topology_st, password_policy):
+    """Test that password administrators/root DN can
+    bypass password syntax/policy
 
-        We need to test how passwords are modified in
-        existing entries, and when adding new entries.
-
-        Create the Password Admin entry, but do not set
-        it as an admin yet.  Use the entry to verify invalid
-        passwords are caught.  Then activate the password
-        admin and make sure it can bypass password policy.
-    '''
+    :id: 5ce316d8-88ef-4248-8b63-90736985dad5
+    :setup: Standalone instance, Password Admin entry,
+        Password policy configured as below:
+            nsslapd-pwpolicy-local: on
+            passwordCheckSyntax: on
+            passwordMinCategories: 1
+            passwordMinTokenLength: 1
+            passwordExp: on
+            passwordMinDigits: 1
+            passwordMinSpecials: 1
+    :steps:
+        1. Bind as Root DN
+        2. Set passwordAdminDn to our admin entry DN
+        3. Bind as Password Admin
+        4. Add entries with invalid passwords
+        5. Delete the entries after each pass
+        6. Add the entry for the next round of testing
+        7. Bind as root DN
+        8. Remove passwordAdminDN attribute
+        9. Bind as Password Admin (admin rights are revoked)
+        10. Make invalid password updates
+        11. Bind as root DN to make the update
+        12. Set passwordAdminDn to our admin entry DN
+        13. Bind as Password Admin
+        14. Make the same password updates
+        15. Bind as root DN to make the update
+        16. Set passwordAdminDn to admin group entry
+        17. Bind as admin2
+        18. Make some invalid password updates
+        19. Bind back as Root DN
+    :expectedresults:
+        1. Bind should be successful
+        2. passwordAdminDn should be set successful
+        3. Bind should be successful
+        4. The entries should be successfully added
+        5. The entries should be successfully deleted
+        6. The entry should be successfully added
+        7. Bind should be successful
+        8. passwordAdminDn should be removed successful
+        9. Bind should be successful
+        10. Invalid password updates should fail
+        11. Bind should be successful
+        12. passwordAdminDn should be set successful
+        13. Bind should be successful
+        14. The same password updates should pass now
+        15. Bind should be successful
+        16. passwordAdminDn should be set successful
+        17. Bind should be successful
+        18. The same password updates should pass now
+        19. Bind should be successful
+    """
 
     #
     # Now activate a password administator, bind as root dn to do the config
@@ -160,7 +205,7 @@ def test_pwdAdmin(topology_st):
     log.info('test_pwdAdmin: Activate the Password Administator...')
 
     #
-    # Setup our test entry, and test password policy is working
+    # Get our test entry
     #
     entry = Entry(ENTRY_DN)
     entry.setValues('objectclass', 'top', 'person')
@@ -361,14 +406,28 @@ def test_pwdAdmin(topology_st):
         assert False
 
 
-def test_pwdAdmin_config_validation(topology_st):
-    '''
-    Test config validation:
+def test_pwdAdmin_config_validation(topology_st, password_policy):
+    """Check passwordAdminDN for valid and invalid values
 
-    - Test adding multiple passwordAdminDN attributes
-    - Test adding invalid values(non-DN's)
-    '''
-    # Add mulitple attributes - one already eists so just try and add as second one
+    :id: f7049482-41e8-438b-ae18-cdd2612c783a
+    :setup: Standalone instance, Password Admin entry,
+        Password policy configured as below:
+            nsslapd-pwpolicy-local: on
+            passwordCheckSyntax: on
+            passwordMinCategories: 1
+            passwordMinTokenLength: 1
+            passwordExp: on
+            passwordMinDigits: 1
+            passwordMinSpecials: 1
+    :steps:
+        1. Add multiple attributes - one already exists so just try and add the second one
+        2. Set passwordAdminDN attribute to an invalid value (ZZZZZ)
+    :expectedresults:
+        1. The operation should fail
+        2. The operation should fail
+    """
+
+    # Add multiple attributes - one already exists so just try and add the second one
     try:
         topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_ADD, 'passwordAdminDN', ENTRY_DN)])
         log.fatal('test_pwdAdmin_config_validation: Incorrectly was able to add two config attributes')

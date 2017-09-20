@@ -580,7 +580,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
     :setup: Standalone instance
 
     :steps:
-         1. Set the referral and the backenidealyd state
+         1. Set the referral and the backend state
          2. Set backend state to referral mode.
          3. Set server to not follow referral.
          4. Search using referral.

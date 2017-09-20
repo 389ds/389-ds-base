@@ -10,12 +10,8 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
-
-from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLICA_RUV_FILTER,
-                              ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
-                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
-                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              DN_DM, PASSWORD, LOG_DEFAULT, RA_ENABLED, RA_SCHEDULE)
+from lib389._constants import *
+from . import get_repl_entries
 
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
@@ -90,33 +86,15 @@ def new_suffix(topo_m4, request):
     request.addfinalizer(fin)
 
 
-def get_repl_entries(topo, entry_name, attr_list):
-    """Get a list of test entries from all masters"""
-
-    entries_list = []
-    num_of_masters = len({name: inst for name, inst in topo.ms.items() if not name.endswith('agmts')})
-
-    log.info('Wait for replication to happen')
-    time.sleep(10)
-
-    for num in range(1, num_of_masters + 1):
-        entries = topo.ms['master{}'.format(num)].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                                           "uid={}".format(entry_name), attr_list)
-        entries_list += entries
-
-    return entries_list
-
-
 def test_add_entry(topo_m4, test_entry):
     """Check that entries are replicated after add operation
 
-    :ID: 024250f1-5f7e-4f3b-a9f5-27741e6fd405
-    :feature: Multi master replication
-    :setup: Four masters replication setup
-    :steps: 1. Add entry to master1
-            2. Wait for replication to happen
-            3. Check entry on all other masters
-    :expectedresults: Entry should be replicated
+    :id: 024250f1-5f7e-4f3b-a9f5-27741e6fd405
+    :setup: Four masters replication setup, an entry
+    :steps:
+        1. Check entry on all other masters
+    :expectedresults:
+        1. The entry should be replicated to all masters
     """
 
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
@@ -126,13 +104,28 @@ def test_add_entry(topo_m4, test_entry):
 def test_modify_entry(topo_m4, test_entry):
     """Check that entries are replicated after modify operation
 
-    :ID: 36764053-622c-43c2-a132-d7a3ab7d9aaa
-    :feature: Multi master replication
+    :id: 36764053-622c-43c2-a132-d7a3ab7d9aaa
     :setup: Four masters replication setup, an entry
-    :steps: 1. Modify the entry on master1 (try add, modify and delete operations)
-            2. Wait for replication to happen
-            3. Check entry on all other masters
-    :expectedresults: Entry attr should be replicated
+    :steps:
+        1. Modify the entry on master1 - add attribute
+        2. Wait for replication to happen
+        3. Check entry on all other masters
+        4. Modify the entry on master1 - replace attribute
+        5. Wait for replication to happen
+        6. Check entry on all other masters
+        7. Modify the entry on master1 - delete attribute
+        8. Wait for replication to happen
+        9. Check entry on all other masters
+    :expectedresults:
+        1. Attribute should be successfully added
+        2. Some time should pass
+        3. The change should be present on all masters
+        4. Attribute should be successfully replaced
+        5. Some time should pass
+        6. The change should be present on all masters
+        4. Attribute should be successfully deleted
+        8. Some time should pass
+        9. The change should be present on all masters
     """
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
@@ -181,13 +174,14 @@ def test_modify_entry(topo_m4, test_entry):
 def test_delete_entry(topo_m4, test_entry):
     """Check that entry deletion is replicated after delete operation
 
-    :ID: 18437262-9d6a-4b98-a47a-6182501ab9bc
-    :feature: Multi master replication
+    :id: 18437262-9d6a-4b98-a47a-6182501ab9bc
     :setup: Four masters replication setup, an entry
-    :steps: 1. Delete the entry from master1
-            2. Wait for replication to happen
-            3. Check entry on all other masters
-    :expectedresults: Entry deletion should be replicated
+    :steps:
+        1. Delete the entry from master1
+        2. Check entry on all other masters
+    :expectedresults:
+        1. The entry should be deleted
+        2. The change should be present on all masters
     """
 
     log.info('Deleting entry {} during the test'.format(TEST_ENTRY_DN))
@@ -201,14 +195,14 @@ def test_delete_entry(topo_m4, test_entry):
 def test_modrdn_entry(topo_m4, test_entry, delold):
     """Check that entries are replicated after modrdn operation
 
-    :ID: 02558e6d-a745-45ae-8d88-34fe9b16adc9
-    :feature: Multi master replication
+    :id: 02558e6d-a745-45ae-8d88-34fe9b16adc9
     :setup: Four masters replication setup, an entry
-    :steps: 1. Make modrdn operation on entry on master1 with both delold 1 and 0
-            2. Wait for replication to happen
-            3. Check entry on all other masters
-    :expectedresults: Entry with new RDN should be replicated.
-                     If delold was specified, entry with old RDN shouldn't exist
+    :steps:
+        1. Make modrdn operation on entry on master1 with both delold 1 and 0
+        2. Check entry on all other masters
+    :expectedresults:
+        1. Modrdn operation should be successful
+        2. The change should be present on all masters
     """
 
     newrdn_name = 'newrdn'
@@ -239,15 +233,20 @@ def test_modrdn_entry(topo_m4, test_entry, delold):
 def test_modrdn_after_pause(topo_m4):
     """Check that changes are properly replicated after replica pause
 
-    :ID: 6271dc9c-a993-4a9e-9c6d-05650cdab282
-    :feature: Multi master replication
+    :id: 6271dc9c-a993-4a9e-9c6d-05650cdab282
     :setup: Four masters replication setup, an entry
-    :steps: 1. Pause all replicas
-            2. Make modrdn operation on entry on master1
-            3. Resume all replicas
-            4. Wait for replication to happen
-            5. Check entry on all other masters
-    :expectedresults: Entry with new RDN should be replicated.
+    :steps:
+        1. Pause all replicas
+        2. Make modrdn operation on entry on master1
+        3. Resume all replicas
+        4. Wait for replication to happen
+        5. Check entry on all other masters
+    :expectedresults:
+        1. Replicas should be paused
+        2. Modrdn operation should be successful
+        3. Replicas should be resumed
+        4. Some time should pass
+        5. The change should be present on all masters
     """
 
     newrdn_name = 'newrdn'
@@ -293,16 +292,18 @@ def test_modrdn_after_pause(topo_m4):
         topo_m4.ms["master1"].delete_s(newrdn_dn)
 
 
-# Bugzilla 842441
+@pytest.mark.bz842441
 def test_modify_stripattrs(topo_m4):
     """Check that we can modify nsds5replicastripattrs
 
-    :ID: f36abed8-e262-4f35-98aa-71ae55611aaa
-    :feature: Multi master replication
+    :id: f36abed8-e262-4f35-98aa-71ae55611aaa
     :setup: Four masters replication setup
-    :steps: 1. Modify nsds5replicastripattrs attribute on any agreement
-            2. Search for the modified attribute
+    :steps:
+        1. Modify nsds5replicastripattrs attribute on any agreement
+        2. Search for the modified attribute
     :expectedresults: It should be contain the value
+        1. nsds5replicastripattrs should be successfully set
+        2. The modified attribute should be the one we set
     """
 
     m1 = topo_m4.ms["master1"]
@@ -320,13 +321,16 @@ def test_modify_stripattrs(topo_m4):
 def test_new_suffix(topo_m4, new_suffix):
     """Check that we can enable replication on a new suffix
 
-    :ID: d44a9ed4-26b0-4189-b0d0-b2b336ddccbd
-    :feature: Multi master replication
-    :setup: Four masters replication setup, new suffix
-    :steps: 1. Enable replication on the new suffix
-            2. Check if it works
-            3. Disable replication on the new suffix
-    :expectedresults: Replication works on the new suffix
+    :id: d44a9ed4-26b0-4189-b0d0-b2b336ddccbd
+    :setup: Four masters replication setup, a new suffix
+    :steps:
+        1. Enable replication on the new suffix
+        2. Check if replication works
+        3. Disable replication on the new suffix
+    :expectedresults:
+        1. Replication on the new suffix should be enabled
+        2. Replication should work
+        3. Replication on the new suffix should be disabled
     """
 
     m1 = topo_m4.ms["master1"]
@@ -369,14 +373,17 @@ def test_new_suffix(topo_m4, new_suffix):
 def test_many_attrs(topo_m4, test_entry):
     """Check a replication with many attributes (add and delete)
 
-    :ID: d540b358-f67a-43c6-8df5-7c74b3cb7523
-    :feature: Multi master replication
+    :id: d540b358-f67a-43c6-8df5-7c74b3cb7523
     :setup: Four masters replication setup, a test entry
-    :steps: 1. Add 10 new attributes to the entry
-            2. Delete one from the beginning, two from the middle
-               and one from the end
-            3. Check that the changes were replicated in the right order
-    :expectedresults: All changes are successfully replicated in the right order
+    :steps:
+        1. Add 10 new attributes to the entry
+        2. Delete few attributes: one from the beginning,
+           two from the middle and one from the end
+        3. Check that the changes were replicated in the right order
+    :expectedresults:
+        1. The attributes should be successfully added
+        2. Delete operations should be successful
+        3. The changes should be replicated in the right order
     """
 
     m1 = topo_m4.ms["master1"]
@@ -410,118 +417,6 @@ def test_many_attrs(topo_m4, test_entry):
         for i, value in enumerate(entry.getValues("description")):
             assert value == [name for name in add_list if name not in delete_list][i]
             assert value not in delete_list
-
-
-def test_double_delete(topo_m4, test_entry):
-    """Check that double delete of the entry doesn't crash server
-
-    :ID: 3496c82d-636a-48c9-973c-2455b12164cc
-    :feature: Multi master replication
-    :setup: Four masters replication setup, a test entry
-    :steps: 1. Delete the entry
-            2. Delete the entry on the second master
-            3. Check that server is alive
-    :expectedresults: Server hasn't crash
-    """
-
-    log.info('Deleting entry {} from master1'.format(TEST_ENTRY_DN))
-    topo_m4.ms["master1"].delete_s(TEST_ENTRY_DN)
-
-    log.info('Deleting entry {} from master2'.format(TEST_ENTRY_DN))
-    try:
-        topo_m4.ms["master2"].delete_s(TEST_ENTRY_DN)
-    except ldap.NO_SUCH_OBJECT:
-        log.info("Entry {} wasn't found master2. It is expected.".format(TEST_ENTRY_DN))
-
-    log.info('Make searches to check if server is alive')
-    entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
-    assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
-
-
-def test_password_repl_error(topo_m4, test_entry):
-    """Check that error about userpassword replication is properly logged
-
-    :ID: 714130ff-e4f0-4633-9def-c1f4b24abfef
-    :feature: Multi master replication
-    :setup: Four masters replication setup, a test entry
-    :steps: 1. Change userpassword on master 1
-            2. Restart the servers to flush the logs
-            3. Check the error log for an replication error
-    :expectedresults: We don't have a replication error in the error log
-    """
-
-    m1 = topo_m4.ms["master1"]
-    m2 = topo_m4.ms["master2"]
-    TEST_ENTRY_NEW_PASS = 'new_{}'.format(TEST_ENTRY_NAME)
-
-    log.info('Clean the error log')
-    m2.deleteErrorLogs()
-
-    log.info('Set replication loglevel')
-    m2.setLogLevel(LOG_REPLICA)
-
-    log.info('Modifying entry {} - change userpassword on master 2'.format(TEST_ENTRY_DN))
-    try:
-        m1.modify_s(TEST_ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', 'new_{}'.format(TEST_ENTRY_NAME))])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
-                                                               e.message['desc']))
-        raise e
-
-    log.info('Restart the servers to flush the logs')
-    for num in range(1, 5):
-        topo_m4.ms["master{}".format(num)].restart(timeout=10)
-
-    try:
-        log.info('Check that password works on master 2')
-        m2.simple_bind_s(TEST_ENTRY_DN, TEST_ENTRY_NEW_PASS)
-        m2.simple_bind_s(DN_DM, PASSWORD)
-
-        log.info('Check the error log for the error with {}'.format(TEST_ENTRY_DN))
-        assert not m2.ds_error_log.match('.*can.t add a change for uid={}.*'.format(TEST_ENTRY_NAME))
-    finally:
-        log.info('Reset bind DN to Directory manager')
-        for num in range(1, 5):
-            topo_m4.ms["master{}".format(num)].simple_bind_s(DN_DM, PASSWORD)
-        log.info('Set the default loglevel')
-        m2.setLogLevel(LOG_DEFAULT)
-
-
-def test_invalid_agmt(topo_m4):
-    """Test adding that an invalid agreement is properly rejected and does not crash the server
-
-    :id: 6c3b2a7e-edcd-4327-a003-6bd878ff722b
-    :setup: MMR with four masters
-    :steps:
-        1. Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
-        2. Verify the server is still running
-    :expectedresults:
-        1. Invalid repl agreement should be rejected
-        2. Server should be still running
-    """
-    m1 = topo_m4.ms["master1"]
-
-    # Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
-    AGMT_DN = 'cn=whatever,cn=replica,cn="dc=example,dc=com",cn=mapping tree,cn=config'
-    try:
-        invalid_props = {RA_ENABLED: 'True',  # Invalid value
-                         RA_SCHEDULE: '0001-2359 0123456'}
-        m1.agreement.create(suffix=DEFAULT_SUFFIX, host='localhost', port=389, properties=invalid_props)
-    except ldap.UNWILLING_TO_PERFORM:
-        m1.log.info('Invalid repl agreement correctly rejected')
-    except ldap.LDAPError as e:
-        m1.log.fatal('Got unexpected error adding invalid agreement: ' + str(e))
-        assert False
-    else:
-        m1.log.fatal('Invalid agreement was incorrectly accepted by the server')
-        assert False
-
-    # Verify the server is still running
-    try:
-        m1.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        m1.log.fatal('Failed to bind: ' + str(e))
-        assert False
 
 
 if __name__ == '__main__':

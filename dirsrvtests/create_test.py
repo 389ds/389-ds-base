@@ -210,9 +210,10 @@ if len(sys.argv) > 0:
     if my_topology[0]:
         topology_import = 'from lib389.topologies import {} as topo\n'.format(my_topology[1])
     else:
-        topology_import = ''
+        topology_import = 'from lib389.topologies import create_topology\n'
 
     TEST.write('import logging\nimport pytest\nimport os\n')
+    TEST.write('from lib389._constants import *\n')
     TEST.write('{}\n'.format(topology_import))
 
     TEST.write('DEBUGGING = os.getenv("DEBUGGING", default=False)\n')
@@ -220,7 +221,7 @@ if len(sys.argv) > 0:
     TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
     TEST.write('else:\n')
     TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
-    TEST.write('log = logging.getLogger(__name__)\n\n\n')
+    TEST.write('log = logging.getLogger(__name__)\n\n')
 
     # Add topology function for non existing (in lib389/topologies.py) topologies only
     if not my_topology[0]:
@@ -236,7 +237,7 @@ if len(sys.argv) > 0:
             topologies_str += " {} standalone instances".format(instances)
 
         # Write the 'topology function'
-        TEST.write('@pytest.fixture(scope="module")\n')
+        TEST.write('\n@pytest.fixture(scope="module")\n')
         TEST.write('def topo(request):\n')
         TEST.write('    """Create a topology with{}"""\n\n'.format(topologies_str))
         TEST.write('    topology = create_topology({\n')
@@ -255,6 +256,7 @@ if len(sys.argv) > 0:
         TEST.write('    # replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])\n')
 
         writeFinalizer()
+        TEST.write('    return topology\n\n')
 
     tc_id = '0'
     while not check_id_uniqueness(tc_id): tc_id = uuid.uuid4()

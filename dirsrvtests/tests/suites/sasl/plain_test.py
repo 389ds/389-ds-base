@@ -20,7 +20,7 @@ from lib389.idm.services import ServiceAccounts
 log = logging.getLogger(__name__)
 
 
-def test_sasl_plain(topology_st):
+def test_basic_feature(topology_st):
     """Check basic SASL functionality for PLAIN mechanism
 
     :id: 75ddc6fa-aa5a-4025-9c71-1abad20c91fc

@@ -13,17 +13,22 @@ from lib389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, ReplicaRole, REPLICAID_MASTER_1
 
+
 def test_purge_success(topology_st):
     """Verify that tombstones are created successfully
 
-    :ID: adb86f50-ae76-4ed6-82b4-3cdc30ccab78
-    :feature: nsTombstone
+    :id: adb86f50-ae76-4ed6-82b4-3cdc30ccab78
     :setup: Standalone instance
-    :steps: 1. Enable replication to unexisting instance
-            2. Add an entry to the replicated suffix
-            3. Delete the entry
-            4. Check that tombstone entry exists (objectclass=nsTombstone)
+    :steps:
+        1. Enable replication to unexisting instance
+        2. Add an entry to the replicated suffix
+        3. Delete the entry
+        4. Check that tombstone entry exists (objectclass=nsTombstone)
     :expectedresults: Tombstone entry exist
+        1. Operation should be successful
+        2. The entry should be successfully added
+        3. The entry should be successfully deleted
+        4. Tombstone entry should exist
     """
 
     log.info('Setting up replication...')

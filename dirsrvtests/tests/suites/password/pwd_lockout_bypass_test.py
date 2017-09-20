@@ -20,7 +20,32 @@ BAD_PASSWORD = 'aontseunao'
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+
 def test_lockout_bypass(topology_st):
+    """Check basic password lockout functionality
+
+    :id: 2482a992-1719-495c-b75b-78fe5c48c873
+    :setup: Standalone instance
+    :steps:
+        1. Set passwordMaxFailure to 1
+        2. Set passwordLockDuration to 7
+        3. Set passwordLockout to 'on'
+        4. Create a user
+        5. Set a userPassword attribute
+        6. Bind as the user with a bad credentials
+        7. Bind as the user with a bad credentials
+        8. Bind as the user with a good credentials
+    :expectedresults:
+        1. passwordMaxFailure should be successfully set
+        2. passwordLockDuration should be successfully set
+        3. passwordLockout should be successfully set
+        4. User should be created
+        5. userPassword should be successfully set
+        6. Should throw an invalid credentials error
+        7. Should throw a constraint violation error
+        8. Should throw a constraint violation error
+    """
+
     inst = topology_st.standalone
 
     # Configure the lock policy

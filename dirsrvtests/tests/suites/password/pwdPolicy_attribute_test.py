@@ -127,19 +127,22 @@ def test_change_pwd(topology_st, test_user, password_policy,
     """Verify that 'passwordChange' attr works as expected
     User should have a priority over a subtree.
 
-    :feature: Password policy
-
-    :setup: Standalone instance, test user,
+    :id: 2c884432-2ba1-4662-8e5d-2cd49f77e5fa
+    :setup: Standalone instance, a test user,
             password policy entries for a user and a subtree
-
-    :steps: 1. Set passwordChange on the user and the subtree
-               to various combinations
-            2. Bind as test user
-            3. Try to change password
-
-    :expectedresults: Subtree/User passwordChange - result
-             off/on, on/on - success
-             on/off, off/off - UNWILLING_TO_PERFORM
+    :steps:
+        1. Set passwordChange on the user and the subtree
+           to various combinations
+        2. Bind as test user
+        3. Try to change password
+        4. Clean up - change the password to default while bound as DM
+    :expectedresults:
+        1. passwordChange should be successfully set
+        2. Bind should be successful
+        3. Subtree/User passwordChange - result, accordingly:
+           off/on, on/on - success;
+           on/off, off/off - UNWILLING_TO_PERFORM
+        4. Operation should be successful
     """
 
     log.info('Set passwordChange to "{}" - {}'.format(subtree_pwchange,
@@ -196,21 +199,27 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
     should not allow the user to change the password within 10 seconds after
     his previous change.
 
-    :ID: 85b98516-8c82-45bd-b9ec-90bd1245e09c
-    :feature: Password policy
-    :setup: Standalone instance, test user,
+    :id: 85b98516-8c82-45bd-b9ec-90bd1245e09c
+    :setup: Standalone instance, a test user,
             password policy entries for a user and a subtree
-    :steps: 1. Set passwordMinAge to 10 on the user pwpolicy entry
-            2. Set passwordMinAge to 10 on the subtree pwpolicy entry
-            3. Set passwordMinAge to 10 on the cn=config entry
-            4. Bind as test user
-            5. Try to change password two times in a row
-            6. Wait 12 seconds
-            7. Try to change password
-    :expectedresults: User should be not allowed to change the password
-             right after previous change - CONSTRAINT_VIOLATION
-             User should be not allowed to change the password
-             after 12 seconds passed
+    :steps:
+        1. Set passwordMinAge to 10 on the user pwpolicy entry
+        2. Set passwordMinAge to 10 on the subtree pwpolicy entry
+        3. Set passwordMinAge to 10 on the cn=config entry
+        4. Bind as test user
+        5. Try to change the password two times in a row
+        6. Wait 12 seconds
+        7. Try to change the password
+        8. Clean up - change the password to default while bound as DM
+    :expectedresults:
+        1. passwordMinAge should be successfully set on the user pwpolicy entry
+        2. passwordMinAge should be successfully set on the subtree pwpolicy entry
+        3. passwordMinAge should be successfully set on the cn=config entry
+        4. Bind should be successful
+        5. The password should be successfully changed
+        6. 12 seconds have passed
+        7. Constraint Violation error should be raised
+        8. Operation should be successful
     """
 
     num_seconds = '10'

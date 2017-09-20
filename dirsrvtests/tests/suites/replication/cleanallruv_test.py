@@ -9,18 +9,11 @@
 import threading
 
 import pytest
+from lib389 import DirSrv
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4
-
-from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, ReplicaRole,
-                              REPLICAID_MASTER_4, REPLICAID_MASTER_3, REPLICAID_MASTER_2,
-                              REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
-                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, SUFFIX,
-                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              defaultProperties, args_instance)
-
-from lib389 import DirSrv
+from lib389._constants import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -224,15 +217,20 @@ def restore_master4(topology_m4):
 def test_clean(topology_m4):
     """Check that cleanallruv task works properly
 
-    :ID: e9b3ce5c-e17c-409e-aafc-e97d630f2878
-    :feature: CleanAllRUV
+    :id: e9b3ce5c-e17c-409e-aafc-e97d630f2878
     :setup: Replication setup with four masters
-    :steps: 1. Check that replication works on all masters
-            2. Disable replication on master 4
-            3. Remove agreements to master 4 from other masters
-            4. Run a cleanallruv task on master 1 with a 'force' option 'on'
-            5. Check that everything was cleaned and no hanging tasks left
-    :expectedresults: Everything was cleaned and no hanging tasks left
+    :steps:
+        1. Check that replication works on all masters
+        2. Disable replication on master 4
+        3. Remove agreements to master 4 from other masters
+        4. Run a cleanallruv task on master 1 with a 'force' option 'on'
+        5. Check that everything was cleaned
+    :expectedresults:
+        1. Replication should work properly on all masters
+        2. Operation should be successful
+        3. Agreements to master 4 should be removed
+        4. Cleanallruv task should be successfully executed
+        5. Everything should be cleaned
     """
 
     log.info('Running test_clean...')
@@ -285,18 +283,30 @@ def test_clean(topology_m4):
 def test_clean_restart(topology_m4):
     """Check that cleanallruv task works properly after a restart
 
-    :ID: c6233bb3-092c-4919-9ac9-80dd02cc6e02
-    :feature: CleanAllRUV
+    :id: c6233bb3-092c-4919-9ac9-80dd02cc6e02
     :setup: Replication setup with four masters
-    :steps: 1. Disable replication on master 4
-            2. Remove agreements to master 4 from other masters
-            3. Stop master 3
-            4. Run a cleanallruv task on master 1
-            5. Stop master 1
-            6. Start master 3 and make sure that no crash happened
-            7. Start master 1 and make sure that no crash happened
-            8. Check that everything was cleaned and no hanging tasks left
-    :expectedresults: Everything was cleaned and no hanging tasks left
+    :steps:
+        1. Disable replication on master 4
+        2. Remove agreements to master 4 from other masters
+        3. Stop master 3
+        4. Run a cleanallruv task on master 1
+        5. Stop master 1
+        6. Start master 3
+        7. Make sure that no crash happened
+        8. Start master 1
+        9. Make sure that no crash happened
+        10. Check that everything was cleaned
+    :expectedresults:
+        1. Operation should be successful
+        2. Agreements to master 4 should be removed
+        3. Master 3 should be stopped
+        4. Cleanallruv task should be successfully executed
+        5. Master 1 should be stopped
+        6. Master 3 should be started
+        7. No crash should happened
+        8. Master 1 should be started
+        9. No crash should happened
+        10. Everything should be cleaned
     """
 
     log.info('Running test_clean_restart...')
@@ -358,17 +368,24 @@ def test_clean_restart(topology_m4):
 def test_clean_force(topology_m4):
     """Check that multiple tasks with a 'force' option work properly
 
-    :ID: eb76a93d-8d1c-405e-9f25-6e8d5a781098
-    :feature: CleanAllRUV
+    :id: eb76a93d-8d1c-405e-9f25-6e8d5a781098
     :setup: Replication setup with four masters
-    :steps: 1. Stop master 3
-            2. Add a bunch of updates to master 4
-            3. Disable replication on master 4
-            4. Start master 3
-            5. Remove agreements to master 4 from other masters
-            6. Run a cleanallruv task on master 1 with a 'force' option 'on'
-            7. Check that everything was cleaned and no hanging tasks left
-    :expectedresults: Everything was cleaned and no hanging tasks left
+    :steps:
+        1. Stop master 3
+        2. Add a bunch of updates to master 4
+        3. Disable replication on master 4
+        4. Start master 3
+        5. Remove agreements to master 4 from other masters
+        6. Run a cleanallruv task on master 1 with a 'force' option 'on'
+        7. Check that everything was cleaned
+    :expectedresults:
+        1. Master 3 should be stopped
+        2. Operation should be successful
+        3. Replication on master 4 should be disabled
+        4. Master 3 should be started
+        5. Agreements to master 4 should be removed
+        6. Operation should be successful
+        7. Everything should be cleaned
     """
 
     log.info('Running test_clean_force...')
@@ -418,17 +435,20 @@ def test_clean_force(topology_m4):
 def test_abort(topology_m4):
     """Test the abort task basic functionality
 
-    :ID: b09a6887-8de0-4fac-8e41-73ccbaaf7a08
-    :feature: CleanAllRUV
+    :id: b09a6887-8de0-4fac-8e41-73ccbaaf7a08
     :setup: Replication setup with four masters
-    :steps: 1. Disable replication on master 4
-            2. Remove agreements to master 4 from other masters
-            3. Stop master 2
-            4. Run a cleanallruv task on master 1
-            5. Run a cleanallruv abort task on master 1
-            6. Wait for the task to be done
-            7. Check that no hanging tasks left
+    :steps:
+        1. Disable replication on master 4
+        2. Remove agreements to master 4 from other masters
+        3. Stop master 2
+        4. Run a cleanallruv task on master 1
+        5. Run a cleanallruv abort task on master 1
     :expectedresults: No hanging tasks left
+        1. Replication on master 4 should be disabled
+        2. Agreements to master 4 should be removed
+        3. Master 2 should be stopped
+        4. Operation should be successful
+        5. Operation should be successful
     """
 
     log.info('Running test_abort...')
@@ -497,20 +517,30 @@ def test_abort(topology_m4):
 def test_abort_restart(topology_m4):
     """Test the abort task can handle a restart, and then resume
 
-    :ID: b66e33d4-fe85-4e1c-b882-75da80f70ab3
-    :feature: CleanAllRUV
+    :id: b66e33d4-fe85-4e1c-b882-75da80f70ab3
     :setup: Replication setup with four masters
-    :steps: 1. Disable replication on master 4
-            2. Remove agreements to master 4 from other masters
-            3. Stop master 3
-            4. Run a cleanallruv task on master 1
-            5. Run a cleanallruv abort task on master 1
-            6. Restart master 1 and make sure that no crash happened
-            7. Start master 3
-            8. Check that abort task was resumed on master 1
-               and errors log doesn't have 'Aborting abort task' message
-    :expectedresults: Abort task was resumed on master 1
-                      and errors log doesn't have 'Aborting abort task' message
+    :steps:
+        1. Disable replication on master 4
+        2. Remove agreements to master 4 from other masters
+        3. Stop master 3
+        4. Run a cleanallruv task on master 1
+        5. Run a cleanallruv abort task on master 1
+        6. Restart master 1
+        7. Make sure that no crash happened
+        8. Start master 3
+        9. Check master 1 does not have the clean task running
+        10. Check that errors log doesn't have 'Aborting abort task' message
+    :expectedresults:
+        1. Replication on master 4 should be disabled
+        2. Agreements to master 4 should be removed
+        3. Master 3 should be stopped
+        4. Operation should be successful
+        5. Operation should be successful
+        6. Master 1 should be restarted
+        7. No crash should happened
+        8. Master 3 should be started
+        9. Check master 1 shouldn't have the clean task running
+        10. Errors log shouldn't have 'Aborting abort task' message
     """
 
     log.info('Running test_abort_restart...')
@@ -593,17 +623,20 @@ def test_abort_restart(topology_m4):
 def test_abort_certify(topology_m4):
     """Test the abort task with a replica-certify-all option
 
-    :ID: 78959966-d644-44a8-b98c-1fcf21b45eb0
-    :feature: CleanAllRUV
+    :id: 78959966-d644-44a8-b98c-1fcf21b45eb0
     :setup: Replication setup with four masters
-    :steps: 1. Disable replication on master 4
-            2. Remove agreements to master 4 from other masters
-            3. Stop master 2
-            4. Run a cleanallruv task on master 1
-            5. Run a cleanallruv abort task on master 1 with a replica-certify-all option
-            6. Wait for the task to be done
-            7. Check that no hanging tasks left
+    :steps:
+        1. Disable replication on master 4
+        2. Remove agreements to master 4 from other masters
+        3. Stop master 2
+        4. Run a cleanallruv task on master 1
+        5. Run a cleanallruv abort task on master 1 with a replica-certify-all option
     :expectedresults: No hanging tasks left
+        1. Replication on master 4 should be disabled
+        2. Agreements to master 4 should be removed
+        3. Master 2 should be stopped
+        4. Operation should be successful
+        5. Operation should be successful
     """
 
     log.info('Running test_abort_certify...')
@@ -689,17 +722,23 @@ def test_abort_certify(topology_m4):
 def test_stress_clean(topology_m4):
     """Put each server(m1 - m4) under a stress, and perform the entire clean process
 
-    :ID: a8263cd6-f068-4357-86e0-e7c34504c8c5
-    :feature: CleanAllRUV
+    :id: a8263cd6-f068-4357-86e0-e7c34504c8c5
     :setup: Replication setup with four masters
-    :steps: 1. Add a bunch of updates to all masters
-            2. Put master 4 to read-only mode
-            3. Disable replication on master 4 and wait for the changes
-            4. Start master 3
-            5. Remove agreements to master 4 from other masters
-            6. Run a cleanallruv task on master 1
-            7. Check that everything was cleaned and no hanging tasks left
-    :expectedresults: Everything was cleaned and no hanging tasks left
+    :steps:
+        1. Add a bunch of updates to all masters
+        2. Put master 4 to read-only mode
+        3. Disable replication on master 4
+        5. Remove agreements to master 4 from other masters
+        6. Run a cleanallruv task on master 1
+        7. Check that everything was cleaned
+    :expectedresults:
+        1. Operation should be successful
+        2. Master 4 should be put to read-only mode
+        3. Replication on master 4 should be disabled
+        2. Agreements to master 4 should be removed
+        5. Agreements to master 4 should be removed
+        6. Operation should be successful
+        7. Everything should be cleaned
     """
 
     log.info('Running test_stress_clean...')
@@ -788,18 +827,26 @@ def test_stress_clean(topology_m4):
 def test_multiple_tasks_with_force(topology_m4):
     """Check that multiple tasks with a 'force' option work properly
 
-    :ID: eb76a93d-8d1c-405e-9f25-6e8d5a781098
-    :feature: CleanAllRUV
+    :id: eb76a93d-8d1c-405e-9f25-6e8d5a781098
     :setup: Replication setup with four masters
-    :steps: 1. Stop master 3
-            2. Add a bunch of updates to master 4
-            3. Disable replication on master 4
-            4. Start master 3
-            5. Remove agreements to master 4 from other masters
-            6. Run a cleanallruv task on master 1 with a 'force' option 'on'
-            7. Run one more cleanallruv task on master 1 with a 'force' option 'off'
-            8. Check that everything was cleaned and no hanging tasks left
-    :expectedresults: Everything was cleaned and no hanging tasks left
+    :steps:
+        1. Stop master 3
+        2. Add a bunch of updates to master 4
+        3. Disable replication on master 4
+        4. Start master 3
+        5. Remove agreements to master 4 from other masters
+        6. Run a cleanallruv task on master 1 with a 'force' option 'on'
+        7. Run one more cleanallruv task on master 1 with a 'force' option 'off'
+        8. Check that everything was cleaned
+    :expectedresults:
+        1. Master 3 should be stopped
+        2. Operation should be successful
+        3. Replication on master 4 should be disabled
+        4. Master 3 should be started
+        5. Agreements to master 4 should be removed
+        6. Operation should be successful
+        7. Operation should be successful
+        8. Everything should be cleaned
     """
 
     log.info('Running test_multiple_tasks_with_force...')

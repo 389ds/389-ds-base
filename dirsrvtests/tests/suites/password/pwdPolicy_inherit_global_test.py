@@ -139,25 +139,23 @@ def check_attr_val(topology_st, dn, attr, expected):
                          [('off', 'off'), ('on', 'off'), ('off', 'on')])
 def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
                                    inherit_value, checksyntax_value):
-    """Make sure an entry added to ou=people
-    has no password syntax restrictions when:
-    - 'passwordCheckSyntax' is 'off' for 'nsslapd-pwpolicy-inherit-global'
-    equaled 'off' and 'on'
-    - 'passwordCheckSyntax' is 'on' for  'nsslapd-pwpolicy-inherit-global'
-    equaled 'off'
+    """Make sure an entry added to ou=people has no password syntax restrictions
 
-    :ID: 2f07ff40-76ca-45a9-a556-331c94084945
-    :feature: Password policy
+    :id: 2f07ff40-76ca-45a9-a556-331c94084945
     :setup: Standalone instance, test user,
             password policy entries for a subtree
-    :steps: 1. Bind as test user
-            2. Set 'nsslapd-pwpolicy-inherit-global' and
-               'passwordCheckSyntax' accordingly:
-               a) 'off' and 'off'
-               b) 'on' and 'off'
-               c) 'off' and 'on'
-            3. Try to add user with a short password
-    :expectedresults: No exception should occure
+    :steps:
+        1. Bind as test user
+        2. Set 'nsslapd-pwpolicy-inherit-global' and
+           'passwordCheckSyntax' accordingly:
+           'off' and 'off'; 'on' and 'off'; 'off' and 'on'
+        3. Try to add user with a short password
+        4. Cleanup - remove temp user bound as DM
+    :expectedresults:
+        1. Bind should be successful
+        2. Attributes should be successfully set
+        3. No exceptions should occur
+        4. Operation should be successful
     """
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, inherit_value))
@@ -203,24 +201,30 @@ def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
 
 @pytest.mark.parametrize('container', [DN_CONFIG, PWP_CONTAINER_PEOPLE])
 def test_entry_has_restrictions(topology_st, password_policy, test_user, container):
-    """Set 'nsslapd-pwpolicy-inherit-global: on'
-    and 'passwordCheckSyntax: on'. Make sure that
-    syntax rules work, if set them at both: cn=config and
+    """Set 'nsslapd-pwpolicy-inherit-global: on' and 'passwordCheckSyntax: on'.
+    Make sure that syntax rules work, if set them at both: cn=config and
     ou=people policy container.
 
-    :ID: 4bb0f474-17c1-40f7-aab4-4ddc17d019e8
-    :feature: Password policy
+    :id: 4bb0f474-17c1-40f7-aab4-4ddc17d019e8
     :setup: Standalone instance, test user,
             password policy entries for a subtree
-    :steps: 1. Bind as test user
-            2. Switch 'nsslapd-pwpolicy-inherit-global: on'
-            3. Switch 'passwordCheckSyntax: on'
-            4. Set 'passwordMinLength: 9' to:
-               a) cn=config
-               b) ou=people policy container
-            5. Try to add user with a short password (<9)
-            6. Try to add user with a long password (>9)
-    :expectedresults: User should be rejected
+    :steps:
+        1. Bind as test user
+        2. Switch 'nsslapd-pwpolicy-inherit-global: on'
+        3. Switch 'passwordCheckSyntax: on'
+        4. Set 'passwordMinLength: 9' to:
+           cn=config and ou=people policy container
+        5. Try to add user with a short password (<9)
+        6. Try to add user with a long password (>9)
+        7. Cleanup - remove temp users bound as DM
+    :expectedresults:
+        1. Bind should be successful
+        2. nsslapd-pwpolicy-inherit-global should be successfully set
+        3. passwordCheckSyntax should be successfully set
+        4. passwordMinLength should be successfully set
+        5. User should be rejected
+        6. User should be rejected
+        7. Operation should be successful
     """
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, 'on'))

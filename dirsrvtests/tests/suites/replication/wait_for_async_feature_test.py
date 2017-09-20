@@ -96,7 +96,18 @@ def entries(topology_m2, request):
 
 
 def test_not_int_value(topology_m2):
-    """Tests not integer value"""
+    """Tests not integer value
+
+    :id: 67c9994f-9251-425a-8197-8d12ad9beafc
+    :setup: Replication with two masters
+    :steps:
+        1. Try to set some string value
+           to nsDS5ReplicaWaitForAsyncResults
+    :expectedresults:
+        1. Invalid syntax error should be raised
+    """
+
+
     master1 = topology_m2.ms["master1"]
     agmt = master1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
@@ -109,7 +120,19 @@ def test_not_int_value(topology_m2):
 
 
 def test_multi_value(topology_m2):
-    """Tests multi value"""
+    """Tests multi value
+
+    :id: 1932301a-db29-407e-b27e-4466a876d1d3
+    :setup: Replication with two masters
+    :steps:
+        1. Set nsDS5ReplicaWaitForAsyncResults to some int
+        2. Try to add one more int value
+           to nsDS5ReplicaWaitForAsyncResults
+    :expectedresults:
+        1. nsDS5ReplicaWaitForAsyncResults should be set
+        2. Object class violation error should be raised
+    """
+
     master1 = topology_m2.ms["master1"]
     agmt = master1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
@@ -127,7 +150,19 @@ def test_multi_value(topology_m2):
 
 
 def test_value_check(topology_m2, waitfor_async_attr):
-    """Checks that value has been set correctly"""
+    """Checks that value has been set correctly
+
+    :id: 3e81afe9-5130-410d-a1bb-d798d8ab8519
+    :setup: Replication with two masters,
+        wait for async set on all masters, try:
+        None, '2000', '0', '-5'
+    :steps:
+        1. Search for nsDS5ReplicaWaitForAsyncResults on master 1
+        2. Search for nsDS5ReplicaWaitForAsyncResults on master 2
+    :expectedresults:
+        1. nsDS5ReplicaWaitForAsyncResults should be set correctly
+        2. nsDS5ReplicaWaitForAsyncResults should be set correctly
+    """
 
     attr_value = waitfor_async_attr[0]
 
@@ -152,6 +187,22 @@ def test_value_check(topology_m2, waitfor_async_attr):
 def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
     """Tests replication behavior with valid
     nsDS5ReplicaWaitForAsyncResults attribute values
+
+    :id: 117b6be2-cdab-422e-b0c7-3b88bbeec036
+    :setup: Replication with two masters,
+        wait for async set on all masters, try:
+        None, '2000', '0', '-5'
+    :steps:
+        1. Set Replication Debugging loglevel for the errorlog
+        2. Set nsslapd-logging-hr-timestamps-enabled to 'off' on both masters
+        3. Gather all sync attempts,  group by timestamp
+        4. Take the most common timestamp and assert it has appeared
+           in the set range
+    :expectedresults:
+        1. Replication Debugging loglevel should be set
+        2. nsslapd-logging-hr-timestamps-enabled  should be set
+        3. Operation should be successful
+        4. Errors log should have all timestamp appear
     """
 
     master1 = topology_m2.ms["master1"]
