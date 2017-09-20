@@ -27,6 +27,9 @@
 %endif
 %endif
 
+# Use Clang instead of GCC
+%global use_clang 0
+
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
 %{!?with_tmpfiles_d: %global with_tmpfiles_d %{_sysconfdir}/tmpfiles.d}
@@ -62,7 +65,12 @@ BuildRequires:    cyrus-sasl-devel
 BuildRequires:    icu
 BuildRequires:    libicu-devel
 BuildRequires:    pcre-devel
+BuildRequires:    libatomic
+%if %{use_clang}
+BuildRequires:    clang
+%else
 BuildRequires:    gcc-c++
+%endif
 # The following are needed to build the snmp ldap-agent
 BuildRequires:    net-snmp-devel
 BuildRequires:    bzip2-devel
@@ -246,6 +254,10 @@ The lib389 CI tests that can be run against the Directory Server.
 cp %{SOURCE2} README.devel
 
 %build
+%if %{use_clang}
+export CC=clang
+export CXX=clang++
+%endif
 
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
 # hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529

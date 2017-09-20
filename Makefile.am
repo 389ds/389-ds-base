@@ -138,7 +138,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 # Provide the tcmalloc links if needed
-AM_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK)
+AM_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) -latomic
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
