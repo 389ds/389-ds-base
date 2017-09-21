@@ -1,0 +1,324 @@
+import logging
+import pytest
+import os
+import ldap
+import time
+from ldap.controls.ppolicy import PasswordPolicyControl
+from lib389.topologies import topology_st as topo
+from lib389._constants import (DN_DM, PASSWORD, DN_CONFIG)
+from lib389.tasks import Entry
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+if DEBUGGING:
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+else:
+    logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
+
+USER_DN = 'uid=test entry,dc=example,dc=com'
+USER_PW = 'password123'
+
+
+@pytest.fixture
+def init_user(topo, request):
+    """Initialize a user - Delete and re-add test user
+    """
+    try:
+        topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topo.standalone.delete_s(USER_DN)
+    except ldap.NO_SUCH_OBJECT:
+        pass
+    except ldap.LDAPError as e:
+        log.error("Failed to delete user, error: {}".format(e.message['desc']))
+        assert False
+
+    user_data = {'objectClass': 'top person inetOrgPerson'.split(),
+                 'uid': 'test entry',
+                 'cn': 'test entry',
+                 'sn': 'user',
+                 'userPassword': USER_PW}
+    try:
+        topo.standalone.add_s(Entry((USER_DN, user_data)))
+    except ldap.LDAPError as e:
+        log.error("Failed to add user, error: {}".format(e.message['desc']))
+        assert False
+
+
+def change_passwd(topo):
+    """Reset users password as the user, then re-bind as Directory Manager
+    """
+    try:
+        topo.standalone.simple_bind_s(USER_DN, USER_PW)
+        topo.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                            'userpassword',
+                                            USER_PW)])
+        topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    except ldap.LDAPError as e:
+        log.error("Failed to change user's password, error: {}".format(e.message['desc']))
+        assert False
+
+
+def bind_and_get_control(topo, err=0):
+    """Bind as the user, and return any controls
+    """
+    res_type = res_data = res_msgid = res_ctrls = None
+    result_id = ''
+
+    try:
+        result_id = topo.standalone.simple_bind(USER_DN, USER_PW,
+                                                serverctrls=[PasswordPolicyControl()])
+        res_type, res_data, res_msgid, res_ctrls = topo.standalone.result3(result_id)
+        if err:
+            log.fatal('Expected an error, but bind succeeded')
+            assert False
+    except ldap.LDAPError as e:
+        if err:
+            log.debug('Got expected error: {}'.format(e.message['desc']))
+            pass
+        else:
+            log.fatal('Did not expect an error: {}'.format(e.message['desc']))
+            assert False
+
+    if DEBUGGING and res_ctrls and len(res_ctrls) > 0:
+        for ctl in res_ctrls:
+            if ctl.timeBeforeExpiration:
+                log.debug('control time before expiration: {}'.format(ctl.timeBeforeExpiration))
+            if ctl.graceAuthNsRemaining:
+                log.debug('control grace login remaining: {}'.format(ctl.graceAuthNsRemaining))
+            if ctl.error is not None and ctl.error >= 0:
+                log.debug('control error: {}'.format(ctl.error))
+
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    return res_ctrls
+
+
+def test_pwd_must_change(topo, init_user):
+    """Test for expiration control when password must be changed because an
+    admin reset the password
+
+    :id: a3d99be5-0b69-410d-b72f-04eda8821a56
+    :setup: Standalone instance, a user for testing
+    :steps:
+        1. Configure password policy and reset password as admin
+        2. Bind, and check for expired control withthe proper error code "2"
+    :expectedresults:
+        1. Config update succeeds, adn the password is reset
+        2. The EXPIRED control is returned, and we the expected error code "2"
+    """
+
+    log.info('Configure password policy with paswordMustChange set to "on"')
+    try:
+        topo.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
+            (ldap.MOD_REPLACE, 'passwordMaxAge', '200'),
+            (ldap.MOD_REPLACE, 'passwordGraceLimit', '0'),
+            (ldap.MOD_REPLACE, 'passwordWarning', '199'),
+            (ldap.MOD_REPLACE, 'passwordMustChange', 'on')])
+    except ldap.LDAPError as e:
+        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
+        assert False
+
+    log.info('Reset userpassword as Directory Manager')
+    try:
+        topo.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                            'userpassword',
+                                            USER_PW)])
+    except ldap.LDAPError as e:
+        log.error("Failed to change user's password, error: {}".format(e.message['desc']))
+        assert False
+
+    log.info('Bind should return ctrl with error code 2 (changeAfterReset)')
+    time.sleep(2)
+    ctrls = bind_and_get_control(topo)
+    if ctrls and len(ctrls) > 0:
+        if ctrls[0].error is None:
+            log.fatal("Response ctrl error code not set")
+            assert False
+        elif ctrls[0].error != 2:
+            log.fatal("Got unexpected error code: {}".format(ctrls[0].error))
+            assert False
+    else:
+        log.fatal("We did not get a response ctrl")
+        assert False
+
+
+def test_pwd_expired_grace_limit(topo, init_user):
+    """Test for expiration control when password is expired, but there are
+    remaining grace logins
+
+    :id: a3d99be5-0b69-410d-b72f-04eda8821a51
+    :setup: Standalone instance, a user for testing
+    :steps:
+        1. Configure password policy and reset password,adn allow it to expire
+        2. Bind, and check for expired control, and grace limit
+        3. Bind again, consuming the last grace login, control should be returned
+        4. Bind again, it should fail, and no control returned
+    :expectedresults:
+        1. Config update and password reset are successful
+        2. The EXPIRED control is returned, and we get the expected number
+           of grace logins in the control
+        3. The response control has the expected value for grace logins
+        4. The bind fails with error 49, and no contorl is returned
+    """
+
+    log.info('Configure password policy with grace limit set tot 2')
+    try:
+        topo.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
+            (ldap.MOD_REPLACE, 'passwordMaxAge', '5'),
+            (ldap.MOD_REPLACE, 'passwordGraceLimit', '2')])
+    except ldap.LDAPError as e:
+        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
+        assert False
+
+    log.info('Change password and wait for it to expire')
+    change_passwd(topo)
+    time.sleep(6)
+
+    log.info('Bind and use up one grace login (only one left)')
+    ctrls = bind_and_get_control(topo)
+    if ctrls is None or len(ctrls) == 0:
+        log.fatal('Did not get EXPIRED control in resposne')
+        assert False
+    else:
+        if int(ctrls[0].graceAuthNsRemaining) != 1:
+            log.fatal('Got unexpected value for grace logins: {}'.format(ctrls[0].graceAuthNsRemaining))
+            assert False
+
+    log.info('Use up last grace login, should get control')
+    ctrls = bind_and_get_control(topo)
+    if ctrls is None or len(ctrls) == 0:
+        log.fatal('Did not get control in response')
+        assert False
+
+    log.info('No grace login available, bind should fail, and no control should be returned')
+    ctrls = bind_and_get_control(topo, err=49)
+    if ctrls and len(ctrls) > 0:
+        log.fatal('Incorrectly got control in response')
+        assert False
+
+
+def test_pwd_expiring_with_warning(topo, init_user):
+    """Test expiring control response before and after warning is sent
+
+    :id: a3d99be5-0b69-410d-b72f-04eda8821a54
+    :setup: Standalone instance, a user for testing
+    :steps:
+        1. Configure password policy, and reset password
+        2. Check for EXPIRING control, and the "time to expire"
+        3. Bind again, as a warning has now been sent, and check the "time to expire"
+    :expectedresults:
+        1. Configuration update and password reset are successful
+        2. Get the EXPIRING control, and the expected "time to expire" values
+        3. Get the EXPIRING control, and the expected "time to expire" values
+    """
+
+    log.info('Configure password policy')
+    try:
+        topo.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
+            (ldap.MOD_REPLACE, 'passwordMaxAge', '50'),
+            (ldap.MOD_REPLACE, 'passwordWarning', '50')])
+    except ldap.LDAPError as e:
+        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
+        assert False
+
+    log.info('Change password and get controls')
+    change_passwd(topo)
+    ctrls = bind_and_get_control(topo)
+    if ctrls is None or len(ctrls) == 0:
+        log.fatal('Did not get EXPIRING control in response')
+        assert False
+
+    if int(ctrls[0].timeBeforeExpiration) < 50:
+        log.fatal('Got unexpected value for timeBeforeExpiration: {}'.format(ctrls[0].timeBeforeExpiration))
+        assert False
+
+    log.info('Warning has been sent, try the bind again, and recheck the expiring time')
+    time.sleep(5)
+    ctrls = bind_and_get_control(topo)
+    if ctrls is None or len(ctrls) == 0:
+        log.fatal('Did not get EXPIRING control in resposne')
+        assert False
+
+    if int(ctrls[0].timeBeforeExpiration) > 50:
+        log.fatal('Got unexpected value for timeBeforeExpiration: {}'.format(ctrls[0].timeBeforeExpiration))
+        assert False
+
+
+def test_pwd_expiring_with_no_warning(topo, init_user):
+    """Test expiring control response when no warning is sent
+
+    :id: a3d99be5-0b69-410d-b72f-04eda8821a54
+    :setup: Standalone instance, a user for testing
+    :steps:
+        1. Configure password policy, and reset password
+        2. Bind, and check that no controls are returned
+        3. Set passwordSendExpiringTime to "on", bind, and check that the
+           EXPIRING control is returned
+    :expectedresults:
+        1. Configuration update and passwordreset are successful
+        2. No control is returned from bind
+        3. A control is returned after setting "passwordSendExpiringTime"
+    """
+
+    log.info('Configure password policy')
+    try:
+        topo.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
+            (ldap.MOD_REPLACE, 'passwordMaxAge', '50'),
+            (ldap.MOD_REPLACE, 'passwordWarning', '5')])
+    except ldap.LDAPError as e:
+        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
+        assert False
+
+    log.info('When the warning is less than the max age, we never send expiring control response')
+    change_passwd(topo)
+    ctrls = bind_and_get_control(topo)
+    if len(ctrls) > 0:
+        log.fatal('Incorrectly got a response control: {}'.format(ctrls))
+        assert False
+
+    log.info('Turn on sending expiring control regardless of warning')
+    try:
+        topo.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordSendExpiringTime', 'on')])
+    except ldap.LDAPError as e:
+        log.error("Failed to set passwordSendExpiringTime, error: {}".format(e.message['desc']))
+        assert False
+
+    ctrls = bind_and_get_control(topo)
+    if ctrls is None or len(ctrls) == 0:
+        log.fatal('Did not get EXPIRED control in response')
+        assert False
+
+    if int(ctrls[0].timeBeforeExpiration) < 49:
+        log.fatal('Got unexpected value for time before expiration: {}'.format(ctrls[0].timeBeforeExpiration))
+        assert False
+
+    log.info('Check expiring time again')
+    time.sleep(6)
+    ctrls = bind_and_get_control(topo)
+    if ctrls is None or len(ctrls) == 0:
+        log.fatal('Did not get EXPIRED control in resposne')
+        assert False
+
+    if int(ctrls[0].timeBeforeExpiration) > 51:
+        log.fatal('Got unexpected value for time before expiration: {}'.format(ctrls[0].timeBeforeExpiration))
+        assert False
+
+    log.info('Turn off sending expiring control (restore the default setting)')
+    try:
+        topo.standalone.modify_s(DN_CONFIG, [
+            (ldap.MOD_REPLACE, 'passwordSendExpiringTime', 'off')])
+    except ldap.LDAPError as e:
+        log.error("Failed to set passwordSendExpiringTime, error: {}".format(e.message['desc']))
+        assert False
+
+
+if __name__ == '__main__':
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
+
