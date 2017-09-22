@@ -2808,15 +2808,18 @@ class DirSrv(SimpleLDAPObject, object):
         return result
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
+        """Wrapper around dbscan tool that analyzes and extracts information
+        from an import Directory Server database file
+
+        :param bename: The backend name to scan
+        :param index: Index name (e.g., cn or cn.db) to scan
+        :param key: Index key to dump
+        :param id: Entry id to dump
+        :param width: Entry truncate size (bytes)
+        :param isRaw: Dump as a raw data
+        :returns: A dumped string
         """
-        @param bename - The backend name to scan
-        @param index - index name (e.g., cn or cn.db) to scan
-        @param key - index key to dump
-        @param id - entry id to dump
-        @param width - entry truncate size (bytes)
-        @param isRaw - dump as raw data
-        @return - dumped string
-        """
+
         DirSrvTools.lib389User(user=DEFAULT_USER)
         prog = os.path.join(self.ds_paths.bin_dir, DBSCAN)
 
@@ -2832,40 +2835,29 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             indexfile = os.path.join(self.dbdir, bename, index + '.db')
 
-        option = ''
+        cmd = [prog, '-f', indexfile]
+
         if 'id2entry' in index:
             if key and key.isdigit():
-                option = ' -K %s' % key
+                cmd.extend(['-K', key])
         else:
             if key:
-                option = ' -k %s' % key
+                cmd.extend(['-k', key])
 
         if width:
-            option = option + ' -t %d' % width
+            cmd.extend(['-t', width])
 
         if isRaw:
-            option = option + ' -R'
-
-        cmd = '%s -f %s' % (prog, indexfile)
-
-        if len(option) > 0:
-            cmd = cmd + option
+            cmd.append('-R')
 
         self.stop(timeout=10)
+
         log.info('Running script: %s' % cmd)
-        proc = Popen(cmd.split(), stdout=PIPE)
-        outs = ''
-        try:
-            outs = proc.communicate()
-        except OSError as e:
-            log.exception('dbscan: error executing (%s): error %d - %s' %
-                          (cmd, e.errno, e.strerror))
-            raise e
+        output = subprocess.check_output(cmd)
+
         self.start(timeout=10)
 
-        log.info('Output from ' + cmd)
-        log.info(outs)
-        return outs
+        return output
 
     def searchAccessLog(self, pattern):
         """
