@@ -93,11 +93,11 @@ def create_topology(topo_dict):
             continue
 
         # Create agreements: master -> masters, consumers
-        for inst_num_from in range(1, topo_dict[role]+1):
+        for inst_num_from in range(1, topo_dict[role_from]+1):
             roles_to = [ReplicaRole.MASTER, ReplicaRole.CONSUMER]
 
             for role_to in [role for role in topo_dict if role in roles_to]:
-                for inst_num_to in range(1, topo_dict[role]+1):
+                for inst_num_to in range(1, topo_dict[role_to]+1):
                     # Exclude the instance we created it from
                     if role_from != role_to or inst_num_from != inst_num_to:
                         inst_from_id = "{}{}".format(role_from.name.lower(), inst_num_from)
