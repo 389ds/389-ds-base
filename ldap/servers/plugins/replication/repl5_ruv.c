@@ -1386,7 +1386,17 @@ ruv_replica_count(const RUV *ruv)
  * Extract all the referral URL's from the RUV (but self URL),
  * returning them in an array of strings, that
  * the caller must free.
+ * We also check and remove duplicates (caused by unclean RUVs)
  */
+static int
+ruv_referral_exists(unsigned char *purl, char **refs, int count)
+{
+    for (size_t j=0; j<count; j++) {
+        if (0 == slapi_utf8casecmp(purl, (unsigned char *)refs[j]))
+            return 1;
+    }
+    return 0;
+}
 char **
 ruv_get_referrals(const RUV *ruv)
 {
@@ -1407,7 +1417,8 @@ ruv_get_referrals(const RUV *ruv)
             /* Add URL into referrals if doesn't match self URL */
             if ((replica->replica_purl != NULL) &&
                 (slapi_utf8casecmp((unsigned char *)replica->replica_purl,
-                                   (unsigned char *)mypurl) != 0)) {
+                                   (unsigned char *)mypurl) != 0) &&
+                !ruv_referral_exists((unsigned char *)replica->replica_purl, r, i)) {
                 r[i] = slapi_ch_strdup(replica->replica_purl);
                 i++;
             }
