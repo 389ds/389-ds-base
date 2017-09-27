@@ -689,7 +689,7 @@ default_mr_indexer_create(Slapi_PBlock *pb)
      * MR plugin. We need to check the selected plugin handle the expected OID
      */
     if (oid == NULL || !charray_inlist(pi->plg_mr_names, oid)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "default_mr_indexer_create", "Plugin [%s] does not handle %s\n",
+        slapi_log_err(SLAPI_LOG_DEBUG, "default_mr_indexer_create", "Plugin [%s] does not handle %s\n",
                       pi->plg_name,
                       oid ? oid : "unknown oid");
         goto done;
