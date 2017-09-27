@@ -9,7 +9,7 @@
 /*
  *   Thread Local Storage Functions
  */
-#include <slapi-plugin.h>
+#include "slap.h"
 #include <prthread.h>
 
 void td_dn_destructor(void *priv);

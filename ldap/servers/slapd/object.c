@@ -43,10 +43,12 @@ Object *
 object_new(void *user_data, FNFree destructor)
 {
     Object *o;
+    uint64_t init_val = 1;
+
     o = (object *)slapi_ch_malloc(sizeof(object));
     o->destructor = destructor;
     o->data = user_data;
-    __atomic_store_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
+    slapi_atomic_store(&(o->refcnt), &init_val, __ATOMIC_RELEASE, ATOMIC_LONG);
     return o;
 }
 
@@ -60,7 +62,7 @@ void
 object_acquire(Object *o)
 {
     PR_ASSERT(NULL != o);
-    __atomic_add_fetch_8(&(o->refcnt), 1, __ATOMIC_RELEASE);
+    slapi_atomic_incr(&(o->refcnt), __ATOMIC_RELEASE, ATOMIC_LONG);
 }
 
 
@@ -75,7 +77,7 @@ object_release(Object *o)
     PRInt32 refcnt_after_release;
 
     PR_ASSERT(NULL != o);
-    refcnt_after_release = __atomic_sub_fetch_8(&(o->refcnt), 1, __ATOMIC_ACQ_REL);
+    refcnt_after_release = slapi_atomic_decr(&(o->refcnt), __ATOMIC_ACQ_REL, ATOMIC_LONG);
     if (refcnt_after_release == 0) {
         /* Object can be destroyed */
         if (o->destructor)

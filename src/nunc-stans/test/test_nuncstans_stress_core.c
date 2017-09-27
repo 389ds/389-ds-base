@@ -128,7 +128,11 @@ server_conn_write(struct ns_job_t *job)
     assert(connctx != NULL);
     if (NS_JOB_IS_TIMER(ns_job_get_output_type(job))) {
         do_logging(LOG_ERR, "conn_write: job [%p] timeout\n", job);
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&server_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+        PR_AtomicIncrement(&server_fail_count);
+#endif
         conn_ctx_free(connctx);
         assert_int_equal(ns_job_done(job), 0);
         return;
@@ -173,7 +177,11 @@ server_conn_read(struct ns_job_t *job)
     if (NS_JOB_IS_TIMER(ns_job_get_output_type(job))) {
         /* The event that triggered this call back is because we timed out waiting for IO */
         do_logging(LOG_ERR, "conn_read: job [%p] timed out\n", job);
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&server_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+        PR_AtomicIncrement(&server_fail_count);
+#endif
         conn_ctx_free(connctx);
         assert_int_equal(ns_job_done(job), 0);
         return;
@@ -204,7 +212,11 @@ server_conn_read(struct ns_job_t *job)
             return;
         } else {
             do_logging(LOG_ERR, "conn_read: read error for job [%p] %d: %s\n", job, PR_GetError(), PR_ErrorToString(PR_GetError(), PR_LANGUAGE_I_DEFAULT));
+#ifdef ATOMIC_64BIT_OPERATIONS
             __atomic_add_fetch(&server_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+            PR_AtomicIncrement(&server_fail_count);
+#endif
             conn_ctx_free(connctx);
             assert_int_equal(ns_job_done(job), 0);
             return;
@@ -214,7 +226,11 @@ server_conn_read(struct ns_job_t *job)
         /* Didn't read anything */
         do_logging(LOG_DEBUG, "conn_read: job [%p] closed\n", job);
         /* Increment the success */
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&server_success_count, 1, __ATOMIC_SEQ_CST);
+#else
+        PR_AtomicIncrement(&server_success_count);
+#endif
         conn_ctx_free(connctx);
         assert_int_equal(ns_job_done(job), 0);
         return;
@@ -314,26 +330,41 @@ client_response_cb(struct ns_job_t *job)
     if (len < 0) {
         /* PRErrorCode prerr = PR_GetError(); */
         do_logging(LOG_ERR, "FAIL: connection error, no data \n");
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&client_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+        PR_AtomicIncrement(&client_fail_count);
+#endif
         goto done;
     } else if (len == 0) {
         do_logging(LOG_ERR, "FAIL: connection closed, no data \n");
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&client_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+        PR_AtomicIncrement(&client_fail_count);
+#endif
         goto done;
     } else {
         /* Be paranoid, force last byte null */
         buffer[buflen - 1] = '\0';
         if (strncmp("this is a test!\n", buffer, strlen("this is a test!\n")) != 0) {
             do_logging(LOG_ERR, "FAIL: connection incorrect response, no data \n");
+#ifdef ATOMIC_64BIT_OPERATIONS
             __atomic_add_fetch(&client_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+            PR_AtomicIncrement(&client_fail_count);
+#endif
             goto done;
         }
     }
 
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-
+#ifdef ATOMIC_64BIT_OPERATIONS
     __atomic_add_fetch(&client_success_count, 1, __ATOMIC_SEQ_CST);
+#else
+    PR_AtomicIncrement(&client_success_count);
+#endif
     do_logging(LOG_ERR, "PASS: %ld.%ld %d\n", ts.tv_sec, ts.tv_nsec, client_success_count);
 
 done:
@@ -354,7 +385,11 @@ client_initiate_connection_cb(struct ns_job_t *job)
         char *err = NULL;
         PR_GetErrorText(err);
         do_logging(LOG_ERR, "FAIL: Socket failed, %d -> %s\n", PR_GetError(), err);
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&client_fail_count, 1, __ATOMIC_SEQ_CST);
+#else
+        PR_AtomicIncrement(&client_fail_count);
+#endif
         goto done;
     }
 
@@ -368,8 +403,11 @@ client_initiate_connection_cb(struct ns_job_t *job)
         PR_GetErrorText(err);
         do_logging(LOG_ERR, "FAIL: cannot connect, timeout %d -> %s \n", PR_GetError(), err);
         /* Atomic increment fail */
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&client_timeout_count, 1, __ATOMIC_SEQ_CST);
-
+#else
+        PR_AtomicIncrement(&client_timeout_count);
+#endif
         if (sock != NULL) {
             PR_Close(sock);
         }

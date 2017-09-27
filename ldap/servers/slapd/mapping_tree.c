@@ -1647,7 +1647,7 @@ mapping_tree_init()
 
     /* we call this function from a single thread, so it should be ok */
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown has been detected */
         return 0;
     }
@@ -1759,6 +1759,8 @@ mtn_free_node(mapping_tree_node **node)
 void
 mapping_tree_free()
 {
+    int init_val = 1;
+
     /* unregister dse callbacks */
     slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, MAPPING_TREE_BASE_DN, LDAP_SCOPE_BASE, "(objectclass=*)", mapping_tree_entry_modify_callback);
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, MAPPING_TREE_BASE_DN, LDAP_SCOPE_BASE, "(objectclass=*)", mapping_tree_entry_add_callback);
@@ -1771,7 +1773,7 @@ mapping_tree_free()
     slapi_unregister_backend_state_change_all();
     /* recursively free tree nodes */
     mtn_free_node(&mapping_tree_root);
-    __atomic_store_4(&mapping_tree_freed, 1, __ATOMIC_RELAXED);
+    slapi_atomic_store(&mapping_tree_freed, &init_val, __ATOMIC_RELAXED, ATOMIC_INT);
 }
 
 /* This function returns the first node to parse when a search is done
@@ -2022,7 +2024,7 @@ slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral)
     mapping_tree_node *target_node = NULL;
     int ret = 0;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         goto done;
     }
@@ -2093,7 +2095,7 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
     int fixup = 0;
 
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return LDAP_OPERATIONS_ERROR;
     }
@@ -2198,7 +2200,7 @@ slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list, Slapi_E
     int flag_partial_result = 0;
     int op_type;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -2358,7 +2360,7 @@ slapi_mapping_tree_select_and_check(Slapi_PBlock *pb, char *newdn, Slapi_Backend
     int ret;
     int need_unlock = 0;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -2524,7 +2526,7 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
     int flag_stop = 0;
     struct slapi_componentid *cid = NULL;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shut down detected */
         return LDAP_OPERATIONS_ERROR;
     }
@@ -2712,7 +2714,7 @@ best_matching_child(mapping_tree_node *parent,
     mapping_tree_node *highest_match_node = NULL;
     mapping_tree_node *current;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2739,7 +2741,7 @@ mtn_get_mapping_tree_node_by_entry(mapping_tree_node *node, const Slapi_DN *dn)
 {
     mapping_tree_node *found_node = NULL;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2782,7 +2784,7 @@ slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn)
     mapping_tree_node *current_best_match = mapping_tree_root;
     mapping_tree_node *next_best_match = mapping_tree_root;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2816,7 +2818,7 @@ get_mapping_tree_node_by_name(mapping_tree_node *node, char *be_name)
     int i;
     mapping_tree_node *found_node = NULL;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2863,7 +2865,7 @@ slapi_get_mapping_tree_node_configdn(const Slapi_DN *root)
 {
     char *dn = NULL;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return NULL;
     }
@@ -2890,7 +2892,7 @@ slapi_get_mapping_tree_node_configsdn(const Slapi_DN *root)
     char *dn = NULL;
     Slapi_DN *sdn = NULL;
 
-    if (__atomic_load_4(&mapping_tree_freed, __ATOMIC_RELAXED)) {
+    if (slapi_atomic_load(&mapping_tree_freed, __ATOMIC_RELAXED, ATOMIC_INT)) {
         /* shutdown detected */
         return NULL;
     }

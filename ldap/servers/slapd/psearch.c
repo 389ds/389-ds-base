@@ -134,7 +134,7 @@ ps_stop_psearch_system()
     if (PS_IS_INITIALIZED()) {
         PSL_LOCK_WRITE();
         for (ps = psearch_list->pl_head; NULL != ps; ps = ps->ps_next) {
-            __atomic_add_fetch_8(&(ps->ps_complete), 1, __ATOMIC_RELEASE);
+            slapi_atomic_incr(&(ps->ps_complete), __ATOMIC_RELEASE, ATOMIC_LONG);
         }
         PSL_UNLOCK_WRITE();
         ps_wakeup_all();
@@ -285,7 +285,7 @@ ps_send_results(void *arg)
 
     PR_Lock(psearch_list->pl_cvarlock);
 
-    while ((conn_acq_flag == 0) && __atomic_load_8(&(ps->ps_complete), __ATOMIC_ACQUIRE) == 0) {
+    while ((conn_acq_flag == 0) && slapi_atomic_load(&(ps->ps_complete), __ATOMIC_ACQUIRE, ATOMIC_LONG) == 0) {
         /* Check for an abandoned operation */
         if (pb_op == NULL || slapi_op_abandoned(ps->ps_pblock)) {
             slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
@@ -427,6 +427,7 @@ static PSearch *
 psearch_alloc(void)
 {
     PSearch *ps;
+    uint64_t init_val = 0;
 
     ps = (PSearch *)slapi_ch_calloc(1, sizeof(PSearch));
 
@@ -437,7 +438,7 @@ psearch_alloc(void)
         slapi_ch_free((void **)&ps);
         return (NULL);
     }
-    __atomic_store_8(&(ps->ps_complete), 0, __ATOMIC_RELEASE);
+    slapi_atomic_store(&(ps->ps_complete), &init_val, __ATOMIC_RELEASE, ATOMIC_LONG);
     ps->ps_eq_head = ps->ps_eq_tail = (PSEQNode *)NULL;
     ps->ps_lasttime = (time_t)0L;
     ps->ps_next = NULL;

@@ -2244,18 +2244,19 @@ slapi_entry_attr_find(const Slapi_Entry *e, const char *type, Slapi_Attr **a)
 
 /* the following functions control virtual attribute cache invalidation */
 
-static uint32_t g_virtual_watermark = 0; /* good enough to init */
+static int32_t g_virtual_watermark = 0; /* good enough to init */
 
 int
 slapi_entry_vattrcache_watermark_isvalid(const Slapi_Entry *e)
 {
-    return e->e_virtual_watermark == __atomic_load_4(&g_virtual_watermark, __ATOMIC_ACQUIRE);
+    return e->e_virtual_watermark == slapi_atomic_load(&g_virtual_watermark, __ATOMIC_ACQUIRE, ATOMIC_INT);
+
 }
 
 void
 slapi_entry_vattrcache_watermark_set(Slapi_Entry *e)
 {
-    e->e_virtual_watermark = __atomic_load_4(&g_virtual_watermark, __ATOMIC_ACQUIRE);
+    e->e_virtual_watermark = slapi_atomic_load(&g_virtual_watermark, __ATOMIC_ACQUIRE, ATOMIC_INT);
 }
 
 void
@@ -2268,8 +2269,8 @@ void
 slapi_entrycache_vattrcache_watermark_invalidate()
 {
     /* Make sure the value is never 0 */
-    if (__atomic_add_fetch_4(&g_virtual_watermark, 1, __ATOMIC_RELEASE) == 0) {
-        __atomic_add_fetch_4(&g_virtual_watermark, 1, __ATOMIC_RELEASE);
+    if (slapi_atomic_incr(&g_virtual_watermark, __ATOMIC_RELEASE, ATOMIC_INT) == 0) {
+        slapi_atomic_incr(&g_virtual_watermark, __ATOMIC_RELEASE, ATOMIC_INT);
     }
 }
 
