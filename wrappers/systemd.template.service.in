@@ -40,5 +40,5 @@ ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/
 .include @initconfigdir@/@package_name@.systemd
 
 [Install]
-WantedBy=dirsrv.target
+WantedBy=multi-user.target
 
