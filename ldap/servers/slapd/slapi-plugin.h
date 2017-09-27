@@ -8202,6 +8202,58 @@ void slapi_operation_time_initiated(Slapi_Operation *o, struct timespec *initiat
  */
 #endif
 
+/* See: https://gcc.gnu.org/ml/gcc/2016-11/txt6ZlA_JS27i.txt */
+#define ATOMIC_GENERIC  0
+#define ATOMIC_INT      4
+#define ATOMIC_LONG     8
+#define ATOMIC_INT128  16  /* Future */
+
+/**
+ * Store an integral value atomicly
+ *
+ * \param ptr - integral pointer
+ * \param val - pointer to integral value (use integral type int32_t with ATOMIC_INT, or uint64_t
+ * with ATOMIC_LONG & ATOMIC_GENERIC)
+ * \param memorder - __ATOMIC_RELAXED, __ATOMIC_CONSUME, __ATOMIC_ACQUIRE,
+ * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST
+ * \param type - "ptr" type: ATOMIC_GENERIC, ATOMIC_INT, or ATOMIC_LONG
+ */
+void slapi_atomic_store(void *ptr, void *val, int memorder, int type);
+
+/**
+ * Get an integral value atomicly
+ *
+ * \param ptr - integral pointer
+ * \param memorder - __ATOMIC_RELAXED, __ATOMIC_CONSUME, __ATOMIC_ACQUIRE,
+ * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST
+ * \param type - "ptr" type: ATOMIC_GENERIC, ATOMIC_INT, or ATOMIC_LONG
+ * \return -
+ */
+uint64_t slapi_atomic_load(void *ptr, int memorder, int type);
+
+/**
+ * Increment integral atomicly
+ *
+ * \param ptr - pointer to integral to increment
+ * \param memorder - __ATOMIC_RELAXED, __ATOMIC_CONSUME, __ATOMIC_ACQUIRE,
+ * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST
+ * \param type - "ptr" type: ATOMIC_GENERIC, ATOMIC_INT, or ATOMIC_LONG
+ * \return - new value of ptr
+ */
+uint64_t slapi_atomic_incr(void *ptr, int memorder, int type);
+
+/**
+ * Decrement integral atomicly
+ *
+ * \param ptr - pointer to integral to decrement
+ * \param memorder - __ATOMIC_RELAXED, __ATOMIC_CONSUME, __ATOMIC_ACQUIRE,
+ * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST
+ * \param type - "ptr" type: ATOMIC_GENERIC, ATOMIC_INT, or ATOMIC_LONG
+ * \return - new value of ptr
+ */
+uint64_t slapi_atomic_decr(void *ptr, int memorder, int type);
+
+
 #ifdef __cplusplus
 }
 #endif

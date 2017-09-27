@@ -169,7 +169,11 @@ int32_t
 ns_thrpool_is_shutdown(struct ns_thrpool_t *tp)
 {
     int32_t result = 0;
+#ifdef ATOMIC_64BIT_OPERATIONS
     __atomic_load(&(tp->shutdown), &result, __ATOMIC_ACQUIRE);
+#else
+    result = PR_AtomicAdd(&(tp->shutdown), 0);
+#endif
     return result;
 }
 
@@ -177,7 +181,11 @@ int32_t
 ns_thrpool_is_event_shutdown(struct ns_thrpool_t *tp)
 {
     int32_t result = 0;
+#ifdef ATOMIC_64BIT_OPERATIONS
     __atomic_load(&(tp->shutdown_event_loop), &result, __ATOMIC_ACQUIRE);
+#else
+    result = PR_AtomicAdd(&(tp->shutdown_event_loop), 0);
+#endif
     return result;
 }
 
@@ -1442,8 +1450,11 @@ ns_thrpool_destroy(struct ns_thrpool_t *tp)
 #endif
     if (tp) {
         /* Set the flag to shutdown the event loop. */
+#ifdef ATOMIC_64BIT_OPERATIONS
         __atomic_add_fetch(&(tp->shutdown_event_loop), 1, __ATOMIC_RELEASE);
-
+#else
+        PR_AtomicIncrement(&(tp->shutdown_event_loop));
+#endif
         /* Finish the event queue wakeup job.  This has the
          * side effect of waking up the event loop thread, which
          * will cause it to exit since we set the event loop
@@ -1532,7 +1543,11 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
 
     /* Set the shutdown flag.  This will cause the worker
      * threads to exit after they finish all remaining work. */
+#ifdef ATOMIC_64BIT_OPERATIONS
     __atomic_add_fetch(&(tp->shutdown), 1, __ATOMIC_RELEASE);
+#else
+    PR_AtomicIncrement(&(tp->shutdown));
+#endif
 
     /* Send worker shutdown jobs into the queues. This allows
      * currently queued jobs to complete.

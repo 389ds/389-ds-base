@@ -2860,16 +2860,16 @@ int
 dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flags)
 {
     /*
-   * We either already have a DB* handle in the attrinfo structure.
-   * in which case we simply return it to the caller, OR:
-   * we need to make one. We do this as follows:
-   * 1a) acquire the mutex that protects the handle list.
-   * 1b) check that the DB* is still null.
-   * 2) get the filename, and call libdb to open it
-   * 3) if successful, store the result in the attrinfo stucture
-   * 4) store the DB* in our own list so we can close it later.
-   * 5) release the mutex.
-   */
+     * We either already have a DB* handle in the attrinfo structure.
+     * in which case we simply return it to the caller, OR:
+     * we need to make one. We do this as follows:
+     * 1a) acquire the mutex that protects the handle list.
+     * 1b) check that the DB* is still null.
+     * 2) get the filename, and call libdb to open it
+     * 3) if successful, store the result in the attrinfo stucture
+     * 4) store the DB* in our own list so we can close it later.
+     * 5) release the mutex.
+     */
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int return_value = -1;
     DB *pDB = NULL;
@@ -2878,9 +2878,9 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
     *ppDB = NULL;
 
     /* it's like a semaphore -- when count > 0, any file handle that's in
-   * the attrinfo will remain valid from here on.
-   */
-    __atomic_add_fetch_8(&(a->ai_dblayer_count), 1, __ATOMIC_RELEASE);
+     * the attrinfo will remain valid from here on.
+     */
+    slapi_atomic_incr(&(a->ai_dblayer_count), __ATOMIC_RELEASE, ATOMIC_LONG);
 
     if (a->ai_dblayer && ((dblayer_handle *)(a->ai_dblayer))->dblayer_dbp) {
         /* This means that the pointer is valid, so we should return it. */
@@ -2888,9 +2888,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
         return 0;
     }
 
-    /* attrinfo handle is NULL, at least for now -- grab the mutex and try
-   * again.
-   */
+    /* attrinfo handle is NULL, at least for now -- grab the mutex and try again. */
     PR_Lock(inst->inst_handle_list_mutex);
     if (a->ai_dblayer && ((dblayer_handle *)(a->ai_dblayer))->dblayer_dbp) {
         /* another thread set the handle while we were waiting on the lock */
@@ -2900,8 +2898,8 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
     }
 
     /* attrinfo handle is still blank, and we have the mutex: open the
-   * index file and stuff it in the attrinfo.
-   */
+     * index file and stuff it in the attrinfo.
+     */
     return_value = dblayer_open_file(be, attribute_name, open_flags,
                                      a, &pDB);
     if (0 == return_value) {
@@ -2911,40 +2909,36 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
 
         PR_ASSERT(NULL != pDB);
         /* Store the returned DB* in our own private list of
-       * open files */
+         * open files */
         if (NULL == prev_handle) {
             /* List was empty */
             inst->inst_handle_tail = handle;
             inst->inst_handle_head = handle;
         } else {
-            /* Chain the handle onto the last structure in the
-           * list */
+            /* Chain the handle onto the last structure in the list */
             inst->inst_handle_tail = handle;
             prev_handle->dblayer_handle_next = handle;
         }
-        /* Stash a pointer to our wrapper structure in the
-       * attrinfo structure */
+        /* Stash a pointer to our wrapper structure in the attrinfo structure */
         handle->dblayer_dbp = pDB;
         /* And, most importantly, return something to the caller!*/
         *ppDB = pDB;
-        /* and save the hande in the attrinfo structure for
-       * next time */
+        /* and save the hande in the attrinfo structure for next time */
         a->ai_dblayer = handle;
         /* don't need to update count -- we incr'd it already */
         handle->dblayer_handle_ai_backpointer = &(a->ai_dblayer);
     } else {
         /* Did not open it OK ! */
         /* Do nothing, because return value and fact that we didn't
-     * store a DB* in the attrinfo is enough
-     */
+         * store a DB* in the attrinfo is enough */
     }
     PR_Unlock(inst->inst_handle_list_mutex);
 
     if (return_value != 0) {
         /* some sort of error -- we didn't open a handle at all.
-     * decrement the refcount back to where it was.
-     */
-        __atomic_sub_fetch_8(&(a->ai_dblayer_count), 1, __ATOMIC_RELEASE);
+         * decrement the refcount back to where it was.
+         */
+        slapi_atomic_decr(&(a->ai_dblayer_count), __ATOMIC_RELEASE, ATOMIC_LONG);
     }
 
     return return_value;
@@ -2956,7 +2950,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
 int
 dblayer_release_index_file(backend *be __attribute__((unused)), struct attrinfo *a, DB *pDB __attribute__((unused)))
 {
-    __atomic_sub_fetch_8(&(a->ai_dblayer_count), 1, __ATOMIC_RELEASE);
+    slapi_atomic_decr(&(a->ai_dblayer_count), __ATOMIC_RELEASE, ATOMIC_LONG);
     return 0;
 }
 
@@ -3063,13 +3057,13 @@ dblayer_erase_index_file_ex(backend *be, struct attrinfo *a, PRBool use_lock, in
 
             dblayer_release_index_file(be, a, db);
 
-            while (__atomic_load_8(&(a->ai_dblayer_count), __ATOMIC_ACQUIRE) > 0) {
+            while (slapi_atomic_load(&(a->ai_dblayer_count), __ATOMIC_ACQUIRE, ATOMIC_LONG) > 0) {
                 /* someone is using this index file */
                 /* ASSUMPTION: you have already set the INDEX_OFFLINE flag, because
-         * you intend to mess with this index.  therefore no new requests
-         * for this indexfile should happen, so the dblayer_count should
-         * NEVER increase.
-         */
+                 * you intend to mess with this index.  therefore no new requests
+                 * for this indexfile should happen, so the dblayer_count should
+                 * NEVER increase.
+                 */
                 PR_ASSERT(a->ai_indexmask & INDEX_OFFLINE);
                 PR_Unlock(inst->inst_handle_list_mutex);
                 DS_Sleep(DBLAYER_CACHE_DELAY);
