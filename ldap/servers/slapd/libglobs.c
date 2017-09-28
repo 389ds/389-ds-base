@@ -1335,19 +1335,19 @@ static uint64_t active_threads = 0;
 void
 g_incr_active_threadcnt(void)
 {
-    slapi_atomic_incr(&active_threads, __ATOMIC_RELEASE, ATOMIC_LONG);
+    slapi_atomic_incr_64(&active_threads, __ATOMIC_RELEASE);
 }
 
 void
 g_decr_active_threadcnt(void)
 {
-    slapi_atomic_decr(&active_threads, __ATOMIC_RELEASE, ATOMIC_LONG);
+    slapi_atomic_decr_64(&active_threads, __ATOMIC_RELEASE);
 }
 
 uint64_t
 g_get_active_threadcnt(void)
 {
-    return slapi_atomic_load(&active_threads, __ATOMIC_RELEASE, ATOMIC_LONG);
+    return slapi_atomic_load_64(&active_threads, __ATOMIC_RELEASE);
 }
 
 /*
@@ -1936,7 +1936,7 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
         size = NDN_DEFAULT_SIZE;
     }
     if (apply) {
-        slapi_atomic_store(&(slapdFrontendConfig->ndn_cache_max_size), &size, __ATOMIC_RELEASE, ATOMIC_LONG);
+        slapi_atomic_store_64(&(slapdFrontendConfig->ndn_cache_max_size), size, __ATOMIC_RELEASE);
     }
 
     return retVal;
@@ -3476,7 +3476,7 @@ int32_t
 config_get_dynamic_plugins(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->dynamic_plugins), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->dynamic_plugins), __ATOMIC_ACQUIRE);
 
 }
 
@@ -3499,7 +3499,7 @@ int32_t
 config_get_cn_uses_dn_syntax_in_dns()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->cn_uses_dn_syntax_in_dns), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->cn_uses_dn_syntax_in_dns), __ATOMIC_ACQUIRE);
 }
 
 int32_t
@@ -3544,7 +3544,7 @@ config_set_onoff(const char *attrname, char *value, int32_t *configvalue, char *
         newval = LDAP_OFF;
     }
 
-    slapi_atomic_store(configvalue, &newval, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(configvalue, newval, __ATOMIC_RELEASE);
 
     return retVal;
 }
@@ -3916,7 +3916,7 @@ config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int a
         retVal = LDAP_OPERATIONS_ERROR;
     }
     if (apply) {
-        slapi_atomic_store(&(slapdFrontendConfig->threadnumber), &threadnum, __ATOMIC_RELAXED, ATOMIC_INT);
+        slapi_atomic_store_32(&(slapdFrontendConfig->threadnumber), threadnum, __ATOMIC_RELAXED);
     }
     return retVal;
 }
@@ -3925,7 +3925,7 @@ int
 config_set_maxthreadsperconn(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
-    long maxthreadnum = 0;
+    int32_t maxthreadnum = 0;
     char *endp = NULL;
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -3935,7 +3935,7 @@ config_set_maxthreadsperconn(const char *attrname, char *value, char *errorbuf, 
     }
 
     errno = 0;
-    maxthreadnum = strtol(value, &endp, 10);
+    maxthreadnum = (int32_t)strtol(value, &endp, 10);
 
     if (*endp != '\0' || errno == ERANGE || maxthreadnum < 1 || maxthreadnum > 65535) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -3945,7 +3945,7 @@ config_set_maxthreadsperconn(const char *attrname, char *value, char *errorbuf, 
     }
 
     if (apply) {
-        slapi_atomic_store(&(slapdFrontendConfig->maxthreadsperconn), &maxthreadnum, __ATOMIC_RELEASE, ATOMIC_INT);
+        slapi_atomic_store_32(&(slapdFrontendConfig->maxthreadsperconn), maxthreadnum, __ATOMIC_RELEASE);
     }
     return retVal;
 }
@@ -4083,7 +4083,7 @@ int
 config_set_ioblocktimeout(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
-    long nValue = 0;
+    int32_t nValue = 0;
     char *endp = NULL;
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4093,7 +4093,7 @@ config_set_ioblocktimeout(const char *attrname, char *value, char *errorbuf, int
     }
 
     errno = 0;
-    nValue = strtol(value, &endp, 10);
+    nValue = (int32_t)strtol(value, &endp, 10);
 
     if (*endp != '\0' || errno == ERANGE || nValue < 0) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", I/O block timeout must range from 0 to %lld",
@@ -4103,7 +4103,7 @@ config_set_ioblocktimeout(const char *attrname, char *value, char *errorbuf, int
     }
 
     if (apply) {
-        slapi_atomic_store(&(slapdFrontendConfig->ioblocktimeout), &nValue, __ATOMIC_RELEASE, ATOMIC_INT);
+        slapi_atomic_store_32(&(slapdFrontendConfig->ioblocktimeout), nValue, __ATOMIC_RELEASE);
     }
     return retVal;
 }
@@ -4607,7 +4607,7 @@ int32_t
 config_get_sasl_mapping_fallback()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->sasl_mapping_fallback), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->sasl_mapping_fallback), __ATOMIC_ACQUIRE);
 
 }
 
@@ -4615,14 +4615,14 @@ int32_t
 config_get_disk_monitoring()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->disk_monitoring), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->disk_monitoring), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_disk_logging_critical()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->disk_logging_critical), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->disk_logging_critical), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -4669,14 +4669,14 @@ int32_t
 config_get_ldapi_switch()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ldapi_switch), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ldapi_switch), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_ldapi_bind_switch()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ldapi_bind_switch), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ldapi_bind_switch), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -4695,7 +4695,7 @@ int
 config_get_ldapi_map_entries()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ldapi_map_entries), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ldapi_map_entries), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -4765,7 +4765,7 @@ int32_t
 config_get_slapi_counters()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->slapi_counters), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->slapi_counters), __ATOMIC_ACQUIRE);
 
 }
 
@@ -4948,7 +4948,7 @@ int32_t
 config_get_pw_change(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_change), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_change), __ATOMIC_ACQUIRE);
 }
 
 
@@ -4956,7 +4956,7 @@ int32_t
 config_get_pw_history(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_history), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_history), __ATOMIC_ACQUIRE);
 }
 
 
@@ -4964,21 +4964,21 @@ int32_t
 config_get_pw_must_change(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_must_change), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_must_change), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_allow_hashed_pw(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->allow_hashed_pw), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->allow_hashed_pw), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_pw_syntax(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_syntax), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_syntax), __ATOMIC_ACQUIRE);
 }
 
 
@@ -5167,21 +5167,21 @@ int32_t
 config_get_pw_is_global_policy(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_is_global_policy), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_is_global_policy), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_pw_is_legacy_policy(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_is_legacy), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_is_legacy), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_pw_exp(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_exp), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_exp), __ATOMIC_ACQUIRE);
 }
 
 
@@ -5189,14 +5189,14 @@ int32_t
 config_get_pw_unlock(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_unlock), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_unlock), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_pw_lockout()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->pw_policy.pw_lockout), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->pw_policy.pw_lockout), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -5216,112 +5216,112 @@ int32_t
 config_get_lastmod()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->lastmod), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->lastmod), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_enquote_sup_oc()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->enquote_sup_oc), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->enquote_sup_oc), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_nagle(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->nagle), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->nagle), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_accesscontrol(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->accesscontrol), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->accesscontrol), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_return_exact_case(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->return_exact_case), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->return_exact_case), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_result_tweak(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->result_tweak), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->result_tweak), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_moddn_aci(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->moddn_aci), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->moddn_aci), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_security(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->security), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->security), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 slapi_config_get_readonly(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->readonly), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->readonly), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_schemacheck(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->schemacheck), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->schemacheck), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_schemamod(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->schemamod), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->schemamod), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_syntaxcheck(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->syntaxcheck), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->syntaxcheck), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_syntaxlogging(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->syntaxlogging), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->syntaxlogging), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_dn_validate_strict(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->dn_validate_strict), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->dn_validate_strict), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_ds4_compatible_schema(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ds4_compatible_schema), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ds4_compatible_schema), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_schema_ignore_trailing_spaces(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->schema_ignore_trailing_spaces), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->schema_ignore_trailing_spaces), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -5405,7 +5405,7 @@ config_get_threadnumber(void)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int32_t retVal;
 
-    retVal = slapi_atomic_load(&(slapdFrontendConfig->threadnumber), __ATOMIC_RELAXED, ATOMIC_INT);
+    retVal = slapi_atomic_load_32(&(slapdFrontendConfig->threadnumber), __ATOMIC_RELAXED);
 
     if (retVal <= 0) {
         retVal = util_get_hardware_threads();
@@ -5423,7 +5423,7 @@ int32_t
 config_get_maxthreadsperconn()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->maxthreadsperconn), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->maxthreadsperconn), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -5455,7 +5455,7 @@ int32_t
 config_get_ioblocktimeout()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ioblocktimeout), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ioblocktimeout), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -5772,21 +5772,21 @@ int32_t
 config_get_unauth_binds_switch(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->allow_unauth_binds), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->allow_unauth_binds), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_require_secure_binds(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->require_secure_binds), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->require_secure_binds), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_anon_access_switch(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->allow_anon_access), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->allow_anon_access), __ATOMIC_ACQUIRE);
 }
 
 int
@@ -6028,7 +6028,7 @@ int32_t
 config_get_minssf_exclude_rootdse()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->minssf_exclude_rootdse), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->minssf_exclude_rootdse), __ATOMIC_ACQUIRE);
 
 }
 
@@ -6057,7 +6057,7 @@ config_set_max_filter_nest_level(const char *attrname, char *value, char *errorb
         return retVal;
     }
 
-    slapi_atomic_store(&(slapdFrontendConfig->max_filter_nest_level), &level, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->max_filter_nest_level), level, __ATOMIC_RELEASE);
     return retVal;
 }
 
@@ -6065,28 +6065,28 @@ int32_t
 config_get_max_filter_nest_level()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->max_filter_nest_level), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->max_filter_nest_level), __ATOMIC_ACQUIRE);
 }
 
 uint64_t
 config_get_ndn_cache_size()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ndn_cache_max_size), __ATOMIC_ACQUIRE, ATOMIC_LONG);
+    return slapi_atomic_load_64(&(slapdFrontendConfig->ndn_cache_max_size), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_ndn_cache_enabled()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ndn_cache_enabled), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ndn_cache_enabled), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_return_orig_type_switch()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->return_orig_type), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->return_orig_type), __ATOMIC_ACQUIRE);
 }
 
 char *
@@ -6788,7 +6788,7 @@ int32_t
 config_get_force_sasl_external(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->force_sasl_external), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->force_sasl_external), __ATOMIC_ACQUIRE);
 }
 
 int32_t
@@ -6810,7 +6810,7 @@ int32_t
 config_get_entryusn_global(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->entryusn_global), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->entryusn_global), __ATOMIC_ACQUIRE);
 }
 
 int32_t
@@ -7048,21 +7048,21 @@ int32_t
 config_get_enable_turbo_mode(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->enable_turbo_mode), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->enable_turbo_mode), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_connection_nocanon(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->connection_nocanon), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->connection_nocanon), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_plugin_logging(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->plugin_logging), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->plugin_logging), __ATOMIC_ACQUIRE);
 }
 
 int32_t
@@ -7075,21 +7075,21 @@ int32_t
 config_get_unhashed_pw_switch()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->unhashed_pw_switch), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->unhashed_pw_switch), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_ignore_time_skew(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->ignore_time_skew), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->ignore_time_skew), __ATOMIC_ACQUIRE);
 }
 
 int32_t
 config_get_global_backend_lock()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapi_atomic_load(&(slapdFrontendConfig->global_backend_lock), __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return slapi_atomic_load_32(&(slapdFrontendConfig->global_backend_lock), __ATOMIC_ACQUIRE);
 }
 
 int32_t
@@ -7185,7 +7185,7 @@ config_set_connection_buffer(const char *attrname, char *value, char *errorbuf, 
     }
 
     val = atoi(value);
-    slapi_atomic_store(&(slapdFrontendConfig->connection_buffer), &val, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->connection_buffer), val, __ATOMIC_RELEASE);
 
     return retVal;
 }
@@ -7209,7 +7209,7 @@ config_set_listen_backlog_size(const char *attrname, char *value, char *errorbuf
     }
 
     if (apply) {
-        slapi_atomic_store(&(slapdFrontendConfig->listen_backlog_size), &size, __ATOMIC_RELEASE, ATOMIC_INT);
+        slapi_atomic_store_32(&(slapdFrontendConfig->listen_backlog_size), size, __ATOMIC_RELEASE);
     }
     return LDAP_SUCCESS;
 }
@@ -7622,7 +7622,7 @@ config_set_accesslog_enabled(int value)
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
     errorbuf[0] = '\0';
 
-    slapi_atomic_store(&(slapdFrontendConfig->accesslog_logging_enabled), &value, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->accesslog_logging_enabled), value, __ATOMIC_RELEASE);
     if (value) {
         log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
     } else {
@@ -7640,7 +7640,7 @@ config_set_auditlog_enabled(int value)
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
     errorbuf[0] = '\0';
 
-    slapi_atomic_store(&(slapdFrontendConfig->auditlog_logging_enabled), &value, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->auditlog_logging_enabled), value, __ATOMIC_RELEASE);
     if (value) {
         log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
     } else {
@@ -7658,7 +7658,7 @@ config_set_auditfaillog_enabled(int value)
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
     errorbuf[0] = '\0';
 
-    slapi_atomic_store(&(slapdFrontendConfig->auditfaillog_logging_enabled), &value, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->auditfaillog_logging_enabled), value, __ATOMIC_RELEASE);
     if (value) {
         log_set_logging(CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDITFAIL_LOG, errorbuf, CONFIG_APPLY);
     } else {
@@ -7736,7 +7736,7 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int max = 80 * (sizeof(size_t) / 4);
-    int mxfast;
+    int32_t mxfast;
     char *endp = NULL;
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
@@ -7749,7 +7749,7 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
                               value, CONFIG_MALLOC_MXFAST, max);
         return LDAP_OPERATIONS_ERROR;
     }
-    slapi_atomic_store(&(slapdFrontendConfig->malloc_mxfast), &mxfast, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->malloc_mxfast), mxfast, __ATOMIC_RELEASE);
 
     if ((mxfast >= 0) && (mxfast <= max)) {
         mallopt(M_MXFAST, mxfast);
@@ -7775,7 +7775,7 @@ int
 config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused)))
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int trim_threshold;
+    int32_t trim_threshold;
     char *endp = NULL;
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
@@ -7789,7 +7789,7 @@ config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorb
         return LDAP_OPERATIONS_ERROR;
     }
 
-    slapi_atomic_store(&(slapdFrontendConfig->malloc_trim_threshold), &trim_threshold, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->malloc_trim_threshold), trim_threshold, __ATOMIC_RELEASE);
 
     if (trim_threshold >= -1) {
         mallopt(M_TRIM_THRESHOLD, trim_threshold);
@@ -7836,7 +7836,7 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
         return LDAP_OPERATIONS_ERROR;
     }
 
-    slapi_atomic_store(&(slapdFrontendConfig->malloc_mmap_threshold), &mmap_threshold, __ATOMIC_RELEASE, ATOMIC_INT);
+    slapi_atomic_store_32(&(slapdFrontendConfig->malloc_mmap_threshold), mmap_threshold, __ATOMIC_RELEASE);
 
     if ((mmap_threshold >= 0) && (mmap_threshold <= max)) {
         mallopt(M_MMAP_THRESHOLD, mmap_threshold);

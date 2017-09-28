@@ -295,53 +295,41 @@ slapi_counter_get_value(Slapi_Counter *counter)
  * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, or __ATOMIC_SEQ_CST
  *
  *     See: https://gcc.gnu.org/onlinedocs/gcc-4.9.2/gcc/_005f_005fatomic-Builtins.html
- *
- * type_size - ATOMIC_GENERIC, ATOMIC_INT, or ATOMIC_LONG, see slapi-plugin.h for more info
- *
- * Future:
- *    If we need to support ATOMIC_INT128 (not available on 32bit systems):
- *         __atomic_store_16((uint64_t *)&ptr, val, memorder);
- *         __atomic_load_16((uint64_t *)&ptr, memorder);
- *         __atomic_add_fetch_16((uint64_t *)&ptr, 1, memorder);
- *         __atomic_sub_fetch_16((uint64_t *)&ptr, 1, memorder);
  */
 
 /*
- * "val" must be either int32_t or uint64_t
+ * atomic store functions (32bit and 64bit)
  */
 void
-slapi_atomic_store(void *ptr, void *val, int memorder, int type_size)
+slapi_atomic_store_32(int32_t *ptr, int32_t val, int memorder)
 {
 #ifdef ATOMIC_64BIT_OPERATIONS
-    if (type_size == ATOMIC_INT) {
-        __atomic_store_4((int32_t *)ptr, *(int32_t *)val, memorder);
-    } else if (type_size == ATOMIC_LONG) {
-        __atomic_store_8((uint64_t *)ptr, *(uint64_t *)val, memorder);
-    } else {
-        /* ATOMIC_GENERIC or unknown size */
-        __atomic_store((uint64_t *)&ptr, (uint64_t *)val, memorder);
-    }
+    __atomic_store_4(ptr, val, memorder);
 #else
     PRInt32 *pr_ptr = (PRInt32 *)ptr;
-    PR_AtomicSet(pr_ptr, *(PRInt32 *)val);
+    PR_AtomicSet(pr_ptr, (PRInt32)val);
 #endif
 }
 
-uint64_t
-slapi_atomic_load(void *ptr, int memorder, int type_size)
+void
+slapi_atomic_store_64(uint64_t *ptr, uint64_t val, int memorder)
 {
 #ifdef ATOMIC_64BIT_OPERATIONS
-    uint64_t ret;
+    __atomic_store_8(ptr, val, memorder);
+#else
+    PRInt32 *pr_ptr = (PRInt32 *)ptr;
+    PR_AtomicSet(pr_ptr, (PRInt32)val);
+#endif
+}
 
-    if (type_size == ATOMIC_INT) {
-        return __atomic_load_4((int32_t *)ptr, memorder);
-    } else if (type_size == ATOMIC_LONG) {
-        return __atomic_load_8((uint64_t *)ptr, memorder);
-    } else {
-        /* ATOMIC_GENERIC or unknown size */
-        __atomic_load((uint64_t *)ptr, &ret, memorder);
-        return ret;
-    }
+/*
+ * atomic load functions (32bit and 64bit)
+ */
+int32_t
+slapi_atomic_load_32(int32_t *ptr, int memorder)
+{
+#ifdef ATOMIC_64BIT_OPERATIONS
+    return __atomic_load_4(ptr, memorder);
 #else
     PRInt32 *pr_ptr = (PRInt32 *)ptr;
     return PR_AtomicAdd(pr_ptr, 0);
@@ -349,17 +337,24 @@ slapi_atomic_load(void *ptr, int memorder, int type_size)
 }
 
 uint64_t
-slapi_atomic_incr(void *ptr, int memorder, int type_size)
+slapi_atomic_load_64(uint64_t *ptr, int memorder)
 {
 #ifdef ATOMIC_64BIT_OPERATIONS
-    if (type_size == ATOMIC_INT) {
-        return __atomic_add_fetch_4((int32_t *)ptr, 1, memorder);
-    } else if (type_size == ATOMIC_LONG) {
-        return __atomic_add_fetch_8((uint64_t *)ptr, 1, memorder);
-    } else {
-        /* ATOMIC_GENERIC or unknown size */
-        return __atomic_add_fetch((uint64_t *)ptr, 1, memorder);
-    }
+    return __atomic_load_8(ptr, memorder);
+#else
+    PRInt32 *pr_ptr = (PRInt32 *)ptr;
+    return PR_AtomicAdd(pr_ptr, 0);
+#endif
+}
+
+/*
+ * atomic increment functions (32bit and 64bit)
+ */
+int32_t
+slapi_atomic_incr_32(int32_t *ptr, int memorder)
+{
+#ifdef ATOMIC_64BIT_OPERATIONS
+    return __atomic_add_fetch_4(ptr, 1, memorder);
 #else
     PRInt32 *pr_ptr = (PRInt32 *)ptr;
     return PR_AtomicIncrement(pr_ptr);
@@ -367,17 +362,35 @@ slapi_atomic_incr(void *ptr, int memorder, int type_size)
 }
 
 uint64_t
-slapi_atomic_decr(void *ptr, int memorder, int type_size)
+slapi_atomic_incr_64(uint64_t *ptr, int memorder)
 {
 #ifdef ATOMIC_64BIT_OPERATIONS
-    if (type_size == ATOMIC_INT) {
-        return __atomic_sub_fetch_4((int32_t *)ptr, 1, memorder);
-    } else if (type_size == ATOMIC_LONG) {
-        return __atomic_sub_fetch_8((uint64_t *)ptr, 1, memorder);
-    } else {
-        /* ATOMIC_GENERIC or unknown size */
-        return __atomic_sub_fetch((uint64_t *)ptr, 1, memorder);
-    }
+    return __atomic_add_fetch_8(ptr, 1, memorder);
+#else
+    PRInt32 *pr_ptr = (PRInt32 *)ptr;
+    return PR_AtomicIncrement(pr_ptr);
+#endif
+}
+
+/*
+ * atomic decrement functions (32bit and 64bit)
+ */
+int32_t
+slapi_atomic_decr_32(int32_t *ptr, int memorder)
+{
+#ifdef ATOMIC_64BIT_OPERATIONS
+    return __atomic_sub_fetch_4(ptr, 1, memorder);
+#else
+    PRInt32 *pr_ptr = (PRInt32 *)ptr;
+    return PR_AtomicDecrement(pr_ptr);
+#endif
+}
+
+uint64_t
+slapi_atomic_decr_64(uint64_t *ptr, int memorder)
+{
+#ifdef ATOMIC_64BIT_OPERATIONS
+    return __atomic_sub_fetch_8(ptr, 1, memorder);
 #else
     PRInt32 *pr_ptr = (PRInt32 *)ptr;
     return PR_AtomicDecrement(pr_ptr);
