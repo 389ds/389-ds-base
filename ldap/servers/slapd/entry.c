@@ -2249,14 +2249,14 @@ static int32_t g_virtual_watermark = 0; /* good enough to init */
 int
 slapi_entry_vattrcache_watermark_isvalid(const Slapi_Entry *e)
 {
-    return e->e_virtual_watermark == slapi_atomic_load(&g_virtual_watermark, __ATOMIC_ACQUIRE, ATOMIC_INT);
+    return e->e_virtual_watermark == slapi_atomic_load_32(&g_virtual_watermark, __ATOMIC_ACQUIRE);
 
 }
 
 void
 slapi_entry_vattrcache_watermark_set(Slapi_Entry *e)
 {
-    e->e_virtual_watermark = slapi_atomic_load(&g_virtual_watermark, __ATOMIC_ACQUIRE, ATOMIC_INT);
+    e->e_virtual_watermark = slapi_atomic_load_32(&g_virtual_watermark, __ATOMIC_ACQUIRE);
 }
 
 void
@@ -2269,8 +2269,8 @@ void
 slapi_entrycache_vattrcache_watermark_invalidate()
 {
     /* Make sure the value is never 0 */
-    if (slapi_atomic_incr(&g_virtual_watermark, __ATOMIC_RELEASE, ATOMIC_INT) == 0) {
-        slapi_atomic_incr(&g_virtual_watermark, __ATOMIC_RELEASE, ATOMIC_INT);
+    if (slapi_atomic_incr_32(&g_virtual_watermark, __ATOMIC_RELEASE) == 0) {
+        slapi_atomic_incr_32(&g_virtual_watermark, __ATOMIC_RELEASE);
     }
 }
 

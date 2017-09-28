@@ -2880,7 +2880,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
     /* it's like a semaphore -- when count > 0, any file handle that's in
      * the attrinfo will remain valid from here on.
      */
-    slapi_atomic_incr(&(a->ai_dblayer_count), __ATOMIC_RELEASE, ATOMIC_LONG);
+    slapi_atomic_incr_64(&(a->ai_dblayer_count), __ATOMIC_RELEASE);
 
     if (a->ai_dblayer && ((dblayer_handle *)(a->ai_dblayer))->dblayer_dbp) {
         /* This means that the pointer is valid, so we should return it. */
@@ -2938,7 +2938,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
         /* some sort of error -- we didn't open a handle at all.
          * decrement the refcount back to where it was.
          */
-        slapi_atomic_decr(&(a->ai_dblayer_count), __ATOMIC_RELEASE, ATOMIC_LONG);
+        slapi_atomic_decr_64(&(a->ai_dblayer_count), __ATOMIC_RELEASE);
     }
 
     return return_value;
@@ -2950,7 +2950,7 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
 int
 dblayer_release_index_file(backend *be __attribute__((unused)), struct attrinfo *a, DB *pDB __attribute__((unused)))
 {
-    slapi_atomic_decr(&(a->ai_dblayer_count), __ATOMIC_RELEASE, ATOMIC_LONG);
+    slapi_atomic_decr_64(&(a->ai_dblayer_count), __ATOMIC_RELEASE);
     return 0;
 }
 
@@ -3057,7 +3057,7 @@ dblayer_erase_index_file_ex(backend *be, struct attrinfo *a, PRBool use_lock, in
 
             dblayer_release_index_file(be, a, db);
 
-            while (slapi_atomic_load(&(a->ai_dblayer_count), __ATOMIC_ACQUIRE, ATOMIC_LONG) > 0) {
+            while (slapi_atomic_load_64(&(a->ai_dblayer_count), __ATOMIC_ACQUIRE) > 0) {
                 /* someone is using this index file */
                 /* ASSUMPTION: you have already set the INDEX_OFFLINE flag, because
                  * you intend to mess with this index.  therefore no new requests
