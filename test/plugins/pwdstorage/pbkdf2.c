@@ -69,12 +69,12 @@ test_plugin_pwdstorage_pbkdf2_rounds(void **state __attribute__((unused)))
     /*
      * On a very slow system, we get the default min rounds out.
      */
-    assert_true(pbkdf2_sha256_calculate_iterations(1000000000) == 10000);
+    assert_true(pbkdf2_sha256_calculate_iterations(10000000000) == 2048);
     /*
      * On a "fast" system, we should see more rounds.
      */
-    assert_true(pbkdf2_sha256_calculate_iterations(200000000) == 10000);
-    assert_true(pbkdf2_sha256_calculate_iterations(100000000) == 20000);
-    assert_true(pbkdf2_sha256_calculate_iterations(50000000) == 40000);
+    assert_true(pbkdf2_sha256_calculate_iterations(800000000) == 2048);
+    assert_true(pbkdf2_sha256_calculate_iterations(5000000) == 10000);
+    assert_true(pbkdf2_sha256_calculate_iterations(2500000) == 20000);
 #endif
 }

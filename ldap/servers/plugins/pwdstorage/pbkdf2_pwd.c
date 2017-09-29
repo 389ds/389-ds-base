@@ -43,24 +43,35 @@
  *
  * At the same time we MUST increase this with each version of Directory Server
  * This value is written into the hash, so it's safe to change.
+ *
+ * So let's assume that we have 72 threads, and we want to process say ... 10,000 binds per
+ * second. At 72 threads, that's 138 ops per second per thread. This means each op have to take
+ * 7.2 milliseconds to complete. We know binds really are quicker, but for now, lets say this can
+ * be 2 milliseconds to time for.
  */
 
-#define PBKDF2_MILLISECONDS 40
+#define PBKDF2_MILLISECONDS 2
 
-static PRUint32 PBKDF2_ITERATIONS = 30000;
+/*
+ * We would like to raise this, but today due to NSS issues we have to be conservative. Regardless
+ * it's still better than ssha512.
+ */
+#define PBKDF2_MINIMUM 2048
+
+static uint32_t PBKDF2_ITERATIONS = 8192;
 
 static const char *schemeName = PBKDF2_SHA256_SCHEME_NAME;
-static const PRUint32 schemeNameLength = PBKDF2_SHA256_NAME_LEN;
+static const uint32_t schemeNameLength = PBKDF2_SHA256_NAME_LEN;
 
 /* For requesting the slot which supports these types */
 static CK_MECHANISM_TYPE mechanism_array[] = {CKM_SHA256_HMAC, CKM_PKCS5_PBKD2};
 
 /* Used in our startup benching code */
-#define PBKDF2_BENCH_ROUNDS 50000
-#define PBKDF2_BENCH_LOOP 10
+#define PBKDF2_BENCH_ROUNDS 25000
+#define PBKDF2_BENCH_LOOP 8
 
 void
-pbkdf2_sha256_extract(char *hash_in, SECItem *salt, PRUint32 *iterations)
+pbkdf2_sha256_extract(char *hash_in, SECItem *salt, uint32_t *iterations)
 {
     /*
      * This will take the input of hash_in (generated from pbkdf2_sha256_hash) and
@@ -78,7 +89,7 @@ pbkdf2_sha256_extract(char *hash_in, SECItem *salt, PRUint32 *iterations)
 }
 
 SECStatus
-pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, PRUint32 iterations)
+pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, uint32_t iterations)
 {
     SECItem *result = NULL;
     SECAlgorithmID *algid = NULL;
@@ -96,7 +107,7 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
             PK11_FreeSlot(slot);
             if (symkey == NULL) {
                 /* We try to get the Error here but NSS has two or more error interfaces, and sometimes it uses none of them. */
-                PRInt32 status = PORT_GetError();
+                int32_t status = PORT_GetError();
                 slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to retrieve symkey from NSS. Error code might be %d ???\n", status);
                 slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "The most likely cause is your system has nss 3.21 or lower. PBKDF2 requires nss 3.22 or higher.\n");
                 return SECFailure;
@@ -131,7 +142,7 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
 }
 
 char *
-pbkdf2_sha256_pw_enc_rounds(const char *pwd, PRUint32 iterations)
+pbkdf2_sha256_pw_enc_rounds(const char *pwd, uint32_t iterations)
 {
     char hash[PBKDF2_TOTAL_LENGTH];
     size_t encsize = 3 + schemeNameLength + LDIF_BASE64_LEN(PBKDF2_TOTAL_LENGTH);
@@ -186,16 +197,16 @@ pbkdf2_sha256_pw_enc(const char *pwd)
     return pbkdf2_sha256_pw_enc_rounds(pwd, PBKDF2_ITERATIONS);
 }
 
-PRInt32
+int32_t
 pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd)
 {
-    PRInt32 result = 1; /* Default to fail. */
+    int32_t result = 1; /* Default to fail. */
     char dbhash[PBKDF2_TOTAL_LENGTH] = {0};
     char userhash[PBKDF2_HASH_LENGTH] = {0};
-    PRUint32 dbpwd_len = strlen(dbpwd);
+    int32_t dbpwd_len = strlen(dbpwd);
     SECItem saltItem;
     SECItem passItem;
-    PRUint32 iterations = 0;
+    uint32_t iterations = 0;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Comparing password\n");
 
@@ -259,7 +270,7 @@ pbkdf2_sha256_benchmark_iterations()
     return time_nsec;
 }
 
-PRUint32
+uint32_t
 pbkdf2_sha256_calculate_iterations(uint64_t time_nsec)
 {
     /*
@@ -286,10 +297,10 @@ pbkdf2_sha256_calculate_iterations(uint64_t time_nsec)
     /*
      * Finally, we make the rounds in terms of thousands, and cast it.
      */
-    PRUint32 final_rounds = thou_rounds * 1000;
+    uint32_t final_rounds = thou_rounds * 1000;
 
-    if (final_rounds < 10000) {
-        final_rounds = 10000;
+    if (final_rounds < PBKDF2_MINIMUM) {
+        final_rounds = PBKDF2_MINIMUM;
     }
 
     return final_rounds;
@@ -305,7 +316,7 @@ pbkdf2_sha256_start(Slapi_PBlock *pb __attribute__((unused)))
     /* set it globally */
     PBKDF2_ITERATIONS = pbkdf2_sha256_calculate_iterations(time_nsec);
     /* Make a note of it. */
-    slapi_log_err(SLAPI_LOG_PLUGIN, (char *)schemeName, "Based on CPU performance, chose %" PRIu32 " rounds\n", PBKDF2_ITERATIONS);
+    slapi_log_err(SLAPI_LOG_INFO, (char *)schemeName, "Based on CPU performance, chose %" PRIu32 " rounds\n", PBKDF2_ITERATIONS);
     return 0;
 }
 
