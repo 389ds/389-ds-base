@@ -923,6 +923,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
             if (pw_encodevals_ext(pb, sdn, va)) {
                 slapi_log_err(SLAPI_LOG_CRIT, "op_shared_modify", "Unable to hash userPassword attribute for %s.\n", slapi_entry_get_dn_const(e));
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to store attribute \"userPassword\" correctly\n", 0, NULL);
+                valuearray_free(&va);
                 goto free_and_return;
             }
 

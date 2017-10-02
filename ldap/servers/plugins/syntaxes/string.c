@@ -391,6 +391,7 @@ bailout:
     if (free_re) {
         slapi_re_free(re);
     }
+    slapi_ch_free_string(&alt);
     slapi_ch_free((void **)&tmpbuf); /* NULL is fine */
     slapi_ch_free((void **)&bigpat); /* NULL is fine */
 

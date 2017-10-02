@@ -153,7 +153,7 @@ referrals_free(void)
 struct berval **
 ref_adjust(Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn, int is_reference)
 {
-    int i, len, scope;
+    int i, len, scope = 0;
     Slapi_DN *sdn = NULL;
     char *p, *opdn_norm;
     struct berval **urlscopy;
@@ -195,9 +195,9 @@ ref_adjust(Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn, int i
 
     for (i = 0; urls[i] != NULL; ++i) {
         /*
-     * duplicate the URL, stripping off the label if there is one and
-     * leaving extra room for "??base" in case we need to append that.
-     */
+         * duplicate the URL, stripping off the label if there is one and
+         * leaving extra room for "??base" in case we need to append that.
+         */
         urlscopy[i] = (struct berval *)slapi_ch_malloc(
             sizeof(struct berval));
         if ((p = strchr(urls[i]->bv_val, ' ')) == NULL) {
@@ -210,16 +210,16 @@ ref_adjust(Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn, int i
         urlscopy[i]->bv_val[len] = '\0';
 
         /*
-     * adjust the baseDN as needed and set the length
-     */
+         * adjust the baseDN as needed and set the length
+         */
         adjust_referral_basedn(&urlscopy[i]->bv_val, refsdn,
                                opdn_norm, is_reference);
         urlscopy[i]->bv_len = strlen(urlscopy[i]->bv_val);
 
         /*
-     * if we are dealing with a continuation reference that resulted
-     * from a one-level search, add a scope of base to the URL.
-     */
+         * if we are dealing with a continuation reference that resulted
+         * from a one-level search, add a scope of base to the URL.
+         */
         if (is_reference && operation_get_type(op) == SLAPI_OPERATION_SEARCH &&
             scope == LDAP_SCOPE_ONELEVEL) {
             strcat(urlscopy[i]->bv_val, "??base");

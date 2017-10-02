@@ -159,7 +159,7 @@ dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversion, c
         }
         (void)PR_Close(prfd);
 
-        if (*dataversion == NULL) {
+        if (dataversion == NULL || *dataversion == NULL) {
             slapi_log_err(SLAPI_LOG_DEBUG, "dbversion_read", "dataversion not present in \"%s\"\n", filename);
         }
         if (*ldbmversion == NULL) {

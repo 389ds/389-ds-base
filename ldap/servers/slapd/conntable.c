@@ -347,7 +347,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 
         PR_EnterMonitor(ct->c[i].c_mutex);
         if (ct->c[i].c_sd != SLAPD_INVALID_SOCKET) {
-            char buf2[20];
+            char buf2[SLAPI_TIMESTAMP_BUFSIZE+1];
             size_t lendn = ct->c[i].c_dn ? strlen(ct->c[i].c_dn) : 6; /* "NULLDN" */
             size_t lenip = ct->c[i].c_ipaddr ? strlen(ct->c[i].c_ipaddr) : 0;
             size_t lenconn = 1;

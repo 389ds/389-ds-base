@@ -4242,7 +4242,7 @@ bail:
 int
 slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
 {
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb;
     Slapi_Entry **entries = NULL;
     int rc = LDAP_SUCCESS;
     char **search_attrs = NULL; /* used by search */
@@ -4251,6 +4251,7 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
         return rc;
     }
 
+    pb = slapi_pblock_new();
     charray_add(&search_attrs, slapi_ch_strdup(type));
 
     /* cn=plugin default config,cn=config */

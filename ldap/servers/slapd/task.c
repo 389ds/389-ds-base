@@ -278,6 +278,10 @@ slapi_task_log_notice(Slapi_Task *task, char *format, ...)
     char buffer[LOG_BUFFER];
     size_t len;
 
+    if (task == NULL) {
+        return;
+    }
+
     va_start(ap, format);
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
     va_end(ap);
@@ -1089,11 +1093,11 @@ task_export_thread(void *arg)
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
     g_incr_active_threadcnt();
-    for (count = 0, inp = instance_names; *inp; inp++, count++)
+    for (count = 0, inp = instance_names; inp && *inp; inp++, count++)
         ;
     slapi_task_begin(task, count);
 
-    for (inp = instance_names; *inp; inp++) {
+    for (inp = instance_names; inp && *inp; inp++) {
         int release_me = 0;
         /* lookup the backend */
         be = slapi_be_select_by_instance_name((const char *)*inp);
