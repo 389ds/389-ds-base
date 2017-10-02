@@ -21,6 +21,7 @@
 #include "ldap.h"
 #include "ldif.h"
 #include <ctype.h>
+#include <errno.h>
 
 static char *agentx_master = NULL;
 static char *agent_logdir = NULL;
@@ -54,9 +55,17 @@ main(int argc, char *argv[])
     {
         char *s = getenv("DEBUG_SLEEP");
         if ((s != NULL) && isdigit(*s)) {
-            int secs = atoi(s);
+            char *endp = NULL;
+            long secs;
+            errno = 0;
+
             printf("%s pid is %d\n", argv[0], getpid());
-            sleep(secs);
+            secs = strtol(s, &endp, 10);
+            if (*endp != '\0' || errno == ERANGE) {
+                sleep(10);
+            } else {
+                sleep(secs);
+            }
         }
     }
 

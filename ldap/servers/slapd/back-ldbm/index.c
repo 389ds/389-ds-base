@@ -1063,6 +1063,7 @@ index_read_ext_allids(
             /* The database might not exist. We have to assume it means empty set */
             slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "Failed to access idl index for %s\n", basetype);
             slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "Assuming %s has no index values\n", basetype);
+            idl_free(&idl);
             idl = idl_alloc(0);
             break;
         } else {

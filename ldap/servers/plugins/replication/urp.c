@@ -856,7 +856,7 @@ urp_post_delete_operation(Slapi_PBlock *pb)
 static int
 urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
 {
-    Slapi_PBlock *add_pb = slapi_pblock_new();
+    Slapi_PBlock *add_pb;
     Slapi_Entry *cenotaph = NULL;
     Slapi_Entry *pre_entry = NULL;
     int ret = 0;
@@ -886,6 +886,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
     slapi_rdn_remove_attr (rdn, SLAPI_ATTR_UNIQUEID );
     slapi_rdn_add(rdn, "cenotaphID", uniqueid);
     newdn = slapi_ch_smprintf("%s,%s", slapi_rdn_get_rdn(rdn), parentdn);
+    slapi_rdn_free(&rdn);
     slapi_ch_free_string(&parentdn);
     /* slapi_sdn_free(&pre_sdn); */
 
@@ -902,6 +903,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
 
     slapi_log_err(SLAPI_LOG_REPL, sessionid,
                    "urp_fixup_add_cenotaph - addinng cenotaph: %s \n", newdn);
+    add_pb = slapi_pblock_new();
     slapi_pblock_init(add_pb);
 
     slapi_add_entry_internal_set_pb(add_pb,
@@ -1661,8 +1663,8 @@ urp_conflict_to_glue (char *sessionid, const Slapi_Entry *entry, Slapi_DN *paren
                            "urp_conflict_to_glue failed(%d) - %s --> %s\n", op_result, basedn, newrdn);
             rc = 1;
         }
-        slapi_ch_free ( (void**)&newrdn );
     }
+    slapi_rdn_free(&parentrdn);
     return rc;
 }
 /* 
@@ -2166,11 +2168,11 @@ mod_objectclass_attr(const char *uniqueid, const Slapi_DN *entrysdn, const Slapi
 {
     Slapi_Mods smods;
     int op_result;
-    char csnstr[CSN_STRSIZE+1];
+    char csnstr[CSN_STRSIZE+1] = {0};
 
     slapi_mods_init(&smods, 3);
     slapi_mods_add(&smods, LDAP_MOD_ADD, "objectclass", strlen("ldapsubentry"),"ldapsubentry");
-    slapi_mods_add(&smods, LDAP_MOD_REPLACE, "conflictcsn", strlen(csnstr),csn_as_string(opcsn, PR_FALSE, csnstr));
+    slapi_mods_add(&smods, LDAP_MOD_REPLACE, "conflictcsn", CSN_STRSIZE, csn_as_string(opcsn, PR_FALSE, csnstr));
     op_result = urp_fixup_modify_entry(uniqueid, entrysdn, opcsn, &smods, 0);
     slapi_mods_done(&smods);
     if (op_result == LDAP_TYPE_OR_VALUE_EXISTS) {

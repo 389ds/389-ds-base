@@ -601,6 +601,7 @@ sendPostReq(PRFileDesc *fd, const char *path, httpheader **httpheaderArray, char
     if (path) {
         path_len = strlen(path);
     } else {
+        path = "";
         path_len = 0;
     }
 
