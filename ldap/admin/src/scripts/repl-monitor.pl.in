@@ -1053,6 +1053,10 @@ sub add_server
 	# Remove the domain name from the host name
 	my ($hostnode) = $host;
 	$hostnode = $1 if $host =~ /^(.+?)\./;
+	if ($hostnode eq "*") {
+		# handle wild card correctly for regex
+		$hostnode = "";
+	}
 
 	# new host:port
 	if (!$binddn   || $binddn eq ""   || $binddn eq "*"   ||
