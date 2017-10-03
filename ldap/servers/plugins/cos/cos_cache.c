@@ -2094,7 +2094,6 @@ cos_cache_vattr_types(vattr_sp_handle *handle __attribute__((unused)),
     int index = 0;
     cosCache *pCache;
     char *lastattr = "thisisfakeforcos";
-    int props = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_vattr_types\n");
 
@@ -2105,6 +2104,7 @@ cos_cache_vattr_types(vattr_sp_handle *handle __attribute__((unused)),
     }
 
     while (index < pCache->attrCount) {
+        int props = 0;
         if (slapi_utf8casecmp(
                 (unsigned char *)pCache->ppAttrIndex[index]->pAttrName,
                 (unsigned char *)lastattr)) {
