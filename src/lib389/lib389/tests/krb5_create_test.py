@@ -124,7 +124,7 @@ def test_gssapi(topology, add_user):
         conn0.sasl_interactive_bind_s('', sasl)
     except Exception as e:
         print("Exception (expected): %s" % type(e).__name__)
-        print('Desc ' + e.message['desc'])
+        print('Desc ' + str(e['desc']))
         assert isinstance(e, ldap.INVALID_CREDENTIALS)
 
     # undo
@@ -136,7 +136,7 @@ def test_gssapi(topology, add_user):
         conn0.sasl_interactive_bind_s('', sasl)
     except Exception as e:
         print("Exception (expected): %s" % type(e).__name__)
-        print('Desc ' + e.message['desc'])
+        print('Desc ' + str(e['desc']))
         assert isinstance(e, ldap.INVALID_CREDENTIALS)
 
     print("SUCCESS")

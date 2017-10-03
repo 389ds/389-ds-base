@@ -85,7 +85,7 @@ if __name__ == '__main__':
             result = args.func(inst, log, args)
         except Exception as e:
             log.debug(e, exc_info=True)
-            log.error("Error: %s" % e.message)
+            log.error("Error: %s" % str(e))
     disconnect_instance(inst)
 
     if result is True:

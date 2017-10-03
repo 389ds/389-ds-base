@@ -70,7 +70,7 @@ By setting this value you acknowledge and take responsibility for the fact this 
             result = args.func(inst, log, args)
         except Exception as e:
             log.debug(e, exc_info=True)
-            log.error("Error: %s" % e.message)
+            log.error("Error: %s" % str(e))
 
     if result is True:
         log.info('FINISH: Command succeeded')

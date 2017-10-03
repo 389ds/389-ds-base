@@ -157,7 +157,7 @@ class LogCapture(logging.Handler):
         """
         result = False
         for rec in self.outputs:
-            if query in rec.message:
+            if query in str(rec):
                 result = True
         return result
 
