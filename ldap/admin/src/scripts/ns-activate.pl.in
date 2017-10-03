@@ -731,11 +731,18 @@ if ( $single == 1 ){
 }
 
 $info{args} = "-c";
+$info{redirect} = "> /dev/null 2>&1";
 DSUtil::ldapmod($record, %info);
 if( $? != 0 ){
     debug("delete, $entry\n");
     $retCode=$?>>8;
-    exit $retCode;
+    if ($retCode == "16") {  # Error 16 (no such attr) - already activated
+        out("$entry already $state.\n");
+        exit 100;
+    } else {
+        out("Failed to activate $entry, error $retCode\n");
+        exit $retCode;
+    }
 }
 
 out("$entry $state.\n");
