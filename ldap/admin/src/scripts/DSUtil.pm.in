@@ -1447,6 +1447,10 @@ sub ldapmod {
         close (FILE);
     }
 
+    if ($info{redirect} eq ""){
+        $info{redirect} = "> /dev/null";
+    }
+
     #
     # Check the protocol, and reset it if it's invalid
     #
@@ -1470,9 +1474,9 @@ sub ldapmod {
             print "STARTTLS)\n";
         }
         if($info{openldap} eq "yes"){
-            system "ldapmodify -x -ZZ -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -ZZ -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         } else {
-            system "ldapmodify -ZZZ -P \"$info{certdir}\" -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -ZZZ -P \"$info{certdir}\" -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         }
     } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
         # 
@@ -1482,9 +1486,9 @@ sub ldapmod {
             print "LDAPS)\n";
         }
         if($info{openldap} eq "yes"){
-            system "ldapmodify -x -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         } else {
-            system "ldapmodify -Z -P \"$info{certdir}\" -p $info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -Z -P \"$info{certdir}\" -p $info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         }
     } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
         #
@@ -1499,7 +1503,7 @@ sub ldapmod {
             if($protocol_error eq "yes"){
                 print "LDAPI)\n";
             }
-            system "ldapmodify -x -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         }
     } else {
         # 
@@ -1509,9 +1513,9 @@ sub ldapmod {
             print "LDAP)\n";
         }
         if($info{openldap} eq "yes"){
-            system "ldapmodify -x -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         } else {
-            system "ldapmodify -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" $info{redirect}";
         }
     }
     unlink ($file);
