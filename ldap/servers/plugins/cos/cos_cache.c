@@ -2208,48 +2208,44 @@ static int cos_cache_vattr_types(vattr_sp_handle *handle __attribute__((unused))
                                  vattr_type_list_context *type_context,
                                  int flags __attribute__((unused)))
 {
-	int ret = 0;
-	int index = 0;
-	cosCache *pCache;
-	char *lastattr = "thisisfakeforcos";
-	int props = 0;
+    int ret = 0;
+    int index = 0;
+    cosCache *pCache;
+    char *lastattr = "thisisfakeforcos";
 
-	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_vattr_types\n");
-	
-	if(cos_cache_getref((cos_cache **)&pCache) < 1)
-	{
-		/* problems we are hosed */
-		slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_vattr_types - Failed to get class of service reference\n");
-		goto bail;
-	}
+    slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_vattr_types\n");
 
-	while(index < pCache->attrCount )
-	{
-		if(slapi_utf8casecmp(
-				(unsigned char *)pCache->ppAttrIndex[index]->pAttrName, 
-				(unsigned char *)lastattr))
-		{
-			lastattr = pCache->ppAttrIndex[index]->pAttrName;
+    if (cos_cache_getref((cos_cache **)&pCache) < 1) {
+        /* problems we are hosed */
+        slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_vattr_types - Failed to get class of service reference\n");
+        goto bail;
+    }
 
-			if(1 == cos_cache_query_attr(pCache, NULL, e, lastattr, NULL, NULL,
-											 NULL, &props, NULL))
-			{
-				/* entry contains this attr */
-				vattr_type_thang thang = {0};
+    while (index < pCache->attrCount) {
+        int props = 0;
+        if (slapi_utf8casecmp(
+                (unsigned char *)pCache->ppAttrIndex[index]->pAttrName,
+                (unsigned char *)lastattr)) {
+            lastattr = pCache->ppAttrIndex[index]->pAttrName;
 
-				thang.type_name = lastattr;
-				thang.type_flags = props;
+            if (1 == cos_cache_query_attr(pCache, NULL, e, lastattr, NULL, NULL,
+                                          NULL, &props, NULL)) {
+                /* entry contains this attr */
+                vattr_type_thang thang = {0};
 
-				slapi_vattrspi_add_type(type_context,&thang,0);
-			}
-		}
-		index++;
-	}
-	cos_cache_release(pCache);
+                thang.type_name = lastattr;
+                thang.type_flags = props;
+
+                slapi_vattrspi_add_type(type_context, &thang, 0);
+            }
+        }
+        index++;
+    }
+    cos_cache_release(pCache);
 
 bail:
 
-slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_vattr_types\n");
+    slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_vattr_types\n");
 	return ret;
 }
 
