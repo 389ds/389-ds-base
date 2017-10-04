@@ -940,7 +940,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/admin/src/scripts/50targetuniqueid.ldif \
-	ldap/admin/src/scripts/50removeLegacyReplication.ldif \
+	ldap/admin/src/scripts/60removeLegacyReplication.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
 	ldap/admin/src/scripts/50usnplugin.ldif \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \

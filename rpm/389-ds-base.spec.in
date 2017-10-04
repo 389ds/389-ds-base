@@ -395,9 +395,9 @@ echo remove pid files . . . >> $output 2>&1 || :
 echo upgrading instances . . . >> $output 2>&1 || :
 DEBUGPOSTSETUPOPT=`/usr/bin/echo $DEBUGPOSTSETUP | /usr/bin/sed -e "s/[^d]//g"`
 if [ -n "$DEBUGPOSTSETUPOPT" ] ; then
-    %{_sbindir}/setup-ds.pl -l $output2 -$DEBUGPOSTSETUPOPT -u -s General.UpdateMode=offline >> $output 2>&1 || :
+    %{_sbindir}/setup-ds.pl -$DEBUGPOSTSETUPOPT -u -s General.UpdateMode=offline >> $output 2>&1 || :
 else
-    %{_sbindir}/setup-ds.pl -l $output2 -u -s General.UpdateMode=offline >> $output 2>&1 || :
+    %{_sbindir}/setup-ds.pl -u -s General.UpdateMode=offline >> $output 2>&1 || :
 fi
 
 # restart instances that require it
