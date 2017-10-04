@@ -153,7 +153,16 @@ spal_meminfo_get() {
 
     /* Both memtotal and memavail are in kb */
     memtotal = memtotal * 1024;
-    memavail = memavail * 1024;
+
+    /*
+     * Oracle Enterprise Linux doesn't provide a valid memavail value, so fall
+     * back to 80% of memtotal.
+     */
+    if (memavail == 0) {
+        memavail = memtotal * 0.8;
+    } else {
+        memavail = memavail * 1024;
+    }
 
     /* If it's possible, get our cgroup info */
     uint64_t cg_mem_soft = 0;
