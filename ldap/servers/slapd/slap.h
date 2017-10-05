@@ -2226,7 +2226,7 @@ typedef struct _slapdEntryPoints
 #define MAX_ALLOWED_TIME_IN_SECS             2147483647
 #define MAX_ALLOWED_TIME_IN_SECS_64 9223372036854775807
 
-#define DEFAULT_PASSWORD_SCHEME_NAME "SSHA512"
+#define DEFAULT_PASSWORD_SCHEME_NAME "PBKDF2_SHA256"
 
 typedef struct _slapdFrontendConfig
 {
