@@ -279,7 +279,6 @@ defaultgroup=@defaultgroup@
 sbin_PROGRAMS = ns-slapd ldap-agent
 
 bin_PROGRAMS = dbscan \
-	dsktune \
 	infadd \
 	ldclt \
 	ldif \
@@ -863,7 +862,6 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man1/dbgen.pl.1 \
         man/man1/ds-logpipe.py.1 \
         man/man1/ds-replcheck.1 \
-        man/man1/dsktune.1 \
         man/man1/infadd.1 \
         man/man1/ldap-agent.1 \
         man/man1/ldclt.1 \
@@ -1825,12 +1823,6 @@ dbscan_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
 dbscan_CPPFLAGS = @db_inc@ @nspr_inc@ $(AM_CPPFLAGS)
 dbscan_LDADD = $(NSPR_LINK) $(DB_LINK)
-
-#------------------------
-# dsktune
-#------------------------
-dsktune_SOURCES = ldap/systools/idsktune.c ldap/systools/pio.c
-dsktune_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 
 #------------------------
 # infadd

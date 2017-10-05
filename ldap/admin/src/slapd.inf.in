@@ -28,7 +28,6 @@ Vendor= @vendor@
 Expires= 0
 Security= domestic
 IsDirLite=false
-PrePreInstall= dsktune
 PreInstall= ns-config
 PostInstall= bin/slapd/admin/bin/ns-update
 PreUninstall= bin/slapd/admin/bin/uninstall
