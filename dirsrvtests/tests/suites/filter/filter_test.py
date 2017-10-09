@@ -18,10 +18,20 @@ log = logging.getLogger(__name__)
 
 
 def test_filter_escaped(topology_st):
-    '''
-    Test we can search for an '*' in a attribute value.
-    '''
+    """Test we can search for an '*' in a attribute value.
 
+    :id: 5c9aa40c-c641-4603-bce3-b19f4c1f2031
+    :setup: Standalone instance
+    :steps:
+         1. Add a test user with an '*' in its attribute value
+            i.e. 'cn=test * me'
+         2. Add another similar test user without '*' in its attribute value
+         3. Search test user using search filter "cn=*\**"
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+         3. Test user with 'cn=test * me' only, should be listed
+    """
     log.info('Running test_filter_escaped...')
 
     USER1_DN = 'uid=test_entry,' + DEFAULT_SUFFIX
@@ -62,10 +72,18 @@ def test_filter_escaped(topology_st):
 
 
 def test_filter_search_original_attrs(topology_st):
-    '''
-    Search and request attributes with extra characters.  The returned entry
-    should not have these extra characters:  "objectclass EXTRA"
-    '''
+    """Search and request attributes with extra characters. The returned entry
+      should not have these extra characters: objectclass EXTRA"
+
+    :id: d30d8a1c-84ac-47ba-95f9-41e3453fbf3a
+    :setup: Standalone instance
+    :steps:
+         1. Execute a search operation for attributes with extra characters
+         2. Check the search result have these extra characters or not
+    :expectedresults:
+         1. Search should pass
+         2. Search result should not have these extra characters attribute
+    """
 
     log.info('Running test_filter_search_original_attrs...')
 

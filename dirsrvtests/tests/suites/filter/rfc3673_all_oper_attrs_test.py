@@ -96,13 +96,14 @@ def user_aci(topology_st):
 
 def test_supported_features(topology_st):
     """Verify that OID 1.3.6.1.4.1.4203.1.5.1 is published
-    in the supportedFeatures [RFC3674] attribute in the rootDSE.
+       in the supportedFeatures [RFC3674] attribute in the rootDSE.
 
-    :ID: 441b3f1f-a24b-4943-aa65-7edce460abbf
-    :feature: Filter
+    :id: 441b3f1f-a24b-4943-aa65-7edce460abbf
     :setup: Standalone instance
-    :steps: 1. Search for 'supportedFeatures' at rootDSE
-    :expectedresults: Value 1.3.6.1.4.1.4203.1.5.1 is presented
+    :steps:
+         1. Search for 'supportedFeatures' at rootDSE
+    :expectedresults:
+         1. Value 1.3.6.1.4.1.4203.1.5.1 is presented
     """
 
     entries = topology_st.standalone.search_s('', ldap.SCOPE_BASE,
@@ -119,17 +120,24 @@ def test_supported_features(topology_st):
 def test_search_basic(topology_st, test_user, user_aci, add_attr,
                       search_suffix, regular_user, oper_attr_list):
     """Verify that you can get all expected operational attributes
-    by a Search Request [RFC2251] with '+' (ASCII 43) filter.
-    Please see: https://tools.ietf.org/html/rfc3673
+       by a Search Request [RFC2251] with '+' (ASCII 43) filter.
+       Please see: https://tools.ietf.org/html/rfc3673
 
-    :ID: 14c66bc2-28e1-4f5f-893e-508e0f720f8c
-    :feature: Filter
+    :id: 14c66bc2-28e1-4f5f-893e-508e0f720f8c
     :setup: Standalone instance, test user for binding,
             deny one attribute aci for that user
-    :steps: 1. Bind as regular user or Directory Manager
-            2. Search with '+' filter and with additionaly
-               'objectClass' and '*' attrs too
-    :expectedresults: All expected values were returned, not more
+    :steps:
+         1. Bind as regular user or Directory Manager
+         2. Search with '+' filter and with additionally
+            'objectClass' and '*' attributes too
+         3. Check attributes listed contain both operational
+            and non-operational attributes for '*' attributes
+            search
+    :expectedresults:
+         1. Bind should be successful
+         2. All expected values of attributes should be returned
+            as per the parametrization done
+         3. It should pass
     """
 
     if regular_user:
