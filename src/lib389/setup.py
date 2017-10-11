@@ -18,8 +18,10 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # fedora/rhel versioning or PEP440?; ATM semantic versioning
-with open(path.join(here, 'VERSION'), 'r') as version_file:
-    version = version_file.read().strip()
+# with open(path.join(here, 'VERSION'), 'r') as version_file:
+# version = version_file.read().strip()
+
+version = "1.4.0.1"
 
 with open(path.join(here, 'README.md'), 'r') as f:
     long_description = f.read()
@@ -60,5 +62,5 @@ setup(
             ]),
     ],
 
-    install_requires=['python-ldap'],
+    install_requires=['pyldap'],
 )
