@@ -139,13 +139,6 @@ nunc_stans_logging(int severity, const char *format, va_list varg)
     va_end(varg_copy);
 }
 
-static void
-ns_printf_logger(int priority __attribute__((unused)), const char *fmt, va_list varg)
-{
-    /* Should we do anything with priority? */
-    vprintf(fmt, varg);
-}
-
 static void *
 nunc_stans_malloc(size_t size)
 {
@@ -219,9 +212,6 @@ main_create_ns(ns_thrpool_t **tp_in)
     tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
     /* Highly likely that we need to re-write logging to be controlled by NS here. */
     tp_config.log_fct = nunc_stans_logging;
-#ifdef DEBUG
-    tp_config.log_fct = ns_printf_logger;
-#endif
     tp_config.log_start_fct = NULL;
     tp_config.log_close_fct = NULL;
     tp_config.malloc_fct = nunc_stans_malloc;
