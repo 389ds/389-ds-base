@@ -14,12 +14,12 @@
  * memberof_config.c - configuration-related code for memberOf plug-in
  *
  */
-
+#include "plhash.h"
 #include <plstr.h>
-
 #include "memberof.h"
 
 #define MEMBEROF_CONFIG_FILTER "(objectclass=*)"
+#define MEMBEROF_HASHTABLE_SIZE 1000
 
 /*
  * The configuration attributes are contained in the plugin entry e.g.
@@ -34,14 +34,16 @@
 /*
  * function prototypes
  */
-static int memberof_validate_config(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg);
-static int
-memberof_search(Slapi_PBlock *pb __attribute__((unused)),
-                Slapi_Entry *entryBefore __attribute__((unused)),
-                Slapi_Entry *e __attribute__((unused)),
-                int *returncode __attribute__((unused)),
-                char *returntext __attribute__((unused)),
-                void *arg __attribute__((unused)))
+static void fixup_hashtable_empty( MemberOfConfig *config, char *msg);
+static void ancestor_hashtable_empty(MemberOfConfig *config, char *msg);
+static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
+										 int *returncode, char *returntext, void *arg);
+static int memberof_search (Slapi_PBlock *pb __attribute__((unused)),
+                            Slapi_Entry* entryBefore __attribute__((unused)),
+                            Slapi_Entry* e __attribute__((unused)),
+                            int *returncode __attribute__((unused)),
+                            char *returntext __attribute__((unused)),
+                            void *arg __attribute__((unused)))
 {
     return SLAPI_DSE_CALLBACK_OK;
 }
@@ -52,7 +54,7 @@ memberof_search(Slapi_PBlock *pb __attribute__((unused)),
 /* This is the main configuration which is updated from dse.ldif.  The
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
-static MemberOfConfig theConfig = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static MemberOfConfig theConfig = {0};
 static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
@@ -693,6 +695,13 @@ void
 memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 {
     if (dest && src) {
+
+        /* Allocate our caches here since we only copy the config at the start of an op */
+        if (memberof_use_txn() == 1){
+            dest->ancestors_cache = hashtable_new();
+            dest->fixup_cache = hashtable_new();
+        }
+
         /* Check if the copy is already up to date */
         if (src->groupattrs) {
             int i = 0, j = 0;
@@ -787,6 +796,14 @@ memberof_free_config(MemberOfConfig *config)
         slapi_ch_free_string(&config->memberof_attr);
         memberof_free_scope(&(config->entryScopes), &config->entryScopeCount);
         memberof_free_scope(&(config->entryScopeExcludeSubtrees), &config->entryExcludeScopeCount);
+        if (config->fixup_cache) {
+            fixup_hashtable_empty(config, "memberof_free_config empty fixup_entry_hastable");
+            PL_HashTableDestroy(config->fixup_cache);
+        }
+        if (config->ancestors_cache) {
+            ancestor_hashtable_empty(config, "memberof_free_config empty group_ancestors_hashtable");
+            PL_HashTableDestroy(config->ancestors_cache);
+        }
     }
 }
 
@@ -981,4 +998,131 @@ bail:
     slapi_ch_free_string(&configarea_dn);
 
     return ret;
+}
+
+
+static PRIntn memberof_hash_compare_keys(const void *v1, const void *v2)
+{
+    PRIntn rc;
+    if (0 == strcasecmp((const char *) v1, (const char *) v2)) {
+        rc = 1;
+    } else {
+        rc = 0;
+    }
+    return rc;
+}
+
+static PRIntn memberof_hash_compare_values(const void *v1, const void *v2)
+{
+    PRIntn rc;
+    if ((char *) v1 == (char *) v2) {
+        rc = 1;
+    } else {
+        rc = 0;
+    }
+    return rc;
+}
+
+/*
+ *  Hashing function using Bernstein's method
+ */
+static PLHashNumber memberof_hash_fn(const void *key)
+{
+    PLHashNumber hash = 5381;
+    unsigned char *x = (unsigned char *)key;
+    int c;
+
+    while ((c = *x++)){
+        hash = ((hash << 5) + hash) ^ c;
+    }
+    return hash;
+}
+
+/* allocates the plugin hashtable
+ * This hash table is used by operation and is protected from
+ * concurrent operations with the memberof_lock (if not usetxn, memberof_lock
+ * is not implemented and the hash table will be not used.
+ *
+ * The hash table contains all the DN of the entries for which the memberof
+ * attribute has been computed/updated during the current operation
+ *
+ * hash table should be empty at the beginning and end of the plugin callback
+ */
+PLHashTable *hashtable_new(int usetxn)
+{
+    if (!usetxn) {
+        return NULL;
+    }
+
+    return PL_NewHashTable(MEMBEROF_HASHTABLE_SIZE,
+        memberof_hash_fn,
+        memberof_hash_compare_keys,
+        memberof_hash_compare_values, NULL, NULL);
+}
+
+/* this function called for each hash node during hash destruction */
+static PRIntn fixup_hashtable_remove(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
+{
+	char *dn_copy;
+
+	if (he == NULL) {
+		return HT_ENUMERATE_NEXT;
+	}
+	dn_copy = (char*) he->value;
+	slapi_ch_free_string(&dn_copy);
+
+	return HT_ENUMERATE_REMOVE;
+}
+
+static void fixup_hashtable_empty(MemberOfConfig *config, char *msg)
+{
+    if (config->fixup_cache) {
+        PL_HashTableEnumerateEntries(config->fixup_cache, fixup_hashtable_remove, msg);
+    }
+}
+
+
+/* allocates the plugin hashtable
+ * This hash table is used by operation and is protected from
+ * concurrent operations with the memberof_lock (if not usetxn, memberof_lock
+ * is not implemented and the hash table will be not used.
+ *
+ * The hash table contains all the DN of the entries for which the memberof
+ * attribute has been computed/updated during the current operation
+ *
+ * hash table should be empty at the beginning and end of the plugin callback
+ */
+
+void ancestor_hashtable_entry_free(memberof_cached_value *entry)
+{
+    int i;
+
+    for (i = 0; entry[i].valid; i++) {
+        slapi_ch_free((void **) &entry[i].group_dn_val);
+        slapi_ch_free((void **) &entry[i].group_ndn_val);
+    }
+    /* Here we are at the ending element containing the key */
+    slapi_ch_free((void**) &entry[i].key);
+}
+
+/* this function called for each hash node during hash destruction */
+static PRIntn ancestor_hashtable_remove(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
+{
+    memberof_cached_value *group_ancestor_array;
+
+    if (he == NULL) {
+        return HT_ENUMERATE_NEXT;
+    }
+    group_ancestor_array = (memberof_cached_value *) he->value;
+    ancestor_hashtable_entry_free(group_ancestor_array);
+    slapi_ch_free((void **)&group_ancestor_array);
+
+    return HT_ENUMERATE_REMOVE;
+}
+
+static void ancestor_hashtable_empty(MemberOfConfig *config, char *msg)
+{
+    if (config->ancestors_cache) {
+        PL_HashTableEnumerateEntries(config->ancestors_cache, ancestor_hashtable_remove, msg);
+    }
 }

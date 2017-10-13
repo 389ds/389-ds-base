@@ -48,14 +48,11 @@ static Slapi_PluginDesc pdesc = {"memberof", VENDOR,
 static void *_PluginID = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
 static Slapi_RWLock *config_rwlock = NULL;
-static Slapi_DN *_pluginDN = NULL;
-static PRMonitor *memberof_operation_lock = 0;
+static Slapi_DN* _pluginDN = NULL;
 MemberOfConfig *qsortConfig = 0;
 static int usetxn = 0;
 static int premodfn = 0;
-#define MEMBEROF_HASHTABLE_SIZE 1000
-static PLHashTable *fixup_entry_hashtable = NULL;     /* global hash table protected by memberof_lock (memberof_operation_lock) */
-static PLHashTable *group_ancestors_hashtable = NULL; /* global hash table protected by memberof_lock (memberof_operation_lock) */
+
 
 typedef struct _memberofstringll
 {
@@ -73,18 +70,6 @@ typedef struct _memberof_get_groups_data
     PRBool use_cache;
 } memberof_get_groups_data;
 
-/* The key to access the hash table is the normalized DN
- * The normalized DN is stored in the value because:
- *  - It is used in slapi_valueset_find
- *  - It is used to fill the memberof_get_groups_data.group_norm_vals
- */
-typedef struct _memberof_cached_value
-{
-    char *key;
-    char *group_dn_val;
-    char *group_ndn_val;
-    int valid;
-} memberof_cached_value;
 struct cache_stat
 {
     int total_lookup;
@@ -164,14 +149,9 @@ static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn);
 static int memberof_add_objectclass(char *auto_add_oc, const char *dn);
 static int memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc);
-static PLHashTable *hashtable_new();
-static void fixup_hashtable_empty(char *msg);
-static PLHashTable *hashtable_new();
-static void ancestor_hashtable_empty(char *msg);
-static void ancestor_hashtable_entry_free(memberof_cached_value *entry);
-static memberof_cached_value *ancestors_cache_lookup(const char *ndn);
-static PRBool ancestors_cache_remove(const char *ndn);
-static PLHashEntry *ancestors_cache_add(const void *key, void *value);
+static memberof_cached_value *ancestors_cache_lookup(MemberOfConfig *config, const char *ndn);
+static PRBool ancestors_cache_remove(MemberOfConfig *config, const char *ndn);
+static PLHashEntry *ancestors_cache_add(MemberOfConfig *config, const void *key, void *value);
 
 /*** implementation ***/
 
@@ -344,20 +324,12 @@ memberof_postop_start(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "--> memberof_postop_start\n");
 
-    memberof_operation_lock = PR_NewMonitor();
-    if (0 == memberof_operation_lock) {
-        rc = -1;
-        goto bail;
-    }
     if (config_rwlock == NULL) {
         if ((config_rwlock = slapi_new_rwlock()) == NULL) {
             rc = -1;
             goto bail;
         }
     }
-
-    fixup_entry_hashtable = hashtable_new();
-    group_ancestors_hashtable = hashtable_new();
 
     /* Set the alternate config area if one is defined. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
@@ -413,13 +385,13 @@ memberof_postop_start(Slapi_PBlock *pb)
         goto bail;
     }
 
-/*
+    /*
      * TODO: start up operation actor thread
      * need to get to a point where server failure
-         * or shutdown doesn't hose our operations
-         * so we should create a task entry that contains
+     * or shutdown doesn't hose our operations
+     * so we should create a task entry that contains
      * all required information to complete the operation
-         * then the tasks can be restarted safely if
+     * then the tasks can be restarted safely if
      * interrupted
      */
 
@@ -451,18 +423,7 @@ memberof_postop_close(Slapi_PBlock *pb __attribute__((unused)))
     slapi_sdn_free(&_pluginDN);
     slapi_destroy_rwlock(config_rwlock);
     config_rwlock = NULL;
-    PR_DestroyMonitor(memberof_operation_lock);
-    memberof_operation_lock = NULL;
 
-    if (fixup_entry_hashtable) {
-        fixup_hashtable_empty("memberof_postop_close empty fixup_entry_hastable");
-        PL_HashTableDestroy(fixup_entry_hashtable);
-    }
-
-    if (group_ancestors_hashtable) {
-        ancestor_hashtable_empty("memberof_postop_close empty group_ancestors_hashtable");
-        PL_HashTableDestroy(group_ancestors_hashtable);
-    }
     slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- memberof_postop_close\n");
     return 0;
@@ -524,7 +485,7 @@ memberof_postop_del(Slapi_PBlock *pb)
 {
     int ret = SLAPI_PLUGIN_SUCCESS;
     MemberOfConfig *mainConfig = NULL;
-    MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    MemberOfConfig configCopy = {0};
     Slapi_DN *sdn;
     void *caller_id = NULL;
 
@@ -553,9 +514,6 @@ memberof_postop_del(Slapi_PBlock *pb)
         memberof_copy_config(&configCopy, memberof_get_config());
         memberof_unlock_config();
 
-        /* get the memberOf operation lock */
-        memberof_lock();
-
         /* remove this DN from the
          * membership lists of groups
          */
@@ -563,7 +521,6 @@ memberof_postop_del(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                           "memberof_postop_del - Error deleting dn (%s) from group. Error (%d)\n",
                           slapi_sdn_get_dn(sdn), ret);
-            memberof_unlock();
             goto bail;
         }
 
@@ -583,7 +540,6 @@ memberof_postop_del(Slapi_PBlock *pb)
                 }
             }
         }
-        memberof_unlock();
     bail:
         memberof_free_config(&configCopy);
     }
@@ -776,7 +732,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
         memberof_cached_value *ht_grp = NULL;
         const char *ndn = slapi_sdn_get_ndn(sdn);
 
-        ht_grp = ancestors_cache_lookup((const void *)ndn);
+        ht_grp = ancestors_cache_lookup(config, (const void *)ndn);
         if (ht_grp) {
 #if MEMBEROF_CACHE_DEBUG
             slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s already cached (%x)\n", ndn, ht_grp);
@@ -918,7 +874,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
 
     if (memberof_oktodo(pb)) {
         MemberOfConfig *mainConfig = 0;
-        MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        MemberOfConfig configCopy = {0};
         struct slapi_entry *pre_e = NULL;
         struct slapi_entry *post_e = NULL;
         Slapi_DN *pre_sdn = 0;
@@ -943,8 +899,6 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
             /* The entry is not in scope */
             goto bail;
         }
-
-        memberof_lock();
 
         /*  update any downstream members */
         if (pre_sdn && post_sdn && configCopy.group_filter &&
@@ -1010,7 +964,6 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
                 }
             }
         }
-        memberof_unlock();
     bail:
         memberof_free_config(&configCopy);
     }
@@ -1166,7 +1119,7 @@ memberof_postop_modify(Slapi_PBlock *pb)
     if (memberof_oktodo(pb)) {
         int config_copied = 0;
         MemberOfConfig *mainConfig = 0;
-        MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        MemberOfConfig configCopy = {0};
 
         /* get the mod set */
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -1209,8 +1162,6 @@ memberof_postop_modify(Slapi_PBlock *pb)
             if (interested) {
                 int op = slapi_mod_get_operation(smod);
 
-                memberof_lock();
-
                 /* the modify op decides the function */
                 switch (op & ~LDAP_MOD_BVALUES) {
                 case LDAP_MOD_ADD: {
@@ -1221,7 +1172,6 @@ memberof_postop_modify(Slapi_PBlock *pb)
                                       "Error (%d)\n",
                                       slapi_sdn_get_dn(sdn), ret);
                         slapi_mod_done(next_mod);
-                        memberof_unlock();
                         goto bail;
                     }
                     break;
@@ -1239,7 +1189,6 @@ memberof_postop_modify(Slapi_PBlock *pb)
                                           "Error (%d)\n",
                                           slapi_sdn_get_dn(sdn), ret);
                             slapi_mod_done(next_mod);
-                            memberof_unlock();
                             goto bail;
                         }
                     } else {
@@ -1250,7 +1199,6 @@ memberof_postop_modify(Slapi_PBlock *pb)
                                           "Error (%d)\n",
                                           slapi_sdn_get_dn(sdn), ret);
                             slapi_mod_done(next_mod);
-                            memberof_unlock();
                             goto bail;
                         }
                     }
@@ -1265,7 +1213,6 @@ memberof_postop_modify(Slapi_PBlock *pb)
                                       "Error (%d)\n",
                                       slapi_sdn_get_dn(sdn), ret);
                         slapi_mod_done(next_mod);
-                        memberof_unlock();
                         goto bail;
                     }
                     break;
@@ -1280,8 +1227,6 @@ memberof_postop_modify(Slapi_PBlock *pb)
                     break;
                 }
                 }
-
-                memberof_unlock();
             }
 
             slapi_mod_done(next_mod);
@@ -1336,7 +1281,7 @@ memberof_postop_add(Slapi_PBlock *pb)
 
     if (memberof_oktodo(pb) && (sdn = memberof_getsdn(pb))) {
         struct slapi_entry *e = NULL;
-        MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        MemberOfConfig configCopy = {0};
         MemberOfConfig *mainConfig;
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
 
@@ -1361,8 +1306,6 @@ memberof_postop_add(Slapi_PBlock *pb)
             int i = 0;
             Slapi_Attr *attr = 0;
 
-            memberof_lock();
-
             for (i = 0; configCopy.groupattrs && configCopy.groupattrs[i]; i++) {
                 if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr)) {
                     if ((ret = memberof_add_attr_list(pb, &configCopy, sdn, attr))) {
@@ -1373,8 +1316,6 @@ memberof_postop_add(Slapi_PBlock *pb)
                     }
                 }
             }
-
-            memberof_unlock();
             memberof_free_config(&configCopy);
         }
     }
@@ -2094,7 +2035,7 @@ dump_cache_entry(memberof_cached_value *double_check, const char *msg)
  * the firsts elements of the array has 'valid=1' and the dn/ndn of group it belong to
  */
 static void
-cache_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *groups)
+cache_ancestors(MemberOfConfig *config, Slapi_Value **member_ndn_val, memberof_get_groups_data *groups)
 {
     Slapi_ValueSet *groupvals = *((memberof_get_groups_data *)groups)->groupvals;
     Slapi_Value *sval;
@@ -2191,14 +2132,14 @@ cache_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *groups)
 #if MEMBEROF_CACHE_DEBUG
     dump_cache_entry(cache_entry, key);
 #endif
-    if (ancestors_cache_add((const void *)key_copy, (void *)cache_entry) == NULL) {
-        slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: Failed to cache ancestor of %s\n", key);
+    if (ancestors_cache_add(config, (const void*) key_copy, (void *) cache_entry) == NULL) {
+        slapi_log_err( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache_ancestors: Failed to cache ancestor of %s\n", key);
         ancestor_hashtable_entry_free(cache_entry);
-        slapi_ch_free((void **)&cache_entry);
+        slapi_ch_free ((void**)&cache_entry);
         return;
     }
 #if MEMBEROF_CACHE_DEBUG
-    if (double_check = ancestors_cache_lookup((const void *)key)) {
+    if (double_check = ancestors_cache_lookup(config, (const void*) key)) {
         dump_cache_entry(double_check, "read back");
     }
 #endif
@@ -2283,8 +2224,7 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get
 
     merge_ancestors(&member_ndn_val, &member_data, data);
     if (!cached && member_data.use_cache)
-        cache_ancestors(&member_ndn_val, &member_data);
-
+        cache_ancestors(config, &member_ndn_val, &member_data);
 
     slapi_value_free(&member_ndn_val);
     slapi_valueset_free(groupvals);
@@ -2825,49 +2765,10 @@ memberof_qsort_compare(const void *a, const void *b)
                                     val1, val2);
 }
 
-/* betxn: This locking mechanism is necessary to guarantee the memberof
- * consistency */
-void
-memberof_lock()
-{
-    if (usetxn) {
-        PR_EnterMonitor(memberof_operation_lock);
-    }
-    if (fixup_entry_hashtable) {
-        fixup_hashtable_empty("memberof_lock");
-    }
-    if (group_ancestors_hashtable) {
-        ancestor_hashtable_empty("memberof_lock empty group_ancestors_hashtable");
-        memset(&cache_stat, 0, sizeof(cache_stat));
-    }
-}
-
-void
-memberof_unlock()
-{
-    if (group_ancestors_hashtable) {
-        ancestor_hashtable_empty("memberof_unlock empty group_ancestors_hashtable");
-#if MEMBEROF_CACHE_DEBUG
-        slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache statistics: total lookup %d (success %d), add %d, remove %d, enum %d\n",
-                      cache_stat.total_lookup, cache_stat.successfull_lookup,
-                      cache_stat.total_add, cache_stat.total_remove, cache_stat.total_enumerate);
-        slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "cache statistics duration: lookup %ld, add %ld, remove %ld, enum %ld\n",
-                      cache_stat.cumul_duration_lookup, cache_stat.cumul_duration_add,
-                      cache_stat.cumul_duration_remove, cache_stat.cumul_duration_enumerate);
-#endif
-    }
-    if (fixup_entry_hashtable) {
-        fixup_hashtable_empty("memberof_lock");
-    }
-    if (usetxn) {
-        PR_ExitMonitor(memberof_operation_lock);
-    }
-}
-
 void
 memberof_fixup_task_thread(void *arg)
 {
-    MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    MemberOfConfig configCopy = {0};
     Slapi_Task *task = (Slapi_Task *)arg;
     task_data *td = NULL;
     int rc = 0;
@@ -2932,9 +2833,6 @@ memberof_fixup_task_thread(void *arg)
 
     /* do real work */
     rc = memberof_fix_memberof(&configCopy, task, td);
-
-    /* release the memberOf operation lock */
-    memberof_unlock();
 
 done:
     if (usetxn && fixup_pb) {
@@ -3100,7 +2998,7 @@ memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *td)
 }
 
 static memberof_cached_value *
-ancestors_cache_lookup(const char *ndn)
+ancestors_cache_lookup(MemberOfConfig *config, const char *ndn)
 {
     memberof_cached_value *e;
 #if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
@@ -3118,7 +3016,7 @@ ancestors_cache_lookup(const char *ndn)
     }
 #endif
 
-    e = (memberof_cached_value *)PL_HashTableLookupConst(group_ancestors_hashtable, (const void *)ndn);
+    e = (memberof_cached_value *) PL_HashTableLookupConst(config->ancestors_cache, (const void *) ndn);
 
 #if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
     if (start) {
@@ -3133,7 +3031,7 @@ ancestors_cache_lookup(const char *ndn)
     return e;
 }
 static PRBool
-ancestors_cache_remove(const char *ndn)
+ancestors_cache_remove(MemberOfConfig *config, const char *ndn)
 {
     PRBool rc;
 #if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
@@ -3151,7 +3049,8 @@ ancestors_cache_remove(const char *ndn)
     }
 #endif
 
-    rc = PL_HashTableRemove(group_ancestors_hashtable, (const void *)ndn);
+
+    rc = PL_HashTableRemove(config->ancestors_cache, (const void *)ndn);
 
 #if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
     if (start) {
@@ -3164,7 +3063,7 @@ ancestors_cache_remove(const char *ndn)
 }
 
 static PLHashEntry *
-ancestors_cache_add(const void *key, void *value)
+ancestors_cache_add(MemberOfConfig *config, const void *key, void *value)
 {
     PLHashEntry *e;
 #if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
@@ -3181,7 +3080,7 @@ ancestors_cache_add(const void *key, void *value)
     }
 #endif
 
-    e = PL_HashTableAdd(group_ancestors_hashtable, key, value);
+    e = PL_HashTableAdd(config->ancestors_cache, key, value);
 
 #if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
     if (start) {
@@ -3211,7 +3110,6 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     const char *ndn;
     char *dn_copy;
 
-
     /*
      * If the server is ordered to shutdown, stop the fixup and return an error.
      */
@@ -3222,7 +3120,7 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 
     /* Check if the entry has not already been fixed */
     ndn = slapi_sdn_get_ndn(sdn);
-    if (ndn && fixup_entry_hashtable && PL_HashTableLookupConst(fixup_entry_hashtable, (void *)ndn)) {
+    if (ndn && config->fixup_cache && PL_HashTableLookupConst(config->fixup_cache, (void *)ndn)) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Entry %s already fixed up\n", ndn);
         goto bail;
     }
@@ -3240,12 +3138,13 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
              * so free this memory
              */
             ndn = slapi_sdn_get_ndn(sdn);
+
 #if MEMBEROF_CACHE_DEBUG
             slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: This is NOT a group %s\n", ndn);
 #endif
-            ht_grp = ancestors_cache_lookup((const void *)ndn);
+            ht_grp = ancestors_cache_lookup(config, (const void *)ndn);
             if (ht_grp) {
-                if (ancestors_cache_remove((const void *)ndn)) {
+                if (ancestors_cache_remove(config, (const void *)ndn)) {
                     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: free cached values for %s\n", ndn);
                     ancestor_hashtable_entry_free(ht_grp);
                     slapi_ch_free((void **)&ht_grp);
@@ -3297,11 +3196,11 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     slapi_valueset_free(groups);
 
     /* records that this entry has been fixed up */
-    if (fixup_entry_hashtable) {
+    if (config->fixup_cache) {
         dn_copy = slapi_ch_strdup(ndn);
-        if (PL_HashTableAdd(fixup_entry_hashtable, dn_copy, dn_copy) == NULL) {
+        if (PL_HashTableAdd(config->fixup_cache, dn_copy, dn_copy) == NULL) {
             slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: "
-                                                                      "failed to add dn (%s) in the fixup hashtable; NSPR error - %d\n",
+                          "failed to add dn (%s) in the fixup hashtable; NSPR error - %d\n",
                           dn_copy, PR_GetError());
             slapi_ch_free((void **)&dn_copy);
             /* let consider this as not a fatal error, it just skip an optimization */
@@ -3397,157 +3296,8 @@ memberof_add_objectclass(char *auto_add_oc, const char *dn)
     return rc;
 }
 
-static PRIntn
-memberof_hash_compare_keys(const void *v1, const void *v2)
+int
+memberof_use_txn()
 {
-    PRIntn rc;
-    if (0 == strcasecmp((const char *)v1, (const char *)v2)) {
-        rc = 1;
-    } else {
-        rc = 0;
-    }
-    return rc;
-}
-
-static PRIntn
-memberof_hash_compare_values(const void *v1, const void *v2)
-{
-    PRIntn rc;
-    if ((char *)v1 == (char *)v2) {
-        rc = 1;
-    } else {
-        rc = 0;
-    }
-    return rc;
-}
-
-/*
- *  Hashing function using Bernstein's method
- */
-static PLHashNumber
-memberof_hash_fn(const void *key)
-{
-    PLHashNumber hash = 5381;
-    unsigned char *x = (unsigned char *)key;
-    int c;
-
-    while ((c = *x++)) {
-        hash = ((hash << 5) + hash) ^ c;
-    }
-    return hash;
-}
-
-/* allocates the plugin hashtable
- * This hash table is used by operation and is protected from
- * concurrent operations with the memberof_lock (if not usetxn, memberof_lock
- * is not implemented and the hash table will be not used.
- *
- * The hash table contains all the DN of the entries for which the memberof
- * attribute has been computed/updated during the current operation
- *
- * hash table should be empty at the beginning and end of the plugin callback
- */
-static PLHashTable *
-hashtable_new()
-{
-    if (!usetxn) {
-        return NULL;
-    }
-
-    return PL_NewHashTable(MEMBEROF_HASHTABLE_SIZE,
-                           memberof_hash_fn,
-                           memberof_hash_compare_keys,
-                           memberof_hash_compare_values, NULL, NULL);
-}
-/* this function called for each hash node during hash destruction */
-static PRIntn
-fixup_hashtable_remove(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
-{
-    char *dn_copy;
-
-    if (he == NULL) {
-        return HT_ENUMERATE_NEXT;
-    }
-    dn_copy = (char *)he->value;
-    slapi_ch_free_string(&dn_copy);
-
-    return HT_ENUMERATE_REMOVE;
-}
-
-static void
-fixup_hashtable_empty(char *msg)
-{
-    if (fixup_entry_hashtable) {
-        PL_HashTableEnumerateEntries(fixup_entry_hashtable, fixup_hashtable_remove, msg);
-    }
-}
-
-
-/* allocates the plugin hashtable
- * This hash table is used by operation and is protected from
- * concurrent operations with the memberof_lock (if not usetxn, memberof_lock
- * is not implemented and the hash table will be not used.
- *
- * The hash table contains all the DN of the entries for which the memberof
- * attribute has been computed/updated during the current operation
- *
- * hash table should be empty at the beginning and end of the plugin callback
- */
-
-static void
-ancestor_hashtable_entry_free(memberof_cached_value *entry)
-{
-    int i;
-    for (i = 0; entry[i].valid; i++) {
-        slapi_ch_free((void **)&entry[i].group_dn_val);
-        slapi_ch_free((void **)&entry[i].group_ndn_val);
-    }
-    /* Here we are at the ending element containing the key */
-    slapi_ch_free((void **)&entry[i].key);
-}
-/* this function called for each hash node during hash destruction */
-static PRIntn
-ancestor_hashtable_remove(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
-{
-    memberof_cached_value *group_ancestor_array;
-
-    if (he == NULL) {
-        return HT_ENUMERATE_NEXT;
-    }
-
-
-    group_ancestor_array = (memberof_cached_value *)he->value;
-    ancestor_hashtable_entry_free(group_ancestor_array);
-    slapi_ch_free((void **)&group_ancestor_array);
-
-    return HT_ENUMERATE_REMOVE;
-}
-
-static void
-ancestor_hashtable_empty(char *msg)
-{
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
-    long int start;
-    struct timespec tsnow;
-#endif
-
-    if (group_ancestors_hashtable) {
-        cache_stat.total_enumerate++;
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            start = 0;
-        } else {
-            start = tsnow.tv_nsec;
-        }
-#endif
-        PL_HashTableEnumerateEntries(group_ancestors_hashtable, ancestor_hashtable_remove, msg);
-
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
-        if (start) {
-            if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
-                cache_stat.cumul_duration_enumerate += (tsnow.tv_nsec - start);
-            }
-        }
-#endif
-    }
+    return usetxn;
 }
