@@ -62,8 +62,22 @@ typedef struct memberofconfig {
 	int skip_nested;
 	int fixup_task;
 	char *auto_add_oc;
+	PLHashTable *ancestors_cache;
+	PLHashTable *fixup_cache;
 } MemberOfConfig;
 
+/* The key to access the hash table is the normalized DN
+ * The normalized DN is stored in the value because:
+ *  - It is used in slapi_valueset_find
+ *  - It is used to fill the memberof_get_groups_data.group_norm_vals
+ */
+typedef struct _memberof_cached_value
+{
+    char *key;
+    char *group_dn_val;
+    char *group_ndn_val;
+    int valid;
+} memberof_cached_value;
 
 /*
  * functions
@@ -88,5 +102,8 @@ int memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
 void *memberof_get_plugin_id(void);
 void memberof_release_config(void);
 PRUint64 get_plugin_started(void);
+void ancestor_hashtable_entry_free(memberof_cached_value *entry);
+PLHashTable *hashtable_new();
+int memberof_use_txn();
 
 #endif	/* _MEMBEROF_H_ */
