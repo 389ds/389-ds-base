@@ -2828,9 +2828,6 @@ memberof_fixup_task_thread(void *arg)
         }
     }
 
-    /* get the memberOf operation lock */
-    memberof_lock();
-
     /* do real work */
     rc = memberof_fix_memberof(&configCopy, task, td);
 
