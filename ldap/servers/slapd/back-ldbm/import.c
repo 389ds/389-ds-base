@@ -244,7 +244,7 @@ import_task_destroy(Slapi_Task *task)
         return;
     }
 
-    while (is_instance_busy(job->inst)) {
+    while (task->task_state == SLAPI_TASK_RUNNING) {
         /* wait for the job to finish before freeing it */
         DS_Sleep(PR_SecondsToInterval(1));
     }
