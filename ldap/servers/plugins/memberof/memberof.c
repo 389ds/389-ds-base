@@ -609,7 +609,7 @@ memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
     slapi_modify_internal_set_pb_ext(
         mod_pb, slapi_entry_get_sdn(e),
         mods, 0, 0,
-        memberof_get_plugin_id(), 0);
+        memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
 
     slapi_modify_internal_pb(mod_pb);
 
@@ -3224,7 +3224,7 @@ memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
         mod_pb = slapi_pblock_new();
         slapi_modify_internal_set_pb(
             mod_pb, dn, mods, 0, 0,
-            memberof_get_plugin_id(), 0);
+            memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
         slapi_modify_internal_pb(mod_pb);
 
         slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -3279,7 +3279,7 @@ memberof_add_objectclass(char *auto_add_oc, const char *dn)
 
     slapi_modify_internal_set_pb(
         mod_pb, dn, mods, 0, 0,
-        memberof_get_plugin_id(), 0);
+        memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
     slapi_modify_internal_pb(mod_pb);
 
     slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
