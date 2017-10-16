@@ -17,6 +17,7 @@ from lib389._replication import RUV
 from lib389.repltools import ReplTools
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.idm.domain import Domain
 
 
 class ReplicaLegacy(object):
@@ -624,7 +625,7 @@ class ReplicaLegacy(object):
             @param agmtdn - agreement dn
         """
         self.log.info("Starting async replication %s" % agmtdn)
-        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
+        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', b'start')]
         self.conn.modify_s(agmtdn, mod)
 
     def keep_in_sync(self, agmtdn):
@@ -1070,11 +1071,11 @@ class Replica(DSLdapObject):
             if not refresh:  # done - check status
                 if not status:
                     print("No status yet")
-                elif status.find("replica busy") > -1:
+                elif status.find(b"replica busy") > -1:
                     print("Update failed - replica busy - status", status)
                     done = True
                     hasError = 2
-                elif status.find("Total update succeeded") > -1:
+                elif status.find(b"Total update succeeded") > -1:
                     print("Update succeeded: status ", status)
                     done = True
                 elif inprogress.lower() == 'true':
@@ -1134,7 +1135,7 @@ class Replica(DSLdapObject):
         """
 
         self._log.info("Starting async replication %s" % agmtdn)
-        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
+        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', b'start')]
         self._instance.modify_s(agmtdn, mod)
 
     def get_ruv_entry(self):
@@ -1169,23 +1170,23 @@ class Replica(DSLdapObject):
         """
 
         # Generate a unique test value
-        test_value = ('test replication from ' + self._instance.serverid +
+        test_value = ensure_bytes('test replication from ' + self._instance.serverid +
                       ' to ' + replica_dirsrvs[0].serverid + ': ' +
                       str(int(time.time())))
-        self._instance.modify_s(self._suffix,
-            [(ldap.MOD_REPLACE, 'description', test_value)])
+
+        my_domain = Domain(self._instance, self._suffix)
+        my_domain.replace('description', test_value)
 
         for replica in replica_dirsrvs:
+            r_domain = Domain(replica, self._suffix)
             loop = 0
             replicated = False
             while loop <= 30:
                 # Wait 60 seconds before giving up
                 try:
+                    r_test_values = r_domain.get_attr_vals_bytes('description')
 
-                    entry = replica.getEntry(self._suffix,
-                                             ldap.SCOPE_BASE,
-                                             '(objectclass=*)')
-                    if entry.hasValue('description', test_value):
+                    if test_value in r_test_values:
                         replicated = True
                         break
                 except ldap.LDAPError as e:
@@ -1198,8 +1199,7 @@ class Replica(DSLdapObject):
                 return False
 
         # All is good, remove the test mod from the suffix entry
-        self._instance.modify_s(self._suffix,
-            [(ldap.MOD_DELETE, 'description', test_value)])
+        my_domain.remove('description', None)
 
         return True
 

@@ -10,8 +10,14 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
-from lib389._constants import *
 from . import get_repl_entries
+from lib389.idm.user import UserAccount
+
+from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLICA_RUV_FILTER,
+                              ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
+                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
+                              DN_DM, PASSWORD, LOG_DEFAULT, RA_ENABLED, RA_SCHEDULE)
 
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
@@ -32,30 +38,20 @@ def test_entry(topo_m4, request):
     """Add test entry to master1"""
 
     log.info('Adding entry {}'.format(TEST_ENTRY_DN))
-    try:
-        topo_m4.ms["master1"].add_s(Entry((TEST_ENTRY_DN, {
-            'objectclass': 'top person'.split(),
-            'objectclass': 'organizationalPerson',
-            'objectclass': 'inetorgperson',
-            'cn': TEST_ENTRY_NAME,
-            'sn': TEST_ENTRY_NAME,
-            'uid': TEST_ENTRY_NAME,
-            'userpassword': TEST_ENTRY_NAME
-        })))
-    except ldap.LDAPError as e:
-        log.error('Failed to add entry (%s): error (%s)' % (TEST_ENTRY_DN,
-                                                            e.message['desc']))
-        raise e
 
-    def fin():
+    test_user = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
+    if test_user.exists():
         log.info('Deleting entry {}'.format(TEST_ENTRY_DN))
-        try:
-            topo_m4.ms["master1"].delete_s(TEST_ENTRY_DN)
-        except ldap.NO_SUCH_OBJECT:
-            log.info("Entry {} wasn't found".format(TEST_ENTRY_DN))
-
-    request.addfinalizer(fin)
-
+        test_user.delete()
+    test_user.create(properties={
+        'uid': TEST_ENTRY_NAME,
+        'cn': TEST_ENTRY_NAME,
+        'sn': TEST_ENTRY_NAME,
+        'userPassword': TEST_ENTRY_NAME,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/mmrepl_test',
+    })
 
 @pytest.fixture(scope="function")
 def new_suffix(topo_m4, request):
@@ -129,46 +125,30 @@ def test_modify_entry(topo_m4, test_entry):
     """
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
-    try:
-        topo_m4.ms["master1"].modify_s(TEST_ENTRY_DN, [(ldap.MOD_ADD,
-                                                        'mail', '{}@redhat.com'.format(TEST_ENTRY_NAME))])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
-                                                               e.message['desc']))
-        raise e
+
+    test_user = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
+    test_user.add('mail', '{}@redhat.com'.format(TEST_ENTRY_NAME))
     time.sleep(1)
 
-    entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["mail"])
-    assert all(entry["mail"] == "{}@redhat.com".format(TEST_ENTRY_NAME)
-               for entry in entries), "Entry attr {} wasn't replicated successfully".format(TEST_ENTRY_DN)
+    all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
+    for u in all_user:
+        assert "{}@redhat.com".format(TEST_ENTRY_NAME) in u.get_attr_vals_utf8('mail')
 
     log.info('Modifying entry {} - replace operation'.format(TEST_ENTRY_DN))
-    try:
-        topo_m4.ms["master1"].modify_s(TEST_ENTRY_DN, [(ldap.MOD_REPLACE,
-                                                        'mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
-                                                               e.message['desc']))
-        raise e
+    test_user.replace('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
     time.sleep(1)
 
-    entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["mail"])
-    assert all(entry["mail"] == "{}@greenhat.com".format(TEST_ENTRY_NAME)
-               for entry in entries), "Entry attr {} wasn't replicated successfully".format(TEST_ENTRY_DN)
+    all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
+    for u in all_user:
+        assert "{}@greenhat.com".format(TEST_ENTRY_NAME) in u.get_attr_vals_utf8('mail')
 
     log.info('Modifying entry {} - delete operation'.format(TEST_ENTRY_DN))
-    try:
-        topo_m4.ms["master1"].modify_s(TEST_ENTRY_DN, [(ldap.MOD_DELETE,
-                                                        'mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN,
-                                                               e.message['desc']))
-        raise e
+    test_user.remove('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
     time.sleep(1)
 
-    entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["mail"])
-    assert all(not entry["mail"] for entry in entries), "Entry attr {} wasn't replicated successfully".format(
-        TEST_ENTRY_DN)
+    all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
+    for u in all_user:
+        assert "{}@greenhat.com".format(TEST_ENTRY_NAME) not in u.get_attr_vals_utf8('mail')
 
 
 def test_delete_entry(topo_m4, test_entry):
@@ -308,10 +288,10 @@ def test_modify_stripattrs(topo_m4):
 
     m1 = topo_m4.ms["master1"]
     agreement = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
-    attr_value = 'modifiersname modifytimestamp'
+    attr_value = b'modifiersname modifytimestamp'
 
     log.info('Modify nsds5replicastripattrs with {}'.format(attr_value))
-    m1.modify_s(agreement, [(ldap.MOD_REPLACE, 'nsds5replicastripattrs', attr_value)])
+    m1.modify_s(agreement, [(ldap.MOD_REPLACE, 'nsds5replicastripattrs', [attr_value])])
 
     log.info('Check nsds5replicastripattrs for {}'.format(attr_value))
     entries = m1.search_s(agreement, ldap.SCOPE_BASE, "objectclass=*", ['nsds5replicastripattrs'])
@@ -387,16 +367,13 @@ def test_many_attrs(topo_m4, test_entry):
     """
 
     m1 = topo_m4.ms["master1"]
-    add_list = map(lambda x: "test{}".format(x), range(10))
-    delete_list = map(lambda x: "test{}".format(x), [0, 4, 7, 9])
+    add_list = ensure_list_bytes(map(lambda x: "test{}".format(x), range(10)))
+    delete_list = ensure_list_bytes(map(lambda x: "test{}".format(x), [0, 4, 7, 9]))
+    test_user = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
 
     log.info('Modifying entry {} - 10 add operations'.format(TEST_ENTRY_DN))
     for add_name in add_list:
-        try:
-            m1.modify_s(TEST_ENTRY_DN, [(ldap.MOD_ADD, 'description', add_name)])
-        except ldap.LDAPError as e:
-            log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN, e.message['desc']))
-            raise e
+        test_user.add('description', add_name)
 
     log.info('Check that everything was properly replicated after an add operation')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["description"])
@@ -405,11 +382,7 @@ def test_many_attrs(topo_m4, test_entry):
 
     log.info('Modifying entry {} - 4 delete operations for {}'.format(TEST_ENTRY_DN, str(delete_list)))
     for delete_name in delete_list:
-        try:
-            m1.modify_s(TEST_ENTRY_DN, [(ldap.MOD_DELETE, 'description', delete_name)])
-        except ldap.LDAPError as e:
-            log.error('Failed to modify entry (%s): error (%s)' % (TEST_ENTRY_DN, e.message['desc']))
-            raise e
+        test_user.remove('description', delete_name)
 
     log.info('Check that everything was properly replicated after a delete operation')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["description"])
@@ -417,6 +390,112 @@ def test_many_attrs(topo_m4, test_entry):
         for i, value in enumerate(entry.getValues("description")):
             assert value == [name for name in add_list if name not in delete_list][i]
             assert value not in delete_list
+
+
+def test_double_delete(topo_m4, test_entry):
+    """Check that double delete of the entry doesn't crash server
+
+    :ID: 3496c82d-636a-48c9-973c-2455b12164cc
+    :feature: Multi master replication
+    :setup: Four masters replication setup, a test entry
+    :steps: 1. Delete the entry
+            2. Delete the entry on the second master
+            3. Check that server is alive
+    :expectedresults: Server hasn't crash
+    """
+
+    log.info('Deleting entry {} from master1'.format(TEST_ENTRY_DN))
+    topo_m4.ms["master1"].delete_s(TEST_ENTRY_DN)
+
+    log.info('Deleting entry {} from master2'.format(TEST_ENTRY_DN))
+    try:
+        topo_m4.ms["master2"].delete_s(TEST_ENTRY_DN)
+    except ldap.NO_SUCH_OBJECT:
+        log.info("Entry {} wasn't found master2. It is expected.".format(TEST_ENTRY_DN))
+
+    log.info('Make searches to check if server is alive')
+    entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
+    assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
+
+
+def test_password_repl_error(topo_m4, test_entry):
+    """Check that error about userpassword replication is properly logged
+
+    :ID: 714130ff-e4f0-4633-9def-c1f4b24abfef
+    :feature: Multi master replication
+    :setup: Four masters replication setup, a test entry
+    :steps: 1. Change userpassword on master 1
+            2. Restart the servers to flush the logs
+            3. Check the error log for an replication error
+    :expectedresults: We don't have a replication error in the error log
+    """
+
+    m1 = topo_m4.ms["master1"]
+    m2 = topo_m4.ms["master2"]
+    TEST_ENTRY_NEW_PASS = 'new_{}'.format(TEST_ENTRY_NAME)
+
+    log.info('Clean the error log')
+    m2.deleteErrorLogs()
+
+    log.info('Set replication loglevel')
+    m2.setLogLevel(LOG_REPLICA)
+
+    log.info('Modifying entry {} - change userpassword on master 2'.format(TEST_ENTRY_DN))
+    test_user_m1 = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)
+    test_user_m2 = UserAccount(topo_m4.ms["master2"], TEST_ENTRY_DN)
+    test_user_m3 = UserAccount(topo_m4.ms["master3"], TEST_ENTRY_DN)
+    test_user_m4 = UserAccount(topo_m4.ms["master4"], TEST_ENTRY_DN)
+
+    test_user_m1.set('userpassword', TEST_ENTRY_NEW_PASS)
+
+    log.info('Restart the servers to flush the logs')
+    for num in range(1, 5):
+        topo_m4.ms["master{}".format(num)].restart(timeout=10)
+
+    m1_conn = test_user_m1.bind(TEST_ENTRY_NEW_PASS)
+    m2_conn = test_user_m2.bind(TEST_ENTRY_NEW_PASS)
+    m3_conn = test_user_m3.bind(TEST_ENTRY_NEW_PASS)
+    m4_conn = test_user_m4.bind(TEST_ENTRY_NEW_PASS)
+
+    log.info('Check the error log for the error with {}'.format(TEST_ENTRY_DN))
+    assert not m2.ds_error_log.match('.*can.t add a change for uid={}.*'.format(TEST_ENTRY_NAME))
+
+
+def test_invalid_agmt(topo_m4):
+    """Test adding that an invalid agreement is properly rejected and does not crash the server
+
+    :id: 6c3b2a7e-edcd-4327-a003-6bd878ff722b
+    :setup: MMR with four masters
+    :steps:
+        1. Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
+        2. Verify the server is still running
+    :expectedresults:
+        1. Invalid repl agreement should be rejected
+        2. Server should be still running
+    """
+    m1 = topo_m4.ms["master1"]
+
+    # Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
+    AGMT_DN = 'cn=whatever,cn=replica,cn="dc=example,dc=com",cn=mapping tree,cn=config'
+    try:
+        invalid_props = {RA_ENABLED: 'True',  # Invalid value
+                         RA_SCHEDULE: '0001-2359 0123456'}
+        m1.agreement.create(suffix=DEFAULT_SUFFIX, host='localhost', port=389, properties=invalid_props)
+    except ldap.UNWILLING_TO_PERFORM:
+        m1.log.info('Invalid repl agreement correctly rejected')
+    except ldap.LDAPError as e:
+        m1.log.fatal('Got unexpected error adding invalid agreement: ' + str(e))
+        assert False
+    else:
+        m1.log.fatal('Invalid agreement was incorrectly accepted by the server')
+        assert False
+
+    # Verify the server is still running
+    try:
+        m1.simple_bind_s(DN_DM, PASSWORD)
+    except ldap.LDAPError as e:
+        m1.log.fatal('Failed to bind: ' + str(e))
+        assert False
 
 
 if __name__ == '__main__':

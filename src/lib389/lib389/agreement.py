@@ -679,14 +679,8 @@ class Agreement(object):
         """
 
         self.log.info("Pausing replication %s" % agmtdn)
-        mod = [(
-            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['off'])]
-        try:
-            self.conn.modify_s(agmtdn, mod)
-        except ldap.LDAPError:
-            # before 1.2.11, no support for nsds5ReplicaEnabled
-            # use schedule hack
-            self.schedule(interval)
+        mod = [(ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', [b'off'])]
+        self.conn.modify_s(ensure_str(agmtdn), mod)
 
         # Allow a little time for repl agmt thread to stop
         time.sleep(5)
@@ -711,14 +705,8 @@ class Agreement(object):
         """
 
         self.log.info("Resuming replication %s" % agmtdn)
-        mod = [(
-            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['on'])]
-        try:
-            self.conn.modify_s(agmtdn, mod)
-        except ldap.LDAPError:
-            # before 1.2.11, no support for nsds5ReplicaEnabled
-            # use schedule hack
-            self.schedule(interval)
+        mod = [(ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', [b'on'])]
+        self.conn.modify_s(ensure_str(agmtdn), mod)
 
         # Allow a little time for the repl agmt thread to start
         time.sleep(2)

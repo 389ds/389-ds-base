@@ -174,9 +174,9 @@ def test_lastupdate_attr_before_init(topo_nr, replica_without_init):
                             "nsds5replicaLastUpdateEnd",
                             "nsds5replicaLastUpdateStatus"])[0]
 
-    assert agmt["nsds5replicaLastUpdateStart"] == "19700101000000Z"
-    assert agmt["nsds5replicaLastUpdateEnd"] == "19700101000000Z"
-    assert "Replica acquired successfully" not in agmt["nsds5replicaLastUpdateStatus"]
+    assert agmt["nsds5replicaLastUpdateStart"] == b"19700101000000Z"
+    assert agmt["nsds5replicaLastUpdateEnd"] == b"19700101000000Z"
+    assert b"Replica acquired successfully" not in agmt["nsds5replicaLastUpdateStatus"]
 
 
 if __name__ == '__main__':

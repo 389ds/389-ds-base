@@ -2282,7 +2282,7 @@ class DirSrv(SimpleLDAPObject, object):
             @raise None
         '''
 
-        test_value = ('test replication from ' + self.serverid + ' to ' +
+        test_value = ensure_bytes('test replication from ' + self.serverid + ' to ' +
                       replicas[0].serverid + ': ' + str(int(time.time())))
         self.modify_s(suffix, [(ldap.MOD_REPLACE, 'description', test_value)])
 

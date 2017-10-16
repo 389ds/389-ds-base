@@ -116,7 +116,8 @@ def create_topology(topo_dict):
     for replica_from, inst_from in replica_dict.items():
         if replica_from.get_role() == ReplicaRole.MASTER:
             agmts = inst_from.agreement.list(DEFAULT_SUFFIX)
-            map(lambda agmt: replica_from.start_and_wait(agmt.dn), agmts)
+            for r in map(lambda agmt: replica_from.start_and_wait(agmt.dn), agmts):
+                assert r == 0
             break
 
     # Clear out the tmp dir
@@ -161,6 +162,13 @@ class TopologyMain(object):
         for inst in self.all_insts.values():
             for agreement in inst.agreement.list(suffix=DEFAULT_SUFFIX):
                 inst.agreement.resume(agreement.dn)
+
+    def all_get_dsldapobject(self, dn, otype):
+        result = []
+        for inst in self.all_insts.values():
+            o = otype(inst, dn)
+            result.append(o)
+        return result
 
 
 @pytest.fixture(scope="module")
@@ -218,7 +226,7 @@ def topology_m1c1(request):
     topology = create_topology({ReplicaRole.MASTER: 1,
                                 ReplicaRole.CONSUMER: 1})
     replicas = Replicas(topology.ms["master1"])
-    replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
+    assert replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
     def fin():
         if DEBUGGING:
@@ -236,7 +244,7 @@ def topology_m2(request):
 
     topology = create_topology({ReplicaRole.MASTER: 2})
     replicas = Replicas(topology.ms["master1"])
-    replicas.test(DEFAULT_SUFFIX, topology.ms["master2"])
+    assert replicas.test(DEFAULT_SUFFIX, topology.ms["master2"])
 
     def fin():
         if DEBUGGING:
@@ -254,7 +262,7 @@ def topology_m3(request):
 
     topology = create_topology({ReplicaRole.MASTER: 3})
     replicas = Replicas(topology.ms["master1"])
-    replicas.test(DEFAULT_SUFFIX, topology.ms["master3"])
+    assert replicas.test(DEFAULT_SUFFIX, topology.ms["master3"])
 
     def fin():
         if DEBUGGING:
@@ -272,7 +280,7 @@ def topology_m4(request):
 
     topology = create_topology({ReplicaRole.MASTER: 4})
     replicas = Replicas(topology.ms["master1"])
-    replicas.test(DEFAULT_SUFFIX, topology.ms["master4"])
+    assert replicas.test(DEFAULT_SUFFIX, topology.ms["master4"])
 
     def fin():
         if DEBUGGING:
@@ -291,7 +299,7 @@ def topology_m2c2(request):
     topology = create_topology({ReplicaRole.MASTER: 2,
                                 ReplicaRole.CONSUMER: 2})
     replicas = Replicas(topology.ms["master1"])
-    replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
+    assert replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
 
     def fin():
         if DEBUGGING:
@@ -366,7 +374,7 @@ def topology_m1h1c1(request):
 
     # Check replication is working...
     replicas = Replicas(master)
-    replicas.test(DEFAULT_SUFFIX, consumer)
+    assert replicas.test(DEFAULT_SUFFIX, consumer)
 
     # Clear out the tmp dir
     master.clearTmpDir(__file__)
