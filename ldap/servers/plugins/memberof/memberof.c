@@ -2898,82 +2898,84 @@ int memberof_compare(MemberOfConfig *config, const void *a, const void *b)
  * We should only use this function when using qsort, and only
  * when the memberOf lock is acquired.
  */
-int memberof_qsort_compare(const void *a, const void *b)
+int
+memberof_qsort_compare(const void *a, const void *b)
 {
-	Slapi_Value *val1 = *((Slapi_Value **)a);
-	Slapi_Value *val2 = *((Slapi_Value **)b);
+    Slapi_Value *val1 = *((Slapi_Value **)a);
+    Slapi_Value *val2 = *((Slapi_Value **)b);
 
-	/* We only need to provide a Slapi_Attr here for it's syntax.  We
-	 * already validated all grouping attributes to use the Distinguished
-	 * Name syntax, so we can safely just use the first attr. */
-	return slapi_attr_value_cmp_ext(qsortConfig->group_slapiattrs[0],
-	                                val1, val2);
+    /* We only need to provide a Slapi_Attr here for it's syntax.  We
+     * already validated all grouping attributes to use the Distinguished
+     * Name syntax, so we can safely just use the first attr. */
+    return slapi_attr_value_cmp_ext(qsortConfig->group_slapiattrs[0],
+                                    val1, val2);
 }
 
-void memberof_fixup_task_thread(void *arg)
+void
+memberof_fixup_task_thread(void *arg)
 {
-	MemberOfConfig configCopy = {0};
-	Slapi_Task *task = (Slapi_Task *)arg;
-	task_data *td = NULL;
-	int rc = 0;
-	Slapi_PBlock *fixup_pb = NULL;
+    MemberOfConfig configCopy = {0};
+    Slapi_Task *task = (Slapi_Task *)arg;
+    task_data *td = NULL;
+    int rc = 0;
+    Slapi_PBlock *fixup_pb = NULL;
 
-	if (!task) {
-		return; /* no task */
-	}
-	slapi_task_inc_refcount(task);
-	slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-		"memberof_fixup_task_thread - refcount incremented.\n" );
-	/* Fetch our task data from the task */
-	td = (task_data *)slapi_task_get_data(task);
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                  "memberof_fixup_task_thread - refcount incremented.\n");
+    /* Fetch our task data from the task */
+    td = (task_data *)slapi_task_get_data(task);
 
-	/* set bind DN in the thread data */
-	slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
+    /* set bind DN in the thread data */
+    slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
 
-	slapi_task_begin(task, 1);
-	slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n", 
-	                      td->filter_str);
-	slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
-		"memberof_fixup_task_thread - Memberof task starts (filter: \"%s\") ...\n",
-		td->filter_str);
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n",
+                          td->filter_str);
+    slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
+                  "memberof_fixup_task_thread - Memberof task starts (filter: \"%s\") ...\n",
+                  td->filter_str);
 
-	/* We need to get the config lock first.  Trying to get the
-	 * config lock after we already hold the op lock can cause
-	 * a deadlock. */
-	memberof_rlock_config();
-	/* copy config so it doesn't change out from under us */
-	memberof_copy_config(&configCopy, memberof_get_config());
-	memberof_unlock_config();
+    /* We need to get the config lock first.  Trying to get the
+     * config lock after we already hold the op lock can cause
+     * a deadlock. */
+    memberof_rlock_config();
+    /* copy config so it doesn't change out from under us */
+    memberof_copy_config(&configCopy, memberof_get_config());
+    memberof_unlock_config();
 
-	/* Mark this as a task operation */
-	configCopy.fixup_task = 1;
+    /* Mark this as a task operation */
+    configCopy.fixup_task = 1;
 
-	if (usetxn) {
-		Slapi_DN *sdn = slapi_sdn_new_dn_byref(td->dn);
-		Slapi_Backend *be = slapi_be_select_exact(sdn);
-		slapi_sdn_free(&sdn);
-		if (be) {
-			fixup_pb = slapi_pblock_new();
-			slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
-			rc = slapi_back_transaction_begin(fixup_pb);
-			if (rc) {
-				slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-					"memberof_fixup_task_thread - Failed to start transaction\n");
-				goto done;
-			}
-		} else {
-			slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-				"memberof_fixup_task_thread - Failed to get be backend from (%s)\n",
-				td->dn);
-			slapi_task_log_notice(task, "Memberof task - Failed to get be backend from (%s)\n",
-				td->dn);
-			rc = -1;
-			goto done;
-		}
-	}
+    if (usetxn) {
+        Slapi_DN *sdn = slapi_sdn_new_dn_byref(td->dn);
+        Slapi_Backend *be = slapi_be_select_exact(sdn);
+        slapi_sdn_free(&sdn);
+        if (be) {
+            fixup_pb = slapi_pblock_new();
+            slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
+            rc = slapi_back_transaction_begin(fixup_pb);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "memberof_fixup_task_thread - Failed to start transaction\n");
+                goto done;
+            }
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                          "memberof_fixup_task_thread - Failed to get be backend from (%s)\n",
+                          td->dn);
+            slapi_task_log_notice(task, "Memberof task - Failed to get be backend from (%s)\n",
+                                  td->dn);
+            rc = -1;
+            goto done;
+        }
+    }
 
-	/* do real work */
-	rc = memberof_fix_memberof(&configCopy, task, td);
+    /* do real work */
+    rc = memberof_fix_memberof(&configCopy, task, td);
 
 done:
 	if (usetxn && fixup_pb) {

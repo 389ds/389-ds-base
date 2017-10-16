@@ -86,8 +86,6 @@ int memberof_config(Slapi_Entry *config_e, Slapi_PBlock *pb);
 void memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src);
 void memberof_free_config(MemberOfConfig *config);
 MemberOfConfig *memberof_get_config(void);
-void memberof_lock(void);
-void memberof_unlock(void);
 void memberof_rlock_config(void);
 void memberof_wlock_config(void);
 void memberof_unlock_config(void);
