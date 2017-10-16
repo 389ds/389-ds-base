@@ -1454,7 +1454,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_intop != NULL) {
             (*(unsigned int *)value) = pblock->pb_intop->pb_operation_notes;
         } else {
-            (*(unsigned int *)value) = NULL;
+            (*(unsigned int *)value) = 0;
         }
         break;
 
