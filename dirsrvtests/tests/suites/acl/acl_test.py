@@ -10,6 +10,11 @@ import pytest
 from ldap.controls.simple import GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.schema import Schema
+from lib389.idm.domain import Domain
+from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.organisationalrole import OrganisationalRole, OrganisationalRoles
+
 from lib389.topologies import topology_m2
 from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD
 
@@ -31,8 +36,8 @@ PRODUCTION_PATTERN = "cn=%s*,%s" % (PRODUCTION_CN[:2], SUFFIX)
 BAD_STAGING_PATTERN = "cn=bad*,%s" % (SUFFIX)
 BAD_PRODUCTION_PATTERN = "cn=bad*,%s" % (SUFFIX)
 
-BIND_CN = "bind_entry"
-BIND_DN = "cn=%s,%s" % (BIND_CN, SUFFIX)
+BIND_RDN = "bind_entry"
+BIND_DN = "uid=%s,%s" % (BIND_RDN, SUFFIX)
 BIND_PW = "password"
 
 NEW_ACCOUNT = "new_account"
@@ -54,14 +59,8 @@ def add_attr(topology_m2, attr_name):
     ATTR_VALUE = """(NAME '%s' \
                     DESC 'Attribute filteri-Multi-Valued' \
                     SYNTAX 1.3.6.1.4.1.1466.115.121.1.27)""" % attr_name
-    mod = [(ldap.MOD_ADD, 'attributeTypes', ATTR_VALUE)]
-
-    try:
-        topology_m2.ms["master1"].modify_s(DN_SCHEMA, mod)
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add attr (%s): error (%s)' % (attr_name,
-                                                           e.message['desc']))
-        assert False
+    schema = Schema(topology_m2.ms["master1"])
+    schema.add('attributeTypes', ATTR_VALUE)
 
 
 @pytest.fixture(params=["lang-ja", "binary", "phonetic"])
@@ -71,6 +70,7 @@ def aci_with_attr_subtype(request, topology_m2):
     TARGET_ATTR = 'protectedOperation'
     USER_ATTR = 'allowedToPerform'
     SUBTYPE = request.param
+    suffix = Domain(topology_m2.ms["master1"], DEFAULT_SUFFIX)
 
     log.info("========Executing test with '%s' subtype========" % SUBTYPE)
     log.info("        Add a target attribute")
@@ -85,22 +85,12 @@ def aci_with_attr_subtype(request, topology_m2):
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
 
     log.info("Add an ACI with attribute subtype")
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    try:
-        topology_m2.ms["master1"].modify_s(DEFAULT_SUFFIX, mod)
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add ACI: error (%s)' % (e.message['desc']))
-        assert False
+    suffix.add('aci', ACI_BODY)
 
     def fin():
         log.info("Finally, delete an ACI with the '%s' subtype" %
                  SUBTYPE)
-        mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
-        try:
-            topology_m2.ms["master1"].modify_s(DEFAULT_SUFFIX, mod)
-        except ldap.LDAPError as e:
-            log.fatal('Failed to delete ACI: error (%s)' % (e.message['desc']))
-            assert False
+        suffix.remove('aci', ACI_BODY)
 
     request.addfinalizer(fin)
 
@@ -164,32 +154,32 @@ def _moddn_aci_deny_tree(topology_m2, mod_type=None,
     ACI_ALLOW = "(version 3.0; acl \"Deny MODDN to prod_except\"; deny (moddn)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % BIND_DN
     ACI_BODY = ACI_TARGET_TO + ACI_TARGET_FROM + ACI_ALLOW + ACI_SUBJECT
-    mod = [(mod_type, 'aci', ACI_BODY)]
     # topology_m2.ms["master1"].modify_s(SUFFIX, mod)
     topology_m2.ms["master1"].log.info("Add a DENY aci under %s " % PROD_EXCEPT_DN)
-    topology_m2.ms["master1"].modify_s(PROD_EXCEPT_DN, mod)
+    prod_except = OrganisationalRole(topology_m2.ms["master1"], PROD_EXCEPT_DN)
+    prod_except.set('aci', ACI_BODY, mod_type)
 
 
 def _write_aci_staging(topology_m2, mod_type=None):
     assert mod_type is not None
 
-    ACI_TARGET = "(targetattr= \"cn\")(target=\"ldap:///cn=*,%s\")" % STAGING_DN
+    ACI_TARGET = "(targetattr= \"uid\")(target=\"ldap:///uid=*,%s\")" % STAGING_DN
     ACI_ALLOW = "(version 3.0; acl \"write staging entries\"; allow (write)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % BIND_DN
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
-    mod = [(mod_type, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
+    suffix = Domain(topology_m2.ms["master1"], SUFFIX)
+    suffix.set('aci', ACI_BODY, mod_type)
 
 
 def _write_aci_production(topology_m2, mod_type=None):
     assert mod_type is not None
 
-    ACI_TARGET = "(targetattr= \"cn\")(target=\"ldap:///cn=*,%s\")" % PRODUCTION_DN
+    ACI_TARGET = "(targetattr= \"uid\")(target=\"ldap:///uid=*,%s\")" % PRODUCTION_DN
     ACI_ALLOW = "(version 3.0; acl \"write production entries\"; allow (write)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % BIND_DN
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
-    mod = [(mod_type, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
+    suffix = Domain(topology_m2.ms["master1"], SUFFIX)
+    suffix.set('aci', ACI_BODY, mod_type)
 
 
 def _moddn_aci_staging_to_production(topology_m2, mod_type=None,
@@ -206,8 +196,8 @@ def _moddn_aci_staging_to_production(topology_m2, mod_type=None,
     ACI_ALLOW = "(version 3.0; acl \"MODDN from staging to production\"; allow (moddn)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % BIND_DN
     ACI_BODY = ACI_TARGET_FROM + ACI_TARGET_TO + ACI_ALLOW + ACI_SUBJECT
-    mod = [(mod_type, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
+    suffix = Domain(topology_m2.ms["master1"], SUFFIX)
+    suffix.set('aci', ACI_BODY, mod_type)
 
     _write_aci_staging(topology_m2, mod_type=mod_type)
 
@@ -220,8 +210,8 @@ def _moddn_aci_from_production_to_staging(topology_m2, mod_type=None):
     ACI_ALLOW = "(version 3.0; acl \"MODDN from production to staging\"; allow (moddn)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % BIND_DN
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
-    mod = [(mod_type, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
+    suffix = Domain(topology_m2.ms["master1"], SUFFIX)
+    suffix.set('aci', ACI_BODY, mod_type)
 
     _write_aci_production(topology_m2, mod_type=mod_type)
 
@@ -235,49 +225,46 @@ def moddn_setup(topology_m2):
        - enable ACL logging (commented for performance reason)
     """
 
-    topology_m2.ms["master1"].log.info("\n\n######## INITIALIZATION ########\n")
+    m1 = topology_m2.ms["master1"]
+    o_roles = OrganisationalRoles(m1, SUFFIX)
+
+    m1.log.info("\n\n######## INITIALIZATION ########\n")
 
     # entry used to bind with
-    topology_m2.ms["master1"].log.info("Add %s" % BIND_DN)
-    topology_m2.ms["master1"].add_s(Entry((BIND_DN, {
-        'objectclass': "top person".split(),
-        'sn': BIND_CN,
-        'cn': BIND_CN,
-        'userpassword': BIND_PW})))
+    m1.log.info("Add {}".format(BIND_DN))
+    user = UserAccount(m1, BIND_DN)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'sn': BIND_RDN,
+                       'cn': BIND_RDN,
+                       'uid': BIND_RDN,
+                       'userpassword': BIND_PW})
+    user.create(properties=user_props, basedn=SUFFIX)
 
     # DIT for staging
-    topology_m2.ms["master1"].log.info("Add %s" % STAGING_DN)
-    topology_m2.ms["master1"].add_s(Entry((STAGING_DN, {
-        'objectclass': "top organizationalRole".split(),
-        'cn': STAGING_CN,
-        'description': "staging DIT"})))
+    m1.log.info("Add {}".format(STAGING_DN))
+    o_roles.create(properties={'cn': STAGING_CN, 'description': "staging DIT"})
 
     # DIT for production
-    topology_m2.ms["master1"].log.info("Add %s" % PRODUCTION_DN)
-    topology_m2.ms["master1"].add_s(Entry((PRODUCTION_DN, {
-        'objectclass': "top organizationalRole".split(),
-        'cn': PRODUCTION_CN,
-        'description': "production DIT"})))
+    m1.log.info("Add {}".format(PRODUCTION_DN))
+    o_roles.create(properties={'cn': PRODUCTION_CN, 'description': "production DIT"})
 
     # DIT for production/except
-    topology_m2.ms["master1"].log.info("Add %s" % PROD_EXCEPT_DN)
-    topology_m2.ms["master1"].add_s(Entry((PROD_EXCEPT_DN, {
-        'objectclass': "top organizationalRole".split(),
-        'cn': EXCEPT_CN,
-        'description': "production except DIT"})))
+    m1.log.info("Add {}".format(PROD_EXCEPT_DN))
+    o_roles_prod = OrganisationalRoles(m1, PRODUCTION_DN)
+    o_roles_prod.create(properties={'cn': EXCEPT_CN, 'description': "production except DIT"})
 
     # enable acl error logging
     # mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '128')]
-    # topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
+    # m1.modify_s(DN_CONFIG, mod)
     # topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
     # add dummy entries in the staging DIT
+    staging_users = UserAccounts(m1, SUFFIX, rdn="cn={}".format(STAGING_CN))
+    user_props = TEST_USER_PROPERTIES.copy()
     for cpt in range(MAX_ACCOUNTS):
-        name = "%s%d" % (NEW_ACCOUNT, cpt)
-        topology_m2.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, STAGING_DN), {
-            'objectclass': "top person".split(),
-            'sn': name,
-            'cn': name})))
+        name = "{}{}".format(NEW_ACCOUNT, cpt)
+        user_props.update({'sn': name, 'cn': name, 'uid': name})
+        staging_users.create(properties=user_props)
 
 
 def test_mode_default_add_deny(topology_m2, moddn_setup):
@@ -293,6 +280,7 @@ def test_mode_default_add_deny(topology_m2, moddn_setup):
     :expectedresults:
         1. It should fail due to INSUFFICIENT_ACCESS
     """
+
     topology_m2.ms["master1"].log.info("\n\n######## mode moddn_aci : ADD (should fail) ########\n")
 
     _bind_normal(topology_m2)
@@ -303,10 +291,11 @@ def test_mode_default_add_deny(topology_m2, moddn_setup):
     try:
         topology_m2.ms["master1"].log.info("Try to add %s" % PRODUCTION_DN)
         name = "%s%d" % (NEW_ACCOUNT, 0)
-        topology_m2.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, PRODUCTION_DN), {
+        topology_m2.ms["master1"].add_s(Entry(("uid=%s,%s" % (name, PRODUCTION_DN), {
             'objectclass': "top person".split(),
             'sn': name,
-            'cn': name})))
+            'cn': name,
+            'uid': name})))
         assert 0  # this is an error, we should not be allowed to add an entry in production
     except Exception as e:
         topology_m2.ms["master1"].log.info("Exception (expected): %s" % type(e).__name__)
@@ -336,7 +325,7 @@ def test_mode_default_delete_deny(topology_m2, moddn_setup):
     try:
         topology_m2.ms["master1"].log.info("Try to delete %s" % STAGING_DN)
         name = "%s%d" % (NEW_ACCOUNT, 0)
-        topology_m2.ms["master1"].delete_s("cn=%s,%s" % (name, STAGING_DN))
+        topology_m2.ms["master1"].delete_s("uid=%s,%s" % (name, STAGING_DN))
         assert 0  # this is an error, we should not be allowed to add an entry in production
     except Exception as e:
         topology_m2.ms["master1"].log.info("Exception (expected): %s" % type(e).__name__)
@@ -376,7 +365,7 @@ def test_moddn_staging_prod(topology_m2, moddn_setup,
     topology_m2.ms["master1"].log.info("\n\n######## MOVE staging -> Prod (%s) ########\n" % index)
     _bind_normal(topology_m2)
 
-    old_rdn = "cn=%s%s" % (NEW_ACCOUNT, index)
+    old_rdn = "uid=%s%s" % (NEW_ACCOUNT, index)
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PRODUCTION_DN
@@ -452,10 +441,11 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     topology_m2.ms["master1"].log.info("\n\n######## MOVE staging -> Prod (9) ########\n")
 
     _bind_normal(topology_m2)
-    old_rdn = "cn=%s9" % NEW_ACCOUNT
+    old_rdn = "uid=%s9" % NEW_ACCOUNT
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PRODUCTION_DN
+    prod = OrganisationalRole(topology_m2.ms["master1"], PRODUCTION_DN)
 
     #
     # Try to rename without the appropriate ACI  => INSUFFICIENT_ACCESS
@@ -476,8 +466,7 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     #############
     topology_m2.ms["master1"].log.info("Disable the moddn right")
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_REPLACE, CONFIG_MODDN_ACI_ATTR, 'off')]
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master1"].config.set(CONFIG_MODDN_ACI_ATTR, 'off')
 
     # Add the moddn aci that will not be evaluated because of the config flag
     topology_m2.ms["master1"].log.info("\n\n######## MOVE to and from equality filter ########\n")
@@ -513,8 +502,7 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     ACI_BODY = ACI_ALLOW + ACI_SUBJECT
 
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(PRODUCTION_DN, mod)
+    prod.add('aci', ACI_BODY)
     _write_aci_staging(topology_m2, mod_type=ldap.MOD_ADD)
     _bind_normal(topology_m2)
 
@@ -522,8 +510,7 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     topology_m2.ms["master1"].rename_s(old_dn, new_rdn, newsuperior=new_superior)
 
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(PRODUCTION_DN, mod)
+    prod.remove('aci', ACI_BODY)
     _write_aci_staging(topology_m2, mod_type=ldap.MOD_DELETE)
     _bind_normal(topology_m2)
 
@@ -532,13 +519,12 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     #############
     topology_m2.ms["master1"].log.info("Enable the moddn right")
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_REPLACE, CONFIG_MODDN_ACI_ATTR, 'on')]
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["master1"].config.set(CONFIG_MODDN_ACI_ATTR, 'on')
 
     topology_m2.ms["master1"].log.info("\n\n######## MOVE staging -> Prod (10) ########\n")
 
     _bind_normal(topology_m2)
-    old_rdn = "cn=%s10" % NEW_ACCOUNT
+    old_rdn = "uid=%s10" % NEW_ACCOUNT
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PRODUCTION_DN
@@ -566,8 +552,7 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     ACI_BODY = ACI_ALLOW + ACI_SUBJECT
 
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(PRODUCTION_DN, mod)
+    prod.add('aci', ACI_BODY)
     _write_aci_staging(topology_m2, mod_type=ldap.MOD_ADD)
     _bind_normal(topology_m2)
 
@@ -583,8 +568,7 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
         assert isinstance(e, ldap.INSUFFICIENT_ACCESS)
 
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(PRODUCTION_DN, mod)
+    prod.remove('aci', ACI_BODY)
     _write_aci_staging(topology_m2, mod_type=ldap.MOD_DELETE)
     _bind_normal(topology_m2)
 
@@ -628,7 +612,7 @@ def test_moddn_prod_staging(topology_m2, moddn_setup):
 
     _bind_normal(topology_m2)
 
-    old_rdn = "cn=%s11" % NEW_ACCOUNT
+    old_rdn = "uid=%s11" % NEW_ACCOUNT
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PRODUCTION_DN
@@ -658,7 +642,7 @@ def test_moddn_prod_staging(topology_m2, moddn_setup):
     topology_m2.ms["master1"].rename_s(old_dn, new_rdn, newsuperior=new_superior)
 
     # Now check we can not move back the entry to staging
-    old_rdn = "cn=%s11" % NEW_ACCOUNT
+    old_rdn = "uid=%s11" % NEW_ACCOUNT
     old_dn = "%s,%s" % (old_rdn, PRODUCTION_DN)
     new_rdn = old_rdn
     new_superior = STAGING_DN
@@ -709,8 +693,9 @@ def test_check_repl_M2_to_M1(topology_m2, moddn_setup):
     topology_m2.ms["master1"].log.info("Bind as %s (M2)" % DN_DM)
     topology_m2.ms["master2"].simple_bind_s(DN_DM, PASSWORD)
 
-    rdn = "cn=%s12" % NEW_ACCOUNT
+    rdn = "uid=%s12" % NEW_ACCOUNT
     dn = "%s,%s" % (rdn, STAGING_DN)
+    new_account = UserAccount(topology_m2.ms["master2"], dn)
 
     # First wait for the ACCOUNT19 entry being replicated on M2
     loop = 0
@@ -724,10 +709,9 @@ def test_check_repl_M2_to_M1(topology_m2, moddn_setup):
     assert loop <= 10
 
     attribute = 'description'
-    tested_value = 'Hello world'
-    mod = [(ldap.MOD_ADD, attribute, tested_value)]
+    tested_value = b'Hello world'
     topology_m2.ms["master1"].log.info("Update (M2) %s (%s)" % (dn, attribute))
-    topology_m2.ms["master2"].modify_s(dn, mod)
+    new_account.add(attribute, tested_value)
 
     loop = 0
     while loop <= 10:
@@ -767,7 +751,7 @@ def test_moddn_staging_prod_except(topology_m2, moddn_setup):
     topology_m2.ms["master1"].log.info("\n\n######## MOVE staging -> Prod (13) ########\n")
     _bind_normal(topology_m2)
 
-    old_rdn = "cn=%s13" % NEW_ACCOUNT
+    old_rdn = "uid=%s13" % NEW_ACCOUNT
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PRODUCTION_DN
@@ -801,7 +785,7 @@ def test_moddn_staging_prod_except(topology_m2, moddn_setup):
     # Now try to move an entry under except
     #
     topology_m2.ms["master1"].log.info("\n\n######## MOVE staging -> Prod/Except (14) ########\n")
-    old_rdn = "cn=%s14" % NEW_ACCOUNT
+    old_rdn = "uid=%s14" % NEW_ACCOUNT
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PROD_EXCEPT_DN
@@ -841,7 +825,8 @@ def test_mode_default_ger_no_moddn(topology_m2, moddn_setup):
     """
 
     topology_m2.ms["master1"].log.info("\n\n######## mode moddn_aci : GER no moddn  ########\n")
-    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId="dn: " + BIND_DN)
+    request_ctrl = GetEffectiveRightsControl(criticality=True,
+                                             authzId=ensure_bytes("dn: " + BIND_DN))
     msg_id = topology_m2.ms["master1"].search_ext(PRODUCTION_DN,
                                                   ldap.SCOPE_SUBTREE,
                                                   "objectclass=*",
@@ -854,7 +839,7 @@ def test_mode_default_ger_no_moddn(topology_m2, moddn_setup):
         value = attrs['entryLevelRights'][0]
 
     topology_m2.ms["master1"].log.info("########  entryLevelRights: %r" % value)
-    assert 'n' not in value
+    assert b'n' not in value
 
 
 def test_mode_default_ger_with_moddn(topology_m2, moddn_setup):
@@ -885,7 +870,8 @@ def test_mode_default_ger_with_moddn(topology_m2, moddn_setup):
                                      target_from=STAGING_DN, target_to=PRODUCTION_DN)
     _bind_normal(topology_m2)
 
-    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId="dn: " + BIND_DN)
+    request_ctrl = GetEffectiveRightsControl(criticality=True,
+                                             authzId=ensure_bytes("dn: " + BIND_DN))
     msg_id = topology_m2.ms["master1"].search_ext(PRODUCTION_DN,
                                                   ldap.SCOPE_SUBTREE,
                                                   "objectclass=*",
@@ -898,33 +884,13 @@ def test_mode_default_ger_with_moddn(topology_m2, moddn_setup):
         value = attrs['entryLevelRights'][0]
 
     topology_m2.ms["master1"].log.info("########  entryLevelRights: %r" % value)
-    assert 'n' in value
+    assert b'n' in value
 
     # successful MOD with the both ACI
     _bind_manager(topology_m2)
     _moddn_aci_staging_to_production(topology_m2, mod_type=ldap.MOD_DELETE,
                                      target_from=STAGING_DN, target_to=PRODUCTION_DN)
     _bind_normal(topology_m2)
-
-
-def test_mode_switch_default_to_legacy(topology_m2, moddn_setup):
-    """This test switch the server from default mode to legacy
-
-    :id: 1de7483d-c637-4965-9d76-678d4cb381b1
-    :setup: MMR with two masters,
-            M1 - staging DIT
-            M2 - production DIT
-            add test accounts in staging DIT
-    :steps:
-        1. Disable the moddn aci mod on M1
-    :expectedresults:
-        1. It should pass
-    """
-
-    topology_m2.ms["master1"].log.info("\n\n######## Disable the moddn aci mod ########\n")
-    _bind_manager(topology_m2)
-    mod = [(ldap.MOD_REPLACE, CONFIG_MODDN_ACI_ATTR, 'off')]
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
 
 
 def test_mode_legacy_ger_no_moddn1(topology_m2, moddn_setup):
@@ -936,17 +902,23 @@ def test_mode_legacy_ger_no_moddn1(topology_m2, moddn_setup):
             M2 - production DIT
             add test accounts in staging DIT
     :steps:
-        1. Search for GER controls on M1
-        2. Check entryLevelRights value for entries
-        3. Check 'n' is not in the entryLevelRights
+        1. Disable ACI checks - set nsslapd-moddn-aci: off
+        2. Search for GER controls on M1
+        3. Check entryLevelRights value for entries
+        4. Check 'n' is not in the entryLevelRights
     :expectedresults:
         1. It should pass
         2. It should pass
         3. It should pass
+        4. It should pass
     """
 
+    topology_m2.ms["master1"].log.info("\n\n######## Disable the moddn aci mod ########\n")
+    _bind_manager(topology_m2)
+    topology_m2.ms["master1"].config.set(CONFIG_MODDN_ACI_ATTR, 'off')
+
     topology_m2.ms["master1"].log.info("\n\n######## mode legacy 1: GER no moddn  ########\n")
-    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId="dn: " + BIND_DN)
+    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId=ensure_bytes("dn: " + BIND_DN))
     msg_id = topology_m2.ms["master1"].search_ext(PRODUCTION_DN,
                                                   ldap.SCOPE_SUBTREE,
                                                   "objectclass=*",
@@ -959,7 +931,7 @@ def test_mode_legacy_ger_no_moddn1(topology_m2, moddn_setup):
         value = attrs['entryLevelRights'][0]
 
     topology_m2.ms["master1"].log.info("########  entryLevelRights: %r" % value)
-    assert 'n' not in value
+    assert b'n' not in value
 
 
 def test_mode_legacy_ger_no_moddn2(topology_m2, moddn_setup):
@@ -971,16 +943,22 @@ def test_mode_legacy_ger_no_moddn2(topology_m2, moddn_setup):
             M2 - production DIT
             add test accounts in staging DIT
     :steps:
-        1. Add moddn ACI on M2
-        2. Search for GER controls on M1
-        3. Check entryLevelRights value for entries
-        4. Check 'n' is not in the entryLevelRights
+        1. Disable ACI checks - set nsslapd-moddn-aci: off
+        2. Add moddn ACI on M1
+        3. Search for GER controls on M1
+        4. Check entryLevelRights value for entries
+        5. Check 'n' is not in the entryLevelRights
     :expectedresults:
         1. It should pass
         2. It should pass
-        3. It should be pass
-        4. It should pass
+        3. It should pass
+        4. It should be pass
+        5. It should pass
     """
+
+    topology_m2.ms["master1"].log.info("\n\n######## Disable the moddn aci mod ########\n")
+    _bind_manager(topology_m2)
+    topology_m2.ms["master1"].config.set(CONFIG_MODDN_ACI_ATTR, 'off')
 
     topology_m2.ms["master1"].log.info("\n\n######## mode legacy 2: GER no moddn  ########\n")
     # successful MOD with the ACI
@@ -989,7 +967,8 @@ def test_mode_legacy_ger_no_moddn2(topology_m2, moddn_setup):
                                      target_from=STAGING_DN, target_to=PRODUCTION_DN)
     _bind_normal(topology_m2)
 
-    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId="dn: " + BIND_DN)
+    request_ctrl = GetEffectiveRightsControl(criticality=True,
+                                             authzId=ensure_bytes("dn: " + BIND_DN))
     msg_id = topology_m2.ms["master1"].search_ext(PRODUCTION_DN,
                                                   ldap.SCOPE_SUBTREE,
                                                   "objectclass=*",
@@ -1002,7 +981,7 @@ def test_mode_legacy_ger_no_moddn2(topology_m2, moddn_setup):
         value = attrs['entryLevelRights'][0]
 
     topology_m2.ms["master1"].log.info("########  entryLevelRights: %r" % value)
-    assert 'n' not in value
+    assert b'n' not in value
 
     # successful MOD with the both ACI
     _bind_manager(topology_m2)
@@ -1020,33 +999,41 @@ def test_mode_legacy_ger_with_moddn(topology_m2, moddn_setup):
             M2 - production DIT
             add test accounts in staging DIT
     :steps:
-        1. Add moddn ACI on M2
-        2. Search for GER controls on M1
-        3. Check entryLevelRights value for entries
-        4. Check 'n' is in the entryLevelRights
-        5. Try MOD with the both ACI
+        1. Disable ACI checks - set nsslapd-moddn-aci: off
+        2. Add moddn ACI on M1
+        3. Search for GER controls on M1
+        4. Check entryLevelRights value for entries
+        5. Check 'n' is in the entryLevelRights
+        6. Try MOD with the both ACI
     :expectedresults:
         1. It should pass
         2. It should pass
         3. It should pass
         4. It should pass
         5. It should pass
+        6. It should pass
     """
+
+    suffix = Domain(topology_m2.ms["master1"], SUFFIX)
+
+    topology_m2.ms["master1"].log.info("\n\n######## Disable the moddn aci mod ########\n")
+    _bind_manager(topology_m2)
+    topology_m2.ms["master1"].config.set(CONFIG_MODDN_ACI_ATTR, 'off')
+
     topology_m2.ms["master1"].log.info("\n\n######## mode legacy : GER with moddn  ########\n")
 
     # being allowed to read/write the RDN attribute use to allow the RDN
-    ACI_TARGET = "(target = \"ldap:///%s\")(targetattr=\"cn\")" % (PRODUCTION_DN)
+    ACI_TARGET = "(target = \"ldap:///%s\")(targetattr=\"uid\")" % (PRODUCTION_DN)
     ACI_ALLOW = "(version 3.0; acl \"MODDN production changing the RDN attribute\"; allow (read,search,write)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % BIND_DN
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
 
     # successful MOD with the ACI
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
+    suffix.add('aci', ACI_BODY)
     _bind_normal(topology_m2)
 
-    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId="dn: " + BIND_DN)
+    request_ctrl = GetEffectiveRightsControl(criticality=True, authzId=ensure_bytes("dn: " + BIND_DN))
     msg_id = topology_m2.ms["master1"].search_ext(PRODUCTION_DN,
                                                   ldap.SCOPE_SUBTREE,
                                                   "objectclass=*",
@@ -1059,12 +1046,11 @@ def test_mode_legacy_ger_with_moddn(topology_m2, moddn_setup):
         value = attrs['entryLevelRights'][0]
 
     topology_m2.ms["master1"].log.info("########  entryLevelRights: %r" % value)
-    assert 'n' in value
+    assert b'n' in value
 
     # successful MOD with the both ACI
     _bind_manager(topology_m2)
-    mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
+    suffix.remove('aci', ACI_BODY)
     # _bind_normal(topology_m2)
 
 
@@ -1096,7 +1082,7 @@ def test_rdn_write_get_ger(topology_m2, rdn_write_setup):
     ANONYMOUS_DN = ""
     topology_m2.ms["master1"].log.info("\n\n######## GER rights for anonymous ########\n")
     request_ctrl = GetEffectiveRightsControl(criticality=True,
-                                             authzId="dn:" + ANONYMOUS_DN)
+                                             authzId=ensure_bytes("dn:" + ANONYMOUS_DN))
     msg_id = topology_m2.ms["master1"].search_ext(SUFFIX,
                                                   ldap.SCOPE_SUBTREE,
                                                   "objectclass=*",
@@ -1107,7 +1093,7 @@ def test_rdn_write_get_ger(topology_m2, rdn_write_setup):
         topology_m2.ms["master1"].log.info("dn: %s" % dn)
         for value in attrs['entryLevelRights']:
             topology_m2.ms["master1"].log.info("########  entryLevelRights: %r" % value)
-            assert 'n' not in value
+            assert b'n' not in value
 
 
 def test_rdn_write_modrdn_anonymous(topology_m2, rdn_write_setup):
