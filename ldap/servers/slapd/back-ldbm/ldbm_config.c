@@ -388,7 +388,7 @@ ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int phase, int
                     goto done;
                 }
                 slapi_pblock_destroy(search_pb);
-                if (NULL == s || '\0' == s || 0 == PL_strcmp(s, "(null)")) {
+                if (NULL == s || '\0' == *s || 0 == PL_strcmp(s, "(null)")) {
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "ldbm_config_directory_set", "db directory is not set; check %s in the db config: %s\n",
                                   CONFIG_DIRECTORY, CONFIG_LDBM_DN);

@@ -465,7 +465,8 @@ replica_config_modify(Slapi_PBlock *pb,
                     }
                 } else if (strcasecmp(config_attr, type_replicaBackoffMin) == 0) {
                     if (apply_mods) {
-                        PRUint64 val = atoll(config_attr_value);
+                        uint64_t val = atoll(config_attr_value);
+                        uint64_t max;
 
                         if (val <= 0) {
                             *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -475,11 +476,21 @@ replica_config_modify(Slapi_PBlock *pb,
                             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
                             break;
                         }
+                        max = replica_get_backoff_max(r);
+                        if (val > max){
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "Attribute %s value (%s) is invalid, must be a number less than the max backoff time (%d).\n",
+                                        config_attr, config_attr_value, (int)max);
+                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                            break;
+                        }
                         replica_set_backoff_min(r, val);
                     }
                 } else if (strcasecmp(config_attr, type_replicaBackoffMax) == 0) {
                     if (apply_mods) {
-                        PRUint64 val = atoll(config_attr_value);
+                        uint64_t val = atoll(config_attr_value);
+                        uint64_t min;
 
                         if (val <= 0) {
                             *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -488,6 +499,15 @@ replica_config_modify(Slapi_PBlock *pb,
                                         config_attr, config_attr_value);
                             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n",
                                           errortext);
+                            break;
+                        }
+                        min = replica_get_backoff_min(r);
+                        if (val < min) {
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "Attribute %s value (%s) is invalid, must be a number more than the min backoff time (%d).\n",
+                                        config_attr, config_attr_value, (int)min);
+                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
                             break;
                         }
                         replica_set_backoff_max(r, val);
