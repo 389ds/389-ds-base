@@ -886,6 +886,16 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
             pre_sdn = slapi_entry_get_sdn(pre_e);
             post_sdn = slapi_entry_get_sdn(post_e);
         }
+        
+        if (pre_sdn && post_sdn && slapi_sdn_compare(pre_sdn, post_sdn) == 0) {
+            /* Regarding memberof plugin, this rename is a no-op
+             * but it can be expensive to process it. So skip it
+             */
+            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                    "memberof_postop_modrdn: Skip modrdn operation because src/dst identical %s\n",
+                    slapi_sdn_get_dn(post_sdn));
+            goto skip_op;
+        }
 
         /* copy config so it doesn't change out from under us */
         memberof_rlock_config();
@@ -968,6 +978,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
         memberof_free_config(&configCopy);
     }
 
+skip_op:
     if (ret) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = SLAPI_PLUGIN_FAILURE;
