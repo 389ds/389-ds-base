@@ -216,6 +216,8 @@ def test_ticket49064(topo):
     member_dn = 'cn=%s%d,ou=people,%s' % (USER_CN,  1, SUFFIX)
     group_dn  = 'cn=%s%d,ou=groups,%s' % (GROUP_CN, 1, SUFFIX)
     update_member(M1, member_dn, group_dn, ldap.MOD_ADD, sleep=True)
+    # to give time to the update to go up to the C1
+    time.sleep(10)
     
     # Step 15
     for i in [M1, H1]:
