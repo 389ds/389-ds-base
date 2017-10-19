@@ -960,7 +960,6 @@ int
 log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *returntext, int apply)
 {
     int rv = LDAP_SUCCESS;
-    PRInt64 mdiskspace = 0; /* in bytes */
     PRInt64 max_logsize;    /* in bytes */
     int logsize;            /* in megabytes */
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
@@ -979,20 +978,36 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
-        LOG_ACCESS_LOCK_WRITE();
-        mdiskspace = loginfo.log_access_maxdiskspace;
+        if (apply) {
+            LOG_ACCESS_LOCK_WRITE();
+            loginfo.log_access_maxlogsize = max_logsize;
+            fe_cfg->accesslog_maxlogsize = logsize;
+            LOG_ACCESS_UNLOCK_WRITE();
+        }
         break;
     case SLAPD_ERROR_LOG:
-        LOG_ERROR_LOCK_WRITE();
-        mdiskspace = loginfo.log_error_maxdiskspace;
+        if (apply) {
+            LOG_ERROR_LOCK_WRITE();
+            loginfo.log_error_maxlogsize = max_logsize;
+            fe_cfg->errorlog_maxlogsize = logsize;
+            LOG_ERROR_UNLOCK_WRITE();
+        }
         break;
     case SLAPD_AUDIT_LOG:
-        LOG_AUDIT_LOCK_WRITE();
-        mdiskspace = loginfo.log_audit_maxdiskspace;
+        if (apply) {
+            LOG_AUDIT_LOCK_WRITE();
+            loginfo.log_audit_maxlogsize = max_logsize;
+            fe_cfg->auditlog_maxlogsize = logsize;
+            LOG_AUDIT_UNLOCK_WRITE();
+        }
         break;
     case SLAPD_AUDITFAIL_LOG:
-        LOG_AUDITFAIL_LOCK_WRITE();
-        mdiskspace = loginfo.log_auditfail_maxdiskspace;
+        if (apply) {
+            LOG_AUDITFAIL_LOCK_WRITE();
+            loginfo.log_auditfail_maxlogsize = max_logsize;
+            fe_cfg->auditfaillog_maxlogsize = logsize;
+            LOG_AUDITFAIL_UNLOCK_WRITE();
+        }
         break;
     default:
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -1000,51 +1015,6 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
         rv = LDAP_OPERATIONS_ERROR;
     }
 
-    if ((max_logsize > mdiskspace) && (mdiskspace != -1)) {
-        rv = 2;
-    }
-
-    switch (logtype) {
-    case SLAPD_ACCESS_LOG:
-        if (!rv && apply) {
-            loginfo.log_access_maxlogsize = max_logsize;
-            fe_cfg->accesslog_maxlogsize = logsize;
-        }
-        LOG_ACCESS_UNLOCK_WRITE();
-        break;
-    case SLAPD_ERROR_LOG:
-        if (!rv && apply) {
-            loginfo.log_error_maxlogsize = max_logsize;
-            fe_cfg->errorlog_maxlogsize = logsize;
-        }
-        LOG_ERROR_UNLOCK_WRITE();
-        break;
-    case SLAPD_AUDIT_LOG:
-        if (!rv && apply) {
-            loginfo.log_audit_maxlogsize = max_logsize;
-            fe_cfg->auditlog_maxlogsize = logsize;
-        }
-        LOG_AUDIT_UNLOCK_WRITE();
-        break;
-    case SLAPD_AUDITFAIL_LOG:
-        if (!rv && apply) {
-            loginfo.log_auditfail_maxlogsize = max_logsize;
-            fe_cfg->auditfaillog_maxlogsize = logsize;
-        }
-        LOG_AUDITFAIL_UNLOCK_WRITE();
-        break;
-    default:
-        rv = 1;
-    }
-    /* logsize is in MB */
-    if (rv == 2) {
-        slapi_log_err(SLAPI_LOG_ERR, "log_set_logsize",
-                      "Invalid value for Maximum log size:"
-                      "Maxlogsize:%d (MB) exceeds Maxdisksize:%ld (MB)\n",
-                      logsize, (long int)(mdiskspace / LOG_MB_IN_BYTES));
-
-        rv = LDAP_OPERATIONS_ERROR;
-    }
     return rv;
 }
 
