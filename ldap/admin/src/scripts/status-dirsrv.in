@@ -37,7 +37,7 @@ status_instance() {
     # Use systemctl if available.
     #
     if [ -d "@systemdsystemunitdir@" ] && [ $(id -u) -eq 0 ];then
-        @bindir@/systemctl status @package_name@@$SERV_ID.service
+        @bindir@/systemctl status @package_name@@$SERV_ID.service -l
         rv=$?
         if [ $rv -ne 0 ]; then
             return 1
@@ -65,7 +65,7 @@ found=0
 if [ $# -eq 0 ]; then
     # We're reporting the status of all instances.
     ret=0
-    @bindir@/systemctl status @package_name@.target
+    @bindir@/systemctl status @package_name@.target -l
     initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
     for i in $initfiles; do
         inst=`normalize_server_id $i`
