@@ -411,6 +411,18 @@ replica_config_modify(Slapi_PBlock *pb,
                     slapi_ch_free_string(&new_repl_type);
                     new_repl_type = slapi_ch_strdup(config_attr_value);
                 } else if (strcasecmp(config_attr, attr_replicaId) == 0) {
+                    char *endp = NULL;
+                    int64_t rid = 0;
+                    errno = 0;
+                    rid = strtoll(config_attr_value, &endp, 10);
+                    if (*endp != '\0' || rid > 65535 || rid < 1 || errno == ERANGE) {
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "Attribute %s value (%s) is invalid, must be a number between 1 and 65535.\n",
+                            config_attr, config_attr_value);
+                        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                        break;
+                    }
                     slapi_ch_free_string(&new_repl_id);
                     new_repl_id = slapi_ch_strdup(config_attr_value);
                 } else if (strcasecmp(config_attr, attr_flags) == 0) {
