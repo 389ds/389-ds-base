@@ -2562,7 +2562,7 @@ sub parseLineNormal
 		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
 			$conn = $1;
 			$op = $2;
-			if ($hashes->{saslconnop}->{$conn-$op} ne ""){
+			if (exists $hashes->{saslconnop}->{$conn-$op} && $hashes->{saslconnop}->{$conn-$op} ne ""){
 				# This was a SASL BIND - record the dn
 				if ($binddn ne ""){
 					if($binddn eq $rootDN){ $rootDNBindCount++; }
