@@ -1,9 +1,6 @@
-python-ldap
-wheel
-nose
 pyasn1
 pyasn1-modules
-six
+pyldap
 pytest
 python-dateutil
-enum34
+six

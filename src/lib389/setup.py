@@ -42,8 +42,12 @@ setup(
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 2 :: Only',
+        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Quality Assurance',
         'Topic :: Software Development :: Testing'],
@@ -62,5 +66,12 @@ setup(
             ]),
     ],
 
-    install_requires=['pyldap'],
+    install_requires=[
+        'pyasn1',
+        'pyasn1-modules',
+        'pyldap',
+        'pytest',
+        'python-dateutil',
+        'six',
+        ],
 )
