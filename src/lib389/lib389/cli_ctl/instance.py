@@ -10,6 +10,7 @@ from lib389._constants import *
 
 from lib389.tools import DirSrvTools
 from lib389.instance.setup import SetupDs
+from lib389.instance.remove import remove_ds_instance
 from getpass import getpass
 import os
 import time
@@ -51,8 +52,8 @@ def instance_create(inst, log, args):
     else:
         log.info("""
  _________________________________________
-/ This is not what you want! Press ctrl-c \\
-\ now ...                                 /
+/ If this is not what you want, press     \\
+\ ctrl-c now ...                          /
  -----------------------------------------
       \\                   / \\  //\\
        \\    |\\___/|      /   \\//  \\\\
@@ -114,10 +115,45 @@ def instance_example(inst, log, args):
     print(g2b.collect_help())
     print(s2b.collect_help())
 
+def instance_remove(inst, log, args):
+    if not args.ack:
+        sys.exit(0)
+    else:
+        log.info("""
+ _________________________________________
+/ If this is not what you want, press     \\
+\ ctrl-c now ...                          /
+ -----------------------------------------
+      \\                   / \\  //\\
+       \\    |\\___/|      /   \\//  \\\\
+            /0  0  \\__  /    //  | \\ \\
+           /     /  \\/_/    //   |  \\  \\
+           @_^_@'/   \\/_   //    |   \\   \\
+           //_^_/     \\/_ //     |    \\    \\
+        ( //) |        \\///      |     \\     \\
+      ( / /) _|_ /   )  //       |      \\     _\\
+    ( // /) '/,_ _ _/  ( ; -.    |    _ _\\.-~        .-~~~^-.
+  (( / / )) ,-{        _      `-.|.-~-.           .~         `.
+ (( // / ))  '/\\      /                 ~-. _ .-~      .-~^-.  \\
+ (( /// ))      `.   {            }                   /      \\  \\
+  (( / ))     .----~-.\\        \\-'                 .~         \\  `. \\^-.
+             ///.----..>        \\             _ -~             `.  ^-`  ^-_
+               ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
+                                                                  /.-~
+        """)
+    for i in range(1,6):
+        log.info('%s ...' % (5 - int(i)))
+        time.sleep(1)
+    log.info('Removing instance ...')
+    remove_ds_instance(inst)
+    log.info('Completed instance removal')
+
+
 def create_parser(subcommands):
     # list_parser = subcommands.add_parser('list', help="List installed instances of Directory Server")
     # list_parser.set_defaults(func=instance_list)
     # list_parser.set_defaults(noinst=True)
+
     restart_parser = subcommands.add_parser('restart', help="Restart an instance of Directory Server, if it is running: else start it.")
     restart_parser.set_defaults(func=instance_restart)
 
@@ -129,5 +165,9 @@ def create_parser(subcommands):
 
     status_parser = subcommands.add_parser('status', help="Check running status of an instance of Directory Server")
     status_parser.set_defaults(func=instance_status)
+
+    remove_parser = subcommands.add_parser('remove', help="Destroy an instance of Directory Server, and remove all data.")
+    remove_parser.add_argument('--doit', dest="ack", help="By default we do a dry run. This actually initiates the removal.", action='store_true', default=False)
+    remove_parser.set_defaults(func=instance_remove)
 
 

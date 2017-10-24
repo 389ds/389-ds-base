@@ -435,6 +435,9 @@ class SetupDs(object):
         ds_instance.start(timeout=60)
         ds_instance.open()
 
+        # In some cases we may want to change log settings
+        # ds_instance.config.enable_log('audit')
+
         # Create the configs related to this version.
         base_config = get_config(general['defaults'])
         base_config_inst = base_config(ds_instance)

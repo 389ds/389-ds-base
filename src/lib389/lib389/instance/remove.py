@@ -24,6 +24,9 @@ def remove_ds_instance(dirsrv):
     remove_paths['cert_dir'] = dirsrv.ds_paths.cert_dir
     remove_paths['config_dir'] = dirsrv.ds_paths.config_dir
     remove_paths['db_dir'] = dirsrv.ds_paths.db_dir
+    ### WARNING: The changelogdb isn't removed. we assume it's in:
+    # db_dir ../changelogdb. So remove that too!
+    remove_paths['changelogdb_dir'] = os.path.join(dirsrv.ds_paths.db_dir, '../changelogdb')
     remove_paths['ldif_dir'] = dirsrv.ds_paths.ldif_dir
     remove_paths['lock_dir'] = dirsrv.ds_paths.lock_dir
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir

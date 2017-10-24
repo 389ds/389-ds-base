@@ -2219,7 +2219,7 @@ lib389: src/lib389/setup.py
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build
 
 lib389-install: lib389
-	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build
+	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
 
 tests: setup.py.in lib389
 	$(PYTHON) setup.py build

@@ -61,7 +61,7 @@ if __name__ == '__main__':
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
         log.error("No action provided")
-        log.error("USAGE: dsadm [options] <resource> <action> [action options]")
+        log.error("USAGE: dsctl [options] <resource> <action> [action options]")
         sys.exit(1)
 
     # Connect
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         log.info('FAIL: Command failed. See output for details.')
 
     # Done!
-    log.debug("dsadm is brought to you by the letter R and the number 27.")
+    log.debug("dsctl is brought to you by the letter R and the number 27.")
 
     if result is False:
         sys.exit(1)
