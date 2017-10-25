@@ -809,9 +809,9 @@ if ($totalTimeInNsecs == 0){
 print "Restarts:                     $serverRestartCount\n";
 
 if(%cipher){
-	print " Secure Protocol Versions:\n";
+	print "Secure Protocol Versions:\n";
 	foreach my $key (sort { $b cmp $a } keys %cipher) {
-		print "  - $key - $cipher{$key}\n";
+		print "  - $key ($cipher{$key} connections)\n";
 	}
 	print "\n";
 }
@@ -1754,7 +1754,7 @@ parseLineBind {
 			($end) = $endTime =~ /\D*(\S*)/;
 		}
 	}
-	if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ) {
+	if ($_ =~ /connection from *([0-9A-Za-z\.\:]+)/i ) {
 		my $skip = "yes";
 		for (my $excl =0; $excl < $#excludeIP; $excl++){
 			if ($excludeIP[$excl] eq $1){
@@ -2085,7 +2085,7 @@ sub parseLineNormal
 	}
 	if (m/ connection from/){
 		my $ip;
-		if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){
+		if ($_ =~ /connection from *([0-9A-Za-z\.\:]+)/i ){
 			$ip = $1;
 			for (my $xxx =0; $xxx < $#excludeIP; $xxx++){
 				if ($excludeIP[$xxx] eq $ip){$exc = "yes";}
@@ -2253,7 +2253,7 @@ sub parseLineNormal
 	}
 	if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
 		$exc = "no";
-		if ($_ =~ /connection from *([0-9A-fa-f\.\:]+)/i ) {
+		if ($_ =~ /connection from *([0-9A-Za-z\.\:]+)/i ) {
 			for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				if ($1 eq $excludeIP[$xxx]){
 					$exc = "yes";
