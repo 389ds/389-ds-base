@@ -305,6 +305,14 @@ changelog5_config_modify(Slapi_PBlock *pb,
     for (i = 0; mods && mods[i] != NULL; i++) {
         if (mods[i]->mod_op & LDAP_MOD_DELETE) {
             /* We don't support deleting changelog attributes */
+        } else if (mods[i]->mod_values == NULL) {
+            *returncode = LDAP_UNWILLING_TO_PERFORM;
+            if (returntext) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: no value provided",
+                                        mods[i]->mod_type ? mods[i]->mod_type : "<unknown attribute>");
+            }
+            goto done;
         } else {
             int j;
             for (j = 0; ((mods[i]->mod_values[j]) && (LDAP_SUCCESS == rc)); j++) {
