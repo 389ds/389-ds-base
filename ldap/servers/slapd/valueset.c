@@ -744,7 +744,7 @@ valueset_array_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
     int nv = 0;
     int numValues = 0;
     Slapi_Value **va2 = NULL;
-    int *sorted2 = NULL;
+    size_t *sorted2 = NULL;
 
     /* Loop over all the values freeing the old ones. */
     for(i = 0; i < vs->num; i++)
@@ -814,7 +814,7 @@ valueset_array_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
         if(vs->sorted) {
             /* Let's allocate va2 and sorted2 */
             va2 = (Slapi_Value **) slapi_ch_malloc( (numValues + 1) * sizeof(Slapi_Value *));
-            sorted2 = (int *) slapi_ch_malloc( (numValues + 1)* sizeof(int));
+            sorted2 = (size_t *) slapi_ch_malloc( (numValues + 1)* sizeof(size_t));
         }
 
         /* I is the index for the *new* va2 array */
@@ -868,7 +868,7 @@ valueset_array_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
 
     /* We still have values but not sorted array! rebuild it */
     if(vs->num > VALUESET_ARRAY_SORT_THRESHOLD && vs->sorted == NULL) {
-        vs->sorted = (int *) slapi_ch_malloc( vs->max* sizeof(int));
+        vs->sorted = (size_t *) slapi_ch_malloc( vs->max* sizeof(size_t));
         valueset_array_to_sorted(a, vs);
     }
 #ifdef DEBUG
