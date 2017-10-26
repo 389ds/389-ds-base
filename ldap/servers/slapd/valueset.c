@@ -1019,11 +1019,11 @@ valueset_array_to_sorted_quick(const Slapi_Attr *a, Slapi_ValueSet *vs, size_t l
     while (1) {
         do {
             i++;
-        } while (valueset_value_cmp(a, vs->va[vs->sorted[i]], vs->va[pivot]) < 0);
+        } while (i < vs->max && valueset_value_cmp(a, vs->va[vs->sorted[i]], vs->va[pivot]) < 0);
 
         do {
             j--;
-        } while (valueset_value_cmp(a, vs->va[vs->sorted[j]], vs->va[pivot]) > 0);
+        } while (valueset_value_cmp(a, vs->va[vs->sorted[j]], vs->va[pivot]) > 0 && j > 0);
 
         if (i >= j) {
             break;
