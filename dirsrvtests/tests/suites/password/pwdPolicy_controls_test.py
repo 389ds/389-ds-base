@@ -16,7 +16,7 @@ else:
 log = logging.getLogger(__name__)
 
 USER_DN = 'uid=test entry,dc=example,dc=com'
-USER_PW = 'password123'
+USER_PW = b'password123'
 
 
 @pytest.fixture
@@ -73,10 +73,10 @@ def bind_and_get_control(topo, err=0):
             assert False
     except ldap.LDAPError as e:
         if err:
-            log.debug('Got expected error: {}'.format(e.message['desc']))
+            log.debug('Got expected error: {}'.format(str(e)))
             pass
         else:
-            log.fatal('Did not expect an error: {}'.format(e.message['desc']))
+            log.fatal('Did not expect an error: {}'.format(str(e)))
             assert False
 
     if DEBUGGING and res_ctrls and len(res_ctrls) > 0:
@@ -107,16 +107,11 @@ def test_pwd_must_change(topo, init_user):
     """
 
     log.info('Configure password policy with paswordMustChange set to "on"')
-    try:
-        topo.standalone.modify_s(DN_CONFIG, [
-            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-            (ldap.MOD_REPLACE, 'passwordMaxAge', '200'),
-            (ldap.MOD_REPLACE, 'passwordGraceLimit', '0'),
-            (ldap.MOD_REPLACE, 'passwordWarning', '199'),
-            (ldap.MOD_REPLACE, 'passwordMustChange', 'on')])
-    except ldap.LDAPError as e:
-        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
-        assert False
+    topo.standalone.config.set('passwordExp', 'on')
+    topo.standalone.config.set('passwordMaxAge', '200')
+    topo.standalone.config.set('passwordGraceLimit', '0')
+    topo.standalone.config.set('passwordWarning', '199')
+    topo.standalone.config.set('passwordMustChange', 'on')
 
     log.info('Reset userpassword as Directory Manager')
     try:
@@ -162,14 +157,9 @@ def test_pwd_expired_grace_limit(topo, init_user):
     """
 
     log.info('Configure password policy with grace limit set tot 2')
-    try:
-        topo.standalone.modify_s(DN_CONFIG, [
-            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-            (ldap.MOD_REPLACE, 'passwordMaxAge', '5'),
-            (ldap.MOD_REPLACE, 'passwordGraceLimit', '2')])
-    except ldap.LDAPError as e:
-        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
-        assert False
+    topo.standalone.config.set('passwordExp', 'on')
+    topo.standalone.config.set('passwordMaxAge', '5')
+    topo.standalone.config.set('passwordGraceLimit', '2')
 
     log.info('Change password and wait for it to expire')
     change_passwd(topo)
@@ -214,14 +204,9 @@ def test_pwd_expiring_with_warning(topo, init_user):
     """
 
     log.info('Configure password policy')
-    try:
-        topo.standalone.modify_s(DN_CONFIG, [
-            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-            (ldap.MOD_REPLACE, 'passwordMaxAge', '50'),
-            (ldap.MOD_REPLACE, 'passwordWarning', '50')])
-    except ldap.LDAPError as e:
-        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
-        assert False
+    topo.standalone.config.set('passwordExp', 'on')
+    topo.standalone.config.set('passwordMaxAge', '50')
+    topo.standalone.config.set('passwordWarning', '50')
 
     log.info('Change password and get controls')
     change_passwd(topo)
@@ -263,14 +248,9 @@ def test_pwd_expiring_with_no_warning(topo, init_user):
     """
 
     log.info('Configure password policy')
-    try:
-        topo.standalone.modify_s(DN_CONFIG, [
-            (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-            (ldap.MOD_REPLACE, 'passwordMaxAge', '50'),
-            (ldap.MOD_REPLACE, 'passwordWarning', '5')])
-    except ldap.LDAPError as e:
-        log.error("Failed to set password policy, error: {}".format(e.message['desc']))
-        assert False
+    topo.standalone.config.set('passwordExp', 'on')
+    topo.standalone.config.set('passwordMaxAge', '50')
+    topo.standalone.config.set('passwordWarning', '5')
 
     log.info('When the warning is less than the max age, we never send expiring control response')
     change_passwd(topo)
@@ -280,12 +260,7 @@ def test_pwd_expiring_with_no_warning(topo, init_user):
         assert False
 
     log.info('Turn on sending expiring control regardless of warning')
-    try:
-        topo.standalone.modify_s(DN_CONFIG, [
-            (ldap.MOD_REPLACE, 'passwordSendExpiringTime', 'on')])
-    except ldap.LDAPError as e:
-        log.error("Failed to set passwordSendExpiringTime, error: {}".format(e.message['desc']))
-        assert False
+    topo.standalone.config.set('passwordSendExpiringTime', 'on')
 
     ctrls = bind_and_get_control(topo)
     if ctrls is None or len(ctrls) == 0:
@@ -308,17 +283,10 @@ def test_pwd_expiring_with_no_warning(topo, init_user):
         assert False
 
     log.info('Turn off sending expiring control (restore the default setting)')
-    try:
-        topo.standalone.modify_s(DN_CONFIG, [
-            (ldap.MOD_REPLACE, 'passwordSendExpiringTime', 'off')])
-    except ldap.LDAPError as e:
-        log.error("Failed to set passwordSendExpiringTime, error: {}".format(e.message['desc']))
-        assert False
-
+    topo.standalone.config.set('passwordSendExpiringTime', 'off')
 
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
