@@ -433,7 +433,14 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 			/* The target entry is a loser */
 
 			char *newrdn_with_uniqueid;
-			newrdn_with_uniqueid= get_rdn_plus_uniqueid (sessionid, newrdn, op_uniqueid);
+			char *newdn = NULL;
+                        if (new_parent_entry) {
+                            newdn = slapi_ch_smprintf("%s,%s", newrdn, slapi_entry_get_dn(new_parent_entry));
+                        } else {
+                            newdn = slapi_ch_smprintf("%s,%s", newrdn, slapi_entry_get_dn(parent_entry));
+                        }
+			newrdn_with_uniqueid= get_rdn_plus_uniqueid (sessionid, newdn, op_uniqueid);
+			slapi_ch_free_string(&newdn);
 			if(newrdn_with_uniqueid==NULL)
 			{
 				op_result= LDAP_OPERATIONS_ERROR;
