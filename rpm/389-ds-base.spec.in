@@ -282,6 +282,7 @@ autoreconf -fiv
            $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS \
            --enable-cmocka
 
+%if 0%{?rhel} >= 8 || 0%{?fedora}
 make setup.py
 
 # lib389
@@ -291,7 +292,7 @@ popd
 
 # tests
 %py3_build
-
+%endif
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
@@ -307,6 +308,7 @@ make DESTDIR="$RPM_BUILD_ROOT" install
 # Copy in our docs from doxygen.
 cp -r %{_builddir}/%{name}-%{version}%{?prerel}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
 
+%if 0%{?rhel} >= 8 || 0%{?fedora}
 # lib389
 pushd src/lib389
 %py3_install
@@ -314,6 +316,7 @@ popd
 
 # tests
 %py3_install
+%endif
 
 mkdir -p $RPM_BUILD_ROOT/var/log/%{pkgname}
 mkdir -p $RPM_BUILD_ROOT/var/lib/%{pkgname}
