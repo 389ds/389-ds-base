@@ -32,6 +32,9 @@
 #include <inttypes.h>
 #include <stddef.h> /* for size_t */
 
+#include <stdlib.h> /* calloc,free */
+#include <string.h> /* memcpy */
+
 #include <config.h>
 
 #if defined(HAVE_SYS_ENDIAN_H)
@@ -75,11 +78,24 @@
 uint64_t
 sds_siphash13(const void *src, size_t src_sz, const char key[16])
 {
-    const uint64_t *_key = (uint64_t *)key;
+    uint64_t _key[2] = {0};
+    memcpy(_key, key, 16);
     uint64_t k0 = _le64toh(_key[0]);
     uint64_t k1 = _le64toh(_key[1]);
     uint64_t b = (uint64_t)src_sz << 56;
-    const uint64_t *in = (uint64_t *)src;
+
+    size_t input_sz = (src_sz / sizeof(uint64_t)) + 1;
+
+    /* Account for non-uint64_t alligned input */
+    /* Could make this stack allocation */
+    uint64_t *in = calloc(1, input_sz * sizeof(uint64_t));
+    /*
+     * Because all crypto code sucks, they modify *in
+     * during operation, so we stash a copy of the ptr here.
+     * alternately, we could use stack allocated array, but gcc
+     * will complain about the vla being unbounded.
+     */
+    uint64_t *in_ptr = memcpy(in, src, src_sz);
 
     uint64_t v0 = k0 ^ 0x736f6d6570736575ULL;
     uint64_t v1 = k1 ^ 0x646f72616e646f6dULL;
@@ -96,27 +112,15 @@ sds_siphash13(const void *src, size_t src_sz, const char key[16])
         v0 ^= mi;
     }
 
+    /*
+     * Because we allocate in as size + 1, we can over-read 0
+     * for this buffer to be padded correctly. in here is a pointer to the
+     * excess data because the while loop above increments the in pointer
+     * to point to the excess once src_sz drops < 8.
+     */
     uint64_t t = 0;
-    uint8_t *pt = (uint8_t *)&t;
-    uint8_t *m = (uint8_t *)in;
+    memcpy(&t, in, sizeof(uint64_t));
 
-    switch (src_sz) {
-    case 7:
-        pt[6] = m[6]; /* FALLTHRU */
-    case 6:
-        pt[5] = m[5]; /* FALLTHRU */
-    case 5:
-        pt[4] = m[4]; /* FALLTHRU */
-    case 4:
-        *((uint32_t *)&pt[0]) = *((uint32_t *)&m[0]);
-        break;
-    case 3:
-        pt[2] = m[2]; /* FALLTHRU */
-    case 2:
-        pt[1] = m[1]; /* FALLTHRU */
-    case 1:
-        pt[0] = m[0]; /* FALLTHRU */
-    }
     b |= _le64toh(t);
 
     v3 ^= b;
@@ -126,5 +130,9 @@ sds_siphash13(const void *src, size_t src_sz, const char key[16])
     v2 ^= 0xff;
     // dround
     dROUND(v0, v1, v2, v3);
+
+    free(in_ptr);
+
     return (v0 ^ v1) ^ (v2 ^ v3);
 }
+
