@@ -34,7 +34,7 @@ class c001003006_sample_entries(sampleentries):
             # I think in python 2 this forces unicode return ...
             'dc': dc_ava,
             'description': self._basedn,
-            'aci' : '(targetattr ="*")(version 3.0;acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///cn=Directory Administrators, %{BASEDN}");)'.format(BASEDN=self._basedn)
+            'aci' : '(targetattr ="*")(version 3.0;acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///cn=Directory Administrators,{BASEDN}");)'.format(BASEDN=self._basedn)
             })
         # Create the OUs
         ous = OrganisationalUnits(self._instance, self._basedn)
@@ -45,10 +45,10 @@ class c001003006_sample_entries(sampleentries):
             'ou': 'People',
             'aci' : [
                 '(targetattr ="userpassword || telephonenumber || facsimiletelephonenumber")(version 3.0;acl "Allow self entry modification";allow (write)(userdn = "ldap:///self");)',
-                '(targetattr !="cn || sn || uid")(targetfilter ="(ou=Accounting)")(version 3.0;acl "Accounting Managers Group Permissions";allow (write)(groupdn = "ldap:///cn=Accounting Managers,ou=groups,%{BASEDN}");)'.format(BASEDN=self._basedn),
-                '(targetattr !="cn || sn || uid")(targetfilter ="(ou=Human Resources)")(version 3.0;acl "HR Group Permissions";allow (write)(groupdn = "ldap:///cn=HR Managers,ou=groups,%{BASEDN}");)'.format(BASEDN=self._basedn),
-                '(targetattr !="cn ||sn || uid")(targetfilter ="(ou=Product Testing)")(version 3.0;acl "QA Group Permissions";allow (write)(groupdn = "ldap:///cn=QA Managers,ou=groups,%{BASEDN}");)'.format(BASEDN=self._basedn),
-                '(targetattr !="cn || sn || uid")(targetfilter ="(ou=Product Development)")(version 3.0;acl "Engineering Group Permissions";allow (write)(groupdn = "ldap:///cn=PD Managers,ou=groups,%{BASEDN}");)'.format(BASEDN=self._basedn),
+                '(targetattr !="cn || sn || uid")(targetfilter ="(ou=Accounting)")(version 3.0;acl "Accounting Managers Group Permissions";allow (write)(groupdn = "ldap:///cn=Accounting Managers,ou=groups,{BASEDN}");)'.format(BASEDN=self._basedn),
+                '(targetattr !="cn || sn || uid")(targetfilter ="(ou=Human Resources)")(version 3.0;acl "HR Group Permissions";allow (write)(groupdn = "ldap:///cn=HR Managers,ou=groups,{BASEDN}");)'.format(BASEDN=self._basedn),
+                '(targetattr !="cn ||sn || uid")(targetfilter ="(ou=Product Testing)")(version 3.0;acl "QA Group Permissions";allow (write)(groupdn = "ldap:///cn=QA Managers,ou=groups,{BASEDN}");)'.format(BASEDN=self._basedn),
+                '(targetattr !="cn || sn || uid")(targetfilter ="(ou=Product Development)")(version 3.0;acl "Engineering Group Permissions";allow (write)(groupdn = "ldap:///cn=PD Managers,ou=groups,{BASEDN}");)'.format(BASEDN=self._basedn),
             ]
         })
         ous.create(properties = {

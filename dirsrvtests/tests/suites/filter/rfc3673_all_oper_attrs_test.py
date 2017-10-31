@@ -10,6 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
+from lib389.idm.user import UserAccounts
 
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, DN_CONFIG, PASSWORD
 
@@ -21,77 +22,70 @@ TEST_USER_PWD = 'all_attrs_test'
 
 # Suffix for search, Regular user boolean, List of expected attrs
 TEST_PARAMS = [(DN_ROOT, False, [
-    'aci', 'createTimestamp', 'creatorsName',
-    'modifiersName', 'modifyTimestamp', 'namingContexts',
-    'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
-    'supportedControl', 'supportedExtension',
-    'supportedFeatures', 'supportedLDAPVersion',
-    'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
+                'aci', 'createTimestamp', 'creatorsName',
+                'modifiersName', 'modifyTimestamp', 'namingContexts',
+                'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
+                'supportedControl', 'supportedExtension',
+                'supportedFeatures', 'supportedLDAPVersion',
+                'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
 ]),
                (DN_ROOT, True, [
-                   'createTimestamp', 'creatorsName',
-                   'modifiersName', 'modifyTimestamp', 'namingContexts',
-                   'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
-                   'supportedControl', 'supportedExtension',
-                   'supportedFeatures', 'supportedLDAPVersion',
-                   'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
+                'createTimestamp', 'creatorsName',
+                'modifiersName', 'modifyTimestamp', 'namingContexts',
+                'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
+                'supportedControl', 'supportedExtension',
+                'supportedFeatures', 'supportedLDAPVersion',
+                'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
                ]),
                (DN_PEOPLE, False, [
-                   'aci', 'createTimestamp', 'creatorsName', 'entrydn',
-                   'entryid', 'modifiersName', 'modifyTimestamp',
-                   'nsUniqueId', 'numSubordinates', 'parentid'
+                'aci', 'createTimestamp', 'creatorsName', 'entrydn',
+                'entryid', 'modifiersName', 'modifyTimestamp',
+                'nsUniqueId', 'numSubordinates', 'parentid'
                ]),
                (DN_PEOPLE, True, [
-                   'createTimestamp', 'creatorsName', 'entrydn',
-                   'entryid', 'modifyTimestamp', 'nsUniqueId',
-                   'numSubordinates', 'parentid'
+                'createTimestamp', 'creatorsName', 'entrydn',
+                'entryid', 'modifyTimestamp', 'nsUniqueId',
+                'numSubordinates', 'parentid'
                ]),
                (TEST_USER_DN, False, [
-                   'createTimestamp', 'creatorsName', 'entrydn',
-                   'entryid', 'modifiersName', 'modifyTimestamp',
-                   'nsUniqueId', 'parentid'
+                'createTimestamp', 'creatorsName', 'entrydn',
+                'entryid', 'modifiersName', 'modifyTimestamp',
+                'nsUniqueId', 'parentid'
                ]),
                (TEST_USER_DN, True, [
-                   'createTimestamp', 'creatorsName', 'entrydn',
-                   'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid'
+                'createTimestamp', 'creatorsName', 'entrydn',
+                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid'
                ]),
-               (DN_CONFIG, False, ['numSubordinates', 'passwordHistory'])]
+               (DN_CONFIG, False, [
+                'numSubordinates', 'passwordHistory'
+               ])
+            ]
 
 
 @pytest.fixture(scope="module")
 def test_user(topology_st):
     """User for binding operation"""
 
-    try:
-        topology_st.standalone.add_s(Entry((TEST_USER_DN, {
-            'objectclass': 'top person'.split(),
-            'objectclass': 'organizationalPerson',
-            'objectclass': 'inetorgperson',
-            'cn': TEST_USER_NAME,
-            'sn': TEST_USER_NAME,
-            'userpassword': TEST_USER_PWD,
-            'mail': '%s@redhat.com' % TEST_USER_NAME,
-            'uid': TEST_USER_NAME
-        })))
-    except ldap.LDAPError as e:
-        log.error('Failed to add user (%s): error (%s)' % (TEST_USER_DN,
-                                                           e.message['desc']))
-        raise e
-
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    users.create(properties={
+        'cn': TEST_USER_NAME,
+        'sn': TEST_USER_NAME,
+        'userpassword': TEST_USER_PWD,
+        'mail': '%s@redhat.com' % TEST_USER_NAME,
+        'uid': TEST_USER_NAME,
+        'uidNumber': '1000',
+        'gidNumber': '1000',
+        'homeDirectory': '/home/test'
+    })
 
 @pytest.fixture(scope="module")
 def user_aci(topology_st):
-    """Deny modifiersName attribute for the test user
+    """Don't allow modifiersName attribute for the test user
     under whole suffix
     """
 
-    ACI_TARGET = '(targetattr= "modifiersName")'
-    ACI_ALLOW = '(version 3.0; acl "Deny modifiersName for user"; deny (read)'
-    ACI_SUBJECT = ' userdn = "ldap:///%s";)' % TEST_USER_DN
-    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
-    topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD,
-                                                      'aci',
-                                                      ACI_BODY)])
+    ACI_BODY = ensure_bytes('(targetattr= "objectClass || cn || sn || mail || uid || uidNumber || gidNumber || homeDirectory || creatorsName || createTimestamp || modifyTimestamp || nsUniqueId || parentid || entryid || entrydn || ou || numSubordinates")(version 3.0; acl "Allow read for user"; allow (read,search,compare) userdn = "ldap:///%s";)' % TEST_USER_DN)
+    topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', ACI_BODY)])
 
 
 def test_supported_features(topology_st):
@@ -111,7 +105,7 @@ def test_supported_features(topology_st):
                                               ['supportedFeatures'])
     supported_value = entries[0].data['supportedfeatures']
 
-    assert supported_value == ['1.3.6.1.4.1.4203.1.5.1']
+    assert supported_value == [b'1.3.6.1.4.1.4203.1.5.1']
 
 
 @pytest.mark.parametrize('add_attr', ['', '*', 'objectClass'])
@@ -142,10 +136,10 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
 
     if regular_user:
         log.info("bound as: %s", TEST_USER_DN)
-        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, ensure_bytes(TEST_USER_PWD))
     else:
         log.info("bound as: %s", DN_DM)
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topology_st.standalone.simple_bind_s(DN_DM, ensure_bytes(PASSWORD))
 
     search_filter = ['+']
     if add_attr:
