@@ -7,6 +7,7 @@ import subprocess
 
 from lib389 import Entry
 from lib389.idm.user import UserAccounts
+from lib389.idm.domain import Domain
 from lib389.topologies import topology_st as topo
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD, HOST_STANDALONE,
                                SERVERID_STANDALONE, PORT_STANDALONE)
@@ -48,14 +49,8 @@ def check_user(inst):
 def setup_subtree_policy(topo):
     """Set up subtree password policy
     """
-    try:
-        topo.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE,
-                                                'nsslapd-pwpolicy-local',
-                                                'on')])
-    except ldap.LDAPError as e:
-        log.error('Failed to set fine-grained policy: error {}'.format(
-            e.message['desc']))
-        raise e
+
+    topo.standalone.config.set('nsslapd-pwpolicy-local', 'on')
 
     log.info('Create password policy for subtree {}'.format(OU_PEOPLE))
     try:
@@ -68,15 +63,9 @@ def setup_subtree_policy(topo):
             OU_PEOPLE, e.message['desc']))
         raise e
 
-    log.info('Add pwdpolicysubentry attribute to {}'.format(OU_PEOPLE))
-    try:
-        topo.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE,
-                                                   'pwdpolicysubentry',
-                                                   PW_POLICY_CONT_PEOPLE2)])
-    except ldap.LDAPError as e:
-        log.error('Failed to pwdpolicysubentry pw policy '
-                  'policy for {}: error {}'.format(OU_PEOPLE, e.message['desc']))
-        raise e
+    domain = Domain(topo.standalone, DEFAULT_SUFFIX)
+    domain.replace('pwdpolicysubentry', PW_POLICY_CONT_PEOPLE2)
+
     time.sleep(1)
 
 
@@ -116,12 +105,9 @@ def setup(topo, request):
     """
     log.info('Add custom schema...')
     try:
-        ATTR_1 = ("( 1.3.6.1.4.1.409.389.2.189 NAME 'x-department' " +
-                  "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )")
-        ATTR_2 = ("( 1.3.6.1.4.1.409.389.2.187 NAME 'x-en-ou' " +
-                  "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )")
-        OC = ("( xPerson-oid NAME 'xPerson' DESC '' SUP person STRUCTURAL MAY " +
-              "( x-department $ x-en-ou ) X-ORIGIN 'user defined' )")
+        ATTR_1 = (b"( 1.3.6.1.4.1.409.389.2.189 NAME 'x-department' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )")
+        ATTR_2 = (b"( 1.3.6.1.4.1.409.389.2.187 NAME 'x-en-ou' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )")
+        OC = (b"( xPerson-oid NAME 'xPerson' DESC '' SUP person STRUCTURAL MAY ( x-department $ x-en-ou ) X-ORIGIN 'user defined' )")
         topo.standalone.modify_s("cn=schema", [(ldap.MOD_ADD, 'attributeTypes', ATTR_1),
                                                (ldap.MOD_ADD, 'attributeTypes', ATTR_2),
                                                (ldap.MOD_ADD, 'objectClasses', OC)])
@@ -142,14 +128,9 @@ def setup(topo, request):
         'homeDirectory': '/home/test_user',
         'seeAlso': 'cn=cosTemplate,dc=example,dc=com'
     }
-    users.create(properties=user_properties)
-    try:
-        topo.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_ADD,
-                                                 'objectclass',
-                                                 'xPerson')])
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add objectclass to user')
-        raise e
+    user = users.create(properties=user_properties)
+
+    user.add('objectClass', 'xPerson')
 
     # Setup COS
     log.info("Setup indirect COS...")

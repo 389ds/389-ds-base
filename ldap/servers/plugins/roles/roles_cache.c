@@ -48,9 +48,6 @@ static char *allUserAttributes[] = {
 /* views scoping */
 static void **views_api;
 
-/* Service provider handler */
-static vattr_sp_handle *vattr_handle = NULL;
-
 /* List of nested roles */
 typedef struct _role_object_nested {
 	Slapi_DN *dn;	/* value of attribute nsroledn in a nested role definition */
@@ -224,13 +221,16 @@ int roles_cache_init()
 
 	/* Register a callback on backends creation|modification|deletion, 
       so that we update the corresponding cache */
-	slapi_register_backend_state_change(NULL, roles_cache_trigger_update_suffix);
-   
-	if ( slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle, 
-									roles_sp_get_value, 
-									roles_sp_compare_value, 
-									roles_sp_list_types) )
-	{
+    slapi_register_backend_state_change(NULL, roles_cache_trigger_update_suffix);
+
+    /* Service provider handler - only used once! and freed by vattr! */
+    vattr_sp_handle *vattr_handle = NULL;
+
+
+    if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
+                                roles_sp_get_value,
+                                roles_sp_compare_value,
+                                roles_sp_list_types)) {
         slapi_log_err(SLAPI_LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
                "roles_cache_init - slapi_vattrspi_register failed\n");
 
@@ -649,22 +649,20 @@ void roles_cache_stop()
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_stop\n");
 
-	/* Go through all the roles list and trigger the associated structure */
-	slapi_rwlock_wrlock(global_lock);
-	current_role = roles_list;
-	while ( current_role )
-	{
-		slapi_lock_mutex(current_role->change_lock);
-		current_role->keeprunning = 0;	
-		next_role = current_role->next;
-		slapi_notify_condvar(current_role->something_changed, 1 );
-		slapi_unlock_mutex(current_role->change_lock);
+    /* Go through all the roles list and trigger the associated structure */
+    slapi_rwlock_wrlock(global_lock);
+    current_role = roles_list;
+    while (current_role) {
+        slapi_lock_mutex(current_role->change_lock);
+        current_role->keeprunning = 0;
+        next_role = current_role->next;
+        slapi_notify_condvar(current_role->something_changed, 1);
+        slapi_unlock_mutex(current_role->change_lock);
 
-		current_role = next_role;
-	}
-	slapi_rwlock_unlock(global_lock);
-	slapi_ch_free((void **)&vattr_handle);
-	roles_list = NULL;
+        current_role = next_role;
+    }
+    slapi_rwlock_unlock(global_lock);
+    roles_list = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_stop\n");
 }
