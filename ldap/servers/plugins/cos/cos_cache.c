@@ -109,9 +109,6 @@ void *cos_get_plugin_identity(void);
 #define COSTYPE_INDIRECT 3
 #define COS_DEF_ERROR_NO_TEMPLATES -2
 
-/* the global plugin handle */
-static volatile vattr_sp_handle *vattr_handle = NULL;
-
 /* both variables are protected by change_lock */
 static int cos_cache_notify_flag = 0;
 static PRBool cos_cache_at_work = PR_FALSE;
@@ -321,16 +318,6 @@ cos_cache_init(void)
     if (slapi_apib_get_interface(Views_v1_0_GUID, &views_api)) {
         /* lets be tolerant if views is disabled */
         views_api = 0;
-    }
-
-    if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
-                                cos_cache_vattr_get,
-                                cos_cache_vattr_compare,
-                                cos_cache_vattr_types) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
-                      "cos_cache_init - Cannot register as service provider\n");
-        ret = -1;
-        goto out;
     }
 
     if (PR_CreateThread(PR_USER_THREAD,
@@ -860,8 +847,23 @@ cos_dn_defs_cb(Slapi_Entry *e, void *callback_data)
                                           dnVals[valIndex]->bv_val);
                 }
 
-                slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle,
-                                       dnVals[valIndex]->bv_val, NULL, NULL);
+                /*
+                 * Each SP_handle is associated to one and only one vattr.
+                 * We could consider making this a single function rather
+                 * than the double-call.
+                 */
+
+                vattr_sp_handle *vattr_handle = NULL;
+
+                if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
+                                            cos_cache_vattr_get,
+                                            cos_cache_vattr_compare,
+                                            cos_cache_vattr_types) != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_init - Cannot register as service provider for %s\n", dnVals[valIndex]->bv_val);
+                } else {
+                    slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, dnVals[valIndex]->bv_val, NULL, NULL);
+                }
+
             } /* if(attrType is cosAttribute) */
 
             /*
