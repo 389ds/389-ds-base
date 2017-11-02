@@ -1864,7 +1864,12 @@ vattr_map_create(void)
 void
 vattr_map_entry_free(vattr_map_entry *vae)
 {
-    slapi_ch_free((void **)&(vae->sp_list));
+    vattr_sp_handle *list_entry = vae->sp_list;
+    while (list_entry != NULL) {
+        vattr_sp_handle *next_entry = list_entry->next;
+        slapi_ch_free((void **)&list_entry);
+        list_entry = next_entry;
+    }
     slapi_ch_free_string(&(vae->type_name));
     slapi_ch_free((void **)&vae);
 }
@@ -2143,16 +2148,9 @@ slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
 vattr_map_entry *
 vattr_map_entry_new(char *type_name, vattr_sp_handle *sph, void *hint)
 {
-    vattr_map_entry *result = NULL;
-    vattr_sp_handle *sp_copy = NULL;
-
-    sp_copy = (vattr_sp_handle *)slapi_ch_calloc(1, sizeof(vattr_sp_handle));
-    sp_copy->sp = sph->sp;
-    sp_copy->hint = hint;
-
-    result = (vattr_map_entry *)slapi_ch_calloc(1, sizeof(vattr_map_entry));
+    vattr_map_entry *result = (vattr_map_entry *)slapi_ch_calloc(1, sizeof(vattr_map_entry));
     result->type_name = slapi_ch_strdup(type_name);
-    result->sp_list = sp_copy;
+    result->sp_list = sph;
 
     /* go get schema */
     result->objectclasses = vattr_map_entry_build_schema(type_name);
@@ -2273,6 +2271,16 @@ we'd need to hold a lock on the read path, which we don't want to do.
 So any SP which relinquishes its need to handle a type needs to continue
 to handle the calls on it, but return nothing */
 /* DBDB need to sort out memory ownership here, it's not quite right */
+/*
+ * This function was inconsistent. We would allocated and "kind of",
+ * copy the sp_handle here for the vattr_map_entry_new path. But we
+ * would "take ownership" for the existing entry and the list addition
+ * path. Instead now, EVERY sp_handle we take, we take ownership of
+ * and the CALLER must allocate a new one each time.
+ *
+ * Better idea, is that regattr should just take the fn pointers
+ * and callers never *see* the sp_handle structure at all.
+ */
 
 int
 vattr_map_sp_insert(char *type_to_add, vattr_sp_handle *sp, void *hint)

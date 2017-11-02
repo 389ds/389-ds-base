@@ -47,9 +47,6 @@ static char *allUserAttributes[] = {
 /* views scoping */
 static void **views_api;
 
-/* Service provider handler */
-static vattr_sp_handle *vattr_handle = NULL;
-
 /* List of nested roles */
 typedef struct _role_object_nested
 {
@@ -223,6 +220,10 @@ roles_cache_init()
     /* Register a callback on backends creation|modification|deletion,
       so that we update the corresponding cache */
     slapi_register_backend_state_change(NULL, roles_cache_trigger_update_suffix);
+
+    /* Service provider handler - only used once! and freed by vattr! */
+    vattr_sp_handle *vattr_handle = NULL;
+
 
     if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
                                 roles_sp_get_value,
@@ -622,7 +623,6 @@ roles_cache_stop()
         current_role = next_role;
     }
     slapi_rwlock_unlock(global_lock);
-    slapi_ch_free((void **)&vattr_handle);
     roles_list = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_stop\n");
