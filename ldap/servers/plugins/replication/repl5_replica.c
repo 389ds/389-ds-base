@@ -33,42 +33,40 @@ struct replica
     Slapi_DN *repl_root;               /* top of the replicated are */
     char *repl_name;                   /* unique replica name */
     PRBool new_name;                   /* new name was generated - need to be saved */
-    ReplicaUpdateDNList updatedn_list; /* list of dns with which a supplier should bind
-                           to update this replica                */
-    Slapi_ValueSet *updatedn_groups;   /* set of groups whose memebers are
-                                * allowed to update replica */
+    ReplicaUpdateDNList updatedn_list; /* list of dns with which a supplier should bind to update this replica */
+    Slapi_ValueSet *updatedn_groups;   /* set of groups whose memebers are allowed to update replica */
     ReplicaUpdateDNList groupdn_list;  /* exploded listof dns from update group */
-    PRUint32 updatedn_group_last_check;
-    int updatedn_group_check_interval;
-    ReplicaType repl_type;           /* is this replica read-only ?            */
-    ReplicaId repl_rid;              /* replicaID                            */
-    Object *repl_ruv;                /* replica update vector                */
-    PRBool repl_ruv_dirty;           /* Dirty flag for ruv                   */
-    CSNPL *min_csn_pl;               /* Pending list for minimal CSN         */
-    void *csn_pl_reg_id;             /* registration assignment for csn callbacks */
-    unsigned long repl_state_flags;  /* state flags                            */
-    PRUint32 repl_flags;             /* persistent, externally visible flags */
-    PRMonitor *repl_lock;            /* protects entire structure            */
-    Slapi_Eq_Context repl_eqcxt_rs;  /* context to cancel event that saves ruv */
-    Slapi_Eq_Context repl_eqcxt_tr;  /* context to cancel event that reaps tombstones */
-    Object *repl_csngen;             /* CSN generator for this replica */
-    PRBool repl_csn_assigned;        /* Flag set when new csn is assigned. */
-    PRUint32 repl_purge_delay;       /* When purgeable, CSNs are held on to for this many extra seconds */
-    PRBool tombstone_reap_stop;      /* TRUE when the tombstone reaper should stop */
-    PRBool tombstone_reap_active;    /* TRUE when the tombstone reaper is running */
-    long tombstone_reap_interval;    /* Time in seconds between tombstone reaping */
-    Slapi_ValueSet *repl_referral;   /* A list of administrator provided referral URLs */
-    PRBool state_update_inprogress;  /* replica state is being updated */
-    PRLock *agmt_lock;               /* protects agreement creation, start and stop */
-    char *locking_purl;              /* supplier who has exclusive access */
-    uint64_t locking_conn;           /* The supplier's connection id */
-    Slapi_Counter *protocol_timeout; /* protocol shutdown timeout */
-    Slapi_Counter *backoff_min;      /* backoff retry minimum */
-    Slapi_Counter *backoff_max;      /* backoff retry maximum */
-    Slapi_Counter *precise_purging;  /* Enable precise tombstone purging */
-    PRUint64 agmt_count;             /* Number of agmts */
-    Slapi_Counter *release_timeout;  /* The amount of time to wait before releasing active replica */
-    PRUint64 abort_session;          /* Abort the current replica session */
+    uint32_t updatedn_group_last_check;    /* the time of the last group check */
+    int64_t updatedn_group_check_interval; /* the group check interval */
+    ReplicaType repl_type;             /* is this replica read-only ? */
+    ReplicaId repl_rid;                /* replicaID */
+    Object *repl_ruv;                  /* replica update vector */
+    PRBool repl_ruv_dirty;             /* Dirty flag for ruv */
+    CSNPL *min_csn_pl;                 /* Pending list for minimal CSN */
+    void *csn_pl_reg_id;               /* registration assignment for csn callbacks */
+    unsigned long repl_state_flags;    /* state flags */
+    uint32_t repl_flags;               /* persistent, externally visible flags */
+    PRMonitor *repl_lock;              /* protects entire structure */
+    Slapi_Eq_Context repl_eqcxt_rs;    /* context to cancel event that saves ruv */
+    Slapi_Eq_Context repl_eqcxt_tr;    /* context to cancel event that reaps tombstones */
+    Object *repl_csngen;               /* CSN generator for this replica */
+    PRBool repl_csn_assigned;          /* Flag set when new csn is assigned. */
+    int64_t repl_purge_delay;          /* When purgeable, CSNs are held on to for this many extra seconds */
+    PRBool tombstone_reap_stop;        /* TRUE when the tombstone reaper should stop */
+    PRBool tombstone_reap_active;      /* TRUE when the tombstone reaper is running */
+    int64_t tombstone_reap_interval;   /* Time in seconds between tombstone reaping */
+    Slapi_ValueSet *repl_referral;     /* A list of administrator provided referral URLs */
+    PRBool state_update_inprogress;    /* replica state is being updated */
+    PRLock *agmt_lock;                 /* protects agreement creation, start and stop */
+    char *locking_purl;                /* supplier who has exclusive access */
+    uint64_t locking_conn;             /* The supplier's connection id */
+    Slapi_Counter *protocol_timeout;   /* protocol shutdown timeout */
+    Slapi_Counter *backoff_min;        /* backoff retry minimum */
+    Slapi_Counter *backoff_max;        /* backoff retry maximum */
+    Slapi_Counter *precise_purging;    /* Enable precise tombstone purging */
+    uint64_t agmt_count;               /* Number of agmts */
+    Slapi_Counter *release_timeout;    /* The amount of time to wait before releasing active replica */
+    uint64_t abort_session;            /* Abort the current replica session */
 };
 
 
@@ -532,7 +530,7 @@ replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid)
  * current_purl is the supplier who already has access, if any
  */
 PRBool
-replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid, const char *locking_purl, char **current_purl)
+replica_get_exclusive_access(Replica *r, PRBool *isInc, uint64_t connid, int opid, const char *locking_purl, char **current_purl)
 {
     PRBool rval = PR_TRUE;
 
@@ -608,7 +606,7 @@ done:
  * Relinquish exclusive access to the replica
  */
 void
-replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
+replica_relinquish_exclusive_access(Replica *r, uint64_t connid, int opid)
 {
     PRBool isInc;
 
@@ -915,7 +913,7 @@ replica_get_type(const Replica *r)
     return r->repl_type;
 }
 
-PRUint64
+uint64_t
 replica_get_protocol_timeout(Replica *r)
 {
     if (r) {
@@ -925,7 +923,7 @@ replica_get_protocol_timeout(Replica *r)
     }
 }
 
-PRUint64
+uint64_t
 replica_get_release_timeout(Replica *r)
 {
     if (r) {
@@ -936,7 +934,7 @@ replica_get_release_timeout(Replica *r)
 }
 
 void
-replica_set_release_timeout(Replica *r, PRUint64 limit)
+replica_set_release_timeout(Replica *r, uint64_t limit)
 {
     if (r) {
         slapi_counter_set_value(r->release_timeout, limit);
@@ -944,7 +942,7 @@ replica_set_release_timeout(Replica *r, PRUint64 limit)
 }
 
 void
-replica_set_protocol_timeout(Replica *r, PRUint64 timeout)
+replica_set_protocol_timeout(Replica *r, uint64_t timeout)
 {
     if (r) {
         slapi_counter_set_value(r->protocol_timeout, timeout);
@@ -1182,7 +1180,7 @@ replica_get_generation(const Replica *r)
 }
 
 PRBool
-replica_is_flag_set(const Replica *r, PRUint32 flag)
+replica_is_flag_set(const Replica *r, uint32_t flag)
 {
     if (r)
         return (r->repl_flags & flag);
@@ -1191,7 +1189,7 @@ replica_is_flag_set(const Replica *r, PRUint32 flag)
 }
 
 void
-replica_set_flag(Replica *r, PRUint32 flag, PRBool clear)
+replica_set_flag(Replica *r, uint32_t flag, PRBool clear)
 {
     if (r == NULL)
         return;
@@ -1208,7 +1206,7 @@ replica_set_flag(Replica *r, PRUint32 flag, PRBool clear)
 }
 
 void
-replica_replace_flags(Replica *r, PRUint32 flags)
+replica_replace_flags(Replica *r, uint32_t flags)
 {
     if (r) {
         replica_lock(r->repl_lock);
@@ -1829,17 +1827,18 @@ _replica_check_validity(const Replica *r)
 static int
 _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
 {
-    Slapi_Attr *a = NULL;
     Slapi_Attr *attr;
     CSNGen *gen;
     char *precise_purging = NULL;
     char buf[SLAPI_DSE_RETURNTEXT_SIZE];
     char *errormsg = errortext ? errortext : buf;
     char *val;
-    int backoff_min;
-    int backoff_max;
-    int ptimeout = 0;
-    int release_timeout = 0;
+    int64_t backoff_min;
+    int64_t backoff_max;
+    int64_t ptimeout = 0;
+    int64_t release_timeout = 0;
+    int64_t interval = 0;
+    int64_t rtype = 0;
     int rc;
 
     PR_ASSERT(r && e);
@@ -1847,7 +1846,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     /* get replica root */
     val = slapi_entry_attr_get_charptr(e, attr_replicaRoot);
     if (val == NULL) {
-        PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to retrieve %s attribute from (%s)\n",
+        PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to retrieve %s attribute from (%s)",
                     attr_replicaRoot,
                     (char *)slapi_entry_get_dn((Slapi_Entry *)e));
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - %s\n",
@@ -1858,66 +1857,94 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     r->repl_root = slapi_sdn_new_dn_passin(val);
 
     /* get replica type */
-    val = slapi_entry_attr_get_charptr(e, attr_replicaType);
-    if (val) {
-        r->repl_type = atoi(val);
-        slapi_ch_free((void **)&val);
+    if (slapi_entry_attr_exists(e, attr_replicaType)) {
+        if ((val = slapi_entry_attr_get_charptr(e, attr_replicaType))) {
+            if (repl_config_valid_num(attr_replicaType, val, 0, REPLICA_TYPE_UPDATABLE, &rc, errormsg, &rtype) != 0) {
+                slapi_ch_free_string(&val);
+                return -1;
+            }
+            r->repl_type = rtype;
+            slapi_ch_free_string(&val);
+        } else {
+            r->repl_type = REPLICA_TYPE_READONLY;
+        }
     } else {
         r->repl_type = REPLICA_TYPE_READONLY;
     }
 
-    /* grab and validate the backoff retry settings */
+    /* grab and validate the backoff min retry settings */
     if (slapi_entry_attr_exists(e, type_replicaBackoffMin)) {
-        backoff_min = slapi_entry_attr_get_int(e, type_replicaBackoffMin);
-        if (backoff_min <= 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "_replica_init_from_config - "
-                                                               "Invalid value for %s: %d  Using default value (%d)\n",
-                          type_replicaBackoffMin, backoff_min, PROTOCOL_BACKOFF_MINIMUM);
+        if ((val = slapi_entry_attr_get_charptr(e, type_replicaBackoffMin))) {
+            if (repl_config_valid_num(type_replicaBackoffMin, val, 1, INT_MAX, &rc, errormsg, &backoff_min) != 0) {
+                slapi_ch_free_string(&val);
+                return -1;
+            }
+            slapi_ch_free_string(&val);
+        } else {
             backoff_min = PROTOCOL_BACKOFF_MINIMUM;
         }
     } else {
         backoff_min = PROTOCOL_BACKOFF_MINIMUM;
     }
 
+    /* grab and validate the backoff max retry settings */
     if (slapi_entry_attr_exists(e, type_replicaBackoffMax)) {
-        backoff_max = slapi_entry_attr_get_int(e, type_replicaBackoffMax);
-        if (backoff_max <= 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "_replica_init_from_config - "
-                                                               "Invalid value for %s: %d  Using default value (%d)\n",
-                          type_replicaBackoffMax, backoff_max, PROTOCOL_BACKOFF_MAXIMUM);
+        if ((val = slapi_entry_attr_get_charptr(e, type_replicaBackoffMax))) {
+            if (repl_config_valid_num(type_replicaBackoffMax, val, 1, INT_MAX, &rc, errormsg, &backoff_max) != 0) {
+                slapi_ch_free_string(&val);
+                return -1;
+            }
+            slapi_ch_free_string(&val);
+        } else {
             backoff_max = PROTOCOL_BACKOFF_MAXIMUM;
         }
     } else {
         backoff_max = PROTOCOL_BACKOFF_MAXIMUM;
     }
 
+    /* Verify backoff min and max work together */
     if (backoff_min > backoff_max) {
-        /* Ok these values are invalid, reset back the defaults */
-        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "_replica_init_from_config - "
-                                                           "Backoff minimum (%d) can not be greater than "
-                                                           "the backoff maximum (%d).  Using default values: min (%d) max (%d)\n",
-                      backoff_min, backoff_max, PROTOCOL_BACKOFF_MINIMUM, PROTOCOL_BACKOFF_MAXIMUM);
-        slapi_counter_set_value(r->backoff_min, PROTOCOL_BACKOFF_MINIMUM);
-        slapi_counter_set_value(r->backoff_max, PROTOCOL_BACKOFF_MAXIMUM);
+        PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Backoff minimum (%ld) can not be greater than the backoff maximum (%ld).",
+                    backoff_min, backoff_max);
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - "
+                      "%s\n", errormsg);
+        return -1;
     } else {
         slapi_counter_set_value(r->backoff_min, backoff_min);
         slapi_counter_set_value(r->backoff_max, backoff_max);
     }
 
     /* get the protocol timeout */
-    ptimeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
-    if (ptimeout <= 0) {
-        slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
+    if (slapi_entry_attr_exists(e, type_replicaProtocolTimeout)) {
+        if ((val = slapi_entry_attr_get_charptr(e, type_replicaProtocolTimeout))) {
+            if (repl_config_valid_num(type_replicaProtocolTimeout, val, 0, INT_MAX, &rc, errormsg, &ptimeout) != 0) {
+                slapi_ch_free_string(&val);
+                return -1;
+            }
+            slapi_ch_free_string(&val);
+            slapi_counter_set_value(r->protocol_timeout, ptimeout);
+        } else {
+            slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
+        }
     } else {
-        slapi_counter_set_value(r->protocol_timeout, ptimeout);
+        slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
     }
 
     /* Get the release timeout */
-    release_timeout = slapi_entry_attr_get_int(e, type_replicaReleaseTimeout);
-    if (release_timeout <= 0) {
-        slapi_counter_set_value(r->release_timeout, 0);
+    if (slapi_entry_attr_exists(e, type_replicaReleaseTimeout)) {
+        if ((val = slapi_entry_attr_get_charptr(e, type_replicaReleaseTimeout))) {
+            if (repl_config_valid_num(type_replicaReleaseTimeout, val, 0, INT_MAX, &rc, errortext, &release_timeout) != 0) {
+                slapi_ch_free_string(&val);
+                return -1;
+            }
+            slapi_counter_set_value(r->release_timeout, release_timeout);
+            slapi_ch_free_string(&val);
+        } else {
+            slapi_counter_set_value(r->release_timeout, 0);
+        }
     } else {
-        slapi_counter_set_value(r->release_timeout, release_timeout);
+        slapi_counter_set_value(r->release_timeout, 0);
     }
 
     /* check for precise tombstone purging */
@@ -1929,10 +1956,11 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
             slapi_counter_set_value(r->precise_purging, 0);
         } else {
             /* Invalid value */
-            slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "_replica_init_from_config - "
-                                                               "Invalid value for %s: %s  Using default value (off)\n",
-                          type_replicaPrecisePurge, precise_purging);
-            slapi_counter_set_value(r->precise_purging, 0);
+            PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for %s: %s",
+                        type_replicaPrecisePurge, precise_purging);
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - "
+                          "%s\n", errormsg);
+            return -1;
         }
         slapi_ch_free_string(&precise_purging);
     } else {
@@ -1940,7 +1968,19 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     }
 
     /* get replica flags */
-    r->repl_flags = slapi_entry_attr_get_ulong(e, attr_flags);
+    if (slapi_entry_attr_exists(e, attr_flags)) {
+        int64_t rflags;
+        if((val = slapi_entry_attr_get_charptr(e, attr_flags))) {
+            if (repl_config_valid_num(attr_flags, val, 0, 1, &rc, errortext, &rflags) != 0) {
+                return -1;
+            }
+            r->repl_flags = (uint32_t)rflags;
+        } else {
+            r->repl_flags = 0;
+        }
+    } else {
+        r->repl_flags = 0;
+    }
 
     /*
      * Get replicaid
@@ -1955,20 +1995,13 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     else if (r->repl_type == REPLICA_TYPE_UPDATABLE ||
              r->repl_type == REPLICA_TYPE_PRIMARY) {
         if ((val = slapi_entry_attr_get_charptr(e, attr_replicaId))) {
-            int temprid = atoi(val);
-            slapi_ch_free((void **)&val);
-            if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID) {
-                PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
-                            "Attribute %s must have a value greater than 0 "
-                            "and less than %d: entry %s",
-                            attr_replicaId, READ_ONLY_REPLICA_ID,
-                            (char *)slapi_entry_get_dn((Slapi_Entry *)e));
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                              "_replica_init_from_config - %s\n", errormsg);
+            int64_t rid;
+            if (repl_config_valid_num(attr_replicaId, val, 1, 65535, &rc, errormsg, &rid) != 0) {
+                slapi_ch_free_string(&val);
                 return -1;
-            } else {
-                r->repl_rid = (ReplicaId)temprid;
             }
+            r->repl_rid = (ReplicaId)rid;
+            slapi_ch_free_string(&val);
         } else {
             PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
                         "Failed to retrieve required %s attribute from %s",
@@ -2003,10 +2036,13 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     r->groupdn_list = replica_groupdn_list_new(r->updatedn_groups);
     r->updatedn_group_last_check = time(NULL);
     /* get groupdn check interval */
-    val = slapi_entry_attr_get_charptr(e, attr_replicaBindDnGroupCheckInterval);
-    if (val) {
-        r->updatedn_group_check_interval = atoi(val);
-        slapi_ch_free((void **)&val);
+    if ((val = slapi_entry_attr_get_charptr(e, attr_replicaBindDnGroupCheckInterval))) {
+        if (repl_config_valid_num(attr_replicaBindDnGroupCheckInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
+            slapi_ch_free_string(&val);
+            return -1;
+        }
+        r->updatedn_group_check_interval = interval;
+        slapi_ch_free_string(&val);
     } else {
         r->updatedn_group_check_interval = -1;
     }
@@ -2041,18 +2077,26 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
      * since we don't know about LCUP replicas, and they can just
      * turn up whenever they want to.
      */
-    if (slapi_entry_attr_find(e, type_replicaPurgeDelay, &a) == -1) {
-        /* No purge delay provided, so use default */
-        r->repl_purge_delay = 60 * 60 * 24 * 7; /* One week, in seconds */
+    if ((val = slapi_entry_attr_get_charptr(e, type_replicaPurgeDelay))) {
+        if (repl_config_valid_num(type_replicaPurgeDelay, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
+            slapi_ch_free_string(&val);
+            return -1;
+        }
+        r->repl_purge_delay = interval;
+        slapi_ch_free_string(&val);
     } else {
-        r->repl_purge_delay = slapi_entry_attr_get_uint(e, type_replicaPurgeDelay);
+        r->repl_purge_delay = 60 * 60 * 24 * 7; /* One week, in seconds */
     }
 
-    if (slapi_entry_attr_find(e, type_replicaTombstonePurgeInterval, &a) == -1) {
-        /* No reap interval provided, so use default */
-        r->tombstone_reap_interval = 3600 * 24; /* One day */
+    if ((val = slapi_entry_attr_get_charptr(e, type_replicaTombstonePurgeInterval))) {
+        if (repl_config_valid_num(type_replicaTombstonePurgeInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
+            slapi_ch_free_string(&val);
+            return -1;
+        }
+        r->tombstone_reap_interval = interval;
+        slapi_ch_free_string(&val);
     } else {
-        r->tombstone_reap_interval = slapi_entry_attr_get_int(e, type_replicaTombstonePurgeInterval);
+        r->tombstone_reap_interval = 3600 * 24; /* One week, in seconds */
     }
 
     r->tombstone_reap_stop = r->tombstone_reap_active = PR_FALSE;
@@ -3534,7 +3578,7 @@ replica_log_ruv_elements_nolock(const Replica *r)
 }
 
 void
-replica_set_purge_delay(Replica *r, PRUint32 purge_delay)
+replica_set_purge_delay(Replica *r, uint32_t purge_delay)
 {
     PR_ASSERT(r);
     replica_lock(r->repl_lock);
@@ -3710,7 +3754,7 @@ replica_set_ruv_dirty(Replica *r)
 }
 
 PRBool
-replica_is_state_flag_set(Replica *r, PRInt32 flag)
+replica_is_state_flag_set(Replica *r, int32_t flag)
 {
     PR_ASSERT(r);
     if (r)
@@ -3720,7 +3764,7 @@ replica_is_state_flag_set(Replica *r, PRInt32 flag)
 }
 
 void
-replica_set_state_flag(Replica *r, PRUint32 flag, PRBool clear)
+replica_set_state_flag(Replica *r, uint32_t flag, PRBool clear)
 {
     if (r == NULL)
         return;
@@ -3994,7 +4038,7 @@ replica_get_attr(Slapi_PBlock *pb, const char *type, void *value)
     return rc;
 }
 
-PRUint64
+uint64_t
 replica_get_backoff_min(Replica *r)
 {
     if (r) {
@@ -4004,7 +4048,7 @@ replica_get_backoff_min(Replica *r)
     }
 }
 
-PRUint64
+uint64_t
 replica_get_backoff_max(Replica *r)
 {
     if (r) {
@@ -4015,7 +4059,7 @@ replica_get_backoff_max(Replica *r)
 }
 
 void
-replica_set_backoff_min(Replica *r, PRUint64 min)
+replica_set_backoff_min(Replica *r, uint64_t min)
 {
     if (r) {
         slapi_counter_set_value(r->backoff_min, min);
@@ -4023,7 +4067,7 @@ replica_set_backoff_min(Replica *r, PRUint64 min)
 }
 
 void
-replica_set_backoff_max(Replica *r, PRUint64 max)
+replica_set_backoff_max(Replica *r, uint64_t max)
 {
     if (r) {
         slapi_counter_set_value(r->backoff_max, max);
@@ -4031,14 +4075,14 @@ replica_set_backoff_max(Replica *r, PRUint64 max)
 }
 
 void
-replica_set_precise_purging(Replica *r, PRUint64 on_off)
+replica_set_precise_purging(Replica *r, uint64_t on_off)
 {
     if (r) {
         slapi_counter_set_value(r->precise_purging, on_off);
     }
 }
 
-PRUint64
+uint64_t
 replica_get_precise_purging(Replica *r)
 {
     if (r) {

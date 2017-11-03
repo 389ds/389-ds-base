@@ -405,28 +405,35 @@ replica_config_modify(Slapi_PBlock *pb,
                 } else if (strcasecmp(config_attr, attr_replicaBindDnGroup) == 0) {
                     *returncode = replica_config_change_updatedngroup(r, mods[i], errortext, apply_mods);
                 } else if (strcasecmp(config_attr, attr_replicaBindDnGroupCheckInterval) == 0) {
-                    int interval = atoi(config_attr_value);
-                    replica_set_groupdn_checkinterval(r, interval);
-                } else if (strcasecmp(config_attr, attr_replicaType) == 0) {
-                    slapi_ch_free_string(&new_repl_type);
-                    new_repl_type = slapi_ch_strdup(config_attr_value);
-                } else if (strcasecmp(config_attr, attr_replicaId) == 0) {
-                    char *endp = NULL;
-                    int64_t rid = 0;
-                    errno = 0;
-                    rid = strtoll(config_attr_value, &endp, 10);
-                    if (*endp != '\0' || rid > 65535 || rid < 1 || errno == ERANGE) {
-                        *returncode = LDAP_UNWILLING_TO_PERFORM;
-                        PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                            "Attribute %s value (%s) is invalid, must be a number between 1 and 65535.\n",
-                            config_attr, config_attr_value);
-                        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                    int64_t interval = 0;
+                    if (repl_config_valid_num(config_attr, config_attr_value, -1, INT_MAX, returncode, errortext, &interval) == 0) {
+                        replica_set_groupdn_checkinterval(r, interval);
+                    } else {
                         break;
                     }
-                    slapi_ch_free_string(&new_repl_id);
-                    new_repl_id = slapi_ch_strdup(config_attr_value);
+                } else if (strcasecmp(config_attr, attr_replicaType) == 0) {
+                    int64_t rtype;
+                    slapi_ch_free_string(&new_repl_type);
+                    if (repl_config_valid_num(config_attr, config_attr_value, 1, 3, returncode, errortext, &rtype) == 0) {
+                        new_repl_type = slapi_ch_strdup(config_attr_value);
+                    } else {
+                        break;
+                    }
+                } else if (strcasecmp(config_attr, attr_replicaId) == 0) {
+                    int64_t rid = 0;
+                    if (repl_config_valid_num(config_attr, config_attr_value, 1, 65535, returncode, errortext, &rid) == 0) {
+                        slapi_ch_free_string(&new_repl_id);
+                        new_repl_id = slapi_ch_strdup(config_attr_value);
+                    } else {
+                        break;
+                    }
                 } else if (strcasecmp(config_attr, attr_flags) == 0) {
-                    *returncode = replica_config_change_flags(r, config_attr_value, errortext, apply_mods);
+                    int64_t rflags = 0;
+                    if (repl_config_valid_num(config_attr, config_attr_value, 0, 1, returncode, errortext, &rflags) == 0) {
+                        *returncode = replica_config_change_flags(r, config_attr_value, errortext, apply_mods);
+                    } else {
+                        break;
+                    }
                 } else if (strcasecmp(config_attr, TASK_ATTR) == 0) {
                     *returncode = replica_execute_task(mtnode_ext->replica, config_attr_value, errortext, apply_mods);
                 } else if (strcasecmp(config_attr, attr_replicaReferral) == 0) {
@@ -442,18 +449,21 @@ replica_config_modify(Slapi_PBlock *pb,
                     }
                 } else if (strcasecmp(config_attr, type_replicaPurgeDelay) == 0) {
                     if (apply_mods && config_attr_value[0]) {
-                        PRUint32 delay;
-                        if (isdigit(config_attr_value[0])) {
-                            delay = (unsigned int)atoi(config_attr_value);
+                        int64_t delay = 0;
+                        if (repl_config_valid_num(config_attr, config_attr_value, -1, INT_MAX, returncode, errortext, &delay) == 0) {
                             replica_set_purge_delay(r, delay);
-                        } else
-                            *returncode = LDAP_OPERATIONS_ERROR;
+                        } else {
+                            break;
+                        }
                     }
                 } else if (strcasecmp(config_attr, type_replicaTombstonePurgeInterval) == 0) {
                     if (apply_mods && config_attr_value[0]) {
-                        long interval;
-                        interval = atol(config_attr_value);
-                        replica_set_tombstone_reap_interval(r, interval);
+                        int64_t interval;
+                        if (repl_config_valid_num(config_attr, config_attr_value, -1, INT_MAX, returncode, errortext, &interval) == 0) {
+                            replica_set_tombstone_reap_interval(r, interval);
+                        } else {
+                            break;
+                        }
                     }
                 }
                 /* ignore modifiers attributes added by the server */
@@ -461,73 +471,55 @@ replica_config_modify(Slapi_PBlock *pb,
                     *returncode = LDAP_SUCCESS;
                 } else if (strcasecmp(config_attr, type_replicaProtocolTimeout) == 0) {
                     if (apply_mods) {
-                        PRUint64 ptimeout = 0;
-
-                        ptimeout = atoll(config_attr_value);
-
-                        if (ptimeout <= 0) {
-                            *returncode = LDAP_UNWILLING_TO_PERFORM;
-                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "Attribute %s value (%s) is invalid, must be a number greater than zero.\n",
-                                        config_attr, config_attr_value);
-                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                        int64_t ptimeout = 0;
+                        if (repl_config_valid_num(config_attr, config_attr_value, 1, INT_MAX, returncode, errortext, &ptimeout) == 0) {
+                            replica_set_protocol_timeout(r, ptimeout);
+                        } else {
                             break;
                         }
-                        replica_set_protocol_timeout(r, ptimeout);
                     }
                 } else if (strcasecmp(config_attr, type_replicaBackoffMin) == 0) {
                     if (apply_mods) {
-                        uint64_t val = atoll(config_attr_value);
-                        uint64_t max;
-
-                        if (val <= 0) {
-                            *returncode = LDAP_UNWILLING_TO_PERFORM;
-                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "Attribute %s value (%s) is invalid, must be a number greater than zero.\n",
-                                        config_attr, config_attr_value);
-                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                        int64_t val = 0;
+                        int64_t max;
+                        if (repl_config_valid_num(config_attr, config_attr_value, 1, INT_MAX, returncode, errortext, &val) == 0) {
+                            max = replica_get_backoff_max(r);
+                            if (val > max){
+                                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                                PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                            "Attribute %s value (%s) is invalid, must be a number less than the max backoff time (%d).\n",
+                                            config_attr, config_attr_value, (int)max);
+                                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                                break;
+                            }
+                            replica_set_backoff_min(r, val);
+                        } else {
                             break;
                         }
-                        max = replica_get_backoff_max(r);
-                        if (val > max){
-                            *returncode = LDAP_UNWILLING_TO_PERFORM;
-                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "Attribute %s value (%s) is invalid, must be a number less than the max backoff time (%d).\n",
-                                        config_attr, config_attr_value, (int)max);
-                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
-                            break;
-                        }
-                        replica_set_backoff_min(r, val);
                     }
                 } else if (strcasecmp(config_attr, type_replicaBackoffMax) == 0) {
                     if (apply_mods) {
-                        uint64_t val = atoll(config_attr_value);
-                        uint64_t min;
-
-                        if (val <= 0) {
-                            *returncode = LDAP_UNWILLING_TO_PERFORM;
-                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "Attribute %s value (%s) is invalid, must be a number greater than zero.\n",
-                                        config_attr, config_attr_value);
-                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n",
-                                          errortext);
+                        int64_t val = 0;
+                        int64_t min;
+                        if (repl_config_valid_num(config_attr, config_attr_value, 1, INT_MAX, returncode, errortext, &val) == 0) {
+                            min = replica_get_backoff_min(r);
+                            if (val < min) {
+                                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                                PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                            "Attribute %s value (%s) is invalid, must be a number more than the min backoff time (%d).\n",
+                                            config_attr, config_attr_value, (int)min);
+                                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
+                                break;
+                            }
+                            replica_set_backoff_max(r, val);
+                        } else {
                             break;
                         }
-                        min = replica_get_backoff_min(r);
-                        if (val < min) {
-                            *returncode = LDAP_UNWILLING_TO_PERFORM;
-                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "Attribute %s value (%s) is invalid, must be a number more than the min backoff time (%d).\n",
-                                        config_attr, config_attr_value, (int)min);
-                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_modify - %s\n", errortext);
-                            break;
-                        }
-                        replica_set_backoff_max(r, val);
                     }
                 } else if (strcasecmp(config_attr, type_replicaPrecisePurge) == 0) {
                     if (apply_mods) {
                         if (config_attr_value[0]) {
-                            PRUint64 on_off = 0;
+                            uint64_t on_off = 0;
 
                             if (strcasecmp(config_attr_value, "on") == 0) {
                                 on_off = 1;
@@ -550,19 +542,11 @@ replica_config_modify(Slapi_PBlock *pb,
                     }
                 } else if (strcasecmp(config_attr, type_replicaReleaseTimeout) == 0) {
                     if (apply_mods) {
-                        long val = atol(config_attr_value);
-
-                        if (val < 0) {
-                            *returncode = LDAP_UNWILLING_TO_PERFORM;
-                            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "Attribute %s value (%s) is invalid, must be a number zero or greater.\n",
-                                        config_attr, config_attr_value);
-                            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                                          "replica_config_modify - %s\n", errortext);
-                            break;
-                        } else {
-                            /* Set the timeout */
+                        int64_t val;
+                        if (repl_config_valid_num(config_attr, config_attr_value, 1, INT_MAX, returncode, errortext, &val) == 0) {
                             replica_set_release_timeout(r, val);
+                        } else {
+                            break;
                         }
                     }
                 } else {
@@ -1011,7 +995,7 @@ replica_config_change_flags(Replica *r, const char *new_flags, char *returntext 
     PR_ASSERT(r);
 
     if (apply_mods) {
-        PRUint32 flags;
+        uint32_t flags;
 
         flags = atol(new_flags);
 
