@@ -1061,3 +1061,29 @@ repl_set_repl_plugin_path(const char *path)
 {
     replpluginpath = slapi_ch_strdup(path);
 }
+
+int
+repl_config_valid_num(const char *config_attr, char *config_attr_value, int64_t min, int64_t max,
+                      int *returncode, char *errortext, int64_t *retval)
+{
+    int rc = 0;
+    char *endp = NULL;
+    int64_t val;
+    errno = 0;
+
+    val = strtol(config_attr_value, &endp, 10);
+    if (*endp != '\0' || val < min || val > max || errno == ERANGE) {
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        if (errortext){
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Attribute %s value (%s) is invalid, must be a number between %ld and %ld.",
+                        config_attr, config_attr_value, min, max);
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl_config_valid_num - %s\n",
+                          errortext);
+        }
+        rc = -1;
+    } else {
+        *retval = val;
+    }
+    return rc;
+}

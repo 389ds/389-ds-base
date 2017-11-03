@@ -65,31 +65,31 @@
 struct changecounter
 {
     ReplicaId rid;
-    PRUint32 num_replayed;
-    PRUint32 num_skipped;
+    uint32_t num_replayed;
+    uint32_t num_skipped;
 };
 
 typedef struct repl5agmt
 {
     char *hostname;                        /* remote hostname */
-    int port;                              /* port of remote server */
-    PRUint32 transport_flags;              /* SSL, TLS, etc. */
+    int64_t port;                          /* port of remote server */
+    uint32_t transport_flags;              /* SSL, TLS, etc. */
     char *binddn;                          /* DN to bind as */
     struct berval *creds;                  /* Password, or certificate */
-    int bindmethod;                        /* Bind method - simple, SSL */
+    int64_t bindmethod;                    /* Bind method - simple, SSL */
     Slapi_DN *replarea;                    /* DN of replicated area */
     char **frac_attrs;                     /* list of fractional attributes to be replicated */
     char **frac_attrs_total;               /* list of fractional attributes to be replicated for total update protocol */
     PRBool frac_attr_total_defined;        /* TRUE if frac_attrs_total is defined */
     Schedule *schedule;                    /* Scheduling information */
-    int auto_initialize;                   /* 1 = automatically re-initialize replica */
+    int64_t auto_initialize;               /* 1 = automatically re-initialize replica */
     const Slapi_DN *dn;                    /* DN of replication agreement entry */
     const Slapi_RDN *rdn;                  /* RDN of replication agreement entry */
     char *long_name;                       /* Long name (rdn + host, port) of entry, for logging */
     Repl_Protocol *protocol;               /* Protocol object - manages protocol */
     struct changecounter **changecounters; /* changes sent/skipped since server start up */
-    int num_changecounters;
-    int max_changecounters;
+    int64_t num_changecounters;
+    int64_t max_changecounters;
     time_t last_update_start_time;       /* Local start time of last update session */
     time_t last_update_end_time;         /* Local end time of last update session */
     char last_update_status[STATUS_LEN]; /* Status of last update. Format = numeric code <space> textual description */
@@ -102,35 +102,35 @@ typedef struct repl5agmt
     Object *consumerRUV;     /* last RUV received from the consumer - used for changelog purging */
     CSN *consumerSchemaCSN;  /* last schema CSN received from the consumer */
     ReplicaId consumerRID;   /* indicates if the consumer is the originator of a CSN */
-    int tmpConsumerRID;      /* Indicates the consumer rid was set from the agmt maxcsn - it should be refreshed */
-    long timeout;            /* timeout (in seconds) for outbound LDAP connections to remote server */
+    int64_t tmpConsumerRID;  /* Indicates the consumer rid was set from the agmt maxcsn - it should be refreshed */
+    int64_t timeout;         /* timeout (in seconds) for outbound LDAP connections to remote server */
     PRBool stop_in_progress; /* set by agmt_stop when shutting down */
-    long busywaittime;       /* time in seconds to wait after getting a REPLICA BUSY from the consumer -
-                          to allow another supplier to finish sending its updates -
-                          if set to 0, this means to use the default value if we get a busy
-                          signal from the consumer */
-    long pausetime;          /* time in seconds to pause after sending updates -
-                       to allow another supplier to send its updates -
-                       should be greater than busywaittime -
-                       if set to 0, this means do not pause */
+    int64_t busywaittime;    /* time in seconds to wait after getting a REPLICA BUSY from the consumer -
+                              * to allow another supplier to finish sending its updates -
+                              * if set to 0, this means to use the default value if we get a busy
+                              * signal from the consumer
+                              */
+    int64_t pausetime;       /* time in seconds to pause after sending updates -
+                              * to allow another supplier to send its updates -
+                              * should be greater than busywaittime -
+                              * if set to 0, this means do not pause
+                              */
     void *priv;              /* private data, used for windows-specific agreement data
-                   for sync agreements or for replication session plug-in
-                   private data for normal replication agreements */
+                              * for sync agreements or for replication session plug-in
+                              * private data for normal replication agreements
+                              */
     char **attrs_to_strip;   /* for fractional replication, if a "mod" is empty, strip out these attributes:
-                            * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
-    int agreement_type;
+                              * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
+    int64_t agreement_type;
     Slapi_Counter *protocol_timeout;
-    char *maxcsn;             /* agmt max csn */
-    long flowControlWindow;   /* This is the maximum number of entries
-                             * sent without acknowledgment
-                             */
-    long flowControlPause;    /* When nb of not acknowledged entries overpass totalUpdateWindow
-                            * This is the duration (in msec) that the RA will pause before sending the next entry
-                            */
-    long ignoreMissingChange; /* if set replication will try to continue even if change cannot be found in changelog */
-    Slapi_RWLock *attr_lock;  /* RW lock for all the stripped attrs */
-    int WaitForAsyncResults;  /* Pass to DS_Sleep(PR_MillisecondsToInterval(WaitForAsyncResults))
-                              * in repl5_inc_waitfor_async_results */
+    char *maxcsn;                /* agmt max csn */
+    int64_t flowControlWindow;   /* This is the maximum number of entries sent without acknowledgment */
+    int64_t flowControlPause;    /* When nb of not acknowledged entries overpass totalUpdateWindow
+                                  * This is the duration (in msec) that the RA will pause before sending the next entry */
+    int64_t ignoreMissingChange; /* if set replication will try to continue even if change cannot be found in changelog */
+    Slapi_RWLock *attr_lock;     /* RW lock for all the stripped attrs */
+    int64_t WaitForAsyncResults; /* Pass to DS_Sleep(PR_MillisecondsToInterval(WaitForAsyncResults))
+                                  * in repl5_inc_waitfor_async_results */
 } repl5agmt;
 
 /* Forward declarations */
@@ -182,7 +182,7 @@ agmt_is_valid(Repl_Agmt *ra)
     }
     if (ra->port <= 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
-                                                       "is malformed: invalid port number %d.\n",
+                                                       "is malformed: invalid port number %ld.\n",
                       slapi_sdn_get_dn(ra->dn), ra->port);
         return_value = 0;
     }
@@ -241,10 +241,14 @@ agmt_new_from_entry(Slapi_Entry *e)
 {
     Repl_Agmt *ra;
     Slapi_Attr *sattr;
+    char errormsg[SLAPI_DSE_RETURNTEXT_SIZE];
     char *tmpstr;
     char **denied_attrs = NULL;
     char *auto_initialize = NULL;
     char *val_nsds5BeginReplicaRefresh = "start";
+    char *val = NULL;
+    int64_t ptimeout = 0;
+    int rc = 0;
 
     ra = (Repl_Agmt *)slapi_ch_calloc(1, sizeof(repl5agmt));
     if ((ra->lock = PR_NewLock()) == NULL) {
@@ -283,8 +287,17 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     /* Host name of remote replica */
     ra->hostname = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaHost);
+
     /* Port number for remote replica instance */
-    ra->port = slapi_entry_attr_get_int(e, type_nsds5ReplicaPort);
+    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaPort))){
+        int64_t port;
+        if (repl_config_valid_num(type_nsds5ReplicaPort, val, 1, 65535, &rc, errormsg, &port) != 0) {
+            goto loser;
+        }
+        slapi_ch_free_string(&val);
+        ra->port = port;
+    }
+
     /* SSL, TLS, or other transport stuff */
     ra->transport_flags = 0;
     (void)agmt_set_transportinfo_no_lock(ra, e);
@@ -313,29 +326,35 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     /* timeout. */
     ra->timeout = DEFAULT_TIMEOUT;
-    if (slapi_entry_attr_find(e, type_nsds5ReplicaTimeout, &sattr) == 0) {
-        Slapi_Value *sval;
-        if (slapi_attr_first_value(sattr, &sval) == 0) {
-            ra->timeout = slapi_value_get_long(sval);
+    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaTimeout))){
+        int64_t timeout;
+        if (repl_config_valid_num(type_nsds5ReplicaTimeout, val, 0, INT_MAX, &rc, errormsg, &timeout) != 0) {
+            goto loser;
         }
+        slapi_ch_free_string(&val);
+        ra->timeout = timeout;
     }
 
     /* flow control update window. */
     ra->flowControlWindow = DEFAULT_FLOWCONTROL_WINDOW;
-    if (slapi_entry_attr_find(e, type_nsds5ReplicaFlowControlWindow, &sattr) == 0) {
-        Slapi_Value *sval;
-        if (slapi_attr_first_value(sattr, &sval) == 0) {
-            ra->flowControlWindow = slapi_value_get_long(sval);
+    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaFlowControlWindow))){
+        int64_t flow;
+        if (repl_config_valid_num(type_nsds5ReplicaTimeout, val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
+            goto loser;
         }
+        slapi_ch_free_string(&val);
+        ra->flowControlWindow = flow;
     }
 
     /* flow control update pause. */
     ra->flowControlPause = DEFAULT_FLOWCONTROL_PAUSE;
-    if (slapi_entry_attr_find(e, type_nsds5ReplicaFlowControlPause, &sattr) == 0) {
-        Slapi_Value *sval;
-        if (slapi_attr_first_value(sattr, &sval) == 0) {
-            ra->flowControlPause = slapi_value_get_long(sval);
+    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaFlowControlPause))){
+        int64_t pause;
+        if (repl_config_valid_num(type_nsds5ReplicaFlowControlPause, val, 0, INT_MAX, &rc, errormsg, &pause) != 0) {
+            goto loser;
         }
+        slapi_ch_free_string(&val);
+        ra->flowControlPause = pause;
     }
 
     /* continue on missing change ? */
@@ -357,7 +376,6 @@ agmt_new_from_entry(Slapi_Entry *e)
     if (NULL != tmpstr) {
         Object *repl_obj;
         Replica *replica;
-        PRUint64 ptimeout = 0;
 
         ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 
@@ -367,13 +385,17 @@ agmt_new_from_entry(Slapi_Entry *e)
                 replica_incr_agmt_count(replica);
             }
         }
-
-        /* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
-        ptimeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
-        if (ptimeout) {
-            slapi_counter_set_value(ra->protocol_timeout, ptimeout);
-        }
     }
+
+    /* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
+    if ((val = slapi_entry_attr_get_charptr(e, type_replicaProtocolTimeout))){
+        if (repl_config_valid_num(type_replicaProtocolTimeout, val, 0, INT_MAX, &rc, errormsg, &ptimeout) != 0) {
+            goto loser;
+        }
+        slapi_ch_free_string(&val);
+        slapi_counter_set_value(ra->protocol_timeout, ptimeout);
+    }
+
 
     /* Replica enabled */
     tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
@@ -384,9 +406,8 @@ agmt_new_from_entry(Slapi_Entry *e)
             ra->is_enabled = PR_TRUE;
         } else {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_new_from_entry - "
-                                                           "Warning invalid value for nsds5ReplicaEnabled (%s), value must be \"on\" or \"off\".  "
-                                                           "Ignoring this repl agreement.\n",
-                          tmpstr);
+                    "Warning invalid value for nsds5ReplicaEnabled (%s), value must be \"on\" or \"off\".  "
+                    "Ignoring this repl agreement.\n", tmpstr);
             slapi_ch_free_string(&tmpstr);
             goto loser;
         }
@@ -402,11 +423,24 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
 
     /* busy wait time - time to wait after getting REPLICA BUSY from consumer */
-    ra->busywaittime = slapi_entry_attr_get_long(e, type_nsds5ReplicaBusyWaitTime);
+    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBusyWaitTime))){
+        int64_t busytime = 0;
+        if (repl_config_valid_num(type_nsds5ReplicaBusyWaitTime, val, 0, INT_MAX, &rc, errormsg, &busytime) != 0) {
+            goto loser;
+        }
+        slapi_ch_free_string(&val);
+        ra->busywaittime = busytime;
+    }
 
     /* pause time - time to pause after a session has ended */
-    ra->pausetime = slapi_entry_attr_get_long(e, type_nsds5ReplicaSessionPauseTime);
-
+    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaSessionPauseTime))){
+        int64_t pausetime = 0;
+        if (repl_config_valid_num(type_nsds5ReplicaSessionPauseTime, val, 0, INT_MAX, &rc, errormsg, &pausetime) != 0) {
+            goto loser;
+        }
+        slapi_ch_free_string(&val);
+        ra->pausetime = pausetime;
+    }
     /* consumer's RUV */
     if (slapi_entry_attr_find(e, type_ruvElement, &sattr) == 0) {
         RUV *ruv;
@@ -434,7 +468,7 @@ agmt_new_from_entry(Slapi_Entry *e)
         if (dot) {
             *dot = '\0';
         }
-        ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%d)", agmtname, hostname, ra->port);
+        ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%ld)", agmtname, hostname, ra->port);
     }
 
     /* DBDB: review this code */
@@ -534,6 +568,9 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     return ra;
 loser:
+    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                  "agmt_new_from_entry - Failed to parse agreement, skipping.\n");
+    slapi_ch_free_string(&val);
     agmt_delete((void **)&ra);
     return NULL;
 }
@@ -754,10 +791,10 @@ agmt_start(Repl_Agmt *ra)
                     char buf[BUFSIZ];
                     char unavail_buf[BUFSIZ];
 
-                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%d;", slapi_sdn_get_dn(repl_sdn),
+                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%ld;", slapi_sdn_get_dn(repl_sdn),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
-                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%d;unavailable", slapi_sdn_get_dn(repl_sdn),
+                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%ld;unavailable", slapi_sdn_get_dn(repl_sdn),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
                     if (strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)) {
@@ -901,7 +938,7 @@ agmt_get_port(const Repl_Agmt *ra)
 /*
  * Return the transport flags for this agreement.
  */
-PRUint32
+uint32_t
 agmt_get_transport_flags(const Repl_Agmt *ra)
 {
     unsigned int return_value;
@@ -2919,7 +2956,7 @@ agmt_update_done(Repl_Agmt *agmt, int is_total)
     }
 }
 
-PRUint64
+uint64_t
 agmt_get_protocol_timeout(Repl_Agmt *agmt)
 {
     if (agmt) {
@@ -2930,7 +2967,7 @@ agmt_get_protocol_timeout(Repl_Agmt *agmt)
 }
 
 void
-agmt_set_protocol_timeout(Repl_Agmt *agmt, PRUint64 timeout)
+agmt_set_protocol_timeout(Repl_Agmt *agmt, uint64_t timeout)
 {
     if (agmt) {
         slapi_counter_set_value(agmt->protocol_timeout, timeout);
@@ -2992,11 +3029,11 @@ agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn)
                  * temporarily mark it as "unavailable".
                  */
                 slapi_ch_free_string(&agmt->maxcsn);
-                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%d;unavailable", slapi_sdn_get_dn(agmt->replarea),
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%ld;unavailable", slapi_sdn_get_dn(agmt->replarea),
                                                  slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname, agmt->port);
             } else if (rid == oprid) {
                 slapi_ch_free_string(&agmt->maxcsn);
-                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%d;%d;%s", slapi_sdn_get_dn(agmt->replarea),
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%ld;%d;%s", slapi_sdn_get_dn(agmt->replarea),
                                                  slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname,
                                                  agmt->port, agmt->consumerRID, maxcsn);
             }
@@ -3190,10 +3227,10 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
                     char unavail_buf[BUFSIZ];
                     struct berval val;
 
-                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%d;", slapi_sdn_get_dn(ra->replarea),
+                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%ld;", slapi_sdn_get_dn(ra->replarea),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
-                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%d;unavailable",
+                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%ld;unavailable",
                                 slapi_sdn_get_dn(ra->replarea),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);

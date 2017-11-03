@@ -330,8 +330,8 @@ void replsupplier_configure(Repl_Supplier *rs, Slapi_PBlock *pb);
 void replsupplier_start(Repl_Supplier *rs);
 void replsupplier_stop(Repl_Supplier *rs);
 void replsupplier_destroy(Repl_Supplier **rs);
-void replsupplier_notify(Repl_Supplier *rs, PRUint32 eventmask);
-PRUint32 replsupplier_get_status(Repl_Supplier *rs);
+void replsupplier_notify(Repl_Supplier *rs, uint32_t eventmask);
+uint32_t replsupplier_get_status(Repl_Supplier *rs);
 
 /* In repl5_plugins.c */
 int multimaster_set_local_purl(void);
@@ -383,7 +383,7 @@ int agmt_stop(Repl_Agmt *ra);
 int agmt_replicate_now(Repl_Agmt *ra);
 char *agmt_get_hostname(const Repl_Agmt *ra);
 int agmt_get_port(const Repl_Agmt *ra);
-PRUint32 agmt_get_transport_flags(const Repl_Agmt *ra);
+uint32_t agmt_get_transport_flags(const Repl_Agmt *ra);
 char *agmt_get_binddn(const Repl_Agmt *ra);
 struct berval *agmt_get_credentials(const Repl_Agmt *ra);
 int agmt_get_bindmethod(const Repl_Agmt *ra);
@@ -448,8 +448,8 @@ int agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e);
 int agmt_set_timeout(Repl_Agmt *ra, long timeout);
 int agmt_set_ignoremissing(Repl_Agmt *ra, long ignoremissing);
 void agmt_update_done(Repl_Agmt *ra, int is_total);
-PRUint64 agmt_get_protocol_timeout(Repl_Agmt *agmt);
-void agmt_set_protocol_timeout(Repl_Agmt *agmt, PRUint64 timeout);
+uint64_t agmt_get_protocol_timeout(Repl_Agmt *agmt);
+void agmt_set_protocol_timeout(Repl_Agmt *agmt, uint64_t timeout);
 void agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn);
 void add_agmt_maxcsns(Slapi_Entry *e, Replica *r);
 void agmt_remove_maxcsn(Repl_Agmt *ra);
@@ -532,8 +532,8 @@ void *consumer_connection_extension_constructor(void *object, void *parent);
 void consumer_connection_extension_destructor(void *ext, void *object, void *parent);
 
 /* extension helpers for managing exclusive access */
-consumer_connection_extension *consumer_connection_extension_acquire_exclusive_access(void *conn, PRUint64 connid, int opid);
-int consumer_connection_extension_relinquish_exclusive_access(void *conn, PRUint64 connid, int opid, PRBool force);
+consumer_connection_extension *consumer_connection_extension_acquire_exclusive_access(void *conn, uint64_t connid, int opid);
+int consumer_connection_extension_relinquish_exclusive_access(void *conn, uint64_t connid, int opid, PRBool force);
 
 /* mapping tree extension - stores replica object */
 typedef struct multimaster_mtnode_extension
@@ -666,8 +666,8 @@ Replica *replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_o
 void replica_destroy(void **arg);
 int replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid);
 int replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid);
-PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid, const char *locking_purl, char **current_purl);
-void replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid);
+PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, uint64_t connid, int opid, const char *locking_purl, char **current_purl);
+void replica_relinquish_exclusive_access(Replica *r, uint64_t connid, int opid);
 PRBool replica_get_tombstone_reap_active(const Replica *r);
 const Slapi_DN *replica_get_root(const Replica *r);
 const char *replica_get_name(const Replica *r);
@@ -685,11 +685,13 @@ PRBool replica_is_updatedn(Replica *r, const Slapi_DN *sdn);
 void replica_set_updatedn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 void replica_set_groupdn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 char *replica_get_generation(const Replica *r);
+
 /* currently supported flags */
 #define REPLICA_LOG_CHANGES 0x1 /* enable change logging */
-PRBool replica_is_flag_set(const Replica *r, PRUint32 flag);
-void replica_set_flag(Replica *r, PRUint32 flag, PRBool clear);
-void replica_replace_flags(Replica *r, PRUint32 flags);
+
+PRBool replica_is_flag_set(const Replica *r, uint32_t flag);
+void replica_set_flag(Replica *r, uint32_t flag, PRBool clear);
+void replica_replace_flags(Replica *r, uint32_t flags);
 void replica_dump(Replica *r);
 void replica_set_enabled(Replica *r, PRBool enable);
 Object *replica_get_replica_from_dn(const Slapi_DN *dn);
@@ -720,7 +722,7 @@ int replica_delete_by_dn(const char *dn);
 int replica_is_being_configured(const char *dn);
 void consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv);
 Object *replica_get_for_backend(const char *be_name);
-void replica_set_purge_delay(Replica *r, PRUint32 purge_delay);
+void replica_set_purge_delay(Replica *r, uint32_t purge_delay);
 void replica_set_tombstone_reap_interval(Replica *r, long interval);
 void replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv);
 void replica_set_ruv_dirty(Replica *r);
@@ -730,20 +732,20 @@ char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica *r, Slapi_Entry *e);
 void replica_update_state(time_t when, void *arg);
 void replica_reset_csn_pl(Replica *r);
-PRUint64 replica_get_protocol_timeout(Replica *r);
-void replica_set_protocol_timeout(Replica *r, PRUint64 timeout);
-PRUint64 replica_get_release_timeout(Replica *r);
-void replica_set_release_timeout(Replica *r, PRUint64 timeout);
+uint64_t replica_get_protocol_timeout(Replica *r);
+void replica_set_protocol_timeout(Replica *r, uint64_t timeout);
+uint64_t replica_get_release_timeout(Replica *r);
+void replica_set_release_timeout(Replica *r, uint64_t timeout);
 void replica_set_groupdn_checkinterval(Replica *r, int timeout);
-PRUint64 replica_get_backoff_min(Replica *r);
-PRUint64 replica_get_backoff_max(Replica *r);
-void replica_set_backoff_min(Replica *r, PRUint64 min);
-void replica_set_backoff_max(Replica *r, PRUint64 max);
+uint64_t replica_get_backoff_min(Replica *r);
+uint64_t replica_get_backoff_max(Replica *r);
+void replica_set_backoff_min(Replica *r, uint64_t min);
+void replica_set_backoff_max(Replica *r, uint64_t max);
 int replica_get_agmt_count(Replica *r);
 void replica_incr_agmt_count(Replica *r);
 void replica_decr_agmt_count(Replica *r);
-PRUint64 replica_get_precise_purging(Replica *r);
-void replica_set_precise_purging(Replica *r, PRUint64 on_off);
+uint64_t replica_get_precise_purging(Replica *r);
+void replica_set_precise_purging(Replica *r, uint64_t on_off);
 PRBool ignore_error_and_keep_going(int error);
 void replica_check_release_timeout(Replica *r, Slapi_PBlock *pb);
 void replica_lock_replica(Replica *r);
@@ -764,8 +766,8 @@ void replica_unlock_replica(Replica *r);
                                               is active, RECV should back off. And vice versa.  But SEND can coexist. */
 #define REPLICA_TOTAL_EXCL_RECV         32 /* ditto */
 
-PRBool replica_is_state_flag_set(Replica *r, PRInt32 flag);
-void replica_set_state_flag(Replica *r, PRUint32 flag, PRBool clear);
+PRBool replica_is_state_flag_set(Replica *r, int32_t flag);
+void replica_set_state_flag(Replica *r, uint32_t flag, PRBool clear);
 void replica_set_tombstone_reap_stop(Replica *r, PRBool val);
 void replica_enable_replication(Replica *r);
 void replica_disable_replication(Replica *r, Object *r_obj);
@@ -836,6 +838,8 @@ LDAPControl *create_managedsait_control(void);
 LDAPControl *create_backend_control(Slapi_DN *sdn);
 void repl_set_mtn_state_and_referrals(const Slapi_DN *sdn, const char *mtn_state, const RUV *ruv, char **ruv_referrals, char **other_referrals);
 void repl_set_repl_plugin_path(const char *path);
+int repl_config_valid_num(const char *config_attr, char *config_attr_value, int64_t min, int64_t max,
+                          int *returncode, char *errortext, int64_t *retval);
 
 /* repl5_updatedn_list.c */
 typedef void *ReplicaUpdateDNList;
