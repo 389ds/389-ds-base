@@ -10,17 +10,45 @@ from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_or, _gen_fil
 
 
 class Account(DSLdapObject):
+    """A single instance of Account entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def is_locked(self):
-        # Check if nsAccountLock is set.
+        """Check if nsAccountLock is set
+
+        :returns: True if account is locked
+        """
+
         return self.present('nsAccountLock')
 
     def lock(self):
+        """Set nsAccountLock to 'true'"""
+
         self.replace('nsAccountLock', 'true')
 
     def unlock(self):
+        """Unset nsAccountLock"""
+
         self.remove('nsAccountLock', None)
 
 class Accounts(DSLdapObjects):
+    """DSLdapObjects that represents Account entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, basedn, batch=False):
         super(Accounts, self).__init__(instance, batch)
         # These are all the objects capable of holding a password.

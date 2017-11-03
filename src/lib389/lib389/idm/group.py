@@ -15,6 +15,16 @@ MUST_ATTRIBUTES = [
 RDN = 'cn'
 
 class Group(DSLdapObject):
+    """A single instance of Group entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, dn=None, batch=False):
         super(Group, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -29,16 +39,45 @@ class Group(DSLdapObject):
         self._protected = False
 
     def is_member(self, dn):
-        # Check if dn is a member
+        """Check if DN is a member
+
+        :param dn: Entry DN
+        :type dn: str
+        """
+
         return self.present('member', dn)
 
     def add_member(self, dn):
+        """Add DN as a member
+
+        :param dn: Entry DN
+        :type dn: str
+        """
+
         self.add('member', dn)
 
     def remove_member(self, dn):
+        """Remove a member with specified DN
+
+        :param dn: Entry DN
+        :type dn: str
+        """
+
         self.remove('member', dn)
 
+
 class Groups(DSLdapObjects):
+    """DSLdapObjects that represents Groups entry
+    By default it uses 'ou=Groups' as rdn.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all group entries below
+    :type basedn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, basedn, batch=False, rdn='ou=Groups'):
         super(Groups, self).__init__(instance, batch)
         self._objectclasses = [
@@ -47,6 +86,7 @@ class Groups(DSLdapObjects):
         self._filterattrs = [RDN]
         self._childobject = Group
         self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
+
 
 class UniqueGroup(DSLdapObject):
     # WARNING!!!
@@ -72,6 +112,7 @@ class UniqueGroup(DSLdapObject):
 
     def remove_member(self, dn):
         self.remove('uniquemember', dn)
+
 
 class UniqueGroups(DSLdapObjects):
     # WARNING!!!

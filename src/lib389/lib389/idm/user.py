@@ -32,6 +32,16 @@ TEST_USER_PROPERTIES = {
 
 
 class UserAccount(Account):
+    """A single instance of User Account entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, dn=None, batch=False):
         super(UserAccount, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -70,7 +80,21 @@ class UserAccount(Account):
     # Add a set password function....
     # Can't I actually just set, and it will hash?
 
+
 class UserAccounts(DSLdapObjects):
+    """DSLdapObjects that represents all User Account entries in suffix.
+    By default it uses 'ou=People' as rdn.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Suffix DN
+    :type basedn: str
+    :param rdn: The DN that will be combined wit basedn
+    :type rdn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, basedn, batch=False, rdn='ou=People'):
         super(UserAccounts, self).__init__(instance, batch)
         self._objectclasses = [

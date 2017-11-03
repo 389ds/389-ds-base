@@ -16,6 +16,16 @@ MUST_ATTRIBUTES = [
 RDN = 'cn'
 
 class PosixGroup(DSLdapObject):
+    """A single instance of PosixGroup entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, dn=None, batch=False):
         super(PosixGroup, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -31,14 +41,37 @@ class PosixGroup(DSLdapObject):
         self._protected = False
 
     def check_member(self, dn):
+        """Check if DN is a member
+
+        :param dn: Entry DN
+        :type dn: str
+        """
+
         return dn in self.get_attr_vals('member')
 
     def add_member(self, dn):
+        """Add DN as a member
+
+        :param dn: Entry DN
+        :type dn: str
+        """
+
         # Assert the DN exists?
         self.add('member', dn)
 
 
 class PosixGroups(DSLdapObjects):
+    """DSLdapObjects that represents PosixGroups entry
+    By default it uses 'ou=Groups' as rdn.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all group entries below
+    :type basedn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, basedn, batch=False, rdn='ou=Groups'):
         super(PosixGroups, self).__init__(instance, batch)
         self._objectclasses = [

@@ -6,9 +6,21 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389._mapped_object import DSLdapObject
 
 class Domain(DSLdapObject):
+    """A single instance of Domain entry
+    - must attributes = ['dc']
+    - RDN attribute is 'dc'
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, dn=None, batch=False):
         super(Domain, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'dc'

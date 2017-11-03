@@ -82,7 +82,7 @@ class DSLogging(object):
 class DSLdapObject(DSLogging):
     """A single instance of DSLdapObjects
 
-    :param instance: A instance
+    :param instance: An instance
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
@@ -718,7 +718,7 @@ class DSLdapObjects(DSLogging):
     that exists in this way", i.e. we unite LDAP entries by some
     set of parameters with the object.
 
-    :param instance: A instance
+    :param instance: An instance
     :type instance: lib389.DirSrv
     :param batch: Not implemented
     :type batch: bool

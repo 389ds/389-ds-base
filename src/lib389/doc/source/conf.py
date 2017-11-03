@@ -14,6 +14,7 @@
 
 import sys
 import os
+import inspect
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -294,10 +295,6 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-import lib389
-import inspect
-from os.path import relpath, dirname
-
 def linkcode_resolve(domain, info):
     if domain != 'py':
         return None
@@ -306,7 +303,6 @@ def linkcode_resolve(domain, info):
 
     module_name = info['module']
     fullname = info['fullname']
-    file_name = module_name.replace('.', '/')
 
     # Get the module object
     submodule = sys.modules.get(module_name)
@@ -321,6 +317,14 @@ def linkcode_resolve(domain, info):
         except:
             return None
 
+    # inspect.getsourcelines doesn't support data descriptors
+    # Probably we can get the source another way, for now it's okay to skip
+    if isinstance(next_submodule, property):
+        return None
+
+    file_path = inspect.getsourcefile(next_submodule)
+    file_name = file_path.split('lib389/lib389/')[-1]
+
     # Get line number for the submodule
     try:
         _, line = inspect.getsourcelines(next_submodule)
@@ -332,4 +336,4 @@ def linkcode_resolve(domain, info):
     else:
         line_fmt = ""
 
-    return "https://pagure.io/lib389/blob/master/f/{}.py{}".format(file_name, line_fmt)
+    return "https://pagure.io/389-ds-base/blob/master/f/src/lib389/lib389/{}{}".format(file_name, line_fmt)

@@ -7,6 +7,7 @@ Usage example
 
     # There is a basic way to work with it
     from lib389.idm.user import UserAccounts
+
     users = UserAccounts(standalone, DEFAULT_SUFFIX)
     user_properties = {
            'uid': USER_NAME,
@@ -45,6 +46,8 @@ Module documentation
 
 .. autoclass:: lib389.idm.user.UserAccounts
    :members:
+   :inherited-members:
 
 .. autoclass:: lib389.idm.user.UserAccount
    :members:
+   :inherited-members:

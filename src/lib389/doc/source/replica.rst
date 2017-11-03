@@ -13,11 +13,15 @@ Usage example
     # - replica manager will be with the defaults
     # - replica.create() will be executed
     replica = replicas.enable(suffix=DEFAULT_SUFFIX,
-                              role=REPLICAROLE_MASTER,
+                              role=ReplicaRole.MASTER,
                               replicaID=REPLICAID_MASTER_1)
-    # Roles - REPLICAROLE_MASTER, REPLICAROLE_HUB, and REPLICAROLE_CONSUMER
+
+    # Or you can get it as usual DSLdapObject
+    replica = replicas.list()[0]
+
+    # Roles - ReplicaRole.MASTER, ReplicaRole.HUB, and ReplicaRole.CONSUMER
     # For masters and hubs you can use the constants REPLICAID_MASTER_X and REPLICAID_HUB_X
-    # Change X for a number from 1 to 100 - for role REPLICAROLE_MASTER only
+    # Change X for a number from 1 to 100 - for role ReplicaRole.MASTER only
      
     # Disable replication
     # - agreements and replica entry will be deleted
@@ -32,12 +36,12 @@ Usage example
      
     # Promote
     replicas.promote(suffix=DEFAULT_SUFFIX,
-                     newrole=REPLICAROLE_MASTER,
+                     newrole=ReplicaRole.MASTER,
                      binddn=REPL_BINDDN,
                      rid=REPLICAID_MASTER_1)
     # Demote
     replicas.demote(suffix=DEFAULT_SUFFIX,
-                    newrole=REPLICAROLE_CONSUMER)
+                    newrole=ReplicaRole.CONSUMER)
     # Test, that replication works
     replicas.test(master2)
      

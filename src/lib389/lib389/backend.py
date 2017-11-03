@@ -387,10 +387,10 @@ class BackendLegacy(object):
 
 class Backend(DSLdapObject):
     """Backend DSLdapObject with:
-    - must attributes = ['cn, 'nsslapd-suffix']
+    - must attributes = ['cn', 'nsslapd-suffix']
     - RDN attribute is 'cn'
 
-    :param instance: A instance
+    :param instance: An instance
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
@@ -566,7 +566,7 @@ class Backends(DSLdapObjects):
     This only does ldbm backends. Chaining backends are a special case
     of this, so they can be subclassed off.
 
-    :param instance: A instance
+    :param instance: An instance
     :type instance: lib389.DirSrv
     :param batch: Not implemented
     :type batch: bool

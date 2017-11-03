@@ -1,8 +1,7 @@
 ============================================================
 Guidelines for using pytest and lib389
 ============================================================
-The guide covers basic workflow with git, py.test, lib389, python-ldap
-and 1minutetip CLIs.
+The guide covers basic workflow with git, py.test, lib389 and python-ldap.
 
 For a saving place purposes, I'll replace topology_m2.ms["master1"]
 with master1 , etc.
@@ -347,6 +346,19 @@ Asserting
         assert 'maximum recursion' in str(excinfo.value)
 
 
+Python 3 support
+================
+
+Our project should support Python 3. Python-ldap works with 'byte' strings only.
+So we should use lib389 functions as much as possible because they take care of this issue.
+
+If you still must use 'modify_s', 'add_s' or other python-ldap functions, you should consider defining the attribute as 'byte'. You can do this like this, with b'' symbol:
+
+::
+
+        # Modify an entry
+        standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'cn', b'Mark Reynolds')])
+
 
 Constants
 ==========
@@ -395,14 +407,15 @@ by DSLdapObjects.
     # Add an entry
     USER_DN = 'cn=mreynolds,{}'.format(DEFAULT_SUFFIX)
     standalone.add_s(Entry((USER_DN, {
-                                  'objectclass': 'top person'.split(),
-                                  'cn': 'mreynolds',
-                                  'sn': 'reynolds',
-                                  'userpassword': 'password'
+                                  'objectclass': b'top',
+                                  'objectclass': b'person',
+                                  'cn': b'mreynolds',
+                                  'sn': b'reynolds',
+                                  'userpassword': b'password'
                               })))
     
     # Modify an entry
-    standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'cn', 'Mark Reynolds')])
+    standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'cn', b'Mark Reynolds')])
     
     # Delete an entry
     standalone.delete_s(USER_DN)
@@ -595,5 +608,5 @@ Basic configuration
     
     # Initialize the agreement, wait for it complete, and test that replication is really working
     standalone.agreement.init(DEFAULT_SUFFIX, master2.host, master2.port)
-    standalone.waitForReplInit(repl_agreement)
-    assert standalone.testReplication(DEFAULT_SUFFIX, master2)
+    replica.start_and_wait(repl_agreement)
+    assert replicas.test(master2)

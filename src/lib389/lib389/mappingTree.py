@@ -383,7 +383,7 @@ class MappingTree(DSLdapObject):
     - must attributes = ['cn']
     - RDN attribute is 'cn'
 
-    :param instance: A instance
+    :param instance: An instance
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
@@ -418,7 +418,7 @@ class MappingTree(DSLdapObject):
 class MappingTrees(DSLdapObjects):
     """DSLdapObjects that presents Mapping trees
 
-    :param instance: A instance
+    :param instance: An instance
     :type instance: lib389.DirSrv
     :param batch: Not implemented
     :type batch: bool

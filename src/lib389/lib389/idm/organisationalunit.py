@@ -14,6 +14,16 @@ MUST_ATTRIBUTES = [
 RDN = 'ou'
 
 class OrganisationalUnit(DSLdapObject):
+    """A single instance of OrganizationalUnit entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, dn=None, batch=False):
         super(OrganisationalUnit, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -26,6 +36,16 @@ class OrganisationalUnit(DSLdapObject):
         self._protected = False
 
 class OrganisationalUnits(DSLdapObjects):
+    """DSLdapObjects that represents OrganizationalUnits entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all group entries below
+    :type basedn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, basedn, batch=False):
         super(OrganisationalUnits, self).__init__(instance, batch)
         self._objectclasses = [

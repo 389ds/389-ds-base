@@ -1111,8 +1111,11 @@ class Replica(DSLdapObject):
     def start_and_wait(self, agmtdn):
         """Initialize an agreement and wait for it to complete
 
-        @param agmtdn - agreement dn
-        @return - 0 if successful
+        :param agmtdn: The agreement DN
+        :type agmtdn: str
+
+        :returns: 0 if the initialization is complete
+
         THIS SHOULD BE IN THE NEW AGREEMENT CLASS
         """
 
@@ -1124,7 +1127,7 @@ class Replica(DSLdapObject):
         return rc
 
     def start_async(self, agmtdn):
-        """Initialize replication without waiting.
+        """Initialize replication without waiting
 
         :param agmtdn: The agreement DN
         :type agmtdn: str

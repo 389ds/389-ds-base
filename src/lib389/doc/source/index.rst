@@ -23,13 +23,13 @@ Contents
    Replication <replication.rst>
    Configuring Databases <databases.rst>
    Access Control <accesscontrol.rst>
+   Identity Management <identitymanagement.rst>
 
 Work in progress
 -----------------
 .. toctree::
    :maxdepth: 2
 
-   Identity Management <identitymanagement.rst>
    need_to_be_triaged.rst
 
 

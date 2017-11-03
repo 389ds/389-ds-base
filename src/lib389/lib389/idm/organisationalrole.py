@@ -15,6 +15,16 @@ RDN = 'cn'
 
 
 class OrganisationalRole(DSLdapObject):
+    """A single instance of OrganizationalRole entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, dn=None, batch=False):
         super(OrganisationalRole, self).__init__(instance, dn, batch)
         self._rdn_attribute = RDN
@@ -27,6 +37,16 @@ class OrganisationalRole(DSLdapObject):
 
 
 class OrganisationalRoles(DSLdapObjects):
+    """DSLdapObjects that represents OrganizationalRole entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all group entries below
+    :type basedn: str
+    :param batch: Not implemented
+    :type batch: bool
+    """
+
     def __init__(self, instance, basedn, batch=False):
         super(OrganisationalRoles, self).__init__(instance, batch)
         self._objectclasses = [
