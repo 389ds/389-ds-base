@@ -339,7 +339,7 @@ agmt_new_from_entry(Slapi_Entry *e)
     ra->flowControlWindow = DEFAULT_FLOWCONTROL_WINDOW;
     if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaFlowControlWindow))){
         int64_t flow;
-        if (repl_config_valid_num(type_nsds5ReplicaTimeout, val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaFlowControlWindow, val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
             goto loser;
         }
         slapi_ch_free_string(&val);
