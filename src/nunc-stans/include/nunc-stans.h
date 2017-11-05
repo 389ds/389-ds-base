@@ -77,6 +77,10 @@ typedef enum _ns_result_t {
      * This occurs when a lower level OS issue occurs, generally thread related.
      */
     NS_THREAD_FAILURE = 5,
+    /**
+     * The job is being deleted
+     */
+    NS_DELETING = 6,
 } ns_result_t;
 
 /**
@@ -835,6 +839,14 @@ ns_job_type_t ns_job_get_output_type(struct ns_job_t *job);
  * \sa ns_job_t, ns_job_done
  */
 ns_result_t ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func);
+
+/**
+ * Block until a job is completed. This returns the next state of the job as as a return.
+ *
+ * \param job The job to set the callback for.
+ * \retval ns_job_state_t The next state the job will move to. IE, WAITING, DELETED, ARMED.
+ */
+ns_result_t ns_job_wait(struct ns_job_t *job);
 
 /**
  * Creates a new thread pool
