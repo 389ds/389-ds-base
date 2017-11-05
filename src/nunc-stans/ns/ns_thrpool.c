@@ -214,7 +214,7 @@ job_queue_cleanup(void *arg)
 static void
 internal_ns_job_done(ns_job_t *job)
 {
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "internal_ns_job_done %x state %d moving to NS_JOB_DELETED\n", job, job->state);
 #endif
@@ -239,9 +239,9 @@ internal_ns_job_done(ns_job_t *job)
         job->done_cb(job);
     }
 
-    pthread_mutex_unlock(job->monitor);
-    pthread_mutex_destroy(job->monitor);
-    ns_free(job->monitor);
+    pthread_mutex_unlock(&(job->monitor));
+    pthread_mutex_destroy(&(job->monitor));
+    pthread_cond_destroy(&(job->notify));
 
     ns_free(job);
 }
@@ -250,7 +250,7 @@ internal_ns_job_done(ns_job_t *job)
 static void
 internal_ns_job_rearm(ns_job_t *job)
 {
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state == NS_JOB_NEEDS_ARM);
 /* Don't think I need to check persistence here, it could be the first arm ... */
 #ifdef DEBUG
@@ -267,7 +267,7 @@ internal_ns_job_rearm(ns_job_t *job)
         /* Prevents an un-necessary queue / dequeue to the event_q */
         work_q_notify(job);
     }
-    pthread_mutex_unlock(job->monitor);
+    pthread_mutex_unlock(&(job->monitor));
 }
 
 static void
@@ -281,7 +281,7 @@ work_job_execute(ns_job_t *job)
      * DELETED! Crashes abound, you have been warned ...
      */
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "work_job_execute %x state %d moving to NS_JOB_RUNNING\n", job, job->state);
 #endif
@@ -303,7 +303,12 @@ work_job_execute(ns_job_t *job)
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "work_job_execute %x state %d job func complete, sending to job_done...\n", job, job->state);
 #endif
-        pthread_mutex_unlock(job->monitor);
+        /*
+         * Let waiters know we are done, they'll pick up once
+         * we unlock.
+         */
+        pthread_cond_signal(&(job->notify));
+        pthread_mutex_unlock(&(job->monitor));
         internal_ns_job_done(job);
         /* MUST NOT ACCESS JOB AGAIN.*/
     } else if (job->state == NS_JOB_NEEDS_ARM) {
@@ -311,7 +316,8 @@ work_job_execute(ns_job_t *job)
         ns_log(LOG_DEBUG, "work_job_execute %x state %d job func complete, sending to rearm...\n", job, job->state);
 #endif
         /* Rearm the job! */
-        pthread_mutex_unlock(job->monitor);
+        /* We *don't* notify here because we ARE NOT done! */
+        pthread_mutex_unlock(&(job->monitor));
         internal_ns_job_rearm(job);
     } else {
 #ifdef DEBUG
@@ -321,7 +327,12 @@ work_job_execute(ns_job_t *job)
         PR_ASSERT(!NS_JOB_IS_PERSIST(job->job_type));
         /* We are now idle, set waiting. */
         job->state = NS_JOB_WAITING;
-        pthread_mutex_unlock(job->monitor);
+        /*
+         * Let waiters know we are done, they'll pick up once
+         * we unlock.
+         */
+        pthread_cond_signal(&(job->notify));
+        pthread_mutex_unlock(&(job->monitor));
     }
     /* MUST NOT ACCESS JOB AGAIN */
 }
@@ -338,7 +349,7 @@ static void
 work_q_notify(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "work_q_notify %x state %d\n", job, job->state);
 #endif
@@ -346,12 +357,12 @@ work_q_notify(ns_job_t *job)
     if (job->state != NS_JOB_ARMED) {
         /* Maybe we should return some error here? */
         ns_log(LOG_ERR, "work_q_notify %x state %d is not ARMED, cannot queue!\n", job, job->state);
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return;
     }
     /* MUST NOT ACCESS job after enqueue. So we stash tp.*/
     ns_thrpool_t *ltp = job->tp;
-    pthread_mutex_unlock(job->monitor);
+    pthread_mutex_unlock(&(job->monitor));
     sds_lqueue_enqueue(ltp->work_q, (void *)job);
     pthread_mutex_lock(&(ltp->work_q_lock));
     pthread_cond_signal(&(ltp->work_q_cv));
@@ -411,13 +422,13 @@ static void
 update_event(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "update_event %x state %d\n", job, job->state);
 #endif
     PR_ASSERT(job->state == NS_JOB_NEEDS_DELETE || job->state == NS_JOB_ARMED);
     if (job->state == NS_JOB_NEEDS_DELETE) {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         internal_ns_job_done(job);
         return;
     } else if (NS_JOB_IS_IO(job->job_type) || job->ns_event_fw_fd) {
@@ -426,7 +437,7 @@ update_event(ns_job_t *job)
         } else {
             job->tp->ns_event_fw->ns_event_fw_mod_io(job->tp->ns_event_fw_ctx, job);
         }
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         /* We need these returns to prevent a race on the next else if condition when we release job->monitor */
         return;
     } else if (NS_JOB_IS_TIMER(job->job_type) || job->ns_event_fw_time) {
@@ -435,7 +446,7 @@ update_event(ns_job_t *job)
         } else {
             job->tp->ns_event_fw->ns_event_fw_mod_timer(job->tp->ns_event_fw_ctx, job);
         }
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return;
     } else if (NS_JOB_IS_SIGNAL(job->job_type) || job->ns_event_fw_sig) {
         if (!job->ns_event_fw_sig) {
@@ -443,15 +454,15 @@ update_event(ns_job_t *job)
         } else {
             job->tp->ns_event_fw->ns_event_fw_mod_signal(job->tp->ns_event_fw_ctx, job);
         }
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return;
     } else {
         /* It's a "run now" job. */
         if (NS_JOB_IS_THREAD(job->job_type)) {
-            pthread_mutex_unlock(job->monitor);
+            pthread_mutex_unlock(&(job->monitor));
             work_q_notify(job);
         } else {
-            pthread_mutex_unlock(job->monitor);
+            pthread_mutex_unlock(&(job->monitor));
             event_q_notify(job);
         }
     }
@@ -602,14 +613,14 @@ event_cb(ns_job_t *job)
      */
 
     /* There is no guarantee this won't be called once we start to enter the shutdown, especially with timers .... */
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 
     PR_ASSERT(job->state == NS_JOB_ARMED || job->state == NS_JOB_NEEDS_DELETE);
     if (job->state == NS_JOB_ARMED && NS_JOB_IS_THREAD(job->job_type)) {
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "event_cb %x state %d threaded, send to work_q\n", job, job->state);
 #endif
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         work_q_notify(job);
     } else if (job->state == NS_JOB_NEEDS_DELETE) {
 #ifdef DEBUG
@@ -620,14 +631,14 @@ event_cb(ns_job_t *job)
          * It's here because it's been QUEUED for deletion and *may* be coming
          * from the thrpool destroy thread!
          */
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
 
     } else {
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "event_cb %x state %d non-threaded, execute right meow\n", job, job->state);
 #endif
         /* Not threaded, execute now! */
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         work_job_execute(job);
         /* MUST NOT ACCESS JOB FROM THIS POINT */
     }
@@ -682,12 +693,12 @@ static ns_job_t *
 new_ns_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type, ns_job_func_t func, struct ns_job_data_t *data)
 {
     ns_job_t *job = ns_calloc(1, sizeof(ns_job_t));
-    job->monitor = ns_calloc(1, sizeof(pthread_mutex_t));
 
     pthread_mutexattr_t *monitor_attr = ns_calloc(1, sizeof(pthread_mutexattr_t));
     pthread_mutexattr_init(monitor_attr);
     pthread_mutexattr_settype(monitor_attr, PTHREAD_MUTEX_RECURSIVE);
-    assert(pthread_mutex_init(job->monitor, monitor_attr) == 0);
+    assert(pthread_mutex_init(&(job->monitor), monitor_attr) == 0);
+    assert(pthread_cond_init(&(job->notify), NULL) == 0);
     ns_free(monitor_attr);
 
     job->tp = tp;
@@ -746,14 +757,14 @@ ns_job_done(ns_job_t *job)
     /* Get the shutdown state ONCE at the start, atomically */
     int32_t shutdown_state = ns_thrpool_is_shutdown(job->tp);
 
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 
     if (job->state == NS_JOB_NEEDS_DELETE || job->state == NS_JOB_DELETED) {
 /* Just return if the job has been marked for deletion */
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> %x state %d return early\n", job, shutdown_state, job->state);
 #endif
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_SUCCESS;
     }
 
@@ -762,7 +773,7 @@ ns_job_done(ns_job_t *job)
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> false state %d failed to mark as done\n", job, job->state);
 #endif
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_INVALID_STATE;
     }
 
@@ -773,13 +784,13 @@ ns_job_done(ns_job_t *job)
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> false state %d setting to async NS_JOB_NEEDS_DELETE\n", job, job->state);
 #endif
         job->state = NS_JOB_NEEDS_DELETE;
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
     } else if (!shutdown_state) {
 #ifdef DEBUG
         ns_log(LOG_DEBUG, "ns_job_done %x tp shutdown -> false state %d setting NS_JOB_NEEDS_DELETE and queuing\n", job, job->state);
 #endif
         job->state = NS_JOB_NEEDS_DELETE;
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         event_q_notify(job);
     } else {
 #ifdef DEBUG
@@ -787,7 +798,7 @@ ns_job_done(ns_job_t *job)
 #endif
         job->state = NS_JOB_NEEDS_DELETE;
         /* We are shutting down, just remove it! */
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         internal_ns_job_done(job);
     }
     return NS_SUCCESS;
@@ -849,12 +860,12 @@ ns_add_io_job(ns_thrpool_t *tp, PRFileDesc *fd, ns_job_type_t job_type, ns_job_f
         return NS_ALLOCATION_FAILURE;
     }
 
-    pthread_mutex_lock(_job->monitor);
+    pthread_mutex_lock(&(_job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_io_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
-    pthread_mutex_unlock(_job->monitor);
+    pthread_mutex_unlock(&(_job->monitor));
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -889,12 +900,12 @@ ns_add_timeout_job(ns_thrpool_t *tp, struct timeval *tv, ns_job_type_t job_type,
         return NS_ALLOCATION_FAILURE;
     }
 
-    pthread_mutex_lock(_job->monitor);
+    pthread_mutex_lock(&(_job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_timeout_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
-    pthread_mutex_unlock(_job->monitor);
+    pthread_mutex_unlock(&(_job->monitor));
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -944,14 +955,14 @@ ns_add_io_timeout_job(ns_thrpool_t *tp, PRFileDesc *fd, struct timeval *tv, ns_j
     if (!_job) {
         return NS_ALLOCATION_FAILURE;
     }
-    pthread_mutex_lock(_job->monitor);
+    pthread_mutex_lock(&(_job->monitor));
     _job->tv = *tv;
 
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_io_timeout_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
-    pthread_mutex_unlock(_job->monitor);
+    pthread_mutex_unlock(&(_job->monitor));
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -982,12 +993,12 @@ ns_add_signal_job(ns_thrpool_t *tp, int32_t signum, ns_job_type_t job_type, ns_j
         return NS_ALLOCATION_FAILURE;
     }
 
-    pthread_mutex_lock(_job->monitor);
+    pthread_mutex_lock(&(_job->monitor));
 #ifdef DEBUG
     ns_log(LOG_DEBUG, "ns_add_signal_job state %d moving to NS_JOB_ARMED\n", (_job)->state);
 #endif
     _job->state = NS_JOB_NEEDS_ARM;
-    pthread_mutex_unlock(_job->monitor);
+    pthread_mutex_unlock(&(_job->monitor));
     internal_ns_job_rearm(_job);
 
     /* fill in a pointer to the job for the caller if requested */
@@ -1038,9 +1049,9 @@ ns_add_shutdown_job(ns_thrpool_t *tp)
     if (!_job) {
         return NS_ALLOCATION_FAILURE;
     }
-    pthread_mutex_lock(_job->monitor);
+    pthread_mutex_lock(&(_job->monitor));
     _job->state = NS_JOB_NEEDS_ARM;
-    pthread_mutex_unlock(_job->monitor);
+    pthread_mutex_unlock(&(_job->monitor));
     internal_ns_job_rearm(_job);
     return NS_SUCCESS;
 }
@@ -1061,13 +1072,13 @@ void *
 ns_job_get_data(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state != NS_JOB_DELETED);
     if (job->state != NS_JOB_DELETED) {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return job->data;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NULL;
     }
 }
@@ -1076,14 +1087,14 @@ ns_result_t
 ns_job_set_data(ns_job_t *job, void *data)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
     if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING) {
         job->data = data;
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_SUCCESS;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_INVALID_STATE;
     }
 }
@@ -1092,13 +1103,13 @@ ns_thrpool_t *
 ns_job_get_tp(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state != NS_JOB_DELETED);
     if (job->state != NS_JOB_DELETED) {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return job->tp;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NULL;
     }
 }
@@ -1107,13 +1118,13 @@ ns_job_type_t
 ns_job_get_output_type(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state == NS_JOB_RUNNING);
     if (job->state == NS_JOB_RUNNING) {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return job->output_job_type;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return 0;
     }
 }
@@ -1122,13 +1133,13 @@ ns_job_type_t
 ns_job_get_type(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state != NS_JOB_DELETED);
     if (job->state != NS_JOB_DELETED) {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return job->job_type;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return 0;
     }
 }
@@ -1137,13 +1148,13 @@ PRFileDesc *
 ns_job_get_fd(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state != NS_JOB_DELETED);
     if (job->state != NS_JOB_DELETED) {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return job->fd;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NULL;
     }
 }
@@ -1152,18 +1163,40 @@ ns_result_t
 ns_job_set_done_cb(struct ns_job_t *job, ns_job_func_t func)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
     if (job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING) {
         job->done_cb = func;
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_SUCCESS;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_INVALID_STATE;
     }
 }
 
+ns_result_t
+ns_job_wait(struct ns_job_t *job) {
+    PR_ASSERT(job);
+    pthread_mutex_lock(&(job->monitor));
+    if (job->state == NS_JOB_WAITING) {
+        /* It's done */
+        pthread_mutex_unlock(&(job->monitor));
+        return NS_SUCCESS;
+    } else {
+        pthread_cond_wait(&(job->notify), &(job->monitor));
+        ns_job_state_t result = job->state;
+        pthread_mutex_unlock(&(job->monitor));
+        if (result == NS_JOB_WAITING) {
+            return NS_SUCCESS;
+        } else if (result == NS_JOB_NEEDS_DELETE) {
+            return NS_DELETING;
+        } else {
+            PR_ASSERT(1 == 0);
+            return NS_INVALID_STATE;
+        }
+    }
+}
 
 /*
  * This is a convenience function - use if you need to re-arm the same event
@@ -1173,7 +1206,7 @@ ns_result_t
 ns_job_rearm(ns_job_t *job)
 {
     PR_ASSERT(job);
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
     PR_ASSERT(job->state == NS_JOB_WAITING || job->state == NS_JOB_RUNNING);
 
     if (ns_thrpool_is_shutdown(job->tp)) {
@@ -1186,7 +1219,7 @@ ns_job_rearm(ns_job_t *job)
 #endif
         job->state = NS_JOB_NEEDS_ARM;
         internal_ns_job_rearm(job);
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_SUCCESS;
     } else if (!NS_JOB_IS_PERSIST(job->job_type) && job->state == NS_JOB_RUNNING) {
 /* For this to be called, and NS_JOB_RUNNING, we *must* be the callback thread! */
@@ -1195,10 +1228,10 @@ ns_job_rearm(ns_job_t *job)
         ns_log(LOG_DEBUG, "ns_rearm_job %x state %d setting NS_JOB_NEEDS_ARM\n", job, job->state);
 #endif
         job->state = NS_JOB_NEEDS_ARM;
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_SUCCESS;
     } else {
-        pthread_mutex_unlock(job->monitor);
+        pthread_mutex_unlock(&(job->monitor));
         return NS_INVALID_STATE;
     }
     /* Unreachable code .... */
@@ -1254,7 +1287,7 @@ setup_event_q_wakeup(ns_thrpool_t *tp)
                            NS_JOB_READ | NS_JOB_PERSIST | NS_JOB_PRESERVE_FD,
                            wakeup_cb, NULL);
 
-    pthread_mutex_lock(job->monitor);
+    pthread_mutex_lock(&(job->monitor));
 
 /* The event_queue wakeup is ready, arm it. */
 #ifdef DEBUG
@@ -1267,7 +1300,7 @@ setup_event_q_wakeup(ns_thrpool_t *tp)
 
     /* Stash the wakeup job in tp so we can release it later. */
     tp->event_q_wakeup_job = job;
-    pthread_mutex_unlock(job->monitor);
+    pthread_mutex_unlock(&(job->monitor));
 }
 
 /* Initialize the thrpool config */
@@ -1463,7 +1496,7 @@ ns_thrpool_destroy(struct ns_thrpool_t *tp)
          * and use it to wake up the event loop.
          */
 
-        pthread_mutex_lock(tp->event_q_wakeup_job->monitor);
+        pthread_mutex_lock(&(tp->event_q_wakeup_job->monitor));
 
 // tp->event_q_wakeup_job->job_type |= NS_JOB_THREAD;
 /* This triggers the job to "run", which will cause a shutdown cascade */
@@ -1471,7 +1504,7 @@ ns_thrpool_destroy(struct ns_thrpool_t *tp)
         ns_log(LOG_DEBUG, "ns_thrpool_destroy %x state %d moving to NS_JOB_NEEDS_DELETE\n", tp->event_q_wakeup_job, tp->event_q_wakeup_job->state);
 #endif
         tp->event_q_wakeup_job->state = NS_JOB_NEEDS_DELETE;
-        pthread_mutex_unlock(tp->event_q_wakeup_job->monitor);
+        pthread_mutex_unlock(&(tp->event_q_wakeup_job->monitor));
         /* Has to be event_q_notify, not internal_job_done */
         event_q_notify(tp->event_q_wakeup_job);
 

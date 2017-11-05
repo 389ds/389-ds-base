@@ -80,7 +80,8 @@ typedef enum _ns_job_state {
    interface between the app/thread pool/event framework */
 typedef struct ns_job_t
 {
-    pthread_mutex_t *monitor;
+    pthread_mutex_t monitor;
+    pthread_cond_t notify;
     struct ns_thrpool_t *tp;
     ns_job_func_t func;
     struct ns_job_data_t *data;

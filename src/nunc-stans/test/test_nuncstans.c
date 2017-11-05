@@ -55,20 +55,40 @@
 /* We need the internal headers for state checks */
 #include "../ns/ns_event_fw.h"
 
+#include <assert.h>
+
+#include <time.h>
+
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 
 
 static int cb_check = 0;
-static PRLock *cb_lock = NULL;
-static PRCondVar *cb_cond = NULL;
+
+static pthread_mutex_t cb_lock;
+static pthread_cond_t cb_cond;
+// static PRLock *cb_lock = NULL;
+// static PRCondVar *cb_cond = NULL;
 
 void
 ns_test_logger(int priority __attribute__((unused)), const char *fmt, va_list varg)
 {
     // Should we do anything with priority?
     vprintf(fmt, varg);
+}
+
+static int
+cond_wait_rel(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex, const struct timespec *restrict reltime) {
+    struct timespec now;
+    struct timespec abswait;
+
+    clock_gettime(CLOCK_REALTIME, &now);
+
+    abswait.tv_sec = now.tv_sec + reltime->tv_sec;
+    abswait.tv_nsec = now.tv_nsec + reltime->tv_nsec;
+
+    return pthread_cond_timedwait(cond, mutex, &abswait);
 }
 
 /* All our other tests will use this in some form. */
@@ -81,8 +101,8 @@ ns_test_setup(void **state)
     /* Reset the callback check */
     cb_check = 0;
     /* Create the cond var the CB check will use. */
-    cb_lock = PR_NewLock();
-    cb_cond = PR_NewCondVar(cb_lock);
+    assert(pthread_mutex_init(&cb_lock, NULL) == 0);
+    assert(pthread_cond_init(&cb_cond, NULL) == 0);
 
     ns_thrpool_config_init(&ns_config);
 
@@ -105,8 +125,8 @@ ns_test_teardown(void **state)
 
     ns_thrpool_destroy(tp);
 
-    PR_DestroyCondVar(cb_cond);
-    PR_DestroyLock(cb_lock);
+    pthread_cond_destroy(&cb_cond);
+    pthread_mutex_destroy(&cb_lock);
 
     return 0;
 }
@@ -114,24 +134,23 @@ ns_test_teardown(void **state)
 static void
 ns_init_test_job_cb(struct ns_job_t *job __attribute__((unused)))
 {
+    pthread_mutex_lock(&cb_lock);
     cb_check += 1;
-    PR_Lock(cb_lock);
-    PR_NotifyCondVar(cb_cond);
-    PR_Unlock(cb_lock);
+    pthread_cond_signal(&cb_cond);
+    pthread_mutex_unlock(&cb_lock);
 }
 
 static void
 ns_init_disarm_job_cb(struct ns_job_t *job)
 {
     if (ns_job_done(job) == NS_SUCCESS) {
+        pthread_mutex_lock(&cb_lock);
         cb_check = 1;
+        pthread_cond_signal(&cb_cond);
+        pthread_mutex_unlock(&cb_lock);
     } else {
         assert_int_equal(1, 0);
     }
-    PR_Lock(cb_lock);
-    PR_NotifyCondVar(cb_cond);
-    /* Disarm ourselves */
-    PR_Unlock(cb_lock);
 }
 
 static void
@@ -146,20 +165,20 @@ ns_init_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {1, 0};
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_add_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_test_job_cb, NULL, &job),
         0);
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     assert_int_equal(cb_check, 1);
 
     /* Once the job is done, it's not in the event queue, and it's complete */
-    /* We have to stall momentarily to let the work_job_execute release the job to us */
-    PR_Sleep(PR_SecondsToInterval(1));
+    assert(ns_job_wait(job) == NS_SUCCESS);
     assert_int_equal(ns_job_done(job), NS_SUCCESS);
 }
 
@@ -169,19 +188,20 @@ ns_set_data_test(void **state)
     /* Add a job with data */
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {1, 0};
 
     char *data = malloc(6);
 
     strcpy(data, "first");
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_add_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_test_job_cb, data, &job),
         NS_SUCCESS);
 
     /* Let the job run */
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     /* Check that the data is correct */
     char *retrieved = (char *)ns_job_get_data(job);
@@ -193,16 +213,14 @@ ns_set_data_test(void **state)
     data = malloc(7);
     strcpy(data, "second");
 
-    while (job->state != NS_JOB_WAITING) {
-        PR_Sleep(PR_MillisecondsToInterval(50));
-    }
+    assert(ns_job_wait(job) == NS_SUCCESS);
     ns_job_set_data(job, data);
 
     /* Rearm, and let it run again. */
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     ns_job_rearm(job);
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     /* Make sure it's now what we expect */
     retrieved = (char *)ns_job_get_data(job);
@@ -218,9 +236,7 @@ ns_set_data_test(void **state)
      * waiting. we might need a load barrier here ...
      */
 
-    while (job->state != NS_JOB_WAITING) {
-        PR_Sleep(PR_MillisecondsToInterval(50));
-    }
+    assert(ns_job_wait(job) == NS_SUCCESS);
 
     assert_int_equal(ns_job_done(job), NS_SUCCESS);
 }
@@ -230,8 +246,9 @@ ns_job_done_cb_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {1, 0};
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_do_nothing_cb, &job),
         NS_SUCCESS);
@@ -240,8 +257,8 @@ ns_job_done_cb_test(void **state)
     /* Remove it */
     assert_int_equal(ns_job_done(job), NS_SUCCESS);
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     assert_int_equal(cb_check, 1);
 }
@@ -250,16 +267,15 @@ static void
 ns_init_rearm_job_cb(struct ns_job_t *job)
 {
     if (ns_job_rearm(job) != NS_SUCCESS) {
+        pthread_mutex_lock(&cb_lock);
         cb_check = 1;
         /* we failed to re-arm as expected, let's go away ... */
         assert_int_equal(ns_job_done(job), NS_SUCCESS);
+        pthread_cond_signal(&cb_cond);
+        pthread_mutex_unlock(&cb_lock);
     } else {
         assert_int_equal(1, 0);
     }
-    PR_Lock(cb_lock);
-    PR_NotifyCondVar(cb_cond);
-    /* Disarm ourselves */
-    PR_Unlock(cb_lock);
 }
 
 static void
@@ -268,8 +284,9 @@ ns_job_persist_rearm_ignore_test(void **state)
     /* Test that rearm ignores the persistent job. */
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {1, 0};
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE | NS_JOB_THREAD | NS_JOB_PERSIST, ns_init_rearm_job_cb, &job),
         NS_SUCCESS);
@@ -281,8 +298,8 @@ ns_job_persist_rearm_ignore_test(void **state)
      * should see only 1 in the cb_check.
      */
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     /* If we fail to rearm, this is set to 1 Which is what we want. */
     assert_int_equal(cb_check, 1);
@@ -294,6 +311,7 @@ ns_job_persist_disarm_test(void **state)
     /* Make a persistent job */
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {2, 0};
 
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE | NS_JOB_PERSIST, ns_init_disarm_job_cb, &job),
@@ -302,9 +320,9 @@ ns_job_persist_disarm_test(void **state)
     assert_int_equal(ns_job_rearm(job), NS_SUCCESS);
 
     /* In the callback it should disarm */
-    PR_Lock(cb_lock);
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
     /* Make sure it did */
     assert_int_equal(cb_check, 1);
 }
@@ -329,14 +347,13 @@ ns_job_persist_disarm_test(void **state)
 static void
 ns_init_race_done_job_cb(struct ns_job_t *job)
 {
-    cb_check += 1;
     ns_job_done(job);
     /* We need to sleep to let the job race happen */
     PR_Sleep(PR_SecondsToInterval(2));
-    PR_Lock(cb_lock);
-    PR_NotifyCondVar(cb_cond);
-    /* Disarm ourselves */
-    PR_Unlock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
+    cb_check += 1;
+    pthread_cond_signal(&cb_cond);
+    pthread_mutex_unlock(&cb_lock);
 }
 
 static void
@@ -344,14 +361,15 @@ ns_job_race_done_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {5, 0};
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_add_job(tp, NS_JOB_NONE | NS_JOB_THREAD, ns_init_race_done_job_cb, NULL, &job),
         NS_SUCCESS);
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(5));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     assert_int_equal(cb_check, 1);
 }
@@ -365,8 +383,9 @@ ns_job_signal_cb_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
+    struct timespec timeout = {1, 0};
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_add_signal_job(tp, SIGUSR1, NS_JOB_SIGNAL, ns_init_test_job_cb, NULL, &job),
         NS_SUCCESS);
@@ -376,8 +395,8 @@ ns_job_signal_cb_test(void **state)
     /* Send the signal ... */
     raise(SIGUSR1);
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
-    PR_Unlock(cb_lock);
+    assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
+    pthread_mutex_unlock(&cb_lock);
 
     assert_int_equal(cb_check, 1);
 
@@ -408,12 +427,11 @@ ns_job_neg_timeout_test(void **state)
 static void
 ns_timer_job_cb(struct ns_job_t *job)
 {
-    cb_check += 1;
     ns_job_done(job);
-    PR_Lock(cb_lock);
-    PR_NotifyCondVar(cb_cond);
-    /* Disarm ourselves */
-    PR_Unlock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
+    cb_check += 1;
+    pthread_cond_signal(&cb_cond);
+    pthread_mutex_unlock(&cb_lock);
 }
 
 static void
@@ -421,16 +439,19 @@ ns_job_timer_test(void **state)
 {
     struct ns_thrpool_t *tp = *state;
     struct ns_job_t *job = NULL;
-    struct timeval tv = {2, 0};
+    struct timeval tv = {3, 0};
+    struct timespec timeout = {2, 0};
 
-    PR_Lock(cb_lock);
+    pthread_mutex_lock(&cb_lock);
     assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_job_cb, NULL, &job) == NS_SUCCESS);
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(1));
+    cond_wait_rel(&cb_cond, &cb_lock, &timeout);
+    // pthread_mutex_unlock(&cb_lock);
     assert_int_equal(cb_check, 0);
 
-    PR_WaitCondVar(cb_cond, PR_SecondsToInterval(2));
-    PR_Unlock(cb_lock);
+    // pthread_mutex_lock(&cb_lock);
+    cond_wait_rel(&cb_cond, &cb_lock, &timeout);
+    pthread_mutex_unlock(&cb_lock);
     assert_int_equal(cb_check, 1);
 }
 
@@ -441,7 +462,9 @@ ns_job_timer_test(void **state)
 static void
 ns_timer_persist_job_cb(struct ns_job_t *job)
 {
+    pthread_mutex_lock(&cb_lock);
     cb_check += 1;
+    pthread_mutex_unlock(&cb_lock);
     if (cb_check < 10) {
         ns_job_rearm(job);
     } else {
@@ -456,16 +479,19 @@ ns_job_timer_persist_test(void **state)
     struct ns_job_t *job = NULL;
     struct timeval tv = {1, 0};
 
-    PR_Lock(cb_lock);
     assert_true(ns_add_timeout_job(tp, &tv, NS_JOB_THREAD, ns_timer_persist_job_cb, NULL, &job) == NS_SUCCESS);
 
     PR_Sleep(PR_SecondsToInterval(5));
 
+    pthread_mutex_lock(&cb_lock);
     assert_true(cb_check <= 6);
+    pthread_mutex_unlock(&cb_lock);
 
     PR_Sleep(PR_SecondsToInterval(6));
 
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(cb_check, 10);
+    pthread_mutex_unlock(&cb_lock);
 }
 
 int
