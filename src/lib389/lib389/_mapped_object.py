@@ -538,6 +538,42 @@ class DSLdapObject(DSLogging):
         conn.simple_bind_s(self.dn, password)
         return conn
 
+    # Modifies the DN of an entry to the new fqdn provided
+    def rename(self, new_rdn, newsuperior=None):
+        """Renames the object within the tree.
+
+        If you provide a newsuperior, this will move the object in the tree.
+        If you only provide a new_rdn, it stays in the same branch, but just
+        changes the rdn.
+
+        Note, if you use newsuperior, you may move this object outside of the
+        scope of the related DSLdapObjects manager, which may cause it not to
+        appear in .get() requests.
+
+        :param new_rdn: RDN of the new entry
+        :type new_rdn: str
+        :param newsuperior: New parent DN
+        :type newsuperior: str
+        """
+        # When we are finished with this, we need to update our DN
+        # To do this, we probably need to search the new rdn as a filter,
+        # and the superior as the base (if it changed)
+        if self._protected:
+            return
+        self._instance.rename_s(self._dn, new_rdn, newsuperior, serverctrls=self._server_controls, clientctrls=self._client_controls)
+        search_base = self._basedn
+        if newsuperior != None:
+            # Well, the new DN should be rdn + newsuperior.
+            self._dn = '%s,%s' % (new_rdn, newsuperior)
+        else:
+            old_dn_parts = ldap.explode_dn(self._dn)
+            # Replace the rdn
+            old_dn_parts[0] = new_rdn
+            self._dn = ",".join(old_dn_parts)
+        assert self.exists()
+
+        # assert we actually got the change right ....
+
     def delete(self):
         """Deletes the object defined by self._dn.
         This can be changed with the self._protected flag!
