@@ -1778,7 +1778,6 @@ addordel_values(
         key.flags = DB_DBT_USERMEM;
                 key.ulen = tmpbuflen;
         if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
-        {
             char encbuf[BUFSIZ];
 
             slapi_log_err(SLAPI_LOG_TRACE, "addordel_values", "%s_value(\"%s\")\n",
@@ -1943,7 +1942,6 @@ addordel_values_sv(
         key.ulen = tmpbuflen;
 
         if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
-        {
             char encbuf[BUFSIZ];
 
             slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_value(\"%s\")\n",
