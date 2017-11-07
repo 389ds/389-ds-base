@@ -808,7 +808,10 @@ encode (const struct berval* data, char buf[BUFSIZ])
 		    bufSpace -= (s - first);
 		}
 		do {
-		    *bufNext++ = '\\'; --bufSpace;
+		    if (bufSpace) {
+		        *bufNext++ = '\\';
+		        --bufSpace;
+		    }
 		    if (bufSpace < 2) {
 			memcpy (bufNext, "..", 2);
 			bufNext += 2;
@@ -903,8 +906,10 @@ index_read_ext_allids(
 		slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids", "NULL prefix\n");
 		return NULL;
 	}
-	slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "=> ( \"%s\" %s \"%s\" )\n",
-		   type, prefix, encode (val, buf));
+	if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
+	    slapi_log_err(SLAPI_LOG_TRACE, "index_read_ext_allids", "=> ( \"%s\" %s \"%s\" )\n",
+	                  type, prefix, encode (val, buf));
+	}
 
 	basetype = typebuf;
 	if ( (basetmp = slapi_attr_basetype( type, typebuf, sizeof(typebuf) ))
@@ -1737,16 +1742,13 @@ addordel_values(
                  */
 		key.flags = DB_DBT_USERMEM;
                 key.ulen = tmpbuflen;
-#ifdef LDAP_ERROR_LOGGING
-		/* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE )  XXX */
-		{
+        if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
 			char encbuf[BUFSIZ];
 
 			slapi_log_err(SLAPI_LOG_TRACE, "addordel_values", "%s_value(\"%s\")\n",
 				   (flags & BE_INDEX_ADD) ? "add" : "del",
 				   encoded (&key, encbuf));
 		}
-#endif
 
 		if (NULL != txn) {
 			db_txn = txn->back_txn_txn;
@@ -1907,16 +1909,13 @@ addordel_values_sv(
          */
         key.flags = DB_DBT_USERMEM;
         key.ulen = tmpbuflen;
-#ifdef LDAP_ERROR_LOGGING
-        /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE )  XXX */
-        {
+        if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
             char encbuf[BUFSIZ];
 
             slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_value(\"%s\")\n",
                        (flags & BE_INDEX_ADD) ? "add" : "del",
                        encoded (&key, encbuf));
         }
-#endif
 
         if (NULL != txn) {
             db_txn = txn->back_txn_txn;
