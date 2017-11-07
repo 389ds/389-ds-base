@@ -2177,6 +2177,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len, ber_len_t maxbe
                       " is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
                       " cn=config to increase.\n",
                       conn->c_connid, conn->c_sd, maxbersize);
+    } else if (ber_len < maxbersize) {
+        /* This means the request was misformed, not too large. */
+        slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",
+                      "conn=%" PRIu64 " fd=%d Incoming BER Element may be misformed. "
+                      "This may indicate an attempt to use TLS on a plaintext port, "
+                      "IE ldaps://localhost:389. Check your client LDAP_URI settings.\n",
+                      conn->c_connid, conn->c_sd);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",
                       "conn=%" PRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
