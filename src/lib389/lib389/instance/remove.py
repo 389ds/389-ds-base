@@ -26,11 +26,12 @@ def remove_ds_instance(dirsrv):
     remove_paths['db_dir'] = dirsrv.ds_paths.db_dir
     ### WARNING: The changelogdb isn't removed. we assume it's in:
     # db_dir ../changelogdb. So remove that too!
-    remove_paths['changelogdb_dir'] = os.path.join(dirsrv.ds_paths.db_dir, '../changelogdb')
+    # abspath will resolve the ".." down.
+    remove_paths['changelogdb_dir'] = os.path.abspath(os.path.join(dirsrv.ds_paths.db_dir, '../changelogdb'))
     remove_paths['ldif_dir'] = dirsrv.ds_paths.ldif_dir
     remove_paths['lock_dir'] = dirsrv.ds_paths.lock_dir
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir
-    remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
+    # remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
 
     marker_path = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
 
@@ -44,9 +45,8 @@ def remove_ds_instance(dirsrv):
     # for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
     #             'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
     for path_k in remove_paths:
-        if os.path.exists(remove_paths[path_k]):
-            _log.debug("Removing %s" % remove_paths[path_k])
-            shutil.rmtree(remove_paths[path_k])
+        _log.debug("Removing %s" % remove_paths[path_k])
+        shutil.rmtree(remove_paths[path_k], ignore_errors=True)
 
     # Finally remove the sysconfig marker.
     os.remove(marker_path)

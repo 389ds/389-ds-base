@@ -350,4 +350,25 @@ class CertmapLegacy(object):
             f.write(output)
 
 
+class LDBMConfig(DSLdapObject):
+    """
+        Manage "cn=config,cn=ldbm database,cn=plugins,cn=config" including:
+        - Performance related tunings
+        - DB backend settings
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param batch: Not implemented
+        :type batch: bool
+    """
+
+    def __init__(self, conn, batch=False):
+        super(LDBMConfig, self).__init__(instance=conn, batch=batch)
+        self._dn = DN_CONFIG_LDBM
+        config_compare_exclude = []
+        self._rdn_attribute = 'cn'
+        self._lint_functions = []
+        self._protected = True
+
+
 

@@ -295,7 +295,10 @@ class DSLdapObject(DSLogging):
         :raises: ValueError - if instance is not online
         """
 
-        self._log.debug("%s set(%r, %r)" % (self._dn, key, value))
+        if value is None or len(value) < 512:
+            self._log.debug("%s set(%r, %r)" % (self._dn, key, value))
+        else:
+            self._log.debug("%s set(%r, value too large)" % (self._dn, key))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot set properties on instance that is not ONLINE.")
 
@@ -804,6 +807,7 @@ class DSLdapObjects(DSLogging):
         # This will yield and & filter for objectClass with as many terms as needed.
         filterstr = self._get_objectclass_filter()
         self._log.debug('_gen_dn filter = %s' % filterstr)
+        self._log.debug('_gen_dn dn = %s' % dn)
         return self._instance.search_ext_s(
             base=dn,
             scope=ldap.SCOPE_BASE,
