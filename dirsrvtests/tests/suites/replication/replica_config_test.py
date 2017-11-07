@@ -389,6 +389,34 @@ def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid
         assert False
 
 
+def test_replicaid_modification(topo):
+    """Check that nsDS5ReplicaId accepts only valid values
+
+    :id: 7dcab36f-2113-4e24-ab3d-01843ce65cac
+    :setup: Standalone instance
+    :steps:
+        1. Enable replication
+        2. Try to set valid values to nsDS5ReplicaId
+        3. Try to set invalid values to nsDS5ReplicaId
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Unwilling to perform error should be raised
+    """
+
+    log.info('Add a replica entry')
+    replica = topo.standalone.replicas.enable(suffix=DEFAULT_SUFFIX,
+                                              role=ReplicaRole.MASTER,
+                                              replicaID=REPLICAID_MASTER_1)
+
+    log.info('Set {} to valid value'.format(REPL_ID))
+    replica.set(REPL_ID, str(REPLICAID_MASTER_1 + 1))
+
+    log.info('Set {} to invalid value'.format(REPL_ID))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        replica.set(REPL_ID, "wrong_id")
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
