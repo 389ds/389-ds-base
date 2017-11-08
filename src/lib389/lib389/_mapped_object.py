@@ -778,9 +778,11 @@ class DSLdapObjects(DSLogging):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
         using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
 
+        Note that * is not a valid selector, you should use "list()" instead.
+
         :param dn: DN of wanted entry
         :type dn: str
-        :param selector: An additional filter to objectClasses, i.e. 'backend_name'
+        :param selector: An additional filter to search for, i.e. 'backend_name'. The attributes selected are based on object type, ie user will search for uid and cn.
         :type dn: str
 
         :returns: A child entry
