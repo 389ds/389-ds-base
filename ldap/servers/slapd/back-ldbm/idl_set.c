@@ -349,6 +349,11 @@ idl_set_intersect(IDListSet *idl_set, backend *be)
 {
     IDList *result_list = NULL;
 
+    if (idl_set->allids) {
+        /* if any component was allids we have to apply the filtertest */
+        slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
+    }
+
     if (idl_set->allids != 0 && idl_set->count == 0) {
         /*
          * We only have allids, so must be allids.
