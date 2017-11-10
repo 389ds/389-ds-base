@@ -218,9 +218,8 @@ slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list ap)
 
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
 
-    if (task->task_log_lock) {
-        PR_Lock(task->task_log_lock);
-    }
+    PR_ASSERT(task->task_log_lock);
+    PR_Lock(task->task_log_lock);
     len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
     if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
         size_t i;
@@ -249,9 +248,7 @@ slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list ap)
     if (task->task_log[0])
         strcat(task->task_log, "\n");
     strcat(task->task_log, buffer);
-    if (task->task_log_lock) {
-        PR_Unlock(task->task_log_lock);
-    }
+    PR_Unlock(task->task_log_lock);
 
     slapi_task_status_changed(task);
 }
@@ -286,9 +283,8 @@ slapi_task_log_notice(Slapi_Task *task, char *format, ...)
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
     va_end(ap);
 
-    if (task->task_log_lock) {
-        PR_Lock(task->task_log_lock);
-    }
+    PR_ASSERT(task->task_log_lock);
+    PR_Lock(task->task_log_lock);
     len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
     if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
         size_t i;
@@ -314,12 +310,11 @@ slapi_task_log_notice(Slapi_Task *task, char *format, ...)
         }
     }
 
-    if (task->task_log[0])
+    if (task->task_log[0]) {
         strcat(task->task_log, "\n");
-    strcat(task->task_log, buffer);
-    if (task->task_log_lock) {
-        PR_Unlock(task->task_log_lock);
     }
+    strcat(task->task_log, buffer);
+    PR_Unlock(task->task_log_lock);
 
     slapi_task_status_changed(task);
 }
@@ -339,13 +334,9 @@ slapi_task_status_changed(Slapi_Task *task)
         return;
     }
 
-    if (task->task_log_lock) {
-        PR_Lock(task->task_log_lock);
-    }
+    PR_ASSERT(task->task_log_lock);
+    PR_Lock(task->task_log_lock);
     NEXTMOD(TASK_LOG_NAME, task->task_log);
-    if (task->task_log_lock) {
-        PR_Unlock(task->task_log_lock);
-    }
     NEXTMOD(TASK_STATUS_NAME, task->task_status);
     sprintf(s1, "%d", task->task_exitcode);
     sprintf(s2, "%d", task->task_progress);
@@ -365,8 +356,11 @@ slapi_task_status_changed(Slapi_Task *task)
     mod[cur] = NULL;
     modify_internal_entry(task->task_dn, mod);
 
-    for (i = 0; i < cur; i++)
+    for (i = 0; i < cur; i++) {
         slapi_ch_free((void **)&modlist[i].mod_values);
+    }
+
+    PR_Unlock(task->task_log_lock);
 
     /*
      * Removed (task->task_state == SLAPI_TASK_CANCELLED) from
@@ -590,11 +584,24 @@ new_task(const char *rawdn, void *plugin)
 
     dn = slapi_create_dn_string("%s", rawdn);
     if (NULL == dn) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "new_task", "Invalid task dn: %s\n", rawdn);
+        slapi_log_err(SLAPI_LOG_ERR, "new_task", "Invalid task dn: %s\n", rawdn);
         return NULL;
     }
     task = (Slapi_Task *)slapi_ch_calloc(1, sizeof(Slapi_Task));
+
+    task->task_log_lock = PR_NewLock();
+    PR_ASSERT(task->task_log_lock);
+
+    if (task->task_log_lock == NULL) {
+        /* Failed to allocate! Uh Oh! */
+        slapi_ch_free((void **)&task);
+        slapi_log_err(SLAPI_LOG_ERR, "new_task", "Unable to allocate task lock for: %s\n", rawdn);
+        return NULL;
+    }
+
+    /* Now take our lock to setup everything correctly. */
+    PR_Lock(task->task_log_lock);
+
     PR_Lock(global_task_lock);
     task->next = global_task_list;
     global_task_list = task;
@@ -612,7 +619,7 @@ new_task(const char *rawdn, void *plugin)
                                    LDAP_SCOPE_BASE, "(objectclass=*)", task_modify, (void *)task);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
-/* don't add entries under this one */
+    /* don't add entries under this one */
 #if 0
     /* don't know why, but this doesn't work.  it makes the current add
      * operation fail. :(
@@ -620,8 +627,8 @@ new_task(const char *rawdn, void *plugin)
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
 #endif
-    /* To protect task_log to be realloced if it's in use */
-    task->task_log_lock = PR_NewLock();
+
+    PR_Unlock(task->task_log_lock);
 
     return task;
 }
@@ -769,16 +776,18 @@ modify_internal_entry(char *dn, LDAPMod **mods)
 static void
 task_generic_destructor(Slapi_Task *task)
 {
+
+    PR_ASSERT(task->task_log_lock);
+    PR_Lock(task->task_log_lock);
     if (task->task_log) {
         slapi_ch_free((void **)&task->task_log);
     }
     if (task->task_status) {
         slapi_ch_free((void **)&task->task_status);
     }
-    if (task->task_log_lock) {
-        PR_DestroyLock(task->task_log_lock);
-        task->task_log_lock = NULL;
-    }
+    PR_Unlock(task->task_log_lock);
+    PR_DestroyLock(task->task_log_lock);
+    task->task_log_lock = NULL;
     task->task_log = task->task_status = NULL;
 }
 

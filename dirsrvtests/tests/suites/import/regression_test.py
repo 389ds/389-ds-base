@@ -12,6 +12,8 @@ from lib389.utils import time, ldap, os, logging
 from lib389.topologies import topology_st as topo
 from lib389._constants import BACKEND_NAME, BACKEND_SUFFIX
 
+from lib389.dbgen import dbgen
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -46,26 +48,19 @@ def test_del_suffix_import(topo):
     log.info('Create LDIF file and import it')
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(ldif_dir, 'suffix_del1.ldif')
-    try:
-        topo.standalone.buildLDIF(10, ldif_file, suffix=TEST_SUFFIX1)
-    except OSError as e:
-        log.fatal('Failed to create test ldif, {} - {}'.format(e.errno, e.strerror))
-        assert False
+
+    dbgen(topo.standalone, 10, ldif_file, TEST_SUFFIX1)
 
     log.info('Stopping the server and running offline import')
-    topo.standalone.stop(timeout=10)
+    topo.standalone.stop()
     assert topo.standalone.ldif2db(TEST_BACKEND1, TEST_SUFFIX1, None, None, ldif_file)
-    topo.standalone.start(timeout=5)
+    topo.standalone.start()
 
     log.info('Deleting suffix-{}'.format(TEST_SUFFIX2))
     backend.delete()
 
     log.info('Adding the same database-{} after deleting it'.format(TEST_BACKEND1))
-    try:
-        backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX1, BACKEND_NAME: TEST_BACKEND1})
-    except ldap.LDAPError as e:
-        log.error('Failed to add backend-{}, error-{}'.format(TEST_SUFFIX1, e.message['desc']))
-        assert False
+    backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX1, BACKEND_NAME: TEST_BACKEND1})
 
 
 def test_del_suffix_backend(topo):
@@ -89,30 +84,18 @@ def test_del_suffix_backend(topo):
     log.info('Create LDIF file and import it')
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(ldif_dir, 'suffix_del2.ldif')
-    try:
-        topo.standalone.buildLDIF(10, ldif_file, suffix=TEST_SUFFIX2)
-    except OSError as e:
-        log.fatal('Failed to create test ldif, {} - {}'.format(e.errno, e.strerror))
-        assert False
 
-    log.info('Running online import with importLDIF task')
-    try:
-        topo.standalone.tasks.importLDIF(suffix=TEST_SUFFIX2, input_file=ldif_file, args={TASK_WAIT: True})
-    except ValueError as e:
-        log.error('Import failed' + e.message('desc'))
-        raise
+    dbgen(topo.standalone, 10, ldif_file, TEST_SUFFIX2)
+
+    topo.standalone.tasks.importLDIF(suffix=TEST_SUFFIX2, input_file=ldif_file, args={TASK_WAIT: True})
 
     log.info('Deleting suffix-{}'.format(TEST_SUFFIX2))
     backend.delete()
 
     log.info('Adding the same database-{} after deleting it'.format(TEST_BACKEND2))
-    try:
-        backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX2, BACKEND_NAME: TEST_BACKEND2})
-    except ldap.LDAPError as e:
-        log.error('Failed to add backend-{}, error-{}'.format(TEST_SUFFIX1, e.message['desc']))
-        assert False
+    backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX2, BACKEND_NAME: TEST_BACKEND2})
     log.info('Checking if server can be restarted after re-adding the same database')
-    topo.standalone.restart(timeout=10)
+    topo.standalone.restart()
     assert not topo.standalone.detectDisorderlyShutdown()
 
 
