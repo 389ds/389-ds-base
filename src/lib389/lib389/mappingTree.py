@@ -400,6 +400,20 @@ class MappingTree(DSLdapObject):
         self._create_objectclasses = ['top', 'extensibleObject', MT_OBJECTCLASS_VALUE]
         self._protected = False
 
+    def set_parent(self, parent):
+        """
+        Set the parent suffix to create a tree of backends. For example:
+
+        be_1 = bes.create(properties={...})
+        be_2 = bes.create(properties={...})
+        mt = be_2.get_mapping_tree()
+        mt.set_parent(be_1.get_attr_val_bytes('nsslapd-suffix'))
+
+        :param parent: The parent suffix above this mapping tree.
+        :type parent: str
+        """
+        self.replace('nsslapd-parent-suffix', parent)
+
 
 class MappingTrees(DSLdapObjects):
     """DSLdapObjects that presents Mapping trees

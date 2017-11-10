@@ -81,5 +81,8 @@ class UserAccounts(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UserAccount
-        self._basedn = '{},{}'.format(rdn, basedn)
+        if rdn is None:
+            self._basedn = basedn
+        else:
+            self._basedn = '{},{}'.format(rdn, basedn)
 

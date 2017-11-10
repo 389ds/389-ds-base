@@ -503,7 +503,7 @@ class EntryAci(object):
                 rawaci += ('(%s);' % self.acidata["%s_raw_bindrules" %
                                                   key][0]['values'][-1])
         rawaci += ")"
-        return rawaci
+        return ensure_bytes(rawaci)
 
     def _find_terms(self, aci):
         if self.verbose:

@@ -543,6 +543,10 @@ class Backend(DSLdapObject):
             return result
         return None
 
+    def get_mapping_tree(self):
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        return self._mts.get(suffix)
+
     def get_monitor(self):
         """Get a MonitorBackend(DSLdapObject) for the backend"""
 
