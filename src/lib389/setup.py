@@ -69,9 +69,11 @@ setup(
     install_requires=[
         'pyasn1',
         'pyasn1-modules',
-        'pyldap',
         'pytest',
         'python-dateutil',
         'six',
+        'enum34;python_version=="2.7"',
+        'python-ldap;python_version=="2.7"',
+        'pyldap;python_version>="3.4"',
         ],
 )
