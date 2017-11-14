@@ -359,7 +359,11 @@ static struct config_get_and_set
     {CONFIG_PW_STORAGESCHEME_ATTRIBUTE, config_set_pw_storagescheme,
      NULL, 0, NULL,
      CONFIG_STRING, (ConfigGetFunc)config_get_pw_storagescheme,
-     DEFAULT_PASSWORD_SCHEME_NAME},
+     ""},
+    /*
+     * Set this to empty string to allow reset to work, but
+     * the value is actually derived in set_pw_storagescheme.
+     */
     {CONFIG_PW_UNLOCK_ATTRIBUTE, config_set_pw_unlock,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_unlock,
@@ -555,7 +559,11 @@ static struct config_get_and_set
     {CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE, config_set_rootpwstoragescheme,
      NULL, 0, NULL,
      CONFIG_STRING, (ConfigGetFunc)config_get_rootpwstoragescheme,
-     DEFAULT_PASSWORD_SCHEME_NAME},
+     ""},
+    /*
+     * Set this to empty string to allow reset to work, but
+     * the value is actually derived in set_rootpwstoragescheme.
+     */
     {CONFIG_PW_HISTORY_ATTRIBUTE, config_set_pw_history,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_history,
@@ -2541,9 +2549,10 @@ config_set_pw_storagescheme(const char *attrname, char *value, char *errorbuf, i
         return retVal;
     } else if (new_scheme->pws_enc == NULL) {
         /* For example: the NS-MTA-MD5 password scheme is for comparision only and for backward
-    compatibility with an Old Messaging Server that was setting passwords in the
-    directory already encrypted. The scheme cannot and don't encrypt password if
-    they are in clear. We don't take it */
+         * compatibility with an Old Messaging Server that was setting passwords in the
+         * directory already encrypted. The scheme cannot and don't encrypt password if
+         * they are in clear. We don't take it
+         */
 
         if (scheme_list) {
             slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,

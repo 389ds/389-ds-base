@@ -206,23 +206,41 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
 struct pw_scheme *
 pw_name2scheme(char *name)
 {
-    struct pw_scheme *pwsp;
-    struct slapdplugin *p;
+    struct pw_scheme *pwsp = NULL;
+    struct slapdplugin *p = NULL;
 
-    if ((p = plugin_get_pwd_storage_scheme(name, strlen(name), PLUGIN_LIST_PWD_STORAGE_SCHEME)) != NULL) {
-        pwsp = (struct pw_scheme *)slapi_ch_malloc(sizeof(struct pw_scheme));
-        if (pwsp != NULL) {
-            typedef int (*CMPFP)(char *, char *);
-            typedef char *(*ENCFP)(char *);
-            pwsp->pws_name = slapi_ch_strdup(p->plg_pwdstorageschemename);
-            pwsp->pws_cmp = (CMPFP)p->plg_pwdstorageschemecmp;
-            pwsp->pws_enc = (ENCFP)p->plg_pwdstorageschemeenc;
-            pwsp->pws_len = strlen(pwsp->pws_name);
-            return (pwsp);
+    typedef int (*CMPFP)(char *, char *);
+    typedef char *(*ENCFP)(char *);
+
+    if (strcmp(DEFAULT_PASSWORD_SCHEME_NAME, name) == 0) {
+        /*
+         * If the name is DEFAULT, we need to get a scheme based on env and others.
+         */
+        if (slapd_pk11_isFIPS()) {
+            /* Are we in fips mode? This limits algos we have */
+            char *ssha = "SSHA512";
+            p = plugin_get_pwd_storage_scheme(ssha, strlen(ssha), PLUGIN_LIST_PWD_STORAGE_SCHEME);
+        } else {
+            /* if not, let's setup pbkdf2 */
+            char *pbkdf = "PBKDF2_SHA256";
+            p = plugin_get_pwd_storage_scheme(pbkdf, strlen(pbkdf), PLUGIN_LIST_PWD_STORAGE_SCHEME);
         }
+    } else {
+        /*
+         * Else, get the scheme "as named".
+         */
+        p = plugin_get_pwd_storage_scheme(name, strlen(name), PLUGIN_LIST_PWD_STORAGE_SCHEME);
     }
 
-    return (NULL);
+    if (p != NULL) {
+        pwsp = (struct pw_scheme *)slapi_ch_malloc(sizeof(struct pw_scheme));
+        pwsp->pws_name = slapi_ch_strdup(p->plg_pwdstorageschemename);
+        pwsp->pws_cmp = (CMPFP)p->plg_pwdstorageschemecmp;
+        pwsp->pws_enc = (ENCFP)p->plg_pwdstorageschemeenc;
+        pwsp->pws_len = strlen(pwsp->pws_name);
+    }
+
+    return pwsp;
 }
 
 void

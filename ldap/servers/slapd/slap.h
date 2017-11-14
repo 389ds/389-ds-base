@@ -2226,7 +2226,14 @@ typedef struct _slapdEntryPoints
 #define MAX_ALLOWED_TIME_IN_SECS             2147483647
 #define MAX_ALLOWED_TIME_IN_SECS_64 9223372036854775807
 
-#define DEFAULT_PASSWORD_SCHEME_NAME "PBKDF2_SHA256"
+/*
+ * DO NOT CHANGE THIS VALUE.
+ *
+ * if you want to update the default password hash you need to
+ * edit pw.c pw_name2scheme. This is because we use environment
+ * factors to dynamically determine this.
+ */
+#define DEFAULT_PASSWORD_SCHEME_NAME "DEFAULT"
 
 typedef struct _slapdFrontendConfig
 {

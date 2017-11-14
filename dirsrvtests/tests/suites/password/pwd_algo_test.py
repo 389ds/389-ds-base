@@ -12,17 +12,15 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, DN_DM, PORT_STANDALONE
 
-USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
+from lib389.idm.user import UserAccounts
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-
-def _test_bind(inst, password):
+def _test_bind(user, password):
     result = True
-    userconn = ldap.initialize("ldap://%s:%s" % (HOST_STANDALONE, PORT_STANDALONE))
     try:
-        userconn.simple_bind_s(USER_DN, password)
+        userconn = user.bind(password)
         userconn.unbind_s()
     except ldap.INVALID_CREDENTIALS:
         result = False
@@ -32,64 +30,52 @@ def _test_bind(inst, password):
 def _test_algo(inst, algo_name):
     inst.config.set('passwordStorageScheme', algo_name)
 
-    # Create the user with a password
-    inst.add_s(Entry((
-        USER_DN, {
-            'objectClass': 'top account simplesecurityobject'.split(),
-            'uid': 'user',
-            'userpassword': 'Secret123'
-        })))
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+
+    user = users.create(properties={
+        'uid': 'user',
+        'cn' : 'user',
+        'sn' : 'user',
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/user',
+        'userpassword': 'Secret123'
+    })
 
     # Make sure when we read the userPassword field, it is the correct ALGO
-    pw_field = inst.search_s(USER_DN, ldap.SCOPE_BASE, '(objectClass=*)', ['userPassword'])[0]
+    pw_field = user.get_attr_val_utf8('userPassword')
 
-    if algo_name != 'CLEAR':
-        assert (algo_name[:5].lower() in pw_field.getValue('userPassword').lower())
+    if algo_name != 'CLEAR' and algo_name != 'DEFAULT':
+        assert (algo_name[:5].lower() in pw_field.lower())
     # Now make sure a bind works
-    assert (_test_bind(inst, 'Secret123'))
+    assert (_test_bind(user, 'Secret123'))
     # Bind with a wrong shorter password, should fail
-    assert (not _test_bind(inst, 'Wrong'))
+    assert (not _test_bind(user, 'Wrong'))
     # Bind with a wrong longer password, should fail
-    assert (not _test_bind(inst, 'This is even more wrong'))
+    assert (not _test_bind(user, 'This is even more wrong'))
     # Bind with a wrong exact length password.
-    assert (not _test_bind(inst, 'Alsowrong'))
+    assert (not _test_bind(user, 'Alsowrong'))
     # Bind with a subset password, should fail
-    assert (not _test_bind(inst, 'Secret'))
+    assert (not _test_bind(user, 'Secret'))
     if not algo_name.startswith('CRYPT'):
         # Bind with a subset password that is 1 char shorter, to detect off by 1 in clear
-        assert (not _test_bind(inst, 'Secret12'))
+        assert (not _test_bind(user, 'Secret12'))
         # Bind with a superset password, should fail
-        assert (not _test_bind(inst, 'Secret123456'))
+        assert (not _test_bind(user, 'Secret123456'))
     # Delete the user
-    inst.delete_s(USER_DN)
+    user.delete()
     # done!
 
-
-def test_pwd_algo_test(topology_st):
+@pytest.mark.parametrize("algo",
+    ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
+     'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
+     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',) )
+def test_pwd_algo_test(topology_st, algo):
     """Assert that all of our password algorithms correctly PASS and FAIL varying
     password conditions.
     """
-
-    for algo in ('CLEAR',
-                 'CRYPT',
-                 'CRYPT-MD5',
-                 'CRYPT-SHA256',
-                 'CRYPT-SHA512',
-                 'MD5',
-                 'SHA',
-                 'SHA256',
-                 'SHA384',
-                 'SHA512',
-                 'SMD5',
-                 'SSHA',
-                 'SSHA256',
-                 'SSHA384',
-                 'SSHA512',
-                 'PBKDF2_SHA256',
-                 ):
-        _test_algo(topology_st.standalone, algo)
-
-    log.info('Test PASSED')
+    _test_algo(topology_st.standalone, algo)
+    log.info('Test %s PASSED' % algo)
 
 
 if __name__ == '__main__':
