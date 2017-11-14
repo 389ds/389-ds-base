@@ -4283,12 +4283,10 @@ _cl5GetRUV2Purge2(Object *fileObj, RUV **ruv)
     while (agmtObj) {
         agmt = (Repl_Agmt *)object_get_data(agmtObj);
         PR_ASSERT(agmt);
-
-        if (!agmt_is_enabled(agmt)) {
-            agmtObj = agmtlist_get_next_agreement_for_replica(r, agmtObj);
-            continue;
-        }
-
+        /* we need to handle all agreements, also if they are not enabled
+         * if they will be later enabled and changes are trimmed
+         * replication can fail
+         */
         consRUVObj = agmt_get_consumer_ruv(agmt);
         if (consRUVObj) {
             consRUV = (RUV *)object_get_data(consRUVObj);
