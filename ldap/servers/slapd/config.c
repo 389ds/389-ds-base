@@ -116,206 +116,181 @@ entry_has_attr_and_value(Slapi_Entry *e, const char *attrname,
 int
 slapd_bootstrap_config(const char *configdir)
 {
-	char configfile[MAXPATHLEN+1];
-	PRFileInfo64 prfinfo;
-	int rc = 0; /* Fail */
-	int done = 0;
-	PRInt32 nr = 0;
-	PRFileDesc *prfd = 0;
-	char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
-	char *buf = 0;
-	char *lastp = 0;
-	char *entrystr = 0;
-	char tmpfile[MAXPATHLEN+1];
+    char configfile[MAXPATHLEN + 1];
+    PRFileInfo64 prfinfo;
+    int rc = 0; /* Fail */
+    int done = 0;
+    PRInt32 nr = 0;
+    PRFileDesc *prfd = 0;
+    char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
+    char *buf = 0;
+    char *lastp = 0;
+    char *entrystr = 0;
+    char tmpfile[MAXPATHLEN + 1];
 
-	if (NULL == configdir) {
-		slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
-			"Passed null config directory\n");
-		return rc; /* Fail */
-	}
-	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir,
-				CONFIG_FILENAME);
-	PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.tmp", configdir,
-					CONFIG_FILENAME);
-	if ( (rc = dse_check_file(configfile, tmpfile)) == 0 ) {
-		PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.bak", configdir,
-					CONFIG_FILENAME);
-		rc = dse_check_file(configfile, tmpfile);
-	}
+    if (NULL == configdir) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
+                      "Passed null config directory\n");
+        return rc; /* Fail */
+    }
+    PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, CONFIG_FILENAME);
+    PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.bak", configdir, CONFIG_FILENAME);
+    rc = dse_check_file(configfile, tmpfile);
+    if (rc == 0) {
+        /* EVERYTHING IS GOING WRONG, ARRGHHHHHH */
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config", "No valid configurations can be accessed! You must restore %s from backup!\n", configfile);
+        return 0;
+    }
 
-	if ( (rc = PR_GetFileInfo64( configfile, &prfinfo )) != PR_SUCCESS )
-	{
-		PRErrorCode prerr = PR_GetError();
-		slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
-			"The given config file %s could not be accessed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			configfile, prerr, slapd_pr_strerror(prerr));
-		return rc;
-	}
-	else if (( prfd = PR_Open( configfile, PR_RDONLY,
-							   SLAPD_DEFAULT_FILE_MODE )) == NULL )
-	{
-		PRErrorCode prerr = PR_GetError();
-		slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
-			"The given config file %s could not be opened for reading, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			configfile, prerr, slapd_pr_strerror(prerr));
-		return rc; /* Fail */
-	}
-	else
-	{
-		/* read the entire file into core */
-		buf = slapi_ch_malloc( prfinfo.size + 1 );
-		if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
-		{
-			slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
-				"Could only read %d of %ld bytes from config file %s\n",
-				nr, (long int)prfinfo.size, configfile);
-			rc = 0; /* Fail */
-			done= 1;
-		}
-                          
-		(void)PR_Close(prfd);
-		buf[ nr ] = '\0';
+    if ((rc = PR_GetFileInfo64(configfile, &prfinfo)) != PR_SUCCESS) {
+        PRErrorCode prerr = PR_GetError();
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
+                      "The given config file %s could not be accessed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                      configfile, prerr, slapd_pr_strerror(prerr));
+        return rc;
+    } else if ((prfd = PR_Open(configfile, PR_RDONLY,
+                               SLAPD_DEFAULT_FILE_MODE)) == NULL) {
+        PRErrorCode prerr = PR_GetError();
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
+                      "The given config file %s could not be opened for reading, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                      configfile, prerr, slapd_pr_strerror(prerr));
+        return rc; /* Fail */
+    } else {
+        /* read the entire file into core */
+        buf = slapi_ch_malloc(prfinfo.size + 1);
+        if ((nr = slapi_read_buffer(prfd, buf, prfinfo.size)) < 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
+                          "Could only read %d of %ld bytes from config file %s\n",
+                          nr, (long int)prfinfo.size, configfile);
+            rc = 0; /* Fail */
+            done = 1;
+        }
 
-		if(!done)
-		{
-			char workpath[MAXPATHLEN+1];
-			char loglevel[BUFSIZ];
-			char maxdescriptors[BUFSIZ];
-			char val[BUFSIZ];
-			char _localuser[BUFSIZ];
-			char logenabled[BUFSIZ];
-			char schemacheck[BUFSIZ];
-			char syntaxcheck[BUFSIZ];
-			char syntaxlogging[BUFSIZ];
-			char plugintracking[BUFSIZ];
-			char dn_validate_strict[BUFSIZ];
-			char moddn_aci[BUFSIZ];
-			Slapi_DN plug_dn;
+        (void)PR_Close(prfd);
+        buf[nr] = '\0';
 
-			workpath[0] = loglevel[0] = maxdescriptors[0] = '\0';
-			val[0] = logenabled[0] = schemacheck[0] = syntaxcheck[0] = '\0';
-			syntaxlogging[0] = _localuser[0] = '\0';
-			plugintracking [0] = dn_validate_strict[0] = moddn_aci[0] ='\0';
+        if (!done) {
+            char workpath[MAXPATHLEN + 1];
+            char loglevel[BUFSIZ];
+            char maxdescriptors[BUFSIZ];
+            char val[BUFSIZ];
+            char _localuser[BUFSIZ];
+            char logenabled[BUFSIZ];
+            char schemacheck[BUFSIZ];
+            char syntaxcheck[BUFSIZ];
+            char syntaxlogging[BUFSIZ];
+            char plugintracking[BUFSIZ];
+            char dn_validate_strict[BUFSIZ];
+            char moddn_aci[BUFSIZ];
+            Slapi_DN plug_dn;
 
-			/* Convert LDIF to entry structures */
-			slapi_sdn_init_ndn_byref(&plug_dn, PLUGIN_BASE_DN);
-			while ((entrystr = dse_read_next_entry(buf, &lastp)) != NULL)
-			{
-				char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-				/*
-				 * XXXmcs: it would be better to also pass
-				 * SLAPI_STR2ENTRY_REMOVEDUPVALS in the flags, but
-				 * duplicate value checking requires that the syntax
-				 * and schema subsystems be initialized... and they
-				 * are not yet.
-				 */
-				Slapi_Entry	*e = slapi_str2entry(entrystr,
-							SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF);
-				if (e == NULL)
-				{
-					slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - "
-						"The entry [%s] in the configfile %s was empty or could not be parsed\n",
-						entrystr, configfile, 0);
-					continue;
-				}
-				/* increase file descriptors */
-				if (!maxdescriptors[0] &&
-					entry_has_attr_and_value(e, CONFIG_MAXDESCRIPTORS_ATTRIBUTE,
-									 maxdescriptors, sizeof(maxdescriptors)))
-				{
-					if (config_set_maxdescriptors(
-									CONFIG_MAXDESCRIPTORS_ATTRIBUTE,
-									maxdescriptors, errorbuf, CONFIG_APPLY)
-						!= LDAP_SUCCESS)
-					{
-						slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - "
-							"%s: %s: %s\n", configfile, CONFIG_MAXDESCRIPTORS_ATTRIBUTE, errorbuf);
-					}
-				}
+            workpath[0] = loglevel[0] = maxdescriptors[0] = '\0';
+            val[0] = logenabled[0] = schemacheck[0] = syntaxcheck[0] = '\0';
+            syntaxlogging[0] = _localuser[0] = '\0';
+            plugintracking[0] = dn_validate_strict[0] = moddn_aci[0] = '\0';
 
-				/* see if we need to enable error logging */
-				if (!logenabled[0] &&
-					entry_has_attr_and_value(e,
-											 CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE,
-											 logenabled, sizeof(logenabled)))
-				{
-					if (log_set_logging(
-						CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE,
-						logenabled, SLAPD_ERROR_LOG, errorbuf, CONFIG_APPLY)
-						!= LDAP_SUCCESS)
-					{
-						slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - %s: %s: %s\n", 
-							configfile, CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, errorbuf);
-					}
-				}
+            /* Convert LDIF to entry structures */
+            slapi_sdn_init_ndn_byref(&plug_dn, PLUGIN_BASE_DN);
+            while ((entrystr = dse_read_next_entry(buf, &lastp)) != NULL) {
+                char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+                /*
+                 * XXXmcs: it would be better to also pass
+                 * SLAPI_STR2ENTRY_REMOVEDUPVALS in the flags, but
+                 * duplicate value checking requires that the syntax
+                 * and schema subsystems be initialized... and they
+                 * are not yet.
+                 */
+                Slapi_Entry *e = slapi_str2entry(entrystr,
+                                                 SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF);
+                if (e == NULL) {
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - "
+                                                 "The entry [%s] in the configfile %s was empty or could not be parsed\n",
+                                  entrystr, configfile, 0);
+                    continue;
+                }
+                /* increase file descriptors */
+                if (!maxdescriptors[0] &&
+                    entry_has_attr_and_value(e, CONFIG_MAXDESCRIPTORS_ATTRIBUTE,
+                                             maxdescriptors, sizeof(maxdescriptors))) {
+                    if (config_set_maxdescriptors(
+                            CONFIG_MAXDESCRIPTORS_ATTRIBUTE,
+                            maxdescriptors, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - "
+                                                     "%s: %s: %s\n",
+                                      configfile, CONFIG_MAXDESCRIPTORS_ATTRIBUTE, errorbuf);
+                    }
+                }
 
-				/* set the local user name; needed to set up error log */
-				if (!_localuser[0] &&
-					entry_has_attr_and_value(e, CONFIG_LOCALUSER_ATTRIBUTE,
-								_localuser, sizeof(_localuser)))
-				{
-					if (config_set_localuser(CONFIG_LOCALUSER_ATTRIBUTE,
-						_localuser, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
-					{
-						slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - %s: %s: %s. \n",
-							configfile, CONFIG_LOCALUSER_ATTRIBUTE, errorbuf);
-					}
-				}
-				
-				/* set the log file name */
-				workpath[0] = '\0';
-				if (!workpath[0] &&
-					entry_has_attr_and_value(e, CONFIG_ERRORLOG_ATTRIBUTE,
-								workpath, sizeof(workpath)))
-				{
-					if (config_set_errorlog(CONFIG_ERRORLOG_ATTRIBUTE,
-						workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
-					{
-						slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - %s: %s: %s. \n", 
-							configfile, CONFIG_ERRORLOG_ATTRIBUTE, errorbuf);
-					}
-				}
-				/* set the error log level */
-				if (!loglevel[0] &&
-					entry_has_attr_and_value(e, CONFIG_LOGLEVEL_ATTRIBUTE,
-						loglevel, sizeof(loglevel)))
-				{
-					if (should_detach || !config_get_errorlog_level())
-					{ /* -d wasn't on command line */
-						if (config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
-							loglevel, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
-						{
-							slapi_log_err(SLAPI_LOG_ERR, "%s: %s: %s. \n", configfile,
-									  CONFIG_LOGLEVEL_ATTRIBUTE, errorbuf);
-						}
-					}
-				}
+                /* see if we need to enable error logging */
+                if (!logenabled[0] &&
+                    entry_has_attr_and_value(e,
+                                             CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE,
+                                             logenabled, sizeof(logenabled))) {
+                    if (log_set_logging(
+                            CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE,
+                            logenabled, SLAPD_ERROR_LOG, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - %s: %s: %s\n",
+                                      configfile, CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, errorbuf);
+                    }
+                }
 
-				/* set the cert dir; needed in slapd_nss_init */
-				workpath[0] = '\0';
-				if (entry_has_attr_and_value(e, CONFIG_CERTDIR_ATTRIBUTE,
-						workpath, sizeof(workpath)))
-				{
-					if (config_set_certdir(CONFIG_CERTDIR_ATTRIBUTE,
-							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
-					{
-						slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config", "%s: %s: %s. \n",
-							configfile, CONFIG_CERTDIR_ATTRIBUTE, errorbuf);
-					}
-				}
+                /* set the local user name; needed to set up error log */
+                if (!_localuser[0] &&
+                    entry_has_attr_and_value(e, CONFIG_LOCALUSER_ATTRIBUTE,
+                                             _localuser, sizeof(_localuser))) {
+                    if (config_set_localuser(CONFIG_LOCALUSER_ATTRIBUTE,
+                                             _localuser, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - %s: %s: %s. \n",
+                                      configfile, CONFIG_LOCALUSER_ATTRIBUTE, errorbuf);
+                    }
+                }
 
-				/* set the sasl path; needed in main */
-				 workpath[0] = '\0';
-				if (entry_has_attr_and_value(e, CONFIG_SASLPATH_ATTRIBUTE,
-						workpath, sizeof(workpath)))
-				{
-					if (config_set_saslpath(CONFIG_SASLPATH_ATTRIBUTE,
-							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
-					{
-						slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config", "%s: %s: %s. \n",
-							configfile, CONFIG_SASLPATH_ATTRIBUTE, errorbuf);
-					}
-				}
+                /* set the log file name */
+                workpath[0] = '\0';
+                if (!workpath[0] &&
+                    entry_has_attr_and_value(e, CONFIG_ERRORLOG_ATTRIBUTE,
+                                             workpath, sizeof(workpath))) {
+                    if (config_set_errorlog(CONFIG_ERRORLOG_ATTRIBUTE,
+                                            workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config - %s: %s: %s. \n",
+                                      configfile, CONFIG_ERRORLOG_ATTRIBUTE, errorbuf);
+                    }
+                }
+                /* set the error log level */
+                if (!loglevel[0] &&
+                    entry_has_attr_and_value(e, CONFIG_LOGLEVEL_ATTRIBUTE,
+                                             loglevel, sizeof(loglevel))) {
+                    if (should_detach || !config_get_errorlog_level()) { /* -d wasn't on command line */
+                        if (config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
+                                                      loglevel, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                            slapi_log_err(SLAPI_LOG_ERR, "%s: %s: %s. \n", configfile,
+                                          CONFIG_LOGLEVEL_ATTRIBUTE, errorbuf);
+                        }
+                    }
+                }
+
+                /* set the cert dir; needed in slapd_nss_init */
+                workpath[0] = '\0';
+                if (entry_has_attr_and_value(e, CONFIG_CERTDIR_ATTRIBUTE,
+                                             workpath, sizeof(workpath))) {
+                    if (config_set_certdir(CONFIG_CERTDIR_ATTRIBUTE,
+                                           workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config", "%s: %s: %s. \n",
+                                      configfile, CONFIG_CERTDIR_ATTRIBUTE, errorbuf);
+                    }
+                }
+
+                /* set the sasl path; needed in main */
+                workpath[0] = '\0';
+                if (entry_has_attr_and_value(e, CONFIG_SASLPATH_ATTRIBUTE,
+                                             workpath, sizeof(workpath))) {
+                    if (config_set_saslpath(CONFIG_SASLPATH_ATTRIBUTE,
+                                            workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config", "%s: %s: %s. \n",
+                                      configfile, CONFIG_SASLPATH_ATTRIBUTE, errorbuf);
+                    }
+                }
+
 #if defined(ENABLE_LDAPI)
 				/* set the ldapi file path; needed in main */
 				workpath[0] = '\0';
