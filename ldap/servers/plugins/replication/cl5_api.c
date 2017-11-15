@@ -250,8 +250,8 @@ static void _cl5ReadBerval(struct berval *bv, char **buff);
 static void _cl5WriteBerval(struct berval *bv, char **buff);
 static int _cl5ReadBervals(struct berval ***bv, char **buff, unsigned int size);
 static int _cl5WriteBervals(struct berval **bv, char **buff, u_int32_t *size);
-static int64_t _cl5CheckMaxRUV(CL5DBFile *file, RUV *maxruv);
-static int64_t _cl5CheckCSNinCL(const ruv_enum_data *element, void *arg);
+static int32_t _cl5CheckMaxRUV(CL5DBFile *file, RUV *maxruv);
+static int32_t _cl5CheckCSNinCL(const ruv_enum_data *element, void *arg);
 
 /* replay iteration */
 #ifdef FOR_DEBUGGING
@@ -2718,7 +2718,7 @@ _cl5WriteBervals(struct berval **bv, char **buff, u_int32_t *size)
     return CL5_SUCCESS;
 }
 
-static int64_t
+static int32_t
 _cl5CheckCSNinCL(const ruv_enum_data *element, void *arg)
 {
     CL5DBFile *file = (CL5DBFile *)arg;
@@ -2739,7 +2739,7 @@ _cl5CheckCSNinCL(const ruv_enum_data *element, void *arg)
     return rc;
 }
 
-static int64_t
+static int32_t
 _cl5CheckMaxRUV(CL5DBFile *file, RUV *maxruv)
 {
     int rc = 0;
