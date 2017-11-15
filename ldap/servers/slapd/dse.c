@@ -609,29 +609,49 @@ dse_check_file(char *filename, char *backupname)
 
     if (PR_GetFileInfo64(filename, &prfinfo) == PR_SUCCESS) {
         if (prfinfo.size > 0) {
-            return (1);
+            /* File exists and has content. */
+            return 1;
         } else {
+            slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
+                          "The config %s has zero length. Attempting restore ... \n", filename, rc);
             rc = PR_Delete(filename);
         }
+    } else {
+        slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
+                      "The config %s can not be accessed. Attempting restore ... (reason: %d)\n", filename, rc);
     }
 
     if (backupname) {
-        rc = PR_Rename(backupname, filename);
-    } else {
-        return (0);
-    }
 
-    if (PR_GetFileInfo64(filename, &prfinfo) == PR_SUCCESS && prfinfo.size > 0) {
+        if (PR_GetFileInfo64(backupname, &prfinfo) != PR_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
+                          "The backup %s can not be accessed. Check it exists and permissions.\n", backupname);
+            return 0;
+        }
+
+        if (prfinfo.size <= 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "dse_check_file",
+                      "The backup file %s has zero length, refusing to restore it.\n", backupname);
+            return 0;
+        }
+
+        rc = PR_Rename(backupname, filename);
+        if (rc != PR_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
+                      "The configuration file %s was NOT able to be restored from %s, error %d\n", filename, backupname, rc);
+            return 0;
+        }
+
         slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
-                      "The configuration file %s was restored from backup %s\n", filename, backupname);
-        return (1);
+                  "The configuration file %s was restored from backup %s\n", filename, backupname);
+        return 1;
+
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, "dse_check_file",
-                      "The configuration file %s was not restored from backup %s, error %d\n",
-                      filename, backupname, rc);
-        return (0);
+        slapi_log_err(SLAPI_LOG_INFO, "dse_check_file", "No backup filename provided.\n");
+        return 0;
     }
 }
+
 static int
 dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb, int primary_file)
 {
