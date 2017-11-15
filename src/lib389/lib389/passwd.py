@@ -15,37 +15,20 @@ import subprocess
 import random
 import string
 import os
-import sys
-
-BESTSCHEME = 'SSHA512'
-MAJOR, MINOR, _, _, _ = sys.version_info
-
-# We need a dict of the schemes I think ....
-PWSCHEMES = [
-    'SHA1',
-    'SHA256',
-    'SHA512',
-    'SSHA',
-    'SSHA256',
-    'SSHA512',
-]
-
 
 # How do we feed our prefix into this?
-def password_hash(pw, scheme=BESTSCHEME, bin_dir='/bin'):
+def password_hash(pw, scheme=None, bin_dir='/bin'):
     # Check that the binary exists
-    assert(scheme in PWSCHEMES)
     pwdhashbin = os.path.join(bin_dir, 'pwdhash')
     assert(os.path.isfile(pwdhashbin))
-    h = subprocess.check_output([pwdhashbin, '-s', scheme, pw]).strip()
+    if scheme is None:
+        h = subprocess.check_output([pwdhashbin, pw]).strip()
+    else:
+        h = subprocess.check_output([pwdhashbin, '-s', scheme, pw]).strip()
     return h.decode('utf-8')
 
 
 def password_generate(length=64):
-    pw = None
-    if MAJOR >= 3:
-        pw = [random.choice(string.ascii_letters) for x in range(length - 1)]
-    else:
-        pw = [random.choice(string.letters) for x in xrange(length - 1)]
+    pw = [random.choice(string.ascii_letters) for x in range(length - 1)]
     pw.append('%s' % random.randint(0, 9))
     return "".join(pw)
