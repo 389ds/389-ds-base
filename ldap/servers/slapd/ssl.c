@@ -2365,13 +2365,23 @@ slapd_SSL_client_auth(LDAP *ld)
                 ssltoken = slapi_entry_attr_get_charptr(entry, "nsssltoken");
                 if (ssltoken && personality) {
                     if (!PL_strcasecmp(ssltoken, "internal") ||
-                        !PL_strcasecmp(ssltoken, "internal (software)")) {
-
-                        /* Translate config internal name to more
-                          * readable form.  Certificate name is just
-                          * the personality for internal tokens.
-                          */
-                        token = slapi_ch_strdup(internalTokenName);
+                        !PL_strcasecmp(ssltoken, "internal (software)"))
+                    {
+                        if ( slapd_pk11_isFIPS() ) {
+                            /*
+                             * FIPS mode changes the internal token name, so we need to
+                             * grab the new token name from the internal slot.
+                             */
+                            PK11SlotInfo *slot = slapd_pk11_getInternalSlot();
+                            token = slapi_ch_strdup(slapd_PK11_GetTokenName(slot));
+                            PK11_FreeSlot(slot);
+                        } else {
+                            /*
+                             * Translate config internal name to more readable form.
+                             * Certificate name is just the personality for internal tokens.
+                             */
+                            token = slapi_ch_strdup(internalTokenName);
+                        }
 #if defined(USE_OPENLDAP)
                         /* openldap needs tokenname:certnick */
                         PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
