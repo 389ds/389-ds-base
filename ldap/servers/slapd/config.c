@@ -121,14 +121,13 @@ slapd_bootstrap_config(const char *configdir)
                       "Passed null config directory\n");
         return rc; /* Fail */
     }
-    PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir,
-                CONFIG_FILENAME);
-    PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.tmp", configdir,
-                CONFIG_FILENAME);
-    if ((rc = dse_check_file(configfile, tmpfile)) == 0) {
-        PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.bak", configdir,
-                    CONFIG_FILENAME);
-        rc = dse_check_file(configfile, tmpfile);
+    PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, CONFIG_FILENAME);
+    PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.bak", configdir, CONFIG_FILENAME);
+    rc = dse_check_file(configfile, tmpfile);
+    if (rc == 0) {
+        /* EVERYTHING IS GOING WRONG, ARRGHHHHHH */
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config", "No valid configurations can be accessed! You must restore %s from backup!\n", configfile);
+        return 0;
     }
 
     if ((rc = PR_GetFileInfo64(configfile, &prfinfo)) != PR_SUCCESS) {
