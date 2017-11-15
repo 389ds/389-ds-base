@@ -1506,8 +1506,6 @@ connection_threadmain()
 	int maxthreads = 0;
 	int enable_nunc_stans = 0;
 	long bypasspollcnt = 0;
-	Connection *pb_conn = NULL;
-	Operation *pb_op = NULL;
 
 #ifdef ENABLE_NUNC_STANS
 	enable_nunc_stans = config_get_enable_nunc_stans();
@@ -1530,6 +1528,8 @@ connection_threadmain()
 		}
 
 		if (!thread_turbo_flag && !more_data) {
+			Connection *pb_conn = NULL;
+
 			/* If more data is left from the previous connection_read_operation,
 			   we should finish the op now.  Client might be thinking it's
 			   done sending the request and wait for the response forever.
@@ -1540,7 +1540,6 @@ connection_threadmain()
 			 * Connection wait for new work provides the conn and op for us. 
 			 */
 			slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-			slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
 
 			switch (ret) {
 				case CONN_NOWORK:
@@ -1795,7 +1794,7 @@ done:
 		/* total number of ops for the server */
 		slapi_counter_increment(ops_completed);
 		/* If this op isn't a persistent search, remove it */
-		if ( pb_op->o_flags & OP_FLAG_PS ) {
+		if ( op->o_flags & OP_FLAG_PS ) {
 			    PR_EnterMonitor(conn->c_mutex);
 			    connection_release_nolock (conn); /* psearch acquires ref to conn - release this one now */
 			    PR_ExitMonitor(conn->c_mutex);
