@@ -401,3 +401,9 @@ slapd_PK11_GetPBECryptoMechanism(SECAlgorithmID *algid, SECItem **params, SECIte
 {
     return PK11_GetPBECryptoMechanism(algid, params, pwitem);
 }
+
+char *
+slapd_PK11_GetTokenName(PK11SlotInfo *slot)
+{
+    return PK11_GetTokenName(slot);
+}

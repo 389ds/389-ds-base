@@ -1130,6 +1130,7 @@ PRBool slapd_pk11_DoesMechanism(PK11SlotInfo *slot, CK_MECHANISM_TYPE type);
 PK11SymKey *slapd_pk11_PubUnwrapSymKeyWithFlagsPerm(SECKEYPrivateKey *wrappingKey, SECItem *wrappedKey, CK_MECHANISM_TYPE target, CK_ATTRIBUTE_TYPE operation, int keySize, CK_FLAGS flags, PRBool isPerm);
 PK11SymKey *slapd_pk11_TokenKeyGenWithFlags(PK11SlotInfo *slot, CK_MECHANISM_TYPE type, SECItem *param, int keySize, SECItem *keyid, CK_FLAGS opFlags, PK11AttrFlags attrFlags, void *wincx);
 CK_MECHANISM_TYPE slapd_PK11_GetPBECryptoMechanism(SECAlgorithmID *algid, SECItem **params, SECItem *pwitem);
+char *slapd_PK11_GetTokenName(PK11SlotInfo *slot);
 
 /*
  * start_tls_extop.c
