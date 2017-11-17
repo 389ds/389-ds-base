@@ -655,7 +655,7 @@ dse_check_file(char *filename, char *backupname)
             return 1;
         } else {
             slapi_log_err(SLAPI_LOG_INFO, "dse_check_file",
-                          "The config %s has zero length. Attempting restore ... \n", filename, rc);
+                          "The config %s has zero length. Attempting restore ... \n", filename);
             rc = PR_Delete(filename);
         }
     } else {
