@@ -6,39 +6,83 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-"""
-Monitor class to display current server performance details
-"""
-
 import ldap
 from ldap import filter as ldap_filter
 from lib389._constants import *
-from lib389._mapped_object import DSLdapObject
-
+from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
 class Monitor(DSLdapObject):
+    """An object that helps reading of cn=monitor for server statistics.
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param dn: not used
+        :param batch: not used
     """
-        Allows reading of cn=monitor for server statistics.
-    """
-
     def __init__(self, instance, dn=None, batch=False):
         super(Monitor, self).__init__(instance=instance, batch=batch)
         self._dn = DN_MONITOR
-        self._monitor_keys = [
-            'instanceection',
-            'currentinstanceections',
-            'currentconnections',
-            'opscompleted',
-            'opsinitiated',
-            'threads',
-            'totalinstanceections',
-            'version',
-            'currenttime',
-            'connection',
-        ]
 
-    def status(self):
-        return self.get_attrs_vals(self._monitor_keys)
+    def get_connections(self):
+        """Get connection related attribute values for cn=monitor
+
+        :returns: Values of connection, currentconnections,
+                  totalconnections attributes of cn=monitor
+        """
+        connection = self.get_attr_vals_utf8('connection')
+        currentconnections = self.get_attr_vals_utf8('currentconnections')
+        totalconnections = self.get_attr_vals_utf8('totalconnections')
+        return (connection, currentconnections, totalconnections)
+
+    def get_version(self):
+        """Get version attribute value for cn=monitor
+
+        :returns: Value of version attribute of cn=monitor
+        """
+        version = self.get_attr_vals_utf8('connection')
+        return version
+
+    def get_threads(self):
+        """Get thread related attributes value for cn=monitor
+
+        :returns: Values of threads, currentconnectionsatmaxthreads, and
+                  maxthreadsperconnhits attributes of cn=monitor
+        """
+        threads = self.get_attr_vals_utf8('threads')
+        currentconnectionsatmaxthreads = self.get_attr_vals_utf8('currentconnectionsatmaxthreads')
+        maxthreadsperconnhits = self.get_attr_vals_utf8('maxthreadsperconnhits')
+        return (threads, currentconnectionsatmaxthreads, maxthreadsperconnhits)
+
+    def get_backends(self):
+        """Get backends related attributes value for cn=monitor
+
+        :returns: Values of nbackends and backendmonitordn attributes of cn=monitor
+        """
+        nbackends = self.get_attr_vals_utf8('nbackends')
+        backendmonitordn = self.get_attr_vals_utf8('backendmonitordn')
+        return (nbackends, backendmonitordn)
+
+    def get_operations(self):
+        """Get operations related attributes value for cn=monitor
+
+        :returns: Values of opsinitiated and opscompleted attributes of cn=monitor
+        """
+        opsinitiated = self.get_attr_vals_utf8('opsinitiated')
+        opscompleted = self.get_attr_vals_utf8('opsinitiated')
+        return (opsinitiated, opscompleted)
+
+    def get_statistics(self):
+        """Get statistics attributes value for cn=monitor
+
+        :returns: Values of dtablesize, readwaiters, entriessent,
+                  bytessent, currenttime, starttime attributes of cn=monitor
+        """
+        dtablesize = self.get_attr_vals_utf8('dtablesize')
+        readwaiters = self.get_attr_vals_utf8('readwaiters')
+        entriessent = self.get_attr_vals_utf8('entriessent')
+        bytessent = self.get_attr_vals_utf8('bytessent')
+        currenttime = self.get_attr_vals_utf8('currenttime')
+        starttime = self.get_attr_vals_utf8('starttime')
+        return (dtablesize, readwaiters, entriessent, bytessent, currenttime, starttime)
 
 class MonitorLDBM(DSLdapObject):
     def __init__(self, instance, dn=None, batch=False):
@@ -53,7 +97,6 @@ class MonitorLDBM(DSLdapObject):
             'dbcacheroevict',
             'dbcacherwevict',
         ]
-
     def status(self):
         return self.get_attrs_vals(self._backend_keys)
 
