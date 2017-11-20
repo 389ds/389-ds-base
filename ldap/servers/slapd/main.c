@@ -2377,6 +2377,7 @@ slapd_exemode_db2index(struct main_config *mcfg)
 {
     int return_value = 0;
     struct slapdplugin *plugin;
+    char **instances = NULL;
 
     mapping_tree_init();
 
@@ -2385,7 +2386,7 @@ slapd_exemode_db2index(struct main_config *mcfg)
      * otherwise, we use included/excluded suffix list to specify a backend.
      */
     if (NULL == mcfg->cmd_line_instance_name) {
-        char **instances, **ip;
+        char **ip;
         int counter;
 
         if (lookup_instance_name_by_suffixes(mcfg->db2ldif_include, mcfg->db2ldif_exclude,
@@ -2456,6 +2457,10 @@ slapd_exemode_db2index(struct main_config *mcfg)
 
     slapi_pblock_destroy(pb);
     slapi_ch_free((void **)&(mcfg->myname));
+
+    charray_free(mcfg->db2ldif_include);
+    charray_free(instances);
+
     return (return_value);
 }
 

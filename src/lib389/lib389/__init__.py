@@ -41,7 +41,7 @@ import ldapurl
 import time
 import operator
 import shutil
-import datetime
+from datetime import datetime
 import logging
 import decimal
 import glob
@@ -2780,34 +2780,55 @@ class DirSrv(SimpleLDAPObject, object):
         @param vlvTag - The VLV index name to index
         @return - True if reindexing succeeded
         """
-        DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = os.path.join(self.ds_paths.sbin_dir, DB2INDEX)
+        prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
-        if not bename and not suffixes:
+        if self.status():
+            log.error("db2index: Can not operate while directory server is running")
+            return False
+
+        if (not bename and not suffixes) and (attrs or vlvTag):
             log.error("db2index: missing required backend name or suffix")
             return False
 
-        cmd = '%s -Z %s' % (prog, self.serverid)
+        cmd = [prog,]
+        if attrs or vlvTag:
+            cmd.append('db2index')
+        else:
+            cmd.append('upgradedb')
+            cmd.append('-a')
+            now = datetime.now().isoformat()
+            cmd.append(os.path.join(self.get_bak_dir(), 'reindex_%s' % now))
+
+        cmd.append('-D')
+        cmd.append(self.get_config_dir())
+
+
         if bename:
-            cmd = cmd + ' -n %s' % bename
-        if suffixes:
+            cmd.append('-n')
+            cmd.append(bename)
+
+        # Can only use suffiix in attr only mode.
+        if suffixes and (attrs or vlvTag):
             for suffix in suffixes:
-                cmd = cmd + ' -s %s' % suffix
+                cmd.append('-s')
+                cmd.append(suffix)
+
         if attrs:
             for attr in attrs:
-                cmd = cmd + ' -t %s' % attr
-        if vlvTag:
-            cmd = cmd + ' -T %s' % vlvTag
+                cmd.append('-t')
+                cmd.append(attr)
 
-        self.stop(timeout=10)
-        log.info('Running script: %s' % cmd)
-        result = True
-        try:
-            os.system(cmd)
-        except:
-            log.error("db2index: error executing %s" % cmd)
-            result = False
-        self.start(timeout=10)
+        if vlvTag:
+            cmd.append('-T')
+            cmd.append(vlvTag)
+
+        result = subprocess.check_output(cmd)
+        u_result = ensure_str(result)
+
+        log.debug("db2index output: BEGIN")
+        for line in u_result.split("\n"):
+            log.debug(line)
+        log.debug("db2index output: END")
 
         return result
 

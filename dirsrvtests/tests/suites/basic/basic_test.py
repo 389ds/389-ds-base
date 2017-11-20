@@ -366,6 +366,25 @@ def test_basic_backup(topology_st, import_example_ldif):
 
     log.info('test_basic_backup: PASSED')
 
+def test_basic_db2index(topology_st, import_example_ldif):
+    """Assert db2index can operate correctly.
+
+    :id: 191fc0fd-9722-46b5-a7c3-e8760effe119
+
+    :setup: Standalone instance
+
+    :steps:
+        1: call db2index
+
+    :expectedresults:
+        1: Index succeeds.
+
+    """
+    topology_st.standalone.stop()
+    topology_st.standalone.db2index()
+    topology_st.standalone.db2index(suffixes=[DEFAULT_SUFFIX], attrs=['uid'])
+    topology_st.standalone.start()
+
 
 def test_basic_acl(topology_st, import_example_ldif):
     """Run some basic access control (ACL) tests

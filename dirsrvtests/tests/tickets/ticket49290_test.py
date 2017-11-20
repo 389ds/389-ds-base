@@ -52,7 +52,7 @@ def test_49290_range_unindexed_notes(topology_st):
         'nsIndexType' : 'eq',
     })
     topology_st.standalone.stop()
-    topology_st.standalone.db2index(DEFAULT_BENAME)
+    assert topology_st.standalone.db2index(DEFAULT_BENAME, attrs=['modifytimestamp'] )
     topology_st.standalone.start()
 
     # Now run the modifyTimestamp range query again. Assert that there is no
