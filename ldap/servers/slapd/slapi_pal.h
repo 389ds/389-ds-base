@@ -44,7 +44,7 @@ typedef struct _slapi_pal_meminfo
  *
  * \return slapi_pal_meminfo * pointer to structure containing data, or NULL.
  */
-slapi_pal_meminfo *spal_meminfo_get();
+slapi_pal_meminfo *spal_meminfo_get(void);
 
 /**
  * Destroy an allocated memory info structure. The caller is responsible for
