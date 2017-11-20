@@ -143,6 +143,16 @@ objectClass: top
 objectClass: organizationalUnit
 ou: Payroll
 
+dn: ou=People,{SUFFIX}
+objectClass: top
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Groups,{SUFFIX}
+objectClass: top
+objectClass: organizationalUnit
+ou: Groups
+
 """
 
 def dbgen(instance, number, ldif_file, suffix):
