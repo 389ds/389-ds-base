@@ -331,8 +331,8 @@ class DSLdapObject(DSLogging):
                 key, value = mod
             elif len(mod) == 3:
                 action, key, value = mod
-                if action != ldap.MOD_REPLACE or \
-                   action != ldap.MOD_ADD or \
+                if action != ldap.MOD_REPLACE and \
+                   action != ldap.MOD_ADD and \
                    action != ldap.MOD_DELETE:
                     raise ValueError('Invalid mod action(%s)' % str(action))
             else:

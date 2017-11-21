@@ -20,10 +20,6 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-CONFIG_DN = 'cn=config'
-ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
-RSA = 'RSA'
-RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
 ISSUER = 'cn=CAcert'
 CACERT = 'CAcertificate'
 M1SERVERCERT = 'Server-Cert1'
@@ -49,20 +45,20 @@ def add_entry(server, name, rdntmpl, start, num):
 def enable_ssl(server, ldapsport, mycert):
     log.info("\n######################### Enabling SSL LDAPSPORT %s ######################\n" % ldapsport)
     server.simple_bind_s(DN_DM, PASSWORD)
-    server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
-                                    (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
-                                    (ldap.MOD_REPLACE, 'nsSSLClientAuth', 'allowed'),
-                                    (ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all')])
+    server.encryption.apply_mods([(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
+                                  (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
+                                  (ldap.MOD_REPLACE, 'nsSSLClientAuth', 'allowed'),
+                                  (ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all')])
 
-    server.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
-                                (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
-                                (ldap.MOD_REPLACE, 'nsslapd-secureport', ldapsport)])
+    server.config.apply_mods([(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
+                              (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
+                              (ldap.MOD_REPLACE, 'nsslapd-secureport', ldapsport)])
 
-    server.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
-                                 'cn': RSA,
-                                 'nsSSLPersonalitySSL': mycert,
-                                 'nsSSLToken': 'internal (software)',
-                                 'nsSSLActivation': 'on'})))
+    server.rsa.create(properties={'objectclass': "top nsEncryptionModule".split(),
+                                  'cn': 'RSA',
+                                  'nsSSLPersonalitySSL': mycert,
+                                  'nsSSLToken': 'internal (software)',
+                                  'nsSSLActivation': 'on'})
 
 
 def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
@@ -114,13 +110,13 @@ def doAndPrintIt(cmdline):
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     log.info("      OUT:")
     while True:
-        l = proc.stdout.readline()
+        l = ensure_str(proc.stdout.readline())
         if l == "":
             break
         log.info("      %s" % l)
     log.info("      ERR:")
     while True:
-        l = proc.stderr.readline()
+        l = ensure_str(proc.stderr.readline())
         if l == "" or l == "\n":
             break
         log.info("      <%s>" % l)
@@ -136,7 +132,7 @@ def create_keys_certs(topology_m2):
     m2confdir = topology_m2.ms["master2"].confdir
 
     log.info("##### shutdown master1")
-    topology_m2.ms["master1"].stop(timeout=10)
+    topology_m2.ms["master1"].stop()
 
     log.info("##### Creating a password file")
     pwdfile = '%s/pwdfile.txt' % (m1confdir)
@@ -199,7 +195,7 @@ def create_keys_certs(topology_m2):
     time.sleep(2)
 
     log.info("##### start master1")
-    topology_m2.ms["master1"].start(timeout=10)
+    topology_m2.ms["master1"].start()
 
     log.info("##### enable SSL in master1 with all ciphers")
     enable_ssl(topology_m2.ms["master1"], M1LDAPSPORT, M1SERVERCERT)
@@ -209,16 +205,16 @@ def create_keys_certs(topology_m2):
     doAndPrintIt(cmdline)
 
     log.info("##### restart master1")
-    topology_m2.ms["master1"].restart(timeout=10)
+    topology_m2.ms["master1"].restart()
 
     log.info("##### Check PEM files of master1 (before setting nsslapd-extract-pemfiles")
     check_pems(m1confdir, CACERT, M1SERVERCERT, M1SERVERCERT + '-Key', " not")
 
     log.info("##### Set on to nsslapd-extract-pemfiles")
-    topology_m2.ms["master1"].modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-extract-pemfiles', 'on')])
+    topology_m2.ms["master1"].config.set('nsslapd-extract-pemfiles', 'on')
 
     log.info("##### restart master1")
-    topology_m2.ms["master1"].restart(timeout=10)
+    topology_m2.ms["master1"].restart()
 
     log.info("##### Check PEM files of master1 (after setting nsslapd-extract-pemfiles")
     check_pems(m1confdir, CACERT, M1SERVERCERT, M1SERVERCERT + '-Key', "")
@@ -238,7 +234,7 @@ def create_keys_certs(topology_m2):
         assert False
 
     log.info("##### stop master2")
-    topology_m2.ms["master2"].stop(timeout=10)
+    topology_m2.ms["master2"].stop()
 
     log.info("##### Initialize Cert DB for master2")
     cmdline = ['certutil', '-N', '-d', m2confdir, '-f', pwdfile]
@@ -257,28 +253,28 @@ def create_keys_certs(topology_m2):
     os.system('chmod 400 %s' % m2pinfile)
 
     log.info("##### start master2")
-    topology_m2.ms["master2"].start(timeout=10)
+    topology_m2.ms["master2"].start()
 
     log.info("##### enable SSL in master2 with all ciphers")
     enable_ssl(topology_m2.ms["master2"], M2LDAPSPORT, M2SERVERCERT)
 
     log.info("##### restart master2")
-    topology_m2.ms["master2"].restart(timeout=10)
+    topology_m2.ms["master2"].restart()
 
     log.info("##### Check PEM files of master2 (before setting nsslapd-extract-pemfiles")
     check_pems(m2confdir, CACERT, M2SERVERCERT, M2SERVERCERT + '-Key', " not")
 
     log.info("##### Set on to nsslapd-extract-pemfiles")
-    topology_m2.ms["master2"].modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-extract-pemfiles', 'on')])
+    topology_m2.ms["master2"].config.set('nsslapd-extract-pemfiles', 'on')
 
     log.info("##### restart master2")
-    topology_m2.ms["master2"].restart(timeout=10)
+    topology_m2.ms["master2"].restart()
 
     log.info("##### Check PEM files of master2 (after setting nsslapd-extract-pemfiles")
     check_pems(m2confdir, CACERT, M2SERVERCERT, M2SERVERCERT + '-Key', "")
 
     log.info("##### restart master1")
-    topology_m2.ms["master1"].restart(timeout=10)
+    topology_m2.ms["master1"].restart()
 
     log.info("\n######################### Creating SSL Keys and Certs Done ######################\n")
 
@@ -292,7 +288,7 @@ def config_tls_agreements(topology_m2):
     m1 = topology_m2.ms["master1"]
     m1_m2_agmt = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
-    topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
+    m1.agreement.setProperties(agmnt_dn=m1_m2_agmt, properties={RA_TRANSPORT_PROT: 'TLS'})
 
     log.info("##### Add the cert to the repl manager on master1")
     global mytmp
@@ -311,19 +307,18 @@ def config_tls_agreements(topology_m2):
     log.info('##### master2 Server Cert in base64 format: %s' % m2servercertstr)
 
     replmgr = defaultProperties[REPLICATION_BIND_DN]
-    rentry = topology_m2.ms["master1"].search_s(replmgr, ldap.SCOPE_BASE, 'objectclass=*')
+    rentry = m1.search_s(replmgr, ldap.SCOPE_BASE, 'objectclass=*')
     log.info('##### Replication manager on master1: %s' % replmgr)
     oc = 'ObjectClass'
     log.info('      %s:' % oc)
     if rentry:
         for val in rentry[0].getValues(oc):
             log.info('                 : %s' % val)
-    topology_m2.ms["master1"].modify_s(replmgr, [(ldap.MOD_ADD, oc, 'extensibleObject')])
+    m1.modify_s(replmgr, [(ldap.MOD_ADD, oc, b'extensibleObject')])
 
     global M2SUBJECT
-    topology_m2.ms["master1"].modify_s(replmgr,
-                                       [(ldap.MOD_ADD, 'userCertificate;binary', base64.b64decode(m2servercertstr)),
-                                        (ldap.MOD_ADD, 'description', M2SUBJECT)])
+    m1.modify_s(replmgr, [(ldap.MOD_ADD, 'userCertificate;binary', base64.b64decode(m2servercertstr)),
+                          (ldap.MOD_ADD, 'description', ensure_bytes(M2SUBJECT))])
 
     log.info("##### Modify the certmap.conf on master1")
     m1certmap = '%s/certmap.conf' % (m1confdir)
@@ -341,13 +336,13 @@ def config_tls_agreements(topology_m2):
     m2 = topology_m2.ms["master2"]
     m2_m1_agmt = m2.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
 
-    topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS'),
-                                                    (ldap.MOD_REPLACE, 'nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH')])
+    m2.agreement.setProperties(agmnt_dn=m2_m1_agmt, properties={RA_TRANSPORT_PROT: 'TLS',
+                                                                RA_METHOD: 'SSLCLIENTAUTH'})
 
-    topology_m2.ms["master1"].stop(10)
-    topology_m2.ms["master2"].stop(10)
-    topology_m2.ms["master1"].start(10)
-    topology_m2.ms["master2"].start(10)
+    m1.stop()
+    m2.stop()
+    m1.start()
+    m2.start()
 
     log.info("\n######################### Configure SSL/TLS agreements Done ######################\n")
 
@@ -355,29 +350,44 @@ def config_tls_agreements(topology_m2):
 def relocate_pem_files(topology_m2):
     log.info("######################### Relocate PEM files on master1 ######################")
     mycacert = 'MyCA'
-    topology_m2.ms["master1"].modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'CACertExtractFile', mycacert)])
+    topology_m2.ms["master1"].encryption.set('CACertExtractFile', mycacert)
     myservercert = 'MyServerCert1'
     myserverkey = 'MyServerKey1'
-    topology_m2.ms["master1"].modify_s(RSA_DN, [(ldap.MOD_REPLACE, 'ServerCertExtractFile', myservercert),
-                                                (ldap.MOD_REPLACE, 'ServerKeyExtractFile', myserverkey)])
+    topology_m2.ms["master1"].rsa.apply_mods([(ldap.MOD_REPLACE, 'ServerCertExtractFile', myservercert),
+                                              (ldap.MOD_REPLACE, 'ServerKeyExtractFile', myserverkey)])
     log.info("##### restart master1")
-    topology_m2.ms["master1"].restart(timeout=10)
+    topology_m2.ms["master1"].restart()
     check_pems(m1confdir, mycacert, myservercert, myserverkey, "")
 
 
-def test_ticket47536(topology_m2):
-    """
-    Set up 2way MMR:
-        master_1 ----- startTLS -----> master_2
-        master_1 <-- TLS_clientAuth -- master_2
+def test_openldap_no_nss_crypto(topology_m2):
+    """Check that we allow usage of OpenLDAP libraries
+    that don't use NSS for crypto
 
-    Check CA cert, Server-Cert and Key are retrieved as PEM from cert db
-    when the server is started.  First, the file names are not specified
-    and the default names derived from the cert nicknames.  Next, the
-    file names are specified in the encryption config entries.
-
-    Each time add 5 entries to master 1 and 2 and check they are replicated.
+    :id: 0a622f3d-8ba5-4df2-a1de-1fb2237da40a
+    :setup: Replication with two masters:
+        master_1 ----- startTLS -----> master_2;
+        master_1 <-- TLS_clientAuth -- master_2;
+        nsslapd-extract-pemfiles set to 'on' on both masters
+        without specifying cert names
+    :steps:
+        1. Add 5 users to master 1 and 2
+        2. Check that the users were successfully replicated
+        3. Relocate PEM files on master 1
+        4. Check PEM files in master 1 config directory
+        5. Add 5 users more to master 1 and 2
+        6. Check that the users were successfully replicated
+        7. Export userRoot on master 1
+    :expectedresults:
+        1. Users should be successfully added
+        2. Users should be successfully replicated
+        3. Operation should be successful
+        4. PEM files should be found
+        5. Users should be successfully added
+        6. Users should be successfully replicated
+        7. Operation should be successful
     """
+
     log.info("Ticket 47536 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
 
     create_keys_certs(topology_m2)
@@ -386,7 +396,7 @@ def test_ticket47536(topology_m2):
     add_entry(topology_m2.ms["master1"], 'master1', 'uid=m1user', 0, 5)
     add_entry(topology_m2.ms["master2"], 'master2', 'uid=m2user', 0, 5)
 
-    time.sleep(1)
+    time.sleep(5)
 
     log.info('##### Searching for entries on master1...')
     entries = topology_m2.ms["master1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
