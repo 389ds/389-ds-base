@@ -8,7 +8,7 @@ authors = ["William Brown <firstyear@redhat.com>"]
 [lib]
 path = "sds/lib.rs"
 name = "rsds"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 
 [profile.release]
 panic = "abort"

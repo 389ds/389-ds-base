@@ -560,9 +560,6 @@ fi
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
 %{_libdir}/%{pkgname}/libldaputil.so
-%if %{use_rust}
-%{_libdir}/%{pkgname}/librsds.so
-%endif
 %{_libdir}/pkgconfig/*
 
 %files libs
@@ -575,7 +572,7 @@ fi
 %{_libdir}/%{pkgname}/libsds.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
 %if %{use_rust}
-%{_libdir}/%{pkgname}/librsds.so.*
+%{_libdir}/%{pkgname}/librsds.so
 %endif
 
 %files snmp

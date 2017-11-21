@@ -314,11 +314,7 @@ bin_PROGRAMS = dbscan \
 # based on defines
 # ----------------------------------------------------------------------------------------
 
-server_LTLIBRARIES =
-if RUST_ENABLE
-server_LTLIBRARIES += librsds.la
-endif
-server_LTLIBRARIES += libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
+server_LTLIBRARIES = libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
 
 
 # this is how to add optional plugins
@@ -1101,24 +1097,33 @@ libsds_la_CPPFLAGS = $(AM_CPPFLAGS) $(SDS_CPPFLAGS)
 libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
 
 if RUST_ENABLE
-libsds_la_LIBADD = librsds.la
 
-librsdspatha = $(abs_top_builddir)/rs/@rust_target_dir@/librsds.a
-librsdspatho = $(abs_top_builddir)/rs/@rust_target_dir@/librsds.o
+### Why does this exist?
+#
+# Both cargo and autotools are really opinionated. You can't generate the correct
+# outputs from cargo/rust for automake to use. But by the same token, you can't
+# convince automake to use the outputs we *do* have. So instead, we manually
+# create and install the .so instead.
+#
+# This acts like .PHONY for some reason ...
 
-# Remember, these emit to cargo_target_dir/<at>rust_target_dir<at>/emit target
-$(librsdspatha): Makefile src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml -- $(RUSTC_FLAGS) --emit link=$(librsdspatha)
+libsds_la_LDFLAGS += -L$(abs_builddir)/.libs -lrsds
+libsds_la_DEPENDENCIES = librsds.so
 
-$(librsdspatho): Makefile src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml -- $(RUSTC_FLAGS) --emit obj=$(librsdspatho)
-
-am_librsds_la_OBJECTS = $(librsdspatho)
-librsds_la_LIBADD = $(librsdspatha)
-librsds_la_SOURCES =
+librsds.so: src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
+	-- $(RUSTC_FLAGS)
+	mkdir -p $(abs_builddir)/.libs
+	cp $(abs_top_builddir)/rs/@rust_target_dir@/librsds.so $(abs_builddir)/.libs/librsds.so
 
 dist_noinst_DATA += $(srcdir)/src/libsds/Cargo.toml \
 					$(srcdir)/src/libsds/sds/*.rs
+
+# echo $(serverdir)
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(serverdir)
+	$(INSTALL) -c -m 755 $(abs_builddir)/.libs/librsds.so $(DESTDIR)$(serverdir)/librsds.so
 
 else
 # Just build the tqueue in C.
