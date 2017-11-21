@@ -42,7 +42,8 @@ def test_restore_config(topo):
 
     for i in ('dse.ldif', 'dse.ldif.startOK'):
         p = os.path.join(dse_path, i)
-        os.remove(p)
+        d = os.path.join(dse_path, i + '.49298')
+        os.rename(p, d)
 
     # This will pass.
     topo.standalone.start()
@@ -70,7 +71,8 @@ def test_removed_config(topo):
 
     for i in ('dse.ldif', 'dse.ldif.bak', 'dse.ldif.startOK'):
         p = os.path.join(dse_path, i)
-        os.remove(p)
+        d = os.path.join(dse_path, i + '.49298')
+        os.rename(p, d)
 
     # We actually can't check the log output, because it can't read dse.ldif,
     # don't know where to write it yet! All we want is the server fail to
@@ -78,4 +80,9 @@ def test_removed_config(topo):
     with pytest.raises(subprocess.CalledProcessError):
         topo.standalone.start()
 
+    # Restore the files so that setup-ds.l can work
+    for i in ('dse.ldif', 'dse.ldif.bak', 'dse.ldif.startOK'):
+        p = os.path.join(dse_path, i)
+        d = os.path.join(dse_path, i + '.49298')
+        os.rename(d, p)
 
