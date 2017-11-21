@@ -2808,8 +2808,7 @@ replica_write_ruv(Replica *r)
         /* this includes an internal operation - but since this only happens
            during server startup - its ok that we have lock around it */
         rc = _replica_configure_ruv(r, PR_TRUE);
-    } else /* error */
-    {
+    } else if (rc != LDAP_SUCCESS) { /* error */
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "replica_write_ruv - Failed to update RUV tombstone for %s; "
                       "LDAP error - %d\n",
