@@ -11,6 +11,10 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+from lib389.idm.user import UserAccounts
+from lib389.idm.group import Groups
+from lib389.idm.domain import Domain
+
 from lib389._constants import SUFFIX, DN_DM, PASSWORD, DEFAULT_SUFFIX
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -21,7 +25,7 @@ ADMIN_NAME = 'passwd_admin'
 ADMIN_DN = 'cn=%s,%s' % (ADMIN_NAME, SUFFIX)
 ADMIN2_NAME = 'passwd_admin2'
 ADMIN2_DN = 'cn=%s,%s' % (ADMIN2_NAME, SUFFIX)
-ADMIN_PWD = 'adminPassword_1'
+ADMIN_PWD = 'ntaheonusheoasuhoau_9'
 ADMIN_GROUP_DN = 'cn=password admin group,%s' % (SUFFIX)
 ENTRY_NAME = 'Joe Schmo'
 ENTRY_DN = 'cn=%s,%s' % (ENTRY_NAME, SUFFIX)
@@ -39,163 +43,119 @@ def password_policy(topology_st):
 
     log.info('test_pwdAdmin_init: Creating Password Administrator entries...')
 
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
+
     # Add Password Admin 1
-    try:
-        topology_st.standalone.add_s(Entry((ADMIN_DN, {'objectclass': "top extensibleObject".split(),
-                                                       'cn': ADMIN_NAME,
-                                                       'userpassword': ADMIN_PWD})))
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin_init: Failed to add test user' + ADMIN_DN + ': error ' + e.message['desc'])
-        assert False
+    admin1_user = users.create(properties={
+        'uid': 'admin1',
+        'cn' : 'admin1',
+        'sn' : 'strator',
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/admin1',
+        'userPassword': ADMIN_PWD
+    })
 
     # Add Password Admin 2
-    try:
-        topology_st.standalone.add_s(Entry((ADMIN2_DN, {'objectclass': "top extensibleObject".split(),
-                                                        'cn': ADMIN2_NAME,
-                                                        'userpassword': ADMIN_PWD})))
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin_init: Failed to add test user ' + ADMIN2_DN + ': error ' + e.message['desc'])
-        assert False
+
+    admin2_user = users.create(properties={
+        'uid': 'admin2',
+        'cn' : 'admin2',
+        'sn' : 'strator',
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/admin2',
+        'userPassword': ADMIN_PWD
+    })
 
     # Add Password Admin Group
-    try:
-        topology_st.standalone.add_s(Entry((ADMIN_GROUP_DN, {'objectclass': "top groupOfUNiqueNames".split(),
-                                                             'cn': 'password admin group',
-                                                             'uniquemember': ADMIN_DN,
-                                                             'uniquemember': ADMIN2_DN})))
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin_init:  Failed to add group' + ADMIN_GROUP_DN + ': error ' + e.message['desc'])
-        assert False
+
+    admin_group = groups.create(properties={
+        'cn': 'password admin group'
+    })
+
+    admin_group.add_member(admin1_user.dn)
+    admin_group.add_member(admin2_user.dn)
 
     # Configure password policy
+
     log.info('test_pwdAdmin_init: Configuring password policy...')
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on'),
-                                                    (ldap.MOD_REPLACE, 'passwordCheckSyntax', 'on'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinCategories', '1'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinTokenLength', '1'),
-                                                    (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinDigits', '1'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinSpecials', '1')])
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin_init: Failed configure password policy: ' +
-                  e.message['desc'])
-        assert False
+
+    topology_st.standalone.config.replace_many(
+                                            ('nsslapd-pwpolicy-local', 'on'),
+                                            ('passwordCheckSyntax', 'on'),
+                                            ('passwordMinCategories', '1'),
+                                            ('passwordMinTokenLength', '2'),
+                                            ('passwordExp', 'on'),
+                                            ('passwordMinDigits', '1'),
+                                            ('passwordMinSpecials', '1')
+                                        )
 
     #
     # Add an aci to allow everyone all access (just makes things easier)
     #
     log.info('Add aci to allow password admin to add/update entries...')
 
+    domain = Domain(topology_st.standalone, DEFAULT_SUFFIX)
+
     ACI_TARGET = "(target = \"ldap:///%s\")" % SUFFIX
     ACI_TARGETATTR = "(targetattr = *)"
     ACI_ALLOW = "(version 3.0; acl \"Password Admin Access\"; allow (all) "
     ACI_SUBJECT = "(userdn = \"ldap:///anyone\");)"
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    try:
-        topology_st.standalone.modify_s(SUFFIX, mod)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin_init: Failed to add aci for password admin: ' +
-                  e.message['desc'])
-        assert False
+
+    domain.add('aci', ACI_BODY)
 
     #
     # Bind as the future Password Admin
     #
     log.info('test_pwdAdmin_init: Bind as the Password Administrator (before activating)...')
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin_init: Failed to bind as the Password Admin: ' +
-                  e.message['desc'])
-        assert False
+    admin_conn = admin1_user.bind(ADMIN_PWD)
 
     #
     # Setup our test entry, and test password policy is working
     #
-    entry = Entry(ENTRY_DN)
-    entry.setValues('objectclass', 'top', 'person')
-    entry.setValues('sn', ENTRY_NAME)
-    entry.setValues('cn', ENTRY_NAME)
+
+    # Connect up an admin authed users connection.
+    admin_users = UserAccounts(admin_conn, DEFAULT_SUFFIX)
 
     #
     # Start by attempting to add an entry with an invalid password
     #
     log.info('test_pwdAdmin_init: Attempt to add entries with invalid passwords, these adds should fail...')
     for passwd in INVALID_PWDS:
-        failed_as_expected = False
-        entry.setValues('userpassword', passwd)
-        log.info('test_pwdAdmin_init: Create a regular user entry %s with password (%s)...' %
-                 (ENTRY_DN, passwd))
-        try:
-            topology_st.standalone.add_s(entry)
-        except ldap.LDAPError as e:
-            # We failed as expected
-            failed_as_expected = True
-            log.info('test_pwdAdmin_init: Add failed as expected: password (%s) result (%s)'
-                     % (passwd, e.message['desc']))
+        with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+            admin_users.create(properties={
+                'uid': 'example',
+                'cn' : 'example',
+                'sn' : 'example',
+                'uidNumber' : '1000',
+                'gidNumber' : '2000',
+                'homeDirectory' : '/home/example',
+                'userPassword': passwd
+            })
 
-        if not failed_as_expected:
-            log.fatal('test_pwdAdmin_init: We were incorrectly able to add an entry ' +
-                      'with an invalid password (%s)' % (passwd))
-            assert False
+    return (admin_group, admin1_user, admin2_user)
 
-
-def test_pwdAdmin(topology_st, password_policy):
+def test_pwdAdmin_bypass(topology_st, password_policy):
     """Test that password administrators/root DN can
     bypass password syntax/policy
 
-    :id: 5ce316d8-88ef-4248-8b63-90736985dad5
+    :id: 743bfe33-a1f7-482b-8807-efeb7aa57348
     :setup: Standalone instance, Password Admin entry,
         Password policy configured as below:
             nsslapd-pwpolicy-local: on
             passwordCheckSyntax: on
             passwordMinCategories: 1
-            passwordMinTokenLength: 1
+            passwordMinTokenLength: 2
             passwordExp: on
             passwordMinDigits: 1
             passwordMinSpecials: 1
     :steps:
-        1. Bind as Root DN
-        2. Set passwordAdminDn to our admin entry DN
-        3. Bind as Password Admin
-        4. Add entries with invalid passwords
-        5. Delete the entries after each pass
-        6. Add the entry for the next round of testing
-        7. Bind as root DN
-        8. Remove passwordAdminDN attribute
-        9. Bind as Password Admin (admin rights are revoked)
-        10. Make invalid password updates
-        11. Bind as root DN to make the update
-        12. Set passwordAdminDn to our admin entry DN
-        13. Bind as Password Admin
-        14. Make the same password updates
-        15. Bind as root DN to make the update
-        16. Set passwordAdminDn to admin group entry
-        17. Bind as admin2
-        18. Make some invalid password updates
-        19. Bind back as Root DN
+        1: Add users with invalid passwords
     :expectedresults:
-        1. Bind should be successful
-        2. passwordAdminDn should be set successful
-        3. Bind should be successful
-        4. The entries should be successfully added
-        5. The entries should be successfully deleted
-        6. The entry should be successfully added
-        7. Bind should be successful
-        8. passwordAdminDn should be removed successful
-        9. Bind should be successful
-        10. Invalid password updates should fail
-        11. Bind should be successful
-        12. passwordAdminDn should be set successful
-        13. Bind should be successful
-        14. The same password updates should pass now
-        15. Bind should be successful
-        16. passwordAdminDn should be set successful
-        17. Bind should be successful
-        18. The same password updates should pass now
-        19. Bind should be successful
+        1: Users should be added successfully.
     """
 
     #
@@ -204,206 +164,163 @@ def test_pwdAdmin(topology_st, password_policy):
     #
     log.info('test_pwdAdmin: Activate the Password Administator...')
 
+    # Extract our fixture data.
+
+    (admin_group, admin1_user, admin2_user) = password_policy
+
+    # Set the password admin
+
+    topology_st.standalone.config.set('passwordAdminDN', admin1_user.dn)
+
     #
     # Get our test entry
     #
-    entry = Entry(ENTRY_DN)
-    entry.setValues('objectclass', 'top', 'person')
-    entry.setValues('sn', ENTRY_NAME)
-    entry.setValues('cn', ENTRY_NAME)
 
-    # Bind as Root DN
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Root DN failed to authenticate: ' +
-                  e.message['desc'])
-        assert False
-
-    # Set the password admin
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ADMIN_DN)])
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to add password admin to config: ' +
-                  e.message['desc'])
-        assert False
-
-    # Bind as Password Admin
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to bind as the Password Admin: ' +
-                  e.message['desc'])
-        assert False
+    admin_conn = admin1_user.bind(ADMIN_PWD)
+    admin_users = UserAccounts(admin_conn, DEFAULT_SUFFIX)
 
     #
     # Start adding entries with invalid passwords, delete the entry after each pass.
     #
     for passwd in INVALID_PWDS:
-        entry.setValues('userpassword', passwd)
-        log.info('test_pwdAdmin: Create a regular user entry %s with password (%s)...' %
-                 (ENTRY_DN, passwd))
-        try:
-            topology_st.standalone.add_s(entry)
-        except ldap.LDAPError as e:
-            log.fatal('test_pwdAdmin: Failed to add entry with password (%s) result (%s)'
-                      % (passwd, e.message['desc']))
-            assert False
+        u1 = admin_users.create(properties={
+            'uid': 'example',
+            'cn' : 'example',
+            'sn' : 'example',
+            'uidNumber' : '1000',
+            'gidNumber' : '2000',
+            'homeDirectory' : '/home/example',
+            'userPassword': passwd
+        })
+        u1.delete()
 
-        log.info('test_pwdAdmin: Successfully added entry (%s)' % ENTRY_DN)
 
-        # Delete entry for the next pass
-        try:
-            topology_st.standalone.delete_s(ENTRY_DN)
-        except ldap.LDAPError as e:
-            log.fatal('test_pwdAdmin: Failed to delete entry: %s' %
-                      (e.message['desc']))
-            assert False
+def test_pwdAdmin_no_admin(topology_st, password_policy):
+    """Test that password administrators/root DN can
+    bypass password syntax/policy
+
+    :id: 74347798-7cc7-4ce7-ad5c-06387ffde02c
+    :setup: Standalone instance, Password Admin entry,
+        Password policy configured as below:
+            nsslapd-pwpolicy-local: on
+            passwordCheckSyntax: on
+            passwordMinCategories: 1
+            passwordMinTokenLength: 2
+            passwordExp: on
+            passwordMinDigits: 1
+            passwordMinSpecials: 1
+    :steps:
+        1: Create a user
+        2: Attempt to set passwords on the user that are invalid
+    :expectedresults:
+        1: Success
+        2: The passwords should NOT be set
+    """
+    (admin_group, admin1_user, admin2_user) = password_policy
+
+    # Remove password admin
+
+    # Can't use pytest.raises. because this may or may not exist
+    try:
+        topology_st.standalone.config.remove_all('passwordAdminDN')
+    except ldap.NO_SUCH_ATTRIBUTE:
+        pass
 
     #
     # Add the entry for the next round of testing (modify password)
     #
-    entry.setValues('userpassword', ADMIN_PWD)
-    try:
-        topology_st.standalone.add_s(entry)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to add entry with valid password (%s) result (%s)' %
-                  (passwd, e.message['desc']))
-        assert False
+    admin_conn = admin1_user.bind(ADMIN_PWD)
+    admin_users = UserAccounts(admin_conn, DEFAULT_SUFFIX)
 
-    #
-    # Deactivate the password admin and make sure invalid password updates fail
-    #
-    log.info('test_pwdAdmin: Deactivate Password Administator and ' +
-             'try invalid password updates...')
-
-    # Bind as root DN
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Root DN failed to authenticate: ' +
-                  e.message['desc'])
-        assert False
-
-    # Remove password admin
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_DELETE, 'passwordAdminDN', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to remove password admin from config: ' +
-                  e.message['desc'])
-        assert False
-
-    # Bind as Password Admin (who is no longer an admin)
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to bind as the Password Admin: ' +
-                  e.message['desc'])
-        assert False
+    u2 = admin_users.create(properties={
+        'uid': 'example',
+        'cn' : 'example',
+        'sn' : 'example',
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/example',
+        'userPassword': ADMIN_PWD
+    })
 
     #
     # Make invalid password updates that should fail
     #
     for passwd in INVALID_PWDS:
-        failed_as_expected = False
-        entry.setValues('userpassword', passwd)
-        try:
-            topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
-        except ldap.LDAPError as e:
-            # We failed as expected
-            failed_as_expected = True
-            log.info('test_pwdAdmin: Password update failed as expected: password (%s) result (%s)'
-                     % (passwd, e.message['desc']))
+        with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+            u2.replace('userPassword', passwd)
 
-        if not failed_as_expected:
-            log.fatal('test_pwdAdmin: We were incorrectly able to add an invalid password (%s)'
-                      % (passwd))
-            assert False
 
-    #
-    # Now activate a password administator
-    #
-    log.info('test_pwdAdmin: Activate Password Administator and try updates again...')
+def test_pwdAdmin_modify(topology_st, password_policy):
+    """Test that password administrators/root DN can modify
+    passwords rather than adding them.
 
-    # Bind as root DN to make the update
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Root DN failed to authenticate: ' + e.message['desc'])
-        assert False
+    :id: 85326527-8eeb-401f-9d1b-4ef55dee45a4
+    :setup: Standalone instance, Password Admin entry,
+        Password policy configured as below:
+            nsslapd-pwpolicy-local: on
+            passwordCheckSyntax: on
+            passwordMinCategories: 1
+            passwordMinTokenLength: 2
+            passwordExp: on
+            passwordMinDigits: 1
+            passwordMinSpecials: 1
+    :steps:
+        1: Retrieve the user
+        2: Replace the password with invalid content
+    :expectedresults:
+        1: Success
+        2: The password should be set
+    """
+    (admin_group, admin1_user, admin2_user) = password_policy
 
     # Update config - set the password admin
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ADMIN_DN)])
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to add password admin to config: ' +
-                  e.message['desc'])
-        assert False
+    topology_st.standalone.config.set('passwordAdminDN', admin1_user.dn)
 
-    # Bind as Password Admin
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to bind as the Password Admin: ' +
-                  e.message['desc'])
-        assert False
+    admin_conn = admin1_user.bind(ADMIN_PWD)
+    admin_users = UserAccounts(admin_conn, DEFAULT_SUFFIX)
 
+    u3 = admin_users.get('example')
     #
     # Make the same password updates, but this time they should succeed
     #
     for passwd in INVALID_PWDS:
-        try:
-            topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
-        except ldap.LDAPError as e:
-            log.fatal('test_pwdAdmin: Password update failed unexpectedly: password (%s) result (%s)'
-                      % (passwd, e.message['desc']))
-            assert False
-        log.info('test_pwdAdmin: Password update succeeded (%s)' % passwd)
+        u3.replace('userPassword', passwd)
 
-    #
-    # Test Password Admin Group
-    #
-    log.info('test_pwdAdmin: Testing password admin group...')
+def test_pwdAdmin_group(topology_st, password_policy):
+    """Test that password admin group can bypass policy.
 
-    # Bind as root DN to make the update
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Root DN failed to authenticate: ' + e.message['desc'])
-        assert False
+    :id: 4d62ae34-0f25-486e-b823-afd2b431e9b0
+    :setup: Standalone instance, Password Admin entry,
+        Password policy configured as below:
+            nsslapd-pwpolicy-local: on
+            passwordCheckSyntax: on
+            passwordMinCategories: 1
+            passwordMinTokenLength: 2
+            passwordExp: on
+            passwordMinDigits: 1
+            passwordMinSpecials: 1
+    :steps:
+        1: Add group to passwordadmin dn
+        2: Attempt to set invalid passwords.
+    :expectedresults:
+        1: Success.
+        2: Password should be set.
+    """
+    (admin_group, admin1_user, admin2_user) = password_policy
 
     # Update config - set the password admin group
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ADMIN_GROUP_DN)])
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to add password admin to config: ' +
-                  e.message['desc'])
-        assert False
+    topology_st.standalone.config.set('passwordAdminDN', admin_group.dn)
 
-    # Bind as admin2
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN2_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Failed to bind as the Password Admin2: ' +
-                  e.message['desc'])
-        assert False
+    # Bind as admin2, who is in the group.
+
+    admin2_conn = admin2_user.bind(ADMIN_PWD)
+    admin2_users = UserAccounts(admin2_conn, DEFAULT_SUFFIX)
+
+    u4 = admin2_users.get('example')
 
     # Make some invalid password updates, but they should succeed
     for passwd in INVALID_PWDS:
-        try:
-            topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
-        except ldap.LDAPError as e:
-            log.fatal('test_pwdAdmin: Password update failed unexpectedly: password (%s) result (%s)'
-                      % (passwd, e.message['desc']))
-            assert False
-        log.info('test_pwdAdmin: Password update succeeded (%s)' % passwd)
-
-    # Cleanup - bind as Root DN for the other tests
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_pwdAdmin: Root DN failed to authenticate: ' + e.message['desc'])
-        assert False
+        u4.replace('userPassword', passwd)
 
 
 def test_pwdAdmin_config_validation(topology_st, password_policy):
@@ -427,24 +344,15 @@ def test_pwdAdmin_config_validation(topology_st, password_policy):
         2. The operation should fail
     """
 
+    (admin_group, admin1_user, admin2_user) = password_policy
     # Add multiple attributes - one already exists so just try and add the second one
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_ADD, 'passwordAdminDN', ENTRY_DN)])
-        log.fatal('test_pwdAdmin_config_validation: Incorrectly was able to add two config attributes')
-        assert False
-    except ldap.LDAPError as e:
-        log.info('test_pwdAdmin_config_validation: Failed as expected: ' +
-                 e.message['desc'])
+    topology_st.standalone.config.set('passwordAdminDN', admin_group.dn)
+    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+        topology_st.standalone.config.add('passwordAdminDN', admin1_user.dn)
 
     # Attempt to set invalid DN
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_ADD, 'passwordAdminDN', 'ZZZZZ')])
-        log.fatal('test_pwdAdmin_config_validation: Incorrectly was able to add invalid DN')
-        assert False
-    except ldap.LDAPError as e:
-        log.info('test_pwdAdmin_config_validation: Failed as expected: ' +
-                 e.message['desc'])
-
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        topology_st.standalone.config.set('passwordAdminDN', 'zzzzzzzzzzzz')
 
 if __name__ == '__main__':
     # Run isolated

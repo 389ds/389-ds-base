@@ -252,6 +252,21 @@ class DSLdapObject(DSLogging):
         """
         self.set(key, value, action=ldap.MOD_REPLACE)
 
+    def replace_many(self, *args):
+        """Replace many key, value pairs in a single operation.
+        This is useful for configuration changes that require
+        atomic operation, and ease of use.
+
+        An example of usage is replace_many((key, value), (key, value))
+
+        No wrapping list is needed for the arguments.
+
+        :param *args: tuples of key,value to replace.
+        :type *args: (str, str)
+        """
+        mods = list(map(lambda t: (ldap.MOD_REPLACE, ensure_str(t[0]), ensure_bytes(t[1])), args))
+        return self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls)
+
     # This needs to work on key + val, and key
     def remove(self, key, value):
         """Remove a value defined by key
@@ -275,8 +290,7 @@ class DSLdapObject(DSLogging):
         :type key: str
         """
 
-        for val in self.get_attr_vals(key):
-            self.remove(key, val)
+        self.set(key, None, action=ldap.MOD_DELETE)
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):

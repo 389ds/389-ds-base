@@ -13,6 +13,8 @@ from lib389.tasks import *
 from lib389.topologies import topology_st
 from lib389._constants import PASSWORD, DEFAULT_SUFFIX
 
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -37,54 +39,24 @@ def test_password_delete_specific_password(topology_st):
 
     log.info('Running test_password_delete_specific_password...')
 
-    USER_DN = 'uid=test_entry,' + DEFAULT_SUFFIX
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+
+    user = users.create(properties=TEST_USER_PROPERTIES)
 
     #
     # Add a test user with a password
     #
-    try:
-        topology_st.standalone.add_s(Entry((USER_DN, {'objectclass': "top extensibleObject".split(),
-                                                      'sn': '1',
-                                                      'cn': 'user 1',
-                                                      'uid': 'user1',
-                                                      'userpassword': PASSWORD})))
-    except ldap.LDAPError as e:
-        log.fatal('test_password_delete_specific_password: Failed to add test user ' +
-                  USER_DN + ': error ' + e.message['desc'])
-        assert False
+    user.set('userpassword', PASSWORD)
 
     #
     # Delete the exact password
     #
-    try:
-        topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_DELETE, 'userpassword', PASSWORD)])
-    except ldap.LDAPError as e:
-        log.fatal('test_password_delete_specific_password: Failed to delete userpassword: error ' +
-                  e.message['desc'])
-        assert False
+    user.remove('userpassword', PASSWORD)
 
     #
     # Check the password is actually deleted
     #
-    try:
-        entry = topology_st.standalone.search_s(USER_DN, ldap.SCOPE_BASE, 'objectclass=top')
-        if entry[0].hasAttr('userpassword'):
-            log.fatal('test_password_delete_specific_password: Entry incorrectly still have the userpassword attribute')
-            assert False
-    except ldap.LDAPError as e:
-        log.fatal('test_password_delete_specific_password: Failed to search for user(%s), error: %s' %
-                  (USER_DN, e.message('desc')))
-        assert False
-
-    #
-    # Cleanup
-    #
-    try:
-        topology_st.standalone.delete_s(USER_DN)
-    except ldap.LDAPError as e:
-        log.fatal('test_password_delete_specific_password: Failed to delete user(%s), error: %s' %
-                  (USER_DN, e.message('desc')))
-        assert False
+    assert not user.present('userPassword')
 
     log.info('test_password_delete_specific_password: PASSED')
 
