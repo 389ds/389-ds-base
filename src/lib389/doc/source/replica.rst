@@ -1,12 +1,28 @@
 Replica
 ==========
 
+
 Usage example
 --------------
-::
+
+Basically, when you want a simple replica configuration without any hubs, you can use create_topology function.
+In more complex cases you have to use our Replica API to build your own topology exactly the way you want it.
+Still, it is better if you'll use the 'create_topology' method for basic initial setup and then you can continue to expand it.
+
+  ::
+
+    from lib389.topologies import create_topology
+
+    topology = create_topology({ReplicaRole.MASTER: 2,
+                                ReplicaRole.CONSUMER: 2})
+
+
+For basic Replica operations (the rest in the docs bellow):
+
+  ::
 
     from lib389.replica import Replicas
-     
+
     replicas = Replicas(standalone)
     # Enable replication
     # - changelog will be created
@@ -53,6 +69,14 @@ Usage example
 
 Module documentation
 -----------------------
+
+.. autoclass:: lib389.replica.ReplicationManager
+   :members:
+   :inherited-members:
+
+.. autoclass:: lib389.replica.RUV
+   :members:
+   :inherited-members:
 
 .. autoclass:: lib389.replica.Replicas
    :members:

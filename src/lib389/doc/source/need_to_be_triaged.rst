@@ -6,9 +6,7 @@ Need to be triaged
    backend.rst
    config.rst
    dirsrv_log.rst
-   dseldif.rst
    paths.rst
-   indexes.rst
    ldclt.rst
    mappingtree.rst
    monitor.rst

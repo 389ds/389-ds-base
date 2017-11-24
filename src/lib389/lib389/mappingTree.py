@@ -414,7 +414,7 @@ class MappingTree(DSLdapObject):
 
 
 class MappingTrees(DSLdapObjects):
-    """DSLdapObjects that presents Mapping trees
+    """DSLdapObjects that represents Mapping trees
 
     :param instance: An instance
     :type instance: lib389.DirSrv

@@ -10,49 +10,36 @@ with master1 , etc.
 Basic workflow
 ==============
 
-1. Clone ds repo:
-    + git clone ssh://git@pagure.io/389-ds-base.git
-        + One can change the old repos like this in .git/config files
-        + For ds (dirsrv) use link - https://pagure.io/389-ds-base.git
-        + For lib389 use link - https://pagure.io/lib389.git
+1. Clone 389-ds-base repo
+    + Clone the origin repo
+    + Go to https://pagure.io/389-ds-base and fork the repo
+    + Add the forked repo link as a remote to your local git repo
+
+   ::
+
+       git clone ssh://git@pagure.io/389-ds-base.git
+       git remote add myfork ssh://git@pagure.io/forks/USERNAME/389-ds-base.git
 
 2. Go to the cloned directory
 3. Create a new branch for your work:
    ::
 
        git checkout -b new_test_suite
+
 4. Check out PEP8 cheat sheet:
     + https://gist.github.com/RichardBronosky/454964087739a449da04
     + https://www.python.org/dev/peps/pep-0008/
     + It is not fully mandatory in our project, but let's make our code a
       bit cleaner for other's sake
 
-5. Use ./dirsrvtests/create_test.py tool to generate new test.py file.
-    + Usage:
+5. If you develop a new test, use ./dirsrvtests/create_test.py tool to generate new test.py file.
 
       ::
 
-        create_ticket.py -t|--ticket <ticket number> -s|--suite <suite name>
-        [ i|--instances <number of standalone instances> [ -m|--masters
-        <number of masters> -h|--hubs <number of hubs> -c|--consumers <number
-        of consumers> ] -o|--outputfile]
-
-        Create a test suite script using "-s|--suite" instead of using
-        "-t|–ticket". One day, all 'tickets' will be transferred to 'suites',
-        so try to avoid the 'tickets' and try to find the place in 'suites'
-        for you case. Ask around is you have doubts.
-        Option "-i" can add multiple standalone instances. However, you can
-        not mix "-i" with the replication options(-m, -h ,-c).
-
-
-    + For example:
-
-      :: 
-
         create_test.py -s basic -m 2 -o ./dirsrvtests/tests/suites/basic/basic_test.py
         # It will create basic_test.py with two masters set up and put the file to right dir
-    
-    
+
+
     + If you are creating a test suite, the script will add one test case
       for you with generated ID in the docstring (and it will check it for
       uniqueness)
@@ -62,6 +49,24 @@ Basic workflow
       ::
 
         python -c 'import uuid; print(uuid.uuid4())'
+
+    + We need to have proper docstring for every test case. We need them because it makes easier to understand
+      what is happening in the test. Also we have an inside metric system with test plans there.
+      We use them for our overall testing process improvement. You can take it as an example:
+
+      ::
+
+        """Test if member is automatically added to the group
+
+        :id: 38621a51-03bc-4fba-93ef-7e525df87c5d
+        :setup: Standalone instance, enabled Auto Membership Plugin
+        :steps:
+            1. Create a user
+            2. Assert that the user is member of the group
+        :expectedresults:
+            1. Should be success
+            2. Should be success
+        """
 
 
 6. Add some fixture(s), if needed. The purpose of test fixtures is to
@@ -98,23 +103,54 @@ Basic workflow
 8. Write some good code with encapsulations, assertions etc.
 9. Commit and push your code to your repo:
 
-   ::
+  + Commands:
 
-    git add ./dirsrvtests/tests/suites/basic/basic_test.py
-    git commit
-    git push $(whoami)
+    ::
+
+      git add ./dirsrvtests/tests/suites/basic/basic_test.py
+      git commit
+      git push myfork
 
 
-10. Test your script:
+  + Basic guidelines for the commit message format
+
+    + Separate subject from body with a blank line
+    + Limit the subject line to 50 characters
+    + Capitalizethesubject line
+    + Do not end the subject line with a period
+    + Use the imperative mood in the subject line
+    + Wrap the body at 72 characters
+    + Use the body to explain *what* and *why* vs. *how*
+    + In the end, put a link to the ticket
+    + Add "Reviewed by: ?" line. Example:
 
       ::
 
+        Issue 48085 - Expand the repl acceptance test suite
+
+        Description: Add 6 more test cases to the replication
+        test suite as a part of the TET to
+        pytest porting initiative.
+        Increase the number of seconds we wait before the results check.
+
+        https://pagure.io/389-ds-base/issue/48085
+
+        Reviewed by: ?
+
+10. Test your script:
+
+    If you want to have the instances not to be deleted after the test case execution,
+    you need to set DEBUGGING environment variable to something.
+
+      ::
+
+        export DEBUGGING=yes
         py.test -v -s /mnt/testarea/test/ds/dirsrvtests/suites/basic
 
 
-11. If everything is alright, then create a patch file for a review:
+11. If everything is alright, then create a pull-request:
 
-    + Go back to ds or lib389 dir (depends on where you want to send the patch) and do:
+    + Go back to 389-ds-base dir (depends on where you want to send the patch) and do:
 
       ::
 
@@ -122,47 +158,50 @@ Basic workflow
         git pull
         git checkout new_test_suite
         git rebase master
-        git format-patch -1
 
 
-    + Basic guidelines for the commit message format
+    + Go to https://pagure.io/389-ds-base/pull-requests
+    + Press "File Pull Request" button and choose your branch
+    + Check that all fields have a right information and press 'Create' button
 
-        + Separate subject from body with a blank line
-        + Limit the subject line to 50 characters
-        + Capitalizethesubject line
-        + Do not end the subject line with a period
-        + Use the imperative mood in the subject line
-        + Wrap the body at 72 characters
-        + Use the body to explain *what* and *why* vs. *how*
-        + In the end, put a link to the ticket
-        + Add "Reviewed by: ?" line. Example:
+    + Alternatively you can create and upload a patch file (it was an old way before the pull-requests)
+        + After the first step in this section you can run the next command to generate a patch file from the last commit:
 
-        Issue 48085 - Expand the repl acceptance test suite
-        Description: Add 6 more test cases to the replication
-        test suite as a part of the TET to
-        pytest porting initiative.
-        Increase the number of seconds we wait before the results check.
+          ::
 
-        https://pagure.io/389-ds-base/issue/48085
-        
-        Reviewed by: ?
+            git format-patch -1
+
+        + Attach the patch to the Pagure issue
+    + Set reviewstatus field to 'review' in the Pagure issue
+    + Send an email to 389-devel@lists.fedoraproject.org with
+
+      ::
+
+        Subject: Please review: YOUR COMMIT FIRST LINE
+
+        Body: The links to the upstream ticket and the pull-request (or the patch).
 
 
 12. Fixing Review Issues
 
-    + If there are issues with your patch, git allows you to fix your
+    + If there are issues with your change, git allows you to fix your
       commits.
-    + If you're not already in that branch
-    + git checkout new_test_suite
-    + Make changes to some file
-    + Add changes to your commit and fix the commit message if necessary
 
       ::
 
+        # If you're not already in that branch
+        git checkout new_test_suite
+        # Make changes to some file
+        # Add changes to your commit and fix the commit message if necessary
         git commit -a --amend
 
     + You can also use “ git rebase -i ” to “squash” or combine several
       commits into one commit.
+    + After the changes are commited, push tht commit to your fork branch (or upload a new patch)
+
+      ::
+
+        git push myfork --force
 
 
 Fixtures
@@ -354,10 +393,20 @@ So we should use lib389 functions as much as possible because they take care of 
 
 If you still must use 'modify_s', 'add_s' or other python-ldap functions, you should consider defining the attribute as 'byte'. You can do this like this, with b'' symbol:
 
-::
+  ::
 
         # Modify an entry
         standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'cn', b'Mark Reynolds')])
+
+Or if you have a complex string or variable that you want to convert, you can use 'ensure_*' functions for that:
+
+  ::
+
+         from lib389.utils import (ensure_bytes, ensure_str, ensure_int, ensure_list_bytes,
+                                   ensure_list_str, ensure_list_int)
+
+         standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'jpegPhoto', ensure_bytes(var_with_content)])
+
 
 
 Constants
@@ -366,7 +415,7 @@ Constants
 Basic constants
 ~~~~~~~~~~~~~~~
 
-::
+  ::
 
         DEFAULT_SUFFIX = “dc=example,dc=com”
         DN_DM = "cn=Directory Manager"
@@ -390,7 +439,7 @@ https://pagure.io/lib389/blob/master/f/lib389/_constants.py . If
 you need a constant, use this kind of import.
 If you need a lot of constants, import with *
 
-::
+  ::
 
     from lib389._constants import CONSTANT_YOU_NEED
     from lib389._constants import *
@@ -402,13 +451,12 @@ Add, Modify, and Delete Operations
 Please, use these methods for the operations that can't be performed
 by DSLdapObjects.
 
-::
+  ::
 
     # Add an entry
     USER_DN = 'cn=mreynolds,{}'.format(DEFAULT_SUFFIX)
     standalone.add_s(Entry((USER_DN, {
-                                  'objectclass': b'top',
-                                  'objectclass': b'person',
+                                  'objectclass': (b'top', b'person'),
                                   'cn': b'mreynolds',
                                   'sn': b'reynolds',
                                   'userpassword': b'password'
@@ -428,7 +476,7 @@ Search and Bind Operations
   authenticated as the Root DN(Directory Manager).
 + So you can just start searching without having to “bind”
 
-::
+  ::
 
     # Search
     entries = standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)', ['cn'])
@@ -455,33 +503,14 @@ Search and Bind Operations
 Basic instance operations
 ===================================
 
-::
+  ::
 
-    # First, create a new “instance” of a “DirSrv” object
-    standalone = DirSrv(verbose=False)
-     
-    # Set up the instance arguments (note - args_instance is a global dictionary
-    # in lib389, it contains other default values)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    # Allocate the instance - initialize the “DirSrv” object with our arguments
-    standalone.allocate(args_standalone)
-    # Check if the instance with the args exists
-    assert not standalone.exists() 
-    # Create the instance - this runs setup-ds.pl and starts the server
-    standalone.create()
-    
-    # Open the instance - create a connection to the instance,
-    # and authenticates as the Root DN (cn=directory manager)
-    standalone.open()
-    # Done, you can start using the new instance
     # While working with DirSrv object, you can set 'verbose' parameter to True in any moment
     standalone.verbose = True
+
     # To remove an instance, simply use:
     standalone.delete()
+
     # Start, Stop, and Restart the Server
     standalone.start(timeout=10)
     standalone.stop(timeout=10)
@@ -494,47 +523,78 @@ Basic instance operations
 Setting up SSL/TLS
 ===================================
 
-::
+You need only one line to enable SSL/TLS on the instance.
 
-    from lib389._constants import DEFAULT_SUFFIX, SECUREPORT_STANDALONE1
-    
-    standalone.stop()
-     
-    # Re-init (create) the nss db
-    # pin.txt is created here and the password randomly generated
-    assert(standalone.nss_ssl.reinit() is True)
-     
-    # Create a self signed CA
-    # noise.txt is created here
-    assert(standalone.nss_ssl.create_rsa_ca() is True)
-     
-    # Create a key and a cert that is signed by the self signed ca
-    # This will use the hostname from the DS instance, and takes a list of extra names to take.
-    assert(standalone.nss_ssl.create_rsa_key_and_cert() is True)
-        
-    standalone.start()
-    
-    # Create "cn=RSA,cn=encryption,cn=config" with next properties:
-    # {'cn': 'RSA', 'nsSSLPersonalitySSL': 'Server-Cert', 'nsSSLActivation': 'on', 'nsSSLToken': 'internal (software)'}
-    standalone.rsa.create()
-    # Set the secure port and nsslapd-security
-    standalone.config.set('nsslapd-secureport', str(SECUREPORT_STANDALONE1))
-    standalone.config.set('nsslapd-security', 'on')
-    standalone.sslport = SECUREPORT_STANDALONE1
-    
-    # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
-    standalone.restart(post_open=False)
+  ::
+
+    standalone.enable_tls()
 
 
 Certification-based authentication
 ===================================
 
-You need to setup and turn on SSL first (use the previous chapter).
+For the SSLCLIENTAUTH setup, you need:
 
-::
+  ::
 
+    from lib389.idm.services import ServiceAccounts
     from lib389.config import CertmapLegacy
-    
+    from lib389.replica import ReplicationManager, Replicas
+
+    # Create the certmap before we restart for enable_tls
+    cm_m1 = CertmapLegacy(m1)
+    cm_m2 = CertmapLegacy(m2)
+
+    # We need to configure the same maps for both
+    certmaps = cm_m1.list()
+    certmaps['default']['DNComps'] = None
+    certmaps['default']['CmapLdapAttr'] = 'nsCertSubjectDN'
+
+    cm_m1.set(certmaps)
+    cm_m2.set(certmaps)
+
+    [i.enable_tls() for i in topo_m2]
+
+    # Create the replication dns
+    services = ServiceAccounts(m1, DEFAULT_SUFFIX)
+    repl_m1 = services.get('%s:%s' % (m1.host, m1.sslport))
+    repl_m1.set('nsCertSubjectDN', m1.get_server_tls_subject())
+
+    repl_m2 = services.get('%s:%s' % (m2.host, m2.sslport))
+    repl_m2.set('nsCertSubjectDN', m2.get_server_tls_subject())
+
+    # Check the replication is "done".
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(m1, m2)
+
+    # Now change the auth type
+    replica_m1 = Replicas(m1).get(DEFAULT_SUFFIX)
+    agmt_m1 = replica_m1.get_agreements().list()[0]
+
+    agmt_m1.replace_many(
+        ('nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH'),
+        ('nsDS5ReplicaTransportInfo', 'SSL'),
+        ('nsDS5ReplicaPort', '%s' % m2.sslport),
+    )
+    agmt_m1.remove_all('nsDS5ReplicaBindDN')
+
+    replica_m2 = Replicas(m2).get(DEFAULT_SUFFIX)
+    agmt_m2 = replica_m2.get_agreements().list()[0]
+
+    agmt_m2.replace_many(
+        ('nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH'),
+        ('nsDS5ReplicaTransportInfo', 'SSL'),
+        ('nsDS5ReplicaPort', '%s' % m1.sslport),
+    )
+    agmt_m2.remove_all('nsDS5ReplicaBindDN')
+
+    repl.test_replication_topology(topo_m2)
+
+
+And if you want just TLS authentication on a single instance:
+
+  ::
+
     standalone.stop()
      
     # Create a user
@@ -573,40 +633,3 @@ You need to setup and turn on SSL first (use the previous chapter).
     
     assert(conn.whoami_s() == "dn: uid=testuser,ou=People,dc=example,dc=com")
 
-
-Replication
-===================================
-
-Basic configuration
-
-+ After the instance is created, you can enable it for replication and
-  set up a replication agreement.
-
-::
-
-    from lib389.replica import Replicas
-     
-    # Enable replication 
-    replicas = Replicas(standalone)
-    replica = replicas.enable(suffix=DEFAULT_SUFFIX,
-                              role=REPLICAROLE_MASTER,
-                              replicaID=REPLICAID_MASTER_1)
-    # Set up replication agreement properties
-    properties = {RA_NAME:           r'meTo_{}:{}'.format(master2.host, port=master2.port),
-                  RA_BINDDN:         defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW:         defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD:         defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    
-    # Create the agreement
-    repl_agreement = standalone.agreement.create(suffix=DEFAULT_SUFFIX, 
-                                                 host=master2.host,
-                                                 port=master2.port,
-                                                 properties=properties)
-    # “master2” refers to another, already created, DirSrv instance(like “standalone”)
-    # “repl_agreement” is the “DN” of the newly created agreement - this DN is needed later to do certain tasks
-    
-    # Initialize the agreement, wait for it complete, and test that replication is really working
-    standalone.agreement.init(DEFAULT_SUFFIX, master2.host, master2.port)
-    replica.start_and_wait(repl_agreement)
-    assert replicas.test(master2)

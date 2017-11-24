@@ -37,7 +37,8 @@ Module documentation
 
 .. autoclass:: lib389.idm.group.Groups
    :members:
+   :inherited-members:
 
 .. autoclass:: lib389.idm.group.Group
    :members:
-
+   :inherited-members:

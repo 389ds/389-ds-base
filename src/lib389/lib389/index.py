@@ -23,7 +23,18 @@ if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
 
 DEFAULT_INDEX_DN = "cn=default indexes,%s" % DN_CONFIG_LDBM
 
+
 class Index(DSLdapObject):
+    """Index DSLdapObject with:
+    - must attributes = ['cn', 'nsSystemIndex', 'nsIndexType']
+    - RDN attribute is 'cn'
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Index DN
+    :type dn: str
+    """
+
     def __init__(self, instance, dn=None):
         super(Index, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
@@ -32,13 +43,23 @@ class Index(DSLdapObject):
         self._protected = False
         self._lint_functions = []
 
+
 class Indexes(DSLdapObjects):
+    """DSLdapObjects that represents Index
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: DN of suffix container.
+    :type basedn: str
+    """
+
     def __init__(self, instance, basedn=DEFAULT_INDEX_DN):
         super(Indexes, self).__init__(instance=instance)
         self._objectclasses = ['nsIndex']
         self._filterattrs = ['cn']
         self._childobject = Index
         self._basedn = basedn
+
 
 class IndexLegacy(object):
 

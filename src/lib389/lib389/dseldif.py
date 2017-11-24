@@ -11,7 +11,11 @@ from lib389.paths import Paths
 
 
 class DSEldif(object):
-    """A class for working with dse.ldif file"""
+    """A class for working with dse.ldif file
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
 
     def __init__(self, instance):
         self._instance = instance
@@ -59,7 +63,13 @@ class DSEldif(object):
         return entry_dn_i, attr_data
 
     def get(self, entry_dn, attr):
-        """Return attribute values under a given entry"""
+        """Return attribute values under a given entry
+
+        :param entry_dn: a DN of entry we want to get attribute from
+        :type entry_dn: str
+        :param attr: an attribute name
+        :type attr: str
+        """
 
         try:
             _, attr_data = self._find_attr(entry_dn, attr)
@@ -69,14 +79,30 @@ class DSEldif(object):
         return attr_data.values()
 
     def add(self, entry_dn, attr, value):
-        """Add an attribute under a given entry"""
+        """Add an attribute under a given entry
+
+        :param entry_dn: a DN of entry we want to edit
+        :type entry_dn: str
+        :param attr: an attribute name
+        :type attr: str
+        :param value: an attribute value
+        :type value: str
+        """
 
         entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
         self._contents.insert(entry_dn_i+1, "{}: {}\n".format(attr, value))
         self._update()
 
     def delete(self, entry_dn, attr, value=None):
-        """Delete attributes under a given entry"""
+        """Delete attributes under a given entry
+
+        :param entry_dn: a DN of entry we want to edit
+        :type entry_dn: str
+        :param attr: an attribute name
+        :type attr: str
+        :param value: an attribute value
+        :type value: str
+        """
 
         entry_dn_i, attr_data = self._find_attr(entry_dn, attr)
 
@@ -90,7 +116,15 @@ class DSEldif(object):
         self._update()
 
     def replace(self, entry_dn, attr, value):
-        """Replace attribute values with a new one under a given entry"""
+        """Replace attribute values with a new one under a given entry
+
+        :param entry_dn: a DN of entry we want to edit
+        :type entry_dn: str
+        :param attr: an attribute name
+        :type attr: str
+        :param value: an attribute value
+        :type value: str
+        """
 
         try:
             self.delete(entry_dn, attr)

@@ -24,6 +24,8 @@ Contents
    Configuring Databases <databases.rst>
    Access Control <accesscontrol.rst>
    Identity Management <identitymanagement.rst>
+   DSE ldif <dseldif.rst>
+   Indexes <indexes.rst>
 
 Work in progress
 -----------------

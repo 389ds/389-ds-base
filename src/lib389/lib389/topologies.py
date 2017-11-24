@@ -37,9 +37,13 @@ log = logging.getLogger(__name__)
 def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     """Create a requested topology. Cascading replication scenario isn't supported
 
-    @param topo_dict - dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
+    :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
                                    ReplicaRole.CONSUMER: num}
-    @return - TopologyMain object
+    :type topo_dict: dict
+    :param suffix: a suffix for the replication
+    :type suffix: str
+
+    :return - TopologyMain object
     """
 
     if not topo_dict:
