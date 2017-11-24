@@ -20,6 +20,8 @@
 # This enables rust in the build.
 %global use_rust __RUST_ON__
 
+%global use_perl __PERL_ON__
+
 %if %{use_asan}
 %global use_tcmalloc 0
 %global variant base-asan
@@ -115,6 +117,7 @@ BuildRequires:    gperftools-devel
 # Now, attach the requires only to the package that needs them.
 # -libs has most of our runtime libs
 Requires:         %{name}-libs = %{version}-%{release}
+Requires:         python%{python3_pkgversion}-lib389 = %{version}-%{release}
 # Attach to -base our script deps
 %if %{use_tcmalloc}
 Requires:         gperftools-libs
@@ -284,6 +287,10 @@ TCMALLOC_FLAGS="--enable-tcmalloc"
 RUST_FLAGS="--enable-rust"
 %endif
 
+%if !%{use_perl}
+PERL_FLAGS="--disable-perl"
+%endif
+
 # Rebuild the autotool artifacts now.
 autoreconf -fiv
 
@@ -292,7 +299,7 @@ autoreconf -fiv
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
-           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $RUST_FLAGS \
+           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $RUST_FLAGS $PERL_FLAGS \
            --enable-cmocka
 
 %if 0%{?rhel} >= 8 || 0%{?fedora}
@@ -344,8 +351,11 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.la
 
+
+%if %{use_perl}
 # make sure perl scripts have a proper shebang 
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
+%endif
 
 %check
 # This checks the code, if it fails it prints why, then re-raises the fail to shortcircuit the rpm build.
@@ -386,6 +396,8 @@ if ! getent passwd $USERNAME >/dev/null ; then
     fi
 fi
 
+%if %{use_perl}
+# START UPGRADE SCRIPT
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
 instbase="%{_sysconfdir}/%{pkgname}"
 for dir in $instbase/slapd-* ; do
@@ -429,6 +441,9 @@ for inst in $instances ; do
     echo restarting instance $inst >> $output 2>&1 || :
     /bin/systemctl start $inst >> $output 2>&1 || :
 done
+#END UPGRADE 
+%endif
+
 exit 0
 
 %preun
@@ -471,6 +486,15 @@ fi
 %{_bindir}/*
 # We have to seperate this from being a glob to ensure the caps are applied.
 %caps(CAP_NET_BIND_SERVICE=pe) %{_sbindir}/ns-slapd
+%{_sbindir}/dsconf
+%{_sbindir}/dscreate
+%{_sbindir}/dsctl
+%{_sbindir}/dsidm
+%{_sbindir}/ds_selinux_enabled
+%{_sbindir}/ds_selinux_port_query
+%{_sbindir}/ds_systemd_ask_password_acl
+%if %{use_perl}
+%{_sbindir}/monitor
 %{_sbindir}/bak2db
 %{_sbindir}/bak2db.pl
 %{_sbindir}/cleanallruv.pl
@@ -483,16 +507,12 @@ fi
 %{_sbindir}/dbmon.sh
 %{_sbindir}/dbverify
 %{_sbindir}/dn2rdn
-%{_sbindir}/ds_selinux_enabled
-%{_sbindir}/ds_selinux_port_query
-%{_sbindir}/ds_systemd_ask_password_acl
 %{_sbindir}/fixup-linkedattrs.pl
 %{_sbindir}/fixup-memberof.pl
 %{_sbindir}/ldif2db
 %{_sbindir}/ldif2db.pl
 %{_sbindir}/ldif2ldap
 %{_sbindir}/migrate-ds.pl
-%{_sbindir}/monitor
 %{_sbindir}/ns-accountstatus.pl
 %{_sbindir}/ns-activate.pl
 %{_sbindir}/ns-inactivate.pl
@@ -514,6 +534,7 @@ fi
 %{_sbindir}/verify-db.pl
 %{_sbindir}/vlvindex
 %{_libdir}/%{pkgname}/perl
+%endif
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
@@ -569,10 +590,6 @@ fi
 %files -n python%{python3_pkgversion}-lib389
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+
-%{_sbindir}/dsconf
-%{_sbindir}/dscreate
-%{_sbindir}/dsctl
-%{_sbindir}/dsidm
 %{python3_sitelib}/lib389*
 %endif
 

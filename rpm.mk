@@ -11,6 +11,7 @@ TARBALL = $(NAME_VERSION).tar.bz2
 NUNC_STANS_ON = 1
 ASAN_ON = 0
 RUST_ON = 0
+PERL_ON = 1
 
 clean:
 	rm -rf dist
@@ -38,6 +39,7 @@ rpmroot:
 	-e s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/ \
 	-e s/__RUST_ON__/$(RUST_ON)/ \
 	-e s/__ASAN_ON__/$(ASAN_ON)/ \
+	-e s/__PERL_ON__/$(PERL_ON)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
 
 rpmdistdir:
@@ -49,7 +51,6 @@ srpmdistdir:
 rpmbuildprep:
 	cp dist/sources/$(TARBALL) $(RPMBUILD)/SOURCES/
 	cp rpm/$(PACKAGE)-* $(RPMBUILD)/SOURCES/
-
 
 srpms: rpmroot srpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
@@ -65,8 +66,7 @@ patch_srpms: rpmroot srpmdistdir tarballs rpmbuildprep
 
 rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	cp $(RPMBUILD)/RPMS/*/$(RPM_NAME_VERSION)*.rpm dist/rpms/
-	cp $(RPMBUILD)/RPMS/*/$(PACKAGE)-*-$(RPM_VERSION)*.rpm dist/rpms/
+	cp $(RPMBUILD)/RPMS/*/*$(RPM_VERSION)$(RPM_VERSION_PREREL)*.rpm dist/rpms/
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
 
@@ -74,7 +74,6 @@ patch_rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
 	cp rpm/*.patch $(RPMBUILD)/SOURCES/
 	rpm/add_patches.sh rpm $(RPMBUILD)/SPECS/$(PACKAGE).spec
 	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	cp $(RPMBUILD)/RPMS/*/$(RPM_NAME_VERSION)*.rpm dist/rpms/
-	cp $(RPMBUILD)/RPMS/*/$(PACKAGE)-*-$(RPM_VERSION)*.rpm dist/rpms/
+	cp $(RPMBUILD)/RPMS/*/*$(RPM_VERSION)$(RPM_VERSION_PREREL)*.rpm dist/rpms/
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)

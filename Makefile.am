@@ -45,6 +45,12 @@ RUST_LDFLAGS =
 RUST_DEFINES =
 endif
 
+if ENABLE_PERL
+PERL_ON = 1
+else
+PERL_ON = 0
+endif
+
 # We can't add the lfds includes all the time as they have a "bomb" in them that
 # prevents compilation on unsupported hardware arches.
 if ATOMIC_QUEUE_OPERATIONS
@@ -2297,6 +2303,7 @@ rpmbrprep: dist-bzip2 rpmroot
 		-e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" \
 		-e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" \
 		-e "s/__RUST_ON__/$(RUST_ON)/" \
+		-e "s/__PERL_ON__/$(PERL_ON)/" \
 		-e "s/__ASAN_ON__/$(ASAN_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
 # Requires rpmdevtools. Consider making this a dependancy of rpms.

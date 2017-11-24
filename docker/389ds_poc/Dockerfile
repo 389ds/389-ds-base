@@ -6,34 +6,30 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-FROM centos:7
+FROM fedora:26
 MAINTAINER 389-devel@lists.fedoraproject.org
 EXPOSE 389 636
 ENV container docker
-ARG lib389repository=https://pagure.io/lib389.git
-ARG dsrepository=https://pagure.io/389-ds-base.git
-ARG lib389branch=master
-ARG dsbranch=master
 
 RUN mkdir -p /usr/local/src
 WORKDIR /usr/local/src
 
-RUN yum upgrade -y && \
-    yum install -y @buildsys-build rpm-build make epel-release bzip2 git && \
-    yum clean all
+ADD ./ /usr/local/src/389-ds-base
 
-RUN git clone --depth=1 --branch=$lib389branch $lib389repository lib389 && \
-    git clone --depth=1 --branch=$dsbranch $dsrepository 389-ds-base
+RUN dnf upgrade -y && \
+    dnf install --setopt=strict=False -y \
+        @buildsys-build rpm-build make bzip2 git rsync \
+        `grep -E "^(Build)?Requires" 389-ds-base/rpm/389-ds-base.spec.in | grep -v -E '(name|MODULE)' | awk '{ print $2 }' | sed 's/%{python3_pkgversion}/3/g' | grep -v "^/" | grep -v pkgversion | sort | uniq | tr '\n' ' '` && \
+    dnf clean all
 
-RUN yum install -y --skip-broken `grep -E "^(Build)?Requires" 389-ds-base/rpm/389-ds-base.spec.in lib389/python-lib389.spec | grep -v -E '(name|MODULE)' | awk '{ print $2 }' | grep -v "^/" | grep -v pkgversion | sort | uniq|  tr '\n' ' '` && \
-    yum clean all
 
-RUN make -C lib389/ rpm
+### CHANGE THIS TO A ./configure and build that way.
 
-RUN cd 389-ds-base && make -f rpm.mk rpms
+RUN cd 389-ds-base && \
+    PERL_ON=0 RUST_ON=1 make -f rpm.mk rpms
 
-RUN yum install -y 389-ds-base/dist/rpms/389*.rpm lib389/rpmbuild/RPMS/noarch/*lib389* && \
-    yum clean all
+RUN dnf install -y 389-ds-base/dist/rpms/*389*.rpm && \
+    dnf clean all
 
 # Create the example setup inf. It's valid for containers!
 # Build the instance from the new installer tools.
