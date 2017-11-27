@@ -73,6 +73,7 @@ from lib389._ldifconn import LDIFConn
 from lib389.tools import DirSrvTools
 from lib389.mit_krb5 import MitKrb5
 from lib389.utils import (
+    ds_is_older,
     isLocalHost,
     is_a_dn,
     normalizeDN,
@@ -83,6 +84,7 @@ from lib389.utils import (
     ensure_bytes,
     ensure_str)
 from lib389.paths import Paths
+from lib389.nss_ssl import NssSsl
 
 # mixin
 # from lib389.tools import DirSrvTools
@@ -292,7 +294,6 @@ class DirSrv(SimpleLDAPObject, object):
     def __add_brookers__(self):
         from lib389.config import Config
         from lib389.aci import Aci
-        from lib389.nss_ssl import NssSsl
         from lib389.config import RSA
         from lib389.config import Encryption
         from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
@@ -334,7 +335,6 @@ class DirSrv(SimpleLDAPObject, object):
         self.mappingtrees = MappingTrees(self)
         self.replicas = Replicas(self)
         self.aci = Aci(self)
-        self.nss_ssl = NssSsl(self)
         self.rsa = RSA(self)
         self.encryption = Encryption(self)
         self.ds_access_log = DirsrvAccessLog(self)
@@ -503,51 +503,48 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError("invalid state for calling allocate: %s" %
                              self.state)
 
+        self.isLocal = False
         if SER_SERVERID_PROP not in args:
             self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
             # The lack of this value basically rules it out in most cases
-            self.isLocal = False
             self.ds_paths = Paths(instance=self)
         else:
             self.ds_paths = Paths(args[SER_SERVERID_PROP], instance=self)
-
+            # Settings from args of server attributes
+            self.serverid = args.get(SER_SERVERID_PROP, None)
+            # Probably local?
+            self.isLocal = True
 
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
         self.ldapi_enabled = args.get(SER_LDAPI_ENABLED, 'off')
         self.ldapi_socket = args.get(SER_LDAPI_SOCKET, None)
-        self.host = None
-        self.ldapuri = None
-        self.sslport = None
-        self.port = None
+        self.ldapuri = args.get(SER_LDAP_URL, None)
+        self.log.debug("Allocate %s with %s" % (self.__class__, self.ldapuri))
+        # Still needed in setup, even if ldapuri over writes.
+        self.host = args.get(SER_HOST, LOCALHOST)
+        self.port = args.get(SER_PORT, DEFAULT_PORT)
+        self.sslport = args.get(SER_SECURE_PORT)
+
         self.inst_scripts = args.get(SER_INST_SCRIPTS_ENABLED, None)
+
         # Or do we have tcp / ip settings?
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
             self.isLocal = True
             if self.verbose:
                 self.log.info("Allocate %s with %s" % (self.__class__, self.ldapi_socket))
-        elif args.get(SER_LDAP_URL, None) is not None:
-            self.ldapuri = args.get(SER_LDAP_URL)
-            if self.verbose:
-                self.log.info("Allocate %s with %s" % (self.__class__, self.ldapuri))
-        else:
-            # Settings from args of server attributes
-            self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
-            if self.strict_hostname is True:
-                self.host = args.get(SER_HOST, LOCALHOST)
-                if self.host == LOCALHOST:
-                    DirSrvTools.testLocalhost()
-                else:
-                    # Make sure our name is in hosts
-                    DirSrvTools.searchHostsFile(self.host, None)
+        # Settings from args of server attributes
+        self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
+        if self.strict_hostname is True:
+            if self.host == LOCALHOST:
+                DirSrvTools.testLocalhost()
             else:
-                self.host = args.get(SER_HOST, LOCALHOST_SHORT)
-            self.port = args.get(SER_PORT, DEFAULT_PORT)
-            self.sslport = args.get(SER_SECURE_PORT)
+                # Make sure our name is in hosts
+                DirSrvTools.searchHostsFile(self.host, None)
             self.isLocal = isLocalHost(self.host)
-            if self.verbose:
-                self.log.info("Allocate %s with %s:%s" % (self.__class__, self.host, (self.sslport or self.port)))
+
+        self.log.debug("Allocate %s with %s:%s" % (self.__class__, self.host, (self.sslport or self.port)))
 
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
         self.bindpw = args.get(SER_ROOT_PW, PW_DM)
@@ -562,8 +559,6 @@ class DirSrv(SimpleLDAPObject, object):
                 else:
                     self.userid = pwd.getpwuid(os.getuid())[0]
 
-            # Settings from args of server attributes
-            self.serverid = args.get(SER_SERVERID_PROP, None)
             self.groupid = args.get(SER_GROUP_ID, self.userid)
             self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
             # Allocate from the args, or use our env, or use /
@@ -589,23 +584,22 @@ class DirSrv(SimpleLDAPObject, object):
                                                       (self.sslport or
                                                        self.port)))
 
-    def openConnection(self, *args, **kwargs):
+    def clone(self, args_instance={}):
         """
         Open a new connection to our LDAP server
         *IMPORTANT*
-        This is different to re-opening on the same dirsrv, as bugs in pyldap
+        This is different to re-opening on the same dirsrv, as quirks in pyldap
         mean that ldap.set_option doesn't take effect! You need to use this
-        to allow some of the start TLS options to work!
+        to allow all of the start TLS options to work!
         """
         server = DirSrv(verbose=self.verbose)
+        args_instance[SER_LDAP_URL] = self.ldapuri
         args_instance[SER_HOST] = self.host
         args_instance[SER_PORT] = self.port
-        if self.sslport is not None:
-            args_instance[SER_SECURE_PORT] = self.sslport
+        args_instance[SER_SECURE_PORT] = self.sslport
         args_instance[SER_SERVERID_PROP] = self.serverid
         args_standalone = args_instance.copy()
         server.allocate(args_standalone)
-        server.open(*args, **kwargs)
 
         return server
 
@@ -919,8 +913,6 @@ class DirSrv(SimpleLDAPObject, object):
                             (self.prefix, self.serverid))
             self.restart()
 
-            # Restart the instance
-
     def _createPythonDirsrv(self, version):
         """
         Create a new dirsrv instance based on the new python installer, rather
@@ -944,6 +936,8 @@ class DirSrv(SimpleLDAPObject, object):
         slapd_options.set('secure_port', self.sslport)
         slapd_options.set('root_password', self.bindpw)
         slapd_options.set('root_dn', self.binddn)
+        #We disable TLS during setup, we use a function in tests to enable instead.
+        slapd_options.set('self_sign_cert', False)
         slapd_options.set('defaults', version)
 
         slapd_options.verify()
@@ -1002,6 +996,10 @@ class DirSrv(SimpleLDAPObject, object):
             self._createPythonDirsrv(version)
         else:
             self._createDirsrv()
+
+        # Because of how this works, we force ldap:// only for now.
+        # A real install will have ldaps, and won't go via this path.
+        self.use_ldap_uri()
 
         # Retrieve sroot from the sys/priv config file
         assert(self.exists())
@@ -1071,7 +1069,7 @@ class DirSrv(SimpleLDAPObject, object):
         # Now, we are still an allocated ds object so we can be re-installed
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD,
+    def open(self, uri=None, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD,
                 usercert=None, userkey=None):
         '''
             It opens a ldap bound connection to dirsrv so that online
@@ -1090,31 +1088,18 @@ class DirSrv(SimpleLDAPObject, object):
             @raise LDAPError
         '''
 
-        ##################
-        # WARNING: While you have a python ldap connection open some settings like
-        # ldap.set_option MAY NOT WORK AS YOU EXPECT.
-        # There are cases (especially CACERT/USERCERTS) where when one connection
-        # is open set_option SILENTLY fails!!!!
-        #
-        # You MAY need to set post_open=False in your DirSrv start/restart instance!
-        ##################
+        # Force our state offline to prevent paths from trying to search
+        # cn=config while we startup.
+        self.state = DIRSRV_STATE_OFFLINE
 
-        uri = self.toLDAPURL()
+        if not uri:
+            uri = self.toLDAPURL()
+        self.log.debug('open(): Connecting to uri %s' % uri)
+        super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
 
         if certdir is None and self.isLocal:
             certdir = self.get_cert_dir()
             self.log.debug("Using dirsrv ca certificate %s" % certdir)
-
-        if userkey is not None:
-            # Note this sets LDAP.OPT not SELF. Because once self has opened
-            # it can NOT change opts AT ALL.
-            ldap.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
-            self.log.debug("Using user private key %s" % userkey)
-        if usercert is not None:
-            # Note this sets LDAP.OPT not SELF. Because once self has opened
-            # it can NOT change opts AT ALL.
-            ldap.set_option(ldap.OPT_X_TLS_CERTFILE, ensure_str(usercert))
-            self.log.debug("Using user certificate %s" % usercert)
 
         if certdir is not None:
             """
@@ -1122,28 +1107,36 @@ class DirSrv(SimpleLDAPObject, object):
             """
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
-            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
+            self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
             self.log.debug("Using external ca certificate %s" % certdir)
+
+        if userkey is not None:
+            # Note this sets LDAP.OPT not SELF. Because once self has opened
+            # it can NOT change opts AT ALL.
+            self.log.debug("Using user private key %s" % userkey)
+            self.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
+
+        if usercert is not None:
+            self.log.debug("Using user certificate %s" % usercert)
+            self.set_option(ldap.OPT_X_TLS_CERTFILE, ensure_str(usercert))
+
+        if certdir is not None:
+            self.log.debug("Using external ca certificate %s" % certdir)
+            self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
 
         if certdir or starttls:
             try:
                 # Note this sets LDAP.OPT not SELF. Because once self has opened
                 # it can NOT change opts on reused (ie restart)
-                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
                 self.log.debug("Using certificate policy %s" % reqcert)
                 self.log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
             except ldap.LDAPError as e:
                 self.log.fatal('TLS negotiation failed: %s' % str(e))
                 raise e
 
-        ## NOW INIT THIS. This MUST be after all the ldap.OPT set above,
-        # so that we inherit the settings correctly!!!!
-        if self.verbose:
-            self.log.info('open(): Connecting to uri %s' % uri)
-        if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
-            super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
-        else:
-            super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
+        # Tell python ldap to make a new TLS context with this information.
+        self.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
 
         if starttls and not uri.startswith('ldaps'):
             self.start_tls_s()
@@ -1664,6 +1657,69 @@ class DirSrv(SimpleLDAPObject, object):
         """Check if autobind/LDAPI is enabled."""
         return self.ldapi_enabled == 'on' and self.ldapi_socket is not None and self.ldapi_autobind == 'on'
 
+    def enable_tls(self, post_open=True):
+        """ If it doesn't exist, create a self-signed system CA. Using that,
+        we create certificates for our instance, as well as configuring the
+        servers security settings. This is mainly used for test cases, if
+        you want to enable_Tls on a real instance, there are better ways to
+        achieve this.
+
+        :param post_open: Open the server connection after restart.
+        :type post_open: bool
+        """
+        # If it doesn't exist, create a cadb.
+        ssca_path = os.path.join(self.get_sysconf_dir(), 'dirsrv/ssca/')
+        ssca = NssSsl(dbpath=ssca_path)
+        if not ssca._db_exists():
+            ssca.reinit()
+            ssca.create_rsa_ca()
+
+        # Create certificate database.
+        tlsdb = NssSsl(dbpath=self.get_cert_dir())
+        # Remember, DS breaks the db, so force reinit it.
+        tlsdb.reinit()
+        csr = tlsdb.create_rsa_key_and_csr()
+        (ca, crt) = ssca.rsa_ca_sign_csr(csr)
+        tlsdb.import_rsa_crt(ca, crt)
+
+        self.config.set('nsslapd-security', 'on')
+        self.use_ldaps_uri()
+
+        if self.ds_paths.perl_enabled:
+            # We don't setup sslport correctly in perl installer ....
+            self.config.set('nsslapd-secureport', '%s' % self.sslport)
+        # If we are old, we don't have template dse, so enable manually.
+        if ds_is_older('1.4.0'):
+            if not self.encryption.exists():
+                self.encryption.create()
+            if not self.rsa.exists():
+                self.rsa.create()
+
+        # Restart the instance
+        self.restart(post_open=post_open)
+
+    def use_ldaps_uri(self):
+        """Change this connection to use ldaps (TLS) on the next .open() call"""
+        self.ldapuri = 'ldaps://%s:%s' % (self.host, self.sslport)
+
+    def get_ldaps_uri(self):
+        """Return what our ldaps (TLS) uri would be for this instance
+        
+        :returns: The string of the servers ldaps (TLS) uri.
+        """
+        return 'ldaps://%s:%s' % (self.host, self.sslport)
+
+    def use_ldap_uri(self):
+        """Change this connection to use ldap on the next .open() call"""
+        self.ldapuri = 'ldap://%s:%s' % (self.host, self.port)
+
+    def get_ldap_uri(self):
+        """Return what our ldap uri would be for this instance
+        
+        :returns: The string of the servers ldap uri.
+        """
+        return 'ldap://%s:%s' % (self.host, self.port)
+
     def getServerId(self):
         """Return the server identifier."""
         return self.serverid
@@ -1687,6 +1743,13 @@ class DirSrv(SimpleLDAPObject, object):
 
     def get_sysconf_dir(self):
         return self.ds_paths.sysconf_dir
+
+    def get_ssca_dir(self):
+        """Get the system self signed CA path.
+
+        :returns: The path to the CA nss db
+        """
+        return os.path.join(self.ds_paths.sysconf_dir, 'dirsrv/ssca')
 
     def get_initconfig_dir(self):
         return self.ds_paths.initconfig_dir

@@ -19,6 +19,8 @@ from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 
+from lib389.idm.directorymanager import DirectoryManager
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s' +
                               ' - %(message)s')
@@ -34,6 +36,7 @@ CHECK_CONVERGENCE = True
 ENABLE_VALGRIND = False
 RUNNING = True
 
+DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 class TopologyReplication(object):
     def __init__(self, master1, master2):
@@ -50,9 +53,10 @@ def topology(request):
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
 
     # Creating master 1...
-    master1 = DirSrv(verbose=False)
+    master1 = DirSrv(verbose=DEBUGGING)
     args_instance[SER_HOST] = HOST_MASTER_1
     args_instance[SER_PORT] = PORT_MASTER_1
+    args_instance[SER_SECURE_PORT] = SECUREPORT_MASTER_1
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
     args_master = args_instance.copy()
@@ -66,9 +70,10 @@ def topology(request):
                                       replicaId=REPLICAID_MASTER_1)
 
     # Creating master 2...
-    master2 = DirSrv(verbose=False)
+    master2 = DirSrv(verbose=DEBUGGING)
     args_instance[SER_HOST] = HOST_MASTER_2
     args_instance[SER_PORT] = PORT_MASTER_2
+    args_instance[SER_SECURE_PORT] = SECUREPORT_MASTER_2
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
     args_master = args_instance.copy()
@@ -220,7 +225,8 @@ class AddDelUsers(threading.Thread):
         idx = 0
         RDN = 'uid=add_del_master_' + self.id + '-'
 
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
+
         while idx < NUM_USERS:
             USER_DN = RDN + str(idx) + ',' + DEFAULT_SUFFIX
             try:
@@ -236,7 +242,7 @@ class AddDelUsers(threading.Thread):
         conn.close()
 
         # Delete 5000 entries
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         idx = 0
         while idx < NUM_USERS:
             USER_DN = RDN + str(idx) + ',' + DEFAULT_SUFFIX
@@ -259,7 +265,7 @@ class ModUsers(threading.Thread):
 
     def run(self):
         # Mod existing entries
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         idx = 0
         while idx < NUM_USERS:
             USER_DN = ('uid=master' + self.id + '_entry' + str(idx) + ',' +
@@ -275,7 +281,7 @@ class ModUsers(threading.Thread):
         conn.close()
 
         # Modrdn existing entries
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         idx = 0
         while idx < NUM_USERS:
             USER_DN = ('uid=master' + self.id + '_entry' + str(idx) + ',' +
@@ -290,7 +296,7 @@ class ModUsers(threading.Thread):
         conn.close()
 
         # Undo modrdn to we can rerun this test
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         idx = 0
         while idx < NUM_USERS:
             USER_DN = ('cn=master' + self.id + '_entry' + str(idx) + ',' +
@@ -315,7 +321,7 @@ class DoSearches(threading.Thread):
 
     def run(self):
         # Equality
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         idx = 0
         while idx < NUM_USERS:
             search_filter = ('(|(uid=master' + self.id + '_entry' + str(idx) +
@@ -333,7 +339,7 @@ class DoSearches(threading.Thread):
         conn.close()
 
         # Substring
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         idx = 0
         while idx < NUM_USERS:
             search_filter = ('(|(uid=master' + self.id + '_entry' + str(idx) +
@@ -360,7 +366,7 @@ class DoFullSearches(threading.Thread):
 
     def run(self):
         global RUNNING
-        conn = self.inst.openConnection()
+        conn = DirectoryManager(self.inst).bind()
         while RUNNING:
             time.sleep(2)
             try:

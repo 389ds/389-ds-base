@@ -21,6 +21,21 @@ nsslapd-auditfaillog: %log_dir%/audit
 nsslapd-rootdn: %rootdn%
 nsslapd-rootpw: %ds_passwd%
 
+dn: cn=encryption,cn=config
+objectClass: top
+objectClass: nsEncryptionConfig
+cn: encryption
+nsSSLSessionTimeout: 0
+nsSSLClientAuth: allowed
+
+dn: cn=RSA,cn=encryption,cn=config
+objectClass: top
+objectClass: nsEncryptionModule
+cn: RSA
+nsSSLPersonalitySSL: Server-Cert
+nsSSLActivation: on
+nsSSLToken: internal (software)
+
 dn: cn=features,cn=config
 objectclass: top
 objectclass: nsContainer

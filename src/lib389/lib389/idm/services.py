@@ -6,14 +6,15 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389._mapped_object import DSLdapObjects
+from lib389.idm.account import Account
 
 RDN = 'cn'
 MUST_ATTRIBUTES = [
     'cn',
 ]
 
-class ServiceAccount(DSLdapObject):
+class ServiceAccount(Account):
     """A single instance of Service entry
 
     :param instance: An instance

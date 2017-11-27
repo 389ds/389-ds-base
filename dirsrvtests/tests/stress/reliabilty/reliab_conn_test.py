@@ -12,8 +12,9 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.idm.directorymanager import DirectoryManager
 
-DEBUGGING = False
+DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -41,12 +42,10 @@ def topology(request):
     """Create DS Deployment"""
 
     # Creating standalone instance ...
-    if DEBUGGING:
-        standalone = DirSrv(verbose=True)
-    else:
-        standalone = DirSrv(verbose=False)
+    standalone = DirSrv(verbose=DEBUGGING)
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
+    args_instance[SER_SECURE_PORT] = SECUREPORT_STANDALONE
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
     args_standalone = args_instance.copy()
@@ -129,7 +128,7 @@ class BindOnlyConn(threading.Thread):
         global STOP
         while idx < MAX_CONNS and not STOP:
             try:
-                conn = self.inst.openConnection()
+                conn = DirectoryManager(self.inst).bind(connOnly=True)
                 conn.unbind_s()
                 time.sleep(.2)
                 err_count = 0
@@ -160,7 +159,7 @@ class IdleConn(threading.Thread):
         global STOP
         while idx < (MAX_CONNS / 10) and not STOP:
             try:
-                conn = self.inst.openConnection()
+                conn = self.inst.clone()
                 conn.simple_bind_s('uid=entry0,dc=example,dc=com', 'password')
                 conn.search_s('dc=example,dc=com', ldap.SCOPE_SUBTREE,
                               'uid=*')
@@ -197,7 +196,7 @@ class LongConn(threading.Thread):
         global STOP
         while idx < MAX_CONNS and not STOP:
             try:
-                conn = self.inst.openConnection()
+                conn = self.inst.clone()
                 conn.search_s('dc=example,dc=com', ldap.SCOPE_SUBTREE,
                               'objectclass=*')
                 conn.search_s('dc=example,dc=com', ldap.SCOPE_SUBTREE,

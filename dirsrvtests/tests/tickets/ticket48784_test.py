@@ -44,70 +44,6 @@ def add_entry(server, name, rdntmpl, start, num):
             log.error('Failed to add %s ' % dn + e.message['desc'])
             assert False
 
-
-def enable_ssl(server, ldapsport, copy_serv=False):
-    server.stop()
-    server.nss_ssl.reinit()
-    if copy_serv:
-        ca_cert = copy_serv.get_cert_dir() + "/ca.crt"
-        os.system('cp %s/*.db %s' % (copy_serv.get_cert_dir(), server.get_cert_dir()))
-        os.system('cp %s %s' % (ca_cert, server.get_cert_dir()))
-        os.system('cp %s/noise* %s' % (copy_serv.get_cert_dir(), server.get_cert_dir()))
-        os.system('cp %s/p* %s' % (copy_serv.get_cert_dir(), server.get_cert_dir()))
-    else:
-        server.nss_ssl.create_rsa_ca()
-        server.nss_ssl.create_rsa_key_and_cert()
-    server.start()
-
-    server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
-                                    (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
-                                    (ldap.MOD_REPLACE, 'nsSSLClientAuth', 'allowed'),
-                                    (ldap.MOD_REPLACE, 'allowWeakCipher', 'on'),
-                                    (ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all')])
-
-    time.sleep(1)
-    server.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
-                                (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
-                                (ldap.MOD_REPLACE, 'nsslapd-secureport', ldapsport)])
-
-    time.sleep(1)
-    server.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
-                                 'cn': RSA,
-                                 'nsSSLPersonalitySSL': SERVERCERT,
-                                 'nsSSLToken': 'internal (software)',
-                                 'nsSSLActivation': 'on'})))
-    time.sleep(1)
-    server.restart()
-
-
-def doAndPrintIt(cmdline, filename):
-    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if filename is None:
-        log.info("      OUT:")
-    else:
-        log.info("      OUT: %s" % filename)
-        fd = open(filename, "w")
-    while True:
-        l = proc.stdout.readline()
-        if l == "":
-            break
-        if filename is None:
-            log.info("      %s" % l)
-        else:
-            fd.write(l)
-    log.info("      ERR:")
-    while True:
-        l = proc.stderr.readline()
-        if l == "" or l == "\n":
-            break
-        log.info("      <%s>" % l)
-        assert False
-
-    if filename is not None:
-        fd.close()
-    time.sleep(1)
-
-
 def config_tls_agreements(topology_m2):
     log.info("######################### Configure SSL/TLS agreements ######################")
     log.info("######################## master1 <-- startTLS -> master2 #####################")
@@ -152,8 +88,8 @@ def test_ticket48784(topology_m2):
     log.info("Ticket 48784 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
 
     #create_keys_certs(topology_m2)
-    enable_ssl(topology_m2.ms["master1"], '636')
-    enable_ssl(topology_m2.ms["master2"], '637', topology_m2.ms["master1"])
+    [i.enable_tls() for i in topology_m2]
+
     config_tls_agreements(topology_m2)
 
     add_entry(topology_m2.ms["master1"], 'master1', 'uid=m1user', 0, 5)

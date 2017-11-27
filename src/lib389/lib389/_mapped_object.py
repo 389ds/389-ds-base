@@ -13,7 +13,7 @@ import logging
 from functools import partial
 
 from lib389._entry import Entry
-from lib389._constants import DIRSRV_STATE_ONLINE
+from lib389._constants import DIRSRV_STATE_ONLINE, SER_ROOT_DN, SER_ROOT_PW
 from lib389.utils import (
         ensure_bytes, ensure_str, ensure_int, ensure_list_bytes, ensure_list_str,
         ensure_list_int
@@ -535,21 +535,6 @@ class DSLdapObject(DSLogging):
     def set_values(self, values, action=ldap.MOD_REPLACE):
         pass
 
-    # If the account can be bound to, this will attempt to do so. We don't check
-    # for exceptions, just pass them back!
-    def bind(self, password=None, *args, **kwargs):
-        """Open a new connection and bind with the entry.
-        You can pass arguments that will be passed to openConnection.
-
-        :param password: An entry password
-        :type password: str
-        :returns: Connection with a binding as the entry
-        """
-
-        conn = self._instance.openConnection(*args, **kwargs)
-        conn.simple_bind_s(self.dn, password)
-        return conn
-
     # Modifies the DN of an entry to the new fqdn provided
     def rename(self, new_rdn, newsuperior=None):
         """Renames the object within the tree.
@@ -640,7 +625,9 @@ class DSLdapObject(DSLogging):
             if basedn is None:
                 raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. basedn cannot be None')
 
-            if properties.get(self._rdn_attribute, None) is not None:
+            if rdn is not None:
+                tdn = ensure_str('%s,%s' % (rdn, basedn))
+            elif properties.get(self._rdn_attribute, None) is not None:
                 # Favour the value in the properties dictionary
                 v = properties.get(self._rdn_attribute)
                 rdn = ensure_str(v[0])
@@ -852,17 +839,17 @@ class DSLdapObjects(DSLogging):
             raise ldap.UNWILLING_TO_PERFORM("properties must be a dictionary")
 
         # Get the rdn out of the properties if it's unset???
-        if rdn is None and self._rdn_attribute in properties:
-            # First see if we can get it from the properties.
-            trdn = properties.get(self._rdn_attribute)
-            if type(trdn) == str:
-                rdn = trdn
-            elif type(trdn) == list and len(trdn) != 1:
-                raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties. Too many choices" % (self._rdn_attribute))
-            elif type(trdn) == list:
-                rdn = trdn[0]
-            else:
-                raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties, Invalid type" % type(trdn))
+        # if rdn is None and self._rdn_attribute in properties:
+        #     # First see if we can get it from the properties.
+        #     trdn = properties.get(self._rdn_attribute)
+        #     if type(trdn) == str:
+        #         rdn = "%s=%s" % (self._rdn_attribute, trdn)
+        #     elif type(trdn) == list and len(trdn) != 1:
+        #         raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties. Too many choices" % (self._rdn_attribute))
+        #     elif type(trdn) == list:
+        #         rdn = "%s=%s" % (self._rdn_attribute, trdn[0])
+        #     else:
+        #         raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties, Invalid type" % type(trdn))
 
         return (rdn, properties)
 

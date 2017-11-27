@@ -187,6 +187,11 @@ class Slapd2Base(Options2):
         self._helptext['secure_port'] = "The TCP port that Directory Server will listen on for TLS secured LDAP connections."
         self._example_comment['secure_port'] = True
 
+        self._options['self_sign_cert'] = True
+        self._type['self_sign_cert'] = bool
+        self._helptext['self_sign_cert'] = "Issue a self signed certificate during the setup process. This is not suitable for production TLS, but aids simplifying setup of TLS (you only need to replace a certificate instead)"
+        self._example_comment['self_sign_cert'] = True
+
         # In the future, make bin and sbin /usr/[s]bin, but we may need autotools assistance from Ds
         self._options['bin_dir'] = ds_paths.bin_dir
         self._type['bin_dir'] = str

@@ -22,6 +22,8 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
 
+from lib389.nss_ssl import NssSsl
+
 from lib389.configurations import get_config
 
 from lib389.instance.options import General2Base, Slapd2Base
@@ -268,10 +270,9 @@ class SetupDs(object):
 
         assert(slapd['port'] is not None)
         assert(socket_check_open('::1', slapd['port']) is False)
-        ## This causes some problems in tests :(
-        # assert(slapd['secure_port'] is not None)
-        if slapd['secure_port'] is not None:
-            assert(socket_check_open('::1', slapd['secure_port']) is False)
+        # We enable secure port by default.
+        assert(slapd['secure_port'] is not None)
+        assert(socket_check_open('::1', slapd['secure_port']) is False)
         if self.verbose:
             self.log.info("PASSED: network avaliability checking")
 
@@ -358,7 +359,13 @@ class SetupDs(object):
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/slapd-collations.conf')
         dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
         shutil.copy2(srcfile, dstfile)
-        os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
+        os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
+
+        # Copy in the certmap configuration
+        srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/certmap.conf')
+        dstfile = os.path.join(slapd['config_dir'], 'certmap.conf')
+        shutil.copy2(srcfile, dstfile)
+        os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
 
         # If we are on the correct platform settings, systemd
         if general['systemd'] and not self.containerised:
@@ -424,9 +431,23 @@ class SetupDs(object):
         ds_instance.allocate(args)
         # Does this work?
         assert(ds_instance.exists())
-        # Create the nssdb
-        assert(ds_instance.nss_ssl.reinit())
-        # Do we want to selfsign a CA and cert?
+
+        # Create a certificate database.
+        tlsdb = NssSsl(dbpath=slapd['cert_dir'])
+        if not tlsdb._db_exists():
+            tlsdb.reinit()
+
+        if slapd['self_sign_cert']:
+            # If it doesn't exist, create a cadb.
+            ssca_path = os.path.join(slapd['sysconf_dir'], 'dirsrv/ssca/')
+            ssca = NssSsl(dbpath=ssca_path)
+            if not ssca._db_exists():
+                ssca.reinit()
+                ssca.create_rsa_ca()
+
+            csr = tlsdb.create_rsa_key_and_csr()
+            (ca, crt) = ssca.rsa_ca_sign_csr(csr)
+            tlsdb.import_rsa_crt(ca, crt)
 
         ## LAST CHANCE, FIX PERMISSIONS.
         # Selinux fixups?
@@ -444,6 +465,11 @@ class SetupDs(object):
         base_config_inst = base_config(ds_instance)
         base_config_inst.apply_config(install=True)
 
+        # Setup TLS with the instance.
+        ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
+        if slapd['self_sign_cert']:
+            ds_instance.config.set('nsslapd-security', 'on')
+
         # Create the backends as listed
         # Load example data if needed.
         for backend in backends:
@@ -460,7 +486,10 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-rootpw',
                                ensure_str(slapd['root_password']))
 
-        # In a container build we need to stop DirSrv at the end
         if self.containerised:
+            # In a container build we need to stop DirSrv at the end
             ds_instance.stop()
+        else:
+            # Restart for changes to take effect - this could be removed later
+            ds_instance.restart(post_open=False)
 

@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_or, _gen_filter, _term_gen
+from lib389._constants import SER_ROOT_DN, SER_ROOT_PW
 
 
 class Account(DSLdapObject):
@@ -35,6 +36,31 @@ class Account(DSLdapObject):
         """Unset nsAccountLock"""
 
         self.remove('nsAccountLock', None)
+
+    # If the account can be bound to, this will attempt to do so. We don't check
+    # for exceptions, just pass them back!
+    def bind(self, password=None, *args, **kwargs):
+        """Open a new connection and bind with the entry.
+        You can pass arguments that will be passed to openConnection.
+
+        :param password: An entry password
+        :type password: str
+        :returns: Connection with a binding as the entry
+        """
+
+        inst_clone = self._instance.clone({SER_ROOT_DN: self.dn, SER_ROOT_PW: password})
+        inst_clone.open(*args, **kwargs)
+        return inst_clone
+
+    def sasl_bind(self, *args, **kwargs):
+        """Open a new connection and bind with the entry via SASL.
+        You can pass arguments that will be pass to clone.
+
+        :return: Connection with a sasl binding to the entry.
+        """
+        inst_clone = self._instance.clone({SER_ROOT_DN: self.dn})
+        inst_clone.open(*args, **kwargs)
+        return inst_clone
 
 class Accounts(DSLdapObjects):
     """DSLdapObjects that represents Account entry

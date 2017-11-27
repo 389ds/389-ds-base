@@ -235,9 +235,10 @@ Summary:  A library for accessing, testing, and configuring the 389 Directory Se
 BuildArch:        noarch
 Group:            Development/Libraries
 Requires: krb5-workstation
-Requires: krb5-server
 Requires: openssl
 Requires: iproute
+# This is for /usr/sbin/cacertdir_rehash
+Requires: authconfig
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-pyldap
@@ -254,8 +255,9 @@ This module contains tools and libraries for accessing, testing,
 Summary:          The lib389 Continuous Integration Tests
 Group:            Development/Libraries
 BuildArch:        noarch
-Requires:         python%{python3_pkgversion}
-Requires:         python%{python3_pkgversion}-lib389
+Requires: krb5-server
+Requires: python%{python3_pkgversion}
+Requires: python%{python3_pkgversion}-lib389
 
 %description  -n  python%{python3_pkgversion}-%{srcname}-tests
 The lib389 CI tests that can be run against the Directory Server.

@@ -60,6 +60,8 @@ class UserAccount(Account):
             self._create_objectclasses.append('inetUser')
         else:
             self._create_objectclasses.append('nsMemberOf')
+        if not ds_is_older('1.4.0'):
+            self._create_objectclasses.append('nsAccount')
         user_compare_exclude = [
             'nsUniqueId', 
             'modifyTimestamp', 
@@ -74,6 +76,21 @@ class UserAccount(Account):
             self._create_objectclasses.append('ntUser')
 
         return super(UserAccount, self)._validate(rdn, properties, basedn)
+
+    def enroll_certificate(self, der_path):
+        """Enroll a certificate for certmap verification. Because of the userCertificate
+        attribute, we have to do this on userAccount which has support for it.
+
+        :param der_path: the certificate file in DER format to include.
+        :type der_path: str
+        """
+        if ds_is_older('1.4.0'):
+            raise Exception("This version of DS does not support nsAccount")
+        # Given a cert path, add this to the object as a userCertificate
+        crt = None
+        with open(der_path, 'rb') as f:
+            crt = f.read()
+        self.add('usercertificate;binary', crt)
 
     # Add a set password function....
     # Can't I actually just set, and it will hash?

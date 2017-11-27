@@ -13,10 +13,12 @@ import time
 import pytest
 
 from lib389 import DirSrv
+from lib389.nss_ssl import NssSsl
 from lib389.utils import generate_ds_params
 from lib389.replica import Replicas
 from lib389._constants import (args_instance, SER_HOST, SER_PORT, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
-                               ReplicaRole, DEFAULT_SUFFIX, REPLICA_ID)
+                               SER_SECURE_PORT, ReplicaRole, DEFAULT_SUFFIX, REPLICA_ID,
+                               SER_LDAP_URL)
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
@@ -61,14 +63,19 @@ def create_topology(topo_dict):
             # the instance creation here.
             args_instance[SER_HOST] = instance_data[SER_HOST]
             args_instance[SER_PORT] = instance_data[SER_PORT]
+            args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
             args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
             args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+
             args_copied = args_instance.copy()
             instance.allocate(args_copied)
             instance_exists = instance.exists()
             if instance_exists:
                 instance.delete()
             instance.create()
+            # We set a URL here to force ldap:// only. Once we turn on TLS
+            # we'll flick this to ldaps.
+            instance.use_ldap_uri()
             instance.open()
             if role == ReplicaRole.STANDALONE:
                 ins[instance.serverid] = instance
@@ -137,8 +144,10 @@ class TopologyMain(object):
         if standalones:
             if isinstance(standalones, dict):
                 self.ins = standalones
+                self.all_insts.update(standalones)
             else:
                 self.standalone = standalones
+                self.all_insts['standalone1'] = standalones
         if masters:
             self.ms = masters
             self.all_insts.update(self.ms)
@@ -148,6 +157,9 @@ class TopologyMain(object):
         if hubs:
             self.hs = hubs
             self.all_insts.update(self.hs)
+
+    def __iter__(self):
+        return self.all_insts.values().__iter__()
 
     def pause_all_replicas(self):
         """Pause all agreements in the class instance"""
@@ -328,6 +340,7 @@ def topology_m1h1c1(request):
             instance = DirSrv(verbose=False)
         args_instance[SER_HOST] = instance_data[SER_HOST]
         args_instance[SER_PORT] = instance_data[SER_PORT]
+        args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
         args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
         args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
         args_copied = args_instance.copy()
