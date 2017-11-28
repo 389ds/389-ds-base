@@ -281,11 +281,12 @@ do_modify(Slapi_PBlock *pb)
 
     if (ignored_some_mods && (0 == smods.num_elements)) {
         if (pb_conn->c_isreplication_session) {
-            int connid, opid;
+            uint64_t connid;
+            int32_t opid;
             slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
             slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
             slapi_log_err(SLAPI_LOG_ERR, "do_modify",
-                          "Rejecting replicated password policy operation(conn=%d op=%d) for "
+                          "Rejecting replicated password policy operation(conn=%"PRIu64" op=%d) for "
                           "entry %s.  To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
                           "cn=config.\n",
                           connid, opid, rawdn);

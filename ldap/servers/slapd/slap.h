@@ -1604,7 +1604,7 @@ typedef struct conn
     int c_gettingber;                /* in the middle of ber_get_next  */
     BerElement *c_currentber;        /* ber we're getting              */
     time_t c_starttime;              /* when the connection was opened */
-    PRUint64 c_connid;               /* id of this connection for stats*/
+    uint64_t c_connid;               /* id of this connection for stats*/
     PRUint64 c_maxthreadscount;      /* # of times a conn hit max threads */
     PRUint64 c_maxthreadsblocked;    /* # of operations blocked by maxthreads */
     int c_opsinitiated;              /* # ops initiated/next op id      */
