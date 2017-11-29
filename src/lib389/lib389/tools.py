@@ -857,7 +857,7 @@ class DirSrvTools(object):
                 for line in hostfp.readlines():
                     if ipPattern is None:
                         words = line.split()
-                        if words[1] == expectedHost:
+                        if len(words) >= 2 and words[1] == expectedHost:
                             return True
                     else:
                         if line.find(ipPattern) >= 0:

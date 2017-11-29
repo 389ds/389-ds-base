@@ -9,6 +9,8 @@
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_or, _gen_filter, _term_gen
 from lib389._constants import SER_ROOT_DN, SER_ROOT_PW
 
+import os
+import subprocess
 
 class Account(DSLdapObject):
     """A single instance of Account entry
@@ -60,6 +62,35 @@ class Account(DSLdapObject):
         """
         inst_clone = self._instance.clone({SER_ROOT_DN: self.dn})
         inst_clone.open(*args, **kwargs)
+        return inst_clone
+
+    def create_keytab(self):
+        """
+        Create a keytab for this account valid to bind with.
+        """
+        assert self._instance.realm is not None
+
+        myuid = self.get_attr_val_utf8('uid')
+        self._instance.realm.create_principal(myuid)
+        self._instance.realm.create_keytab(myuid, "/tmp/%s.keytab" % myuid)
+
+        self._keytab = "/tmp/%s.keytab" % myuid
+
+    def bind_gssapi(self):
+        """
+        Bind this account with gssapi credntials (if available)
+        """
+        assert self._instance.realm is not None
+        # Kill any local ccache.
+        subprocess.call(['/usr/bin/kdestroy', '-A'])
+
+        # This uses an in memory once off ccache.
+        os.environ["KRB5_CLIENT_KTNAME"] = self._keytab
+
+        # Because of the way that GSSAPI works, we can't
+        # use the normal dirsrv open method.
+        inst_clone = self._instance.clone()
+        inst_clone.open(saslmethod='gssapi')
         return inst_clone
 
 class Accounts(DSLdapObjects):

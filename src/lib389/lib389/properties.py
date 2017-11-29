@@ -44,7 +44,6 @@ SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
 #
 # Those WITHOUT related attribute name
 #
-SER_REALM = 'krb5_realm'
 SER_SERVERID_PROP = 'server-id'
 SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'

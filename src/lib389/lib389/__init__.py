@@ -50,6 +50,8 @@ import subprocess
 import collections
 import signal
 import errno
+import pwd
+import grp
 from shutil import copy2
 try:
     # There are too many issues with this on EL7
@@ -390,7 +392,6 @@ class DirSrv(SimpleLDAPObject, object):
         args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
         args_instance[SER_USER_ID] = None
         args_instance[SER_GROUP_ID] = None
-        args_instance[SER_REALM] = None
         args_instance[SER_INST_SCRIPTS_ENABLED] = None
 
         # We allocate a "default" prefix here which allows an un-allocate or
@@ -522,7 +523,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldapuri = args.get(SER_LDAP_URL, None)
         self.log.debug("Allocate %s with %s" % (self.__class__, self.ldapuri))
         # Still needed in setup, even if ldapuri over writes.
-        self.host = args.get(SER_HOST, LOCALHOST)
+        self.host = args.get(SER_HOST, socket.gethostname())
         self.port = args.get(SER_PORT, DEFAULT_PORT)
         self.sslport = args.get(SER_SECURE_PORT)
 
@@ -564,9 +565,8 @@ class DirSrv(SimpleLDAPObject, object):
             # Allocate from the args, or use our env, or use /
             if args.get(SER_DEPLOYED_DIR, self.prefix) is not None:
                 self.prefix = args.get(SER_DEPLOYED_DIR, self.prefix)
-        self.realm = args.get(SER_REALM, None)
-        if self.realm is not None:
-            self.krb5_realm = MitKrb5(realm=self.realm, debug=self.verbose)
+        # This will be externally populated in topologies.
+        self.realm = None
 
         # Those variables needs to be revisited (sroot for 64 bits)
         # self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
@@ -596,6 +596,7 @@ class DirSrv(SimpleLDAPObject, object):
         args_instance[SER_LDAP_URL] = self.ldapuri
         args_instance[SER_HOST] = self.host
         args_instance[SER_PORT] = self.port
+        args_instance[SER_LDAP_URL] = self.ldapuri
         args_instance[SER_SECURE_PORT] = self.sslport
         args_instance[SER_SERVERID_PROP] = self.serverid
         args_standalone = args_instance.copy()
@@ -863,7 +864,6 @@ class DirSrv(SimpleLDAPObject, object):
             SER_GROUP_ID        (groupid)
             SER_DEPLOYED_DIR    (prefix)
             SER_BACKUP_INST_DIR (backupdir)
-            SER_REALM           (krb5_realm)
 
         @return None
 
@@ -901,17 +901,6 @@ class DirSrv(SimpleLDAPObject, object):
                                         prefix=self.prefix)
         if result != 0:
             raise Exception('Failed to run setup-ds.pl')
-        if self.realm is not None:
-            # This may conflict in some tests, we may need to use /etc/host
-            # aliases or we may need to use server id
-            self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
-            ktab = '%s/ldap.keytab' % (self.ds_paths.config_dir)
-            self.krb5_realm.create_keytab(principal='ldap/%s' % self.host, keytab=ktab)
-            with open('%s/dirsrv-%s' % (self.ds_paths.initconfig_dir, self.serverid), 'a') as sfile:
-                sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/"
-                            "ldap.keytab\nexport KRB5_KTNAME\n" %
-                            (self.prefix, self.serverid))
-            self.restart()
 
     def _createPythonDirsrv(self, version):
         """
@@ -953,17 +942,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         # Go!
         sds.create_from_args(general, slapd, backends, None)
-        if self.realm is not None:
-            # This may conflict in some tests, we may need to use /etc/host
-            # aliases or we may need to use server id
-            self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
-            ktab = '%s/ldap.keytab' % (self.ds_paths.config_dir)
-            self.krb5_realm.create_keytab(principal='ldap/%s' % self.host, keytab=ktab)
-            with open('%s/dirsrv-%s' % (self.ds_paths.initconfig_dir, self.serverid), 'a') as sfile:
-                sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/"
-                            "ldap.keytab\nexport KRB5_KTNAME\n" %
-                            (self.prefix, self.serverid))
-            self.restart()
+
 
     def create(self, pyinstall=False, version=INSTALL_LATEST_CONFIG):
         """
@@ -1144,28 +1123,20 @@ class DirSrv(SimpleLDAPObject, object):
         if starttls and not uri.startswith('ldaps'):
             self.start_tls_s()
 
-        if saslmethod and saslmethod.lower() == 'gssapi':
+        if saslmethod and sasltoken is not None:
+            # Just pass the sasltoken in!
+            self.sasl_interactive_bind_s("", sasltoken)
+        elif saslmethod and saslmethod.lower() == 'gssapi':
             """
             Perform kerberos/gssapi authentication
             """
-            try:
-                sasl_auth = ldap.sasl.gssapi("")
-                self.sasl_interactive_bind_s("", sasl_auth)
-            except ldap.LOCAL_ERROR as e:
-                # No Ticket - ultimately invalid credentials
-                self.log.debug("Error: No Ticket (%s)" % str(e))
-                raise ldap.INVALID_CREDENTIALS
-            except ldap.LDAPError as e:
-                self.log.debug("SASL/GSSAPI Bind Failed: %s" % str(e))
-                raise e
+            sasl_auth = ldap.sasl.gssapi("")
+            self.sasl_interactive_bind_s("", sasl_auth)
 
         elif saslmethod == 'EXTERNAL':
             # Do nothing.
             sasl_auth = ldap.sasl.external()
             self.sasl_interactive_bind_s("", sasl_auth)
-        elif saslmethod and sasltoken is not None:
-            # Just pass the sasltoken in!
-            self.sasl_interactive_bind_s("", sasltoken)
         elif saslmethod:
             # Unknown or unsupported method
             self.log.debug('Unsupported SASL method: %s' % saslmethod)
@@ -1651,7 +1622,8 @@ class DirSrv(SimpleLDAPObject, object):
             return self.ldapuri
         elif self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
-        elif self.sslport:
+        elif self.sslport and not self.realm:
+            # Gssapi can't use SSL so we have to nuke it here.
             return "ldaps://%s:%d/" % (ensure_str(self.host), self.sslport)
         else:
             return "ldap://%s:%d/" % (ensure_str(self.host), self.port)
@@ -1771,6 +1743,12 @@ class DirSrv(SimpleLDAPObject, object):
 
     def get_ldapi_path(self):
         return self.ds_paths.ldapi
+
+    def get_user_uid(self):
+        return pwd.getpwnam(self.ds_paths.user).pw_uid
+
+    def get_group_gid(self):
+        return grp.getgrnam(self.ds_paths.group).gr_gid
 
     def has_asan(self):
         return self.ds_paths.asan_enabled

@@ -108,6 +108,9 @@ class MitKrb5(object):
             realm = self.realm
             lrealm = self.realm.lower()
             cfile.write("""
+[libdefaults]
+ default_realm = {REALM}
+
 [realms]
 {REALM} = {{
  kdc = {HOST}
@@ -130,12 +133,11 @@ class MitKrb5(object):
 
 [realms]
  {REALM} = {{
-  #master_key_type = aes256-cts
   acl_file = {PREFIX}/var/kerberos/krb5kdc/kadm5.acl
   dict_file = /usr/share/dict/words
   admin_keytab = {PREFIX}/var/kerberos/krb5kdc/kadm5.keytab
   # Just use strong enctypes
-  supported_enctypes = aes256-cts:normal aes128-cts:normal
+  # supported_enctypes = aes256-cts:normal aes128-cts:normal
  }}
 
 """.format(REALM=self.realm, PREFIX=self.krb_prefix))
@@ -170,7 +172,7 @@ class MitKrb5(object):
 
         p = Popen([self.kdb5_util, 'destroy', '-r', self.realm],
                   env=self.krb_env, stdin=PIPE)
-        p.communicate("yes\n")
+        p.communicate(b"yes\n")
         p.wait()
         assert(p.returncode == 0)
         # Should we clean up the configurations we made too?
@@ -213,14 +215,3 @@ class MitKrb5(object):
                   (keytab, principal, self.realm)])
         assert(p.wait() == 0)
 
-
-class KrbClient(object):
-    def __init__(self, principal, keytab, ccache=None):
-        self.krb_prefix = ""
-        self.kdestroy = "/usr/bin/kdestroy"
-        if ccache is not None:
-            os.environ["KRB5CCNAME"] = ccache
-        # Destroy the previous cache if any.
-        subprocess.call(self.kdestroy)
-        # Gssapi has magic that automatically creates things by env vars
-        os.environ["KRB5_CLIENT_KTNAME"] = keytab

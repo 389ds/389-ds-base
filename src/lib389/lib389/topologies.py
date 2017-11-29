@@ -10,13 +10,19 @@ import os
 import logging
 import time
 
+# For hostname detection for GSSAPI tests
+import socket
+
 import pytest
 
 from lib389 import DirSrv
 from lib389.nss_ssl import NssSsl
 from lib389.utils import generate_ds_params
 from lib389.replica import Replicas
-from lib389._constants import (args_instance, SER_HOST, SER_PORT, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
+from lib389.mit_krb5 import MitKrb5
+from lib389.saslmap import SaslMappings
+
+from lib389._constants import (SER_HOST, SER_PORT, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
                                SER_SECURE_PORT, ReplicaRole, DEFAULT_SUFFIX, REPLICA_ID,
                                SER_LDAP_URL)
 
@@ -61,7 +67,8 @@ def create_topology(topo_dict):
             # Also, we need to keep in mind that the function returns
             # SER_SECURE_PORT and REPLICA_ID that are not used in
             # the instance creation here.
-            args_instance[SER_HOST] = instance_data[SER_HOST]
+            # args_instance[SER_HOST] = instance_data[SER_HOST]
+            args_instance = {}
             args_instance[SER_PORT] = instance_data[SER_PORT]
             args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
             args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
@@ -194,6 +201,68 @@ def topology_st(request):
             topology.standalone.stop()
         else:
             topology.standalone.delete()
+    request.addfinalizer(fin)
+
+    return topology
+
+gssapi_ack = pytest.mark.skipif(not os.environ.get('GSSAPI_ACK', False), reason="GSSAPI tests may damage system configuration.")
+
+@pytest.fixture(scope="module")
+def topology_st_gssapi(request):
+    """Create a DS standalone instance with GSSAPI enabled.
+
+    This will alter the instance to remove the secure port, to allow
+    GSSAPI to function.
+    """
+    hostname = socket.gethostname().split('.', 1)
+
+    # Assert we have a domain setup in some kind.
+    assert len(hostname) == 2
+
+    REALM = hostname[1].upper()
+
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
+
+    # Fix the hostname.
+    topology.standalone.host = socket.gethostname()
+
+    krb = MitKrb5(realm=REALM, debug=DEBUGGING)
+
+    # Destroy existing realm.
+    if krb.check_realm():
+        krb.destroy_realm()
+    krb.create_realm()
+
+    # Now add krb to our instance.
+    krb.create_principal(principal='ldap/%s' % topology.standalone.host)
+    krb.create_keytab(principal='ldap/%s' % topology.standalone.host, keytab='/etc/krb5.keytab')
+    os.chown('/etc/krb5.keytab', topology.standalone.get_user_uid(), topology.standalone.get_group_gid())
+
+    # Add sasl mappings
+    saslmappings = SaslMappings(topology.standalone)
+    saslmappings.create(properties={
+        'cn': 'suffix map',
+        # Don't add the realm due to a SASL bug
+        # 'nsSaslMapRegexString': '\\(.*\\)@%s' % self.realm,
+        'nsSaslMapRegexString': '\\(.*\\)',
+        'nsSaslMapBaseDNTemplate': topology.standalone.creation_suffix,
+        'nsSaslMapFilterTemplate': '(uid=\\1)'
+    })
+    topology.standalone.realm = krb
+
+    topology.standalone.config.set('nsslapd-localhost', topology.standalone.host)
+
+    topology.standalone.sslport = None
+
+    topology.standalone.restart()
+
+    def fin():
+        if DEBUGGING:
+            topology.standalone.stop()
+        else:
+            topology.standalone.delete()
+            krb.destroy_realm()
+
     request.addfinalizer(fin)
 
     return topology
@@ -338,7 +407,8 @@ def topology_m1h1c1(request):
             instance = DirSrv(verbose=True)
         else:
             instance = DirSrv(verbose=False)
-        args_instance[SER_HOST] = instance_data[SER_HOST]
+        args_instance = {}
+        # args_instance[SER_HOST] = instance_data[SER_HOST]
         args_instance[SER_PORT] = instance_data[SER_PORT]
         args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
         args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
