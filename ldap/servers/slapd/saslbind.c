@@ -835,52 +835,21 @@ ids_sasl_listmech(Slapi_PBlock *pb)
 static int
 ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 {
-    int i, ret = 0;
-    char **mechs;
-    char **allowed_mechs = NULL;
-    char *dupstr;
-    const char *str;
-    int sasl_result = 0;
-    Connection *pb_conn = NULL;
-
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-    sasl_conn_t *sasl_conn = (sasl_conn_t *)pb_conn->c_sasl_conn;
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "=>\n");
 
-    /* sasl_listmech is not thread-safe - caller must lock pb_conn */
-    sasl_result = sasl_listmech(sasl_conn,
-                                NULL, /* username */
-                                "", ",", "",
-                                &str, NULL, NULL);
-    if (sasl_result != SASL_OK) {
-        return 0;
+    char **allowed_mechs = ids_sasl_listmech(pb);
+
+    /* 0 indicates "now allowed" */
+    int allowed_mech_present = 0;
+    if (allowed_mechs != NULL) {
+        /* Returns 1 if present and allowed. */
+        allowed_mech_present = charray_inlist(allowed_mechs, (char *)mech);
+        charray_free(allowed_mechs);
     }
-
-    dupstr = slapi_ch_strdup(str);
-    mechs = slapi_str2charray(dupstr, ",");
-    allowed_mechs = config_get_allowed_sasl_mechs_array();
-
-    for (i = 0; mechs[i] != NULL; i++) {
-        if (strcasecmp(mech, mechs[i]) == 0) {
-            if (allowed_mechs) {
-                if (charray_inlist(allowed_mechs, (char *)mech) == 0) {
-                    ret = 1;
-                }
-                break;
-            } else {
-                ret = 1;
-                break;
-            }
-        }
-    }
-
-    charray_free(allowed_mechs);
-    charray_free(mechs);
-    slapi_ch_free((void **)&dupstr);
 
     slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "<=\n");
 
-    return ret;
+    return allowed_mech_present;
 }
 
 /*
@@ -944,7 +913,7 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
      * different error code to SASL_NOMECH.  Must be called
      * while holding the pb_conn lock
      */
-    if (!ids_sasl_mech_supported(pb, mech)) {
+    if (ids_sasl_mech_supported(pb, mech) == 0) {
         rc = SASL_NOMECH;
         goto sasl_check_result;
     }
