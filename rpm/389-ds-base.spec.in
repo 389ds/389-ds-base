@@ -396,6 +396,9 @@ if ! getent passwd $USERNAME >/dev/null ; then
     fi
 fi
 
+# Reload our sysctl before we restart (if we can)
+sysctl --system &> $output; true
+
 %if %{use_perl}
 # START UPGRADE SCRIPT
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
