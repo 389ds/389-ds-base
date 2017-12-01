@@ -2120,6 +2120,7 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
         char csnstr[CSN_STRSIZE];
         char *token = NULL;
         char *forcing;
+        PRBool original_task;
         char *csnpart;
         char *ridstr;
         char *iter = NULL;
@@ -2151,8 +2152,15 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
             csn_init_by_string(maxcsn, csnpart);
             csn_as_string(maxcsn, PR_FALSE, csnstr);
             forcing = ldap_utf8strtok_r(iter, ":", &iter);
+            original_task = PR_TRUE;
             if (forcing == NULL) {
                 forcing = "no";
+            } else if (!strcasecmp(forcing, "yes") || !strcasecmp(forcing, "no")) {
+                /* forcing was correctly set, lets try to read the original task flag */
+                token = ldap_utf8strtok_r(iter, ":", &iter);
+                if (token && !atoi(token)) {
+                    original_task = PR_FALSE;
+                }
             }
 
             slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "CleanAllRUV Task - cleanAllRUV task found, "
@@ -2189,6 +2197,13 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                 data->sdn = slapi_sdn_dup(r->repl_root);
                 data->force = slapi_ch_strdup(forcing);
                 data->repl_root = NULL;
+
+                /* This is a corner case, a cleanAllRuv task was interrupted by a shutdown or a crash
+                 * We retrieved from type_replicaCleanRUV if the cleanAllRuv request
+                 * was received from a direct task ADD or if was received via
+                 * the cleanAllRuv extop.
+                 */
+                data->original_task = original_task;
 
                 thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread_ext,
                                          (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -2283,6 +2298,12 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                     data->repl_root = slapi_ch_strdup(repl_root);
                     data->sdn = slapi_sdn_dup(r->repl_root);
                     data->certify = slapi_ch_strdup(certify);
+
+                    /* This is a corner case, a cleanAllRuv task was interrupted by a shutdown or a crash
+                     * Let's assum this replica was the original receiver of the task.
+                     * This flag has no impact on Abort cleanAllRuv
+                     */
+                    data->original_task = PR_TRUE;
 
                     thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
                                              (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,

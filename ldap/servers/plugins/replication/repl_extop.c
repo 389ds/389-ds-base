@@ -1412,6 +1412,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
     data->rid = rid;
     data->repl_root = slapi_ch_strdup(repl_root);
     data->certify = slapi_ch_strdup(certify_all);
+    data->original_task = PR_FALSE;
     /*
      *  Set the aborted rid and stop the cleaning
      */
@@ -1555,6 +1556,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
         data->payload = slapi_ch_bvdup(extop_payload);
         data->force = slapi_ch_strdup(force);
         data->repl_root = slapi_ch_strdup(repl_root);
+        data->original_task = PR_FALSE;
 
         thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread_ext,
                                  (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
