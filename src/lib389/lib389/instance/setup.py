@@ -451,6 +451,10 @@ class SetupDs(object):
         # Make changes using the temp root
         # Change the root password finally
 
+        # Initialise ldapi socket information. IPA expects this ....
+        ds_instance.config.set('nsslapd-ldapifilepath', ds_instance.get_ldapi_path())
+        ds_instance.config.set('nsslapd-ldapilisten', 'on')
+
         # Complete.
         ds_instance.config.set('nsslapd-rootpw',
                                ensure_str(slapd['root_password']))

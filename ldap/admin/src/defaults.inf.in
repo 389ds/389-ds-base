@@ -34,6 +34,8 @@ initconfig_dir = @initconfigdir@
 config_dir = @instconfigdir@/slapd-{instance_name}
 local_state_dir = @localstatedir@
 run_dir = @localstatedir@/run/dirsrv
+# This is the expected location of ldapi.
+ldapi = @localstatedir@/run/slapd-{instance_name}.socket
 pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
 inst_dir = @serverdir@
 plugin_dir = @serverplugindir@

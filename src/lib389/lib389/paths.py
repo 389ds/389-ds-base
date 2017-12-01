@@ -80,6 +80,7 @@ CONFIG_MAP = {
     'error_log' : ('cn=config', 'nsslapd-errorlog'),
     'access_log' : ('cn=config', 'nsslapd-accesslog'),
     'audit_log' : ('cn=config', 'nsslapd-auditlog'),
+    'ldapi': ('cn=config', 'nsslapd-ldapifilepath'),
 }
 
 SECTION = 'slapd'
@@ -148,9 +149,11 @@ class Paths(object):
             # Get the online value.
             (dn, attr) = CONFIG_MAP[name]
             ent = self._instance.getEntry(dn, attrlist=[attr,])
-            return ensure_str(ent.getValue(attr))
+            # If the server doesn't have it, fall back to our configuration.
+            if attr is not None:
+                return ensure_str(ent.getValue(attr))
 
-        elif self._serverid is not None:
+        if self._serverid is not None:
             return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
         else:
             return ensure_str(self._config.get(SECTION, name))

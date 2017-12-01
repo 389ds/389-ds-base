@@ -102,7 +102,7 @@ RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 TRACE_LEVEL = 0
 
 # My logger
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Initiate the paths object here. Should this be part of the DirSrv class
 # for submodules?
@@ -341,7 +341,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ds_error_log = DirsrvErrorLog(self)
         self.ldclt = Ldclt(self)
 
-    def __init__(self, verbose=False, timeout=10):
+    def __init__(self, verbose=False, external_log=None):
         """
             This method does various initialization of DirSrv object:
             parameters:
@@ -363,13 +363,17 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_INIT
         self.verbose = verbose
-        if self.verbose:
-            log.setLevel(logging.DEBUG)
+        
+        # If we have an external logger, use it!
+        self.log = logger
+        if external_log is None:
+            if self.verbose:
+                self.log.setLevel(logging.DEBUG)
+            else:
+                self.log.setLevel(logging.INFO)
         else:
-            log.setLevel(logging.INFO)
-        self.log = log
+            self.log = external_log
 
-        self.timeout = timeout
         self.confdir = None
 
         self.ds_paths = Paths(instance=self)
@@ -403,6 +407,70 @@ class DirSrv(SimpleLDAPObject, object):
     def __str__(self):
         """XXX and in SSL case?"""
         return self.host + ":" + str(self.port)
+
+    def local_simple_allocate(self, serverid, ldapuri=None, binddn='cn=Directory Manager', password=None):
+        """Allocate an instance and perform a simple bind. This is a local instance, so
+        you can perform tasks like db2ldif etc. Note that you can use password=None and
+        skip .open(), and still perform local tasks.
+
+        :param serverid: The instance name to manipulate
+        :type serverid: str
+        :param ldapuri: The instance uri to connect to.
+        :type ldapuri: str
+        :param binddn: The dn to bind as.
+        :type binddn: str
+        :param password: The password for the dn to bind as.
+        :type password: str
+        """
+        if self.state != DIRSRV_STATE_INIT and self.state != DIRSRV_STATE_ALLOCATED:
+            raise ValueError("invalid state for calling allocate: %s" % self.state)
+
+        # The lack of this value basically rules it out in most cases
+        self.isLocal = True
+        self.ds_paths = Paths(instance=self)
+
+        # Do we have ldapi settings?
+        # Do we really need .strip() on this?
+        self.ldapi_enabled = None
+        self.ldapi_socket = None
+
+        self.ldapuri = ldapuri
+
+        self.binddn = binddn
+        self.bindpw = password
+        self.state = DIRSRV_STATE_ALLOCATED
+        self.log.info("Allocate local instance %s with %s" % (self.__class__, self.ldapuri))
+
+    def remote_simple_allocate(self, ldapuri, binddn='cn=Directory Manager', password=None):
+        """Allocate an instance, and perform a simple bind. This instance is remote, so
+        local tasks will not operate.
+
+        :param ldapuri: The instance uri to connect to.
+        :type ldapuri: str
+        :param binddn: The dn to bind as.
+        :type binddn: str
+        :param password: The password for the dn to bind as.
+        :type password: str
+        """
+        if self.state != DIRSRV_STATE_INIT and self.state != DIRSRV_STATE_ALLOCATED:
+            raise ValueError("invalid state for calling allocate: %s" % self.state)
+
+        self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
+        # The lack of this value basically rules it out in most cases
+        self.isLocal = False
+        self.ds_paths = Paths(instance=self)
+
+        # Do we have ldapi settings?
+        # Do we really need .strip() on this?
+        self.ldapi_enabled = None
+        self.ldapi_socket = None
+
+        self.ldapuri = ldapuri
+
+        self.binddn = binddn
+        self.bindpw = password
+        self.state = DIRSRV_STATE_ALLOCATED
+        self.log.info("Allocate %s with %s" % (self.__class__, self.ldapuri))
 
     # Should there be an extra boolean to this function to determine to use
     #  ldapi or not? Or does the settings presence indicate intent?
@@ -814,7 +882,7 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.sbin_dir, CMD_PATH_SETUP_DS)
 
         if not os.path.isfile(prog):
-            log.error("Can't find file: %r, removing extension" % prog)
+            self.log.error("Can't find file: %r, removing extension" % prog)
             prog = prog[:-3]
 
         # Create and extract a service keytab
@@ -973,7 +1041,7 @@ class DirSrv(SimpleLDAPObject, object):
         try:
             os.system(cmd)
         except:
-            log.exception("error executing %r" % cmd)
+            self.log.exception("error executing %r" % cmd)
 
         # If this was the last instance being deleted, remove the DEFAULT_USER
         # if lib389 created the default user
@@ -987,7 +1055,7 @@ class DirSrv(SimpleLDAPObject, object):
                     try:
                         subprocess.call(cmd)
                     except subprocess.CalledProcessError as e:
-                        log.exception('Failed to delete default user ' +
+                        self.log.exception('Failed to delete default user ' +
                                       '(%s): error %s' % (DEFAULT_USER,
                                                           e.output))
 
@@ -1035,18 +1103,18 @@ class DirSrv(SimpleLDAPObject, object):
 
         if certdir is None and self.isLocal:
             certdir = self.get_cert_dir()
-            log.debug("Using dirsrv ca certificate %s" % certdir)
+            self.log.debug("Using dirsrv ca certificate %s" % certdir)
 
         if userkey is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             ldap.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
-            log.debug("Using user private key %s" % userkey)
+            self.log.debug("Using user private key %s" % userkey)
         if usercert is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             ldap.set_option(ldap.OPT_X_TLS_CERTFILE, ensure_str(usercert))
-            log.debug("Using user certificate %s" % usercert)
+            self.log.debug("Using user certificate %s" % usercert)
 
         if certdir is not None:
             """
@@ -1055,17 +1123,17 @@ class DirSrv(SimpleLDAPObject, object):
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
-            log.debug("Using external ca certificate %s" % certdir)
+            self.log.debug("Using external ca certificate %s" % certdir)
 
         if certdir or starttls:
             try:
                 # Note this sets LDAP.OPT not SELF. Because once self has opened
                 # it can NOT change opts on reused (ie restart)
                 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
-                log.debug("Using certificate policy %s" % reqcert)
-                log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
+                self.log.debug("Using certificate policy %s" % reqcert)
+                self.log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
             except ldap.LDAPError as e:
-                log.fatal('TLS negotiation failed: %s' % str(e))
+                self.log.fatal('TLS negotiation failed: %s' % str(e))
                 raise e
 
         ## NOW INIT THIS. This MUST be after all the ldap.OPT set above,
@@ -1089,10 +1157,10 @@ class DirSrv(SimpleLDAPObject, object):
                 self.sasl_interactive_bind_s("", sasl_auth)
             except ldap.LOCAL_ERROR as e:
                 # No Ticket - ultimately invalid credentials
-                log.debug("Error: No Ticket (%s)" % str(e))
+                self.log.debug("Error: No Ticket (%s)" % str(e))
                 raise ldap.INVALID_CREDENTIALS
             except ldap.LDAPError as e:
-                log.debug("SASL/GSSAPI Bind Failed: %s" % str(e))
+                self.log.debug("SASL/GSSAPI Bind Failed: %s" % str(e))
                 raise e
 
         elif saslmethod == 'EXTERNAL':
@@ -1104,14 +1172,14 @@ class DirSrv(SimpleLDAPObject, object):
             self.sasl_interactive_bind_s("", sasltoken)
         elif saslmethod:
             # Unknown or unsupported method
-            log.debug('Unsupported SASL method: %s' % saslmethod)
+            self.log.debug('Unsupported SASL method: %s' % saslmethod)
             raise ldap.UNWILLING_TO_PERFORM
 
         elif self.can_autobind():
             # Connect via ldapi, and autobind.
             # do nothing: the bind is complete.
             if self.verbose:
-                log.info("open(): Using root autobind ...")
+                self.log.info("open(): Using root autobind ...")
             sasl_auth = ldap.sasl.external()
             self.sasl_interactive_bind_s("", sasl_auth)
 
@@ -1123,17 +1191,17 @@ class DirSrv(SimpleLDAPObject, object):
                 self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
             except ldap.SERVER_DOWN as e:
                 # TODO add server info in exception
-                log.debug("Cannot connect to %r" % uri)
+                self.log.debug("Cannot connect to %r" % uri)
                 raise e
             except ldap.LDAPError as e:
-                log.debug("Error: Failed to authenticate: %s", str(e))
+                self.log.debug("Error: Failed to authenticate: %s", str(e))
                 raise e
 
         """
         Authenticated, now finish the initialization
         """
         if self.verbose:
-            log.info("open(): bound as %s" % self.binddn)
+            self.log.info("open(): bound as %s" % self.binddn)
         if not connOnly:
             self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
@@ -1184,9 +1252,9 @@ class DirSrv(SimpleLDAPObject, object):
             # This means the server is probably ready to go ....
             env = {}
             if self.has_asan():
-                log.error("NOTICE: Starting instance with ASAN options")
-                log.error("This is probably not what you want. Please contact support.")
-                log.error("ASAN options will be copied from your environment")
+                self.log.error("NOTICE: Starting instance with ASAN options")
+                self.log.error("This is probably not what you want. Please contact support.")
+                self.log.error("ASAN options will be copied from your environment")
                 env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
                 env['ASAN_OPTIONS'] = "symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (self.ds_paths.run_dir, self.serverid)
                 env.update(os.environ)
@@ -1335,7 +1403,7 @@ class DirSrv(SimpleLDAPObject, object):
                 try:
                     os.remove(backup_file)
                 except:
-                    log.info("clearBackupFS: fail to remove %s" % backup_file)
+                    self.log.info("clearBackupFS: fail to remove %s" % backup_file)
                     pass
         else:
             backup_dir, backup_pattern = self._infoBackupFS()
@@ -1344,7 +1412,7 @@ class DirSrv(SimpleLDAPObject, object):
                 try:
                     os.remove(f)
                 except:
-                    log.info("clearBackupFS: fail to remove %s" % backup_file)
+                    self.log.info("clearBackupFS: fail to remove %s" % backup_file)
                     pass
 
     def checkBackupFS(self):
@@ -1439,14 +1507,14 @@ class DirSrv(SimpleLDAPObject, object):
 
                 for b_dir in dirs:
                     name = os.path.join(root, b_dir)
-                    log.debug("backupFS b_dir = %s (%s) [name=%s]" %
+                    self.log.debug("backupFS b_dir = %s (%s) [name=%s]" %
                               (b_dir, self.prefix, name))
                     if prefix_pattern:
                         name = re.sub(prefix_pattern, '', name)
 
                     if os.path.isdir(name):
                         listFilesToBackup.append(name)
-                        log.debug("backupFS add = %s (%s)" %
+                        self.log.debug("backupFS add = %s (%s)" %
                                   (name, self.prefix))
 
                 for file in files:
@@ -1456,7 +1524,7 @@ class DirSrv(SimpleLDAPObject, object):
 
                     if os.path.isfile(name):
                         listFilesToBackup.append(name)
-                        log.debug("backupFS add = %s (%s)" %
+                        self.log.debug("backupFS add = %s (%s)" %
                                   (name, self.prefix))
 
         # create the archive
@@ -1467,7 +1535,7 @@ class DirSrv(SimpleLDAPObject, object):
         for name in listFilesToBackup:
             tar.add(name)
         tar.close()
-        log.info("backupFS: archive done : %s" % backup_file)
+        self.log.info("backupFS: archive done : %s" % backup_file)
 
         # return to the directory where we were
         os.chdir(here)
@@ -1487,10 +1555,10 @@ class DirSrv(SimpleLDAPObject, object):
 
         # First check the archive exists
         if backup_file is None:
-            log.warning("Unable to restore the instance (missing backup)")
+            self.log.warning("Unable to restore the instance (missing backup)")
             raise ValueError("Unable to restore the instance (missing backup)")
         if not os.path.isfile(backup_file):
-            log.warning("Unable to restore the instance (%s is not a file)" %
+            self.log.warning("Unable to restore the instance (%s is not a file)" %
                         backup_file)
             raise ValueError("Unable to restore the instance " +
                              "(%s is not a file)" % backup_file)
@@ -1500,27 +1568,27 @@ class DirSrv(SimpleLDAPObject, object):
         #
 
         # previous db (it may exists new db files not in the backup)
-        log.debug("restoreFS: remove subtree %s/*" % os.path.dirname(self.dbdir))
+        self.log.debug("restoreFS: remove subtree %s/*" % os.path.dirname(self.dbdir))
         for root, dirs, files in os.walk(os.path.dirname(self.dbdir)):
             for d in dirs:
                 if d not in ("bak", "ldif"):
-                    log.debug("restoreFS: before restore remove directory" +
+                    self.log.debug("restoreFS: before restore remove directory" +
                               " %s/%s" % (root, d))
                     shutil.rmtree("%s/%s" % (root, d))
 
         # previous error/access logs
-        log.debug("restoreFS: remove error logs %s" % self.errlog)
+        self.log.debug("restoreFS: remove error logs %s" % self.errlog)
         for f in glob.glob("%s*" % self.errlog):
-                log.debug("restoreFS: before restore remove file %s" % (f))
-                os.remove(f)
-        log.debug("restoreFS: remove access logs %s" % self.accesslog)
+            self.log.debug("restoreFS: before restore remove file %s" % (f))
+            os.remove(f)
+        self.log.debug("restoreFS: remove access logs %s" % self.accesslog)
         for f in glob.glob("%s*" % self.accesslog):
-                log.debug("restoreFS: before restore remove file %s" % (f))
-                os.remove(f)
+            self.log.debug("restoreFS: before restore remove file %s" % (f))
+            os.remove(f)
         log.debug("restoreFS: remove audit logs %s" % self.accesslog)
         for f in glob.glob("%s*" % self.auditlog):
-                log.debug("restoreFS: before restore remove file %s" % (f))
-                os.remove(f)
+            self.log.debug("restoreFS: before restore remove file %s" % (f))
+            os.remove(f)
 
         # Then restore from the directory where DS was deployed
         here = os.getcwd()
@@ -1539,13 +1607,13 @@ class DirSrv(SimpleLDAPObject, object):
                 # It could be a bad idea and preferably restore all.
                 # Now it will be easy to enhance that function.
                 if os.access(member.name, os.W_OK):
-                    log.debug("restoreFS: restored %s" % member.name)
+                    self.log.debug("restoreFS: restored %s" % member.name)
                     tar.extract(member.name)
                 else:
-                    log.debug("restoreFS: not restored %s (no write access)" %
+                    self.log.debug("restoreFS: not restored %s (no write access)" %
                               member.name)
             else:
-                log.debug("restoreFS: restored %s" % member.name)
+                self.log.debug("restoreFS: restored %s" % member.name)
                 tar.extract(member.name)
 
         tar.close()
@@ -1556,10 +1624,10 @@ class DirSrv(SimpleLDAPObject, object):
         guardian_file = os.path.join(self.dbdir, "guardian")
         if os.path.isfile(guardian_file):
             try:
-                log.debug("restoreFS: remove %s" % guardian_file)
+                self.log.debug("restoreFS: remove %s" % guardian_file)
                 os.remove(guardian_file)
             except:
-                log.warning("restoreFS: fail to remove %s" % guardian_file)
+                self.log.warning("restoreFS: fail to remove %s" % guardian_file)
                 pass
 
         os.chdir(here)
@@ -1583,15 +1651,14 @@ class DirSrv(SimpleLDAPObject, object):
 
     def toLDAPURL(self):
         """Return the uri ldap[s]://host:[ssl]port."""
-        host = self.host
-        if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
-            return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
-        elif self.ldapuri:
+        if self.ldapuri:
             return self.ldapuri
+        elif self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
+            return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
         elif self.sslport:
-            return "ldaps://%s:%d/" % (ensure_str(host), self.sslport)
+            return "ldaps://%s:%d/" % (ensure_str(self.host), self.sslport)
         else:
-            return "ldap://%s:%d/" % (ensure_str(host), self.port)
+            return "ldap://%s:%d/" % (ensure_str(self.host), self.port)
 
     def can_autobind(self):
         """Check if autobind/LDAPI is enabled."""
@@ -1636,6 +1703,9 @@ class DirSrv(SimpleLDAPObject, object):
     def get_tmp_dir(self):
         return self.ds_paths.tmp_dir
 
+    def get_ldapi_path(self):
+        return self.ds_paths.ldapi
+
     def has_asan(self):
         return self.ds_paths.asan_enabled
 
@@ -1660,7 +1730,7 @@ class DirSrv(SimpleLDAPObject, object):
             XXX This cannot return None
         """
         if self.verbose:
-            log.debug("Retrieving entry with %r" % [args])
+            self.log.debug("Retrieving entry with %r" % [args])
         if len(args) == 1 and 'scope' not in kwargs:
             args += (ldap.SCOPE_BASE, )
 
@@ -1671,7 +1741,7 @@ class DirSrv(SimpleLDAPObject, object):
             raise NoSuchEntryError("no such entry for %r" % [args])
 
         if self.verbose:
-            log.info("Retrieved entry %s" % obj)
+            self.log.info("Retrieved entry %s" % obj)
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple
@@ -1682,10 +1752,10 @@ class DirSrv(SimpleLDAPObject, object):
     def _test_entry(self, dn, scope=ldap.SCOPE_BASE):
         try:
             entry = self.getEntry(dn, scope)
-            log.info("Found entry %s" % entry)
+            self.log.info("Found entry %s" % entry)
             return entry
         except NoSuchEntryError:
-            log.exception("Entry %s was added successfully, but I cannot " +
+            self.log.exception("Entry %s was added successfully, but I cannot " +
                           "search it" % dn)
             raise MissingEntryError("Entry %s was added successfully, but " +
                                     "I cannot search it" % dn)
@@ -1726,7 +1796,7 @@ class DirSrv(SimpleLDAPObject, object):
                 except ldap.LDAPError as e:
                     if not self.cont:
                         raise e
-                    log.exception("Error: could not add entry %s" % dn)
+                    self.log.exception("Error: could not add entry %s" % dn)
 
         adder = LDIFAdder(input_file, self, cont)
 
@@ -1934,7 +2004,7 @@ class DirSrv(SimpleLDAPObject, object):
                                    ['2.16.840.1.113730.3.4.12',
                                     '1.3.6.1.4.1.1466.29539.12'])])
         except ldap.TYPE_OR_VALUE_EXISTS:
-            log.error("chaining backend config already has the required ctrls")
+            self.log.error("chaining backend config already has the required ctrls")
 
     def setupChainingMux(self, suffix, isIntermediate, binddn, bindpw, urls):
         self.addSuffix(suffix, binddn, bindpw, urls)
@@ -1952,7 +2022,7 @@ class DirSrv(SimpleLDAPObject, object):
                       "userdn = \"ldap:///%s\";)" % binddn)
             self.modify_s(suffix, [(ldap.MOD_ADD, 'aci', [acival])])
         except ldap.TYPE_OR_VALUE_EXISTS:
-            log.error("proxy aci already exists in suffix %s for %s" % (
+            self.log.error("proxy aci already exists in suffix %s for %s" % (
                 suffix, binddn))
 
     def setupChaining(self, to, suffix, isIntermediate):
@@ -2037,13 +2107,13 @@ class DirSrv(SimpleLDAPObject, object):
         try:
             self.add_s(ent)
         except ldap.ALREADY_EXISTS:
-            log.warn("Entry %s already exists" % binddn)
+            self.log.warn("Entry %s already exists" % binddn)
 
         try:
             entry = self._test_entry(binddn, ldap.SCOPE_BASE)
             return entry
         except MissingEntryError:
-            log.exception("This entry should exist!")
+            self.log.exception("This entry should exist!")
             raise
 
     def setupWinSyncAgmt(self, args, entry):
@@ -2109,7 +2179,7 @@ class DirSrv(SimpleLDAPObject, object):
         suffix = args['suffix']
         if not suffix:
             # This is a mandatory parameter of the command... it fails
-            log.warning("createAgreement: suffix is missing")
+            self.log.warning("createAgreement: suffix is missing")
             return None
 
         # get the RA binddn
@@ -2120,7 +2190,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # weird, internal error we do not retrieve the default
                 # replication bind DN this replica agreement will fail
                 # to update the consumer until the property will be set
-                log.warning("createAgreement: binddn not provided and " +
+                self.log.warning("createAgreement: binddn not provided and " +
                             "default value unavailable")
                 pass
 
@@ -2133,7 +2203,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # replication bind DN password this replica agreement
                 # will fail to update the consumer until the property will be
                 # set
-                log.warning("createAgreement: bindpw not provided and " +
+                self.log.warning("createAgreement: bindpw not provided and " +
                             "default value unavailable")
                 pass
 
@@ -2145,7 +2215,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # weird, internal error we do not retrieve the default
                 # replication bind method this replica agreement will
                 # fail to update the consumer until the property will be set
-                log.warning("createAgreement: bindmethod not provided and " +
+                self.log.warning("createAgreement: bindmethod not provided and " +
                             "default value unavailable")
                 pass
 
@@ -2175,11 +2245,11 @@ class DirSrv(SimpleLDAPObject, object):
         except ldap.NO_SUCH_OBJECT:
             entry = None
         if entry:
-            log.warn("Agreement exists:", dn_agreement)
+            self.log.warn("Agreement exists:", dn_agreement)
             self.suffixes.setdefault(nsuffix, {})[str(consumer)] = dn_agreement
             return dn_agreement
         if (nsuffix in self.agmt) and (consumer in self.agmt[nsuffix]):
-            log.warn("Agreement exists:", dn_agreement)
+            self.log.warn("Agreement exists:", dn_agreement)
             return dn_agreement
 
         # In a separate function in this scope?
@@ -2218,7 +2288,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.setupWinSyncAgmt(args, entry)
 
         try:
-            log.debug("Adding replica agreement: [%s]" % entry)
+            self.log.debug("Adding replica agreement: [%s]" % entry)
             self.add_s(entry)
         except:
             #  TODO check please!
@@ -2302,12 +2372,12 @@ class DirSrv(SimpleLDAPObject, object):
                         replicated = True
                         break
                 except ldap.LDAPError as e:
-                    log.fatal('testReplication() failed to modify (%s), error (%s)' % (suffix, str(e)))
+                    self.log.fatal('testReplication() failed to modify (%s), error (%s)' % (suffix, str(e)))
                     return False
                 loop += 1
                 time.sleep(2)
             if not replicated:
-                log.fatal('Replication is not in sync with replica server (%s)'
+                self.log.fatal('Replication is not in sync with replica server (%s)'
                           % replica.serverid)
                 return False
 
@@ -2373,7 +2443,7 @@ class DirSrv(SimpleLDAPObject, object):
                 })
             self.setupBindDN(*attrs)
         except ldap.ALREADY_EXISTS:
-            log.warn("User already exists: %r " % user)
+            self.log.warn("User already exists: %r " % user)
 
         # setup replica
         # map old style args to new style replica args
@@ -2580,7 +2650,7 @@ class DirSrv(SimpleLDAPObject, object):
 
                 return
 
-        log.fatal('Failed to clear tmp directory (%s)' % filename)
+        self.log.fatal('Failed to clear tmp directory (%s)' % filename)
 
     def upgrade(self, upgradeMode):
         """
@@ -2610,15 +2680,15 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if self.status():
-            log.error("ldif2db: Can not operate while directory server is running")
+            self.log.error("ldif2db: Can not operate while directory server is running")
             return False
 
         if not bename and not suffixes:
-            log.error("ldif2db: backend name or suffix missing")
+            self.log.error("ldif2db: backend name or suffix missing")
             return False
 
         if not os.path.isfile(import_file):
-            log.error("ldif2db: Can't find file: %s" % import_file)
+            self.log.error("ldif2db: Can't find file: %s" % import_file)
             return False
 
         cmd = [
@@ -2645,10 +2715,10 @@ class DirSrv(SimpleLDAPObject, object):
         result = subprocess.check_output(cmd)
         u_result = ensure_str(result)
 
-        log.debug("ldif2db output: BEGIN")
+        self.log.debug("ldif2db output: BEGIN")
         for line in u_result.split("\n"):
-            log.debug(line)
-        log.debug("ldif2db output: END")
+            self.log.debug(line)
+        self.log.debug("ldif2db output: END")
 
         return True
 
@@ -2667,11 +2737,11 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if self.status():
-            log.error("db2ldif: Can not operate while directory server is running")
+            self.log.error("db2ldif: Can not operate while directory server is running")
             return False
 
         if not bename and not suffixes:
-            log.error("db2ldif: backend name or suffix missing")
+            self.log.error("db2ldif: backend name or suffix missing")
             return False
 
         cmd = [
@@ -2702,10 +2772,10 @@ class DirSrv(SimpleLDAPObject, object):
         result = subprocess.check_output(cmd)
         u_result = ensure_str(result)
 
-        log.debug("db2ldif output: BEGIN")
+        self.log.debug("db2ldif output: BEGIN")
         for line in u_result.split("\n"):
-            log.debug(line)
-        log.debug("db2ldif output: END")
+            self.log.debug(line)
+        self.log.debug("db2ldif output: END")
 
         return True
 
@@ -2719,11 +2789,11 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if self.status():
-            log.error("bak2db: Can not operate while directory server is running")
+            self.log.error("bak2db: Can not operate while directory server is running")
             return False
 
         if not archive_dir:
-            log.error("bak2db: backup directory missing")
+            self.log.error("bak2db: backup directory missing")
             return False
 
         result = subprocess.check_output([
@@ -2734,10 +2804,10 @@ class DirSrv(SimpleLDAPObject, object):
         ])
         u_result = ensure_str(result)
 
-        log.debug("bak2db output: BEGIN")
+        self.log.debug("bak2db output: BEGIN")
         for line in u_result.split("\n"):
-            log.debug(line)
-        log.debug("bak2db output: END")
+            self.log.debug(line)
+        self.log.debug("bak2db output: END")
 
         return True
 
@@ -2750,11 +2820,11 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if self.status():
-            log.error("db2bak: Can not operate while directory server is running")
+            self.log.error("db2bak: Can not operate while directory server is running")
             return False
 
         if not archive_dir:
-            log.error("db2bak: archive directory missing")
+            self.log.error("db2bak: archive directory missing")
             return False
 
         result = subprocess.check_output([
@@ -2765,10 +2835,10 @@ class DirSrv(SimpleLDAPObject, object):
         ])
         u_result = ensure_str(result)
 
-        log.debug("db2bak output: BEGIN")
+        self.log.debug("db2bak output: BEGIN")
         for line in u_result.split("\n"):
-            log.debug(line)
-        log.debug("db2bak output: END")
+            self.log.debug(line)
+        self.log.debug("db2bak output: END")
 
         return True
 
@@ -2783,11 +2853,11 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
         if self.status():
-            log.error("db2index: Can not operate while directory server is running")
+            self.log.error("db2index: Can not operate while directory server is running")
             return False
 
         if (not bename and not suffixes) and (attrs or vlvTag):
-            log.error("db2index: missing required backend name or suffix")
+            self.log.error("db2index: missing required backend name or suffix")
             return False
 
         cmd = [prog,]
@@ -2825,10 +2895,10 @@ class DirSrv(SimpleLDAPObject, object):
         result = subprocess.check_output(cmd)
         u_result = ensure_str(result)
 
-        log.debug("db2index output: BEGIN")
+        self.log.debug("db2index output: BEGIN")
         for line in u_result.split("\n"):
-            log.debug(line)
-        log.debug("db2index output: END")
+            self.log.debug(line)
+        self.log.debug("db2index output: END")
 
         return result
 
@@ -2849,11 +2919,11 @@ class DirSrv(SimpleLDAPObject, object):
         prog = os.path.join(self.ds_paths.bin_dir, DBSCAN)
 
         if not bename:
-            log.error("dbscan: missing required backend name")
+            self.log.error("dbscan: missing required backend name")
             return False
 
         if not index:
-            log.error("dbscan: missing required index name")
+            self.log.error("dbscan: missing required index name")
             return False
         elif '.db' in index:
             indexfile = os.path.join(self.dbdir, bename, index)
@@ -2877,7 +2947,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.stop(timeout=10)
 
-        log.info('Running script: %s' % cmd)
+        self.log.info('Running script: %s' % cmd)
         output = subprocess.check_output(cmd)
 
         self.start(timeout=10)
@@ -3081,7 +3151,7 @@ class DirSrv(SimpleLDAPObject, object):
                     gid = grp.getgrnam(self.userid).gr_gid
                     os.chown(ldif_file, uid, gid)
             except OSError as e:
-                log.exception('Failed to create ldif file (%s): error %d - %s' %
+                self.log.exception('Failed to create ldif file (%s): error %d - %s' %
                               (ldif_file, e.errno, e.strerror))
                 raise e
 
