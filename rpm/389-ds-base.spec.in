@@ -358,6 +358,9 @@ if ! getent passwd $USERNAME >/dev/null ; then
     fi
 fi
 
+# Reload our sysctl before we restart (if we can)
+sysctl --system &> $output; true
+
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
 instbase="%{_sysconfdir}/%{pkgname}"
 for dir in $instbase/slapd-* ; do
