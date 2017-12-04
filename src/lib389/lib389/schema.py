@@ -22,8 +22,8 @@ from lib389.tasks import SchemaReloadTask
 
 
 class Schema(DSLdapObject):
-    def __init__(self, instance, batch=False):
-        super(Schema, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance):
+        super(Schema, self).__init__(instance=instance)
         self._dn = DN_SCHEMA
         self._rdn_attribute = 'cn'
 

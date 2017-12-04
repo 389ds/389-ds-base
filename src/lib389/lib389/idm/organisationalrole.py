@@ -21,12 +21,10 @@ class OrganisationalRole(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(OrganisationalRole, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(OrganisationalRole, self).__init__(instance, dn)
         self._rdn_attribute = RDN
         self._must_attributes = MUST_ATTRIBUTES
         self._create_objectclasses = [
@@ -43,12 +41,10 @@ class OrganisationalRoles(DSLdapObjects):
     :type instance: lib389.DirSrv
     :param basedn: Base DN for all group entries below
     :type basedn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, basedn, batch=False):
-        super(OrganisationalRoles, self).__init__(instance, batch)
+    def __init__(self, instance, basedn):
+        super(OrganisationalRoles, self).__init__(instance)
         self._objectclasses = [
             'organizationalrole',
         ]

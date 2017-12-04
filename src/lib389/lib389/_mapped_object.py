@@ -86,12 +86,10 @@ class DSLdapObject(DSLogging):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
     # TODO: Automatically create objects when they are requested to have properties added
-    def __init__(self, instance, dn=None, batch=False):
+    def __init__(self, instance, dn=None):
         self._instance = instance
         super(DSLdapObject, self).__init__(self._instance.verbose)
         # This allows some factor objects to be overriden
@@ -99,7 +97,6 @@ class DSLdapObject(DSLogging):
         if dn is not None:
             self._dn = ensure_str(dn)
 
-        self._batch = batch
         self._protected = True
         # Used in creation
         self._create_objectclasses = []
@@ -322,10 +319,8 @@ class DSLdapObject(DSLogging):
         elif value is not None:
             value = [ensure_bytes(value)]
 
-        if self._batch:
-            pass
-        else:
-            return self._instance.modify_ext_s(self._dn, [(action, key, value)], serverctrls=self._server_controls, clientctrls=self._client_controls)
+        return self._instance.modify_ext_s(self._dn, [(action, key, value)],
+             serverctrls=self._server_controls, clientctrls=self._client_controls)
 
     def apply_mods(self, mods):
         """Perform modification operation using several mods at once
@@ -734,11 +729,9 @@ class DSLdapObjects(DSLogging):
 
     :param instance: An instance
     :type instance: lib389.DirSrv
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, batch=False):
+    def __init__(self, instance):
         self._childobject = DSLdapObject
         self._instance = instance
         super(DSLdapObjects, self).__init__(self._instance.verbose)
@@ -747,7 +740,6 @@ class DSLdapObjects(DSLogging):
         self._list_attrlist = ['dn']
         # Copy this from the child if we need.
         self._basedn = ""
-        self._batch = batch
         self._scope = ldap.SCOPE_SUBTREE
         self._server_controls = None
         self._client_controls = None
@@ -762,7 +754,7 @@ class DSLdapObjects(DSLogging):
         # have "many" possible child types, this allows us to overload
         # and select / return the right one through ALL our get/list/create
         # functions with very little work on the behalf of the overloader
-        return self._childobject(instance=self._instance, dn=dn, batch=self._batch)
+        return self._childobject(instance=self._instance, dn=dn)
 
     def list(self):
         """Get a list of children entries (DSLdapObject, Replica, etc.) using a base DN
@@ -784,7 +776,7 @@ class DSLdapObjects(DSLogging):
                 attrlist=self._list_attrlist,
                 serverctrls=self._server_controls, clientctrls=self._client_controls
             )
-            # def __init__(self, instance, dn=None, batch=False):
+            # def __init__(self, instance, dn=None):
             insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
         except ldap.NO_SUCH_OBJECT:
             # There are no objects to select from, se we return an empty array

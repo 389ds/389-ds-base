@@ -802,12 +802,10 @@ class Replica(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(Replica, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Replica, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', REPL_TYPE,
                                  REPL_ROOT, REPL_BINDDN, REPL_ID]
@@ -1212,12 +1210,10 @@ class Replicas(DSLdapObjects):
 
     :param instance: A instance
     :type instance: lib389.DirSrv
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, batch=False):
-        super(Replicas, self).__init__(instance=instance, batch=False)
+    def __init__(self, instance):
+        super(Replicas, self).__init__(instance=instance)
         self._objectclasses = [REPLICA_OBJECTCLASS_VALUE]
         self._filterattrs = [REPL_ROOT]
         self._childobject = Replica

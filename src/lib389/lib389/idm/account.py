@@ -16,8 +16,6 @@ class Account(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
     def is_locked(self):
@@ -45,12 +43,10 @@ class Accounts(DSLdapObjects):
     :type instance: lib389.DirSrv
     :param basedn: Base DN for all account entries below
     :type basedn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, basedn, batch=False):
-        super(Accounts, self).__init__(instance, batch)
+    def __init__(self, instance, basedn):
+        super(Accounts, self).__init__(instance)
         # These are all the objects capable of holding a password.
         self._objectclasses = [
             'simpleSecurityObject',

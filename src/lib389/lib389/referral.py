@@ -12,8 +12,8 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
 
 class Referral(DSLdapObject):
-    def __init__(self, instance, dn=None, batch=False):
-        super(Referral, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Referral, self).__init__(instance, dn)
         self._rdn_attribute = "cn"
         self._must_attributes = ["ref"]
         self._create_objectclasses = ['referral', 'nsContainer']
@@ -23,8 +23,8 @@ class Referral(DSLdapObject):
         self._client_controls = None
 
 class Referrals(DSLdapObjects):
-    def __init__(self, instance, basedn, batch=False):
-        super(Referrals, self).__init__(instance, batch)
+    def __init__(self, instance, basedn):
+        super(Referrals, self).__init__(instance)
         self._objectclasses = ['referral']
         self._filterattrs = 'cn'
         self._childobject = Referral

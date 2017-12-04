@@ -22,12 +22,10 @@ class PosixGroup(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(PosixGroup, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(PosixGroup, self).__init__(instance, dn)
         self._rdn_attribute = RDN
         # Can I generate these from schema?
         self._must_attributes = MUST_ATTRIBUTES
@@ -68,12 +66,10 @@ class PosixGroups(DSLdapObjects):
     :type instance: lib389.DirSrv
     :param basedn: Base DN for all group entries below
     :type basedn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, basedn, batch=False, rdn='ou=Groups'):
-        super(PosixGroups, self).__init__(instance, batch)
+    def __init__(self, instance, basedn, rdn='ou=Groups'):
+        super(PosixGroups, self).__init__(instance)
         self._objectclasses = [
             'groupOfNames',
             'posixGroup',

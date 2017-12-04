@@ -17,12 +17,10 @@ class Domain(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(Domain, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Domain, self).__init__(instance, dn)
         self._rdn_attribute = 'dc'
         self._must_attributes = ['dc']
         self._create_objectclasses = [

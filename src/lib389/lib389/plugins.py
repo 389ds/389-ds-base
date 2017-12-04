@@ -25,8 +25,8 @@ class Plugin(DSLdapObject):
         'nsslapd-pluginEnabled' : 'off'
     }
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(Plugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Plugin, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = [
             'nsslapd-pluginEnabled',
@@ -65,13 +65,13 @@ class Plugin(DSLdapObject):
         return super(Plugin, self).create(rdn, internal_properties, basedn)
 
 class AddnPlugin(Plugin):
-    def __init__(self, instance, dn="cn=addn,cn=plugins,cn=config", batch=False):
-        super(AddnPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=addn,cn=plugins,cn=config"):
+        super(AddnPlugin, self).__init__(instance, dn)
         # Need to add wrappers to add domains to this.
 
 class AttributeUniquenessPlugin(Plugin):
-    def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config", batch=False):
-        super(AttributeUniquenessPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config"):
+        super(AttributeUniquenessPlugin, self).__init__(instance, dn)
 
     ## These are some wrappers to the important attributes
     # This plugin will be "tricky" in that it can have "many" instance
@@ -108,12 +108,12 @@ class LdapSSOTokenPlugin(Plugin):
         'nsslapd-pluginDescription' : 'Ldap SSO Token Sasl Mech - draft-wibrown-ldapssotoken',
     }
 
-    def __init__(self, instance, dn="cn=ldapssotoken,cn=plugins,cn=config", batch=False):
-        super(LdapSSOTokenPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=ldapssotoken,cn=plugins,cn=config"):
+        super(LdapSSOTokenPlugin, self).__init__(instance, dn)
 
 class ManagedEntriesPlugin(Plugin):
-    def __init__(self, instance, dn="cn=managed entries,cn=plugins,cn=config", batch=False):
-        super(ManagedEntriesPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=managed entries,cn=plugins,cn=config"):
+        super(ManagedEntriesPlugin, self).__init__(instance, dn)
 
     # This will likely need to be a bit like both the DSLdapObjects AND the object.
     # Because there are potentially many MEP configs.
@@ -135,8 +135,8 @@ class ReferentialIntegrityPlugin(Plugin):
         'nsslapd-pluginDescription' : 'referential integrity plugin',
     }
 
-    def __init__(self, instance, dn="cn=referential integrity postoperation,cn=plugins,cn=config", batch=False):
-        super(ReferentialIntegrityPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=referential integrity postoperation,cn=plugins,cn=config"):
+        super(ReferentialIntegrityPlugin, self).__init__(instance, dn)
         self._create_objectclasses.extend(['extensibleObject'])
         self._must_attributes.extend([
             'referint-update-delay',
@@ -226,28 +226,28 @@ class ReferentialIntegrityPlugin(Plugin):
         self.remove_all('nsslapd-plugincontainerscope')
 
 class SyntaxValidationPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Syntax Validation Task,cn=plugins,cn=config", batch=False):
-        super(SyntaxValidationPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Syntax Validation Task,cn=plugins,cn=config"):
+        super(SyntaxValidationPlugin, self).__init__(instance, dn)
 
 class SchemaReloadPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Schema Reload,cn=plugins,cn=config", batch=False):
-        super(SchemaReloadPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Schema Reload,cn=plugins,cn=config"):
+        super(SchemaReloadPlugin, self).__init__(instance, dn)
 
 class StateChangePlugin(Plugin):
-    def __init__(self, instance, dn="cn=State Change Plugin,cn=plugins,cn=config", batch=False):
-        super(StateChangePlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=State Change Plugin,cn=plugins,cn=config"):
+        super(StateChangePlugin, self).__init__(instance, dn)
 
 class ACLPlugin(Plugin):
-    def __init__(self, instance, dn="cn=ACL Plugin,cn=plugins,cn=config", batch=False):
-        super(ACLPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=ACL Plugin,cn=plugins,cn=config"):
+        super(ACLPlugin, self).__init__(instance, dn)
 
 class ACLPreoperationPlugin(Plugin):
-    def __init__(self, instance, dn="cn=ACL preoperation,cn=plugins,cn=config", batch=False):
-        super(ACLPreoperationPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=ACL preoperation,cn=plugins,cn=config"):
+        super(ACLPreoperationPlugin, self).__init__(instance, dn)
 
 class RolesPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Roles Plugin,cn=plugins,cn=config", batch=False):
-        super(RolesPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Roles Plugin,cn=plugins,cn=config"):
+        super(RolesPlugin, self).__init__(instance, dn)
 
 class MemberOfPlugin(Plugin):
     _plugin_properties = {
@@ -265,8 +265,8 @@ class MemberOfPlugin(Plugin):
         'memberOfAttr' : 'memberOf',
     }
 
-    def __init__(self, instance, dn="cn=MemberOf Plugin,cn=plugins,cn=config", batch=False):
-        super(MemberOfPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=MemberOf Plugin,cn=plugins,cn=config"):
+        super(MemberOfPlugin, self).__init__(instance, dn)
         self._create_objectclasses.extend(['extensibleObject'])
         self._must_attributes.extend(['memberOfGroupAttr', 'memberOfAttr'])
 
@@ -367,48 +367,48 @@ class MemberOfPlugin(Plugin):
         return task
 
 class RetroChangelogPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Retro Changelog Plugin,cn=plugins,cn=config", batch=False):
-        super(RetroChangelogPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Retro Changelog Plugin,cn=plugins,cn=config"):
+        super(RetroChangelogPlugin, self).__init__(instance, dn)
 
 class ClassOfServicePlugin(Plugin):
-    def __init__(self, instance, dn="cn=Class of Service,cn=plugins,cn=config", batch=False):
-        super(ClassOfServicePlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Class of Service,cn=plugins,cn=config"):
+        super(ClassOfServicePlugin, self).__init__(instance, dn)
 
 class ViewsPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Views,cn=plugins,cn=config", batch=False):
-        super(ViewsPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Views,cn=plugins,cn=config"):
+        super(ViewsPlugin, self).__init__(instance, dn)
 
 class SevenBitCheckPlugin(Plugin):
-    def __init__(self, instance, dn="cn=7-bit check,cn=plugins,cn=config", batch=False):
-        super(SevenBitCheckPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=7-bit check,cn=plugins,cn=config"):
+        super(SevenBitCheckPlugin, self).__init__(instance, dn)
 
 class AccountUsabilityPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Account Usability Plugin,cn=plugins,cn=config", batch=False):
-        super(AccountUsabilityPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Account Usability Plugin,cn=plugins,cn=config"):
+        super(AccountUsabilityPlugin, self).__init__(instance, dn)
 
 class AutoMembershipPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config", batch=False):
-        super(AutoMembershipPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
+        super(AutoMembershipPlugin, self).__init__(instance, dn)
 
 class ContentSynchronizationPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config", batch=False):
-        super(ContentSynchronizationPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config"):
+        super(ContentSynchronizationPlugin, self).__init__(instance, dn)
 
 class DereferencePlugin(Plugin):
-    def __init__(self, instance, dn="cn=deref,cn=plugins,cn=config", batch=False):
-        super(DereferencePlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=deref,cn=plugins,cn=config"):
+        super(DereferencePlugin, self).__init__(instance, dn)
 
 class HTTPClientPlugin(Plugin):
-    def __init__(self, instance, dn="cn=HTTP Client,cn=plugins,cn=config", batch=False):
-        super(HTTPClientPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=HTTP Client,cn=plugins,cn=config"):
+        super(HTTPClientPlugin, self).__init__(instance, dn)
 
 class LinkedAttributesPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Linked Attributes,cn=plugins,cn=config", batch=False):
-        super(LinkedAttributesPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Linked Attributes,cn=plugins,cn=config"):
+        super(LinkedAttributesPlugin, self).__init__(instance, dn)
 
 class PassThroughAuthenticationPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Pass Through Authentication,cn=plugins,cn=config", batch=False):
-        super(PassThroughAuthenticationPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Pass Through Authentication,cn=plugins,cn=config"):
+        super(PassThroughAuthenticationPlugin, self).__init__(instance, dn)
 
 class USNPlugin(Plugin):
     _plugin_properties = {
@@ -425,8 +425,8 @@ class USNPlugin(Plugin):
         'nsslapd-pluginDescription': 'USN (Update Sequence Number) plugin',
     }
 
-    def __init__(self, instance, dn="cn=USN,cn=plugins,cn=config", batch=False):
-        super(USNPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=USN,cn=plugins,cn=config"):
+        super(USNPlugin, self).__init__(instance, dn)
         self._create_objectclasses.extend(['extensibleObject'])
 
     def is_global_mode_set(self):
@@ -468,8 +468,8 @@ class WhoamiPlugin(Plugin):
         'nsslapd-pluginDescription' : 'Provides whoami extended operation',
     }
 
-    def __init__(self, instance, dn="cn=whoami,cn=plugins,cn=config", batch=False):
-        super(WhoamiPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=whoami,cn=plugins,cn=config"):
+        super(WhoamiPlugin, self).__init__(instance, dn)
 
 class RootDNAccessControlPlugin(Plugin):
     _plugin_properties = {
@@ -485,8 +485,8 @@ class RootDNAccessControlPlugin(Plugin):
         'nsslapd-pluginDescription' : 'RootDN Access Control plugin',
     }
 
-    def __init__(self, instance, dn="cn=RootDN Access Control,cn=plugins,cn=config", batch=False):
-        super(RootDNAccessControlPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=RootDN Access Control,cn=plugins,cn=config"):
+        super(RootDNAccessControlPlugin, self).__init__(instance, dn)
         self._create_objectclasses.extend(['rootDNPluginConfig'])
 
     def get_open_time(self):
@@ -647,24 +647,24 @@ class RootDNAccessControlPlugin(Plugin):
 
 
 class LDBMBackendPlugin(Plugin):
-    def __init__(self, instance, dn="cn=ldbm database,cn=plugins,cn=config", batch=False):
-        super(LDBMBackendPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=ldbm database,cn=plugins,cn=config"):
+        super(LDBMBackendPlugin, self).__init__(instance, dn)
 
 class ChainingBackendPlugin(Plugin):
-    def __init__(self, instance, dn="cn=chaining database,cn=plugins,cn=config", batch=False):
-        super(ChainingBackendPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=chaining database,cn=plugins,cn=config"):
+        super(ChainingBackendPlugin, self).__init__(instance, dn)
 
 class AccountPolicyPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Account Policy Plugin,cn=plugins,cn=config", batch=False):
-        super(AccountPolicyPlugin, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn="cn=Account Policy Plugin,cn=plugins,cn=config"):
+        super(AccountPolicyPlugin, self).__init__(instance, dn)
 
 class Plugins(DSLdapObjects):
 
     # This is a map of plugin to type, so when we
     # do a get / list / create etc, we can map to the correct
     # instance.
-    def __init__(self, instance, batch=False):
-        super(Plugins, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance):
+        super(Plugins, self).__init__(instance=instance)
         self._objectclasses = ['top', 'nsslapdplugin']
         self._filterattrs = ['cn', 'nsslapd-pluginPath']
         self._childobject = Plugin
@@ -684,7 +684,7 @@ class Plugins(DSLdapObjects):
     def _entry_to_instance(self, dn=None, entry=None):
         # If dn in self._pluginmap
         if entry['nsslapd-pluginPath'] in self._pluginmap:
-            return self._pluginmap[entry['nsslapd-pluginPath']](self._instance, dn=dn, batch=self._batch)
+            return self._pluginmap[entry['nsslapd-pluginPath']](self._instance, dn=dn)
         else:
             return super(Plugins, self)._entry_to_instance(dn)
 

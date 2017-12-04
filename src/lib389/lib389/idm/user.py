@@ -38,12 +38,10 @@ class UserAccount(Account):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(UserAccount, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(UserAccount, self).__init__(instance, dn)
         self._rdn_attribute = RDN
         # Can I generate these from schema?
         self._must_attributes = MUST_ATTRIBUTES
@@ -91,12 +89,10 @@ class UserAccounts(DSLdapObjects):
     :type basedn: str
     :param rdn: The DN that will be combined wit basedn
     :type rdn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, basedn, batch=False, rdn='ou=People'):
-        super(UserAccounts, self).__init__(instance, batch)
+    def __init__(self, instance, basedn, rdn='ou=People'):
+        super(UserAccounts, self).__init__(instance)
         self._objectclasses = [
             'account',
             'posixaccount',

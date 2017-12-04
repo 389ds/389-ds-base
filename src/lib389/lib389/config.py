@@ -31,9 +31,9 @@ class Config(DSLdapObject):
         - set access and error logging
         - get and set "cn=config" attributes
     """
-    def __init__(self, conn, batch=False):
+    def __init__(self, conn):
         """@param conn - a DirSrv instance """
-        super(Config, self).__init__(instance=conn, batch=batch)
+        super(Config, self).__init__(instance=conn)
         self._dn = DN_CONFIG
         # self._instance = conn
         # self.log = conn.log
@@ -203,9 +203,9 @@ class Encryption(DSLdapObject):
         - ssl ciphers
         - ssl / tls levels
     """
-    def __init__(self, conn, batch=False):
+    def __init__(self, conn):
         """@param conn - a DirSrv instance """
-        super(Encryption, self).__init__(instance=conn, batch=batch)
+        super(Encryption, self).__init__(instance=conn)
         self._dn = 'cn=encryption,%s' % DN_CONFIG
         self._create_objectclasses = ['top', 'nsEncryptionConfig']
         # Once created, don't allow it's removal
@@ -232,9 +232,9 @@ class RSA(DSLdapObject):
         - Database path
         - ssl token name
     """
-    def __init__(self, conn, batch=False):
+    def __init__(self, conn):
         """@param conn - a DirSrv instance """
-        super(RSA, self).__init__(instance=conn, batch=batch)
+        super(RSA, self).__init__(instance=conn)
         self._dn = 'cn=RSA,cn=encryption,%s' % DN_CONFIG
         self._create_objectclasses = ['top', 'nsEncryptionModule']
         self._rdn_attribute = 'cn'
@@ -358,12 +358,10 @@ class LDBMConfig(DSLdapObject):
 
         :param instance: An instance
         :type instance: lib389.DirSrv
-        :param batch: Not implemented
-        :type batch: bool
     """
 
-    def __init__(self, conn, batch=False):
-        super(LDBMConfig, self).__init__(instance=conn, batch=batch)
+    def __init__(self, conn):
+        super(LDBMConfig, self).__init__(instance=conn)
         self._dn = DN_CONFIG_LDBM
         config_compare_exclude = []
         self._rdn_attribute = 'cn'

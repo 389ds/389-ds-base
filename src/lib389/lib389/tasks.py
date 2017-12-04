@@ -27,8 +27,8 @@ from lib389.properties import (
 
 
 class Task(DSLdapObject):
-    def __init__(self, instance, dn=None, batch=False):
-        super(Task, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Task, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
         self._create_objectclasses = ['top', 'extensibleObject']
@@ -69,20 +69,20 @@ class Task(DSLdapObject):
 
 
 class MemberOfFixupTask(Task):
-    def __init__(self, instance, dn=None, batch=False):
+    def __init__(self, instance, dn=None):
         self.cn = 'memberOf_fixup_' + Task._get_task_date()
         dn = "cn=" + self.cn + "," + DN_MBO_TASK
 
-        super(MemberOfFixupTask, self).__init__(instance, dn, batch)
+        super(MemberOfFixupTask, self).__init__(instance, dn)
         self._must_attributes.extend(['basedn'])
 
 
 class USNTombstoneCleanupTask(Task):
-    def __init__(self, instance, dn=None, batch=False):
+    def __init__(self, instance, dn=None):
         self.cn = 'usn_cleanup_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=USN tombstone cleanup task," + DN_TASKS
 
-        super(USNTombstoneCleanupTask, self).__init__(instance, dn, batch)
+        super(USNTombstoneCleanupTask, self).__init__(instance, dn)
 
     def _validate(self, rdn, properties, basedn):
         if not 'suffix' in properties and not 'backend' in properties:
@@ -91,11 +91,11 @@ class USNTombstoneCleanupTask(Task):
         return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
 class SchemaReloadTask(Task):
-    def __init__(self, instance, dn=None, batch=False):
+    def __init__(self, instance, dn=None):
         self.cn = 'schema_reload_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
 
-        super(SchemaReloadTask, self).__init__(instance, dn, batch)
+        super(SchemaReloadTask, self).__init__(instance, dn)
 
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()

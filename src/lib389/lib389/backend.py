@@ -394,14 +394,12 @@ class Backend(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
     _must_attributes = ['nsslapd-suffix', 'cn']
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(Backend, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Backend, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['nsslapd-suffix', 'cn']
         self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
@@ -550,7 +548,7 @@ class Backend(DSLdapObject):
     def get_monitor(self):
         """Get a MonitorBackend(DSLdapObject) for the backend"""
 
-        monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn, batch=self._batch)
+        monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn)
         return monitor
 
     def get_indexes(self):
@@ -568,12 +566,10 @@ class Backends(DSLdapObjects):
 
     :param instance: An instance
     :type instance: lib389.DirSrv
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, batch=False):
-        super(Backends, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance):
+        super(Backends, self).__init__(instance=instance)
         self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
         self._childobject = Backend

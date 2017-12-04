@@ -387,14 +387,12 @@ class MappingTree(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: Entry DN
     :type dn: str
-    :param batch: Not implemented
-    :type batch: bool
     """
 
     _must_attributes = ['cn']
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(MappingTree, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(MappingTree, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
         self._create_objectclasses = ['top', 'extensibleObject', MT_OBJECTCLASS_VALUE]
@@ -420,12 +418,10 @@ class MappingTrees(DSLdapObjects):
 
     :param instance: An instance
     :type instance: lib389.DirSrv
-    :param batch: Not implemented
-    :type batch: bool
     """
 
-    def __init__(self, instance, batch=False):
-        super(MappingTrees, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance):
+        super(MappingTrees, self).__init__(instance=instance)
         self._objectclasses = [MT_OBJECTCLASS_VALUE]
         self._filterattrs = ['cn', 'nsslapd-backend' ]
         self._childobject = MappingTree

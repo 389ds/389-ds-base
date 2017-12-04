@@ -22,7 +22,7 @@ class IpaDomain(DSLdapObject):
     """
 
     def __init__(self, instance, dn=None):
-        super(IpaDomain, self).__init__(instance, dn, batch=False)
+        super(IpaDomain, self).__init__(instance, dn)
         self._rdn_attribute = 'dc'
         self._must_attributes = ['dc', 'info']
         self._create_objectclasses = [

@@ -24,8 +24,8 @@ if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
 DEFAULT_INDEX_DN = "cn=default indexes,%s" % DN_CONFIG_LDBM
 
 class Index(DSLdapObject):
-    def __init__(self, instance, dn=None, batch=False):
-        super(Index, self).__init__(instance, dn, batch)
+    def __init__(self, instance, dn=None):
+        super(Index, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', 'nsSystemIndex', 'nsIndexType']
         self._create_objectclasses = ['top', 'nsIndex']
@@ -33,8 +33,8 @@ class Index(DSLdapObject):
         self._lint_functions = []
 
 class Indexes(DSLdapObjects):
-    def __init__(self, instance, basedn=DEFAULT_INDEX_DN, batch=False):
-        super(Indexes, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance, basedn=DEFAULT_INDEX_DN):
+        super(Indexes, self).__init__(instance=instance)
         self._objectclasses = ['nsIndex']
         self._filterattrs = ['cn']
         self._childobject = Index

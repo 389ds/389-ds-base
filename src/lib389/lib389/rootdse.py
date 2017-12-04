@@ -16,9 +16,9 @@ class RootDSE(DSLdapObject):
     """
     Check if the directory supports features or not.
     """
-    def __init__(self, conn, batch=False):
+    def __init__(self, conn):
         """@param conn - a DirSrv instance """
-        super(RootDSE, self).__init__(instance=conn, batch=batch)
+        super(RootDSE, self).__init__(instance=conn)
         self._dn = ""
 
     def supported_sasl(self):

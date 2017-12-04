@@ -16,10 +16,9 @@ class Monitor(DSLdapObject):
         :param instance: An instance
         :type instance: lib389.DirSrv
         :param dn: not used
-        :param batch: not used
     """
-    def __init__(self, instance, dn=None, batch=False):
-        super(Monitor, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance, dn=None):
+        super(Monitor, self).__init__(instance=instance)
         self._dn = DN_MONITOR
 
     def get_connections(self):
@@ -85,8 +84,8 @@ class Monitor(DSLdapObject):
         return (dtablesize, readwaiters, entriessent, bytessent, currenttime, starttime)
 
 class MonitorLDBM(DSLdapObject):
-    def __init__(self, instance, dn=None, batch=False):
-        super(MonitorLDBM, self).__init__(instance=instance, batch=batch)
+    def __init__(self, instance, dn=None):
+        super(MonitorLDBM, self).__init__(instance=instance)
         self._dn = DN_MONITOR_LDBM
         self._backend_keys = [
             'dbcachehits',
@@ -105,8 +104,8 @@ class MonitorBackend(DSLdapObject):
     This is initialised from Backend in backend.py to get the right basedn.
     """
 
-    def __init__(self, instance, dn=None, batch=False):
-        super(MonitorBackend, self).__init__(instance=instance, dn=dn, batch=batch)
+    def __init__(self, instance, dn=None):
+        super(MonitorBackend, self).__init__(instance=instance, dn=dn)
         self._backend_keys = [
             'readonly',
             'entrycachehits',
