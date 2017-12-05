@@ -15,6 +15,7 @@ import grp
 import re
 import socket
 import subprocess
+import getpass
 
 from lib389 import _ds_shutil_copytree
 from lib389._constants import *

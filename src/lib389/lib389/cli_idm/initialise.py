@@ -11,6 +11,7 @@ from lib389.configurations import get_sample_entries
 
 def initialise(inst, basedn, log, args):
     sample_entries = get_sample_entries(args.version)
+    assert basedn is not None
     s_ent = sample_entries(inst, basedn)
     s_ent.apply()
 

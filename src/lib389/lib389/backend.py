@@ -568,7 +568,9 @@ class Backends(DSLdapObjects):
     :type instance: lib389.DirSrv
     """
 
-    def __init__(self, instance):
+    def __init__(self, instance, basedn=None):
+        # Basedn has to be here, despite not being used to satisfy
+        # cli_base _generic_create.
         super(Backends, self).__init__(instance=instance)
         self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
