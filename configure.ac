@@ -158,8 +158,8 @@ AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc 
 [
   AC_MSG_RESULT(yes)
   AM_COND_IF([RPM_HARDEND_CC],
-  [ gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 " ],
-  [ gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security" ]
+  [ gccsec_defs="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 " ],
+  [ gccsec_defs="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security" ]
   )
 ],
 [
