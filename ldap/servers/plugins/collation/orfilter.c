@@ -301,19 +301,21 @@ ss_unescape (struct berval* val)
     char* t = s;
     char* limit = s + val->bv_len;
     while (s < limit) {
-	if (!memcmp (s, "\\2a", 3) ||
-	    !memcmp (s, "\\2A", 3)) {
-	    *t++ = WILDCARD;
-	    s += 3;
-	} else if (!memcmp (s, "\\5c", 3) ||
-		   !memcmp (s, "\\5C", 3)) {
-	    *t++ = '\\';
-	    s += 3;
-	} else {
-	    if (t == s) LDAP_UTF8INC (t);
-	    else t += LDAP_UTF8COPY (t, s);
-	    LDAP_UTF8INC (s);
-	}
+        if (((limit - s) >= 3) &&
+                (!memcmp(s, "\\2a", 3) || !memcmp(s, "\\2A", 3))) {
+            *t++ = WILDCARD;
+            s += 3;
+        } else if ((limit - s) >= 3 &&
+                (!memcmp(s, "\\5c", 3) || !memcmp(s, "\\5C", 3))) {
+            *t++ = '\\';
+            s += 3;
+        } else {
+            if (t == s)
+                LDAP_UTF8INC(t);
+            else
+                t += LDAP_UTF8COPY(t, s);
+            LDAP_UTF8INC(s);
+        }
     }
     val->bv_len = t - val->bv_val;
 }
@@ -389,14 +391,18 @@ ss_filter_values (struct berval* pattern, int* query_op)
     n = 0;
     s = pattern->bv_val;
     for (p = s; p < plimit; LDAP_UTF8INC(p)) {
-	switch (*p) {
-	  case WILDCARD:
-	    result[n++] = ss_filter_value (s, p-s, &val);
-	    while (++p != plimit && *p == WILDCARD);
-	    s = p;
-	    break;
-	  default: break;
-	}
+        switch (*p) {
+        case WILDCARD:
+            result[n++] = ss_filter_value(s, p - s, &val);
+            while (p != plimit && *p == WILDCARD) p++;
+            s = p;
+            break;
+        default:
+            break;
+        }
+        if (p >= plimit) {
+            break;
+        }
     }
     if (p != s || s == plimit) {
 	result[n++] = ss_filter_value (s, p-s, &val);
