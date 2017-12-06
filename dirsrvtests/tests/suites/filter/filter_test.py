@@ -100,6 +100,30 @@ def test_filter_search_original_attrs(topology_st):
 
     log.info('test_filter_search_original_attrs: PASSED')
 
+@pytest.mark.bz1511462
+def test_filter_scope_one(topology_st):
+    """Test ldapsearch with scope one gives only single entry
+
+    :id: cf5a6078-bbe6-4d43-ac71-553c45923f91
+    :setup: Standalone instance
+    :steps:
+         1. Search cn=Directory Administrators,dc=example,dc=com using ldapsearch with
+            scope one using base as dc=example,dc=com
+         2. Check that search should return only one entry
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+    """
+
+    parent_dn="dn: dc=example,dc=com"
+    child_dn="dn: cn=Directory Administrators,dc=example,dc=com"
+
+    log.info('Search user using ldapsearch with scope one')
+    results = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL,'cn=Directory Administrators',['cn'] )
+    log.info(results)
+
+    log.info('Search should only have one entry')
+    assert len(results) == 1
 
 if __name__ == '__main__':
     # Run isolated
