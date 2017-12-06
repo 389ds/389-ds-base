@@ -222,10 +222,10 @@ class DSLdapObject(DSLogging):
         self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
 
         e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=[attr, ], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
-        if value is None:
-            return e.hasAttr(attr)
-        else:
-            return e.hasValue(attr, value)
+        values = self.get_attr_vals_bytes(attr)
+        self._log.debug("%s contains %s" % (self._dn, values))
+
+        return ensure_bytes(value).lower() in [x.lower() for x in values]
 
     def add(self, key, value):
         """Add an attribute with a value

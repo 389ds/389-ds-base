@@ -387,8 +387,113 @@ class AccountUsabilityPlugin(Plugin):
         super(AccountUsabilityPlugin, self).__init__(instance, dn)
 
 class AutoMembershipPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'Auto Membership Plugin',
+        'nsslapd-pluginEnabled' : 'off',
+        'nsslapd-pluginPath' : 'libautomember-plugin',
+        'nsslapd-pluginInitfunc' : 'automember_init',
+        'nsslapd-pluginType' : 'betxnpreoperation',
+        'nsslapd-plugin-depends-on-type' : 'database',
+        'nsslapd-pluginId' : 'Auto Membership',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.7.0',
+        'nsslapd-pluginDescription' : 'Auto Membership plugin',
+    }
+
     def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
         super(AutoMembershipPlugin, self).__init__(instance, dn)
+
+class AutoMembershipDefinition(DSLdapObject):
+    """A single instance of Auto Membership Plugin entry
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param dn: Entry DN
+        :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(AutoMembershipDefinition, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'AutoMemberDefinition']
+        self._protected = False
+
+    def get_groupattr(self):
+        """Get grouping attributes
+
+            :returns: autoMemberGroupingAttr values
+        """
+        return self.get_attr_vals_utf8('autoMemberGroupingAttr')
+
+    def set_groupattr(self, attr):
+        """Set grouping attributes
+
+            :param attr: autoMemberGroupingAttr value
+            :type attr: str
+        """
+        self.set('autoMemberGroupingAttr', attr)
+
+    def get_defaultgroup(self, attr):
+        """Get default group
+
+            :returns: autoMemberDefaultGroup value
+        """
+        return self.get_attr_vals_utf8('autoMemberDefaultGroup')
+
+    def set_defaultgroup(self, attr):
+        """Set default group
+
+            :param attr: autoMemberDefaultGroup value
+            :type attr: str
+        """
+        self.set('autoMemberDefaultGroup', attr)  
+
+    def get_scope(self, attr):
+        """Get scope
+
+            :returns: autoMemberScope value
+        """        
+        return self.get_attr_vals_utf8('autoMemberScope')
+
+    def set_scope(self, attr):
+        """Set scope
+
+            :param attr: autoMemberScope value
+            :type attr: str
+        """        
+        self.set('autoMemberScope', attr)
+
+    def get_filter(self, attr):
+        """Get filter
+
+            :returns: autoMemberFilter value
+        """       
+        return self.get_attr_vals_utf8('autoMemberFilter')
+
+    def set_filter(self, attr):
+        """Set filter
+
+            :param attr: autoMemberFilter value
+            :type attr: str
+        """ 
+        self.set('autoMemberFilter', attr)
+
+class AutoMembershipDefinitions(DSLdapObjects):
+    """DSLdapObjects that represents Auto Membership Plugin entry
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param basedn: Base DN for all account entries below
+        :type basedn: str
+    """
+
+    def __init__(self, instance, basedn):
+        super(AutoMembershipDefinitions, self).__init__(instance)
+        self._objectclasses = ['top','autoMemberDefinition']
+        self._filterattrs = ['cn']
+        self._childobject = AutoMembershipDefinition
+        self._basedn = basedn
 
 class ContentSynchronizationPlugin(Plugin):
     def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config"):
