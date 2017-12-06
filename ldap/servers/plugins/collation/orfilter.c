@@ -313,12 +313,12 @@ ss_unescape(struct berval *val)
     char *t = s;
     char *limit = s + val->bv_len;
     while (s < limit) {
-        if (!memcmp(s, "\\2a", 3) ||
-            !memcmp(s, "\\2A", 3)) {
+        if (((limit - s) >= 3) &&
+                (!memcmp(s, "\\2a", 3) || !memcmp(s, "\\2A", 3))) {
             *t++ = WILDCARD;
             s += 3;
-        } else if (!memcmp(s, "\\5c", 3) ||
-                   !memcmp(s, "\\5C", 3)) {
+        } else if ((limit - s) >= 3 &&
+                (!memcmp(s, "\\5c", 3) || !memcmp(s, "\\5C", 3))) {
             *t++ = '\\';
             s += 3;
         } else {
@@ -409,11 +409,13 @@ ss_filter_values(struct berval *pattern, int *query_op)
         switch (*p) {
         case WILDCARD:
             result[n++] = ss_filter_value(s, p - s, &val);
-            while (++p != plimit && *p == WILDCARD)
-                ;
+            while (p != plimit && *p == WILDCARD) p++;
             s = p;
             break;
         default:
+            break;
+        }
+        if (p >= plimit) {
             break;
         }
     }
