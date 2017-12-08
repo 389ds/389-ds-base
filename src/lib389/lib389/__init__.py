@@ -1095,7 +1095,10 @@ class DirSrv(SimpleLDAPObject, object):
         if not uri:
             uri = self.toLDAPURL()
         self.log.debug('open(): Connecting to uri %s' % uri)
-        super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
+        if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
+            super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
+        else:
+            super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
 
         if certdir is None and self.isLocal:
             certdir = self.get_cert_dir()
