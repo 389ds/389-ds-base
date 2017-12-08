@@ -46,7 +46,6 @@ struct replica {
 	char*   legacy_purl;            /* partial url of the legacy supplier   */
 	ReplicaId repl_rid;				/* replicaID							*/
 	Object	*repl_ruv;				/* replica update vector				*/
-	PRBool repl_ruv_dirty;          /* Dirty flag for ruv                   */
 	CSNPL *min_csn_pl;              /* Pending list for minimal CSN         */
 	void *csn_pl_reg_id;            /* registration assignment for csn callbacks */
 	unsigned long repl_state_flags;	/* state flags							*/
@@ -855,7 +854,6 @@ replica_set_ruv (Replica *r, RUV *ruv)
     }
 
 	r->repl_ruv = object_new((void*)ruv, (FNFree)ruv_destroy);
-	r->repl_ruv_dirty = PR_TRUE;
 
 	replica_unlock(r->repl_lock);
 }
@@ -940,11 +938,6 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 						"to update RUV for replica %s, csn = %s\n",
 						slapi_sdn_get_dn(r->repl_root),
 						csn_as_string(updated_csn, PR_FALSE, csn_str));
-				}
-				else
-				{
-					/* RUV updated - mark as dirty */
-					r->repl_ruv_dirty = PR_TRUE;
 				}
 			}
 			else
@@ -1526,8 +1519,6 @@ replica_dump(Replica *r)
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "\tupdate dn: %s\n",
             updatedn_list? updatedn_list : "not configured");
     slapi_ch_free_string(&updatedn_list);
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "\truv: %s configured and is %sdirty\n",
-                    r->repl_ruv ? "" : "not", r->repl_ruv_dirty ? "" : "not ");
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "\tCSN generator: %s configured\n",
                     r->repl_csngen ? "" : "not");
 	/* JCMREPL - Dump Referrals */
@@ -1877,7 +1868,6 @@ int replica_check_for_data_reload (Replica *r, void *arg __attribute__((unused))
 
                     ruv_force_csn_update_from_ruv(upper_bound_ruv, r_ruv, 
                             "Force update of database RUV (from CL RUV) -> ", SLAPI_LOG_NOTICE);
-                    replica_set_ruv_dirty(r);
                 }
                 
             } else {
@@ -2994,12 +2984,6 @@ replica_write_ruv (Replica *r)
 
 	replica_lock(r->repl_lock);
 
-	if (!r->repl_ruv_dirty)
-	{
-		replica_unlock(r->repl_lock);
-		return rc;
-	}
-
 	PR_ASSERT (r->repl_ruv);
 	
 	ruv_to_smod ((RUV*)object_get_data(r->repl_ruv), &smod);
@@ -3034,19 +3018,13 @@ replica_write_ruv (Replica *r)
     /* ruv does not exist - create one */
     replica_lock(r->repl_lock);
 
-    if (rc == LDAP_SUCCESS)
-    {
-        r->repl_ruv_dirty = PR_FALSE;
-    }
-    else if (rc == LDAP_NO_SUCH_OBJECT)
+    if (rc == LDAP_NO_SUCH_OBJECT)
     {
         /* this includes an internal operation - but since this only happens
            during server startup - its ok that we have lock around it */
         rc = _replica_configure_ruv  (r, PR_TRUE);
-        if (rc == 0)
-            r->repl_ruv_dirty = PR_FALSE;
     }
-	else /* error */
+	else if (rc != LDAP_SUCCESS) /* error */
 	{
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, 
 			"replica_write_ruv - Failed to update RUV tombstone for %s; "
@@ -3570,7 +3548,6 @@ replica_create_ruv_tombstone(Replica *r)
 
             if (ruv_init_new(csnstr, r->repl_rid, purl, &ruv) == RUV_SUCCESS){
                 r->repl_ruv = object_new((void*)ruv, (FNFree)ruv_destroy);
-                r->repl_ruv_dirty = PR_TRUE;
                 return_value = LDAP_SUCCESS;
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_create_ruv_tombstone - "
@@ -3610,8 +3587,6 @@ replica_create_ruv_tombstone(Replica *r)
     slapi_add_internal_pb(pb);
     e = NULL; /* add consumes e, upon success or failure */
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
-    if (return_value == LDAP_SUCCESS)
-        r->repl_ruv_dirty = PR_FALSE;
 		
 done:
     slapi_entry_free (e);
@@ -3930,7 +3905,6 @@ replica_strip_cleaned_rids(Replica *r)
     ruv_get_cleaned_rids(ruv, rid);
     while(rid[i] != 0){
         ruv_delete_replica(ruv, rid[i]);
-        replica_set_ruv_dirty(r);
         if (replica_write_ruv(r)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                     "replica_strip_cleaned_rids - Failed to write RUV\n");
@@ -4050,15 +4024,6 @@ replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv)
 		/* Update also the directory entry */
 		replica_replace_ruv_tombstone(r);
 	}
-}
-
-void 
-replica_set_ruv_dirty(Replica *r)
-{
-	PR_ASSERT(r);
-	replica_lock(r->repl_lock);
-	r->repl_ruv_dirty = PR_TRUE;
-	replica_unlock(r->repl_lock);
 }
 
 PRBool

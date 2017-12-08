@@ -620,7 +620,6 @@ Object *replica_get_for_backend (const char *be_name);
 void replica_set_purge_delay (Replica *r, PRUint32 purge_delay);
 void replica_set_tombstone_reap_interval (Replica *r, long interval);
 void replica_update_ruv_consumer (Replica *r, RUV *supplier_ruv);
-void replica_set_ruv_dirty (Replica *r);
 Slapi_Entry *get_in_memory_ruv(Slapi_DN *suffix_sdn);
 int replica_write_ruv (Replica *r);
 char *replica_get_dn(Replica *r);

@@ -304,6 +304,8 @@ static void _cl5ReadBerval (struct berval *bv, char** buff);
 static void _cl5WriteBerval (struct berval *bv, char** buff);
 static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size);
 static int _cl5WriteBervals (struct berval **bv, char** buff, u_int32_t *size);
+static int32_t _cl5CheckMaxRUV(CL5DBFile *file, RUV *maxruv);
+static int32_t _cl5CheckCSNinCL(const ruv_enum_data *element, void *arg);
 
 /* replay iteration */
 #ifdef FOR_DEBUGGING
@@ -2885,6 +2887,36 @@ static int _cl5WriteBervals (struct berval **bv, char** buff, u_int32_t *size)
     return CL5_SUCCESS;
 }
 
+static int32_t
+_cl5CheckCSNinCL(const ruv_enum_data *element, void *arg)
+{
+    CL5DBFile *file = (CL5DBFile *)arg;
+    int rc = 0;
+
+    DBT key = {0}, data = {0};
+    char csnStr[CSN_STRSIZE];
+
+    /* construct the key */
+    key.data = csn_as_string(element->csn, PR_FALSE, csnStr);
+    key.size = CSN_STRSIZE;
+
+    data.flags = DB_DBT_MALLOC;
+
+    rc = file->db->get(file->db, NULL /*txn*/, &key, &data, 0);
+
+    slapi_ch_free(&(data.data));
+    return rc;
+}
+
+static int32_t
+_cl5CheckMaxRUV(CL5DBFile *file, RUV *maxruv)
+{
+    int rc = 0;
+
+    rc = ruv_enumerate_elements(maxruv, _cl5CheckCSNinCL, (void *)file);
+
+    return rc;
+}
 /* upgrade from db33 to db41
  * 1. Run recovery on the database environment using the DB_ENV->open method
  * 2. Remove any Berkeley DB environment using the DB_ENV->remove method 
@@ -4246,6 +4278,13 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 	{
 		key.data = _cl5GetHelperEntryKey (MAX_RUV_TIME, csnStr);
 		rc = ruv_to_bervals(file->maxRUV, &vals);
+	}
+
+	if (!purge && _cl5CheckMaxRUV(file, file->maxRUV)) {
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+				"_cl5WriteRUV - changelog maxRUV not found in changelog for file %s\n",
+				file->name);
+		return CL5_DB_ERROR;
 	}
 
 	key.size = CSN_STRSIZE;

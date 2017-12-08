@@ -1055,7 +1055,6 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
                     replica_reset_csn_pl(r);
                 }
                 ruv_delete_replica(ruv, oldrid);
-                replica_set_ruv_dirty(r);
                 cl5CleanRUV(oldrid);
                 replica_set_csn_assigned(r);
             }
@@ -1475,7 +1474,6 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext __attr
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 	rc = ruv_delete_replica(local_ruv, rid);
-	replica_set_ruv_dirty(replica);
 	if (replica_write_ruv(replica)) {
 		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_task - Could not write RUV\n");
 	}
