@@ -13,8 +13,58 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389 import DirSrv, Entry, InvalidArgumentError
 
+from lib389._mapped_object import DSLdapObject
+from lib389.utils import ds_is_older
 
-class Changelog(object):
+class Changelog5(DSLdapObject):
+    """Represents the Directory Server changelog. This is used for
+    replication. Only one changelog is needed for every server.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn='cn=changelog5,cn=config'):
+        super(Changelog5,self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = [ 'cn', 'nsslapd-changelogdir' ]
+        self._create_objectclasses = [
+            'top',
+            'nsChangelogConfig',
+        ]
+        if ds_is_older('1.4.0'):
+            self._create_objectclasses = [
+                'top',
+                'extensibleobject',
+            ]
+        self._protected = True
+
+    def set_max_entries(self, value):
+        """Configure the max entries the changelog can hold.
+
+        :param value: the number of entries.
+        :type value: str
+        """
+        self.replace('nsslapd-changelogmaxentries', value)
+
+    def set_trim_interval(self, value):
+        """The time between changelog trims in seconds.
+
+        :param value: The time in seconds
+        :type value: str
+        """
+        self.replace('nsslapd-changelogtrim-interval', value)
+
+    def set_max_age(self, value):
+        """The maximum age of entries in the changelog.
+
+        :param value: The age with a time modifier of s, m, h, d, w.
+        :type value: str
+        """
+        self.replace('nsslapd-changelogmaxage', value)
+
+
+class ChangelogLegacy(object):
     """An object that helps to work with changelog entry
 
     :param conn: An instance

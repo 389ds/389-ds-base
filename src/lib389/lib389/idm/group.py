@@ -63,6 +63,14 @@ class Group(DSLdapObject):
 
         self.remove('member', dn)
 
+    def ensure_member(self, dn):
+        """Ensure DN is a member
+
+        :param dn: Entry DN
+        :type dn: str
+        """
+
+        self.ensure_present('member', dn)
 
 class Groups(DSLdapObjects):
     """DSLdapObjects that represents Groups entry
@@ -81,7 +89,10 @@ class Groups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = Group
-        self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
+        if rdn:
+            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
+        else:
+            self._basedn = ensure_str(basedn)
 
 
 class UniqueGroup(DSLdapObject):
@@ -120,7 +131,10 @@ class UniqueGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UniqueGroup
-        self._basedn = '{},{}'.format(rdn, basedn)
+        if rdn:
+            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
+        else:
+            self._basedn = ensure_str(basedn)
 
 
 

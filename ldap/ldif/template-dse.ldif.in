@@ -988,6 +988,13 @@ cn: nsUniqueId
 nssystemindex: true
 nsindextype: eq
 
+dn: cn=nsCertSubjectDN,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: nsCertSubjectDN
+nssystemindex: true
+nsindextype: eq
+
 dn: cn=numsubordinates,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex

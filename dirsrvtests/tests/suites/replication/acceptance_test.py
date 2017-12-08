@@ -13,6 +13,8 @@ from lib389.topologies import topology_m4 as topo_m4
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
 
+from lib389.replica import ReplicationManager
+
 from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLICA_RUV_FILTER,
                               ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                               REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
@@ -312,43 +314,20 @@ def test_new_suffix(topo_m4, new_suffix):
         2. Replication should work
         3. Replication on the new suffix should be disabled
     """
-
     m1 = topo_m4.ms["master1"]
     m2 = topo_m4.ms["master2"]
-    log.info('Enable replication for new suffix {} on two masters'.format(NEW_SUFFIX))
-    m1.replica.enableReplication(NEW_SUFFIX, ReplicaRole.MASTER, 101)
-    m2.replica.enableReplication(NEW_SUFFIX, ReplicaRole.MASTER, 102)
 
-    log.info("Creating agreement from master1 to master2")
-    properties = {RA_NAME: 'newMeTo_{}:{}'.format(m2.host, str(m2.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = m1.agreement.create(NEW_SUFFIX, m2.host, m2.port, properties)
+    repl = ReplicationManager(NEW_SUFFIX)
 
-    if not m1_m2_agmt:
-        log.fatal("Fail to create a hub -> consumer replica agreement")
-        sys.exit(1)
-    log.info("{} is created".format(m1_m2_agmt))
+    repl.create_first_master(m1)
 
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(2)
+    repl.join_master(m1, m2)
 
-    log.info("Initialize the agreement")
-    m1.agreement.init(NEW_SUFFIX, m2.host, m2.port)
-    m1.waitForReplInit(m1_m2_agmt)
+    repl.test_replication(m1, m2)
+    repl.test_replication(m2, m1)
 
-    log.info("Check the replication is working")
-    assert m1.testReplication(NEW_SUFFIX, m2), 'Replication for new suffix {} is not working.'.format(NEW_SUFFIX)
-
-    log.info("Delete the agreement")
-    m1.agreement.delete(NEW_SUFFIX, m2.host, m2.port, m1_m2_agmt)
-
-    log.info("Disable replication for the new suffix")
-    m1.replica.disableReplication(NEW_SUFFIX)
-    m2.replica.disableReplication(NEW_SUFFIX)
-
+    repl.remove_master(m1)
+    repl.remove_master(m2)
 
 def test_many_attrs(topo_m4, test_entry):
     """Check a replication with many attributes (add and delete)

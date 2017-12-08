@@ -51,21 +51,23 @@ class Task(DSLdapObject):
                 return None
         return None
 
-    def wait(self):
+    def wait(self, timeout=120):
         """Wait until task is complete."""
-        while True:
+        count = 0
+        while count < timeout:
             if self.is_complete():
                 break
-            time.sleep(1)
+            count = count + 1
+            time.sleep(2)
 
-    def create(self, rdn=None, properties=None, basedn=None):
+    def create(self, rdn=None, properties={}, basedn=None):
         properties['cn'] = self.cn
         return super(Task, self).create(rdn, properties, basedn)
 
     @staticmethod
     def _get_task_date():
         """Return a timestamp to use in naming new task entries."""
-        return datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+        return datetime.now().isoformat()
 
 
 class MemberOfFixupTask(Task):
@@ -96,6 +98,66 @@ class SchemaReloadTask(Task):
         dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
 
         super(SchemaReloadTask, self).__init__(instance, dn)
+
+class AbortCleanAllRUVTask(Task):
+    """Abort the Clean All Ruv task on all masters. You should
+    call this from "CleanAllRUVTask.abort()" instead to provide
+    proper linking of the task information.
+
+    :param instance: The instance
+    :type instance: lib389.DirSrv
+    """
+    def __init__(self, instance, dn=None):
+        self.cn = 'abortcleanallruv_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=abort cleanallruv," + DN_TASKS
+
+        super(AbortCleanAllRUVTask, self).__init__(instance, dn)
+
+class CleanAllRUVTask(Task):
+    """Create the clean all ruv task. This will be replicated through
+    a topology to remove non-present ruvs. Note that if a ruv is NOT
+    able to be removed, this indicates a dangling replication agreement
+    on *some* master in the topology.
+
+    :param instance: The instance
+    :type instance: lib389.DirSrv
+    """
+    def __init__(self, instance, dn=None):
+        self.cn = 'cleanallruv_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=cleanallruv," + DN_TASKS
+        self._properties = None
+
+        super(CleanAllRUVTask, self).__init__(instance, dn)
+
+    def create(self, rdn=None, properties=None, basedn=None):
+        """Create the cleanallruvtask.
+
+        :param rdn: RDN of the new entry.
+        :type rdn: str
+        :param properties: Attributes for the new entry
+        :type properties: dict
+        :param basedn: Basedn to create the entry. Do not change this.
+        :type basedn: str
+        """
+        # Stash the props for abort
+        self._properties = properties
+        return super(CleanAllRUVTask, self).create(rdn, properties, basedn)
+
+    def abort(self, certify=False):
+        """Abort the current cleanallruvtask.
+
+        :param certify: certify abort on all masters
+        :type certify: bool
+        :returns: AbortCleanAllRUVTask
+        """
+        if certify is True:
+            self._properties['replica-certify-all'] = 'yes'
+        else:
+            self._properties['replica-certify-all'] = 'no'
+        # Then create the abort.
+        abort_task = AbortCleanAllRUVTask(self._instance)
+        abort_task.create(properties=self._properties)
+        return abort_task
 
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()

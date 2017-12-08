@@ -17,8 +17,157 @@ from lib389._entry import FormatDict
 from lib389.utils import normalizeDN, ensure_bytes, ensure_str, ensure_dict_str
 from lib389 import Entry, DirSrv, NoSuchEntryError, InvalidArgumentError
 
+from lib389._mapped_object import DSLdapObject, DSLdapObjects
 
-class Agreement(object):
+
+class Agreement(DSLdapObject):
+    """A replication agreement from this server instance to
+    another instance of directory server.
+
+    - must attributes: [ 'cn' ]
+    - RDN attribute: 'cn'
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(Agreement, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = [
+            'cn',
+        ]
+        self._create_objectclasses = [
+            'top',
+            'nsds5replicationagreement',
+        ]
+        self._protected = False
+
+    def begin_reinit(self):
+        """Begin a total reinit of the consumer. This will send
+        our data to the server we are replicating too.
+        """
+        self.set('nsds5BeginReplicaRefresh', 'start')
+
+    def check_reinit(self):
+        """Check the status of a reinit. Returns done and error. A correct
+        reinit will return (True, False).
+
+        :returns: tuple(done, error), where done, error are bool.
+        """
+        done = False
+        error = False
+        status = self.get_attr_val_utf8('nsds5ReplicaLastInitStatus')
+        self._log.debug('agreement tot_init status: %s' % status)
+        if not status:
+            pass
+        elif 'replica busy' in status:
+            error = True
+        elif 'Total update succeeded' in status:
+            done = True
+        elif 'Replication error' in status:
+            error = True
+
+        return (done, error)
+
+    def wait_reinit(self, timeout=300):
+        """Wait for a reinit to complete. Returns done and error. A correct
+        reinit will return (True, False).
+
+        :returns: tuple(done, error), where done, error are bool.
+        """
+        done = False
+        error = False
+        count = 0
+        while done is False and error is False:
+            (done, error) = self.check_reinit()
+            if count > timeout and not done:
+                error = True
+            count = count + 2
+            time.sleep(2)
+        return (done, error)
+
+    def pause(self):
+        """Pause outgoing changes from this server to consumer. Note
+        that this does not pause the consumer, only that changes will
+        not be sent from this master to consumer: the consumer may still
+        recieve changes from other replication paths!
+        """
+        self.set('nsds5ReplicaEnabled', 'off')
+
+    def resume(self):
+        """Resume sending updates from this master to consumer directly.
+        """
+        self.set('nsds5ReplicaEnabled', 'on')
+
+    def set_wait_for_async_results(self, value):
+        """Set nsDS5ReplicaWaitForAsyncResults to value.
+
+        :param value: Time in milliseconds.
+        :type value: str
+        """
+        self.replace('nsDS5ReplicaWaitForAsyncResults', value)
+
+    def remove_wait_for_async_results(self):
+        """Reset nsDS5ReplicaWaitForAsyncResults to default.
+        """
+        self.remove_all('nsDS5ReplicaWaitForAsyncResults')
+
+    def get_wait_for_async_results_utf8(self):
+        """Get the current value of nsDS5ReplicaWaitForAsyncResults.
+
+        :returns: str
+        """
+        return self.get_attr_val_utf8('nsDS5ReplicaWaitForAsyncResults')
+
+class Agreements(DSLdapObjects):
+    """Represents the set of agreements configured on this instance.
+    There are two possible ways to use this interface.
+
+    The first is as the set of agreements on the server for all
+    replicated suffixes. IE:
+
+    agmts = Agreements(inst).
+
+    However, this will NOT allow new agreements to be created, as
+    agreements must be related to a replica.
+
+    The second is Agreements related to a replica. For this method
+    you must use:
+
+    replica = Replicas(inst).get(<suffix>)
+    agmts = Agreements(inst, replica.dn)
+
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: The base dn to search.
+    :type basedn: str
+    :param rdn: The rdn relative to cn=mapping tree to search.
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn=DN_MAPPING_TREE, rdn=None):
+        super(Agreements, self).__init__(instance)
+        self._childobject = Agreement
+        self._objectclasses = [ 'nsds5replicationagreement' ]
+        self._filterattrs = [ 'cn', 'nsDS5ReplicaRoot' ]
+        if rdn is None:
+            self._basedn = basedn
+        else:
+            self._basedn = "%s,%s" % (rdn, basedn)
+
+    def _validate(self, rdn, properties):
+        """ An internal implementation detail of create verification. You should
+        never call this directly.
+        """
+        if self._basedn == DN_MAPPING_TREE:
+            raise ldap.UNWILLING_TO_PERFORM("Refusing to create agreement in %s" % DN_MAPPING_TREE)
+        return super(Agreements, self)._validate(rdn, properties)
+
+class AgreementLegacy(object):
     """An object that helps to work with agreement entry
 
     :param conn: An instance

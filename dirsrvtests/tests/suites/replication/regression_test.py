@@ -13,7 +13,8 @@ from lib389.topologies import topology_m2 as topo_m2, TopologyMain
 from lib389._constants import *
 from . import get_repl_entries
 from lib389.idm.organisationalunit import OrganisationalUnits
-from lib389.replica import Replicas
+from lib389.idm.user import UserAccount
+from lib389.replica import Replicas, ReplicationManager
 
 NEW_SUFFIX_NAME = 'test_repl'
 NEW_SUFFIX = 'o={}'.format(NEW_SUFFIX_NAME)
@@ -27,22 +28,13 @@ else:
 log = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def test_entry(topo_m2, request):
     """Add test entry using UserAccounts"""
 
     log.info('Adding a test entry user')
     users = UserAccounts(topo_m2.ms["master1"], DEFAULT_SUFFIX)
-    tuser = users.create(properties=TEST_USER_PROPERTIES)
-
-    def fin():
-        if users.list():
-            log.info('Deleting user-{}'.format(tuser.dn))
-            tuser.delete()
-        else:
-            log.info('There is no user to delete')
-
-    request.addfinalizer(fin)
+    tuser = users.ensure_state(properties=TEST_USER_PROPERTIES)
     return tuser
 
 
@@ -50,7 +42,7 @@ def test_double_delete(topo_m2, test_entry):
     """Check that double delete of the entry doesn't crash server
 
     :id: 3496c82d-636a-48c9-973c-2455b12164cc
-    :setup: Four masters replication setup, a test entry
+    :setup: Two masters replication setup, a test entry
     :steps:
         1. Delete the entry on the first master
         2. Delete the entry on the second master
@@ -61,21 +53,24 @@ def test_double_delete(topo_m2, test_entry):
         3. Server should me alive
     """
 
-    test_entry_rdn = test_entry.rdn
+    m1 = topo_m2.ms["master1"]
+    m2 = topo_m2.ms["master2"]
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.disable_to_master(m1, [m2])
+    repl.disable_to_master(m2, [m1])
 
     log.info('Deleting entry {} from master1'.format(test_entry.dn))
     topo_m2.ms["master1"].delete_s(test_entry.dn)
 
     log.info('Deleting entry {} from master2'.format(test_entry.dn))
-    try:
-        topo_m2.ms["master2"].delete_s(test_entry.dn)
-    except ldap.NO_SUCH_OBJECT:
-        log.info("Entry {} wasn't found master2. It is expected.".format(test_entry.dn))
+    topo_m2.ms["master2"].delete_s(test_entry.dn)
 
-    log.info('Make searches to check if server is alive')
-    entries = get_repl_entries(topo_m2, test_entry_rdn, ["uid"])
-    assert not entries, "Entry deletion {} wasn't replicated successfully".format(test_entry.dn)
+    repl.enable_to_master(m2, [m1])
+    repl.enable_to_master(m1, [m2])
 
+    repl.test_replication(m1, m2)
+    repl.test_replication(m2, m1)
 
 @pytest.mark.bz1506831
 def test_repl_modrdn(topo_m2):
@@ -108,6 +103,8 @@ def test_repl_modrdn(topo_m2):
     master1 = topo_m2.ms["master1"]
     master2 = topo_m2.ms["master2"]
 
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
     log.info("Add test entries - Add 3 OUs and 2 same users under 2 different OUs")
     OUs = OrganisationalUnits(master1, DEFAULT_SUFFIX)
     OU_A = OUs.create(properties={
@@ -129,7 +126,8 @@ def test_repl_modrdn(topo_m2):
     users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_B.rdn))
     tuser_B = users.create(properties=TEST_USER_PROPERTIES)
 
-    time.sleep(10)
+    repl.test_replication(master1, master2)
+    repl.test_replication(master2, master1)
 
     log.info("Stop Replication")
     topo_m2.pause_all_replicas()
@@ -144,7 +142,8 @@ def test_repl_modrdn(topo_m2):
     topo_m2.resume_all_replicas()
 
     log.info("Wait for sometime for repl to resume")
-    time.sleep(10)
+    repl.test_replication(master1, master2)
+    repl.test_replication(master2, master1)
 
     log.info("Check that there should be only one test entry under ou=C on both masters")
     users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
@@ -154,10 +153,9 @@ def test_repl_modrdn(topo_m2):
     assert len(users.list()) == 1
 
     log.info("Check that the replication is working fine both ways, M1 <-> M2")
-    replicas_m1 = Replicas(master1)
-    replicas_m2 = Replicas(master2)
-    replicas_m1.test(DEFAULT_SUFFIX, master2)
-    replicas_m2.test(DEFAULT_SUFFIX, master1)
+    repl.test_replication(master1, master2)
+    repl.test_replication(master2, master1)
+
 
 
 def test_password_repl_error(topo_m2, test_entry):
@@ -186,30 +184,24 @@ def test_password_repl_error(topo_m2, test_entry):
     m2.setLogLevel(LOG_REPLICA)
 
     log.info('Modifying entry {} - change userpassword on master 1'.format(test_entry.dn))
-    try:
-        m1.modify_s(test_entry.dn, [(ldap.MOD_REPLACE, 'userpassword', TEST_ENTRY_NEW_PASS)])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify entry (%s): error (%s)' % (test_entry.dn,
-                                                               e.message['desc']))
-        raise e
+
+    test_entry.set('userpassword', TEST_ENTRY_NEW_PASS)
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(m1, m2)
 
     log.info('Restart the servers to flush the logs')
     for num in range(1, 3):
-        topo_m2.ms["master{}".format(num)].restart(timeout=10)
-
-    time.sleep(5)
+        topo_m2.ms["master{}".format(num)].restart()
 
     try:
         log.info('Check that password works on master 2')
-        m2.simple_bind_s(test_entry.dn, TEST_ENTRY_NEW_PASS)
-        m2.simple_bind_s(DN_DM, PASSWORD)
+        test_entry_m2 = UserAccount(m2, test_entry.dn)
+        test_entry_m2.bind(TEST_ENTRY_NEW_PASS)
 
         log.info('Check the error log for the error with {}'.format(test_entry.dn))
         assert not m2.ds_error_log.match('.*can.t add a change for {}.*'.format(test_entry.dn))
     finally:
-        log.info('Reset bind DN to Directory manager')
-        for num in range(1, 3):
-            topo_m2.ms["master{}".format(num)].simple_bind_s(DN_DM, PASSWORD)
         log.info('Set the default loglevel')
         m2.setLogLevel(LOG_DEFAULT)
 
@@ -228,29 +220,34 @@ def test_invalid_agmt(topo_m2):
     """
 
     m1 = topo_m2.ms["master1"]
+    m2 = topo_m2.ms["master2"]
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    replicas = Replicas(m1)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    agmts = replica.get_agreements()
 
     # Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
-    AGMT_DN = 'cn=whatever,cn=replica,cn="dc=example,dc=com",cn=mapping tree,cn=config'
-    try:
-        invalid_props = {RA_ENABLED: 'True',  # Invalid value
-                         RA_SCHEDULE: '0001-2359 0123456'}
-        m1.agreement.create(suffix=DEFAULT_SUFFIX, host='localhost', port=389, properties=invalid_props)
-    except ldap.UNWILLING_TO_PERFORM:
-        m1.log.info('Invalid repl agreement correctly rejected')
-    except ldap.LDAPError as e:
-        m1.log.fatal('Got unexpected error adding invalid agreement: ' + str(e))
-        assert False
-    else:
-        m1.log.fatal('Invalid agreement was incorrectly accepted by the server')
-        assert False
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        agmts.create(properties={
+            'cn': 'whatever',
+            'nsDS5ReplicaRoot': DEFAULT_SUFFIX,
+            'nsDS5ReplicaBindDN': 'cn=replication manager,cn=config',
+            'nsDS5ReplicaBindMethod': 'simple' ,
+            'nsDS5ReplicaTransportInfo': 'LDAP',
+            'nsds5replicaTimeout': '5',
+            'description': "test agreement",
+            'nsDS5ReplicaHost': m2.host,
+            'nsDS5ReplicaPort': str(m2.port),
+            'nsDS5ReplicaCredentials': 'whatever',
+            'nsds5ReplicaEnabled': 'YEAH MATE, LETS REPLICATE'
+        })
 
     # Verify the server is still running
-    try:
-        m1.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        m1.log.fatal('Failed to bind: ' + str(e))
-        assert False
-
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.test_replication(m1, m2)
+    repl.test_replication(m2, m1)
 
 if __name__ == '__main__':
     # Run isolated

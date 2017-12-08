@@ -9,6 +9,8 @@
 from lib389._mapped_object import DSLdapObjects
 from lib389.idm.account import Account
 
+from lib389.utils import ds_is_older
+
 RDN = 'cn'
 MUST_ATTRIBUTES = [
     'cn',
@@ -31,6 +33,15 @@ class ServiceAccount(Account):
             'top',
             'netscapeServer',
         ]
+        if ds_is_older('1.4.0'):
+            # This is a HORRIBLE HACK for older versions that DON'T have
+            # correct updated schema!
+            #
+            # I feel physically ill having wrtten this line of code. :(
+            self._create_objectclasses.append('extensibleobject')
+        else:
+            self._create_objectclasses.append('nsMemberOf')
+            self._create_objectclasses.append('nsAccount')
         self._protected = False
 
 class ServiceAccounts(DSLdapObjects):

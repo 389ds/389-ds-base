@@ -59,10 +59,9 @@ def _create_changelog_dump(topo):
     """Dump changelog using nss5task and check if ldap operations are logged"""
 
     log.info('Dump changelog using nss5task and check if ldap operations are logged')
-    db_dir = os.path.dirname(topo.ms['master1'].dbdir)
-    changelog_dir = os.path.join(db_dir, DEFAULT_CHANGELOG_DB)
+    changelog_dir = topo.ms['master1'].get_changelog_dir()
     replicas = Replicas(topo.ms["master1"])
-    dn_replica = replicas.get_dn(DEFAULT_SUFFIX)
+    replica = replicas.get(DEFAULT_SUFFIX)
     log.info('Remove ldif files, if present in: {}'.format(changelog_dir))
     for files in os.listdir(changelog_dir):
         if files.endswith('.ldif'):
@@ -77,11 +76,7 @@ def _create_changelog_dump(topo):
         log.info('No existing changelog ldif files present')
 
     log.info('Running nsds5task to dump changelog database to a file')
-    try:
-        topo.ms['master1'].modify_s(dn_replica, [(ldap.MOD_REPLACE, 'nsds5task', 'cl2ldif')])
-    except ldap.LDAPError as e:
-        log.fatal('Failed to dump changelog to ldif file')
-        raise e
+    replica.begin_task_cl2ldif()
 
     log.info('Check if changelog ldif file exist in: {}'.format(changelog_dir))
     for files in os.listdir(changelog_dir):

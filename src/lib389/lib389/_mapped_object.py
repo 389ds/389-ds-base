@@ -107,6 +107,7 @@ class DSLdapObject(DSLogging):
         self._lint_functions = None
         self._server_controls = None
         self._client_controls = None
+        self._object_filter = '(objectClass=*)'
 
     def __unicode__(self):
         val = self._dn
@@ -124,7 +125,7 @@ class DSLdapObject(DSLogging):
         :returns: Entry object
         """
 
-        return self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        return self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
 
     def exists(self):
         """Check if the entry exists
@@ -133,7 +134,7 @@ class DSLdapObject(DSLogging):
         """
 
         try:
-            self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls)
         except ldap.NO_SUCH_OBJECT:
             return False
 
@@ -145,7 +146,7 @@ class DSLdapObject(DSLogging):
         :returns: LDIF formatted string
         """
 
-        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
         return e.__repr__()
 
     def display_attr(self, attr):
@@ -221,7 +222,7 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid state. Cannot get presence on instance that is not ONLINE")
         self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
 
-        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=[attr, ], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[attr, ], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
         values = self.get_attr_vals_bytes(attr)
         self._log.debug("%s contains %s" % (self._dn, values))
 
@@ -296,6 +297,18 @@ class DSLdapObject(DSLogging):
             self.set(key, None, action=ldap.MOD_DELETE)
         except ldap.NO_SUCH_ATTRIBUTE:
             pass
+
+    def ensure_present(self, attr, value):
+        """Ensure that an attribute and value are present in a state,
+        or add it.
+
+        :param key: an attribute name
+        :type key: str
+        :param value: an attribute value
+        :type value: str
+        """
+        if not self.present(attr, value):
+            self.add(attr, value)
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):
@@ -429,7 +442,7 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
         else:
             # retrieving real(*) and operational attributes(+)
-            attrs_entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=["*", "+"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            attrs_entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*", "+"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             # getting dict from 'entry' object
             attrs_dict = attrs_entry.data
             return attrs_dict
@@ -439,7 +452,7 @@ class DSLdapObject(DSLogging):
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
         else:
-            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             return entry.getValuesSet(keys)
 
     def get_attr_vals(self, key):
@@ -452,7 +465,7 @@ class DSLdapObject(DSLogging):
         else:
             # It would be good to prevent the entry code intercepting this ....
             # We have to do this in this method, because else we ignore the scope base.
-            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             return entry.getValues(key)
 
     def get_attr_val(self, key):
@@ -463,7 +476,7 @@ class DSLdapObject(DSLogging):
             # In the future, I plan to add a mode where if local == true, we
             # can use get on dse.ldif to get values offline.
         else:
-            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             return entry.getValue(key)
 
     def get_attr_val_bytes(self, key):
@@ -682,6 +695,51 @@ class DSLdapObject(DSLogging):
         # Do we need to do extra dn validation here?
         return (tdn, str_props)
 
+    def _create(self, rdn=None, properties=None, basedn=None, ensure=False):
+        """Internal implementation of create. This is used by ensure
+        and create, to prevent code duplication. You should *never* call
+        this method directly.
+        """
+        assert(len(self._create_objectclasses) > 0)
+        basedn = ensure_str(basedn)
+        self._log.debug('Checking "%s" under %s : %s' % (rdn, basedn, properties))
+        # Add the objectClasses to the properties
+        (dn, valid_props) = self._validate(rdn, properties, basedn)
+        # Check if the entry exists or not? .add_s is going to error anyway ...
+        self._log.debug('Validated dn %s : valid_props %s' % (dn, valid_props))
+
+        exists = False
+
+        try:
+            self._instance.search_ext_s(dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            exists = True
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+        if exists and ensure:
+            # update properties
+            self._log.debug('Exists %s' % dn)
+            self._dn = dn
+            # Now use replace_many to setup our values
+            mods = []
+            for k,v in valid_props.items():
+                mods.append( (ldap.MOD_REPLACE, k, v))
+            self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls)
+        elif exists and not ensure:
+            # raise "already exists."
+            raise ldap.ALREADY_EXISTS("Entry %s already exists" % dn)
+        if not exists:
+            self._log.debug('Creating %s' % dn)
+            e = Entry(dn)
+            e.update({'objectclass': ensure_list_bytes(self._create_objectclasses)})
+            e.update(valid_props)
+            # We rely on exceptions here to indicate failure to the parent.
+            self._log.debug('Creating entry %s : %s' % (dn, e))
+            self._instance.add_ext_s(e, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            # If it worked, we need to fix our instance dn
+            self._dn = dn
+        return self
+
     def create(self, rdn=None, properties=None, basedn=None):
         """Add a new entry
 
@@ -694,24 +752,22 @@ class DSLdapObject(DSLogging):
 
         :returns: DSLdapObject of the created entry
         """
+        return self._create(rdn, properties, basedn, ensure=False)
 
-        assert(len(self._create_objectclasses) > 0)
-        basedn = ensure_str(basedn)
-        self._log.debug('Creating "%s" under %s : %s' % (rdn, basedn, properties))
-        # Add the objectClasses to the properties
-        (dn, valid_props) = self._validate(rdn, properties, basedn)
-        # Check if the entry exists or not? .add_s is going to error anyway ...
-        self._log.debug('Validated dn %s : valid_props %s' % (dn, valid_props))
+    def ensure_state(self, rdn=None, properties=None, basedn=None):
+        """Ensure an entry exists with the following state, created
+        if necessary.
 
-        e = Entry(dn)
-        e.update({'objectclass': ensure_list_bytes(self._create_objectclasses)})
-        e.update(valid_props)
-        # We rely on exceptions here to indicate failure to the parent.
-        self._log.debug('Creating entry %s : %s' % (dn, e))
-        self._instance.add_ext_s(e, serverctrls=self._server_controls, clientctrls=self._client_controls)
-        # If it worked, we need to fix our instance dn
-        self._dn = dn
-        return self
+        :param rdn: RDN of the new entry
+        :type rdn: str
+        :param properties: Attributes for the new entry
+        :type properties: dict
+        :param basedn: Base DN of the new entry
+        :type rdn: str
+
+        :returns: DSLdapObject of the created entry
+        """
+        return self._create(rdn, properties, basedn, ensure=True)
 
     def lint(self):
         """Override this to create a linter for a type. This means that we can detect
@@ -872,19 +928,6 @@ class DSLdapObjects(DSLogging):
         if type(properties) != dict:
             raise ldap.UNWILLING_TO_PERFORM("properties must be a dictionary")
 
-        # Get the rdn out of the properties if it's unset???
-        # if rdn is None and self._rdn_attribute in properties:
-        #     # First see if we can get it from the properties.
-        #     trdn = properties.get(self._rdn_attribute)
-        #     if type(trdn) == str:
-        #         rdn = "%s=%s" % (self._rdn_attribute, trdn)
-        #     elif type(trdn) == list and len(trdn) != 1:
-        #         raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties. Too many choices" % (self._rdn_attribute))
-        #     elif type(trdn) == list:
-        #         rdn = "%s=%s" % (self._rdn_attribute, trdn[0])
-        #     else:
-        #         raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties, Invalid type" % type(trdn))
-
         return (rdn, properties)
 
     def create(self, rdn=None, properties=None):
@@ -907,3 +950,27 @@ class DSLdapObjects(DSLogging):
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
         return co.create(rdn, properties, self._basedn)
+
+    def ensure_state(self, rdn=None, properties=None):
+        """Create an object under base DN of our entry, or
+        assert it exists and update it's properties.
+
+        :param rdn: RDN of the new entry
+        :type rdn: str
+        :param properties: Attributes for the new entry
+        :type properties: dict
+
+        :returns: DSLdapObject of the created entry
+        """
+
+        # Should we inject the rdn to properties?
+        # This may not work in all cases, especially when we consider plugins.
+        #
+        co = self._entry_to_instance(dn=None, entry=None)
+        # Make the rdn naming attr avaliable
+        self._rdn_attribute = co._rdn_attribute
+        (rdn, properties) = self._validate(rdn, properties)
+        # Now actually commit the creation req
+        return co.ensure_state(rdn, properties, self._basedn)
+
+

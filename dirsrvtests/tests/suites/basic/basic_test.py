@@ -44,7 +44,7 @@ def import_example_ldif(topology_st):
 
     log.info('Initializing the "basic" test suite')
 
-    ldif = '%s/Example.ldif' % get_data_dir(topology_st.standalone.prefix)
+    ldif = '%s/dirsrv/data/Example.ldif' % topology_st.standalone.get_data_dir()
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
     topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
@@ -298,7 +298,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     #
     # Cleanup - Import the Example LDIF for the other tests in this suite
     #
-    ldif = '%s/Example.ldif' % get_data_dir(topology_st.standalone.prefix)
+    ldif = '%s/dirsrv/data/Example.ldif' % topology_st.standalone.get_data_dir()
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
     try:

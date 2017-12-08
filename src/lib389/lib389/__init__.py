@@ -52,6 +52,7 @@ import signal
 import errno
 import pwd
 import grp
+import uuid
 from shutil import copy2
 try:
     # There are too many issues with this on EL7
@@ -307,8 +308,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.suffix import Suffix
         from lib389.replica import ReplicaLegacy as Replica
         from lib389.replica import Replicas
-        from lib389.changelog import Changelog
-        from lib389.agreement import Agreement
+        from lib389.agreement import AgreementLegacy as Agreement
         from lib389.schema import SchemaLegacy as Schema
         from lib389.plugins import Plugins
         from lib389.tasks import Tasks
@@ -319,7 +319,6 @@ class DirSrv(SimpleLDAPObject, object):
         # Need updating
         self.agreement = Agreement(self)
         self.replica = Replica(self)
-        self.changelog = Changelog(self)
         self.backend = Backend(self)
         self.config = Config(self)
         self.index = Index(self)
@@ -364,8 +363,9 @@ class DirSrv(SimpleLDAPObject, object):
         """
 
         self.state = DIRSRV_STATE_INIT
+        self.uuid = str(uuid.uuid4())
         self.verbose = verbose
-        
+
         # If we have an external logger, use it!
         self.log = logger
         if external_log is None:
@@ -381,25 +381,12 @@ class DirSrv(SimpleLDAPObject, object):
         self.ds_paths = Paths(instance=self)
 
         # Reset the args (py.test reuses the args_instance for each test case)
-        args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', self.ds_paths.prefix)
-        args_instance[SER_BACKUP_INST_DIR] = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
-        args_instance[SER_ROOT_DN] = DN_DM
-        args_instance[SER_ROOT_PW] = PW_DM
-        args_instance[SER_HOST] = LOCALHOST
-        args_instance[SER_PORT] = DEFAULT_PORT
-        args_instance[SER_SECURE_PORT] = None
-        args_instance[SER_SERVERID_PROP] = None  # "template"
-        args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-        args_instance[SER_USER_ID] = None
-        args_instance[SER_GROUP_ID] = None
-        args_instance[SER_INST_SCRIPTS_ENABLED] = None
-
         # We allocate a "default" prefix here which allows an un-allocate or
         # un-instantiated DirSrv
         # instance to be able to do an an instance discovery. For example:
         #  ds = lib389.DirSrv()
         #  ds.list(all=True)
-        self.prefix = args_instance[SER_DEPLOYED_DIR]
+        # self.ds_paths.prefix = args_instance[SER_DEPLOYED_DIR]
         self.containerised = False
 
         self.__wrapmethods()
@@ -436,6 +423,11 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldapi_socket = None
 
         self.ldapuri = ldapuri
+
+        # We must also alloc host and ports for some manipulation tasks
+        self.host = socket.gethostname()
+        # self.port ...
+        # self.sslport ...
 
         self.binddn = binddn
         self.bindpw = password
@@ -562,16 +554,8 @@ class DirSrv(SimpleLDAPObject, object):
 
             self.groupid = args.get(SER_GROUP_ID, self.userid)
             self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
-            # Allocate from the args, or use our env, or use /
-            if args.get(SER_DEPLOYED_DIR, self.prefix) is not None:
-                self.prefix = args.get(SER_DEPLOYED_DIR, self.prefix)
         # This will be externally populated in topologies.
         self.realm = None
-
-        # Those variables needs to be revisited (sroot for 64 bits)
-        # self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
-        # self.errlog    = os.path.join(self.prefix,
-        #                     "var/log/dirsrv/slapd-%s/errors" % self.serverid)
 
         # additional settings
         self.suffixes = {}
@@ -659,7 +643,6 @@ class DirSrv(SimpleLDAPObject, object):
             prop = {}
             prop[CONF_SERVER_ID] = serverid
             prop[SER_SERVERID_PROP] = serverid
-            prop[SER_DEPLOYED_DIR] = self.prefix
             myfile = open(filename, 'r')
             for line in myfile:
                 # retrieve the value in line::
@@ -778,7 +761,6 @@ class DirSrv(SimpleLDAPObject, object):
         #
 
         # Don't need a default value now since it's set in init.
-        prefix = self.prefix
         if serverid is None and hasattr(self, 'serverid'):
             serverid = self.serverid
 
@@ -889,7 +871,6 @@ class DirSrv(SimpleLDAPObject, object):
                 SER_USER_ID: self.userid,
                 SER_SERVERID_PROP: self.serverid,
                 SER_GROUP_ID: self.groupid,
-                SER_DEPLOYED_DIR: self.prefix,
                 SER_BACKUP_INST_DIR: self.backupdir,
                 SER_STRICT_HOSTNAME_CHECKING: self.strict_hostname}
 
@@ -897,8 +878,7 @@ class DirSrv(SimpleLDAPObject, object):
             args[SER_INST_SCRIPTS_ENABLED] = self.inst_scripts
 
         content = formatInfData(args)
-        result = DirSrvTools.runInfProg(prog, content, self.verbose,
-                                        prefix=self.prefix)
+        result = DirSrvTools.runInfProg(prog, content, self.verbose, prefix=self.ds_paths.prefix)
         if result != 0:
             raise Exception('Failed to run setup-ds.pl')
 
@@ -942,7 +922,6 @@ class DirSrv(SimpleLDAPObject, object):
 
         # Go!
         sds.create_from_args(general, slapd, backends, None)
-
 
     def create(self, pyinstall=False, version=INSTALL_LATEST_CONFIG):
         """
@@ -1011,7 +990,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         # Now time to remove the instance
         prog = os.path.join(self.ds_paths.sbin_dir, CMD_PATH_REMOVE_DS)
-        if (not self.prefix or self.prefix == '/') and os.geteuid() != 0:
+        if (not self.ds_paths.prefix or self.ds_paths.prefix == '/') and os.geteuid() != 0:
             raise ValueError("Error: without prefix deployment it is required to be root user")
         cmd = "%s -i %s%s" % (prog, DEFAULT_INST_HEAD, self.serverid)
         self.log.debug("running: %s " % cmd)
@@ -1442,9 +1421,9 @@ class DirSrv(SimpleLDAPObject, object):
         # goes under the directory where the DS is deployed
         listFilesToBackup = []
         here = os.getcwd()
-        if self.prefix:
-            os.chdir("%s/" % self.prefix)
-            prefix_pattern = "%s/" % self.prefix
+        if self.ds_paths.prefix:
+            os.chdir("%s/" % self.ds_paths.prefix)
+            prefix_pattern = "%s/" % self.ds_paths.prefix
         else:
             os.chdir("/")
             prefix_pattern = None
@@ -1475,14 +1454,14 @@ class DirSrv(SimpleLDAPObject, object):
                 for b_dir in dirs:
                     name = os.path.join(root, b_dir)
                     self.log.debug("backupFS b_dir = %s (%s) [name=%s]" %
-                              (b_dir, self.prefix, name))
+                              (b_dir, self.ds_paths.prefix, name))
                     if prefix_pattern:
                         name = re.sub(prefix_pattern, '', name)
 
                     if os.path.isdir(name):
                         listFilesToBackup.append(name)
                         self.log.debug("backupFS add = %s (%s)" %
-                                  (name, self.prefix))
+                                  (name, self.ds_paths.prefix))
 
                 for file in files:
                     name = os.path.join(root, file)
@@ -1492,7 +1471,7 @@ class DirSrv(SimpleLDAPObject, object):
                     if os.path.isfile(name):
                         listFilesToBackup.append(name)
                         self.log.debug("backupFS add = %s (%s)" %
-                                  (name, self.prefix))
+                                  (name, self.ds_paths.prefix))
 
         # create the archive
         name = "backup_%s_%s.tar.gz" % (self.serverid, time.strftime("%m%d%Y_%H%M%S"))
@@ -1559,8 +1538,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         # Then restore from the directory where DS was deployed
         here = os.getcwd()
-        if self.prefix:
-            prefix_pattern = "%s/" % self.prefix
+        if self.ds_paths.prefix:
+            prefix_pattern = "%s/" % self.ds_paths.prefix
             os.chdir(prefix_pattern)
         else:
             prefix_pattern = "/"
@@ -1643,14 +1622,13 @@ class DirSrv(SimpleLDAPObject, object):
         :type post_open: bool
         """
         # If it doesn't exist, create a cadb.
-        ssca_path = os.path.join(self.get_sysconf_dir(), 'dirsrv/ssca/')
-        ssca = NssSsl(dbpath=ssca_path)
+        ssca = NssSsl(dbpath=self.get_ssca_dir())
         if not ssca._db_exists():
             ssca.reinit()
             ssca.create_rsa_ca()
 
         # Create certificate database.
-        tlsdb = NssSsl(dbpath=self.get_cert_dir())
+        tlsdb = NssSsl(dirsrv=self)
         # Remember, DS breaks the db, so force reinit it.
         tlsdb.reinit()
         csr = tlsdb.create_rsa_key_and_csr()
@@ -1707,10 +1685,32 @@ class DirSrv(SimpleLDAPObject, object):
         """Return the server instance ldif directory."""
         return self.ds_paths.backup_dir
 
+    def get_data_dir(self):
+        """Return the server data path
+
+        :returns: The string path of the data location.
+        """
+        return self.ds_paths.data_dir
+
     def get_local_state_dir(self):
+        """Return the server data path
+
+        :returns: The string path of the data location.
+        """
         return self.ds_paths.local_state_dir
 
+    def get_changelog_dir(self):
+        """Return the server changelog path
+
+        :returns: The string path of changelog location.
+        """
+        return os.path.abspath(os.path.join(self.ds_paths.db_dir, '../changelogdb'))
+
     def get_config_dir(self):
+        """Return the server config directory
+
+        :returns: The string path of config location.
+        """
         return self.ds_paths.config_dir
 
     def get_cert_dir(self):
@@ -1750,11 +1750,26 @@ class DirSrv(SimpleLDAPObject, object):
     def get_group_gid(self):
         return grp.getgrnam(self.ds_paths.group).gr_gid
 
+    def get_uuid(self):
+        """Get the python dirsrv unique id.
+
+        :returns: String of the object uuid
+        """
+        return self.uuid
+
     def has_asan(self):
         return self.ds_paths.asan_enabled
 
     def with_systemd(self):
         return self.ds_paths.with_systemd
+
+    def get_server_tls_subject(self):
+        """ Get the servers TLS subject line for enrollment purposes.
+
+        :returns: String of the Server-Cert subject line.
+        """
+        tlsdb = NssSsl(dirsrv=self)
+        return tlsdb.get_server_cert_subject()
 
     #
     # Get entries
@@ -2704,7 +2719,7 @@ class DirSrv(SimpleLDAPObject, object):
             online = True
         else:
             online = False
-        DirSrvTools.runUpgrade(self.prefix, online)
+        DirSrvTools.runUpgrade(self.ds_paths.prefix, online)
 
     #
     # The following are the functions to perform offline scripts(when the

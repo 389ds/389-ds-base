@@ -19,7 +19,7 @@ class Domain(DSLdapObject):
     :type dn: str
     """
 
-    def __init__(self, instance, dn=None):
+    def __init__(self, instance, dn):
         super(Domain, self).__init__(instance, dn)
         self._rdn_attribute = 'dc'
         self._must_attributes = ['dc']

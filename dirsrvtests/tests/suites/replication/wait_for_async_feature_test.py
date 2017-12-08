@@ -15,13 +15,13 @@ from lib389.topologies import topology_m2
 
 from lib389._constants import SUFFIX, DEFAULT_SUFFIX, LOG_REPLICA
 
+from lib389.agreement import Agreements
+from lib389.idm.organisationalunit import OrganisationalUnits
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 installation1_prefix = None
-
-WAITFOR_ASYNC_ATTR = "nsDS5ReplicaWaitForAsyncResults"
-
 
 @pytest.fixture(params=[(None, (4, 11)),
                         ('2000', (0, 2)),
@@ -34,22 +34,18 @@ def waitfor_async_attr(topology_m2, request):
     expected_result = request.param[1]
 
     # Run through all masters
-    for num in range(1, 3):
-        master = topology_m2.ms["master{}".format(num)]
-        agmt = master.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
-        try:
-            if attr_value:
-                log.info("Set %s: %s on %s" % (
-                    WAITFOR_ASYNC_ATTR, attr_value, master.serverid))
-                mod = [(ldap.MOD_REPLACE, WAITFOR_ASYNC_ATTR, attr_value)]
-            else:
-                log.info("Delete %s from %s" % (
-                    WAITFOR_ASYNC_ATTR, master.serverid))
-                mod = [(ldap.MOD_DELETE, WAITFOR_ASYNC_ATTR, None)]
-            master.modify_s(agmt, mod)
-        except ldap.LDAPError as e:
-            log.error('Failed to set or delete %s attribute: (%s)' % (
-                WAITFOR_ASYNC_ATTR, e.message['desc']))
+
+    for master in topology_m2.ms.values():
+        agmt = Agreements(master).list()[0]
+
+        if attr_value:
+            agmt.set_wait_for_async_results(attr_value)
+        else:
+            try:
+                # Sometimes we can double remove this.
+                agmt.remove_wait_for_async_results()
+            except ldap.NO_SUCH_ATTRIBUTE:
+                pass
 
     return (attr_value, expected_result)
 
@@ -60,32 +56,19 @@ def entries(topology_m2, request):
 
     master1 = topology_m2.ms["master1"]
 
-    TEST_OU = "test"
-    test_dn = SUFFIX
     test_list = []
 
     log.info("Add 100 nested entries under replicated suffix on %s" % master1.serverid)
+    ous = OrganisationalUnits(master1, DEFAULT_SUFFIX)
     for i in range(100):
-        test_dn = 'ou=%s%s,%s' % (TEST_OU, i, test_dn)
-        test_list.insert(0, test_dn)
-        try:
-            master1.add_s(Entry((test_dn,
-                                 {'objectclass': 'top',
-                                  'objectclass': 'organizationalUnit',
-                                  'ou': TEST_OU})))
-        except ldap.LDAPError as e:
-            log.error('Failed to add entry (%s): error (%s)' % (test_dn,
-                                                                e.message['desc']))
-            assert False
+        ou = ous.create(properties={
+            'ou' : 'test_ou_%s' % i,
+        })
+        test_list.append(ou)
 
     log.info("Delete created entries")
-    for test_dn in test_list:
-        try:
-            master1.delete_s(test_dn)
-        except ldap.LDAPError as e:
-            log.error('Failed to delete entry (%s): error (%s)' % (test_dn,
-                                                                   e.message['desc']))
-            assert False
+    for test_ou in test_list:
+        test_ou.delete()
 
     def fin():
         log.info("Clear the errors log in the end of the test case")
@@ -106,18 +89,11 @@ def test_not_int_value(topology_m2):
     :expectedresults:
         1. Invalid syntax error should be raised
     """
-
-
     master1 = topology_m2.ms["master1"]
-    agmt = master1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
+    agmt = Agreements(master1).list()[0]
 
-    log.info("Try to set %s: wv1" % WAITFOR_ASYNC_ATTR)
-    try:
-        mod = [(ldap.MOD_REPLACE, WAITFOR_ASYNC_ATTR, "wv1")]
-        master1.modify_s(agmt, mod)
-    except ldap.LDAPError as e:
-        assert e.message['desc'] == 'Invalid syntax'
-
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        agmt.set_wait_for_async_results("ws2")
 
 def test_multi_value(topology_m2):
     """Tests multi value
@@ -134,20 +110,11 @@ def test_multi_value(topology_m2):
     """
 
     master1 = topology_m2.ms["master1"]
-    agmt = master1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
+    agmt = Agreements(master1).list()[0]
 
-    log.info("agmt: %s" % agmt)
-
-    log.info("Try to set %s: 100 and 101 in the same time (multi value test)" % (
-        WAITFOR_ASYNC_ATTR))
-    try:
-        mod = [(ldap.MOD_ADD, WAITFOR_ASYNC_ATTR, "100")]
-        master1.modify_s(agmt, mod)
-        mod = [(ldap.MOD_ADD, WAITFOR_ASYNC_ATTR, "101")]
-        master1.modify_s(agmt, mod)
-    except ldap.LDAPError as e:
-        assert e.message['desc'] == 'Object class violation'
-
+    agmt.set_wait_for_async_results('100')
+    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+        agmt.add('nsDS5ReplicaWaitForAsyncResults', '101')
 
 def test_value_check(topology_m2, waitfor_async_attr):
     """Checks that value has been set correctly
@@ -166,23 +133,11 @@ def test_value_check(topology_m2, waitfor_async_attr):
 
     attr_value = waitfor_async_attr[0]
 
-    for num in range(1, 3):
-        master = topology_m2.ms["master{}".format(num)]
-        agmt = master.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
+    for master in topology_m2.ms.values():
+        agmt = Agreements(master).list()[0]
 
-        log.info("Check attr %s on %s" % (WAITFOR_ASYNC_ATTR, master.serverid))
-        try:
-            if attr_value:
-                entry = master.search_s(agmt, ldap.SCOPE_BASE, "%s=%s" % (
-                    WAITFOR_ASYNC_ATTR, attr_value))
-                assert entry
-            else:
-                entry = master.search_s(agmt, ldap.SCOPE_BASE, "%s=*" % WAITFOR_ASYNC_ATTR)
-                assert not entry
-        except ldap.LDAPError as e:
-            log.fatal('Search failed, error: ' + e.message['desc'])
-            assert False
-
+        server_value = agmt.get_wait_for_async_results_utf8()
+        assert server_value == attr_value
 
 def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
     """Tests replication behavior with valid
@@ -212,11 +167,6 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
     master1.setLogLevel(LOG_REPLICA)
     master2.setLogLevel(LOG_REPLICA)
 
-    master1.modify_s("cn=config", [(ldap.MOD_REPLACE,
-                                    'nsslapd-logging-hr-timestamps-enabled', "off")])
-    master2.modify_s("cn=config", [(ldap.MOD_REPLACE,
-                                    'nsslapd-logging-hr-timestamps-enabled', "off")])
-
     sync_dict = Counter()
     min_ap = waitfor_async_attr[1][0]
     max_ap = waitfor_async_attr[1][1]
@@ -230,12 +180,24 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
         # Watch only over unsuccessful sync attempts
         for line in errlog_filtered:
             if line.split()[3] != line.split()[4]:
-                timestamp = line.split(']')[0]
+                # A timestamp looks like:
+                # [03/Jan/2018:14:35:15.806396035 +1000] LOGMESSAGE HERE
+                # We want to assert a range of "seconds", so we need to reduce
+                # this to a reasonable amount. IE:
+                #   [03/Jan/2018:14:35:15
+                # So to achieve this we split on ] and . IE.
+                # [03/Jan/2018:14:35:15.806396035 +1000] LOGMESSAGE HERE
+                #                                      ^ split here first
+                #                      ^ now split here
+                # [03/Jan/2018:14:35:15
+                # ^ final result
+                timestamp = line.split(']')[0].split('.')[0]
                 sync_dict[timestamp] += 1
 
     log.info("Take the most common timestamp and assert it has appeared " \
              "in the range from %s to %s times" % (min_ap, max_ap))
     most_common_val = sync_dict.most_common(1)[0][1]
+    log.debug("%s <= %s <= %s" % (min_ap, most_common_val, max_ap))
     assert min_ap <= most_common_val <= max_ap
 
 

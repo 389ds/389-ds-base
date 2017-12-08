@@ -23,6 +23,7 @@ from subprocess import check_call, check_output
 from lib389.passwd import password_generate
 
 from lib389.utils import ensure_str, ensure_bytes
+import uuid
 
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
@@ -32,7 +33,8 @@ PIN_TXT = 'pin.txt'
 PWD_TXT = 'pwdfile.txt'
 CERT_SUFFIX = 'O=testing,L=389ds,ST=Queensland,C=AU'
 ISSUER = 'CN=ssca.389ds.example.com,%s' % CERT_SUFFIX
-SELF_ISSUER = 'CN={HOSTNAME},%s' % CERT_SUFFIX
+SELF_ISSUER = 'CN={HOSTNAME},givenName={GIVENNAME},%s' % CERT_SUFFIX
+USER_ISSUER = 'CN={HOSTNAME},%s' % CERT_SUFFIX
 VALID = 2
 
 # My logger
@@ -51,6 +53,46 @@ class NssSsl(object):
             self.dbpassword = password_generate()
         else:
             self.dbpassword = dbpassword
+
+    def detect_alt_names(self, alt_names=[]):
+        """Attempt to determine appropriate subject alternate names for a host.
+        Returns the list of names we derive.
+
+        :param alt_names: A list of alternate names.
+        :type alt_names: list[str]
+        :returns: list[str]
+        """
+        if self.dirsrv and self.dirsrv.host not in alt_names:
+            alt_names.append(self.dirsrv.host)
+        if len(alt_names) == 0:
+            alt_names.append(socket.gethostname())
+        return alt_names
+
+    def generate_cert_subject(self, alt_names=[]):
+        """Return the cert subject we would generate for this host
+        from the lib389 self signed process. This is *not* the subject
+        of the actual cert, which could be different.
+
+        :param alt_names: Alternative names you want to configure.
+        :type alt_names: [str, ]
+        :returns: String of the subject DN.
+        """
+
+        if self.dirsrv and len(alt_names) > 0:
+            return SELF_ISSUER.format(GIVENNAME=self.dirsrv.get_uuid(), HOSTNAME=alt_names[0])
+        elif len(alt_names) > 0:
+            return SELF_ISSUER.format(GIVENNAME=uuid.uuid4(), HOSTNAME=alt_names[0])
+        else:
+            return SELF_ISSUER.format(GIVENNAME=uuid.uuid4(), HOSTNAME='lib389host.localdomain')
+
+    def get_server_cert_subject(self, alt_names=[]):
+        """Get the server db subject. For now, this uses generate, but later
+        we can make this determined from other factors like x509 parsing.
+
+        :returns: str
+        """
+        alt_names = self.detect_alt_names(alt_names)
+        return self.generate_cert_subject(alt_names)
 
     def _generate_noise(self, fpath):
         noise = password_generate(256)
@@ -140,6 +182,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
+        self.log.debug("nss cmd: %s" % cmd)
         result = ensure_str(check_output(cmd))
         self.log.debug("nss output: %s" % result)
         # Now extract the CAcert to a well know place.
@@ -153,6 +196,7 @@ class NssSsl(object):
             self._certdb,
             '-a',
         ]
+        self.log.debug("nss cmd: %s" % cmd)
         certdetails = check_output(cmd)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
@@ -266,10 +310,8 @@ class NssSsl(object):
         extra names to take.
         """
 
-        if len(alt_names) == 0:
-            alt_names.append(socket.gethostname())
-        if self.dirsrv and self.dirsrv.host not in alt_names:
-            alt_names.append(self.dirsrv.host)
+        alt_names = self.detect_alt_names(alt_names)
+        subject = self.generate_cert_subject(alt_names)
 
         # Wait a second to avoid an NSS bug with serial ids based on time.
         time.sleep(1)
@@ -281,7 +323,7 @@ class NssSsl(object):
             '-n',
             CERT_NAME,
             '-s',
-            SELF_ISSUER.format(HOSTNAME=alt_names[0]),
+            subject,
             # We MUST issue with SANs else ldap wont verify the name.
             '-8', ','.join(alt_names),
             '-c',
@@ -300,6 +342,7 @@ class NssSsl(object):
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
 
+        self.log.debug("nss cmd: %s" % cmd)
         result = ensure_str(check_output(cmd))
         self.log.debug("nss output: %s" % result)
         return True
@@ -311,21 +354,26 @@ class NssSsl(object):
         """
         csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
 
-        if len(alt_names) == 0:
-            alt_names.append(socket.gethostname())
-        if self.dirsrv and self.dirsrv.host not in alt_names:
-            alt_names.append(self.dirsrv.host)
+        alt_names = self.detect_alt_names(alt_names)
+        subject = self.generate_cert_subject(alt_names)
 
         # Wait a second to avoid an NSS bug with serial ids based on time.
         time.sleep(1)
         # Create noise.
         self._generate_noise('%s/noise.txt' % self._certdb)
 
-        check_call([
+        cmd = [
             '/usr/bin/certutil',
             '-R',
+            # We want a dual purposes client and server cert
+            '--keyUsage',
+            'digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment',
+            '--nsCertType',
+            'sslClient,sslServer',
+            '--extKeyUsage',
+            'clientAuth,serverAuth',
             '-s',
-            SELF_ISSUER.format(HOSTNAME=alt_names[0]),
+            subject,
             # We MUST issue with SANs else ldap wont verify the name.
             '-8', ','.join(alt_names),
             '-g',
@@ -340,7 +388,11 @@ class NssSsl(object):
             '%s/%s' % (self._certdb, PWD_TXT),
             '-a',
             '-o', csr_path,
-        ])
+        ]
+
+        self.log.debug("nss cmd: %s" % cmd)
+        check_call(cmd)
+
         return csr_path
 
     def rsa_ca_sign_csr(self, csr_path):
@@ -398,7 +450,7 @@ class NssSsl(object):
             '-V',
             '-d', self._certdb,
             '-n', CERT_NAME,
-            '-u', 'V'
+            '-u', 'YCV'
         ])
 
     def create_rsa_user(self, name):
@@ -407,8 +459,9 @@ class NssSsl(object):
 
         Name is the uid of the account, and will become the CN of the cert.
         """
+        subject = USER_ISSUER.format(HOSTNAME=name)
         if self._rsa_user_exists(name):
-            return True
+            return subject
 
         # Wait a second to avoid an NSS bug with serial ids based on time.
         time.sleep(1)
@@ -418,7 +471,7 @@ class NssSsl(object):
             '-n',
             '%s%s' % (USER_PREFIX, name),
             '-s',
-            SELF_ISSUER.format(HOSTNAME=name),
+            subject,
             '--keyUsage',
             'digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment',
             '--nsCertType',
@@ -485,7 +538,7 @@ class NssSsl(object):
             '-out', '%s/%s%s.der' % (self._certdb, USER_PREFIX, name),
         ])
 
-        return True
+        return subject
 
     def get_rsa_user(self, name):
         """

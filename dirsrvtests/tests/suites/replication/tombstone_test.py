@@ -9,12 +9,13 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from lib389.topologies import topology_m1
 
-from lib389._constants import DEFAULT_SUFFIX, ReplicaRole, REPLICAID_MASTER_1
+from lib389.tombstone import Tombstones
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
 
-def test_purge_success(topology_st):
+def test_purge_success(topology_m1):
     """Verify that tombstones are created successfully
 
     :id: adb86f50-ae76-4ed6-82b4-3cdc30ccab78
@@ -30,37 +31,28 @@ def test_purge_success(topology_st):
         3. The entry should be successfully deleted
         4. Tombstone entry should exist
     """
+    m1 = topology_m1.ms['master1']
 
-    log.info('Setting up replication...')
-    topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX,
-                                                     role=ReplicaRole.MASTER,
-                                                     replicaId=REPLICAID_MASTER_1)
+    users = UserAccounts(m1, DEFAULT_SUFFIX)
+    user = users.create(properties=TEST_USER_PROPERTIES)
 
-    log.info("Add and then delete an entry to create a tombstone...")
-    try:
-        topology_st.standalone.add_s(Entry(('cn=entry1,dc=example,dc=com', {
-            'objectclass': 'top person'.split(),
-            'sn': 'user',
-            'cn': 'entry1'})))
-    except ldap.LDAPError as e:
-        log.error('Failed to add entry: {}'.format(e.message['desc']))
-        assert False
+    tombstones = Tombstones(m1, DEFAULT_SUFFIX)
 
-    try:
-        topology_st.standalone.delete_s('cn=entry1,dc=example,dc=com')
-    except ldap.LDAPError as e:
-        log.error('Failed to delete entry: {}'.format(e.message['desc']))
-        assert False
+    assert len(tombstones.list()) == 0
 
-    log.info('Search for tombstone entries...')
-    try:
-        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                                  '(objectclass=nsTombstone)')
-        assert entries
-    except ldap.LDAPError as e:
-        log.fatal('Search failed: {}'.format(e.message['desc']))
-        assert False
+    user.delete()
 
+    assert len(tombstones.list()) == 1
+    assert len(users.list()) == 0
+
+    ts = tombstones.get('testuser')
+    assert ts.exists()
+
+    if not ds_is_older('1.4.0'):
+        ts.revive()
+
+        assert len(users.list()) == 1
+        user_revived = users.get('testuser')
 
 if __name__ == '__main__':
     # Run isolated

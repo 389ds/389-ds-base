@@ -5,7 +5,9 @@ import ldap
 import time
 from lib389._constants import *
 from lib389.properties import *
-from lib389.topologies import create_topology
+from lib389.topologies import topology_m1 as topo
+from lib389.changelog import Changelog5
+from lib389.idm.domain import Domain
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -18,15 +20,9 @@ log = logging.getLogger(__name__)
 def do_mods(master, num):
     """Perform a num of mods on the default suffix
     """
-    for i in xrange(num):
-        try:
-            master.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE,
-                                              "description",
-                                              "new")])
-        except ldap.LDAPError as e:
-            log.fatal("Failed to make modify: " + str(e))
-            assert False
-
+    domain = Domain(master, DEFAULT_SUFFIX)
+    for i in range(num):
+        domain.replace('description', 'change %s' % i)
 
 @pytest.fixture(scope="module")
 def setup_max_entries(topo, request):
@@ -35,13 +31,10 @@ def setup_max_entries(topo, request):
     master = topo.ms["master1"]
 
     master.config.loglevel((LOG_REPLICA,), 'error')
-    try:
-        master.modify_s(DN_CHANGELOG, [(ldap.MOD_REPLACE, CL_MAX_ENTRIES, "2"),
-                                       (ldap.MOD_REPLACE, CL_TRIM_INTERVAL, "300")])
-    except ldap.LDAPError as e:
-        log.fatal("Failed to set change log config: " + str(e))
-        assert False
 
+    cl = Changelog5(master)
+    cl.set_max_entries('2')
+    cl.set_trim_interval('300')
 
 @pytest.fixture(scope="module")
 def setup_max_age(topo, request):
@@ -49,37 +42,10 @@ def setup_max_age(topo, request):
     """
     master = topo.ms["master1"]
     master.config.loglevel((LOG_REPLICA,), 'error')
-    try:
-        master.modify_s(DN_CHANGELOG, [(ldap.MOD_REPLACE, CL_MAXAGE, "5"),
-                                       (ldap.MOD_REPLACE, CL_TRIM_INTERVAL, "300")])
-    except ldap.LDAPError as e:
-        log.fatal("Failed to set change log config: " + str(e))
-        assert False
 
-
-@pytest.fixture(scope="module")
-def topo(request):
-    """Create a topology with 1 masters"""
-
-    topology = create_topology({
-        ReplicaRole.MASTER: 1,
-        })
-    # You can write replica test here. Just uncomment the block and choose instances
-    # replicas = Replicas(topology.ms["master1"])
-    # replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])
-
-    def fin():
-        """If we are debugging just stop the instances, otherwise remove them"""
-
-        if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
-        else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
-
-    request.addfinalizer(fin)
-
-    return topology
-
+    cl = Changelog5(master)
+    cl.set_max_age('5')
+    cl.set_trim_interval('300')
 
 def test_max_age(topo, setup_max_age):
     """Test changing the trimming interval works with max age
@@ -100,6 +66,7 @@ def test_max_age(topo, setup_max_age):
     log.info("Testing changelog triming interval with max age...")
 
     master = topo.ms["master1"]
+    cl = Changelog5(master)
 
     # Do mods to build if cl entries
     do_mods(master, 10)
@@ -109,11 +76,7 @@ def test_max_age(topo, setup_max_age):
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
-    try:
-        master.modify_s(DN_CHANGELOG, [(ldap.MOD_REPLACE, CL_TRIM_INTERVAL, "5")])
-    except ldap.LDAPError as e:
-        log.fatal("Failed to set chance log trim interval: " + str(e))
-        assert False
+    cl.set_trim_interval('5')
 
     time.sleep(6)  # Trimming should have occured
 
@@ -141,6 +104,7 @@ def test_max_entries(topo, setup_max_entries):
 
     log.info("Testing changelog triming interval with max entries...")
     master = topo.ms["master1"]
+    cl = Changelog5(master)
 
     # reset errors log
     master.deleteErrorLogs()
@@ -152,11 +116,7 @@ def test_max_entries(topo, setup_max_entries):
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
-    try:
-        master.modify_s(DN_CHANGELOG, [(ldap.MOD_REPLACE, CL_TRIM_INTERVAL, "5")])
-    except ldap.LDAPError as e:
-        log.fatal("Failed to set chance log trim interval: " + str(e))
-        assert False
+    cl.set_trim_interval('5')
 
     time.sleep(6)  # Trimming should have occured
 
