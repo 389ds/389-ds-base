@@ -8066,6 +8066,27 @@ int slapi_is_special_rdn(const char *rdn, int flag);
  */
 void    DS_Sleep(PRIntervalTime ticks);
 
+/**
+ * Increment a 64bitintegral atomicly
+ *
+ * \param ptr - pointer to integral to increment
+ * \param memorder - __ATOMIC_RELAXED, __ATOMIC_CONSUME, __ATOMIC_ACQUIRE,
+ * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST
+ * \return - new value of ptr
+ */
+uint64_t slapi_atomic_incr_64(uint64_t *ptr, int memorder);
+
+/**
+ * Decrement a 64bitintegral atomicly
+ *
+ * \param ptr - pointer to integral to decrement
+ * \param memorder - __ATOMIC_RELAXED, __ATOMIC_CONSUME, __ATOMIC_ACQUIRE,
+ * __ATOMIC_RELEASE, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST
+ * \return - new value of ptr
+ */
+uint64_t slapi_atomic_decr_64(uint64_t *ptr, int memorder);
+
+
 #ifdef __cplusplus
 }
 #endif

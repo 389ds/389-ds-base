@@ -269,3 +269,33 @@ uint64_t slapi_counter_get_value(Slapi_Counter *counter)
     return value;
 }
 
+/*
+ * atomic increment functions (64bit)
+ */
+uint64_t
+slapi_atomic_incr_64(uint64_t *ptr, int memorder)
+{
+#ifdef ATOMIC_64BIT_OPERATIONS
+    return __atomic_add_fetch_8(ptr, 1, memorder);
+#else
+    PRInt32 *pr_ptr = (PRInt32 *)ptr;
+    return PR_AtomicIncrement(pr_ptr);
+#endif
+}
+
+/*
+ * atomic decrement functions (64bit)
+ */
+
+uint64_t
+slapi_atomic_decr_64(uint64_t *ptr, int memorder)
+{
+#ifdef ATOMIC_64BIT_OPERATIONS
+    return __atomic_sub_fetch_8(ptr, 1, memorder);
+#else
+    PRInt32 *pr_ptr = (PRInt32 *)ptr;
+    return PR_AtomicDecrement(pr_ptr);
+#endif
+}
+
+
