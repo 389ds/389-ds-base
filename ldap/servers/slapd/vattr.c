@@ -1544,6 +1544,7 @@ struct _vattr_sp_handle
     vattr_sp *sp;
     struct _vattr_sp_handle *next; /* So we can link them together in the map */
     void *hint;                    /* Hint to the SP */
+    uint64_t rc;
 };
 
 /* Calls made by Service Providers */
@@ -1770,7 +1771,7 @@ is a separate thing in the insterests of stability.
 
  */
 
-#define VARRT_MAP_HASHTABLE_SIZE 10
+#define VARRT_MAP_HASHTABLE_SIZE 32
 
 /* Attribute map oject */
 /* Needs to contain: a linked list of pointers to provider handles handles,
@@ -1867,7 +1868,10 @@ vattr_map_entry_free(vattr_map_entry *vae)
     vattr_sp_handle *list_entry = vae->sp_list;
     while (list_entry != NULL) {
         vattr_sp_handle *next_entry = list_entry->next;
-        slapi_ch_free((void **)&list_entry);
+        if (slapi_atomic_decr_64(&(list_entry->rc), __ATOMIC_RELAXED) == 0) {
+            /* Only free on RC 0 */
+            slapi_ch_free((void **)&list_entry);
+        }
         list_entry = next_entry;
     }
     slapi_ch_free_string(&(vae->type_name));
@@ -2280,6 +2284,17 @@ to handle the calls on it, but return nothing */
  *
  * Better idea, is that regattr should just take the fn pointers
  * and callers never *see* the sp_handle structure at all.
+ *
+ * This leaves us with some quirks today. First: if you have plugin A
+ * and B, A registers attr 1 and B 1 and 2, it's possible that if you
+ * register A1 first, then B1, you have B->A in next. Then when you
+ * register B2, because we take 0==result from map_lookup, we add sp
+ * "as is" to the map. This means that B2 now has the same next to A1
+ * handle. This won't add a bug, because A1 won't be able to service the
+ * attr, but it could cause some head scratching ...
+ *
+ * Again, to fix this, the whole vattr external interface needs a
+ * redesign ... :(
  */
 
 int
@@ -2304,11 +2319,15 @@ vattr_map_sp_insert(char *type_to_add, vattr_sp_handle *sp, void *hint)
         if (found) {
             return 0;
         }
+        /* Increase the ref count of the sphandle */
+        slapi_atomic_incr_64(&(sp->rc), __ATOMIC_RELAXED);
         /* We insert the SP handle into the linked list at the head */
         sp->next = map_entry->sp_list;
         map_entry->sp_list = sp;
     } else {
         /* If not, add it */
+        /* Claim a reference on the sp ... */
+        slapi_atomic_incr_64(&(sp->rc), __ATOMIC_RELAXED);
         map_entry = vattr_map_entry_new(type_to_add, sp, hint);
         if (NULL == map_entry) {
             return ENOMEM;

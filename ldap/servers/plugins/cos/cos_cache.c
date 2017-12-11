@@ -275,7 +275,7 @@ static Slapi_Mutex *start_lock;
 static Slapi_Mutex *stop_lock;
 static Slapi_CondVar *something_changed = NULL;
 static Slapi_CondVar *start_cond = NULL;
-
+static vattr_sp_handle *vattr_handle = NULL;
 
 /*
     cos_cache_init
@@ -310,6 +310,15 @@ cos_cache_init(void)
         something_changed == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
                       "cos_cache_init - Cannot create mutexes\n");
+        ret = -1;
+        goto out;
+    }
+
+    if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
+                                cos_cache_vattr_get,
+                                cos_cache_vattr_compare,
+                                cos_cache_vattr_types) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_init - Cannot register as service provider\n");
         ret = -1;
         goto out;
     }
@@ -847,22 +856,7 @@ cos_dn_defs_cb(Slapi_Entry *e, void *callback_data)
                                           dnVals[valIndex]->bv_val);
                 }
 
-                /*
-                 * Each SP_handle is associated to one and only one vattr.
-                 * We could consider making this a single function rather
-                 * than the double-call.
-                 */
-
-                vattr_sp_handle *vattr_handle = NULL;
-
-                if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle,
-                                            cos_cache_vattr_get,
-                                            cos_cache_vattr_compare,
-                                            cos_cache_vattr_types) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_init - Cannot register as service provider for %s\n", dnVals[valIndex]->bv_val);
-                } else {
-                    slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, dnVals[valIndex]->bv_val, NULL, NULL);
-                }
+                slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, dnVals[valIndex]->bv_val, NULL, NULL);
 
             } /* if(attrType is cosAttribute) */
 
