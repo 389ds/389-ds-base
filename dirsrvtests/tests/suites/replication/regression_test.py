@@ -9,9 +9,11 @@
 import pytest
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.utils import *
-from lib389.topologies import topology_m2 as topo_m2
+from lib389.topologies import topology_m2 as topo_m2, TopologyMain
 from lib389._constants import *
 from . import get_repl_entries
+from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.replica import Replicas
 
 NEW_SUFFIX_NAME = 'test_repl'
 NEW_SUFFIX = 'o={}'.format(NEW_SUFFIX_NAME)
@@ -73,6 +75,89 @@ def test_double_delete(topo_m2, test_entry):
     log.info('Make searches to check if server is alive')
     entries = get_repl_entries(topo_m2, test_entry_rdn, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(test_entry.dn)
+
+
+@pytest.mark.bz1506831
+def test_repl_modrdn(topo_m2):
+    """Test that replicated MODRDN does not break replication
+
+    :id: a3e17698-9eb4-41e0-b537-8724b9915fa6
+    :setup: Two masters replication setup
+    :steps:
+        1. Add 3 test OrganisationalUnits A, B and C
+        2. Add 1 test user under OU=A
+        3. Add same test user under OU=B
+        4. Stop Replication
+        5. Apply modrdn to M1 - move test user from OU A -> C
+        6. Apply modrdn on M2 - move test user from OU B -> C
+        7. Start Replication
+        8. Check that there should be only one test entry under ou=C on both masters
+        9. Check that the replication is working fine both ways M1 <-> M2
+    :expectedresults:
+        1. This should pass
+        2. This should pass
+        3. This should pass
+        4. This should pass
+        5. This should pass
+        6. This should pass
+        7. This should pass
+        8. This should pass
+        9. This should pass
+    """
+
+    master1 = topo_m2.ms["master1"]
+    master2 = topo_m2.ms["master2"]
+
+    log.info("Add test entries - Add 3 OUs and 2 same users under 2 different OUs")
+    OUs = OrganisationalUnits(master1, DEFAULT_SUFFIX)
+    OU_A = OUs.create(properties={
+        'ou': 'A',
+        'description': 'A',
+    })
+    OU_B = OUs.create(properties={
+        'ou': 'B',
+        'description': 'B',
+    })
+    OU_C = OUs.create(properties={
+        'ou': 'C',
+        'description': 'C',
+    })
+
+    users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_A.rdn))
+    tuser_A = users.create(properties=TEST_USER_PROPERTIES)
+
+    users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_B.rdn))
+    tuser_B = users.create(properties=TEST_USER_PROPERTIES)
+
+    time.sleep(10)
+
+    log.info("Stop Replication")
+    topo_m2.pause_all_replicas()
+
+    log.info("Apply modrdn to M1 - move test user from OU A -> C")
+    master1.rename_s(tuser_A.dn,'uid=testuser1',newsuperior=OU_C.dn,delold=1)
+
+    log.info("Apply modrdn on M2 - move test user from OU B -> C")
+    master2.rename_s(tuser_B.dn,'uid=testuser1',newsuperior=OU_C.dn,delold=1)
+
+    log.info("Start Replication")
+    topo_m2.resume_all_replicas()
+
+    log.info("Wait for sometime for repl to resume")
+    time.sleep(10)
+
+    log.info("Check that there should be only one test entry under ou=C on both masters")
+    users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
+    assert len(users.list()) == 1
+
+    users = UserAccounts(master2, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
+    assert len(users.list()) == 1
+
+    log.info("Check that the replication is working fine both ways, M1 <-> M2")
+    replicas_m1 = Replicas(master1)
+    replicas_m2 = Replicas(master2)
+    replicas_m1.test(DEFAULT_SUFFIX, master2)
+    replicas_m2.test(DEFAULT_SUFFIX, master1)
 
 
 def test_password_repl_error(topo_m2, test_entry):
@@ -172,3 +257,4 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
+
