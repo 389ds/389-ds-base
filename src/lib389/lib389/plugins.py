@@ -488,7 +488,7 @@ class AutoMembershipDefinitions(DSLdapObjects):
         :type basedn: str
     """
 
-    def __init__(self, instance, basedn):
+    def __init__(self, instance, basedn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
         super(AutoMembershipDefinitions, self).__init__(instance)
         self._objectclasses = ['top','autoMemberDefinition']
         self._filterattrs = ['cn']
