@@ -379,6 +379,7 @@ int ldbm_txn_ruv_modify_context(Slapi_PBlock *pb, modify_context *mc);
 int get_value_from_string(const char *string, char *type, char **value);
 int get_values_from_string(const char *string, char *type, char ***valuearray);
 void normalize_dir(char *dir);
+void ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_result_message);
 
 /*
  * nextid.c

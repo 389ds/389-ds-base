@@ -16,6 +16,24 @@
 
 #include "back-ldbm.h"
 
+void
+ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_result_message)
+{
+    int opreturn = 0;
+    if (!(*ldap_result_code)) {
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, ldap_result_code);
+    }
+    if (!(*ldap_result_code)) {
+        *ldap_result_code = LDAP_OPERATIONS_ERROR;
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, ldap_result_code);
+    }
+    slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+    if (!opreturn) {
+        slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, *ldap_result_code ? ldap_result_code : &retval);
+    }
+    slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, ldap_result_message);
+}
+
 /* Takes a return code supposed to be errno or from lidb
    which we don't expect to see and prints a handy log message */
 void
