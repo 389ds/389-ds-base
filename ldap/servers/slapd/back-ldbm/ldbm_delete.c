@@ -1276,6 +1276,10 @@ replace_entry:
     }
 
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN);
+    if (retval) {
+        ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
+        goto error_return;
+    }
 
 commit_return:
     /* Release SERIAL LOCK */

@@ -22,7 +22,6 @@ extern char *hassubordinates;
 
 static void delete_update_entrydn_operational_attributes(struct backentry *ep);
 
-static int set_error(Slapi_PBlock *pb, int retval, int ldap_result_code, char **ldap_result_message);
 #define ADD_SET_ERROR(rc, error, count)                                            \
     {                                                                              \
         (rc) = (error);                                                            \
@@ -1201,7 +1200,7 @@ ldbm_back_add(Slapi_PBlock *pb)
 
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_ADD_FN);
     if (retval) {
-        set_error(pb, retval, ldap_result_code, &ldap_result_message);
+        ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
         goto error_return;
     }
 
@@ -1471,22 +1470,3 @@ delete_update_entrydn_operational_attributes(struct backentry *ep)
     slapi_entry_attr_delete(ep->ep_entry, LDBM_ENTRYDN_STR);
 }
 
-static int
-set_error(Slapi_PBlock *pb, int retval, int ldap_result_code, char **ldap_result_message)
-{
-    int opreturn = 0;
-    if (!ldap_result_code) {
-        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-    }
-    if (!ldap_result_code) {
-        ldap_result_code = LDAP_OPERATIONS_ERROR;
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-    }
-    slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
-    if (!opreturn) {
-        slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
-    }
-    slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-
-    return opreturn;
-}

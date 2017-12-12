@@ -867,6 +867,10 @@ ldbm_back_modify(Slapi_PBlock *pb)
         goto error_return;
     }
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
+    if (retval) {
+        ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
+        goto error_return;
+    }
 
     /* Release SERIAL LOCK */
     retval = dblayer_txn_commit(be, &txn);
