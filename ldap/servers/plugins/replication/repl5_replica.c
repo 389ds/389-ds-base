@@ -1964,9 +1964,11 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         int64_t rflags;
         if((val = slapi_entry_attr_get_charptr(e, attr_flags))) {
             if (repl_config_valid_num(attr_flags, val, 0, 1, &rc, errortext, &rflags) != 0) {
+                slapi_ch_free_string(&val);
                 return -1;
             }
             r->repl_flags = (uint32_t)rflags;
+            slapi_ch_free_string(&val);
         } else {
             r->repl_flags = 0;
         }
