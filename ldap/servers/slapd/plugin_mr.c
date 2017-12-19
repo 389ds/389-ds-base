@@ -145,43 +145,119 @@ plugin_mr_bind (char* oid, struct slapdplugin* plugin)
 	slapi_log_err(SLAPI_LOG_FILTER, "plugin_mr_bind", "<=\n");
 }
 
+void
+mr_indexer_init_pb(Slapi_PBlock* src_pb, Slapi_PBlock* dst_pb)
+{
+    char* oid;
+    char *type;
+    uint32_t usage;
+    void *object;
+    IFP destroyFn;
+    IFP indexFn, indexSvFn;
+    
+    /* matching rule plugin arguments */
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_MR_OID,             &oid);
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_MR_TYPE,            &type);
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_MR_USAGE,           &usage);
+    
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_MR_OID,             oid);
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_MR_TYPE,            type);
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_MR_USAGE,           &usage);
+    
+    /* matching rule plugin functions */
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_MR_INDEX_FN,          &indexFn);
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_MR_INDEX_SV_FN,       &indexSvFn);
+    
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_MR_INDEX_FN,          indexFn);
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_MR_INDEX_SV_FN,       indexSvFn);
+
+    /* common */
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_OBJECT,        &object);
+    slapi_pblock_get(src_pb, SLAPI_PLUGIN_DESTROY_FN,    &destroyFn);
+
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_OBJECT,        object);
+    slapi_pblock_set(dst_pb, SLAPI_PLUGIN_DESTROY_FN,    destroyFn);
+
+
+}
+
+/*
+ *  Retrieves the matching rule plugin able to index/sort the provided OID/type
+ * 
+ *  The Matching rules able to index/sort a given OID are stored in a global list: global_mr_oids
+ *
+ *  The retrieval is done in 3 phases:
+ *      - It first searches (in global_mr_oids) for the already bound OID->MR
+ *      - Else, look first in old style MR plugin
+ *        for each registered 'syntax' and 'matchingrule' plugins having a
+ *        SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, it binds (plugin_mr_bind) the first
+ *        plugin that support the OID
+ *      - Else, look in new style MR plugin
+ *        for each registered 'syntax' and 'matchingrule' plugins, it binds (plugin_mr_bind) the first
+ *        plugin that contains OID in its plg_mr_names
+ *
+ * Inputs:
+ *  SLAPI_PLUGIN_MR_OID
+ *      should contain the OID of the matching rule that you want used for indexing or sorting.
+ *  SLAPI_PLUGIN_MR_TYPE
+ *      should contain the attribute type that you want used for indexing or sorting.
+ *  SLAPI_PLUGIN_MR_USAGE
+ *      should specify if the indexer will be used for indexing (SLAPI_PLUGIN_MR_USAGE_INDEX)
+ *      or for sorting (SLAPI_PLUGIN_MR_USAGE_SORT)
+ *
+ *
+ * Output:
+ *
+ *  SLAPI_PLUGIN_MR_OID
+ *      contain the OFFICIAL OID of the matching rule that you want used for indexing or sorting.
+ *  SLAPI_PLUGIN_MR_INDEX_FN
+ *      specifies the indexer function responsible for indexing or sorting of struct berval **
+ *  SLAPI_PLUGIN_MR_INDEX_SV_FN
+ *      specifies the indexer function responsible for indexing or sorting of Slapi_Value **
+ *  SLAPI_PLUGIN_OBJECT
+ *      contain any information that you want passed to the indexer function.
+ *  SLAPI_PLUGIN_DESTROY_FN
+ *      specifies the function responsible for freeing any memory allocated by this indexer factory function.
+ *      For example, memory allocated for a structure that you pass to the indexer function using SLAPI_PLUGIN_OBJECT.
+ *
+ */
 int /* an LDAP error code, hopefully LDAP_SUCCESS */
 slapi_mr_indexer_create (Slapi_PBlock* opb)
 {
     int rc;
     char* oid;
     if (!(rc = slapi_pblock_get (opb, SLAPI_PLUGIN_MR_OID, &oid)))
-    {
-		IFP createFn = NULL;
-		struct slapdplugin* mrp = plugin_mr_find_registered (oid);
-		if (mrp != NULL)
-		{
-		    if (!(rc = slapi_pblock_set (opb, SLAPI_PLUGIN, mrp)) &&
-				!(rc = slapi_pblock_get (opb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) &&
-				createFn != NULL)
-			{
-				rc = createFn (opb);
-		    }
-		}
-		else
-		{
-		    /* call each plugin, until one is able to handle this request. */
-		    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
-            // We need to get the type and usage from the caller.
-            char *type;
-            uint32_t usage;
-            slapi_pblock_get(opb, SLAPI_PLUGIN_MR_TYPE, &type);
-            slapi_pblock_get(opb, SLAPI_PLUGIN_MR_USAGE, &usage);
-            for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next)
-            {
+{
+        IFP createFn = NULL;
+        struct slapdplugin* mrp = plugin_mr_find_registered(oid);
+        if (mrp != NULL) {
+            /* Great the matching OID -> MR plugin was already found, just reuse it */
+            if (!(rc = slapi_pblock_set(opb, SLAPI_PLUGIN, mrp)) &&
+                    !(rc = slapi_pblock_get(opb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) &&
+                    createFn != NULL) {
+                rc = createFn(opb);
+            }
+        } else {
+            /* We need to find in the MR plugins list, the MR plugin that will be able to handle OID
+             *
+             * It can be "old style" MR plugin (i.e. collation) that define indexer
+             *
+             * It can be "now style" MR plugin that contain OID string in 'plg_mr_names'
+             * (ie. ces, cis, bin...) where plg_mr_names is defined in 'mr_plugin_table' in each file
+             * ces.c, cis.c...
+             * New style MR plugin have NULL indexer create function but rather use a default indexer
+             */
+
+            /* Look for a old syntax-style mr plugin
+             * call each plugin, until one is able to handle this request.
+             */
+            rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+
+            for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next) {
 
                 Slapi_PBlock *pb = slapi_pblock_new();
+                mr_indexer_init_pb(opb, pb);
                 slapi_pblock_set(pb, SLAPI_PLUGIN, mrp);
-                /* From filtercmp.c and matchrule.c, these are the values we need to set. into pb */
-                slapi_pblock_set(pb, SLAPI_PLUGIN_MR_OID, oid);
-                slapi_pblock_set(pb, SLAPI_PLUGIN_MR_TYPE, type);
-                slapi_pblock_set(pb, SLAPI_PLUGIN_MR_USAGE, &usage);
-
                 /* This is associated with the pb_plugin struct, so it comes with mrp */
                 if (slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) {
                     /* plugin not a matchingrule type */
@@ -193,14 +269,11 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
                     IFP indexFn = NULL;
                     IFP indexSvFn = NULL;
                     /* These however, are in the pblock direct, so we need to copy them. */
-                    slapi_pblock_get(opb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn);
-                    slapi_pblock_get(opb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexSvFn);
-                    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_FN, indexFn);
-                    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, indexSvFn);
+                    slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn);
+                    slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexSvFn);
                     if (indexFn || indexSvFn) {
                         /* Success: this plugin can handle it. */
-                        /* call create on the opb? */
-                        createFn(opb);
+                        mr_indexer_init_pb(pb, opb);
                         plugin_mr_bind(oid, mrp); /* for future reference */
                         rc = 0; /* success */
                         slapi_pblock_destroy(pb);
@@ -213,37 +286,12 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
                 /* look for a new syntax-style mr plugin */
                 struct slapdplugin *pi = plugin_mr_find(oid);
                 if (pi) {
-                    Slapi_PBlock *pb = slapi_pblock_new();
-                    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_OID, oid);
-                    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_TYPE, type);
-                    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_USAGE, &usage);
-                    slapi_pblock_set(pb, SLAPI_PLUGIN, pi);
-                    rc = default_mr_indexer_create(pb);
+                    slapi_pblock_set(opb, SLAPI_PLUGIN, pi);
+                    rc = default_mr_indexer_create(opb);
                     if (!rc) {
-                        /* On success, copy the needed values in. These are added by default_mr_indexer_create */
-                        void *pb_object = NULL;
-                        IFP destroy_fn = NULL;
-                        IFP index_fn = NULL;
-                        IFP index_sv_fn = NULL;
-
-                        slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &pb_object);
-                        slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &destroy_fn);
-                        slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &index_fn);
-                        slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &index_sv_fn);
-
-                        /* SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, and SLAPI_PLUGIN_MR_FILTER_CREATE_FN, are part of pb_plugin */
-                        slapi_pblock_set(opb, SLAPI_PLUGIN, pi);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_MR_OID, oid);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_MR_TYPE, type);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_MR_USAGE, &usage);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_OBJECT, pb_object);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_DESTROY_FN, destroy_fn);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_MR_INDEX_FN, index_fn);
-                        slapi_pblock_set(opb, SLAPI_PLUGIN_MR_INDEX_SV_FN, index_sv_fn);
-
-                        plugin_mr_bind (oid, pi); /* for future reference */
+                        plugin_mr_bind(oid, pi); /* for future reference */
                     }
-                    slapi_pblock_destroy(pb);
+                    slapi_pblock_set(opb, SLAPI_PLUGIN, NULL);
                 }
             }
         }
@@ -725,6 +773,11 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_FN, mr_wrap_mr_index_fn);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, mr_wrap_mr_index_sv_fn);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_DESTROY_FN, default_mr_indexer_destroy);
+
+        /* Note the two following setting are in the slapdplugin struct SLAPI_PLUGIN
+         * so they are not really output of the function but will just
+         * be stored in the bound (OID <--> plugin) list (plugin_mr_find_registered/plugin_mr_bind)
+         */
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, default_mr_indexer_create);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, default_mr_filter_create);
 	rc = 0;
