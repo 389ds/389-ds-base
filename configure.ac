@@ -163,8 +163,12 @@ AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc 
   )
 ],
 [
+  # Without this, -fPIC doesn't work on generic fedora builds, --disable-gcc-sec.
   AC_MSG_RESULT(no)
-  gccsec_defs=""
+  AM_COND_IF([RPM_HARDEND_CC],
+  [ gccsec_defs="-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1" ],
+  [ gccsec_defs="" ]
+  )
 ])
 AC_SUBST([gccsec_defs])
 
