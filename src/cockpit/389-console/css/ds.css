@@ -1,0 +1,731 @@
+
+.ds-logo {
+  padding-left: 15px;
+  padding-right: 5px;
+  z-index: 901;
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.ds-logo-hr {
+  padding: 0 !important;
+  margin-top: 5px !important;
+  margin-bottom: 15px;
+}
+
+.ds-container {
+  margin: 0;
+  padding: 0;
+  //border: 1px solid black;
+  display: flex;
+}
+.ds-fixed {
+  padding: 0;
+  padding-bottom: 10px;
+  width: 200px;
+  margin: 2px 2px 2px px;
+  line-height:0;
+  //border: 1px solid black;
+}
+
+.ds-flex {
+  background-color: #f7f7f7;
+  flex-grow: 1;
+  border: 1px groove black;
+  border-style: groove;
+  margin: 6px 2px 2px 10px;
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+
+  padding-left: 15px;
+  padding-right: 15px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  min-height: 500px;
+  line-height:0;
+}
+
+.ds-border {
+  padding-left: 10px;
+  padding-right: 10px;
+  line-height:0;
+  margin: 0px;
+  padding-top: 0px;
+  padding-bottom: 10px;
+}
+
+.ds-button-border {
+  line-height:0;
+  margin: 0px;
+  padding-top: 0px;
+  padding-bottom: 10px;
+}
+
+.ds-button {
+  height: 50px;
+  width: 175px !important;
+  margin-left: 10px;
+  margin-top: 5px;
+  float:none;
+  left:auto;
+  line-height:normal;
+  overflow:visible;
+  position:static;
+}
+
+.ds-panel {
+  margin: 0px 0px 0px 20px;
+  padding: 10px;
+  line-height:0;
+  // border: 1px solid black;
+}
+
+.ds-dropdown {
+  padding: 0px;
+  padding-left: 5px;
+  height: 35px;
+  width: 300px !important;
+  margin-top: 10px;
+  text-align: left;
+  outline: 0 !important;
+}
+
+.ds-dropdown-server {
+  margin-top: -2px !important;
+  padding: 0px;
+  padding-left: 10px;
+  height: 35px;
+  width: 300px !important;
+  text-align: left;
+  outline: 0 !important;
+}
+
+.ds-passwd-dropdown {
+  padding: 10px;
+  outline: 0 !important;
+}
+
+.ds-rootdn-passwd-dropdown {
+  margin-left: 30px;
+  padding: 10px;
+  outline: 0 !important;
+  width: 175px;
+}
+
+.ds-agmt-dropdown {
+  padding: 0px;
+  padding-left: 5px;
+  height: 35px;
+  width: 175px !important;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.ds-table {
+  padding: 0px;
+  border: 1px solid black;
+  line-height:1;
+}
+
+.ds-referral-table {
+  margin-top: -15px !important;
+  padding: 0px;
+  border: 1px solid black;
+  line-height:1;
+}
+
+.ds-hr {
+  display: block;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  margin-left: auto;
+  margin-right: auto;
+  border-style: inset;
+  border-width: 1px;
+  padding: 0px !important;
+}
+
+.ds-tree {
+  font-size: 0.5;
+  background-color: #f7f7f7;
+  border: 1px solid black;
+  color: black;
+  line-height: 2;
+  padding-right: 10px;
+  width: 300px;
+  min-width: 300px;
+  min-height: 300px;
+  max-height: 400px;
+  margin: 6px 2px 2px 2px;
+  overflow: auto;
+}
+
+.ds-treenode {
+  border: 0 !important;
+}
+
+.ds-treenode ul {
+  border: 0 !important;
+}
+
+.ds-treenode li {
+  border: 0 !important;
+}
+
+.ds-split {
+  width: 500px;
+}
+
+.ds-input {
+  margin-top: 5px;
+  padding-right: 10px;
+  //background-color: #fcfcfc;
+}
+
+.ds-history-input {
+  margin-top: !important;
+  margin-right: 5px;
+  margin-left: 40px;
+}
+.ds-divider {
+  width: 35px;
+}
+
+.ds-divider-med {
+  width: 15px;
+}
+
+.ds-div-right {
+  width: 50% !important;
+  margin: 2px 2px 2px 2px;
+}
+
+.ds-div {
+  width: 50% !important;
+  margin: 2px 2px 2px 2px;
+}
+
+.ds-button-save {
+  width: 100px;
+  margin:  2px 2px 2px 215px;
+}
+
+.ds-changelog-button {
+  width: 150px;
+  height: 32px;
+  margin-top: 0px !important;
+  margin-left: 5px;
+  margin-bottom: 4px;
+}
+
+.ds-repl-manager {
+  margin-top: 5px;
+  padding: 5px;
+  resize: none;
+  width: 305px;
+  height: 100px;
+  white-space: pre !important;
+}
+
+.ds-roles {
+  padding: 5px !important;
+  margin-bottom: 5px;
+}
+
+.ds-radio {
+  margin: 5px !important;
+}
+
+.ds-repl-managers-list {
+  width: 550px;
+  height: 300px;
+  margin-left: 30px;
+}
+
+.ds-repl-managers-buttons {
+  margin: 5px;
+  margin-left: 30px;
+  width: 175px !important;
+}
+
+.ds-repl-manager-checkbox {
+  margin-top: 20px !important;
+  padding-top: 20px !important;
+  margin-left: 10px !important;
+  margin-right: 10px !important;
+}
+
+.ds-label {
+  //display: inline-block !important;
+  margin-top: -4px !important; /* I added this after I posted my reply */
+  vertical-align: middle !important; /* Fixes any weird issues in Firefox and IE */
+}
+
+/* Replication styles */
+.ds-agmt-dropdown  {
+  padding: 0px !important;
+  line-height: 0 !important;
+  overflow: visible !important;
+  width: auto !important;
+}
+
+.ds-agmt-wiz-dropdown {
+  padding: 0px !important;
+  line-height: 0 !important;
+  height: 40px;
+  width: 175px !important;
+  text-align: left;
+  outline: 0 !important;
+}
+
+.ds-agmt-wiz-dropdown a {
+  padding: 0px !important;
+  padding-left: 10px !important;
+  line-height: 0 !important;
+  height: 40px;
+  width: 175px !important;
+  text-align: left;
+}
+
+.ds-agmt-init-dropdown {
+  margin-top: 0px !important;
+  margin-left: 10px;
+  padding: 0px !important;
+}
+
+.ds-agmt-dropdown a {;
+  color: black !important;
+  background-color: #f7f7f7 !important;
+}
+
+.ds-agmt-dropdown li.active a, .ds-agmt-dropdown li a:hover {
+  color: white !important;  //#666;
+  background-color: black !important;
+}
+
+.ds-agmt-dropdown-button {
+  width: 160px;
+}
+
+.ds-agmt-button {
+  height: 40px;
+  width: 210px;
+}
+
+.ds-sasl-button {
+  height: 35px;
+  width: 175px;
+}
+
+.ds-repl-table  {
+  background-color: white !important;
+  padding: 0px !important;
+  border: 1px solid black;
+  table-layout: fixed;
+  width: 100%;
+  clear: both;
+  word-wrap : break-word !important;
+  text-align: center;
+  margin-top: -10px;
+}
+
+.ds-table  {
+  background-color: white !important;
+  padding: 0px;
+  border: 1px solid black;
+  table-layout: fixed;
+  clear: both;
+  word-wrap : break-word !important;
+  text-align: center;
+  line-height:1;
+}
+
+.ds-table-header th {
+  text-align: center !important;
+  width: auto !important;
+  background-color: white;
+}
+
+.ds-table-checkbox {
+  align-content: center !important;
+}
+
+
+.ds-plugin-table {
+  padding: 0px;
+  border: 1px solid black;
+  line-height:1;
+  table-layout: fixed;
+  clear: both;
+  word-wrap : break-word;
+  text-align: center;
+}
+
+.ds-plugin-header th {
+  width: 100%;
+  text-align: center !important;
+}
+
+.ds-plugin-panel {
+  background-color: #f7f7f7;
+  flex-grow: 1;
+  border: 1px groove black;
+  border-style: groove;
+  margin: 6px 2px 2px 10px;
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  padding-left: 15px;
+  padding-right: 15px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+
+.ds-monitor-panel {
+  background-color: #f7f7f7;
+  flex-grow: 1;
+  border: 1px groove black;
+  border-style: groove;
+  margin: 6px 2px 2px 10px;
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  padding-left: 15px;
+  padding-right: 15px;
+  padding-top: 0px;
+  padding-bottom: 10px;
+}
+
+/*
+ * Popup modal stuff
+*/
+
+/* Extra styles for the cancel button */
+.cancelbtn {
+  padding: 14px 20px;
+  background-color: #f44336;
+}
+
+/* Float cancel and signup buttons and add an equal width */
+.cancelbtn,.savebtn {
+  float: left;
+  width: 50%;
+}
+
+/* Add padding to container elements */
+.container {
+  width: 650px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+}
+
+/* The Modal (background) */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+  padding-top: 20px;
+}
+
+/* Modal Content/Box */
+.modal-content {
+  background-color: #f7f7f7;
+  margin: 2px auto 15% auto; /* 5% from the top, 15% from the bottom and centered */
+  border: 1px solid black;
+  width: 650px; /* Could be more or less, depending on screen size */
+}
+
+.close:hover,
+.close:focus {
+  color: red;
+  cursor: pointer;
+}
+
+/* Clear floats */
+.clearfix::after {
+  content: "";
+  clear: both;
+  display: inline-block;
+}
+
+// End modal styles
+
+
+.ds-agmt-wiz-panel {
+  padding: 0 18px;
+  //background-color: white;
+  max-height: 0 !important;
+  overflow: hidden  !important;
+  transition: max-height 0.2s ease-out !important;
+  margin: 2px;
+  display: none;
+}
+
+.ds-log-panel {
+  padding: 0 18px;
+  //background-color: white;
+  max-height: 0 !important;
+  overflow: hidden  !important;
+  transition: max-height 0.2s ease-out !important;
+  margin: 2px;
+  display: none;
+}
+
+.ds-suffix-panel {
+  padding: 0 18px;
+  //background-color: white;
+  max-height: 0 !important;
+  overflow: hidden  !important;
+  transition: max-height 0.2s ease-out !important;
+  margin: 2px;
+  display: none !important;
+}
+
+.ds-agmt-wiz-button {
+  height: 40px;
+  width: 400px;
+  font-weight: bold;
+  //margin: 5px;
+}
+
+.ds-agmt-wiz-dropdown {
+  width: 180px;
+  margin-top: 5px;
+}
+
+.ds-button-right {
+  height: 40px;
+  width: 150px !important;
+  margin-top: 5px;
+  float: right !important;
+  display:inline-block !important;
+}
+
+.ds-button-left {
+  height: 40px;
+  width: 150px !important;
+  margin-top: 5px;
+  float: left !important;
+  display:inline-block !important;
+}
+
+.ds-panel-left {
+  width:50%
+}
+.ds-panel-right {
+  width:50%;
+}
+
+.ds-fractional-container {
+  // border: 1px solid black;
+  margin: 10px;
+}
+
+.ds-fractional-panel {
+  background-color: white;
+  border: 1px solid black;
+  width: 50%;
+  margin: 2px 2px 2px 2px;
+  padding-left: 10px;
+}
+
+.ds-fractional-panel p {
+  padding: 0px !important;
+  margin-left: 0 !important;
+  //margin-bottom: 5px !important;  Good for schdule
+}
+
+.ds-fractional-list {
+  width: 225px;
+  min-height: 100px;
+  max-height: 100px;
+  overflow-y: scroll;
+  //margin-left: 30px;
+}
+
+.ds-fractional-btn {
+  width: 150px;
+  height: 30px;
+  margin: 5px 5px 5px 0px;
+}
+
+.ds-agmt-schedule-time {
+  width: 75px;
+  padding: 10px;
+  margin: 5px;
+}
+
+.ds-agmt-schedule-checkbox {
+  margin: 8px !important;
+  padding: 5px;
+}
+
+.ds-config-checkbox {
+  margin: 12px !important;
+  padding: 5px;
+}
+
+.ds-server-checkbox {
+  margin-top: 15px !important;
+  margin-right: 12px !important;
+  padding: 5px;
+}
+
+.ds-send-expiring-checkbox {
+  margin-top: 12px !important;
+  margin-right: 12px !important;
+  padding: 5px;
+}
+.ds-agmt-td {
+  overflow: hidden !important;
+  white-space: nowrap;
+  //word-wrap: break-word !important;
+}
+
+.ds-config-label {
+  //display: inline-block !important;
+  width: 210px !important;
+}
+
+.ds-expire-label {
+  //display: inline-block !important;
+  width: 285px !important;
+}
+
+.ds-passwd-label {
+  width: 300px !important;
+}
+
+.ds-minage-label {
+  padding: 10px;
+}
+
+.ds-history-label {
+  padding: 10px;
+  margin-left: 50px;
+}
+
+.ds-lockout-label {
+  padding: 10px;
+  margin-left: 20px;
+}
+
+.ds-sec-label {
+  margin-top: 15px !important;
+  display: inline-block !important;
+  width: 210px !important;
+}
+
+.ds-server-label {
+  padding-top: 20px;
+  padding-right: 25px !important;
+}
+
+.ds-config-diskmon-label {
+  width: 210px !important;
+  padding-left: 30px;
+}
+
+.ds-config-ndn-label {
+  padding-left: 42px;
+  padding-right: 10px;
+}
+
+.ds-config-indent-sm-label {
+  margin-left: 40px !important;
+  padding-right: 10px !important;
+}
+
+.ds-config-indent-med-label {
+  margin-left: 80px !important;
+  padding-right: 10px !important
+}
+
+.ds-config-indent-large-label {
+  margin-left: 120px !important;
+  padding-right: 10px !important;
+  width: 175px;
+}
+
+.ds-expired-div {
+  padding-left: 30px;
+}
+
+.ds-config-diskmon-checkbox {
+  margin: 12px !important;
+  padding: 5px;
+  margin-left: 30px !important;
+}
+
+.ds-server-divider {
+  //width: 60px;
+  margin-top: 5px;
+  margin-left: 50px;
+  margin-right: 30px;
+  border-left: 1px solid black;
+  height: 425px;
+}
+
+.ds-loglevel-list {
+  width: 400px;
+  height: 100% !important;
+}
+
+.ds-accordion-spacing {
+  margin-bottom: 15px !important;
+  padding-bottom: 10px !important;
+}
+ .ds-task-button {
+  margin: 10px;
+  height: 40px;
+  width: 210px;
+}
+
+.ds-task-panel {
+  background-color: white;
+  border: 1px groove black;
+  border-style: groove;
+  margin: 10px;
+  width: 235px;
+  line-height:0;
+}
+
+
+textarea {
+  margin-top: 5px;
+  padding-top: 5px;
+  vertical-align: top;
+  width: 315px;
+  height: 80px;
+  resize: none;
+  word-wrap: break-word !important;
+  line-height: 1;
+}
+
+// Removes dotted outline border of the text
+select {
+  color: rgba(0,0,0,0) !important;
+  text-shadow: 0 0 0 #000 !important;
+}
+
+select:focus{
+  outline: none !important;
+  color: rgba(0,0,0,0) !important;
+  text-shadow: 0 0 0 #000 !important;
+}
+
+.nav-tabs a, .nav-tabs a:hover, .nav-tabs a:focus {
+  outline: 0 !important;
+}
+
+

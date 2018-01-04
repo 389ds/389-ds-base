@@ -1,0 +1,111 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2018 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+import argparse
+import logging
+import sys
+import os
+import subprocess
+import shutil
+import socket
+
+cockpit_plugin = '/usr/share/dirsrv/389-console'
+
+if __name__ == '__main__':
+    """Install the 389 Directory Server Cockpit UI Plugin
+    """
+
+    # Check if Cockpit is installed
+    try:
+        cmd = ["rpm", "-q", "cockpit"]
+        subprocess.check_call(cmd, stdout=subprocess.PIPE)
+    except:
+        print ("You need to install the 'cockpit' package before installing the UI plugin")
+        sys.exit(1)
+
+    # Check the server's cockpit plugin exists
+    if not os.path.isdir(cockpit_plugin):
+        print ("Can not find cockpit UI plugin under '/usr/share/dirsrv'")
+        sys.exit(1)
+
+    # Setup CLI args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose',
+        help="Display verbose operation tracing",
+        action='store_true', default=False)
+    parser.add_argument('-i', '--install',
+        help="Install the cockpit plugin (must be root)",
+        action='store_true', dest='install', default=False)
+    parser.add_argument('-t', '--testing',
+        help="Install the cockpit plugin under users's home directory for testing (~/.local/share/cockpit)",
+        action='store_true', dest='testing', default=False)
+    parser.add_argument('-u', '--update',
+        help="Update existing plugin",
+        action='store_true', dest='update', default=False)
+    options = parser.parse_args()
+
+    # Validate options
+    if options.install and options.testing:
+        print("You can not specify both '--install' and '--testing'")
+        parser.print_help()
+        sys.exit(1)
+
+    if options.install is False and options.testing is False:
+        print("You must specify either '--install' or '--testing'")
+        parser.print_help()
+        sys.exit(1)
+
+    if options.install and os.geteuid() != 0:
+        print("You must be 'root' to install cockpit plugin")
+        sys.exit(1)
+
+    # Prepare installation location
+    if options.testing:
+        if options.verbose:
+            print("Preparing to install testing plugin...")
+        home_dir = os.path.expanduser('~')
+        cockpit_dir = home_dir + "/.local/share/cockpit"
+        if not os.path.exists(cockpit_dir):
+            if options.verbose:
+                print("Creating 'cockpit' directory: " + cockpit_dir)
+            os.makedirs(cockpit_dir)
+        install_location = cockpit_dir + "/389-console"
+    elif options.install:
+        if options.verbose:
+            print("Preparing to install plugin...")
+        install_location = "/usr/share/cockpit/389-console"
+
+    # Check install location
+    if os.path.exists(install_location):
+        # Already exists
+        if not options.update:
+            print("The cockpit plugin is already installed at '{}', use '--update' for update it".format(install_location))
+            sys.exit(1)
+        else:
+            # Force install, remove old dir so we can copy in the new one
+            print("Updating existing plugin...")
+            shutil.rmtree(install_location)
+
+    # Now do the install
+    try:
+        print("Installing plugin in {}...".format(install_location))
+        shutil.copytree(cockpit_plugin, install_location)
+        if options.verbose:
+            print ("Installed:\n--------------------")
+            for ui_file in os.listdir(install_location):
+                print("  " + ui_file)
+            print()
+    except (IOError, os.error) as e:
+        print("Failed to install cockpit plugin: " + str(e))
+        sys.exit(1)
+
+    # Done!
+    print("Installation is complete!")
+    print("Open UI with this URL:  http://{}:9090/389-console".format(socket.getfqdn()))

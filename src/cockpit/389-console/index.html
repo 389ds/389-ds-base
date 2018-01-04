@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../base1/cockpit.js"></script>
+  <script src="../base1/jquery.js"></script> 
+  <script src="static/jquery.dataTables.min.js"></script>
+  <script src="static/jquery.dataTables.select.min.js"></script>
+  <script src="static/jquery.timepicker.min.js"></script>
+  <script src="static/jstree.min.js"></script>
+  <script src="js/ds.js"></script>
+  <script src="js/schema.js"></script>
+  <script src="js/servers.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/replication.js"></script>
+  <script src="js/plugins.js"></script>
+  <script src="js/monitor.js"></script>
+  <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
+  <link href="static/jquery.timepicker.min.css" type="text/css" rel="stylesheet">
+  <link href="../base1/patternfly.css" type="text/css" rel="stylesheet">
+  <link href="css/tabs.css" type="text/css" rel="stylesheet">
+  <link href="static/page.min.css" rel="stylesheet">
+  <link href="static/style.min.css" rel="stylesheet">
+  <link href="css/ds.css" type="text/css" rel="stylesheet">
+</head>
+
+<body hidden>
+  <div class="ds-logo">
+    <h1 id="ds-banner">389 Directory Server Management<hr class="ds-logo-hr"></h1>
+  </div>
+  <div class="tab-list">
+    <ul class="nav nav-tabs">
+      <li class="active"><a class="tab-control" href="#tab-server" id="server-tab">Server</a></li>
+      <li><a class="tab-control" href="#tab-security" id="security-tab">Security</a></li>
+      <li><a class="tab-control" href="#tab-db" id="db-tab">Database</a></li>
+      <li><a class="tab-control" href="#tab-repl" id="repl-tab">Replication</a></li>
+      <li><a class="tab-control" href="#tab-schema" id="schema-tab">Schema</a></li>
+      <li><a class="tab-control" href="#tab-plugins" id="plugin-tab">Plugins</a></li>
+      <li><a class="tab-control" href="#tab-monitoring" id="monitor-tab">Monitoring</a></li>
+    </ul>
+
+    <div class="tab-panel active" id="tab-server">
+      <div class="ds-panel">
+        <h1>Server Configuration for <select class="btn btn-default dropdown ds-dropdown-server" id="select-server">
+        </select></h1>
+        <hr>
+      </div>
+      <br>
+      <div class="ds-container" id="server-content">
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-security">
+      <div class="ds-panel">
+        <h1>Security Settings</h1>
+        <hr>
+      </div>
+      <div id="security-selection" class="ds-container">
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-db">
+      <div class="ds-panel">
+        <h1>Backend Database Settings</h1>
+        <hr>
+        <div id="backend-selection" class="ds-container">
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-repl">
+      <div class="ds-panel">
+        <h1>Replication Management</h1>
+        <hr>
+        <div id="repl-backend-selection" class="ds-container">
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-schema">
+      <div class="ds-panel">
+        <h1>Schema and Matching Rule Definitions</h1>
+        <hr>
+      </div>
+        <div id="schema-page" class="ds-container">
+        </div>
+    </div>
+
+    <div class="tab-panel" id="tab-plugins">
+      <div class="ds-panel">
+        <h1>Plugin Management</h1>
+        <hr>
+      </div>
+      <div id="plugin-content" class="ds-container">
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-monitoring">
+      <div class="ds-panel">
+        <h1>Monitoring</h1>
+        <hr>
+      </div>
+      <div class="ds-container" id="monitor-content">
+      </div>
+    </div>
+    <script src="js/tabbed.js"></script>
+  </div>
+
+</body>
+</html>
+

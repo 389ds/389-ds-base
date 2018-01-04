@@ -1,0 +1,165 @@
+
+<div class="ds-fixed">
+  <button id="sec-config-btn" class="btn btn-default ds-button active">Configuration</button>
+  <button id="sec-cert-btn" class="btn btn-default ds-button active">Certificate Management</button>
+  <button id="sec-cipher-btn" class="btn btn-default ds-button active">Ciphers</button>
+</div>
+
+<div class="ds-flex">
+  <div id="sec-config" class="security-ctrl" hidden>
+    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-security"><label
+      for="nsslapd-security" class="ds-label" title="Enable security in the server (nsslapd-security)."> Enable Security</label>
+    <hr class="ds-hr">
+    <div class="ds-expired-div" id="cert-attrs">
+      <label for="nsslapd-secureport" class="ds-config-label" title="The server's secure port number (nsslapd-secureport)."><b>Server Secure Port</b></label><input
+        class="ds-input" type="text" id="nsslapd-secureport" size="40"/>
+      <label for="nsslapd-securelistenhost" class="ds-config-label" title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."><b>Secure Listen Host Address</b></label><input
+        class="ds-input" type="text" id="nsslapd-securelistenhost" size="40"/>
+      <label for="cipher-area" class="ds-sec-label"><b>Allowed Ciphers</b></label><textarea id="cipher-area" rows="5" cols="100">+all</textarea>
+      <label for="sec-sslmin" class="ds-sec-label" title="The minimum SSL/TLS version the server will accept (sslversionmin).">Minimum SSL/TLS Version </label><select
+        class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="sec-sslmin">
+          <option>SSL3</option>
+          <option>TLS1.0</option>
+          <option>TLS1.1</option>
+          <option>TLS1.2</option>
+          <option>TLS1.3</option>
+        </select>
+
+      <label for="sec-sslmax" class="ds-sec-label" title="The maximum SSL/TLS version the server will accept (sslversionmax)."> Maximum SSL/TLS Version</label><select
+        class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="sec-sslmax">
+          <option>SSL3</option>
+          <option>TLS1.0</option>
+          <option>TLS1.1</option>
+          <option>TLS1.2</option>
+          <option>TLS1.3</option>
+        </select>
+
+      <label for="sec-clientauth" class="ds-sec-label" title="shows how the Directory Server enforces client authentication (nsSSLClientAuth)."> Client Authentication</label><select
+        class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="sec-clientauth">
+          <option>Off</option>
+          <option>Allowed</option>
+          <option>Required</option>
+        </select>
+
+      <label for="sec-validate" class="ds-sec-label" title="Validate server's certificate expiration date (nsslapd-validate-cert)."> Validate Certificate Expiration</label><select
+        class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="sec-validate">
+          <option>Warn</option>
+            <option>On</option>
+            <option>Off</option>
+          </select>
+
+      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-require-secure-binds"><label
+        for="nsslapd-require-secure-binds" class="ds-label" title="Require all connections use TLS (nsslapd-require-secure-binds)."> Require Secure Connections</label>
+      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ssl-check-hostname"><label
+        for="nsslapd-ssl-check-hostname" class="ds-label" title="Verify authenticity of a request by matching the host name against the value assigned to the common name (cn) attribute of the subject name (subjectDN field) in the certificate being presented. (nsslapd-ssl-check-hostname)."> Verify Certificate Subject Hostname</label>
+      <input type="checkbox" class="ds-config-checkbox" id="allowWeakCipher"><label
+        for="allowWeakCipher" class="ds-label" title="Allow weak ciphers (allowWeakCipher)."> Allow Weak Ciphers</label>
+      <p></p>
+    </div>
+    <hr class="ds-hr">
+    <div class="ds-button-border">
+      <button id="cert-config-save-btn" class="btn btn-default ds-button">Save</button>
+      <p></p>
+    </div>
+  </div>
+
+  <div class="security-ctrl" id="sec-ciphers" hidden>
+    <h2>Ciphers<hr class="ds-hr"></h2>
+    <table id="nsSSLEnabledCiphers" class="display ds-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Cipher Name</th>
+          <th>Symmetric Cipher Name</th>
+          <th>Mac Algorithm Name</th>
+          <th>Symmetric Key Bits</th>
+          <th class="enabled">Enabled</th>
+        </tr>
+      </thead>
+      <tbody id="cipher-body">
+        <tr>
+          <td>TLS_RSA_WITH_AES_256_CBC_SHA256</td>
+          <td>AES</td>
+          <td>SHA256</td>
+          <td>256</td>
+          <td><input type="checkbox" class="" id="cipher-NAME1"></td>
+        </tr>
+        <tr>
+          <td>TLS_DHE_DSS_WITH_DES_CBC_SHA</td>
+          <td>AES</td>
+          <td>SHA256</td>
+          <td>256</td>
+          <td><input type="checkbox" class="" id="cipher-NAME2" checked></td>
+        </tr>
+        <tr>
+          <td>TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA</td>
+          <td>AES</td>
+          <td>SHA512</td>
+          <td>512</td>
+          <td><input type="checkbox" class="" id="cipher-NAME3"></td>
+        </tr>
+        <tr>
+          <td>TLS_RSA_WITH_AES_256_CBC_SHA</td>
+          <td>AES</td>
+          <td>SHA256</td>
+          <td>256</td>
+          <td><input type="checkbox" class="" id="cipher-NAME4" checked></td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+    
+  <div class="security-ctrl" id="sec-certs" hidden>
+    <h2>Certificate Database</h2>
+    <hr class="ds-hr">
+    <table id="cert-table" class="display ds-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Certificate Name</th>
+          <th>Trust Attributes</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="cipher-body">
+        <tr>
+          <td>CA certificate</td>
+          <td>CTu,u,u</td>
+          <td>
+            <div class="dropdown">
+              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
+                <span class="caret"></span></button>
+              <ul id="cert-dropdown" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
+                <li role="certificate"><a role="menuitem" tabindex="0" href="#">Verify Certificate</a></li>
+                <li role="certificate"><a role="menuitem" tabindex="1" href="#">Export Certificate</a></li>
+                <li role="certificate"><a role="menuitem" tabindex="-1" href="#">Delete Certificate</a></li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Server-Cert</td>
+          <td>u,u,Pu</td>
+          <td>
+            <div class="dropdown">
+              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
+                <span class="caret"></span></button>
+              <ul id="cert-dropdown" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
+                <li role="certificate"><a role="menuitem" tabindex="0" href="#">Verify Certificate</a></li>
+                <li role="certificate"><a role="menuitem" tabindex="1" href="#">Export Certificate</a></li>
+                <li role="certificate"><a role="menuitem" tabindex="-1" href="#">Delete Certificate</a></li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+      
+    <hr class="ds-hr">
+    <div class="ds-button-border">
+      <button id="import-cert" class="btn btn-default ds-button">Import Certificate</button>
+    </div>
+  </div>
+
+</div>
+
+

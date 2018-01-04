@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "name": "389-console",
+  "require": {
+      "cockpit": "120"
+  },
+  "tools": {
+     "389-console": {
+        "label": "389 Directory Server",
+        "path": "index.html"
+     }
+  }
+}

@@ -1,0 +1,437 @@
+<!-- Suffix tree and changelog -->
+<div id="repl-tree" class="jstree-open ds-tree">
+  <ul>
+    <li title="Replication Summary" id="repl-root" class="jstree-open ds-treenode"
+      data-jstree='{"icon":"glyphicon glyphicon-cog", "opened":true, "selected":true}'>Replication Summary
+      <ul>
+        <li title="" id="repl-changelog-node" class="jstree-open"
+          data-jstree='{"icon":"glyphicon glyphicon-book"}'>Replication Changelog</li>
+        <li title="suffix" id="dc=example,dc=com" data-jstree='{"icon":"glyphicon glyphicon-tree-conifer"}'>dc=example,dc=com
+        <ul>
+          <li title="sub suffix" id="ou=people,dc=example,dc=com" data-jstree='{"icon":"glyphicon glyphicon-leaf"}'>ou=people,dc=example,dc=com</li>
+        </ul>
+        </li>
+        <li title="suffix" id="o=ipaca" data-jstree='{"icon":"glyphicon glyphicon-tree-conifer"}'>o=ipaca.com</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<hr>
+
+<!-- Content panel -->
+<div class="ds-flex">
+
+  <!-- Replication Changelog Panel -->
+  <div id="repl-changelog" hidden=>
+    <h2 id="repl-changelog-header">Replication Changelog Configuration</h2>
+    <hr class="ds-hr">
+    <div class="ds-container">
+      <!-- Attribute list -->
+      <div>
+        <label for="nsslapd-changelogdir" class="ds-config-label" title=
+          "The filesystem location of the replication changelog database (nsslapd-changelogdir)."><b
+          >Changelog Database Location</b></label><input class="ds-input" type="text" id="nsslapd-changelogdir" size="40"/><button
+          id="set-default" class="btn btn-default ds-changelog-button">Use Default Location</button>
+        <label for="nsslapd-changelogmaxentries" class="ds-config-label" title=
+          "Changelog trimming parameter.  Set the maximum number of changelog entries (nsslapd-changelogmaxentries)."><b
+          >Changelog Maximum Entries</b></label><input class="ds-input" type="text" id="nsslapd-changelogmaxentries" size="40"/>
+        <label for="nsslapd-changelogmaxage" class="ds-config-label" title=
+          "Changelog trimming parameter.  This set the maximum age of a changelog entry.  It is recommended to use the same value as the ReplicationPurgeDelay.  (nsslapd-changelogmaxage)."><b
+          >Changelog Maximum Age</b></label><input class="ds-input" type="text" id="nsslapd-changelogmaxage" size="40"/>
+        <label for="nsslapd-changelogcompactdb-interval" class="ds-config-label" title=
+          "This controls how often the changelog database is compacted. (nsslapd-changelogcompactdb-interval)."><b
+          >Changelog Maximum Entries</b></label><input class="ds-input" type="text" id="nsslapd-changelogcompactdb-interval" size="40"/>
+        <label for="nsslapd-changelogtrim-interval" class="ds-config-label" title=
+          "The changelog trimming internal.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval)."><b
+          >Changelog Maximum Entries</b></label><input class="ds-input" type="text" id="nsslapd-changelogtrim-interval" size="40"/>
+        <p></p>
+        <hr class="ds-hr">
+        <div class="ds-button-border">
+          <button id="server-config-save-btn" class="btn btn-default ds-changelog-button">Save</button>
+        </div>
+        <p></p>
+      </div>
+      <hr>
+    </div>
+    <div>
+      <h3>Advanced Operations</h3>
+      <hr class="ds-hr">
+      <button id="delete-changelog" class="btn btn-default ds-changelog-button">Delete Changelog</button>
+      <p></p>
+      <button id="export-changelog" class="btn btn-default ds-changelog-button">Export Changelog</button>
+      <p></p>
+    </div>
+  </div>
+
+
+  <!-- Replication Configuration Panel -->
+  <div id="repl-config" hidden>
+    <h2 id="replica-header"></h2>
+    <hr class="ds-hr">
+    <div class="ds-roles">
+      <label title="<Disable replication for this backend"><input
+        class="ds-radio repl-role" type="radio" id="none" name="repl-role" value="no-repl" checked="checked"> No Replication</label>
+      <label title="Set this backend to be master replication server."><input
+        class="ds-radio repl-role" type="radio" id="master" name="repl-role" value="master"> Master</label>
+      <label title="Set this backend to be a replication hub"><input
+        class="ds-radio repl-role" type="radio" id="hub" name="repl-role" value="hub"> Hub</label>
+      <label title="Set this backend to be a read-only replicaton consumer"><input
+        class="ds-radio repl-role" type="radio" id="consumer" name="repl-role" value="consumer"> Consumer</label>
+    </div>
+
+    <div id="repl-form" hidden>
+      <h3>Replication Settings</h3>
+      <hr class="ds-hr">
+      <div class="ds-container">
+        <div>
+          <label for="nsds5replicaid" class="ds-config-label" title=
+            "The replica ID.  This can only be set for master replicas.  Hub an consumers use a predefined Replica ID.  Valid values are: 1 - 65535 (nsDS5ReplicaId)."><b
+            >Replica ID (master only)</b></label><input class="ds-input" type="text" id="nsds5replicaid" size="15"/>
+          <label for="nsds5replicapurgedelay" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaPurgeDelay)."><b
+            >Replication Purge Delay</b></label><input class="ds-input" type="text" id="nsds5replicapurgedelay" size="15"/>
+          <label for="nsds5replicatombstonepurgeinterval" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaTombstonePurgeInterval)."><b
+            >Tombstone Purge Interval</b></label><input class="ds-input" type="text" id="nsds5replicatombstonepurgeinterval" size="15"/>
+          <label for="nsds5replicaprecisetombstonepurging" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaPreciseTombstonePurging)."><b
+            >Precise Tombstone Purging</b></label><input class="ds-input" type="text" id="nsds5replicaprecisetombstonepurging" size="15"/>
+          <label for="nsDS5replicabinddngroup" class="ds-config-label" title=
+            "NEEDS WORK (nsDS5ReplicaBindDnGroup)."><b
+            >Bind DN Group</b></label><input class="ds-input" type="text" id="nsDS5replicabinddngroup" size="15"/>
+          <label for="nsDS5replicabinddngroupcheckinterval" class="ds-config-label" title=
+            "NEEDS WORK (nsDS5ReplicaBindDnGroupCheckInterval)."><b
+            >Bind DN Group Interval</b></label><input class="ds-input" type="text" id="nsDS5replicabinddngroupcheckinterval" size="15"/>
+        </div>
+        <div class="ds-divider"></div>
+        <div>
+          <label for="nsds5replicatimeout" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaTimeout)."><b
+            >Replication Connection Timeout</b></label><input class="ds-input" type="text" id="nsds5replicatimeout" size="15"/>
+          <label for="nsds5replicaprotocoltimeout" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaProtocolTimeout)."><b
+            >Replication Protocol Timeout</b></label><input class="ds-input" type="text" id="nsds5replicaprotocoltimeout" size="15"/>
+          <label for="nsds5replicareleasetimeout" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaReleaseTimeout)."><b
+            >Replication Release Timeout</b></label><input class="ds-input" type="text" id="nsds5replicareleasetimeout" size="15"/>
+          <label for="nsds5replicabackoffmin" class="ds-config-label" title=
+            "NEEDS WORK (nsds5ReplicaBackoffMin)."><b
+            >Replication Backup Minimum</b></label><input class="ds-input" type="text" id="nsds5replicabackoffmin" size="15"/>
+          <label for="nsds5replicabackoffmax" class="ds-config-label" title=
+           "NEEDS WORK (nsds5ReplicaBackoffMax)."><b
+           >Replication Backup Maximum</b></label><input class="ds-input" type="text" id="nsds5replicabackoffmax" size="15"/>
+        </div>
+      </div>
+
+      <div>
+        <p title="A list of Replication Manager DN's that are allowed to update this backend">Replication Managers:</p>
+        <form>
+          <select id="repl-managers-list" class="ds-repl-managers-list" name="repl-managers" multiple>
+            <option value="cn=replication manager,cn=config">cn=replication manager,cn=config</option>
+          </select>
+        </form>
+        <button class="btn btn-default ds-repl-managers-buttons" id="add-repl-manager">Add Replication Manager</button><input
+          class="ds-input" type="text" id="repl-manager-dn" size="30" placeholder="DN of replication manager"><input
+          type="checkbox" class="ds-repl-manager-checkbox" id="repl-manager-checkbox"><label
+          for="repl-manager-checkbox" class="ds-label"> Create Entry?</label>
+        <button class="btn btn-default ds-repl-managers-buttons" id="delete-repl-manager">Delete Replication Manager</button>
+      </div>
+
+      <div>
+        <h3><br>Replication Agreements<hr class="ds-hr"></h3>
+        <table id="repl-agmt-table" class="display ds-repl-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Agreement Name</th>
+              <th>Host</th>
+              <th>State</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="agmt-body">
+            <tr>
+              <td>me2beaker</td>
+              <td>beaker.host.com</td>
+              <td>Enabled</td>
+              <td class="ds-agmt-td">Error 0 Incremental update succeeded</td>
+              <td>
+                <div class="dropdown">
+                  <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
+                    <span class="caret"></span></button>
+                  <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
+                    <li role="presentation"><a role="menuitem" tabindex="0" href="#">View/Edit Agreement</a></li>
+                    <li role="presentation"><a role="menuitem" tabindex="1" href="#">Initialize Consumer (online)</a></li>
+                    <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Initialize Consumer (ldif)</a></li>
+                    <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Send Updates Now</a></li>
+                    <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Enable/Disable Agreement</a></li>
+                    <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Delete Agreement</a></li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr class="">
+              <td>me2beaker2</td>
+              <td>beaker2.host.com</td>
+              <td>Enabled</td>
+              <td class="ds-agmt-td">Error 0 Incremental update succeeded. Not bad huh? and what about now I woneer with all these words here.  Hmm makes me wonder what is going on</td>
+              <td>
+                <div class="dropdown">
+                  <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">
+                    Choose Action...
+                    <span class="caret"></span>
+                  </button>
+                  <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">
+                    <li role=""><a role="menuitem" tabindex="0" href="#">View/Edit Agreement</a></li>
+                    <li role=""><a role="menuitem" tabindex="1" href="#">Initialize Consumer (online)</a></li>
+                    <li role=""><a role="menuitem" tabindex="-1" href="#">Initialize Consumer (ldif)</a></li>
+                    <li role=""><a role="menuitem" tabindex="-1" href="#">Send Updates Now</a></li>
+                    <li role=""><a role="menuitem" tabindex="-1" href="#">Enable/Disable Agreement</a></li>
+                    <li role=""><a role="menuitem" tabindex="-1" href="#">Delete Agreement</a></li>
+                  </ul>
+                </div>
+
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button class="btn btn-default ds-agmt-button" type="button" id="create-agmt">Create Replication Agreement</button>
+      </div>
+
+      <div>
+        <h3><br>CleanAllRUV Tasks<hr class="ds-hr"></h3>
+        <table id="repl-clean-table" class="display ds-repl-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Creation Time</th>
+              <th>Replica ID</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2017023402340234Z</td>
+              <td>222</td>
+              <td>Waiting for replica (host.domain.com> to be online...</td>
+              <td><button class="btn btn-default ds-agmt-dropdown-button" type="button" id="abort">Abort Task</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button class="btn btn-default ds-agmt-button" type="button" id="create-clean-task">Create CleanAllRUV Task</button>
+        <p></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="repl-splash" name="Replication splash page" hidden>
+    <h1>Replication Summary</h1>
+    <hr class="ds-hr">
+    <h3>Replication Changelog</h3>
+    <p id="repl-cl-enabled"><b>Location: </b> /var/lib/dirsrv/slapd-localhost/changelogdb</p>    
+    <p></p>
+    
+    <h3>Replicated Suffixes</h3>
+    <table id="repl-summary-table" class="display ds-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Suffix</th>
+          <th>Agreement Count</th>
+        </tr>
+      </thead>
+      <tbody id="repl-summary-agmt-tbody">
+        <tr>
+          <td class="ds-agmt-td" id="repl-summary-userroot">dc=example,dc=com</td>
+          <td>4</td>
+        </tr>
+        <tr>
+          <td class="ds-agmt-td" id="repl-summary-ipa">o=ipaca</td>
+          <td>0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- --------------------------------------------------------
+
+  Replication Agreement wizard
+
+  ----------------------------------------------------------- -->
+  <div id="agmt-wizard" class="modal">
+    <form id="agmt-form" class="modal-content animate">
+      <div class="container">
+        <h2 id="agmt-wizard-title"><b>Create Replication Agreement</b></h2>
+        <hr class="ds-hr">
+        <div class="ds-container">
+          <div>
+            <label for="agmt-cn" class="ds-config-label" title="Agreement name (cn)."><b>Agreement Name</b></label><input
+              class="ds-input ds-wiz-input" type="text" placeholder="Agreement name" id="agmt-cn" name="name" required>
+            <label for="nsds5replicahost" class="ds-config-label" title="Agreement name (nsDS5ReplicaHost)."><b>Consumer Host</b></label><input
+              class="ds-input ds-wiz-input" type="text" placeholder="Consumer hostname" id="nsds5replicahost" name="port" required>
+            <label for="nsds5replicaport" class="ds-config-label" title="Agreement name (nsDS5ReplicaPort)."><b>Consumer Port</b></label><input
+              class="ds-input ds-wiz-input" type="text" placeholder="Consumer port number" id="nsds5replicaport" name="name" required>
+            <label for="nsds5replicatransportinfo" class="ds-config-label" title="Agreement name (nsDS5ReplicaTransportInfo)."><b>Connection Protocol</b></label><select
+              class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="nsds5replicatransportinfo">
+                <option>LDAP</option>
+                <option>LDAPS</option>
+                <option>Start TLS</option>
+              </select>
+            <label for="nsds5replicabindmethod" class="ds-config-label" title="Agreement name (nsDS5ReplicaBindMethod)."><b>Bind Method</b></label><select
+              class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="nsds5replicabindmethod">
+                <option>Simple</option>
+                <option>SASL/DIGEST-MD5</option>
+                <option>SASL/GSSAPI</option>
+              </select>
+            <label for="nsds5replicabinddn" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaBindDN)."><b>Replication Bind DN</b></label><input
+              class="ds-input ds-wiz-input" type="text" placeholder="Bind DN" id="nsds5replicabinddn" name="name" required>
+            <label for="nsds5replicacredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials)."><b>Replication Bind DN Credentials</b></label><input
+              class="ds-input ds-wiz-input" type="password" placeholder="Enter password" id="nsds5replicacredentials" name="name" required>
+            <label for="nsds5replicacredentials-confirm" class="ds-config-label" title="Confirm password"><b>Confirm Password</b></label><input
+              class="ds-input ds-wiz-input" type="password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" required>
+          </div>
+        </div>
+
+        <!-- Fractional settings -->
+        <hr class="ds-hr">
+        <input type="button" class="accordion repl-accordion ds-agmt-wiz-button" id="frac-accordion" value="Fractional Replication Settings &#9660;"/>
+        <div class="ds-agmt-wiz-panel">
+          <!-- Fractional - exclude attributes -->
+          <div class="ds-fractional-container">
+            <p><b>Select attributes from the right panel to exclude from regular/incremental replication</b></p>
+            <div class="ds-container">
+              <div class="ds-fractional-panel">
+                <p>Excluded Attributes</p>
+                <form>
+                <select id="frac-list" class="ds-fractional-list" name="exclude-attrs" multiple>
+                  <option value=""></option>
+                </select>
+                </form>
+                <input type="button" class="ds-fractional-btn" value="Remove Attribute"/>
+              </div>
+              <div class="ds-fractional-panel">
+                <p>Available Attributes</p>
+                <form>
+                <select id="frac-attr-list" class="ds-fractional-list" name="frac-attrs" multiple>
+                  <option value="None">cn</option>
+                  <option value="None">uid</option>
+                </select>
+                </form>
+                <input type="button" class="ds-fractional-btn" value="Add Attribute"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fractional - exclude from total update-->
+          <div class="ds-fractional-container">
+            <p><b>Select attributes from the right panel to exclude from Total Updates/Initializations</b></p>
+            <div class="ds-container">
+              <div class="ds-fractional-panel">
+                <p>Excluded Attributes</p>
+                <form>
+                <select id="frac-total-list" class="ds-fractional-list" name="exclude-attrs" multiple>
+                    <option value=""></option>
+                </select>
+                </form>
+                <input type="button" class="ds-fractional-btn" value="Remove Attribute"/>
+              </div>
+              <div class="ds-fractional-panel">
+                <p>Available Attributes</p>
+                <form>
+                <select id="frac-attr-list" class="ds-fractional-list" name="frac-attrs" multiple>
+                    <option value="None">cn</option>
+                    <option value="None">uid</option>
+                </select>
+                </form>
+                <input type="button" class="ds-fractional-btn" value="Add Attribute"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fractional strip attributes to prevent empty updates -->
+          <div class="ds-fractional-container">
+            <p><b>Select attributes to strip to prevent "empty" updates</b></p>
+            <div class="ds-container">
+              <div class="ds-fractional-panel">
+                <p>Stripped Attributes</p>
+                <form>
+                <select id="strip-list" class="ds-fractional-list" name="exclude-attrs" multiple>
+                  <option value=""></option>
+                </select>
+                </form>
+                <input type="button" class="ds-fractional-btn" value="Remove Attribute"/>
+              </div>
+              <div class="ds-fractional-panel">
+                <p>Available Attributes</p>
+                <form>
+                <select id="strip-attr-list" class="ds-fractional-list" name="frac-attrs" multiple>
+                  <option value="None">cn</option>
+                  <option value="None">uid</option>
+                </select>
+                </form>
+                <input type="button" class="ds-fractional-btn" value="Add Attribute"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule settings -->
+        <hr class="ds-hr">
+        <input type="button" class="accordion repl-accordion ds-agmt-wiz-button" value="Scheduling &#9660;"/>
+        <div class="ds-agmt-wiz-panel">
+          <input type="checkbox" class="ds-repl-manager-checkbox" id="agmt-schedule-checkbox" checked><label
+            for="agmt-schedule" class="ds-label"> Always keep directories in sync </label>
+          <div id="agmt-schedule-panel" class="ds-fractional-container">
+            <div class="ds-container">
+              <div class="ds-fractional-panel">
+                <p><b>Days to keep replication in sync</b></p>
+                <hr class="ds-hr">
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-mon" checked><label
+                  for="schedule-mon" class="ds-label"> Mon</label>
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-tue" checked><label
+                  for="schedule-tue" class="ds-label"> Tue </label>
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-wed" checked><label
+                  for="schedule-wed" class="ds-label"> Wed </label>
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-thu" checked><label
+                  for="schedule-thu" class="ds-label"> Thu </label>
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-fri" checked><label
+                  for="schedule-fri" class="ds-label"> Fri </label>
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-sat" checked><label
+                  for="schedule-sat" class="ds-label"> Sat </label>
+                <input type="checkbox" class="ds-agmt-schedule-checkbox" id="schedule-sun" checked><label
+                  for="schedule-sun" class="ds-label"> Sun</label>
+              </div>
+              <div class="ds-fractional-panel">
+                <p><b>Replication Time Range</b></p>
+                <hr class="ds-hr">
+                <p>Start Time</p>
+                <input class="timepicker ds-agmt-schedule-time" name="start" id="agmt-start-time"/>
+                <p>End Time</p>
+                <input class="timepicker ds-agmt-schedule-time" name="end" id="agmt-end-time"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="ds-hr">
+        <div class="ds-container">
+          <p><b>Initialize consumer? </b><select class="btn btn-default dropdown ds-agmt-wiz-dropdown ds-agmt-init-dropdown" id="init-options">
+            <option id="init-nothing">Do Not Initialize</option>
+            <option id="init-online">Online Initialization</option>
+            <option id="init-offline">Offline Initialization</option>
+          </select></p>
+        </div>
+        <hr class="ds-hr">
+        <div class=" clearfix ds-container">  <!-- class=clearfix -->
+          <div class="ds-panel-left">
+            <button type="button" id="agmt-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+</div>

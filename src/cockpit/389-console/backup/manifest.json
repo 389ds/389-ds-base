@@ -1,0 +1,13 @@
+{
+  "version": 0,
+  "name": "ptabbed",
+  "require": {
+      "cockpit": "120"
+  },
+  "tools": {
+     "ptabbed": {
+        "label": "389 Directory Server 4",
+        "path": "index.html"
+     }
+  }
+}

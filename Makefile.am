@@ -287,7 +287,13 @@ updatedir = $(datadir)@updatedir@
 pkgconfigdir = $(libdir)/pkgconfig
 serverincdir = $(includedir)/@serverincdir@
 gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
-# THis has to be hardcoded to /lib - $libdir changes between lib/lib64, but
+cockpitdir = $(datadir)@cockpitdir@
+cockpitstaticdir = $(datadir)@cockpitstaticdir@
+cockpitimagesdir = $(datadir)@cockpitimagesdir@
+cockpitjsdir = $(datadir)@cockpitjsdir@/
+cockpitcssdir = $(datadir)@cockpitcssdir@
+
+# This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
 sysctldir = @prefixdir@/lib/sysctl.d
 
@@ -610,6 +616,7 @@ dist_noinst_DATA = \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/wrappers/systemd.template.sysconfig \
 	$(srcdir)/dirsrvtests \
+	$(srcdir)/src/cockpit/* \
 	$(srcdir)/src/lib389/setup.py \
 	$(srcdir)/src/lib389
 
@@ -870,6 +877,49 @@ inf_DATA = ldap/admin/src/slapd.inf \
 
 mib_DATA = ldap/servers/snmp/redhat-directory.mib
 
+cockpit_DATA = src/cockpit/389-console/manifest.json \
+	src/cockpit/389-console/backend.html \
+	src/cockpit/389-console/index.html \
+	src/cockpit/389-console/monitor.html \
+	src/cockpit/389-console/plugins.html \
+	src/cockpit/389-console/README.md \
+	src/cockpit/389-console/replication.html \
+	src/cockpit/389-console/schema.html \
+	src/cockpit/389-console/security.html \
+	src/cockpit/389-console/servers.html
+
+cockpitstatic_DATA = src/cockpit/389-console/static/32px.png \
+	src/cockpit/389-console/static/40px.png \
+	src/cockpit/389-console/static/jquery.dataTables.min.css \
+	src/cockpit/389-console/static/jquery.dataTables.min.js \
+	src/cockpit/389-console/static/jquery.dataTables.select.min.js \
+	src/cockpit/389-console/static/jquery.timepicker.min.css \
+	src/cockpit/389-console/static/jquery.timepicker.min.js \
+	src/cockpit/389-console/static/jstree.min.js \
+	src/cockpit/389-console/static/page.min.css \
+	src/cockpit/389-console/static/style.min.css \
+	src/cockpit/389-console/static/throbber.gif
+
+cockpitimages_DATA = src/cockpit/389-console/static/images/ui-icons_444444_256x240.png \
+	src/cockpit/389-console/static/images/ui-icons_777620_256x240.png \
+	src/cockpit/389-console/static/images/ui-icons_cc0000_256x240.png \
+	src/cockpit/389-console/static/images/ui-icons_555555_256x240.png \
+	src/cockpit/389-console/static/images/ui-icons_777777_256x240.png \
+	src/cockpit/389-console/static/images/ui-icons_ffffff_256x240.png
+
+cockpitjs_DATA = src/cockpit/389-console/js/backend.js \
+	src/cockpit/389-console/js/ds.js \
+	src/cockpit/389-console/js/monitor.js \
+	src/cockpit/389-console/js/plugins.js \
+	src/cockpit/389-console/js/replication.js \
+	src/cockpit/389-console/js/schema.js \
+	src/cockpit/389-console/js/security.js \
+	src/cockpit/389-console/js/servers.js \
+	src/cockpit/389-console/js/tabbed.js
+
+cockpitcss_DATA = src/cockpit/389-console/css/ds.css \
+	src/cockpit/389-console/css/tabs.css
+
 pkgconfig_DATA = src/pkgconfig/dirsrv.pc \
 	src/pkgconfig/libsds.pc \
 	src/pkgconfig/nunc-stans.pc
@@ -892,6 +942,7 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man1/dbgen.pl.1 \
         man/man1/ds-logpipe.py.1 \
         man/man1/ds-replcheck.1 \
+        man/man1/ds-cockpit-setup.1 \
         man/man1/infadd.1 \
         man/man1/ldap-agent.1 \
         man/man1/ldclt.1 \
@@ -2159,6 +2210,7 @@ fixupcmd = sed \
 	-e 's,@localrundir\@,$(localrundir),g' \
 	-e 's,@infdir\@,$(infdir),g' \
 	-e 's,@mibdir\@,$(mibdir),g' \
+	-e 's,@cockpitdir\@,$(cockpitdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
 	-e 's,@systemschemadir\@,$(systemschemadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \

@@ -1,0 +1,132 @@
+
+  <div class="ds-fixed ds-buttons">
+    <button id="schema-standard-btn" class="btn btn-default ds-button ds-button-control active">Standard Schema</button>
+    <button id="schema-custom-btn" class="btn btn-default ds-button ds-button-control active">Custom Schema</button>
+    <button id="schema-mr-btn" class="btn btn-default ds-button ds-button-control active">Matching Rules</button>
+    <hr>
+    <button id="schema-reload" class="btn btn-default ds-button">Reload Schema Files</button>
+  </div>
+
+  <div class="ds-flex" id="schema-content">
+
+    <div id="schema-standard" class="schema-ctrl" hidden>
+      <div class="ds-border">
+        <h2><b>Standard Objectclasses</b><hr class="ds-hr"></h2>
+        <table id="standard-oc-table" class="display ds-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Objectclass Name</th>
+              <th>OID</th>
+              <th>Parent</th>
+              <th>Required Attributes</th>
+              <th>Allowed Attributes</th>
+            </tr>
+          </thead>
+          <tbody id="standard-body">
+            <tr>
+              <td>person</td>
+              <td>1.0.34.54.7.2.3.4.3.2</td>
+              <td>top</td>
+              <td>cn givenname sn</td>
+              <td>description uid</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="myborder">
+        <h2><br><b>Standard Attributes</b><hr class="ds-hr"></h2>
+        <table id="standard-attr-table" class="display ds-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Attribute Name</th>
+              <th>OID</th>
+              <th>Syntax</th>
+              <th>Multivalued</th>
+              <th>Equality Matching Rules</th>
+              <th>Ordering Matching Rules</th>
+              <th>Substring Matching Rules</th>
+            </tr>
+          </thead>
+          <tbody id="standard-attr-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="schema-custom" class="schema-ctrl" hidden>
+      <div class="ds-border">
+        <h2><b>Custom Objectclasses</b><hr class="ds-hr"></h2>
+        <table id="custom-oc-table" class="display ds-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Objectclass Name</th>
+              <th>OID</th>
+              <th>Parent</th>
+              <th>Required Attributes</th>
+              <th>Allowed Attributes</th>
+            </tr>
+          </thead>
+          <tbody id="custom-body">
+            <tr>
+              <td>InetOrgPerson</td>
+              <td>1.1.1.1.1.1.1.1.1.1</td>
+              <td>top</td>
+              <td>cn</td>
+              <td>sn uid</td>
+            </tr>
+          </tbody>
+        </table>
+        <button id="create-oc" name="create-oc" class="btn btn-default ds-button">Create Objectclass</button>
+      </div>
+      <div class="ds-border">
+        <h2><br><b>Custom Attributes</b><hr class="ds-hr"></h2>
+        <table id="custom-attr-table" class="display ds-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Attribute Name</th>
+              <th>OID</th>
+              <th>Syntax</th>
+              <th>Multivalued</th>
+              <th>Equality Matching Rules</th>
+              <th>Ordering Matching Rules</th>
+              <th>Substring Matching Rules</th>
+            </tr>
+          </thead>
+          <tbody id="custom-attr-body">
+          </tbody>
+        </table>
+        <button id="create-at" name="create-at" class="btn btn-default ds-button">Create Attribute</button>
+      </div>
+    </div>
+
+    <div id="schema-mr" class="schema-ctrl" hidden>
+      <div class="ds-border">
+        <h2><b>Matching Rules</b><hr class="ds-hr"></h2>
+        <table id="schema-mr-table" class="display ds-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Matching Rule Name</th>
+              <th>OID</th>
+              <th>Syntax</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="standard-body">
+            <tr>
+              <td>equality</td>
+              <td>9.5.6.7.3.5.4.45.54.4</td>
+              <td>DirectoryString</td>
+              <td>My really long description for some reason</td>
+            </tr>
+            <tr>
+              <td>equality-2</td>
+              <td>999.5.6.7.3.5.4.45.54.4</td>
+              <td>DirectoryString</td>
+              <td>My really long description for some reason</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>

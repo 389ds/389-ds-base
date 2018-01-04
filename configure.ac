@@ -376,6 +376,12 @@ if test "$with_fhs_opt" = "yes"; then
   perldir=/perl
   # relative to libdir
   pythondir=/python
+  # relative to datadir
+  cockpitdir=/389-console
+  cockpitstaticdir=/389-console/static
+  cockpitimagesdir=/389-console/static/images
+  cockpitjsdir=/389-console/js
+  cockpitcssdir=/389-console/css
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -412,6 +418,12 @@ else
   perldir=/$PACKAGE_NAME/perl
   # relative to libdir
   pythondir=/$PACKAGE_NAME/python
+  # relative to datadir
+  cockpitdir=/$PACKAGE_NAME/389-console
+  cockpitstaticdir=/$PACKAGE_NAME/389-console/static
+  cockpitimagesdir=/$PACKAGE_NAME/389-console/static/images
+  cockpitjsdir=/$PACKAGE_NAME/389-console/js
+  cockpitcssdir=/$PACKAGE_NAME/389-console/css
 fi
 
 # if mandir is the default value, override it
@@ -499,7 +511,11 @@ AC_SUBST(infdir)
 AC_SUBST(mibdir)
 AC_SUBST(mandir)
 AC_SUBST(updatedir)
-
+AC_SUBST(cockpitdir)
+AC_SUBST(cockpitstaticdir)
+AC_SUBST(cockpitimagesdir)
+AC_SUBST(cockpitjsdir)
+AC_SUBST(cockpitcssdir)
 AC_SUBST(defaultuser)
 AC_SUBST(defaultgroup)
 

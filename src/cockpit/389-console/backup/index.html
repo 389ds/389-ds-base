@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="../base1/patternfly.css" type="text/css" rel="stylesheet">
+    <link href="ds.css" type="text/css" rel="stylesheet">
+    <link href="tabs.css" type="text/css" rel="stylesheet">
+    <script src="../base1/jquery.js"></script>
+    <script src="../base1/cockpit.js"></script>
+    <script src="ds.js"></script>
+    <link href="vert.css" rel="stylesheet">
+    <link href="vert2.css" rel="stylesheet">
+
+
+</head>
+<body>
+    <div class="ds_logo">
+      <h1>389 Directory Server Management
+    </div>
+    <div class="tab-list">
+      <ul class="nav nav-tabs">
+        <li class="active"><a class="tab-control" href="#tab-1">Servers</a></li>
+        <li><a class="tab-control" href="#tab-2">Database</a></li>
+        <li><a class="tab-control" href="#tab-3">Schema</a></li>
+        <li><a class="tab-control" href="#tab-4">Plugins</a></li>
+        <li><a class="tab-control" href="#tab-5">Monitoring</a></li>
+        <li><a class="tab-control" href="#tab-6">Configuration</a></li>
+      </ul>
+
+    <div class="tab-panel active" id="tab-1">
+
+        <div class="myserver">
+            <b>Server Instances</b>
+            <select class="dropdown mydropdown" id="select-server">
+            </select>
+        </div>
+        <div class="container">
+          <div class="fixed">
+
+            <button class="btn btn-default mybutton active">General Configuration</button>
+            <button class="btn btn-default mybutton">Security</button>
+            <button class="btn btn-default mybutton">Password Policy</button>
+            <button class="btn btn-default mybutton">Logs</button>
+            <button class="btn btn-default mybutton">Tasks</button>
+
+          </div>
+          <div class="flex-item">
+            Lets see some config settings
+          </div>
+        </div>
+
+
+        <div>
+          <button name="search" id="search">Search Root DSE</button>
+          <p id="results">
+          </p>
+        </div>
+    </div>
+
+    <div class="tab-panel" id="tab-2">
+        <p>Hey Mark's its Tab2!!!!!!!!!!!</p>
+    </div>
+
+    <div class="tab-panel" id="tab-3">
+        Hey Mark's its Tab3!
+    </div>
+
+    <div class="tab-panel" id="tab-4">
+        Hey Mark's its Tab4!
+    </div>
+
+    <div class="tab-panel" id="tab-5">
+        Hey Mark's its Tab5!
+    </div>
+
+    <div class="tab-panel" id="tab-6">
+        Hey Mark's its Tab6!
+    </div>
+
+    <script src="tabbed.js"></script>
+   </div>
+
+</body>
+</html>
+
