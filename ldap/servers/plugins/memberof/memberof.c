@@ -3247,8 +3247,14 @@ memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
                  */
                 break;
             }
-            if (memberof_add_objectclass(add_oc, dn)) {
+            rc = memberof_add_objectclass(add_oc, dn);
+            slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                    "Entry %s - schema violation caught - repair operation %s\n",
+                    dn ? dn : "unknown",
+                    rc ? "failed" : "succeeded");
+            if (rc) {
                 /* Failed to add objectclass */
+                rc = LDAP_OBJECT_CLASS_VIOLATION;
                 break;
             }
             added_oc = 1;
