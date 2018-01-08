@@ -17,12 +17,24 @@ function server_hide_all(){
 
 // load the server config pages
 $(document).ready( function() {
+  // Fill in the server instance dropdown  
+  get_insts();
+
   $("#server-content").load("servers.html", function () {
-     // Initial page setup
+    // Initial page setup
     $(".server-cfg-ctrl").hide();
     $("#server-tasks").show();
-    $("#server-tasks-btn").focus();
-
+    $("#server-tasks-btn").focus().select();
+    
+    // To remove text border on firefox on dropdowns)
+    if(navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {  
+      $("select").focus( function() {      
+        this.style.setProperty( 'outline', 'none', 'important' );
+        this.style.setProperty( 'color', 'rgba(0,0,0,0)', 'important' );
+        this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
+      });
+    }
+    
     // Events
     $("#server-config-btn").on("click", function() {
       $(".server-cfg-ctrl").hide();
@@ -193,10 +205,10 @@ $(document).ready( function() {
     });
 
     // Accordion opening/closings
-    $(".ds-agmt-wiz-panel").css('display','none');
-    var acc = document.getElementsByClassName("log-accordion");
-    for (var i = 0; i < acc.length; i++) {
-      acc[i].onclick = function() {
+    $(".ds-accordion-panel").css('display','none');
+    var log_acc = document.getElementsByClassName("log-accordion");
+    for (var i = 0; i < log_acc.length; i++) {
+      log_acc[i].onclick = function() {
         this.classList.toggle("active");
         var panel = this.nextElementSibling;
         if (panel.style.display === "block") {
@@ -207,5 +219,56 @@ $(document).ready( function() {
       }
     }
 
+    var cfg_acc = document.getElementsByClassName("config-accordion");
+    for (var i = 0; i < cfg_acc.length; i++) {
+      cfg_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
+    var rootdn_acc = document.getElementsByClassName("rootdn-accordion");
+    for (var i = 0; i < rootdn_acc.length; i++) {
+      rootdn_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
+    var localpwp_acc = document.getElementsByClassName("localpwp-accordion");
+    for (var i = 0; i < localpwp_acc.length; i++) {
+      localpwp_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
+    var advcfg_acc = document.getElementsByClassName("adv-config-accordion");
+    for (var i = 0; i < advcfg_acc.length; i++) {
+      advcfg_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
   });
 });

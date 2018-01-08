@@ -69,10 +69,12 @@
     <h2 id="replica-header"></h2>
     <hr class="ds-hr">
     <div class="ds-roles">
-      <label title="<Disable replication for this backend"><input
-        class="ds-radio repl-role" type="radio" id="none" name="repl-role" value="no-repl" checked="checked"> No Replication</label>
+      <label title="Disable replication for this backend"><input
+        class="ds-radio repl-role" type="radio" id="none" name="repl-role" value="no-repl" checked="checked"> Disable Replication</label>
+      <label title="Set this backend to be multiple master replication server."><input
+        class="ds-radio repl-role" type="radio" id="mulit-master" name="repl-role" value="multi-master"> Multi-Master</label>
       <label title="Set this backend to be master replication server."><input
-        class="ds-radio repl-role" type="radio" id="master" name="repl-role" value="master"> Master</label>
+        class="ds-radio repl-role" type="radio" id="master" name="repl-role" value="master"> Single Master</label>
       <label title="Set this backend to be a replication hub"><input
         class="ds-radio repl-role" type="radio" id="hub" name="repl-role" value="hub"> Hub</label>
       <label title="Set this backend to be a read-only replicaton consumer"><input
@@ -82,59 +84,64 @@
     <div id="repl-form" hidden>
       <h3>Replication Settings</h3>
       <hr class="ds-hr">
-      <div class="ds-container">
-        <div>
-          <label for="nsds5replicaid" class="ds-config-label" title=
-            "The replica ID.  This can only be set for master replicas.  Hub an consumers use a predefined Replica ID.  Valid values are: 1 - 65535 (nsDS5ReplicaId)."><b
-            >Replica ID (master only)</b></label><input class="ds-input" type="text" id="nsds5replicaid" size="15"/>
-          <label for="nsds5replicapurgedelay" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaPurgeDelay)."><b
-            >Replication Purge Delay</b></label><input class="ds-input" type="text" id="nsds5replicapurgedelay" size="15"/>
-          <label for="nsds5replicatombstonepurgeinterval" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaTombstonePurgeInterval)."><b
-            >Tombstone Purge Interval</b></label><input class="ds-input" type="text" id="nsds5replicatombstonepurgeinterval" size="15"/>
-          <label for="nsds5replicaprecisetombstonepurging" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaPreciseTombstonePurging)."><b
-            >Precise Tombstone Purging</b></label><input class="ds-input" type="text" id="nsds5replicaprecisetombstonepurging" size="15"/>
-          <label for="nsDS5replicabinddngroup" class="ds-config-label" title=
-            "NEEDS WORK (nsDS5ReplicaBindDnGroup)."><b
-            >Bind DN Group</b></label><input class="ds-input" type="text" id="nsDS5replicabinddngroup" size="15"/>
-          <label for="nsDS5replicabinddngroupcheckinterval" class="ds-config-label" title=
-            "NEEDS WORK (nsDS5ReplicaBindDnGroupCheckInterval)."><b
-            >Bind DN Group Interval</b></label><input class="ds-input" type="text" id="nsDS5replicabinddngroupcheckinterval" size="15"/>
-        </div>
-        <div class="ds-divider"></div>
-        <div>
-          <label for="nsds5replicatimeout" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaTimeout)."><b
-            >Replication Connection Timeout</b></label><input class="ds-input" type="text" id="nsds5replicatimeout" size="15"/>
-          <label for="nsds5replicaprotocoltimeout" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaProtocolTimeout)."><b
-            >Replication Protocol Timeout</b></label><input class="ds-input" type="text" id="nsds5replicaprotocoltimeout" size="15"/>
-          <label for="nsds5replicareleasetimeout" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaReleaseTimeout)."><b
-            >Replication Release Timeout</b></label><input class="ds-input" type="text" id="nsds5replicareleasetimeout" size="15"/>
-          <label for="nsds5replicabackoffmin" class="ds-config-label" title=
-            "NEEDS WORK (nsds5ReplicaBackoffMin)."><b
-            >Replication Backup Minimum</b></label><input class="ds-input" type="text" id="nsds5replicabackoffmin" size="15"/>
-          <label for="nsds5replicabackoffmax" class="ds-config-label" title=
-           "NEEDS WORK (nsds5ReplicaBackoffMax)."><b
-           >Replication Backup Maximum</b></label><input class="ds-input" type="text" id="nsds5replicabackoffmax" size="15"/>
-        </div>
-      </div>
+      <label for="nsds5replicaid" class="ds-config-label" title=
+        "The replica ID.  This can only be set for master replicas.  Hub an consumers use a predefined Replica ID.  Valid values are: 1 - 65535 (nsDS5ReplicaId)."><b
+        >Replica ID (master only)</b></label><input class="ds-input" type="text" id="nsds5replicaid" size="15"/>
 
-      <div>
-        <p title="A list of Replication Manager DN's that are allowed to update this backend">Replication Managers:</p>
-        <form>
-          <select id="repl-managers-list" class="ds-repl-managers-list" name="repl-managers" multiple>
-            <option value="cn=replication manager,cn=config">cn=replication manager,cn=config</option>
-          </select>
-        </form>
-        <button class="btn btn-default ds-repl-managers-buttons" id="add-repl-manager">Add Replication Manager</button><input
-          class="ds-input" type="text" id="repl-manager-dn" size="30" placeholder="DN of replication manager"><input
-          type="checkbox" class="ds-repl-manager-checkbox" id="repl-manager-checkbox"><label
-          for="repl-manager-checkbox" class="ds-label"> Create Entry?</label>
-        <button class="btn btn-default ds-repl-managers-buttons" id="delete-repl-manager">Delete Replication Manager</button>
+      <form>
+        <label class="ds-repl-config-label" for "repl-managers-list" title=
+          "A list of Replication Manager DN's that are allowed to update this backend"><b>Replication Managers</b></label>
+        <select
+          id="repl-managers-list" class="ds-repl-managers-list" name="repl-managers" multiple>
+          <option value="cn=replication manager,cn=config">cn=replication manager,cn=config</option>
+        </select>
+      </form>
+      <button class="btn btn-default ds-repl-managers-buttons" id="add-repl-manager">Add Replication Manager</button><input
+        class="ds-input" type="text" id="repl-manager-dn" size="30" placeholder="DN of replication manager"><input
+        type="checkbox" class="ds-repl-manager-checkbox" id="repl-manager-checkbox"><label
+        for="repl-manager-checkbox" class="ds-label"> Create Entry?</label>
+      <button class="btn btn-default ds-repl-managers-buttons" id="delete-repl-manager">Delete Replication Manager</button>
+      <p></p>
+
+      <input type="button" class="accordion repl-config-accordion ds-agmt-wiz-button ds-accordion-spacing" id="repl-config-accordion" value="Advanced Replication Settings &#9660;"/>
+      <div class="ds-accordion-panel">
+        <div class="ds-container">
+          <div>
+            <label for="nsds5replicapurgedelay" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaPurgeDelay)."><b
+              >Replication Purge Delay</b></label><input class="ds-input" type="text" id="nsds5replicapurgedelay" size="15"/>
+            <label for="nsds5replicatombstonepurgeinterval" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaTombstonePurgeInterval)."><b
+              >Tombstone Purge Interval</b></label><input class="ds-input" type="text" id="nsds5replicatombstonepurgeinterval" size="15"/>
+            <label for="nsds5replicaprecisetombstonepurging" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaPreciseTombstonePurging)."><b
+              >Precise Tombstone Purging</b></label><input class="ds-input" type="text" id="nsds5replicaprecisetombstonepurging" size="15"/>
+            <label for="nsDS5replicabinddngroup" class="ds-config-label" title=
+              "NEEDS WORK (nsDS5ReplicaBindDnGroup)."><b
+              >Bind DN Group</b></label><input class="ds-input" type="text" id="nsDS5replicabinddngroup" size="15"/>
+            <label for="nsDS5replicabinddngroupcheckinterval" class="ds-config-label" title=
+              "NEEDS WORK (nsDS5ReplicaBindDnGroupCheckInterval)."><b
+              >Bind DN Group Interval</b></label><input class="ds-input" type="text" id="nsDS5replicabinddngroupcheckinterval" size="15"/>
+          </div>
+          <div class="ds-divider"></div>
+          <div>
+            <label for="nsds5replicatimeout" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaTimeout)."><b
+              >Replication Connection Timeout</b></label><input class="ds-input" type="text" id="nsds5replicatimeout" size="15"/>
+            <label for="nsds5replicaprotocoltimeout" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaProtocolTimeout)."><b
+              >Replication Protocol Timeout</b></label><input class="ds-input" type="text" id="nsds5replicaprotocoltimeout" size="15"/>
+            <label for="nsds5replicareleasetimeout" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaReleaseTimeout)."><b
+              >Replication Release Timeout</b></label><input class="ds-input" type="text" id="nsds5replicareleasetimeout" size="15"/>
+            <label for="nsds5replicabackoffmin" class="ds-config-label" title=
+              "NEEDS WORK (nsds5ReplicaBackoffMin)."><b
+              >Replication Backoff Minimum</b></label><input class="ds-input" type="text" id="nsds5replicabackoffmin" size="15"/>
+            <label for="nsds5replicabackoffmax" class="ds-config-label" title=
+             "NEEDS WORK (nsds5ReplicaBackoffMax)."><b
+             >Replication Backoff Maximum</b></label><input class="ds-input" type="text" id="nsds5replicabackoffmax" size="15"/>
+          </div>
+        </div>
       </div>
 
       <div>
@@ -228,9 +235,9 @@
     <h1>Replication Summary</h1>
     <hr class="ds-hr">
     <h3>Replication Changelog</h3>
-    <p id="repl-cl-enabled"><b>Location: </b> /var/lib/dirsrv/slapd-localhost/changelogdb</p>    
+    <p id="repl-cl-enabled"><b>Location: </b> /var/lib/dirsrv/slapd-localhost/changelogdb</p>
     <p></p>
-    
+
     <h3>Replicated Suffixes</h3>
     <table id="repl-summary-table" class="display ds-table" cellspacing="0" width="100%">
       <thead>
@@ -266,11 +273,11 @@
         <div class="ds-container">
           <div>
             <label for="agmt-cn" class="ds-config-label" title="Agreement name (cn)."><b>Agreement Name</b></label><input
-              class="ds-input ds-wiz-input" type="text" placeholder="Agreement name" id="agmt-cn" name="name" required>
+              class="ds-wiz-input" type="text" placeholder="Agreement name" id="agmt-cn" name="name" required>
             <label for="nsds5replicahost" class="ds-config-label" title="Agreement name (nsDS5ReplicaHost)."><b>Consumer Host</b></label><input
-              class="ds-input ds-wiz-input" type="text" placeholder="Consumer hostname" id="nsds5replicahost" name="port" required>
+              class="ds-wiz-input" type="text" placeholder="Consumer hostname" id="nsds5replicahost" name="port" required>
             <label for="nsds5replicaport" class="ds-config-label" title="Agreement name (nsDS5ReplicaPort)."><b>Consumer Port</b></label><input
-              class="ds-input ds-wiz-input" type="text" placeholder="Consumer port number" id="nsds5replicaport" name="name" required>
+              class="ds-wiz-input" type="text" placeholder="Consumer port number" id="nsds5replicaport" name="name" required>
             <label for="nsds5replicatransportinfo" class="ds-config-label" title="Agreement name (nsDS5ReplicaTransportInfo)."><b>Connection Protocol</b></label><select
               class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="nsds5replicatransportinfo">
                 <option>LDAP</option>
@@ -284,18 +291,18 @@
                 <option>SASL/GSSAPI</option>
               </select>
             <label for="nsds5replicabinddn" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaBindDN)."><b>Replication Bind DN</b></label><input
-              class="ds-input ds-wiz-input" type="text" placeholder="Bind DN" id="nsds5replicabinddn" name="name" required>
+              class="ds-wiz-input" type="text" placeholder="Bind DN" id="nsds5replicabinddn" name="name" required>
             <label for="nsds5replicacredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials)."><b>Replication Bind DN Credentials</b></label><input
-              class="ds-input ds-wiz-input" type="password" placeholder="Enter password" id="nsds5replicacredentials" name="name" required>
+              class="ds-wiz-input" type="password" placeholder="Enter password" id="nsds5replicacredentials" name="name" required>
             <label for="nsds5replicacredentials-confirm" class="ds-config-label" title="Confirm password"><b>Confirm Password</b></label><input
-              class="ds-input ds-wiz-input" type="password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" required>
+              class="ds-wiz-input" type="password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" required>
           </div>
         </div>
 
         <!-- Fractional settings -->
         <hr class="ds-hr">
         <input type="button" class="accordion repl-accordion ds-agmt-wiz-button" id="frac-accordion" value="Fractional Replication Settings &#9660;"/>
-        <div class="ds-agmt-wiz-panel">
+        <div class="ds-accordion-panel">
           <!-- Fractional - exclude attributes -->
           <div class="ds-fractional-container">
             <p><b>Select attributes from the right panel to exclude from regular/incremental replication</b></p>
@@ -378,9 +385,9 @@
         <!-- Schedule settings -->
         <hr class="ds-hr">
         <input type="button" class="accordion repl-accordion ds-agmt-wiz-button" value="Scheduling &#9660;"/>
-        <div class="ds-agmt-wiz-panel">
+        <div class="ds-accordion-panel">
           <input type="checkbox" class="ds-repl-manager-checkbox" id="agmt-schedule-checkbox" checked><label
-            for="agmt-schedule" class="ds-label"> Always keep directories in sync </label>
+            for="agmt-schedule-checkbox" class="ds-label"> Always keep directories in sync </label>
           <div id="agmt-schedule-panel" class="ds-fractional-container">
             <div class="ds-container">
               <div class="ds-fractional-panel">

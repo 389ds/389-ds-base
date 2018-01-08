@@ -11,6 +11,11 @@ function monitor_hide_all(){
 
 $(document).ready( function() {
   $("#monitor-content").load("monitor.html", function () {
+    $(".dropdown").on("change", function() {
+      // Refreshes dropdown on Chrome
+      $(this).blur();
+    });
+    
     monitor_hide_all();
     $("#monitor-server").show();
     $("#monitor-server-btn").addClass('active');

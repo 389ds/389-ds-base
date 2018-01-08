@@ -3,6 +3,11 @@ $(document).ready( function() {
   $("#security-selection").load("security.html", function () {
     // default setting
     $('#cert-attrs *').attr('disabled', true);
+
+    $(".dropdown").on("change", function() {
+      // Refreshes dropdown on Chrome
+      $(this).blur();
+    });
     
     $("#sec-config").show();
      $('#nsSSLSupportedCiphers').DataTable( {
@@ -21,7 +26,7 @@ $(document).ready( function() {
         "emptyTable": "No agreements configured"
       }
     });
-    
+
     // TODO: Get config settings and populate tables, forms, and set check boxes, etc
 
     $("#sec-config-btn").on("click", function() {
@@ -36,7 +41,7 @@ $(document).ready( function() {
      $(".security-ctrl").hide();
       $("#sec-ciphers").show();
     });
-    
+
     $("#nsslapd-security").change(function() {
       if(this.checked) {
         $('#cert-attrs *').attr('disabled', false);

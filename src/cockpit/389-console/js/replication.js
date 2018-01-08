@@ -1,11 +1,15 @@
 var repl_suffix = "";
 var prev_repl_role_id ="";
 var prev_repl_role ="";
+var prev_rid = "";
 
 function load_repl_jstree() {
   $('#repl-tree').jstree( {
     "plugins" : [ "wholerow" ]
   });
+  
+  // Set rid for each suffix if applicable
+  prev_rid = "1";
 
   $('#repl-tree').on("changed.jstree", function (e, data) {
     console.log("The selected nodes are:");
@@ -43,8 +47,8 @@ function clear_agmt_wizard () {
   $("#agmt-start-time").val("");
   $("#agmt-end-time").val("");
   $(".ds-agmt-wiz-dropdown").prop('selectedIndex',0);
-  $(".ds-agmt-wiz-panel").toggle("active");
-  $(".ds-agmt-wiz-panel").css('display','none');
+  $(".ds-accordion-panel").toggle("active");
+  $(".ds-accordion-panel").css('display','none');
 };
 
 $(document).ready( function() {
@@ -60,16 +64,25 @@ $(document).ready( function() {
     $("#set-default").on("click", function() {
       $("#nsslapd-changelogdir").val("/var/lib/dirsrv/" + server_id + "/changelogdb");
     });
+    
+    $("#nsds5replicaid").on("change", function() {
+      prev_rid = $("#nsds5replicaid").val();
+    });
 
     $(".repl-role").on("change", function() {
       var role = $("input[name=repl-role]:checked").val();
-      if (role == "master") {
+      if (role == "master" || role == "multi-master") {
          $("#nsds5replicaid").prop('required',true);
          $("#nsds5replicaid").prop('disabled', false);
+         $("#nsds5replicaid").val(prev_rid);
       } else {
           $("#nsds5replicaid").prop('required',false);
           $("#nsds5replicaid").prop('disabled', true);
-        //$("#nsds5replicaid").val("");
+          if (role == "hub"){
+            $("#nsds5replicaid").val("65535");
+          } else {
+            $("#nsds5replicaid").val("");    
+          }
       }
       if (role == "no-repl") {
         // This also means disable replication: delete agmts, everything
@@ -79,9 +92,15 @@ $(document).ready( function() {
         } else {
             //reset everything
             $("#" + prev_repl_role_id).prop("checked", true);
-            if (prev_repl_role == "master") {
+            if (prev_repl_role == "master" || prev_repl_role == "multi-master" ) {
               $("#nsds5replicaid").prop('required',true);
               $("#nsds5replicaid").prop('disabled', false);
+              $("#nsds5replicaid").val(prev_rid);
+            } else if (prev_repl_role == "hub") {
+              $("#nsds5replicaid").val("65535");
+            } else {
+              // consumer
+              $("#nsds5replicaid").val("");
             }
         }
        } else {
@@ -111,7 +130,7 @@ $(document).ready( function() {
         "emptyTable": "No agreements configured"
       }
     });
-    
+
     $('#repl-summary-table').DataTable( {
       "paging": false,
       "searching": false,
@@ -192,6 +211,7 @@ $(document).ready( function() {
     });
 
     // Accordion opening/closings
+    $(".ds-accordion-panel").css('display','none');
     var acc = document.getElementsByClassName("repl-accordion");
     for (var i = 0; i < acc.length; i++) {
       acc[i].onclick = function() {
@@ -209,6 +229,20 @@ $(document).ready( function() {
         }
       }
     }
+
+    var repl_acc = document.getElementsByClassName("repl-config-accordion");
+    for (var i = 0; i < repl_acc.length; i++) {
+      repl_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display == "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
 
   });
 });

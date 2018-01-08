@@ -92,9 +92,14 @@ $(document).ready( function() {
   $("#backend-selection").load("backend.html", function () {
     load_jstree();
     $("#db").show();
-    
+
     $(".ds-suffix-panel").toggle("active");
     $(".ds-suffix-panel").css('display','none');
+
+    /*
+      We need logic to see if autocaching (import and db) is being used, and disable fields, 
+      and set radio buttons, et
+    */
 
     $('#referral-table').DataTable( {
       "paging": false,
@@ -106,7 +111,7 @@ $(document).ready( function() {
         "emptyTable": "No Referrals"
       }
     });
-    
+
     $('#system-index-table').DataTable( {
       "paging": true,
       "bAutoWidth": false,
@@ -131,12 +136,25 @@ $(document).ready( function() {
         "emptyTable": "No Encrypted Attributes"
       },
     });
-    
+
     // Accordion opening/closings
-    $(".ds-agmt-wiz-panel").css('display','none');
-    var acc = document.getElementsByClassName("suffix-accordion");
-    for (var i = 0; i < acc.length; i++) {
-      acc[i].onclick = function() {
+    $(".ds-accordion-panel").css('display','none');
+    var suffix_acc = document.getElementsByClassName("suffix-accordion");
+    for (var i = 0; i < suffix_acc.length; i++) {
+      suffix_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
+    var db_acc = document.getElementsByClassName("db-accordion");
+    for (var i = 0; i < db_acc.length; i++) {
+      db_acc[i].onclick = function() {
         this.classList.toggle("active");
         var panel = this.nextElementSibling;
         if (panel.style.display === "block") {
@@ -147,8 +165,72 @@ $(document).ready( function() {
       }
     }
     
-    $(".index-type").attr('readonly', 'readonly');
+    var cache_acc = document.getElementsByClassName("cache-accordion");
+    for (var i = 0; i < cache_acc.length; i++) {
+      cache_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
 
+    $(".index-type").attr('readonly', 'readonly');
+    
+    if ( $("#manual-cache").is(":checked") ){
+      $("#auto-cache-form").hide();
+      $("#manual-cache-form").show();
+      $("#nsslapd-dncachememsize").prop('disabled', false);
+      $("#nsslapd-cachememsize").prop('disabled', false);
+      $("#nsslapd-cachesize").prop('disabled', false);
+    } else {
+      $("#manual-cache-form").hide();
+      $("#auto-cache-form").show();
+      $("#nsslapd-dncachememsize").prop('disabled', true);
+      $("#nsslapd-cachememsize").prop('disabled', true);
+      $("#nsslapd-cachesize").prop('disabled', true);
+    }
+
+    if ( $("#manual-import-cache").is(":checked") ){
+      $("#auto-import-cache-form").hide();
+      $("#manual-import-cache-form").show();
+    } else {
+      $("#manual-import-cache-form").hide();
+      $("#auto-import-cache-form").show();
+    }
+   
+    $(".cache-role").on("change", function() {
+      var role = $("input[name=cache-role]:checked").val();
+      if (role == "manual-cache") {
+         $("#auto-cache-form").hide();
+         $("#manual-cache-form").show();
+         $("#nsslapd-dncachememsize").prop('disabled', false);
+         $("#nsslapd-cachememsize").prop('disabled', false);
+         $("#nsslapd-cachesize").prop('disabled', false);
+      } else {
+          // auto cache
+         $("#manual-cache-form").hide();
+         $("#auto-cache-form").show();
+         $("#nsslapd-dncachememsize").prop('disabled', true);
+         $("#nsslapd-cachememsize").prop('disabled', true);
+         $("#nsslapd-cachesize").prop('disabled', true);
+      }
+    });
+
+    $(".import-cache-role").on("change", function() {
+      var role = $("input[name=import-cache-role]:checked").val();
+      if (role == "manual-import-cache") {
+         $("#auto-import-cache-form").hide();
+         $("#manual-import-cache-form").show();
+      } else {
+          // auto cache
+         $("#manual-import-cache-form").hide();
+         $("#auto-import-cache-form").show();
+      }
+    });
   });
 });
 

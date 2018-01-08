@@ -25,9 +25,14 @@
         <label for="nsslapd-lookthrough-limit" class="ds-config-label" title=
           "The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."><b
           >Database Look Though Limit</b></label><input class="ds-input" type="text" id="nsslapd-lookthrough-limit" size="15"/>
-        <label for="nsslapd-lookthrough-limit" class="ds-config-label" title=
+        <label for="nsslapd-idlistscanlimit" class="ds-config-label" title=
           "The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit)."><b
           >ID List Scan Limit</b></label><input class="ds-input" type="text" id="nsslapd-idlistscanlimit" size="15"/>
+      </div>
+      <div class="ds-divider"></div>
+      <div class="ds-divider"></div>
+      <div class="ds-divider"></div>
+      <div>
         <label for="nsslapd-pagedlookthroughlimit" class="ds-config-label" title=
           "The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit)."><b
           >Paged Search Look Through Limit</b></label><input class="ds-input" type="text" id="nsslapd-pagedlookthroughlimit" size="15"/>
@@ -37,57 +42,95 @@
         <label for="nsslapd-rangelookthroughlimit" class="ds-config-label" title=
           "The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit)."><b
           >Range Search Look Through Limit</b></label><input class="ds-input" type="text" id="nsslapd-rangelookthroughlimit" size="15"/>
-      </div>
-      <div class="ds-divider"></div>
-      <div>
-        <label for="nsslapd-dbcachesize" class="ds-config-label" title=
-          "Specifies the database index cache size in bytes (nsslapd-dbcachesize)."><b
-          >Database Cache Size (bytes)</b></label><input class="ds-input" type="text" id="nsslapd-dbcachesize" size="15"/>
-        <label for="nsslapd-import-cachesize" class="ds-config-label" title=
-          "The size of the database cache used in the bulk import process. (nsslapd-import-cachesize)."><b
-          >Import Cache Size (bytes)</b></label><input class="ds-input" type="text" id="nsslapd-import-cachesize" size="15"/>
-        <label for="nsslapd-import-cache-autosize" class="ds-config-label" title=
-          "Enables the import cache to be set automatically to a predetermined size when the import operation is run/  Value range -1 thru 100 (nsslapd-import-cache-autosize)."><b
-          >Import Cache Autosize</b></label><input class="ds-input" type="text" id="nsslapd-import-cache-autosize" size="15"/>
-        <label for="nsslapd-cache-autosize" class="ds-config-label" title=
-          "Enable database and entry cache auto-tuning based off of the systems current resources (nsslapd-cache-autosize)."><b
-          >Autosize Caches</b></label><input class="ds-input" type="text" id="nsslapd-cache-autosize" size="15"/>
-        <label for="nsslapd-cache-autosize-split" class="ds-config-label" title=
-          "Sets the percentage of RAM that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split)."><b
-          >Cache Autosize Split</b></label><input class="ds-input" type="text" id="nsslapd-cache-autosize-split" size="15"/>
+          
       </div>
     </div>
-
-    <h2><br>Advanced Database Settings</h2><hr class="ds-hr">
-    <div id="db" class="ds-container">
-      <div>
-        <label for="nsslapd-db-logdirectory" class="ds-config-label" title=
-          "Database Transaction Log Location (nsslapd-db-logdirectory)."><b
-          >Transaction Logs Directory</b></label><input class="ds-input" type="text" id="nsslapd-db-logdirectory" size="15"/>
-        <label for="nsslapd-db-home-directory" class="ds-config-label" title=
-          "Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory)."><b
-          >Database Home Directory</b></label><input class="ds-input" type="text" id="nsslapd-db-home-directory" size="15"/>
-        <label for="nsslapd-db-locks" class="ds-config-label" title=
-          "The number of database locks (nsslapd-db-locks)."><b
-          >Database Locks</b></label><input class="ds-input" type="text" id="nsslapd-db-locks" size="15"/>
-        <label for="nsslapd-db-checkpoint-interval" class="ds-config-label" title=
-          "Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."><b
-          >Database Checkpoint Interval</b></label><input class="ds-input" type="text" id="nsslapd-db-checkpoint-interval" size="15"/>
-        <label for="nsslapd-db-checkpoint-interval" class="ds-config-label" title=
-          "The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval)."><b
-          >Database Compact Interval</b></label><input class="ds-input" type="text" id="nsslapd-db-checkpoint-interval" size="15"/>
+    <p></p>
+    
+    <input type="button" class="accordion cache-accordion ds-agmt-wiz-button ds-accordion-spacing" id="cache-accordion" value="Cache Settings &#9660;"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-container">
+        <div class="ds-split">
+          <div class="ds-roles">
+            <label title="Set Database/Entry to be set manually"><input
+              class="ds-radio cache-role" type="radio" id="manual-cache" name="cache-role" value="manual-cache" checked="checked"> Manual Cache Tuning</label>
+            <label title="Set Database/Entry to be set automatically"><input
+              class="ds-radio cache-role" type="radio" id="auto-cache" name="cache-role" value="auto-cache"> Automatic Cache Tuning</label>
+            <hr class="ds-hr">
+          </div>       
+          <div id="manual-cache-form" hidden>
+            <label for="nsslapd-dbcachesize" class="ds-cache-label" title=
+              "Specifies the database index cache size in bytes (nsslapd-dbcachesize)."><b
+              >Database Cache Size (bytes)</b></label><input class="ds-input" type="text" id="nsslapd-dbcachesize" size="15"/>
+          </div>
+          <div id="auto-cache-form" hidden>
+            <label for="nsslapd-cache-autosize" class="ds-cache-label" title=
+              "Enable database and entry cache auto-tuning using a percentage of the systems current resources (nsslapd-cache-autosize)."><b
+              >System Memory Percentage</b></label><input class="ds-input" type="text" id="nsslapd-cache-autosize" size="3"/> %
+              
+            <label for="nsslapd-cache-autosize-split" class="ds-cache-label" title=
+              "Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split)."><b
+              >DB Cache Percentage </b></label><input class="ds-input" type="text" id="nsslapd-cache-autosize-split" size="3"/> %
+          </div>
+        </div>
+        <div class="ds-divider"></div>
+        <div class="ds-split">
+          <div class="ds-roles">
+            <label title="Set import cache size manually"><input
+              class="ds-radio import-cache-role" type="radio" id="manual-import-cache" name="import-cache-role" value="manual-import-cache" checked="checked"> Manual Import Cache Tuning</label>
+            <label title="Set Database/Entry to be set automatically"><input
+              class="ds-radio import-cache-role" type="radio" id="auto-import-cache" name="import-cache-role" value="auto-import-cache"> Automatic Import Cache Tuning</label>
+            <hr class="ds-hr">
+          </div>
+          <div id="manual-import-cache-form" hidden>
+            <label for="nsslapd-import-cachesize" class="ds-cache-label" title=
+            "The size of the database cache used in the bulk import process. (nsslapd-import-cachesize)."><b
+            >Import Cache Size (bytes)</b></label><input class="ds-input" type="text" id="nsslapd-import-cachesize" size="15"/>
+          </div>
+          <div id="auto-import-cache-form" hidden>
+            <label for="nsslapd-import-cache-autosize" class="ds-cache-label" title=
+              "Enables the import cache to be set automatically to a predetermined size when the import operation is run/  Value range -1 thru 100 (nsslapd-import-cache-autosize)."><b
+              >Import Cache Autosize</b></label><input class="ds-input" type="text" id="nsslapd-import-cache-autosize" size="3"/> %
+          </div>
+        </div>
         <p></p>
       </div>
-      <div class="ds-divider"></div>
-      <div>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-db-verbose"><label
-          for="nsslapd-db-verbose" class="ds-label" title="Enable database verbose logging (nsslapd-db-verbose)."> Enable Database Verbose Logging</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-db-debug"><label
-          for="nsslapd-db-debug" class="ds-label" title="Enables database debug logging (nsslapd-db-debug)."> Enable Database Debug Logging</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-db-durable-transactions" checked><label
-          for="nsslapd-db-durable-transactions" class="ds-label" title=
-          "sets whether database transaction log entries are immediately written to the disk. (nsslapd-db-durable-transactions)."> Enable Durable transactions</label>
-        <p></p>
+      <p></p>
+    </div>
+    
+    <input type="button" class="accordion db-accordion ds-agmt-wiz-button ds-accordion-spacing" id="db-accordion" value="Advanced Database Settings &#9660;"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-container">
+        <div>
+          <label for="nsslapd-db-logdirectory" class="ds-config-label" title=
+            "Database Transaction Log Location (nsslapd-db-logdirectory)."><b
+            >Transaction Logs Directory</b></label><input class="ds-input" type="text" id="nsslapd-db-logdirectory" size="15"/>
+          <label for="nsslapd-db-home-directory" class="ds-config-label" title=
+            "Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory)."><b
+            >Database Home Directory</b></label><input class="ds-input" type="text" id="nsslapd-db-home-directory" size="15"/>
+          <label for="nsslapd-db-locks" class="ds-config-label" title=
+            "The number of database locks (nsslapd-db-locks)."><b
+            >Database Locks</b></label><input class="ds-input" type="text" id="nsslapd-db-locks" size="15"/>
+          <label for="nsslapd-db-checkpoint-interval" class="ds-config-label" title=
+            "Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."><b
+            >Database Checkpoint Interval</b></label><input class="ds-input" type="text" id="nsslapd-db-checkpoint-interval" size="15"/>
+          <label for="nsslapd-db-checkpoint-interval" class="ds-config-label" title=
+            "The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval)."><b
+            >Database Compact Interval</b></label><input class="ds-input" type="text" id="nsslapd-db-checkpoint-interval" size="15"/>
+          <p></p>
+        </div>
+        <div class="ds-divider"></div>
+        <div class="ds-divider"></div>
+        <div>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-db-verbose"><label
+            for="nsslapd-db-verbose" class="ds-label" title="Enable database verbose logging (nsslapd-db-verbose)."> Enable Database Verbose Logging</label>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-db-debug"><label
+            for="nsslapd-db-debug" class="ds-label" title="Enables database debug logging (nsslapd-db-debug)."> Enable Database Debug Logging</label>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-db-durable-transactions" checked><label
+            for="nsslapd-db-durable-transactions" class="ds-label" title=
+            "sets whether database transaction log entries are immediately written to the disk. (nsslapd-db-durable-transactions)."> Enable Durable transactions</label>
+          <p></p>
+        </div>
       </div>
     </div>
     <hr class="ds-hr">
@@ -103,12 +146,17 @@
       <div>
         <label for="nsslapd-cachememsize" class="ds-config-label" title=
           "The size for the available memory space for the entry cache (nsslapd-cachememsize)."><b
-          >Entry Cache Size</b></label><input class="ds-input" type="text" id="nsslapd-cachememsize" size="15"/>
+          >Entry Cache Size (bytes)</b></label><input class="ds-input" type="text" id="nsslapd-cachememsize" size="15"/>
+        <label for="nsslapd-cachesize" class="ds-config-label" title=
+          "The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize)."><b
+          >Entry Cache Max Entries</b></label><input class="ds-input" type="text" id="nsslapd-cachesize" size="15"/>
         <label for="nsslapd-cachememsize" class="ds-config-label" title=
           "the available memory space for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize)."><b
-          >DN Cache Size</b></label><input class="ds-input" type="text" id="nsslapd-dncachememsize" size="15"/>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-suffix" checked><label
+          >DN Cache Size (bytes)</b></label><input class="ds-input" type="text" id="nsslapd-dncachememsize" size="15"/>
+        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-suffix"><label
           for="nsslapd-readonly-suffix" class="ds-label" title="Put database in Read-Only mode (nsslapd-readonly)."> Database Read-Only Mode</label>
+        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-require-index" checked><label
+          for="nsslapd-require-index" class="ds-label" title="Block unindexed searches on this suffix (nsslapd-require-index)."> Block Unindexed Searches</label>  
       </div>
       <div class="ds-divider"></div>
       <div class="ds-divider"></div>
@@ -127,7 +175,7 @@
               <td><button class="btn btn-default ds-agmt-dropdown-button" type="button" id="delete-referral">Delete Referral</button></td>
             </tr>
             <tr>
-              <td class="ds-agmt-td" id="ldap://example.localdomain:389">ldaps://localhost.localdomain:636</td>
+              <td class="ds-agmt-td" id="ldap://example.localdomain:389">ldaps://example.fedora.org:636</td>
               <td><button class="btn btn-default ds-agmt-dropdown-button" type="button" id="delete-referral2">Delete Referral</button></td>
             </tr>
           </tbody>
@@ -139,7 +187,7 @@
     <hr class="ds-hr">
 
     <input type="button" class="accordion ds-agmt-wiz-button ds-accordion-spacing suffix-accordion" id="suffix-index-accordion" value="Database Indexes &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <h2>System Indexes</h2>
       <hr class="ds-hr">
       <table id="system-index-table" class="display ds-repl-table" cellspacing="0" width="100%">
@@ -169,11 +217,11 @@
             <td class=""><input type="checkbox" disabled="disabled" class="" id="cn-sub"></td>
             <td class=""><input type="checkbox" disabled="disabled" class="" id="cn-approx"></td>
             <td></td>
-          </tr>  
+          </tr>
         </tbody>
       </table>
       <p></p>
-      
+
       <h2>Database Indexes</h2>
       <hr class="ds-hr">
       <table id="index-table" class="display ds-repl-table" cellspacing="0" width="100%">
@@ -230,16 +278,16 @@
                 </ul>
               </div>
             </td>
-          </tr>  
+          </tr>
         </tbody>
       </table>
       <button class="btn btn-default ds-agmt-button" type="button" id="create-index">Add Index</button>
       <p></p>
       <hr class="ds-hr">
     </div>
-    
+
     <input type="button" class="accordion suffix-accordion ds-agmt-wiz-button ds-accordion-spacing" id="suffix-attrencrypt-accordion" value="Attribute Encryption &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <table id="attr-encrypt-table" class="display ds-repl-table" cellspacing="0" width="100%">
         <thead>
           <tr class="ds-table-header">
@@ -260,23 +308,23 @@
       <p></p>
       <hr class="ds-hr">
     </div>
-    
+
     <input type="button" class="accordion suffix-accordion ds-agmt-wiz-button ds-accordion-spacing" id="suffix-chaining-accordion" value="Database Chaining &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <h3>Default Chaining Configuration Settings</h3>
       <div id="db" class="ds-container">
         <div>
           <label for="nsslapd-ZZZZZZZ" class="ds-config-label" title=
             "HOVER TEXT."><b
             >Some Chaining Setting</b></label><input class="ds-input" type="text" id="nsslapd-ZZZZZZZ" size="15"/>
-          
+
         </div>
         <div class="ds-divider"></div>
         <div class="ds-divider"></div>
         <div class="ds-split">
-        
+
         </div>
       <hr class="ds-hr">
-    </div>    
-    
+    </div>
+
   </div>

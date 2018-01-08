@@ -17,7 +17,6 @@
 .ds-container {
   margin: 0;
   padding: 0;
-  //border: 1px solid black;
   display: flex;
 }
 .ds-fixed {
@@ -26,7 +25,6 @@
   width: 200px;
   margin: 2px 2px 2px px;
   line-height:0;
-  //border: 1px solid black;
 }
 
 .ds-flex {
@@ -79,7 +77,6 @@
   margin: 0px 0px 0px 20px;
   padding: 10px;
   line-height:0;
-  // border: 1px solid black;
 }
 
 .ds-dropdown {
@@ -103,8 +100,10 @@
 }
 
 .ds-passwd-dropdown {
-  padding: 10px;
+  height: 35px !important;
+  padding: 0px !important;
   outline: 0 !important;
+  width: 150px !important;
 }
 
 .ds-rootdn-passwd-dropdown {
@@ -112,6 +111,16 @@
   padding: 10px;
   outline: 0 !important;
   width: 175px;
+}
+
+.dropdown {
+  color: black !important;
+}
+
+/* Fix Chrome dropdowns */
+.dropdown select, .dropdown option, .dropdown option:hover, .dropdown select:hover {
+  background-color: white !important;
+  color: black !important;
 }
 
 .ds-agmt-dropdown {
@@ -175,13 +184,18 @@
 }
 
 .ds-split {
-  width: 500px;
+  width: 400px;
 }
 
 .ds-input {
   margin-top: 5px;
   padding-right: 10px;
-  //background-color: #fcfcfc;
+}
+
+.ds-wiz-input {
+  width: 180px !important;
+  margin-top: 5px;
+  padding-right: 10px;
 }
 
 .ds-history-input {
@@ -258,7 +272,6 @@
 }
 
 .ds-label {
-  //display: inline-block !important;
   margin-top: -4px !important; /* I added this after I posted my reply */
   vertical-align: middle !important; /* Fixes any weird issues in Firefox and IE */
 }
@@ -272,6 +285,7 @@
 }
 
 .ds-agmt-wiz-dropdown {
+  color: black !important;
   padding: 0px !important;
   line-height: 0 !important;
   height: 40px;
@@ -301,7 +315,7 @@
 }
 
 .ds-agmt-dropdown li.active a, .ds-agmt-dropdown li a:hover {
-  color: white !important;  //#666;
+  color: white !important;
   background-color: black !important;
 }
 
@@ -458,22 +472,10 @@
   display: inline-block;
 }
 
-// End modal styles
-
-
-.ds-agmt-wiz-panel {
-  padding: 0 18px;
-  //background-color: white;
-  max-height: 0 !important;
-  overflow: hidden  !important;
-  transition: max-height 0.2s ease-out !important;
-  margin: 2px;
-  display: none;
-}
+/* End modal styles */
 
 .ds-log-panel {
   padding: 0 18px;
-  //background-color: white;
   max-height: 0 !important;
   overflow: hidden  !important;
   transition: max-height 0.2s ease-out !important;
@@ -483,7 +485,6 @@
 
 .ds-suffix-panel {
   padding: 0 18px;
-  //background-color: white;
   max-height: 0 !important;
   overflow: hidden  !important;
   transition: max-height 0.2s ease-out !important;
@@ -495,11 +496,10 @@
   height: 40px;
   width: 400px;
   font-weight: bold;
-  //margin: 5px;
 }
 
 .ds-agmt-wiz-dropdown {
-  width: 180px;
+  width: 180px !important;
   margin-top: 5px;
 }
 
@@ -527,7 +527,6 @@
 }
 
 .ds-fractional-container {
-  // border: 1px solid black;
   margin: 10px;
 }
 
@@ -542,7 +541,6 @@
 .ds-fractional-panel p {
   padding: 0px !important;
   margin-left: 0 !important;
-  //margin-bottom: 5px !important;  Good for schdule
 }
 
 .ds-fractional-list {
@@ -550,7 +548,6 @@
   min-height: 100px;
   max-height: 100px;
   overflow-y: scroll;
-  //margin-left: 30px;
 }
 
 .ds-fractional-btn {
@@ -589,16 +586,25 @@
 .ds-agmt-td {
   overflow: hidden !important;
   white-space: nowrap;
-  //word-wrap: break-word !important;
 }
 
 .ds-config-label {
-  //display: inline-block !important;
+  width: 210px !important;
+  margin-bottom: 10px !important;
+}
+
+.ds-cache-label {
+  margin-left: 20px !important;
   width: 210px !important;
 }
 
+.ds-repl-config-label {
+  width: 210px !important;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
 .ds-expire-label {
-  //display: inline-block !important;
   width: 285px !important;
 }
 
@@ -668,7 +674,6 @@
 }
 
 .ds-server-divider {
-  //width: 60px;
   margin-top: 5px;
   margin-left: 50px;
   margin-right: 30px;
@@ -712,14 +717,8 @@ textarea {
   line-height: 1;
 }
 
-// Removes dotted outline border of the text
+/* Removes dotted outline border of the text */
 select {
-  color: rgba(0,0,0,0) !important;
-  text-shadow: 0 0 0 #000 !important;
-}
-
-select:focus{
-  outline: none !important;
   color: rgba(0,0,0,0) !important;
   text-shadow: 0 0 0 #000 !important;
 }

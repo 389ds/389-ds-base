@@ -33,80 +33,92 @@
           class="ds-input" type="text" id="nsslapd-schemadir" size="40"/>
         <label for="nsslapd-certdir" class="ds-config-label" title="The location of the server's certificates (nsslapd-certdir)."><b>Certificate Directory</b></label><input
           class="ds-input" type="text" id="nsslapd-certdir" size="40"/>
-        <label for="nsslapd-anonlimitsdn" class="ds-config-label" title=
-          "The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."><b>Anonymous Resource Limits DN</b></label><input
-          class="ds-input" type="text" id="nsslapd-anonlimitsdn" size="40"/>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-disk-monitoring"><label
+      </div>
+      <div class="ds-divider"></div>
+      <div>
+      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-disk-monitoring"><label
           for="nsslapd-disk-monitoring" class="ds-label" title="Enable disk space monitoring (nsslapd-disk-monitoring).">Enable Disk Space Monitoring</label>
         <label for="nsslapd-disk-monitoring-threshold" class="ds-config-diskmon-label" title=
           "The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. (nsslapd-disk-monitoring-threshold)"><b>Monitoring Threshold</b></label><input
-          class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-threshold" size="40" disabled />
+          class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-threshold" size="10" disabled />
         <label for="nsslapd-disk-monitoring-grace-period" class="ds-config-diskmon-label" title=
           "How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)."> <b>Monitoring Grace Period</b> </label><input
-          class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period" size="40" disabled />
+          class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period" size="10" disabled />
         <input type="checkbox" class="ds-config-diskmon-checkbox disk-monitoring" id="nsslapd-disk-monitoring-logging-critical" disabled><label
           for="nsslapd-disk-monitoring-logging-critical" class="ds-label" title="When disk space gets critically low do not remove logs to free up disk space ().">Preserve Logs</label>
       </div>
-      <div class="ds-server-divider"></div>
-      <div class="">
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-schemacheck" checked><label
-          for="nsslapd-schemacheck" class="ds-label" title="Enable schema checking (nsslapd-schemacheck)."> Enable Schema Checking</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxcheck" checked><label
-          for="nsslapd-syntaxcheck" class="ds-label" title="Enable attribute syntax checking (nsslapd-syntaxcheck)."> Enable Attribute syntax checking</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxlogging" checked><label
-          for="nsslapd-syntaxlogging" class="ds-label" title="Enable syntax logging (nsslapd-syntaxlogging)."> Enable Attribute Syntax Logging</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-logging" checked><label
-          for="nsslapd-plugin-logging" class="ds-label" title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."> Enable Plugin Logging</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-binddn-tracking" checked><label
-          for="nsslapd-plugin-binddn-tracking" class="ds-label" title=
-          "Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."> Enable Plugin Bind DN Tracking </label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-attribute-name-exceptions" checked><label
-          for="nsslapd-attribute-name-exceptions" class="ds-label" title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers"> Allow Attribute Naming Exceptions </label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-dn-validate-strict" checked><label
-          for="nsslapd-dn-validate-strict" class="ds-label" title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."> Enable Strict DN Syntax Validation</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-entryusn-global" checked><label
-          for="nsslapd-entryusn-global" class="ds-label" title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."> Enable Unique USNs Across All Backends</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-time-skew" checked><label
-          for="nsslapd-ignore-time-skew" class="ds-label" title="Ignore time skew when generating CSNs"> Ignore CSN Time Skew</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-server" checked><label
-          for="nsslapd-readonly-server" class="ds-label" title="Make entire server read-only (nsslapd-readonly)"> Server Read-Only</label>
-        <label for="nsslapd-allow-anonymous-access" class="ds-server-label" title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."> Allow Anonymous Access</label><select
-          class="btn btn-default dropdown" id="nsslapd-allow-anonymous-access">
-            <option>On</option>
-            <option>Off</option>
-            <option title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ">rootdse</option>
-        </select>
-      </div>
-      <p></p>
    </div>
    <p></p>
 
-   <h2>Directory Manager Settings</h2>
-   <hr class="ds-hr">
-   <div>
-     <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn)."><b>Directory Manager DN</b></label><input
-       class="ds-input" type="text" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
-     <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw)."><b>Directory Manager Password</b></label><input
-       class="ds-input" type="password" id="nsslapd-rootpw" size="40"/>
-     <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password."><b>Confirm Password</b></label><input
-       class="ds-input" type="password" id="nsslapd-rootdn-confirm" size="40"/>
-     <label for="nsslapd-rootpwstoragescheme" class="ds-server-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme)."><b>Password Storage Scheme</b></label><select
-       class="btn btn-default dropdown ds-rootdn-passwd-dropdown" id="nsslapd-rootpwstoragescheme">
-         <option>PBKDF2_SHA256</option>
-         <option>SSHA512</option>
-         <option>SSHA384</option>
-         <option>SSHA256</option>
-         <option>SSHA</option>
-         <option>NS-MTA-MD5</option>
-         <option>MD5</option>
-         <option>SMD5</option>
-         <option>CRYPT-MD5</option>
-         <option>CRYPT-SHA512</option>
-         <option>CRYPT-SHA256</option>
-         <option>CRYPT</option>
-         <option>CLEAR</option>
-       </select>
-     <p></p>
+   <input type="button" class="accordion config-accordion ds-agmt-wiz-button ds-accordion-spacing" id="config-accordion" value="Advanced Settings &#9660;"/>
+   <div class="ds-accordion-panel">
+     <div class="ds-container">
+       <div class="">
+         <label for="nsslapd-anonlimitsdn" class="ds-config-label" title=
+           "The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."><b>Anonymous Resource Limits DN</b></label><input
+           class="ds-input" type="text" id="nsslapd-anonlimitsdn" size="40"/>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-schemacheck" checked><label
+           for="nsslapd-schemacheck" class="ds-label" title="Enable schema checking (nsslapd-schemacheck)."> Enable Schema Checking</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxcheck" checked><label
+           for="nsslapd-syntaxcheck" class="ds-label" title="Enable attribute syntax checking (nsslapd-syntaxcheck)."> Enable Attribute syntax checking</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxlogging" checked><label
+           for="nsslapd-syntaxlogging" class="ds-label" title="Enable syntax logging (nsslapd-syntaxlogging)."> Enable Attribute Syntax Logging</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-logging" checked><label
+           for="nsslapd-plugin-logging" class="ds-label" title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."> Enable Plugin Logging</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-binddn-tracking" checked><label
+           for="nsslapd-plugin-binddn-tracking" class="ds-label" title=
+           "Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."> Enable Plugin Bind DN Tracking </label>
+       </div>
+       <div class="ds-divider"></div>
+       <div>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-attribute-name-exceptions" checked><label
+           for="nsslapd-attribute-name-exceptions" class="ds-label" title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers"> Allow Attribute Naming Exceptions </label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-dn-validate-strict" checked><label
+           for="nsslapd-dn-validate-strict" class="ds-label" title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."> Enable Strict DN Syntax Validation</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-entryusn-global" checked><label
+           for="nsslapd-entryusn-global" class="ds-label" title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."> Enable Unique USNs Across All Backends</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-time-skew" checked><label
+           for="nsslapd-ignore-time-skew" class="ds-label" title="Ignore time skew when generating CSNs"> Ignore CSN Time Skew</label>
+         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-server" checked><label
+           for="nsslapd-readonly-server" class="ds-label" title="Make entire server read-only (nsslapd-readonly)"> Server Read-Only</label>
+         <label for="nsslapd-allow-anonymous-access" class="ds-server-label" title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."> Allow Anonymous Access</label><select
+            class="btn btn-default dropdown" id="nsslapd-allow-anonymous-access">
+              <option>On</option>
+              <option>Off</option>
+              <option title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ">rootdse</option>
+         </select>
+       </div>
+     </div>
+     <hr class="ds-hr">
+   </div>
+   <p></p>
+
+   <input type="button" class="accordion rootdn-accordion ds-agmt-wiz-button ds-accordion-spacing" id="rootdn-accordion" value="Directory Manager Settings &#9660;"/>
+   <div class="ds-accordion-panel">
+     <div>
+       <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn)."><b>Directory Manager DN</b></label><input
+         class="ds-input" type="text" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
+       <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw)."><b>Directory Manager Password</b></label><input
+         class="ds-input" type="password" id="nsslapd-rootpw" size="40"/>
+       <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password."><b>Confirm Password</b></label><input
+         class="ds-input" type="password" id="nsslapd-rootdn-confirm" size="40"/>
+       <label for="nsslapd-rootpwstoragescheme" class="ds-server-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme)."><b>Password Storage Scheme</b></label><select
+         class="btn btn-default dropdown ds-rootdn-passwd-dropdown" id="nsslapd-rootpwstoragescheme">
+           <option>PBKDF2_SHA256</option>
+           <option>SSHA512</option>
+           <option>SSHA384</option>
+           <option>SSHA256</option>
+           <option>SSHA</option>
+           <option>NS-MTA-MD5</option>
+           <option>MD5</option>
+           <option>SMD5</option>
+           <option>CRYPT-MD5</option>
+           <option>CRYPT-SHA512</option>
+           <option>CRYPT-SHA256</option>
+           <option>CRYPT</option>
+           <option>CLEAR</option>
+         </select>
+     </div>
    </div>
    <p></p>
 
@@ -317,40 +329,45 @@
       </div>
       <p></p>
     </div>
+    <p></p>
     <hr class="ds-hr">
     <button type="submit" class="ds-button">Save</button>
     <p></p>
-    <div>
-      <h3><br>Local Password Policies</h3>
-      <hr class="ds-hr">
-      <table id="passwd-policy-table" class="display ds-repl-table" cellspacing="0" width="100%">
-        <thead>
-          <tr class="ds-table-header">
-            <th>Policy Name</th>
-            <th>Backend</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="local-pwpolicy-tbody">
-          <tr>
-            <td class="ds-agmt-td">cn=nsPwPolicyEntry,dc=example,dc=com</td>
-            <td class="ds-agmt-td">dc=example,dc=com</td>
-            <td>
-              <div class="dropdown" >
-                <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
-                  <span class="caret"></span></button>
-                <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
-                  <li role="policy-role"><a role="pwpolicy" tabindex="0" href="#">View/Edit Policy</a></li>
-                  <li role="policy-role"><a role="pwpolicy" tabindex="-1" href="#">Delete Policy</a></li>
-                </ul>
-               </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <button class="btn btn-default ds-button" type="button" id="create-policy">Create Local Policy</button>
-      <p></p>
+    <p></p>
+
+    <input type="button" class="accordion localpwp-accordion ds-agmt-wiz-button ds-accordion-spacing" id="localpwd-accordion" value="Local Password Policies &#9660;"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-container3">
+        <table id="passwd-policy-table" class="display ds-repl-table" cellspacing="0" width="100%">
+          <thead>
+            <tr class="ds-table-header">
+              <th>Policy Name</th>
+              <th>Backend</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="local-pwpolicy-tbody">
+            <tr>
+              <td class="ds-agmt-td">cn=nsPwPolicyEntry,dc=example,dc=com</td>
+              <td class="ds-agmt-td">dc=example,dc=com</td>
+              <td>
+                <div class="dropdown" >
+                  <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
+                    <span class="caret"></span></button>
+                  <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
+                    <li role="policy-role"><a role="pwpolicy" tabindex="0" href="#">View/Edit Policy</a></li>
+                    <li role="policy-role"><a role="pwpolicy" tabindex="-1" href="#">Delete Policy</a></li>
+                  </ul>
+                 </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button class="btn btn-default ds-button" type="button" id="create-policy">Create Local Policy</button>
+        <p></p>
+      </div>
     </div>
+    <p></p>
   </div>
 
   <!--
@@ -363,7 +380,7 @@
 
     <!-- Access logging -->
     <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="access-accordion" value="Access Log Settings &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-accesslog-logging-enabled" checked><label
         for="nsslapd-accesslog-logging-enabled" class="ds-label" title="Enable access logging (nsslapd-accesslog-logging-enabled)."> Enable Access Logging</label>
       <div class="ds-expired-div" id="accesslog-attrs">
@@ -423,7 +440,7 @@
 
     <!-- Error logging -->
     <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="error-accordion" value="Errors Log Settings &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-errorlog-logging-enabled" checked><label
         for="nsslapd-errorlog-logging-enabled" class="ds-label" title="Enable error logging (nsslapd-errorlog-logging-enabled)."> Enable Error Logging</label>
       <div class="ds-expired-div" id="errorlog-attrs">
@@ -494,7 +511,7 @@
 
     <!-- Audit logging -->
     <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="audit-accordion" value="Audit Log Settings &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditlog-logging-enabled" checked><label
         for="nsslapd-auditlog-logging-enabled" class="ds-label" title="Enable audit logging (nsslapd-auditlog-logging-enabled)."> Enable Audit Logging</label>
       <div class="ds-expired-div" id="auditlog-attrs">
@@ -541,7 +558,7 @@
 
     <!-- Auditfail logging -->
     <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="audit-accordion" value="Audit Failure Log Settings &#9660;"/>
-    <div class="ds-agmt-wiz-panel">
+    <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditfaillog-logging-enabled" checked><label
         for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Enable audit failure logging (nsslapd-auditfaillog-logging-enabled)."> Enable Audit Failure Logging</label>
       <div class="ds-expired-div" id="auditfaillog-attrs">
@@ -571,7 +588,7 @@
         <label for="nsslapd-auditfaillog-logminfreediskspace" class="ds-config-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace)."><b>Free Disk Space (in MB)</b></label><input
           class="ds-input" type="text" id="nsslapd-auditfaillog-logminfreediskspace" size="40"/>
         <label for="nsslapd-auditfaillog-logexpirationtime" class="ds-config-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime)."><b>Log File is Older Than...</b> </label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-auditfaillog-logexpirationtimeunit">
+          class="ds-input" type="text" id="nsslapd-auditfaillog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown ds-auditfaillog-dropdown" id="nsslapd-auditfaillog-logexpirationtimeunit">
             <option>Days</option>
             <option>Weeks</option>
             <option>Months</option>
@@ -611,7 +628,7 @@
         Tuning
   -->
   <div id="server-tuning" class="server-cfg-ctrl" hidden>
-    <h2>Server Tuning</h2>
+    <h2>Server Tuning & Limits</h2>
     <hr class="ds-hr">
     <div class="ds-container">
       <!-- Attribute list -->
@@ -626,16 +643,6 @@
           class="ds-input" type="text" id="nsslapd-sizelimit" size="15"/>
         <label for="nsslapd-pagedsizelimit" class="ds-config-label" title="The maximum number of entries to return from a paged search operation (nsslapd-pagedsizelimit)."><b>Paged Search Size Limit</b></label><input
           class="ds-input" type="text" id="nsslapd-pagedsizelimit" size="15"/>
-        <label for="nsslapd-maxbersize" class="ds-config-label" title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize)."><b>Maximum BER Size</b></label><input
-          class="ds-input" type="text" id="nsslapd-maxbersize" size="15"/>
-        <label for="nsslapd-maxsasliosize" class="ds-config-label" title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize)."><b>Maximum SASL IO Size</b></label><input
-          class="ds-input" type="text" id="nsslapd-maxsasliosize" size="15"/>
-        <label for="nsslapd-listen-backlog-size" class="ds-config-label" title=
-          "The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size)."><b>Listen Backlog Size</b></label><input
-          class="ds-input" type="text" id="nsslapd-listen-backlog-size" size="15"/>
-        <label for="nsslapd-max-filter-nest-level" class="ds-config-label" title=
-          "Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level)."><b>Maximum Nested Filter Level</b></label><input
-          class="ds-input" type="text" id="nsslapd-max-filter-nest-level" size="15"/>
       </div>
       <div class="ds-divider"></div>
       <div>
@@ -643,21 +650,9 @@
           "Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout)."><b>Idle Connection Timeout</b></label><input
           class="ds-input" type="text" id="nsslapd-idletimeout" size="15"/>
         <label for="nsslapd-ioblocktimeout" class="ds-config-label" title=
-          "Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout)."><b>Idle Connection Timeout</b></label><input
+          "Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout)."><b>I/O Block Timeout</b></label><input
           class="ds-input" type="text" id="nsslapd-ioblocktimeout" size="15"/>
-        <label for="nsslapd-outbound-ldap-io-timeout" class="ds-config-label" title=
-          "Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout)."><b>Outbound IO Timeout</b></label><input
-          class="ds-input" type="text" id="nsslapd-outbound-ldap-io-timeout" size="15"/>
         <p></p>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-virtual-attrs" checked><label
-          for="nsslapd-ignore-virtual-attrs" class="ds-label" title=
-          "Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs)."> Disable Virtual Attribute Lookups</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-connection-nocanon" checked><label
-          for="nsslapd-connection-nocanon" class="ds-label" title=
-          "Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon)."> Disable Reverse DNS Lookups</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-enable-turbo-mode" checked><label
-          for="nsslapd-enable-turbo-mode" class="ds-label" title=
-          "Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."> Enable Connection Turbo Mode</label>
         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ndn-cache-enabled" checked><label
           for="nsslapd-ndn-cache-enabled" class="ds-label" title=
           "Enable the normalized DN cache (nsslapd-ndn-cache-enabled)."> Enable Normalized DN Cache</label>
@@ -665,6 +660,42 @@
           class="ds-input" type="text" id="nsslapd-ndn-cache-max-size" size="15"/>
       </div>
     </div>
+    <p></p>
+
+    <input type="button" class="accordion adv-config-accordion ds-agmt-wiz-button ds-accordion-spacing" id="adv-config-accordion" value="Advanced Settings &#9660;"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-container">
+        <div>
+          <label for="nsslapd-outbound-ldap-io-timeout" class="ds-config-label" title=
+            "Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout)."><b>Outbound IO Timeout</b></label><input
+            class="ds-input" type="text" id="nsslapd-outbound-ldap-io-timeout" size="15"/>
+          <label for="nsslapd-maxbersize" class="ds-config-label" title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize)."><b>Maximum BER Size</b></label><input
+            class="ds-input" type="text" id="nsslapd-maxbersize" size="15"/>
+          <label for="nsslapd-maxsasliosize" class="ds-config-label" title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize)."><b>Maximum SASL IO Size</b></label><input
+            class="ds-input" type="text" id="nsslapd-maxsasliosize" size="15"/>
+          <label for="nsslapd-listen-backlog-size" class="ds-config-label" title=
+            "The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size)."><b>Listen Backlog Size</b></label><input
+            class="ds-input" type="text" id="nsslapd-listen-backlog-size" size="15"/>
+          <label for="nsslapd-max-filter-nest-level" class="ds-config-label" title=
+            "Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level)."><b>Maximum Nested Filter Level</b></label><input
+            class="ds-input" type="text" id="nsslapd-max-filter-nest-level" size="15"/>
+        </div>
+        <div class="ds-divider"></div>
+        <div>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-virtual-attrs" checked><label
+            for="nsslapd-ignore-virtual-attrs" class="ds-label" title=
+            "Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs)."> Disable Virtual Attribute Lookups</label>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-connection-nocanon" checked><label
+            for="nsslapd-connection-nocanon" class="ds-label" title=
+            "Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon)."> Disable Reverse DNS Lookups</label>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-enable-turbo-mode" checked><label
+            for="nsslapd-enable-turbo-mode" class="ds-label" title=
+            "Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."> Enable Connection Turbo Mode</label>
+        </div>
+      </div>
+    </div>
+    <p></p>
+
     <hr class="ds-hr">
     <div class="ds-button-border">
       <button id="server-tuning-save-btn" class="btn btn-default ds-button">Save</button>
