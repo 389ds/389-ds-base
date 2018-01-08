@@ -152,7 +152,7 @@ ldap_utf8prevn(char *s, char *from, int n)
     }
     for (; n > 0; --n) {
         prev = ldap_utf8prev(prev);
-        if ((prev <= s) && (n > 0)) {
+        if ((n > 0) && (prev < s)) {
             return NULL;
         }
     }
