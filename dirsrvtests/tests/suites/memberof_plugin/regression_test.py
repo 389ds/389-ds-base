@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2017 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import logging
 import pytest
 import os
@@ -15,8 +23,9 @@ from lib389.idm.group import Groups, Group
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
 
-USER_CN='user_'
-GROUP_CN='group_'
+USER_CN = 'user_'
+GROUP_CN = 'group1'
+
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -230,6 +239,59 @@ def test_memberof_with_repl(topo):
     # Step 19
     for i in [M1, H1, C1]:
         _find_memberof(i, member_dn, grp0_dn)
+
+
+@pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
+def test_scheme_violation_errors_logged(topo):
+    """Check that ERR messages are verbose enough, if a member entry
+    doesn't have the appropriate objectclass to support 'memberof' attribute
+
+    :id: e2af0aaa-447e-4e85-a5ce-57ae66260d0b
+    :setup: Standalone instance
+    :steps:
+        1. Enable memberofPlugin and set autoaddoc to nsMemberOf
+        2. Restart the instance
+        3. Add a user without nsMemberOf attribute
+        4. Create a group and add the user to the group
+        5. Check that user has memberOf attribute
+        6. Check the error log for ".*oc_check_allowed_sv.*USER_DN.*memberOf.*not allowed.*"
+           and ".*schema violation caught - repair operation.*" patterns
+    :expectedresults:
+        1. Should be successful
+        2. Should be successful
+        3. Should be successful
+        4. Should be successful
+        5. User should have the attribute
+        6. Errors should be logged
+    """
+
+    inst = topo.ms["master1"]
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+    memberof.set_autoaddoc('nsMemberOf')
+    inst.restart()
+
+    users = UserAccounts(inst, SUFFIX)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': USER_CN, 'cn': USER_CN, 'sn': USER_CN})
+    testuser = users.create(properties=user_props)
+    testuser.remove('objectclass', 'nsMemberOf')
+
+    groups = Groups(inst, SUFFIX)
+    testgroup = groups.create(properties={'cn': GROUP_CN})
+
+    testgroup.add('member', testuser.dn)
+
+    user_memberof_attr = testuser.get_attr_val_utf8('memberof')
+    assert user_memberof_attr
+    log.info('memberOf attr value - '.format(user_memberof_attr))
+
+    pattern = ".*oc_check_allowed_sv.*{}.*memberOf.*not allowed.*".format(testuser.dn)
+    log.info("pattern = %s" % pattern)
+    assert inst.ds_error_log.match(pattern)
+
+    pattern = ".*schema violation caught - repair operation.*"
+    assert inst.ds_error_log.match(pattern)
 
 
 if __name__ == '__main__':
