@@ -12,13 +12,16 @@ import os
 import time
 import ldap
 import subprocess
-from lib389.utils import ds_is_older
+from random import sample
+from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes
 from lib389.topologies import topology_m1h1c1 as topo
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin
-from lib389 import agreement
+from lib389 import agreement, Entry
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups, Group
+from lib389.topologies import topology_m2 as topo_m2
+from lib389.replica import Replicas
 
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
@@ -33,6 +36,30 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+
+def add_users(topo_m2, users_num, suffix):
+    """Add users to the default suffix
+    Return the list of added user DNs.
+    """
+    users_list = []
+    users = UserAccounts(topo_m2.ms["master1"], suffix, rdn=None)
+    log.info('Adding %d users' % users_num)
+    for num in sample(range(1000), users_num):
+        num_ran = int(round(num))
+        USER_NAME = 'test%05d' % num_ran
+        user = users.create(properties={
+            'uid': USER_NAME,
+            'sn': USER_NAME,
+            'cn': USER_NAME,
+            'uidNumber': '%s' % num_ran,
+            'gidNumber': '%s' % num_ran,
+            'homeDirectory': '/home/%s' % USER_NAME,
+            'mail': '%s@redhat.com' % USER_NAME,
+            'userpassword': 'pass%s' % num_ran,
+        })
+        users_list.append(user)
+    return users_list
 
 
 def config_memberof(server):
@@ -292,6 +319,74 @@ def test_scheme_violation_errors_logged(topo):
 
     pattern = ".*schema violation caught - repair operation.*"
     assert inst.ds_error_log.match(pattern)
+
+
+@pytest.mark.bz1192099
+def test_memberof_with_changelog_reset(topo_m2):
+    """Test that replication does not break, after DS stop-start, due to changelog reset
+
+    :id: 60c11636-55a1-4704-9e09-2c6bcc828de4
+    :setup: 2 Masters
+    :steps:
+        1. On M1 and M2, Enable memberof
+        2. On M1, add 999 entries allowing memberof
+        3. On M1, add a group with these 999 entries as members
+        4. Stop M1 in between,
+           when add the group memerof is called and before it is finished the
+           add, so step 4 should be executed after memberof has started and
+           before the add has finished
+        5. Check that replication is working fine
+    :expectedresults:
+        1. memberof should be enabled
+        2. Entries should be added
+        3. Add operation should start
+        4. M1 should be stopped
+        5. Replication should be working fine
+    """
+    m1 = topo_m2.ms["master1"]
+    m2 = topo_m2.ms["master2"]
+
+    log.info("Configure memberof on M1 and M2")
+    memberof = MemberOfPlugin(m1)
+    memberof.enable()
+    memberof.set_autoaddoc('nsMemberOf')
+    m1.restart()
+
+    memberof = MemberOfPlugin(m2)
+    memberof.enable()
+    memberof.set_autoaddoc('nsMemberOf')
+    m2.restart()
+
+    log.info("On M1, add 999 test entries allowing memberof")
+    users_list = add_users(topo_m2, 999, DEFAULT_SUFFIX)
+
+    log.info("On M1, add a group with these 999 entries as members")
+    dic_of_attributes = {'cn': ensure_bytes('testgroup'),
+                         'objectclass': ensure_list_bytes(['top', 'groupOfNames'])}
+
+    for user in users_list:
+        dic_of_attributes.setdefault('member',[])
+        dic_of_attributes['member'].append(user.dn)
+
+    log.info('Adding the test group using async function')
+    groupdn = 'cn=testgroup,%s' % DEFAULT_SUFFIX
+    m1.add(Entry((groupdn, dic_of_attributes)))
+
+    #shutdown the server in-between adding the group
+    m1.stop()
+
+    #start the server
+    m1.start()
+
+    log.info("Check the log messages for error")
+    error_msg = "ERR - NSMMReplicationPlugin - ruv_compare_ruv"
+    assert not m1.ds_error_log.match(error_msg)
+
+    log.info("Check that the replication is working fine both ways, M1 <-> M2")
+    replicas_m1 = Replicas(m1)
+    replicas_m2 = Replicas(m2)
+    replicas_m1.test(DEFAULT_SUFFIX, m2)
+    replicas_m2.test(DEFAULT_SUFFIX, m1)
 
 
 if __name__ == '__main__':
