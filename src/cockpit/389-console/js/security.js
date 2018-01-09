@@ -58,6 +58,10 @@ $(document).ready( function() {
       "language": {
         "emptyTable": "No Certificates In Database"
       },
+      "columnDefs": [ {
+        "targets": 2,
+        "orderable": false
+      } ]
     });
 
 

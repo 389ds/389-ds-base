@@ -12,9 +12,9 @@
     <hr class="ds-hr">
     <div class="ds-expired-div" id="cert-attrs">
       <label for="nsslapd-secureport" class="ds-config-label" title="The server's secure port number (nsslapd-secureport)."><b>Server Secure Port</b></label><input
-        class="ds-input" type="text" id="nsslapd-secureport" size="40"/>
+        class="ds-input-lrg" type="text" id="nsslapd-secureport" size="40"/>
       <label for="nsslapd-securelistenhost" class="ds-config-label" title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."><b>Secure Listen Host Address</b></label><input
-        class="ds-input" type="text" id="nsslapd-securelistenhost" size="40"/>
+        class="ds-input-lrg" type="text" id="nsslapd-securelistenhost" size="40px"/>
       <label for="cipher-area" class="ds-sec-label"><b>Allowed Ciphers</b></label><textarea id="cipher-area" rows="5" cols="100">+all</textarea>
       <label for="sec-sslmin" class="ds-sec-label" title="The minimum SSL/TLS version the server will accept (sslversionmin).">Minimum SSL/TLS Version </label><select
         class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="sec-sslmin">
@@ -160,6 +160,43 @@
     </div>
   </div>
 
+  <!-- Modals/Popups/Wizards  -->
+
+  <div id="import-cert" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Import Certificate</b> <span class="close" id="import-cert-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="import-cert-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="import-cert-save" class="ds-button-right">Import Certificate</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="export-cert" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Export Certificate</b> <span class="close" id="export-cert-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="export-cert-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="export-cert-save" class="ds-button-right">Export Certificate</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
 
 

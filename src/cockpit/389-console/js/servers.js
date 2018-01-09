@@ -80,7 +80,11 @@ $(document).ready( function() {
       "dom": '<"pull-left"f><"pull-right"l>tip',
       "language": {
         "emptyTable": "No SASL Mappings"
-      }
+      },
+      "columnDefs": [ {
+        "targets": 5,
+        "orderable": false
+      } ]
     });
 
     $("#passwordhistory").change(function() {
@@ -201,7 +205,11 @@ $(document).ready( function() {
       //"lengthMenu": [ 16, 32, 64, 128],
       "language": {
         "emptyTable": "No local policies"
-      }
+      },
+      "columnDefs": [ {
+        "targets": 2,
+        "orderable": false
+      } ]
     });
 
     // Accordion opening/closings
@@ -235,6 +243,19 @@ $(document).ready( function() {
     var rootdn_acc = document.getElementsByClassName("rootdn-accordion");
     for (var i = 0; i < rootdn_acc.length; i++) {
       rootdn_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
+    var pwp_acc = document.getElementsByClassName("pwp-accordion");
+    for (var i = 0; i < pwp_acc.length; i++) {
+      pwp_acc[i].onclick = function() {
         this.classList.toggle("active");
         var panel = this.nextElementSibling;
         if (panel.style.display === "block") {

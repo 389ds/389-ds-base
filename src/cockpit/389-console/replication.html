@@ -103,7 +103,7 @@
       <button class="btn btn-default ds-repl-managers-buttons" id="delete-repl-manager">Delete Replication Manager</button>
       <p></p>
 
-      <input type="button" class="accordion repl-config-accordion ds-agmt-wiz-button ds-accordion-spacing" id="repl-config-accordion" value="Advanced Replication Settings &#9660;"/>
+      <input type="button" class="accordion repl-config-accordion ds-accordion-button ds-accordion-spacing" id="repl-config-accordion" value="Advanced Replication Settings &#9660;"/>
       <div class="ds-accordion-panel">
         <div class="ds-container">
           <div>
@@ -265,10 +265,10 @@
   Replication Agreement wizard
 
   ----------------------------------------------------------- -->
-  <div id="agmt-wizard" class="modal">
-    <form id="agmt-form" class="modal-content animate">
+  <div id="agmt-form" class="modal">
+    <form id="" class="modal-content animate">
       <div class="container">
-        <h2 id="agmt-wizard-title"><b>Create Replication Agreement</b></h2>
+        <h2 id="agmt-wizard-title"><b>Create Replication Agreement</b> <span class="close" id="agmt-close">&times;</span> </h2>
         <hr class="ds-hr">
         <div class="ds-container">
           <div>
@@ -278,6 +278,12 @@
               class="ds-wiz-input" type="text" placeholder="Consumer hostname" id="nsds5replicahost" name="port" required>
             <label for="nsds5replicaport" class="ds-config-label" title="Agreement name (nsDS5ReplicaPort)."><b>Consumer Port</b></label><input
               class="ds-wiz-input" type="text" placeholder="Consumer port number" id="nsds5replicaport" name="name" required>
+            <label for="nsds5replicabinddn" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaBindDN)."><b>Replication Bind DN</b></label><input
+              class="ds-wiz-input" type="text" placeholder="Bind DN" id="nsds5replicabinddn" name="name" required>
+            <label for="nsds5replicacredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials)."><b>Replication Bind DN Credentials</b></label><input
+              class="ds-wiz-input" type="password" placeholder="Enter password" id="nsds5replicacredentials" name="name" required>
+            <label for="nsds5replicacredentials-confirm" class="ds-config-label" title="Confirm password"><b>Confirm Password</b></label><input
+              class="ds-wiz-input" type="password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" required>
             <label for="nsds5replicatransportinfo" class="ds-config-label" title="Agreement name (nsDS5ReplicaTransportInfo)."><b>Connection Protocol</b></label><select
               class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="nsds5replicatransportinfo">
                 <option>LDAP</option>
@@ -290,12 +296,6 @@
                 <option>SASL/DIGEST-MD5</option>
                 <option>SASL/GSSAPI</option>
               </select>
-            <label for="nsds5replicabinddn" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaBindDN)."><b>Replication Bind DN</b></label><input
-              class="ds-wiz-input" type="text" placeholder="Bind DN" id="nsds5replicabinddn" name="name" required>
-            <label for="nsds5replicacredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials)."><b>Replication Bind DN Credentials</b></label><input
-              class="ds-wiz-input" type="password" placeholder="Enter password" id="nsds5replicacredentials" name="name" required>
-            <label for="nsds5replicacredentials-confirm" class="ds-config-label" title="Confirm password"><b>Confirm Password</b></label><input
-              class="ds-wiz-input" type="password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" required>
           </div>
         </div>
 
@@ -429,12 +429,31 @@
           </select></p>
         </div>
         <hr class="ds-hr">
-        <div class=" clearfix ds-container">  <!-- class=clearfix -->
+        <div class="clearfix ds-container">
           <div class="ds-panel-left">
             <button type="button" id="agmt-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" class="ds-button-right">Save</button>
+            <button type="submit" id="agmt-save" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+
+  <div id="cleanallruv" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create CleanAllRUV Task</b> <span class="close" id="create-cleanallruv-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="cleanallruv-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="cleanallruv-save" class="ds-button-right">Create Task</button>
           </div>
         </div>
       </div>

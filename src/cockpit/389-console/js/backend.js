@@ -1,51 +1,63 @@
 
 
 function customMenu (node) {
-    var root_items = {
-      "create_suffix": {
-        "label": "Create Suffix",
-        "icon": "glyphicon glyphicon-plus",
-        "action": function (data) {
-             // Create suffix
-        }
+  var root_items = {
+    "create_suffix": {
+      "label": "Create Suffix",
+      "icon": "glyphicon glyphicon-plus",
+      "action": function (data) {
+        // TODO Create suffix
       }
-    };
+    }
+  };
 
-   var suffix_items = {
+  var dblink_items = {
+    "delete_link": {
+      "label": "Delete DB Link",
+      "icon": "glyphicon glyphicon-trash",
+      "action": function (data) {
+        // TODO Delete db link
+       }
+     }
+  };
+
+  var suffix_items = {
      'import': {
           "label": "Initialize Suffix",
           "icon": "glyphicon glyphicon-circle-arrow-right",
          "action": function (data) {
-           // Create suffix
+           // TODO Import suffix
           }
       },
       'export': {
           "label": "Export Suffix",
           "icon": "glyphicon glyphicon-circle-arrow-left",
          "action": function (data) {
-           // Create suffix
+           // TODO Export suffix
           }
       },
       'reindex': {
           "label": "Reindex Suffix",
           "icon": "glyphicon glyphicon-wrench",
          "action": function (data) {
-           // Create suffix
+           // TODO Reindex suffix
           }
       },
       "create_db_link": {
         "label": "Create Database Link",
         "icon": "glyphicon glyphicon-link",
         "action": function (data) {
-          // Create suffix
-
+          var suffix_id = $(node).attr('id');
+          var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
+          //clear_chaining_form();   //TODO
+          $("#create-db-link-form").css('display', 'block');
          }
       },
       "create_sub_suffix": {
         "label": "Create Sub-Suffix",
         "icon": "glyphicon glyphicon-triangle-bottom",
         "action": function (data) {
-          // Create suffix
+          // TODO reate suffix
 
          }
       },
@@ -53,15 +65,18 @@ function customMenu (node) {
           "label": "Delete Suffix",
           "icon": "glyphicon glyphicon-remove",
          "action": function (data) {
-           // Create suffix
+           // TODO Delete suffix
           }
       }
    };
 
    if ( $(node).attr('id') == "root" ) {
-       return root_items;
+     return root_items;
+   } else if ( $(node).attr('id').startsWith('suffix') ){
+     return suffix_items;
    } else {
-        return suffix_items;
+     // chaining
+     return dblink_items;
    }
 };
 
@@ -74,14 +89,25 @@ function load_jstree() {
   });
 
   $('#tree').on("changed.jstree", function (e, data) {
-    console.log("The selected nodes are:");
-    console.log(data.selected);
-    var suffix = data.selected;
-    if (suffix == "root"){
+    var node_type = data.selected[0];
+    var suffix = data.instance.get_node(data.selected[0]).text.replace(/(\r\n|\n|\r)/gm,"");
+
+    console.log("The selected nodes are: " + node_type + " = " + suffix);
+
+    if (node_type == "root"){
+      $("#suffix").hide();
+      $("#chaining").hide();
       $("#db").show();
-       $("#suffix").hide();
-    } else {
+    } else if (node_type.startsWith("dblink")) {
+      var parent_suffix = node_type.substring(node_type.indexOf('-')+1);
       $("#db").hide();
+      $("#suffix").hide();
+      $("#chaining-header").html("Database Chaining Configuration <font size=\"2\">(<b>" + parent_suffix + "</b>)</font>");
+      $("#chaining").show();
+    } else {
+      // suffix
+      $("#db").hide();
+      $("#chaining").hide();
       $("#suffix-header").html("Suffix Configuration <font size=\"2\">(<b>" + suffix + "</b>)</font>");
       $("#suffix").show();
     }
@@ -109,7 +135,11 @@ $(document).ready( function() {
       "dom": '<"pull-left"f><"pull-right"l>tip',
       "language": {
         "emptyTable": "No Referrals"
-      }
+      },
+      "columnDefs": [ {
+        "targets": 1,
+        "orderable": false
+      } ]
     });
 
     $('#system-index-table').DataTable( {
@@ -127,6 +157,10 @@ $(document).ready( function() {
       "language": {
         "emptyTable": "No Indexes"
       },
+      "columnDefs": [ {
+        "targets": 6,
+        "orderable": false
+      } ]
     });
     $('#attr-encrypt-table').DataTable( {
       "paging": true,
@@ -135,6 +169,10 @@ $(document).ready( function() {
       "language": {
         "emptyTable": "No Encrypted Attributes"
       },
+      "columnDefs": [ {
+        "targets": 2,
+        "orderable": false
+      } ]
     });
 
     // Accordion opening/closings
@@ -164,7 +202,7 @@ $(document).ready( function() {
         }
       }
     }
-    
+
     var cache_acc = document.getElementsByClassName("cache-accordion");
     for (var i = 0; i < cache_acc.length; i++) {
       cache_acc[i].onclick = function() {
@@ -178,8 +216,22 @@ $(document).ready( function() {
       }
     }
 
+    var chain_adv_acc = document.getElementsByClassName("chaining-adv-accordion");
+    for (var i = 0; i < chain_adv_acc.length; i++) {
+      chain_adv_acc[i].onclick = function() {
+        this.classList.toggle("active");
+        var panel = this.nextElementSibling;
+        if (panel.style.display === "block") {
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+        }
+      }
+    }
+
+
     $(".index-type").attr('readonly', 'readonly');
-    
+
     if ( $("#manual-cache").is(":checked") ){
       $("#auto-cache-form").hide();
       $("#manual-cache-form").show();
@@ -201,7 +253,7 @@ $(document).ready( function() {
       $("#manual-import-cache-form").hide();
       $("#auto-import-cache-form").show();
     }
-   
+
     $(".cache-role").on("change", function() {
       var role = $("input[name=cache-role]:checked").val();
       if (role == "manual-cache") {
@@ -231,6 +283,95 @@ $(document).ready( function() {
          $("#auto-import-cache-form").show();
       }
     });
+
+    // Based on the db-link connection type change the agmt-auth options
+    $("#dblink-conn").change(function() {
+      var ldap_opts = {"Simple": "Simple",
+                       "SASL/DIGEST-MD5": "SASL/DIGEST-MD5",
+                       "SASL/GSSAPI": "SASL/GSSAPI"};
+      var ldaps_opts = {"Simple": "Simple",
+                        "SSL Client Authentication": "SSL Client Authentication",
+                        "SASL/DIGEST-MD5": "SASL/DIGEST-MD5"};
+      var $auth = $("#nsbindmechanism");
+      $auth.empty();
+      var conn = $('#dblink-conn').val();
+      if (conn == "LDAP"){
+        $.each(ldap_opts, function(key, value) {
+          $auth.append($("<option></option>").attr("value", value).text(key));
+        });
+      } else {
+        // TLS options
+        $.each(ldaps_opts, function(key, value) {
+          $auth.append($("<option></option>").attr("value", value).text(key));
+        });
+      }
+      $("#nsmultiplexorbinddn").prop('disabled', false);
+      $("#nsmultiplexorcredentials").prop('disabled', false);
+      $("#nsmultiplexorcredentials-confirm").prop('disabled', false);
+    });
+
+    // Check for auth changes and disable/enable bind DN & password for db-links
+    $("#nsbindmechanism").change(function() {
+      var authtype = $('#nsbindmechanism').val();
+      if (authtype == "SSL Client Authentication") {
+        $("#nsmultiplexorbinddn").prop('disabled', true);
+        $("#nsmultiplexorcredentials").prop('disabled', true);
+        $("#nsmultiplexorcredentials-confirm").prop('disabled', true);
+      } else {
+        $("#nsmultiplexorbinddn").prop('disabled', false);
+        $("#nsmultiplexorcredentials").prop('disabled', false);
+        $("#nsmultiplexorcredentials-confirm").prop('disabled', false);
+      }
+    });
+
+    //
+    // Modal Forms
+    //
+
+    // Chaining OIDS
+    $("#chain-oid-close").on("click", function() {
+      $("#chaining-oids-form").css('display', 'none');
+    });
+    $("#chaining-oid-cancel").on("click", function() {
+      $("#chaining-oids-form").css('display', 'none');
+    });
+    $("#chaining-oid-button").on("click", function() {
+      // Update oids
+      $("#chaining-oids-form").css('display', 'block');
+    })
+    $("#chaining-oid-save").on("click", function() {
+      // Update oids
+      $("#chaining-oids-form").css('display', 'none');
+    });
+
+    // Chaining Comps
+    $("#chain-comp-close").on("click", function() {
+      $("#chaining-comp-form").css('display', 'none');
+    });
+    $("#chaining-comp-cancel").on("click", function() {
+      $("#chaining-comp-form").css('display', 'none');
+    });
+    $("#chaining-comp-button").on("click", function() {
+      // Update Comps
+      $("#chaining-comp-form").css('display', 'block');
+    })
+    $("#chaining-comp-save").on("click", function() {
+      // Update comps
+      $("#chaining-comp-form").css('display', 'none');
+    });
+
+    // Create DB Link
+    $("#create-chain-close").on("click", function() {
+      $("#create-db-link-form").css('display', 'none');
+    });
+    $("#chaining-cancel").on("click", function() {
+      $("#create-db-link-form").css('display', 'none');
+    });
+    $("#chaining-save").on("click", function() {
+      // Create DB link, if LDAPS is selected replace remotefarmUrl "ldap://" with "ldaps://", and visa versa to remove ldaps://
+      $("#create-db-link-form").css('display', 'none');
+    });
+
   });
 });
 

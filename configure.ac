@@ -379,7 +379,8 @@ if test "$with_fhs_opt" = "yes"; then
   # relative to datadir
   cockpitdir=/389-console
   cockpitstaticdir=/389-console/static
-  cockpitimagesdir=/389-console/static/images
+  cockpitimagesdir=/389-console/images
+  cockpitstaticimagesdir=/389-console/static/images
   cockpitjsdir=/389-console/js
   cockpitcssdir=/389-console/css
 else
@@ -421,7 +422,8 @@ else
   # relative to datadir
   cockpitdir=/$PACKAGE_NAME/389-console
   cockpitstaticdir=/$PACKAGE_NAME/389-console/static
-  cockpitimagesdir=/$PACKAGE_NAME/389-console/static/images
+  cockpitimagesdir=/$PACKAGE_NAME/389-console/images
+  cockpitstaticimagesdir=/$PACKAGE_NAME/389-console/static/images
   cockpitjsdir=/$PACKAGE_NAME/389-console/js
   cockpitcssdir=/$PACKAGE_NAME/389-console/css
 fi
@@ -514,6 +516,7 @@ AC_SUBST(updatedir)
 AC_SUBST(cockpitdir)
 AC_SUBST(cockpitstaticdir)
 AC_SUBST(cockpitimagesdir)
+AC_SUBST(cockpitstaticimagesdir)
 AC_SUBST(cockpitjsdir)
 AC_SUBST(cockpitcssdir)
 AC_SUBST(defaultuser)

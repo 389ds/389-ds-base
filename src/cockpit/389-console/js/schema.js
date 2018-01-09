@@ -23,6 +23,7 @@ $(document).ready( function() {
       "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]]
     });
 
+
     $('#custom-oc-table').DataTable ({
       "paging": true,
       "bAutoWidth": false,
@@ -30,7 +31,11 @@ $(document).ready( function() {
       "language": {
         "emptyTable": "No custom objectclasses defined"
       },
-      "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]]
+      "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
+      "columnDefs": [ {
+        "targets": 5,
+        "orderable": false
+      } ]
     });
     $('#custom-attr-table').DataTable({
       "paging": true,
@@ -39,7 +44,11 @@ $(document).ready( function() {
       "language": {
         "emptyTable": "No custom attributes defined"
       },
-      "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]]
+      "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
+      "columnDefs": [ {
+        "targets": 7,
+        "orderable": false
+      } ]
     });
 
     $('#schema-mr-table').DataTable({

@@ -3,12 +3,15 @@
     <li title="cn=config,cn=ldbm database,cn=plugins,cn=config " id="root" class="jstree-open ds-treenode"
       data-jstree='{"icon":"glyphicon glyphicon-tree-deciduous", "opened":true, "selected":true}'>Database
       <ul>
-        <li title="suffix" id="dc=example,dc=com" data-jstree='{"icon":"glyphicon glyphicon-tree-conifer"}'>dc=example,dc=com
+        <li title="suffix" id="suffix-dc=example,dc=com" data-jstree='{"icon":"glyphicon glyphicon-tree-conifer"}'>dc=example,dc=com
           <ul>
-            <li title="sub suffix" id="ou=people,dc=example,dc=com" data-jstree='{"icon":"glyphicon glyphicon-leaf"}'>ou=people,dc=example,dc=com</li>
+            <li title="sub suffix" id="suffix-ou=people-dc=example,dc=com" data-jstree='{"icon":"glyphicon glyphicon-leaf"}'>ou=people,dc=example,dc=com</li>
           </ul>
         </li>
-        <li title="suffix" id="o=ipaca" data-jstree='{"icon":"glyphicon glyphicon-tree-conifer"}'>o=ipaca.com
+        <li title="suffix" id="suffix-o=ipaca.com" data-jstree='{"icon":"glyphicon glyphicon-tree-conifer"}'>o=ipaca.com
+          <ul>
+            <li title="chained suffix" id="dblink-o=ipaca.com" data-jstree='{"icon":"glyphicon glyphicon-link"}'>MyChainingDBLink</li>
+          </ul>
         </li>
       </ul>
     </li>
@@ -47,7 +50,7 @@
     </div>
     <p></p>
     
-    <input type="button" class="accordion cache-accordion ds-agmt-wiz-button ds-accordion-spacing" id="cache-accordion" value="Cache Settings &#9660;"/>
+    <input type="button" class="accordion cache-accordion ds-accordion-button ds-accordion-spacing" id="cache-accordion" value="Cache Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <div class="ds-container">
         <div class="ds-split">
@@ -98,23 +101,23 @@
       <p></p>
     </div>
     
-    <input type="button" class="accordion db-accordion ds-agmt-wiz-button ds-accordion-spacing" id="db-accordion" value="Advanced Database Settings &#9660;"/>
+    <input type="button" class="accordion db-accordion ds-accordion-button ds-accordion-spacing" id="db-accordion" value="Advanced Database Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <div class="ds-container">
         <div>
-          <label for="nsslapd-db-logdirectory" class="ds-config-label" title=
+          <label for="nsslapd-db-logdirectory" class="ds-config-label ds-cache-label" title=
             "Database Transaction Log Location (nsslapd-db-logdirectory)."><b
             >Transaction Logs Directory</b></label><input class="ds-input" type="text" id="nsslapd-db-logdirectory" size="15"/>
-          <label for="nsslapd-db-home-directory" class="ds-config-label" title=
+          <label for="nsslapd-db-home-directory" class="ds-config-label ds-cache-label" title=
             "Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory)."><b
             >Database Home Directory</b></label><input class="ds-input" type="text" id="nsslapd-db-home-directory" size="15"/>
-          <label for="nsslapd-db-locks" class="ds-config-label" title=
+          <label for="nsslapd-db-locks" class="ds-config-label ds-cache-label" title=
             "The number of database locks (nsslapd-db-locks)."><b
             >Database Locks</b></label><input class="ds-input" type="text" id="nsslapd-db-locks" size="15"/>
-          <label for="nsslapd-db-checkpoint-interval" class="ds-config-label" title=
+          <label for="nsslapd-db-checkpoint-interval" class="ds-config-label ds-cache-label" title=
             "Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."><b
             >Database Checkpoint Interval</b></label><input class="ds-input" type="text" id="nsslapd-db-checkpoint-interval" size="15"/>
-          <label for="nsslapd-db-checkpoint-interval" class="ds-config-label" title=
+          <label for="nsslapd-db-checkpoint-interval" class="ds-config-label ds-cache-label" title=
             "The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval)."><b
             >Database Compact Interval</b></label><input class="ds-input" type="text" id="nsslapd-db-checkpoint-interval" size="15"/>
           <p></p>
@@ -131,18 +134,211 @@
             "sets whether database transaction log entries are immediately written to the disk. (nsslapd-db-durable-transactions)."> Enable Durable transactions</label>
           <p></p>
         </div>
+        <p></p><br>
+      </div>
+      <p></p>
+    </div>
+
+    <!-- Database Chaining -->
+    <input type="button" class="accordion suffix-accordion ds-accordion-button ds-accordion-spacing" id="suffix-chaining-accordion" value="Database Chaining Settings &#9660;"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-accordian-div">
+        <h3>Database Link Settings</h3>
+        <hr class="ds-hr">
+        <p></p>
+        <div class="ds-container">
+          <div class="ds-chaining-split">
+            <form>
+              <label class="ds-config-label" for "chaining-oid-list" title=
+                "A list of LDAP control OIDs to be forwarded through chaining"><b>Forwarded LDAP Controls</b></label>
+              <select id="chaining-oid-list" class="ds-chaining-list" name="nstransmittedcontrols" multiple>
+                <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.344</option>
+              </select>
+            </form>
+            <div class="clearfix ds-container">
+              <div class="ds-panel-left">
+                <button type="button" id="chaining-oid-button" class="ds-button-left">Add</button>
+              </div>
+              <div class="ds-panel-right">
+                <button type="button" id="delete-chaining-oid-button" class="ds-button-right">Delete</button>
+              </div>
+            </div>
+          </div>
+          <div class="ds-chaining-divider"></div>
+          <div class="ds-chaining-split">
+            <form>
+              <label class="ds-config-label" for "chaining-comp-list" title=
+                "A list of components to go through chaining"><b>Components to Chain</b></label>
+              <select id="chaining-comp-list" class="ds-chaining-list" name="nsactivechainingcomponents" multiple>
+                <option value="1.5.6.5.5.6.88.4553.344">cn=roles,cn=components,cn=config</option>
+              </select>
+            </form>
+            <div class="clearfix ds-container">
+              <div class="ds-panel-left">
+                <button type="button" id="chaining-comp-button" class="ds-button-left">Add</button>
+              </div>
+              <div class="ds-panel-right">
+                <button type="button" id="delete-chaining-comp-button" class="ds-button-right">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p></p>
+
+      <div class="ds-accordian-div">
+        <h3>Default Database Link Creation Settings</h3>
+        <hr class="ds-hr">
+        <div class="ds-container">
+          <div class="ds-split">
+            <label for="chaining-size-limit" class="ds-config-label" title=
+              "The size limit of entries returned over a database link (nsslapd-sizelimit)."><b
+              >Size Limit</b></label><input class="ds-input" type="text" id="chaining-size-limit" size="15"/>
+            <label for="chaining-time-limit" class="ds-config-label" title=
+              "The time limit of an operation over a database link (nsslapd-timelimit)."><b
+              >Time Limit</b></label><input class="ds-input" type="text" id="chaining-time-limit" size="15"/>
+            <label for="nsbindconnectionslimit" class="ds-config-label" title=
+              "The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit)."><b
+              >Max TCP Connections</b></label><input class="ds-input" type="text" id="nsbindconnectionslimit" size="15"/>
+            <label for="nsoperationconnectionslimit" class="ds-config-label" title=
+              "The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."><b
+              >Max LDAP Connections</b></label><input class="ds-input" type="text" id="nsoperationconnectionslimit" size="15"/>
+            <label for="nsconcurrentbindlimit" class="ds-config-label" title=
+              "The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit)."><b
+              >Max Binds Per Connection</b></label><input class="ds-input" type="text" id="nsconcurrentbindlimit" size="15"/>
+            <label for="nsbindtimeout" class="ds-config-label" title=
+              "The amount of time before the bind attempt times out. (nsbindtimeout)."><b
+              >Bind Timeout</b></label><input class="ds-input" type="text" id="nsbindtimeout" size="15"/>
+          </div>
+          <div class="ds-divider"></div>
+          <div class="ds-split">
+            <label for="nsbindretrylimit" class="ds-config-label" title=
+              "The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit)."><b
+              >Bind Retry Limit</b></label><input class="ds-input" type="text" id="nsbindretrylimit" size="15"/>
+            <label for="nsconcurrentoperationslimit" class="ds-config-label" title=
+              "The maximum number of operations per connections. (nsconcurrentoperationslimit)."><b
+              >Max Operations Per Connection</b></label><input class="ds-input" type="text" id="nsconcurrentoperationslimit" size="15"/>
+            <label for="nsconnectionlife" class="ds-config-label" title=
+              "The life of a database link connection to the remote server.  0 is unlimited  (nsconnectionlife)."><b
+              >Connection Lifetime (in seconds)</b></label><input class="ds-input" type="text" id="nsconnectionlife" size="15"/>
+            <label for="nsabandonedsearchcheckinterval" class="ds-config-label" title=
+              "The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval)."><b
+              >Abandoned Op Check Interval</b></label><input class="ds-input" type="text" id="nsabandonedsearchcheckinterval" size="15"/>
+            <label for="nshoplimit" class="ds-config-label" title=
+              "The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit)."><b
+              >Database Link Hop Limit</b></label><input class="ds-input" type="text" id="nshoplimit" size="15"/>
+            <p></p>
+            <input type="checkbox" class="ds-config-checkbox" id="nschecklocalaci"><label
+              for="nschecklocalaci" class="ds-label" title=
+              "Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."> Check Local ACIs</label>
+            <input type="checkbox" class="ds-config-checkbox" id="nsreferralonscopedsearch"><label
+              for="nsreferralonscopedsearch" class="ds-label" title=
+              "Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."> Send Referral On Scoped Search</label>
+          </div>
+        </div>
       </div>
     </div>
+    <p></p>
+
     <hr class="ds-hr">
     <div class="ds-button-border">
       <button id="server-config-save-btn" class="btn btn-default ds-button">Save</button>
     </div>
   </div>
 
+
+  <!-- Database Link Page -->
+  <div id="chaining" hidden>
+    <h2 id="chaining-header">Database Chaining Configuration</h2>
+    <hr class="ds-hr">
+    <div class="ds-container">
+      <div>
+        <label for="nsfarmserverurl" class="ds-config-label" title=
+          "The URL for the remote server.  Add additional failure servers URLs separated by a space. (nsfarmserverurl)"><b
+          >Remote Server URL(s)</b></label><input class="ds-dblink-input" type="text" id="nsfarmserverurl"/>
+        <label for="nsmultiplexorbinddn" class="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn)."><b>Remote Server Bind DN</b></label><input
+          class="ds-dblink-input" type="text" placeholder="Bind DN" id="nsmultiplexorbinddn" name="name">
+        <label for="nsmultiplexorcredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials)."><b>Bind DN Credentials</b></label><input
+          class="ds-dblink-input" type="password" placeholder="Enter password" id="nsmultiplexorcredentials" name="name">
+        <label for="nsmultiplexorcredentials-confirm" class="ds-config-label" title="Confirm password"><b>Confirm Password</b></label><input
+          class="ds-dblink-input" type="password" placeholder="Confirm password" id="nsmultiplexorcredentials-confirm" name="name">
+        <label for="dblink-conn" class="ds-config-label" title="The connection protocol for the remote server."><b>Connection Protocol</b></label><select
+          class="btn btn-default dropdown ds-dblink-dropdown" id="dblink-conn">
+            <option>LDAP</option>
+            <option>LDAPS</option>
+            <option>Start TLS</option>
+          </select>
+        <label for="nsbindmechanism" class="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism)."><b>Bind Method</b></label><select
+          class="btn btn-default dropdown ds-dblink-dropdown" id="nsbindmechanism">
+            <option>Simple</option>
+            <option>SASL/DIGEST-MD5</option>
+            <option>SASL/GSSAPI</option>
+          </select>
+      </div>
+    </div>
+    <p></p>
+
+    <input type="button" class="accordion chaining-adv-accordion ds-accordion-button ds-accordion-spacing" id="chaining-adv-accordion" value="Advanced Database Link Settings &#9660;"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-accordian-div">
+        <div class="ds-container">
+          <div class="ds-split">
+            <label for="chaining-size-limit" class="ds-config-label" title=
+              "The size limit of entries returned over a database link (nsslapd-sizelimit)."><b
+              >Size Limit</b></label><input class="ds-input" type="text" id="chaining-size-limit" size="15"/>
+            <label for="chaining-time-limit" class="ds-config-label" title=
+              "The time limit of an operation over a database link (nsslapd-timelimit)."><b
+              >Time Limit</b></label><input class="ds-input" type="text" id="chaining-time-limit" size="15"/>
+            <label for="nsbindconnectionslimit" class="ds-config-label" title=
+              "The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit)."><b
+              >Max TCP Connections</b></label><input class="ds-input" type="text" id="nsbindconnectionslimit" size="15"/>
+            <label for="nsoperationconnectionslimit" class="ds-config-label" title=
+              "The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."><b
+              >Max LDAP Connections</b></label><input class="ds-input" type="text" id="nsoperationconnectionslimit" size="15"/>
+            <label for="nsconcurrentbindlimit" class="ds-config-label" title=
+              "The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit)."><b
+              >Max Binds Per Connection</b></label><input class="ds-input" type="text" id="nsconcurrentbindlimit" size="15"/>
+            <label for="nsbindtimeout" class="ds-config-label" title=
+              "The amount of time before the bind attempt times out. (nsbindtimeout)."><b
+              >Bind Timeout</b></label><input class="ds-input" type="text" id="nsbindtimeout" size="15"/>
+          </div>
+          <div class="ds-divider"></div>
+          <div class="ds-split">
+            <label for="nsbindretrylimit" class="ds-config-label" title=
+              "The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit)."><b
+              >Bind Retry Limit</b></label><input class="ds-input" type="text" id="nsbindretrylimit" size="15"/>
+            <label for="nsconcurrentoperationslimit" class="ds-config-label" title=
+              "The maximum number of operations per connections. (nsconcurrentoperationslimit)."><b
+              >Max Operations Per Connection</b></label><input class="ds-input" type="text" id="nsconcurrentoperationslimit" size="15"/>
+            <label for="nsconnectionlife" class="ds-config-label" title=
+              "The life of a database link connection to the remote server.  0 is unlimited  (nsconnectionlife)."><b
+              >Connection Lifetime (in seconds)</b></label><input class="ds-input" type="text" id="nsconnectionlife" size="15"/>
+            <label for="nsabandonedsearchcheckinterval" class="ds-config-label" title=
+              "The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval)."><b
+              >Abandoned Op Check Interval</b></label><input class="ds-input" type="text" id="nsabandonedsearchcheckinterval" size="15"/>
+            <label for="nshoplimit" class="ds-config-label" title=
+              "The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit)."><b
+              >Database Link Hop Limit</b></label><input class="ds-input" type="text" id="nshoplimit" size="15"/>
+            <p></p>
+            <input type="checkbox" class="ds-config-checkbox" id="nschecklocalaci"><label
+              for="nschecklocalaci" class="ds-label" title=
+              "Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."> Check Local ACIs</label>
+            <input type="checkbox" class="ds-config-checkbox" id="nsreferralonscopedsearch"><label
+              for="nsreferralonscopedsearch" class="ds-label" title=
+              "Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."> Send Referral On Scoped Search</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p></p>
+  </div>
+
+
+  <!-- Suffix Configuration Page -->
   <div id="suffix" hidden=>
     <h2 id="suffix-header">Suffix Configuration</h2>
     <hr class="ds-hr">
-    <div id="db" class="ds-container">
+    <div class="ds-container">
       <div>
         <label for="nsslapd-cachememsize" class="ds-config-label" title=
           "The size for the available memory space for the entry cache (nsslapd-cachememsize)."><b
@@ -186,7 +382,7 @@
     </div>
     <hr class="ds-hr">
 
-    <input type="button" class="accordion ds-agmt-wiz-button ds-accordion-spacing suffix-accordion" id="suffix-index-accordion" value="Database Indexes &#9660;"/>
+    <input type="button" class="accordion ds-accordion-button ds-accordion-spacing suffix-accordion" id="suffix-index-accordion" value="Database Indexes &#9660;"/>
     <div class="ds-accordion-panel">
       <h2>System Indexes</h2>
       <hr class="ds-hr">
@@ -286,7 +482,7 @@
       <hr class="ds-hr">
     </div>
 
-    <input type="button" class="accordion suffix-accordion ds-agmt-wiz-button ds-accordion-spacing" id="suffix-attrencrypt-accordion" value="Attribute Encryption &#9660;"/>
+    <input type="button" class="accordion suffix-accordion ds-accordion-button ds-accordion-spacing" id="suffix-attrencrypt-accordion" value="Attribute Encryption &#9660;"/>
     <div class="ds-accordion-panel">
       <table id="attr-encrypt-table" class="display ds-repl-table" cellspacing="0" width="100%">
         <thead>
@@ -308,23 +504,223 @@
       <p></p>
       <hr class="ds-hr">
     </div>
-
-    <input type="button" class="accordion suffix-accordion ds-agmt-wiz-button ds-accordion-spacing" id="suffix-chaining-accordion" value="Database Chaining &#9660;"/>
-    <div class="ds-accordion-panel">
-      <h3>Default Chaining Configuration Settings</h3>
-      <div id="db" class="ds-container">
-        <div>
-          <label for="nsslapd-ZZZZZZZ" class="ds-config-label" title=
-            "HOVER TEXT."><b
-            >Some Chaining Setting</b></label><input class="ds-input" type="text" id="nsslapd-ZZZZZZZ" size="15"/>
-
-        </div>
-        <div class="ds-divider"></div>
-        <div class="ds-divider"></div>
-        <div class="ds-split">
-
-        </div>
-      <hr class="ds-hr">
-    </div>
-
   </div>
+
+
+  <!-- Modals/Popups/Wizards  -->
+
+  <div id="chaining-oids-form" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Select Forwarded Chaining Controls</b> <span class="close" id="chain-oid-close">&times;</span></h2>
+        <hr class="ds-hr">
+        <p></p>
+        <form>
+          <label class="ds-config-label" for "avail-chaining-oid-list" title=
+            "A list of LDAP control OIDs to be forwarded through chaining"><b>Available LDAP Controls</b></label>
+          <select
+            id="avail-chaining-oid-list" class="ds-chaining-form-list" name="availcontrols" multiple>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.344</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.345</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.346</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.347</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.348</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.349</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.340</option>
+            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.351</option>
+          </select>
+        </form>
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="chaining-oid-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="chaining-oid-save" class="ds-button-right">Add Controls</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+
+  <div id="chaining-comp-form" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Select Chaining Components</b> <span class="close" id="chain-comp-close">&times;</span></h2>
+        <hr class="ds-hr">
+        <p></p>
+        <form>
+          <label class="ds-config-label" for "chaining-comp-list" title=
+            "A list of components to work with chaining"><b>Available LDAP Controls</b></label>
+          <select
+            id="chaining-comp-list" class="ds-chaining-form-list" name="availcomps" multiple>
+            <option value="cn=roles,cn=compnments,cn=config">cn=roles,cn=components,cn=config</option>
+            <option value="cn=Password Policy,cn=components,cn=config">cn=Password Policy,cn=components,cn=config</option>
+          </select>
+        </form>
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="chaining-comp-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="chaining-comp-save" class="ds-button-right">Add Components</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="create-db-link-form" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Database Link</b> <span class="close" id="create-chain-close">&times;</span></h2>
+        <hr class="ds-hr">
+        <div class="ds-container">
+          <div>
+            <label for="nsfarmserverurl" class="ds-config-label" title=
+              "The URL for the remote server.  Add additional failure servers URLs separated by a space. (nsfarmserverurl)"><b
+              >Remote Server URL(s)</b></label><input class="ds-dblink-form-input" type="text" id="nsfarmserverurl"/>
+            <label for="nsmultiplexorbinddn" class="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn)."><b>Remote Server Bind DN</b></label><input
+              class="ds-dblink-form-input" type="text" placeholder="Bind DN" id="nsmultiplexorbinddn" name="name">
+            <label for="nsmultiplexorcredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials)."><b>Bind DN Credentials</b></label><input
+              class="ds-dblink-form-input" type="password" placeholder="Enter password" id="nsmultiplexorcredentials" name="name">
+            <label for="nsmultiplexorcredentials-confirm" class="ds-config-label" title="Confirm password"><b>Confirm Password</b></label><input
+              class="ds-dblink-form-input" type="password" placeholder="Confirm password" id="nsmultiplexorcredentials-confirm" name="name">
+            <label for="dblink-conn" class="ds-config-label" title="The connection protocol for the remote server."><b>Connection Protocol</b></label><select
+              class="btn btn-default dropdown ds-dblink-dropdown" id="dblink-conn">
+                <option>LDAP</option>
+                <option>LDAPS</option>
+                <option>Start TLS</option>
+              </select>
+            <label for="nsbindmechanism" class="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism)."><b>Bind Method</b></label><select
+              class="btn btn-default dropdown ds-dblink-dropdown" id="nsbindmechanism">
+                <option>Simple</option>
+                <option>SASL/DIGEST-MD5</option>
+                <option>SASL/GSSAPI</option>
+              </select>
+          </div>
+        </div>
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="chaining-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="chaining-save" class="ds-button-right">Create Link</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+
+
+
+
+
+  <div id="create-index" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Index</b> <span class="close" id="create-index-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="create-index-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="create-index-save" class="ds-button-right">Create Index</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="edit-index" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Edit Index</b> <span class="close" id="edit-index-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="edit-index-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="edit-index-save" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="add-encrypted-attr" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Add Encrypted Attribute</b> <span class="close" id="encrypted-attr-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="add-encrypted-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="add-encrypted-save" class="ds-button-right">Add Attribute</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="create-suffix" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Suffix</b> <span class="close" id="create-suffix-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="add-encrypted-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="add-encrypted-save" class="ds-button-right">Create Suffix</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="create-sub-suffix" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Sub Suffix</b> <span class="close" id="create-sub-suffix-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="create-sub-suffix-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="create-sub-suffix-save" class="ds-button-right">Create Sub-Suffix</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+</div>

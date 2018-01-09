@@ -118,7 +118,11 @@ $(document).ready( function() {
       //"lengthMenu": [ 16, 32, 64, 128],
       "language": {
         "emptyTable": "No agreements configured"
-      }
+      },
+      "columnDefs": [ {
+        "targets": 4,
+        "orderable": false
+      } ]
     });
 
     // Set up CleanAllRUV Table
@@ -128,7 +132,11 @@ $(document).ready( function() {
       "dom": '<"pull-left"f><"pull-right"l>tip',
       "language": {
         "emptyTable": "No agreements configured"
-      }
+      },
+      "columnDefs": [ {
+        "targets": 3,
+        "orderable": false
+      } ]
     });
 
     $('#repl-summary-table').DataTable( {
@@ -144,14 +152,14 @@ $(document).ready( function() {
 
     // Repl Agreement Wizard
     $("#agmt-close").on("click", function() {
-      $("#agmt-wizard").css('display', 'none');
+      $("#agmt-form").css('display', 'none');
     });
     $("#agmt-cancel").on("click", function() {
-      $("#agmt-wizard").css('display', 'none');
+      $("#agmt-form").css('display', 'none');
     });
     $("#create-agmt").on("click", function() {
       clear_agmt_wizard();
-      $("#agmt-wizard").css('display', 'block');
+      $("#agmt-form").css('display', 'block');
     });
 
     // Handle disabling/enabling of agmt schedule panel

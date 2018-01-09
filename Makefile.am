@@ -290,6 +290,7 @@ gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
 cockpitdir = $(datadir)@cockpitdir@
 cockpitstaticdir = $(datadir)@cockpitstaticdir@
 cockpitimagesdir = $(datadir)@cockpitimagesdir@
+cockpitstaticimagesdir = $(datadir)@cockpitstaticimagesdir@
 cockpitjsdir = $(datadir)@cockpitjsdir@/
 cockpitcssdir = $(datadir)@cockpitcssdir@
 
@@ -900,12 +901,15 @@ cockpitstatic_DATA = src/cockpit/389-console/static/32px.png \
 	src/cockpit/389-console/static/style.min.css \
 	src/cockpit/389-console/static/throbber.gif
 
-cockpitimages_DATA = src/cockpit/389-console/static/images/ui-icons_444444_256x240.png \
+cockpitstaticimages_DATA = src/cockpit/389-console/static/images/ui-icons_444444_256x240.png \
 	src/cockpit/389-console/static/images/ui-icons_777620_256x240.png \
 	src/cockpit/389-console/static/images/ui-icons_cc0000_256x240.png \
 	src/cockpit/389-console/static/images/ui-icons_555555_256x240.png \
 	src/cockpit/389-console/static/images/ui-icons_777777_256x240.png \
 	src/cockpit/389-console/static/images/ui-icons_ffffff_256x240.png
+
+cockpitimages_DATA = src/cockpit/389-console/images/sort_asc.png \
+    src/cockpit/389-console/images/sort_both.png
 
 cockpitjs_DATA = src/cockpit/389-console/js/backend.js \
 	src/cockpit/389-console/js/ds.js \

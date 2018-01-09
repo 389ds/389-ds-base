@@ -50,7 +50,7 @@
    </div>
    <p></p>
 
-   <input type="button" class="accordion config-accordion ds-agmt-wiz-button ds-accordion-spacing" id="config-accordion" value="Advanced Settings &#9660;"/>
+   <input type="button" class="accordion config-accordion ds-accordion-button ds-accordion-spacing" id="config-accordion" value="Advanced Settings &#9660;"/>
    <div class="ds-accordion-panel">
      <div class="ds-container">
        <div class="">
@@ -93,7 +93,7 @@
    </div>
    <p></p>
 
-   <input type="button" class="accordion rootdn-accordion ds-agmt-wiz-button ds-accordion-spacing" id="rootdn-accordion" value="Directory Manager Settings &#9660;"/>
+   <input type="button" class="accordion rootdn-accordion ds-accordion-button ds-accordion-spacing" id="rootdn-accordion" value="Directory Manager Settings &#9660;"/>
    <div class="ds-accordion-panel">
      <div>
        <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn)."><b>Directory Manager DN</b></label><input
@@ -192,152 +192,159 @@
   <div id="server-pwpolicy" class="server-cfg-ctrl" hidden>
     <h2>Password Policy Management Settings</h2>
     <hr class="ds-hr">
-    <div class="ds-container">
-      <div class="ds-split">
-        <h3><br>General Settings</h3>
-        <hr class="ds-hr">
-        <label for="passwordstoragescheme" class="ds-server-label" title="Set the password storage scheme (passwordstoragescheme).">Password Storage Scheme</label><select
-          class="btn btn-default dropdown ds-passwd-dropdown" id="passwordstoragescheme">
-            <option>PBKDF2_SHA256</option>
-            <option>SSHA512</option>
-            <option>SSHA384</option>
-            <option>SSHA256</option>
-            <option>SSHA</option>
-            <option>NS-MTA-MD5</option>
-            <option>MD5</option>
-            <option>SMD5</option>
-            <option>CRYPT-MD5</option>
-            <option>CRYPT-SHA512</option>
-            <option>CRYPT-SHA256</option>
-            <option>CRYPT</option>
-            <option>CLEAR</option>
-          </select>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-local" checked><label
-          for="nsslapd-pwpolicy-local" class="ds-label" title="Allow subtree/user defined password policies (nsslapd-pwpolicy-local)."> Allow Local Password Policies</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-inherit-global" checked><label
-          for="nsslapd-pwpolicy-inherit-global" class="ds-label" title=
-          "If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global)."> Local Policy Inherits Global Policy</label>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-allow-hashed-passwords"><label
-          for="nsslapd-allow-hashed-passwords" class="ds-label" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords)."> Allow Adding Pre-Hashed Passwords</label>
-        <input type="checkbox" class="ds-config-checkbox" id="passwordisglobalpolicy" checked><label
-          for="passwordisglobalpolicy" class="ds-label" title="Allow password policy state attributes to replicate (passwordIsGlobalPolicy)."> Replicate Password Policy State Attributes</label>
-        <input type="checkbox" class="ds-config-checkbox" id="passwordtrackupdatetime" checked><label
-          for="passwordtrackupdatetime" class="ds-label" title=
-          "Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime)."> Track Password Update Time</label>
-        <label for="passwordAdminDN" class="ds-server-label" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
-          class="ds-input" type="text" id="passwordAdminDN" size="40"/>
-      </div>
-      <div class="ds-divider"></div>
-      <div class="ds-split">
-        <h3><br>User Password Settings</h3>
-        <hr class="ds-hr">
-        <input type="checkbox" class="ds-config-checkbox" id="passwordchange" checked><label
-          for="passwordchange" class="ds-label" title="Allow user's to change their passwords (passwordChange)."> Allow Users To Change Their Passwords</label>
-        <input type="checkbox" class="ds-config-checkbox" id="passwordmustchange" checked><label
-          for="passwordmustchange" class="ds-label" title="User must change its password after its been reset by an administrator (passwordMustChange).">User Must Change Password After Reset</label>
-        <input type="checkbox" class="ds-config-checkbox" id="passwordhistory" checked><label
-          for="passwordhistory" class="ds-label" title="Maintain a password history (passwordHistory).">Keep Password History</label>
-        <input class="ds-history-input" type="text" id="passwordinhistory" size="2"/>Passwords In History
-        <label for="passwordminage" class="ds-minage-label" title="Indicates the number of seconds that must pass before a user can change their password. (passwordMinAge)">Allow Password Changes (in seconds)</label><input
-         class="ds-input" type="text" id="passwordminage" size="10"/>
-        <p></p>
-      </div>
-    </div>
-    <div class="ds-container">
-      <div class="ds-split">
-        <h3><br>Password Expiration Settings</h3>
-        <hr class="ds-hr">
-        <input type="checkbox" class="ds-config-checkbox" id="passwordexp" checked><label
-          for="passwordexp" class="ds-label" title="Enable a password expiration policy (passwordExp).">Enable Password Expiration</label>
-        <div class="ds-expired-div" id="expiration-attrs">
-          <label for="passwordmaxage" class="ds-expire-label" title="The server's local hostname (passwordMaxAge)."><b>Password Expiration Time (in seconds)</b></label><input
-            class="ds-input" type="text" id="passwordmaxage" size="5"/>
-          <label for="passwordgracelimit" class="ds-expire-label" title="The server's local hostname (passwordGraceLimit)."><b>Allowed Logins After Password Expires</b></label><input
-            class="ds-input" type="text" id="passwordgracelimit" size="5"/>
-          <label for="passwordwarning" class="ds-expire-label" title="Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning)."><b>Send Password Expiring Warning (in seconds)</b></label><input
-            class="ds-input" type="text" id="passwordwarning" size="5"/>
-          <input type="checkbox" class="ds-send-expiring-checkbox" id="passwordsendexpiringtime"><label
-            for="passwordsendexpiringtime" class="ds-label" title="Always return a password expiring control when requested (passwordSendExpiringTime).">Always Send <i>Password Expiring</i> Control</label>
+    <p></p>
+
+    <input type="button" class="accordion pwp-accordion ds-accordion-button ds-accordion-spacing" id="pwd-accordion" value="Global Password Policy &#9660;" title=
+      "Configure the global password policy settings"/>
+    <div class="ds-accordion-panel">
+      <div class="ds-container">
+        <div class="ds-split">
+          <h3>General Settings</h3>
+          <hr class="ds-hr">
+          <label for="passwordstoragescheme" class="ds-server-label" title="Set the password storage scheme (passwordstoragescheme).">Password Storage Scheme</label><select
+            class="btn btn-default dropdown ds-passwd-dropdown" id="passwordstoragescheme">
+              <option>PBKDF2_SHA256</option>
+              <option>SSHA512</option>
+              <option>SSHA384</option>
+              <option>SSHA256</option>
+              <option>SSHA</option>
+              <option>NS-MTA-MD5</option>
+              <option>MD5</option>
+              <option>SMD5</option>
+              <option>CRYPT-MD5</option>
+              <option>CRYPT-SHA512</option>
+              <option>CRYPT-SHA256</option>
+              <option>CRYPT</option>
+              <option>CLEAR</option>
+            </select>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-local" checked><label
+            for="nsslapd-pwpolicy-local" class="ds-label" title="Allow subtree/user defined password policies (nsslapd-pwpolicy-local)."> Allow Local Password Policies</label>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-inherit-global" checked><label
+            for="nsslapd-pwpolicy-inherit-global" class="ds-label" title=
+            "If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global)."> Local Policy Inherits Global Policy</label>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-allow-hashed-passwords"><label
+            for="nsslapd-allow-hashed-passwords" class="ds-label" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords)."> Allow Adding Pre-Hashed Passwords</label>
+          <input type="checkbox" class="ds-config-checkbox" id="passwordisglobalpolicy" checked><label
+            for="passwordisglobalpolicy" class="ds-label" title="Allow password policy state attributes to replicate (passwordIsGlobalPolicy)."> Replicate Password Policy State Attributes</label>
+          <input type="checkbox" class="ds-config-checkbox" id="passwordtrackupdatetime" checked><label
+            for="passwordtrackupdatetime" class="ds-label" title=
+            "Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime)."> Track Password Update Time</label>
+          <label for="passwordAdminDN" class="ds-server-label" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
+            class="ds-input" type="text" id="passwordAdminDN" size="40"/>
+        </div>
+        <div class="ds-divider"></div>
+        <div class="ds-split">
+          <h3>User Password Settings</h3>
+          <hr class="ds-hr">
+          <input type="checkbox" class="ds-config-checkbox" id="passwordchange" checked><label
+            for="passwordchange" class="ds-label" title="Allow user's to change their passwords (passwordChange)."> Allow Users To Change Their Passwords</label>
+          <input type="checkbox" class="ds-config-checkbox" id="passwordmustchange" checked><label
+            for="passwordmustchange" class="ds-label" title="User must change its password after its been reset by an administrator (passwordMustChange).">User Must Change Password After Reset</label>
+          <input type="checkbox" class="ds-config-checkbox" id="passwordhistory" checked><label
+            for="passwordhistory" class="ds-label" title="Maintain a password history (passwordHistory).">Keep Password History</label>
+          <input class="ds-history-input" type="text" id="passwordinhistory" size="2"/>Passwords In History
+          <label for="passwordminage" class="ds-minage-label" title="Indicates the number of seconds that must pass before a user can change their password. (passwordMinAge)">Allow Password Changes (in seconds)</label><input
+           class="ds-input" type="text" id="passwordminage" size="10"/>
+          <p></p>
         </div>
       </div>
-      <div class="ds-divider"></div>
-      <div class="ds-split">
-        <h3><br>Account Lockout Settings</h3>
-        <hr class="ds-hr">
-        <input type="checkbox" class="ds-config-checkbox" id="passwordlockout" checked><label
-          for="passwordlockout" class="ds-label" title="Enable account lockout (passwordLockout).">Enable Account Lockout</label>
-        <div class="ds-expired-div" id="lockout-attrs">
-          <label for="passwordmaxfailure" class="ds-expire-label" title=
-            "The maximum number of failed logins before account gets locked (passwordMaxFailure)."><b>Number of Failed Logins to Lockout Account</b></label><input
-            class="ds-input" type="text" id="passwordmaxfailure" size="5"/>
-          <label for="passwordresetfailurecount" class="ds-expire-label" title=
-            "The number of seconds until an accounts failure count is reset (passwordResetFailureCount)."><b>Time Before Failure Count Reset </b></label><input
-            class="ds-input" type="text" id="passwordresetfailurecount" size="5"/>
-          <div>
-            <label title="Lock out the account forever (passwordUnlock)."><input
-              class="ds-radio" type="radio" id="passwordunlock" value="passwordunlock" name="account-lockout" checked="checked"> Lockout Account Forever</label>
-            <label title="The number of seconds before account gets unlocked (passwordLockoutDuration)."><input
-              class="ds-radio" type="radio" name="account-lockout" value="passwordlockoutduration"> Time Until Account Unlocked <input
-              class="ds-input" type="text" id="passwordlockoutduration" size="5"/></label>
+      <div class="ds-container">
+        <div class="ds-split">
+          <h3><br>Password Expiration Settings</h3>
+          <hr class="ds-hr">
+          <input type="checkbox" class="ds-config-checkbox" id="passwordexp" checked><label
+            for="passwordexp" class="ds-label" title="Enable a password expiration policy (passwordExp).">Enable Password Expiration</label>
+          <div class="ds-expired-div" id="expiration-attrs">
+            <label for="passwordmaxage" class="ds-expire-label" title="The server's local hostname (passwordMaxAge)."><b>Password Expiration Time (in seconds)</b></label><input
+              class="ds-input" type="text" id="passwordmaxage" size="5"/>
+            <label for="passwordgracelimit" class="ds-expire-label" title="The server's local hostname (passwordGraceLimit)."><b>Allowed Logins After Password Expires</b></label><input
+              class="ds-input" type="text" id="passwordgracelimit" size="5"/>
+            <label for="passwordwarning" class="ds-expire-label" title="Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning)."><b>Send Password Expiring Warning (in seconds)</b></label><input
+              class="ds-input" type="text" id="passwordwarning" size="5"/>
+            <input type="checkbox" class="ds-send-expiring-checkbox" id="passwordsendexpiringtime"><label
+              for="passwordsendexpiringtime" class="ds-label" title="Always return a password expiring control when requested (passwordSendExpiringTime).">Always Send <i>Password Expiring</i> Control</label>
           </div>
         </div>
+        <div class="ds-divider"></div>
+        <div class="ds-split">
+          <h3><br>Account Lockout Settings</h3>
+          <hr class="ds-hr">
+          <input type="checkbox" class="ds-config-checkbox" id="passwordlockout" checked><label
+            for="passwordlockout" class="ds-label" title="Enable account lockout (passwordLockout).">Enable Account Lockout</label>
+          <div class="ds-expired-div" id="lockout-attrs">
+            <label for="passwordmaxfailure" class="ds-expire-label" title=
+              "The maximum number of failed logins before account gets locked (passwordMaxFailure)."><b>Number of Failed Logins to Lockout Account</b></label><input
+              class="ds-input" type="text" id="passwordmaxfailure" size="5"/>
+            <label for="passwordresetfailurecount" class="ds-expire-label" title=
+              "The number of seconds until an accounts failure count is reset (passwordResetFailureCount)."><b>Time Before Failure Count Reset </b></label><input
+              class="ds-input" type="text" id="passwordresetfailurecount" size="5"/>
+            <div>
+              <label title="Lock out the account forever (passwordUnlock)."><input
+                class="ds-radio" type="radio" id="passwordunlock" value="passwordunlock" name="account-lockout" checked="checked"> Lockout Account Forever</label>
+              <label title="The number of seconds before account gets unlocked (passwordLockoutDuration)."><input
+                class="ds-radio" type="radio" name="account-lockout" value="passwordlockoutduration"> Time Until Account Unlocked <input
+                class="ds-input" type="text" id="passwordlockoutduration" size="5"/></label>
+            </div>
+          </div>
+          <p></p>
+        </div>
+      </div>
+
+      <h3><br>Password Syntax Settings</h3>
+      <hr class="ds-hr">
+      <input type="checkbox" class="ds-config-checkbox" id="passwordchecksyntax" checked><label
+        for="passwordchecksyntax" class="ds-label" title="Enable account lockout (passwordCheckSyntax).">Check Password Syntax</label>
+      <div class="ds-container ds-expired-div" id="syntax-attrs">
+        <div>
+          <label for="passwordminlength" class="ds-expire-label" title=
+            "The minimum number of characters in the password (passwordMinLength)."><b>Password Minimum Length </b></label><input
+            class="ds-input" type="text" id="passwordminlength" size="5"/>
+          <label for="passwordmindigits" class="ds-expire-label" title=
+            "Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits)."><b>Minimum Digit Characters </b></label><input
+            class="ds-input" type="text" id="passwordmindigits" size="5"/>
+          <label for="passwordmindigits" class="ds-expire-label" title=
+            "Reject passwords with fewer than this many alpha characters (passwordMinAlphas)."><b>Minimum Alpha Characters </b></label><input
+            class="ds-input" type="text" id="passwordminalphas" size="5"/>
+          <label for="passwordminuppers" class="ds-expire-label" title=
+            "Reject passwords with fewer than this many uppercase characters (passwordMinUppers)."><b>Minimum Uppercase Characters </b></label><input
+            class="ds-input" type="text" id="passwordminuppers" size="5"/>
+          <label for="passwordminlowers" class="ds-expire-label" title=
+            "Reject passwords with fewer than this many lowercase characters (passwordMinLowers)."><b>Minimum Lowercase Characters </b></label><input
+            class="ds-input" type="text" id="passwordminlowers" size="5"/>
+        </div>
+        <div class="ds-divider"></div>
+        <div class="ds-divider"></div>
+        <div class="ds-divider"></div>
+        <div>
+          <label for="passwordminspecials" class="ds-expire-label" title=
+            "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials)."><b>Minimum Special Characters </b></label><input
+            class="ds-input" type="text" id="passwordminspecials" size="5"/>
+          <label for="passwordmin8bit" class="ds-expire-label" title=
+            "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit)."><b>Minimum 8-bit Characters </b></label><input
+            class="ds-input" type="text" id="passwordmin8bit" size="5"/>
+          <label for="passwordmaxrepeats" class="ds-expire-label" title=
+            "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats)."><b>Maximum Number Of Repeated Characters </b></label><input
+            class="ds-input" type="text" id="passwordmaxrepeats" size="5"/>
+          <label for="passwordmincategories" class="ds-expire-label" title=
+            "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories)."><b>Minimum Required Character Categories </b></label><input
+            class="ds-input" type="text" id="passwordmincategories" size="5"/>
+          <label for="passwordmintokenlength" class="ds-expire-label" title=
+            "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength)."><b>Minimum Token Length </b></label><input
+            class="ds-input" type="text" id="passwordmintokenlength" size="5"/>
+        </div>
         <p></p>
       </div>
-    </div>
-
-    <h3><br>Password Syntax Settings</h3>
-    <hr class="ds-hr">
-    <input type="checkbox" class="ds-config-checkbox" id="passwordchecksyntax" checked><label
-      for="passwordchecksyntax" class="ds-label" title="Enable account lockout (passwordCheckSyntax).">Check Password Syntax</label>
-    <div class="ds-container ds-expired-div" id="syntax-attrs">
-      <div>
-        <label for="passwordminlength" class="ds-expire-label" title=
-          "The minimum number of characters in the password (passwordMinLength)."><b>Password Minimum Length </b></label><input
-          class="ds-input" type="text" id="passwordminlength" size="5"/>
-        <label for="passwordmindigits" class="ds-expire-label" title=
-          "Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits)."><b>Minimum Digit Characters </b></label><input
-          class="ds-input" type="text" id="passwordmindigits" size="5"/>
-        <label for="passwordmindigits" class="ds-expire-label" title=
-          "Reject passwords with fewer than this many alpha characters (passwordMinAlphas)."><b>Minimum Alpha Characters </b></label><input
-          class="ds-input" type="text" id="passwordminalphas" size="5"/>
-        <label for="passwordminuppers" class="ds-expire-label" title=
-          "Reject passwords with fewer than this many uppercase characters (passwordMinUppers)."><b>Minimum Uppercase Characters </b></label><input
-          class="ds-input" type="text" id="passwordminuppers" size="5"/>
-        <label for="passwordminlowers" class="ds-expire-label" title=
-          "Reject passwords with fewer than this many lowercase characters (passwordMinLowers)."><b>Minimum Lowercase Characters </b></label><input
-          class="ds-input" type="text" id="passwordminlowers" size="5"/>
-      </div>
-      <div class="ds-divider"></div>
-      <div class="ds-divider"></div>
-      <div class="ds-divider"></div>
-      <div>
-        <label for="passwordminspecials" class="ds-expire-label" title=
-          "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials)."><b>Minimum Special Characters </b></label><input
-          class="ds-input" type="text" id="passwordminspecials" size="5"/>
-        <label for="passwordmin8bit" class="ds-expire-label" title=
-          "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit)."><b>Minimum 8-bit Characters </b></label><input
-          class="ds-input" type="text" id="passwordmin8bit" size="5"/>
-        <label for="passwordmaxrepeats" class="ds-expire-label" title=
-          "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats)."><b>Maximum Number Of Repeated Characters </b></label><input
-          class="ds-input" type="text" id="passwordmaxrepeats" size="5"/>
-        <label for="passwordmincategories" class="ds-expire-label" title=
-          "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories)."><b>Minimum Required Character Categories </b></label><input
-          class="ds-input" type="text" id="passwordmincategories" size="5"/>
-        <label for="passwordmintokenlength" class="ds-expire-label" title=
-          "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength)."><b>Minimum Token Length </b></label><input
-          class="ds-input" type="text" id="passwordmintokenlength" size="5"/>
-      </div>
+      <p></p>
+      <hr class="ds-hr">
+      <button type="submit" class="ds-button" title="Save global password policy settings">Save</button>
+      <p></p>
       <p></p>
     </div>
-    <p></p>
-    <hr class="ds-hr">
-    <button type="submit" class="ds-button">Save</button>
-    <p></p>
-    <p></p>
 
-    <input type="button" class="accordion localpwp-accordion ds-agmt-wiz-button ds-accordion-spacing" id="localpwd-accordion" value="Local Password Policies &#9660;"/>
+    <input type="button" class="accordion localpwp-accordion ds-accordion-button ds-accordion-spacing" id="localpwd-accordion" value="Local Password Policies &#9660;" title=
+      "Configure User/Subtree local password policies"/>
     <div class="ds-accordion-panel">
-      <div class="ds-container3">
+      <div class="">
         <table id="passwd-policy-table" class="display ds-repl-table" cellspacing="0" width="100%">
           <thead>
             <tr class="ds-table-header">
@@ -379,7 +386,7 @@
     <p></p>
 
     <!-- Access logging -->
-    <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="access-accordion" value="Access Log Settings &#9660;"/>
+    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="access-accordion" value="Access Log Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-accesslog-logging-enabled" checked><label
         for="nsslapd-accesslog-logging-enabled" class="ds-label" title="Enable access logging (nsslapd-accesslog-logging-enabled)."> Enable Access Logging</label>
@@ -439,7 +446,7 @@
     </div>
 
     <!-- Error logging -->
-    <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="error-accordion" value="Errors Log Settings &#9660;"/>
+    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="error-accordion" value="Errors Log Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-errorlog-logging-enabled" checked><label
         for="nsslapd-errorlog-logging-enabled" class="ds-label" title="Enable error logging (nsslapd-errorlog-logging-enabled)."> Enable Error Logging</label>
@@ -510,7 +517,7 @@
     </div>
 
     <!-- Audit logging -->
-    <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="audit-accordion" value="Audit Log Settings &#9660;"/>
+    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="audit-accordion" value="Audit Log Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditlog-logging-enabled" checked><label
         for="nsslapd-auditlog-logging-enabled" class="ds-label" title="Enable audit logging (nsslapd-auditlog-logging-enabled)."> Enable Audit Logging</label>
@@ -557,7 +564,7 @@
     </div>
 
     <!-- Auditfail logging -->
-    <input type="button" class="accordion log-accordion ds-agmt-wiz-button ds-accordion-spacing" id="audit-accordion" value="Audit Failure Log Settings &#9660;"/>
+    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="audit-accordion" value="Audit Failure Log Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditfaillog-logging-enabled" checked><label
         for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Enable audit failure logging (nsslapd-auditfaillog-logging-enabled)."> Enable Audit Failure Logging</label>
@@ -662,7 +669,7 @@
     </div>
     <p></p>
 
-    <input type="button" class="accordion adv-config-accordion ds-agmt-wiz-button ds-accordion-spacing" id="adv-config-accordion" value="Advanced Settings &#9660;"/>
+    <input type="button" class="accordion adv-config-accordion ds-accordion-button ds-accordion-spacing" id="adv-config-accordion" value="Advanced Settings &#9660;"/>
     <div class="ds-accordion-panel">
       <div class="ds-container">
         <div>
@@ -741,6 +748,97 @@
     </div>
   </div>
 
+  <!-- Modals/Popups/Wizards -->
+
+  <div id="create-inst" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Server Instance</b> <span class="close" id="create-inst-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="create-inst-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="create-inst-save" class="ds-button-right">Create Instance</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="create-sasl-map" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create SASL Mapping</b> <span class="close" id="create-sasl-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="create-sasl-map-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="create-sasl-map-save" class="ds-button-right">Create Mapping</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="edit-sasl-map" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Sub Suffix</b> <span class="close" id="edit-sasl-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="edit-sasl-map-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="edit-sasl-map-save" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="create-local-pwp" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Create Local Password Policy</b> <span class="close" id="create-local-pwp-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="create-local-pwp-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="create-local-pwp-save" class="ds-button-right">Create Policy</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="edit-local-pwp" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Edit Local Password Policy</b> <span class="close" id="edit-local-pwp-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="edit-local-pwp-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="edit-local-pwp-save" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
 
 

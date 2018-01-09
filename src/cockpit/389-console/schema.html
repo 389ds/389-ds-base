@@ -1,132 +1,239 @@
 
-  <div class="ds-fixed ds-buttons">
-    <button id="schema-standard-btn" class="btn btn-default ds-button ds-button-control active">Standard Schema</button>
-    <button id="schema-custom-btn" class="btn btn-default ds-button ds-button-control active">Custom Schema</button>
-    <button id="schema-mr-btn" class="btn btn-default ds-button ds-button-control active">Matching Rules</button>
-    <hr>
-    <button id="schema-reload" class="btn btn-default ds-button">Reload Schema Files</button>
+<div class="ds-fixed ds-buttons">
+  <button id="schema-standard-btn" class="btn btn-default ds-button ds-button-control active">Standard Schema</button>
+  <button id="schema-custom-btn" class="btn btn-default ds-button ds-button-control active">Custom Schema</button>
+  <button id="schema-mr-btn" class="btn btn-default ds-button ds-button-control active">Matching Rules</button>
+  <hr>
+  <button id="schema-reload" class="btn btn-default ds-button">Reload Schema Files</button>
+</div>
+
+<div class="ds-flex" id="schema-content">
+
+  <div id="schema-standard" class="schema-ctrl" hidden>
+    <div class="ds-border">
+      <h2><b>Standard Objectclasses</b><hr class="ds-hr"></h2>
+      <table id="standard-oc-table" class="display ds-table" cellspacing="0" width="100%">
+        <thead>
+          <tr class="ds-table-header">
+            <th>Objectclass Name</th>
+            <th>OID</th>
+            <th>Parent</th>
+            <th>Required Attributes</th>
+            <th>Allowed Attributes</th>
+          </tr>
+        </thead>
+        <tbody id="standard-body">
+          <tr>
+            <td>person</td>
+            <td>1.0.34.54.7.2.3.4.3.2</td>
+            <td>top</td>
+            <td>cn givenname sn</td>
+            <td>description uid</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="myborder">
+      <h2><br><b>Standard Attributes</b><hr class="ds-hr"></h2>
+      <table id="standard-attr-table" class="display ds-table" cellspacing="0" width="100%">
+        <thead>
+          <tr class="ds-table-header">
+            <th>Attribute Name</th>
+            <th>OID</th>
+            <th>Syntax</th>
+            <th>Multivalued</th>
+            <th>Equality Matching Rules</th>
+            <th>Ordering Matching Rules</th>
+            <th>Substring Matching Rules</th>
+          </tr>
+        </thead>
+        <tbody id="standard-attr-body">
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="ds-flex" id="schema-content">
-
-    <div id="schema-standard" class="schema-ctrl" hidden>
-      <div class="ds-border">
-        <h2><b>Standard Objectclasses</b><hr class="ds-hr"></h2>
-        <table id="standard-oc-table" class="display ds-table" cellspacing="0" width="100%">
-          <thead>
-            <tr class="ds-table-header">
-              <th>Objectclass Name</th>
-              <th>OID</th>
-              <th>Parent</th>
-              <th>Required Attributes</th>
-              <th>Allowed Attributes</th>
-            </tr>
-          </thead>
-          <tbody id="standard-body">
-            <tr>
-              <td>person</td>
-              <td>1.0.34.54.7.2.3.4.3.2</td>
-              <td>top</td>
-              <td>cn givenname sn</td>
-              <td>description uid</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="myborder">
-        <h2><br><b>Standard Attributes</b><hr class="ds-hr"></h2>
-        <table id="standard-attr-table" class="display ds-table" cellspacing="0" width="100%">
-          <thead>
-            <tr class="ds-table-header">
-              <th>Attribute Name</th>
-              <th>OID</th>
-              <th>Syntax</th>
-              <th>Multivalued</th>
-              <th>Equality Matching Rules</th>
-              <th>Ordering Matching Rules</th>
-              <th>Substring Matching Rules</th>
-            </tr>
-          </thead>
-          <tbody id="standard-attr-body">
-          </tbody>
-        </table>
-      </div>
+  <div id="schema-custom" class="schema-ctrl" hidden>
+    <div class="ds-border">
+      <h2><b>Custom Objectclasses</b><hr class="ds-hr"></h2>
+      <table id="custom-oc-table" class="display ds-table" cellspacing="0" width="100%">
+        <thead>
+          <tr class="ds-table-header">
+            <th>Objectclass Name</th>
+            <th>OID</th>
+            <th>Parent</th>
+            <th>Required Attributes</th>
+            <th>Allowed Attributes</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="custom-body">
+          <tr>
+            <td>InetOrgPerson</td>
+            <td>1.1.1.1.1.1.1.1.1.1</td>
+            <td>top</td>
+            <td>cn</td>
+            <td>sn uid</td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">
+                  Choose Action...
+                  <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">
+                  <li role=""><a role="menuitem" tabindex="0" href="#">Edit Objectclass</a></li>
+                  <li role=""><a role="menuitem" tabindex="1" href="#">Delete Objectclass</a></li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <button id="create-oc" name="create-oc" class="btn btn-default ds-button">Create Objectclass</button>
     </div>
-
-    <div id="schema-custom" class="schema-ctrl" hidden>
-      <div class="ds-border">
-        <h2><b>Custom Objectclasses</b><hr class="ds-hr"></h2>
-        <table id="custom-oc-table" class="display ds-table" cellspacing="0" width="100%">
-          <thead>
-            <tr class="ds-table-header">
-              <th>Objectclass Name</th>
-              <th>OID</th>
-              <th>Parent</th>
-              <th>Required Attributes</th>
-              <th>Allowed Attributes</th>
-            </tr>
-          </thead>
-          <tbody id="custom-body">
-            <tr>
-              <td>InetOrgPerson</td>
-              <td>1.1.1.1.1.1.1.1.1.1</td>
-              <td>top</td>
-              <td>cn</td>
-              <td>sn uid</td>
-            </tr>
-          </tbody>
-        </table>
-        <button id="create-oc" name="create-oc" class="btn btn-default ds-button">Create Objectclass</button>
-      </div>
-      <div class="ds-border">
-        <h2><br><b>Custom Attributes</b><hr class="ds-hr"></h2>
-        <table id="custom-attr-table" class="display ds-table" cellspacing="0" width="100%">
-          <thead>
-            <tr class="ds-table-header">
-              <th>Attribute Name</th>
-              <th>OID</th>
-              <th>Syntax</th>
-              <th>Multivalued</th>
-              <th>Equality Matching Rules</th>
-              <th>Ordering Matching Rules</th>
-              <th>Substring Matching Rules</th>
-            </tr>
-          </thead>
-          <tbody id="custom-attr-body">
-          </tbody>
-        </table>
-        <button id="create-at" name="create-at" class="btn btn-default ds-button">Create Attribute</button>
-      </div>
+    <div class="ds-border">
+      <h2><br><b>Custom Attributes</b><hr class="ds-hr"></h2>
+      <table id="custom-attr-table" class="display ds-table" cellspacing="0" width="100%">
+        <thead>
+          <tr class="ds-table-header">
+            <th>Attribute Name</th>
+            <th>OID</th>
+            <th>Syntax</th>
+            <th>Multivalued</th>
+            <th>Equality Matching Rules</th>
+            <th>Ordering Matching Rules</th>
+            <th>Substring Matching Rules</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="custom-attr-body">
+          <td>ssn</td>
+          <td>1.1.1.1.1.1.1.1</td>
+          <td>DirectoryString</td>
+          <td>no</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>
+            <div class="dropdown">
+              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">
+                Choose Action...
+                <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">
+                <li role=""><a role="menuitem" tabindex="0" href="#">Edit Attribute</a></li>
+                <li role=""><a role="menuitem" tabindex="1" href="#">Delete Attribute</a></li>
+              </ul>
+            </div>
+          </td>
+        </tbody>
+      </table>
+      <button id="create-at" name="create-at" class="btn btn-default ds-button">Create Attribute</button>
     </div>
-
-    <div id="schema-mr" class="schema-ctrl" hidden>
-      <div class="ds-border">
-        <h2><b>Matching Rules</b><hr class="ds-hr"></h2>
-        <table id="schema-mr-table" class="display ds-table" cellspacing="0" width="100%">
-          <thead>
-            <tr class="ds-table-header">
-              <th>Matching Rule Name</th>
-              <th>OID</th>
-              <th>Syntax</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody id="standard-body">
-            <tr>
-              <td>equality</td>
-              <td>9.5.6.7.3.5.4.45.54.4</td>
-              <td>DirectoryString</td>
-              <td>My really long description for some reason</td>
-            </tr>
-            <tr>
-              <td>equality-2</td>
-              <td>999.5.6.7.3.5.4.45.54.4</td>
-              <td>DirectoryString</td>
-              <td>My really long description for some reason</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
   </div>
+
+  <div id="schema-mr" class="schema-ctrl" hidden>
+    <div class="ds-border">
+      <h2><b>Matching Rules</b><hr class="ds-hr"></h2>
+      <table id="schema-mr-table" class="display ds-table" cellspacing="0" width="100%">
+        <thead>
+          <tr class="ds-table-header">
+            <th>Matching Rule Name</th>
+            <th>OID</th>
+            <th>Syntax</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody id="standard-body">
+          <tr>
+            <td>equality</td>
+            <td>9.5.6.7.3.5.4.45.54.4</td>
+            <td>DirectoryString</td>
+            <td>My really long description for some reason</td>
+          </tr>
+          <tr>
+            <td>equality-2</td>
+            <td>999.5.6.7.3.5.4.45.54.4</td>
+            <td>DirectoryString</td>
+            <td>My really long description for some reason</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- Modals/Popups/Wizards -->
+
+  <div id="add-oc" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Add Objectclass</b> <span class="close" id="add-oc-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="add-oc-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="add-oc-save" class="ds-button-right">Add Objectclass</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="edit-oc" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Edit Objectclass</b> <span class="close" id="edit-oc-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="edit-oc-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="edit-oc-save" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="add-attr" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Add Attribute</b> <span class="close" id="add-attr-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="add-attr-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="add-attr-save" class="ds-button-right">Add Attribute</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="edit-attr" class="modal">
+    <form class="modal-content animate">
+      <div class="container">
+        <h2 id=""><b>Edit Attribute</b> <span class="close" id="edit-attr-close">&times;</span></h2>
+        <hr class="ds-hr">
+        
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="edit-attr-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="submit" id="edit-attr-save" class="ds-button-right">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
