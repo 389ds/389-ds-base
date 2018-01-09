@@ -13,6 +13,9 @@ from lib389.cli_conf.backend import backend_list, backend_get, backend_get_dn, b
 from lib389.cli_base import LogCapture, FakeArgs
 from lib389.tests.cli import topology
 
+from lib389.utils import ds_is_older
+pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
+
 # Topology is pulled from __init__.py
 def test_backend_cli(topology):
     # 
@@ -23,7 +26,8 @@ def test_backend_cli(topology):
     topology.logcap.flush()
     # Add a backend
     # We need to fake the args
-    args.extra = ['dc=example,dc=com', 'userRoot']
+    args.cn = 'userRoot'
+    args.nsslapd_suffix = 'dc=example,dc=com'
     backend_create(topology.standalone, None, topology.logcap.log, args)
     # Assert one.
     backend_list(topology.standalone, None, topology.logcap.log, None)

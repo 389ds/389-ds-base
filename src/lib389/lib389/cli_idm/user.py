@@ -43,10 +43,33 @@ def create(inst, basedn, log, args):
     kwargs = _get_attributes(args, MUST_ATTRIBUTES)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs)
 
-def delete(inst, basedn, log, args):
-    dn = _get_arg( args, msg="Enter dn to delete")
-    _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
+def delete(inst, basedn, log, args, warn=True):
+    dn = _get_arg( args.dn, msg="Enter dn to delete")
+    if warn:
+        _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn)
+
+def status(inst, basedn, log, args):
+    uid = _get_arg( args.uid, msg="Enter %s to check" % RDN)
+    uas = UserAccounts(inst, basedn)
+    acct = uas.get(uid)
+    acct_str = "locked: %s" % acct.is_locked()
+    log.info('uid: %s' % uid)
+    log.info(acct_str)
+
+def lock(inst, basedn, log, args):
+    uid = _get_arg( args.uid, msg="Enter %s to check" % RDN)
+    accounts = UserAccounts(inst, basedn)
+    acct = accounts.get(uid)
+    acct.lock()
+    log.info('locked %s' % uid)
+
+def unlock(inst, basedn, log, args):
+    uid = _get_arg( args.uid, msg="Enter %s to check" % RDN)
+    accounts = UserAccounts(inst, basedn)
+    acct = accounts.get(uid)
+    acct.unlock()
+    log.info('unlocked %s' % uid)
 
 def create_parser(subparsers):
     user_parser = subparsers.add_parser('user', help='Manage posix users')
@@ -71,6 +94,18 @@ def create_parser(subparsers):
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=delete)
     delete_parser.add_argument('dn', nargs='?', help='The dn to delete')
+
+    lock_parser = subcommands.add_parser('lock', help='lock')
+    lock_parser.set_defaults(func=lock)
+    lock_parser.add_argument('uid', nargs='?', help='The uid to lock')
+
+    status_parser = subcommands.add_parser('status', help='status')
+    status_parser.set_defaults(func=status)
+    status_parser.add_argument('uid', nargs='?', help='The uid to check')
+
+    unlock_parser = subcommands.add_parser('unlock', help='unlock')
+    unlock_parser.set_defaults(func=unlock)
+    unlock_parser.add_argument('uid', nargs='?', help='The uid to unlock')
 
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

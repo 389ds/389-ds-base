@@ -80,9 +80,11 @@ if __name__ == '__main__':
 
     if args.verbose:
         result = args.func(inst, log, args)
+        log.info("Command successful.")
     else:
         try:
             result = args.func(inst, log, args)
+            log.info("Command successful.")
         except Exception as e:
             log.debug(e, exc_info=True)
             log.error("Error: %s" % str(e))

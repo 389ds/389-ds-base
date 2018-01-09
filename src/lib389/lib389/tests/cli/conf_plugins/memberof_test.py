@@ -56,24 +56,24 @@ def test_set_attr_with_illegal_value(topology):
 def test_set_groupattr_with_legal_value(topology):
     args = FakeArgs()
 
-    args.value = "uniqueMember"
+    args.value = "uniquemember"
     memberof_cli.add_groupattr(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains("successfully added memberOfGroupAttr value")
     topology.logcap.flush()
 
     memberof_cli.display_groupattr(topology.standalone, None, topology.logcap.log, args)
-    assert topology.logcap.contains(": uniqueMember")
+    assert topology.logcap.contains(": uniquemember")
     topology.logcap.flush()
 
 def test_set_groupattr_with_value_that_already_exists(topology):
     plugin = MemberOfPlugin(topology.standalone)
     # setup test
-    if not "uniqueMember" in plugin.get_groupattr():
-        plugin.add_groupattr("uniqueMember")
+    if not "uniquemember" in plugin.get_groupattr():
+        plugin.add_groupattr("uniquemember")
 
     args = FakeArgs()
 
-    args.value = "uniqueMember"
+    args.value = "uniquemember"
     memberof_cli.add_groupattr(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains("already exists")
     topology.logcap.flush()
@@ -89,18 +89,18 @@ def test_set_groupattr_with_illegal_value(topology):
 def test_remove_groupattr_with_value_that_exists(topology):
     plugin = MemberOfPlugin(topology.standalone)
     # setup test
-    if not "uniqueMember" in plugin.get_groupattr():
-        plugin.add_groupattr("uniqueMember")
+    if not "uniquemember" in plugin.get_groupattr():
+        plugin.add_groupattr("uniquemember")
 
     args = FakeArgs()
 
-    args.value = "uniqueMember"
+    args.value = "uniquemember"
     memberof_cli.remove_groupattr(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains("successfully removed memberOfGroupAttr value")
     topology.logcap.flush()
 
     memberof_cli.display_groupattr(topology.standalone, None, topology.logcap.log, args)
-    assert not topology.logcap.contains(": uniqueMember")
+    assert not topology.logcap.contains(": uniquemember")
     topology.logcap.flush()
 
 def test_remove_groupattr_with_value_that_doesnt_exist(topology):
@@ -361,14 +361,14 @@ def test_get_excludescope_when_not_set(topology):
 def test_add_excludescope_with_legal_value(topology):
     args = FakeArgs()
 
-    args.value = "ou=People,dc=example,dc=com"
+    args.value = "ou=people,dc=example,dc=com"
     memberof_cli.add_excludescope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains("successfully added memberOfEntryScopeExcludeSubtree value")
     topology.logcap.flush()
 
     args.value = None
     memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
-    assert topology.logcap.contains(": ou=People,dc=example,dc=com")
+    assert topology.logcap.contains(": ou=people,dc=example,dc=com")
     topology.logcap.flush()
 
     args.value = "a=b"
@@ -378,7 +378,7 @@ def test_add_excludescope_with_legal_value(topology):
 
     args.value = None
     memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
-    assert topology.logcap.contains(": ou=People,dc=example,dc=com")
+    assert topology.logcap.contains(": ou=people,dc=example,dc=com")
     assert topology.logcap.contains(": a=b")
     topology.logcap.flush()
 
@@ -393,12 +393,12 @@ def test_add_excludescope_with_illegal_value(topology):
 def test_add_excludescope_with_existing_value(topology):
     plugin = MemberOfPlugin(topology.standalone)
     # setup test
-    if not "ou=People,dc=example,dc=com" in plugin.get_excludescope():
-        plugin.add_excludescope("ou=People,dc=example,dc=com")
+    if not "ou=people,dc=example,dc=com" in plugin.get_excludescope():
+        plugin.add_excludescope("ou=people,dc=example,dc=com")
 
     args = FakeArgs()
 
-    args.value = "ou=People,dc=example,dc=com"
+    args.value = "ou=people,dc=example,dc=com"
     memberof_cli.add_excludescope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains('Value "{}" already exists'.format(args.value))
     topology.logcap.flush()
@@ -408,8 +408,8 @@ def test_remove_excludescope_with_existing_value(topology):
     # setup test
     if not "a=b" in plugin.get_excludescope():
         plugin.add_excludescope("a=b")
-    if not "ou=People,dc=example,dc=com" in plugin.get_excludescope():
-        plugin.add_excludescope("ou=People,dc=example,dc=com")
+    if not "ou=people,dc=example,dc=com" in plugin.get_excludescope():
+        plugin.add_excludescope("ou=people,dc=example,dc=com")
 
     args = FakeArgs()
 
@@ -420,7 +420,7 @@ def test_remove_excludescope_with_existing_value(topology):
 
     args.value = None
     memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
-    assert topology.logcap.contains(": ou=People,dc=example,dc=com")
+    assert topology.logcap.contains(": ou=people,dc=example,dc=com")
     assert not topology.logcap.contains(": a=b")
     topology.logcap.flush()
 
@@ -437,15 +437,15 @@ def test_remove_all_excludescope(topology):
     # setup test
     if not "a=b" in plugin.get_excludescope():
         plugin.add_excludescope("a=b")
-    if not "ou=People,dc=example,dc=com" in plugin.get_excludescope():
-        plugin.add_excludescope("ou=People,dc=example,dc=com")
+    if not "ou=people,dc=example,dc=com" in plugin.get_excludescope():
+        plugin.add_excludescope("ou=people,dc=example,dc=com")
 
     args = FakeArgs()
 
     args.value = None
     memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains(": a=b")
-    assert topology.logcap.contains(": ou=People,dc=example,dc=com")
+    assert topology.logcap.contains(": ou=people,dc=example,dc=com")
     topology.logcap.flush()
 
     args.value = None
@@ -456,7 +456,7 @@ def test_remove_all_excludescope(topology):
     args.value = None
     memberof_cli.display_excludescope(topology.standalone, None, topology.logcap.log, args)
     assert not topology.logcap.contains(": a=b")
-    assert not topology.logcap.contains(": ou=People,dc=example,dc=com")
+    assert not topology.logcap.contains(": ou=people,dc=example,dc=com")
     topology.logcap.flush()
 
 def test_add_entryscope_with_value_that_exists_in_excludescope(topology):
@@ -464,12 +464,12 @@ def test_add_entryscope_with_value_that_exists_in_excludescope(topology):
     # setup test
     if not "dc=example,dc=com" in plugin.get_entryscope():
         plugin.add_entryscope("dc=example,dc=com")
-    if not "ou=People,dc=example,dc=com" in plugin.get_excludescope():
-        plugin.add_excludescope("ou=People,dc=example,dc=com")
+    if not "ou=people,dc=example,dc=com" in plugin.get_excludescope():
+        plugin.add_excludescope("ou=people,dc=example,dc=com")
 
     args = FakeArgs()
 
-    args.value = "ou=People,dc=example,dc=com"
+    args.value = "ou=people,dc=example,dc=com"
     memberof_cli.add_scope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains("is also listed as an exclude suffix")
     topology.logcap.flush()
@@ -479,12 +479,12 @@ def test_add_excludescope_with_value_that_exists_in_entryscope(topology):
     # setup test
     if not "dc=example,dc=com" in plugin.get_entryscope():
         plugin.add_entryscope("dc=example,dc=com")
-    if not "ou=People,dc=example,dc=com" in plugin.get_excludescope():
-        plugin.add_excludescope("ou=People,dc=example,dc=com")
+    if not "ou=people,dc=example,dc=com" in plugin.get_excludescope():
+        plugin.add_excludescope("ou=people,dc=example,dc=com")
 
     args = FakeArgs()
 
-    args.value = "ou=People,dc=example,dc=com"
+    args.value = "ou=people,dc=example,dc=com"
     memberof_cli.add_scope(topology.standalone, None, topology.logcap.log, args)
     assert topology.logcap.contains("is also listed as an exclude suffix")
     topology.logcap.flush()

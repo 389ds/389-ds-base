@@ -30,6 +30,9 @@ class DirectoryManager(Account):
         self._create_objectclasses = None
         self._protected = True
 
+    def change_password(self, new_password):
+        self._instance.config.set('nsslapd-rootpw', new_password)
+
     def bind(self, password=PW_DM, *args, **kwargs):
         """Bind as the Directory Manager. We have a default test password
         that can be overriden.

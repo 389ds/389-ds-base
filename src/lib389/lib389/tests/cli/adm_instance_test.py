@@ -14,7 +14,6 @@ from lib389 import DirSrv
 from lib389.cli_base import LogCapture
 
 
-
 def test_instance_list():
     lc = LogCapture()
     inst = DirSrv()

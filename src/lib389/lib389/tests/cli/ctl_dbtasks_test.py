@@ -15,6 +15,9 @@ from lib389.cli_ctl.dbtasks import dbtasks_db2index, dbtasks_db2bak, dbtasks_db2
 from lib389.cli_base import LogCapture, FakeArgs
 from lib389.tests.cli import topology, topology_be_latest
 
+from lib389.utils import ds_is_older
+pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
+
 def test_db2index(topology):
     pass
 

@@ -101,10 +101,12 @@ if __name__ == '__main__':
     if args.verbose:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
         args.func(inst, dsrc_inst['basedn'], log, args)
+        log.info("Command successful.")
     else:
         try:
             inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
             args.func(inst, dsrc_inst['basedn'], log, args)
+            log.info("Command successful.")
         except Exception as e:
             log.debug(e, exc_info=True)
             log.error("Error: %s" % str(e))

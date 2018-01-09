@@ -225,7 +225,12 @@ class DSLdapObject(DSLogging):
         values = self.get_attr_vals_bytes(attr)
         self._log.debug("%s contains %s" % (self._dn, values))
 
-        return ensure_bytes(value).lower() in [x.lower() for x in values]
+        if value is None:
+            # We are just checking if SOMETHING is present ....
+            return len(values) > 0
+        else:
+            # Check if a value really does exist.
+            return ensure_bytes(value).lower() in [x.lower() for x in values]
 
     def add(self, key, value):
         """Add an attribute with a value
@@ -287,7 +292,10 @@ class DSLdapObject(DSLogging):
         :type key: str
         """
 
-        self.set(key, None, action=ldap.MOD_DELETE)
+        try:
+            self.set(key, None, action=ldap.MOD_DELETE)
+        except ldap.NO_SUCH_ATTRIBUTE:
+            pass
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):
@@ -491,6 +499,21 @@ class DSLdapObject(DSLogging):
 
         return ensure_str(self.get_attr_val(key))
 
+    def get_attr_val_utf8_l(self, key):
+        """Get a single attribute value from the entry in utf8 type
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
+        x = self.get_attr_val(key)
+        if x is not None:
+            return ensure_str(x).lower()
+        else:
+            return None
+
     def get_attr_vals_utf8(self, key):
         """Get attribute values from the entry in utf8 type
 
@@ -501,6 +524,17 @@ class DSLdapObject(DSLogging):
         """
 
         return ensure_list_str(self.get_attr_vals(key))
+
+    def get_attr_vals_utf8_l(self, key):
+        """Get attribute values from the entry in utf8 type and lowercase
+
+        :param key: An attribute name
+        :type key: str
+        :returns: A single bytes value
+        :raises: ValueError - if instance is offline
+        """
+
+        return [x.lower() for x in ensure_list_str(self.get_attr_vals(key))]
 
     def get_attr_val_int(self, key):
         """Get a single attribute value from the entry in int type

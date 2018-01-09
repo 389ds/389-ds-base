@@ -23,14 +23,17 @@ def _input(msg):
         return raw_input(msg)
 
 
-def _get_arg(args, msg=None):
+def _get_arg(args, msg=None, hidden=False):
     if args is not None and len(args) > 0:
         if type(args) is list:
             return args[0]
         else:
             return args
     else:
-        return _input("%s : " % msg)
+        if hidden:
+            return getpass("%s : " % msg)
+        else:
+            return _input("%s : " % msg)
 
 def _get_args(args, kws):
     kwargs = {}
@@ -50,8 +53,11 @@ def _get_args(args, kws):
 def _get_attributes(args, attrs):
     kwargs = {}
     for attr in attrs:
-        if args is not None and hasattr(args, attr) and getattr(args, attr) is not None:
-            kwargs[attr] = getattr(args, attr)
+        # Python can't represent a -, so it replaces it to _
+        # in many places, so we have to normalise this.
+        attr_normal = attr.replace('-', '_')
+        if args is not None and hasattr(args, attr_normal) and getattr(args, attr_normal) is not None:
+            kwargs[attr] = getattr(args, attr_normal)
         else:
             if attr.lower() == 'userpassword':
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
@@ -167,4 +173,7 @@ class LogCapture(logging.Handler):
 class FakeArgs(object):
     def __init__(self):
         pass
+
+    def __len__(self):
+        return len(self.__dict__.keys())
 

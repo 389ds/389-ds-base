@@ -10,6 +10,7 @@ from lib389.backend import Backend, Backends
 import argparse
 
 from lib389.cli_base import (
+    populate_attr_arguments,
     _generic_list,
     _generic_get,
     _generic_get_dn,
@@ -37,7 +38,7 @@ def backend_get_dn(inst, basedn, log, args):
     _generic_get_dn(inst, basedn, log.getChild('backend_get_dn'), MANY, dn)
 
 def backend_create(inst, basedn, log, args):
-    kwargs = _get_attributes(args.extra, SINGULAR._must_attributes)
+    kwargs = _get_attributes(args, Backend._must_attributes)
     _generic_create(inst, basedn, log.getChild('backend_create'), MANY, kwargs)
 
 def backend_delete(inst, basedn, log, args, warn=True):
@@ -65,9 +66,7 @@ def create_parser(subparsers):
 
     create_parser = subcommands.add_parser('create', help='create')
     create_parser.set_defaults(func=backend_create)
-    create_parser.add_argument('extra', nargs=argparse.REMAINDER,
-            help='A create may take one or more extra arguments. This parameter provides them'
-        )
+    populate_attr_arguments(create_parser, Backend._must_attributes)
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=backend_delete)

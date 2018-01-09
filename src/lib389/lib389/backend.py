@@ -516,7 +516,10 @@ class Backend(DSLdapObject):
         self._instance.index.delete_all(bename)
 
         # Now remove our children, this is all ldbm config
-        self._instance.delete_branch_s(self._dn, ldap.SCOPE_ONELEVEL)
+
+        configs = self._instance.search_s(self._dn, ldap.SCOPE_ONELEVEL)
+        for c in configs:
+            self._instance.delete_branch_s(c.dn, ldap.SCOPE_SUBTREE)
         # The super will actually delete ourselves.
         super(Backend, self).delete()
 

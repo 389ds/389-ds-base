@@ -271,7 +271,7 @@ class MemberOfPlugin(Plugin):
         self._must_attributes.extend(['memberOfGroupAttr', 'memberOfAttr'])
 
     def get_attr(self):
-        return self.get_attr_val('memberofattr')
+        return self.get_attr_val_utf8_l('memberofattr')
 
     def get_attr_formatted(self):
         return self.display_attr('memberofattr')
@@ -280,7 +280,7 @@ class MemberOfPlugin(Plugin):
         self.set('memberofattr', attr)
 
     def get_groupattr(self):
-        return self.get_attr_vals('memberofgroupattr')
+        return self.get_attr_vals_utf8_l('memberofgroupattr')
 
     def get_groupattr_formatted(self):
         return self.display_attr('memberofgroupattr')
@@ -292,7 +292,7 @@ class MemberOfPlugin(Plugin):
         self.remove('memberofgroupattr', attr)
 
     def get_allbackends(self):
-        return self.get_attr_val('memberofallbackends')
+        return self.get_attr_val_utf8_l('memberofallbackends')
 
     def get_allbackends_formatted(self):
         return self.display_attr('memberofallbackends')
@@ -304,7 +304,7 @@ class MemberOfPlugin(Plugin):
         self.set('memberofallbackends', 'off')
 
     def get_skipnested(self):
-        return self.get_attr_val('memberofskipnested')
+        return self.get_attr_val_utf8_l('memberofskipnested')
 
     def get_skipnested_formatted(self):
         return self.display_attr('memberofskipnested')
@@ -316,7 +316,7 @@ class MemberOfPlugin(Plugin):
         self.set('memberofskipnested', 'off')
 
     def get_autoaddoc(self):
-        return self.get_attr_val('memberofautoaddoc')
+        return self.get_attr_val_utf8_l('memberofautoaddoc')
 
     def get_autoaddoc_formatted(self):
         return self.display_attr('memberofautoaddoc')
@@ -328,7 +328,7 @@ class MemberOfPlugin(Plugin):
         self.remove_all('memberofautoaddoc')
 
     def get_entryscope(self, formatted=False):
-        return self.get_attr_vals('memberofentryscope')
+        return self.get_attr_vals_utf8_l('memberofentryscope')
 
     def get_entryscope_formatted(self):
         return self.display_attr('memberofentryscope')
@@ -343,7 +343,7 @@ class MemberOfPlugin(Plugin):
         self.remove_all('memberofentryscope')
 
     def get_excludescope(self):
-        return self.get_attr_vals('memberofentryscopeexcludesubtree')
+        return self.get_attr_vals_utf8_l('memberofentryscopeexcludesubtree')
 
     def get_excludescope_formatted(self):
         return self.display_attr('memberofentryscopeexcludesubtree')
@@ -768,7 +768,7 @@ class Plugins(DSLdapObjects):
     # This is a map of plugin to type, so when we
     # do a get / list / create etc, we can map to the correct
     # instance.
-    def __init__(self, instance):
+    def __init__(self, instance, basedn=None):
         super(Plugins, self).__init__(instance=instance)
         self._objectclasses = ['top', 'nsslapdplugin']
         self._filterattrs = ['cn', 'nsslapd-pluginPath']

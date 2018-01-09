@@ -3323,6 +3323,7 @@ class DirSrv(SimpleLDAPObject, object):
     # This could be made to delete by filter ....
     def delete_branch_s(self, basedn, scope):
         ents = self.search_s(basedn, scope)
-        for ent in ents:
+
+        for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
             self.log.debug("Delete entry children %s" % (ent.dn))
             self.delete_s(ent.dn)
