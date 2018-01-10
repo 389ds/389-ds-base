@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import argparse
-from lib389.idm.user import UserAccount, UserAccounts, MUST_ATTRIBUTES
+from lib389.idm.user import nsUserAccount, nsUserAccounts
 
 from lib389.cli_base import (
     populate_attr_arguments,
@@ -22,8 +22,8 @@ from lib389.cli_base import (
     _warn,
     )
 
-SINGULAR = UserAccount
-MANY = UserAccounts
+SINGULAR = nsUserAccount
+MANY = nsUserAccounts
 RDN = 'uid'
 
 # These are a generic specification, try not to tamper with them
@@ -40,7 +40,7 @@ def get_dn(inst, basedn, log, args):
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn)
 
 def create(inst, basedn, log, args):
-    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    kwargs = _get_attributes(args, SINGULAR._must_attributes)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs)
 
 def delete(inst, basedn, log, args, warn=True):
@@ -51,7 +51,7 @@ def delete(inst, basedn, log, args, warn=True):
 
 def status(inst, basedn, log, args):
     uid = _get_arg( args.uid, msg="Enter %s to check" % RDN)
-    uas = UserAccounts(inst, basedn)
+    uas = MANY(inst, basedn)
     acct = uas.get(uid)
     acct_str = "locked: %s" % acct.is_locked()
     log.info('uid: %s' % uid)
@@ -59,14 +59,14 @@ def status(inst, basedn, log, args):
 
 def lock(inst, basedn, log, args):
     uid = _get_arg( args.uid, msg="Enter %s to check" % RDN)
-    accounts = UserAccounts(inst, basedn)
+    accounts = MANY(inst, basedn)
     acct = accounts.get(uid)
     acct.lock()
     log.info('locked %s' % uid)
 
 def unlock(inst, basedn, log, args):
     uid = _get_arg( args.uid, msg="Enter %s to check" % RDN)
-    accounts = UserAccounts(inst, basedn)
+    accounts = MANY(inst, basedn)
     acct = accounts.get(uid)
     acct.unlock()
     log.info('unlocked %s' % uid)

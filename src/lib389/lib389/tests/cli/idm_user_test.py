@@ -44,9 +44,10 @@ def test_user_tasks(topology):
 
     # Create the user
     topology.logcap.flush()
-    u_args.cn = 'testuser'
     u_args.uid = 'testuser'
-    u_args.sn = 'testuser'
+    # u_args.sn = 'testuser'
+    u_args.cn = 'Test User'
+    u_args.displayName = 'Test User'
     u_args.homeDirectory = '/home/testuser'
     u_args.uidNumber = '5000'
     u_args.gidNumber = '5000'

@@ -54,6 +54,8 @@ attributeTypes: ( nsLogSuppress-oid NAME 'nsLogSuppress' DESC 'Netscape defined 
 attributeTypes: ( nsJarfilename-oid NAME 'nsJarfilename' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
 attributeTypes: ( nsClassname-oid NAME 'nsClassname' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2337 NAME 'nsCertSubjectDN' DESC 'An x509 DN from a certificate used to map during a TLS bind process' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN '389 Directory Server Project' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2342 NAME 'nsSshPublicKey' DESC 'An nsSshPublicKey record' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN '389 Directory Server Project' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2343 NAME 'legalName' DESC 'An individuals legalName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server Project' )
 objectClasses: ( nsAdminDomain-oid NAME 'nsAdminDomain' DESC 'Netscape defined objectclass' SUP organizationalUnit MAY ( nsAdminDomainName ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsHost-oid NAME 'nsHost' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( serverHostName $ description $ l $ nsHostLocation $ nsHardwarePlatform $ nsOsVersion ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsAdminGroup-oid NAME 'nsAdminGroup' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsAdminGroupName $ description $ nsConfigRoot $ nsAdminSIEDN ) X-ORIGIN 'Netscape' )
@@ -65,4 +67,11 @@ objectClasses: ( nsAdminObject-oid NAME 'nsAdminObject' DESC 'Netscape defined o
 objectClasses: ( nsConfig-oid NAME 'nsConfig' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( description $ nsServerPort $ nsServerAddress $ nsSuiteSpotUser $ nsErrorLog $ nsPidLog $ nsAccessLog $ nsDefaultAcceptLanguage $ nsServerSecurity ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsDirectoryInfo-oid NAME 'nsDirectoryInfo' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsBindDN $ nsBindPassword $ nsDirectoryURL $ nsDirectoryFailoverList $ nsDirectoryInfoRef ) X-ORIGIN 'Netscape' )
 objectClasses: ( 2.16.840.1.113730.3.2.329 NAME 'nsMemberOf' DESC 'Allow memberOf assignment on groups for nesting and users' SUP top AUXILIARY MAY ( memberOf ) X-ORIGIN '389 Directory Server Project' )
-objectClasses: ( 2.16.840.1.113730.3.2.331 NAME 'nsAccount' DESC 'A representation of a user in a directory server' SUP top AUXILIARY MAY ( userCertificate $ nsCertSubjectDN ) X-ORIGIN '389 Directory Server Project' )
+objectClasses: ( 2.16.840.1.113730.3.2.331 NAME 'nsAccount' DESC 'A representation of a binding user in a directory server' SUP top AUXILIARY MAY ( userCertificate $ nsCertSubjectDN $ nsSshPublicKey $ userPassword ) X-ORIGIN '389 Directory Server Project' )
+objectClasses: ( 2.16.840.1.113730.3.2.333 NAME 'nsPerson' DESC 'A representation of a person in a directory server' SUP top STRUCTURAL MUST ( displayName $ cn ) MAY ( userPassword $ seeAlso $ description $ legalName $ mail $ preferredLanguage ) X-ORIGIN '389 Directory Server Project' )
+objectClasses: ( 2.16.840.1.113730.3.2.334 NAME 'nsOrgPerson' DESC 'A representation of an org person in directory server. See also inetOrgPerson.' SUP top AUXILIARY MAY (
+  businessCategory $ carLicense $ departmentNumber $ employeeNumber $ employeeType $
+  homePhone $ homePostalAddress $ initials $ jpegPhoto $ labeledURI $ manager $
+  mobile $ o $ pager $ photo $ roomNumber $ uid $ userCertificate $ telephoneNumber $
+  x500uniqueIdentifier $ userSMIMECertificate $ userPKCS12 )
+  X-ORIGIN '389 Directory Server Project' )

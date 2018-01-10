@@ -93,6 +93,22 @@ class Account(DSLdapObject):
         inst_clone.open(saslmethod='gssapi')
         return inst_clone
 
+    def enroll_certificate(self, der_path):
+        """Enroll a certificate for certmap verification. Because of the userCertificate
+        attribute, we have to do this on userAccount which has support for it.
+
+        :param der_path: the certificate file in DER format to include.
+        :type der_path: str
+        """
+        if ds_is_older('1.4.0'):
+            raise Exception("This version of DS does not support nsAccount")
+        # Given a cert path, add this to the object as a userCertificate
+        crt = None
+        with open(der_path, 'rb') as f:
+            crt = f.read()
+        self.add('usercertificate;binary', crt)
+
+
 class Accounts(DSLdapObjects):
     """DSLdapObjects that represents Account entry
 
@@ -106,9 +122,12 @@ class Accounts(DSLdapObjects):
         super(Accounts, self).__init__(instance)
         # These are all the objects capable of holding a password.
         self._objectclasses = [
+            'nsAccount',
+            'nsPerson',
             'simpleSecurityObject',
             'organization',
-            'personperson',
+            'person',
+            'account',
             'organizationalUnit',
             'netscapeServer',
             'domain',
