@@ -240,6 +240,9 @@ def topology_st_gssapi(request):
 
     # Add sasl mappings
     saslmappings = SaslMappings(topology.standalone)
+    # First, purge all the default maps.
+    [m.delete() for m in saslmappings.list()]
+    # Now create a single map that works for our case.
     saslmappings.create(properties={
         'cn': 'suffix map',
         # Don't add the realm due to a SASL bug
