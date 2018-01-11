@@ -33,6 +33,7 @@ static char *pwpolicy_lock_attrs_all[] = {"passwordRetryCount",
 static void compute_limits(Slapi_PBlock *pb);
 static int send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize, unsigned int *pr_stat);
 static int process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result);
+static void send_entry(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Operation *operation, char **attrs, int attrsonly, int *pnentries);
 
 int
 op_shared_is_allowed_attr(const char *attr_name, int replicated_op)
@@ -1040,6 +1041,31 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
 
     return 0;
 }
+static void
+send_entry(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Operation *operation, char **attrs, int attrsonly, int *pnentries)
+{
+                /*
+             * It's a regular entry, or it's a referral and
+             * managedsait control is on.  In either case, send
+             * the entry.
+             */
+                switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
+                case 0: /* entry sent ok */
+                    (*pnentries)++;
+                    slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
+                    break;
+                case 1: /* entry not sent */
+                    break;
+                case -1: /* connection closed */
+                    /*
+                     * mark the operation as abandoned so the backend
+                     * next entry function gets called again and has
+                     * a chance to clean things up.
+                     */
+                    operation->o_status = SLAPI_OP_STATUS_ABANDONED;
+                    break;
+                }
+}
 
 #if 0
 /* Loops through search entries and sends them to the client.
@@ -1214,7 +1240,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries, in
     *pnentries = 0;
 
     while (!done) {
-        Slapi_Entry *gerentry = NULL;
+        Slapi_Entry *ger_template_entry = NULL;
         Slapi_Operation *operation;
 
         slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
@@ -1236,57 +1262,57 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries, in
         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
 
         /* Check for possible get_effective_rights control */
-        if (e) {
-            if (operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS) {
-                char *errbuf = NULL;
+        if (operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS) {
+            char *errbuf = NULL;
+
+            if (PAGEDRESULTS_PAGE_END == pr_stat) {
+                /*
+                 * read ahead -- there is at least more entry.
+                 * undo it and return the PAGE_END
+                 */
+                be->be_prev_search_results(pb);
+                done = 1;
+                continue;
+            }
+            if ( e == NULL ) {
                 char **gerattrs = NULL;
                 char **gerattrsdup = NULL;
                 char **gap = NULL;
                 char *gapnext = NULL;
-
-                if (PAGEDRESULTS_PAGE_END == pr_stat) {
-                    /*
-                 * read ahead -- there is at least more entry.
-                 * undo it and return the PAGE_END
+                /* we have no more entries
+                 * but we might create a template entry for GER
+                 * so we need to continue, but make sure to stop
+                 * after handling the template entry.
+                 * the template entry is a temporary entry returned by the acl
+                 * plugin in the pblock and will be freed
                  */
-                    be->be_prev_search_results(pb);
-                    done = 1;
-                    continue;
-                }
+                done = 1;
+                pr_stat = PAGEDRESULTS_SEARCH_END;
 
                 slapi_pblock_get(pb, SLAPI_SEARCH_GERATTRS, &gerattrs);
                 gerattrsdup = cool_charray_dup(gerattrs);
                 gap = gerattrsdup;
-                do {
+                while (gap && *gap) {
                     gapnext = NULL;
-                    if (gap) {
-                        if (*gap && *(gap + 1)) {
-                            gapnext = *(gap + 1);
-                            *(gap + 1) = NULL;
-                        }
-                        slapi_pblock_set(pb, SLAPI_SEARCH_GERATTRS, gap);
-                        rc = plugin_call_acl_plugin(pb, e, attrs, NULL,
-                                                    SLAPI_ACL_ALL, ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS,
-                                                    &errbuf);
-                        if (NULL != gapnext) {
-                            *(gap + 1) = gapnext;
-                        }
-                    } else if (NULL != e) {
-                        rc = plugin_call_acl_plugin(pb, e, attrs, NULL,
-                                                    SLAPI_ACL_ALL, ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS,
-                                                    &errbuf);
+                    if (*(gap + 1)) {
+                        gapnext = *(gap + 1);
+                        *(gap + 1) = NULL;
                     }
+                    slapi_pblock_set(pb, SLAPI_SEARCH_GERATTRS, gap);
+                    rc = plugin_call_acl_plugin(pb, e, attrs, NULL,
+                                                SLAPI_ACL_ALL, ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS,
+                                                &errbuf);
+                    if (NULL != gapnext) {
+                        *(gap + 1) = gapnext;
+                    }
+                    gap++;
+                    /* get the template entry, if any */
+                    slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
                     if (NULL == e) {
-                        /* get the template entry, if any */
-                        slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
-                        if (NULL == e) {
-                            /* everything is ok - don't send the result */
-                            pr_stat = PAGEDRESULTS_SEARCH_END;
-                            done = 1;
-                            continue;
-                        }
-                        gerentry = e;
+                        /* everything is ok - don't send the result */
+                        continue;
                     }
+                    ger_template_entry = e;
                     if (rc != LDAP_SUCCESS) {
                         /* Send error result and
                        abort op if the control is critical */
@@ -1294,65 +1320,53 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries, in
                                       "Failed to get effective rights for entry (%s), rc=%d\n",
                                       slapi_entry_get_dn_const(e), rc);
                         send_ldap_result(pb, rc, NULL, errbuf, 0, NULL);
-                        slapi_ch_free((void **)&errbuf);
-                        if (gerentry) {
-                            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
-                            slapi_entry_free(gerentry);
-                            gerentry = e = NULL;
-                        }
-                        pr_stat = PAGEDRESULTS_SEARCH_END;
                         rval = -1;
-                        done = 1;
-                        continue;
-                    }
-                    slapi_ch_free((void **)&errbuf);
-                    if (process_entry(pb, e, send_result)) {
-                        /* shouldn't send this entry */
-                        if (gerentry) {
-                            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
-                            slapi_entry_free(gerentry);
-                            gerentry = e = NULL;
+                    } else {
+                        if (!process_entry(pb, e, send_result)) {
+                            /* should send this entry now*/
+                            send_entry(pb, e, operation, attrs, attrsonly, pnentries);
                         }
-                        continue;
                     }
 
-                    /*
-                 * It's a regular entry, or it's a referral and
-                 * managedsait control is on.  In either case, send
-                 * the entry.
-                 */
-                    switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
-                    case 0: /* entry sent ok */
-                        (*pnentries)++;
-                        slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
-                        break;
-                    case 1: /* entry not sent */
-                        break;
-                    case -1: /* connection closed */
-                        /*
-                         * mark the operation as abandoned so the backend
-                         * next entry function gets called again and has
-                         * a chance to clean things up.
-                         */
-                        operation->o_status = SLAPI_OP_STATUS_ABANDONED;
-                        break;
-                    }
-                    if (gerentry) {
+                    slapi_ch_free((void **)&errbuf);
+                    if (ger_template_entry) {
                         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
-                        slapi_entry_free(gerentry);
-                        gerentry = e = NULL;
+                        slapi_entry_free(ger_template_entry);
+                        ger_template_entry = e = NULL;
                     }
-                } while (gap && ++gap && *gap);
+                } /* while ger template */
                 slapi_pblock_set(pb, SLAPI_SEARCH_GERATTRS, gerattrs);
                 cool_charray_free(gerattrsdup);
-                if (pagesize == *pnentries) {
-                    /* PAGED RESULTS: reached the pagesize */
-                    /* We don't set "done = 1" here.
-                 * We read ahead next entry to check whether there is
-                 * more entries to return or not. */
-                    pr_stat = PAGEDRESULTS_PAGE_END;
+            } else {
+                /* we are processing geteffective rights for an existing entry */
+                rc = plugin_call_acl_plugin(pb, e, attrs, NULL,
+                                            SLAPI_ACL_ALL, ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS,
+                                             &errbuf);
+                if (rc != LDAP_SUCCESS) {
+                    /* Send error result and
+                       abort op if the control is critical */
+                    slapi_log_err(SLAPI_LOG_ERR, "iterate",
+                                  "Failed to get effective rights for entry (%s), rc=%d\n",
+                                  slapi_entry_get_dn_const(e), rc);
+                    send_ldap_result(pb, rc, NULL, errbuf, 0, NULL);
+                    rval = -1;
+                } else {
+                    if (!process_entry(pb, e, send_result)) {
+                        /* should send this entry now*/
+                        send_entry(pb, e, operation, attrs, attrsonly, pnentries);
+                        if (pagesize == *pnentries) {
+                            /* PAGED RESULTS: reached the pagesize */
+                            /* We don't set "done = 1" here.
+                             * We read ahead next entry to check whether there is
+                             * more entries to return or not. */
+                            pr_stat = PAGEDRESULTS_PAGE_END;
+                        }
+                    }
                 }
-            } else { /* not GET_EFFECTIVE_RIGHTS */
+                slapi_ch_free((void **)&errbuf);
+            }
+        /* not GET_EFFECTIVE_RIGHTS */
+        } else if (e) {
                 if (PAGEDRESULTS_PAGE_END == pr_stat) {
                     /*
                  * read ahead -- there is at least more entry.
@@ -1364,46 +1378,21 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries, in
                 }
                 /* Adding shadow password attrs. */
                 add_shadow_ext_password_attrs(pb, &e);
-                if (process_entry(pb, e, send_result)) {
-                    /* shouldn't  send this entry */
-                    struct slapi_entry *pb_pw_entry = slapi_pblock_get_pw_entry(pb);
-                    slapi_entry_free(pb_pw_entry);
-                    slapi_pblock_set_pw_entry(pb, NULL);
-                    continue;
+                if (!process_entry(pb, e, send_result)) {
+                    /*this entry was not sent, do it now*/
+                    send_entry(pb, e, operation, attrs, attrsonly, pnentries);
+                    if (pagesize == *pnentries) {
+                        /* PAGED RESULTS: reached the pagesize */
+                        /* We don't set "done = 1" here.
+                         * We read ahead next entry to check whether there is
+                         * more entries to return or not. */
+                        pr_stat = PAGEDRESULTS_PAGE_END;
+                    }
                 }
-
-                /*
-             * It's a regular entry, or it's a referral and
-             * managedsait control is on.  In either case, send
-             * the entry.
-             */
-                switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
-                case 0: /* entry sent ok */
-                    (*pnentries)++;
-                    slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
-                    break;
-                case 1: /* entry not sent */
-                    break;
-                case -1: /* connection closed */
-                    /*
-                     * mark the operation as abandoned so the backend
-                     * next entry function gets called again and has
-                     * a chance to clean things up.
-                     */
-                    operation->o_status = SLAPI_OP_STATUS_ABANDONED;
-                    break;
-                }
+                /* cleanup pw entry . sent or not */
                 struct slapi_entry *pb_pw_entry = slapi_pblock_get_pw_entry(pb);
                 slapi_entry_free(pb_pw_entry);
                 slapi_pblock_set_pw_entry(pb, NULL);
-                if (pagesize == *pnentries) {
-                    /* PAGED RESULTS: reached the pagesize */
-                    /* We don't set "done = 1" here.
-                 * We read ahead next entry to check whether there is
-                 * more entries to return or not. */
-                    pr_stat = PAGEDRESULTS_PAGE_END;
-                }
-            }
         } else {
             /* no more entries */
             done = 1;
