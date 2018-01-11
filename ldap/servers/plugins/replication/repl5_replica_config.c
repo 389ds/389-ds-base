@@ -1688,9 +1688,15 @@ replica_cleanallruv_thread(void *arg)
     }
     /*
      *  Presetting the rid prevents duplicate thread creation, but allows the db and changelog to still
-     *  process updates from the rid.  set_cleaned_rid() blocks updates, so we don't want to do that... yet.
+     *  process updates from the rid.
+     *  set_cleaned_rid() blocks updates, so we don't want to do that... yet unless we are in force mode.
+     *  If we are forcing a clean independent of state of other servers for this RID we can set_cleaned_rid()
      */
-    preset_cleaned_rid(data->rid);
+    if (data->force) {
+        set_cleaned_rid(data->rid);
+    } else {
+        preset_cleaned_rid(data->rid);
+    }
     rid_text = slapi_ch_smprintf("%d", data->rid);
     csn_as_string(data->maxcsn, PR_FALSE, csnstr);
     /*
