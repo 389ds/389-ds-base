@@ -42,9 +42,15 @@ do_abandon(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-    BerElement *ber = pb_op->o_ber;
-
     slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "->\n");
+
+    if (pb_op == NULL || pb_conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "do_abandon", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
+                      pb_conn, pb_op);
+        return;
+    }
+
+    BerElement *ber = pb_op->o_ber;
 
     /*
      * Parse the abandon request.  It looks like this:

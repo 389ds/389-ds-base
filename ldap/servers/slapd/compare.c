@@ -35,10 +35,7 @@ do_compare(Slapi_PBlock *pb)
 {
     Operation *pb_op = NULL;
     Connection *pb_conn = NULL;
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-
-    BerElement *ber = pb_op->o_ber;
+    BerElement *ber;
     char *rawdn = NULL;
     const char *dn = NULL;
     struct ava ava = {0};
@@ -49,6 +46,18 @@ do_compare(Slapi_PBlock *pb)
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_compare", "=>\n");
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    if (pb_op == NULL || pb_conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "do_compare", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
+                      pb_conn, pb_op);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        goto free_and_return;
+    }
+
+    ber = pb_op->o_ber;
 
     /* count the compare request */
     slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);

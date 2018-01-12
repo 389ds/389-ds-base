@@ -66,6 +66,14 @@ do_add(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+
+
+    if (operation == NULL || pb_conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "do_add", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
+                      pb_conn, operation);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "param error", 0, NULL);
+        return;
+    }
     ber = operation->o_ber;
 
     /* count the add request */
@@ -450,8 +458,8 @@ op_shared_add(Slapi_PBlock *pb)
 
         if (!internal_op) {
             slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ADD dn=\"%s\"%s\n",
-                             pb_conn->c_connid,
-                             operation->o_opid,
+                             pb_conn ? pb_conn->c_connid : -1,
+                             operation ? operation->o_opid: -1,
                              slapi_entry_get_dn_const(e),
                              proxystr ? proxystr : "");
         } else {
@@ -865,7 +873,11 @@ handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
     int ret;
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-
+    if (pb_conn == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "handle_fast_add", "NULL param: pb_conn (0x%p)\n", pb_conn);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "param error", 0, NULL);
+        return;
+    }
     be = pb_conn->c_bi_backend;
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {

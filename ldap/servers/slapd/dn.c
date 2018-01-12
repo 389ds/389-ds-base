@@ -2477,6 +2477,13 @@ slapi_sdn_copy(const Slapi_DN *from, Slapi_DN *to)
 {
     SDN_DUMP(from, "slapi_sdn_copy from");
     SDN_DUMP(to, "slapi_sdn_copy to");
+
+    if (to == NULL || from == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_sdn_copy",
+                      "NULL param: from (0x%p) to (0x%p)\n", from, to);
+        return;
+    }
+
     slapi_sdn_done(to);
     if (from->udn) {
         to->flag = slapi_setbit_uchar(to->flag, FLAG_UDN);

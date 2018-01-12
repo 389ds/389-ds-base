@@ -1518,7 +1518,7 @@ connection_threadmain()
         }
 
         if (!thread_turbo_flag && !more_data) {
-	    Connection *pb_conn = NULL;
+	        Connection *pb_conn = NULL;
 
             /* If more data is left from the previous connection_read_operation,
                we should finish the op now.  Client might be thinking it's
@@ -1530,6 +1530,13 @@ connection_threadmain()
              * Connection wait for new work provides the conn and op for us.
              */
             slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+            if (pb_conn == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
+                              "pb_conn is NULL\n");
+                slapi_pblock_destroy(pb);
+                g_decr_active_threadcnt();
+                return;
+            }
 
             switch (ret) {
             case CONN_NOWORK:
@@ -1702,11 +1709,11 @@ connection_threadmain()
                  * so need locking from here on */
                 signal_listner();
                 /* with nunc-stans, I see an enormous amount of time spent in the poll() in
- * connection_read_operation() when the below code is enabled - not sure why
- * nunc-stans makes such a huge difference - for now, just disable this code
- * when using nunc-stans - it is supposed to be an optimization but turns out
- * to not be the opposite with nunc-stans
- */
+                 * connection_read_operation() when the below code is enabled - not sure why
+                 * nunc-stans makes such a huge difference - for now, just disable this code
+                 * when using nunc-stans - it is supposed to be an optimization but turns out
+                 * to not be the opposite with nunc-stans
+                 */
             } else if (!enable_nunc_stans) { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
                 PR_EnterMonitor(conn->c_mutex);

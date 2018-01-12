@@ -262,8 +262,8 @@ op_shared_delete(Slapi_PBlock *pb)
             slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
             slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
             slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d DEL dn=\"%s\"%s\n",
-                             pb_conn->c_connid,
-                             pb_op->o_opid,
+                             pb_conn ? pb_conn->c_connid : -1,
+                             pb_op ? pb_op->o_opid : -1,
                              slapi_sdn_get_dn(sdn),
                              proxystr ? proxystr : "");
         } else {

@@ -396,7 +396,7 @@ send_ldap_result_ext(
         break;
 
     case LDAP_REFERRAL:
-        if (conn->c_ldapversion > LDAP_VERSION2) {
+        if (conn && conn->c_ldapversion > LDAP_VERSION2) {
             tag = LDAP_TAG_REFERRAL;
             break;
         }
@@ -645,6 +645,11 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
         BerElement *req_ber = NULL;
         Operation *op = NULL;
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+        if (op == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "process_read_entry_controls", "op is NULL\n");
+            rc = -1;
+            goto done;
+        }
 
         if (strcmp(oid, LDAP_CONTROL_PRE_READ_ENTRY) == 0) {
             /* first verify this is the correct operation for a pre-read entry control */
@@ -2144,6 +2149,13 @@ encode_read_entry(Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluseratt
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+
+    if (conn == NULL || op == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "encode_read_entry",
+                      "NULL param error: conn (0x%p) op (0x%p)\n", conn, op);
+        rc = -1;
+        goto cleanup;
+    }
 
     /* Start the ber encoding with the DN */
     rc = ber_printf(ber, "t{s{", LDAP_RES_SEARCH_ENTRY, slapi_entry_get_dn_const(e));

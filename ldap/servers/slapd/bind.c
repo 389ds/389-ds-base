@@ -54,11 +54,7 @@ do_bind(Slapi_PBlock *pb)
 {
     Operation *pb_op = NULL;
     Connection *pb_conn = NULL;
-
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-
-    BerElement *ber = pb_op->o_ber;
+    BerElement *ber;
     int err, isroot;
     ber_tag_t method = LBER_DEFAULT;
     ber_int_t version = -1;
@@ -82,6 +78,16 @@ do_bind(Slapi_PBlock *pb)
     int minssf_exclude_rootdse = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_bind", "=>\n");
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    if (pb_op == NULL || pb_conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "do_bind", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
+                      pb_conn, pb_op);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        goto free_and_return;
+    }
+    ber = pb_op->o_ber;
 
     /*
      * Parse the bind request.  It looks like this:
@@ -855,6 +861,10 @@ log_bind_access(
     Connection *pb_conn = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    if (pb_op == NULL || pb_conn == NULL) {
+        return;
+    }
 
     if (method == LDAP_AUTH_SASL && saslmech && msg) {
         slapi_log_access(LDAP_DEBUG_STATS,

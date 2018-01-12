@@ -296,7 +296,11 @@ get_filter_internal(Connection *conn, BerElement *ber, struct slapi_filter **fil
 
     case LDAP_FILTER_EXTENDED:
         slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "EXTENDED\n");
-        if (conn->c_ldapversion < 3) {
+        if (conn == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "get_filter_internal",
+                          "NULL param: conn (0x%p)\n", conn);
+            err = LDAP_OPERATIONS_ERROR;
+        } else if (conn->c_ldapversion < 3) {
             slapi_log_err(SLAPI_LOG_ERR, "get_filter_internal",
                           "Extensible filter received from v2 client\n");
             err = LDAP_PROTOCOL_ERROR;
