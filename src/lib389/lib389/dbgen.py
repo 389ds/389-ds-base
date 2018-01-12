@@ -8,6 +8,7 @@
 
 # Replacement of the dbgen.pl utility
 
+from lib389.utils import pseudolocalize
 import random
 import os
 import pwd
@@ -95,7 +96,7 @@ roomNumber: 5164
 carLicense: 21SJJAG
 l: {LOCATION}
 ou: {OU}
-mail: {FIRST}.{LAST}@example.com
+mail: {UID}@example.com
 postalAddress: 518,  Dept #851, Room#{OU}
 title: {TITLE}
 usercertificate;binary:: MIIBvjCCASegAwIBAgIBAjANBgkqhkiG9w0BAQQFADAnMQ8wDQYD
@@ -114,38 +115,20 @@ DBGEN_HEADER = """dn: {SUFFIX}
 objectClass: top
 objectClass: domain
 dc: example
-aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl1"; allow(write) userdn = "ldap:///self";) 
+aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl1"; allow(write) userdn = "ldap:///self";)
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl2"; allow(write) groupdn = "ldap:///cn=Directory Administrators, {SUFFIX}";)
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl3"; allow(read, search, compare) userdn = "ldap:///anyone";)
 
-dn: ou=Accounting,{SUFFIX}
-objectClass: top
-objectClass: organizationalUnit
-ou: Accounting
+"""
 
-dn: ou=Product Development,{SUFFIX}
+DBGEN_OU_TEMPLATE = """dn: ou={OU},{SUFFIX}
 objectClass: top
 objectClass: organizationalUnit
-ou: Product Development
-
-dn: ou=Product Testing,{SUFFIX}
-objectClass: top
-objectClass: organizationalUnit
-ou: Product Testing
-
-dn: ou=Human Resources,{SUFFIX}
-objectClass: top
-objectClass: organizationalUnit
-ou: Human Resources
-
-dn: ou=Payroll,{SUFFIX}
-objectClass: top
-objectClass: organizationalUnit
-ou: Payroll
+ou: {OU}
 
 """
 
-def dbgen(instance, number, ldif_file, suffix):
+def dbgen(instance, number, ldif_file, suffix, pseudol10n=False):
     familyname_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-FamilyNames')
     givename_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-GivenNames')
     familynames = []
@@ -157,6 +140,9 @@ def dbgen(instance, number, ldif_file, suffix):
 
     with open(ldif_file, 'w') as output:
         output.write(DBGEN_HEADER.format(SUFFIX=suffix))
+        for ou in DBGEN_OUS:
+            ou = pseudolocalize(ou) if pseudol10n else ou
+            output.write(DBGEN_OU_TEMPLATE.format(SUFFIX=suffix, OU=ou))
         for i in range(0, number):
             # Pick a random ou
             ou = random.choice(DBGEN_OUS)
@@ -165,9 +151,16 @@ def dbgen(instance, number, ldif_file, suffix):
             # How do we subscript from a generator?
             initials = "%s. %s" % (first[0], last[0])
             uid = "%s%s%s" % (first[0], last, i)
-            dn = "uid=%s,ou=%s,%s" % (uid, ou, suffix)
             l = random.choice(DBGEN_LOCATIONS)
             title = "%s %s" % (random.choice(DBGEN_TITLE_LEVELS), random.choice(DBGEN_POSITIONS))
+            if pseudol10n:
+                ou = pseudolocalize(ou)
+                first = pseudolocalize(first)
+                last = pseudolocalize(last)
+                initials = pseudolocalize(initials)
+                l = pseudolocalize(l)
+                title = pseudolocalize(title)
+            dn = "uid=%s,ou=%s,%s" % (uid, ou, suffix)
             output.write(DBGEN_TEMPLATE.format(
                 DN=dn,
                 UID=uid,
@@ -187,5 +180,3 @@ def dbgen(instance, number, ldif_file, suffix):
         uid = pwd.getpwnam(instance.userid).pw_uid
         gid = grp.getgrnam(instance.userid).gr_gid
         os.chown(ldif_file, uid, gid)
-
-
