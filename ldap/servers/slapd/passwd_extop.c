@@ -486,6 +486,10 @@ passwd_modify_extop(Slapi_PBlock *pb)
     /* Allow password modify only for SSL/TLS established connections and
      * connections using SASL privacy layers */
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    if (conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL");
+        goto free_and_return;
+    }
     if (slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
         errMesg = "Could not get SASL SSF from connection\n";
         rc = LDAP_OPERATIONS_ERROR;

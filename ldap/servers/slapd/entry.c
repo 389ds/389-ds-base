@@ -1998,6 +1998,10 @@ slapi_entry_dup(const Slapi_Entry *e)
     struct attrs_in_extension *aiep;
 
     PR_ASSERT(NULL != e);
+    if (e == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_entry_dup", "entry is NULL\n");
+        return NULL;
+    }
 
     ec = slapi_entry_alloc();
 
@@ -3660,7 +3664,11 @@ delete_values_sv_internal(
     Slapi_Attr *a;
     int retVal = LDAP_SUCCESS;
 
-/*
+    if (e == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "delete_values_sv_internal", "entry is NULL\n");
+        return LDAP_OPERATIONS_ERROR;
+    }
+    /*
      * If type is in the protected_attrs_all list, we could ignore the failure,
      * as the attribute could only exist in the entry in the memory when the
      * add/mod operation is done, while the retried entry from the db does not

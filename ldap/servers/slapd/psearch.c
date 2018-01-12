@@ -271,6 +271,11 @@ ps_send_results(void *arg)
     slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
     slapi_pblock_get(ps->ps_pblock, SLAPI_OPERATION, &pb_op);
 
+    if (pb_conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "ps_send_results", "pb_conn is NULL\n");
+        return;
+    }
+
     /* need to acquire a reference to this connection so that it will not
        be released or cleaned up out from under us */
     PR_EnterMonitor(pb_conn->c_mutex);
@@ -280,7 +285,7 @@ ps_send_results(void *arg)
     if (conn_acq_flag) {
         slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
                       "conn=%" PRIu64 " op=%d Could not acquire the connection - psearch aborted\n",
-                      pb_conn->c_connid, pb_op->o_opid);
+                      pb_conn->c_connid, pb_op ? pb_op->o_opid : -1);
     }
 
     PR_Lock(psearch_list->pl_cvarlock);
@@ -290,7 +295,7 @@ ps_send_results(void *arg)
         if (pb_op == NULL || slapi_op_abandoned(ps->ps_pblock)) {
             slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
                           "conn=%" PRIu64 " op=%d The operation has been abandoned\n",
-                          pb_conn->c_connid, pb_op->o_opid);
+                          pb_conn->c_connid, pb_op ? pb_op->o_opid : -1);
             break;
         }
         if (NULL == ps->ps_eq_head) {
@@ -532,7 +537,7 @@ ps_service_persistent_searches(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chg
         slapi_log_err(SLAPI_LOG_CONNS, "ps_service_persistent_searches",
                       "conn=%" PRIu64 " op=%d entry %s with chgtype %d "
                       "matches the ps changetype %d\n",
-                      pb_conn->c_connid,
+                      pb_conn ? pb_conn->c_connid : -1,
                       pb_op->o_opid,
                       edn, chgtype, ps->ps_changetypes);
 
@@ -609,7 +614,7 @@ ps_service_persistent_searches(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chg
         /* Turn 'em loose */
         ps_wakeup_all();
         slapi_log_err(SLAPI_LOG_TRACE, "ps_service_persistent_searches", "Enqueued entry "
-                                                                         "\"%s\" on %d persistent search lists\n",
+                      "\"%s\" on %d persistent search lists\n",
                       slapi_entry_get_dn_const(e), matched);
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "ps_service_persistent_searches",

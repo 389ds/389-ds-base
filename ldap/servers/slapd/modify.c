@@ -122,9 +122,16 @@ do_modify(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, "do_modify", "=>\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
-    ber = operation->o_ber;
-
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    if (operation == NULL) {
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR,
+                         NULL, "operation is NULL parameter", 0, NULL);
+        slapi_log_err(SLAPI_LOG_ERR, "do_modify",
+            "NULL param:  pb_conn (0x%p) operation (0x%p)\n", pb_conn, operation);
+        return;
+    }
+
+    ber = operation->o_ber;
 
     /* count the modify request */
     slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
@@ -1164,6 +1171,13 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &pwresponse_req);
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    if (pb_conn == NULL || operation == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "op_shared_allow_pw_change",
+                      "NULL param error: conn (0x%p) op (0x%p)\n", pb_conn, operation);
+        rc = -1;
+        goto done;
+    }
 
     slapi_sdn_init_dn_byref(&sdn, dn);
     pwpolicy = new_passwdPolicy(pb, (char *)slapi_sdn_get_ndn(&sdn));

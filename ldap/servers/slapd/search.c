@@ -125,7 +125,10 @@ do_search(Slapi_PBlock *pb)
         goto free_and_return;
     }
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    if (slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn) != 0 || pb_conn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "do_search", "pb_conn is NULL\n");
+        goto free_and_return;
+    }
 
     /*
      * If nsslapd-minssf-exclude-rootdse is on, the minssf check has been

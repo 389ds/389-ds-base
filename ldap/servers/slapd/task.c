@@ -199,6 +199,11 @@ slapi_task_log_status(Slapi_Task *task, char *format, ...)
 {
     va_list ap;
 
+    if (task == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_task_log_status",
+                      "Slapi_Task is NULL, can not log status\n");
+        return;
+    }
     if (!task->task_status)
         task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
     if (!task->task_status)
