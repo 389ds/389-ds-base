@@ -270,7 +270,7 @@ idl_set_union(IDListSet *idl_set, backend *be)
      * Allocate a new set based on the size of our sets.
      */
     IDList *result_list = idl_alloc(idl_set->total_size);
-    IDList *idl = idl_set->head;
+    IDList *idl = NULL;
     IDList *idl_del = NULL;
     IDList *prev_idl = NULL;
     NIDS last_min = 0;
@@ -398,7 +398,7 @@ idl_set_intersect(IDListSet *idl_set, backend *be)
          * we don't care if we have allids here, because we'll ignore it anyway.
          */
         result_list = idl_alloc(idl_set->minimum->b_nids);
-        IDList *idl = idl_set->head;
+        IDList *idl = NULL;
 
         /* The previous value we inserted. */
         NIDS last_min = 0;

@@ -1587,7 +1587,12 @@ ns_thrpool_shutdown(struct ns_thrpool_t *tp)
      */
     for (size_t i = 0; i < tp->thread_count; i++) {
         ns_result_t result = ns_add_shutdown_job(tp);
-        PR_ASSERT(result == NS_SUCCESS);
+        if (result != NS_SUCCESS) {
+#ifdef DEBUG
+            ns_log(LOG_DEBUG, "ns_thrpool_shutdown - Failed to add shutdown job: error (%d)\n", result);
+#endif
+            PR_ASSERT(0);
+        }
     }
     /* Make sure all threads are woken up to their shutdown jobs. */
     pthread_mutex_lock(&(tp->work_q_lock));
