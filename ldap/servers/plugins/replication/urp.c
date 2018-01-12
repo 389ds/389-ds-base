@@ -861,7 +861,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
     Slapi_Entry *pre_entry = NULL;
     int ret = 0;
     Slapi_DN *pre_sdn = NULL;
-    Slapi_RDN *rdn = slapi_rdn_new();
+    Slapi_RDN *rdn = NULL;
     char *parentdn = NULL;
     char *newdn;
     const char *entrydn;
@@ -882,6 +882,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
        entrydn = slapi_entry_get_ndn (pre_entry);*/
     uniqueid = slapi_entry_get_uniqueid (pre_entry);
     parentdn = slapi_dn_parent(entrydn);
+    rdn = slapi_rdn_new();
     slapi_sdn_get_rdn(pre_sdn, rdn);
     slapi_rdn_remove_attr (rdn, SLAPI_ATTR_UNIQUEID );
     slapi_rdn_add(rdn, "cenotaphID", uniqueid);
