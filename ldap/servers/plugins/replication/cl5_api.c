@@ -4046,6 +4046,7 @@ _cl5WriteRUV(CL5DBFile *file, PRBool purge)
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "_cl5WriteRUV - changelog maxRUV not found in changelog for file %s\n",
                       file->name);
+        ber_bvecfree(vals);
         return CL5_DB_ERROR;
     }
 
