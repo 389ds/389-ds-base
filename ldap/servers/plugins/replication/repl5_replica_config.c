@@ -1725,6 +1725,11 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     data->repl_root = slapi_ch_strdup(basedn);
     data->force = slapi_ch_strdup(force_cleaning);
 
+    /* It is either a consequence of a direct ADD cleanAllRuv task
+     * or modify of the replica to add nsds5task: cleanAllRuv
+     */
+    data->original_task = PR_TRUE;
+
     thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread,
         (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
         PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
@@ -1848,7 +1853,7 @@ replica_cleanallruv_thread(void *arg)
     /*
      *  Add the cleanallruv task to the repl config - so we can handle restarts
      */
-    add_cleaned_rid(data->rid, data->replica, csnstr, data->force); /* marks config that we started cleaning a rid */
+    add_cleaned_rid(data, csnstr); /* marks config that we started cleaning a rid */
     cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Cleaning rid (%d)...", data->rid);
     /*
      *  First, wait for the maxcsn to be covered
@@ -2025,7 +2030,13 @@ done:
          */
         delete_cleaned_rid_config(data);
         check_replicas_are_done_cleaning(data);
-        remove_keep_alive_entry(data->task, data->rid, data->repl_root);
+        if (data->original_task) {
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Original task deletes Keep alive entry (%d).", data->rid);
+            remove_keep_alive_entry(data->task, data->rid, data->repl_root);
+        } else {
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Propagated task does not delete Keep alive entry (%d).", data->rid);
+        }
+
         clean_agmts(data);
         remove_cleaned_rid(data->rid);
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Successfully cleaned rid(%d).", data->rid);
@@ -2176,7 +2187,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
         "Waiting for all the replicas to finish cleaning...");
 
     csn_as_string(data->maxcsn, PR_FALSE, csnstr);
-    filter = PR_smprintf("(%s=%d:%s:%s)", type_replicaCleanRUV,(int)data->rid, csnstr, data->force);
+    filter = PR_smprintf("(%s=%d:%s:%s:%d)", type_replicaCleanRUV, (int)data->rid, csnstr, data->force, data->original_task ? 1 : 0);
     while(not_all_cleaned && !is_task_aborted(data->rid) && !slapi_is_shutting_down()){
         agmt_obj = agmtlist_get_first_agreement_for_replica (data->replica);
         if(agmt_obj == NULL){
@@ -2650,7 +2661,7 @@ set_cleaned_rid(ReplicaId rid)
  *  Add the rid and maxcsn to the repl config (so we can resume after a server restart)
  */
 void
-add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn, char *forcing)
+add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
 {
     Slapi_PBlock *pb;
     struct berval *vals[2];
@@ -2660,6 +2671,16 @@ add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn, char *forcing)
     char data[CSN_STRSIZE + 10];
     char *dn;
     int rc;
+    ReplicaId rid;
+    Replica *r;
+    char *forcing;
+
+    if (data == NULL) {
+        return;
+    }
+    rid = cleanruv_data->rid;
+    r = cleanruv_data->replica;
+    forcing = cleanruv_data->force;
 
     if(r == NULL || maxcsn == NULL){
         return;
@@ -2667,7 +2688,7 @@ add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn, char *forcing)
     /*
      *  Write the rid & maxcsn to the config entry
      */
-    val.bv_len = PR_snprintf(data, sizeof(data),"%d:%s:%s", rid, maxcsn, forcing);
+    val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:%s:%d", rid, maxcsn, forcing, cleanruv_data->original_task ? 1 : 0);
     dn = replica_get_dn(r);
     pb = slapi_pblock_new();
     mod.mod_op  = LDAP_MOD_ADD|LDAP_MOD_BVALUES;
@@ -3099,6 +3120,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     data->repl_root = slapi_ch_strdup(base_dn);
     data->sdn = NULL;
     data->certify = slapi_ch_strdup(certify_all);
+    data->original_task = PR_TRUE;
 
     thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
                 (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,

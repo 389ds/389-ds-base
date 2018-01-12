@@ -680,12 +680,37 @@ void multimaster_mtnode_construct_replicas(void);
 
 void multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_state);
 
+#define CLEANRIDSIZ 64 /* maximum number for concurrent CLEANALLRUV tasks */
+
+typedef struct _cleanruv_data
+{
+    Object *repl_obj;
+    Replica *replica;
+    ReplicaId rid;
+    Slapi_Task *task;
+    struct berval *payload;
+    CSN *maxcsn;
+    char *repl_root;
+    Slapi_DN *sdn;
+    char *certify;
+    char *force;
+    PRBool original_task;
+} cleanruv_data;
+
+typedef struct _cleanruv_purge_data
+{
+    int cleaned_rid;
+    const Slapi_DN *suffix_sdn;
+    char *replName;
+    char *replGen;
+} cleanruv_purge_data;
+
 /* In repl5_replica_config.c */
 int replica_config_init(void);
 void replica_config_destroy(void);
 int get_replica_type(Replica *r);
 int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
-void add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn, char *forcing);
+void add_cleaned_rid(cleanruv_data *data, char *maxcsn);
 int is_cleaned_rid(ReplicaId rid);
 int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                                int *returncode, char *returntext, void *arg);
@@ -706,29 +731,6 @@ void set_cleaned_rid(ReplicaId rid);
 void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
 char * replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 
-#define CLEANRIDSIZ 64 /* maximum number for concurrent CLEANALLRUV tasks */
-
-typedef struct _cleanruv_data
-{
-	Object *repl_obj;
-	Replica *replica;
-	ReplicaId rid;
-	Slapi_Task *task;
-	struct berval *payload;
-	CSN *maxcsn;
-	char *repl_root;
-	Slapi_DN *sdn;
-	char *certify;
-	char *force;
-} cleanruv_data;
-
-typedef struct _cleanruv_purge_data
-{
-	int cleaned_rid;
-	const Slapi_DN *suffix_sdn;
-	char *replName;
-	char *replGen;
-} cleanruv_purge_data;
 
 /* replutil.c */
 LDAPControl* create_managedsait_control(void);
