@@ -238,9 +238,10 @@ escape_string_for_filename(const char *str, char buf[BUFSIZ])
 struct filter_ctx
 {
     char *buf;
-    char attr[ATTRSIZE];
+    char *attr;
     int attr_position;
     int attr_found;
+    size_t attr_size;
     int buf_size;
     int buf_len;
     int next_arg_needs_esc_norm;
@@ -279,7 +280,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
      *  Start collecting the attribute name so we can use the correct
      *  syntax normalization func.
      */
-    if (ctx->attr_found == 0 && ctx->attr_position < (ATTRSIZE - 1)) {
+    if (ctx->attr_found == 0 && ctx->attr_position < (ctx->attr_size - 1)) {
         if (ctx->attr[0] == '\0') {
             if (strstr(val, "=")) {
                 /* we have an attr we need to record */
@@ -293,6 +294,14 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
                  *  attr with val.  The next pass should be '=', otherwise we will
                  *  reset it.
                  */
+                if (slen > ctx->attr_size) {
+                    if (ctx->attr_size == ATTRSIZE) {
+                        ctx->attr = slapi_ch_calloc(sizeof(char), slen+1);
+                    } else {
+                        ctx->attr = slapi_ch_realloc(ctx->attr, sizeof(char) * (slen+1));
+                    }
+                    ctx->attr_size = slen+1;
+                }
                 memcpy(ctx->attr, val, slen);
                 ctx->attr_position = slen;
             }
@@ -302,9 +311,20 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             } else {
                 if (special_attr_char(val[0])) {
                     /* this is not an attribute, we should not be collecting this, reset everything */
-                    memset(ctx->attr, '\0', ATTRSIZE);
+                    memset(ctx->attr, '\0', ctx->attr_size);
                     ctx->attr_position = 0;
                 } else {
+                    /* we can be adding char by char and overrun allocated size */
+                    if (ctx->attr_position >= ctx->attr_size) {
+                        if (ctx->attr_size == ATTRSIZE) {
+                            char *ctxattr = slapi_ch_calloc(sizeof(char), ctx->attr_size + ATTRSIZE);
+                            memcpy(ctxattr, ctx->attr, ctx->attr_size);
+                            ctx->attr = ctxattr;
+                        } else {
+                            ctx->attr = slapi_ch_realloc(ctx->attr, sizeof(char) * (ctx->attr_size + ATTRSIZE));
+                        }
+                        ctx->attr_size = ctx->attr_size + ATTRSIZE;
+                    }
                     memcpy(ctx->attr + ctx->attr_position, val, 1);
                     ctx->attr_position++;
                 }
@@ -377,7 +397,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         ctx->next_arg_needs_esc_norm = 0;
         ctx->attr_found = 0;
         ctx->attr_position = 0;
-        memset(ctx->attr, '\0', ATTRSIZE);
+        memset(ctx->attr, '\0', ctx->attr_size);
         slapi_ch_free_string(&buf);
 
         return filter_len;
@@ -416,12 +436,14 @@ slapi_filter_sprintf(const char *fmt, ...)
 {
     struct filter_ctx ctx = {0};
     va_list args;
+    char attr_static[ATTRSIZE] = {0};
     char *buf;
     int rc;
 
     buf = slapi_ch_calloc(sizeof(char), FILTER_BUF + 1);
     ctx.buf = buf;
-    memset(ctx.attr, '\0', ATTRSIZE);
+    ctx.attr = attr_static;
+    ctx.attr_size = ATTRSIZE;
     ctx.attr_position = 0;
     ctx.attr_found = 0;
     ctx.buf_len = FILTER_BUF;
@@ -437,6 +459,10 @@ slapi_filter_sprintf(const char *fmt, ...)
         PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
     }
     va_end(args);
+
+    if (ctx.attr_size > ATTRSIZE) {
+        slapi_ch_free_string(&ctx.attr);
+    }
 
     return ctx.buf;
 }
