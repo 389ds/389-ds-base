@@ -1166,7 +1166,7 @@ libsds_la_LDFLAGS += -L$(abs_builddir)/.libs -lrsds
 libsds_la_DEPENDENCIES = librsds.so
 
 librsds.so: src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
 	cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
 	-- $(RUSTC_FLAGS)
 	mkdir -p $(abs_builddir)/.libs
