@@ -316,13 +316,19 @@ vattr_context_check(vattr_context *c)
 static void
 vattr_context_mark(vattr_context *c)
 {
-    c->vattr_context_loop_count += 1;
+    if (c) {
+        c->vattr_context_loop_count += 1;
+    }
 }
 
 static int
 vattr_context_unmark(vattr_context *c)
 {
-    return (c->vattr_context_loop_count -= 1);
+    if (c) {
+        return (c->vattr_context_loop_count -= 1);
+    } else {
+        return 0;
+    }
 }
 
 /* modify the context structure on exit from a vattr sp function */
@@ -385,13 +391,19 @@ vattr_context_grok(vattr_context **c)
 static void
 vattr_context_set_loop_msg_displayed(vattr_context **c)
 {
-    (*c)->error_displayed = 1;
+    if (c && *c){
+        (*c)->error_displayed = 1;
+    }
 }
 
 static int
 vattr_context_is_loop_msg_displayed(vattr_context **c)
 {
-    return (*c)->error_displayed;
+    if (c && *c){
+        return (*c)->error_displayed;
+    } else {
+        return 0;
+    }
 }
 
 /*

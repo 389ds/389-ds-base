@@ -3007,7 +3007,7 @@ dblayer_erase_index_file_ex(backend *be, struct attrinfo *a, PRBool use_lock, in
     struct dblayer_private_env *pEnv = NULL;
     ldbm_instance *inst = NULL;
     dblayer_handle *handle = NULL;
-    char dbName[MAXPATHLEN];
+    char dbName[MAXPATHLEN] = {0};
     char *dbNamep;
     char *p;
     int dbbasenamelen, dbnamelen;
@@ -3098,8 +3098,7 @@ dblayer_erase_index_file_ex(backend *be, struct attrinfo *a, PRBool use_lock, in
                     dbNamep = (char *)slapi_ch_realloc(dbNamep, dbnamelen);
                 }
                 p = dbNamep + dbbasenamelen;
-                sprintf(p, "%c%s%s",
-                        get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
+                sprintf(p, "%c%s%s", get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
                 rc = dblayer_db_remove_ex(pEnv, dbNamep, 0, 0);
                 a->ai_dblayer = NULL;
                 if (dbNamep != dbName)

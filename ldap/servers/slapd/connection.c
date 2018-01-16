@@ -1526,18 +1526,6 @@ connection_threadmain()
                [blackflag 624234] */
             ret = connection_wait_for_new_work(pb, interval);
 
-            /*
-             * Connection wait for new work provides the conn and op for us.
-             */
-            slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-            if (pb_conn == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
-                              "pb_conn is NULL\n");
-                slapi_pblock_destroy(pb);
-                g_decr_active_threadcnt();
-                return;
-            }
-
             switch (ret) {
             case CONN_NOWORK:
                 PR_ASSERT(interval != PR_INTERVAL_NO_TIMEOUT); /* this should never happen with PR_INTERVAL_NO_TIMEOUT */
@@ -1550,15 +1538,22 @@ connection_threadmain()
                 return;
             case CONN_FOUND_WORK_TO_DO:
                 /* note - don't need to lock here - connection should only
-                       be used by this thread - since c_gettingber is set to 1
-                       in connection_activity when the conn is added to the
-                       work queue, setup_pr_read_pds won't add the connection prfd
-                       to the poll list */
+                   be used by this thread - since c_gettingber is set to 1
+                   in connection_activity when the conn is added to the
+                   work queue, setup_pr_read_pds won't add the connection prfd
+                   to the poll list */
+                slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+                if (pb_conn == NULL) {
+                    slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
+                    slapi_pblock_destroy(pb);
+                    g_decr_active_threadcnt();
+                    return;
+                }
                 if (pb_conn->c_opscompleted == 0) {
                     /*
-                         * We have a new connection, set the anonymous reslimit idletimeout
-                         * if applicable.
-                         */
+                     * We have a new connection, set the anonymous reslimit idletimeout
+                     * if applicable.
+                     */
                     char *anon_dn = config_get_anon_limits_dn();
                     int idletimeout;
                     /* If an anonymous limits dn is set, use it to set the limits. */
@@ -1578,6 +1573,7 @@ connection_threadmain()
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
                                   "Could not add/remove IO layers from connection\n");
                 }
+                break;
             default:
                 break;
             }
@@ -1604,6 +1600,12 @@ connection_threadmain()
         /* Once we're here we have a pb */
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+        if (conn == NULL || op == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
+            slapi_pblock_destroy(pb);
+            g_decr_active_threadcnt();
+            return;
+        }
         maxthreads = config_get_maxthreadsperconn();
         more_data = 0;
         ret = connection_read_operation(conn, op, &tag, &more_data);

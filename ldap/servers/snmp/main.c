@@ -21,6 +21,7 @@
 #include "ldap.h"
 #include "ldif.h"
 #include <ctype.h>
+#include <limits.h>
 #include <errno.h>
 
 static char *agentx_master = NULL;
@@ -56,16 +57,22 @@ main(int argc, char *argv[])
         char *s = getenv("DEBUG_SLEEP");
         if ((s != NULL) && isdigit(*s)) {
             char *endp = NULL;
-            long secs;
+            int64_t secs;
             errno = 0;
 
-            printf("%s pid is %d\n", argv[0], getpid());
             secs = strtol(s, &endp, 10);
-            if (*endp != '\0' || errno == ERANGE) {
-                sleep(10);
-            } else {
-                sleep(secs);
+            if ( endp == s ||
+                 *endp != '\0' ||
+                 ((secs == LONG_MIN || secs == LONG_MAX) && errno == ERANGE) ||
+                 secs < 1 )
+            {
+                /* Invalid value, default to 30 seconds */
+                secs = 30;
+            } else if (secs > 3600) {
+                secs = 3600;
             }
+            printf("%s pid is %d - sleeping for %ld\n", argv[0], getpid(), secs);
+            sleep(secs);
         }
     }
 

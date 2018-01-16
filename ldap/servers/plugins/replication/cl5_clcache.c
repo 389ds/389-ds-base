@@ -676,7 +676,7 @@ clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag)
         buf->buf_state = CLC_STATE_DONE;
     } else {
         csn_init_by_csn(buf->buf_current_csn, anchorcsn);
-        csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
+        buf->buf_key.data = csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
         slapi_log_err(SLAPI_LOG_REPL, "clcache_initial_anchorcsn",
                       "anchor is now: %s\n", (char *)buf->buf_key.data);
     }
@@ -746,10 +746,9 @@ clcache_adjust_anchorcsn(CLC_Buffer *buf, int *flag)
         buf->buf_state = CLC_STATE_DONE;
     } else {
         csn_init_by_csn(buf->buf_current_csn, anchorcsn);
-        csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
-        slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name, "clcache_adjust_anchorcsn - "
-                                                          "anchor is now: %s\n",
-                      (char *)buf->buf_key.data);
+        buf->buf_key.data = csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
+        slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
+                      "clcache_adjust_anchorcsn - anchor is now: %s\n", (char *)buf->buf_key.data);
     }
 
     return buf->buf_state;

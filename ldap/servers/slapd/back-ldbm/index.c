@@ -749,7 +749,7 @@ index_add_mods(
                                           mods[i]->mod_type,
                                           &curr_attr);
                     if (curr_attr) {
-                        for (j = 0; mods_valueArray[j] != NULL; j++) {
+                        for (j = 0; mods_valueArray && mods_valueArray[j] != NULL; j++) {
                             if (!slapi_valueset_find(curr_attr, all_vals, mods_valueArray[j])) {
                                 /*
                                  * If the mod del value is not found in all_vals
@@ -1054,6 +1054,7 @@ index_read_ext_allids(
     for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
         *err = NEW_IDL_DEFAULT;
         PRIntervalTime interval;
+        idl_free(&idl);
         idl = idl_fetch_ext(be, db, &key, db_txn, ai, err, allidslimit);
         if (*err == DB_LOCK_DEADLOCK) {
             ldbm_nasty("index_read_ext_allids", "index read retrying transaction", 1045, *err);

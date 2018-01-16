@@ -171,7 +171,7 @@ slapi_be_issuffix(const Slapi_Backend *be, const Slapi_DN *suffix)
     struct suffixlist *list;
     int r = 0;
     /* this backend is no longer valid */
-    if (be->be_state != BE_STATE_DELETED) {
+    if (be && be->be_state != BE_STATE_DELETED) {
         int i = 0, count;
 
         count = slapi_counter_get_value(be->be_suffixcounter);

@@ -1734,8 +1734,9 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     }
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    internal_op = operation_is_flag_set(pb_op, OP_FLAG_INTERNAL);
-
+    if (pb_op){
+        internal_op = operation_is_flag_set(pb_op, OP_FLAG_INTERNAL);
+    }
     /* Find the entry we are about to modify. */
     ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
     if (ec == NULL) {

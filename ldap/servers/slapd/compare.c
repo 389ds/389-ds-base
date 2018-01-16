@@ -47,9 +47,11 @@ do_compare(Slapi_PBlock *pb)
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_compare", "=>\n");
 
+    /* have to init this here so we can "done" it below if we short circuit */
+    slapi_sdn_init(&sdn);
+
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-
     if (pb_op == NULL || pb_conn == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "do_compare", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
                       pb_conn, pb_op);
@@ -61,9 +63,6 @@ do_compare(Slapi_PBlock *pb)
 
     /* count the compare request */
     slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
-
-    /* have to init this here so we can "done" it below if we short circuit */
-    slapi_sdn_init(&sdn);
 
     /*
      * Parse the compare request.  It looks like this:

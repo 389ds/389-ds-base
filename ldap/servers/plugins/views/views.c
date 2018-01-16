@@ -558,6 +558,9 @@ views_cache_index(void)
         /* copy over the views */
         for (i = 0; i < theCache.view_count; i++) {
             theCache.ppViewIndex[i] = theView;
+            if (theView == NULL){
+                break;
+            }
             theView = theView->list.pNext;
         }
 

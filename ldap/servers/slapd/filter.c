@@ -690,11 +690,13 @@ slapi_filter_dup(Slapi_Filter *f)
         outl = &out->f_list;
         for (fl = f->f_list; fl != NULL; fl = fl->f_next) {
             (*outl) = slapi_filter_dup(fl);
-            (*outl)->f_next = 0;
-            if (lastout)
-                lastout->f_next = *outl;
-            lastout = *outl;
-            outl = &((*outl)->f_next);
+            if (*outl){
+                (*outl)->f_next = 0;
+                if (lastout)
+                    lastout->f_next = *outl;
+                lastout = *outl;
+                outl = &((*outl)->f_next);
+            }
         }
         break;
 

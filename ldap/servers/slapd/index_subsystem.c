@@ -1183,7 +1183,7 @@ index_subsys_assign_decoder(Slapi_Filter *f)
                          * have the same associated attributes configuration for now
                          * though they may have different namespaces
                          */
-                        if (index_subsys_index_matches_index(f->assigned_decoder, index)) {
+                        if (index_subsys_index_matches_index(f->assigned_decoder, index) && last) {
                             /* add to end */
                             last->list.pNext = index_subsys_index_shallow_dup(index);
                             last = last->list.pNext;

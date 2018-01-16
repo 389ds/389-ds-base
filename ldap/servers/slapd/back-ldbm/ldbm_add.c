@@ -60,7 +60,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     ID pid;
     int isroot;
     char *errbuf = NULL;
-    back_txn txn;
+    back_txn txn = {0};
     back_txnid parent_txn;
     int retval = -1;
     char *msg;
@@ -96,6 +96,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     PRUint64 conn_id;
     int op_id;
     int result_sent = 0;
+
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
     }
@@ -108,6 +109,11 @@ ldbm_back_add(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+
+    if (operation == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add", "NULL operation\n");
+        return LDAP_OPERATIONS_ERROR;
+    }
 
     is_resurect_operation = operation_is_flag_set(operation, OP_FLAG_RESURECT_ENTRY);
     is_tombstone_operation = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
@@ -123,6 +129,11 @@ ldbm_back_add(Slapi_PBlock *pb)
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
                       "Instance \"%s\" does not exist.\n",
                       inst ? inst->inst_name : "null instance");
+        goto error_return;
+    }
+
+    if (e == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add", "entry is NULL.\n");
         goto error_return;
     }
 
@@ -169,9 +180,8 @@ ldbm_back_add(Slapi_PBlock *pb)
      * before we make our last abandon check to avoid race conditions in
      * the code that processes abandon operations.
      */
-    if (operation) {
-        operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
-    }
+    operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
+
     if (slapi_op_abandoned(pb)) {
         ldap_result_code = -1; /* needs to distinguish from "success" */
         goto error_return;

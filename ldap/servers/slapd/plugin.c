@@ -3625,9 +3625,11 @@ plugin_invoke_plugin_pb(struct slapdplugin *plugin, int operation, Slapi_PBlock 
         return PR_TRUE;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-
-
-    PR_ASSERT(pb_op);
+    if (pb_op == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "plugin_invoke_plugin_pb", "pb_op is NULL");
+        PR_ASSERT(0);
+        return PR_FALSE;
+    }
 
     target_spec = operation_get_target_spec(pb_op);
 

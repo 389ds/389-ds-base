@@ -874,7 +874,7 @@ cos_dn_defs_cb(Slapi_Entry *e, void *callback_data)
 
     if (pCosAttribute && (!pCosTargetTree || !pCosTemplateDn)) {
         /* get the parent of the definition */
-        char *orig = slapi_dn_parent(pDn->val);
+        char *orig = pDn ? slapi_dn_parent(pDn->val) : NULL;
         char *parent = NULL;
         if (orig) {
             parent = slapi_create_dn_string("%s", orig);
@@ -900,7 +900,7 @@ cos_dn_defs_cb(Slapi_Entry *e, void *callback_data)
             slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
                           "cos_dn_defs_cb - "
                           "Failed to get parent dn of cos definition %s.\n",
-                          pDn->val);
+                          pDn ? pDn->val : "<NONE>");
             if (!pCosTemplateDn) {
                 if (!pCosTargetTree) {
                     slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - cosTargetTree and cosTemplateDn are not set.\n");
@@ -1843,6 +1843,13 @@ cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAttrValue *ob
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_tmpl\n");
 
+    if (dn == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+                      "cos_cache_add_tmpl - param cosAttrValue dn is NULL\n");
+        ret = -1;
+        goto done;
+    }
+
     /* create the attribute */
     theTemp = (cosTemplates *)slapi_ch_malloc(sizeof(cosTemplates));
     if (theTemp) {
@@ -1851,7 +1858,9 @@ cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAttrValue *ob
         int index = 0;
         int template_default = 0;
         char *ptr = NULL;
-        char *normed = slapi_create_dn_string("%s", dn->val);
+        char *normed = NULL;
+
+        normed = slapi_create_dn_string("%s", dn->val);
         if (normed) {
             slapi_ch_free_string(&dn->val);
             dn->val = normed;
@@ -1964,6 +1973,7 @@ cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAttrValue *ob
         ret = -1;
     }
 
+done:
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_tmpl\n");
     return ret;
 }

@@ -1307,7 +1307,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__((unu
                                              char *returntext,
                                              void *arg)
 {
-    char *instance_name;
+    char *instance_name = NULL;
     struct ldbminfo *li = (struct ldbminfo *)arg;
     struct ldbm_instance *inst = NULL;
 

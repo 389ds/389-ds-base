@@ -884,6 +884,11 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     PR_ASSERT(pb_conn);
 
+    if (pb_conn == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_check_bind", "pb_conn is NULL\n");
+        return;
+    }
+
     PR_EnterMonitor(pb_conn->c_mutex); /* BIG LOCK */
     continuing = pb_conn->c_flags & CONN_FLAG_SASL_CONTINUE;
     pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE; /* reset flag */

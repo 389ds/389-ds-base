@@ -352,6 +352,10 @@ ldbm_instance_find_by_name(struct ldbminfo *li, char *name)
     Object *inst_obj;
     ldbm_instance *inst;
 
+    if (name == NULL) {
+        return NULL;
+    }
+
     inst_obj = objset_first_obj(li->li_instance_set);
     while (inst_obj != NULL) {
         inst = (ldbm_instance *)object_get_data(inst_obj);

@@ -304,6 +304,12 @@ get_ldapmessage_controls_ext(
 
             Operation *pb_op = NULL;
             slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+            if (pb_op == NULL) {
+                rc = LDAP_OPERATIONS_ERROR;
+                slapi_log_err(SLAPI_LOG_ERR, "get_ldapmessage_controls_ext", "NULL pb_op\n");
+                slapi_rwlock_unlock(supported_controls_lock);
+                goto free_and_return;
+            }
 
             if (supported_controls == NULL ||
                 supported_controls[i] == NULL ||

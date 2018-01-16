@@ -2527,9 +2527,6 @@ add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
     Replica *r;
     char *forcing;
 
-    if (data == NULL) {
-        return;
-    }
     rid = cleanruv_data->rid;
     r = cleanruv_data->replica;
     forcing = cleanruv_data->force;

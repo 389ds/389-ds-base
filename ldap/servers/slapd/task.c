@@ -2344,8 +2344,9 @@ task_fixup_tombstone_thread(void *arg)
     Slapi_Task *task = task_data->task;
     char **base = task_data->base;
     char *filter = NULL;
-    int fixup_count = 0;
-    int rc, i, j;
+    int32_t fixup_count = 0;
+    int32_t rc = 0;
+    int32_t i, j;
 
     if (!task) {
         return; /* no task */

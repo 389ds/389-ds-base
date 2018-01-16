@@ -353,8 +353,8 @@ ps_send_results(void *arg)
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
                                   "conn=%" PRIu64 " op=%d Error %d sending entry %s with op status %d\n",
-                                  pb_conn->c_connid, pb_op->o_opid,
-                                  rc, slapi_entry_get_dn_const(ec), pb_op->o_status);
+                                  pb_conn->c_connid, pb_op ? pb_op->o_opid: -1,
+                                  rc, slapi_entry_get_dn_const(ec), pb_op ? pb_op->o_status : -1);
                 }
             }
 
@@ -401,7 +401,7 @@ ps_send_results(void *arg)
 
     slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
                   "conn=%" PRIu64 " op=%d Releasing the connection and operation\n",
-                  conn->c_connid, pb_op->o_opid);
+                  conn->c_connid, pb_op ? pb_op->o_opid : -1);
     /* Delete this op from the connection's list */
     connection_remove_operation_ext(ps->ps_pblock, conn, pb_op);
 

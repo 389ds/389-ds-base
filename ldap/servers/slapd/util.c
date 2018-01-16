@@ -746,8 +746,9 @@ normalize_mods2bvals(const LDAPMod **mods)
             struct berval **mbvp = NULL;
 
             for (mbvp = mods[w]->mod_bvalues,
-                normmbvp = normalized_mods[w]->mod_bvalues;
-                 mbvp && *mbvp; mbvp++, normmbvp++) {
+                 normmbvp = normalized_mods[w]->mod_bvalues;
+                 normmbvp && mbvp && *mbvp; mbvp++, normmbvp++)
+            {
                 if (is_dn_syntax) {
                     Slapi_DN *sdn = slapi_sdn_new_dn_byref((*mbvp)->bv_val);
                     if (slapi_sdn_get_dn(sdn)) {
@@ -769,8 +770,9 @@ normalize_mods2bvals(const LDAPMod **mods)
             char **mvp = NULL;
 
             for (mvp = mods[w]->mod_values,
-                normmbvp = normalized_mods[w]->mod_bvalues;
-                 mvp && *mvp; mvp++, normmbvp++) {
+                 normmbvp = normalized_mods[w]->mod_bvalues;
+                 normmbvp && mvp && *mvp; mvp++, normmbvp++)
+            {
                 vlen = strlen(*mvp);
 
                 *normmbvp =
@@ -801,7 +803,7 @@ normalize_mods2bvals(const LDAPMod **mods)
         PR_ASSERT(normmbvp - normalized_mods[w]->mod_bvalues <= num_values);
 
         /* don't forget to null terminate it */
-        if (num_values > 0) {
+        if (num_values > 0 && normmbvp) {
             *normmbvp = NULL;
         }
     }

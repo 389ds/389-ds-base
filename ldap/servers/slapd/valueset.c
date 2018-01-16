@@ -121,7 +121,9 @@ valuearray_add_valuearray_fast(Slapi_Value ***vals,
             j++;
         }
     }
-    (*vals)[nvals + j] = NULL;
+    if (*vals) {
+        (*vals)[nvals + j] = NULL;
+    }
 }
 
 void
@@ -1138,7 +1140,7 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, 
     }
 
     for (size_t i = 0; i < naddvals; i++) {
-        if (addvals[i] != NULL) {
+        if (addvals[i] != NULL && vs->va) {
             if (passin) {
                 /* We consume the values */
                 (vs->va)[vs->num] = addvals[i];
@@ -1166,7 +1168,9 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, 
             }
         }
     }
-    (vs->va)[vs->num] = NULL;
+    if (vs->va){
+        (vs->va)[vs->num] = NULL;
+    }
 
     PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
     return (rc);

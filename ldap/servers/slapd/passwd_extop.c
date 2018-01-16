@@ -727,6 +727,10 @@ parse_req_done:
       */
     Operation *pb_op = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    if (pb_op == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL");
+        goto free_and_return;
+    }
 
     operation_set_target_spec(pb_op, slapi_entry_get_sdn(targetEntry));
     slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &pb_op->o_isroot);

@@ -124,8 +124,8 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unus
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     char *attribute_name = NULL;
-    int cipher = 0;
-    int ret = 0;
+    int32_t cipher = 0;
+    int32_t ret = SLAPI_DSE_CALLBACK_OK;
 
     returntext[0] = '\0';
 
@@ -146,7 +146,6 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unus
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             ret = SLAPI_DSE_CALLBACK_ERROR;
         } else {
-
             ainfo_get(inst->inst_be, attribute_name, &ai);
             /* If we couldn't find a non-default attrinfo, then that means
              * that no indexing or encryption has yet been defined for this attribute
@@ -172,9 +171,7 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unus
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 ret = SLAPI_DSE_CALLBACK_ERROR;
             }
-            ret = SLAPI_DSE_CALLBACK_OK;
         }
-
     } else {
         ret = SLAPI_DSE_CALLBACK_ERROR;
     }

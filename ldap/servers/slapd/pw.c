@@ -1759,7 +1759,6 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             pwdpolicy->pw_min8bit = SLAPD_DEFAULT_PW_MIN8BIT;
             pwdpolicy->pw_maxrepeats = SLAPD_DEFAULT_PW_MAXREPEATS;
             pwdpolicy->pw_mincategories = SLAPD_DEFAULT_PW_MINCATEGORIES;
-            pwdpolicy->pw_mintokenlength = SLAPD_DEFAULT_PW_MINTOKENLENGTH;
             pwdpolicy->pw_maxage = SLAPD_DEFAULT_PW_MAXAGE;
             pwdpolicy->pw_minage = SLAPD_DEFAULT_PW_MINAGE;
             pwdpolicy->pw_warning = SLAPD_DEFAULT_PW_WARNING;
@@ -2247,7 +2246,7 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
     /*
      * Check if the password policy has to be checked or not
      */
-    if (!check_password_policy || pwpolicy->pw_lockout == 0) {
+    if (!check_password_policy || !pwpolicy || pwpolicy->pw_lockout == 0) {
         goto notlocked;
     }
 

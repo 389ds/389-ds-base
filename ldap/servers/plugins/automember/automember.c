@@ -1047,6 +1047,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                         /* Order rules by target group DN */
                         if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
                             PR_INSERT_BEFORE(&(rule->list), list);
+                            rule = NULL;
                             break;
                         }
 
@@ -1055,9 +1056,11 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                         /* If we hit the end of the list, add to the tail. */
                         if ((PRCList *)config->inclusive_rules == list) {
                             PR_INSERT_BEFORE(&(rule->list), list);
+                            rule = NULL;
                             break;
                         }
                     }
+                    automember_free_regex_rule(rule);
                 } else {
                     /* Add to head of list */
                     PR_INSERT_LINK(&(rule->list), (PRCList *)config->inclusive_rules);
@@ -1101,6 +1104,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                         /* Order rules by target group DN */
                         if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
                             PR_INSERT_BEFORE(&(rule->list), list);
+                            rule = NULL;
                             break;
                         }
 
@@ -1109,6 +1113,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                         /* If we hit the end of the list, add to the tail. */
                         if ((PRCList *)config->exclusive_rules == list) {
                             PR_INSERT_BEFORE(&(rule->list), list);
+                            rule = NULL;
                             break;
                         }
                     }
@@ -1116,6 +1121,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                     /* Add to head of list */
                     PR_INSERT_LINK(&(rule->list), (PRCList *)config->exclusive_rules);
                 }
+                automember_free_regex_rule(rule);
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_parse_regex_entry - Skipping invalid exclusive "

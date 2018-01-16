@@ -4260,7 +4260,7 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
             /*
              * working_rule is the first member of working_list.
              * str points to the next $attr.attrName in working_rule.
-             * each member of working_list needs to have each occurence of
+             * each member of working_list needs to have each occurrence of
              * $attr.atrName replaced with the value of attrName in e.
              * If attrName is multi valued then this generates another
              * list which replaces the old one.
@@ -4273,8 +4273,7 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
             str = strstr(macro_str, ".");
             if (!str) {
                 slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-                              "acllas_replace_attr_macro - Invalid macro \"%s\".",
-                              macro_str);
+                              "acllas_replace_attr_macro - Invalid macro \"%s\".", macro_str);
                 slapi_ch_free_string(&macro_str);
                 charray_free(working_list);
                 return NULL;
@@ -4282,9 +4281,17 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
 
             str++; /* skip the . */
             l = acl_strstr(&str[0], ")");
+            if (l == -1){
+                slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                              "acllas_replace_attr_macro - Invalid macro str \"%s\".", str);
+                slapi_ch_free_string(&macro_str);
+                charray_free(working_list);
+                return NULL;
+            }
             macro_attr_name = slapi_ch_malloc(l + 1);
             strncpy(macro_attr_name, &str[0], l);
             macro_attr_name[l] = '\0';
+
 
             slapi_entry_attr_find(e, macro_attr_name, &attr);
             if (NULL == attr) {
