@@ -462,7 +462,7 @@ slapi_eq_get_arg(Slapi_Eq_Context ctx)
     slapi_eq_context **p;
 
     PR_ASSERT(eq_initialized);
-    if (!eq_stopped) {
+    if (eq && !eq_stopped) {
         PR_Lock(eq->eq_lock);
         p = &(eq->eq_queue);
         while (p && *p != NULL) {

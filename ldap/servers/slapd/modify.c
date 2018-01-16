@@ -123,7 +123,7 @@ do_modify(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-    if (operation == NULL) {
+    if (operation == NULL || pb_conn == NULL) {
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR,
                          NULL, "operation is NULL parameter", 0, NULL);
         slapi_log_err(SLAPI_LOG_ERR, "do_modify",
@@ -1156,6 +1156,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     char *proxydn = NULL;
     char *proxystr = NULL;
     char *errtext = NULL;
+    int32_t needpw = 0;
 
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
     if (repl_op) {
@@ -1169,24 +1170,23 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &pwresponse_req);
-    internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    slapi_sdn_init_dn_byref(&sdn, dn);
 
-    if (pb_conn == NULL || operation == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "op_shared_allow_pw_change",
-                      "NULL param error: conn (0x%p) op (0x%p)\n", pb_conn, operation);
+    if (operation == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "op_shared_allow_pw_change", "NULL operation\n");
         rc = -1;
         goto done;
     }
-
-    slapi_sdn_init_dn_byref(&sdn, dn);
-    pwpolicy = new_passwdPolicy(pb, (char *)slapi_sdn_get_ndn(&sdn));
+    if (pb_conn) {
+        needpw = pb_conn->c_needpw;
+    }
 
     /* get the proxy auth dn if the proxy auth control is present */
     if ((proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext)) != LDAP_SUCCESS) {
         if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
             slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"\n",
-                             pb_conn->c_connid, operation->o_opid,
+                             pb_conn ? pb_conn->c_connid: -1, operation->o_opid,
                              slapi_sdn_get_dn(&sdn));
         }
 
@@ -1194,6 +1194,9 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         rc = -1;
         goto done;
     }
+
+    pwpolicy = new_passwdPolicy(pb, (char *)slapi_sdn_get_ndn(&sdn));
+    internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     /* internal operation has root permissions for subtrees it is allowed to access */
     if (!internal_op) {
@@ -1225,7 +1228,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                     proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
                 }
                 slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
-                                 pb_conn->c_connid, operation->o_opid,
+                                 pb_conn ? pb_conn->c_connid : -1, operation->o_opid,
                                  slapi_sdn_get_dn(&sdn), proxystr ? proxystr : "");
             }
 
@@ -1254,7 +1257,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
 
         /* Check if password policy allows users to change their passwords.*/
         if (!operation->o_isroot && slapi_sdn_compare(&sdn, &operation->o_sdn) == 0 &&
-            !pb_conn->c_needpw && !pwpolicy->pw_change) {
+            !needpw && !pwpolicy->pw_change) {
             if (pwresponse_req == 1) {
                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
             }
@@ -1267,7 +1270,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                 }
 
                 slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-                                 pb_conn->c_connid, operation->o_opid,
+                                 pb_conn ? pb_conn->c_connid : -1, operation->o_opid,
                                  slapi_sdn_get_dn(&sdn),
                                  proxystr ? proxystr : "",
                                  "user is not allowed to change password");
@@ -1280,8 +1283,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
 
     /* check if password is within password minimum age;
        error result is sent directly from check_pw_minage */
-    if (pb_conn && !pb_conn->c_needpw &&
-        check_pw_minage(pb, &sdn, mod->mod_bvalues) == 1) {
+    if (!needpw && check_pw_minage(pb, &sdn, mod->mod_bvalues) == 1) {
         if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
             if (proxydn) {
                 proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
@@ -1289,7 +1291,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
 
             if (!internal_op) {
                 slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-                                 pb_conn->c_connid,
+                                 pb_conn ? pb_conn->c_connid : -1,
                                  operation->o_opid,
                                  slapi_sdn_get_dn(&sdn),
                                  proxystr ? proxystr : "",
@@ -1303,17 +1305,14 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                                  "within password minimum age");
             }
         }
-
         rc = -1;
         goto done;
     }
 
-
     /* check password syntax; remember the old password;
        error sent directly from check_pw_syntax function */
     valuearray_init_bervalarray(mod->mod_bvalues, &values);
-    switch (check_pw_syntax_ext(pb, &sdn, values, old_pw, NULL,
-                                mod->mod_op, smods)) {
+    switch (check_pw_syntax_ext(pb, &sdn, values, old_pw, NULL, mod->mod_op, smods)) {
     case 0: /* success */
         rc = 1;
         break;
@@ -1326,7 +1325,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
 
             if (!internal_op) {
                 slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-                                 pb_conn->c_connid,
+                                 pb_conn ? pb_conn->c_connid : -1,
                                  operation->o_opid,
                                  slapi_sdn_get_dn(&sdn),
                                  proxystr ? proxystr : "",

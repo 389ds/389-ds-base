@@ -527,6 +527,7 @@ internal_plugin_search_entry_callback(Slapi_Entry *e, void *callback_data)
     this_entry = (Entry_Node *)slapi_ch_calloc(1, sizeof(Entry_Node));
 
     if ((this_entry->data = slapi_entry_dup(e)) == NULL) {
+        slapi_ch_free((void**)&this_entry);
         return (0);
     }
 

@@ -463,7 +463,8 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
             slapi_log_access(LDAP_DEBUG_STATS,
                              "conn=%" PRIu64 " %s %i-bit %s; client %s; issuer %s\n",
                              conn->c_connid,
-                             sslversion, keySize, cipher ? cipher : "NULL",
+                             sslversion, keySize,
+                             cipher ? cipher : "NULL",
                              subject ? escape_string(subject, sbuf) : "NULL",
                              issuer ? escape_string(issuer, ibuf) : "NULL");
             if (issuer)

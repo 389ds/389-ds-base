@@ -459,7 +459,7 @@ rootdn_check_access(Slapi_PBlock *pb)
     PRNetAddr *client_addr = NULL;
     PRHostEnt *host_entry = NULL;
     time_t curr_time;
-    struct tm *timeinfo;
+    struct tm *timeinfo = NULL;
     char *dnsName = NULL;
     int isRoot = 0;
     int rc = SLAPI_PLUGIN_SUCCESS;
@@ -478,6 +478,11 @@ rootdn_check_access(Slapi_PBlock *pb)
     if (open_time || daysAllowed) {
         curr_time = slapi_current_utc_time();
         timeinfo = localtime(&curr_time);
+        if (timeinfo == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                "rootdn_check_access - Failed to get localtime\n");
+            return -1;
+        }
     }
     /*
      *  First check TOD restrictions, continue through if we are in the open "window"

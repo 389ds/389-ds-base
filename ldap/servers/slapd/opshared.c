@@ -276,6 +276,13 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     slapi_pblock_get(pb, SLAPI_SEARCH_STRFILTER, &fstr);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+    if (operation == NULL) {
+        op_shared_log_error_access(pb, "SRCH", base, "NULL operation");
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "NULL operation", 0, NULL);
+        rc = -1;
+        goto free_and_return_nolock;
+    }
+
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     flag_psearch = operation_is_flag_set(operation, OP_FLAG_PS);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);

@@ -715,18 +715,18 @@ preop_modrdn(Slapi_PBlock *pb)
 int
 NS7bitAttr_Init(Slapi_PBlock *pb)
 {
-    int err = 0;
+    int32_t err = 0;
     Slapi_Entry *plugin_entry = NULL;
     char *plugin_type = NULL;
-    int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
-    int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
-    int premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
+    int32_t preadd = SLAPI_PLUGIN_PRE_ADD_FN;
+    int32_t premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
+    int32_t premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
 
     BEGIN
-    int attr_count = 0;
-    int argc;
-    char **argv;
-    int valid_suffix = 0;
+    int32_t attr_count = 0;
+    int32_t argc = 0;
+    char **argv = NULL;
+    int32_t valid_suffix = 0;
 
     /* Declare plugin version */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
@@ -752,7 +752,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
         break;
 
     err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
-    if (err)
+    if (err || argv == NULL)
         break;
 
     for (attr_count = 0; argv && argv[attr_count]; attr_count++) {

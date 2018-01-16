@@ -550,7 +550,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         }
 
         /* Build the new list */
-        for (i = 0; theConfig.groupattrs[i]; i++) {
+        for (i = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
             theConfig.group_slapiattrs[i] = slapi_attr_new();
             slapi_attr_init(theConfig.group_slapiattrs[i], theConfig.groupattrs[i]);
         }
@@ -572,7 +572,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
 
             /* Add filter section for each groupattr. */
-            for (i = 0; theConfig.groupattrs[i]; i++) {
+            for (i = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
                 bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
             }
 
@@ -721,7 +721,7 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
             }
 
             /* Count how many values we have in the source list. */
-            for (j = 0; src->group_slapiattrs[j]; j++) {
+            for (j = 0; src->group_slapiattrs && src->group_slapiattrs[j]; j++) {
                 /* Do nothing. */
             }
 
@@ -731,7 +731,7 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
             }
 
             /* Copy the attributes. */
-            for (i = 0; src->group_slapiattrs[i]; i++) {
+            for (i = 0; src->group_slapiattrs && src->group_slapiattrs[i]; i++) {
                 dest->group_slapiattrs[i] = slapi_attr_dup(src->group_slapiattrs[i]);
             }
 

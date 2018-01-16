@@ -1340,7 +1340,7 @@ send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op, Slapi_PBl
         attrs = attrs_ext;
     }
 
-    for (i = 0; attrs && attrs[i] != NULL; i++) {
+    for (i = 0; my_searchattrs && attrs && attrs[i] != NULL; i++) {
         char *current_type_name = attrs[i];
         Slapi_ValueSet **values = NULL;
         int attr_free_flags = 0;

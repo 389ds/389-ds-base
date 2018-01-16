@@ -1664,8 +1664,7 @@ upgradedn_producer(void *param)
                 slapi_ch_free_string(&rdn);
             }
         } else {
-            e =
-                slapi_str2entry(data.data, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+            e = slapi_str2entry(data.data, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
             rdn = slapi_ch_strdup(slapi_entry_get_rdn_const(e));
             if (NULL == rdn) {
                 Slapi_RDN srdn;
@@ -1683,6 +1682,7 @@ upgradedn_producer(void *param)
             slapi_log_err(SLAPI_LOG_WARNING, "upgradedn_producer",
                           "%s: Skipping badly formatted entry (id %lu)\n",
                           inst->inst_name, (u_long)temp_id);
+            slapi_ch_free_string(&rdn);
             continue;
         }
 
@@ -2183,6 +2183,7 @@ done:
     free_IDarray(&dn_norm_sp_conflicts);
     slapi_ch_free_string(&ecopy);
     slapi_ch_free(&(data.data));
+    slapi_ch_free_string(&rdn);
     if (job->upgradefd) {
         fclose(job->upgradefd);
     }
@@ -3783,7 +3784,7 @@ out:
     slapi_ch_free_string(&search_scope);
 
 
-    if (fd > 0) {
+    if (fd >= 0) {
         close(fd);
     }
 
@@ -3949,8 +3950,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
-                          "Failed to merge Slapi_RDN %s to RDN\n",
-                          slapi_sdn_get_dn(bdn->dn_sdn));
+                          "Failed to merge Slapi_RDN to RDN\n");
         }
     bail:
         slapi_ch_free(&data.data);

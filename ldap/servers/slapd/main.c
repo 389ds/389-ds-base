@@ -683,12 +683,25 @@ main(int argc, char **argv)
     {
         char *s = getenv("DEBUG_SLEEP");
         if ((s != NULL) && isdigit(*s)) {
-            int secs = atoi(s);
-            printf("slapd pid is %d\n", getpid());
+            char *endp = NULL;
+            int64_t secs;
+            errno = 0;
+
+            secs = strtol(s, &endp, 10);
+            if ( endp == s ||
+                 *endp != '\0' ||
+                 ((secs == LONG_MIN || secs == LONG_MAX) && errno == ERANGE) ||
+                 secs < 1 )
+            {
+                /* Invalid value, default to 30 seconds */
+                secs = 30;
+            } else if (secs > 3600) {
+                secs = 3600;
+            }
+            printf("slapd pid is %d - sleeping for %ld\n", getpid(), secs);
             sleep(secs);
         }
     }
-
 
     /* used to set configfile to the default config file name here */
     if ((mcfg.myname = strrchr(argv[0], '/')) == NULL) {

@@ -437,6 +437,12 @@ acl_access_allowed(
      * pointers to them--we must always start afresh (see psearch.c).
     */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (op == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                      "acl_access_allowed - NULL op\n");
+        ret_val = LDAP_OPERATIONS_ERROR;
+        goto cleanup_and_ret;
+    }
     if (operation_is_flag_set(op, OP_FLAG_PS) ||
         (aclpb->aclpb_curr_entry_sdn == NULL) ||
         (slapi_sdn_compare(aclpb->aclpb_curr_entry_sdn, e_sdn) != 0) ||

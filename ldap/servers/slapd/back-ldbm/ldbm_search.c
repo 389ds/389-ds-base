@@ -1157,7 +1157,7 @@ subtree_candidates(
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         is_bulk_import = PR_TRUE;
     }
@@ -1168,7 +1168,7 @@ subtree_candidates(
      * since tombstone entries are not indexed in the ancestorid index.
      * Note: they are indexed in the entryrdn index.
      */
-    if (candidates != NULL && (idl_length(candidates) > FILTER_TEST_THRESHOLD)) {
+    if (candidates != NULL && (idl_length(candidates) > FILTER_TEST_THRESHOLD) && e) {
         IDList *tmp = candidates, *descendants = NULL;
         back_txn txn = {NULL};
 

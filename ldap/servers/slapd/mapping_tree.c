@@ -2629,7 +2629,7 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
                     (target_node->mtn_be_states[*index] == SLAPI_BE_STATE_OFFLINE)) {
                     slapi_log_err(SLAPI_LOG_TRACE, "mtn_get_be",
                                   "Operation attempted on backend in OFFLINE state : %s\n",
-                                  target_node->mtn_backend_names[*index]);
+                                  target_node->mtn_backend_names ? target_node->mtn_backend_names[*index] : "Unknown backend");
                     result = LDAP_OPERATIONS_ERROR;
                     *be = defbackend_get_backend();
                 }
