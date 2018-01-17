@@ -61,24 +61,45 @@ def writeFinalizer():
 
 def get_existing_topologies(inst, masters, hubs, consumers):
     """Check if the requested topology exists"""
+    setup_text = ""
 
     if inst:
         if inst == 1:
             i = 'st'
+            setup_text = "Standalone Instance"
         else:
             i = 'i{}'.format(inst)
+            setup_text = "{} Standalone Instances".format(inst)
     else:
         i = ''
     if masters:
         ms = 'm{}'.format(masters)
+        if len(setup_text) > 0:
+            setup_text += ", "
+        if masters == 1:
+            setup_text += "Master Instance"
+        else:
+            setup_text += "{} Master Instances".format(masters)
     else:
         ms = ''
     if hubs:
         hs = 'h{}'.format(hubs)
+        if len(setup_text) > 0:
+            setup_text += ", "
+        if hubs == 1:
+            setup_text += "Hub Instance"
+        else:
+            setup_text += "{} Hub Instances".format(hubs)
     else:
         hs = ''
     if consumers:
         cs = 'c{}'.format(consumers)
+        if len(setup_text) > 0:
+            setup_text += ", "
+        if consumers == 1:
+            setup_text += "Consumer Instance"
+        else:
+            setup_text += "{} Consumer Instances".format(consumers)
     else:
         cs = ''
 
@@ -86,9 +107,9 @@ def get_existing_topologies(inst, masters, hubs, consumers):
 
     # Returns True in the first element of a list, if topology was found
     if my_topology in dir(topologies):
-        return [True, my_topology]
+        return [True, my_topology, setup_text]
     else:
-        return [False, my_topology]
+        return [False, my_topology, setup_text]
 
 
 def check_id_uniqueness(id_value):
@@ -181,10 +202,11 @@ if len(sys.argv) > 0:
     # Extract usable values
     ticket = args.ticket
     suite = args.suite
+
     if args.inst == '0' and args.masters == '0' and args.hubs == '0' \
        and args.consumers == '0':
         instances = 1
-        my_topology = [True, 'topology_st']
+        my_topology = [True, 'topology_st', "Standalone Instance"]
     else:
         instances = int(args.inst)
         masters = int(args.masters)
@@ -192,6 +214,7 @@ if len(sys.argv) > 0:
         consumers = int(args.consumers)
         my_topology = get_existing_topologies(instances, masters, hubs, consumers)
     filename = args.filename
+    setup_text = my_topology[2]
 
     # Create/open the new test script file
     if not filename:
@@ -266,7 +289,7 @@ if len(sys.argv) > 0:
         TEST.write('\ndef test_something(topo):\n')
     TEST.write('    """Specify a test case purpose or name here\n\n')
     TEST.write('    :id: {}\n'.format(tc_id))
-    TEST.write('    :setup: Fill in set up configuration here\n')
+    TEST.write('    :setup: ' + setup_text + '\n')
     TEST.write('    :steps:\n')
     TEST.write('        1. Fill in test case steps here\n')
     TEST.write('        2. And indent them like this (RST format requirement)\n')
@@ -289,7 +312,7 @@ if len(sys.argv) > 0:
     TEST.write('    # Run isolated\n')
     TEST.write('    # -s for DEBUG mode\n')
     TEST.write('    CURRENT_FILE = os.path.realpath(__file__)\n')
-    TEST.write('    pytest.main("-s %s" % CURRENT_FILE)\n\n')
+    TEST.write('    pytest.main(["-s", CURRENT_FILE])\n\n')
 
     # Done, close things up
     TEST.close()
