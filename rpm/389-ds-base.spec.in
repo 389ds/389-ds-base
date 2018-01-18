@@ -491,11 +491,13 @@ fi
 %{_bindir}/*
 # We have to seperate this from being a glob to ensure the caps are applied.
 %caps(CAP_NET_BIND_SERVICE=pe) %{_sbindir}/ns-slapd
+%if 0%{?rhel} >= 8 || 0%{?fedora}
 %{_sbindir}/dsconf
 %{_sbindir}/dscreate
 %{_sbindir}/dsctl
 %{_sbindir}/dsidm
 %{_sbindir}/ds-cockpit-setup
+%endif
 %{_sbindir}/ds_selinux_enabled
 %{_sbindir}/ds_selinux_port_query
 %{_sbindir}/ds_systemd_ask_password_acl
