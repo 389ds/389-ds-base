@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
@@ -475,6 +476,29 @@ def test_invalid_agmt(topo_m4):
     except ldap.LDAPError as e:
         m1.log.fatal('Failed to bind: ' + str(e))
         assert False
+def test_warining_for_invalid_replica(topo_m4):
+    """Testing logs to indicate the inconsistency when configuration is performed.
+
+    :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c8
+    :setup: MMR with four masters
+    :steps:
+        1. Setup nsds5ReplicaBackoffMin to 20
+        2. Setup nsds5ReplicaBackoffMax to 10
+    :expectedresults:
+        1. nsds5ReplicaBackoffMin should set to 20
+        2. An error should be generated and also logged in the error logs.
+    """
+    replicas = Replicas(topo_m4.ms["master1"])
+    replica = replicas.list()[0]
+    log.info('Set nsds5ReplicaBackoffMin to 20')
+    replica.set('nsds5ReplicaBackoffMin', '20')
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        log.info('Set nsds5ReplicaBackoffMax to 10')
+        replica.set('nsds5ReplicaBackoffMax', '10')
+    log.info('Resetting configuration: nsds5ReplicaBackoffMin')
+    replica.remove_all('nsds5ReplicaBackoffMin')
+    log.info('Check the error log for the error')
+    assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
 
 if __name__ == '__main__':
