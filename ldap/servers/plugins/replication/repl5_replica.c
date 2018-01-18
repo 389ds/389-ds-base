@@ -1990,7 +1990,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
              r->repl_type == REPLICA_TYPE_PRIMARY) {
         if ((val = slapi_entry_attr_get_charptr(e, attr_replicaId))) {
             int64_t rid;
-            if (repl_config_valid_num(attr_replicaId, val, 1, 65535, &rc, errormsg, &rid) != 0) {
+            if (repl_config_valid_num(attr_replicaId, val, 1, 65534, &rc, errormsg, &rid) != 0) {
                 slapi_ch_free_string(&val);
                 return -1;
             }
