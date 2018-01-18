@@ -6,9 +6,10 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
-from lib389._constants import SUFFIX, PASSWORD
+import time
+from lib389._constants import SUFFIX, PASSWORD, DN_DM
 from lib389.idm.user import UserAccounts
-from lib389.utils import ldap, os, logging
+from lib389.utils import ldap, os, logging, ensure_bytes
 from lib389.topologies import topology_st as topo
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -20,6 +21,7 @@ log = logging.getLogger(__name__)
 
 user_data = {'cn': 'CNpwtest1', 'sn': 'SNpwtest1', 'uid': 'UIDpwtest1', 'mail': 'MAILpwtest1@redhat.com',
              'givenname': 'GNpwtest1'}
+
 TEST_PASSWORDS = list(user_data.values())
 # Add substring/token values of "CNpwtest1"
 TEST_PASSWORDS += ['CNpwtest1ZZZZ', 'ZZZZZCNpwtest1',
@@ -37,13 +39,20 @@ def passw_policy(topo, request):
     """Configure password policy with PasswordCheckSyntax attribute set to on"""
 
     log.info('Configure Pwpolicy with PasswordCheckSyntax and nsslapd-pwpolicy-local set to on')
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     topo.standalone.config.set('PasswordExp', 'on')
     topo.standalone.config.set('PasswordCheckSyntax', 'off')
     topo.standalone.config.set('nsslapd-pwpolicy-local', 'on')
 
     subtree = 'ou=people,{}'.format(SUFFIX)
     log.info('Configure subtree password policy for {}'.format(subtree))
-    topo.standalone.subtreePwdPolicy(subtree, {'passwordchange': 'on', 'passwordCheckSyntax': 'on'})
+    topo.standalone.subtreePwdPolicy(subtree, {'passwordchange': ensure_bytes('on'),
+                                               'passwordCheckSyntax': ensure_bytes('on'),
+                                               'passwordLockout': ensure_bytes('on'),
+                                               'passwordResetFailureCount': ensure_bytes('3'),
+                                               'passwordLockoutDuration': ensure_bytes('3'),
+                                               'passwordMaxFailure': ensure_bytes('2')})
+    time.sleep(1)
 
     def fin():
         log.info('Reset pwpolicy configuration settings')
@@ -74,6 +83,47 @@ def test_user(topo, request):
 
     request.addfinalizer(fin)
     return tuser
+
+
+def test_pwp_local_unlock(topo, passw_policy, test_user):
+    """Test subtree policies use the same global default for passwordUnlock
+
+    :id: 741a8417-5f65-4012-b9ed-87987ce3ca1b
+    :setup: Standalone instance
+    :steps:
+        1. Test user can bind
+        2. Bind with bad passwords to lockout account, and verify account is locked
+        3. Wait for lockout interval, and bind with valid password
+    :expectedresults:
+        1. Bind successful
+        2. Entry is locked
+        3. Entry can bind with correct password
+    """
+
+    log.info("Verify user can bind...")
+    test_user.bind(PASSWORD)
+
+    log.info('Test passwordUnlock default - user should be able to reset password after lockout')
+    for i in range(0,2):
+        try:
+            test_user.bind("bad-password")
+        except ldap.INVALID_CREDENTIALS:
+            # expected
+            pass
+        except ldap.LDAPError as e:
+            log.fatal("Got unexpected failure: " + atr(e))
+            raise e
+
+
+    log.info('Verify account is locked')
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        test_user.bind(PASSWORD)
+
+    log.info('Wait for lockout duration...')
+    time.sleep(4)
+
+    log.info('Check if user can now bind with correct password')
+    test_user.bind(PASSWORD)
 
 
 @pytest.mark.bz1465600
@@ -143,4 +193,4 @@ if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
-    pytest.main("-s {}".format(CURRENT_FILE))
+    pytest.main(["-s", CURRENT_FILE])

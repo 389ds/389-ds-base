@@ -1401,6 +1401,56 @@ getFrontendConfig(void)
  */
 
 void
+pwpolicy_init_defaults (passwdPolicy *pw_policy)
+{
+    pw_policy->pw_change = LDAP_ON;
+    pw_policy->pw_must_change = LDAP_OFF;
+    pw_policy->pw_syntax = LDAP_OFF;
+    pw_policy->pw_exp = LDAP_OFF;
+    pw_policy->pw_send_expiring = LDAP_OFF;
+    pw_policy->pw_minlength = SLAPD_DEFAULT_PW_MINLENGTH;
+    pw_policy->pw_mindigits = SLAPD_DEFAULT_PW_MINDIGITS;
+    pw_policy->pw_minalphas = SLAPD_DEFAULT_PW_MINALPHAS;
+    pw_policy->pw_minuppers = SLAPD_DEFAULT_PW_MINUPPERS;
+    pw_policy->pw_minlowers = SLAPD_DEFAULT_PW_MINLOWERS;
+    pw_policy->pw_minspecials = SLAPD_DEFAULT_PW_MINSPECIALS;
+    pw_policy->pw_min8bit = SLAPD_DEFAULT_PW_MIN8BIT;
+    pw_policy->pw_maxrepeats = SLAPD_DEFAULT_PW_MAXREPEATS;
+    pw_policy->pw_mincategories = SLAPD_DEFAULT_PW_MINCATEGORIES;
+    pw_policy->pw_mintokenlength = SLAPD_DEFAULT_PW_MINTOKENLENGTH;
+    pw_policy->pw_maxage = SLAPD_DEFAULT_PW_MAXAGE;
+    pw_policy->pw_minage = SLAPD_DEFAULT_PW_MINAGE;
+    pw_policy->pw_warning = SLAPD_DEFAULT_PW_WARNING;
+    pw_policy->pw_history = LDAP_OFF;
+    pw_policy->pw_inhistory = SLAPD_DEFAULT_PW_INHISTORY;
+    pw_policy->pw_lockout = LDAP_OFF;
+    pw_policy->pw_maxfailure = SLAPD_DEFAULT_PW_MAXFAILURE;
+    pw_policy->pw_unlock = LDAP_ON;
+    pw_policy->pw_lockduration = SLAPD_DEFAULT_PW_LOCKDURATION;
+    pw_policy->pw_resetfailurecount = SLAPD_DEFAULT_PW_RESETFAILURECOUNT;
+    pw_policy->pw_gracelimit = SLAPD_DEFAULT_PW_GRACELIMIT;
+    pw_policy->pw_admin = NULL;
+    pw_policy->pw_admin_user = NULL;
+    pw_policy->pw_is_legacy = LDAP_ON;
+    pw_policy->pw_track_update_time = LDAP_OFF;
+}
+
+static void
+pwpolicy_fe_init_onoff(passwdPolicy *pw_policy)
+{
+    init_pw_change = pw_policy->pw_change;
+    init_pw_must_change = pw_policy->pw_must_change;
+    init_pw_syntax = pw_policy->pw_syntax;
+    init_pw_exp = pw_policy->pw_exp;
+    init_pw_send_expiring = pw_policy->pw_send_expiring;
+    init_pw_history = pw_policy->pw_history;
+    init_pw_lockout = pw_policy->pw_lockout;
+    init_pw_unlock = pw_policy->pw_unlock;
+    init_pw_is_legacy = pw_policy->pw_is_legacy;
+    init_pw_track_update_time = pw_policy->pw_track_update_time;
+}
+
+void
 FrontendConfig_init(void)
 {
     slapdFrontendConfig_t *cfg = getFrontendConfig();
@@ -1511,41 +1561,13 @@ FrontendConfig_init(void)
     * let clients abide by the LDAP standards and send us a SASL/EXTERNAL bind
     * if that's what they want to do */
     init_force_sasl_external = cfg->force_sasl_external = LDAP_OFF;
-
     init_readonly = cfg->readonly = LDAP_OFF;
+
+    pwpolicy_init_defaults(&cfg->pw_policy);
+    pwpolicy_fe_init_onoff(&cfg->pw_policy);
     init_pwpolicy_local = cfg->pwpolicy_local = LDAP_OFF;
     init_pwpolicy_inherit_global = cfg->pwpolicy_inherit_global = LDAP_OFF;
-    init_pw_change = cfg->pw_policy.pw_change = LDAP_ON;
-    init_pw_must_change = cfg->pw_policy.pw_must_change = LDAP_OFF;
     init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
-    init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
-    init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
-    init_pw_send_expiring = cfg->pw_policy.pw_send_expiring = LDAP_OFF;
-    cfg->pw_policy.pw_minlength = SLAPD_DEFAULT_PW_MINLENGTH;
-    cfg->pw_policy.pw_mindigits = SLAPD_DEFAULT_PW_MINDIGITS;
-    cfg->pw_policy.pw_minalphas = SLAPD_DEFAULT_PW_MINALPHAS;
-    cfg->pw_policy.pw_minuppers = SLAPD_DEFAULT_PW_MINUPPERS;
-    cfg->pw_policy.pw_minlowers = SLAPD_DEFAULT_PW_MINLOWERS;
-    cfg->pw_policy.pw_minspecials = SLAPD_DEFAULT_PW_MINSPECIALS;
-    cfg->pw_policy.pw_min8bit = SLAPD_DEFAULT_PW_MIN8BIT;
-    cfg->pw_policy.pw_maxrepeats = SLAPD_DEFAULT_PW_MAXREPEATS;
-    cfg->pw_policy.pw_mincategories = SLAPD_DEFAULT_PW_MINCATEGORIES;
-    cfg->pw_policy.pw_mintokenlength = SLAPD_DEFAULT_PW_MINTOKENLENGTH;
-    cfg->pw_policy.pw_maxage = SLAPD_DEFAULT_PW_MAXAGE;
-    cfg->pw_policy.pw_minage = SLAPD_DEFAULT_PW_MINAGE;
-    cfg->pw_policy.pw_warning = SLAPD_DEFAULT_PW_WARNING;
-    init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
-    cfg->pw_policy.pw_inhistory = SLAPD_DEFAULT_PW_INHISTORY;
-    init_pw_lockout = cfg->pw_policy.pw_lockout = LDAP_OFF;
-    cfg->pw_policy.pw_maxfailure = SLAPD_DEFAULT_PW_MAXFAILURE;
-    init_pw_unlock = cfg->pw_policy.pw_unlock = LDAP_ON;
-    cfg->pw_policy.pw_lockduration = SLAPD_DEFAULT_PW_LOCKDURATION;
-    cfg->pw_policy.pw_resetfailurecount = SLAPD_DEFAULT_PW_RESETFAILURECOUNT;
-    cfg->pw_policy.pw_gracelimit = SLAPD_DEFAULT_PW_GRACELIMIT;
-    cfg->pw_policy.pw_admin = NULL;
-    cfg->pw_policy.pw_admin_user = NULL;
-    init_pw_is_legacy = cfg->pw_policy.pw_is_legacy = LDAP_ON;
-    init_pw_track_update_time = cfg->pw_policy.pw_track_update_time = LDAP_OFF;
     init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
 
     init_accesslog_logging_enabled = cfg->accesslog_logging_enabled = LDAP_ON;

@@ -1773,6 +1773,8 @@ typedef struct passwordpolicyarray
     Slapi_DN **pw_admin_user;
 } passwdPolicy;
 
+void pwpolicy_init_defaults (passwdPolicy *pw_policy);
+
 Slapi_PBlock *slapi_pblock_clone(Slapi_PBlock *pb); /* deprecated */
 
 passwdPolicy *slapi_pblock_get_pwdpolicy(Slapi_PBlock *pb);
