@@ -2562,12 +2562,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         vlvIndex_go_online(pvlv[vlvidx], be);
     }
 
-    if (task) {
-        slapi_task_log_status(task, "%s: Finished indexing.",
-                              inst->inst_name);
-        slapi_task_log_notice(task, "%s: Finished indexing.",
-                              inst->inst_name);
-    }
+    /* if it was a task, its status will be updated later after backend is ready for update */
     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Finished indexing.\n",
                   inst->inst_name);
     return_value = 0; /* success */
@@ -2590,6 +2585,15 @@ err_out:
 err_min:
     dblayer_release_id2entry(be, db); /* nope */
     instance_set_not_busy(inst);
+
+    if (return_value == 0) {
+        if (task) {
+            slapi_task_log_status(task, "%s: Finished indexing.",
+                    inst->inst_name);
+            slapi_task_log_notice(task, "%s: Finished indexing.",
+                    inst->inst_name);
+        }
+    }
 
     if (run_from_cmdline) {
         dblayer_instance_close(be);
