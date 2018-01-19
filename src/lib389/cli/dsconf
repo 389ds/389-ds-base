@@ -32,7 +32,7 @@ from lib389.cli_base import disconnect_instance, connect_instance
 
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 
-log = logging.getLogger("dsconf")
+from lib389.cli_base import reset_get_logger
 
 if __name__ == '__main__':
 
@@ -78,11 +78,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.verbose:
-        log.setLevel(logging.DEBUG)
-    else:
-        # We aren't verbose, so fix our formatter up to be more minimal ...
-        log.setLevel(logging.INFO)
+    log = reset_get_logger('dsconf', args.verbose)
 
     log.debug("The 389 Directory Server Configuration Tool")
     # Leave this comment here: UofA let me take this code with me provided
@@ -101,8 +97,8 @@ if __name__ == '__main__':
 
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
-        log.error("No resource provided to act upon")
-        log.error("USAGE: dsconf [options] <resource> <action> [action options]")
+        log.error("No action provided, here is some --help.")
+        parser.print_help()
         sys.exit(1)
 
     # Connect

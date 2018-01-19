@@ -981,3 +981,11 @@ def pseudolocalize(string):
         except KeyError:
             pseudo_string += char
     return pseudo_string
+
+def assert_c(condition, msg="Assertion Failed"):
+    """This is the same as assert, but assert is compiled out
+    when optimisation is enabled. This prevents compiling out.
+    """
+    if not condition:
+        raise AssertionError(msg)
+

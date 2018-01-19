@@ -31,6 +31,7 @@ from lib389.instance.options import General2Base, Slapd2Base
 # The poc backend api
 from lib389.backend import Backends
 from lib389.utils import (
+    assert_c,
     is_a_dn,
     ensure_bytes,
     ensure_str,
@@ -116,7 +117,7 @@ class SetupDs(object):
         pass
 
     def _validate_ds_2_config(self, config):
-        assert config.has_section('slapd')
+        assert_c(config.has_section('slapd'), "Missing configuration section [slapd]")
         # Extract them in a way that create can understand.
 
         general_options = General2Base(self.log)
@@ -154,16 +155,15 @@ class SetupDs(object):
         # This will move to lib389 later.
         # Check we have all the sections.
         # Make sure we have needed keys.
-        assert(config.has_section('general'))
-        assert(config.has_option('general', 'config_version'))
-        assert(config.get('general', 'config_version') >= '2')
+        assert_c(config.has_section('general'), "Missing configuration section [general]")
+        assert_c(config.has_option('general', 'config_version'), "Missing configuration config_version in section [general]")
+        assert_c(config.get('general', 'config_version') >= '2', "config_version in section [general] should be 2 or greater")
         if config.get('general', 'config_version') == '2':
             # Call our child api to validate itself from the inf.
             self._validate_config_2(config)
             return self._validate_ds_2_config(config)
         else:
-            self.log.info("Failed to validate configuration version.")
-            assert(False)
+            assert_c(False, "Unsupported config_version in section [general]")
 
     def create_from_inf(self, inf_path):
         """
@@ -195,40 +195,40 @@ class SetupDs(object):
 
     def _prepare_ds(self, general, slapd, backends):
 
-        assert(general['defaults'] is not None)
+        assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
         if self.verbose:
             self.log.info("PASSED: using config settings %s" % general['defaults'])
         # Validate our arguments.
-        assert(slapd['user'] is not None)
+        assert_c(slapd['user'] is not None, "Configuration user in section [slapd] not found")
         # check the user exists
-        assert(pwd.getpwnam(slapd['user']))
+        assert_c(pwd.getpwnam(slapd['user']), "user %s not found on system" % slapd['user'])
         slapd['user_uid'] = pwd.getpwnam(slapd['user']).pw_uid
-        assert(slapd['group'] is not None)
-        assert(grp.getgrnam(slapd['group']))
+        assert_c(slapd['group'] is not None, "Configuration group in section [slapd] not found")
+        assert_c(grp.getgrnam(slapd['group']), "group %s not found on system" % slapd['group'])
         slapd['group_gid'] = grp.getgrnam(slapd['group']).gr_gid
         # check this group exists
         # Check that we are running as this user / group, or that we are root.
-        assert(os.geteuid() == 0 or getpass.getuser() == slapd['user'])
+        assert_c(os.geteuid() == 0 or getpass.getuser() == slapd['user'], "Not running as user root or %s, may not have permission to continue" % slapd['user'])
 
         if self.verbose:
             self.log.info("PASSED: user / group checking")
 
-        assert(general['full_machine_name'] is not None)
-        assert(general['strict_host_checking'] is not None)
+        assert_c(general['full_machine_name'] is not None, "Configuration full_machine_name in section [general] not found")
+        assert_c(general['strict_host_checking'] is not None, "Configuration strict_host_checking in section [general] not found")
         if general['strict_host_checking'] is True:
             # Check it resolves with dns
-            assert(socket.gethostbyname(general['full_machine_name']))
+            assert_c(socket.gethostbyname(general['full_machine_name']), "Strict hostname check failed. Check your DNS records for %s" % general['full_machine_name'])
             if self.verbose:
                 self.log.info("PASSED: Hostname strict checking")
 
-        assert(slapd['prefix'] is not None)
+        assert_c(slapd['prefix'] is not None, "Configuration prefix in section [slapd] not found")
         if (slapd['prefix'] != ""):
-            assert(os.path.exists(slapd['prefix']))
+            assert_c(os.path.exists(slapd['prefix']), "Prefix location '%s' not found" % slapd['prefix'])
         if self.verbose:
             self.log.info("PASSED: prefix checking")
 
         # We need to know the prefix before we can do the instance checks
-        assert(slapd['instance_name'] is not None)
+        assert_c(slapd['instance_name'] is not None, "Configuration instance_name in section [slapd] not found")
         # Check if the instance exists or not.
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
@@ -236,15 +236,15 @@ class SetupDs(object):
         ds.containerised = self.containerised
         ds.prefix = slapd['prefix']
         insts = ds.list(serverid=slapd['instance_name'])
-        assert(len(insts) == 0)
+        assert_c(len(insts) == 0, "Another instance named '%s' may already exist" % slapd['instance_name'])
 
         if self.verbose:
             self.log.info("PASSED: instance checking")
 
-        assert(slapd['root_dn'] is not None)
+        assert_c(slapd['root_dn'] is not None, "Configuration root_dn in section [slapd] not found")
         # Assert this is a valid DN
-        assert(is_a_dn(slapd['root_dn']))
-        assert(slapd['root_password'] is not None)
+        assert_c(is_a_dn(slapd['root_dn']), "root_dn in section [slapd] is not a well formed LDAP DN")
+        assert_c(slapd['root_password'] is not None, "Configuration root_password in section [slapd] not found")
         # Check if pre-hashed or not.
         # !!!!!!!!!!!!!!
 
@@ -268,17 +268,17 @@ class SetupDs(object):
             self.log.info("INFO: temp root password set to %s" % self._raw_secure_password)
             self.log.info("PASSED: root user checking")
 
-        assert(slapd['port'] is not None)
-        assert(socket_check_open('::1', slapd['port']) is False)
+        assert_c(slapd['port'] is not None, "Configuration port in section [slapd] not found")
+        assert_c(socket_check_open('::1', slapd['port']) is False, "port %s is already in use" % slapd['port'])
         # We enable secure port by default.
-        assert(slapd['secure_port'] is not None)
-        assert(socket_check_open('::1', slapd['secure_port']) is False)
+        assert_c(slapd['secure_port'] is not None, "Configuration secure_port in section [slapd] not found")
+        assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use" % slapd['secure_port'])
         if self.verbose:
             self.log.info("PASSED: network avaliability checking")
 
-        # Make assertions of the paths?
+        # Make assert_cions of the paths?
 
-        # Make assertions of the backends?
+        # Make assert_cions of the backends?
 
     def create_from_args(self, general, slapd, backends=[], extra=None):
         """
@@ -286,29 +286,27 @@ class SetupDs(object):
         """
         # Check we have privs to run
 
-        if self.verbose:
-            self.log.info("READY: preparing installation for %s" % slapd['instance_name'])
+        self.log.info("READY: Preparing installation for %s" % slapd['instance_name'])
         self._prepare_ds(general, slapd, backends)
         # Call our child api to prepare itself.
         self._prepare(extra)
 
-        if self.verbose:
-            self.log.info("READY: beginning installation for %s" % slapd['instance_name'])
+        self.log.info("READY: Beginning installation for %s" % slapd['instance_name'])
 
         if self.dryrun:
-            self.log.info("NOOP: dry run requested")
+            self.log.info("NOOP: Dry run requested")
         else:
             # Actually trigger the installation.
             self._install_ds(general, slapd, backends)
             # Call the child api to do anything it needs.
             self._install(extra)
-        self.log.info("FINISH: completed installation for %s" % slapd['instance_name'])
+        self.log.info("FINISH: Completed installation for %s" % slapd['instance_name'])
 
     def _install_ds(self, general, slapd, backends):
         """
         Actually install the Ds from the dicts provided.
 
-        You should never call this directly, as it bypasses assertions.
+        You should never call this directly, as it bypasses assert_cions.
         """
         # register the instance to /etc/sysconfig
         # We do this first so that we can trick remove-ds.pl if needed.
@@ -430,7 +428,8 @@ class SetupDs(object):
 
         ds_instance.allocate(args)
         # Does this work?
-        assert(ds_instance.exists())
+        assert_c(ds_instance.exists(), "Instance failed to install, does not exist when expected")
+
 
         # Create a certificate database.
         tlsdb = NssSsl(dbpath=slapd['cert_dir'])

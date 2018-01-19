@@ -47,35 +47,6 @@ def instance_status(inst, log, args):
         log.info("Instance is not running")
 
 def instance_create(inst, log, args):
-    if not args.ack:
-        sys.exit(0)
-    else:
-        log.info("""
- _________________________________________
-/ If this is not what you want, press     \\
-\ ctrl-c now ...                          /
- -----------------------------------------
-      \\                   / \\  //\\
-       \\    |\\___/|      /   \\//  \\\\
-            /0  0  \\__  /    //  | \\ \\
-           /     /  \\/_/    //   |  \\  \\
-           @_^_@'/   \\/_   //    |   \\   \\
-           //_^_/     \\/_ //     |    \\    \\
-        ( //) |        \\///      |     \\     \\
-      ( / /) _|_ /   )  //       |      \\     _\\
-    ( // /) '/,_ _ _/  ( ; -.    |    _ _\\.-~        .-~~~^-.
-  (( / / )) ,-{        _      `-.|.-~-.           .~         `.
- (( // / ))  '/\\      /                 ~-. _ .-~      .-~^-.  \\
- (( /// ))      `.   {            }                   /      \\  \\
-  (( / ))     .----~-.\\        \\-'                 .~         \\  `. \\^-.
-             ///.----..>        \\             _ -~             `.  ^-`  ^-_
-               ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
-                                                                  /.-~
-        """)
-    for i in range(1,6):
-        log.info('%s ...' % (5 - int(i)))
-        time.sleep(1)
-    log.info('Launching ...')
     if args.containerised:
         log.debug("Containerised features requested.")
     sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
@@ -117,30 +88,13 @@ def instance_example(inst, log, args):
 
 def instance_remove(inst, log, args):
     if not args.ack:
+        log.info("""Not removing: if you are sure, add --doit""")
         sys.exit(0)
     else:
         log.info("""
- _________________________________________
-/ If this is not what you want, press     \\
-\ ctrl-c now ...                          /
- -----------------------------------------
-      \\                   / \\  //\\
-       \\    |\\___/|      /   \\//  \\\\
-            /0  0  \\__  /    //  | \\ \\
-           /     /  \\/_/    //   |  \\  \\
-           @_^_@'/   \\/_   //    |   \\   \\
-           //_^_/     \\/_ //     |    \\    \\
-        ( //) |        \\///      |     \\     \\
-      ( / /) _|_ /   )  //       |      \\     _\\
-    ( // /) '/,_ _ _/  ( ; -.    |    _ _\\.-~        .-~~~^-.
-  (( / / )) ,-{        _      `-.|.-~-.           .~         `.
- (( // / ))  '/\\      /                 ~-. _ .-~      .-~^-.  \\
- (( /// ))      `.   {            }                   /      \\  \\
-  (( / ))     .----~-.\\        \\-'                 .~         \\  `. \\^-.
-             ///.----..>        \\             _ -~             `.  ^-`  ^-_
-               ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
-                                                                  /.-~
-        """)
+About to remove instance %s!
+If this is not what you want, press ctrl-c now ...
+        """ % inst.serverid)
     for i in range(1,6):
         log.info('%s ...' % (5 - int(i)))
         time.sleep(1)

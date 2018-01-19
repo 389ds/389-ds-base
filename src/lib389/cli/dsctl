@@ -19,9 +19,7 @@ from lib389.cli_base import _get_arg
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
-from lib389.cli_base import disconnect_instance
-
-log = logging.getLogger("dsctl")
+from lib389.cli_base import disconnect_instance, reset_get_logger
 
 if __name__ == '__main__':
 
@@ -46,10 +44,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.verbose:
-        log.setLevel(logging.DEBUG)
-    else:
-        log.setLevel(logging.INFO)
+    log = reset_get_logger('dsctl', args.verbose)
 
     log.debug("The 389 Directory Server Administration Tool")
     # Leave this comment here: UofA let me take this code with me provided
@@ -60,8 +55,8 @@ if __name__ == '__main__':
 
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
-        log.error("No action provided")
-        log.error("USAGE: dsctl [options] <resource> <action> [action options]")
+        log.error("No action provided, here is some --help.")
+        parser.print_help()
         sys.exit(1)
 
     # Connect
@@ -71,9 +66,18 @@ if __name__ == '__main__':
     result = True
 
     # Allocate the instance based on name
-    insts = inst.list(serverid=args.instance)
+    insts = []
+    if args.verbose:
+        insts = inst.list(serverid=args.instance)
+    else:
+        try:
+            insts = inst.list(serverid=args.instance)
+        except PermissionError:
+            log.error("Unable to access instance information. Are you running as root or dirsrv?")
+            sys.exit(1)
     if len(insts) != 1:
-        raise ValueError("No such instance %s" % args.instance)
+        log.error("No such instance %s" % args.instance)
+        sys.exit(1)
 
     inst.allocate(insts[0])
     log.debug('Instance allocated')

@@ -89,7 +89,7 @@ def create_parser(subparsers):
 
     create_parser = subcommands.add_parser('create', help='create')
     create_parser.set_defaults(func=create)
-    populate_attr_arguments(create_parser, MUST_ATTRIBUTES)
+    populate_attr_arguments(create_parser, SINGULAR._must_attributes)
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=delete)

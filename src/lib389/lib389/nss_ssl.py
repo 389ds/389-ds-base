@@ -19,7 +19,8 @@ import time
 import shutil
 import logging
 # from nss import nss
-from subprocess import check_call, check_output
+import subprocess
+from subprocess import check_output
 from lib389.passwd import password_generate
 
 from lib389.utils import ensure_str, ensure_bytes
@@ -132,7 +133,7 @@ class NssSsl(object):
         cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
         self.log.debug("nss cmd: %s" % cmd)
-        result = ensure_str(check_output(cmd))
+        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         return True
 
@@ -183,7 +184,7 @@ class NssSsl(object):
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s" % cmd)
-        result = ensure_str(check_output(cmd))
+        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         # Now extract the CAcert to a well know place.
         # This allows us to point the cacert dir here and it "just works"
@@ -197,10 +198,10 @@ class NssSsl(object):
             '-a',
         ]
         self.log.debug("nss cmd: %s" % cmd)
-        certdetails = check_output(cmd)
+        certdetails = check_output(cmd, stderr=subprocess.STDOUT)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
-        check_output(['/usr/sbin/cacertdir_rehash', self._certdb])
+        check_output(['/usr/sbin/cacertdir_rehash', self._certdb], stderr=subprocess.STDOUT)
         return True
 
     def _rsa_cert_list(self):
@@ -212,7 +213,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        result = ensure_str(check_output(cmd))
+        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
 
         # We can skip the first few lines. They are junk
         # IE ['', 
@@ -239,7 +240,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        result = ensure_str(check_output(cmd))
+        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
 
         lines = result.split('\n')[1:-1]
         key_list = []
@@ -343,7 +344,7 @@ class NssSsl(object):
         ]
 
         self.log.debug("nss cmd: %s" % cmd)
-        result = ensure_str(check_output(cmd))
+        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         return True
 
@@ -391,7 +392,7 @@ class NssSsl(object):
         ]
 
         self.log.debug("nss cmd: %s" % cmd)
-        check_call(cmd)
+        check_output(cmd, stderr=subprocess.STDOUT)
 
         return csr_path
 
@@ -402,7 +403,7 @@ class NssSsl(object):
         crt_path = 'crt'.join(csr_path.rsplit('csr', 1))
         ca_path = '%s/ca.crt' % self._certdb
 
-        check_call([
+        check_output([
             '/usr/bin/certutil',
             '-C',
             '-d',
@@ -413,7 +414,7 @@ class NssSsl(object):
             '-i', csr_path,
             '-o', crt_path,
             '-c', CA_NAME,
-        ])
+        ], stderr=subprocess.STDOUT)
 
         return (ca_path, crt_path)
 
@@ -422,8 +423,8 @@ class NssSsl(object):
         to our database.
         """
         shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
-        check_output(['/usr/sbin/cacertdir_rehash', self._certdb])
-        check_call([
+        check_output(['/usr/sbin/cacertdir_rehash', self._certdb], stderr=subprocess.STDOUT)
+        check_output([
             '/usr/bin/certutil',
             '-A',
             '-n', CA_NAME,
@@ -433,8 +434,8 @@ class NssSsl(object):
             '-d', self._certdb,
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
-        ])
-        check_call([
+        ], stderr=subprocess.STDOUT)
+        check_output([
             '/usr/bin/certutil',
             '-A',
             '-n', CERT_NAME,
@@ -444,14 +445,14 @@ class NssSsl(object):
             '-d', self._certdb,
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
-        ])
-        check_call([
+        ], stderr=subprocess.STDOUT)
+        check_output([
             '/usr/bin/certutil',
             '-V',
             '-d', self._certdb,
             '-n', CERT_NAME,
             '-u', 'YCV'
-        ])
+        ], stderr=subprocess.STDOUT)
 
     def create_rsa_user(self, name):
         """
@@ -494,21 +495,21 @@ class NssSsl(object):
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
 
-        result = ensure_str(check_output(cmd))
+        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         # Now extract this into PEM files that we can use.
         # pk12util -o user-william.p12 -d . -k pwdfile.txt -n user-william -W ''
-        check_call([
+        check_output([
             'pk12util',
             '-d', self._certdb,
             '-o', '%s/%s%s.p12' % (self._certdb, USER_PREFIX, name),
             '-k', '%s/%s' % (self._certdb, PWD_TXT),
             '-n', '%s%s' % (USER_PREFIX, name),
             '-W', '""'
-        ])
+        ], stderr=subprocess.STDOUT)
         # openssl pkcs12 -in user-william.p12 -passin pass:'' -out file.pem -nocerts -nodes
         # Extract the key
-        check_call([
+        check_output([
             'openssl',
             'pkcs12',
             '-in', '%s/%s%s.p12' % (self._certdb, USER_PREFIX, name),
@@ -516,9 +517,9 @@ class NssSsl(object):
             '-out', '%s/%s%s.key' % (self._certdb, USER_PREFIX, name),
             '-nocerts',
             '-nodes'
-        ])
+        ], stderr=subprocess.STDOUT)
         # Extract the cert
-        check_call([
+        check_output([
             'openssl',
             'pkcs12',
             '-in', '%s/%s%s.p12' % (self._certdb, USER_PREFIX, name),
@@ -527,16 +528,16 @@ class NssSsl(object):
             '-nokeys',
             '-clcerts',
             '-nodes'
-        ])
+        ], stderr=subprocess.STDOUT)
         # Convert the cert for userCertificate attr
-        check_call([
+        check_output([
             'openssl',
             'x509',
             '-inform', 'PEM',
             '-outform', 'DER',
             '-in', '%s/%s%s.crt' % (self._certdb, USER_PREFIX, name),
             '-out', '%s/%s%s.der' % (self._certdb, USER_PREFIX, name),
-        ])
+        ], stderr=subprocess.STDOUT)
 
         return subject
 

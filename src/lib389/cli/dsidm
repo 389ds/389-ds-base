@@ -25,11 +25,9 @@ from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
 from lib389.cli_idm import user as cli_user
 
-from lib389.cli_base import connect_instance, disconnect_instance
+from lib389.cli_base import connect_instance, disconnect_instance, reset_get_logger
 
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
-
-log = logging.getLogger("dsidm")
 
 if __name__ == '__main__':
 
@@ -72,10 +70,7 @@ if __name__ == '__main__':
     # argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
-    if args.verbose:
-        log.setLevel(logging.DEBUG)
-    else:
-        log.setLevel(logging.INFO)
+    log = reset_get_logger('dsidm', args.verbose)
 
     log.debug("The 389 Directory Server Identity Manager")
     # Leave this comment here: UofA let me take this code with me provided
@@ -91,6 +86,12 @@ if __name__ == '__main__':
 
     log.debug("Called with: %s", args)
     log.debug("Instance details: %s" % dsrc_inst)
+
+    # Assert we have a resources to work on.
+    if not hasattr(args, 'func'):
+        log.error("No action provided, here is some --help.")
+        parser.print_help()
+        sys.exit(1)
 
     if dsrc_inst['basedn'] is None:
         log.error("Must provide a basedn!")
