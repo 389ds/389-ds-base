@@ -23,7 +23,6 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
 
 # Topology is pulled from __init__.py
 def test_user_tasks(topology):
-    # 
     be_args = FakeArgs()
 
     be_args.cn = 'userRoot'

@@ -541,7 +541,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
         self.bindpw = args.get(SER_ROOT_PW, PW_DM)
-        self.creation_suffix = args.get(SER_CREATION_SUFFIX, DEFAULT_SUFFIX)
+        self.creation_suffix = args.get(SER_CREATION_SUFFIX, None)
         # These settings are only needed on a local connection.
         if self.isLocal:
             self.userid = args.get(SER_USER_ID)
@@ -913,12 +913,14 @@ class DirSrv(SimpleLDAPObject, object):
         slapd = slapd_options.collect()
 
         # In order to work by "default" for tests, we need to create a backend.
-        userroot = {
-            'cn': 'userRoot',
-            'nsslapd-suffix': self.creation_suffix,
-            BACKEND_SAMPLE_ENTRIES: version,
-        }
-        backends = [userroot,]
+        backends = []
+        if self.creation_suffix is not None:
+            userroot = {
+                'cn': 'userRoot',
+                'nsslapd-suffix': self.creation_suffix,
+                BACKEND_SAMPLE_ENTRIES: version,
+            }
+            backends = [userroot,]
 
         # Go!
         sds.create_from_args(general, slapd, backends, None)

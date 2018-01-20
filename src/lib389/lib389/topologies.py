@@ -34,7 +34,7 @@ else:
 log = logging.getLogger(__name__)
 
 
-def create_topology(topo_dict):
+def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     """Create a requested topology. Cascading replication scenario isn't supported
 
     @param topo_dict - dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
@@ -72,7 +72,14 @@ def create_topology(topo_dict):
             args_instance[SER_PORT] = instance_data[SER_PORT]
             args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
             args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
-            args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+            # It's required to be able to make a suffix-less install for
+            # some cli tests. It's invalid to require replication with
+            # no suffix however ....
+            if suffix is not None:
+                args_instance[SER_CREATION_SUFFIX] = suffix
+            elif role != ReplicaRole.STANDALONE:
+                raise AssertionError("Invalid request to make suffix-less replicated environment")
+
 
             instance.allocate(args_instance)
 
