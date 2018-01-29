@@ -421,7 +421,7 @@ replica_config_modify(Slapi_PBlock *pb,
                     }
                 } else if (strcasecmp(config_attr, attr_replicaId) == 0) {
                     int64_t rid = 0;
-                    if (repl_config_valid_num(config_attr, config_attr_value, 1, 65535, returncode, errortext, &rid) == 0) {
+                    if (repl_config_valid_num(config_attr, config_attr_value, 1, 65534, returncode, errortext, &rid) == 0) {
                         slapi_ch_free_string(&new_repl_id);
                         new_repl_id = slapi_ch_strdup(config_attr_value);
                     } else {
