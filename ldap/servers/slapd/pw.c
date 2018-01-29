@@ -209,7 +209,7 @@ pw_name2scheme(char *name)
     struct pw_scheme *pwsp;
     struct slapdplugin *p;
 
-    if ((p = plugin_get_pwd_storage_scheme(name, strlen(name), PLUGIN_LIST_PWD_STORAGE_SCHEME)) != NULL) {
+    if (name != NULL && (p = plugin_get_pwd_storage_scheme(name, strlen(name), PLUGIN_LIST_PWD_STORAGE_SCHEME)) != NULL) {
         pwsp = (struct pw_scheme *)slapi_ch_malloc(sizeof(struct pw_scheme));
         if (pwsp != NULL) {
             typedef int (*CMPFP)(char *, char *);
@@ -1612,18 +1612,18 @@ pw_get_admin_users(passwdPolicy *pwp)
 passwdPolicy *
 new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 {
+    slapdFrontendConfig_t *slapdFrontendConfig = NULL;
     Slapi_ValueSet *values = NULL;
+    Slapi_Value **sval = NULL;
     Slapi_Entry *e = NULL, *pw_entry = NULL;
-    int type_name_disposition = 0;
+    passwdPolicy *pwdpolicy = NULL;
+    Slapi_Attr *attr = NULL;
+    char *pwscheme_name = NULL;
+    char *attr_name = NULL;
     char *actual_type_name = NULL;
+    int type_name_disposition = 0;
     int attr_free_flags = 0;
     int rc = 0;
-    passwdPolicy *pwdpolicy = NULL;
-    struct pw_scheme *pwdscheme = NULL;
-    Slapi_Attr *attr;
-    char *attr_name;
-    Slapi_Value **sval;
-    slapdFrontendConfig_t *slapdFrontendConfig;
     int optype = -1;
 
     /* If we already allocated a pw policy, return it */
@@ -1717,9 +1717,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     pw_entry = get_entry(pb, bvp->bv_val);
                 }
             }
-
             slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
-
             slapi_entry_free(e);
 
             if (pw_entry == NULL) {
@@ -1732,7 +1730,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 
             /* Set the default values (from libglobs.c) */
             pwpolicy_init_defaults(pwdpolicy);
-            pwdpolicy->pw_storagescheme = slapdFrontendConfig->pw_storagescheme;
+
+            /* Set the current storage scheme */
+            pwscheme_name = config_get_pw_storagescheme();
+            pwdpolicy->pw_storagescheme = pw_name2scheme(pwscheme_name);
+            slapi_ch_free_string(&pwscheme_name);
 
             /* Set the defined values now */
             for (slapi_entry_first_attr(pw_entry, &attr); attr;
@@ -1865,6 +1867,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     }
                 } else if (!strcasecmp(attr_name, "passwordstoragescheme")) {
                     if ((sval = attr_get_present_values(attr))) {
+                        free_pw_scheme(pwdpolicy->pw_storagescheme);
                         pwdpolicy->pw_storagescheme =
                             pw_name2scheme((char *)slapi_value_get_string(*sval));
                     }
@@ -1924,10 +1927,9 @@ done:
      * structure from slapdFrontendconfig
      */
     *pwdpolicy = slapdFrontendConfig->pw_policy;
-    pwdscheme = (struct pw_scheme *)slapi_ch_calloc(1, sizeof(struct pw_scheme));
-    *pwdscheme = *slapdFrontendConfig->pw_storagescheme;
-    pwdscheme->pws_name = strdup(slapdFrontendConfig->pw_storagescheme->pws_name);
-    pwdpolicy->pw_storagescheme = pwdscheme;
+    pwscheme_name = config_get_pw_storagescheme();
+    pwdpolicy->pw_storagescheme = pw_name2scheme(pwscheme_name);
+    slapi_ch_free_string(&pwscheme_name);
     pwdpolicy->pw_admin = slapi_sdn_dup(slapdFrontendConfig->pw_policy.pw_admin);
     pw_get_admin_users(pwdpolicy);
     if (pb) {
