@@ -268,8 +268,8 @@ def test_memberof_with_repl(topo):
         _find_memberof(i, member_dn, grp0_dn)
 
 
-@pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
-def test_scheme_violation_errors_logged(topo):
+@pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
+def test_scheme_violation_errors_logged(topo_m2):
     """Check that ERR messages are verbose enough, if a member entry
     doesn't have the appropriate objectclass to support 'memberof' attribute
 
@@ -292,7 +292,7 @@ def test_scheme_violation_errors_logged(topo):
         6. Errors should be logged
     """
 
-    inst = topo.ms["master1"]
+    inst = topo_m2.ms["master1"]
     memberof = MemberOfPlugin(inst)
     memberof.enable()
     memberof.set_autoaddoc('nsMemberOf')
@@ -311,7 +311,7 @@ def test_scheme_violation_errors_logged(topo):
 
     user_memberof_attr = testuser.get_attr_val_utf8('memberof')
     assert user_memberof_attr
-    log.info('memberOf attr value - '.format(user_memberof_attr))
+    log.info('memberOf attr value - {}'.format(user_memberof_attr))
 
     pattern = ".*oc_check_allowed_sv.*{}.*memberOf.*not allowed.*".format(testuser.dn)
     log.info("pattern = %s" % pattern)
