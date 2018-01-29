@@ -182,7 +182,7 @@ endif #end hpux
 #    If any interfaces have been added since the last public release, then increment age.
 #    If any interfaces have been removed or changed since the last public release, then set age to 0. 
 
-SDS_LDFLAGS = $(NSPR_LINK) -version-info 0:0:0
+SDS_LDFLAGS = $(NSPR_LINK) $(NSS_LINK) -lpthread -version-info 0:0:0
 NUNCSTANS_LDFLAGS = $(NSPR_LINK) $(EVENT_LINK) -version-info 1:0:1
 SLAPD_LDFLAGS = -version-info 1:0:1
 
@@ -1100,7 +1100,8 @@ libldaputil_la_SOURCES = lib/ldaputil/cert.c \
 	lib/ldaputil/vtable.c
 
 libldaputil_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) -I$(srcdir)/lib/ldaputil
-
+libldaputil_la_LIBADD = libslapd.la  $(NSS_LINK) $(NSPR_LINK)
+libldaputil_la_LDFLAGS = $(AM_LDFLAGS)
 
 #////////////////////////////////////////////////////////////////
 #
@@ -2387,7 +2388,7 @@ if HAVE_DOXYGEN
 
 doxyfile.stamp:
 	cd $(srcdir); $(DOXYGEN) $(abs_top_builddir)/docs/slapi.doxy
-	rm $(abs_top_builddir)/man/man3/_*
+	rm -f $(abs_top_builddir)/man/man3/_*
 	touch doxyfile.stamp
 
 # Add the docs to make all.

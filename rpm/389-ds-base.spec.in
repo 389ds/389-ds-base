@@ -302,7 +302,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $RUST_FLAGS $PERL_FLAGS \
-           --enable-cmocka
+           --enable-cmocka 'LDFLAGS=-Wl,-z,defs'
 
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 make setup.py

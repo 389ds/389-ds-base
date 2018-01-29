@@ -24,11 +24,9 @@
 #ifndef __USE_XOPEN
 #define __USE_XOPEN /* linux */
 #endif              /* __USE_XOPEN */
-#include <unistd.h>
-#else /* hpux */
-#include <crypt.h>
-#endif /* hpux */
+#endif
 
+#include <crypt.h>
 #include "pwdstorage.h"
 
 static PRLock *cryptlock = NULL; /* Some implementations of crypt are not thread safe.  ie. ours & Irix */
