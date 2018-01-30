@@ -51,6 +51,14 @@ else
 PERL_ON = 0
 endif
 
+if CLANG_ENABLE
+CLANG_ON = 1
+CLANG_LDFLAGS = -latomic
+else
+CLANG_ON = 0
+CLANG_LDFLAGS =
+endif
+
 # We can't add the lfds includes all the time as they have a "bomb" in them that
 # prevents compilation on unsupported hardware arches.
 if ATOMIC_QUEUE_OPERATIONS
@@ -157,7 +165,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 # Provide the tcmalloc links if needed
-AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) -latomic
+AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) $(CLANG_LDFLAGS)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
@@ -2365,6 +2373,7 @@ rpmbrprep: dist-bzip2 rpmroot
 		-e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" \
 		-e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" \
 		-e "s/__RUST_ON__/$(RUST_ON)/" \
+		-e "s/__CLANG_ON__/$(CLANG_ON)/" \
 		-e "s/__PERL_ON__/$(PERL_ON)/" \
 		-e "s/__ASAN_ON__/$(ASAN_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 

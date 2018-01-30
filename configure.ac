@@ -137,6 +137,18 @@ AC_SUBST([asan_defs])
 AC_SUBST([asan_rust_defs])
 AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
 
+# Enable CLANG
+AC_MSG_CHECKING(for --enable-clang)
+AC_ARG_ENABLE(clang, AS_HELP_STRING([--enable-clang], [Enable clang (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+],
+[
+  AC_MSG_RESULT(no)
+])
+AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
+
+# Enable Perl
 if test -z "$enable_perl" ; then
    enable_perl=yes
 fi
