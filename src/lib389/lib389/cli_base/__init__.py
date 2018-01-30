@@ -11,6 +11,7 @@ import sys
 
 from getpass import getpass
 from lib389 import DirSrv
+from lib389.utils import assert_c
 from lib389.properties import SER_LDAP_URL, SER_ROOT_DN, SER_ROOT_PW
 
 MAJOR, MINOR, _, _, _ = sys.version_info
@@ -23,7 +24,7 @@ def _input(msg):
         return raw_input(msg)
 
 
-def _get_arg(args, msg=None, hidden=False):
+def _get_arg(args, msg=None, hidden=False, confirm=False):
     if args is not None and len(args) > 0:
         if type(args) is list:
             return args[0]
@@ -31,7 +32,13 @@ def _get_arg(args, msg=None, hidden=False):
             return args
     else:
         if hidden:
-            return getpass("%s : " % msg)
+            if confirm:
+                x = getpass("%s : " % msg)
+                y = getpass("CONFIRM - %s : " % msg)
+                assert_c(x == y, "inputs do not match, aborting.")
+                return y
+            else:
+                return getpass("%s : " % msg)
         else:
             return _input("%s : " % msg)
 

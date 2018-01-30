@@ -12,6 +12,7 @@ import ldap
 import argparse
 # import argcomplete
 import logging
+import sys
 
 # This has to happen before we import  DirSrv else it tramples our config ... :(
 logging.basicConfig(format='%(message)s')

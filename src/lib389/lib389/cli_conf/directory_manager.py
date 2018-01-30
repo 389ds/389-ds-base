@@ -16,7 +16,7 @@ def password_change(inst, basedn, log, args):
     # Due to an issue, we can't use extended op, so we have to
     # submit the password directly to the field.
 
-    password = _get_arg(args.password, msg="Enter new directory manager password", hidden=True)
+    password = _get_arg(args.password, msg="Enter new directory manager password", hidden=True, confirm=True)
     dm = DirectoryManager(inst)
     dm.change_password(password)
 
