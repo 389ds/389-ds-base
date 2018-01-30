@@ -43,6 +43,9 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--install',
         help="Install the cockpit plugin (must be root)",
         action='store_true', dest='install', default=False)
+    parser.add_argument('-c', '--cockpit',
+        help="Enable Cockpit on the system",
+        action='store_true', dest='enable_cockpit', default=False)
     parser.add_argument('-t', '--testing',
         help="Install the cockpit plugin under users's home directory for testing (~/.local/share/cockpit)",
         action='store_true', dest='testing', default=False)
@@ -106,6 +109,64 @@ if __name__ == '__main__':
         print("Failed to install cockpit plugin: " + str(e))
         sys.exit(1)
 
+    # Setup and Enabled Cockpit
+    if options.enable_cockpit:
+        firewall = False
+        print("Enabling Cockpit...")
+
+        # Is the firewall running
+        if options.verbose:
+           print("Checking firewall...")
+        try:
+            cmd = ["firewall-cmd", "--state",]
+            subprocess.check_call(cmd, stdout=subprocess.PIPE)
+            firewall = True
+        except:
+            if options.verbose:
+                print("Firewall not running")
+
+
+        # Configure firewall for port 9090 and set it permanent
+        if firewall:
+            if options.verbose:
+               print("Opening port 9090 in firewall...")
+            try:
+                cmd = ["firewall-cmd", "--add-port=9090/tcp",]
+                subprocess.check_call(cmd, stdout=subprocess.PIPE)
+            except:
+                print ("Failed to add port 9090 to the firewall")
+                sys.exit(1)
+
+            if options.verbose:
+               print("Setting 9090 permanent in firewall...")
+            try:
+                cmd = ["firewall-cmd", "--permanent","--add-port=9090/tcp"]
+                subprocess.check_call(cmd, stdout=subprocess.PIPE)
+            except:
+                print("Failed to add port 9090 to the firewall")
+                sys.exit(1)
+
+        # Enable and start Cockpit socket
+        if options.verbose:
+            print("Enabling Cockpit socket...")
+        try:
+            cmd = ["systemctl", "enable","cockpit.socket"]
+            subprocess.check_call(cmd, stdout=subprocess.PIPE)
+        except:
+            print ("Failed to enable cockpit socket")
+            sys.exit(1)
+
+        if options.verbose:
+            print("Starting Cockpit socket...")
+        try:
+            cmd = ["systemctl", "start","cockpit.socket"]
+            subprocess.check_call(cmd, stdout=subprocess.PIPE)
+        except:
+            print("Failed to start cockpit socket")
+            sys.exit(1)
+
+        print("Cockpit has been enabled and started.")
+
     # Done!
     print("Installation is complete!")
-    print("Open UI with this URL:  http://{}:9090/389-console".format(socket.getfqdn()))
+    print("Open UI with this URL:  http://{}:9090/".format(socket.getfqdn()))
