@@ -1897,14 +1897,14 @@ struct snmp_entries_tbl_t
 struct snmp_int_tbl_t
 {
     /* interaction table */
-    PRUint32 dsIntIndex;
+    int32_t dsIntIndex;
     char dsName[SNMP_FIELD_LENGTH];
     time_t dsTimeOfCreation;
     time_t dsTimeOfLastAttempt;
     time_t dsTimeOfLastSuccess;
-    PRUint32 dsFailuresSinceLastSuccess;
-    PRUint32 dsFailures;
-    PRUint32 dsSuccesses;
+    uint64_t dsFailuresSinceLastSuccess;
+    uint64_t dsFailures;
+    uint64_t dsSuccesses;
     char dsURL[SNMP_FIELD_LENGTH];
 };
 
