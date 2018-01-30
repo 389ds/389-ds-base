@@ -302,20 +302,20 @@ search_interaction_table(char *dsURL, int *isnew)
 }
 
 #ifdef DEBUG_SNMP_INTERACTION
-/* for debuging until subagent part working, print contents of interaction table */
+/* for debugging until subagent part working, print contents of interaction table */
 static void
 print_snmp_interaction_table()
 {
     int i;
     for (i = 0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
-        fprintf(stderr, "                dsIntIndex: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsIntIndex);
+        fprintf(stderr, "                dsIntIndex: %"PRInt32" \n", g_get_global_snmp_vars()->int_tbl[i].dsIntIndex);
         fprintf(stderr, "                    dsName: %s \n", g_get_global_snmp_vars()->int_tbl[i].dsName);
-        fprintf(stderr, "          dsTimeOfCreation: %ld \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation);
-        fprintf(stderr, "       dsTimeOfLastAttempt: %ld \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt);
-        fprintf(stderr, "       dsTimeOfLastSuccess: %ld \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess);
-        fprintf(stderr, "dsFailuresSinceLastSuccess: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess);
-        fprintf(stderr, "                dsFailures: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsFailures);
-        fprintf(stderr, "               dsSuccesses: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsSuccesses);
+        fprintf(stderr, "          dsTimeOfCreation: %"PRIu64" \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation);
+        fprintf(stderr, "       dsTimeOfLastAttempt: %"PRIu64" \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt);
+        fprintf(stderr, "       dsTimeOfLastSuccess: %"PRIu64" \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess);
+        fprintf(stderr, "dsFailuresSinceLastSuccess: %"PRIu64" \n", g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess);
+        fprintf(stderr, "                dsFailures: %"PRIu64" \n", g_get_global_snmp_vars()->int_tbl[i].dsFailures);
+        fprintf(stderr, "               dsSuccesses: %"PRIu64" \n", g_get_global_snmp_vars()->int_tbl[i].dsSuccesses);
         fprintf(stderr, "                     dsURL: %s \n", g_get_global_snmp_vars()->int_tbl[i].dsURL);
         fprintf(stderr, "\n");
     }

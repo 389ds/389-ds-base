@@ -76,7 +76,7 @@ extern "C" {
  */
 typedef struct server_instance_s
 {
-    PRUint32 port;
+    uint32_t port;
     int server_state;
     char *stats_file;
     char *stats_sem_name;

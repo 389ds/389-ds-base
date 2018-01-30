@@ -80,34 +80,34 @@ struct ops_stats_t
     /*
      *      Ops Table attributes
      */
-    PRUint64 dsAnonymousBinds;
-    PRUint64 dsUnAuthBinds;
-    PRUint64 dsSimpleAuthBinds;
-    PRUint64 dsStrongAuthBinds;
-    PRUint64 dsBindSecurityErrors;
-    PRUint64 dsInOps;
-    PRUint64 dsReadOps;
-    PRUint64 dsCompareOps;
-    PRUint64 dsAddEntryOps;
-    PRUint64 dsRemoveEntryOps;
-    PRUint64 dsModifyEntryOps;
-    PRUint64 dsModifyRDNOps;
-    PRUint64 dsListOps;
-    PRUint64 dsSearchOps;
-    PRUint64 dsOneLevelSearchOps;
-    PRUint64 dsWholeSubtreeSearchOps;
-    PRUint64 dsReferrals;
-    PRUint64 dsChainings;
-    PRUint64 dsSecurityErrors;
-    PRUint64 dsErrors;
-    PRUint64 dsConnections;             /* Number of currently connected clients */
-    PRUint64 dsConnectionSeq;           /* Monotonically increasing number bumped on each new conn est */
-    PRUint64 dsMaxThreadsHit;           /* Number of times a connection hit max threads */
-    PRUint64 dsConnectionsInMaxThreads; /* current number of connections that are in max threads */
-    PRUint64 dsBytesRecv;               /* Count of bytes read from clients */
-    PRUint64 dsBytesSent;               /* Count of bytes sent to clients */
-    PRUint64 dsEntriesReturned;         /* Number of entries returned by the server */
-    PRUint64 dsReferralsReturned;       /* Number of entries returned by the server */
+    uint64_t dsAnonymousBinds;
+    uint64_t dsUnAuthBinds;
+    uint64_t dsSimpleAuthBinds;
+    uint64_t dsStrongAuthBinds;
+    uint64_t dsBindSecurityErrors;
+    uint64_t dsInOps;
+    uint64_t dsReadOps;
+    uint64_t dsCompareOps;
+    uint64_t dsAddEntryOps;
+    uint64_t dsRemoveEntryOps;
+    uint64_t dsModifyEntryOps;
+    uint64_t dsModifyRDNOps;
+    uint64_t dsListOps;
+    uint64_t dsSearchOps;
+    uint64_t dsOneLevelSearchOps;
+    uint64_t dsWholeSubtreeSearchOps;
+    uint64_t dsReferrals;
+    uint64_t dsChainings;
+    uint64_t dsSecurityErrors;
+    uint64_t dsErrors;
+    uint64_t dsConnections;             /* Number of currently connected clients */
+    uint64_t dsConnectionSeq;           /* Monotonically increasing number bumped on each new conn est */
+    uint64_t dsMaxThreadsHit;           /* Number of times a connection hit max threads */
+    uint64_t dsConnectionsInMaxThreads; /* current number of connections that are in max threads */
+    uint64_t dsBytesRecv;               /* Count of bytes read from clients */
+    uint64_t dsBytesSent;               /* Count of bytes sent to clients */
+    uint64_t dsEntriesReturned;         /* Number of entries returned by the server */
+    uint64_t dsReferralsReturned;       /* Number of entries returned by the server */
 };
 
 struct entries_stats_t
@@ -115,11 +115,11 @@ struct entries_stats_t
     /*
      *  Entries Table Attributes
      */
-    PRUint64 dsMasterEntries;
-    PRUint64 dsCopyEntries;
-    PRUint64 dsCacheEntries;
-    PRUint64 dsCacheHits;
-    PRUint64 dsSlaveHits;
+    uint64_t dsMasterEntries;
+    uint64_t dsCopyEntries;
+    uint64_t dsCacheEntries;
+    uint64_t dsCacheHits;
+    uint64_t dsSlaveHits;
 };
 
 struct int_stats_t
@@ -127,14 +127,14 @@ struct int_stats_t
     /*
      *   Interaction Table Attributes
      */
-    PRUint32 dsIntIndex;
+    int32_t dsIntIndex;
     char dsName[SNMP_FIELD_LENGTH];
     time_t dsTimeOfCreation;
     time_t dsTimeOfLastAttempt;
     time_t dsTimeOfLastSuccess;
-    PRUint32 dsFailuresSinceLastSuccess;
-    PRUint32 dsFailures;
-    PRUint32 dsSuccesses;
+    uint64_t dsFailuresSinceLastSuccess;
+    uint64_t dsFailures;
+    uint64_t dsSuccesses;
     char dsURL[SNMP_FIELD_LENGTH];
 };
 
