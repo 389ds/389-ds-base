@@ -304,6 +304,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2332 NAME 'allowWeakDHParam' DESC 'Netsc
 attributeTypes: ( 2.16.840.1.113730.3.1.2333 NAME 'nsds5ReplicaReleaseTimeout' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2335 NAME 'nsds5ReplicaIgnoreMissingChange' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2336 NAME 'nsDS5ReplicaBindDnGroupCheckInterval' DESC 'Replication configuration setting for controlling the bind dn group check interval' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2344 NAME 'nsslapd-tls-check-crl' DESC 'Check CRL when opening outbound TLS connections. Valid options are none, peer, all.' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 #
 # objectclasses
 #

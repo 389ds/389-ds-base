@@ -443,6 +443,13 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 typedef int32_t slapi_onoff_t;
 typedef int32_t slapi_int_t;
 
+typedef enum _tls_check_crl_t {
+    TLS_CHECK_NONE = 0,
+    TLS_CHECK_PEER = 1,
+    TLS_CHECK_ALL = 2,
+} tls_check_crl_t;
+
+
 struct subfilt
 {
     char *sf_type;
@@ -2151,6 +2158,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_RUNDIR_ATTRIBUTE "nsslapd-rundir"
 #define CONFIG_SSLCLIENTAUTH_ATTRIBUTE "nsslapd-SSLclientAuth"
 #define CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE "nsslapd-ssl-check-hostname"
+#define CONFIG_TLS_CHECK_CRL_ATTRIBUTE "nsslapd-tls-check-crl"
 #define CONFIG_HASH_FILTERS_ATTRIBUTE "nsslapd-hash-filters"
 #define CONFIG_OUTBOUND_LDAP_IO_TIMEOUT_ATTRIBUTE "nsslapd-outbound-ldap-io-timeout"
 #define CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE "nsslapd-force-sasl-external"
@@ -2263,6 +2271,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t security;
     int SSLclientAuth;
     slapi_onoff_t ssl_check_hostname;
+    tls_check_crl_t tls_check_crl;
     int validate_cert;
     int sizelimit;
     int SNMPenabled;
@@ -2294,7 +2303,6 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t plugin_track;
     slapi_onoff_t moddn_aci;
     struct pw_scheme *pw_storagescheme;
-
     slapi_onoff_t pwpolicy_local;
     slapi_onoff_t pw_is_global_policy;
     slapi_onoff_t pwpolicy_inherit_global;
