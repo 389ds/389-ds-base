@@ -89,15 +89,19 @@ class Config(DSLdapObject):
         """
         self._alter_log_enabled(service, 'off')
 
-    def loglevel(self, vals=(LOG_DEFAULT,), service='error', update=False):
+    def loglevel(self, vals=(ErrorLog.DEFAULT,), service='error', update=False):
         """Set the access or error log level.
-        @param vals - a list of log level codes (eg. lib389.LOG_*)
-                      defaults to LOG_DEFAULT
-        @param service - 'access' or 'error'. There is no 'audit' log level.
-                         use enable_log or disable_log.
-        @param update  - False for replace (default), True for update
 
-        ex. loglevel([lib389.LOG_DEFAULT, lib389.LOG_ENTRY_PARSER])
+        :param vals: a list of log level codes (eg. lib389.ErrorLogLevelLOG_*)
+                      defaults to LOG_DEFAULT
+        :type vals: list
+        :param service: 'access' or 'error'. There is no 'audit' log level.
+                         use enable_log or disable_log.
+        :type service: str
+        :param update: False for replace (default), True for update
+        :type update: bool
+
+        ex. loglevel([lib389.ErrorLogLevel.DEFAULT, lib389.ErrorLogLevel.ENTRY_PARSER])
         """
         if service not in ('access', 'error'):
             self._log.error('Attempted to set level on invalid log service "%s"' % service)

@@ -13,7 +13,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
 
-from lib389._constants import SUFFIX, DEFAULT_SUFFIX, LOG_REPLICA
+from lib389._constants import SUFFIX, DEFAULT_SUFFIX, ErrorLog
 
 from lib389.agreement import Agreements
 from lib389.idm.organisationalunit import OrganisationalUnits
@@ -164,8 +164,8 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
     master2 = topology_m2.ms["master2"]
 
     log.info("Set Replication Debugging loglevel for the errorlog")
-    master1.setLogLevel(LOG_REPLICA)
-    master2.setLogLevel(LOG_REPLICA)
+    master1.config.loglevel((ErrorLog.REPLICA,))
+    master2.config.loglevel((ErrorLog.REPLICA,))
 
     sync_dict = Counter()
     min_ap = waitfor_async_attr[1][0]

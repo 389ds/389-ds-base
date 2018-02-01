@@ -3339,10 +3339,9 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError(status)
         return status
 
-    # This could be made to delete by filter ....
-    def delete_branch_s(self, basedn, scope):
-        ents = self.search_s(basedn, scope)
+    def delete_branch_s(self, basedn, scope, filterstr="(objectclass=*)", serverctrls=None, clientctrls=None):
+        ents = self.search_s(basedn, scope, filterstr)
 
         for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
             self.log.debug("Delete entry children %s" % (ent.dn))
-            self.delete_s(ent.dn)
+            self.delete_ext_s(ent.dn, serverctrls=serverctrls, clientctrls=clientctrls)

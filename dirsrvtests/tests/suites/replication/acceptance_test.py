@@ -13,14 +13,8 @@ from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
-
 from lib389.replica import ReplicationManager
-
-from lib389._constants import (BACKEND_NAME, DEFAULT_SUFFIX, LOG_REPLICA, REPLICA_RUV_FILTER,
-                              ReplicaRole, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
-                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, defaultProperties,
-                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              DN_DM, PASSWORD, LOG_DEFAULT, RA_ENABLED, RA_SCHEDULE)
+from lib389._constants import *
 
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
@@ -418,7 +412,7 @@ def test_password_repl_error(topo_m4, test_entry):
     m2.deleteErrorLogs()
 
     log.info('Set replication loglevel')
-    m2.setLogLevel(LOG_REPLICA)
+    m2.config.loglevel((ErrorLog.REPLICA,))
 
     log.info('Modifying entry {} - change userpassword on master 2'.format(TEST_ENTRY_DN))
     test_user_m1 = UserAccount(topo_m4.ms["master1"], TEST_ENTRY_DN)

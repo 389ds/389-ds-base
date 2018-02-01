@@ -30,7 +30,7 @@ def setup_max_entries(topo, request):
     """
     master = topo.ms["master1"]
 
-    master.config.loglevel((LOG_REPLICA,), 'error')
+    master.config.loglevel((ErrorLog.REPLICA,), 'error')
 
     cl = Changelog5(master)
     cl.set_max_entries('2')
@@ -41,7 +41,7 @@ def setup_max_age(topo, request):
     """Configure logging and changelog max age
     """
     master = topo.ms["master1"]
-    master.config.loglevel((LOG_REPLICA,), 'error')
+    master.config.loglevel((ErrorLog.REPLICA,), 'error')
 
     cl = Changelog5(master)
     cl.set_max_age('5')

@@ -290,9 +290,9 @@ def topology_i2(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -306,9 +306,9 @@ def topology_i3(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -321,9 +321,9 @@ def topology_m1(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -337,9 +337,9 @@ def topology_m1c1(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -353,9 +353,9 @@ def topology_m2(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -369,9 +369,9 @@ def topology_m3(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -385,9 +385,9 @@ def topology_m4(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -402,9 +402,9 @@ def topology_m2c2(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), topology.all_insts.values())
+            [inst.stop() for inst in topology]
         else:
-            map(lambda inst: inst.delete(), topology.all_insts.values())
+            [inst.delete() for inst in topology]
     request.addfinalizer(fin)
 
     return topology
@@ -480,9 +480,9 @@ def topology_m1h1c1(request):
 
     def fin():
         if DEBUGGING:
-            map(lambda inst: inst.stop(), instances)
+            [inst.stop() for inst in instances]
         else:
-            map(lambda inst: inst.delete(), instances)
+            [inst.delete() for inst in instances]
     request.addfinalizer(fin)
 
     return TopologyMain(masters={"master1": master}, hubs={"hub1": hub}, consumers={"consumer1": consumer})

@@ -186,7 +186,7 @@ def test_password_repl_error(topo_m2, test_entry):
     m2.deleteErrorLogs()
 
     log.info('Set replication loglevel')
-    m2.setLogLevel(LOG_REPLICA)
+    m2.config.loglevel((ErrorLog.REPLICA,))
 
     log.info('Modifying entry {} - change userpassword on master 1'.format(test_entry.dn))
 
@@ -208,7 +208,7 @@ def test_password_repl_error(topo_m2, test_entry):
         assert not m2.ds_error_log.match('.*can.t add a change for {}.*'.format(test_entry.dn))
     finally:
         log.info('Set the default loglevel')
-        m2.setLogLevel(LOG_DEFAULT)
+        m2.config.loglevel((ErrorLog.DEFAULT,))
 
 
 def test_invalid_agmt(topo_m2):

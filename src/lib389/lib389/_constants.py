@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
-from enum import Enum
+from enum import Enum, IntEnum
 from lib389.properties import *
 
 (
@@ -215,6 +215,7 @@ DISORDERLY_SHUTDOWN = ('Detected Disorderly Shutdown last time Directory '
 # _Server/10/html/Administration_Guide/Configuring_Logs.html
 # The default log level is 16384
 #
+# It is legacy constants. Please, use IntEnum version (ErrorLog and AccessLog)
 (LOG_TRACE,
  LOG_TRACE_PACKETS,
  LOG_TRACE_HEAVY,
@@ -232,6 +233,32 @@ DISORDERLY_SHUTDOWN = ('Detected Disorderly Shutdown last time Directory '
  LOG_MICROSECONDS,
  LOG_ACL_SUMMARY) = [1 << x for x in (list(range(8)) + list(range(11, 19)))]
 
+
+class ErrorLog(IntEnum):
+    (TRACE,
+     TRACE_PACKETS,
+     TRACE_HEAVY,
+     CONNECT,
+     PACKET,
+     SEARCH_FILTER,
+     CONFIG_PARSER,
+     ACL,
+     ENTRY_PARSER,
+     HOUSEKEEPING,
+     REPLICA,
+     DEFAULT,
+     CACHE,
+     PLUGIN,
+     MICROSECONDS,
+     ACL_SUMMARY) = [1 << x for x in (list(range(8)) + list(range(11, 19)))]
+
+
+class AccessLog(IntEnum):
+    NONE = 0
+    INTERNAL = 4
+    DEFAULT = 256  # Default log level
+    ENTRY = 512
+    MICROSECONDS = 131072
 
 #
 # Constants for individual tests
