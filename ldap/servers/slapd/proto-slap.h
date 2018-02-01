@@ -236,6 +236,7 @@ int config_set_port(const char *attrname, char *port, char *errorbuf, int apply)
 int config_set_secureport(const char *attrname, char *port, char *errorbuf, int apply);
 int config_set_SSLclientAuth(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ssl_check_hostname(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_tls_check_crl(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_SSL3ciphers(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_localhost(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_listenhost(const char *attrname, char *value, char *errorbuf, int apply);
@@ -397,6 +398,7 @@ void log_disable_hr_timestamps(void);
 
 int config_get_SSLclientAuth(void);
 int config_get_ssl_check_hostname(void);
+tls_check_crl_t config_get_tls_check_crl(void);
 char *config_get_SSL3ciphers(void);
 char *config_get_localhost(void);
 char *config_get_listenhost(void);

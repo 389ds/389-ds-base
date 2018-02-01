@@ -157,7 +157,8 @@ typedef enum {
     CONFIG_STRING_OR_EMPTY,              /* use an empty string */
     CONFIG_SPECIAL_ANON_ACCESS_SWITCH,   /* maps strings to an enumeration */
     CONFIG_SPECIAL_VALIDATE_CERT_SWITCH, /* maps strings to an enumeration */
-    CONFIG_SPECIAL_UNHASHED_PW_SWITCH    /* unhashed pw: on/off/nolog */
+    CONFIG_SPECIAL_UNHASHED_PW_SWITCH,   /* unhashed pw: on/off/nolog */
+    CONFIG_SPECIAL_TLS_CHECK_CRL,        /* maps enum tls_check_crl_t to char * */
 } ConfigVarType;
 
 static int32_t config_set_onoff(const char *attrname, char *value, int32_t *configvalue, char *errorbuf, int apply);
@@ -1181,7 +1182,15 @@ static struct config_get_and_set
     {CONFIG_LOGGING_BACKEND, NULL,
      log_set_backend, 0,
      (void **)&global_slapdFrontendConfig.logging_backend,
-     CONFIG_STRING_OR_EMPTY, NULL, SLAPD_INIT_LOGGING_BACKEND_INTERNAL}};
+     CONFIG_STRING_OR_EMPTY, NULL, SLAPD_INIT_LOGGING_BACKEND_INTERNAL},
+    {CONFIG_TLS_CHECK_CRL_ATTRIBUTE, config_set_tls_check_crl,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.tls_check_crl,
+     CONFIG_SPECIAL_TLS_CHECK_CRL, (ConfigGetFunc)config_get_tls_check_crl,
+     "none" /* Allow reset to this value */}
+
+    /* End config */
+    };
 
 /*
  * hashNocaseString - used for case insensitive hash lookups
@@ -1514,7 +1523,6 @@ FrontendConfig_init(void)
     cfg->maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
     cfg->groupevalnestlevel = SLAPD_DEFAULT_GROUPEVALNESTLEVEL;
     cfg->snmp_index = SLAPD_DEFAULT_SNMP_INDEX;
-
     cfg->SSLclientAuth = SLAPD_DEFAULT_SSLCLIENTAUTH;
 
 #ifdef USE_SYSCONF
@@ -1532,6 +1540,7 @@ FrontendConfig_init(void)
 #endif
     init_security = cfg->security = LDAP_OFF;
     init_ssl_check_hostname = cfg->ssl_check_hostname = LDAP_ON;
+    cfg->tls_check_crl = TLS_CHECK_NONE;
     init_return_exact_case = cfg->return_exact_case = LDAP_ON;
     init_result_tweak = cfg->result_tweak = LDAP_OFF;
     init_attrname_exceptions = cfg->attrname_exceptions = LDAP_OFF;
@@ -2050,6 +2059,7 @@ config_set_port(const char *attrname, char *port, char *errorbuf, int apply)
     return retVal;
 }
 
+
 int
 config_set_secureport(const char *attrname, char *port, char *errorbuf, int apply)
 {
@@ -2077,6 +2087,33 @@ config_set_secureport(const char *attrname, char *port, char *errorbuf, int appl
 
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
+    return retVal;
+}
+
+
+int32_t
+config_set_tls_check_crl(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    /* Default */
+    tls_check_crl_t state = TLS_CHECK_NONE;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (strcasecmp(value, "none") == 0) {
+        state = TLS_CHECK_NONE;
+    } else if (strcasecmp(value, "peer") == 0) {
+        state = TLS_CHECK_PEER;
+    } else if (strcasecmp(value, "all") == 0) {
+        state = TLS_CHECK_ALL;
+    } else {
+        retVal = LDAP_OPERATIONS_ERROR;
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: unsupported value: %s", attrname, value);
+    }
+
+    if (retVal == LDAP_SUCCESS && apply) {
+        slapi_atomic_store_32((int32_t *)&(slapdFrontendConfig->tls_check_crl), state, __ATOMIC_RELEASE);
+    }
+
     return retVal;
 }
 
@@ -4599,6 +4636,12 @@ config_set_versionstring(const char *attrname __attribute__((unused)), char *ver
 
 
 #define config_copy_strval(s) s ? slapi_ch_strdup(s) : NULL;
+
+tls_check_crl_t
+config_get_tls_check_crl() {
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return (tls_check_crl_t)slapi_atomic_load_32((int32_t *)&(slapdFrontendConfig->tls_check_crl), __ATOMIC_ACQUIRE);
+}
 
 int
 config_get_port()
@@ -7446,6 +7489,23 @@ config_set_value(
         pval = (uintptr_t)value;
         ival = (int)pval;
         slapi_entry_attr_set_int(e, cgas->attr_name, ival);
+        break;
+
+    case CONFIG_SPECIAL_TLS_CHECK_CRL:
+        if (!value) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, (char *)cgas->initvalue);
+            break;
+        }
+        tls_check_crl_t state = *(tls_check_crl_t *)value;
+
+        if (state == TLS_CHECK_ALL) {
+            sval = "all";
+        } else if (state == TLS_CHECK_PEER) {
+            sval = "peer";
+        } else {
+            sval = "none";
+        }
+        slapi_entry_attr_set_charptr(e, cgas->attr_name, sval);
         break;
 
     case CONFIG_SPECIAL_SSLCLIENTAUTH:

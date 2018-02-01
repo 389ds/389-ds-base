@@ -570,6 +570,7 @@ slapi_ldif_parse_line(
 }
 
 #if defined(USE_OPENLDAP)
+
 static int
 setup_ol_tls_conn(LDAP *ld, int clientauth)
 {
@@ -602,7 +603,13 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
             }
         }
         if (slapi_client_uses_openssl(ld)) {
-            const int crlcheck = LDAP_OPT_X_TLS_CRL_ALL;
+            int32_t crlcheck = LDAP_OPT_X_TLS_CRL_NONE;
+            tls_check_crl_t tls_check_state = config_get_tls_check_crl();
+            if (tls_check_state == TLS_CHECK_PEER) {
+                crlcheck = LDAP_OPT_X_TLS_CRL_PEER;
+            } else if (tls_check_state == TLS_CHECK_ALL) {
+                crlcheck = LDAP_OPT_X_TLS_CRL_ALL;
+            }
             /* Sets the CRL evaluation strategy. */
             rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
             if (rc) {
