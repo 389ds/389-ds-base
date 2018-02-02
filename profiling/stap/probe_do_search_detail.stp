@@ -1,0 +1,64 @@
+#!/bin/env stap
+
+global do_search_full
+global do_search_prepared
+global do_search_complete
+global do_search_finalise
+
+global entry_times%
+global prepared_times%
+global search_times%
+global finalise_times%
+
+// do_search__entry
+// do_search__prepared
+// do_search__op_shared_search_complete
+// do_search__return
+
+probe process(@1).mark("do_search__entry") {
+    entry_times[tid()] = gettimeofday_us()
+    prepared_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("op_shared_search__entry") {
+    do_search_prepared <<< gettimeofday_us() - prepared_times[tid()]
+    delete prepared_times[tid()]
+
+    search_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("op_shared_search__return") {
+    do_search_complete <<< gettimeofday_us() - search_times[tid()]
+    delete search_times[tid()]
+
+    finalise_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("do_search__return") {
+    do_search_finalise <<< gettimeofday_us() - finalise_times[tid()]
+    delete finalise_times[tid()]
+
+    do_search_full <<< gettimeofday_us() - entry_times[tid()]
+    delete entry_times[tid()]
+}
+
+function report() {
+    printf("Distribution of do_search_full latencies (in nanoseconds) for %d samples\n", @count(do_search_full))
+    printf("max/avg/min: %d/%d/%d\n", @max(do_search_full), @avg(do_search_full), @min(do_search_full))
+    print(@hist_log(do_search_full))
+
+    printf("Distribution of do_search_prepared latencies (in nanoseconds) for %d samples\n", @count(do_search_prepared))
+    printf("max/avg/min: %d/%d/%d\n", @max(do_search_prepared), @avg(do_search_prepared), @min(do_search_prepared))
+    print(@hist_log(do_search_prepared))
+
+    printf("Distribution of do_search_complete latencies (in nanoseconds) for %d samples\n", @count(do_search_complete))
+    printf("max/avg/min: %d/%d/%d\n", @max(do_search_complete), @avg(do_search_complete), @min(do_search_complete))
+    print(@hist_log(do_search_complete))
+
+    printf("Distribution of do_search_finalise latencies (in nanoseconds) for %d samples\n", @count(do_search_finalise))
+    printf("max/avg/min: %d/%d/%d\n", @max(do_search_finalise), @avg(do_search_finalise), @min(do_search_finalise))
+    print(@hist_log(do_search_finalise))
+}
+
+probe end { report() }
+

@@ -16,6 +16,10 @@
 #include "log.h"
 #include "slap.h"
 
+#ifdef SYSTEMTAP
+#include <sys/sdt.h>
+#endif
+
 #define PAGEDRESULTS_PAGE_END 1
 #define PAGEDRESULTS_SEARCH_END 2
 
@@ -270,6 +274,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
     be_list[0] = NULL;
     referral_list[0] = NULL;
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, op_shared_search__entry);
+#endif
 
     /* get search parameters */
     slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
@@ -636,6 +644,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         }
     }
 
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, op_shared_search__prepared);
+#endif
+
     nentries = 0;
     rc = -1; /* zero backends would mean failure */
     while (be) {
@@ -940,6 +952,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         be = next_be; /* this be won't be used for PAGED_RESULTS */
     }
 
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, op_shared_search__backends);
+#endif
+
     /* if referrals were sent back by the mapping tree
    * add them to the list of referral in the pblock instead
    * of searching the backend
@@ -1036,6 +1052,10 @@ free_and_return_nolock:
 
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, op_shared_search__return);
+#endif
 }
 
 /* Returns 1 if this processing on this entry is finished

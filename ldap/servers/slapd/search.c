@@ -30,6 +30,10 @@
 #include "pratom.h"
 #include "snmp_collator.h"
 
+#ifdef SYSTEMTAP
+#include <sys/sdt.h>
+#endif
+
 static void log_search_access(Slapi_PBlock *pb, const char *base, int scope, const char *filter, const char *msg);
 
 void
@@ -57,6 +61,9 @@ do_search(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_search", "=>\n");
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, do_search__entry);
+#endif
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     ber = operation->o_ber;
@@ -373,6 +380,11 @@ do_search(Slapi_PBlock *pb)
     slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
     slapi_pblock_set(pb, SLAPI_SEARCH_TIMELIMIT, &timelimit);
 
+
+    /*
+     * op_shared_search defines STAP_PROBE for __entry and __return,
+     * so these can be used to delineate the start and end here.
+     */
     op_shared_search(pb, psearch ? 0 : 1 /* send result */);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &rc);
@@ -402,6 +414,10 @@ free_and_return:
         }
         slapi_ch_free_string(&rawbase);
     }
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, do_search__return);
+#endif
 }
 
 static void

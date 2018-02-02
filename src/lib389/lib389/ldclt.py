@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import subprocess
-from lib389.utils import format_cmd_list
+from lib389.utils import format_cmd_list, ensure_str
 
 """
 This class will allow general usage of ldclt.
@@ -99,16 +99,28 @@ loginShell: /bin/false
         self.log.debug("ldclt loadtest ...")
         self.log.debug(format_cmd_list(cmd))
         try:
-            result = subprocess.check_output(cmd)
+            result = ensure_str(subprocess.check_output(cmd))
         # If verbose, capture / log the output.
         except subprocess.CalledProcessError as e:
             print(format_cmd_list(cmd))
             print(result)
             raise(e)
         self.log.debug(result)
-        return result
+        # The output looks like:
+        # ldclt[44308]: Average rate: 4017.60/thr  (4017.60/sec), total:  40176
+        # ldclt[44308]: Number of samples achieved. Bye-bye...
+        # ldclt[44308]: All threads are dead - exit.
+        # ldclt[44308]: Global average rate: 40604.00/thr  (4060.40/sec), total: 406040
+        # ldclt[44308]: Global number times "no activity" reports: never
+        # ldclt[44308]: Global no error occurs during this session.
+        # So we want the "global avg rate" per second.
+        section = None
+        for line in result.splitlines():
+            if 'Global average rate' in line:
+                section = line.split('(')[1].split(')')[0].split('/')[0]
+        return section
 
-    def bind_loadtest(self, subtree, min=1000, max=9999, rounds=3):
+    def bind_loadtest(self, subtree, min=1000, max=9999, rounds=10):
         # The bind users will be uid=userXXXX
         digits = len('%s' % max)
         cmd = [
@@ -128,9 +140,9 @@ loginShell: /bin/false
             '-e',
             'bindonly',
         ]
-        self._run_ldclt(cmd)
+        return self._run_ldclt(cmd)
 
-    def search_loadtest(self, subtree, fpattern, min=1000, max=9999, rounds=3):
+    def search_loadtest(self, subtree, fpattern, min=1000, max=9999, rounds=10):
         digits = len('%s' % max)
         cmd = [
             '%s/ldclt' % self.ds.get_bin_dir(),
@@ -151,4 +163,4 @@ loginShell: /bin/false
             '-e',
             'randomattrlist=cn:uid:ou',
         ]
-        self._run_ldclt(cmd)
+        return self._run_ldclt(cmd)

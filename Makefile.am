@@ -29,6 +29,7 @@ SYSTEMD_DEFINES = @systemd_defs@
 CMOCKA_INCLUDES = $(CMOCKA_CFLAGS)
 
 PROFILING_DEFINES = @profiling_defs@
+SYSTEMTAP_DEFINES = @systemtap_defs@
 NSPR_INCLUDES = $(NSPR_CFLAGS)
 
 # Rust inclusions.
@@ -142,7 +143,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(SYSTEMTAP_DEFINES) $(RUST_DEFINES)
 AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server

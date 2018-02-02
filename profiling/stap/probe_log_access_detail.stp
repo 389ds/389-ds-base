@@ -1,0 +1,51 @@
+#!/bin/env stap
+
+global log_access_full
+global log_access_prepared
+global log_access_complete
+
+global entry_times%
+global prepared_times%
+global finalise_times%
+
+// vslapd_log_access__entry
+// vslapd_log_access__prepared
+// vslapd_log_access__buffer
+
+
+probe process(@1).mark("vslapd_log_access__entry") {
+    entry_times[tid()] = gettimeofday_us()
+    prepared_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("vslapd_log_access__prepared") {
+    log_access_prepared <<< gettimeofday_us() - prepared_times[tid()]
+    delete prepared_times[tid()]
+
+    finalise_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("vslapd_log_access__buffer") {
+    log_access_complete <<< gettimeofday_us() - finalise_times[tid()]
+    delete finalise_times[tid()]
+
+    log_access_full <<< gettimeofday_us() - entry_times[tid()]
+    delete entry_times[tid()]
+}
+
+function report() {
+    printf("Distribution of log_access_full latencies (in nanoseconds) for %d samples\n", @count(log_access_full))
+    printf("max/avg/min: %d/%d/%d\n", @max(log_access_full), @avg(log_access_full), @min(log_access_full))
+    print(@hist_log(log_access_full))
+
+    printf("Distribution of log_access_prepared latencies (in nanoseconds) for %d samples\n", @count(log_access_prepared))
+    printf("max/avg/min: %d/%d/%d\n", @max(log_access_prepared), @avg(log_access_prepared), @min(log_access_prepared))
+    print(@hist_log(log_access_prepared))
+
+    printf("Distribution of log_access_complete latencies (in nanoseconds) for %d samples\n", @count(log_access_complete))
+    printf("max/avg/min: %d/%d/%d\n", @max(log_access_complete), @avg(log_access_complete), @min(log_access_complete))
+    print(@hist_log(log_access_complete))
+}
+
+probe end { report() }
+

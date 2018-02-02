@@ -31,6 +31,10 @@
 #include <pwd.h> /* getpwnam */
 #define _PSEP '/'
 
+#ifdef SYSTEMTAP
+#include <sys/sdt.h>
+#endif
+
 /**************************************************************************
  * GLOBALS, defines, and ...
  *************************************************************************/
@@ -2556,6 +2560,10 @@ vslapd_log_access(char *fmt, va_list ap)
     int32_t rc = LDAP_SUCCESS;
     time_t tnl;
 
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_access__entry);
+#endif
+
     /* We do this sooner, because that we we can use the message in other calls */
     if ((vlen = vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap)) == -1) {
         log__error_emergency("vslapd_log_access, Unable to format message", 1, 0);
@@ -2602,7 +2610,15 @@ vslapd_log_access(char *fmt, va_list ap)
         rc = -1;
     }
 
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_access__prepared);
+#endif
+
     log_append_buffer2(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_access__buffer);
+#endif
 
     return (rc);
 }

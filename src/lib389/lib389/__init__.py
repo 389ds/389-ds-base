@@ -1021,7 +1021,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.log.debug("Using external ca certificate %s", certdir)
             self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
 
-        if certdir or starttls:
+        if certdir or starttls or uri.startswith('ldaps://'):
             try:
                 # Note this sets LDAP.OPT not SELF. Because once self has opened
                 # it can NOT change opts on reused (ie restart)
@@ -1119,6 +1119,10 @@ class DirSrv(SimpleLDAPObject, object):
 
             @raise ValueError
         '''
+        if not self.isLocal:
+            self.log.error("This is a remote instance!")
+            input('Press Enter when the instance has started ...')
+            return
 
         if self.status() is True:
             return
@@ -1186,6 +1190,11 @@ class DirSrv(SimpleLDAPObject, object):
 
             @raise ValueError
         '''
+        if not self.isLocal:
+            self.log.error("This is a remote instance!")
+            input('Press Enter when the instance has stopped ...')
+            return
+
         if self.status() is False:
             return
 

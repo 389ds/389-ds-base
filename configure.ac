@@ -113,8 +113,8 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
 AC_MSG_RESULT($enable_debug)
 if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
-  debug_cflags="-g3 -O0"
-  debug_cxxflags="-g3 -O0"
+  debug_cflags="-g3 -O0 -rdynamic"
+  debug_cxxflags="-g3 -O0 -rdynamic"
   debug_rust_defs="-C debuginfo=2"
   cargo_defs=""
   rust_target_dir="debug"
@@ -252,6 +252,18 @@ else
 fi
 AC_SUBST([profiling_defs])
 AC_SUBST([profiling_links])
+
+AC_MSG_CHECKING(for --enable-systemtap)
+AC_ARG_ENABLE(systemtap, AS_HELP_STRING([--enable-systemtap], [Enable systemtap probe features (default: no)]),
+              [], [ enable_systemtap=no ])
+AC_MSG_RESULT($enable_systemtap)
+if test "$enable_systemtap" = yes ; then
+  systemtap_defs="-DSYSTEMTAP"
+else
+  systemtap_defs=""
+fi
+AC_SUBST([systemtap_defs])
+
 
 # these enables are for optional or experimental features
 AC_MSG_CHECKING(for --enable-pam-passthru)

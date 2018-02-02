@@ -1,0 +1,64 @@
+#!/bin/env stap
+
+global op_shared_search_full
+global op_shared_search_prepared
+global op_shared_search_complete
+global op_shared_search_finalise
+
+global entry_times%
+global prepared_times%
+global search_times%
+global finalise_times%
+
+// op_shared_search__entry 
+// op_shared_search__prepared
+// op_shared_search__backends
+// op_shared_search__complete
+
+probe process(@1).mark("op_shared_search__entry") {
+    entry_times[tid()] = gettimeofday_us()
+    prepared_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("op_shared_search__prepared") {
+    op_shared_search_prepared <<< gettimeofday_us() - prepared_times[tid()]
+    delete prepared_times[tid()]
+
+    search_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("op_shared_search__backends") {
+    op_shared_search_complete <<< gettimeofday_us() - search_times[tid()]
+    delete search_times[tid()]
+    
+    finalise_times[tid()] = gettimeofday_us()
+}
+
+probe process(@1).mark("op_shared_search__return") {
+    op_shared_search_finalise <<< gettimeofday_us() - finalise_times[tid()]
+    delete finalise_times[tid()]
+
+    op_shared_search_full <<< gettimeofday_us() - entry_times[tid()]
+    delete entry_times[tid()]
+}
+
+function report() {
+    printf("Distribution of op_shared_search_full latencies (in nanoseconds) for %d samples\n", @count(op_shared_search_full))
+    printf("max/avg/min: %d/%d/%d\n", @max(op_shared_search_full), @avg(op_shared_search_full), @min(op_shared_search_full))
+    print(@hist_log(op_shared_search_full))
+
+    printf("Distribution of op_shared_search_prepared latencies (in nanoseconds) for %d samples\n", @count(op_shared_search_prepared))
+    printf("max/avg/min: %d/%d/%d\n", @max(op_shared_search_prepared), @avg(op_shared_search_prepared), @min(op_shared_search_prepared))
+    print(@hist_log(op_shared_search_prepared))
+
+    printf("Distribution of op_shared_search_complete latencies (in nanoseconds) for %d samples\n", @count(op_shared_search_complete))
+    printf("max/avg/min: %d/%d/%d\n", @max(op_shared_search_complete), @avg(op_shared_search_complete), @min(op_shared_search_complete))
+    print(@hist_log(op_shared_search_complete))
+
+    printf("Distribution of op_shared_search_finalise latencies (in nanoseconds) for %d samples\n", @count(op_shared_search_finalise))
+    printf("max/avg/min: %d/%d/%d\n", @max(op_shared_search_finalise), @avg(op_shared_search_finalise), @min(op_shared_search_finalise))
+    print(@hist_log(op_shared_search_finalise))
+}
+
+probe end { report() }
+

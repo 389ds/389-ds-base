@@ -320,7 +320,6 @@ def topology_st_gssapi(request):
 
     return topology
 
-
 @pytest.fixture(scope="module")
 def topology_i2(request):
     """Create two instance DS deployment"""
