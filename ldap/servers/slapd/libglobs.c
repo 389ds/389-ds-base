@@ -1688,7 +1688,7 @@ FrontendConfig_init(void)
     init_malloc_mmap_threshold = cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
 #endif
 
-    init_extract_pem = cfg->extract_pem = LDAP_OFF;
+    init_extract_pem = cfg->extract_pem = LDAP_ON;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);

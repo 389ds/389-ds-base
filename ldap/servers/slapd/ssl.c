@@ -2462,7 +2462,7 @@ slapd_SSL_client_auth(LDAP *ld)
                            errorCode, slapd_pr_strerror(errorCode));
         } else {
 #if defined(USE_OPENLDAP)
-            if (slapi_client_uses_non_nss(ld)) {
+            if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
                 char *certdir = config_get_certdir();
                 char *keyfile = NULL;
                 char *certfile = NULL;

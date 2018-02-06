@@ -591,7 +591,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                       "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
     }
-    if (slapi_client_uses_non_nss(ld)) {
+    if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
         cacert = slapi_get_cacertfile();
         if (cacert) {
             /* CA Cert PEM file exists.  Set the path to openldap option. */
@@ -602,21 +602,21 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
                               cacert, rc, ldap_err2string(rc));
             }
         }
-        if (slapi_client_uses_openssl(ld)) {
-            int32_t crlcheck = LDAP_OPT_X_TLS_CRL_NONE;
-            tls_check_crl_t tls_check_state = config_get_tls_check_crl();
-            if (tls_check_state == TLS_CHECK_PEER) {
-                crlcheck = LDAP_OPT_X_TLS_CRL_PEER;
-            } else if (tls_check_state == TLS_CHECK_ALL) {
-                crlcheck = LDAP_OPT_X_TLS_CRL_ALL;
-            }
-            /* Sets the CRL evaluation strategy. */
-            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                              "Could not set CRLCHECK [%d]: %d:%s\n",
-                              crlcheck, rc, ldap_err2string(rc));
-            }
+    }
+    if (slapi_client_uses_openssl(ld)) {
+        int32_t crlcheck = LDAP_OPT_X_TLS_CRL_NONE;
+        tls_check_crl_t tls_check_state = config_get_tls_check_crl();
+        if (tls_check_state == TLS_CHECK_PEER) {
+            crlcheck = LDAP_OPT_X_TLS_CRL_PEER;
+        } else if (tls_check_state == TLS_CHECK_ALL) {
+            crlcheck = LDAP_OPT_X_TLS_CRL_ALL;
+        }
+        /* Sets the CRL evaluation strategy. */
+        rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
+                    "Could not set CRLCHECK [%d]: %d:%s\n",
+                    crlcheck, rc, ldap_err2string(rc));
         }
     }
     /* tell it where our cert db/file is */
