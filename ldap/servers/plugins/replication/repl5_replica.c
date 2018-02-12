@@ -3001,6 +3001,7 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
        if the value is set in the replica, we will know about it immediately */
     PRBool *tombstone_reap_stop = ((reap_callback_data *)cb_data)->tombstone_reap_stop;
     const CSN *deletion_csn = NULL;
+    int deletion_csn_free = 0;
     int rc = -1;
 
     /* abort reaping if we've been told to stop or we're shutting down */
@@ -3023,6 +3024,7 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
         char *tombstonecsn = slapi_entry_attr_get_charptr(entry, SLAPI_ATTR_TOMBSTONE_CSN);
         if (tombstonecsn) {
             deletion_csn = csn_new_by_string(tombstonecsn);
+            deletion_csn_free = 1;
             slapi_ch_free_string(&tombstonecsn);
         }
     }
@@ -3054,6 +3056,9 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
     if (!is_ruv_tombstone_entry(entry)) {
         /* Don't update the count for the database tombstone entry */
         (*num_entriesp)++;
+    }
+    if (deletion_csn_free) {
+        csn_free(&deletion_csn);
     }
 
     return 0;
