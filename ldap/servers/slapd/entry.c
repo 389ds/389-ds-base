@@ -3238,6 +3238,37 @@ slapi_entry_has_children(const Slapi_Entry *entry)
     return slapi_entry_has_children_ext(entry, 0);
 }
 
+int
+slapi_entry_has_conflict_children(const Slapi_Entry *entry, void *plg_id)
+{
+    Slapi_PBlock *search_pb = NULL;
+    Slapi_Entry **entries;
+    int rc = 0;
+
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(search_pb, slapi_entry_get_dn_const(entry),
+                                 LDAP_SCOPE_ONELEVEL,
+                                 "(&(objectclass=ldapsubentry)(nsds5ReplConflict=namingConflict*))",
+                                 NULL, 0, NULL, NULL, plg_id, 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc) {
+        rc = -1;
+    } else {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries && entries[0]) {
+            /* we found at least one conflict entry */
+            rc = 1;
+        } else {
+            rc = 0;
+        }
+        slapi_free_search_results_internal(search_pb);
+    }
+    slapi_pblock_destroy(search_pb);
+
+    return rc;
+}
+
 /*
  * Renames an entry to simulate a MODRDN operation
  */

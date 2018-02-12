@@ -2352,10 +2352,10 @@ task_fixup_tombstone_thread(void *arg)
 
     if (task_data->stripcsn) {
         /* find tombstones with nsTombstoneCSN */
-        filter = "(&(nstombstonecsn=*)(objectclass=nsTombstone))";
+        filter = "(&(nstombstonecsn=*)(objectclass=nsTombstone)(|(objectclass=*)(objectclass=ldapsubentry)))";
     } else {
         /* find tombstones missing nsTombstoneCSN */
-        filter = "(&(!(nstombstonecsn=*))(objectclass=nsTombstone))";
+        filter = "(&(!(nstombstonecsn=*))(objectclass=nsTombstone)(|(objectclass=*)(objectclass=ldapsubentry)))";
     }
 
     /* Okay check the specified backends only */

@@ -89,7 +89,11 @@ parent_update_on_childchange(modify_context *mc, int op, size_t *new_sub_count)
         }
     }
 
-    if (PARENTUPDATE_DELETE_TOMBSTONE != repl_op) {
+    if ((PARENTUPDATE_ADD == op) && (PARENTUPDATE_CREATE_TOMBSTONE == repl_op)) {
+        /* we are directly adding a tombstone entry, only need to
+         * update the tombstone subordinates
+         */
+    } else if (PARENTUPDATE_DELETE_TOMBSTONE != repl_op) {
         /* are we adding ? */
         if (((PARENTUPDATE_ADD == op) || (PARENTUPDATE_RESURECT == op)) && !already_present) {
             /* If so, and the parent entry does not already have a subcount
@@ -136,10 +140,10 @@ parent_update_on_childchange(modify_context *mc, int op, size_t *new_sub_count)
         }
     }
 
-    /* tombstoneNumSubordinates is needed only when this is repl op
-     * and a child is being deleted */
+    /* tombstoneNumSubordinates has to be updated if a tombstone child has been
+     * deleted or a tombstone has been directly added (cenotaph) */
     current_sub_count = LDAP_MAXINT;
-    if ((repl_op && (PARENTUPDATE_DEL == op)) || (PARENTUPDATE_RESURECT == op)) {
+    if (repl_op) {
         ret = slapi_entry_attr_find(mc->old_entry->ep_entry,
                                     tombstone_numsubordinates, &read_attr);
         if (0 == ret) {

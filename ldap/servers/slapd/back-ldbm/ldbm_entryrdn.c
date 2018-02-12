@@ -2824,7 +2824,8 @@ _entryrdn_delete_key(backend *be,
                     break;
                 }
                 childelem = (rdn_elem *)dataret.data;
-                if (!slapi_is_special_rdn(childelem->rdn_elem_nrdn_rdn, RDN_IS_TOMBSTONE)) {
+                if (!slapi_is_special_rdn(childelem->rdn_elem_nrdn_rdn, RDN_IS_TOMBSTONE) &&
+                    !strcasestr(childelem->rdn_elem_nrdn_rdn, "cenotaphid")) {
                     /* there's at least one live child */
                     slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_delete_key",
                                   "Failed to remove %s; has a child %s\n", nrdn,

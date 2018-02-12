@@ -291,9 +291,16 @@ replace_entry:
             retval = slapi_entry_has_children(e->ep_entry);
             if (retval && !is_replicated_operation) {
                 ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", 
-                              "conn=%lu op=%d Deleting entry %s has %d children.\n", 
-                               conn_id, op_id, slapi_entry_get_dn(e->ep_entry), retval);
+                if (slapi_entry_has_conflict_children(e->ep_entry, (void *)li->li_identity) > 0) {
+                    ldap_result_message = "Entry has replication conflicts as children";
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
+                                  "conn=%lu op=%d Deleting entry %s has replication conflicts as children.\n",
+                                   conn_id, op_id, slapi_entry_get_dn(e->ep_entry));
+                } else {
+                    slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
+                                  "conn=%lu op=%d Deleting entry %s has %d children.\n",
+                                   conn_id, op_id, slapi_entry_get_dn(e->ep_entry), retval);
+                }
                 retval = -1;
                 goto error_return;
             }
@@ -431,6 +438,7 @@ replace_entry:
                     slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_delete",
                             "Attempt to Tombstone again a tombstone entry %s\n", dn);
                     delete_tombstone_entry = 1;
+                    operation_set_flag(operation, OP_FLAG_TOMBSTONE_ENTRY);
                 }
             }
 
