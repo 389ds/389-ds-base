@@ -911,7 +911,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
                                     cenotaph,
                                     NULL,
                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
-                                    OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP);
+                                    OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY);
     slapi_add_internal_pb(add_pb);
     slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
@@ -1922,7 +1922,7 @@ done:
     newpb = NULL;
 
     slapi_log_err(SLAPI_LOG_REPL, sessionid,
-                  "urp_get_min_naming_conflict_entry - Found %d entries\n", i);
+                  "urp_get_min_naming_conflict_entry - Found %d entries\n", min_csn?1:0);
 
     return min_naming_conflict_entry;
 }
@@ -2172,8 +2172,8 @@ mod_objectclass_attr(const char *uniqueid, const Slapi_DN *entrysdn, const Slapi
     char csnstr[CSN_STRSIZE+1] = {0};
 
     slapi_mods_init(&smods, 3);
-    slapi_mods_add(&smods, LDAP_MOD_ADD, "objectclass", strlen("ldapsubentry"),"ldapsubentry");
-    slapi_mods_add(&smods, LDAP_MOD_REPLACE, "conflictcsn", CSN_STRSIZE, csn_as_string(opcsn, PR_FALSE, csnstr));
+    slapi_mods_add_string(&smods, LDAP_MOD_ADD, "objectclass", "ldapsubentry");
+    slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "conflictcsn", csn_as_string(opcsn, PR_FALSE, csnstr));
     op_result = urp_fixup_modify_entry(uniqueid, entrysdn, opcsn, &smods, 0);
     slapi_mods_done(&smods);
     if (op_result == LDAP_TYPE_OR_VALUE_EXISTS) {

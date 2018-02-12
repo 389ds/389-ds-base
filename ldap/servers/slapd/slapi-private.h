@@ -404,6 +404,7 @@ void slapi_filter_optimise(Slapi_Filter *f);
 #define OP_FLAG_NEVER_CHAIN SLAPI_OP_FLAG_NEVER_CHAIN         /* 0x000800 */
 #define OP_FLAG_TOMBSTONE_ENTRY SLAPI_OP_FLAG_TOMBSTONE_ENTRY /* 0x001000 */
 #define OP_FLAG_RESURECT_ENTRY 0x002000
+#define OP_FLAG_CENOTAPH_ENTRY 0x004000
 #define OP_FLAG_ACTION_NOLOG 0x008000            /* Do not log the entry in \
                                                   * audit log or change log  \
                                                   */

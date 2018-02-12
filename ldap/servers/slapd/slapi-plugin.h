@@ -2000,6 +2000,8 @@ int slapi_entry_has_children(const Slapi_Entry *e);
  */
 int slapi_entry_has_children_ext(const Slapi_Entry *e, int include_tombstone);
 
+int slapi_entry_has_conflict_children(const Slapi_Entry *e, void *plg_id);
+
 /**
  * This function determines if an entry is the root DSE.
  *

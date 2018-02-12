@@ -81,6 +81,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     Slapi_Operation *operation;
     int is_replicated_operation = 0;
     int is_resurect_operation = 0;
+    int is_cenotaph_operation = 0;
     int is_tombstone_operation = 0;
     int is_fixup_operation = 0;
     int is_remove_from_cache = 0;
@@ -116,6 +117,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     }
 
     is_resurect_operation = operation_is_flag_set(operation, OP_FLAG_RESURECT_ENTRY);
+    is_cenotaph_operation = operation_is_flag_set(operation, OP_FLAG_CENOTAPH_ENTRY);
     is_tombstone_operation = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
@@ -846,9 +848,9 @@ ldbm_back_add(Slapi_PBlock *pb)
                the in-memory state of the parent to reflect the new child (update
                subordinate count specifically */
             if (parententry) {
-                retval = parent_update_on_childchange(&parent_modify_c,
-                                                      is_resurect_operation ? PARENTUPDATE_RESURECT : PARENTUPDATE_ADD,
-                                                      NULL);
+                int op = is_resurect_operation ? PARENTUPDATE_RESURECT : PARENTUPDATE_ADD;
+                if (is_cenotaph_operation ) op |= PARENTUPDATE_CREATE_TOMBSTONE;
+                retval = parent_update_on_childchange(&parent_modify_c, op, NULL);
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                               "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                               conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);

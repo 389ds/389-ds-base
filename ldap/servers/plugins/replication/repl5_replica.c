@@ -3018,6 +3018,16 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
        search in the future, see _replica_reap_tombstones below and add more to the
        attrs array */
     deletion_csn = entry_get_deletion_csn(entry);
+    if (deletion_csn == NULL) {
+        /* this might be a tombstone which was directly added, eg a cenotaph
+         * check if a tombstonecsn exist and use it
+         */
+        char *tombstonecsn = slapi_entry_attr_get_charptr(entry, SLAPI_ATTR_TOMBSTONE_CSN);
+        if (tombstonecsn) {
+            deletion_csn = csn_new_by_string(tombstonecsn);
+            slapi_ch_free_string(&tombstonecsn);
+        }
+    }
 
     if ((NULL == deletion_csn || csn_compare(deletion_csn, purge_csn) < 0) &&
         (!is_ruv_tombstone_entry(entry))) {
@@ -3117,11 +3127,11 @@ _replica_reap_tombstones(void *arg)
              */
             csn_as_string(purge_csn, PR_FALSE, deletion_csn_str);
             PR_snprintf(tombstone_filter, 128,
-                        "(&(%s<=%s)(objectclass=nsTombstone))", SLAPI_ATTR_TOMBSTONE_CSN,
+                        "(&(%s<=%s)(objectclass=nsTombstone)(|(objectclass=*)(objectclass=ldapsubentry)))", SLAPI_ATTR_TOMBSTONE_CSN,
                         csn_as_string(purge_csn, PR_FALSE, deletion_csn_str));
         } else {
             /* Use the old inefficient filter */
-            PR_snprintf(tombstone_filter, 128, "(objectclass=nsTombstone)");
+            PR_snprintf(tombstone_filter, 128, "(&(objectclass=nsTombstone)(|(objectclass=*)(objectclass=ldapsubentry)))");
         }
 
         /* we just need the objectclass - for the deletion csn
