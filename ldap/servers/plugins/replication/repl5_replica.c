@@ -3001,7 +3001,7 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
        if the value is set in the replica, we will know about it immediately */
     PRBool *tombstone_reap_stop = ((reap_callback_data *)cb_data)->tombstone_reap_stop;
     const CSN *deletion_csn = NULL;
-    int deletion_csn_free = 0;
+    CSN *tombstone_csn = NULL;
     int rc = -1;
 
     /* abort reaping if we've been told to stop or we're shutting down */
@@ -3021,11 +3021,11 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
         /* this might be a tombstone which was directly added, eg a cenotaph
          * check if a tombstonecsn exist and use it
          */
-        char *tombstonecsn = slapi_entry_attr_get_charptr(entry, SLAPI_ATTR_TOMBSTONE_CSN);
-        if (tombstonecsn) {
-            deletion_csn = csn_new_by_string(tombstonecsn);
-            deletion_csn_free = 1;
-            slapi_ch_free_string(&tombstonecsn);
+        char *tombstonecsn_str = slapi_entry_attr_get_charptr(entry, SLAPI_ATTR_TOMBSTONE_CSN);
+        if (tombstonecsn_str) {
+            tombstone_csn = csn_new_by_string(tombstonecsn_str);
+            deletion_csn = tombstone_csn;
+            slapi_ch_free_string(&tombstonecsn_str);
         }
     }
 
@@ -3057,8 +3057,8 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
         /* Don't update the count for the database tombstone entry */
         (*num_entriesp)++;
     }
-    if (deletion_csn_free) {
-        csn_free(&deletion_csn);
+    if (tombstone_csn) {
+        csn_free(&tombstone_csn);
     }
 
     return 0;
