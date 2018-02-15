@@ -8,10 +8,24 @@
   margin-right: 5px;
 }
 
+.ds-logo-style {
+  font-family: "bookman";
+  font-weight: 400;
+  font-size: 35px;
+  margin-bottom: 30px;
+}
+
 .ds-logo-hr {
   padding: 0 !important;
   margin-top: 5px !important;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
+}
+
+.ds-title-hr {
+  margin: 0 !important;
+  padding: 0 !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
 }
 
 .ds-container {
@@ -36,22 +50,12 @@
   margin-left: 10px;
   margin-right: 10px;
   margin-bottom: 10px;
-
   padding-left: 15px;
   padding-right: 15px;
   padding-top: 0px;
   padding-bottom: 0px;
   min-height: 500px;
   line-height:0;
-}
-
-.ds-border {
-  padding-left: 10px;
-  padding-right: 10px;
-  line-height:0;
-  margin: 0px;
-  padding-top: 0px;
-  padding-bottom: 10px;
 }
 
 .ds-button-border {
@@ -73,9 +77,35 @@
   position:static;
 }
 
+.ds-oc-add-del-btn {
+  padding: 0 !important;
+  margin: 10px !important;
+  width: 130px;
+  height: 26px;
+  text-align: center;
+}
+
+.ds-oc-must-buttons {
+  padding 0 !important;
+  padding-left: 3px;
+  margin-top: 5px;
+  margin-bottom: 75px;
+  margin-left: 5px;
+  margin-right: 9px;
+}
+
+.ds-oc-may-buttons {
+  padding 0 !important;
+  padding-left: 3px;
+  margin-top: 4px;
+  margin-left: 5px;
+  margin-right: 9px;
+}
+
 .ds-panel {
-  margin: 0px 0px 0px 20px;
-  padding: 10px;
+  margin: 0px 0px 0px 0px;
+  padding-top: 10px;
+  padding-left: 10px;
   line-height:0;
 }
 
@@ -123,6 +153,7 @@
   color: black !important;
 }
 
+/*
 .ds-agmt-dropdown {
   padding: 0px;
   padding-left: 5px;
@@ -130,7 +161,7 @@
   width: 175px !important;
   margin-top: 10px;
   text-align: left;
-}
+}*/
 
 .ds-table {
   padding: 0px;
@@ -190,7 +221,8 @@
 .ds-input {
   height: 37px !important;
   margin-top: 5px;
-  padding-right: 10px;
+  padding-right: 5px;
+  margin-right: 5px;
 }
 
 .ds-input-lrg {
@@ -199,6 +231,12 @@
   margin-top: 5px;
   padding-right: 10px;
   height: 37px !important;
+}
+
+.ds-role-input {
+  height: 20px !important;
+  margin-top: 5px;
+  margin-left: 5px;
 }
 
 .ds-wiz-input {
@@ -214,6 +252,11 @@
   margin-left: 40px;
   height: 37px !important;
 }
+
+.ds-form-input {
+  margin-left: 5px;
+}
+
 .ds-divider {
   width: 35px;
 }
@@ -264,14 +307,24 @@
 }
 
 .ds-repl-managers-list {
-  width: 550px;
-  height: 300px;
-  margin-left: 30px;
+  width: 660px;
+  height: 200px;
 }
 
-.ds-repl-managers-buttons {
-  margin: 5px;
-  margin-left: 30px;
+.ds-repl-managers-button-left {
+  margin-top: 5px;
+  margin-bottom: 15px;
+  margin-left: 0px;
+  margin-right: 290px;
+  height: 35px;
+  width: 175px !important;
+}
+
+.ds-repl-managers-button-right {
+  margin-top: 5px;
+  margin-bottom: 15px;
+  margin-left: 17px;
+  height: 35px;
   width: 175px !important;
 }
 
@@ -295,6 +348,19 @@
   width: auto !important;
 }
 
+.ds-oc-dropdown {
+  margin-top: 5px;
+  color: black !important;
+  padding: 0px !important;
+  line-height: 0 !important;
+  height: 40px;
+  max-height: 200px !important;
+  width: 315px !important;
+  text-align: left;
+  outline: 0 !important;
+  overflow:auto;
+}
+
 .ds-agmt-wiz-dropdown {
   color: black !important;
   padding: 0px !important;
@@ -303,6 +369,7 @@
   width: 175px !important;
   text-align: left;
   outline: 0 !important;
+  //overflow:auto;/* to get scroll */
 }
 
 .ds-agmt-wiz-dropdown a {
@@ -387,7 +454,7 @@
   clear: both;
   word-wrap : break-word !important;
   text-align: center;
-  margin-top: -10px;
+  margin-top: -10px !important;
 }
 
 .ds-table  {
@@ -643,13 +710,28 @@
   margin-right: 12px !important;
   padding: 5px;
 }
-.ds-agmt-td {
+.ds-nowrap-td {
   overflow: hidden !important;
-  white-space: nowrap;
+  white-space: nowrap !important;
+}
+ 
+.ds-repl-label {
+  width: 150px;
+  margin-bottom: 10px !important;
+}
+
+.ds-repl-bind-group-label {
+  width: 98px;
+  margin-bottom: 25px !important;
 }
 
 .ds-config-label {
   width: 210px !important;
+  margin-bottom: 10px !important;
+}
+
+.ds-schema-config-label {
+  width: 120px !important;
   margin-bottom: 10px !important;
 }
 
@@ -747,7 +829,7 @@
 }
 
 .ds-accordion-spacing {
-  margin-bottom: 15px !important;
+  margin-bottom: 10px !important;
   padding-bottom: 10px !important;
 }
  .ds-task-button {
@@ -783,8 +865,32 @@
 }
 
 .ds-chaining-form-list {
-  width: 350px;
+  width: 355px;
   height: 400px;
+}
+
+.ds-index-form-list {
+  width: 363px;
+  height: 500px;
+}
+
+.ds-oc-form-list {
+  width: 232px !important;
+  max-height: 350px !important;
+  min-height: 350px !important;
+}
+
+.ds-may-must-list {
+  width: 232px !important;
+  height: 160px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+
+p {
+  line-height: 1;
+  white-space: normal;
 }
 
 textarea {
@@ -802,6 +908,7 @@ textarea {
 select {
   color: rgba(0,0,0,0) !important;
   text-shadow: 0 0 0 #000 !important;
+  max-height: 200px !important;
 }
 
 .nav-tabs a, .nav-tabs a:hover, .nav-tabs a:focus {

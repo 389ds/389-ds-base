@@ -155,12 +155,20 @@ LIB389 Requirements:
 - Consistent JSON representation of entries
 - Retrieve schema: standard and custom (user-defined)
 - Retrieve plugins
+- Get attr syntaxes
 - retreive indexes
 - Retreive config (cn=config and friends)
 - SASL mapping/priority
 - Retrieve cleanAllRUV(and abort) tasks
 - Get all user/subtree password policies
 - Get SSL ciphers
+- Get certificates:
+    - Get Trust Attrs
+    - Get CA certs: expireation dates
+    - Get Server Certs, exp dates, issue to, issued by
+    - Get Revoked Certs: isssued by, effective date, Next Update, Type
+    
+
 
 
 # To Do
@@ -173,13 +181,11 @@ LIB389 Requirements:
 - Edit plugin (Member Of)
 - Edit plugin ...
 - Add/edit SASL Mapiing
-- Export Certification (file location)
-- Add/Edit Index
-- Add encrypted attr
+- Import/Export Certification (file location)
+
 - Add/edit schema (attrs & objectclasses)
 - Add/edit local password policy
-- Create instance
-- Add cleanAllRUV (and abort) Task
+
 
 ## Monitoring page
 

@@ -149,9 +149,9 @@
         <div class="ds-container">
           <div class="ds-chaining-split">
             <form>
-              <label class="ds-config-label" for "chaining-oid-list" title=
+              <label class="ds-config-label" for="chaining-oid-list" title=
                 "A list of LDAP control OIDs to be forwarded through chaining"><b>Forwarded LDAP Controls</b></label>
-              <select id="chaining-oid-list" class="ds-chaining-list" name="nstransmittedcontrols" multiple>
+              <select id="chaining-oid-list" class="ds-chaining-list" name="nstransmittedcontrols" size="10">
                 <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.344</option>
               </select>
             </form>
@@ -167,9 +167,9 @@
           <div class="ds-chaining-divider"></div>
           <div class="ds-chaining-split">
             <form>
-              <label class="ds-config-label" for "chaining-comp-list" title=
+              <label class="ds-config-label" for="chaining-comp-list" title=
                 "A list of components to go through chaining"><b>Components to Chain</b></label>
-              <select id="chaining-comp-list" class="ds-chaining-list" name="nsactivechainingcomponents" multiple>
+              <select id="chaining-comp-list" class="ds-chaining-list" name="nsactivechainingcomponents" size="10">
                 <option value="1.5.6.5.5.6.88.4553.344">cn=roles,cn=components,cn=config</option>
               </select>
             </form>
@@ -242,7 +242,7 @@
 
     <hr class="ds-hr">
     <div class="ds-button-border">
-      <button id="server-config-save-btn" class="btn btn-default ds-button">Save</button>
+      <button id="backend-config-save-btn" class="btn btn-default ds-button">Save</button>
     </div>
   </div>
 
@@ -434,12 +434,14 @@
         </thead>
         <tbody id="index-tbody">
           <tr>
-            <td class="" id="uidNumber">uidNumber</td>
-            <td class=""><input type="checkbox" disabled="disabled" class="ds-table-checkbox" id="uidnumber-pres" checked></td>
-            <td class=""><input type="checkbox" disabled="disabled" class="ds-table-checkbox" id="uidnumber-eq" checked></td>
-            <td class=""><input type="checkbox" disabled="disabled" class="ds-table-checkbox" id="uidnumber-sub" checked></td>
-            <td class=""><input type="checkbox" disabled="disabled" class="ds-table-checkbox" id="uidnumber-approx"></td>
-            <td class="ds-agmt-td"></td>
+            <td class="" id="uidnumber">uidNumber</td>
+            <td class=""><input type="checkbox" class="ds-table-checkbox" id="uidnumber-pres" checked></td>
+            <td class=""><input type="checkbox" class="ds-table-checkbox" id="uidnumber-eq" checked></td>
+            <td class=""><input type="checkbox" class="ds-table-checkbox" id="uidnumber-sub" checked></td>
+            <td class=""><input type="checkbox" class="ds-table-checkbox" id="uidnumber-approx"></td>
+            <td class="ds-agmt-td">
+              <input class="ds-input" type="text" id="uidnumber-matchingrules" placeholder="None" size="15"/>
+            </td>
             <td class="">
               <div class="dropdown">
                 <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="index-drop2" data-toggle="dropdown">
@@ -447,7 +449,7 @@
                   <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="index-drop2">
-                  <li role=""><a role="menuitem" tabindex="0" href="#">Edit Index</a></li>
+                  <li role=""><a role="menuitem" tabindex="0" href="#">Save Index</a></li>
                   <li role=""><a role="menuitem" tabindex="1" href="#">Reindex Attribute</a></li>
                   <li role=""><a role="menuitem" tabindex="-1" href="#">Delete Index</a></li>
                 </ul>
@@ -456,11 +458,13 @@
           </tr>
           <tr>
             <td class="" id="manager">manager</td>
-            <td class=""><input type="checkbox" class="" disabled="disabled" id="manager-pres"></td>
-            <td class=""><input type="checkbox" class="" disabled="disabled" id="manager-eq" checked></td>
-            <td class=""><input type="checkbox" class="" disabled="disabled "id="manager-sub"></td>
-            <td class=""><input type="checkbox" class="" disabled="disabled" id="manager-approx"></td>
-            <td class="ds-agmt-td"></td>
+            <td class=""><input type="checkbox" class="" id="manager-pres"></td>
+            <td class=""><input type="checkbox" class="" id="manager-eq" checked></td>
+            <td class=""><input type="checkbox" class="" id="manager-sub"></td>
+            <td class=""><input type="checkbox" class="" id="manager-approx"></td>
+            <td class="ds-agmt-td">
+              <input class="ds-input" type="text" id="manager-matchingrules" placeholder="None" size="15"/>
+            </td>
             <td class="">
               <div class="dropdown">
                 <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="index-drop1" data-toggle="dropdown">
@@ -468,7 +472,7 @@
                   <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="index-drop1">
-                  <li role=""><a role="menuitem" tabindex="0" href="#">Edit Index</a></li>
+                  <li role=""><a role="menuitem" tabindex="0" href="#">Save Index</a></li>
                   <li role=""><a role="menuitem" tabindex="1" href="#">Reindex Attribute</a></li>
                   <li role=""><a role="menuitem" tabindex="-1" href="#">Delete Index</a></li>
                 </ul>
@@ -477,7 +481,7 @@
           </tr>
         </tbody>
       </table>
-      <button class="btn btn-default ds-agmt-button" type="button" id="create-index">Add Index</button>
+      <button class="btn btn-default ds-agmt-button" type="button" id="add-index-button">Add Index</button>
       <p></p>
       <hr class="ds-hr">
     </div>
@@ -500,7 +504,7 @@
           </tr>
         </tbody>
       </table>
-      <button class="btn btn-default ds-agmt-button" type="button" id="add-attr-encrypt">Add Attribute</button>
+      <button class="btn btn-default ds-agmt-button" type="button" id="add-encrypted-attr-button">Add Attribute</button>
       <p></p>
       <hr class="ds-hr">
     </div>
@@ -510,24 +514,23 @@
   <!-- Modals/Popups/Wizards  -->
 
   <div id="chaining-oids-form" class="modal">
-    <form class="modal-content animate">
+    <form class="modal-content animate" action="#db-tab" target="#389-console/#db-tab">
       <div class="container">
         <h2 id=""><b>Select Forwarded Chaining Controls</b> <span class="close" id="chain-oid-close">&times;</span></h2>
         <hr class="ds-hr">
         <p></p>
         <form>
-          <label class="ds-config-label" for "avail-chaining-oid-list" title=
+          <label class="ds-config-label" for="avail-chaining-oid-list" title=
             "A list of LDAP control OIDs to be forwarded through chaining"><b>Available LDAP Controls</b></label>
-          <select
-            id="avail-chaining-oid-list" class="ds-chaining-form-list" name="availcontrols" multiple>
+          <select id="avail-chaining-oid-list" class="ds-chaining-form-list" name="availcontrols" size="10" multiple>
             <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.344</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.345</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.346</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.347</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.348</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.349</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.340</option>
-            <option value="1.5.6.5.5.6.88.4553.344">1.5.6.5.5.6.88.4553.351</option>
+            <option value="1.5.6.5.5.6.88.4553.345">1.5.6.5.5.6.88.4553.345</option>
+            <option value="1.5.6.5.5.6.88.4553.346">1.5.6.5.5.6.88.4553.346</option>
+            <option value="1.5.6.5.5.6.88.4553.347">1.5.6.5.5.6.88.4553.347</option>
+            <option value="1.5.6.5.5.6.88.4553.348">1.5.6.5.5.6.88.4553.348</option>
+            <option value="1.5.6.5.5.6.88.4553.349">1.5.6.5.5.6.88.4553.349</option>
+            <option value="1.5.6.5.5.6.88.4553.340">1.5.6.5.5.6.88.4553.340</option>
+            <option value="1.5.6.5.5.6.88.4553.351">1.5.6.5.5.6.88.4553.351</option>
           </select>
         </form>
         <p></p>
@@ -537,7 +540,7 @@
             <button type="button" id="chaining-oid-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="chaining-oid-save" class="ds-button-right">Add Controls</button>
+            <button type="button" id="chaining-oid-save" class="ds-button-right">Add Controls</button>
           </div>
         </div>
       </div>
@@ -546,16 +549,15 @@
 
 
   <div id="chaining-comp-form" class="modal">
-    <form class="modal-content animate">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
         <h2 id=""><b>Select Chaining Components</b> <span class="close" id="chain-comp-close">&times;</span></h2>
         <hr class="ds-hr">
         <p></p>
         <form>
-          <label class="ds-config-label" for "chaining-comp-list" title=
+          <label class="ds-config-label" for="chaining-comp-list" title=
             "A list of components to work with chaining"><b>Available LDAP Controls</b></label>
-          <select
-            id="chaining-comp-list" class="ds-chaining-form-list" name="availcomps" multiple>
+          <select id="avail-chaining-comp-list" class="ds-chaining-form-list" name="availcomps" size="10" multiple>
             <option value="cn=roles,cn=compnments,cn=config">cn=roles,cn=components,cn=config</option>
             <option value="cn=Password Policy,cn=components,cn=config">cn=Password Policy,cn=components,cn=config</option>
           </select>
@@ -567,7 +569,7 @@
             <button type="button" id="chaining-comp-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="chaining-comp-save" class="ds-button-right">Add Components</button>
+            <button type="button" id="chaining-comp-save" class="ds-button-right">Add Components</button>
           </div>
         </div>
       </div>
@@ -575,7 +577,7 @@
   </div>
 
   <div id="create-db-link-form" class="modal">
-    <form class="modal-content animate">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
         <h2 id=""><b>Create Database Link</b> <span class="close" id="create-chain-close">&times;</span></h2>
         <hr class="ds-hr">
@@ -611,116 +613,204 @@
             <button type="button" id="chaining-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="chaining-save" class="ds-button-right">Create Link</button>
+            <button type="button" id="chaining-save" class="ds-button-right">Create Link</button>
           </div>
         </div>
       </div>
     </form>
   </div>
 
-
-
-
-
-
-  <div id="create-index" class="modal">
-    <form class="modal-content animate">
+  <div id="add-index-form" class="modal">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
-        <h2 id=""><b>Create Index</b> <span class="close" id="create-index-close">&times;</span></h2>
+        <h2 id=""><b>Add An Index</b> <span class="close" id="add-index-close">&times;</span></h2>
         <hr class="ds-hr">
-        
+        <p></p>
+        <form>
+          <label class="ds-config-label" for="ds-index-form-list" title=
+            "Select an attribute to index"><b>Select An Attribute</b></label>
+          <select
+            id="index-list" class="ds-index-form-list" name="availcomps" size="10">
+            <option value="alias">alias</option>
+            <option value="cn">cn</option>
+            <option value="cnq">cn</option>
+            <option value="cn1">cn</option>
+            <option value="cn2">cn</option>
+            <option value="cn3">cn</option>
+            <option value="cn4">cnr</option>
+            <option value="cn5">cn</option>
+            <option value="cn6">cn</option>
+            <option value="cn7">cn</option>
+            <option value="cn8">cn</option>
+            <option value="cn9">cn</option>
+            <option value="cn00">cn</option>
+            <option value="cn000">cn</option>
+            <option value="cn0000">cn</option>
+            <option value="cn00000">cnff</option>
+
+          </select>
+          <p></p>
+          <h3>Indexing Types</h3>
+          <hr class="ds-hr">
+          <input type="checkbox" class="ds-config-checkbox" id="add-index-type-eq" checked><label
+            for="add-index-type-eq" class="ds-label" title="Use equality indexing (nsIndexType)."> Equality Indexing</label>
+          <input type="checkbox" class="ds-config-checkbox" id="add-index-type-pres" checked><label
+            for="add-index-type-pres" class="ds-label" title="Use presence indexing (nsIndexTypeg)."> Presence Indexing</label>
+          <input type="checkbox" class="ds-config-checkbox" id="add-index-type-sub" checked><label
+            for="add-index-type-sub" class="ds-label" title="Use substring indexing (nsIndexType)."> Substring Indexing</label>
+          <input type="checkbox" class="ds-config-checkbox" id="add-index-type-approx"><label
+            for="add-index-type-approx" class="ds-label" title="Use approximate indexing (nsIndexType)."> Approximate Indexing</label>
+          <label for="add-index-matchingrules" class="" title=
+              "Matching rule(s) (nsMatchingRule)."><b
+              >Matching Rules</b></label><input class="ds-form-input" type="text" placeholder="None" id="add-index-matchingrules" size="40"/>
+        </form>
         <p></p>
         <hr class="ds-hr">
         <div class="clearfix ds-container">
           <div class="ds-panel-left">
-            <button type="button" id="create-index-cancel" class="ds-button-left">Cancel</button>
+            <button type="button" id="add-index-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="create-index-save" class="ds-button-right">Create Index</button>
+            <button type="button" id="add-index-save" class="ds-button-right">Create Index</button>
           </div>
         </div>
       </div>
     </form>
   </div>
 
-  <div id="edit-index" class="modal">
-    <form class="modal-content animate">
+  <div id="add-encrypted-attr-form" class="modal">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
-        <h2 id=""><b>Edit Index</b> <span class="close" id="edit-index-close">&times;</span></h2>
+        <h2 id=""><b>Add Encrypted Attribute</b> <span class="close" id="add-encrypted-attr-close">&times;</span></h2>
         <hr class="ds-hr">
-        
+        <form>
+          <label class="ds-config-label" for="attr-encrypt-list" title=
+            "Select an attribute to be encrypted"><b>Select An Attribute</b></label>
+          <select
+            id="attr-encrypt-list" class="ds-index-form-list" name="availattrs" size="10">
+            <option value="alias">alias</option>
+            <option value="cn">cn</option>
+          </select>
+          <label for="nsencryptionalgorithm" class="ds-config-labelf" title="Agreement name (nsEncryptionAlgorithm)."><b>Encryption Algorithm</b></label><select
+            class="btn btn-default dropdown ds-agmt-wiz-dropdown ds-form-input" id="nsencryptionalgorithm">
+              <option>AES</option>
+              <option>3DES</option>
+            </select>
+        </form>
         <p></p>
         <hr class="ds-hr">
         <div class="clearfix ds-container">
           <div class="ds-panel-left">
-            <button type="button" id="edit-index-cancel" class="ds-button-left">Cancel</button>
+            <button type="button" id="add-encrypted-attr-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="edit-index-save" class="ds-button-right">Save</button>
+            <button type="button" id="add-encrypted-attr-save" class="ds-button-right">Add Attribute</button>
           </div>
         </div>
       </div>
     </form>
   </div>
 
-  <div id="add-encrypted-attr" class="modal">
-    <form class="modal-content animate">
+  <div id="add-suffix-form" class="modal">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
-        <h2 id=""><b>Add Encrypted Attribute</b> <span class="close" id="encrypted-attr-close">&times;</span></h2>
+        <h2 id=""><b>Create Suffix</b> <span class="close" id="add-suffix-close">&times;</span></h2>
         <hr class="ds-hr">
-        
+        <label for="add-suffix-dn" class="ds-config-label" title=
+          "Database Suffix DN (nsslapd-suffix)"><b
+          >Suffix DN</b></label><input class="ds-input" type="text" id="add-suffix-dn" size="40"/>
+        <label for="add-suffix-backend" class="ds-config-label" title=
+          "Database backend name (nsslapd-backend)"><b
+          >Backend Name</b></label><input class="ds-input" type="text" id="add-suffix-dn" size="40"/>
+        <input type="checkbox" class="ds-config-checkbox" id="add-suffix-create-dn" checked><label
+            for="add-suffix-create-dn" class="ds-label" title="Create the top suffix DN entry"> Create Suffix DN Entry</label>
         <p></p>
         <hr class="ds-hr">
         <div class="clearfix ds-container">
           <div class="ds-panel-left">
-            <button type="button" id="add-encrypted-cancel" class="ds-button-left">Cancel</button>
+            <button type="button" id="add-suffix-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="add-encrypted-save" class="ds-button-right">Add Attribute</button>
+            <button type="button" id="add-suffix-save" class="ds-button-right">Create Suffix</button>
           </div>
         </div>
       </div>
     </form>
   </div>
 
-  <div id="create-suffix" class="modal">
-    <form class="modal-content animate">
+  <div id="add-subsuffix-form" class="modal">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
-        <h2 id=""><b>Create Suffix</b> <span class="close" id="create-suffix-close">&times;</span></h2>
+        <h2 id=""><b>Create Sub Suffix</b> <span class="close" id="add-subsuffix-close">&times;</span></h2>
         <hr class="ds-hr">
-        
+        <p></p>
+        <label class="ds-config-label" id="parent-suffix"></label>
+        <p></p>
+        <label for="add-subsuffix-dn" class="ds-config-label" title=
+          "Database Suffix DN (nsslapd-suffix)"><b
+          >Sub Suffix DN</b></label><input class="ds-input" type="text" id="add-subsuffix-dn" size="40"/>
+        <label for="add-subsuffix-backend" class="ds-config-label" title=
+          "Database backend name (nsslapd-backend)"><b
+          >Backend Name</b></label><input class="ds-input" type="text" id="add-subsuffix-dn" size="40"/>
+        <input type="checkbox" class="ds-config-checkbox" id="add-subsuffix-create-dn" checked><label
+            for="add-subsuffix-create-dn" class="ds-label" title="Create the top suffix DN entry"> Create Sub Suffix DN Entry</label>
         <p></p>
         <hr class="ds-hr">
         <div class="clearfix ds-container">
           <div class="ds-panel-left">
-            <button type="button" id="add-encrypted-cancel" class="ds-button-left">Cancel</button>
+            <button type="button" id="add-subsuffix-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="add-encrypted-save" class="ds-button-right">Create Suffix</button>
+            <button type="button" id="add-subsuffix-save" class="ds-button-right">Create Sub Suffix</button>
           </div>
         </div>
       </div>
     </form>
   </div>
 
-  <div id="create-sub-suffix" class="modal">
-    <form class="modal-content animate">
+  <div id="import-ldif-form" class="modal">
+    <form class="modal-content animate" action="#db-tab">
       <div class="container">
-        <h2 id=""><b>Create Sub Suffix</b> <span class="close" id="create-sub-suffix-close">&times;</span></h2>
+        <h2 id=""><b>Initialize Database</b> <span class="close" id="import-ldif-close">&times;</span></h2>
         <hr class="ds-hr">
-        
+        <p></p>
+        <label for="ldif-file" class="" title=
+          "Full path to LDIF file"><b
+          >LDIF File</b></label><input class="ds-form-input" type="text" id="ldif-file" size="40"/>
         <p></p>
         <hr class="ds-hr">
         <div class="clearfix ds-container">
           <div class="ds-panel-left">
-            <button type="button" id="create-sub-suffix-cancel" class="ds-button-left">Cancel</button>
+            <button type="button" id="import-ldif-cancel" class="ds-button-left">Cancel</button>
           </div>
           <div class="ds-panel-right">
-            <button type="submit" id="create-sub-suffix-save" class="ds-button-right">Create Sub-Suffix</button>
+            <button type="button" id="import-ldif-save" class="ds-button-right">Import LDIF File</button>
           </div>
         </div>
       </div>
     </form>
   </div>
 
+  <div id="export-ldif-form" class="modal">
+    <form class="modal-content animate" action="#db-tab">
+      <div class="container">
+        <h2 id=""><b>Export Database</b> <span class="close" id="export-ldif-close">&times;</span></h2>
+        <hr class="ds-hr">
+        <p></p>
+        <label for="export-ldif-file" class="" title=
+          "Full path to LDIF file"><b
+          >LDIF File</b></label><input class="ds-form-input" type="text" id="export-ldif-file" size="40"/>
+        <p></p>
+        <hr class="ds-hr">
+        <div class="clearfix ds-container">
+          <div class="ds-panel-left">
+            <button type="button" id="export-ldif-cancel" class="ds-button-left">Cancel</button>
+          </div>
+          <div class="ds-panel-right">
+            <button type="button" id="export-ldif-save" class="ds-button-right">Export LDIF File</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>

@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <script src="../base1/cockpit.js"></script>
-  <script src="../base1/jquery.js"></script>
+  <script src="static/jquery-3.3.1.min.js"></script>
+  <script src="static/bootstrap.min.js"></script>
   <script src="static/jquery.dataTables.min.js"></script>
   <script src="static/jquery.dataTables.select.min.js"></script>
   <script src="static/jquery.timepicker.min.js"></script>
@@ -16,6 +17,7 @@
   <script src="js/replication.js"></script>
   <script src="js/plugins.js"></script>
   <script src="js/monitor.js"></script>
+  <link href="static/bootstrap.min.css" rel="stylesheet">
   <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
   <link href="static/jquery.timepicker.min.css" type="text/css" rel="stylesheet">
   <link href="../base1/patternfly.css" type="text/css" rel="stylesheet">
@@ -28,7 +30,9 @@
 
 <body hidden>
   <div class="ds-logo">
-    <h1 id="ds-banner">389 Directory Server Management<hr class="ds-logo-hr"></h1>
+    <h1 class="ds-logo-style">389 Directory Server Management<hr class="ds-logo-hr"></h1>
+    <h5 id="ds-banner">Managing Instance <select class="btn btn-default dropdown ds-dropdown-server" id="select-server">
+      </select></h5>
   </div>
   <div class="tab-list">
     <ul class="nav nav-tabs">
@@ -43,19 +47,15 @@
 
     <div class="tab-panel active" id="tab-server">
       <div class="ds-panel">
-        <h1>Server Configuration for <select class="btn btn-default dropdown ds-dropdown-server" id="select-server">
-        </select></h1>
-        <hr>
       </div>
-      <br>
       <div class="ds-container" id="server-content">
       </div>
     </div>
 
     <div class="tab-panel" id="tab-security">
       <div class="ds-panel">
-        <h1>Security Settings</h1>
-        <hr>
+        <!-- <h1>Security Settings</h1>
+        <hr class="ds-title-hr"> -->
       </div>
       <div id="security-selection" class="ds-container">
       </div>
@@ -63,8 +63,8 @@
 
     <div class="tab-panel" id="tab-db">
       <div class="ds-panel">
-        <h1>Backend Database Settings</h1>
-        <hr>
+        <!-- <h1>Backend Database Settings</h1>
+        <hr class="ds-title-hr"> -->
         <div id="backend-selection" class="ds-container">
         </div>
       </div>
@@ -72,8 +72,8 @@
 
     <div class="tab-panel" id="tab-repl">
       <div class="ds-panel">
-        <h1>Replication Management</h1>
-        <hr>
+     <!--   <h1>Replication Management</h1>
+        <hr class="ds-title-hr">  -->
         <div id="repl-backend-selection" class="ds-container">
         </div>
       </div>
@@ -81,8 +81,8 @@
 
     <div class="tab-panel" id="tab-schema">
       <div class="ds-panel">
-        <h1>Schema and Matching Rule Definitions</h1>
-        <hr>
+        <!-- <h1>Schema and Matching Rule Definitions</h1>
+        <hr class="ds-title-hr"> -->
       </div>
         <div id="schema-page" class="ds-container">
         </div>
@@ -90,8 +90,8 @@
 
     <div class="tab-panel" id="tab-plugins">
       <div class="ds-panel">
-        <h1>Plugin Management</h1>
-        <hr>
+        <!-- <h1>Plugin Management</h1>
+        <hr class="ds-title-hr">  -->
       </div>
       <div id="plugin-content" class="ds-container">
       </div>
@@ -99,8 +99,8 @@
 
     <div class="tab-panel" id="tab-monitoring">
       <div class="ds-panel">
-        <h1>Monitoring</h1>
-        <hr>
+        <!-- <h1>Monitoring</h1>
+        <hr class="ds-title-hr"> -->
       </div>
       <div class="ds-container" id="monitor-content">
       </div>

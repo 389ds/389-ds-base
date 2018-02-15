@@ -6,7 +6,7 @@ function customMenu (node) {
       "label": "Create Suffix",
       "icon": "glyphicon glyphicon-plus",
       "action": function (data) {
-        // TODO Create suffix
+        $("#add-suffix-form").css('display', 'block');
       }
     }
   };
@@ -16,31 +16,35 @@ function customMenu (node) {
       "label": "Delete DB Link",
       "icon": "glyphicon glyphicon-trash",
       "action": function (data) {
-        // TODO Delete db link
-       }
-     }
+        if (confirm("Are you sure you want to delete this Database Link?")){
+          // Delete db link
+        }
+      }
+    }
   };
 
   var suffix_items = {
-     'import': {
-          "label": "Initialize Suffix",
-          "icon": "glyphicon glyphicon-circle-arrow-right",
-         "action": function (data) {
-           // TODO Import suffix
-          }
-      },
+    'import': {
+      "label": "Initialize Suffix",
+       "icon": "glyphicon glyphicon-circle-arrow-right",
+       "action": function (data) {
+         $("#import-ldif-form").css('display', 'block');
+       }
+     },
       'export': {
           "label": "Export Suffix",
           "icon": "glyphicon glyphicon-circle-arrow-left",
          "action": function (data) {
-           // TODO Export suffix
+           $("#export-ldif-form").css('display', 'block');
           }
       },
       'reindex': {
           "label": "Reindex Suffix",
           "icon": "glyphicon glyphicon-wrench",
          "action": function (data) {
-           // TODO Reindex suffix
+           if (confirm("This will impact DB performance during the indexing.  Are you sure you want to reindex all attributes?")){
+             // TODO Reindex suffix
+           }
           }
       },
       "create_db_link": {
@@ -57,17 +61,22 @@ function customMenu (node) {
         "label": "Create Sub-Suffix",
         "icon": "glyphicon glyphicon-triangle-bottom",
         "action": function (data) {
-          // TODO reate suffix
-
+          var suffix_id = $(node).attr('id');
+          var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
+          $("#parent-suffix").html('<b>Parent Suffix:</b>&nbsp;&nbsp;' + parent_suffix);
+          $("#add-subsuffix-dn").val(' ,' + parent_suffix);
+          $("#add-subsuffix-form").css('display', 'block');
          }
       },
       'delete_suffix': {
-          "label": "Delete Suffix",
-          "icon": "glyphicon glyphicon-remove",
+         "label": "Delete Suffix",
+         "icon": "glyphicon glyphicon-remove",
          "action": function (data) {
-           // TODO Delete suffix
-          }
-      }
+           if (confirm("Are you sure you want to delete suffix?")){
+             // TODO Delete suffix
+           }
+         }
+       }
    };
 
    if ( $(node).attr('id') == "root" ) {
@@ -242,6 +251,7 @@ $(document).ready( function() {
       $("#manual-cache-form").hide();
       $("#auto-cache-form").show();
       $("#nsslapd-dncachememsize").prop('disabled', true);
+      $("#nsslapd-dncachememsize").val('AUTOTUNED');
       $("#nsslapd-cachememsize").prop('disabled', true);
       $("#nsslapd-cachesize").prop('disabled', true);
     }
@@ -255,20 +265,35 @@ $(document).ready( function() {
     }
 
     $(".cache-role").on("change", function() {
+      var cache_role = $("input[name=cache-role]:checked").val();
+      if (cache_role == "manual-cache") {
+        $("#auto-cache-form").hide();
+        $("#manual-cache-form").show();
+      } else {
+        // auto cache
+        $("#manual-cache-form").hide();
+        $("#auto-cache-form").show();
+      }
+    });
+
+    $("#backend-config-save-btn").on("click", function () {
       var role = $("input[name=cache-role]:checked").val();
       if (role == "manual-cache") {
-         $("#auto-cache-form").hide();
-         $("#manual-cache-form").show();
-         $("#nsslapd-dncachememsize").prop('disabled', false);
-         $("#nsslapd-cachememsize").prop('disabled', false);
-         $("#nsslapd-cachesize").prop('disabled', false);
+        // TODO - need to get cache values and fields (overwrite AUTOTUNED)
+        $("#nsslapd-dncachememsize").prop('disabled', false);
+        $("#nsslapd-dncachememsize").val('')
+        $("#nsslapd-cachememsize").prop('disabled', false);
+        $("#nsslapd-cachememsize").val('');
+        $("#nsslapd-cachesize").prop('disabled', false);
+        $("#nsslapd-cachesize").val('');
       } else {
-          // auto cache
-         $("#manual-cache-form").hide();
-         $("#auto-cache-form").show();
-         $("#nsslapd-dncachememsize").prop('disabled', true);
-         $("#nsslapd-cachememsize").prop('disabled', true);
-         $("#nsslapd-cachesize").prop('disabled', true);
+        // auto cache
+        $("#nsslapd-dncachememsize").prop('disabled', true);
+        $("#nsslapd-dncachememsize").val('AUTOTUNED');
+        $("#nsslapd-cachememsize").prop('disabled', true);
+        $("#nsslapd-cachememsize").val('AUTOTUNED');
+        $("#nsslapd-cachesize").prop('disabled', true);
+        $("#nsslapd-cachesize").val('AUTOTUNED');
       }
     });
 
@@ -341,7 +366,28 @@ $(document).ready( function() {
     })
     $("#chaining-oid-save").on("click", function() {
       // Update oids
+      var chaining_oids = $("#avail-chaining-oid-list").val();
+      for (var i = 0; chaining_oids && i < chaining_oids.length; i++) {
+        $('#chaining-oid-list').append($('<option/>', { 
+          value: chaining_oids[i],
+          text : chaining_oids[i] 
+        }));
+        $("#avail-chaining-oid-list option[value='" + chaining_oids[i] + "']").remove();
+      }
+      sort_list( $("#chaining-oid-list") );
       $("#chaining-oids-form").css('display', 'none');
+    });
+    $("#delete-chaining-oid-button").on("click", function() {
+      var oids = $("#chaining-oid-list").find('option:selected');
+      if (oids && oids != '' && oids.length > 0) {
+        for (var i = 0; i < oids.length; i++) {
+          if ( $('#avail-chaining-comp-list option[value="' + oids[i].text + '"]').val() === undefined) {
+            $('#avail-chaining-oid-list').append($("<option/>").val(oids[i].text).text(oids[i].text));
+          }
+        }
+      }
+      $("#chaining-oid-list").find('option:selected').remove();
+      sort_list( $('#avail-chaining-oid-list') );
     });
 
     // Chaining Comps
@@ -355,8 +401,29 @@ $(document).ready( function() {
       // Update Comps
       $("#chaining-comp-form").css('display', 'block');
     })
+    $("#delete-chaining-comp-button").on("click", function() {
+      var comps = $("#chaining-comp-list").find('option:selected');
+      if (comps && comps != '' && comps.length > 0) {
+        for (var i = 0; i < comps.length; i++) {
+          if ( $('#avail-chaining-comp-list option[value="' + comps[i].text + '"]').val() === undefined) {
+            $('#avail-chaining-comp-list').append($("<option/>").val(comps[i].text).text(comps[i].text));
+          }
+        }
+      }
+      $("#chaining-comp-list").find('option:selected').remove();
+      sort_list($('#avail-chaining-comp-list') );
+    });
     $("#chaining-comp-save").on("click", function() {
-      // Update comps
+      // Update comps      
+      var chaining_comps = $("#avail-chaining-comp-list").val();
+      for (var i = 0; chaining_comps && i < chaining_comps.length; i++) {
+        $('#chaining-comp-list').append($('<option/>', { 
+          value: chaining_comps[i],
+          text : chaining_comps[i] 
+        }));
+        $("#avail-chaining-comp-list option[value='" + chaining_comps[i] + "']").remove();
+      }
+      sort_list( $("#chaining-comp-list") );
       $("#chaining-comp-form").css('display', 'none');
     });
 
@@ -372,6 +439,89 @@ $(document).ready( function() {
       $("#create-db-link-form").css('display', 'none');
     });
 
+    // Add Index
+    $("#add-index-button").on("click", function() {
+      $("#add-index-form").css('display', 'block');
+    })
+    $("#add-index-close").on("click", function() {
+      $("#add-index-form").css('display', 'none');
+    });
+    $("#add-index-cancel").on("click", function() {
+      $("#add-index-form").css('display', 'none');
+    });
+    $("#add-index-save").on("click", function() {
+      $("#add-index-form").css('display', 'none');
+      // Do the actual save in DS
+      // Update html
+    });
+
+    // Add encrypted attribute
+    $("#add-encrypted-attr-button").on("click", function() {
+      $("#add-encrypted-attr-form").css('display', 'block');
+    })
+    $("#add-encrypted-attr-close").on("click", function() {
+      $("#add-encrypted-attr-form").css('display', 'none');
+    });
+    $("#add-encrypted-attr-cancel").on("click", function() {
+      $("#add-encrypted-attr-form").css('display', 'none');
+    });
+    $("#add-encrypted-attr-save").on("click", function() {
+      $("#add-encrypted-attr-form").css('display', 'none');
+      // Do the actual save in DS
+      // Update html
+    });
+
+    // Create Suffix
+    $("#add-suffix-close").on("click", function() {
+      $("#add-suffix-form").css('display', 'none');
+    });
+    $("#add-suffix-cancel").on("click", function() {
+      $("#add-suffix-form").css('display', 'none');
+    });
+    $("#add-suffix-save").on("click", function() {
+      $("#add-suffix-form").css('display', 'none');
+      // Do the actual save in DS
+      // Update html
+    });
+
+    // Create Sub Suffix
+    $("#add-subsuffix-close").on("click", function() {
+      $("#add-subsuffix-form").css('display', 'none');
+    });
+    $("#add-subsuffix-cancel").on("click", function() {
+      $("#add-subsuffix-form").css('display', 'none');
+    });
+    $("#add-subsuffix-save").on("click", function() {
+      $("#add-subsuffix-form").css('display', 'none');
+      // Do the actual save in DS
+      // Update html
+    });
+
+    // Init Suffix (import)
+    $("#import-ldif-close").on("click", function() {
+      $("#import-ldif-form").css('display', 'none');
+    });
+    $("#import-ldif-cancel").on("click", function() {
+      $("#import-ldif-form").css('display', 'none');
+    });
+    $("#import-ldif-save").on("click", function() {
+      $("#import-ldif-form").css('display', 'none');
+      // Do the actual save in DS
+      // Update html
+    });
+
+    // Export Suffix (import)
+    $("#export-ldif-close").on("click", function() {
+      $("#export-ldif-form").css('display', 'none');
+    });
+    $("#export-ldif-cancel").on("click", function() {
+      $("#export-ldif-form").css('display', 'none');
+    });
+    $("#export-ldif-save").on("click", function() {
+      $("#export-ldif-form").css('display', 'none');
+      // Do the actual save in DS
+      // Update html
+    });
   });
 });
 

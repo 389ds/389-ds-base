@@ -51,6 +51,7 @@
   border: 1px solid #ddd;
   white-space: pre-line;
   overflow: auto;
+  min-height: 700px;
 }
 
 .tab-panel.active {

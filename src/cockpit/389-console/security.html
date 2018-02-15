@@ -112,7 +112,11 @@
   <div class="security-ctrl" id="sec-certs" hidden>
     <h2>Certificate Database</h2>
     <hr class="ds-hr">
-    <table id="cert-table" class="display ds-table" cellspacing="0" width="100%">
+    <div class="ds-button-border">
+      <button id="change-sec-db-passwd" class="btn btn-default ds-button">Change Database Password</button>
+    </div>
+
+    <table id="cert-table" class="display ds-repl-table" cellspacing="0" width="100%">
       <thead>
         <tr class="ds-table-header">
           <th>Certificate Name</th>
@@ -157,6 +161,7 @@
     <hr class="ds-hr">
     <div class="ds-button-border">
       <button id="import-cert" class="btn btn-default ds-button">Import Certificate</button>
+      <button id="req-cert" class="btn btn-default ds-button">Request Certificate</button>
     </div>
   </div>
 
