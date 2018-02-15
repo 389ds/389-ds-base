@@ -14,6 +14,7 @@ import time
 import ldap
 import ldapurl
 import argparse
+import getpass
 
 from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
@@ -878,14 +879,16 @@ def do_online_report(opts, output_file=None):
     controls = [paged_ctrl]
     req_pr_ctrl = controls[0]
     try:
-        master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE, "objectclass=*",
+        master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
+                                         "(|(objectclass=*)(objectclass=ldapsubentry))",
                                          ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'],
                                          serverctrls=controls)
     except ldap.LDAPError as e:
         print("Error: Failed to get Master entries: %s", str(e))
         exit(1)
     try:
-        replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE, "objectclass=*",
+        replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
+                                           "(|(objectclass=*)(objectclass=ldapsubentry))",
                                            ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'],
                                            serverctrls=controls)
     except ldap.LDAPError as e:
@@ -928,7 +931,8 @@ def do_online_report(opts, output_file=None):
                 if m_pctrls[0].cookie:
                     # Copy cookie from response control to request control
                     req_pr_ctrl.cookie = m_pctrls[0].cookie
-                    master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE, "objectclass=*",
+                    master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
+                        "(|(objectclass=*)(objectclass=ldapsubentry))",
                         ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'], serverctrls=controls)
                 else:
                     m_done = True  # No more pages available
@@ -947,7 +951,8 @@ def do_online_report(opts, output_file=None):
                 if r_pctrls[0].cookie:
                     # Copy cookie from response control to request control
                     req_pr_ctrl.cookie = r_pctrls[0].cookie
-                    replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE, "objectclass=*",
+                    replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
+                        "(|(objectclass=*)(objectclass=ldapsubentry))",
                         ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'], serverctrls=controls)
                 else:
                     r_done = True  # No more pages available
@@ -976,8 +981,9 @@ def main():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('-v', '--verbose', help='Verbose output', action='store_true', default=False, dest='verbose')
     parser.add_argument('-o', '--outfile', help='The output file', dest='file', default=None)
-    parser.add_argument('-D', '--binddn', help='The Bind DN', dest='binddn', default="")
-    parser.add_argument('-w', '--bindpw', help='The Bind password', dest='bindpw', default="")
+    parser.add_argument('-D', '--binddn', help='The Bind DN', dest='binddn', default=None)
+    parser.add_argument('-w', '--bindpw', help='The Bind password', dest='bindpw', default=None)
+    parser.add_argument('-W', '--prompt', help='Prompt for the bind password', action='store_true', dest='prompt', default=False)
     parser.add_argument('-m', '--master_url', help='The LDAP URL for the Master server (REQUIRED)',
                         dest='murl', default=None)
     parser.add_argument('-r', '--replica_url', help='The LDAP URL for the Replica server (REQUIRED)',
@@ -1012,7 +1018,7 @@ def main():
     elif (args.mldif is None and
           (args.suffix is None or
            args.binddn is None or
-           args.bindpw is None or
+           (args.bindpw is None and args.prompt is False) or
            args.murl is None or
            args.rurl is None)):
             print("\n-------> Missing required options for online mode!\n")
@@ -1097,6 +1103,9 @@ def main():
         except IOError:
             print("Can't open file: " + args.file)
             exit(1)
+
+    if args.prompt:
+        opts['bindpw'] = getpass.getpass('Enter password:')
 
     if opts['mldif'] is not None and opts['rldif'] is not None:
         print ("Performing offline report...")

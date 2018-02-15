@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH DS-REPLCHECK 1 "May 2, 2017"
+.TH DS-REPLCHECK 1 "Feb 14, 2018"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -19,7 +19,7 @@
 ds-replcheck - Performs replication synchronization report between two replicas
 
 .SH SYNOPSIS
-ds-replcheck [-h] [-o FILE] [-D BINDDN] [-w BINDPW] [-m MURL]
+ds-replcheck [-h] [-o FILE] [-D BINDDN] [[-w BINDPW] [-W]] [-m MURL]
              [-r RURL] [-b SUFFIX] [-l LAG] [-Z CERTDIR]
              [-i IGNORE] [-p PAGESIZE] [-M MLDIF] [-R RLDIF]
 
@@ -41,6 +41,10 @@ The Directory Manager DN, or root DN.a (online mode)
 .B \fB\-w\fR \fIPASSWORD\fR
 The Directory Manager password (online mode)
 .TP
+.B \fB\-W\fR
+.br
+Prompt for the Directory Manager password (online mode)
+.TP
 .B \fB\-m\fR \fILDAP_URL\fR
 The LDAP Url for the first replica (online mode)
 .TP
@@ -58,6 +62,10 @@ The directory containing a certificate database for StartTLS/SSL connections.  (
 .TP
 .B \fB\-i\fR \fIIGNORE LIST\fR
 Comma separated list of attributes to ignore in the report  (online & offline)
+.TP
+.B \fB\-c\fR
+.br
+Display verbose conflict entry information
 .TP
 .B \fB\-M\fR \fILDIF FILE\fR
 The LDIF file for the first replica  (offline mode)
@@ -81,5 +89,5 @@ ds-replcheck was written by the 389 Project.
 .SH "REPORTING BUGS"
 Report bugs to https://pagure.io/389-ds-base/new_issue
 .SH COPYRIGHT
-Copyright \(co 2017 Red Hat, Inc.
+Copyright \(co 2018 Red Hat, Inc.
 
