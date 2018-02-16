@@ -872,7 +872,7 @@ get_system_time(uuid_time_t *uuid_time)
 
     /* Offset between UUID formatted times and time() formatted times.
        UUID UTC base time is October 15, 1582. time() base time is January 1, 1970.*/
-    *uuid_time = cur_time * SEQ_PER_SEC + I64(0x01B21DD213814000);
+    *uuid_time = (uuid_time_t)cur_time * SEQ_PER_SEC + I64(0x01B21DD213814000);
 }
 
 /* ONREPL */
