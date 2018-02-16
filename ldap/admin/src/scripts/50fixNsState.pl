@@ -41,9 +41,11 @@ sub convert_uniqueid {
     my $bigfmt64 = "NNA6nC";
     my $fmt = $fmt32;
     my $bigfmt = $bigfmt32;
+    my $packfmt = $packfmt32;
     if (length($val) > 20) {
         $fmt = $fmt64;
         $bigfmt = $bigfmt64;
+        $packfmt = $packfmt64;
     } elsif ($is64) {
         # cannot convert 32-bit to 64-bit - just delete the entry and continue
         debug(1, "Cannot convert 32-bit nsState value $hex to 64-bit - deleting entry " .
@@ -59,7 +61,6 @@ sub convert_uniqueid {
         $packfmt64 = "NNA6nCx7";
     }
 
-    my $packfmt = $packfmt32;
     if ($is64) {
         $packfmt = $packfmt64;
     }
