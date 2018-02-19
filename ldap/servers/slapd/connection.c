@@ -217,6 +217,7 @@ connection_cleanup(Connection *conn)
     conn->c_connid = 0;
     conn->c_opsinitiated = 0;
     conn->c_opscompleted = 0;
+    conn->c_anonlimits_set = 0;
     conn->c_threadnumber = 0;
     conn->c_refcnt = 0;
     conn->c_idlesince = 0;
@@ -1549,7 +1550,9 @@ connection_threadmain()
                     g_decr_active_threadcnt();
                     return;
                 }
-                if (pb_conn->c_opscompleted == 0) {
+
+                PR_EnterMonitor(pb_conn->c_mutex);
+                if (pb_conn->c_anonlimits_set == 0) {
                     /*
                      * We have a new connection, set the anonymous reslimit idletimeout
                      * if applicable.
@@ -1568,7 +1571,14 @@ connection_threadmain()
                         }
                     }
                     slapi_ch_free_string(&anon_dn);
+                    /*
+                     * Set connection as initialized to avoid setting anonymous limits
+                     * multiple times on the same connection
+                     */
+                    pb_conn->c_anonlimits_set = 1;
                 }
+                PR_ExitMonitor(pb_conn->c_mutex);
+
                 if (connection_call_io_layer_callbacks(pb_conn)) {
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
                                   "Could not add/remove IO layers from connection\n");
