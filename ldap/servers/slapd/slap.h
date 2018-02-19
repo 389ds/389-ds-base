@@ -1616,6 +1616,7 @@ typedef struct conn
     PRUint64 c_maxthreadsblocked;    /* # of operations blocked by maxthreads */
     int c_opsinitiated;              /* # ops initiated/next op id      */
     PRInt32 c_opscompleted;          /* # ops completed          */
+    uint64_t c_anonlimits_set;       /* default anon limits are set */
     PRInt32 c_threadnumber;          /* # threads used in this conn    */
     int c_refcnt;                    /* # ops refering to this conn    */
     PRMonitor *c_mutex;              /* protect each conn structure; need to be re-entrant */
@@ -1623,10 +1624,8 @@ typedef struct conn
     time_t c_idlesince;              /* last time of activity on conn  */
     int c_idletimeout;               /* local copy of idletimeout */
     int c_idletimeout_handle;        /* the resource limits handle */
-    Conn_private *c_private;         /* data which is not shared outside*/
-                                     /* connection.c           */
-    int c_flags;                     /* Misc flags used only for SSL   */
-                                     /* status currently               */
+    Conn_private *c_private;         /* data which is not shared outside connection.c */
+    int c_flags;                     /* Misc flags used only for SSL status currently */
     int c_needpw;                    /* need new password           */
     CERTCertificate *c_client_cert;  /* Client's Cert          */
     PRFileDesc *c_prfd;              /* NSPR 2.1 FileDesc          */
