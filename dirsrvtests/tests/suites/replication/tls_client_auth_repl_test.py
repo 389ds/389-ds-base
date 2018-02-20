@@ -6,38 +6,33 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import logging
+import os
 import pytest
+from lib389.utils import ds_is_older
+from lib389.idm.services import ServiceAccounts
+from lib389.config import CertmapLegacy
+from lib389._constants import DEFAULT_SUFFIX
+from lib389.replica import ReplicationManager, Replicas
 from lib389.topologies import topology_m2 as topo_m2
 
-from lib389.idm.organisationalunit import OrganisationalUnits
-from lib389.idm.group import Groups
-from lib389.idm.services import ServiceAccounts
-from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+if DEBUGGING:
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+else:
+    logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
-from lib389.nss_ssl import NssSsl
 
-from lib389.config import CertmapLegacy
-
-from lib389._constants import DEFAULT_SUFFIX
-
-from lib389.replica import ReplicationManager, Replicas
-
-def test_tls_client_auth(topo_m2):
-    """Test TLS client authentication between two masters operates
-    as expected.
-
-    :id: 922d16f8-662a-4915-a39e-0aecd7c8e6e6
-    :steps:
-        1. Enable TLS on both masters
-        2. Reconfigure both agreements to use TLS Client auth
-        3. Ensure replication events work
-    :expectedresults:
-        1. Tls is setup
-        2. The configuration works, and authentication works
-        3. Replication ... replicates.
+@pytest.fixture(scope="module")
+def tls_client_auth(topo_m2):
+    """Enable TLS on both masters and reconfigure
+    both agreements to use TLS Client auth
     """
+
     m1 = topo_m2.ms['master1']
     m2 = topo_m2.ms['master2']
+
     # Create the certmap before we restart for enable_tls
     cm_m1 = CertmapLegacy(m1)
     cm_m2 = CertmapLegacy(m2)
@@ -85,8 +80,40 @@ def test_tls_client_auth(topo_m2):
     )
     agmt_m2.remove_all('nsDS5ReplicaBindDN')
 
-    repl.test_replication(m1, m2)
-    repl.test_replication(m2, m1)
+    repl.test_replication_topology(topo_m2)
+
+    return topo_m2
 
 
+def test_extract_pemfiles(tls_client_auth):
+    """Test TLS client authentication between two masters operates
+    as expected with 'on' and 'off' options of nsslapd-extract-pemfiles
+
+    :id: 922d16f8-662a-4915-a39e-0aecd7c8e6e1
+    :setup: Two master replication, enabled TLS client auth
+    :steps:
+        1. Check that nsslapd-extract-pemfiles default value is right
+        2. Check that replication works with both 'on' and 'off' values
+    :expectedresults:
+        1. Success
+        2. Replication works
+    """
+
+    m1 = tls_client_auth.ms['master1']
+    m2 = tls_client_auth.ms['master2']
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    if ds_is_older('1.3.7'):
+        default_val = 'off'
+    else:
+        default_val = 'on'
+    attr_val = m1.config.get_attr_val_utf8('nsslapd-extract-pemfiles')
+    log.info("Check that nsslapd-extract-pemfiles is {}".format(default_val))
+    assert attr_val == default_val
+
+    for extract_pemfiles in ('on', 'off'):
+        log.info("Set nsslapd-extract-pemfiles = '{}' and check replication works)")
+        m1.config.set('nsslapd-extract-pemfiles', extract_pemfiles)
+        m2.config.set('nsslapd-extract-pemfiles', extract_pemfiles)
+        repl.test_replication_topology(tls_client_auth)
 
