@@ -1592,6 +1592,7 @@ typedef struct conn {
 	PRUint64		c_maxthreadsblocked; /* # of operations blocked by maxthreads */
 	int				c_opsinitiated;	/* # ops initiated/next op id	  */
 	PRInt32			c_opscompleted;	/* # ops completed		  */
+	uint64_t        c_anonlimits_set; /* default anon limits are set */
 	PRInt32			c_threadnumber; /* # threads used in this conn    */
 	int				c_refcnt;	/* # ops refering to this conn    */
 	PRMonitor		*c_mutex;	/* protect each conn structure; need to be re-entrant */ 
