@@ -1205,6 +1205,7 @@ class DirSrv(SimpleLDAPObject, object):
                 env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
                 env['ASAN_OPTIONS'] = "symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (self.ds_paths.run_dir, self.serverid)
                 env.update(os.environ)
+            output = None
             try:
                 output = subprocess.check_output(["%s/ns-slapd" % self.get_sbin_dir(),
                                         "-D",

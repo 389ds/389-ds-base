@@ -112,7 +112,22 @@ static const char *internal_entries[] =
         "objectclass:top\n"
         "objectclass:nsSNMP\n"
         "cn:SNMP\n"
-        "nsSNMPEnabled: on\n"};
+        "nsSNMPEnabled: on\n",
+
+        "dn: cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsContainer\n"
+        "cn: Password Storage Schemes\n",
+
+        "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: PBKDF2_SHA256\n"
+        "nsslapd-pluginpath: libpwdstorage-plugin\n"
+        "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n",
+};
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries) / sizeof(internal_entries[0]);
 

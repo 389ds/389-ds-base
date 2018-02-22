@@ -35,6 +35,19 @@ extern char *slapd_SSL3ciphers;
 extern char *localuser;
 char *rel2abspath(char *);
 
+static char *bootstrap_plugins[] = {
+    "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+    "objectclass: top\n"
+    "objectclass: nsSlapdPlugin\n"
+    "cn: PBKDF2_SHA256\n"
+    "nsslapd-pluginpath: libpwdstorage-plugin\n"
+    "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
+    "nsslapd-plugintype: pwdstoragescheme\n"
+    "nsslapd-pluginenabled: on",
+
+    NULL
+};
+
 /*
   See if the given entry has an attribute with the given name and the
   given value; if value is NULL, just test for the presence of the given
@@ -494,9 +507,33 @@ slapd_bootstrap_config(const char *configdir)
                     val[0] = 0;
                 }
 
-                if (e)
+                if (e) {
                     slapi_entry_free(e);
+                }
+            } /* (entrystr = dse_read_next_entry(buf, &lastp) */
+            /*
+             * Okay, now we have to add "fake" plugins into memory
+             * so that password can work. They'll be created properly
+             * later in dse.ldif.
+             */
+
+            for (size_t i = 0; bootstrap_plugins[i] != NULL; i++) {
+                /* Convert the str to an entry */
+                char *temp = strdup(bootstrap_plugins[i]);
+                Slapi_Entry *e = slapi_str2entry(temp, 0);
+                slapi_ch_free_string(&temp);
+                /* Try and apply it */
+                if (e == NULL) {
+                    continue;
+                }
+                if (plugin_setup(e, 0, 0, 1, returntext) != 0) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "slapd_bootstrap_config", "Application of plugin failed, maybe already there?\n");
+                } else {
+                    slapi_log_err(SLAPI_LOG_TRACE, "slapd_bootstrap_config", "Application of plugin SUCCESS\n");
+                }
+                slapi_entry_free(e);
             }
+
             /* kexcoff: initialize rootpwstoragescheme and pw_storagescheme
              *          if not explicilty set in the config file
              */
