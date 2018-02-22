@@ -849,7 +849,12 @@ ldbm_back_add(Slapi_PBlock *pb)
                subordinate count specifically */
             if (parententry) {
                 int op = is_resurect_operation ? PARENTUPDATE_RESURECT : PARENTUPDATE_ADD;
-                if (is_cenotaph_operation ) op |= PARENTUPDATE_CREATE_TOMBSTONE;
+                if (is_cenotaph_operation || (is_tombstone_operation && !is_ruv)) {
+                    /* if we directly add a tombstone the tombstone numsubordinates have to be increased
+                     * (does not apply to adding the RUV)
+                     */
+                    op |= PARENTUPDATE_CREATE_TOMBSTONE;
+                }
                 retval = parent_update_on_childchange(&parent_modify_c, op, NULL);
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                               "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",

@@ -141,9 +141,11 @@ parent_update_on_childchange(modify_context *mc, int op, size_t *new_sub_count)
     }
 
     /* tombstoneNumSubordinates has to be updated if a tombstone child has been
-     * deleted or a tombstone has been directly added (cenotaph) */
+     * deleted or a tombstone has been directly added (cenotaph)
+     * or a tombstone is resurrected
+     */
     current_sub_count = LDAP_MAXINT;
-    if (repl_op) {
+    if (repl_op || (PARENTUPDATE_RESURECT == op)) {
         ret = slapi_entry_attr_find(mc->old_entry->ep_entry,
                                     tombstone_numsubordinates, &read_attr);
         if (0 == ret) {
