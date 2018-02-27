@@ -1721,6 +1721,13 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
                 replace_mod.mod_values = replace_val;
             }
             rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
+            if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
+                /* the memberof values to be replaced do not exist
+                 * just add the new values */
+                mods[0] = mods[1];
+                mods[1] = NULL;
+                rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
+            }
         }
     }
 
