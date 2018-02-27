@@ -802,7 +802,6 @@ m4_include(m4/openldap.m4)
 m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)
 m4_include(m4/sasl.m4)
-m4_include(m4/svrcore.m4)
 m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
@@ -863,7 +862,7 @@ AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
 
 # AC_CONFIG_FILES([ldap/admin/src/defaults.inf])
 
-AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc])
+AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc src/pkgconfig/svrcore.pc])
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
 

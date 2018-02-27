@@ -5,7 +5,7 @@ includedir=@includedir@
 
 Name: svrcore
 Description: Svrcore - Secure PIN handling using NSS crypto
-Version: @VERSION@
-Requires: @NSPR_NAME@ >= @NSPR_MIN_VER@ , @NSS_NAME@ >= @NSS_MIN_VER@
+Version: @PACKAGE_VERSION@
+Requires: nspr, nss
 Libs: -lsvrcore
 Cflags: -I${includedir}
