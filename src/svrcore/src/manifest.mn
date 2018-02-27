@@ -1,0 +1,29 @@
+# /*
+#  * Copyright (C) 1998 Netscape Communications Corporation.
+#  * All Rights Reserved.
+#  *
+#  * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+#  *
+#  * This Source Code Form is subject to the terms of the Mozilla Public
+#  * License, v. 2.0. If a copy of the MPL was not distributed with this
+#  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#  */
+
+
+CORE_DEPTH = ../..
+
+MODULE = svrcore
+
+IMPORTS = nspr20/v4.6 nss/NSS_3_10_2_RTM
+
+RELEASE = svrcore
+
+LIBRARY_NAME = svrcore
+
+EXPORTS = svrcore.h
+
+REQUIRES = nspr20 nss
+
+CSRCS = user.c pin.c alt.c file.c errors.c pk11.c \
+	cache.c std.c ntgetpin.c
+
