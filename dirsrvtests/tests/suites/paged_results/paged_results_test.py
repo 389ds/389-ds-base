@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import socket
 from random import sample
 
 import pytest
@@ -41,6 +42,9 @@ NEW_SUFFIX_2_NAME = 'child'
 NEW_SUFFIX_2 = 'ou={},{}'.format(NEW_SUFFIX_2_NAME, NEW_SUFFIX_1)
 NEW_BACKEND_1 = 'parent_base'
 NEW_BACKEND_2 = 'child_base'
+
+HOSTNAME = socket.getfqdn()
+IP_ADDRESS = socket.gethostbyname(HOSTNAME)
 
 
 @pytest.fixture(scope="module")
@@ -500,8 +504,8 @@ def test_search_with_timelimit(topology_st, test_user):
 
 
 @pytest.mark.parametrize('aci_subject',
-                         ('dns = "localhost.localdomain"',
-                          'ip = "::1" or ip = "127.0.0.1"'))
+                         ('dns = "{}"'.format(HOSTNAME),
+                          'ip = "{}"'.format(IP_ADDRESS)))
 def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI

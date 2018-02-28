@@ -80,7 +80,6 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
             elif role != ReplicaRole.STANDALONE:
                 raise AssertionError("Invalid request to make suffix-less replicated environment")
 
-
             instance.allocate(args_instance)
 
             instance_exists = instance.exists()
