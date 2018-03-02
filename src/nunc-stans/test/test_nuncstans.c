@@ -313,6 +313,7 @@ ns_job_persist_disarm_test(void **state)
     struct ns_job_t *job = NULL;
     struct timespec timeout = {2, 0};
 
+    pthread_mutex_lock(&cb_lock);
     assert_int_equal(
         ns_create_job(tp, NS_JOB_NONE | NS_JOB_PERSIST, ns_init_disarm_job_cb, &job),
         NS_SUCCESS);
@@ -320,7 +321,6 @@ ns_job_persist_disarm_test(void **state)
     assert_int_equal(ns_job_rearm(job), NS_SUCCESS);
 
     /* In the callback it should disarm */
-    pthread_mutex_lock(&cb_lock);
     assert(cond_wait_rel(&cb_cond, &cb_lock, &timeout) == 0);
     pthread_mutex_unlock(&cb_lock);
     /* Make sure it did */
