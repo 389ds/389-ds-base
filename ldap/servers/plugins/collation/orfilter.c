@@ -208,17 +208,32 @@ ss_filter_match (or_filter_t* or, struct berval** vals)
 	    } else {		/* final */
 		auto size_t attempts = MAX_CHAR_COMBINING;
 		auto char* limit = v.bv_val;
+		auto char *end;
 		auto struct berval** vkeys;
 		auto struct berval* vals[2];
 		auto struct berval key;
+
 		rc = -1;
 		vals[0] = &v;
 		vals[1] = NULL;
 		key.bv_val = (*k)->bv_val;
 		key.bv_len = (*k)->bv_len - 1;
-		v.bv_val = (*vals)->bv_val + (*vals)->bv_len;
+		/* In the following lines it will loop to find
+		 * if the end of the attribute value matches the 'final' of the filter
+		 * Short summary:
+		 * vals contains the attribute value :for example "hello world"
+		 * key contain the key generated from the indexing of final part of the filter.
+		 * for example filter=(<attribut>=*ld), so key contains the indexing("ld").
+		 *
+		 * The loop will iterate over the attribute value (vals) from the end of string
+		 * to the begining. So it will try to index('d'), index('ld'), index('rld'), index('orld')...
+		 *
+		 * the key generate from the final part of the filter, then the loop stops => we are done
+		 */
+		end = v.bv_val + v.bv_len - 1;
+		v.bv_val = end;
 		while(1) {
-		    v.bv_len = (*vals)->bv_len - (v.bv_val - (*vals)->bv_val);
+		    v.bv_len = end - v.bv_val + 1;
 		    vkeys = ix->ix_index (ix, vals, NULL);
 		    if (vkeys && vkeys[0]) {
 			auto const struct berval* vkey = vkeys[0];
