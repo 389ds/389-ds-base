@@ -18,6 +18,9 @@ import ldap
 from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
+from lib389.plugins import ReferentialIntegrityPlugin, MemberOfPlugin
+from lib389.utils import *
+from lib389.idm.directorymanager import *
 
 log = logging.getLogger(__name__)
 
@@ -25,39 +28,18 @@ NUM_USERS = 250
 GROUP_DN = 'cn=stress-group,' + DEFAULT_SUFFIX
 
 
-def openConnection(inst):
-    # Open a new connection to our LDAP server
-    server = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    server.allocate(args_standalone)
-    server.open()
-
-    return server
-
-
 # Configure Referential Integrity Plugin for stress test
 def configureRI(inst):
-    inst.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
-    PLUGIN_DN = 'cn=' + PLUGIN_REFER_INTEGRITY + ',cn=plugins,cn=config'
-    try:
-        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'uniquemember')])
-    except ldap.LDAPError as e:
-        log.fatal('configureRI: Failed to configure RI plugin: error ' + e.message['desc'])
-        assert False
+    plugin = ReferentialIntegrityPlugin(inst)
+    plugin.enable()
+    plugin.replace('referint-membership-attr', 'uniquemember')
 
 
 # Configure MemberOf Plugin for stress test
 def configureMO(inst):
-    inst.plugins.enable(name=PLUGIN_MEMBER_OF)
-    PLUGIN_DN = 'cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config'
-    try:
-        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
-    except ldap.LDAPError as e:
-        log.fatal('configureMO: Failed to update config(uniquemember): error ' + e.message['desc'])
-        assert False
+    plugin = MemberOfPlugin(inst)
+    plugin.enable()
+    plugin.replace('memberofgroupattr', 'uniquemember')
 
 
 def cleanup(conn):
@@ -76,7 +58,8 @@ class DelUsers(threading.Thread):
         self.rdnval = rdnval
 
     def run(self):
-        conn = openConnection(self.inst)
+        dm = DirectoryManager(self.inst)
+        conn = dm.bind()
         idx = 0
         log.info('DelUsers - Deleting ' + str(NUM_USERS) + ' entries (' + self.rdnval + ')...')
         while idx < NUM_USERS:
@@ -104,17 +87,18 @@ class AddUsers(threading.Thread):
 
     def run(self):
         # Start adding users
-        conn = openConnection(self.inst)
+        dm = DirectoryManager(self.inst)
+        conn = dm.bind()
         idx = 0
 
         if self.addToGroup:
             try:
                 conn.add_s(Entry((GROUP_DN,
-                                  {'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
-                                   'uid': 'user' + str(idx)})))
+                                  {'objectclass': b'top groupOfNames groupOfUniqueNames'.split(),
+                                   'cn': 'stress-group'})))
             except ldap.LDAPError as e:
                 if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
-                    log.fatal('AddUsers: failed to add group (' + USER_DN + ') error: ' + e.message['desc'])
+                    log.fatal('AddUsers: failed to add group (' + GROUP_DN + ') error: ' + e.message['desc'])
                     assert False
 
         log.info('AddUsers - Adding ' + str(NUM_USERS) + ' entries (' + self.rdnval + ')...')
@@ -122,8 +106,8 @@ class AddUsers(threading.Thread):
         while idx < NUM_USERS:
             USER_DN = 'uid=' + self.rdnval + str(idx) + ',' + DEFAULT_SUFFIX
             try:
-                conn.add_s(Entry((USER_DN, {'objectclass': 'top extensibleObject'.split(),
-                                            'uid': 'user' + str(idx)})))
+                conn.add_s(Entry((USER_DN, {'objectclass': b'top nsOrgPerson'.split(),
+                                            'uid': ensure_bytes('user' + str(idx))})))
             except ldap.LDAPError as e:
                 if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
                     log.fatal('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])
@@ -132,7 +116,7 @@ class AddUsers(threading.Thread):
             if self.addToGroup:
                 # Add the user to the group
                 try:
-                    conn.modify_s(GROUP_DN, [(ldap.MOD_ADD, 'uniquemember', USER_DN)])
+                    conn.modify_s(GROUP_DN, [(ldap.MOD_ADD, 'uniquemember', ensure_bytes(USER_DN))])
                 except ldap.LDAPError as e:
                     if e == ldap.UNAVAILABLE or e == ldap.SERVER_DOWN:
                         log.fatal('AddUsers: Failed to add user' + USER_DN + ' to group: error ' + e.message['desc'])

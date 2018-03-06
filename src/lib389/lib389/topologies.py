@@ -196,6 +196,9 @@ class TopologyMain(object):
     def __iter__(self):
         return self.all_insts.values().__iter__()
 
+    def __getitem__(self, index):
+        return list(self.all_insts.values())[index]
+
     def pause_all_replicas(self):
         """Pause all agreements in the class instance"""
 

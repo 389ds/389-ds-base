@@ -15,11 +15,7 @@ from datetime import datetime
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
 from lib389.exceptions import Error
-from lib389._constants import (
-        DEFAULT_SUFFIX, DEFAULT_BENAME, DN_EXPORT_TASK, DN_BACKUP_TASK,
-        DN_IMPORT_TASK, DN_RESTORE_TASK, DN_INDEX_TASK, DN_MBO_TASK,
-        DN_TOMB_FIXUP_TASK, DN_TASKS, DIRSRV_STATE_ONLINE
-        )
+from lib389._constants import *
 from lib389.properties import (
         TASK_WAIT, EXPORT_REPL_INFO, MT_PROPNAME_TO_ATTRNAME, MT_SUFFIX,
         TASK_TOMB_STRIP
@@ -27,6 +23,14 @@ from lib389.properties import (
 
 
 class Task(DSLdapObject):
+    """A single instance of a task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
     def __init__(self, instance, dn=None):
         super(Task, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
@@ -37,6 +41,7 @@ class Task(DSLdapObject):
 
     def is_complete(self):
         """Return True if task is complete, else False."""
+
         self._exit_code = self.get_attr_val("nsTaskExitCode")
         if not self.exists() or self._exit_code is not None:
             return True
@@ -44,6 +49,7 @@ class Task(DSLdapObject):
 
     def get_exit_code(self):
         """Return task's exit code if task is complete, else None."""
+
         if self.is_complete():
             try:
                 return int(self._exit_code)
@@ -53,6 +59,7 @@ class Task(DSLdapObject):
 
     def wait(self, timeout=120):
         """Wait until task is complete."""
+
         count = 0
         while count < timeout:
             if self.is_complete():
@@ -61,16 +68,65 @@ class Task(DSLdapObject):
             time.sleep(2)
 
     def create(self, rdn=None, properties={}, basedn=None):
+        """Create a Task entry
+
+        :param rdn: RDN of the new entry
+        :type rdn: str
+        :param properties: Attributes for the new entry
+        :type properties: dict
+        :param basedn: Base DN of the new entry
+        :type rdn: str
+
+        :returns: DSLdapObject of the created entry
+        """
+
         properties['cn'] = self.cn
         return super(Task, self).create(rdn, properties, basedn)
 
     @staticmethod
     def _get_task_date():
         """Return a timestamp to use in naming new task entries."""
+
         return datetime.now().isoformat()
 
 
+class AutomemberRebuildMembershipTask(Task):
+    """A single instance of automember rebuild membership task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'automember_rebuild_' + Task._get_task_date()
+        dn = "cn=" + self.cn + "," + DN_AUTOMEMBER_REBUILD_TASK
+
+        super(AutomemberRebuildMembershipTask, self).__init__(instance, dn)
+        self._must_attributes.extend(['basedn', 'filter'])
+
+
+class FixupLinkedAttributesTask(Task):
+    """A single instance of fixup linked attributes task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'fixup_linked_attrs_' + Task._get_task_date()
+        dn = "cn=" + self.cn + "," + DN_FIXUP_LINKED_ATTIBUTES
+
+        super(FixupLinkedAttributesTask, self).__init__(instance, dn)
+        self._must_attributes.extend(['basedn'])
+
+
 class MemberOfFixupTask(Task):
+    """A single instance of memberOf task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
     def __init__(self, instance, dn=None):
         self.cn = 'memberOf_fixup_' + Task._get_task_date()
         dn = "cn=" + self.cn + "," + DN_MBO_TASK
@@ -80,6 +136,12 @@ class MemberOfFixupTask(Task):
 
 
 class USNTombstoneCleanupTask(Task):
+    """A single instance of USN tombstone cleanup task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
     def __init__(self, instance, dn=None):
         self.cn = 'usn_cleanup_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=USN tombstone cleanup task," + DN_TASKS
@@ -92,12 +154,20 @@ class USNTombstoneCleanupTask(Task):
 
         return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
+
 class SchemaReloadTask(Task):
+    """A single instance of schema reload task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
     def __init__(self, instance, dn=None):
         self.cn = 'schema_reload_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
 
         super(SchemaReloadTask, self).__init__(instance, dn)
+
 
 class AbortCleanAllRUVTask(Task):
     """Abort the Clean All Ruv task on all masters. You should
@@ -107,11 +177,13 @@ class AbortCleanAllRUVTask(Task):
     :param instance: The instance
     :type instance: lib389.DirSrv
     """
+
     def __init__(self, instance, dn=None):
         self.cn = 'abortcleanallruv_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=abort cleanallruv," + DN_TASKS
 
         super(AbortCleanAllRUVTask, self).__init__(instance, dn)
+
 
 class CleanAllRUVTask(Task):
     """Create the clean all ruv task. This will be replicated through
@@ -122,6 +194,7 @@ class CleanAllRUVTask(Task):
     :param instance: The instance
     :type instance: lib389.DirSrv
     """
+
     def __init__(self, instance, dn=None):
         self.cn = 'cleanallruv_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=cleanallruv," + DN_TASKS
@@ -139,6 +212,7 @@ class CleanAllRUVTask(Task):
         :param basedn: Basedn to create the entry. Do not change this.
         :type basedn: str
         """
+
         # Stash the props for abort
         self._properties = properties
         return super(CleanAllRUVTask, self).create(rdn, properties, basedn)
@@ -150,6 +224,7 @@ class CleanAllRUVTask(Task):
         :type certify: bool
         :returns: AbortCleanAllRUVTask
         """
+
         if certify is True:
             self._properties['replica-certify-all'] = 'yes'
         else:
@@ -158,6 +233,7 @@ class CleanAllRUVTask(Task):
         abort_task = AbortCleanAllRUVTask(self._instance)
         abort_task.create(properties=self._properties)
         return abort_task
+
 
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()

@@ -19,12 +19,17 @@ class DSEldif(object):
 
     def __init__(self, instance):
         self._instance = instance
+        self._contents = []
 
         ds_paths = Paths(self._instance.serverid, self._instance)
         self.path = os.path.join(ds_paths.config_dir, 'dse.ldif')
 
         with open(self.path, 'r') as file_dse:
-            self._contents = file_dse.readlines()
+            for line in file_dse.readlines():
+                if line.startswith('dn'):
+                    self._contents.append(line.lower())
+                else:
+                    self._contents.append(line)
 
     def _update(self):
         """Update the dse.ldif with a new contents"""
@@ -39,7 +44,7 @@ class DSEldif(object):
         relative attribute indexes and the attribute value
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
         attr_data = {}
 
         # Find where the entry ends
@@ -58,7 +63,7 @@ class DSEldif(object):
                 attr_data.update({entry_slice.index(line): attr_value})
 
         if not attr_data:
-            raise ValueError("Attribute {} wasn't found under dn: {}".format(attr, entry_dn))
+            raise ValueError("Attribute {} wasn't found under dn: {}".format(attr, entry_dn.lower()))
 
         return entry_dn_i, attr_data
 
@@ -89,7 +94,7 @@ class DSEldif(object):
         :type value: str
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
         self._contents.insert(entry_dn_i+1, "{}: {}\n".format(attr, value))
         self._update()
 
