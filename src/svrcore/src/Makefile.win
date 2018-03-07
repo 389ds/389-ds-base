@@ -1,0 +1,77 @@
+#! gmake
+
+# /*
+#  * Copyright (C) 1998 Netscape Communications Corporation.
+#  * All Rights Reserved.
+#  *
+#  * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+#  *
+#  * This Source Code Form is subject to the terms of the Mozilla Public
+#  * License, v. 2.0. If a copy of the MPL was not distributed with this
+#  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#  */
+
+#######################################################################
+# (1) Include initial platform-independent assignments (MANDATORY).   #
+#######################################################################
+
+include manifest.mn
+
+#######################################################################
+# (2) Include "global" configuration information. (OPTIONAL)          #
+#######################################################################
+
+include $(CORE_DEPTH)/coreconf/config.mk
+
+#######################################################################
+# (3) Include "component" configuration information. (OPTIONAL)       #
+#######################################################################
+
+
+
+#######################################################################
+# (4) Include "local" platform-dependent assignments (OPTIONAL).      #
+#######################################################################
+
+# Build only static library
+IMPORT_LIBRARY=
+SHARED_LIBRARY=
+
+#######################################################################
+# (5) Execute "global" rules. (OPTIONAL)                              #
+#######################################################################
+
+include $(CORE_DEPTH)/coreconf/rules.mk
+
+#######################################################################
+# (6) Execute "component" rules. (OPTIONAL)                           #
+#######################################################################
+
+
+
+#######################################################################
+# (7) Execute "local" rules. (OPTIONAL).                              #
+#######################################################################
+
+INCLUDES += -I.
+
+all release::
+	@echo ---- Finished ----
+
+coreconf_hack:
+	cd ../coreconf; $(MAKE) export
+	$(MAKE) import
+
+RelEng_bld: coreconf_hack
+	$(MAKE)
+
+ifeq ($(OS_ARCH), WINNT)
+libs install:: ntsvrcore.res
+	$(NSINSTALL) -m 444 $< $(SOURCE_LIB_DIR)
+
+release_md::
+	$(INSTALL) -m 444 ntsvrcore.res $(SOURCE_RELEASE_PREFIX)/$(SOURCE_RELEASE_LIB_DIR)
+endif
+
+ntsvrcore.res: ntgetpin.rc
+	rc -fo $@ -i. $<

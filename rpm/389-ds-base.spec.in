@@ -22,6 +22,9 @@
 
 %global use_perl __PERL_ON__
 
+%define nspr_version 4.6
+%define nss_version 3.11
+
 %if %{use_asan}
 %global use_tcmalloc 0
 %global variant base-asan
@@ -64,7 +67,6 @@ Provides:         ldif2ldbm
 # Attach the buildrequires to the top level package:
 BuildRequires:    nspr-devel
 BuildRequires:    nss-devel
-BuildRequires:    svrcore-devel >= 4.1.2
 BuildRequires:    openldap-devel
 BuildRequires:    libdb-devel
 BuildRequires:    cyrus-sasl-devel
@@ -95,6 +97,8 @@ BuildRequires:    libasan
 BuildRequires: cargo
 BuildRequires: rust
 %endif
+BuildRequires:    pkgconfig
+BuildRequires:    pkgconfig(systemd)
 # Needed to support regeneration of the autotool artifacts.
 BuildRequires:    autoconf
 BuildRequires:    automake
@@ -180,6 +184,9 @@ Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
 %package          libs
 Summary:          Core libraries for 389 Directory Server (%{variant})
 Group:            System Environment/Daemons
+Provides:         svrcore = 4.1.4
+Obsoletes:        svrcore <= 4.1.3
+Conflicts:        svrcore
 # You can work this out by running LDD on libslapd.so to see what it needs in
 # isolation.
 Requires:         nss
@@ -205,11 +212,13 @@ package to be installed with just the -libs package and without the main package
 %package          devel
 Summary:          Development libraries for 389 Directory Server (%{variant})
 Group:            Development/Libraries
+Provides:         svrcore-devel = 4.1.4
+Obsoletes:        svrcore-devel <= 4.1.3
+Conflicts:        svrcore-devel
 Requires:         %{name}-libs = %{version}-%{release}
 Requires:         pkgconfig
 Requires:         nspr-devel
 Requires:         nss-devel
-Requires:         svrcore-devel
 Requires:         openldap-devel
 # systemd-libs contains the headers iirc.
 Requires:         systemd-libs
@@ -277,7 +286,7 @@ CLANG_FLAGS="--enable-clang"
 
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
 # hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529
-NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
+NSSARGS="--with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
 
 %if %{use_asan} && !%{use_rust}
 ASAN_FLAGS="--enable-asan --enable-debug"
@@ -354,6 +363,8 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.la
+rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.a
+rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 
 
 %if %{use_perl}
@@ -564,18 +575,24 @@ fi
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_mandir}/man3/*
+%{_includedir}/svrcore.h
 %{_includedir}/%{pkgname}
+%{_libdir}/libsvrcore.so
 %{_libdir}/%{pkgname}/libslapd.so
 %{_libdir}/%{pkgname}/libns-dshttpd.so
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
 %{_libdir}/%{pkgname}/libldaputil.so
-%{_libdir}/pkgconfig/*
+%{_libdir}/pkgconfig/svrcore.pc
+%{_libdir}/pkgconfig/dirsrv.pc
+%{_libdir}/pkgconfig/libsds.pc
+%{_libdir}/pkgconfig/nunc-stans.pc
 
 %files libs
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %dir %{_libdir}/%{pkgname}
+%{_libdir}/libsvrcore.so.*
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd-*.so
 %{_libdir}/%{pkgname}/libnunc-stans.so.*

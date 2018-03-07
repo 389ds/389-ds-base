@@ -26,7 +26,6 @@ CMOCKA_INCLUDES = @cmocka_inc@
 PROFILING_DEFINES = @profiling_defs@
 NSPR_INCLUDES = @nspr_inc@
 
-SVRCORE_INCLUDES = @svrcore_inc@
 SASL_INCLUDES = @sasl_inc@
 EVENT_INCLUDES = @event_inc@
 
@@ -69,6 +68,8 @@ endif
 
 NUNCSTANS_INCLUDES = -I$(srcdir)/src/nunc-stans/include/
 NUNC_STANS_ON = 1
+
+SVRCORE_INCLUDES = -I$(srcdir)/src/svrcore/src/
 
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
@@ -142,7 +143,6 @@ ldaplib_defs = @ldaplib_defs@
 
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
-SVRCORE_LINK = @svrcore_lib@ -lsvrcore
 ICU_LINK = @icu_lib@ -licui18n -licuuc -licudata
 PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
@@ -331,6 +331,7 @@ bin_PROGRAMS = dbscan \
 
 server_LTLIBRARIES = libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
 
+lib_LTLIBRARIES = libsvrcore.la
 
 # this is how to add optional plugins
 if enable_pam_passthru
@@ -934,7 +935,8 @@ cockpitcss_DATA = src/cockpit/389-console/css/ds.css \
 
 pkgconfig_DATA = src/pkgconfig/dirsrv.pc \
 	src/pkgconfig/libsds.pc \
-	src/pkgconfig/nunc-stans.pc
+	src/pkgconfig/nunc-stans.pc \
+	src/pkgconfig/svrcore.pc
 
 #------------------------
 # header files
@@ -945,6 +947,8 @@ serverinc_HEADERS = ldap/servers/plugins/replication/repl-session-plugin.h \
 	ldap/servers/plugins/replication/winsync-plugin.h \
 	src/nunc-stans/include/nunc-stans.h \
 	src/libsds/include/sds.h
+
+include_HEADERS = src/svrcore/src/svrcore.h
 
 #------------------------
 # man pages
@@ -1116,6 +1120,26 @@ libldaputil_la_LDFLAGS = $(AM_LDFLAGS)
 #   Dynamic Server Libraries
 #
 #////////////////////////////////////////////////////////////////
+
+#------------------------
+# libsvrcore
+#------------------------
+libsvrcore_la_SOURCES = \
+	src/svrcore/src/alt.c \
+	src/svrcore/src/cache.c \
+	src/svrcore/src/errors.c \
+	src/svrcore/src/file.c \
+	src/svrcore/src/ntgetpin.c \
+	src/svrcore/src/ntresource.h \
+	src/svrcore/src/pin.c \
+	src/svrcore/src/pk11.c \
+	src/svrcore/src/std.c \
+	src/svrcore/src/systemd-ask-pass.c \
+	src/svrcore/src/std-systemd.c \
+	src/svrcore/src/user.c
+
+libsvrcore_la_LDFLAGS = $(AM_LDFLAGS)
+libsvrcore_la_CPPFLAGS = $(AM_CPPFLAGS) $(SVRCORE_INCLUDES) $(DSPLUGIN_CPPFLAGS)
 
 #------------------------
 # libsds
@@ -1363,8 +1387,8 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/slapi_pal.c \
 	$(libavl_a_SOURCES)
 
-libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ $(SVRCORE_INCLUDES) @kerberos_inc@ @pcre_inc@ $(SDS_CPPFLAGS)
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK) libsds.la
+libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ @kerberos_inc@ @pcre_inc@ $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK) libsds.la libsvrcore.la
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 
@@ -1616,7 +1640,7 @@ libpbe_plugin_la_SOURCES = ldap/servers/plugins/rever/pbe.c \
 	ldap/servers/plugins/rever/rever.c
 
 libpbe_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SVRCORE_INCLUDES)
-libpbe_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
+libpbe_plugin_la_LIBADD = libslapd.la libsvrcore.la $(NSS_LINK)
 libpbe_plugin_la_DEPENDENCIES = libslapd.la
 libpbe_plugin_la_LDFLAGS = -avoid-version
 
@@ -2006,7 +2030,7 @@ ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 migratecred_SOURCES = ldap/servers/slapd/tools/migratecred.c
 
 migratecred_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-migratecred_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+migratecred_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 migratecred_DEPENDENCIES = libslapd.la
 
 #------------------------
@@ -2015,7 +2039,7 @@ migratecred_DEPENDENCIES = libslapd.la
 mmldif_SOURCES = ldap/servers/slapd/tools/mmldif.c
 
 mmldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-mmldif_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
+mmldif_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 mmldif_DEPENDENCIES = libslapd.la
 
 #------------------------
@@ -2067,8 +2091,8 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) $(SVRCORE_INCLUDES)
-ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
+ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
+	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
 ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
@@ -2084,7 +2108,7 @@ endif
 pwdhash_SOURCES = ldap/servers/slapd/tools/pwenc.c
 
 pwdhash_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-pwdhash_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+pwdhash_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 pwdhash_DEPENDENCIES = libslapd.la
 
 #------------------------
@@ -2128,14 +2152,14 @@ test_slapd_SOURCES = test/main.c \
 	test/plugins/pwdstorage/pbkdf2.c
 
 # We need to link a lot of plugins for this test.
-test_slapd_LDADD = 	libslapd.la \
+test_slapd_LDADD =	libslapd.la \
 					libpwdstorage-plugin.la \
 					$(NSS_LINK) $(NSPR_LINK)
 test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 ### WARNING: Slap.h needs cert.h, which requires the -I/lib/ldaputil!!!
 ### WARNING: Slap.h pulls ssl.h, which requires nss!!!!
 # We need to pull in plugin header paths too:
-test_slapd_CPPFLAGS = 	$(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) \
+test_slapd_CPPFLAGS =	$(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) \
 						-I$(srcdir)/ldap/servers/plugins/pwdstorage
 
 test_libsds_SOURCES =  src/libsds/test/test_sds.c \
@@ -2388,7 +2412,7 @@ rpms: rpmbrprep
 srpm: rpmbrprep
 	cd $(RPMBUILD); \
 	rpmbuild --define "_topdir $(RPMBUILD)" \
-	         -bs SPECS/389-ds-base.spec
+			 -bs SPECS/389-ds-base.spec
 
 if HAVE_DOXYGEN
 
