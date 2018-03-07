@@ -429,9 +429,9 @@ sub get_replicas
 		# do a one level search with nsuniqueid in the filter - this will force the use of the
 		# nsuniqueid index instead of the entry dn index, which seems to be unreliable in
 		# heavily loaded servers
-		$ruv = $conn->search($replicaroot, "one",
-							 "(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectClass=nsTombstone))",
-							 0, qw(nsds50ruv nsruvReplicaLastModified nsds5AgmtMaxCSN));
+		$ruv = $conn->search($replicaroot, "sub",
+		                     "(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectClass=nsTombstone))",
+		                     0, qw(nsds50ruv nsruvReplicaLastModified nsds5AgmtMaxCSN));
 		next if !$ruv; # this should be an error case . . .
 
 		for ($ruv->getValues('nsds50ruv')) {
