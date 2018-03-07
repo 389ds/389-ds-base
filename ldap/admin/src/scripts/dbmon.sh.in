@@ -55,6 +55,10 @@ parseldif() {
         /^dbcachepageout/ { dbcachepageout=$2 }
         /^nsslapd-db-page-ro-evict-rate/ { dbroevict=$2 }
         /^nsslapd-db-pages-in-use/ { dbpages=$2 }
+        /^normalizeddncachehitratio/ { ndnratio=$2 }
+        /^currentnormalizeddncachesize/ { ndncursize=$2 ; havendnstats=1 }
+        /^maxnormalizeddncachesize/ { ndnmaxsize=$2 }
+        /^currentnormalizeddncachecount/ { ndncount=$2 }
         /^dn: cn=monitor, *cn=[a-zA-Z0-9][a-zA-Z0-9_\.\-]*, *cn=ldbm database, *cn=plugins, *cn=config/ {
             idxnum=-1
             idxname=""
@@ -72,10 +76,6 @@ parseldif() {
         /^maxdncachesize/ { stats[dbname,"dnmax"]=$2 }
         /^currentdncachecount/ { stats[dbname,"dncnt"]=$2 }
         /^dncachehitratio/ { stats[dbname,"dnratio"]=$2 }
-        /^normalizeddncachehitratio/ { stats[dbname,"ndnratio"]=$2 }
-        /^currentnormalizeddncachesize/ { stats[dbname,"ndncursize"]=$2 ; havendnstats=1 }
-        /^maxnormalizeddncachesize/ { stats[dbname,"ndnmaxsize"]=$2 }
-        /^currentnormalizeddncachecount/ { stats[dbname,"ndncount"]=$2 }
 
         /^dbfilename-/ {
             #rhds
@@ -142,7 +142,9 @@ parseldif() {
                 maxdbnamelen += 4 # :ent
                 dbentext = ":ent"
                 dbdnext = ":dn "
-                dbndnext = ":ndn"
+                if (havendnstats) {
+                    dbndnext = ":ndn"
+                }
             } else {
                 dbentext = ""
                 dbdnext = ""
@@ -156,6 +158,16 @@ parseldif() {
                 fmtstr = sprintf("%%%d.%ds %%10.10s %%13.13s %%6.6s %%7.7s %%10.9s\n", maxdbnamelen, maxdbnamelen)
                 printf fmtstr, "dbname", "count", "free", "free%", "size", "hit_ratio%"
             }
+
+            fmtstr = sprintf("%%%d.%ds %%10d %%13d %%6.1f %%7.1f %%10.1f\n", maxdbnamelen, maxdbnamelen)
+            if (havendnstats) {
+                # normalized dn cache
+                ndnfree=ndnmaxsize-ndncursize
+                ndnfreep=ndnfree/ndnmaxsize*100
+                ndnsize=(ndncount == 0) ? 0 : ndncursize/ndncount
+                printf fmtstr, "global" dbndnext, ndncount, ndnfree, ndnfreep, ndnsize, ndnratio
+            }
+
             for (dbn in dbnames) {
                 cur=stats[dbn,"entcur"]
                 max=stats[dbn,"entmax"]
@@ -164,7 +176,6 @@ parseldif() {
                 free=max-cur
                 freep=free/max*100
                 size=(cnt == 0) ? 0 : cur/cnt
-                fmtstr = sprintf("%%%d.%ds %%10d %%13d %%6.1f %%7.1f %%10.1f\n", maxdbnamelen, maxdbnamelen)
                 printf fmtstr, dbnames[dbn] dbentext, cnt, free, freep, size, eratio
                 if (havednstats) {
                     dcur=stats[dbn,"dncur"]
@@ -175,18 +186,6 @@ parseldif() {
                     dfreep=dfree/dmax*100
                     dsize=(dcnt == 0) ? 0 : dcur/dcnt
                     printf fmtstr, dbnames[dbn] dbdnext, dcnt, dfree, dfreep, dsize, dratio
-                }
-
-                if (havendnstats) {
-                    # normalized dn cache
-                    nratio=stats[dbn,"ndnratio"]
-                    ncursize=stats[dbn,"ndncursize"]
-                    nmaxsize=stats[dbn,"ndnmaxsize"]
-                    ncount=stats[dbn,"ndncount"]
-                    nfree=nmaxsize-ncursize
-                    nfreep=nfree/nmaxsize*100
-                    nsize=(ncount == 0) ? 0 : ncursize/ncount
-                    printf fmtstr, dbnames[dbn] dbndnext, ncount, nfree, nfreep, nsize, nratio
                 }
 
                 if (indexlist) {

@@ -10,6 +10,7 @@ import ldap
 from ldap import filter as ldap_filter
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.utils import ds_is_older
 
 class Monitor(DSLdapObject):
     """An object that helps reading of cn=monitor for server statistics.
@@ -96,6 +97,17 @@ class MonitorLDBM(DSLdapObject):
             'dbcacheroevict',
             'dbcacherwevict',
         ]
+        if not ds_is_older("1.4.0"):
+            self._backend_keys.extend([
+                'normalizeddncachetries',
+                'normalizeddncachehits',
+                'normalizeddncachemisses',
+                'normalizeddncachehitratio',
+                'currentnormalizeddncachesize',
+                'maxnormalizeddncachesize',
+                'currentnormalizeddncachecount'
+            ])
+
     def status(self):
         return self.get_attrs_vals(self._backend_keys)
 
@@ -122,14 +134,17 @@ class MonitorBackend(DSLdapObject):
             'maxdncachesize',
             'currentdncachecount',
             'maxdncachecount',
-            'normalizeddncachetries',
-            'normalizeddncachehits',
-            'normalizeddncachemisses',
-            'normalizeddncachehitratio',
-            'currentnormalizeddncachesize',
-            'maxnormalizeddncachesize',
-            'currentnormalizeddncachecount',
         ]
+        if ds_is_older("1.4.0"):
+            self._backend_keys.extend([
+                'normalizeddncachetries',
+                'normalizeddncachehits',
+                'normalizeddncachemisses',
+                'normalizeddncachehitratio',
+                'currentnormalizeddncachesize',
+                'maxnormalizeddncachesize',
+                'currentnormalizeddncachecount'
+            ])
 
     def status(self):
         return self.get_attrs_vals(self._backend_keys)
