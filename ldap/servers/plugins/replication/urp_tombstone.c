@@ -51,97 +51,94 @@ get_tombstone_csn(const Slapi_Entry *entry, const CSN **delcsn)
     return ists;
 }
 
-static Slapi_DN*
+static Slapi_DN *
 get_valid_parent_for_conflict(Slapi_Entry *entry)
 {
-	char *replconflict = slapi_entry_attr_get_charptr(entry,ATTR_NSDS5_REPLCONFLICT );
-	char *validdn = NULL;
-	Slapi_DN *valid_DN = NULL;
+    char *replconflict = slapi_entry_attr_get_charptr(entry, ATTR_NSDS5_REPLCONFLICT);
+    char *validdn = NULL;
+    Slapi_DN *valid_DN = NULL;
 
-	if (replconflict) {
-		validdn = strstr(replconflict, " (ADD) ");
-		if (validdn) {
-			validdn += 7;
-			valid_DN = slapi_sdn_new_dn_byval(validdn);
-			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-				"get_valid_parent_for_conflict - valid entry dn: %s\n",
-				validdn);
-		}
-		slapi_ch_free_string(&replconflict);
-	}
-	return valid_DN;
+    if (replconflict) {
+        validdn = strstr(replconflict, " (ADD) ");
+        if (validdn) {
+            validdn += 7;
+            valid_DN = slapi_sdn_new_dn_byval(validdn);
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                          "get_valid_parent_for_conflict - valid entry dn: %s\n",
+                          validdn);
+        }
+        slapi_ch_free_string(&replconflict);
+    }
+    return valid_DN;
 }
 
 int
-tombstone_to_conflict_check_parent (
-	char *sessionid,
-	char *parentdn,
-	const char *uniqueid,
-	const char *parentuniqueid,
-	CSN *opcsn,
-	Slapi_DN *conflictdn)
+tombstone_to_conflict_check_parent(
+    char *sessionid,
+    char *parentdn,
+    const char *uniqueid,
+    const char *parentuniqueid,
+    CSN *opcsn,
+    Slapi_DN *conflictdn)
 {
-	int rc = 0;
-	int op_result;
-	Slapi_PBlock *newpb;
+    int rc = 0;
+    int op_result;
+    Slapi_PBlock *newpb;
 
-	if (parentdn == 0) {
-		slapi_log_err(SLAPI_LOG_REPL, sessionid,
-				"tombstone_to_conflict_check_parent - no parent entry for: %s\n",
-				slapi_sdn_get_ndn(conflictdn));
-		return rc;
-	} else {
-		slapi_log_err(SLAPI_LOG_REPL, sessionid,
-				"tombstone_to_conflict_check_parent - checking parent entry: %s\n",
-				parentdn);
-	}
-	newpb = slapi_pblock_new();
-	slapi_search_internal_set_pb(
-					newpb,
-					parentdn,
-					LDAP_SCOPE_BASE,
-					"objectclass=*",
-					NULL, /*attrs*/
-					0, /*attrsonly*/
-					NULL, /*Controls*/
-					parentuniqueid, /*uniqueid*/
-					repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
-					0);
-	slapi_search_internal_pb(newpb); 
-	slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
-	switch(op_result)
-	{
-	case LDAP_SUCCESS:
-		{
-		Slapi_Entry **entries= NULL;
-		slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-		if(entries!=NULL && entries[0]!=NULL) {
-			if(is_conflict_entry(entries[0])) {
-				Slapi_DN *newsuperior = get_valid_parent_for_conflict(entries[0]);
-				Slapi_RDN *rdn = slapi_rdn_new();
-				slapi_sdn_get_rdn(conflictdn, rdn);
-				const char *newrdn = slapi_rdn_get_rdn(rdn);
-				op_result= urp_fixup_modrdn_entry(
-					conflictdn,
-					newrdn,
-					newsuperior,
-					uniqueid,
-					NULL,
-					NULL,
-					OP_FLAG_NOOP);
-				slapi_rdn_free(&rdn);
-				slapi_sdn_free(&newsuperior);
-			}
-		}
-		}
-		break;
-	default:
-		break;
-	}
+    if (parentdn == 0) {
+        slapi_log_err(SLAPI_LOG_REPL, sessionid,
+                      "tombstone_to_conflict_check_parent - no parent entry for: %s\n",
+                      slapi_sdn_get_ndn(conflictdn));
+        return rc;
+    } else {
+        slapi_log_err(SLAPI_LOG_REPL, sessionid,
+                      "tombstone_to_conflict_check_parent - checking parent entry: %s\n",
+                      parentdn);
+    }
+    newpb = slapi_pblock_new();
+    slapi_search_internal_set_pb(
+        newpb,
+        parentdn,
+        LDAP_SCOPE_BASE,
+        "objectclass=*",
+        NULL,           /*attrs*/
+        0,              /*attrsonly*/
+        NULL,           /*Controls*/
+        parentuniqueid, /*uniqueid*/
+        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        0);
+    slapi_search_internal_pb(newpb);
+    slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
+    switch (op_result) {
+    case LDAP_SUCCESS: {
+        Slapi_Entry **entries = NULL;
+        slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries != NULL && entries[0] != NULL) {
+            if (is_conflict_entry(entries[0])) {
+                Slapi_DN *newsuperior = get_valid_parent_for_conflict(entries[0]);
+                Slapi_RDN *rdn = slapi_rdn_new();
+                slapi_sdn_get_rdn(conflictdn, rdn);
+                const char *newrdn = slapi_rdn_get_rdn(rdn);
+                op_result = urp_fixup_modrdn_entry(
+                    conflictdn,
+                    newrdn,
+                    newsuperior,
+                    uniqueid,
+                    NULL,
+                    NULL,
+                    OP_FLAG_NOOP);
+                slapi_rdn_free(&rdn);
+                slapi_sdn_free(&newsuperior);
+            }
+        }
+    } break;
+    default:
+        break;
+    }
 
-	slapi_free_search_results_internal (newpb);
-	slapi_pblock_destroy(newpb);
-	return rc;
+    slapi_free_search_results_internal(newpb);
+    slapi_pblock_destroy(newpb);
+    return rc;
 }
 
 static int
@@ -205,106 +202,108 @@ tombstone_to_glue_resolve_parent(
 int
 conflict_to_tombstone(char *sessionid, Slapi_Entry *entry, CSN *opcsn)
 {
-	int op_result = 0;
-	Slapi_RDN *srdn = slapi_rdn_new();
-	const char *uniqueid = slapi_entry_get_uniqueid ( entry );
-	const char *newrdn = NULL;
-	char *conflictdn = NULL;
-	char *replconflict = slapi_entry_attr_get_charptr(entry,ATTR_NSDS5_REPLCONFLICT );
+    int op_result = 0;
+    Slapi_RDN *srdn = slapi_rdn_new();
+    const char *uniqueid = slapi_entry_get_uniqueid(entry);
+    const char *newrdn = NULL;
+    char *conflictdn = NULL;
+    char *replconflict = slapi_entry_attr_get_charptr(entry, ATTR_NSDS5_REPLCONFLICT);
 
-	if (replconflict) {
-		conflictdn = strstr(replconflict, " (ADD) ");
-		if (conflictdn == NULL) {
-			/* error, wrong type of conflict */
-			op_result = 1;
-		} else {
-			conflictdn += 7;
-			slapi_rdn_init_all_dn(srdn, conflictdn);
-			newrdn = slapi_rdn_get_nrdn(srdn);
-			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-				"conflict_to_tombstone - %s - valid entry dn: %s newrdn: %s\n",
-				sessionid, conflictdn, newrdn);
-		}
-	}
+    if (replconflict) {
+        conflictdn = strstr(replconflict, " (ADD) ");
+        if (conflictdn == NULL) {
+            /* error, wrong type of conflict */
+            op_result = 1;
+        } else {
+            conflictdn += 7;
+            slapi_rdn_init_all_dn(srdn, conflictdn);
+            newrdn = slapi_rdn_get_nrdn(srdn);
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                          "conflict_to_tombstone - %s - valid entry dn: %s newrdn: %s\n",
+                          sessionid, conflictdn, newrdn);
+        }
+    }
 
-	if (op_result) goto done;
+    if (op_result)
+        goto done;
 
-	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-			"conflict_to_tombstone - %s - Renaming entry %s to %s\n",
-			sessionid, slapi_entry_get_dn_const (entry), newrdn);
-	op_result = urp_fixup_rename_entry(entry, newrdn, NULL, OP_FLAG_NOOP);
-	if (op_result) goto done;
+    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                  "conflict_to_tombstone - %s - Renaming entry %s to %s\n",
+                  sessionid, slapi_entry_get_dn_const(entry), newrdn);
+    op_result = urp_fixup_rename_entry(entry, newrdn, NULL, OP_FLAG_NOOP);
+    if (op_result)
+        goto done;
 
-	op_result = urp_fixup_delete_entry (uniqueid, slapi_entry_get_dn_const (entry), opcsn, 0);
+    op_result = urp_fixup_delete_entry(uniqueid, slapi_entry_get_dn_const(entry), opcsn, 0);
 
-done: 
-	slapi_ch_free_string(&replconflict);
-	slapi_rdn_free(&srdn);
-	return op_result;
+done:
+    slapi_ch_free_string(&replconflict);
+    slapi_rdn_free(&srdn);
+    return op_result;
 }
 
 /*
  * Convert a tombstone into a conflict entry.
  */
 int
-tombstone_to_conflict (
-	char *sessionid,
-	Slapi_Entry *tombstoneentry,
-	const Slapi_DN *conflictdn,
-	const char *reason,
-	CSN *opcsn,
-	Slapi_DN **newparentdn)
+tombstone_to_conflict(
+    char *sessionid,
+    Slapi_Entry *tombstoneentry,
+    const Slapi_DN *conflictdn,
+    const char *reason,
+    CSN *opcsn,
+    Slapi_DN **newparentdn)
 {
-	int op_result = 0;
-	Slapi_Mods smods;
-	char csnstr[CSN_STRSIZE+1];
-	char buf[BUFSIZ];
-	char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, "nsuiqueid");
-	char *entrydn = slapi_entry_attr_get_charptr(tombstoneentry, "nscpentrydn");
-	char *parentuniqueid = slapi_entry_attr_get_charptr (tombstoneentry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID); /* Allocated */
-	char *parentdn = slapi_dn_parent(slapi_sdn_get_ndn(conflictdn));
-	const CSN *dncsn = entry_get_dncsn(tombstoneentry);
-	csn_as_string(dncsn, PR_FALSE, csnstr);
+    int op_result = 0;
+    Slapi_Mods smods;
+    char csnstr[CSN_STRSIZE + 1];
+    char buf[BUFSIZ];
+    char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, "nsuiqueid");
+    char *entrydn = slapi_entry_attr_get_charptr(tombstoneentry, "nscpentrydn");
+    char *parentuniqueid = slapi_entry_attr_get_charptr(tombstoneentry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID); /* Allocated */
+    char *parentdn = slapi_dn_parent(slapi_sdn_get_ndn(conflictdn));
+    const CSN *dncsn = entry_get_dncsn(tombstoneentry);
+    csn_as_string(dncsn, PR_FALSE, csnstr);
 
-	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-			                 "tombstone_to_conflict - %s - trying to resurrect tombstone as '%s'.\n",
-			                 sessionid, slapi_sdn_get_ndn(conflictdn));
-	slapi_sdn_set_normdn_byval(slapi_entry_get_sdn(tombstoneentry), slapi_sdn_get_ndn(conflictdn));
-	/* not just e_sdn, e_rsdn needs to be updated. */
-	slapi_rdn_set_all_dn(slapi_entry_get_srdn(tombstoneentry), slapi_sdn_get_ndn(conflictdn));
-	op_result = urp_fixup_add_entry (tombstoneentry, NULL, NULL, opcsn, OP_FLAG_RESURECT_ENTRY|OP_FLAG_NOOP);
+    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                  "tombstone_to_conflict - %s - trying to resurrect tombstone as '%s'.\n",
+                  sessionid, slapi_sdn_get_ndn(conflictdn));
+    slapi_sdn_set_normdn_byval(slapi_entry_get_sdn(tombstoneentry), slapi_sdn_get_ndn(conflictdn));
+    /* not just e_sdn, e_rsdn needs to be updated. */
+    slapi_rdn_set_all_dn(slapi_entry_get_srdn(tombstoneentry), slapi_sdn_get_ndn(conflictdn));
+    op_result = urp_fixup_add_entry(tombstoneentry, NULL, NULL, opcsn, OP_FLAG_RESURECT_ENTRY | OP_FLAG_NOOP);
 
-	if (op_result) {
-		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-			"tombstone_to_conflict - %s - Can't resurrect tombstone, error=%d\n",
-			sessionid, op_result);
-		goto done;
-	}
+    if (op_result) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "tombstone_to_conflict - %s - Can't resurrect tombstone, error=%d\n",
+                      sessionid, op_result);
+        goto done;
+    }
 
-	slapi_mods_init (&smods, 5);
-	slapi_mods_add (&smods, LDAP_MOD_ADD, "objectclass", strlen("ldapsubentry"),"ldapsubentry");
-	slapi_mods_add (&smods, LDAP_MOD_DELETE, "objectclass", strlen("glue"),"glue");
-	slapi_mods_add (&smods, LDAP_MOD_REPLACE, "conflictcsn", strlen(csnstr), csnstr);
-	PR_snprintf (buf, sizeof(buf), "%s (%s) %s",
-	             REASON_ANNOTATE_DN, "ADD", entrydn);
-	slapi_mods_add (&smods, LDAP_MOD_ADD, ATTR_NSDS5_REPLCONFLICT, strlen(buf), buf);
-	op_result = urp_fixup_modify_entry (uniqueid, conflictdn, opcsn, &smods, 0);
-	slapi_mods_done (&smods);
-	if (op_result == LDAP_TYPE_OR_VALUE_EXISTS) {
-		/* the objectclass was already present */
-		op_result = LDAP_SUCCESS;
-	}
-	/* this will go to postop 
+    slapi_mods_init(&smods, 5);
+    slapi_mods_add(&smods, LDAP_MOD_ADD, "objectclass", strlen("ldapsubentry"), "ldapsubentry");
+    slapi_mods_add(&smods, LDAP_MOD_DELETE, "objectclass", strlen("glue"), "glue");
+    slapi_mods_add(&smods, LDAP_MOD_REPLACE, "conflictcsn", strlen(csnstr), csnstr);
+    PR_snprintf(buf, sizeof(buf), "%s (%s) %s",
+                REASON_ANNOTATE_DN, "ADD", entrydn);
+    slapi_mods_add(&smods, LDAP_MOD_ADD, ATTR_NSDS5_REPLCONFLICT, strlen(buf), buf);
+    op_result = urp_fixup_modify_entry(uniqueid, conflictdn, opcsn, &smods, 0);
+    slapi_mods_done(&smods);
+    if (op_result == LDAP_TYPE_OR_VALUE_EXISTS) {
+        /* the objectclass was already present */
+        op_result = LDAP_SUCCESS;
+    }
+/* this will go to postop
 	if (op_result == LDAP_SUCCESS) {
 		op_result = tombstone_to_conflict_check_parent(sessionid, parentdn, uniqueid, parentuniqueid, opcsn, conflictdn);
 	}
 	*/
 done:
-	slapi_ch_free_string(&uniqueid);
-	slapi_ch_free_string(&parentuniqueid);
-	slapi_ch_free_string(&parentdn);
-	slapi_ch_free_string(&entrydn);
-	return op_result;
+    slapi_ch_free_string(&uniqueid);
+    slapi_ch_free_string(&parentuniqueid);
+    slapi_ch_free_string(&parentdn);
+    slapi_ch_free_string(&entrydn);
+    return op_result;
 }
 
 /*
