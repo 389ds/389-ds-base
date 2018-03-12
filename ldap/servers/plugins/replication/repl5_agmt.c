@@ -2523,7 +2523,7 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                     replmsg = NULL;
                 }
             }
-            PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s%sLDAP error: %s%s%s%s%s",
+            PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) %s%sLDAP error: %s%s%s%s%s",
                         ldaprc, message ? message : "", message ? "" : " - ",
                         slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "",
                         connrc ? " - " : "", connrc ? connmsg : "");
@@ -2531,7 +2531,7 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
         /* ldaprc == LDAP_SUCCESS */
         else if (replrc != 0) {
             if (replrc == NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED) {
-                PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s",
+                PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) %s",
                             ldaprc, "Replication session successful");
             } else if (replrc == NSDS50_REPL_DISABLED) {
                 if (agmt_is_enabled(ra)) {
@@ -2539,7 +2539,7 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                                                                    "Replication agreement for \"%s\" can not be updated while the suffix is disabled.\n"
                                                                    "You must enable it then restart the server for replication to take place).\n",
                                   ra->long_name ? ra->long_name : "a replica");
-                    PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
+                    PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) Total update aborted: "
                                                                   "Replication agreement for \"%s\" can not be updated while the suffix is disabled.\n"
                                                                   "You must enable it then restart the server for replication to take place).",
                                 replrc, ra->long_name ? ra->long_name : "a replica");
@@ -2548,29 +2548,29 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Total update aborted: "
                                                                    "Replication agreement for \"%s\" can not be updated while the agreement is disabled\n",
                                   ra->long_name ? ra->long_name : "a replica");
-                    PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
+                    PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) Total update aborted: "
                                                                   "Replication agreement for \"%s\" can not be updated while the agreement is disabled.",
                                 replrc, ra->long_name ? ra->long_name : "a replica");
                 }
             } else {
                 PR_snprintf(ra->last_init_status, STATUS_LEN,
-                            "%d Replication error acquiring replica: %s%s%s%s%s",
+                            "Error (%d) Replication error acquiring replica: %s%s%s%s%s",
                             replrc, protocol_response2string(replrc),
                             message ? " - " : "", message ? message : "",
                             connrc ? " - " : "", connrc ? connmsg : "");
             }
         } else if (connrc != CONN_OPERATION_SUCCESS) {
             PR_snprintf(ra->last_init_status, STATUS_LEN,
-                        "%d connection error: %s%s%s",
+                        "Error (%d) connection error: %s%s%s",
                         connrc, connmsg,
                         message ? " - " : "", message ? message : "");
         } else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
         {
             PR_snprintf(ra->last_init_status, STATUS_LEN,
-                        "%d %s",
+                        "Error (%d) %s",
                         ldaprc, message);
         } else { /* agmt_set_last_init_status(0,0,NULL) to reset agmt */
-            PR_snprintf(ra->last_init_status, STATUS_LEN, "%d", ldaprc);
+            PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d)", ldaprc);
         }
     }
 }
