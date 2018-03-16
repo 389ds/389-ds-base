@@ -48,7 +48,7 @@ enum
 typedef struct
 {
     char *issuerName;            /* issuer (symbolic/short) name */
-    char *issuerDN;              /* cert issuer's DN */
+    CERTName *issuerDN;          /* cert issuer's DN */
     LDAPUPropValList_t *propval; /* pointer to the prop-val pairs list */
     CertMapFn_t mapfn;           /* cert to ldapdn & filter mapping func */
     CertVerifyFn_t verifyfn;     /* verify cert function */
