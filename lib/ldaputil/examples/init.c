@@ -15,12 +15,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <nss3/cert.h>
 #include "certmap.h" /* Public Certmap API */
 #include "plugin.h"  /* must define extern "C" functions */
 
 
 NSAPI_PUBLIC int
-plugin_init_fn(void *certmap_info, const char *issuerName, const char *issuerDN, const char *libname)
+plugin_init_fn(void *certmap_info, const char *issuerName, const CERTName *issuerDN, const char *libname)
 {
     static int initialized = 0;
     int rv;

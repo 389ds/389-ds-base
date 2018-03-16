@@ -52,7 +52,6 @@ static char this_dllname[256];
 static const char *LIB_DIRECTIVE = "certmap";
 static const int LIB_DIRECTIVE_LEN = 7; /* strlen("LIB_DIRECTIVE") */
 
-static char *ldapu_dn_normalize(char *dn);
 static void *ldapu_propval_free(void *propval_in, void *arg);
 
 typedef struct
@@ -337,8 +336,13 @@ dbinfo_to_certinfo(DBConfDBInfo_t *db_info,
     certinfo->issuerName = db_info->dbname;
     db_info->dbname = 0;
 
-    certinfo->issuerDN = ldapu_dn_normalize(db_info->url);
-    db_info->url = 0;
+    /* Parse the Issuer DN. */
+    certinfo->issuerDN = CERT_AsciiToName(db_info->url);
+    if (NULL == certinfo->issuerDN                            /* invalid DN */
+            && ldapu_strcasecmp(db_info->url, "default") != 0 /* not "default" */) {
+        rv = LDAPU_ERR_MALFORMED_SUBJECT_DN;
+        goto error;
+    }
 
     /* hijack actual prop-vals from dbinfo -- to avoid strdup calls */
     if (db_info->firstprop) {
@@ -890,24 +894,26 @@ ldapu_cert_searchfn_default(void *cert, LDAP *ld, void *certmap_info_in, const c
 }
 
 NSAPI_PUBLIC int
-ldapu_issuer_certinfo(const char *issuerDN, void **certmap_info)
+ldapu_issuer_certinfo(const CERTName *issuerDN, void **certmap_info)
 {
     *certmap_info = 0;
 
-    if (!issuerDN || !*issuerDN || !ldapu_strcasecmp(issuerDN, "default")) {
-        *certmap_info = default_certmap_info;
-    } else if (certmap_listinfo) {
-        char *n_issuerDN = ldapu_dn_normalize(ldapu_strdup(issuerDN));
+    if (certmap_listinfo) {
         LDAPUListNode_t *cur = certmap_listinfo->head;
         while (cur) {
-            if (!ldapu_strcasecmp(n_issuerDN, ((LDAPUCertMapInfo_t *)cur->info)->issuerDN)) {
+            LDAPUCertMapInfo_t *info = (LDAPUCertMapInfo_t *)cur->info;
+
+            if (NULL == info->issuerDN) {
+                /* no DN to compare to (probably the default certmap info) */
+                continue;
+            }
+
+            if (CERT_CompareName(issuerDN, info->issuerDN) == SECEqual) {
                 *certmap_info = cur->info;
                 break;
             }
             cur = cur->next;
         }
-        if (n_issuerDN)
-            ldapu_free(n_issuerDN);
     }
     return *certmap_info ? LDAPU_SUCCESS : LDAPU_FAILED;
 }
@@ -1128,7 +1134,7 @@ ldapu_cert_mapfn_default(void *cert_in, LDAP *ld __attribute__((unused)), void *
 }
 
 NSAPI_PUBLIC int
-ldapu_set_cert_mapfn(const char *issuerDN,
+ldapu_set_cert_mapfn(const CERTName *issuerDN,
                      CertMapFn_t mapfn)
 {
     LDAPUCertMapInfo_t *certmap_info;
@@ -1161,7 +1167,7 @@ ldapu_get_cert_mapfn_sub(LDAPUCertMapInfo_t *certmap_info)
 }
 
 NSAPI_PUBLIC CertMapFn_t
-ldapu_get_cert_mapfn(const char *issuerDN)
+ldapu_get_cert_mapfn(const CERTName *issuerDN)
 {
     LDAPUCertMapInfo_t *certmap_info = 0;
 
@@ -1173,7 +1179,7 @@ ldapu_get_cert_mapfn(const char *issuerDN)
 }
 
 NSAPI_PUBLIC int
-ldapu_set_cert_searchfn(const char *issuerDN,
+ldapu_set_cert_searchfn(const CERTName *issuerDN,
                         CertSearchFn_t searchfn)
 {
     LDAPUCertMapInfo_t *certmap_info;
@@ -1206,7 +1212,7 @@ ldapu_get_cert_searchfn_sub(LDAPUCertMapInfo_t *certmap_info)
 }
 
 NSAPI_PUBLIC CertSearchFn_t
-ldapu_get_cert_searchfn(const char *issuerDN)
+ldapu_get_cert_searchfn(const CERTName *issuerDN)
 {
     LDAPUCertMapInfo_t *certmap_info = 0;
 
@@ -1218,7 +1224,7 @@ ldapu_get_cert_searchfn(const char *issuerDN)
 }
 
 NSAPI_PUBLIC int
-ldapu_set_cert_verifyfn(const char *issuerDN,
+ldapu_set_cert_verifyfn(const CERTName *issuerDN,
                         CertVerifyFn_t verifyfn)
 {
     LDAPUCertMapInfo_t *certmap_info;
@@ -1251,7 +1257,7 @@ ldapu_get_cert_verifyfn_sub(LDAPUCertMapInfo_t *certmap_info)
 }
 
 NSAPI_PUBLIC CertVerifyFn_t
-ldapu_get_cert_verifyfn(const char *issuerDN)
+ldapu_get_cert_verifyfn(const CERTName *issuerDN)
 {
     LDAPUCertMapInfo_t *certmap_info = 0;
 
@@ -1288,7 +1294,6 @@ static int ldapu_certinfo_copy (const LDAPUCertMapInfo_t *from,
 NSAPI_PUBLIC int
 ldapu_cert_to_ldap_entry(void *cert, LDAP *ld, const char *basedn, LDAPMessage **res)
 {
-    char *issuerDN = 0;
     char *ldapDN = 0;
     char *filter = 0;
     LDAPUCertMapInfo_t *certmap_info;
@@ -1308,14 +1313,14 @@ ldapu_cert_to_ldap_entry(void *cert, LDAP *ld, const char *basedn, LDAPMessage *
         certmap_attrs[3] = 0;
     }
 
-    rv = ldapu_get_cert_issuer_dn(cert, &issuerDN);
+    CERTName *issuerDN = ldapu_get_cert_issuer_dn_as_CERTName(cert);
+    /*        ^ don't need to free this; it will be freed with ^ the cert */
 
-    if (rv != LDAPU_SUCCESS)
+    if (NULL == issuerDN)
         return LDAPU_ERR_NO_ISSUERDN_IN_CERT;
 
     /* don't free the certmap_info -- its a pointer to an internal structure */
     rv = ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
-    free(issuerDN);
 
     if (!certmap_info)
         certmap_info = default_certmap_info;
@@ -1603,119 +1608,4 @@ NSAPI_PUBLIC void *
 ldapu_realloc(void *ptr, int size)
 {
     return realloc(ptr, size);
-}
-
-#define DNSEPARATOR(c) (c == ',' || c == ';')
-#define SEPARATOR(c) (c == ',' || c == ';' || c == '+')
-#define SPACE(c) (c == ' ' || c == '\n')
-#define NEEDSESCAPE(c) (c == '\\' || c == '"')
-#define B4TYPE 0
-#define INTYPE 1
-#define B4EQUAL 2
-#define B4VALUE 3
-#define INVALUE 4
-#define INQUOTEDVALUE 5
-#define B4SEPARATOR 6
-
-static char *
-ldapu_dn_normalize(char *dn)
-{
-    char *d, *s;
-    int state, gotesc;
-
-    gotesc = 0;
-    state = B4TYPE;
-    for (d = s = dn; *s; s++) {
-        switch (state) {
-        case B4TYPE:
-            if (!SPACE(*s)) {
-                state = INTYPE;
-                *d++ = *s;
-            }
-            break;
-        case INTYPE:
-            if (*s == '=') {
-                state = B4VALUE;
-                *d++ = *s;
-            } else if (SPACE(*s)) {
-                state = B4EQUAL;
-            } else {
-                *d++ = *s;
-            }
-            break;
-        case B4EQUAL:
-            if (*s == '=') {
-                state = B4VALUE;
-                *d++ = *s;
-            } else if (!SPACE(*s)) {
-                /* not a valid dn - but what can we do here? */
-                *d++ = *s;
-            }
-            break;
-        case B4VALUE:
-            if (*s == '"') {
-                state = INQUOTEDVALUE;
-                *d++ = *s;
-            } else if (!SPACE(*s)) {
-                state = INVALUE;
-                *d++ = *s;
-            }
-            break;
-        case INVALUE:
-            if (!gotesc && SEPARATOR(*s)) {
-                while (SPACE(*(d - 1)))
-                    d--;
-                state = B4TYPE;
-                if (*s == '+') {
-                    *d++ = *s;
-                } else {
-                    *d++ = ',';
-                }
-            } else if (gotesc && !NEEDSESCAPE(*s) &&
-                       !SEPARATOR(*s)) {
-                *--d = *s;
-                d++;
-            } else {
-                *d++ = *s;
-            }
-            break;
-        case INQUOTEDVALUE:
-            if (!gotesc && *s == '"') {
-                state = B4SEPARATOR;
-                *d++ = *s;
-            } else if (gotesc && !NEEDSESCAPE(*s)) {
-                *--d = *s;
-                d++;
-            } else {
-                *d++ = *s;
-            }
-            break;
-        case B4SEPARATOR:
-            if (SEPARATOR(*s)) {
-                state = B4TYPE;
-                if (*s == '+') {
-                    *d++ = *s;
-                } else {
-                    *d++ = ',';
-                }
-            }
-            break;
-        default:
-            break;
-        }
-        if (*s == '\\') {
-            gotesc = 1;
-        } else {
-            gotesc = 0;
-        }
-    }
-    *d = '\0';
-
-    /* Trim trailing spaces */
-    d--;
-    while (d >= dn && *d == ' ') {
-        *d-- = '\0';
-    }
-
-    return (dn);
 }

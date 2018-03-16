@@ -54,15 +54,30 @@ ldapu_get_cert_subject_dn(void *cert_in, char **subjectDN)
     return *subjectDN ? LDAPU_SUCCESS : LDAPU_ERR_EXTRACT_SUBJECTDN_FAILED;
 }
 
+/*
+ * Return the Issuer DN as a CERTName.
+ * The CERTName is owned by the CERTCertificate.
+ */
+NSAPI_PUBLIC CERTName *
+ldapu_get_cert_issuer_dn_as_CERTName(CERTCertificate *cert_in)
+{
+    return &cert_in->issuer;
+}
+
+/*
+ * Return the Issuer DN as a string.
+ * The string should be freed by the caller.
+ */
 NSAPI_PUBLIC int
 ldapu_get_cert_issuer_dn(void *cert_in, char **issuerDN)
 {
-    CERTCertificate *cert = (CERTCertificate *)cert_in;
-    char *cert_issuer = CERT_NameToAscii(&cert->issuer);
-
-    *issuerDN = strdup(cert_issuer);
-    PR_Free(cert_issuer);
-
+    *issuerDN = NULL;
+    CERTName *dn = ldapu_get_cert_issuer_dn_as_CERTName((CERTCertificate *)cert_in);
+    if (dn != NULL) {
+        char *cert_issuer = CERT_NameToAscii(dn);
+        *issuerDN = strdup(cert_issuer);
+        PR_Free(cert_issuer);
+    }
     return *issuerDN ? LDAPU_SUCCESS : LDAPU_ERR_EXTRACT_ISSUERDN_FAILED;
 }
 

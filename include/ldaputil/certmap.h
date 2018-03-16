@@ -16,6 +16,7 @@
 /* What was extcmap.h begins ... */
 
 #include <ldap.h>
+#include <nss3/cert.h>
 
 #ifndef NSAPI_PUBLIC
 #define NSAPI_PUBLIC
@@ -156,7 +157,7 @@ typedef int (*CertVerifyFn_t)(void *cert, LDAP *ld, void *certmap_info, LDAPMess
  *  otherwise return LDAPU_CERT_MAP_INITFN_FAILED.  The server startup will be
  *  aborted if the return value is not LDAPU_SUCCESS.
  */
-typedef int (*CertMapInitFn_t)(void *certmap_info, const char *issuerName, const char *issuerDN, const char *libname);
+typedef int (*CertMapInitFn_t)(void *certmap_info, const char *issuerName, const CERTName *issuerDN, const char *libname);
 
 /*
  * Refer to the description of the function ldapu_get_cert_ava_val
@@ -209,25 +210,28 @@ extern "C" {
 
 NSAPI_PUBLIC int ldapu_cert_to_ldap_entry(void *cert, LDAP *ld, const char *basedn, LDAPMessage **res);
 
-NSAPI_PUBLIC int ldapu_set_cert_mapfn(const char *issuerDN,
+NSAPI_PUBLIC int ldapu_set_cert_mapfn(const CERTName *issuerDN,
                                       CertMapFn_t mapfn);
 
 
-NSAPI_PUBLIC CertMapFn_t ldapu_get_cert_mapfn(const char *issuerDN);
+NSAPI_PUBLIC CertMapFn_t ldapu_get_cert_mapfn(const CERTName *issuerDN);
 
-NSAPI_PUBLIC int ldapu_set_cert_searchfn(const char *issuerDN,
+NSAPI_PUBLIC int ldapu_set_cert_searchfn(const CERTName *issuerDN,
                                          CertSearchFn_t searchfn);
 
 
-NSAPI_PUBLIC CertSearchFn_t ldapu_get_cert_searchfn(const char *issuerDN);
+NSAPI_PUBLIC CertSearchFn_t ldapu_get_cert_searchfn(const CERTName *issuerDN);
 
-NSAPI_PUBLIC int ldapu_set_cert_verifyfn(const char *issuerDN,
+NSAPI_PUBLIC int ldapu_set_cert_verifyfn(const CERTName *issuerDN,
                                          CertVerifyFn_t verifyFn);
 
-NSAPI_PUBLIC CertVerifyFn_t ldapu_get_cert_verifyfn(const char *issuerDN);
+NSAPI_PUBLIC CertVerifyFn_t ldapu_get_cert_verifyfn(const CERTName *issuerDN);
 
 
 NSAPI_PUBLIC int ldapu_get_cert_subject_dn(void *cert, char **subjectDN);
+
+
+NSAPI_PUBLIC CERTName *ldapu_get_cert_issuer_dn_as_CERTName(CERTCertificate *cert);
 
 
 NSAPI_PUBLIC int ldapu_get_cert_issuer_dn(void *cert, char **issuerDN);
@@ -242,7 +246,7 @@ NSAPI_PUBLIC int ldapu_free_cert_ava_val(char **val);
 NSAPI_PUBLIC int ldapu_get_cert_der(void *cert, unsigned char **derCert, unsigned int *len);
 
 
-NSAPI_PUBLIC int ldapu_issuer_certinfo(const char *issuerDN,
+NSAPI_PUBLIC int ldapu_issuer_certinfo(const CERTName *issuerDN,
                                        void **certmap_info);
 
 
