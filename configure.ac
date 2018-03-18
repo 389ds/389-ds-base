@@ -122,7 +122,7 @@ AC_SUBST([rust_target_dir])
 AM_CONDITIONAL([DEBUG],[test -n "$with_debug"])
 
 AC_MSG_CHECKING(for --enable-asan)
-AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitizer options (default: no)]),
+AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc/clang address sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
   asan_defs="-fsanitize=address -fno-omit-frame-pointer"
@@ -136,6 +136,54 @@ AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitize
 AC_SUBST([asan_defs])
 AC_SUBST([asan_rust_defs])
 AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
+
+AC_MSG_CHECKING(for --enable-msan)
+AC_ARG_ENABLE(msan, AS_HELP_STRING([--enable-msan], [Enable gcc/clang memory sanitizer options (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  msan_defs="-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
+  msan_rust_defs="-Z sanitizer=memory"
+],
+[
+  AC_MSG_RESULT(no)
+  msan_defs=""
+  msan_rust_defs=""
+])
+AC_SUBST([msan_defs])
+AC_SUBST([msan_rust_defs])
+AM_CONDITIONAL(enable_msan,test "$enable_msan" = "yes")
+
+AC_MSG_CHECKING(for --enable-tsan)
+AC_ARG_ENABLE(tsan, AS_HELP_STRING([--enable-tsan], [Enable gcc/clang thread sanitizer options (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  tsan_defs="-fsanitize=thread -fno-omit-frame-pointer"
+  tsan_rust_defs="-Z sanitizer=thread"
+],
+[
+  AC_MSG_RESULT(no)
+  tsan_defs=""
+  tsan_rust_defs=""
+])
+AC_SUBST([tsan_defs])
+AC_SUBST([tsan_rust_defs])
+AM_CONDITIONAL(enable_tsan,test "$enable_tsan" = "yes")
+
+AC_MSG_CHECKING(for --enable-ubsan)
+AC_ARG_ENABLE(ubsan, AS_HELP_STRING([--enable-tsan], [Enable gcc/clang undefined behaviour sanitizer options (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  ubsan_defs="-fsanitize=undefined -fno-omit-frame-pointer"
+  ubsan_rust_defs=""
+],
+[
+  AC_MSG_RESULT(no)
+  ubsan_defs=""
+  ubsan_rust_defs=""
+])
+AC_SUBST([ubsan_defs])
+AC_SUBST([ubsan_rust_defs])
+AM_CONDITIONAL(enable_ubsan,test "$enable_ubsan" = "yes")
 
 # Enable CLANG
 AC_MSG_CHECKING(for --enable-clang)

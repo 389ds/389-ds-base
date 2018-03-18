@@ -9,10 +9,20 @@ RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
 NUNC_STANS_ON = 1
+
+# Some sanitizers are supported only by clang
+CLANG_ON = 0
+# Address Sanitizer
 ASAN_ON = 0
+# Memory Sanitizer (clang only)
+MSAN_ON = 0
+# Thread Sanitizer
+TSAN_ON = 0
+# Undefined Behaviour Sanitizer
+UBSAN_ON = 0
+
 RUST_ON = 0
 PERL_ON = 1
-CLANG_ON = 0
 
 clean:
 	rm -rf dist
@@ -40,6 +50,9 @@ rpmroot:
 	-e s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/ \
 	-e s/__RUST_ON__/$(RUST_ON)/ \
 	-e s/__ASAN_ON__/$(ASAN_ON)/ \
+	-e s/__MSAN_ON__/$(MSAN_ON)/ \
+	-e s/__TSAN_ON__/$(TSAN_ON)/ \
+	-e s/__UBSAN_ON__/$(UBSAN_ON)/ \
 	-e s/__PERL_ON__/$(PERL_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec

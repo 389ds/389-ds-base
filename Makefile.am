@@ -18,6 +18,9 @@ NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 GCCSEC_DEFINES = @gccsec_defs@
 ASAN_DEFINES = @asan_defs@
+MSAN_DEFINES = @msan_defs@
+TSAN_DEFINES = @tsan_defs@
+UBSAN_DEFINES = @ubsan_defs@
 
 SYSTEMD_DEFINES = @systemd_defs@
 
@@ -33,7 +36,7 @@ EVENT_INCLUDES = @event_inc@
 if RUST_ENABLE
 RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
-RUSTC_FLAGS = @asan_rust_defs@ @debug_rust_defs@
+RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 RUST_DEFINES = -DRUST_ENABLE
 else
@@ -79,8 +82,30 @@ DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir
 
 if enable_asan
 ASAN_ON = 1
+SANITIZER = ASAN
 else
 ASAN_ON = 0
+endif
+
+if enable_msan
+MSAN_ON = 1
+SANITIZER = MSAN
+else
+MSAN_ON = 0
+endif
+
+if enable_tsan
+TSAN_ON = 1
+SANITIZER = TSAN
+else
+TSAN_ON = 0
+endif
+
+if enable_ubsan
+UBSAN_ON = 1
+SANITIZER = UBSAN
+else
+UBSAN_ON = 0
 endif
 
 if with_systemd
@@ -108,7 +133,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
 DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ $(NSPR_INCLUDES) @systemd_inc@
@@ -165,7 +190,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 # Provide the tcmalloc links if needed
-AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) $(CLANG_LDFLAGS)
+AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) $(CLANG_LDFLAGS)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
@@ -2173,37 +2198,37 @@ test_libsds_SOURCES =  src/libsds/test/test_sds.c \
 	src/libsds/test/test_sds_ht.c \
 	src/libsds/test/test_fixtures.c
 
-test_libsds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
+test_libsds_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 test_libsds_LDADD = libsds.la $(NSPR_LINK)
 test_libsds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS)
 
 benchmark_sds_SOURCES =  src/libsds/test/benchmark.c \
 	$(libavl_a_SOURCES)
-benchmark_sds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
+benchmark_sds_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 benchmark_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 benchmark_par_sds_SOURCES = src/libsds/test/benchmark_parwrap.c \
 	src/libsds/test/benchmark_par.c \
 	$(libavl_a_SOURCES)
-benchmark_par_sds_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
+benchmark_par_sds_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 benchmark_par_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_par_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 test_nuncstans_SOURCES = src/nunc-stans/test/test_nuncstans.c
 test_nuncstans_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
 test_nuncstans_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 test_nuncstans_stress_large_SOURCES = src/nunc-stans/test/test_nuncstans_stress_large.c src/nunc-stans/test/test_nuncstans_stress_core.c
 test_nuncstans_stress_large_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
 test_nuncstans_stress_large_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_stress_large_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_stress_large_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 test_nuncstans_stress_small_SOURCES = src/nunc-stans/test/test_nuncstans_stress_small.c src/nunc-stans/test/test_nuncstans_stress_core.c
 test_nuncstans_stress_small_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
 test_nuncstans_stress_small_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_stress_small_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_stress_small_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 
 endif
@@ -2260,6 +2285,10 @@ fixupcmd = sed \
 	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 	-e 's,@enable_presence\@,$(enable_presence),g' \
 	-e 's,@enable_asan\@,$(ASAN_ON),g' \
+	-e 's,@enable_msan\@,$(MSAN_ON),g' \
+	-e 's,@enable_tsan\@,$(TSAN_ON),g' \
+	-e 's,@enable_ubsan\@,$(UBSAN_ON),g' \
+	-e 's,@SANITIZER\@,$(SANITIZER),g' \
 	-e 's,@enable_perl\@,@enable_perl@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
@@ -2321,18 +2350,15 @@ endif
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
-
-if enable_asan
-# yes, that is an @ in the filename . . .
-%/$(PACKAGE_NAME)@.service: %/systemd.template.asan.service.in
-	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	$(fixupcmd) $^ > $@
-else
 # yes, that is an @ in the filename . . .
 %/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	$(fixupcmd) $^ > $@
-endif
+	if [ ! -z ${SANITIZER} ] ; then \
+		service_template=$(shell echo $^ | sed 's/template/template.xsan/g'); \
+		else \
+		service_template=$^; \
+	fi; \
+	$(fixupcmd) $$service_template > $@
 
 %/$(PACKAGE_NAME).systemd: %/systemd.template.sysconfig
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
@@ -2399,6 +2425,9 @@ rpmbrprep: dist-bzip2 rpmroot
 		-e "s/__RUST_ON__/$(RUST_ON)/" \
 		-e "s/__CLANG_ON__/$(CLANG_ON)/" \
 		-e "s/__PERL_ON__/$(PERL_ON)/" \
+		-e "s/__MSAN_ON__/$(MSAN_ON)/" \
+		-e "s/__TSAN_ON__/$(TSAN_ON)/" \
+		-e "s/__UBSAN_ON__/$(UBSAN_ON)/" \
 		-e "s/__ASAN_ON__/$(ASAN_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
 # Requires rpmdevtools. Consider making this a dependancy of rpms.

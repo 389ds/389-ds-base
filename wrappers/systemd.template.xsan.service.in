@@ -13,7 +13,7 @@
 # systemctl daemon-reload 
 # systemctl (re)start @systemdgroupname@
 [Unit]
-Description=@capbrand@ Directory Server with ASAN %i.
+Description=@capbrand@ Directory Server with @SANITIZER@ %i.
 PartOf=@systemdgroupname@
 After=chronyd.service ntpd.service network-online.target syslog.target
 Before=radiusd.service
@@ -27,10 +27,20 @@ EnvironmentFile=@initconfigdir@/@package_name@
 EnvironmentFile=@initconfigdir@/@package_name@-%i
 PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
 # We can't symbolize here, as llvm symbolize crashes when it goes near systemd.
-Environment=ASAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.asan
+Environment=ASAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.asan:print_stacktrace=1
+Environment=TSAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.tsan:print_stacktrace=1:second_deadlock_stack=1:history_size=7
+Environment=MSAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.msan:print_stacktrace=1
+Environment=UBSAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.ubsan:print_stacktrace=1
 LimitCORE=infinity
 ExecStartPre=@sbindir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
+
+# Hardening options:
+# PrivateDevices=true
+# ProtectSystem=true
+# ProtectHome=true
+# PrivateTmp=true
+
 # if you need to set other directives e.g. LimitNOFILE=8192
 # set them in this file
 .include @initconfigdir@/@package_name@.systemd

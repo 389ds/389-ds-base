@@ -14,8 +14,11 @@
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
 %global use_Socket6 0
 
-# This enables an ASAN build. This should not go to production, so we rename.
+# This enables a sanitized build. This should not go to production, so we rename.
 %global use_asan __ASAN_ON__
+%global use_msan __MSAN_ON__
+%global use_tsan __TSAN_ON__
+%global use_ubsan __UBSAN_ON__
 
 # This enables rust in the build.
 %global use_rust __RUST_ON__
@@ -25,9 +28,9 @@
 %define nspr_version 4.6
 %define nss_version 3.11
 
-%if %{use_asan}
+%if %{use_asan} || %{use_msan} || %{use_tsan} || %{use_ubsan}
 %global use_tcmalloc 0
-%global variant base-asan
+%global variant base-xsan
 %else
 %if %{_arch} != "s390x" && %{_arch} != "s390" && !%{use_rust}
 %global use_tcmalloc 1
@@ -76,8 +79,18 @@ BuildRequires:    pcre-devel
 %if %{use_clang}
 BuildRequires:    libatomic
 BuildRequires:    clang
+BuildRequires:    compiler-rt
 %else
 BuildRequires:    gcc-c++
+%if %{use_asan}
+BuildRequires:    libasan
+%endif
+%if %{use_tsan}
+BuildRequires:    libtsan
+%endif
+%if %{use_ubsan}
+BuildRequires:    libubsan
+%endif
 %endif
 # The following are needed to build the snmp ldap-agent
 BuildRequires:    net-snmp-devel
@@ -89,9 +102,6 @@ BuildRequires:    tcp_wrappers
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
-%if %{use_asan}
-BuildRequires:    libasan
-%endif
 # If rust is enabled
 %if %{use_rust}
 BuildRequires: cargo
@@ -200,9 +210,19 @@ Requires:         systemd-libs
 Requires:         cyrus-sasl-lib
 # KRB
 Requires:         krb5-libs
+%if %{use_clang}
+Requires:         llvm
+Requires:         compiler-rt
+%else
 %if %{use_asan}
-Requires:    libasan
-Requires:    llvm
+Requires:         libasan
+%endif
+%if %{use_tsan}
+Requires:         libtsan
+%endif
+%if %{use_ubsan}
+Requires:         libubsan
+%endif
 %endif
 
 %description      libs
@@ -294,6 +314,18 @@ NSSARGS="--with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
 ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
 
+%if %{use_msan} && !%{use_rust}
+MSAN_FLAGS="--enable-msan --enable-debug"
+%endif
+
+%if %{use_tsan} && !%{use_rust}
+TSAN_FLAGS="--enable-tsan --enable-debug"
+%endif
+
+%if %{use_ubsan} && !%{use_rust}
+UBSAN_FLAGS="--enable-ubsan --enable-debug"
+%endif
+
 %if %{use_tcmalloc}
 TCMALLOC_FLAGS="--enable-tcmalloc"
 %endif
@@ -314,7 +346,7 @@ autoreconf -fiv
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
-           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
+           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
            --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
@@ -376,6 +408,9 @@ sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgna
 
 %check
 # This checks the code, if it fails it prints why, then re-raises the fail to shortcircuit the rpm build.
+%if %{use_tsan}
+export TSAN_OPTIONS=print_stacktrace=1:second_deadlock_stack=1:history_size=7
+%endif
 if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; fi
 
 %clean
