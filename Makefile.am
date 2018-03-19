@@ -1112,7 +1112,7 @@ libldaputil_la_SOURCES = lib/ldaputil/cert.c \
 	lib/ldaputil/vtable.c
 
 libldaputil_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) -I$(srcdir)/lib/ldaputil
-libldaputil_la_LIBADD = libslapd.la  $(NSS_LINK) $(NSPR_LINK)
+libldaputil_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
 libldaputil_la_LDFLAGS = $(AM_LDFLAGS)
 
 #////////////////////////////////////////////////////////////////
