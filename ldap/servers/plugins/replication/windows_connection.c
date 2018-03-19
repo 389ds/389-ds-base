@@ -1212,9 +1212,9 @@ windows_conn_connect(Repl_Connection *conn)
     /* ugaston: if SSL has been selected in the replication agreement, SSL client
      * initialisation should be done before ever trying to open any connection at all.
      */
-    if (conn->transport_flags == TRANSPORT_FLAG_TLS) {
+    if (conn->transport_flags == TRANSPORT_FLAG_STARTTLS) {
         secure = SLAPI_LDAP_INIT_FLAG_startTLS;
-    } else if (conn->transport_flags == TRANSPORT_FLAG_SSL) {
+    } else if (conn->transport_flags == TRANSPORT_FLAG_LDAPS) {
         secure = SLAPI_LDAP_INIT_FLAG_SSL;
     }
 

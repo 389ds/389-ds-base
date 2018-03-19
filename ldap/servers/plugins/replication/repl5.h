@@ -360,8 +360,8 @@ typedef struct repl_bos Repl_Bos;
 /* In repl5_agmt.c */
 typedef struct repl5agmt Repl_Agmt;
 
-#define TRANSPORT_FLAG_SSL 1
-#define TRANSPORT_FLAG_TLS 2
+#define TRANSPORT_FLAG_LDAPS 1
+#define TRANSPORT_FLAG_STARTTLS 2
 #define BINDMETHOD_SIMPLE_AUTH 1
 #define BINDMETHOD_SSL_CLIENTAUTH 2
 #define BINDMETHOD_SASL_GSSAPI 3

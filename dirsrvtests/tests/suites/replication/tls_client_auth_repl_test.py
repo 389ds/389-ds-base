@@ -33,6 +33,11 @@ def tls_client_auth(topo_m2):
     m1 = topo_m2.ms['master1']
     m2 = topo_m2.ms['master2']
 
+    if ds_is_older('1.4.0.6'):
+        transport = 'SSL'
+    else:
+        transport = 'LDAPS'
+
     # Create the certmap before we restart for enable_tls
     cm_m1 = CertmapLegacy(m1)
     cm_m2 = CertmapLegacy(m2)
@@ -65,8 +70,8 @@ def tls_client_auth(topo_m2):
 
     agmt_m1.replace_many(
         ('nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH'),
-        ('nsDS5ReplicaTransportInfo', 'SSL'),
-        ('nsDS5ReplicaPort', '%s' % m2.sslport),
+        ('nsDS5ReplicaTransportInfo', transport),
+        ('nsDS5ReplicaPort', str(m2.sslport)),
     )
     agmt_m1.remove_all('nsDS5ReplicaBindDN')
 
@@ -75,14 +80,64 @@ def tls_client_auth(topo_m2):
 
     agmt_m2.replace_many(
         ('nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH'),
-        ('nsDS5ReplicaTransportInfo', 'SSL'),
-        ('nsDS5ReplicaPort', '%s' % m1.sslport),
+        ('nsDS5ReplicaTransportInfo', transport),
+        ('nsDS5ReplicaPort', str(m1.sslport)),
     )
     agmt_m2.remove_all('nsDS5ReplicaBindDN')
 
     repl.test_replication_topology(topo_m2)
 
     return topo_m2
+
+
+def test_ssl_transport(tls_client_auth):
+    """Test different combinations for nsDS5ReplicaTransportInfo values
+
+    :id: 922d16f8-662a-4915-a39e-0aecd7c8e6e2
+    :setup: Two master replication, enabled TLS client auth
+    :steps:
+        1. Set nsDS5ReplicaTransportInfoCheck: SSL or StartTLS or TLS
+        2. Restart the instance
+        3. Check that replication works
+        4. Set nsDS5ReplicaTransportInfoCheck: LDAPS back
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Replication works
+        4. Success
+    """
+
+    m1 = tls_client_auth.ms['master1']
+    m2 = tls_client_auth.ms['master2']
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    replica_m1 = Replicas(m1).get(DEFAULT_SUFFIX)
+    replica_m2 = Replicas(m2).get(DEFAULT_SUFFIX)
+    agmt_m1 = replica_m1.get_agreements().list()[0]
+    agmt_m2 = replica_m2.get_agreements().list()[0]
+
+    if ds_is_older('1.4.0.6'):
+        check_list = (('TLS', False),)
+    else:
+        check_list = (('SSL', True), ('StartTLS', False), ('TLS', False))
+
+    for transport, secure_port in check_list:
+        agmt_m1.replace_many(('nsDS5ReplicaTransportInfo', transport),
+                             ('nsDS5ReplicaPort', '{}'.format(m2.port if not secure_port else m2.sslport)))
+        agmt_m2.replace_many(('nsDS5ReplicaTransportInfo', transport),
+                             ('nsDS5ReplicaPort', '{}'.format(m1.port if not secure_port else m1.sslport)))
+        repl.test_replication_topology(tls_client_auth)
+
+    if ds_is_older('1.4.0.6'):
+        agmt_m1.replace_many(('nsDS5ReplicaTransportInfo', 'SSL'),
+                             ('nsDS5ReplicaPort', str(m2.sslport)))
+        agmt_m2.replace_many(('nsDS5ReplicaTransportInfo', 'SSL'),
+                             ('nsDS5ReplicaPort', str(m1.sslport)))
+    else:
+        agmt_m1.replace_many(('nsDS5ReplicaTransportInfo', 'LDAPS'),
+                             ('nsDS5ReplicaPort', str(m2.sslport)))
+        agmt_m2.replace_many(('nsDS5ReplicaTransportInfo', 'LDAPS'),
+                             ('nsDS5ReplicaPort', str(m1.sslport)))
+    repl.test_replication_topology(tls_client_auth)
 
 
 def test_extract_pemfiles(tls_client_auth):

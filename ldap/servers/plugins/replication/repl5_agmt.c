@@ -73,7 +73,7 @@ typedef struct repl5agmt
 {
     char *hostname;                        /* remote hostname */
     int64_t port;                          /* port of remote server */
-    uint32_t transport_flags;              /* SSL, TLS, etc. */
+    uint32_t transport_flags;              /* LDAPS, StartTLS, etc. */
     char *binddn;                          /* DN to bind as */
     struct berval *creds;                  /* Password, or certificate */
     int64_t bindmethod;                    /* Bind method - simple, SSL */
@@ -148,7 +148,7 @@ Schema for replication agreement:
 cn
 nsds5ReplicaHost - hostname
 nsds5ReplicaPort - port number
-nsds5ReplicaTransportInfo - "SSL", "startTLS", or may be absent;
+nsds5ReplicaTransportInfo - "LDAPS", "StartTLS", or may be absent ("SSL" and "TLS" values will be deprecated later)
 nsds5ReplicaBindDN
 nsds5ReplicaCredentials
 nsds5ReplicaBindMethod - "SIMPLE" or "SSLCLIENTAUTH".
@@ -207,7 +207,7 @@ agmt_is_valid(Repl_Agmt *ra)
     if ((0 == ra->transport_flags) && (BINDMETHOD_SSL_CLIENTAUTH == ra->bindmethod)) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
                                                        " is malformed: cannot use SSLCLIENTAUTH if using plain LDAP - please "
-                                                       "change %s to SSL or TLS before changing %s to use SSLCLIENTAUTH\n",
+                                                       "change %s to LDAPS or StartTLS before changing %s to use SSLCLIENTAUTH\n",
                       slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
         return_value = 0;
     }
@@ -298,7 +298,7 @@ agmt_new_from_entry(Slapi_Entry *e)
         ra->port = port;
     }
 
-    /* SSL, TLS, or other transport stuff */
+    /* LDAPS, StartTLS, or other transport stuff */
     ra->transport_flags = 0;
     (void)agmt_set_transportinfo_no_lock(ra, e);
     (void)agmt_set_WaitForAsyncResults(ra, e);
@@ -1755,10 +1755,10 @@ agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
     tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5TransportInfo);
     if (!tmpstr || !strcasecmp(tmpstr, "LDAP")) {
         ra->transport_flags = 0;
-    } else if (strcasecmp(tmpstr, "SSL") == 0) {
-        ra->transport_flags = TRANSPORT_FLAG_SSL;
-    } else if (strcasecmp(tmpstr, "TLS") == 0) {
-        ra->transport_flags = TRANSPORT_FLAG_TLS;
+    } else if (strcasecmp(tmpstr, "SSL") == 0 || strcasecmp(tmpstr, "LDAPS") == 0) {
+        ra->transport_flags = TRANSPORT_FLAG_LDAPS;
+    } else if (strcasecmp(tmpstr, "TLS") == 0 || strcasecmp(tmpstr, "StartTLS") == 0) {
+        ra->transport_flags = TRANSPORT_FLAG_STARTTLS;
     }
     /* else do nothing - invalid value is a no-op */
 

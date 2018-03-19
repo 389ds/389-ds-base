@@ -74,6 +74,8 @@
 #define DNA_PROT_LDAP "LDAP"
 #define DNA_PROT_TLS "TLS"
 #define DNA_PROT_SSL "SSL"
+#define DNA_PROT_LDAPS "LDAPS"
+#define DNA_PROT_STARTTLS "StartTLS"
 
 /* For transferred ranges */
 #define DNA_NEXT_RANGE "dnaNextRange"
@@ -1901,8 +1903,10 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                     }
                     if (strcasecmp(server->remote_bind_method, DNA_METHOD_SSL) == 0) {
                         /* requires a bind DN */
-                        if (strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) != 0 &&
-                            strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) != 0) {
+                        if ((strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) != 0 ||
+                             strcasecmp(server->remote_conn_prot, DNA_PROT_LDAPS) != 0) &&
+                            (strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) != 0 ||
+                             strcasecmp(server->remote_conn_prot, DNA_PROT_STARTTLS) != 0)) {
                             reason = "bind method (SSL) requires either SSL or TLS connection "
                                      "protocol.";
                             err = 1;
@@ -3065,9 +3069,9 @@ dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server, char **bind
         *port = slapi_entry_attr_get_int(entries[0], DNA_REPL_PORT);
 
         /* Check if we should use SSL */
-        if (transport && (strcasecmp(transport, "SSL") == 0)) {
+        if (transport && (strcasecmp(transport, DNA_PROT_SSL) == 0 || strcasecmp(transport, DNA_PROT_LDAPS) == 0)) {
             *is_ssl = 1;
-        } else if (transport && (strcasecmp(transport, "TLS") == 0)) {
+        } else if (transport && (strcasecmp(transport, DNA_PROT_TLS) == 0 || strcasecmp(transport, DNA_PROT_STARTTLS) == 0))  {
             *is_ssl = 2;
         } else {
             *is_ssl = 0;
@@ -3156,9 +3160,11 @@ dna_get_remote_config_info(struct dnaServer *server, char **bind_dn, char **bind
         ;    /* just use it directly */
     }
 
-    if (server->remote_conn_prot && strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) == 0) {
+    if (server->remote_conn_prot && (strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) == 0 ||
+        strcasecmp(server->remote_conn_prot, DNA_PROT_LDAPS) == 0 )) {
         *is_ssl = 1;
-    } else if (server->remote_conn_prot && strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) == 0) {
+    } else if (server->remote_conn_prot && (strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) == 0 ||
+               strcasecmp(server->remote_conn_prot, DNA_PROT_STARTTLS) == 0 )) {
         *is_ssl = 2;
     } else {
         *is_ssl = 0;
