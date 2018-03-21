@@ -331,7 +331,7 @@ csngen_adjust_time(CSNGen *gen, const CSN *csn)
         /* let's revisit the seq num - if the new time is > the old
            tiem, we should reset the seq number to remote + 1 if
            this won't cause a wrap around */
-        if (new_time > cur_time) {
+        if (new_time >= cur_time) {
             /* just set seq_num regardless of whether the current one
                is < or > than the remote one - the goal of this function
                is to make sure we generate CSNs > the remote CSN - if
