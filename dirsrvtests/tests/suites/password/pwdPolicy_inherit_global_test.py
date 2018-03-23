@@ -12,9 +12,11 @@ import time
 
 import ldap
 import pytest
+from lib389.utils import *
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_st
+from lib389.idm.organisationalunit import OrganisationalUnits
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -50,8 +52,9 @@ def test_user(topology_st, request):
                                              'userPassword': PASSWORD})))
         log.info('Adding an aci for the bind user')
         BN_ACI = '(targetattr="*")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///%s";)' % BN
-        topology_st.standalone.modify_s(OU_PEOPLE, [(ldap.MOD_ADD, 'aci', BN_ACI)])
-
+        ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+        ou_people = ous.get('people')
+        ou_people.add('aci', BN_ACI)
     except ldap.LDAPError as e:
         log.error('Failed to add user (%s): error (%s)' % (BN,
                                                            e.message['desc']))
@@ -60,7 +63,9 @@ def test_user(topology_st, request):
     def fin():
         log.info('Deleting user {}'.format(BN))
         topology_st.standalone.delete_s(BN)
-        topology_st.standalone.modify_s(OU_PEOPLE, [(ldap.MOD_DELETE, 'aci', BN_ACI)])
+        ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+        ou_people = ous.get('people')
+        ou_people.remove('aci', BN_ACI)
 
     request.addfinalizer(fin)
 
@@ -76,9 +81,7 @@ def password_policy(topology_st, test_user):
 
     log.info('Enable fine-grained policy')
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pwpolicy-local',
-                                                     'on')])
+        topology_st.standalone.config.set('nsslapd-pwpolicy-local', 'on')
     except ldap.LDAPError as e:
         log.error('Failed to set fine-grained policy: error {}'.format(
             e.message['desc']))
@@ -97,9 +100,9 @@ def password_policy(topology_st, test_user):
 
     log.info('Add pwdpolicysubentry attribute to {}'.format(OU_PEOPLE))
     try:
-        topology_st.standalone.modify_s(OU_PEOPLE, [(ldap.MOD_REPLACE,
-                                                     'pwdpolicysubentry',
-                                                     PWP_CONTAINER_PEOPLE)])
+        ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+        ou_people = ous.get('people')
+        ou_people.set('pwdpolicysubentry', PWP_CONTAINER_PEOPLE)
     except ldap.LDAPError as e:
         log.error('Failed to pwdpolicysubentry pw policy ' \
                   'policy for {}: error {}'.format(OU_PEOPLE,
@@ -108,11 +111,11 @@ def password_policy(topology_st, test_user):
 
     log.info("Set the default settings for the policy container.")
     topology_st.standalone.modify_s(PWP_CONTAINER_PEOPLE,
-                                    [(ldap.MOD_REPLACE, 'passwordMustChange', 'off'),
-                                     (ldap.MOD_REPLACE, 'passwordExp', 'off'),
-                                     (ldap.MOD_REPLACE, 'passwordMinAge', '0'),
-                                     (ldap.MOD_REPLACE, 'passwordChange', 'off'),
-                                     (ldap.MOD_REPLACE, 'passwordStorageScheme', 'ssha')])
+                                    [(ldap.MOD_REPLACE, 'passwordMustChange', b'off'),
+                                     (ldap.MOD_REPLACE, 'passwordExp', b'off'),
+                                     (ldap.MOD_REPLACE, 'passwordMinAge', b'0'),
+                                     (ldap.MOD_REPLACE, 'passwordChange', b'off'),
+                                     (ldap.MOD_REPLACE, 'passwordStorageScheme', b'ssha')])
 
     check_attr_val(topology_st, CONFIG_DN, ATTR_INHERIT_GLOBAL, 'off')
     check_attr_val(topology_st, CONFIG_DN, ATTR_CHECK_SYNTAX, 'off')
@@ -126,7 +129,7 @@ def check_attr_val(topology_st, dn, attr, expected):
         assert centry[0], 'Failed to get %s' % dn
 
         val = centry[0].getValue(attr)
-        assert val == expected, 'Default value of %s is not %s, but %s' % (
+        assert str(val, 'utf-8') == expected, 'Default value of %s is not %s, but %s' % (
             attr, expected, val)
 
         log.info('Default value of %s is %s' % (attr, expected))
@@ -160,10 +163,8 @@ def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, inherit_value))
     log.info('Set {} to {}'.format(ATTR_CHECK_SYNTAX, checksyntax_value))
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE,
-                                                 ATTR_INHERIT_GLOBAL, inherit_value)])
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE,
-                                                 ATTR_CHECK_SYNTAX, checksyntax_value)])
+    topology_st.standalone.config.set(ATTR_INHERIT_GLOBAL, inherit_value)
+    topology_st.standalone.config.set(ATTR_CHECK_SYNTAX, checksyntax_value)
 
     # Wait a second for cn=config to apply
     time.sleep(1)
@@ -229,12 +230,10 @@ def test_entry_has_restrictions(topology_st, password_policy, test_user, contain
 
     log.info('Set {} to {}'.format(ATTR_INHERIT_GLOBAL, 'on'))
     log.info('Set {} to {}'.format(ATTR_CHECK_SYNTAX, 'on'))
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE,
-                                                 ATTR_INHERIT_GLOBAL, 'on')])
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE,
-                                                 ATTR_CHECK_SYNTAX, 'on')])
+    topology_st.standalone.config.set(ATTR_INHERIT_GLOBAL, 'on')
+    topology_st.standalone.config.set(ATTR_CHECK_SYNTAX, 'on')
     topology_st.standalone.modify_s(container, [(ldap.MOD_REPLACE,
-                                                 'passwordMinLength', '9')])
+                                                 'passwordMinLength', b'9')])
 
     # Wait a second for cn=config to apply
     time.sleep(1)

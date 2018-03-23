@@ -67,7 +67,7 @@ def password_policy(topology_st, test_user):
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
                                                      'nsslapd-pwpolicy-local',
-                                                     'on')])
+                                                     b'on')])
     except ldap.LDAPError as e:
         log.error('Failed to set fine-grained policy: error {}'.format(
             e.message['desc']))
@@ -88,7 +88,7 @@ def password_policy(topology_st, test_user):
     try:
         topology_st.standalone.modify_s(OU_PEOPLE, [(ldap.MOD_REPLACE,
                                                      'pwdpolicysubentry',
-                                                     PW_POLICY_CONT_PEOPLE)])
+                                                     ensure_bytes(PW_POLICY_CONT_PEOPLE))])
     except ldap.LDAPError as e:
         log.error('Failed to pwdpolicysubentry pw policy ' \
                   'policy for {}: error {}'.format(OU_PEOPLE,
@@ -110,7 +110,7 @@ def password_policy(topology_st, test_user):
     try:
         topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'pwdpolicysubentry',
-                                                        PW_POLICY_CONT_USER)])
+                                                        ensure_bytes(PW_POLICY_CONT_USER))])
     except ldap.LDAPError as e:
         log.error('Failed to pwdpolicysubentry pw policy ' \
                   'policy for {}: error {}'.format(TEST_USER_DN,
@@ -150,7 +150,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
     try:
         topology_st.standalone.modify_s(PW_POLICY_CONT_PEOPLE, [(ldap.MOD_REPLACE,
                                                                  'passwordChange',
-                                                                 subtree_pwchange)])
+                                                                 ensure_bytes(subtree_pwchange))])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordChange ' \
                   'policy for {}: error {}'.format(PW_POLICY_CONT_PEOPLE,
@@ -162,7 +162,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
     try:
         topology_st.standalone.modify_s(PW_POLICY_CONT_USER, [(ldap.MOD_REPLACE,
                                                                'passwordChange',
-                                                               user_pwchange)])
+                                                               ensure_bytes(user_pwchange))])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordChange ' \
                   'policy for {}: error {}'.format(PW_POLICY_CONT_USER,
@@ -177,11 +177,11 @@ def test_change_pwd(topology_st, test_user, password_policy,
             with pytest.raises(exception):
                 topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                                 'userPassword',
-                                                                'new_pass')])
+                                                                b'new_pass')])
         else:
             topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                             'userPassword',
-                                                            'new_pass')])
+                                                            b'new_pass')])
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
@@ -191,7 +191,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'userPassword',
-                                                        TEST_USER_PWD)])
+                                                        ensure_bytes(TEST_USER_PWD))])
 
 
 def test_pwd_min_age(topology_st, test_user, password_policy):
@@ -228,7 +228,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
     try:
         topology_st.standalone.modify_s(PW_POLICY_CONT_PEOPLE, [(ldap.MOD_REPLACE,
                                                                  'passwordminage',
-                                                                 num_seconds)])
+                                                                 ensure_bytes(num_seconds))])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordminage ' \
                   'policy for {}: error {}'.format(PW_POLICY_CONT_PEOPLE,
@@ -239,7 +239,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
     try:
         topology_st.standalone.modify_s(PW_POLICY_CONT_USER, [(ldap.MOD_REPLACE,
                                                                'passwordminage',
-                                                               num_seconds)])
+                                                               ensure_bytes(num_seconds))])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordminage ' \
                   'policy for {}: error {}'.format(PW_POLICY_CONT_USER,
@@ -250,7 +250,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
     try:
         topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
                                                      'passwordminage',
-                                                     num_seconds)])
+                                                     ensure_bytes(num_seconds))])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordminage ' \
                   'policy for {}: error {}'.format(DN_CONFIG,
@@ -263,7 +263,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
         topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'userPassword',
-                                                        'new_pass')])
+                                                        b'new_pass')])
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
@@ -275,7 +275,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
         topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'userPassword',
-                                                        'new_new_pass')])
+                                                        b'new_new_pass')])
 
     log.info('Wait {} second'.format(int(num_seconds) + 2))
     time.sleep(int(num_seconds) + 2)
@@ -285,7 +285,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
         topology_st.standalone.simple_bind_s(TEST_USER_DN, 'new_pass')
         topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'userPassword',
-                                                        TEST_USER_PWD)])
+                                                        ensure_bytes(TEST_USER_PWD))])
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
@@ -295,7 +295,7 @@ def test_pwd_min_age(topology_st, test_user, password_policy):
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'userPassword',
-                                                        TEST_USER_PWD)])
+                                                        ensure_bytes(TEST_USER_PWD))])
 
 
 if __name__ == '__main__':
