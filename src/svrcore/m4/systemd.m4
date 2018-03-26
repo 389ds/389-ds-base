@@ -27,7 +27,7 @@ if test "$with_systemd" = yes; then
     if test -n "$PKG_CONFIG"; then
         if $PKG_CONFIG --exists systemd; then
             AC_MSG_CHECKING([systemd found, enabling.])
-            SYSTEMD_CFLAGS="-DHAVE_SYSTEMD"
+            SYSTEMD_CFLAGS="-DWITH_SYSTEMD"
         else
             AC_MSG_CHECKING([systemd not found, disabling.])
             SYSTEMD_CFLAGS=""

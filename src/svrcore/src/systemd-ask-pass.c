@@ -49,7 +49,7 @@ static const struct SVRCOREPinMethods vtable;
 SVRCOREError
 SVRCORE_CreateSystemdPinObj(SVRCORESystemdPinObj **out, uint64_t timeout)
 {
-#ifdef HAVE_SYSTEMD
+#ifdef WITH_SYSTEMD
 
     SVRCOREError err = SVRCORE_Success;
     SVRCORESystemdPinObj *obj = NULL;
@@ -83,7 +83,7 @@ SVRCORE_CreateSystemdPinObj(SVRCORESystemdPinObj **out, uint64_t timeout)
 #endif // Systemd
 }
 
-#ifdef HAVE_SYSTEMD
+#ifdef WITH_SYSTEMD
 SVRCOREError
 _create_socket(char **path, int *sfd)
 {
@@ -162,7 +162,7 @@ out:
 static char *
 getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
 {
-#ifdef HAVE_SYSTEMD
+#ifdef WITH_SYSTEMD
     SVRCORESystemdPinObj *sobj = (SVRCORESystemdPinObj *)obj;
     SVRCOREError err = SVRCORE_Success;
     char *tbuf = malloc(PASS_MAX);
@@ -450,7 +450,7 @@ out:
 void
 SVRCORE_DestroySystemdPinObj(SVRCORESystemdPinObj *obj)
 {
-#ifdef HAVE_SYSTEMD
+#ifdef WITH_SYSTEMD
     if (obj) {
         free(obj);
     }
