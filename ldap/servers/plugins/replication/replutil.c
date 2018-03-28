@@ -1076,7 +1076,7 @@ repl_config_valid_num(const char *config_attr, char *config_attr_value, int64_t 
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         if (errortext){
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "Attribute %s value (%s) is invalid, must be a number between %ld and %ld.",
+                        "Attribute %s value (%s) is invalid, must be a number between %" PRId64 " and %" PRId64 ".",
                         config_attr, config_attr_value, min, max);
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl_config_valid_num - %s\n",
                           errortext);

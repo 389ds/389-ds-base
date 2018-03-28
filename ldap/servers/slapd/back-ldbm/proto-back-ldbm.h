@@ -32,14 +32,14 @@ void attr_create_empty(backend *be, char *type, struct attrinfo **ai);
 /*
  * cache.c
  */
-int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type);
+int cache_init(struct cache *cache, uint64_t maxsize, uint64_t maxentries, int type);
 void cache_clear(struct cache *cache, int type);
 void cache_destroy_please(struct cache *cache, int type);
-void cache_set_max_size(struct cache *cache, size_t bytes, int type);
+void cache_set_max_size(struct cache *cache, uint64_t bytes, int type);
 void cache_set_max_entries(struct cache *cache, long entries);
 size_t cache_get_max_size(struct cache *cache);
 long cache_get_max_entries(struct cache *cache);
-void cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries, long *entries, long *maxentries, size_t *size, size_t *maxsize);
+void cache_get_stats(struct cache *cache, uint64_t *hits, uint64_t *tries, uint64_t *entries, uint64_t *maxentries, uint64_t *size, uint64_t *maxsize);
 void cache_debug_hash(struct cache *cache, char **out);
 int cache_remove(struct cache *cache, void *e);
 void cache_return(struct cache *cache, void **bep);
@@ -61,9 +61,9 @@ void check_entry_cache(struct cache *cache, struct backentry *e);
 #endif
 
 Hashtable *new_hash(u_long size, u_long offset, HashFn hfn, HashTestFn tfn);
-int add_hash(Hashtable *ht, void *key, size_t keylen, void *entry, void **alt);
-int find_hash(Hashtable *ht, const void *key, size_t keylen, void **entry);
-int remove_hash(Hashtable *ht, const void *key, size_t keylen);
+int add_hash(Hashtable *ht, void *key, uint32_t keylen, void *entry, void **alt);
+int find_hash(Hashtable *ht, const void *key, uint32_t keylen, void **entry);
+int remove_hash(Hashtable *ht, const void *key, uint32_t keylen);
 
 struct backdn *dncache_find_id(struct cache *cache, ID id);
 
@@ -99,7 +99,7 @@ int dblayer_read_txn_commit(backend *be, back_txn *txn);
 int dblayer_txn_begin_all(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_commit_all(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_abort_all(struct ldbminfo *li, back_txn *txn);
-size_t dblayer_get_optimal_block_size(struct ldbminfo *li);
+uint32_t dblayer_get_optimal_block_size(struct ldbminfo *li);
 void dblayer_unlock_backend(backend *be);
 void dblayer_lock_backend(backend *be);
 int dblayer_plugin_begin(Slapi_PBlock *pb);
@@ -126,7 +126,8 @@ int dblayer_get_instance_data_dir(backend *be);
 char *dblayer_strerror(int error);
 PRInt64 db_atol(char *str, int *err);
 PRInt64 db_atoi(char *str, int *err);
-unsigned long db_strtoul(const char *str, int *err);
+uint32_t db_strtoul(const char *str, int *err);
+uint64_t db_strtoull(const char *str, int *err);
 int dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply);
 int dblayer_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
 int dblayer_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);

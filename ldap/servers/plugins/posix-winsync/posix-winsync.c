@@ -318,7 +318,7 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
                     mask = 0x2;
                     adval |= mask; /* set the 0x2 disable bit */
                 }
-                PR_snprintf(acctvalstr, sizeof(acctvalstr), "%lu", adval);
+                PR_snprintf(acctvalstr, sizeof(acctvalstr), "%" PRIu64, adval);
                 slapi_ch_free_string(&mod_bval->bv_val);
                 mod_bval->bv_val = slapi_ch_strdup(acctvalstr);
                 mod_bval->bv_len = strlen(acctvalstr);

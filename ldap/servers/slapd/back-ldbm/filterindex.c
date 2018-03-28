@@ -974,7 +974,7 @@ keys2idl(
     IDList *idl = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "keys2idl", "=> type %s indextype %s\n", type, indextype);
-    for (size_t i = 0; ivals[i] != NULL; i++) {
+    for (uint32_t i = 0; ivals[i] != NULL; i++) {
         IDList *idl2 = NULL;
 
         idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
@@ -985,8 +985,8 @@ keys2idl(
             char buf[BUFSIZ];
 
             slapi_log_err(SLAPI_LOG_TRACE, "keys2idl",
-                          "   ival[%lu] = \"%s\" => %lu IDs\n", i,
-                          encode(slapi_value_get_berval(ivals[i]), buf), (u_long)IDL_NIDS(idl2));
+                          "   ival[%" PRIu32 "] = \"%s\" => %" PRIu32 " IDs\n", i,
+                          encode(slapi_value_get_berval(ivals[i]), buf), (uint32_t)IDL_NIDS(idl2));
         }
 #endif
         if (idl2 == NULL) {

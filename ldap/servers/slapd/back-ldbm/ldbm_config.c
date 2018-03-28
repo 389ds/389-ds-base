@@ -413,7 +413,7 @@ ldbm_config_dbcachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)(li->li_new_dbcachesize);
+    return (void *)((uintptr_t)li->li_new_dbcachesize);
 }
 
 static int
@@ -724,7 +724,7 @@ ldbm_config_db_logbuf_size_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)li->li_dblayer_private->dblayer_logbuf_size;
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_logbuf_size);
 }
 
 static int
@@ -736,7 +736,7 @@ ldbm_config_db_logbuf_size_set(void *arg,
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_logbuf_size = val;
@@ -802,7 +802,7 @@ ldbm_config_db_page_size_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)li->li_dblayer_private->dblayer_page_size;
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_page_size);
 }
 
 static int
@@ -814,7 +814,7 @@ ldbm_config_db_page_size_set(void *arg,
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint32_t val = (uint32_t)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_page_size = val;
@@ -828,7 +828,7 @@ ldbm_config_db_index_page_size_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)li->li_dblayer_private->dblayer_index_page_size;
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_index_page_size);
 }
 
 static int
@@ -840,7 +840,7 @@ ldbm_config_db_index_page_size_set(void *arg,
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint32_t val = (uint32_t)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_index_page_size = val;
@@ -913,7 +913,7 @@ ldbm_config_db_logfile_size_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)li->li_dblayer_private->dblayer_logfile_size;
+    return (void *)((uintptr_t)li->li_dblayer_private->dblayer_logfile_size);
 }
 
 static int
@@ -925,7 +925,7 @@ ldbm_config_db_logfile_size_set(void *arg,
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
 
     if (apply) {
         li->li_dblayer_private->dblayer_logfile_size = val;
@@ -1218,12 +1218,12 @@ ldbm_config_db_lock_set(void *arg, void *value, char *errorbuf, int phase, int a
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
 
     if (val < BDB_LOCK_NB_MIN) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be greater than %d\n",
                               CONFIG_DB_LOCK, val, BDB_LOCK_NB_MIN);
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_lock_set", "Invalid value for %s (%lu)\n",
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_db_lock_set", "Invalid value for %s (%" PRIu64 ")\n",
                       CONFIG_DB_LOCK, val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -1439,7 +1439,7 @@ ldbm_config_import_cachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)(li->li_import_cachesize);
+    return (void *)((uintptr_t)li->li_import_cachesize);
 }
 
 static int
@@ -1450,8 +1450,8 @@ ldbm_config_import_cachesize_set(void *arg,
                                  int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
-    size_t val = (size_t)value;
-    uint64_t delta = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
+    uint64_t delta;
     /* There is an error here. We check the new val against our current mem-alloc
      * Issue is that we already are using system pages, so while our value *might*
      * be valid, we may reject it here due to the current procs page usage.
@@ -1819,7 +1819,7 @@ static config_info ldbm_config[] = {
     {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE | CONFIG_FLAG_SKIP_DEFAULT_SETTING},
-    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, DEFAULT_CACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DBCACHESIZE, CONFIG_TYPE_UINT64, DEFAULT_CACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBNCACHE, CONFIG_TYPE_INT, "0", &ldbm_config_dbncache_get, &ldbm_config_dbncache_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
 
@@ -1839,7 +1839,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_INDEX_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_index_page_size_get, &ldbm_config_db_index_page_size_set, 0},
     {CONFIG_DB_IDL_DIVISOR, CONFIG_TYPE_INT, "0", &ldbm_config_db_idl_divisor_get, &ldbm_config_db_idl_divisor_set, 0},
     {CONFIG_DB_OLD_IDL_MAXIDS, CONFIG_TYPE_INT, "0", &ldbm_config_db_old_idl_maxids_get, &ldbm_config_db_old_idl_maxids_set, 0},
-    {CONFIG_DB_LOGFILE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_logfile_size_get, &ldbm_config_db_logfile_size_set, 0},
+    {CONFIG_DB_LOGFILE_SIZE, CONFIG_TYPE_UINT64, "0", &ldbm_config_db_logfile_size_get, &ldbm_config_db_logfile_size_set, 0},
     {CONFIG_DB_TRICKLE_PERCENTAGE, CONFIG_TYPE_INT, "5", &ldbm_config_db_trickle_percentage_get, &ldbm_config_db_trickle_percentage_set, 0},
     {CONFIG_DB_SPIN_COUNT, CONFIG_TYPE_INT, "0", &ldbm_config_db_spin_count_get, &ldbm_config_db_spin_count_set, 0},
     {CONFIG_DB_VERBOSE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_verbose_get, &ldbm_config_db_verbose_set, 0},
@@ -1856,7 +1856,7 @@ static config_info ldbm_config[] = {
     {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "25", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "16777216", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_UINT64, "16777216", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_IDL_UPDATE, CONFIG_TYPE_ONOFF, "on", &ldbm_config_idl_get_update, &ldbm_config_idl_set_update, 0},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &ldbm_config_get_bypass_filter_test, &ldbm_config_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
@@ -2118,7 +2118,11 @@ ldbm_config_get(void *arg, config_info *config, char *buf)
         break;
     case CONFIG_TYPE_SIZE_T:
         val = (size_t)config->config_get_fn(arg);
-        sprintf(buf, "%lu", (long unsigned int)val);
+        sprintf(buf, "%" PRIu32, (uint32_t)val);
+        break;
+    case CONFIG_TYPE_UINT64:
+        val = (uint64_t)((uintptr_t)config->config_get_fn(arg));
+        sprintf(buf, "%" PRIu64, (uint64_t)val);
         break;
     case CONFIG_TYPE_STRING:
         /* Remember the get function for strings returns memory
@@ -2362,6 +2366,34 @@ ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct be
                           str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
             /* check for overflow */
+        } else if (err == ERANGE) {
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is outside the range of representable values\n",
+                                  str_val, attr_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is outside the range of representable values\n",
+                          str_val, attr_name);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        retval = config->config_set_fn(arg, (void *)sz_val, err_buf, phase, apply_mod);
+        break;
+
+
+    case CONFIG_TYPE_UINT64:
+        if (use_default) {
+            str_val = config->config_default_value;
+        } else {
+            str_val = bval->bv_val;
+        }
+        /* get the value as a size_t value */
+        sz_val = db_strtoull(str_val, &err);
+
+        /* check for parsing error (e.g. not a number) */
+        if (err == EINVAL) {
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
+                                  str_val, attr_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_set", "Value %s for attr %s is not a number\n",
+                          str_val, attr_name);
+            return LDAP_UNWILLING_TO_PERFORM;
+        /* check for overflow */
         } else if (err == ERANGE) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is outside the range of representable values\n",
                                   str_val, attr_name);

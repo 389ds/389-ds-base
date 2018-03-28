@@ -416,7 +416,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
                 bufptr = newbuf;
             }
 
-            sprintf(bufptr, "%d:%s:%d:%d:%s%s:%s:%s:%lu:ip=%s",
+            sprintf(bufptr, "%d:%s:%d:%d:%s%s:%s:%s:%" PRIu64 ":ip=%s",
                     i,
                     buf2,
                     ct->c[i].c_opsinitiated,

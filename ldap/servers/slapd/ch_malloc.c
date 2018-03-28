@@ -109,21 +109,16 @@ slapi_ch_malloc(
 
 /* See slapi-plugin.h */
 char *
-slapi_ch_memalign(size_t size, size_t alignment)
+slapi_ch_memalign(uint32_t size, uint32_t alignment)
 {
     char *newmem;
-
-    if (size <= 0) {
-        log_negative_alloc_msg("memalign", "bytes", size);
-        return 0;
-    }
 
     if (posix_memalign((void **)&newmem, alignment, size) != 0) {
         int oserr = errno;
 
         oom_occurred();
         slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
-                      "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+                      "malloc of %" PRIu32 " bytes failed; OS error %d (%s)%s\n",
                       size, oserr, slapd_system_strerror(oserr), oom_advice);
         exit(1);
     }

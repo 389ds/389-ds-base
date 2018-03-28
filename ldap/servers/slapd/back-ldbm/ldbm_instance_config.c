@@ -110,7 +110,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
     uint64_t delta = 0;
     uint64_t delta_original = 0;
 
@@ -194,7 +194,7 @@ ldbm_instance_config_dncachememsize_set(void *arg,
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
     uint64_t delta = 0;
 
     /* Do whatever we can to make sure the data is ok. */
@@ -366,11 +366,11 @@ ldbm_instance_config_require_index_set(void *arg,
  *----------------------------------------------------------------------*/
 static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_CACHESIZE, CONFIG_TYPE_LONG, "-1", &ldbm_instance_config_cachesize_get, &ldbm_instance_config_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_SIZE_T, DEFAULT_CACHE_SIZE_STR, &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_LONG, DEFAULT_CACHE_SIZE_STR, &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_READONLY, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_readonly_get, &ldbm_instance_config_readonly_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_instance_dir_get, &ldbm_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_SIZE_T, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_LONG, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void

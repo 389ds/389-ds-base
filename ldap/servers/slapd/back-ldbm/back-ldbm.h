@@ -351,7 +351,7 @@ struct backdn
     ID ep_id;                      /* entry id */
     char ep_state;                 /* state in the cache; share ENTRY_STATE_* */
     int ep_refcnt;                 /* entry reference cnt */
-    size_t ep_size;                /* for cache tracking */
+    uint64_t ep_size;                /* for cache tracking */
     Slapi_DN *dn_sdn;
     void *dn_id_link; /* for hash table */
 };
@@ -359,10 +359,10 @@ struct backdn
 /* for the in-core cache of entries */
 struct cache
 {
-    size_t c_maxsize;         /* max size in bytes */
+    uint64_t c_maxsize;         /* max size in bytes */
     Slapi_Counter *c_cursize; /* size in bytes */
-    long c_maxentries;        /* max entries allowed (-1: no limit) */
-    long c_curentries;        /* current # entries in cache */
+    uint64_t c_maxentries;        /* max entries allowed (-1: no limit) */
+    uint64_t c_curentries;        /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON
@@ -551,63 +551,45 @@ struct ldbminfo
     int li_allidsthreshold;
     char *li_directory;
     int li_reslimit_lookthrough_handle;
-    size_t li_dbcachesize;
+    uint64_t li_dbcachesize;
     int li_dblock;
     int li_dbncache;
-    int li_import_cache_autosize;       /* % of free memory to use
-                                               * for the import caches
-                                               * (-1=default, 80% on cmd import)
-                                               * (0 = off) -- overrides
-                                               * import cache size settings */
-    int li_cache_autosize;              /* % of free memory to use
-                                               * for the combined caches
-                                               * (0 = off) -- overrides
-                                               * other cache size settings */
-    int li_cache_autosize_split;        /* % of li_cache_autosize to
-                                               * use for the libdb cache.
-                                               * the rest is split up among
-                                               * the instance entry caches */
-    uint64_t li_cache_autosize_ec;      /* new instances created while
-                                               * the server is up, should
-                                               * use this as the entry cache
-                                               * size (0 = autosize off) */
+    int li_import_cache_autosize;       /* % of free memory to use for the import caches
+                                         * (-1=default, 80% on cmd import)
+                                         * (0 = off) -- overrides import cache size settings */
+    int li_cache_autosize;              /* % of free memory to use for the combined caches
+                                         * (0 = off) -- overrides other cache size settings */
+    int li_cache_autosize_split;        /* % of li_cache_autosize to use for the libdb cache.
+                                         * the rest is split up among the instance entry caches */
+    uint64_t li_cache_autosize_ec;      /* new instances created while the server is up, should
+                                         * use this as the entry cache size (0 = autosize off) */
     uint64_t li_dncache_autosize_ec;    /* Same as above, but dncache. */
-    size_t li_import_cachesize;         /* size of the mpool for
-                                               * imports */
+    uint64_t li_import_cachesize;       /* size of the mpool for imports */
     PRLock *li_dbcache_mutex;
     PRCondVar *li_dbcache_cv;
-    int li_shutdown;                     /* flag to tell any BE threads
-                                               * to end */
+    int li_shutdown;                     /* flag to tell any BE threads to end */
     PRLock *li_shutdown_mutex;           /* protect shutdown flag */
     dblayer_private *li_dblayer_private; /* session ptr for databases */
-    int li_noparentcheck;                /* check if parent exists on
-                                               * add */
+    int li_noparentcheck;                /* check if parent exists on add */
 
     /* the next 3 fields are for the params that don't get changed until
      * the server is restarted (used by the admin console)
      */
     char *li_new_directory;
-    size_t li_new_dbcachesize;
+    uint64_t li_new_dbcachesize;
     int li_new_dblock;
 
     int li_new_dbncache;
 
     db_upgrade_info *upgrade_info;
-    int li_filter_bypass;       /* bypass filter testing,
-                                               * when possible */
-    int li_filter_bypass_check; /* check that filter bypass
-                                               * is doing the right thing */
-    int li_use_vlv;             /* use vlv indexes to short-
-                                               * circuit matches when
-                                               * possible */
-    void *li_identity;          /* The ldbm plugin needs to keep
-                                               * track of its identity so it can
-                                               * perform internal ops.  Its
-                                               * identity is given to it when
-                                               * its init function is called. */
+    int li_filter_bypass;       /* bypass filter testing, when possible */
+    int li_filter_bypass_check; /* check that filter bypass is doing the right thing */
+    int li_use_vlv;             /* use vlv indexes to short-circuit matches when possible */
+    void *li_identity;          /* The ldbm plugin needs to keep track of its identity so it can
+                                 * perform internal ops.  Its identity is given to it when
+                                 * its init function is called. */
 
-    Objset *li_instance_set; /* A set containing the ldbm
-                                               * instances. */
+    Objset *li_instance_set;    /* A set containing the ldbm instances. */
 
     PRLock *li_config_mutex;
 

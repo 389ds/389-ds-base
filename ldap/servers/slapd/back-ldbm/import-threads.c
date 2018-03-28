@@ -3563,7 +3563,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     slapi_search_internal_pb(srch_pb);
     slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     for (ep = entries; ep != NULL && *ep != NULL; ep++) {
-        size_t l = strlen(slapi_entry_get_dn_const(*ep)) + 5 /* "dn: \n" */;
+        int32_t l = strlen(slapi_entry_get_dn_const(*ep)) + 5 /* "dn: \n" */;
         slapi_log_err(SLAPI_LOG_TRACE, "dse_conf_backup_core",
                       "dn: %s\n", slapi_entry_get_dn_const(*ep));
 
@@ -3573,9 +3573,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
             tp = (char *)slapi_ch_malloc(l); /* should be very rare ... */
         sprintf(tp, "dn: %s\n", slapi_entry_get_dn_const(*ep));
         prrval = PR_Write(prfd, tp, l);
-        if ((size_t)prrval != l) {
+        if (prrval != l) {
             slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
-                          "(%s): write %lu failed: %d (%s)\n",
+                          "(%s): write %" PRId32 " failed: %d (%s)\n",
                           filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
             if (l > sizeof(tmpbuf))
@@ -3609,9 +3609,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
                     tp = (char *)slapi_ch_malloc(l);
                 sprintf(tp, "%s: %s\n", attr_name, attr_val->bv_val);
                 prrval = PR_Write(prfd, tp, l);
-                if ((size_t)prrval != l) {
+                if (prrval != l) {
                     slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
-                                  "(%s): write %lu failed: %d (%s)\n",
+                                  "(%s): write %" PRId32 " failed: %d (%s)\n",
                                   filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                     rval = -1;
                     if (l > sizeof(tmpbuf))
@@ -3624,9 +3624,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
         }
         if (ep + 1 != NULL && *(ep + 1) != NULL) {
             prrval = PR_Write(prfd, "\n", 1);
-            if ((int)prrval != 1) {
+            if (prrval != 1) {
                 slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
-                              "(%s): write %lu failed: %d (%s)\n",
+                              "(%s): write %" PRId32 " failed: %d (%s)\n",
                               filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                 rval = -1;
                 goto out;

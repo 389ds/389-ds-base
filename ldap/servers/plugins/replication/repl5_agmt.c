@@ -182,25 +182,25 @@ agmt_is_valid(Repl_Agmt *ra)
     }
     if (ra->port <= 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
-                                                       "is malformed: invalid port number %ld.\n",
+                                                       "is malformed: invalid port number %" PRId64 ".\n",
                       slapi_sdn_get_dn(ra->dn), ra->port);
         return_value = 0;
     }
     if (ra->timeout < 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
-                                                       "is malformed: invalid timeout %ld.\n",
+                                                       "is malformed: invalid timeout %" PRId64 ".\n",
                       slapi_sdn_get_dn(ra->dn), ra->timeout);
         return_value = 0;
     }
     if (ra->busywaittime < 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
-                                                       "is malformed: invalid busy wait time %ld.\n",
+                                                       "is malformed: invalid busy wait time %" PRId64 ".\n",
                       slapi_sdn_get_dn(ra->dn), ra->busywaittime);
         return_value = 0;
     }
     if (ra->pausetime < 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
-                                                       "is malformed: invalid pausetime %ld.\n",
+                                                       "is malformed: invalid pausetime %" PRId64 ".\n",
                       slapi_sdn_get_dn(ra->dn), ra->pausetime);
         return_value = 0;
     }
@@ -468,7 +468,7 @@ agmt_new_from_entry(Slapi_Entry *e)
         if (dot) {
             *dot = '\0';
         }
-        ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%ld)", agmtname, hostname, ra->port);
+        ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%" PRId64 ")", agmtname, hostname, ra->port);
     }
 
     /* DBDB: review this code */
@@ -791,10 +791,10 @@ agmt_start(Repl_Agmt *ra)
                     char buf[BUFSIZ];
                     char unavail_buf[BUFSIZ];
 
-                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%ld;", slapi_sdn_get_dn(repl_sdn),
+                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%" PRId64 ";", slapi_sdn_get_dn(repl_sdn),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
-                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%ld;unavailable", slapi_sdn_get_dn(repl_sdn),
+                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%" PRId64 ";unavailable", slapi_sdn_get_dn(repl_sdn),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
                     if (strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)) {
@@ -3029,11 +3029,11 @@ agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn)
                  * temporarily mark it as "unavailable".
                  */
                 slapi_ch_free_string(&agmt->maxcsn);
-                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%ld;unavailable", slapi_sdn_get_dn(agmt->replarea),
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%" PRId64 ";unavailable", slapi_sdn_get_dn(agmt->replarea),
                                                  slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname, agmt->port);
             } else if (rid == oprid) {
                 slapi_ch_free_string(&agmt->maxcsn);
-                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%ld;%d;%s", slapi_sdn_get_dn(agmt->replarea),
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%" PRId64 ";%" PRIu16 ";%s", slapi_sdn_get_dn(agmt->replarea),
                                                  slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname,
                                                  agmt->port, agmt->consumerRID, maxcsn);
             }
@@ -3227,10 +3227,10 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
                     char unavail_buf[BUFSIZ];
                     struct berval val;
 
-                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%ld;", slapi_sdn_get_dn(ra->replarea),
+                    PR_snprintf(buf, BUFSIZ, "%s;%s;%s;%" PRId64 ";", slapi_sdn_get_dn(ra->replarea),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
-                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%ld;unavailable",
+                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%" PRId64 ";unavailable",
                                 slapi_sdn_get_dn(ra->replarea),
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);

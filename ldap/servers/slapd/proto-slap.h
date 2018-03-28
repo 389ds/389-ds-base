@@ -491,7 +491,7 @@ char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);
 ber_len_t config_get_maxbersize(void);
-size_t config_get_maxsasliosize(void);
+int32_t config_get_maxsasliosize(void);
 char *config_get_versionstring(void);
 char *config_get_buildnum(void);
 int config_get_enquote_sup_oc(void);

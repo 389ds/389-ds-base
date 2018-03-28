@@ -1087,7 +1087,7 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
         /* we have exited from ns_thrpool_wait. This means we are shutting down! */
         /* Please see https://firstyear.fedorapeople.org/nunc-stans/md_docs_job-safety.html */
         /* tldr is shutdown needs to run first to allow job_done on an ARMED job */
-        for (size_t i = 0; i < listeners; i++) {
+        for (uint64_t i = 0; i < listeners; i++) {
             PRStatus shutdown_status = ns_job_done(listener_idxs[i].ns_job);
             if (shutdown_status != PR_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_CRIT, "ns_set_shutdown", "Failed to shutdown listener idx %" PRIu64 " !\n", i);
@@ -1203,7 +1203,7 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
-                      "slapd shutting down - waiting for %lu thread%s to terminate\n",
+                      "slapd shutting down - waiting for %" PRIu64 " thread%s to terminate\n",
                       threads, (threads > 1) ? "s" : "");
     }
 
@@ -1240,7 +1240,7 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
         DS_Sleep(PR_INTERVAL_NO_WAIT);
         if (threads != g_get_active_threadcnt()) {
             slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon",
-                          "slapd shutting down - waiting for %lu threads to terminate\n",
+                          "slapd shutting down - waiting for %" PRIu64 " threads to terminate\n",
                           g_get_active_threadcnt());
             threads = g_get_active_threadcnt();
         }

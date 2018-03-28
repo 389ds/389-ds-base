@@ -5966,10 +5966,10 @@ config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int 
     return retVal;
 }
 
-size_t
+int32_t
 config_get_maxsasliosize()
 {
-    size_t maxsasliosize;
+    int32_t maxsasliosize;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     maxsasliosize = slapdFrontendConfig->maxsasliosize;

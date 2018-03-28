@@ -83,10 +83,10 @@ idl_new_get_allidslimit(struct attrinfo *a, int allidslimit)
 }
 
 int
-idl_new_exceeds_allidslimit(size_t count, struct attrinfo *a, int allidslimit)
+idl_new_exceeds_allidslimit(uint64_t count, struct attrinfo *a, int allidslimit)
 {
-    size_t limit = idl_new_get_allidslimit(a, allidslimit);
-    return (limit != (size_t)-1) && (count > limit);
+    uint64_t limit = idl_new_get_allidslimit(a, allidslimit);
+    return (limit != (uint64_t)-1) && (count > limit);
 }
 
 
@@ -138,7 +138,7 @@ idl_new_fetch(
     DBT key;
     DBT data;
     ID id = 0;
-    size_t count = 0;
+    uint64_t count = 0;
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE];
     void *ptr;
@@ -245,7 +245,7 @@ idl_new_fetch(
             count++;
         }
 
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "bulk fetch buffer nids=%lu\n", count);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "bulk fetch buffer nids=%" PRIu64 "\n", count);
 #if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
@@ -254,7 +254,7 @@ idl_new_fetch(
             idl->b_ids[0] = ALLID;
             ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "idl_new_fetch", "Search for key for attribute index %s "
-                                                               "exceeded allidslimit %d - count is %lu\n",
+                                                               "exceeded allidslimit %d - count is %" PRIu64 "\n",
                           a->ai_type, allidslimit, count);
             break;
         }
@@ -348,7 +348,7 @@ idl_new_range_fetch(
     DBT cur_key = {0};
     DBT data = {0};
     ID id = 0;
-    size_t count = 0;
+    uint64_t count = 0;
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE];
     void *ptr;
@@ -522,7 +522,7 @@ idl_new_range_fetch(
         }
 
         slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch",
-                      "Bulk fetch buffer nids=%lu\n", count);
+                      "Bulk fetch buffer nids=%" PRIu64 "\n", count);
 #if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && ai && (idl != NULL) &&

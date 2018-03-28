@@ -18,19 +18,17 @@ struct config_info;
 typedef struct config_info config_info;
 
 typedef int config_set_fn_t(void *arg, void *value, char *errorbuf, int phase, int apply);
-typedef void *config_get_fn_t(void *arg);
-/* The value for these is passed around as a
-                                 * void *, the actual value should be gotten
-                                 * by casting the void * as shown below. */
+typedef void *config_get_fn_t(void *arg); /* The value for these is passed around as a
+                                           * void *, the actual value should be gotten
+                                           * by casting the void * as shown below. */
 #define CONFIG_TYPE_ONOFF 1     /* val = (int) value */
-#define CONFIG_TYPE_STRING 2    /* val = (char *) value - The get functions \
-                                 * for this type must return alloced memory \
-                                 * that should be freed by the caller. */
+#define CONFIG_TYPE_STRING 2    /* val = (char *) value - The get functions for this type
+                                 * must return alloced memory that should be freed by the caller. */
 #define CONFIG_TYPE_INT 3       /* val = (int) value */
 #define CONFIG_TYPE_LONG 4      /* val = (long) value */
-#define CONFIG_TYPE_INT_OCTAL 5 /* Same as CONFIG_TYPE_INT, but shown in \
-                              * octal */
+#define CONFIG_TYPE_INT_OCTAL 5 /* Same as CONFIG_TYPE_INT, but shown in octal */
 #define CONFIG_TYPE_SIZE_T 6    /* val = (size_t) value */
+#define CONFIG_TYPE_UINT64 7    /* val = (uint64_t) value */
 
 /* How changes to some config attributes are handled depends on what
  * "phase" the server is in.  Initialization, reading the config
