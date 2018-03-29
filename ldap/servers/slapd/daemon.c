@@ -1176,30 +1176,6 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
     disk_monitoring_stop();
 
-    /*
-     * Now that they are abandonded, we need to mark them as done.
-     * In NS while it's safe to allow excess jobs to be cleaned by
-     * by the walk and ns_job_done of remaining queued events, the
-     * issue is that if we allow something to live past this point
-     * the CT is freed from underneath, and bad things happen (tm).
-     *
-     * NOTE: We do this after we stop psearch, because there could
-     * be a race between flagging the psearch done, and users still
-     * try to send on the connection. Similar with op_threads.
-     */
-    connection_table_disconnect_all(the_connection_table);
-
-    /*
-     * WARNING: Normally we should close the tp in main
-     * but because of issues in the current connection design
-     * we need to close it here to guarantee events won't fire!
-     *
-     * All the connection close jobs "should" complete before
-     * shutdown at least.
-     */
-    ns_thrpool_shutdown(tp);
-    ns_thrpool_wait(tp);
-
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
@@ -1652,18 +1628,25 @@ ns_handle_closure(struct ns_job_t *job)
     Connection *c = (Connection *)ns_job_get_data(job);
     int do_yield = 0;
 
+/* this function must be called from the event loop thread */
+#ifdef DEBUG
+    PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
+#else
+    /* This doesn't actually confirm it's in the event loop thread, but it's a start */
+    if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "ns_handle_closure", "Attempt to close outside of event loop thread %" PRIu64 " for fd=%d\n",
+                      c->c_connid, c->c_sd);
+        return;
+    }
+#endif
+
     PR_EnterMonitor(c->c_mutex);
-    /* Assert we really have the right job state. */
-    PR_ASSERT(job == c->c_job);
 
     connection_release_nolock_ext(c, 1); /* release ref acquired for event framework */
     PR_ASSERT(c->c_ns_close_jobs == 1);  /* should be exactly 1 active close job - this one */
     c->c_ns_close_jobs--;                /* this job is processing closure */
-    /* Because handle closure will add a new job, we need to detach our current one. */
-    c->c_job = NULL;
     do_yield = ns_handle_closure_nomutex(c);
     PR_ExitMonitor(c->c_mutex);
-    /* Remove this task now. */
     ns_job_done(job);
     if (do_yield) {
         /* closure not done - another reference still outstanding */
@@ -1686,14 +1669,6 @@ ns_connection_post_io_or_closing(Connection *conn)
         return;
     }
 
-    /*
-     * Cancel any existing ns jobs we have registered.
-     */
-    if (conn->c_job != NULL) {
-        ns_job_done(conn->c_job);
-        conn->c_job = NULL;
-    }
-
     if (CONN_NEEDS_CLOSING(conn)) {
         /* there should only ever be 0 or 1 active closure jobs */
         PR_ASSERT((conn->c_ns_close_jobs == 0) || (conn->c_ns_close_jobs == 1));
@@ -1703,10 +1678,13 @@ ns_connection_post_io_or_closing(Connection *conn)
                           conn->c_connid, conn->c_sd);
             return;
         } else {
+            /* just make sure we schedule the event to be closed in a timely manner */
+            tv.tv_sec = 0;
+            tv.tv_usec = slapd_wakeup_timer * 1000;
             conn->c_ns_close_jobs++;                                                      /* now 1 active closure job */
             connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
-            /* Close the job asynchronously. Why? */
-            ns_result_t job_result = ns_add_job(conn->c_tp, NS_JOB_TIMER, ns_handle_closure, conn, &(conn->c_job));
+            ns_result_t job_result = ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
+                                                        ns_handle_closure, conn, NULL);
             if (job_result != NS_SUCCESS) {
                 if (job_result == NS_SHUTDOWN) {
                     slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post closure job "
@@ -1750,7 +1728,7 @@ ns_connection_post_io_or_closing(Connection *conn)
 #endif
         ns_result_t job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
                                                        NS_JOB_READ | NS_JOB_PRESERVE_FD,
-                                                       ns_handle_pr_read_ready, conn, &(conn->c_job));
+                                                       ns_handle_pr_read_ready, conn, NULL);
         if (job_result != NS_SUCCESS) {
             if (job_result == NS_SHUTDOWN) {
                 slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post I/O job for "
@@ -1779,12 +1757,19 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
     int maxthreads = config_get_maxthreadsperconn();
     Connection *c = (Connection *)ns_job_get_data(job);
 
-    PR_EnterMonitor(c->c_mutex);
-    /* Assert we really have the right job state. */
-    PR_ASSERT(job == c->c_job);
+/* this function must be called from the event loop thread */
+#ifdef DEBUG
+    PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
+#else
+    /* This doesn't actually confirm it's in the event loop thread, but it's a start */
+    if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "ns_handle_pr_read_ready", "Attempt to handle read ready outside of event loop thread %" PRIu64 " for fd=%d\n",
+                      c->c_connid, c->c_sd);
+        return;
+    }
+#endif
 
-    /* On all code paths we remove the job, so set it null now */
-    c->c_job = NULL;
+    PR_EnterMonitor(c->c_mutex);
 
     slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "activity on conn %" PRIu64 " for fd=%d\n",
                   c->c_connid, c->c_sd);
@@ -1844,7 +1829,6 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
         slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "queued conn %" PRIu64 " for fd=%d\n",
                       c->c_connid, c->c_sd);
     }
-    /* Since we call done on the job, we need to remove it here. */
     PR_ExitMonitor(c->c_mutex);
     ns_job_done(job);
     return;

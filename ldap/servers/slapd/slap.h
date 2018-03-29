@@ -1650,7 +1650,6 @@ typedef struct conn
     void *c_io_layer_cb_data;            /* callback data */
     struct connection_table *c_ct;       /* connection table that this connection belongs to */
     ns_thrpool_t *c_tp;                  /* thread pool for this connection */
-    struct ns_job_t *c_job;                     /* If it exists, the current ns_job_t */
     int c_ns_close_jobs;                 /* number of current close jobs */
     char *c_ipaddr;                      /* ip address str - used by monitor */
 } Connection;
