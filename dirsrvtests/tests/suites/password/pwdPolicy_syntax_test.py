@@ -10,6 +10,7 @@ import logging
 
 import pytest
 from lib389.tasks import *
+from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
 
@@ -89,7 +90,7 @@ def resetPasswd(inst):
     # Now set the password
     try:
         inst.modify_s(USER_DN,
-                      [(ldap.MOD_REPLACE, 'userpassword', PASSWORD)])
+                      [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(PASSWORD))])
     except ldap.LDAPError as e:
         log.fatal("Failed to reset user password: " + str(e))
         assert False
@@ -105,7 +106,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     setPolicy(inst, policy_attr, value)
     try:
         inst.modify_s(USER_DN,
-                      [(ldap.MOD_REPLACE, 'userpassword', pw_bad)])
+                      [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(pw_bad))])
         log.fatal('Invalid password was unexpectedly accepted (%s)' %
                   (policy_attr))
         assert False
@@ -120,7 +121,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     # Change password that is allowed
     try:
         inst.modify_s(USER_DN,
-                      [(ldap.MOD_REPLACE, 'userpassword', pw_good)])
+                      [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(pw_good))])
     except ldap.LDAPError as e:
         log.fatal("Failed to change password: " + str(e))
         assert False

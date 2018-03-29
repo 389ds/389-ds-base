@@ -55,15 +55,10 @@ def test_basic(topology_st):
     # Configure password history policy and add a test user
     #
     try:
-        topology_st.standalone.modify_s("cn=config",
-                                        [(ldap.MOD_REPLACE,
-                                          'passwordHistory', 'on'),
-                                         (ldap.MOD_REPLACE,
-                                          'passwordInHistory', '3'),
-                                         (ldap.MOD_REPLACE,
-                                          'passwordChange', 'on'),
-                                         (ldap.MOD_REPLACE,
-                                          'passwordStorageScheme', 'CLEAR')])
+        topology_st.standalone.config.replace_many(('passwordHistory', 'on'),
+                                                   ('passwordInHistory', '3'),
+                                                   ('passwordChange', 'on'),
+                                                   ('passwordStorageScheme', 'CLEAR'))
         log.info('Configured password policy.')
     except ldap.LDAPError as e:
         log.fatal('Failed to configure password policy: ' + str(e))
@@ -93,7 +88,7 @@ def test_basic(topology_st):
     # Attempt to change password to the same password
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password')])
+                                                   'userpassword', b'password')])
         log.info('Incorrectly able to to set password to existing password.')
         assert False
     except ldap.CONSTRAINT_VIOLATION:
@@ -109,7 +104,7 @@ def test_basic(topology_st):
     # password1
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password1')])
+                                                   'userpassword', b'password1')])
     except ldap.LDAPError as e:
         log.fatal('Failed to change password: ' + str(e))
         assert False
@@ -123,7 +118,7 @@ def test_basic(topology_st):
     # password2
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password2')])
+                                                   'userpassword', b'password2')])
     except ldap.LDAPError as e:
         log.fatal('Failed to change password: ' + str(e))
         assert False
@@ -137,7 +132,7 @@ def test_basic(topology_st):
     # password3
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password3')])
+                                                   'userpassword', b'password3')])
     except ldap.LDAPError as e:
         log.fatal('Failed to change password: ' + str(e))
         assert False
@@ -151,7 +146,7 @@ def test_basic(topology_st):
     # password4
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password4')])
+                                                   'userpassword', b'password4')])
     except ldap.LDAPError as e:
         log.fatal('Failed to change password: ' + str(e))
         assert False
@@ -185,7 +180,7 @@ def test_basic(topology_st):
     #
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password1')])
+                                                   'userpassword', b'password1')])
         log.info('Incorrectly able to to set password to previous password1.')
         assert False
     except ldap.CONSTRAINT_VIOLATION:
@@ -197,7 +192,7 @@ def test_basic(topology_st):
 
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password2')])
+                                                   'userpassword', b'password2')])
         log.info('Incorrectly able to to set password to previous password2.')
         assert False
     except ldap.CONSTRAINT_VIOLATION:
@@ -207,7 +202,7 @@ def test_basic(topology_st):
         assert False
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password3')])
+                                                   'userpassword', b'password3')])
         log.info('Incorrectly able to to set password to previous password3.')
         assert False
     except ldap.CONSTRAINT_VIOLATION:
@@ -228,7 +223,7 @@ def test_basic(topology_st):
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
                                                    'userpassword',
-                                                   'password-reset')])
+                                                   b'password-reset')])
     except ldap.LDAPError as e:
         log.fatal('Failed to attempt to reset password: ' + str(e))
         assert False
@@ -244,7 +239,7 @@ def test_basic(topology_st):
 
     try:
         topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                                   'userpassword', 'password4')])
+                                                   'userpassword', b'password4')])
         log.info('Incorrectly able to to set password to previous password4.')
         assert False
     except ldap.CONSTRAINT_VIOLATION:

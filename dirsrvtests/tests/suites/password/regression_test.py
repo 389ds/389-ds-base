@@ -11,6 +11,7 @@ from lib389._constants import SUFFIX, PASSWORD, DN_DM
 from lib389.idm.user import UserAccounts
 from lib389.utils import ldap, os, logging, ensure_bytes
 from lib389.topologies import topology_st as topo
+from lib389.idm.organisationalunit import OrganisationalUnits
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -25,10 +26,10 @@ user_data = {'cn': 'CNpwtest1', 'sn': 'SNpwtest1', 'uid': 'UIDpwtest1', 'mail': 
 TEST_PASSWORDS = list(user_data.values())
 # Add substring/token values of "CNpwtest1"
 TEST_PASSWORDS += ['CNpwtest1ZZZZ', 'ZZZZZCNpwtest1',
-                    'ZCNpwtest1', 'CNpwtest1Z', 'ZCNpwtest1Z',
-                    'ZZCNpwtest1', 'CNpwtest1ZZ', 'ZZCNpwtest1ZZ',
-                    'ZZZCNpwtest1', 'CNpwtest1ZZZ', 'ZZZCNpwtest1ZZZ',
-                    'ZZZZZZCNpwtest1ZZZZZZZZ']
+                   'ZCNpwtest1', 'CNpwtest1Z', 'ZCNpwtest1Z',
+                   'ZZCNpwtest1', 'CNpwtest1ZZ', 'ZZCNpwtest1ZZ',
+                   'ZZZCNpwtest1', 'CNpwtest1ZZZ', 'ZZZCNpwtest1ZZZ',
+                   'ZZZZZZCNpwtest1ZZZZZZZZ']
 
 TEST_PASSWORDS2 = (
     'CN12pwtest31', 'SN3pwtest231', 'UID1pwtest123', 'MAIL2pwtest12@redhat.com', '2GN1pwtest123', 'People123')
@@ -45,13 +46,14 @@ def passw_policy(topo, request):
     topo.standalone.config.set('nsslapd-pwpolicy-local', 'on')
 
     subtree = 'ou=people,{}'.format(SUFFIX)
+    print(subtree)
     log.info('Configure subtree password policy for {}'.format(subtree))
-    topo.standalone.subtreePwdPolicy(subtree, {'passwordchange': ensure_bytes('on'),
-                                               'passwordCheckSyntax': ensure_bytes('on'),
-                                               'passwordLockout': ensure_bytes('on'),
-                                               'passwordResetFailureCount': ensure_bytes('3'),
-                                               'passwordLockoutDuration': ensure_bytes('3'),
-                                               'passwordMaxFailure': ensure_bytes('2')})
+    topo.standalone.subtreePwdPolicy(subtree, {'passwordchange': b'on',
+                                               'passwordCheckSyntax': b'on',
+                                               'passwordLockout': b'on',
+                                               'passwordResetFailureCount': b'3',
+                                               'passwordLockoutDuration': b'3',
+                                               'passwordMaxFailure': b'2'})
     time.sleep(1)
 
     def fin():
@@ -104,7 +106,7 @@ def test_pwp_local_unlock(topo, passw_policy, test_user):
     test_user.bind(PASSWORD)
 
     log.info('Test passwordUnlock default - user should be able to reset password after lockout')
-    for i in range(0,2):
+    for i in range(0, 2):
         try:
             test_user.bind("bad-password")
         except ldap.INVALID_CREDENTIALS:
@@ -113,7 +115,6 @@ def test_pwp_local_unlock(topo, passw_policy, test_user):
         except ldap.LDAPError as e:
             log.fatal("Got unexpected failure: " + atr(e))
             raise e
-
 
     log.info('Verify account is locked')
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
@@ -149,7 +150,7 @@ def test_trivial_passw_check(topo, passw_policy, test_user, user_pasw):
     try:
         log.info('Replace userPassword attribute with {}'.format(user_pasw))
         with pytest.raises(ldap.CONSTRAINT_VIOLATION) as excinfo:
-            conn.modify_s(test_user.dn, [(ldap.MOD_REPLACE, 'userPassword', user_pasw)])
+            conn.modify_s(test_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
             log.fatal('Failed: Userpassword with {} is accepted'.format(user_pasw))
         assert 'password based off of user entry' in str(excinfo.value)
     finally:
@@ -180,7 +181,7 @@ def test_global_vs_local(topo, passw_policy, test_user, user_pasw):
     log.info('Replace userPassword attribute with {}'.format(user_pasw))
     try:
         try:
-            conn.modify_s(test_user.dn, [(ldap.MOD_REPLACE, 'userPassword', user_pasw)])
+            conn.modify_s(test_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
         except ldap.LDAPError as e:
             log.fatal('Failed to replace userPassword: error {}'.format(e.message['desc']))
             raise e

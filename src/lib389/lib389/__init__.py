@@ -2597,10 +2597,10 @@ class DirSrv(SimpleLDAPObject, object):
         """input is dict of attr/vals"""
         mods = []
         for (attr, val) in six.iteritems(pwdpolicy):
-            mods.append((ldap.MOD_REPLACE, attr, str(val)))
+            mods.append((ldap.MOD_REPLACE, attr, ensure_bytes(val)))
         if pwdargs:
             for (attr, val) in six.iteritems(pwdargs):
-                mods.append((ldap.MOD_REPLACE, attr, str(val)))
+                mods.append((ldap.MOD_REPLACE, attr, ensure_bytes(val)))
         self.modify_s(dn, mods)
 
     # Moved to config
