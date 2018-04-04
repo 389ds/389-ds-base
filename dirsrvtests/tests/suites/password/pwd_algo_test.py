@@ -11,7 +11,6 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, DN_DM, PORT_STANDALONE
-
 from lib389.idm.user import UserAccounts
 
 logging.getLogger(__name__).setLevel(logging.INFO)
@@ -74,6 +73,9 @@ def test_pwd_algo_test(topology_st, algo):
     """Assert that all of our password algorithms correctly PASS and FAIL varying
     password conditions.
     """
+    if algo == 'DEFAULT':
+       if ds_is_older('1.4.0'):
+          pytest.skip("Not implemented")
     _test_algo(topology_st.standalone, algo)
     log.info('Test %s PASSED' % algo)
 
