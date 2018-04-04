@@ -338,7 +338,11 @@ csngen_adjust_time(CSNGen *gen, const CSN *csn)
                we have increased the time, we can decrease the seqnum
                and still guarantee that any new CSNs generated will be
                > any current CSNs we have generated */
-            gen->state.seq_num = remote_seqnum + 1;
+            if (remote_seqnum < gen->state.seq_num) {
+                gen->state.seq_num ++;
+            } else {
+                gen->state.seq_num = remote_seqnum + 1;
+            }
         }
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, "csngen_adjust_time",
