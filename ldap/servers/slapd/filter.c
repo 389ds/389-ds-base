@@ -476,7 +476,7 @@ get_substring_filter(
             f->f_sub_initial = val;
             eval = (char *)slapi_escape_filter_value(val, -1);
             if (eval) {
-                if (fstr_len < strlen(*fstr) + strlen(eval) + 1) {
+                if (fstr_len <= strlen(*fstr) + strlen(eval) + 1) {
                     fstr_len += (strlen(eval) + 1) * 2;
                     *fstr = slapi_ch_realloc(*fstr, fstr_len);
                 }
@@ -490,7 +490,7 @@ get_substring_filter(
             charray_add(&f->f_sub_any, val);
             eval = (char *)slapi_escape_filter_value(val, -1);
             if (eval) {
-                if (fstr_len < strlen(*fstr) + strlen(eval) + 1) {
+                if (fstr_len <= strlen(*fstr) + strlen(eval) + 1) {
                     fstr_len += (strlen(eval) + 1) * 2;
                     *fstr = slapi_ch_realloc(*fstr, fstr_len);
                 }
@@ -508,7 +508,7 @@ get_substring_filter(
             f->f_sub_final = val;
             eval = (char *)slapi_escape_filter_value(val, -1);
             if (eval) {
-                if (fstr_len < strlen(*fstr) + strlen(eval) + 1) {
+                if (fstr_len <= strlen(*fstr) + strlen(eval) + 1) {
                     fstr_len += (strlen(eval) + 1) * 2;
                     *fstr = slapi_ch_realloc(*fstr, fstr_len);
                 }
@@ -534,7 +534,7 @@ get_substring_filter(
     }
 
     filter_compute_hash(f);
-    if (fstr_len < strlen(*fstr) + 3) {
+    if (fstr_len <= strlen(*fstr) + 3) {
         fstr_len += 3;
         *fstr = slapi_ch_realloc(*fstr, fstr_len);
     }
