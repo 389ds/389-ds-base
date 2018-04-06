@@ -1165,6 +1165,7 @@ libsvrcore_la_SOURCES = \
 
 libsvrcore_la_LDFLAGS = $(AM_LDFLAGS)
 libsvrcore_la_CPPFLAGS = $(AM_CPPFLAGS) $(SVRCORE_INCLUDES) $(DSPLUGIN_CPPFLAGS)
+libsvrcore_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libsds
@@ -2118,7 +2119,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) $(SVRCORE_INCLUDES)
 ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
-ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la
+ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la libldaputil.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
 if HPUX
