@@ -24,7 +24,7 @@ def test_attr_uniqueness_init(topology_st):
     Enable dynamic plugins - makes things easier
     '''
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
@@ -40,7 +40,7 @@ def test_attr_uniqueness(topology_st):
     #
     try:
         topology_st.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'uid')])
+                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', b'uid')])
 
     except ldap.LDAPError as e:
         log.fatal('test_attr_uniqueness: Failed to configure plugin for "uid": error ' + e.message['desc'])
@@ -78,7 +78,7 @@ def test_attr_uniqueness(topology_st):
     #
     try:
         topology_st.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail')])
+                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', b'mail')])
 
     except ldap.LDAPError as e:
         log.fatal('test_attr_uniqueness: Failed to configure plugin for "mail": error ' + e.message['desc'])
@@ -105,9 +105,9 @@ def test_attr_uniqueness(topology_st):
     #
     try:
         topology_st.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'),
+                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', b'mail'),
                                          (ldap.MOD_ADD, 'uniqueness-attribute-name',
-                                          'mailAlternateAddress')])
+                                          b'mailAlternateAddress')])
     except ldap.LDAPError as e:
         log.error('test_attr_uniqueness: Failed to reconfigure plugin for "mail mailAlternateAddress": error ' +
                   e.message['desc'])

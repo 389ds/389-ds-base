@@ -88,6 +88,7 @@ DIRSRV_STATE_ONLINE = 5
 
 # So uh  .... localhost.localdomain doesn't always exist. Stop. Using. It.
 # LOCALHOST = "localhost.localdomain"
+LOCALHOST_IP = "127.0.0.1"
 LOCALHOST = "localhost"
 LOCALHOST_SHORT = "localhost"
 DEFAULT_PORT = 389

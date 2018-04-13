@@ -37,84 +37,82 @@ def _set_memberofgroupattr_add(topology_st, values):
     topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                     [(ldap.MOD_ADD,
                                       PLUGIN_MEMBEROF_GRP_ATTR,
-                                      values)])
+                                      ensure_bytes(values))])
 
 
 def _get_user_rdn(ext):
-    return "uid=%s_%s" % (USER_RDN, ext)
-
+    return ensure_bytes("uid=%s_%s" % (USER_RDN, ext))
 
 def _get_user_dn(ext):
-    return "%s,%s" % (_get_user_rdn(ext), USERS_CONTAINER)
+    return ensure_bytes("%s,%s" % (ensure_str(_get_user_rdn(ext)), USERS_CONTAINER))
 
 
 def _get_group_rdn(ext):
-    return "cn=%s_%s" % (GROUP_RDN, ext)
+    return ensure_bytes("cn=%s_%s" % (GROUP_RDN, ext))
 
 
 def _get_group_dn(ext):
-    return "%s,%s" % (_get_group_rdn(ext), GROUPS_CONTAINER)
+    return ensure_bytes("%s,%s" % (ensure_str(_get_group_rdn(ext)), GROUPS_CONTAINER))
 
 
 def _create_user(topology_st, ext):
-    user_dn = _get_user_dn(ext)
+    user_dn = ensure_str(_get_user_dn(ext))
     topology_st.standalone.add_s(Entry((user_dn, {
         'objectclass': 'top extensibleObject'.split(),
-        'uid': _get_user_rdn(ext)
+        'uid': ensure_str(_get_user_rdn(ext))
     })))
     log.info("Create user %s" % user_dn)
-    return user_dn
+    return ensure_bytes(user_dn)
 
 
 def _delete_user(topology_st, ext):
-    user_dn = _get_user_dn(ext)
+    user_dn = ensure_str(_get_user_dn(ext))
     topology_st.standalone.delete_s(user_dn)
     log.info("Delete user %s" % user_dn)
 
 
 def _create_group(topology_st, ext):
-    group_dn = _get_group_dn(ext)
+    group_dn = ensure_str(_get_group_dn(ext))
     topology_st.standalone.add_s(Entry((group_dn, {
         'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
-        'ou': _get_group_rdn(ext)
+        'ou': ensure_str(_get_group_rdn(ext))
     })))
     log.info("Create group %s" % group_dn)
-    return group_dn
+    return ensure_bytes(group_dn)
 
 
 def _delete_group(topology_st, ext):
-    group_dn = _get_group_dn(ext)
+    group_dn = ensure_str(_get_group_dn(ext))
     topology_st.standalone.delete_s(group_dn)
     log.info("Delete group %s" % group_dn)
 
 
 def _check_memberattr(topology_st, entry, memberattr, value):
     log.info("Check %s.%s = %s" % (entry, memberattr, value))
-    entry = topology_st.standalone.getEntry(entry, ldap.SCOPE_BASE, '(objectclass=*)', [memberattr])
-    assert entry
-    if not entry.hasAttr(memberattr):
+    entry = topology_st.standalone.getEntry(ensure_str(entry), ldap.SCOPE_BASE, '(objectclass=*)', [memberattr])
+    if not entry.hasAttr(ensure_str(memberattr)):
         return False
 
     found = False
-    for val in entry.getValues(memberattr):
-        log.info("%s: %s" % (memberattr, val))
-        if value.lower() == val.lower():
+    for val in entry.getValues(ensure_str(memberattr)):
+        log.info("%s: %s" % (memberattr, ensure_str(val)))
+        if ensure_str(value.lower()) == ensure_str(val.lower()):
             found = True
             break
     return found
 
 
+
 def _check_memberof(topology_st, member, group):
     log.info("Lookup memberof from %s" % member)
-    entry = topology_st.standalone.getEntry(member, ldap.SCOPE_BASE, '(objectclass=*)', ['memberof'])
-    assert entry
+    entry = topology_st.standalone.getEntry(ensure_str(member), ldap.SCOPE_BASE, '(objectclass=*)', ['memberof'])
     if not entry.hasAttr('memberof'):
         return False
 
     found = False
     for val in entry.getValues('memberof'):
-        log.info("memberof: %s" % val)
-        if group.lower() == val.lower():
+        log.info("memberof: %s" % ensure_str(val))
+        if ensure_str(group.lower()) == ensure_str(val.lower()):
             found = True
             log.info("--> membership verified")
             break
@@ -128,7 +126,21 @@ def text_memberof_683241_01(topology_st):
     topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                     [(ldap.MOD_REPLACE,
                                       PLUGIN_TYPE,
-                                      'betxnpostoperation')])
+                                      b'betxnpostoperation')])
+    topology_st.standalone.restart()
+    ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_TYPE])
+    assert ent.hasAttr(PLUGIN_TYPE)
+    assert ent.getValue(PLUGIN_TYPE) == 'betxnpostoperation'
+
+
+def text_memberof_683241_01(topology_st):
+    """
+    Test Modify the memberof plugin to use the new type
+    """
+    topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
+                                    [(ldap.MOD_REPLACE,
+                                      PLUGIN_TYPE,
+                                      b'betxnpostoperation')])
     topology_st.standalone.restart()
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_TYPE])
     assert ent.hasAttr(PLUGIN_TYPE)
@@ -143,8 +155,8 @@ def test_memberof_MultiGrpAttr_001(topology_st):
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)",
                                           [PLUGIN_MEMBEROF_GRP_ATTR])
     assert ent.hasAttr(PLUGIN_MEMBEROF_GRP_ATTR)
-    assert 'member'.lower() in [x.lower() for x in ent.getValues(PLUGIN_MEMBEROF_GRP_ATTR)]
-    assert 'uniqueMember'.lower() in [x.lower() for x in ent.getValues(PLUGIN_MEMBEROF_GRP_ATTR)]
+    assert b'member'.lower() in [x.lower() for x in ent.getValues(PLUGIN_MEMBEROF_GRP_ATTR)]
+    assert b'uniqueMember'.lower() in [x.lower() for x in ent.getValues(PLUGIN_MEMBEROF_GRP_ATTR)]
 
 
 def test_memberof_MultiGrpAttr_003(topology_st):
@@ -156,7 +168,7 @@ def test_memberof_MultiGrpAttr_003(topology_st):
     topology_st.standalone.restart()
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_ENABLED])
     assert ent.hasAttr(PLUGIN_ENABLED)
-    assert ent.getValue(PLUGIN_ENABLED).lower() == 'on'
+    assert ent.getValue(PLUGIN_ENABLED).lower() == b'on'
 
 
 def test_memberof_MultiGrpAttr_004(topology_st):
@@ -172,11 +184,11 @@ def test_memberof_MultiGrpAttr_004(topology_st):
     mods = [(ldap.MOD_ADD, 'member', memofenh1), (ldap.MOD_ADD, 'uniqueMember', memofenh2)]
     log.info("Update %s is memberof %s (member)" % (memofenh1, memofegrp1))
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh2, memofegrp1))
-    topology_st.standalone.modify_s(memofegrp1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp1), mods)
 
     log.info("Update %s is memberof %s (member)" % (memofenh1, memofegrp2))
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh2, memofegrp2))
-    topology_st.standalone.modify_s(memofegrp2, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
     # assert enh1 is member of grp1 and grp2
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
@@ -196,10 +208,9 @@ def test_memberof_MultiGrpAttr_005(topology_st):
 
     memofegrp1 = _get_group_dn('memofegrp1')
     memofegrp2 = _get_group_dn('memofegrp2')
-
     log.info("Update %s is no longer memberof %s (member)" % (memofenh1, memofegrp1))
     mods = [(ldap.MOD_DELETE, 'member', memofenh1)]
-    topology_st.standalone.modify_s(memofegrp1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp1), mods)
 
     # assert enh1 is NOT member of grp1 and  is member of grp2
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
@@ -222,7 +233,7 @@ def test_memberof_MultiGrpAttr_006(topology_st):
 
     log.info("Update %s is no longer memberof %s (uniqueMember)" % (memofenh1, memofegrp1))
     mods = [(ldap.MOD_DELETE, 'uniqueMember', memofenh2)]
-    topology_st.standalone.modify_s(memofegrp2, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
     # assert enh1 is NOT member of grp1 and  is member of grp2
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
@@ -245,11 +256,11 @@ def test_memberof_MultiGrpAttr_007(topology_st):
 
     log.info("Update %s is no longer memberof %s (uniqueMember)" % (memofenh2, memofegrp1))
     mods = [(ldap.MOD_DELETE, 'uniqueMember', memofenh2)]
-    topology_st.standalone.modify_s(memofegrp1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp1), mods)
 
     log.info("Update %s is no longer memberof %s (member)" % (memofenh1, memofegrp2))
     mods = [(ldap.MOD_DELETE, 'member', memofenh1)]
-    topology_st.standalone.modify_s(memofegrp2, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
     # assert enh1 is NOT member of grp1 and  is member of grp2
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
@@ -272,11 +283,11 @@ def test_memberof_MultiGrpAttr_008(topology_st):
 
     mods = [(ldap.MOD_ADD, 'member', memofenh1)]
     log.info("Update %s is memberof %s (member)" % (memofenh1, memofegrp1))
-    topology_st.standalone.modify_s(memofegrp1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp1), mods)
 
     mods = [(ldap.MOD_ADD, 'uniqueMember', memofenh2)]
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh2, memofegrp2))
-    topology_st.standalone.modify_s(memofegrp2, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
     # assert enh1 is member of grp1 and  is NOT member of grp2
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
@@ -290,7 +301,7 @@ def test_memberof_MultiGrpAttr_008(topology_st):
     topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                     [(ldap.MOD_DELETE,
                                       PLUGIN_MEMBEROF_GRP_ATTR,
-                                      ['uniqueMember'])])
+                                      [b'uniqueMember'])])
     topology_st.standalone.restart()
 
     log.info("Assert that this change of configuration did change the already set values")
@@ -336,7 +347,7 @@ def test_memberof_MultiGrpAttr_010(topology_st):
     mods = [(ldap.MOD_ADD, 'member', memofenh1)]
     log.info("Try %s is memberof %s (member)" % (memofenh1, memofegrp1))
     try:
-        topology_st.standalone.modify_s(memofegrp1, mods)
+        topology_st.standalone.modify_s(ensure_str(memofegrp1), mods)
         log.error(
             "Should not be allowed to add %s member of %s (because it was already member)" % (memofenh1, memofegrp1))
         assert False
@@ -376,7 +387,7 @@ def test_memberof_MultiGrpAttr_011(topology_st):
     mods = [(ldap.MOD_ADD, 'uniqueMember', memofenh2)]
     log.info("Try %s is memberof %s (member)" % (memofenh2, memofegrp2))
     try:
-        topology_st.standalone.modify_s(memofegrp2, mods)
+        topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
         log.error(
             "Should not be allowed to add %s member of %s (because it was already member)" % (memofenh2, memofegrp2))
         assert False
@@ -473,7 +484,7 @@ def test_memberof_MultiGrpAttr_014(topology_st):
     mods = [(ldap.MOD_ADD, 'member', memofenh1), (ldap.MOD_ADD, 'uniqueMember', memofenh1)]
     log.info("Update %s is memberof %s (member)" % (memofenh1, memofegrp3))
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh1, memofegrp3))
-    topology_st.standalone.modify_s(memofegrp3, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp3), mods)
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -485,11 +496,11 @@ def test_memberof_MultiGrpAttr_014(topology_st):
 
     mods = [(ldap.MOD_DELETE, 'member', memofenh1)]
     log.info("Update %s is not memberof %s (member)" % (memofenh1, memofegrp3))
-    topology_st.standalone.modify_s(memofegrp3, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp3), mods)
 
     mods = [(ldap.MOD_ADD, 'member', memofenh2)]
     log.info("Update %s is memberof %s (member)" % (memofenh2, memofegrp3))
-    topology_st.standalone.modify_s(memofegrp3, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp3), mods)
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -507,13 +518,13 @@ def test_memberof_MultiGrpAttr_014(topology_st):
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp3)
 
-    ent = topology_st.standalone.getEntry(memofegrp3, ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
+    ent = topology_st.standalone.getEntry(ensure_str(memofegrp3), ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
     assert ent.hasAttr('member')
-    assert memofenh1 not in ent.getValues('member')
-    assert memofenh2 in ent.getValues('member')
+    assert ensure_bytes(memofenh1) not in ent.getValues('member')
+    assert ensure_bytes(memofenh2) in ent.getValues('member')
     assert ent.hasAttr('uniqueMember')
-    assert memofenh1 in ent.getValues('uniqueMember')
-    assert memofenh2 not in ent.getValues('uniqueMember')
+    assert ensure_bytes(memofenh1) in ent.getValues('uniqueMember')
+    assert ensure_bytes(memofenh2) not in ent.getValues('uniqueMember')
 
     log.info("Checking final status")
     # assert enh1 is member of
@@ -593,15 +604,15 @@ def test_memberof_MultiGrpAttr_015(topology_st):
     mods = [(ldap.MOD_ADD, 'member', dummy1), (ldap.MOD_ADD, 'uniqueMember', dummy2)]
     log.info("Update %s is memberof %s (member)" % (dummy1, memofegrp015))
     log.info("Update %s is memberof %s (uniqueMember)" % (dummy2, memofegrp015))
-    topology_st.standalone.modify_s(memofegrp015, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp015), mods)
 
-    ent = topology_st.standalone.getEntry(memofegrp015, ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
+    ent = topology_st.standalone.getEntry(ensure_str(memofegrp015), ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
     assert ent.hasAttr('member')
-    assert dummy1 in ent.getValues('member')
-    assert dummy2 not in ent.getValues('member')
+    assert ensure_bytes(dummy1) in ent.getValues('member')
+    assert ensure_bytes(dummy2) not in ent.getValues('member')
     assert ent.hasAttr('uniqueMember')
-    assert dummy1 not in ent.getValues('uniqueMember')
-    assert dummy2 in ent.getValues('uniqueMember')
+    assert ensure_bytes(dummy1) not in ent.getValues('uniqueMember')
+    assert ensure_bytes(dummy2) in ent.getValues('uniqueMember')
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -690,7 +701,7 @@ def test_memberof_MultiGrpAttr_016(topology_st):
     mods = [(ldap.MOD_ADD, 'member', memofenh1), (ldap.MOD_ADD, 'uniqueMember', memofenh1)]
     log.info("Update %s is memberof %s (member)" % (memofenh1, memofegrp016))
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh1, memofegrp016))
-    topology_st.standalone.modify_s(memofegrp016, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp016), mods)
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -718,23 +729,23 @@ def test_memberof_MultiGrpAttr_016(topology_st):
 
     mods = [(ldap.MOD_ADD, 'member', dummy1), ]
     log.info("Update %s is memberof %s (member)" % (dummy1, memofegrp016))
-    topology_st.standalone.modify_s(memofegrp016, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp016), mods)
 
-    ent = topology_st.standalone.getEntry(memofegrp016, ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
+    ent = topology_st.standalone.getEntry(ensure_str(memofegrp016), ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
     assert ent.hasAttr('member')
-    assert dummy1 in ent.getValues('member')
+    assert ensure_bytes(dummy1) in ent.getValues('member')
     assert ent.hasAttr('uniqueMember')
-    assert dummy1 not in ent.getValues('uniqueMember')
+    assert ensure_bytes(dummy1) not in ent.getValues('uniqueMember')
 
     mods = [(ldap.MOD_ADD, 'uniqueMember', dummy1), ]
     log.info("Update %s is memberof %s (uniqueMember)" % (dummy1, memofegrp016))
-    topology_st.standalone.modify_s(memofegrp016, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp016), mods)
 
-    ent = topology_st.standalone.getEntry(memofegrp016, ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
+    ent = topology_st.standalone.getEntry(ensure_str(memofegrp016), ldap.SCOPE_BASE, "(objectclass=*)", ['member', 'uniqueMember'])
     assert ent.hasAttr('member')
-    assert dummy1 in ent.getValues('member')
+    assert ensure_bytes(dummy1) in ent.getValues('member')
     assert ent.hasAttr('uniqueMember')
-    assert dummy1 in ent.getValues('uniqueMember')
+    assert ensure_bytes(dummy1) in ent.getValues('uniqueMember')
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -799,7 +810,7 @@ def test_memberof_MultiGrpAttr_017(topology_st):
             - not grp017
 
         user1 is member of
-            - not grp1 
+            - not grp1
             - not grp2
             - not grp3
             - not grp015
@@ -889,7 +900,7 @@ def test_memberof_MultiGrpAttr_017(topology_st):
     log.info("Update %s is memberof %s (member)" % (memofuser1, memofegrp017))
     log.info("Update %s is memberof %s (uniqueMember)" % (memofuser2, memofegrp017))
     log.info("Update %s is memberof %s (memberuid)" % (memofuser3, memofegrp017))
-    topology_st.standalone.modify_s(memofegrp017, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp017), mods)
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -922,7 +933,7 @@ def test_memberof_MultiGrpAttr_017(topology_st):
     # assert user1 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - grp17 (member)
@@ -936,7 +947,7 @@ def test_memberof_MultiGrpAttr_017(topology_st):
     # assert user2 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - grp17 (uniqueMember)
@@ -950,7 +961,7 @@ def test_memberof_MultiGrpAttr_017(topology_st):
     # assert user3 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - NOT grp17 (memberuid)
@@ -985,7 +996,7 @@ def test_memberof_MultiGrpAttr_018(topology_st):
             - not grp017
 
         user1 is member of
-            - not grp1 
+            - not grp1
             - not grp2
             - not grp3
             - not grp015
@@ -1070,7 +1081,7 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     # assert user1 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - grp17 (member)
@@ -1084,7 +1095,7 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     # assert user2 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - grp17 (uniqueMember)
@@ -1098,7 +1109,7 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     # assert user3 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - NOT grp17 (memberuid)
@@ -1118,12 +1129,12 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     log.info("Update %s is memberof %s (member)" % (memofuser1, memofegrp017))
     log.info("Update %s is memberof %s (uniqueMember)" % (memofuser1, memofegrp017))
     log.info("Update %s is memberof %s (memberuid)" % (memofuser1, memofegrp017))
-    topology_st.standalone.modify_s(memofegrp018, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp018), mods)
 
     # assert user1 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - grp17 (member)
@@ -1139,12 +1150,12 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     mods = [(ldap.MOD_DELETE, 'member', memofuser1), (ldap.MOD_DELETE, 'uniqueMember', memofuser1)]
     log.info("Update %s is no longer memberof %s (member)" % (memofuser1, memofegrp018))
     log.info("Update %s is no longer memberof %s (uniqueMember)" % (memofuser1, memofegrp018))
-    topology_st.standalone.modify_s(memofegrp018, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp018), mods)
 
     # assert user1 is member of
     #       - not grp1
     #       - not grp2
-    #       - not grp3 
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - grp17 (member)
@@ -1158,10 +1169,10 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     assert not _check_memberof(topology_st, member=memofuser1, group=memofegrp018)
 
     # DEL user1, user2, user3, grp17
-    topology_st.standalone.delete_s(memofuser1)
-    topology_st.standalone.delete_s(memofuser2)
-    topology_st.standalone.delete_s(memofuser3)
-    topology_st.standalone.delete_s(memofegrp017)
+    topology_st.standalone.delete_s(ensure_str(memofuser1))
+    topology_st.standalone.delete_s(ensure_str(memofuser2))
+    topology_st.standalone.delete_s(ensure_str(memofuser3))
+    topology_st.standalone.delete_s(ensure_str(memofegrp017))
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -1198,7 +1209,7 @@ def test_memberof_MultiGrpAttr_019(topology_st):
     Add user3 to grp19_3
     Add grp19_2 and grp_19_3 to grp19_1
 
-    At the beginning:        
+    At the beginning:
         enh1 is member of
             - grp1 (member)
             - not grp2
@@ -1278,26 +1289,26 @@ def test_memberof_MultiGrpAttr_019(topology_st):
     # Create a group grp019_2 with user2 member
     memofegrp019_2 = _create_group(topology_st, 'memofegrp019_2')
     mods = [(ldap.MOD_ADD, 'member', memofuser2)]
-    topology_st.standalone.modify_s(memofegrp019_2, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp019_2), mods)
 
     # Create a group grp019_3 with user3 member
     memofegrp019_3 = _create_group(topology_st, 'memofegrp019_3')
     mods = [(ldap.MOD_ADD, 'member', memofuser3)]
-    topology_st.standalone.modify_s(memofegrp019_3, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp019_3), mods)
 
-    mods = [(ldap.MOD_ADD, 'objectClass', 'inetUser')]
-    topology_st.standalone.modify_s(memofegrp019_2, mods)
-    topology_st.standalone.modify_s(memofegrp019_3, mods)
+    mods = [(ldap.MOD_ADD, 'objectClass', b'inetUser')]
+    topology_st.standalone.modify_s(ensure_str(memofegrp019_2), mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp019_3), mods)
 
     # Create a group grp019_1 with memofegrp019_2, memofegrp019_3 member
     memofegrp019_1 = _create_group(topology_st, 'memofegrp019_1')
     mods = [(ldap.MOD_ADD, 'member', memofegrp019_2), (ldap.MOD_ADD, 'member', memofegrp019_3)]
-    topology_st.standalone.modify_s(memofegrp019_1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp019_1), mods)
 
     # assert memofegrp019_1 is member of
     #       - not grp1
-    #       - not grp2 
-    #       - not grp3 
+    #       - not grp2
+    #       - not grp3
     #       - not grp15
     #       - not grp16
     #       - not grp018
@@ -1395,11 +1406,11 @@ def test_memberof_MultiGrpAttr_019(topology_st):
     assert _check_memberof(topology_st, member=memofuser3, group=memofegrp019_3)
 
     # DEL user2, user3, grp19*
-    topology_st.standalone.delete_s(memofuser2)
-    topology_st.standalone.delete_s(memofuser3)
-    topology_st.standalone.delete_s(memofegrp019_1)
-    topology_st.standalone.delete_s(memofegrp019_2)
-    topology_st.standalone.delete_s(memofegrp019_3)
+    topology_st.standalone.delete_s(ensure_str(memofuser2))
+    topology_st.standalone.delete_s(ensure_str(memofuser3))
+    topology_st.standalone.delete_s(ensure_str(memofegrp019_1))
+    topology_st.standalone.delete_s(ensure_str(memofegrp019_2))
+    topology_st.standalone.delete_s(ensure_str(memofegrp019_3))
 
     # assert enh1 is member of
     #       - grp1 (member)
@@ -1437,7 +1448,7 @@ def test_memberof_MultiGrpAttr_020(topology_st):
     Add grp[1-4] member of grp5
     Check user1 is member of grp[1-5]
 
-    At the beginning:        
+    At the beginning:
         enh1 is member of
             - grp1 (member)
             - not grp2
@@ -1505,20 +1516,20 @@ def test_memberof_MultiGrpAttr_020(topology_st):
     memofegrp020_3 = _create_group(topology_st, 'memofegrp020_3')
     memofegrp020_4 = _create_group(topology_st, 'memofegrp020_4')
     memofegrp020_5 = _create_group(topology_st, 'memofegrp020_5')
-    mods = [(ldap.MOD_ADD, 'objectClass', 'inetUser')]
+    mods = [(ldap.MOD_ADD, 'objectClass', b'inetUser')]
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5]:
-        topology_st.standalone.modify_s(grp, mods)
+        topology_st.standalone.modify_s(ensure_str(grp), mods)
 
     # add user1 to grp[1-4] (uniqueMember)
     mods = [(ldap.MOD_ADD, 'uniqueMember', memofuser1)]
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
-        topology_st.standalone.modify_s(grp, mods)
+        topology_st.standalone.modify_s(ensure_str(grp), mods)
 
     # create grp5 with grp[1-4] as member
     mods = []
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
         mods.append((ldap.MOD_ADD, 'member', grp))
-    topology_st.standalone.modify_s(memofegrp020_5, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp020_5), mods)
 
     assert _check_memberof(topology_st, member=memofuser1, group=memofegrp020_1)
     assert _check_memberof(topology_st, member=memofuser1, group=memofegrp020_2)
@@ -1527,9 +1538,9 @@ def test_memberof_MultiGrpAttr_020(topology_st):
     assert _check_memberof(topology_st, member=memofuser1, group=memofegrp020_5)
 
     # DEL user1, grp20*
-    topology_st.standalone.delete_s(memofuser1)
+    topology_st.standalone.delete_s(ensure_str(memofuser1))
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5]:
-        topology_st.standalone.delete_s(grp)
+        topology_st.standalone.delete_s(ensure_str(grp))
 
 
 def test_memberof_MultiGrpAttr_021(topology_st):
@@ -1542,7 +1553,7 @@ def test_memberof_MultiGrpAttr_021(topology_st):
     Check that user1 is member of Grp1 and Grp5
     check that user* are members of Grp5
 
-    At the beginning:        
+    At the beginning:
         enh1 is member of
             - grp1 (member)
             - not grp2
@@ -1578,7 +1589,7 @@ def test_memberof_MultiGrpAttr_021(topology_st):
            - not grp018
            - not grp20*
 
-        user1 is member of grp20_5 
+        user1 is member of grp20_5
         userX is uniquemember of grp20_X
         grp[1-4] are member of grp20_5
 
@@ -1638,15 +1649,15 @@ def test_memberof_MultiGrpAttr_021(topology_st):
               (memofegrp020_2, memofuser2),
               (memofegrp020_3, memofuser3),
               (memofegrp020_4, memofuser4)]:
-        mods = [(ldap.MOD_ADD, 'objectClass', 'inetUser'), (ldap.MOD_ADD, 'uniqueMember', x[1])]
-        topology_st.standalone.modify_s(x[0], mods)
+        mods = [(ldap.MOD_ADD, 'objectClass', b'inetUser'), (ldap.MOD_ADD, 'uniqueMember', x[1])]
+        topology_st.standalone.modify_s(ensure_str(x[0]), mods)
 
     # create grp5 with grp[1-4] as member + user1
     memofegrp020_5 = _create_group(topology_st, 'memofegrp020_5')
     mods = [(ldap.MOD_ADD, 'member', memofuser1)]
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
         mods.append((ldap.MOD_ADD, 'member', grp))
-    topology_st.standalone.modify_s(memofegrp020_5, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp020_5), mods)
 
     # assert user[1-4] are member of grp20_5
     for user in [memofuser1, memofuser2, memofuser3, memofuser4]:
@@ -1722,7 +1733,7 @@ def test_memberof_MultiGrpAttr_022(topology_st):
     add Grp5 as uniquemember of GrpX (this create a loop)
 
 
-    At the beginning:        
+    At the beginning:
         enh1 is member of
            - grp1 (member)
            - not grp2
@@ -1741,7 +1752,7 @@ def test_memberof_MultiGrpAttr_022(topology_st):
            - not grp20*
 
 
-        user1 is member of grp20_5 
+        user1 is member of grp20_5
         userX is uniquemember of grp20_X
         grp[1-4] are member of grp20_5
 
@@ -1866,7 +1877,7 @@ def test_memberof_MultiGrpAttr_022(topology_st):
               (memofegrp020_3, memofuser3),
               (memofegrp020_4, memofuser4)]:
         mods = [(ldap.MOD_ADD, 'member', x[1])]
-        topology_st.standalone.modify_s(x[0], mods)
+        topology_st.standalone.modify_s(ensure_str(x[0]), mods)
 
     # check that user[1-4] are 'member' and 'uniqueMember' of the grp20_[1-4]
     for x in [(memofegrp020_1, memofuser1),
@@ -1876,11 +1887,11 @@ def test_memberof_MultiGrpAttr_022(topology_st):
         assert _check_memberattr(topology_st, x[0], 'uniqueMember', x[1])
         assert _check_memberattr(topology_st, x[0], 'member', x[1])
 
-    # add Grp[1-4] (uniqueMember) to grp5 
+    # add Grp[1-4] (uniqueMember) to grp5
     # it creates a membership loop !!!
     mods = [(ldap.MOD_ADD, 'uniqueMember', memofegrp020_5)]
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
-        topology_st.standalone.modify_s(grp, mods)
+        topology_st.standalone.modify_s(ensure_str(grp), mods)
 
     time.sleep(5)
     # assert user[1-4] are member of grp20_[1-4]
@@ -1957,14 +1968,14 @@ def verify_post_023(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
           /----member ---> G1 ---uniqueMember -------\
          /                                            V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/  
+         |<--uniquemember-/
     """
     for x in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
         assert _check_memberattr(topology_st, memofegrp020_5, 'member', x)
@@ -2003,7 +2014,7 @@ def test_memberof_MultiGrpAttr_023(topology_st):
 
 
 
-    At the beginning:        
+    At the beginning:
        enh1 is member of
            - grp1 (member)
            - not grp2
@@ -2029,14 +2040,14 @@ def test_memberof_MultiGrpAttr_023(topology_st):
           /----member ---> G1 ---member/uniqueMember -\
          /<--uniquemember-                            V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/                               
+         |<--uniquemember-/
 
 
 
@@ -2045,14 +2056,14 @@ def test_memberof_MultiGrpAttr_023(topology_st):
           /----member ---> G1 ---uniqueMember -------\
          /                                            V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/  
+         |<--uniquemember-/
 
     """
     memofenh1 = _get_user_dn('memofenh1')
@@ -2161,10 +2172,10 @@ def test_memberof_MultiGrpAttr_023(topology_st):
 
     # DEL user1 as 'member' of grp20_1
     mods = [(ldap.MOD_DELETE, 'member', memofuser1)]
-    topology_st.standalone.modify_s(memofegrp020_1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp020_1), mods)
 
     mods = [(ldap.MOD_DELETE, 'uniqueMember', memofegrp020_5)]
-    topology_st.standalone.modify_s(memofegrp020_1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp020_1), mods)
 
     """
           /----member ---> G1 ---uniqueMember -------\
@@ -2189,14 +2200,14 @@ def verify_post_024(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
           /----member ---> G1 ---member/uniqueMember -\
          /                                             V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/  
+         |<--uniquemember-/
     """
     for x in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
         assert _check_memberattr(topology_st, memofegrp020_5, 'member', x)
@@ -2231,33 +2242,33 @@ def verify_post_024(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
 
 def test_memberof_MultiGrpAttr_024(topology_st):
     """
-    At the beginning:        
+    At the beginning:
 
 
           /----member ---> G1 ---uniqueMember -------\
          /                                            V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/  
+         |<--uniquemember-/
 
     At the end:
           /----member ---> G1 ---member/uniqueMember -\
          /                                             V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/  
+         |<--uniquemember-/
     """
 
     memofuser1 = _get_user_dn('memofuser1')
@@ -2275,7 +2286,7 @@ def test_memberof_MultiGrpAttr_024(topology_st):
 
     # ADD user1 as 'member' of grp20_1
     mods = [(ldap.MOD_ADD, 'member', memofuser1)]
-    topology_st.standalone.modify_s(memofegrp020_1, mods)
+    topology_st.standalone.modify_s(ensure_str(memofegrp020_1), mods)
     verify_post_024(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5,
                     memofuser1, memofuser2, memofuser3, memofuser4)
 
@@ -2283,12 +2294,12 @@ def test_memberof_MultiGrpAttr_024(topology_st):
 def verify_post_025(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5,
                     memofuser1, memofuser2, memofuser3, memofuser4):
     """
-          /----member ---> G1 
-         /                                             
+          /----member ---> G1
+         /
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2
-         |----member ---> G3                            
+         |----member ---> G3
          |----member ---> G4
 
     """
@@ -2318,27 +2329,27 @@ def verify_post_025(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
 
 def test_memberof_MultiGrpAttr_025(topology_st):
     """
-    At the beginning:        
+    At the beginning:
 
 
           /----member ---> G1 ---member/uniqueMember -\
          /                                             V
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2 ---member/uniqueMember -> U2
          |<--uniquemember-/
          |
          |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/                              
+         |<--uniquemember-/
          |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/  
+         |<--uniquemember-/
     At the end:
-          /----member ---> G1 
-         /                                             
+          /----member ---> G1
+         /
     G5 ------------------------>member ----------  --->U1
-         | 
+         |
          |----member ---> G2
-         |----member ---> G3                            
+         |----member ---> G3
          |----member ---> G4
 
     """
@@ -2366,7 +2377,7 @@ def test_memberof_MultiGrpAttr_025(topology_st):
               (memofegrp020_4, memofuser4)]:
         mods = [(ldap.MOD_DELETE, 'member', x[1]),
                 (ldap.MOD_DELETE, 'uniqueMember', x[1])]
-        topology_st.standalone.modify_s(x[0], mods)
+        topology_st.standalone.modify_s(ensure_str(x[0]), mods)
     """
           /----member ---> G1 
          /                                             
@@ -2383,7 +2394,7 @@ def test_memberof_MultiGrpAttr_025(topology_st):
 
     for x in [memofegrp020_2, memofegrp020_3, memofegrp020_4]:
         mods = [(ldap.MOD_DELETE, 'uniqueMember', memofegrp020_5)]
-        topology_st.standalone.modify_s(x, mods)
+        topology_st.standalone.modify_s(ensure_str(x), mods)
     """
           /----member ---> G1 
          /                                             
@@ -2409,7 +2420,7 @@ def test_memberof_auto_add_oc(topology_st):
         topology_st.standalone.modify_s(DN_CONFIG,
                                         [(ldap.MOD_REPLACE,
                                           'nsslapd-dynamic-plugins',
-                                          'on')])
+                                          b'on')])
     except ldap.LDAPError as e:
         ldap.error('Failed to enable dynamic plugins! ' + e.message['desc'])
         assert False
@@ -2459,7 +2470,7 @@ def test_memberof_auto_add_oc(topology_st):
         topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                         [(ldap.MOD_REPLACE,
                                           'memberofAutoAddOC',
-                                          'invalid123')])
+                                          b'invalid123')])
         log.fatal('Incorrectly added invalid objectclass!')
         assert False
     except ldap.UNWILLING_TO_PERFORM:
@@ -2475,7 +2486,7 @@ def test_memberof_auto_add_oc(topology_st):
         topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                         [(ldap.MOD_REPLACE,
                                           'memberofAutoAddOC',
-                                          'inetuser')])
+                                          b'inetuser')])
     except ldap.LDAPError as e:
         log.fatal('Failed to configure memberOf plugin: error ' + e.message['desc'])
         assert False
@@ -2528,7 +2539,7 @@ def test_memberof_auto_add_oc(topology_st):
         topology_st.standalone.modify_s(GROUP_DN,
                                         [(ldap.MOD_ADD,
                                           'member',
-                                          USER2_DN)])
+                                          ensure_bytes(USER2_DN))])
     except ldap.LDAPError as e:
         log.fatal('Failed to add user2 to group: error ' + e.message['desc'])
         assert False

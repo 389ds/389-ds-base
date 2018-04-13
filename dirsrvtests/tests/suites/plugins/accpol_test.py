@@ -33,13 +33,13 @@ def accpol_global(topology_st, request):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
         topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
-        topology_st.standalone.modify_s(ACCPOL_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ACCP_CONF)])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'altstateattrname', 'createTimestamp')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'specattrname', 'acctPolicySubentry')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', 'accountInactivityLimit')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '12')])
+        topology_st.standalone.modify_s(ACCPOL_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ensure_bytes(ACCP_CONF))])
+        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', b'yes')])
+        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'stateattrname', b'lastLoginTime')])
+        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'altstateattrname', b'createTimestamp')])
+        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'specattrname', b'acctPolicySubentry')])
+        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', b'accountInactivityLimit')])
+        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', b'12')])
         topology_st.standalone.config.set('passwordexp', 'on')
         topology_st.standalone.config.set('passwordmaxage', '400')
         topology_st.standalone.config.set('passwordwarning', '1')
@@ -136,14 +136,14 @@ def userpw_reset(topology_st, suffix, subtree, userid, nousrs, bindusr, bindpw, 
         if (bindusr == "DirMgr"):
             topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
             try:
-                topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, 'userPassword', newpasw)])
+                topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(newpasw))])
             except ldap.LDAPError as e:
                 log.error('Unable to reset userPassword for user-{}'.format(userdn))
                 raise e
         elif (bindusr == "RegUsr"):
             topology_st.standalone.simple_bind_s(userdn, bindpw)
             try:
-                topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, 'userPassword', newpasw)])
+                topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(newpasw))])
             except ldap.LDAPError as e:
                 log.error('Unable to reset userPassword for user-{}'.format(userdn))
                 raise e
@@ -173,7 +173,7 @@ def nsact_inact(topology_st, suffix, subtree, userid, nousrs, command, expected)
             except subprocess.CalledProcessError as err:
                 output = err.output
         log.info('output: {}'.format(output))
-        assert expected in output
+        assert ensure_bytes(expected) in output
         nousrs = nousrs - 1
         time.sleep(1)
 
@@ -184,7 +184,7 @@ def modify_attr(topology_st, base_dn, attr_name, attr_val):
     log.info('Modify attribute value for a given DN')
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
-        topology_st.standalone.modify_s(base_dn, [(ldap.MOD_REPLACE, attr_name, attr_val)])
+        topology_st.standalone.modify_s(base_dn, [(ldap.MOD_REPLACE, attr_name, ensure_bytes(attr_val))])
     except ldap.LDAPError as e:
         log.error('Failed to replace lastLoginTime attribute for user-{} {}'.format(userdn, e.message['desc']))
         assert False
@@ -217,7 +217,7 @@ def add_time_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
         try:
-            topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, attr_name, new_attr_val)])
+            topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, attr_name, ensure_bytes(new_attr_val))])
         except ldap.LDAPError as e:
             log.error('Failed to add/replace {} attribute to-{}, for user-{}'.format(attr_name, new_attr_val, userdn))
             raise e
@@ -235,7 +235,7 @@ def modusr_attr(topology_st, suffix, subtree, userid, nousrs, attr_name, attr_va
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
         try:
-            topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, attr_name, attr_value)])
+            topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, attr_name, ensure_bytes(attr_value))])
         except ldap.LDAPError as e:
             log.error('Failed to add/replace {} attribute to-{}, for user-{}'.format(attr_name, attr_value, userdn))
             raise e

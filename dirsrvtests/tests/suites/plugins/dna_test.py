@@ -58,8 +58,8 @@ def test_basic(topology_st):
         })))
     except ldap.ALREADY_EXISTS:
         try:
-            topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaNextValue', '1'),
-                                                        (ldap.MOD_REPLACE, 'dnaMagicRegen', '-1')])
+            topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaNextValue', b'1'),
+                                                        (ldap.MOD_REPLACE, 'dnaMagicRegen', b'-1')])
         except ldap.LDAPError as e:
             log.fatal('test_dna: Failed to set the DNA plugin: error ' + e.message['desc'])
             assert False
@@ -96,7 +96,7 @@ def test_basic(topology_st):
 
     # Test the magic regen value
     try:
-        topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'uidNumber', '-1')])
+        topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'uidNumber', b'-1')])
     except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to set the magic reg value: error ' + e.message['desc'])
         assert False
@@ -116,7 +116,7 @@ def test_basic(topology_st):
     ################################################################################
 
     try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaMagicRegen', '-2')])
+        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaMagicRegen', b'-2')])
     except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to set the magic reg value to -2: error ' + e.message['desc'])
         assert False
@@ -127,7 +127,7 @@ def test_basic(topology_st):
 
     # Test the magic regen value
     try:
-        topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'uidNumber', '-2')])
+        topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'uidNumber', b'-2')])
     except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to set the magic reg value: error ' + e.message['desc'])
         assert False
