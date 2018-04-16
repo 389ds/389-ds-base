@@ -243,6 +243,7 @@ main(int argc, char *argv[])
             if ((enc = (*pwsp->pws_enc)(decoded)) == NULL) {
                 perror(name);
                 rc = 1;
+                slapi_ch_free_string(&decoded);
                 goto out;
             }
 
@@ -256,12 +257,12 @@ main(int argc, char *argv[])
                 printf("%s: password does not match.\n", name);
             }
         }
+        slapi_ch_free_string(&decoded);
     }
 
 out:
 
     free_pw_scheme(pwsp);
-    slapi_ch_free_string(&decoded);
 
     plugin_closeall(1 /* Close Backends */, 1 /* Close Globals */);
 
