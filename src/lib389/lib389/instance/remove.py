@@ -8,6 +8,7 @@
 
 import os
 import shutil
+import subprocess
 
 def remove_ds_instance(dirsrv):
     """
@@ -41,6 +42,17 @@ def remove_ds_instance(dirsrv):
     _log.debug("Checking for instance marker at %s" % marker_path)
     assert os.path.exists(marker_path)
 
+    # Move the config_dir to config_dir.removed
+    config_dir = dirsrv.ds_paths.config_dir
+    config_dir_rm = "{}.removed".format(config_dir)
+
+    if os.path.exists(config_dir_rm):
+        _log.debug("Removing previously existed %s" % config_dir_rm)
+        shutil.rmtree(config_dir_rm)
+
+    _log.debug("Copying %s to %s" % (config_dir, config_dir_rm))
+    shutil.copytree(config_dir, config_dir_rm)
+
     # Remove these paths:
     # for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
     #             'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
@@ -51,6 +63,10 @@ def remove_ds_instance(dirsrv):
     # Finally remove the sysconfig marker.
     os.remove(marker_path)
     _log.debug("Removing %s" % marker_path)
+
+    # Remove the systemd symlink
+    _log.debug("Removing the systemd symlink")
+    subprocess.check_call(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)])
 
     # Done!
     _log.debug("Complete")

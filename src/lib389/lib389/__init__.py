@@ -415,7 +415,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         # The lack of this value basically rules it out in most cases
         self.isLocal = True
-        self.ds_paths = Paths(instance=self)
+        self.ds_paths = Paths(serverid, instance=self)
+        self.serverid = serverid
 
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
