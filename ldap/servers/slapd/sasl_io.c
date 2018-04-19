@@ -189,8 +189,8 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     unsigned char buffer[SASL_IO_BUFFER_START_SIZE];
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
-    uint32_t amount = sizeof(buffer);
-    uint32_t ret = 0;
+    int32_t amount = sizeof(buffer);
+    int32_t ret = 0;
     uint32_t packet_length = 0;
     int32_t saslio_limit;
 
