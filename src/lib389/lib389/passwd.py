@@ -18,6 +18,19 @@ import os
 
 # How do we feed our prefix into this?
 def password_hash(pw, scheme=None, bin_dir='/bin'):
+    """Generate a password hash using pwdhash tool
+
+    :param pw: the password
+    :type pw: str
+    :param scheme: password scheme to be used
+        (e.g. MD5, SHA1, SHA256, SHA512, SSHA, SSHA256, SSHA512)
+    :type scheme: str
+    :param bin_dir: a path to the directory with pwdhash tool
+    :type bin_dir: str
+
+    :returns: a string with a password hash
+    """
+
     # Check that the binary exists
     pwdhashbin = os.path.join(bin_dir, 'pwdhash')
     assert(os.path.isfile(pwdhashbin))
@@ -29,6 +42,30 @@ def password_hash(pw, scheme=None, bin_dir='/bin'):
 
 
 def password_generate(length=64):
-    pw = [random.choice(string.ascii_letters) for x in range(length - 1)]
-    pw.append('%s' % random.randint(0, 9))
+    """Generate a complex password with at least
+    one upper case letter, a lower case letter, a digit
+    and a special character
+
+    :param length: a password length
+    :type length: int
+
+    :returns: a string with a password
+    """
+
+    # We have exactly 64 characters because it makes the selection unbiased
+    # The number of possible values for a byte is 256 which is a multiple of 64
+    # Maybe it is an overkill for our case but it can come handy one day
+    # (especially consider the fact we can use it for CLI tools)
+    chars = string.ascii_letters + string.digits + '*&'
+
+    # Get the minimal requirements
+    pw = [random.choice(string.ascii_lowercase),
+          random.choice(string.ascii_uppercase),
+          random.choice(string.digits),
+          '!']
+
+    # Use the simple algorithm to generate more or less secure password
+    for i in range(length - 3):
+        pw.append(chars[os.urandom(1)[0] % len(chars)])
+    random.shuffle(pw)
     return "".join(pw)
