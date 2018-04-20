@@ -157,7 +157,7 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
 #ifdef DEBUG
     {
         /* debugging for hash statistics */
-        char *x;
+        char *x = NULL;
         cache_debug_hash(&(inst->inst_cache), &x);
         val.bv_val = x;
         val.bv_len = strlen(x);
