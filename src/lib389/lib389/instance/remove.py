@@ -51,7 +51,10 @@ def remove_ds_instance(dirsrv):
         shutil.rmtree(config_dir_rm)
 
     _log.debug("Copying %s to %s" % (config_dir, config_dir_rm))
-    shutil.copytree(config_dir, config_dir_rm)
+    try:
+        shutil.copytree(config_dir, config_dir_rm)
+    except FileNotFoundError:
+        pass
 
     # Remove these paths:
     # for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',

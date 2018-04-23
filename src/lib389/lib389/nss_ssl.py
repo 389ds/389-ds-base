@@ -201,7 +201,7 @@ class NssSsl(object):
         certdetails = check_output(cmd, stderr=subprocess.STDOUT)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
-        check_output(['/usr/sbin/cacertdir_rehash', self._certdb], stderr=subprocess.STDOUT)
+        check_output(['/usr/bin/c_rehash', self._certdb], stderr=subprocess.STDOUT)
         return True
 
     def _rsa_cert_list(self):
@@ -423,7 +423,7 @@ class NssSsl(object):
         to our database.
         """
         shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
-        check_output(['/usr/sbin/cacertdir_rehash', self._certdb], stderr=subprocess.STDOUT)
+        check_output(['/usr/bin/c_rehash', self._certdb], stderr=subprocess.STDOUT)
         check_output([
             '/usr/bin/certutil',
             '-A',

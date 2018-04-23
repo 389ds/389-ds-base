@@ -267,9 +267,9 @@ BuildArch:        noarch
 Group:            Development/Libraries
 Requires: krb5-workstation
 Requires: openssl
+# This is for /usr/bin/c_rehash tool
+Requires: openssl-perl
 Requires: iproute
-# This is for /usr/sbin/cacertdir_rehash
-Requires: authconfig
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-pyldap
