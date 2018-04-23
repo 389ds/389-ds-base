@@ -74,8 +74,6 @@ char *sha512_pw_enc(const char *pwd);
 char *salted_sha512_pw_enc(const char *pwd);
 int clear_pw_cmp(const char *userpwd, const char *dbpwd);
 char *clear_pw_enc(const char *pwd);
-int crypt_start(Slapi_PBlock *pb);
-int crypt_close(Slapi_PBlock *pb);
 int crypt_pw_cmp(const char *userpwd, const char *dbpwd);
 char *crypt_pw_enc(const char *pwd);
 char *crypt_pw_md5_enc(const char *pwd);
