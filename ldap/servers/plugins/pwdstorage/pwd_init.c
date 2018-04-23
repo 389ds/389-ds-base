@@ -245,8 +245,6 @@ crypt_pwd_storage_scheme_init(Slapi_PBlock *pb)
                           (void *)SLAPI_PLUGIN_VERSION_01);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                            (void *)&crypt_pdesc);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)&crypt_start);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)&crypt_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
                            (void *)crypt_pw_enc);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
@@ -269,8 +267,6 @@ crypt_md5_pwd_storage_scheme_init(Slapi_PBlock *pb)
                           (void *)SLAPI_PLUGIN_VERSION_01);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                            (void *)&crypt_md5_pdesc);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)&crypt_start);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)&crypt_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
                            (void *)crypt_pw_md5_enc);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
@@ -293,8 +289,6 @@ crypt_sha256_pwd_storage_scheme_init(Slapi_PBlock *pb)
                           (void *)SLAPI_PLUGIN_VERSION_01);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                            (void *)&crypt_sha256_pdesc);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)&crypt_start);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)&crypt_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
                            (void *)crypt_pw_sha256_enc);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
@@ -317,8 +311,6 @@ crypt_sha512_pwd_storage_scheme_init(Slapi_PBlock *pb)
                           (void *)SLAPI_PLUGIN_VERSION_01);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                            (void *)&crypt_sha512_pdesc);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)&crypt_start);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)&crypt_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
                            (void *)crypt_pw_sha512_enc);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,

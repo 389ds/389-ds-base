@@ -29,8 +29,6 @@
 #include <crypt.h>
 #include "pwdstorage.h"
 
-static PRLock *cryptlock = NULL; /* Some implementations of crypt are not thread safe.  ie. ours & Irix */
-
 /* characters used in crypt encoding */
 static unsigned char itoa64[] = /* 0 ... 63 => ascii - 64 */
     "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -42,38 +40,20 @@ static unsigned char itoa64[] = /* 0 ... 63 => ascii - 64 */
 
 
 int
-crypt_start(Slapi_PBlock *pb __attribute__((unused)))
-{
-    if (!cryptlock) {
-        cryptlock = PR_NewLock();
-    }
-    return 0;
-}
-
-int
-crypt_close(Slapi_PBlock *pb __attribute__((unused)))
-{
-    if (cryptlock) {
-        PR_DestroyLock(cryptlock);
-        cryptlock = NULL;
-    }
-    return 0;
-}
-
-int
 crypt_pw_cmp(const char *userpwd, const char *dbpwd)
 {
     int rc;
     char *cp;
-    PR_Lock(cryptlock);
-    /* we use salt (first 2 chars) of encoded password in call to crypt() */
-    cp = crypt(userpwd, dbpwd);
+    struct crypt_data data;
+    data.initialized = 0;
+
+    /* we use salt (first 2 chars) of encoded password in call to crypt_r() */
+    cp = crypt_r(userpwd, dbpwd, &data);
     if (cp) {
         rc = slapi_ct_memcmp(dbpwd, cp, strlen(dbpwd));
     } else {
         rc = -1;
     }
-    PR_Unlock(cryptlock);
     return rc;
 }
 
@@ -86,6 +66,8 @@ crypt_pw_enc_by_hash(const char *pwd, int hash_algo)
     char *enc = NULL;
     long v;
     static unsigned int seed = 0;
+    struct crypt_data data;
+    data.initialized = 0;
 
     if (seed == 0) {
         seed = (unsigned int)slapi_rand();
@@ -111,12 +93,10 @@ crypt_pw_enc_by_hash(const char *pwd, int hash_algo)
         algo_salt = strdup(salt);
     }
 
-    PR_Lock(cryptlock);
-    cry = crypt(pwd, algo_salt);
+    cry = crypt_r(pwd, algo_salt, &data);
     if (cry != NULL) {
         enc = slapi_ch_smprintf("%c%s%c%s", PWD_HASH_PREFIX_START, CRYPT_SCHEME_NAME, PWD_HASH_PREFIX_END, cry);
     }
-    PR_Unlock(cryptlock);
     slapi_ch_free_string(&algo_salt);
 
     return (enc);
