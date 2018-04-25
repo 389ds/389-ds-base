@@ -176,6 +176,8 @@ class NssSsl(object):
             'CT,,',
             '-v',
             '%s' % VALID,
+            '--keyUsage',
+            'certSigning',
             '-d',
             self._certdb,
             '-z',
