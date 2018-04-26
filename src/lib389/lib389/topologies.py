@@ -8,7 +8,6 @@
 #
 import os
 import logging
-import time
 
 # For hostname detection for GSSAPI tests
 import socket
@@ -16,15 +15,11 @@ import socket
 import pytest
 
 from lib389 import DirSrv
-from lib389.nss_ssl import NssSsl
 from lib389.utils import generate_ds_params
 from lib389.mit_krb5 import MitKrb5
 from lib389.saslmap import SaslMappings
 from lib389.replica import ReplicationManager, Replicas
-
-from lib389._constants import (SER_HOST, SER_PORT, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
-                               SER_SECURE_PORT, ReplicaRole, DEFAULT_SUFFIX, REPLICA_ID,
-                               SER_LDAP_URL)
+from lib389._constants import *
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
@@ -34,30 +29,23 @@ else:
 log = logging.getLogger(__name__)
 
 
-def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
-    """Create a requested topology. Cascading replication scenario isn't supported
+def _create_instances(topo_dict, suffix):
+    """Create requested instances without replication or any other modifications
 
     :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
-                                   ReplicaRole.CONSUMER: num}
+                                    ReplicaRole.HUB: num, ReplicaRole.CONSUMER: num}
     :type topo_dict: dict
-    :param suffix: a suffix for the replication
+    :param suffix: a suffix
     :type suffix: str
 
     :return - TopologyMain object
     """
 
-    if not topo_dict:
-        ValueError("You need to specify the dict. For instance: {ReplicaRole.STANDALONE: 1}")
-
-    if ReplicaRole.HUB in topo_dict.keys():
-        NotImplementedError("Cascading replication scenario isn't supported."
-                            "Please, use existing topology or create your own.")
-
     instances = {}
     ms = {}
     cs = {}
+    hs = {}
     ins = {}
-    replica_dict = {}
 
     # Create instances
     for role in topo_dict.keys():
@@ -103,12 +91,42 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
             if role == ReplicaRole.CONSUMER:
                 cs[instance.serverid] = instance
                 instances.update(cs)
+            if role == ReplicaRole.HUB:
+                hs[instance.serverid] = instance
+                instances.update(hs)
             log.info("Instance with parameters {} was created.".format(args_instance))
+
+    if "standalone1" in instances and len(instances) == 1:
+        return TopologyMain(standalones=instances["standalone1"])
+    else:
+        return TopologyMain(standalones=ins, masters=ms, consumers=cs, hubs=hs)
+
+
+def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
+    """Create a requested topology. Cascading replication scenario isn't supported
+
+    :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
+                                   ReplicaRole.CONSUMER: num}
+    :type topo_dict: dict
+    :param suffix: a suffix for the replication
+    :type suffix: str
+
+    :return - TopologyMain object
+    """
+
+    if not topo_dict:
+        ValueError("You need to specify the dict. For instance: {ReplicaRole.STANDALONE: 1}")
+
+    if ReplicaRole.HUB in topo_dict.keys():
+        NotImplementedError("Cascading replication scenario isn't supported."
+                            "Please, use existing topology or create your own.")
+
+    topo = _create_instances(topo_dict, suffix)
 
     # Start with a single master, and create it "first".
     first_master = None
     try:
-        first_master = list(ms.values())[0]
+        first_master = list(topo.ms.values())[0]
         log.info("Creating replication topology.")
         # Now get the first master ready.
         repl = ReplicationManager(DEFAULT_SUFFIX)
@@ -119,7 +137,7 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     # Now init the other masters from this.
     # This will reinit m, and put a bi-directional agreement
     # in place.
-    for m in ms.values():
+    for m in topo.ms.values():
         # Skip firstmaster.
         if m is first_master:
             continue
@@ -127,35 +145,35 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
         repl.join_master(first_master, m)
 
     # Mesh the master agreements.
-    for mo in ms.values():
-        for mi in ms.values():
+    for mo in topo.ms.values():
+        for mi in topo.ms.values():
             if mo is mi:
                 continue
             log.info("Ensuring master %s to %s ..." % (mo.serverid, mi.serverid))
             repl.ensure_agreement(mo, mi)
 
     # Add master -> consumer agreements.
-    for c in cs.values():
-        log.info("Joining consumer %s from %s ..." % (mo.serverid, mi.serverid))
+    for c in topo.cs.values():
+        log.info("Joining consumer %s from %s ..." % (c.serverid, first_master.serverid))
         repl.join_consumer(first_master, c)
 
-    for m in ms.values():
-        for c in cs.values():
+    for m in topo.ms.values():
+        for c in topo.cs.values():
             log.info("Ensuring consumer %s from %s ..." % (c.serverid, m.serverid))
             repl.ensure_agreement(m, c)
 
     # Clear out the tmp dir
-    for instance in instances.values():
+    for instance in topo:
         instance.clearTmpDir(__file__)
 
-    if "standalone1" in instances and len(instances) == 1:
-        return TopologyMain(standalones=instances["standalone1"])
-    else:
-        return TopologyMain(standalones=ins, masters=ms, consumers=cs)
+    return topo
 
 
 class TopologyMain(object):
     def __init__(self, standalones=None, masters=None, consumers=None, hubs=None):
+        self.ms = {}
+        self.cs = {}
+        self.hs = {}
         self.all_insts = {}
 
         if standalones:
@@ -214,7 +232,8 @@ def topology_st(request):
         if DEBUGGING:
             topology.standalone.stop()
         else:
-            topology.standalone.delete()
+            if topology.standalone.exists():
+                topology.standalone.delete()
     request.addfinalizer(fin)
 
     return topology
@@ -273,11 +292,14 @@ def topology_st_gssapi(request):
 
     topology.standalone.restart()
 
+    topology.standalone.clearTmpDir(__file__)
+
     def fin():
         if DEBUGGING:
             topology.standalone.stop()
         else:
-            topology.standalone.delete()
+            if topology.standalone.exists():
+                topology.standalone.delete()
             krb.destroy_realm()
 
     request.addfinalizer(fin)
@@ -295,7 +317,7 @@ def topology_i2(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -311,7 +333,7 @@ def topology_i3(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -326,7 +348,7 @@ def topology_m1(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -342,7 +364,7 @@ def topology_m1c1(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -358,7 +380,7 @@ def topology_m2(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -374,7 +396,7 @@ def topology_m3(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -390,7 +412,7 @@ def topology_m4(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -407,7 +429,7 @@ def topology_m2c2(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in topology]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -417,76 +439,32 @@ def topology_m2c2(request):
 def topology_m1h1c1(request):
     """Create Replication Deployment with one master, one consumer and one hub"""
 
-    roles = (ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER)
-    instances = []
-    replica_dict = {}
+    topo_roles = {ReplicaRole.MASTER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
+    topology = _create_instances(topo_roles, DEFAULT_SUFFIX)
+    master = topology.ms["master1"]
+    hub = topology.hs["hub1"]
+    consumer = topology.cs["consumer1"]
 
-    # Create instances
-    for role in roles:
-        instance_data = generate_ds_params(1, role)
-        if DEBUGGING:
-            instance = DirSrv(verbose=True)
-        else:
-            instance = DirSrv(verbose=False)
-        args_instance = {}
-        args_instance[SER_PORT] = instance_data[SER_PORT]
-        args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
-        args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
-        args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-        instance.allocate(args_instance)
-        instance_exists = instance.exists()
-        if instance_exists:
-            instance.delete()
-        instance.create()
-        instance.open()
-        log.info("Instance with parameters {} was created.".format(args_instance))
+    # Start with the master, and create it "first".
+    log.info("Creating replication topology.")
+    # Now get the first master ready.
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.create_first_master(master)
+    # Finish the topology creation
+    repl.join_hub(master, hub)
+    repl.join_consumer(hub, consumer)
 
-        # Set up replication
-        replicas = Replicas(instance)
-        replica = replicas.enable(DEFAULT_SUFFIX, role, instance_data[REPLICA_ID])
-
-        if role == ReplicaRole.MASTER:
-            master = instance
-            replica_master = replica
-            instances.append(master)
-        if role == ReplicaRole.HUB:
-            hub = instance
-            replica_hub = replica
-            instances.append(hub)
-        if role == ReplicaRole.CONSUMER:
-            consumer = instance
-            instances.append(consumer)
-
-    # Create all the agreements
-    # Creating agreement from master to hub
-    master.agreement.create(suffix=DEFAULT_SUFFIX, host=hub.host, port=hub.port)
-
-    # Creating agreement from hub to consumer
-    hub.agreement.create(suffix=DEFAULT_SUFFIX, host=consumer.host, port=consumer.port)
-
-    # Allow the replicas to get situated with the new agreements...
-    time.sleep(5)
-
-    # Initialize all the agreements
-    agmt = master.agreement.list(DEFAULT_SUFFIX)[0].dn
-    replica_master.start_and_wait(agmt)
-
-    agmt = hub.agreement.list(DEFAULT_SUFFIX)[0].dn
-    replica_hub.start_and_wait(agmt)
-
-    # Check replication is working...
-    replicas = Replicas(master)
-    assert replicas.test(DEFAULT_SUFFIX, consumer)
+    repl.test_replication(master, consumer)
 
     # Clear out the tmp dir
-    master.clearTmpDir(__file__)
+    for instance in topology:
+        instance.clearTmpDir(__file__)
 
     def fin():
         if DEBUGGING:
-            [inst.stop() for inst in instances]
+            [inst.stop() for inst in topology]
         else:
-            [inst.delete() for inst in instances]
+            [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
-    return TopologyMain(masters={"master1": master}, hubs={"hub1": hub}, consumers={"consumer1": consumer})
-
+    return topology

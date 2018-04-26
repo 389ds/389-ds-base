@@ -1296,6 +1296,7 @@ class ReplicationManager(object):
         else:
             self._log = logging.getLogger(__name__)
         self._alloc_rids = []
+        self._repl_creds = {}
 
     def _ensure_changelog(self, instance):
         """Internally guarantee a changelog exists for
@@ -1314,9 +1315,7 @@ class ReplicationManager(object):
         """From an instance, determine the agreement name that we
         would use for it. Internal only.
         """
-        to_replicas = Replicas(to_instance)
-        to_r = to_replicas.get(self._suffix)
-        return to_r.get_rid()
+        return str(to_instance.port)[-3:]
 
     def create_first_master(self, instance):
         """In a topology, this creates the "first" master that has the
@@ -1354,12 +1353,31 @@ class ReplicationManager(object):
     def _create_service_group(self, from_instance):
         """Internally create the service group that contains replication managers.
         This may become part of the default objects in the future. Internal only.
+
+        When we join a consumer to hub the function check that the group is in place
         """
+
         groups = Groups(from_instance, basedn=self._suffix, rdn=None)
-        repl_group = groups.ensure_state(properties={
-            'cn': 'replication_managers',
-        })
-        return repl_group
+        from_replicas = Replicas(from_instance)
+        try:
+            from_r = from_replicas.get(self._suffix)
+            repl_type = from_r.get_attr_val_int('nsDS5ReplicaType')
+        except ldap.NO_SUCH_OBJECT:
+            repl_type = None
+
+        if repl_type == 3 or repl_type is None:
+            repl_group = groups.ensure_state(properties={
+                'cn': 'replication_managers',
+            })
+            return repl_group
+        else:
+            try:
+                repl_group = groups.get('replication_managers')
+                return repl_group
+            except ldap.NO_SUCH_OBJECT:
+                self._log.warning("{} doesn't have cn=replication_managers,{} entry \
+                          and the instance is not read-write".format(from_instance.serverid, self._suffix))
+                raise
 
     def _create_service_account(self, from_instance, to_instance):
         """Create the server replication service account, and
@@ -1376,11 +1394,15 @@ class ReplicationManager(object):
         port = to_instance.sslport
 
         services = ServiceAccounts(from_instance, self._suffix)
-        # We don't have an agreement yet, so don't bother with the
-        # password yet ...
+        # Generate the password and save the credentials
+        # for putting them into agreements in the future
+        service_name = '{}:{}'.format(to_instance.host, port)
+        creds = password_generate()
         repl_service = services.ensure_state(properties={
-            'cn': '%s:%s' % (to_instance.host, port),
+            'cn': service_name,
+            'userPassword': creds
         })
+        self._repl_creds[service_name] = creds
 
         repl_group.ensure_member(repl_service.dn)
 
@@ -1453,14 +1475,14 @@ class ReplicationManager(object):
         to_replicas = Replicas(to_instance)
         try:
             to_r = to_replicas.get(self._suffix)
-            self._log("WARNING: to_instance is already a replica for this suffix")
+            self._log.warning("{} is already a replica for this suffix".format(to_instance.serverid))
             return
         except ldap.NO_SUCH_OBJECT:
             pass
 
         # Make sure we replicate this suffix too ...
-        fr_replicas = Replicas(from_instance)
-        fr_r = fr_replicas.get(self._suffix)
+        from_replicas = Replicas(from_instance)
+        from_r = from_replicas.get(self._suffix)
 
         # Ensure we have a cl
         self._ensure_changelog(to_instance)
@@ -1469,7 +1491,7 @@ class ReplicationManager(object):
         repl_dn = self._create_service_account(from_instance, to_instance)
 
         # Find the ruv on from_instance
-        ruv = fr_r.get_ruv()
+        ruv = from_r.get_ruv()
 
         # Get a free rid
         rid = ruv.alloc_rid()
@@ -1489,14 +1511,14 @@ class ReplicationManager(object):
 
         # WARNING: You need to create passwords and agmts BEFORE you tot_init!
 
+        # perform the _bootstrap. This creates a temporary repl manager
+        # to allow the tot_init to occur.
+        self._bootstrap_replica(from_r, to_r, to_instance)
+
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
         self.ensure_agreement(to_instance, from_instance, init=True)
-
-        # perform the _bootstrap. This creates a temporare repl manager
-        # to allow the tot_init to occur.
-        self._bootstrap_replica(fr_r, to_r, to_instance)
 
         # Now fix our replica credentials from -> to
         to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
@@ -1520,9 +1542,50 @@ class ReplicationManager(object):
         :param to_instance: An instance to join to the topology.
         :type to_instance: lib389.DirSrv
         """
-        # Ensure we have a cl
+
+        to_replicas = Replicas(to_instance)
+        try:
+            to_r = to_replicas.get(self._suffix)
+            self._log.warning("{} is already a replica for this suffix".format(to_instance.serverid))
+            return
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+        # Make sure we replicate this suffix too ...
+        from_replicas = Replicas(from_instance)
+        from_r = from_replicas.get(self._suffix)
+
+        # Ensure we have a changelog
         self._ensure_changelog(to_instance)
-        raise Exception
+
+        # Create replica on to_instance, with bootstrap details.
+        to_r = to_replicas.create(properties={
+            'cn': 'replica',
+            'nsDS5ReplicaRoot': self._suffix,
+            'nsDS5ReplicaId': '65535',
+            'nsDS5Flags': '1',
+            'nsDS5ReplicaType': '2',
+            'nsds5replicabinddngroupcheckinterval': '0'
+        })
+
+        # WARNING: You need to create passwords and agmts BEFORE you tot_init!
+        repl_dn = self._create_service_account(from_instance, to_instance)
+
+        # perform the _bootstrap. This creates a temporary repl manager
+        # to allow the tot_init to occur.
+        self._bootstrap_replica(from_r, to_r, to_instance)
+
+        # Now put in an agreement from to -> from
+        # both ends.
+        self.ensure_agreement(from_instance, to_instance)
+
+        # Now fix our replica credentials from -> to
+        to_r.set('nsDS5ReplicaBindDNGroup', repl_dn)
+
+        # Now finally test it ...
+        self.test_replication(from_instance, to_instance)
+        # Done!
+        self._log.info("SUCCESS: joined consumer from %s to %s" % (from_instance.ldapuri, to_instance.ldapuri))
 
     def join_consumer(self, from_instance, to_instance):
         """Join a new consumer to this instance. This will complete
@@ -1539,14 +1602,14 @@ class ReplicationManager(object):
         to_replicas = Replicas(to_instance)
         try:
             to_r = to_replicas.get(self._suffix)
-            self._log("WARNING: to_instance is already a replica for this suffix")
+            self._log.warning("{} is already a replica for this suffix".format(to_instance.serverid))
             return
         except ldap.NO_SUCH_OBJECT:
             pass
 
         # Make sure we replicate this suffix too ...
-        fr_replicas = Replicas(from_instance)
-        fr_r = fr_replicas.get(self._suffix)
+        from_replicas = Replicas(from_instance)
+        from_r = from_replicas.get(self._suffix)
 
         # Create replica on to_instance, with bootstrap details.
         to_r = to_replicas.create(properties={
@@ -1559,21 +1622,25 @@ class ReplicationManager(object):
         })
 
         # WARNING: You need to create passwords and agmts BEFORE you tot_init!
+        # If from_instance replica isn't read-write (hub, probably), we just check it is there
         repl_group = self._create_service_group(from_instance)
+
+        # perform the _bootstrap. This creates a temporary repl manager
+        # to allow the tot_init to occur.
+        self._bootstrap_replica(from_r, to_r, to_instance)
 
         # Now put in an agreement from to -> from
         # both ends.
         self.ensure_agreement(from_instance, to_instance)
 
-        # perform the _bootstrap. This creates a temporare repl manager
-        # to allow the tot_init to occur.
-        self._bootstrap_replica(fr_r, to_r, to_instance)
-
         # Now fix our replica credentials from -> to
         to_r.set('nsDS5ReplicaBindDNGroup', repl_group.dn)
 
         # Now finally test it ...
-        self.test_replication(from_instance, to_instance)
+        # If from_instance replica isn't read-write (hub, probably), we will test it later
+        if from_r.get_attr_val_int('nsDS5ReplicaType') == 3:
+            self.test_replication(from_instance, to_instance)
+
         # Done!
         self._log.info("SUCCESS: joined consumer from %s to %s" % (from_instance.ldapuri, to_instance.ldapuri))
 
@@ -1592,33 +1659,14 @@ class ReplicationManager(object):
 
         Internal Only.
         """
-        # We write all our changes to "write_instance", but we read data
-        # from the "from" instance.
 
-        dn = None
-        creds = None
+        rdn = '{}:{}'.format(from_instance.host, from_instance.sslport)
+        creds = self._repl_creds[rdn]
 
-        fr_replicas = Replicas(from_instance)
-        fr_r = fr_replicas.get(self._suffix)
-        from_agmts = fr_r.get_agreements()
-        # see if any exist already ....
-        agmts = from_agmts.list()
-        if len(agmts) > 0:
-            # okay, re-use the creds
-            agmt = agmts[0]
-            dn = agmt.get_attr_val_utf8('nsDS5ReplicaBindDN')
-            creds = agmt.get_attr_val_utf8('nsDS5ReplicaCredentials')
-        else:
-            # Create them ...
-            # Get the service account.
-            services = ServiceAccounts(write_instance, self._suffix)
-            sa = services.get('%s:%s' % (from_instance.host, from_instance.sslport))
-            creds = password_generate()
-            # Gen a password
-            sa.set('userPassword', creds)
-            dn = sa.dn
+        services = ServiceAccounts(write_instance, self._suffix)
+        sa_dn = services.get(rdn).dn
 
-        return (dn, creds)
+        return (sa_dn, creds)
 
     def ensure_agreement(self, from_instance, to_instance, init=False):
         """Guarantee that a replication agreement exists 'from_instance' send
@@ -1626,7 +1674,7 @@ class ReplicationManager(object):
         consumer.
 
         Both instances must have been added to the topology with
-        create first master, join_master or join_consumer.
+        create first master, join_master, join_consumer or join_hub.
 
         :param from_instance: An instance already in the topology.
         :type from_instance: lib389.DirSrv
@@ -1643,17 +1691,17 @@ class ReplicationManager(object):
         # init = False (default) means creds *might* exist, and we create them
         # on the "from" master.
 
-        fr_replicas = Replicas(from_instance)
-        fr_r = fr_replicas.get(self._suffix)
+        from_replicas = Replicas(from_instance)
+        from_r = from_replicas.get(self._suffix)
 
-        from_agmts = fr_r.get_agreements()
+        from_agmts = from_r.get_agreements()
 
         agmt_name = self._inst_to_agreement_name(to_instance)
 
         try:
             agmt = from_agmts.get(agmt_name)
             self._log.info("SUCCESS: Agreement from %s to %s already exists" % (from_instance.ldapuri, to_instance.ldapuri))
-            return
+            return agmt
         except ldap.NO_SUCH_OBJECT:
             # Okay, it doesn't exist, lets go ahead!
             pass
@@ -1720,10 +1768,10 @@ class ReplicationManager(object):
                 # No agreement, that's good!
                 pass
 
-        fr_replicas = Replicas(instance)
-        fr_r = fr_replicas.get(self._suffix)
+        from_replicas = Replicas(instance)
+        from_r = from_replicas.get(self._suffix)
         # This should delete the agreements ....
-        fr_r.delete()
+        from_r.delete()
 
     def disable_to_master(self, to_instance, from_instances=[]):
         """For all masters "from" disable all agreements "to" instance.
@@ -1769,13 +1817,13 @@ class ReplicationManager(object):
         :type to_instance: lib389.DirSrv
 
         """
-        fr_replicas = Replicas(from_instance)
-        fr_r = fr_replicas.get(self._suffix)
+        from_replicas = Replicas(from_instance)
+        from_r = from_replicas.get(self._suffix)
 
         to_replicas = Replicas(to_instance)
         to_r = to_replicas.get(self._suffix)
 
-        from_ruv = fr_r.get_ruv()
+        from_ruv = from_r.get_ruv()
 
         for i in range(0, timeout):
             to_ruv = to_r.get_ruv()
@@ -1814,8 +1862,6 @@ class ReplicationManager(object):
                 return True
             time.sleep(1)
         raise Exception("Replication did not sync in time!")
-
-        self.wait_for_replication(from_instance, to_instance)
 
 
     def test_replication(self, from_instance, to_instance, timeout=20):
