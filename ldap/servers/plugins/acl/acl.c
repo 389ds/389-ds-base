@@ -1027,17 +1027,30 @@ acl_read_access_allowed_on_entry (
 			*/
 			if ( aclpb->aclpb_state & ACLPB_FOUND_A_ENTRY_TEST_RULE){
 				/* Do I have access on the entry  itself */
-				if (acl_access_allowed (pb, e, NULL, 
-						NULL, access) != LDAP_SUCCESS) {
+				if (acl_access_allowed (pb, e, NULL, NULL, access) != LDAP_SUCCESS) {
 					/* How was I denied ? 
 					** I could be denied on a DENY rule or because 
 					** there is no allow rule. If it's a DENY from
 					** a DENY rule, then we don't have access to 
 					** the entry ( nice trick to get in )
 					*/
-					if ( aclpb->aclpb_state & 
-							ACLPB_EXECUTING_DENY_HANDLES)
-						return LDAP_INSUFFICIENT_ACCESS;
+                    if (aclpb->aclpb_state & ACLPB_EXECUTING_DENY_HANDLES) {
+                        aclEvalContext *c_ContextEval = &aclpb->aclpb_curr_entryEval_context;
+                        AclAttrEval *c_attrEval = NULL;
+                        /*
+                         * The entire entry is blocked, but previously evaluated allow aci's might
+                         * show some of the attributes as readable in the acl cache, so reset all
+                         * the cached attributes' status to FAIL.
+                         */
+                        for (size_t j = 0; j < c_ContextEval->acle_numof_attrs; j++) {
+                            c_attrEval = &c_ContextEval->acle_attrEval[j];
+                            c_attrEval->attrEval_r_status &= ~ACL_ATTREVAL_SUCCESS;
+                            c_attrEval->attrEval_r_status |= ACL_ATTREVAL_FAIL;
+                            c_attrEval->attrEval_s_status &= ~ACL_ATTREVAL_SUCCESS;
+                            c_attrEval->attrEval_s_status |= ACL_ATTREVAL_FAIL;
+                        }
+                        return LDAP_INSUFFICIENT_ACCESS;
+                    }
 					
 					/* The other case is I don't have an
 					** explicit allow rule -- which is fine.
@@ -2754,6 +2767,11 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 		result_reason->deciding_aci = NULL;
 		result_reason->reason = ACL_REASON_NO_MATCHED_RESOURCE_ALLOWS;
 
+        /* If we have deny handles we should process them */
+        if (aclpb->aclpb_num_deny_handles > 0) {
+            aclpb->aclpb_state &= ~ACLPB_EXECUTING_ALLOW_HANDLES;
+            aclpb->aclpb_state |= ACLPB_EXECUTING_DENY_HANDLES;
+        }
 		TNF_PROBE_1_DEBUG(acl__TestRights_end,"ACL","",
 							tnf_string,no_allows,"");	
 
