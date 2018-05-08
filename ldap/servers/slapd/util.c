@@ -148,6 +148,11 @@ do_escape_string (
 		    break;
 		}
 		do {
+                    if (bufSpace < 4) {
+                        memcpy(bufNext, "..", 2);
+                        bufNext += 2;
+                        goto bail;
+                    }
 		    if (esc == UTIL_ESCAPE_BACKSLASH) {
 			/* *s is '\\' */
 			/* If *(s+1) and *(s+2) are both hex digits,
@@ -162,11 +167,6 @@ do_escape_string (
 			}
 		    } else {    /* UTIL_ESCAPE_HEX */
 			*bufNext++ = '\\'; --bufSpace;
-			if (bufSpace < 3) {
-			    memcpy(bufNext, "..", 2);
-			    bufNext += 2;
-			    goto bail;
-			}
 			PR_snprintf(bufNext, 3, "%02x", *(unsigned char*)s);
 			bufNext += 2; bufSpace -= 2;
 		    }
