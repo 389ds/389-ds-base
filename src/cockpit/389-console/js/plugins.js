@@ -2,13 +2,23 @@ $(document).ready( function() {
   $("#plugin-content").load("plugins.html", function () {
 
     $('#plugin-table').DataTable ( {
-      "lengthMenu": [[50, 100, -1], [50, 100, "All"]],
+      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "language": {
+        "emptyTable": "No plugins",
+        "search": "Search Plugins"
+      },
       "columnDefs": [ {
         "targets": 3,
         "orderable": false
       } ]
     });
+
+    $("#plugin-tab").on("click", function() {
+      $(".all-pages").hide();
+      $("#plugin-content").show();
+    });
+
   });
 });

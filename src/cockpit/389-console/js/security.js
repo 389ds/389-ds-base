@@ -1,6 +1,10 @@
 
+
+// TODO clear form functions
+
+
 $(document).ready( function() {
-  $("#security-selection").load("security.html", function () {
+  $("#security-content").load("security.html", function () {
     // default setting
     $('#cert-attrs *').attr('disabled', true);
 
@@ -8,38 +12,59 @@ $(document).ready( function() {
       // Refreshes dropdown on Chrome
       $(this).blur();
     });
-    
-    $("#sec-config").show();
-     $('#nsSSLSupportedCiphers').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "language": {
-        "emptyTable": "No agreements configured"
-      }
-    });
-    $('#nsSSLEnabledCiphers').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "language": {
-        "emptyTable": "No agreements configured"
-      }
-    });
-
-    // TODO: Get config settings and populate tables, forms, and set check boxes, etc
 
     $("#sec-config-btn").on("click", function() {
-     $(".security-ctrl").hide();
+      $(".all-pages").hide();
+      $("#security-content").show();
       $("#sec-config").show();
     });
-    $("#sec-cert-btn").on("click", function() {
-     $(".security-ctrl").hide();
-      $("#sec-certs").show();
+
+    $("#sec-cacert-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#security-content").show();
+      $("#sec-cacert-page").show();
     });
-    $("#sec-cipher-btn").on("click", function() {
-     $(".security-ctrl").hide();
-      $("#sec-ciphers").show();
+
+    $("#sec-srvcert-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#security-content").show();
+      $("#sec-svrcert-page").show();
+    });
+    $("#sec-revoked-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#security-content").show();
+      $("#sec-revoked-page").show();
+    });
+    $("#sec-ciphers-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#security-content").show();
+      $("#sec-ciphers-page").show();
+    });
+    
+    $("#sec-config").show();
+
+    // Clear forms as theyare clicked
+
+    $("#add-revoked-btn").on('click', function () {
+      // TODO Clear form
+
+    });
+
+    $("#add-crl-btn").on('click', function () {   
+      // Add CRL/CKL
+
+      // Close form
+      $("#revoked-form").modal("toggle");
+    });
+
+    $('#nssslsupportedciphers').DataTable( {
+      "paging": true,
+      "bAutoWidth": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No ciphers!"
+      }
     });
 
     $("#nsslapd-security").change(function() {
@@ -50,20 +75,61 @@ $(document).ready( function() {
       }
     });
 
-    // Set up agreement table
-    $('#cert-table').DataTable( {
-      "paging": true,
+    $("#cipher-default-state").change(function() {
+      if(this.checked) {
+        $("#cipher-table").hide();
+      } else {
+        $("#cipher-table").show();
+      }
+    });
+
+    // Set up ca cert table
+    $('#ca-cert-table').DataTable( {
+      "paging": false,
       "bAutoWidth": false,
+      "searching": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
         "emptyTable": "No Certificates In Database"
       },
       "columnDefs": [ {
-        "targets": 2,
+        "targets": 3,
         "orderable": false
       } ]
     });
 
+    // Set up server cert table
+    $('#server-cert-table').DataTable( {
+      "paging": false,
+      "bAutoWidth": false,
+      "searching": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No Certificates In Database"
+      },
+      "columnDefs": [ {
+        "targets": 5,
+        "orderable": false
+      } ]
+    });
+
+    // Set up revoked cert table
+    $('#revoked-cert-table').DataTable( {
+      "paging": false,
+      "bAutoWidth": false,
+      "searching": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No Certificates In Database"
+      },
+      "columnDefs": [ {
+        "targets": 4,
+        "orderable": false
+      } ]
+    });
 
   });
 });

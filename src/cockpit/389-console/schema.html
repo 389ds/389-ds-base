@@ -1,276 +1,197 @@
 
-<div class="ds-fixed ds-buttons">
-  <button id="schema-standard-btn" class="btn btn-default ds-button ds-button-control active">Standard Schema</button>
-  <button id="schema-custom-btn" class="btn btn-default ds-button ds-button-control active">Custom Schema</button>
-  <button id="schema-mr-btn" class="btn btn-default ds-button ds-button-control active">Matching Rules</button>
-  <hr>
-  <button id="schema-reload" class="btn btn-default ds-button">Reload Schema Files</button>
-</div>
+<div id="schema-content">
 
-<div class="ds-flex" id="schema-content">
-
-  <div id="schema-standard" class="schema-ctrl" hidden>
-    <div class="">
-      <h2><b>Standard Objectclasses</b><hr class="ds-hr"></h2>
-      <table id="standard-oc-table" class="display ds-table" cellspacing="0" width="100%">
-        <thead>
-          <tr class="ds-table-header">
-            <th>Objectclass Name</th>
-            <th>OID</th>
-            <th>Parent</th>
-            <th>Required Attributes</th>
-            <th>Allowed Attributes</th>
-          </tr>
-        </thead>
-        <tbody id="standard-body">
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-          <tr>
-            <td>person</td>
-            <td>1.0.34.54.7.2.3.4.3.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn givenname sn</td>
-            <td class="ds-nowrap-td">description uid</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="">
-      <h2><b>Standard Attributes</b><hr class="ds-hr"></h2>
-      <table id="standard-attr-table" class="display ds-table" cellspacing="0" width="100%">
-        <thead>
-          <tr class="ds-table-header">
-            <th>Attribute Name</th>
-            <th>OID</th>
-            <th>Syntax</th>
-            <th>Multivalued</th>
-            <th title="Equality matching rules">Equality Rules</th>
-            <th title="Ordering matching rules">Ordering Rules</th>
-            <th title="Substring matching rules">Substring  Rules</th>
-          </tr>
-        </thead>
-        <tbody id="standard-attr-body">
-          <tr>
-            <td>ssn</td>
-            <td>1.1.1.1.1.1.1.1</td>
-            <td>DirectoryString</td>
-            <td>no</td>
-            <td class="ds-nowrap-td"></td>
-            <td class="ds-nowrap-td"></td>
-            <td class="ds-nowrap-td"></td>
-          </tr>
-          <tr>
-            <td>ssn</td>
-            <td>1.1.1.1.1.1.1.1</td>
-            <td>DirectoryString</td>
-            <td>no</td>
-            <td class="ds-nowrap-td"></td>
-            <td class="ds-nowrap-td"></td>
-            <td class="ds-nowrap-td"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div id="schema-custom" class="schema-ctrl" hidden>
-    <div class="">
-      <h2><b>Custom Objectclasses</b><hr class="ds-hr"></h2>
-      <table id="custom-oc-table" class="display ds-repl-table" cellspacing="0" width="100%">
-        <thead>
-          <tr class="ds-table-header">
-            <th>Objectclass Name</th>
-            <th>OID</th>
-            <th>Parent</th>
-            <th>Required Attributes</th>
-            <th>Allowed Attributes</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="custom-body">
-          <tr>
-            <td>uiPerson</td>
-            <td>1.1.1.1.1.1.1.1.1.1</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn</td>
-            <td class="ds-nowrap-td"d>sn uid description userpassword</td>
-            <td>
-              <div class="dropdown">
-                <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">
-                  Choose Action...
-                  <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">
-                  <li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>
-                  <li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-
-          <tr>
-            <td>uiGroup</td>
-            <td>1.1.1.1.1.1.1.1.1.2</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn</td>
-            <td class="ds-nowrap-td">sn member</td>
-            <td>
-              <div class="dropdown">
-                <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu2" data-toggle="dropdown">
-                  Choose Action...
-                  <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu2">
-                  <li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>
-                  <li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td>uiContainer</td>
-            <td>1.1.1.1.1.1.1.1.1.3</td>
-            <td>top</td>
-            <td class="ds-nowrap-td">cn</td>
-            <td class="ds-nowrap-td">sn uid</td>
-            <td>
-              <div class="dropdown">
-                <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu2" data-toggle="dropdown">
-                  Choose Action...
-                  <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu2">
-                  <li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>
-                  <li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <button id="add-oc-button" name="create-oc" class="btn btn-default ds-button">Create Objectclass</button>
-    </div>
-
-    <div class="">
-      <h2><br><b>Custom Attributes</b><hr class="ds-hr"></h2>
-      <table id="custom-attr-table" class="display ds-repl-table" cellspacing="0" width="100%">
-        <thead>
-          <tr class="ds-table-header">
-            <th>Attribute Name</th>
-            <th>OID</th>
-            <th>Syntax</th>
-            <th>Multivalued</th>
-            <th title="Equality matching rules">Equality Rules</th>
-            <th title="Ordering matching rules">Ordering Rules</th>
-            <th title="Substring matching rules">Substring Rules</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="custom-attr-body">
+  <div id="std-schema-page" class="all-pages" hidden>
+    <h3  class="ds-config-header">Standard Objectclasses</h3>
+    <table id="standard-oc-table" class="display ds-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Objectclass Name</th>
+          <th>OID</th>
+          <th>Parent</th>
+          <th>Required Attributes</th>
+          <th>Allowed Attributes</th>
+        </tr>
+      </thead>
+      <tbody id="standard-body">
+        <tr>
+          <td>person</td>
+          <td>1.0.34.54.7.2.3.4.3.2</td>
+          <td>top</td>
+          <td>cn givenname sn</td>
+          <td>description uid</td>
+        </tr>
+        <tr>
+          <td>demoPerson</td>
+          <td>1.0.34.54.7.2.3.4.3.2</td>
+          <td>top</td>
+          <td>cn givenname sn</td>
+          <td>uid</td>
+        </tr>
+        <tr>
+          <td>person</td>
+          <td>1.0.34.54.7.2.3.4.3.2</td>
+          <td>top</td>
+          <td>cn givenname sn uid userpassword mail</td>
+          <td>description homedir memberOf someOtherAttribute longdescprition certificateVocationList</td>
+        </tr>
+      </tbody>
+    </table>
+    <hr>
+    <h3 class="ds-config-header">Standard Attributes</h3>
+    <table id="standard-attr-table" class="display ds-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Attribute Name</th>
+          <th>OID</th>
+          <th>Syntax</th>
+          <th>Multivalued</th>
+          <th title="Equality matching rules">Equality Rules</th>
+          <th title="Ordering matching rules">Ordering Rules</th>
+          <th title="Substring matching rules">Substring  Rules</th>
+        </tr>
+      </thead>
+      <tbody id="standard-attr-body">
+        <tr>
           <td>ssn</td>
           <td>1.1.1.1.1.1.1.1</td>
           <td>DirectoryString</td>
           <td>no</td>
-          <td class="ds-nowrap-td"></td>
-          <td class="ds-nowrap-td"></td>
-          <td class="ds-nowrap-td"></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>ssn</td>
+          <td>1.1.1.1.1.1.1.1</td>
+          <td>DirectoryString</td>
+          <td>no</td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="custom-schema-page" class="all-pages" hidden>
+    <h3 class="ds-config-header">Custom Objectclasses</h3>
+    <table id="custom-oc-table" class="display ds-repl-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Objectclass Name</th>
+          <th>OID</th>
+          <th>Parent</th>
+          <th>Required Attributes</th>
+          <th>Allowed Attributes</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="custom-body">
+        <tr>
+          <td>uiPerson</td>
+          <td>1.1.1.1.1.1.1.1.1.1</td>
+          <td>top</td>
+          <td>cn</td>
+          <td>sn uid givenname description userpassword longDescription certificateRevocationList more</td>
           <td>
             <div class="dropdown">
-              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="" data-toggle="dropdown">
+              <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown">
                 Choose Action...
                 <span class="caret"></span>
               </button>
               <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">
-                <li role=""><a role="menuitem" tabindex="0" class="attr-edit-btn" href="#">Edit Attribute</a></li>
-                <li role=""><a role="menuitem" tabindex="1" class="attr-del-btn" href="#">Delete Attribute</a></li>
+                <li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>
+                <li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>
               </ul>
             </div>
           </td>
-        </tbody>
-      </table>
-      <button id="create-attr-button" class="btn btn-default ds-button">Create Attribute</button>
-      <p></p>
-    </div>
+        </tr>
+
+        <tr>
+          <td>uiGroup</td>
+          <td>1.1.1.1.1.1.1.1.1.2</td>
+          <td>top</td>
+          <td>cn</td>
+          <td>sn member</td>
+          <td>
+            <div class="dropdown">
+              <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu2" data-toggle="dropdown">
+                Choose Action...
+                <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu2">
+                <li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>
+                <li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>uiContainer</td>
+          <td>1.1.1.1.1.1.1.1.1.3</td>
+          <td>top</td>
+          <td>cn</td>
+          <td>sn uid description</td>
+          <td>
+            <div class="dropdown">
+              <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu2" data-toggle="dropdown">
+                Choose Action...
+                <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu2">
+                <li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>
+                <li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <button id="add-oc-button" name="create-oc" class="btn btn-primary ds-button">Create Objectclass</button>
+    <hr>
+    <h3 class="ds-config-header">Custom Attributes</h3>
+    <table id="custom-attr-table" class="display ds-repl-table" cellspacing="0" width="100%">
+      <thead>
+        <tr class="ds-table-header">
+          <th>Attribute Name</th>
+          <th>OID</th>
+          <th>Syntax</th>
+          <th>Multivalued</th>
+          <th title="Equality matching rules">Equality Rules</th>
+          <th title="Ordering matching rules">Ordering Rules</th>
+          <th title="Substring matching rules">Substring Rules</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="custom-attr-body">
+        <td>ssn</td>
+        <td>1.1.1.1.1.1.1.2</td>
+        <td>DirectoryString</td>
+        <td>no</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td>
+          <div class="dropdown">
+            <button class="btn btn-default dropdown-toggle" type="button"data-toggle="dropdown">
+              Choose Action...
+              <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu ds-agmt-dropdown" role="menu">
+              <li role=""><a role="menuitem" tabindex="0" class="attr-edit-btn" href="#">Edit Attribute</a></li>
+              <li role=""><a role="menuitem" tabindex="1" class="attr-del-btn" href="#">Delete Attribute</a></li>
+            </ul>
+          </div>
+        </td>
+      </tbody>
+    </table>
+    <button id="create-attr-button" class="btn btn-primary ds-button">Create Attribute</button>
   </div>
 
-  <div id="schema-mr" class="schema-ctrl" hidden>
+  <div id="schema-mr" class="all-pages" hidden>
     <div class="">
-      <h2><b>Matching Rules</b><hr class="ds-hr"></h2>
+      <h3 class="ds-config-header">Matching Rules</h3>
       <table id="schema-mr-table" class="display ds-table" cellspacing="0" width="100%">
         <thead>
           <tr class="ds-table-header">
@@ -285,13 +206,13 @@
             <td>equality</td>
             <td>9.5.6.7.3.5.4.45.54.4</td>
             <td>DirectoryString</td>
-            <td class="ds-nowrap-td">My really long description for some reason</td>
+            <td>My really long description for some reason"</td>
           </tr>
           <tr>
             <td>equality-2</td>
             <td>999.5.6.7.3.5.4.45.54.4</td>
             <td>DirectoryString</td>
-            <td class="ds-nowrap-td">My really long description for some reason</td>
+            <td>My really long description for some reason again geez...</td>
           </tr>
         </tbody>
       </table>
@@ -309,11 +230,11 @@
         <h2><b id="add-edit-oc-header">Add Objectclass</b> <span class="close" id="add-edit-oc-close">&times;</span></h2>
         <hr class="ds-hr">
         <p></p>
-        <label for="oc-name" class="ds-schema-config-label" title="The objectclass name"><b
+        <label for="oc-name" class="ds-label-sm" title="The objectclass name"><b
           >Objectclass Name</b></label><input class="ds-input-lrg" type="text" id="oc-name" size="40" required />
-        <label for="oc-oid" class="ds-schema-config-label" title="Objectclass OID (optional)"><b
+        <label for="oc-oid" class="ds-label-sm" title="Objectclass OID (optional)"><b
           >OID (optional)</b></label><input class="ds-input-lrg" value="" type="text" id="oc-oid" size="40"/>
-        <label for="oc-parent" class="ds-schema-config-label" title="The parent objectclass"><b>Parent Objectclass</b></label><select
+        <label for="oc-parent" class="ds-label-sm" title="The parent objectclass"><b>Parent Objectclass</b></label><select
           class="btn btn-default dropdown ds-oc-dropdown" id="oc-parent">
             <option>Top</option>
             <option>Person</option>

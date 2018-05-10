@@ -17,7 +17,13 @@ function valid_num (val){
   return !isNaN(val);
 }
 
-
+function tableize (val) {
+  // Truncate a long value to fit inside table
+  if (val.length > 25){
+    val = val.substring(0,25) + "...";
+  }
+  return val;
+}
 
 function search_dse(){
   document.getElementById('results').innerHTML = "Searching root dse...";
@@ -50,17 +56,33 @@ function set_no_insts () {
     select.appendChild(el);
     select.selectedIndex = "0";
     server_id = "";
+
+    $("#server-list-menu").attr('disabled', true);
+    $("#ds-navigation").hide();
+    $(".all-pages").hide();
+    $("#no-instances").show();
+}
+
+function check_for_389 () {
+  var cmd = ["ls", "/etc/dirsrv"];
+
+  cockpit.spawn(cmd, { superuser: true }).fail(function(data) {
+    $("#server-list-menu").attr('disabled', true);
+    $("#ds-navigation").hide();
+    $(".all-pages").hide();
+    $("#no-package").show();
+  });
 }
 
 function get_insts() {
   var insts = [];
   var cmd = ["/bin/sh", "-c", "/usr/bin/ls -d " + DS_HOME + "slapd-*"];
 
-  console.log("Get insts");
   cockpit.spawn(cmd, { superuser: true }).done(function(data) {
     // Parse the output, and skip removed instances and empty lines
     var lines = data.split('\n');
-    for (var i = 0; i < lines.length; i++) {
+    var i = 0;
+    for (i = 0; i < lines.length; i++) {
       if (lines[i].endsWith(".removed") == false && lines[i] != "") {
         var serverid = lines[i].replace(DS_HOME, "");
         insts.push(serverid);
@@ -73,8 +95,16 @@ function get_insts() {
 
     // Populate the server instance drop down
     var select = document.getElementById("select-server");
-    for(var i = 0; i < insts.length; i++) {
-      console.log("Add instance");
+    var list_length = select.options.length;
+
+    // Clear the list first
+    for (i = 0; i < list_length; i++) {
+      select.options[i] = null;
+    }
+
+    // Update the list
+    for (i = 0; i < insts.length; i++) {
+      console.log("Add instance: " + insts[i]);
       var opt = insts[i];
       var el = document.createElement("option");
       el.textContent = opt;
@@ -85,6 +115,13 @@ function get_insts() {
     if (insts[0] === undefined) {
       set_no_insts();
     } else {
+      // We have at least one instance, make sure we "open" the UI
+      $("#server-list-menu").attr('disabled', false);
+      $("#ds-navigation").show();
+      $(".all-pages").hide();
+      $("#no-instances").hide();
+      $("#server-content").show();
+      $("#server-config").show();
       server_id = insts[0];
     }
 
@@ -95,10 +132,16 @@ function get_insts() {
   });
 }
 
+function report_err( input, msg) {
+  $(".ds-modal-error").html('Error: ' + msg);
+  input.css("border-color", "red");
+  $(".ds-modal-error").show();
+}
+
 $(function() {
   $('#select-server').change(function() {
     server_id = $(this).val();
-    $("#ds-banner").html("Managing Instance <select class=\"btn btn-default dropdown ds-dropdown-server\" id=\"select-server\"></select>");
+    // TODO - reload config - do everything!!!!!
   });
 });
 
@@ -111,5 +154,8 @@ $(window.document).ready(function() {
       this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
     });
   }
+  
+
+
   
 });

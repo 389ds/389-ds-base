@@ -1,283 +1,364 @@
 
-<div class="ds-fixed">
-  <button id="server-tasks-btn" class="btn btn-default ds-button active">Tasks</button>
-  <button id="server-config-btn" class="btn btn-default ds-button active">Server Configuration</button>
-  <button id="server-tuning-btn" class="btn btn-default ds-button active">Tuning & Limits</button>
-  <button id="server-sasl-btn" class="btn btn-default ds-button active">SASL</button>
-  <button id="server-pwpolicy-btn" class="btn btn-default ds-button active">Password Policy</button>
-  <button id="server-logs-btn" class="btn btn-default ds-button active">Logging</button>
-  <button id="server-ldapi-btn" class="btn btn-default ds-button active">LDAPI & Autobind</button>
-</div>
-
-<div id="server-content-buttons" class="ds-flex">
+<div id="server-content-buttons">
 
   <!--
         General Config Settings
   -->
-  <div id="server-config" class="server-cfg-ctrl" hidden>
-    <h2>Server Configuration Settings</h2>
-    <hr class="ds-hr">
+  <div id="server-config" class="all-pages">
+    <h3 class="ds-config-header">Server Configuration Settings</h3>
     <div class="ds-container">
-      <div class="">
-        <label for="nsslapd-localhost" class="ds-config-label" title="The server's local hostname (nsslapd-localhost)."><b>Server Hostname</b></label><input
-          class="ds-input" type="text" id="nsslapd-localhost" size="40"/>
-        <label for="nsslapd-port" class="ds-config-label" title="The server's port number (nsslapd-port)."><b>Server Port</b></label><input
-          class="ds-input" type="text" id="nsslapd-port" size="40"/>
-        <label for="nsslapd-listenhost" class="ds-config-label" title=
-          "This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost)."><b>Listen Host Address</b></label><input
-          class="ds-input" type="text" id="nsslapd-listenhost" size="40"/>
-        <label for="nsslapd-bakdir" class="ds-config-label" title="The location where database backups are stored (nsslapd-bakdir)."><b>Database Backup Directory</b></label><input
-          class="ds-input" type="text" id="nsslapd-bakdir" size="40"/>
-        <label for="nsslapd-ldifdir" class="ds-config-label" title="The location where the server's LDIF files are located (nsslapd-ldifdir)."><b>LDIF File Directory</b></label><input
-          class="ds-input" type="text" id="nsslapd-ldifdir" size="40"/>
-        <label for="nsslapd-schemadir" class="ds-config-label" title="The location for the servers custom schema files. (nsslapd-schemadir)"><b>Schema Directory</b></label><input
-          class="ds-input" type="text" id="nsslapd-schemadir" size="40"/>
-        <label for="nsslapd-certdir" class="ds-config-label" title="The location of the server's certificates (nsslapd-certdir)."><b>Certificate Directory</b></label><input
-          class="ds-input" type="text" id="nsslapd-certdir" size="40"/>
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-localhost" class="ds-config-label" title="The server's local hostname (nsslapd-localhost).">Server Hostname</label><input
+            type="text" class="ds-input" id="nsslapd-localhost" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-port" class="ds-config-label" title="The server's port number (nsslapd-port).">Server Port</label><input
+            type="text" class="ds-input" id="nsslapd-port" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-listenhost" class="ds-config-label" title=
+            "This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost).">Listen Host Address</label><input
+             type="text" class="ds-input" id="nsslapd-listenhost" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-bakdir" class="ds-config-label" title="The location where database backups are stored (nsslapd-bakdir).">Database Backup Directory</label><input
+            type="text" class="ds-input" id="nsslapd-bakdir" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-ldifdir" class="ds-config-label" title="The location where the server's LDIF files are located (nsslapd-ldifdir).">LDIF File Directory</label><input
+            type="text" class="ds-input" id="nsslapd-ldifdir" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-schemadir" class="ds-config-label" title="The location for the servers custom schema files. (nsslapd-schemadir)">Schema Directory</label><input
+            type="text" class="ds-input" id="nsslapd-schemadir" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-certdir" class="ds-config-label" title="The location of the server's certificates (nsslapd-certdir).">Certificate Directory</label><input
+            type="text" class="ds-input" id="nsslapd-certdir" size="40"/>
+        </div>
       </div>
       <div class="ds-divider"></div>
-      <div>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-disk-monitoring"><label
-          for="nsslapd-disk-monitoring" class="ds-label" title="Enable disk space monitoring (nsslapd-disk-monitoring).">Enable Disk Space Monitoring</label>
-        <label for="nsslapd-disk-monitoring-threshold" class="ds-config-diskmon-label" title=
-          "The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. (nsslapd-disk-monitoring-threshold)"><b>Monitoring Threshold</b></label><input
-          class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-threshold" size="10" disabled />
-        <label for="nsslapd-disk-monitoring-grace-period" class="ds-config-diskmon-label" title=
-          "How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)."> <b>Monitoring Grace Period</b> </label><input
-          class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period" size="10" disabled />
-        <input type="checkbox" class="ds-config-diskmon-checkbox disk-monitoring" id="nsslapd-disk-monitoring-logging-critical" disabled><label
-          for="nsslapd-disk-monitoring-logging-critical" class="ds-label" title="When disk space gets critically low do not remove logs to free up disk space ().">Preserve Logs</label>
+      <div class="ds-inline">
+        <div>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-disk-monitoring"><label
+            for="nsslapd-disk-monitoring" class="ds-label" title="Enable disk space monitoring (nsslapd-disk-monitoring).">Enable Disk Space Monitoring</label>
+        </div>
+        <div>
+          <label for="nsslapd-disk-monitoring-threshold" class="ds-config-diskmon-label disk-monitoring" title=
+            "The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. (nsslapd-disk-monitoring-threshold)">
+            Disk Monitoring Threshold</label><input
+            class="ds-input disk-monitoring disk-monitoring" type="text" id="nsslapd-disk-monitoring-threshold" size="10"/>
+        </div>
+        <div>
+          <label for="nsslapd-disk-monitoring-grace-period" class="ds-config-diskmon-label disk-monitoring" title=
+            "How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)."> 
+            Disk Monitoring Grace Period </label><input
+            class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period " size="10"/>
+        </div>
+        <div>
+          <input type="checkbox" class="ds-config-diskmon-checkbox disk-monitoring" id="nsslapd-disk-monitoring-logging-critical"><label
+            for="nsslapd-disk-monitoring-logging-critical" class="ds-label disk-monitoring" title="When disk space gets critically low do not remove logs to free up disk space ().">Preserve Logs</label>
+        </div>
       </div>
    </div>
-   <p></p>
 
-   <input type="button" class="accordion config-accordion ds-accordion-button ds-accordion-spacing" id="config-accordion" value="Advanced Settings &#9660;"/>
+   <button class="accordion ds-accordion" id="config-accordion" type="button">&#9658 Show Advanced Settings</button>
    <div class="ds-accordion-panel">
      <div class="ds-container">
-       <div class="">
-         <label for="nsslapd-anonlimitsdn" class="ds-config-label" title=
-           "The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."><b>Anonymous Resource Limits DN</b></label><input
-           class="ds-input" type="text" id="nsslapd-anonlimitsdn" size="40"/>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-schemacheck" checked><label
-           for="nsslapd-schemacheck" class="ds-label" title="Enable schema checking (nsslapd-schemacheck)."> Enable Schema Checking</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxcheck" checked><label
-           for="nsslapd-syntaxcheck" class="ds-label" title="Enable attribute syntax checking (nsslapd-syntaxcheck)."> Enable Attribute syntax checking</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxlogging" checked><label
-           for="nsslapd-syntaxlogging" class="ds-label" title="Enable syntax logging (nsslapd-syntaxlogging)."> Enable Attribute Syntax Logging</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-logging" checked><label
-           for="nsslapd-plugin-logging" class="ds-label" title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."> Enable Plugin Logging</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-binddn-tracking" checked><label
-           for="nsslapd-plugin-binddn-tracking" class="ds-label" title=
-           "Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."> Enable Plugin Bind DN Tracking </label>
+       <div class="ds-inline">
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-schemacheck" checked><label
+             for="nsslapd-schemacheck" class="ds-label" title="Enable schema checking (nsslapd-schemacheck)."> Enable Schema Checking</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxcheck" checked><label
+             for="nsslapd-syntaxcheck" class="ds-label" title="Enable attribute syntax checking (nsslapd-syntaxcheck)."> Enable Attribute syntax checking</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-syntaxlogging" checked><label
+             for="nsslapd-syntaxlogging" class="ds-label" title="Enable syntax logging (nsslapd-syntaxlogging)."> Enable Attribute Syntax Logging</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-logging" checked><label
+             for="nsslapd-plugin-logging" class="ds-label" title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."> Enable Plugin Logging</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-plugin-binddn-tracking" checked><label
+             for="nsslapd-plugin-binddn-tracking" class="ds-label" title=
+             "Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."> Enable Plugin Bind DN Tracking </label>
+         </div>
        </div>
        <div class="ds-divider"></div>
-       <div>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-attribute-name-exceptions" checked><label
-           for="nsslapd-attribute-name-exceptions" class="ds-label" title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers"> Allow Attribute Naming Exceptions </label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-dn-validate-strict" checked><label
-           for="nsslapd-dn-validate-strict" class="ds-label" title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."> Enable Strict DN Syntax Validation</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-entryusn-global" checked><label
-           for="nsslapd-entryusn-global" class="ds-label" title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."> Enable Unique USNs Across All Backends</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-time-skew" checked><label
-           for="nsslapd-ignore-time-skew" class="ds-label" title="Ignore time skew when generating CSNs"> Ignore CSN Time Skew</label>
-         <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-server" checked><label
-           for="nsslapd-readonly-server" class="ds-label" title="Make entire server read-only (nsslapd-readonly)"> Server Read-Only</label>
-         <label for="nsslapd-allow-anonymous-access" class="ds-server-label" title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."> Allow Anonymous Access</label><select
-            class="btn btn-default dropdown" id="nsslapd-allow-anonymous-access">
-              <option>On</option>
-              <option>Off</option>
-              <option title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ">rootdse</option>
-         </select>
+       <div class="ds-divider"></div>
+       <div class="ds-divider"></div>
+       <div class="ds-divider"></div>
+       <div class="ds-inline">
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-attribute-name-exceptions" checked><label
+             for="nsslapd-attribute-name-exceptions" class="ds-label" title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers"> Allow Attribute Naming Exceptions </label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-dn-validate-strict" checked><label
+             for="nsslapd-dn-validate-strict" class="ds-label" title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."> Enable Strict DN Syntax Validation</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-entryusn-global" checked><label
+             for="nsslapd-entryusn-global" class="ds-label" title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."> Enable Unique USNs Across All Backends</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-time-skew" checked><label
+             for="nsslapd-ignore-time-skew" class="ds-label" title="Ignore time skew when generating CSNs"> Ignore CSN Time Skew</label>
+         </div>
+         <div>
+           <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-server" checked><label
+             for="nsslapd-readonly-server" class="ds-label" title="Make entire server read-only (nsslapd-readonly)"> Server Read-Only</label>
+         </div>
+
        </div>
      </div>
-     <hr class="ds-hr">
-   </div>
-   <p></p>
-
-   <input type="button" class="accordion rootdn-accordion ds-accordion-button ds-accordion-spacing" id="rootdn-accordion" value="Directory Manager Settings &#9660;"/>
-   <div class="ds-accordion-panel">
      <div>
-       <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn)."><b>Directory Manager DN</b></label><input
-         class="ds-input" type="text" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
-       <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw)."><b>Directory Manager Password</b></label><input
-         class="ds-input" type="password" id="nsslapd-rootpw" size="40"/>
-       <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password."><b>Confirm Password</b></label><input
-         class="ds-input" type="password" id="nsslapd-rootdn-confirm" size="40"/>
-       <label for="nsslapd-rootpwstoragescheme" class="ds-server-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme)."><b>Password Storage Scheme</b></label><select
-         class="btn btn-default dropdown ds-rootdn-passwd-dropdown" id="nsslapd-rootpwstoragescheme">
-           <option>PBKDF2_SHA256</option>
-           <option>SSHA512</option>
-           <option>SSHA384</option>
-           <option>SSHA256</option>
-           <option>SSHA</option>
-           <option>NS-MTA-MD5</option>
-           <option>MD5</option>
-           <option>SMD5</option>
-           <option>CRYPT-MD5</option>
-           <option>CRYPT-SHA512</option>
-           <option>CRYPT-SHA256</option>
-           <option>CRYPT</option>
-           <option>CLEAR</option>
-         </select>
+       <label for="nsslapd-allow-anonymous-access" class="ds-config-label" title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."> Allow Anonymous Access</label><select
+          class="btn btn-default dropdown" id="nsslapd-allow-anonymous-access">
+            <option>On</option>
+            <option>Off</option>
+            <option title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ">rootdse</option>
+       </select>
      </div>
-   </div>
-   <p></p>
+     <div>
+       <label for="nsslapd-anonlimitsdn" class="ds-config-label" title=
+         "The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn).">Anonymous Resource Limits DN</label><input
+         class="ds-input" type="text" id="nsslapd-anonlimitsdn" size="40"/>
+     </div>
 
-   <hr class="ds-hr">
-   <div class="ds-button-border">
-     <button id="server-config-save-btn" class="btn btn-default ds-button">Save</button>
-   </div>
+     <hr>
+     <div class="ds-inline">
+       <div>
+         <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn).">Directory Manager DN</label><input
+           class="ds-input" type="text" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
+       </div>
+       <div>
+         <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw).">Directory Manager Password</label><input
+           class="ds-input" type="password" id="nsslapd-rootpw" size="40"/>
+       </div>
+       <div>
+         <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password.">Confirm Password</label><input
+           class="ds-input" type="password" id="nsslapd-rootdn-confirm" size="40"/>
+       </div>
+       <div>
+         <label for="nsslapd-rootpwstoragescheme" class="ds-config-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme).">Password Storage Scheme</label><select
+           class="btn btn-default dropdown" id="nsslapd-rootpwstoragescheme">
+             <option>PBKDF2_SHA256</option>
+             <option>SSHA512</option>
+             <option>SSHA384</option>
+             <option>SSHA256</option>
+             <option>SSHA</option>
+             <option>NS-MTA-MD5</option>
+             <option>MD5</option>
+             <option>SMD5</option>
+             <option>CRYPT-MD5</option>
+             <option>CRYPT-SHA512</option>
+             <option>CRYPT-SHA256</option>
+             <option>CRYPT</option>
+             <option>CLEAR</option>
+           </select>
+        </div>
+      </div>
+    </div>
+    <p></p>
+
+    <div class="ds-footer">
+      <button id="server-config-save-btn" class="btn btn-primary">Save</button>
+    </div>
   </div>
 
 
   <!--
         SASL Settings
   -->
-  <div id="server-sasl" class="server-cfg-ctrl" hidden>
-    <h2>SASL Settings</h2>
-    <hr class="ds-hr">
-    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-sasl-mapping-fallback" checked><label
-      for="nsslapd-sasl-mapping-fallback" class="ds-label" title="Check all sasl mappings until one succeeds or they all fail (nsslapd-sasl-mapping-fallback)."> Allow SASL Mapping Fallback</label>
-    <label for="nsslapd-sasl-max-buffer-size" class="ds-config-label" title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size)."><b>Max SASL Buffer Size</b></label><input
-      class="ds-input" type="text" id="nsslapd-sasl-max-buffer-size" size="40"/>
-    <label for="nsslapd-allowed-sasl-mechanisms" class="ds-config-label" title="A list of SASL mechanisms the server will accept (nsslapd-allowed-sasl-mechanisms)."><b>Allowed SASL Mechanisms</b></label><input
-      class="ds-input" type="text" id="nsslapd-allowed-sasl-mechanisms" size="40"/>
-
-    <div class="ds-button-border">
-      <p></p>
-      <button id="server-sasl-save-btn" class="btn btn-default ds-sasl-button">Save SASL Settings</button>
+  <div id="server-sasl" class="all-pages" hidden>
+    <h3 class="ds-config-header">SASL Settings</h3>
+    <div class="ds-inline">
+      <div>
+        <label for="nsslapd-sasl-max-buffer-size" class="ds-config-label" title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size).">Max SASL Buffer Size</label><input
+          class="ds-input" type="text" id="nsslapd-sasl-max-buffer-size" size="40"/>
+      </div>
+      <div>
+        <label for="nsslapd-allowed-sasl-mechanisms" class="ds-config-label" title="A list of SASL mechanisms the server will accept (nsslapd-allowed-sasl-mechanisms).">Allowed SASL Mechanisms</label><input
+          class="ds-input" type="text" id="nsslapd-allowed-sasl-mechanisms" size="40"/>
+      </div>
+      <div>
+        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-sasl-mapping-fallback" checked><label
+          for="nsslapd-sasl-mapping-fallback" class="ds-label" title="Check all sasl mappings until one succeeds or they all fail (nsslapd-sasl-mapping-fallback)."> Allow SASL Mapping Fallback</label>
+      </div>
+    </div>
+    <div class="ds-footer">
+      <button id="server-sasl-save-btn" class="btn btn-primary">Save</button>
     </div>
 
-    <h2><br>SASL Mappings</h2>
-    <hr class="ds-hr">
-    <table id="sasl-table" class="display ds-table" cellspacing="0" width="100%">
-      <thead>
-        <tr class="ds-table-header">
-          <th>Mapping Name</th>
-          <th>Regular Expression</th>
-          <th>Search Base DN</th>
-          <th>Search Filter</th>
-          <th title="Requires 'nsslapd-sasl-mapping-fallback' to “on”">Priority</th>
-          <th>Action</th>
-      </thead>
-      <tbody id="sasl-mappings">
-        <tr>
-          <td>Kerberos UID Mapping</td>
-          <td>\(.*\)@\(.*\)\.\(.*\)</td>
-          <td>dc=\2,dc=\3</td>
-          <td>(uid=\1)</td>
-          <td></td>
-          <td>
-            <div class="dropdown">
-              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">
-                Choose Action...
-                <span class="caret"></span>
-              </button>
-              <ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">
-                <li role=""><a role="menuitem" tabindex="0" href="#">Edit Mapping</a></li>
-                <li role=""><a role="menuitem" tabindex="1" href="#">Delete Mapping</a></li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <button class="btn btn-default ds-sasl-button" type="button" id="create-sasl-mapping">Create SASL Mapping</button>
-    <p></p>
+    <h4 class="ds-config-header"><br>SASL Mappings</h4>
+    <div class="ds-indent">
+      <table id="sasl-table" class="display ds-sasl-table" cellspacing="0" width="100%">
+        <thead>
+          <tr class="ds-table-header">
+            <th>Mapping Name</th>
+            <th>Regular Expression</th>
+            <th>Search Base DN</th>
+            <th>Search Filter</th>
+            <th title="Requires 'nsslapd-sasl-mapping-fallback' to “on”">Priority</th>
+            <th>Action</th>
+        </thead>
+        <tbody id="sasl-mappings">
+          <tr>
+            <td>Kerberos UID Mapping</td>
+            <td>\(.*\)@\(.*\)\.\(.*\)</td>
+            <td>dc=\2,dc=\3</td>
+            <td>(uid=\1)</td>
+            <td></td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">
+                  Choose Action...
+                  <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu ds-agmt-dropdown" role="menu">
+                  <li><a role="menuitem" class="sasl-edit-btn">Edit Mapping</a></li>
+                  <li><a role="menuitem" class="sasl-verify-btn">Test Mapping</a></li>
+                  <li><a role="menuitem" class="sasl-del-btn">Delete Mapping</a></li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="btn btn-default" data-toggle="modal" data-target="#sasl-map-form" id="create-sasl-map-btn">Create SASL Mapping</button>
+    </div>
   </div>
 
 
   <!--
         Password Policy Settings
   -->
-  <div id="server-pwpolicy" class="server-cfg-ctrl" hidden>
-    <h2>Password Policy Management Settings</h2>
-    <hr class="ds-hr">
-    <p></p>
-
-    <input type="button" class="accordion pwp-accordion ds-accordion-button ds-accordion-spacing" id="pwd-accordion" value="Global Password Policy &#9660;" title=
-      "Configure the global password policy settings"/>
-    <div class="ds-accordion-panel">
+  <div id="global-password-policy" class="all-pages" hidden>
+    <h3 class="ds-config-header">Global Password Policy Settings</h3>
       <div class="ds-container">
         <div class="ds-split">
-          <h3>General Settings</h3>
-          <hr class="ds-hr">
-          <label for="passwordstoragescheme" class="ds-server-label" title="Set the password storage scheme (passwordstoragescheme).">Password Storage Scheme</label><select
-            class="btn btn-default dropdown ds-passwd-dropdown" id="passwordstoragescheme">
-              <option>PBKDF2_SHA256</option>
-              <option>SSHA512</option>
-              <option>SSHA384</option>
-              <option>SSHA256</option>
-              <option>SSHA</option>
-              <option>NS-MTA-MD5</option>
-              <option>MD5</option>
-              <option>SMD5</option>
-              <option>CRYPT-MD5</option>
-              <option>CRYPT-SHA512</option>
-              <option>CRYPT-SHA256</option>
-              <option>CRYPT</option>
-              <option>CLEAR</option>
-            </select>
-          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-local" checked><label
-            for="nsslapd-pwpolicy-local" class="ds-label" title="Allow subtree/user defined password policies (nsslapd-pwpolicy-local)."> Allow Local Password Policies</label>
-          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-inherit-global" checked><label
-            for="nsslapd-pwpolicy-inherit-global" class="ds-label" title=
-            "If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global)."> Local Policy Inherits Global Policy</label>
-          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-allow-hashed-passwords"><label
-            for="nsslapd-allow-hashed-passwords" class="ds-label" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords)."> Allow Adding Pre-Hashed Passwords</label>
-          <input type="checkbox" class="ds-config-checkbox" id="passwordisglobalpolicy" checked><label
-            for="passwordisglobalpolicy" class="ds-label" title="Allow password policy state attributes to replicate (passwordIsGlobalPolicy)."> Replicate Password Policy State Attributes</label>
-          <input type="checkbox" class="ds-config-checkbox" id="passwordtrackupdatetime" checked><label
-            for="passwordtrackupdatetime" class="ds-label" title=
-            "Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime)."> Track Password Update Time</label>
-          <label for="passwordAdminDN" class="ds-server-label" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
-            class="ds-input" type="text" id="passwordAdminDN" size="40"/>
+          <div class="ds-inline">
+            <h4>General Settings</h4>
+            <hr class="ds-hr">
+            <div>
+              <label for="passwordstoragescheme" class="ds-server-label" title="Set the password storage scheme (passwordstoragescheme).">Password Storage Scheme</label><select
+                class="btn btn-default dropdown ds-passwd-dropdownZ" id="passwordstoragescheme">
+                  <option>PBKDF2_SHA256</option>
+                  <option>SSHA512</option>
+                  <option>SSHA384</option>
+                  <option>SSHA256</option>
+                  <option>SSHA</option>
+                  <option>NS-MTA-MD5</option>
+                  <option>MD5</option>
+                  <option>SMD5</option>
+                  <option>CRYPT-MD5</option>
+                  <option>CRYPT-SHA512</option>
+                  <option>CRYPT-SHA256</option>
+                  <option>CRYPT</option>
+                  <option>CLEAR</option>
+                </select>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-local" checked><label
+                for="nsslapd-pwpolicy-local" class="ds-label" title="Allow subtree/user defined password policies (nsslapd-pwpolicy-local)."> Allow Local Password Policies</label>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="nsslapd-pwpolicy-inherit-global" checked><label
+                for="nsslapd-pwpolicy-inherit-global" class="ds-label" title=
+                "If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global)."> Local Policy Inherits Global Policy</label>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="nsslapd-allow-hashed-passwords"><label
+                for="nsslapd-allow-hashed-passwords" class="ds-label" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords)."> Allow Adding Pre-Hashed Passwords</label>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="passwordisglobalpolicy" checked><label
+                for="passwordisglobalpolicy" class="ds-label" title="Allow password policy state attributes to replicate (passwordIsGlobalPolicy)."> Replicate Password Policy State Attributes</label>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="passwordtrackupdatetime" checked><label
+                for="passwordtrackupdatetime" class="ds-label" title=
+                "Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime)."> Track Password Update Time</label>
+            </div>
+            <div>
+              <p></p>
+              <label for="passwordAdminDN" class="ds-server-labelZ" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
+                class="ds-input" type="text" id="passwordAdminDN" size="40"/>
+            </div>
+          </div>
         </div>
         <div class="ds-divider"></div>
+        <div class="ds-divider"></div>
         <div class="ds-split">
-          <h3>User Password Settings</h3>
-          <hr class="ds-hr">
-          <input type="checkbox" class="ds-config-checkbox" id="passwordchange" checked><label
-            for="passwordchange" class="ds-label" title="Allow user's to change their passwords (passwordChange)."> Allow Users To Change Their Passwords</label>
-          <input type="checkbox" class="ds-config-checkbox" id="passwordmustchange" checked><label
-            for="passwordmustchange" class="ds-label" title="User must change its password after its been reset by an administrator (passwordMustChange).">User Must Change Password After Reset</label>
-          <input type="checkbox" class="ds-config-checkbox" id="passwordhistory" checked><label
-            for="passwordhistory" class="ds-label" title="Maintain a password history (passwordHistory).">Keep Password History</label>
-          <input class="ds-history-input" type="text" id="passwordinhistory" size="2"/>Passwords In History
-          <label for="passwordminage" class="ds-minage-label" title="Indicates the number of seconds that must pass before a user can change their password. (passwordMinAge)">Allow Password Changes (in seconds)</label><input
-           class="ds-input" type="text" id="passwordminage" size="10"/>
-          <p></p>
+          <div class="ds-inline">
+            <h4>User Password Settings</h4>
+            <hr class="ds-hr">
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="passwordchange" checked><label
+                for="passwordchange" class="ds-label" title="Allow user's to change their passwords (passwordChange)."> Allow Users To Change Their Passwords</label>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="passwordmustchange" checked><label
+                for="passwordmustchange" class="ds-label" title="User must change its password after its been reset by an administrator (passwordMustChange).">User Must Change Password After Reset</label>
+            </div>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="passwordhistory" checked><label
+                for="passwordhistory" class="ds-label" title="Maintain a password history (passwordHistory).">Keep Password History</label>
+            </div>
+            <div>
+              <input class="ds-history-input" type="text" id="passwordinhistory" size="2"/>Passwords In History
+              <label for="passwordminage" class="ds-minage-label" title="Indicates the number of seconds that must pass before a user can change their password. (passwordMinAge)">Allow Password Changes (in seconds)</label><input
+               class="ds-input" type="text" id="passwordminage" size="10"/>
+            </div>
+          </div>
         </div>
       </div>
       <div class="ds-container">
         <div class="ds-split">
-          <h3><br>Password Expiration Settings</h3>
+          <h4><br>Password Expiration Settings</h4>
           <hr class="ds-hr">
           <input type="checkbox" class="ds-config-checkbox" id="passwordexp" checked><label
             for="passwordexp" class="ds-label" title="Enable a password expiration policy (passwordExp).">Enable Password Expiration</label>
-          <div class="ds-expired-div" id="expiration-attrs">
-            <label for="passwordmaxage" class="ds-expire-label" title="The server's local hostname (passwordMaxAge)."><b>Password Expiration Time (in seconds)</b></label><input
-              class="ds-input" type="text" id="passwordmaxage" size="5"/>
-            <label for="passwordgracelimit" class="ds-expire-label" title="The server's local hostname (passwordGraceLimit)."><b>Allowed Logins After Password Expires</b></label><input
-              class="ds-input" type="text" id="passwordgracelimit" size="5"/>
-            <label for="passwordwarning" class="ds-expire-label" title="Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning)."><b>Send Password Expiring Warning (in seconds)</b></label><input
-              class="ds-input" type="text" id="passwordwarning" size="5"/>
-            <input type="checkbox" class="ds-send-expiring-checkbox" id="passwordsendexpiringtime"><label
-              for="passwordsendexpiringtime" class="ds-label" title="Always return a password expiring control when requested (passwordSendExpiringTime).">Always Send <i>Password Expiring</i> Control</label>
+          <div class="ds-inline">
+            <div class="ds-expired-div" id="expiration-attrs">
+              <div>
+                <label for="passwordmaxage" class="ds-expire-label" title="The server's local hostname (passwordMaxAge).">Password Expiration Time (in seconds)</label><input
+                  class="ds-input" type="text" id="passwordmaxage" size="5"/>
+              </div>
+              <div>
+                <label for="passwordgracelimit" class="ds-expire-label" title="The server's local hostname (passwordGraceLimit).">Allowed Logins After Password Expires</label><input
+                  class="ds-input" type="text" id="passwordgracelimit" size="5"/>
+              </div>
+              <div>
+                <label for="passwordwarning" class="ds-expire-label" title="Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).">Send Password Expiring Warning (in seconds)</label><input
+                  class="ds-input" type="text" id="passwordwarning" size="5"/>
+              </div>
+              <div>
+                <input type="checkbox" class="ds-send-expiring-checkbox" id="passwordsendexpiringtime"><label
+                  for="passwordsendexpiringtime" class="ds-label" title="Always return a password expiring control when requested (passwordSendExpiringTime).">Always Send <i>Password Expiring</i> Control</label>
+              </div>
+            </div>
           </div>
         </div>
         <div class="ds-divider"></div>
+        <div class="ds-divider"></div>
         <div class="ds-split">
-          <h3><br>Account Lockout Settings</h3>
+          <h4><br>Account Lockout Settings</h4>
           <hr class="ds-hr">
           <input type="checkbox" class="ds-config-checkbox" id="passwordlockout" checked><label
             for="passwordlockout" class="ds-label" title="Enable account lockout (passwordLockout).">Enable Account Lockout</label>
           <div class="ds-expired-div" id="lockout-attrs">
             <label for="passwordmaxfailure" class="ds-expire-label" title=
-              "The maximum number of failed logins before account gets locked (passwordMaxFailure)."><b>Number of Failed Logins to Lockout Account</b></label><input
+              "The maximum number of failed logins before account gets locked (passwordMaxFailure).">Number of Failed Logins to Lockout Account</label><input
               class="ds-input" type="text" id="passwordmaxfailure" size="5"/>
             <label for="passwordresetfailurecount" class="ds-expire-label" title=
-              "The number of seconds until an accounts failure count is reset (passwordResetFailureCount)."><b>Time Before Failure Count Reset </b></label><input
+              "The number of seconds until an accounts failure count is reset (passwordResetFailureCount).">Time Before Failure Count Reset </label><input
               class="ds-input" type="text" id="passwordresetfailurecount" size="5"/>
             <div>
               <label title="Lock out the account forever (passwordUnlock)."><input
@@ -291,422 +372,586 @@
         </div>
       </div>
 
-      <h3><br>Password Syntax Settings</h3>
-      <hr class="ds-hr">
-      <input type="checkbox" class="ds-config-checkbox" id="passwordchecksyntax" checked><label
-        for="passwordchecksyntax" class="ds-label" title="Enable account lockout (passwordCheckSyntax).">Check Password Syntax</label>
-      <div class="ds-container ds-expired-div" id="syntax-attrs">
-        <div>
-          <label for="passwordminlength" class="ds-expire-label" title=
-            "The minimum number of characters in the password (passwordMinLength)."><b>Password Minimum Length </b></label><input
-            class="ds-input" type="text" id="passwordminlength" size="5"/>
-          <label for="passwordmindigits" class="ds-expire-label" title=
-            "Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits)."><b>Minimum Digit Characters </b></label><input
-            class="ds-input" type="text" id="passwordmindigits" size="5"/>
-          <label for="passwordmindigits" class="ds-expire-label" title=
-            "Reject passwords with fewer than this many alpha characters (passwordMinAlphas)."><b>Minimum Alpha Characters </b></label><input
-            class="ds-input" type="text" id="passwordminalphas" size="5"/>
-          <label for="passwordminuppers" class="ds-expire-label" title=
-            "Reject passwords with fewer than this many uppercase characters (passwordMinUppers)."><b>Minimum Uppercase Characters </b></label><input
-            class="ds-input" type="text" id="passwordminuppers" size="5"/>
-          <label for="passwordminlowers" class="ds-expire-label" title=
-            "Reject passwords with fewer than this many lowercase characters (passwordMinLowers)."><b>Minimum Lowercase Characters </b></label><input
-            class="ds-input" type="text" id="passwordminlowers" size="5"/>
+      <div class="ds-inline">
+        <h4><br>Password Syntax Settings</h4>
+        <hr class="ds-hr-pwp">
+        <input type="checkbox" class="ds-config-checkbox" id="passwordchecksyntax" checked><label
+          for="passwordchecksyntax" class="ds-label" title="Enable account lockout (passwordCheckSyntax).">Check Password Syntax</label>
+        <div class="ds-container ds-expired-div" id="syntax-attrs">
+          <div class="ds-inline">
+            <div>
+              <label for="passwordminlength" class="ds-expire-label" title=
+                "The minimum number of characters in the password (passwordMinLength).">Password Minimum Length </label><input
+                class="ds-input" type="text" id="passwordminlength" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmindigits" class="ds-expire-label" title=
+                "Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).">Minimum Digit Characters </label><input
+                class="ds-input" type="text" id="passwordmindigits" size="5"/>
+            </div>
+            <div>
+              <label for="passwordminalphas" class="ds-expire-label" title=
+                "Reject passwords with fewer than this many alpha characters (passwordMinAlphas).">Minimum Alpha Characters </label><input
+                class="ds-input" type="text" id="passwordminalphas" size="5"/>
+            </div>
+            <div>
+              <label for="passwordminuppers" class="ds-expire-label" title=
+                "Reject passwords with fewer than this many uppercase characters (passwordMinUppers).">Minimum Uppercase Characters </label><input
+                class="ds-input" type="text" id="passwordminuppers" size="5"/>
+            </div>
+            <div>
+              <label for="passwordminlowers" class="ds-expire-label" title=
+                "Reject passwords with fewer than this many lowercase characters (passwordMinLowers).">Minimum Lowercase Characters </label><input
+                class="ds-input" type="text" id="passwordminlowers" size="5"/>
+            </div>
+          </div>
+          <div class="ds-divider"></div>
+         <div class="ds-divider"></div>
+          <div class="ds-inline">
+            <div>
+              <label for="passwordminspecials" class="ds-expire-label" title=
+                "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).">Minimum Special Characters </label><input
+                class="ds-input" type="text" id="passwordminspecials" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmin8bit" class="ds-expire-label" title=
+                "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).">Minimum 8-bit Characters </label><input
+                class="ds-input" type="text" id="passwordmin8bit" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmaxrepeats" class="ds-expire-label" title=
+                "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).">Maximum Number Of Repeated Characters </label><input
+                class="ds-input" type="text" id="passwordmaxrepeats" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmincategories" class="ds-expire-label" title=
+                "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).">Minimum Required Character Categories </label><input
+                class="ds-input" type="text" id="passwordmincategories" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmintokenlength" class="ds-expire-label" title=
+                "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).">Minimum Token Length </label><input
+                class="ds-input" type="text" id="passwordmintokenlength" size="5"/>
+            </div>
+          </div>
         </div>
-        <div class="ds-divider"></div>
-        <div class="ds-divider"></div>
-        <div class="ds-divider"></div>
-        <div>
-          <label for="passwordminspecials" class="ds-expire-label" title=
-            "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials)."><b>Minimum Special Characters </b></label><input
-            class="ds-input" type="text" id="passwordminspecials" size="5"/>
-          <label for="passwordmin8bit" class="ds-expire-label" title=
-            "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit)."><b>Minimum 8-bit Characters </b></label><input
-            class="ds-input" type="text" id="passwordmin8bit" size="5"/>
-          <label for="passwordmaxrepeats" class="ds-expire-label" title=
-            "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats)."><b>Maximum Number Of Repeated Characters </b></label><input
-            class="ds-input" type="text" id="passwordmaxrepeats" size="5"/>
-          <label for="passwordmincategories" class="ds-expire-label" title=
-            "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories)."><b>Minimum Required Character Categories </b></label><input
-            class="ds-input" type="text" id="passwordmincategories" size="5"/>
-          <label for="passwordmintokenlength" class="ds-expire-label" title=
-            "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength)."><b>Minimum Token Length </b></label><input
-            class="ds-input" type="text" id="passwordmintokenlength" size="5"/>
+        <div class="ds-footer">
+          <button id="server-pwp-save-btn" class="btn btn-primary">Save</button>
         </div>
-        <p></p>
       </div>
-      <p></p>
-      <hr class="ds-hr">
-      <button type="submit" class="ds-button" title="Save global password policy settings">Save</button>
-      <p></p>
-      <p></p>
     </div>
 
-    <input type="button" class="accordion localpwp-accordion ds-accordion-button ds-accordion-spacing" id="localpwd-accordion" value="Local Password Policies &#9660;" title=
-      "Configure User/Subtree local password policies"/>
-    <div class="ds-accordion-panel">
-      <div class="">
+    <!-- -------------------------------------
+    Local Password Policies
+    ---------------------------------------- -->
+    <div id="local-password-policy" class="all-pages" hidden>
+      <h3 class="ds-config-header">Local Password Policies  </h3>
+      <label class="ds-config-label-med" for="local-pwp-suffix">Database Suffix</Label> <select 
+        class="btn btn-default dropdown ds-select" id="local-pwp-suffix">
+        <option>dc=example,dc=com</option>
+        <option>o=ipaca</option>
+      </select>
+      <div class="ds-page-content">
         <table id="passwd-policy-table" class="display ds-repl-table" cellspacing="0" width="100%">
           <thead>
             <tr class="ds-table-header">
-              <th>Policy Name</th>
-              <th>Backend</th>
+              <th>Policy Target Entry</th>
+              <th>Policy Type</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="local-pwpolicy-tbody">
             <tr>
-              <td class="ds-agmt-td">cn=nsPwPolicyEntry,dc=example,dc=com</td>
-              <td class="ds-agmt-td">dc=example,dc=com</td>
+              <td>ou=people,dc=example,dc=com</td>
+              <td>Subtree Password Policy</td>
               <td>
                 <div class="dropdown" >
                   <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
                     <span class="caret"></span></button>
                   <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
-                    <li role="policy-role"><a role="pwpolicy" tabindex="0" href="#">View/Edit Policy</a></li>
-                    <li role="policy-role"><a role="pwpolicy" tabindex="-1" href="#">Delete Policy</a></li>
+                    <li role="policy-role"><a role="pwpolicy" tabindex="0" class="edit-local-pwp" href="#">View/Edit Policy</a></li>
+                    <li role="policy-role"><a role="pwpolicy" tabindex="-1" class="delete-local-pwp" href="#">Delete Policy</a></li>
+                  </ul>
+                 </div>
+              </td>
+            </tr>
+            <tr>
+              <td>uid=mark,ou=people,dc=example,dc=com,uid=mark,ou=people,dc=example,dc=com,uid=mark,ou=people,dc=example,dc=com</td>
+              <td>User Password Policy</td>
+              <td>
+                <div class="dropdown" >
+                  <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
+                    <span class="caret"></span></button>
+                  <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
+                    <li role="policy-role"><a role="pwpolicy" tabindex="0" class="edit-local-pwp" href="#">View/Edit Policy</a></li>
+                    <li role="policy-role"><a role="pwpolicy" tabindex="-1" class="delete-local-pwp" href="#">Delete Policy</a></li>
                   </ul>
                  </div>
               </td>
             </tr>
           </tbody>
         </table>
-        <button class="btn btn-default ds-button" type="button" id="create-policy">Create Local Policy</button>
+        <button class="btn btn-primary" data-toggle="modal" data-target="#local-pwp-form" id="create-local-pwp-btn">Create Local Password Policy</button>
         <p></p>
       </div>
     </div>
-    <p></p>
-  </div>
+
 
   <!--
         Logging Settings
   -->
-  <div id="server-logs" class="server-cfg-ctrl" hidden>
-    <h2>Logging Settings</h2>
-    <hr class="ds-hr">
-    <p></p>
 
-    <!-- Access logging -->
-    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="access-accordion" value="Access Log Settings &#9660;"/>
-    <div class="ds-accordion-panel">
+  <!-- Access logging -->
+  <div id="server-access-log" class="all-pages" hidden>
+    <h3 class="ds-config-header">Access Log Settings</h3>
       <input type="checkbox" class="ds-config-checkbox" id="nsslapd-accesslog-logging-enabled" checked><label
         for="nsslapd-accesslog-logging-enabled" class="ds-label" title="Enable access logging (nsslapd-accesslog-logging-enabled)."> Enable Access Logging</label>
       <div class="ds-expired-div" id="accesslog-attrs">
-        <label for="nsslapd-accesslog" class="ds-config-label" title="The access log location and name (nsslapd-accesslog)."><b>Access Log Location</b></label><input
-          class="ds-input" type="text" id="nsslapd-accesslog" size="40"/>
-        <input type="checkbox" class="ds-server-checkbox" id="nsslapd-accesslog-logbuffering"><label
-          for="nsslapd-accesslog-logbuffering" class="ds-label" title="Disable access log buffering for faster troubleshooting (nsslapd-accesslog-logbuffering)."> Disable Access Log Buffering</label>
+        <div class="ds-inline">
+          <div>
+            <label for="nsslapd-accesslog" class="ds-config-label" title="The access log location and name (nsslapd-accesslog).">Access Log Location</label><input
+              class="ds-input" type="text" id="nsslapd-accesslog" size="40"/>
+          </div> 
+          <div>
+            <input type="checkbox" class="ds-server-checkbox" id="nsslapd-accesslog-logbuffering"><label
+              for="nsslapd-accesslog-logbuffering" class="ds-label" title="Disable access log buffering for faster troubleshooting (nsslapd-accesslog-logbuffering)."> Disable Access Log Buffering</label>
+          </div>
+        </div>
         <p></p>
-        <h3>Rotation Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-accesslog-maxlogsperdir" class="ds-config-label" title="The maximum number of logs that are archived (nsslapd-accesslog-maxlogsperdir)."><b>Maximum Number Of Logs</b></label><input
-          class="ds-input" type="text" id="nsslapd-accesslog-maxlogsperdir" size="40"/>
-        <label for="nsslapd-accesslog-maxlogsize" class="ds-config-label" title="The maximum size of each log file in megabytes (nsslapd-accesslog-maxlogsize)."><b>Maximum Log Size (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-accesslog-maxlogsize" size="40"/>
-        <label for="nsslapd-accesslog-logrotationtime" class="ds-config-label" title="Access log rotation time settings (nsslapd-accesslog-logrotationtime)."><b>Create New Log Every...</b></label><input
-          class="ds-input" type="text" id="nsslapd-accesslog-logrotationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-accesslog-logrotationtimeunit">
-            <option>Minutes</option>
-            <option>Hours</option>
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-accesslog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-            title="Minute" id="nsslapd-accesslog-logrotationsynchour" size="1"/>
+        <h4 class="ds-sub-header">Rotation Policy</h4>
+        <hr class="ds-hr-logs">
+        <div class="ds-inline">
+          <div>
+            <label for="nsslapd-accesslog-maxlogsperdir" class="ds-config-sub-label" title="The maximum number of logs that are archived (nsslapd-accesslog-maxlogsperdir).">Maximum Number Of Logs</label><input
+              class="ds-input" type="text" id="nsslapd-accesslog-maxlogsperdir" size="40"/>
+          </div>
+          <div>
+            <label for="nsslapd-accesslog-maxlogsize" class="ds-config-sub-label" title="The maximum size of each log file in megabytes (nsslapd-accesslog-maxlogsize).">Maximum Log Size (in MB)</label><input
+              class="ds-input" type="text" id="nsslapd-accesslog-maxlogsize" size="40"/>
+          </div>
+          <div>
+            <label for="nsslapd-accesslog-logrotationtime" class="ds-config-sub-label" title="Access log rotation time settings (nsslapd-accesslog-logrotationtime).">Create New Log Every...</label><input
+              class="ds-input" type="text" id="nsslapd-accesslog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-accesslog-logrotationtimeunit">
+                <option>Minutes</option>
+                <option>Hours</option>
+                <option>Days</option>
+                <option>Weeks</option>
+                <option>Months</option>
+              </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-accesslog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
+                title="Minute" id="nsslapd-accesslog-logrotationsyncminute" size="1"/>
+          </div>
+        </div>
         <p></p>
-        <h3>Deletion Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-accesslog-logmaxdiskspace" class="ds-config-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-accesslog-logmaxdiskspace)."><b>Total Log Archive Exceeds (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-accesslog-logmaxdiskspace" size="40"/>
-        <label for="nsslapd-accesslog-logminfreediskspace" class="ds-config-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-accesslog-logminfreediskspace)."><b>Free Disk Space (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-accesslog-logminfreediskspace" size="40"/>
-        <label for="nsslapd-accesslog-logexpirationtime" class="ds-config-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-accesslog-logexpirationtime)."><b>Log File is Older Than...</b> </label><input
-          class="ds-input" type="text" id="nsslapd-accesslog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-accesslog-logexpirationtimeunit">
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select>
+        <h4 class="ds-sub-header">Deletion Policy</h4>
+        <hr class="ds-hr-logs">
+        <div class="ds-inline">
+          <div>
+            <label for="nsslapd-accesslog-logmaxdiskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-accesslog-logmaxdiskspace).">Total Log Archive Exceeds (in MB)</label><input
+              class="ds-input" type="text" id="nsslapd-accesslog-logmaxdiskspace" size="40"/>
+          </div>
+          <div>
+            <label for="nsslapd-accesslog-logminfreediskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-accesslog-logminfreediskspace).">Free Disk Space (in MB)</label><input
+              class="ds-input" type="text" id="nsslapd-accesslog-logminfreediskspace" size="40"/>
+          </div>
+          <div>
+            <label for="nsslapd-accesslog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-accesslog-logexpirationtime).">Log File is Older Than... </label><input
+              class="ds-input" type="text" id="nsslapd-accesslog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-accesslog-logexpirationtimeunit">
+                <option>Days</option>
+                <option>Weeks</option>
+                <option>Months</option>
+              </select>
+          </div>
+        </div>
         <p></p>
-        <h3>Access Logging Levels</h3>
-        <hr class="ds-hr">
-        <form>
-          <select class="ds-loglevel-list" id="access-log-level" name="accesslog-levels" multiple>
-            <option value="None">Internal Operations</option>
-            <option value="None">Connections, Operations, and Results (default logging)</option>
-            <option value="None">Entry Access and Referrals</option>
-            <option value="None">High Resolution Microsecond Timing</option>
-          </select>
-        </form>
-        <p></p>
-      </div>
-      <div class="ds-button-border">
-        <button id="server-access-save-btn" class="btn btn-default ds-button">Save Access Log Settings</button>
-        <p></p>
-        <hr class="ds-hr">
-        <p></p>
-      </div>
-    </div>
+        <h4 class="ds-sub-header">Access Logging Levels</h4>
+        <hr class="ds-hr-logs">
 
-    <!-- Error logging -->
-    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="error-accordion" value="Errors Log Settings &#9660;"/>
-    <div class="ds-accordion-panel">
-      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-errorlog-logging-enabled" checked><label
-        for="nsslapd-errorlog-logging-enabled" class="ds-label" title="Enable error logging (nsslapd-errorlog-logging-enabled)."> Enable Error Logging</label>
-      <div class="ds-expired-div" id="errorlog-attrs">
-        <label for="nsslapd-errorlog" class="ds-config-label" title="The errors log location and name (nsslapd-errorlog)."><b>Errors Log Location</b></label><input
-          class="ds-input" type="text" id="nsslapd-errorlog" size="40"/>
-        <p></p>
-        <h3>Rotation Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-errorlog-maxlogsperdir" class="ds-config-label" title="The maximum number of logs that are archived (nsslapd-errorlog-maxlogsperdir)."><b>Maximum Number Of Logs</b></label><input
-          class="ds-input" type="text" id="nsslapd-errorlog-maxlogsperdir" size="40"/>
-        <label for="nsslapd-errorlog-maxlogsize" class="ds-config-label" title="The maximum size of each log file in megabytes (nsslapd-errorlog-maxlogsize)."><b>Maximum Log Size (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-errorlog-maxlogsize" size="40"/>
-        <label for="nsslapd-errorlog-logrotationtime" class="ds-config-label" title="Errors log rotation time settings (nsslapd-errorlog-logrotationtime)."><b>Create New Log Every...</b></label><input
-          class="ds-input" type="text" id="nsslapd-errorlog-logrotationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-errorlog-logrotationtimeunit">
-            <option>Minutes</option>
-            <option>Hours</option>
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-errorlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-            title="Minute" id="nsslapd-errorlog-logrotationsynchour" size="1"/>
-        <p></p>
-        <h3>Deletion Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-errorlog-logmaxdiskspace" class="ds-config-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-errorlog-logmaxdiskspace)."><b>Total Log Archive Exceeds (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-errorlog-logmaxdiskspace" size="40"/>
-        <label for="nsslapd-errorlog-logminfreediskspace" class="ds-config-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace)."><b>Free Disk Space (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-errorlog-logminfreediskspace" size="40"/>
-        <label for="nsslapd-errorlog-logexpirationtime" class="ds-config-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime)."><b>Log File is Older Than...</b> </label><input
-          class="ds-input" type="text" id="nsslapd-errorlog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-errorlog-logexpirationtimeunit">
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select>
-        <p></p>
-        <h3>Error Logging Levels</h3>
-        <hr class="ds-hr">
-        <form>
-          <select class="ds-loglevel-list" attr="nsslapd-errorlog-level" id="error-log-level" name="errorlog-levels" size="17" multiple>
-            <option value="None">Internal Operations</option>
-            <option value="None">Trace Function Calls</option>
-            <option value="None">Packet Handling</option>
-            <option value="None">Heavy Trace Output</option>
-            <option value="None">Connection Management</option>
-            <option value="None">Packets Sent/Received</option>
-            <option value="None">Search Filter Processing</option>
-            <option value="None">Config File Processing</option>
-            <option value="None">Access Control List Processing</option>
-            <option value="None">Log Communications with Shell Databases</option>
-            <option value="None">Log Entry Parsing</option>
-            <option value="None">Housekeeping</option>
-            <option value="None">Replication</option>
-            <option value="None">Entry Cache</option>
-            <option value="None">Plug-ins</option>
-            <option value="None">Access Control Summary</option>
-            <option value="None">Nunc-Stans Connection Logging</option>
-          </select>
-        </form>
-        <p></p>
-      </div>
-      <div class="ds-button-border">
-        <button id="server-errors-save-btn" class="btn btn-default ds-button">Save Error Log Settings</button>
-        <p></p>
-        <hr class="ds-hr">
-        <p></p>
-      </div>
-    </div>
 
-    <!-- Audit logging -->
-    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="audit-accordion" value="Audit Log Settings &#9660;"/>
-    <div class="ds-accordion-panel">
-      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditlog-logging-enabled" checked><label
-        for="nsslapd-auditlog-logging-enabled" class="ds-label" title="Enable audit logging (nsslapd-auditlog-logging-enabled)."> Enable Audit Logging</label>
-      <div class="ds-expired-div" id="auditlog-attrs">
-        <label for="nsslapd-auditlog" class="ds-config-label" title="The audit log location and name (nsslapd-auditlog)."><b>Audit Log Location</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditlog" size="40"/>
-        <p></p>
-        <h3>Rotation Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-auditlog-maxlogsperdir" class="ds-config-label" title="The maximum number of logs that are archived (nsslapd-auditlog-maxlogsperdir)."><b>Maximum Number Of Logs</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditlog-maxlogsperdir" size="40"/>
-        <label for="nsslapd-auditlog-maxlogsize" class="ds-config-label" title="The maximum size of each log file in megabytes (nsslapd-auditlog-maxlogsize)."><b>Maximum Log Size (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditlog-maxlogsize" size="40"/>
-        <label for="nsslapd-auditlog-logrotationtime" class="ds-config-label" title="Audit log rotation time settings (nsslapd-auditlog-logrotationtime)."><b>Create New Log Every...</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditlog-logrotationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-auditlog-logrotationtimeunit">
-            <option>Minutes</option>
-            <option>Hours</option>
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-            title="Minute" id="nsslapd-auditlog-logrotationsynchour" size="1"/>
-        <p></p>
-        <h3>Deletion Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-auditlog-logmaxdiskspace" class="ds-config-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditlog-logmaxdiskspace)."><b>Total Log Archive Exceeds (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditlog-logmaxdiskspace" size="40"/>
-        <label for="nsslapd-auditlog-logminfreediskspace" class="ds-config-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditlog-logminfreediskspace)."><b>Free Disk Space (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditlog-logminfreediskspace" size="40"/>
-        <label for="nsslapd-auditlog-logexpirationtime" class="ds-config-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditlog-logexpirationtime)."><b>Log File is Older Than...</b> </label><input
-          class="ds-input" type="text" id="nsslapd-auditlog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown ds-passwd-dropdown" id="nsslapd-auditlog-logexpirationtimeunit">
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select>
-        <p></p>
+        <table class="table table-striped table-bordered table-hover ds-loglevel-table" id="errorlog-level-table">
+          <thead>
+            <tr>
+              <th class="ds-table-checkbox"></th>
+              <th>Logging Level</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+             <td class="ds-table-checkbox" id="4"><input type="checkbox"></td>
+             <td>Internal Operations</td>
+            </tr>
+            <tr>
+             <td class="ds-table-checkbox" id="512"><input type="checkbox"></td>
+             <td>Entry Access and Referrals</td>
+            </tr>
+          <tbody>
+        </table>
       </div>
-      <div class="ds-button-border">
-        <button id="server-audit-save-btn" class="btn btn-default ds-button">Save Audit Log Settings</button>
-        <p></p>
-        <hr class="ds-hr">
-        <p></p>
+    <div class="ds-footer">
+      <button id="server-access-save-btn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+
+  <div id="server-audit-log" class="all-pages" hidden>
+    <h3 class="ds-config-header">Audit Log Settings</h3>
+    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditlog-logging-enabled" checked><label
+      for="nsslapd-auditlog-logging-enabled" class="ds-label" title="Enable audit logging (nsslapd-auditlog-logging-enabled)."> Enable Audit Logging</label>
+    <div class="ds-expired-div" id="auditlog-attrs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-auditlog" class="ds-config-label" title="The audit log location and name (nsslapd-auditlog).">Audit Log Location</label><input
+            class="ds-input" type="text" id="nsslapd-auditlog" size="40"/>
+        </div>
+        <div> 
+          <input type="checkbox" class="ds-server-checkbox" id="nsslapd-auditfaillog-logging-enabled2"><label
+            for="nsslapd-auditfaillog-logging-enabled2" class="ds-label" title="Log failed operations in the audit log (nsslapd-auditfaillog-logging-enabled)."> 
+            Log Failed Operations</label>
+        </div>
+      </div>
+      <p></p>
+      <h4 class="ds-sub-header">Rotation Policy</h4>
+      <hr class="ds-hr-logs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-auditlog-maxlogsperdir" class="ds-config-sub-label" title="The maximum number of logs that are archived (nsslapd-auditlog-maxlogsperdir).">Maximum Number Of Logs</label><input
+            class="ds-input" type="text" id="nsslapd-auditlog-maxlogsperdir" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditlog-maxlogsize" class="ds-config-sub-label" title="The maximum size of each log file in megabytes (nsslapd-auditlog-maxlogsize).">Maximum Log Size (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-auditlog-maxlogsize" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditlog-logrotationtime" class="ds-config-sub-label" title="Audit log rotation time settings (nsslapd-auditlog-logrotationtime).">Create New Log Every...</label><input
+            class="ds-input" type="text" id="nsslapd-auditlog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditlog-logrotationtimeunit">
+              <option>Minutes</option>
+              <option>Hours</option>
+              <option>Days</option>
+              <option>Weeks</option>
+              <option>Months</option>
+            </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
+              title="Minute" id="nsslapd-auditlog-logrotationsyncminute" size="1"/>
+        </div>
+      </div>
+      <p></p>
+      <h4 class="ds-sub-header">Deletion Policy</h4>
+      <hr class="ds-hr-logs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-auditlog-logmaxdiskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditlog-logmaxdiskspace).">Total Log Archive Exceeds (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-auditlog-logmaxdiskspace" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditlog-logminfreediskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditlog-logminfreediskspace).">Free Disk Space (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-auditlog-logminfreediskspace" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditlog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditlog-logexpirationtime).">Log File is Older Than... </label><input
+            class="ds-input" type="text" id="nsslapd-auditlog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditlog-logexpirationtimeunit">
+              <option>Days</option>
+              <option>Weeks</option>
+              <option>Months</option>
+            </select>
+        </div>
       </div>
     </div>
+    <div class="ds-footer">
+      <button id="server-audit-save-btn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
 
     <!-- Auditfail logging -->
-    <input type="button" class="accordion log-accordion ds-accordion-button ds-accordion-spacing" id="audit-accordion" value="Audit Failure Log Settings &#9660;"/>
-    <div class="ds-accordion-panel">
-      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditfaillog-logging-enabled" checked><label
-        for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Enable audit failure logging (nsslapd-auditfaillog-logging-enabled)."> Enable Audit Failure Logging</label>
-      <div class="ds-expired-div" id="auditfaillog-attrs">
-        <label for="nsslapd-auditfaillog" class="ds-config-label" title="The audit failure log location and name (nsslapd-auditfaillog)."><b>Audit Failure Log Location</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog" size="40"/>
-        <p></p>
-        <h3>Rotation Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-auditfaillog-maxlogsperdir" class="ds-config-label" title="The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir)."><b>Maximum Number Of Logs</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-maxlogsperdir" size="40"/>
-        <label for="nsslapd-auditfaillog-maxlogsize" class="ds-config-label" title="The maximum size of each log file in megabytes (nsslapd-auditfaillog-maxlogsize)."><b>Maximum Log Size (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-maxlogsize" size="40"/>
-        <label for="nsslapd-auditfaillog-logrotationtime" class="ds-config-label" title="Audit failure log rotation time settings (nsslapd-auditlog-logrotationtime)."><b>Create New Log Every...</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-logrotationtime" size="40"/> <select class="btn btn-default dropdown ds-auditfaillog-dropdown" id="nsslapd-auditfaillog-logrotationtimeunit">
-            <option>Minutes</option>
-            <option>Hours</option>
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditfaillog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-            title="Minute" id="nsslapd-auditfaillog-logrotationsynchour" size="1"/>
-        <p></p>
-        <h3>Deletion Policy</h3>
-        <hr class="ds-hr">
-        <label for="nsslapd-auditfaillog-logmaxdiskspace" class="ds-config-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace)."><b>Total Log Archive Exceeds (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-logmaxdiskspace" size="40"/>
-        <label for="nsslapd-auditfaillog-logminfreediskspace" class="ds-config-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace)."><b>Free Disk Space (in MB)</b></label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-logminfreediskspace" size="40"/>
-        <label for="nsslapd-auditfaillog-logexpirationtime" class="ds-config-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime)."><b>Log File is Older Than...</b> </label><input
-          class="ds-input" type="text" id="nsslapd-auditfaillog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown ds-auditfaillog-dropdown" id="nsslapd-auditfaillog-logexpirationtimeunit">
-            <option>Days</option>
-            <option>Weeks</option>
-            <option>Months</option>
-          </select>
-        <p></p>
+  <div id="server-auditfail-log" class="all-pages" hidden>
+    <h3 class="ds-config-header">Audit Failure Log Settings</h3>
+    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditfaillog-logging-enabled" checked><label
+      for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Enable audit failure logging (nsslapd-auditfaillog-logging-enabled)."> Enable Audit Failure Logging</label>
+    <div class="ds-expired-div" id="auditfaillog-attrs">
+      <label for="nsslapd-auditfaillog" class="ds-config-label" title="The audit failure log location and name (nsslapd-auditfaillog).">Audit Failure Log Location</label><input
+        class="ds-input" type="text" id="nsslapd-auditfaillog" size="40"/>
+      <p></p>
+      <h4 class="ds-sub-header">Rotation Policy</h4>
+      <hr class="ds-hr-logs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-auditfaillog-maxlogsperdir" class="ds-config-sub-label" title="The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir).">Maximum Number Of Logs</label><input
+            class="ds-input" type="text" id="nsslapd-auditfaillog-maxlogsperdir" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditfaillog-maxlogsize" class="ds-config-sub-label" title="The maximum size of each log file in megabytes (nsslapd-auditfaillog-maxlogsize).">Maximum Log Size (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-auditfaillog-maxlogsize" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditfaillog-logrotationtime" class="ds-config-sub-label" title="Audit failure log rotation time settings (nsslapd-auditlog-logrotationtime).">Create New Log Every...</label><input
+            class="ds-input" type="text" id="nsslapd-auditfaillog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditfaillog-logrotationtimeunit">
+              <option>Minutes</option>
+              <option>Hours</option>
+              <option>Days</option>
+              <option>Weeks</option>
+              <option>Months</option>
+            </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditfaillog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
+              title="Minute" id="nsslapd-auditfaillog-logrotationsyncminute" size="1"/>
+        </div>
       </div>
-      <div class="ds-button-border">
-        <button id="server-auditfail-save-btn" class="btn btn-default ds-button">Save Auditfail Log Settings</button>
-        <p></p>
-        <hr class="ds-hr">
-        <p></p>
+      <h4 class="ds-sub-header">Deletion Policy</h4>
+      <hr class="ds-hr-logs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-auditfaillog-logmaxdiskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace).">Total Log Archive Exceeds (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-auditfaillog-logmaxdiskspace" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditfaillog-logminfreediskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace).">Free Disk Space (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-auditfaillog-logminfreediskspace" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-auditfaillog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime).">Log File is Older Than... </label><input
+            class="ds-input" type="text" id="nsslapd-auditfaillog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditfaillog-logexpirationtimeunit">
+              <option>Days</option>
+              <option>Weeks</option>
+              <option>Months</option>
+            </select>
+        </div>
       </div>
+    </div>
+    <div class="ds-footer">
+      <button id="server-auditfail-save-btn" class="btn btn-primary">Save</button>
     </div>
   </div>
 
+  <!-- Error logging -->
+  <div id="server-errors-log" class="all-pages" hidden>
+    <h3 class="ds-config-header">Error Log Settings</h3>
+    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-errorlog-logging-enabled" checked><label
+      for="nsslapd-errorlog-logging-enabled" class="ds-label" title="Enable error logging (nsslapd-errorlog-logging-enabled)."> Enable Error Logging</label>
+    <div class="ds-expired-div" id="errorlog-attrs">
+      <label for="nsslapd-errorlog" class="ds-config-label" title="The errors log location and name (nsslapd-errorlog).">Errors Log Location</label><input
+        class="ds-input" type="text" id="nsslapd-errorlog" size="40"/>
+      <h4 class="ds-sub-header">Rotation Policy</h4>
+      <hr class="ds-hr-logs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-errorlog-maxlogsperdir" class="ds-config-sub-label" title="The maximum number of logs that are archived (nsslapd-errorlog-maxlogsperdir).">Maximum Number Of Logs</label><input
+            class="ds-input" type="text" id="nsslapd-errorlog-maxlogsperdir" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-errorlog-maxlogsize" class="ds-config-sub-label" title="The maximum size of each log file in megabytes (nsslapd-errorlog-maxlogsize).">Maximum Log Size (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-errorlog-maxlogsize" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-errorlog-logrotationtime" class="ds-config-sub-label" title="Errors log rotation time settings (nsslapd-errorlog-logrotationtime).">Create New Log Every...</label><input
+            class="ds-input" type="text" id="nsslapd-errorlog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-errorlog-logrotationtimeunit">
+              <option>Minutes</option>
+              <option>Hours</option>
+              <option>Days</option>
+              <option>Weeks</option>
+              <option>Months</option>
+            </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-errorlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
+              title="Minute" id="nsslapd-errorlog-logrotationsyncminute" size="1"/>
+        </div>
+      </div>
 
-  <!--
-        Tasks
-  -->
-  <div id="server-tasks" class="server-cfg-ctrl" hidden>
-    <h2>Server Tasks</h2>
-    <hr class="ds-hr">
-    <div class="ds-task-panel">
-      <button class="btn btn-default ds-task-button" type="button" id="start-server">Start Server</button>
-      <button class="btn btn-default ds-task-button" type="button" id="stop-server">Stop Server</button>
-      <button class="btn btn-default ds-task-button" type="button" id="restart-server">Restart Server</button>
-      <button class="btn btn-default ds-task-button" type="button" id="backup-server">Backup Server</button>
-      <button class="btn btn-default ds-task-button" type="button" id="restore-server">Restore Server</button>
-      <hr class="ds-hr">
-      <button class="btn btn-default ds-task-button" type="button" id="create-server">Create Server Instance</button>
-      <button class="btn btn-default ds-task-button" type="button" id="remove-server">Delete Server Instance</button>
+      <h4 class="ds-sub-header">Deletion Policy</h4>
+      <hr class="ds-hr-logs">
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-errorlog-logmaxdiskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-errorlog-logmaxdiskspace).">Total Log Archive Exceeds (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-errorlog-logmaxdiskspace" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-errorlog-logminfreediskspace" class="ds-config-sub-label" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace).">Free Disk Space (in MB)</label><input
+            class="ds-input" type="text" id="nsslapd-errorlog-logminfreediskspace" size="40"/>
+        </div>
+        <div>
+          <label for="nsslapd-errorlog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime).">Log File is Older Than... </label><input
+            class="ds-input" type="text" id="nsslapd-errorlog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-errorlog-logexpirationtimeunit">
+              <option>Days</option>
+              <option>Weeks</option>
+              <option>Months</option>
+            </select>
+        </div>
+      </div>
+
+      <h4 class="ds-sub-header">Error Logging Levels</h4>
+      <hr class="ds-hr-logs">
+      <table class="table table-striped table-bordered table-hover ds-loglevel-table" id="errorlog-level-table">
+        <thead>
+          <tr>
+            <th class="ds-table-checkbox"></th>
+            <th>Logging Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+           <td class="ds-table-checkbox" id="1"><input type="checkbox"></td>
+           <td>Trace Function Calls</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="2"><input type="checkbox"></td>
+           <td>Packet Handling</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="4"><input type="checkbox"></td>
+           <td>Heavy Trace Output</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="8"><input type="checkbox"></td>
+           <td>Connection Management</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="16"><input type="checkbox"></td>
+           <td>Packets Sent/Received</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="32"><input type="checkbox"></td>
+           <td>Search Filter Processing</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="64"><input type="checkbox"></td>
+           <td>Config File Processing</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="128"><input type="checkbox"></td>
+           <td>Access Control List Processing</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="2048"><input type="checkbox"></td>
+           <td>Log Entry Parsing</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="4096"><input type="checkbox"></td>
+           <td>Housekeeping</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="8192"><input type="checkbox"></td>
+           <td>Replication</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="32768"><input type="checkbox"></td>
+           <td>Entry Cache</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="65536"><input type="checkbox"></td>
+           <td>Plug-ins</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="262144"><input type="checkbox"></td>
+           <td>Access Control Summary</td>
+          </tr>
+          <tr>
+           <td class="ds-table-checkbox" id="1048576"><input type="checkbox"></td>
+           <td>Nunc-Stans Connection Logging</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ds-footer">
+      <button id="server-errors-save-btn" class="btn btn-primary">Save</button>
     </div>
   </div>
-
 
   <!--
         Tuning
   -->
-  <div id="server-tuning" class="server-cfg-ctrl" hidden>
-    <h2>Server Tuning & Limits</h2>
-    <hr class="ds-hr">
+  <div id="server-tuning" class="all-pages" hidden>
+    <h3 class="ds-config-header">Server Tuning & Limits</h3>
     <div class="ds-container">
       <!-- Attribute list -->
-      <div>
-        <label for="nsslapd-threadnumber" class="ds-config-label" title="The number of worker threads (nsslapd-threadnumber)."><b>Number Of Worker Threads</b></label><input
-          class="ds-input" type="text" id="nsslapd-threadnumber" size="15"/>
-        <label for="nsslapd-maxdescriptors" class="ds-config-label" title="The maximum number of file descriptors the server will use (nsslapd-maxdescriptors)."><b>Maximum File  Descriptors</b></label><input
-          class="ds-input" type="text" id="nsslapd-maxdescriptors" size="15"/>
-        <label for="nsslapd-timelimit" class="ds-config-label" title="The maximum number of seconds allocated for a search request (nsslapd-timelimit)."><b>Search Time Limit</b></label><input
-          class="ds-input" type="text" id="nsslapd-timelimit" size="15"/>
-        <label for="nsslapd-sizelimit" class="ds-config-label" title="The maximum number of entries to return from a search operation (nsslapd-sizelimit)."><b>Search Size Limit</b></label><input
-          class="ds-input" type="text" id="nsslapd-sizelimit" size="15"/>
-        <label for="nsslapd-pagedsizelimit" class="ds-config-label" title="The maximum number of entries to return from a paged search operation (nsslapd-pagedsizelimit)."><b>Paged Search Size Limit</b></label><input
-          class="ds-input" type="text" id="nsslapd-pagedsizelimit" size="15"/>
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-threadnumber" class="ds-config-label" title="The number of worker threads (nsslapd-threadnumber).">Number Of Worker Threads</label><input
+            class="ds-input" type="text" id="nsslapd-threadnumber" size="15"/>
+        </div>
+        <div>
+          <label for="nsslapd-maxdescriptors" class="ds-config-label" title="The maximum number of file descriptors the server will use (nsslapd-maxdescriptors).">Maximum File  Descriptors</label><input
+            class="ds-input" type="text" id="nsslapd-maxdescriptors" size="15"/>
+        </div>
+        <div>
+          <label for="nsslapd-timelimit" class="ds-config-label" title="The maximum number of seconds allocated for a search request (nsslapd-timelimit).">Search Time Limit</label><input
+            class="ds-input" type="text" id="nsslapd-timelimit" size="15"/>
+        </div>
+        <div>
+          <label for="nsslapd-sizelimit" class="ds-config-label" title="The maximum number of entries to return from a search operation (nsslapd-sizelimit).">Search Size Limit</label><input
+            class="ds-input" type="text" id="nsslapd-sizelimit" size="15"/>
+        </div>
+        <div>
+          <label for="nsslapd-pagedsizelimit" class="ds-config-label" title="The maximum number of entries to return from a paged search operation (nsslapd-pagedsizelimit).">Paged Search Size Limit</label><input
+            class="ds-input" type="text" id="nsslapd-pagedsizelimit" size="15"/>
+        </div>
       </div>
       <div class="ds-divider"></div>
-      <div>
-        <label for="nsslapd-idletimeout" class="ds-config-label" title=
-          "Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout)."><b>Idle Connection Timeout</b></label><input
-          class="ds-input" type="text" id="nsslapd-idletimeout" size="15"/>
-        <label for="nsslapd-ioblocktimeout" class="ds-config-label" title=
-          "Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout)."><b>I/O Block Timeout</b></label><input
-          class="ds-input" type="text" id="nsslapd-ioblocktimeout" size="15"/>
-        <p></p>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ndn-cache-enabled" checked><label
-          for="nsslapd-ndn-cache-enabled" class="ds-label" title=
-          "Enable the normalized DN cache (nsslapd-ndn-cache-enabled)."> Enable Normalized DN Cache</label>
-        <label for="nsslapd-ndn-cache-max-size" class="ds-config-ndn-label" title="The size of the normalized DN cache in bytes (nsslapd-ndn-cache-max-size).">Normalized DN Cache Size</label><input
-          class="ds-input" type="text" id="nsslapd-ndn-cache-max-size" size="15"/>
+      <div class="ds-inline">
+        <div>
+          <label for="nsslapd-idletimeout" class="ds-config-label" title=
+            "Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout).">Idle Connection Timeout</label><input
+            class="ds-input" type="text" id="nsslapd-idletimeout" size="15"/>
+        </div>
+        <div>
+          <label for="nsslapd-ioblocktimeout" class="ds-config-label" title=
+            "Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout).">I/O Block Timeout</label><input
+            class="ds-input" type="text" id="nsslapd-ioblocktimeout" size="15"/>
+        </div>
+        <div>
+          <p></p>
+          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ndn-cache-enabled" checked><label
+            for="nsslapd-ndn-cache-enabled" class="ds-label" title=
+            "Enable the normalized DN cache (nsslapd-ndn-cache-enabled)."> Enable Normalized DN Cache</label>
+        </div>
+        <div>
+          <label for="nsslapd-ndn-cache-max-size" class="ds-config-sub-label" title="The size of the normalized DN cache in bytes (nsslapd-ndn-cache-max-size).">Normalized DN Cache Size</label><input
+            class="ds-input" type="text" id="nsslapd-ndn-cache-max-size" size="15"/>
+        </div>
       </div>
     </div>
     <p></p>
 
-    <input type="button" class="accordion adv-config-accordion ds-accordion-button ds-accordion-spacing" id="adv-config-accordion" value="Advanced Settings &#9660;"/>
+    <button class="accordion ds-accordion" id="tuning-config-accordion" type="button">&#9658 Show Advanced Settings </button>
     <div class="ds-accordion-panel">
       <div class="ds-container">
-        <div>
-          <label for="nsslapd-outbound-ldap-io-timeout" class="ds-config-label" title=
-            "Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout)."><b>Outbound IO Timeout</b></label><input
-            class="ds-input" type="text" id="nsslapd-outbound-ldap-io-timeout" size="15"/>
-          <label for="nsslapd-maxbersize" class="ds-config-label" title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize)."><b>Maximum BER Size</b></label><input
-            class="ds-input" type="text" id="nsslapd-maxbersize" size="15"/>
-          <label for="nsslapd-maxsasliosize" class="ds-config-label" title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize)."><b>Maximum SASL IO Size</b></label><input
-            class="ds-input" type="text" id="nsslapd-maxsasliosize" size="15"/>
-          <label for="nsslapd-listen-backlog-size" class="ds-config-label" title=
-            "The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size)."><b>Listen Backlog Size</b></label><input
-            class="ds-input" type="text" id="nsslapd-listen-backlog-size" size="15"/>
-          <label for="nsslapd-max-filter-nest-level" class="ds-config-label" title=
-            "Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level)."><b>Maximum Nested Filter Level</b></label><input
-            class="ds-input" type="text" id="nsslapd-max-filter-nest-level" size="15"/>
+        <div class="ds-inline">
+          <div>
+            <label for="nsslapd-outbound-ldap-io-timeout" class="ds-config-label" title=
+              "Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout).">Outbound IO Timeout</label><input
+              class="ds-input" type="text" id="nsslapd-outbound-ldap-io-timeout" size="15"/>
+          </div>
+          <div>
+            <label for="nsslapd-maxbersize" class="ds-config-label" title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize).">Maximum BER Size</label><input
+              class="ds-input" type="text" id="nsslapd-maxbersize" size="15"/>
+          </div>
+          <div>
+            <label for="nsslapd-maxsasliosize" class="ds-config-label" title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize).">
+              Maximum SASL IO Size</label><input class="ds-input" type="text" id="nsslapd-maxsasliosize" size="15"/>
+          </div>
+          <div>
+            <label for="nsslapd-listen-backlog-size" class="ds-config-label" title=
+              "The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size).">Listen Backlog Size</label><input
+              class="ds-input" type="text" id="nsslapd-listen-backlog-size" size="15"/>
+          </div>
+          <div>
+            <label for="nsslapd-max-filter-nest-level" class="ds-config-label" title=
+              "Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level).">Maximum Nested Filter Level</label><input
+              class="ds-input" type="text" id="nsslapd-max-filter-nest-level" size="15"/>
+          </div>
         </div>
         <div class="ds-divider"></div>
-        <div>
-          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-virtual-attrs" checked><label
-            for="nsslapd-ignore-virtual-attrs" class="ds-label" title=
-            "Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs)."> Disable Virtual Attribute Lookups</label>
-          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-connection-nocanon" checked><label
-            for="nsslapd-connection-nocanon" class="ds-label" title=
-            "Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon)."> Disable Reverse DNS Lookups</label>
-          <input type="checkbox" class="ds-config-checkbox" id="nsslapd-enable-turbo-mode" checked><label
-            for="nsslapd-enable-turbo-mode" class="ds-label" title=
-            "Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."> Enable Connection Turbo Mode</label>
+        <div class="ds-inline ds-checkbox-group">
+          <div>
+            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ignore-virtual-attrs" checked><label
+              for="nsslapd-ignore-virtual-attrs" class="ds-label" title=
+              "Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs)."> Disable Virtual Attribute Lookups</label>
+          </div>
+          <div>
+            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-connection-nocanon" checked><label
+              for="nsslapd-connection-nocanon" class="ds-label" title=
+              "Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon)."> Disable Reverse DNS Lookups</label>
+          </div>
+          <div>
+            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-enable-turbo-mode" checked><label
+              for="nsslapd-enable-turbo-mode" class="ds-label" title=
+              "Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."> Enable Connection Turbo Mode</label>
+          </div>
         </div>
       </div>
     </div>
-    <p></p>
-
-    <hr class="ds-hr">
-    <div class="ds-button-border">
-      <button id="server-tuning-save-btn" class="btn btn-default ds-button">Save</button>
+    <div class="ds-footer">
+      <button id="server-tuning-save-btn" class="btn btn-primary">Save</button>
     </div>
   </div>
 
@@ -714,132 +959,296 @@
   <!--
         LDAPI & Autobind Settings
   -->
-  <div id="server-ldapi" class="server-cfg-ctrl" hidden>
-    <h2>LDAPI & Autobind Settings</h2>
-    <hr class="ds-hr">
+  <div id="server-ldapi" class="all-pages" hidden>
+    <h3 class="ds-config-header">LDAPI & Autobind Settings</h3>
+    <div>
     <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ldapilisten" checked><label
       for="nsslapd-ldapilisten" class="ds-label" title="Enable LDAPI (nsslapd-ldapilisten)."> Enable LDAPI</label>
-    <div class="ldapi-attrs">
-      <label for="nsslapd-ldapifilepath" class="ds-config-indent-sm-label" title="The Unix socket file (nsslapd-ldapifilepath).">LDAPI Socket File Path</label><input
-        class="ds-input" type="text" id="nsslapd-ldapifilepath" size="25"/>
-      <input type="checkbox" class="ds-config-checkbox ds-config-indent-sm-label" id="nsslapd-ldapiautobind" checked><label
-        for="nsslapd-ldapiautobind" class="ds-label" title="Enable autobind (nsslapd-ldapiautobind)."> Enable Autobind</label>
-      <div class="autobind-attrs">
-        <label for="nsslapd-ldapimaprootdn" class="ds-config-indent-med-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).">DN to map "root" To</label><input
-          class="ds-input" type="text" id="nsslapd-ldapimaprootdn" placeholder="cn=Directory Manager" size="20"/>
-        <input type="checkbox" class="ds-config-checkbox ds-config-indent-med-label" id="nsslapd-ldapimaptoentries" checked><label
-          for="nsslapd-ldapimaptoentries" class="ds-label" title="Map regular system users to Directory Server entries (nsslapd-ldapimaptoentries)."> Map System User to Database Entry</label>
-        <div class="autobind-entry-attrs">
-          <label for="nsslapd-ldapiuidnumbertype" class="ds-config-indent-large-label" title=
-            "The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype).">LDAPI UID Number Type</label><input
-            class="ds-input" type="text" id="nsslapd-ldapiuidnumbertype" placeholder="uidNumber" size="20"/>
-          <label for="nsslapd-ldapigidnumbertype" class="ds-config-indent-large-label" title=
-            "The Directory Server attribute to map system GUIDs to user entries (nsslapd-ldapigidnumbertype).">LDAPI UID Number Type</label><input
-            class="ds-input" type="text" id="nsslapd-ldapigidnumbertype" placeholder="gidNumber" size="20"/>
-          <label for="nsslapd-ldapientrysearchbase" class="ds-config-indent-large-label" title=
-            "The subtree to search for user entries to use for autobind. (nsslapd-ldapientrysearchbase).">LDAPI Entry Search Base</label><input
-            class="ds-input" type="text" id="nsslapd-ldapientrysearchbase" size="20"/>
+    </div>
+    <div class="ldapi-attrs ds-inline" hidden>
+      <div>
+        <label for="nsslapd-ldapifilepath" class="ds-config-indent-sm-label" title="The Unix socket file (nsslapd-ldapifilepath).">LDAPI Socket File Path</label><input
+          class="ds-input" type="text" id="nsslapd-ldapifilepath" size="35"/>
+      </div>
+      <div>
+        <p></p>
+        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ldapiautobind"><label
+          for="nsslapd-ldapiautobind" class="ds-label" title="Enable autobind (nsslapd-ldapiautobind)."> Enable Autobind</label>
+      </div>
+      <div class="ds-inline">
+        <div class="autobind-attrs" hidden>
+          <div>
+            <label for="nsslapd-ldapimaprootdn" class="ds-config-indent-sm-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).">DN to map "root" To</label><input
+              class="ds-input" type="text" id="nsslapd-ldapimaprootdn" placeholder="e.g.  cn=Directory Manager" size="35"/>
+          </div>
+          <div>
+            <p></p>
+            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ldapimaptoentries"><label
+              for="nsslapd-ldapimaptoentries" class="ds-label" title="Map regular system users to Directory Server entries (nsslapd-ldapimaptoentries).">Map System User to Database Entry</label>
+          </div>
+        </div>
+        <div class="autobind-entry-attrs" hidden>
+          <div>
+            <label for="nsslapd-ldapiuidnumbertype" class="ds-config-indent-sm-label" title=
+              "The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype).">LDAPI UID Number Type</label><input
+              class="ds-input" type="text" id="nsslapd-ldapiuidnumbertype" placeholder="e.g.  uidNumber" size="35"/>
+          </div>
+          <div>
+            <label for="nsslapd-ldapigidnumbertype" class="ds-config-indent-sm-label" title=
+              "The Directory Server attribute to map system GUIDs to user entries (nsslapd-ldapigidnumbertype).">LDAPI UID Number Type</label><input
+              class="ds-input" type="text" id="nsslapd-ldapigidnumbertype" placeholder="e.g.  gidNumber" size="35"/>
+          </div>
+          <div>
+            <label for="nsslapd-ldapientrysearchbase" class="ds-config-indent-sm-label" title=
+              "The subtree to search for user entries to use for autobind. (nsslapd-ldapientrysearchbase).">LDAPI Entry Search Base</label><input
+              class="ds-input" type="text" id="nsslapd-ldapientrysearchbase" size="35"/>
+          </div>
         </div>
       </div>
     </div>
-    <p></p>
-    <div class="ds-button-border">
-      <hr class="ds-hr">
-      <button id="server-ldapi-save-btn" class="btn btn-default ds-button">Save LDAPI Settings</button>
+    <div class="ds-footer">
+      <button id="server-ldapi-save-btn" class="btn btn-primary">Save</button>
     </div>
   </div>
+
+
 
   <!-- Modals/Popups/Wizards -->
 
-  <div id="create-inst" class="modal">
-    <form class="modal-content animate">
-      <div class="container">
-        <h2 id=""><b>Create Server Instance</b> <span class="close" id="create-inst-close">&times;</span></h2>
-        <hr class="ds-hr">
-        
-        <div class="clearfix ds-container">
-          <div class="ds-panel-left">
-            <button type="button" id="create-inst-cancel" class="ds-button-left">Cancel</button>
-          </div>
-          <div class="ds-panel-right">
-            <button type="submit" id="create-inst-save" class="ds-button-right">Create Instance</button>
-          </div>
+  <div class="modal fade" id="sasl-map-form" data-backdrop="static" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="sasl-header" aria-hidden="true">
+    <div class="modal-dialog ds-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="sasl-header">Create SASL Mapping</h4>
+        </div>
+        <div class="modal-body">
+          <form class="form-horizontal">
+            <div class="ds-inline">
+              <div>
+                <label for="sasl-map-name" class="ds-config-label" title="SASL mapping name">
+                  SASL Mapping Name</label><input class="ds-input" type="text" id="sasl-map-name"/>
+              </div>
+              <div>
+                <label for="sasl-map-regex" class="ds-config-label" title="SASL mapping regular expression">
+                  SASL Mapping Regex</label><input class="ds-input" type="text" id="sasl-map-regex"/>
+              </div>
+              <div>
+                <label for="sasl-map-base" class="ds-config-label" title=
+                  "The search base or a specific entry DN to match against the constructed DN">
+                  SASL Mapping Base</label><input class="ds-input" type="text" id="sasl-map-base"/>
+              </div>
+              <div>
+                <label for="sasl-map-filter" class="ds-config-label" title="SASL mapping filter">
+                  SASL Mapping Filter</label><input class="ds-input" type="text" id="sasl-map-filter"/>
+              </div>
+              <div>
+                <label for="sasl-map-priority" class="ds-config-label" title=
+                  "SASL mapping priority.  1 is highest priority, and 100 is lowest">
+                  SASL Mapping Priority</label><input class="ds-input" type="text" id="sasl-map-priority"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer ds-modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="sasl-map-save">Save</button>
         </div>
       </div>
-    </form>
+    </div>
   </div>
 
-  <div id="create-sasl-map" class="modal">
-    <form class="modal-content animate">
-      <div class="container">
-        <h2 id=""><b>Create SASL Mapping</b> <span class="close" id="create-sasl-close">&times;</span></h2>
-        <hr class="ds-hr">
-        
-        <div class="clearfix ds-container">
-          <div class="ds-panel-left">
-            <button type="button" id="create-sasl-map-cancel" class="ds-button-left">Cancel</button>
-          </div>
-          <div class="ds-panel-right">
-            <button type="submit" id="create-sasl-map-save" class="ds-button-right">Create Mapping</button>
-          </div>
+
+  <div class="modal fade" id="local-pwp-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="local-pwp-label" aria-hidden="true">
+    <div class="modal-dialog ds-modal-wide">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="local-pwp-label">Create Local Password Policy</h4>
+        </div>
+        <div class="modal-body">
+          <form class="form-horizontal">
+            <div class="ds-inline">
+              <div>
+                <label title="Create a subtree elevel password policy" for="subtree-pwp-radio"><input
+                  class="ds-radio pwp-role" type="radio" id="subtree-pwp-radio" name="pwp-role" value="subtree" checked="checked"> Subtree Password Policy</label>
+              </div>
+              <div>
+                <label for="user-pwp-radio" title="Create a user level password policy"><input
+                  class="ds-radio pwp-role" type="radio" id="user-pwp-radio" name="pwp-role" value="user"> User Password Policy</label>
+              </div>
+              <div>
+                <div>
+                  <label for="local-entry-dn" class="ds-config-label" title="The entry to apply a local policy to.">Entry for Password Policy</label>
+                </div>
+                <div class="ds-inline">
+                  <input class="ds-input" type="text" id="local-entry-dn" size="70" required /><button class="btn btn-default ds-trailing-btn" type="button">Pick Entry</button>
+                </div>
+                <hr>
+              <div>
+                
+              </div>
+            </div>
+            <div class="ds-container">
+              <div class="ds-split">
+                <h4>General Settings</h4>
+                <hr class="ds-hr">
+                <div class="ds-inline">
+                  <div>
+                    <label for="local-passwordstoragescheme" class="ds-config-label-lrg" title="Set the password storage scheme (passwordstoragescheme).">Password Storage Scheme</label><select
+                      class="btn btn-default dropdown" id="local-passwordstoragescheme">
+                        <option>PBKDF2_SHA256</option>
+                        <option>SSHA512</option>
+                        <option>SSHA384</option>
+                        <option>SSHA256</option>
+                        <option>SSHA</option>
+                        <option>NS-MTA-MD5</option>
+                        <option>MD5</option>
+                        <option>SMD5</option>
+                        <option>CRYPT-MD5</option>
+                        <option>CRYPT-SHA512</option>
+                        <option>CRYPT-SHA256</option>
+                        <option>CRYPT</option>
+                        <option>CLEAR</option>
+                      </select>
+                  </div>
+                  <div>
+                    <input type="checkbox" class="ds-config-checkbox" id="local-passwordtrackupdatetime"><label
+                      for="local-passwordtrackupdatetime" class="ds-label" title=
+                      "Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime)."> Track Password Update Time</label>
+                  </div>
+                  <div>
+                    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-allow-hashed-passwords"><label
+                      for="local-nsslapd-allow-hashed-passwords" class="ds-label" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords)."> Allow Adding Pre-Hashed Passwords</label>
+                  </div>
+                  <div>
+                    <label for="local-passwordadmindn" class="ds-labelZ" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
+                      class="ds-input" type="text" id="local-passwordadmindn" size="40"/>
+                  </div>
+                </div>
+              </div>
+              <div class="ds-divider"></div>
+              <div class="ds-split">
+                <h4>User Password Settings</h4>
+                <hr class="ds-hr">
+                <div class="ds-inline">
+                  <div>
+                    <input type="checkbox" class="ds-config-checkbox" id="local-passwordchange"><label
+                      for="local-passwordchange" class="ds-label" title="Allow user's to change their passwords (passwordChange)."> Allow Users To Change Their Passwords</label>
+                  </div>
+                  <div>
+                    <input type="checkbox" class="ds-config-checkbox" id="local-passwordmustchange"><label
+                      for="local-passwordmustchange" class="ds-label" title="User must change its password after its been reset by an administrator (passwordMustChange).">User Must Change Password After Reset</label>
+                  </div>
+                  <div>
+                    <input type="checkbox" class="ds-config-checkbox" id="local-passwordhistory"><label
+                      for="local-passwordhistory" class="ds-label" title="Maintain a password history (passwordHistory).">Keep Password History</label>
+                  </div>
+                  <div>
+                    <input class="ds-history-input" type="text" id="local-passwordinhistory" size="2"/>Passwords In History
+                    <label for="local-passwordminage" class="ds-minage-label" title="Indicates the number of seconds that must pass before a user can change their password. (passwordMinAge)">Allow Password Changes (in seconds)</label><input
+                     class="ds-input" type="text" id="local-passwordminage" size="10"/>
+                   </div>
+                </div>
+              </div>
+            </div>
+            <div class="ds-container">
+              <div class="ds-split">
+                <h4><br>Password Expiration Settings</h4>
+                <hr class="ds-hr">
+                <input type="checkbox" class="ds-config-checkbox" id="local-passwordexp"><label
+                  for="local-passwordexp" class="ds-label" title="Enable a password expiration policy (passwordExp).">Enable Password Expiration</label>
+                <div class="ds-expired-div" id="local-expiration-attrs">
+                  <label for="local-passwordmaxage" class="ds-expire-label" title="The server's local hostname (passwordMaxAge).">Password Expiration Time (in seconds)</label><input
+                    class="ds-input" type="text" id="local-passwordmaxage" size="5"/>
+                  <label for="local-passwordgracelimit" class="ds-expire-label" title="The server's local hostname (passwordGraceLimit).">Allowed Logins After Password Expires</label><input
+                    class="ds-input" type="text" id="local-passwordgracelimit" size="5"/>
+                  <label for="local-passwordwarning" class="ds-expire-label" title="Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).">Send Password Expiring Warning (in seconds)</label><input
+                    class="ds-input" type="text" id="local-passwordwarning" size="5"/>
+                  <input type="checkbox" class="ds-send-expiring-checkbox" id="local-passwordsendexpiringtime"><label
+                    for="local-passwordsendexpiringtime" class="ds-label" title=
+                    "Always return a password expiring control when requested (passwordSendExpiringTime).">Always Send <i>Password Expiring Control</i></label>
+                </div>
+              </div>
+              <div class="ds-divider"></div>
+              <div class="ds-split">
+                <h4><br>Account Lockout Settings</h4>
+                <hr class="ds-hr">
+                <input type="checkbox" class="ds-config-checkbox" id="local-passwordlockout"><label
+                  for="local-passwordlockout" class="ds-label" title="Enable account lockout (passwordLockout).">Enable Account Lockout</label>
+                <div class="ds-expired-div" id="local-lockout-attrs">
+                  <label for="local-passwordmaxfailure" class="ds-expire-label" title=
+                    "The maximum number of failed logins before account gets locked (passwordMaxFailure).">Number of Failed Logins to Lockout Account</label><input
+                    class="ds-input" type="text" id="local-passwordmaxfailure" size="5"/>
+                  <label for="local-passwordresetfailurecount" class="ds-expire-label" title=
+                    "The number of seconds until an accounts failure count is reset (passwordResetFailureCount).">Time Before Failure Count Reset </label><input
+                    class="ds-input" type="text" id="local-passwordresetfailurecount" size="5"/>
+                  <div>
+                    <label title="Lock out the account forever (passwordUnlock)." for="local-passwordunlock" ><input
+                      class="ds-radio" type="radio" id="local-passwordunlock" value="passwordunlock" name="account-lockout" checked="checked"> Lockout Account Forever</label>
+                    <label title="The number of seconds before account gets unlocked (passwordLockoutDuration)." for="local-passwordlockoutduration"><input
+                      class="ds-radio" type="radio" name="account-lockout" value="passwordlockoutduration"> Time Until Account Unlocked <input
+                      class="ds-input" type="text" id="local-passwordlockoutduration" size="5"/></label>
+                  </div>
+                </div>
+                <p></p>
+              </div>
+            </div>
+      
+            <h4><br>Password Syntax Settings</h4>
+            <hr class="ds-hr">
+            <input type="checkbox" class="ds-config-checkbox" id="local-passwordchecksyntax"><label
+              for="local-passwordchecksyntax" class="ds-label" title="Enable account lockout (passwordCheckSyntax).">Check Password Syntax</label>
+            <div class="ds-container ds-expired-div" id="local-syntax-attrs">
+              <div>
+                <label for="local-passwordminlength" class="ds-expire-label" title=
+                  "The minimum number of characters in the password (passwordMinLength).">Password Minimum Length </label><input
+                  class="ds-input" type="text" id="local-passwordminlength" size="5"/>
+                <label for="local-passwordmindigits" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).">Minimum Digit Characters </label><input
+                  class="ds-input" type="text" id="local-passwordmindigits" size="5"/>
+                <label for="local-passwordminalphas" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many alpha characters (passwordMinAlphas).">Minimum Alpha Characters </label><input
+                  class="ds-input" type="text" id="local-passwordminalphas" size="5"/>
+                <label for="local-passwordminuppers" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many uppercase characters (passwordMinUppers).">Minimum Uppercase Characters </label><input
+                  class="ds-input" type="text" id="local-passwordminuppers" size="5"/>
+                <label for="local-passwordminlowers" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many lowercase characters (passwordMinLowers).">Minimum Lowercase Characters </label><input
+                  class="ds-input" type="text" id="local-passwordminlowers" size="5"/>
+              </div>
+              <div class="ds-divider"></div>
+              <div class="ds-divider"></div>
+              <div>
+                <label for="local-passwordminspecials" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).">Minimum Special Characters </label><input
+                  class="ds-input" type="text" id="local-passwordminspecials" size="5"/>
+                <label for="local-passwordmin8bit" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).">Minimum 8-bit Characters </label><input
+                  class="ds-input" type="text" id="local-passwordmin8bit" size="5"/>
+                <label for="local-passwordmaxrepeats" class="ds-expire-label" title=
+                  "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).">Maximum Number Of Repeated Characters </label><input
+                  class="ds-input" type="text" id="local-passwordmaxrepeats" size="5"/>
+                <label for="local-passwordmincategories" class="ds-expire-label" title=
+                  "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).">Minimum Required Character Categories </label><input
+                  class="ds-input" type="text" id="local-passwordmincategories" size="5"/>
+                <label for="local-passwordmintokenlength" class="ds-expire-label" title=
+                  "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).">Minimum Token Length </label><input
+                  class="ds-input" type="text" id="local-passwordmintokenlength" size="5"/>
+              </div>
+            </div>
+          </form>
+        </div> 
+        <div class="modal-footer ds-modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="local-pwp-save">Save</button>
         </div>
       </div>
-    </form>
+    </div>
   </div>
 
-  <div id="edit-sasl-map" class="modal">
-    <form class="modal-content animate">
-      <div class="container">
-        <h2 id=""><b>Create Sub Suffix</b> <span class="close" id="edit-sasl-close">&times;</span></h2>
-        <hr class="ds-hr">
-        
-        <div class="clearfix ds-container">
-          <div class="ds-panel-left">
-            <button type="button" id="edit-sasl-map-cancel" class="ds-button-left">Cancel</button>
-          </div>
-          <div class="ds-panel-right">
-            <button type="submit" id="edit-sasl-map-save" class="ds-button-right">Save</button>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
-
-  <div id="create-local-pwp" class="modal">
-    <form class="modal-content animate">
-      <div class="container">
-        <h2 id=""><b>Create Local Password Policy</b> <span class="close" id="create-local-pwp-close">&times;</span></h2>
-        <hr class="ds-hr">
-        
-        <div class="clearfix ds-container">
-          <div class="ds-panel-left">
-            <button type="button" id="create-local-pwp-cancel" class="ds-button-left">Cancel</button>
-          </div>
-          <div class="ds-panel-right">
-            <button type="submit" id="create-local-pwp-save" class="ds-button-right">Create Policy</button>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
-
-  <div id="edit-local-pwp" class="modal">
-    <form class="modal-content animate">
-      <div class="container">
-        <h2 id=""><b>Edit Local Password Policy</b> <span class="close" id="edit-local-pwp-close">&times;</span></h2>
-        <hr class="ds-hr">
-        
-        <div class="clearfix ds-container">
-          <div class="ds-panel-left">
-            <button type="button" id="edit-local-pwp-cancel" class="ds-button-left">Cancel</button>
-          </div>
-          <div class="ds-panel-right">
-            <button type="submit" id="edit-local-pwp-save" class="ds-button-right">Save</button>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
 </div>
-
-

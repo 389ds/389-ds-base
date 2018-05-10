@@ -6,11 +6,11 @@ var binddn_list_color = "";
 
 var agmt_action_html = 
   '<div class="dropdown">' +
-     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">' +
+     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">' +
       ' Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
-    '<ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">' +
+    '<ul class="dropdown-menu ds-agmt-dropdown" role="menu">' +
       '<li role=""><a role="menuitem" tabindex="0" class="repl-agmt-btn agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
       '<li role=""><a role="menuitem" tabindex="1" class="repl-agmt-btn" href="#">Initialize Consumer (online)</a></li>' +
       '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn" href="#">Initialize Consumer (ldif)</a></li>' +
@@ -49,18 +49,12 @@ function load_repl_jstree() {
     console.log("The selected nodes are:");
     console.log(data.selected);
     repl_suffix = data.selected;
-    if (repl_suffix == "repl-changelog-node") {
-      $("#repl-changelog").show();
-      $("#repl-splash").hide();
-      $("#repl-config").hide();
-    } else if (repl_suffix == "repl-root") {
-      $("#repl-changelog").hide();
+    if (repl_suffix == "repl-root") {
       $("#repl-config").hide();
       $("#repl-splash").show();
     } else {
       // Suffix
       $("#repl-splash").hide();
-      $("#repl-changelog").hide();
       $("#replica-header").html("Replication Configuration <font size='3'>(<b>" + repl_suffix + "</b>)</font>");
       // Check if this suffix is already setup for replication.  If so set the radio button, and populate the form
       $("#repl-config").show();
@@ -76,8 +70,7 @@ function clear_agmt_wizard () {
   $("#agmt-start-time").val("");
   $("#agmt-end-time").val("");
   $(".ds-agmt-wiz-dropdown").prop('selectedIndex',0);
-  $(".ds-accordion-panel").toggle("active");
-  $(".ds-accordion-panel").css('display','none');
+  $(".ds-agmt-panel").css('display','none');
 };
 
 function clear_winsync_agmt_wizard() {
@@ -119,24 +112,41 @@ function check_repl_binddn_list () {
 }
 
 $(document).ready( function() {
-  $("#repl-backend-selection").load("replication.html", function () {
-    // Load the tree
-    load_repl_jstree();
-    $('#tree').on("changed.jstree", function (e, data) {
-      console.log("The selected nodes are:");
-      console.log(data.selected);
-      var suffix = data.selected;
-    });
+  $("#replication-content").load("replication.html", function () {
+    
+    // Load the dropdown TODO
+    
     binddn_list_color = $("#repl-managers-list").css("border-color");
 
     // Load existing replication config (if any), set role, etc
 
     // Check repl managers list and if empty give it a red border
     check_repl_binddn_list();
+    $("#schedule-settings").hide();
 
-    $("#set-default").on("click", function() {
-      $("#nsslapd-changelogdir").val("/var/lib/dirsrv/" + server_id + "/changelogdb");
+    $("#repl-config-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#replication-content").show();
+      $("#repl-config").show();
     });
+
+    $("#repl-agmts-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#replication-content").show();
+      $("#repl-agmts").show();
+    });
+
+    $("#repl-winsync-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#replication-content").show();
+      $("#repl-winsync").show();
+    });
+    $("#repl-cleanallruv-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#replication-content").show();
+      $("#repl-cleanallruv").show();
+    });
+
     
     $("#nsds5replicaid").on("change", function() {
       prev_rid = $("#nsds5replicaid").val();
@@ -151,9 +161,16 @@ $(document).ready( function() {
        check_repl_binddn_list();
     });
 
+
     /* 
      * Setting/Changing the replication role 
      */
+    $("#nsds5replicaid").on('click', function () {
+      if ( $("#nsds5replicaid").prop('disabled') == false ) {
+        // Set radio button to master role when we click on the rid input
+        $("#master").prop("checked", true);
+      }
+    });
     $("#change-repl-role").on("click", function() {
       var role_button = $("input[name=repl-role]:checked");
       var role = $("input[name=repl-role]:checked").val();
@@ -165,11 +182,11 @@ $(document).ready( function() {
 
       if (role == "master") {
         if ($("#nsds5replicaid").val() == "" || $("#nsds5replicaid").val() === undefined ){
-          alert("Replica ID is required for a Master role");
+          bootpopup.alert("Replica ID is required for a Master role", "Attention!");
           return;
         }
         if ( !valid_num($("#nsds5replicaid").val()) ) {
-          alert("Replica ID must be a number");
+          bootpopup.alert("Replica ID must be a number", "Attention!");
           return;
         }
 
@@ -200,19 +217,26 @@ $(document).ready( function() {
       }
       if (role == "no-repl") {
         // This also means disable replication: delete agmts, everything
-        if (confirm("Are you sure you want to disable replication and remove all agreements?")){
-          //delete everything
-          $("#repl-form").hide();
-          $("#nsds5replicaid").val("");
-        } else {
-          prev_role_button.prop('checked', true);
-          return;
-        }
+
+        bootpopup.confirm("Are you sure you want to disable replication and remove all agreements?", "Confirmation", function (yes) {
+          if (yes) {
+            // TODO Delete attr from DS
+
+            //delete everything
+            $("#repl-form").hide();
+            $("#nsds5replicaid").val("");
+            prev_role_button = role_button;
+            prev_repl_role = role;
+          } else {
+            // We don't change the prev anything in this case
+            prev_role_button.prop('checked', true);
+          }
+        });
       } else {
         $("#repl-form").show();
+        prev_role_button = role_button;
+        prev_repl_role = role;
       }
-      prev_role_button = role_button;
-      prev_repl_role = role;
     });
 
     // Set up agreement table
@@ -220,12 +244,13 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
-      //"lengthMenu": [ 16, 32, 64, 128],
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
-        "emptyTable": "No agreements configured"
+        "emptyTable": "No agreements configured",
+        "search": "Search Agreements"
       },
       "columnDefs": [ {
-        "targets": 5,
+        "targets": 4,
         "orderable": false
       } ]
     });
@@ -235,12 +260,13 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
-      //"lengthMenu": [ 16, 32, 64, 128],
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
-        "emptyTable": "No winsync agreements configured"
+        "emptyTable": "No winsync agreements configured",
+        "search": "Search Agreements"
       },
       "columnDefs": [ {
-        "targets": 6,
+        "targets": 5,
         "orderable": false
       } ]
     });
@@ -250,8 +276,10 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
-        "emptyTable": "No agreements configured"
+        "emptyTable": "No CleanAllRUV tasks",
+        "search": "Search Tasks"
       },
       "columnDefs": [ {
         "targets": 3,
@@ -259,28 +287,7 @@ $(document).ready( function() {
       } ]
     });
 
-    $('#repl-summary-table').DataTable( {
-      "paging": false,
-      "searching": false,
-      "bInfo" : false,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "language": {
-        "emptyTable": "No Replicated Suffixes"
-      }
-    });
-
     // Repl Agreement Wizard
-    $("#agmt-close").on("click", function() {
-      $("#agmt-form").css('display', 'none');
-    });
-    $("#agmt-cancel").on("click", function() {
-      $("#agmt-form").css('display', 'none');
-    });
-    $("#create-agmt").on("click", function() {
-      clear_agmt_wizard();
-      $("#agmt-form").css('display', 'block');
-    });
     $("#agmt-save").on("click", function() {
       // Get all the settings
       var agmt_name = $("#agmt-cn").val();
@@ -299,7 +306,7 @@ $(document).ready( function() {
 
       // Confirm passwords match
       if (agmt_bindpw != agmt_bindpw_confirm) {
-        alert("Passwords do not match");
+        bootpopup.alert("Passwords do not match", "Attention!");
         return;
       }
 
@@ -346,12 +353,11 @@ $(document).ready( function() {
             agmt_host,
             agmt_port,
             "Enabled",
-            agmt_status,
             agmt_action_html
         ] ).draw( false );
 
       // Done, close the form
-      $("#agmt-form").css('display', 'none');
+      $("#agmt-form").modal('toggle');
       clear_agmt_wizard();
     });
 
@@ -363,11 +369,13 @@ $(document).ready( function() {
       // Update HTML table
       var data = repl_agmt_table.row( $(this).parents('tr') ).data();
       var del_agmt_name = data[0];
-      if ( confirm("Are you sure you want to delete replication agreement: " + del_agmt_name) ) {
-        // TODO Delete schema
-          // Update html table
-        repl_agmt_table.row( $(this).parents('tr') ).remove().draw( false );
-      }
+      var agmt_row = $(this);
+      bootpopup.confirm("Are you sure you want to delete replication agreement: " + del_agmt_name, "Confirmation", function (yes) {
+        if (yes) {
+          // TODO Delete agmt
+          repl_agmt_table.row( agmt_row.parents('tr') ).remove().draw( false );
+        }
+      });
     });
 
     // Edit Agreement
@@ -393,8 +401,10 @@ $(document).ready( function() {
     $("#agmt-schedule-checkbox").change(function() {
       if(this.checked) {
         $('#agmt-schedule-panel *').attr('disabled', true);
+        $("#schedule-settings").hide();
       } else {
         $('#agmt-schedule-panel *').attr('disabled', false);
+        $("#schedule-settings").show();
       }
     });
 
@@ -438,90 +448,70 @@ $(document).ready( function() {
       }
     });
 
-    // Create time ticket for agmt schedule (start end times))
+    // Create time picker for agmt schedule (start end times))
     $('input.timepicker').timepicker({
       'timeFormat': 'H:i',
-      'disableTextInput': true
+      'step': 15
     });
 
     // Accordion opening/closings
+
     $(".ds-accordion-panel").css('display','none');
-    var acc = document.getElementsByClassName("repl-accordion");
-    for (var i = 0; i < acc.length; i++) {
-      acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        /*if (panel.style.maxHeight && panel.style.maxHeight != "0px"){
-          panel.style.maxHeight = null;
-        } else {
-          panel.style.maxHeight = panel.scrollHeight + "px";
-        }*/
-        if (panel.style.display == "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
-      }
-    }
 
-    var repl_acc = document.getElementsByClassName("repl-config-accordion");
-    for (var i = 0; i < repl_acc.length; i++) {
-      repl_acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        if (panel.style.display == "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
+    $("#repl-config-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Advanced Settings ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Advanced Settings ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
       }
-    }
-    var repl_agmt_acc = document.getElementsByClassName("repl-agmt-accordion");
-    for (var i = 0; i < repl_agmt_acc.length; i++) {
-      repl_agmt_acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        if (panel.style.display == "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
+    });
+
+    $("#frac-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Fractional Settings ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Fractional Settings ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
       }
-    }
+    });
 
-    var repl_winsync_agmt_acc = document.getElementsByClassName("repl-winsync-agmt-accordion");
-    for (var i = 0; i < repl_winsync_agmt_acc.length; i++) {
-      repl_winsync_agmt_acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        if (panel.style.display == "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
+    $("#schedule-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Schedule Settings ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Schedule Settings ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
       }
-    }
-
-
-    var repl_cleanruv_acc = document.getElementsByClassName("repl-cleanruv-accordion");
-    for (var i = 0; i < repl_cleanruv_acc.length; i++) {
-      repl_cleanruv_acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        if (panel.style.display == "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
-      }
-    }
-
+    });
+ 
     /*
      * Handle the repl agmt wizard select lists
      */
 
     // Fractional attrs
-    $("#frac-list-add-btn").on("click", function () {
+    $("#frac-list-add-btnZZ").on("click", function () {
       var add_attrs = $("#frac-attr-list").val();
       if (add_attrs != '' && add_attrs.length > 0) {
         for (var i = 0; i < add_attrs.length; i++) {
@@ -547,7 +537,7 @@ $(document).ready( function() {
 
 
     // Total Fractional attrs
-    $("#frac-total-list-add-btn").on("click", function () {
+    $("#frac-total-list-add-btnZZ").on("click", function () {
       var add_attrs = $("#total-attr-list").val();
       if (add_attrs != '' && add_attrs.length > 0) {
         for (var i = 0; i < add_attrs.length; i++) {
@@ -573,7 +563,7 @@ $(document).ready( function() {
     });
 
     // Strip Fractional attrs
-    $("#frac-strip-list-add-btn").on("click", function () {
+    $("#frac-strip-list-add-btnZZ").on("click", function () {
       var add_attrs = $("#strip-attr-list").val();
       if (add_attrs != '' && add_attrs.length > 0) {
         for (var i = 0; i < add_attrs.length; i++) {
@@ -604,15 +594,9 @@ $(document).ready( function() {
 
 
     // Winsync-agmt Agreement Wizard
-    $("#winsync-agmt-close").on("click", function() {
-      $("#winsync-agmt-form").css('display', 'none');
-    });
-    $("#winsync-agmt-cancel").on("click", function() {
-      $("#winsync-agmt-form").css('display', 'none');
-    });
+
     $("#winsync-create-agmt").on("click", function() {
       clear_winsync_agmt_wizard(); // TODO
-      $("#winsync-agmt-form").css('display', 'block');
     });
     $("#winsync-agmt-save").on("click", function() {
 
@@ -622,7 +606,7 @@ $(document).ready( function() {
       var passwd_confirm = $("#winsync-nsds5replicacredentials-confirm").val();
 
       if (agmt_passwd != passwd_confirm) {
-        alert("Passwords do not match!");
+        bootpopup.alert("Passwords do not match!", "Attention!");
         return;
       }
       // Get form values
@@ -649,9 +633,6 @@ $(document).ready( function() {
 
       // Update DS
 
-      // Get status
-      var agmt_status = "";
-
       // Update Winsync Agmt Table
       repl_winsync_agmt_table.row.add( [
         agmt_name,
@@ -659,25 +640,16 @@ $(document).ready( function() {
         agmt_port,
         ds_subtree,
         win_subtree,
-        agmt_status,
         winsync_agmt_action_html
       ] ).draw( false );
 
       // Done
-      $("#winsync-agmt-form").css('display', 'none');
-      clear_winsync_agmt_wizard();
+      $("#winsync-agmt-form").modal('toggle');
     });
 
     // Create CleanAllRUV Task
     $("#create-cleanallruv-btn").on("click", function() {
       clear_cleanallruv_form();
-      $("#cleanallruv-form").css('display', 'block');
-    });
-    $("#cleanallruv-close").on("click", function() {
-      $("#cleanallruv-form").css('display', 'none');
-    });
-    $("#cleanallruv-cancel").on("click", function() {
-      $("#cleanallruv-form").css('display', 'none');
     });
     $("#cleanallruv-save").on("click", function() {
       $("#cleanallruv-form").css('display', 'none');
@@ -691,6 +663,7 @@ $(document).ready( function() {
         "Task starting...",
         cleanallruv_action_html
       ] ).draw( false );
+      $("#cleanallruv-form").modal('toggle');
     });
 
     // Add repl manager
@@ -708,13 +681,15 @@ $(document).ready( function() {
     $("#delete-repl-manager").on("click", function () {
       var repl_mgr_dn = $("#repl-managers-list").find('option:selected');
       if (repl_mgr_dn.val() !== undefined) {
-        if ( confirm("Are you sure you want to delete replication manager: " + repl_mgr_dn.val() ) ) {
-          // TODO Update replica config entry, do not delete the real repl mgr entry
+        bootpopup.confirm("Are you sure you want to delete replication manager: " + repl_mgr_dn.val(), "Confirmation", function (yes) {  
+          if (yes) {
+            // TODO Update replica config entry, do not delete the real repl mgr entry
 
-          // Update HTML
-          repl_mgr_dn.remove();
-          check_repl_binddn_list();
-        }
+            // Update HTML
+            repl_mgr_dn.remove();
+            check_repl_binddn_list();
+          }
+        });
       }
     });
 
@@ -732,7 +707,7 @@ $(document).ready( function() {
     $("#add-repl-mgr-save").on("click", function() {
       var repl_dn = $("#add-repl-mgr-dn").val();
       if (repl_dn == ""){
-        alert("Replication Manager DN is required");
+        bootpopup.alert("Replication Manager DN is required", "Attention!");
         return;
       }
       if ( $("#add-repl-mgr-checkbox").is(":checked") ){
@@ -740,7 +715,7 @@ $(document).ready( function() {
         var agmt_bindpw = $("#add-repl-pw").val();
         var agmt_bindpw_confirm = $("#add-repl-pw-confirm").val();
         if (agmt_bindpw != agmt_bindpw_confirm) {
-          alert("Passwords do not match");
+          bootpopup.alert("Passwords do not match", "Attention!");
           $("#add-repl-pw").val("");
           $("#add-repl-pw-confirm").val("");
           return;
@@ -749,7 +724,7 @@ $(document).ready( function() {
 
       console.log("Validate dn...");
       if (!valid_dn(repl_dn)){
-        alert("Invalid DN for Replication Manager");
+        bootpopup.alert("Invalid DN for Replication Manager", "Attention!");
         return;
       }
  
@@ -761,7 +736,7 @@ $(document).ready( function() {
       if (repl_dn != '') {
         if ( $('#repl-managers-list option[value="' + repl_dn + '"]').val() === undefined) {
           // It's not a duplicate
-          $('#repl-managers-list').append($("<option/>") .val(repl_dn).text(repl_dn));
+          $('#repl-managers-list').append($("<option>").val(repl_dn).text(repl_dn));
           check_repl_binddn_list();
         }
       }

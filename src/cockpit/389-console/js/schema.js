@@ -52,7 +52,7 @@ function clear_attr_form() {
 
 
 $(document).ready( function() {
-  $("#schema-page").load("schema.html", function (){
+  $("#schema-content").load("schema.html", function (){
 
     // TODO Get attributes, Objectclasses, syntaxes, and matching rules: populate tables and forms
 
@@ -61,8 +61,10 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip', // Moves the search box to the left
+      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "language": {
-        "emptyTable": "No objectclasses available"
+        "emptyTable": "No objectclasses available",
+        "search": "Search Objectclasses"
       },
     });
 
@@ -70,8 +72,10 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip', // Moves the search box to the left
+      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "language": {
-        "emptyTable": "No attributes available"
+        "emptyTable": "No attributes available",
+        "search": "Search Attributes"
       },
     });
 
@@ -80,8 +84,10 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "language": {
-        "emptyTable": "No custom objectclasses defined"
+        "emptyTable": "No custom objectclasses defined",
+        "search": "Search Objectclasses"
       },
       "columnDefs": [ {
         "targets": 5,
@@ -92,8 +98,10 @@ $(document).ready( function() {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip', // Moves the search box to the left
+      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "language": {
-        "emptyTable": "No custom attributes defined"
+        "emptyTable": "No custom attributes defined",
+        "search": "Search Attributes"
       },
       "columnDefs": [ {
         "targets": 7,
@@ -106,9 +114,10 @@ $(document).ready( function() {
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
       "language": {
-        "emptyTable": "No matching rules defined"
+        "emptyTable": "No matching rules defined",
+        "search": "Search Matching Rules"
       },
-      "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]]
+      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
     });
 
     // Load everything from DS and update html
@@ -116,27 +125,24 @@ $(document).ready( function() {
     // Sort schema list awhile
     sort_list( $("#schema-list") );
 
-    // Set the initial startup panel
-    $(".schema-ctrl").hide();
-    $("#schema-standard").show();
-
-    $("#schema-standard-btn").on("click", function() {
-      $(".schema-ctrl").hide();
-      $("#schema-standard").show();
+    $("#std-schema-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#schema-content").show();
+      $("#std-schema-page").show();
     });
-
-    $("#schema-custom-btn").on("click", function() {
-      $(".schema-ctrl").hide();
-      $("#schema-custom").show();
+    $("#custom-schema-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#schema-content").show();
+      $("#custom-schema-page").show();
     });
     $("#schema-mr-btn").on("click", function() {
-      $(".schema-ctrl").hide();
+      $(".all-pages").hide();
+      $("#schema-content").show();
       $("#schema-mr").show();
     });
 
     // Accordions
     $(".ds-accordion-panel").css('display','none');
-
     var attr_opts_acc = document.getElementsByClassName("attr-opts-accordion");
     for (var i = 0; i < attr_opts_acc.length; i++) {
       attr_opts_acc[i].onclick = function() {
@@ -185,20 +191,15 @@ $(document).ready( function() {
       // Convert allowed/requires list to html format
       var oc_required_list = $('#oc-required-list option').map(function() { return $(this).val(); }).get().join(', ');
       var oc_allowed_list = $('#oc-allowed-list option').map(function() { return $(this).val(); }).get().join(', ');
-      console.log("MARK req list: " + oc_required_list);
-  
-      //var oc_required_list = $("#oc-required-list").val().join(', ');
-      //var oc_allowed_list = $("#oc-allowed-list").val().join(', ');
+
       // Update html table
       var oc_name = $("#oc-name").val();
-  
-      // Create attribute row to dataTable with correct edit button id
       custom_oc_table.row.add( [
         oc_name,
         $("#oc-oid").val(),
         $("#oc-parent").val(),
-        oc_required_list,
-        oc_allowed_list,
+        tableize(oc_required_list),
+        tableize(oc_allowed_list),
         oc_btn_html
       ] ).draw( false );
     });
@@ -328,12 +329,15 @@ $(document).ready( function() {
       e.preventDefault();
       var data = custom_at_table.row( $(this).parents('tr') ).data();
       var del_attr_name = data[0];
-      if ( confirm("Are you sure you want to delete attribute: " + del_attr_name) ) {
-        // TODO Delete schema
- 
-        // Update html table
-        custom_at_table.row( $(this).parents('tr') ).remove().draw( false );
-      }
+      var at_row = $(this);
+      bootpopup.confirm("Are you sure you want to delete attribute: " + del_attr_name, "Confirmation", function (yes) {
+        if (yes) {
+          // TODO Delete attr from DS
+
+          // Update html table
+          custom_at_table.row( at_row.parents('tr') ).remove().draw( false );
+        }
+      });
     });
 
     $(document).on('click', '.oc-edit-btn', function(e) {
@@ -351,8 +355,6 @@ $(document).ready( function() {
       $("#oc-name").val(edit_oc_name);
       $("#add-edit-oc-header").html('Edit Objectclass: ' + edit_oc_name);
       
-
-
       // TODO Get fresh copy of objectclass for edit form
 
       // Update modal html header and fields and show()
@@ -364,14 +366,17 @@ $(document).ready( function() {
       e.preventDefault();
       var data = custom_oc_table.row( $(this).parents('tr') ).data();
       var del_oc_name = data[0];
+      var oc_row = $(this);
 
-      if (confirm("Are you sure you want to delete objectclass: " + del_oc_name) ) {
+      bootpopup.confirm("Are you sure you want to delete objectclass: " + del_oc_name, "Confirmation", function (yes) {
+        if (yes) {
+          // TODO Delete attr from DS
 
-        // TODO Delete schema
- 
-        // Update html table
-        custom_oc_table.row( $(this).parents('tr') ).remove().draw( false );
-      }
+          // Update html table
+          custom_oc_table.row( oc_row.parents('tr') ).remove().draw( false );
+        }
+      });
+
     });
   });
 });

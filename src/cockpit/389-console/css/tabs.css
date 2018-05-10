@@ -8,7 +8,8 @@
   /* display: inline-block;*/
   list-style-type: none;
   background-color: #303030;
-  border: 1px solid #ddd;
+  /*border: 1px solid #ddd;*/
+  border: 1px solid black;
   letter-spacing: 0.2em;
 }
 
@@ -21,37 +22,46 @@
   color: #f2f2f2;
   text-decoration:none;
   padding: 3px 10px 3px 10px;
+
 }
 
 
 /********** HOVER STATES **********/
 .tab-list li.active, .tab-list li.hover {
   background-color: #e5e5e5;
-  border-bottom: 1px solid #e5e5e5;
+  text-decoration:none !important;
+  /* border-bottom: 1px solid #e5e5e5; */
+  border: 1px solid #484848;
 }
 
 .tab-list li.active a, .tab-list li a:hover {
   color: #666;
   background-color: #e5e5e5;
+  text-decoration:none !important;
   outline: 0 !important;
 }
 
 
 /********** PANELS **********/
 .tab-panel {
-  outline: 0;
+  outline: 0 !important;
   line-height: 0;
   display: none;
   background-color: #e5e5e5;
   color: #666;
-  //min-height: 500px;
+  /*min-height: 500px; */
+  margin-top: -1px;
   margin-left: 10px;
   margin-right: 10px;
   margin-bottom: 10px;
-  border: 1px solid #ddd;
+  /* border: 1px solid #ddd; */
+  border: 1px groove gray !important;
   white-space: pre-line;
   overflow: auto;
   min-height: 700px;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-bottom-left-radius: 12px;
 }
 
 .tab-panel.active {

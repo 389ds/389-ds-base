@@ -1,24 +1,32 @@
-
+var prev_tree_node = null;
+var ref_del_html = "<button class=\"btn btn-default delete-referral-btn\" type=\"button\">Delete Referral</button>";
+var attr_encrypt_del_html = "<button class=\"btn btn-default attr-encrypt-delete-btn\" type=\"button\">Remove Attribute</button></td>";
+var index_btn_html = 
+  '<div class="dropdown"> ' +
+     '<button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">' +
+       'Choose Action...' +
+       '<span class="caret"></span>' +
+     '</button>' +
+     '<ul class="dropdown-menu" role="menu">' +
+       '<li><a class="db-index-save-btn">Save Index</a></li>' +
+       '<li><a class="db-index-save-reindex-btn">Save & Reindex</a></li>' +
+       '<li><a class="db-index-reindex-btn">Reindex Attribute</a></li>' +
+       '<li><a class="db-index-delete-btn">Delete Index</a></li>' +
+     '</ul>' +
+   '</div>';
 
 function customMenu (node) {
-  var root_items = {
-    "create_suffix": {
-      "label": "Create Suffix",
-      "icon": "glyphicon glyphicon-plus",
-      "action": function (data) {
-        $("#add-suffix-form").css('display', 'block');
-      }
-    }
-  };
-
   var dblink_items = {
     "delete_link": {
       "label": "Delete DB Link",
       "icon": "glyphicon glyphicon-trash",
       "action": function (data) {
-        if (confirm("Are you sure you want to delete this Database Link?")){
-          // Delete db link
-        }
+        bootpopup.confirm("Are you sure you want to delete this Database Link?", "Confirmation", function (yes) {  
+          if (yes) {
+    
+           // TODO  Delete db link
+          }
+        });
       }
     }
   };
@@ -28,60 +36,64 @@ function customMenu (node) {
       "label": "Initialize Suffix",
        "icon": "glyphicon glyphicon-circle-arrow-right",
        "action": function (data) {
-         $("#import-ldif-form").css('display', 'block');
+         $("#import-ldif-file").val("");
+         $("#import-ldif-form").modal('toggle');
        }
      },
-      'export': {
-          "label": "Export Suffix",
-          "icon": "glyphicon glyphicon-circle-arrow-left",
-         "action": function (data) {
-           $("#export-ldif-form").css('display', 'block');
-          }
-      },
-      'reindex': {
-          "label": "Reindex Suffix",
-          "icon": "glyphicon glyphicon-wrench",
-         "action": function (data) {
-           if (confirm("This will impact DB performance during the indexing.  Are you sure you want to reindex all attributes?")){
-             // TODO Reindex suffix
-           }
-          }
-      },
-      "create_db_link": {
-        "label": "Create Database Link",
-        "icon": "glyphicon glyphicon-link",
-        "action": function (data) {
-          var suffix_id = $(node).attr('id');
-          var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
-          //clear_chaining_form();   //TODO
-          $("#create-db-link-form").css('display', 'block');
-         }
-      },
-      "create_sub_suffix": {
-        "label": "Create Sub-Suffix",
-        "icon": "glyphicon glyphicon-triangle-bottom",
-        "action": function (data) {
-          var suffix_id = $(node).attr('id');
-          var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
-          $("#parent-suffix").html('<b>Parent Suffix:</b>&nbsp;&nbsp;' + parent_suffix);
-          $("#add-subsuffix-dn").val(' ,' + parent_suffix);
-          $("#add-subsuffix-form").css('display', 'block');
-         }
-      },
-      'delete_suffix': {
-         "label": "Delete Suffix",
-         "icon": "glyphicon glyphicon-remove",
-         "action": function (data) {
-           if (confirm("Are you sure you want to delete suffix?")){
-             // TODO Delete suffix
-           }
-         }
+     'export': {
+       "label": "Export Suffix",
+       "icon": "glyphicon glyphicon-circle-arrow-left",
+       "action": function (data) {
+         $("#export-ldif-file").val("");
+         $("#export-ldif-form").modal('toggle');
        }
+     },
+     'reindex': {
+       "label": "Reindex Suffix",
+       "icon": "glyphicon glyphicon-wrench",
+       "action": function (data) {
+         bootpopup.confirm("This will impact DB performance during the indexing.  Are you sure you want to reindex all attributes?", "Confirmation", function (yes) {  
+           if (yes) {
+              // TODO Reindex suffix
+           }
+         });
+       }
+     },
+     "create_db_link": {
+       "label": "Create Database Link",
+       "icon": "glyphicon glyphicon-link",
+       "action": function (data) {
+         var suffix_id = $(node).attr('id');
+         var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
+         //clear_chaining_form();   //TODO
+         $("#create-db-link-form").modal('toggle');
+       }
+     },
+     "create_sub_suffix": {
+       "label": "Create Sub-Suffix",
+       "icon": "glyphicon glyphicon-triangle-bottom",
+       "action": function (data) {
+         var suffix_id = $(node).attr('id');
+         var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
+         $("#parent-suffix").html('<b>Parent Suffix:</b>&nbsp;&nbsp;' + parent_suffix);
+         $("#add-subsuffix-dn").val(' ,' + parent_suffix);
+         $("#add-subsuffix-form").modal('toggle');
+       }
+     },
+     'delete_suffix': {
+       "label": "Delete Suffix",
+       "icon": "glyphicon glyphicon-remove",
+       "action": function (data) {
+          bootpopup.confirm("Are you sure you want to delete suffix?", "Confirmation", function (yes) {  
+            if (yes) {
+              // TODO
+            }
+          });
+       }
+     }
    };
 
-   if ( $(node).attr('id') == "root" ) {
-     return root_items;
-   } else if ( $(node).attr('id').startsWith('suffix') ){
+   if ( $(node).attr('id').startsWith('suffix') ){
      return suffix_items;
    } else {
      // chaining
@@ -89,54 +101,206 @@ function customMenu (node) {
    }
 };
 
+function get_encoded_ref () {
+  var ref_encoded = $("#ref-protocol").val() + $("#ref-hostname").val();
+  var ref_port = $("#ref-port").val();
+  var ref_suffix = $("#ref-suffix").val();
+  var ref_attrs = $("#ref-attrs").val();
+  var ref_filter = $("#ref-filter").val();
+  var ref_scope = $("#ref-scope").val();
+
+  $("#preview-ref-btn").blur();
+
+  if (ref_port != ""){
+    ref_encoded += ":" + ref_port;
+  }
+
+  if (ref_suffix == "" && (ref_attrs != "" || ref_filter != "" || ref_scope != "")) {
+    bootpopup.alert("Missing suffix - you can not set the attributes, scope, or filter without a suffix.", "Attention!");
+    return;
+  }
+  if (ref_suffix != "" || ref_attrs != "" || ref_filter != "" || ref_scope != "") {
+    ref_encoded += "/" + encodeURIComponent(ref_suffix);
+    if ( ref_attrs != "" ) {
+      ref_encoded += "?" + encodeURIComponent(ref_attrs);
+    } else if ( ref_filter != "" || ref_scope != "" ) {
+      ref_encoded += "?";
+    }
+    if ( ref_scope != "" ) {
+      ref_encoded += "?" + encodeURIComponent(ref_scope);
+    } else if ( ref_filter != "" ) {
+      ref_encoded += "?";
+    }
+    if ( ref_filter != "") {
+      ref_encoded += "?" + encodeURIComponent(ref_filter);
+    }
+  }
+  return ref_encoded;
+}
+
 function load_jstree() {
-  $('#tree').jstree({
-    "plugins": [ "contextmenu", "wholerow" ],
+  $('#db-tree').jstree({
+    "plugins": [ "contextmenu", "wholerow", "sort" ],
     "contextmenu": {
       "items" : customMenu
-   }
+    },
+    "core": {
+      "check_callback": true
+    }
   });
 
-  $('#tree').on("changed.jstree", function (e, data) {
+  $('#db-tree').jstree('select_node', 'ul > li:first'); 
+  
+
+  $('#db-tree').on("changed.jstree", function (e, data) {
     var node_type = data.selected[0];
     var suffix = data.instance.get_node(data.selected[0]).text.replace(/(\r\n|\n|\r)/gm,"");
 
     console.log("The selected nodes are: " + node_type + " = " + suffix);
 
-    if (node_type == "root"){
-      $("#suffix").hide();
-      $("#chaining").hide();
-      $("#db").show();
-    } else if (node_type.startsWith("dblink")) {
+    if (node_type.startsWith("dblink")) {
       var parent_suffix = node_type.substring(node_type.indexOf('-')+1);
-      $("#db").hide();
-      $("#suffix").hide();
+      $(".all-pages").hide();
+      $("#database-content").show();
+      $("#db-page").show();
       $("#chaining-header").html("Database Chaining Configuration <font size=\"2\">(<b>" + parent_suffix + "</b>)</font>");
-      $("#chaining").show();
+      $("#chaining-page").show();
     } else {
       // suffix
-      $("#db").hide();
-      $("#chaining").hide();
+      $(".all-pages").hide();
+      $("#database-content").show();
+      $("#db-page").show();
       $("#suffix-header").html("Suffix Configuration <font size=\"2\">(<b>" + suffix + "</b>)</font>");
-      $("#suffix").show();
+      $("#suffix-page").show();
     }
   });
 };
 
+function clear_ref_form () {
+  $("#ref-scope").prop('selectedIndex',0);
+  $("#ref-protocol").prop('selectedIndex',0);
+  $("#ref-suffix").val("");
+  $("#ref-filter").val("");
+  $("#ref-hostname").val("");
+  $("#ref-port").val("");
+  $("#ref-attrs").val("");
+  $("#ref-preview-field").val("");
+}
+
+function clear_index_form () {
+  $("#index-list-select").prop('selectedIndex',0);
+  $("#add-index-type-eq").prop('checked', false);
+  $("#add-index-type-pres").prop('checked', false);
+  $("#add-index-type-sub").prop('checked', false);
+  $("#add-index-type-approx").prop('checked', false);
+  $("#add-index-matchingrules").val("");
+}
+
+function clear_attr_encrypt_form() {
+  $("#attr-encrypt-list").prop('selectedIndex',0);
+  $("#nsencryptionalgorithm").prop('selectedIndex',0);
+}
+
 $(document).ready( function() {
-  $("#backend-selection").load("backend.html", function () {
+  $("#database-content").load("backend.html", function () {
     load_jstree();
-    $("#db").show();
 
     $(".ds-suffix-panel").toggle("active");
     $(".ds-suffix-panel").css('display','none');
+
+    $("#create-ref-btn").on("click", function () {
+      clear_ref_form();
+    });
+
+    $("#db-chaining-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#database-content").show();
+      $("#db-chaining-settings-page").show();
+    });
+    $("#db-global-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#database-content").show();
+      $("#db-global-page").show();
+    });
+    $("#db-suffix-btn").on("click", function() {
+      $(".all-pages").hide();
+      $("#database-content").show();
+      $("#db-page").show();
+      $("#suffix-page").show();
+    });
+
+    $("#chaining-adv-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Advanced Database Link Settings ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Advanced Database Link Settings";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
+      }
+    });
+
+
+    $("#db-system-index-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show System Indexes ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide System Indexes ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
+      }
+    });
+
+    $("#db-index-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Database Indexes ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Database Indexes ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
+      }
+    });
+
+    $("#suffix-attrencrypt-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Encrypted Attributes ";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Encrypted Attributes ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
+      }
+    });
+
 
     /*
       We need logic to see if autocaching (import and db) is being used, and disable fields, 
       and set radio buttons, et
     */
 
-    $('#referral-table').DataTable( {
+    var ref_table = $('#referral-table').DataTable( {
       "paging": false,
       "searching": false,
       "bInfo" : false,
@@ -151,31 +315,63 @@ $(document).ready( function() {
       } ]
     });
 
+
+
+
+
     $('#system-index-table').DataTable( {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
+        "search": "Search",
         "emptyTable": "No System Indexes"
       },
+      "columns": [
+        { "width": "10%" },
+        { "width": "20px" },
+        { "width": "20px" },
+        { "width": "20px" },
+        { "width": "20px" },
+        { "width": "20%" }
+      ],
     });
-    $('#index-table').DataTable( {
+    var index_table = $('#index-table').DataTable( {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
+        "search": "Search",
         "emptyTable": "No Indexes"
       },
+      "columns": [
+        { "width": "10%" },
+        { "width": "15px" },
+        { "width": "15px" },
+        { "width": "15px" },
+        { "width": "15px" },
+        { "width": "20%" },
+        { "width": "76px" }
+      ],
       "columnDefs": [ {
         "targets": 6,
         "orderable": false
       } ]
     });
-    $('#attr-encrypt-table').DataTable( {
+
+
+
+
+    var attr_encrypt_table = $('#attr-encrypt-table').DataTable( {
       "paging": true,
       "bAutoWidth": false,
+      "searching": true,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
       "language": {
+        "search": "Search",
         "emptyTable": "No Encrypted Attributes"
       },
       "columnDefs": [ {
@@ -186,6 +382,7 @@ $(document).ready( function() {
 
     // Accordion opening/closings
     $(".ds-accordion-panel").css('display','none');
+
     var suffix_acc = document.getElementsByClassName("suffix-accordion");
     for (var i = 0; i < suffix_acc.length; i++) {
       suffix_acc[i].onclick = function() {
@@ -198,6 +395,22 @@ $(document).ready( function() {
         }
       }
     }
+
+    $("#db-accordion").on("click", function() {
+      this.classList.toggle("active");
+      var panel = this.nextElementSibling;
+      if (panel.style.display === "block") {
+        var show = "&#9658 Show Advanced Settings";
+        $(this).html(show);
+        panel.style.display = "none";
+        $(this).blur();
+      } else {
+        var hide = "&#9660 Hide Advanced Settings ";
+        $(this).html(hide);
+        panel.style.display = "block";
+        $(this).blur();
+      }
+    });
 
     var db_acc = document.getElementsByClassName("db-accordion");
     for (var i = 0; i < db_acc.length; i++) {
@@ -225,19 +438,6 @@ $(document).ready( function() {
       }
     }
 
-    var chain_adv_acc = document.getElementsByClassName("chaining-adv-accordion");
-    for (var i = 0; i < chain_adv_acc.length; i++) {
-      chain_adv_acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        if (panel.style.display === "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
-      }
-    }
-
 
     $(".index-type").attr('readonly', 'readonly');
 
@@ -245,15 +445,20 @@ $(document).ready( function() {
       $("#auto-cache-form").hide();
       $("#manual-cache-form").show();
       $("#nsslapd-dncachememsize").prop('disabled', false);
+      $("#nsslapd-dncachememsize").val('');
       $("#nsslapd-cachememsize").prop('disabled', false);
+      $("#nsslapd-cachememsize").val('');
       $("#nsslapd-cachesize").prop('disabled', false);
+      $("#nsslapd-cachesize").val('');
     } else {
       $("#manual-cache-form").hide();
       $("#auto-cache-form").show();
       $("#nsslapd-dncachememsize").prop('disabled', true);
       $("#nsslapd-dncachememsize").val('AUTOTUNED');
       $("#nsslapd-cachememsize").prop('disabled', true);
+      $("#nsslapd-cachememsize").val('AUTOTUNED');
       $("#nsslapd-cachesize").prop('disabled', true);
+      $("#nsslapd-cachesize").val('AUTOTUNED');
     }
 
     if ( $("#manual-import-cache").is(":checked") ){
@@ -354,16 +559,9 @@ $(document).ready( function() {
     //
 
     // Chaining OIDS
-    $("#chain-oid-close").on("click", function() {
-      $("#chaining-oids-form").css('display', 'none');
-    });
-    $("#chaining-oid-cancel").on("click", function() {
-      $("#chaining-oids-form").css('display', 'none');
-    });
     $("#chaining-oid-button").on("click", function() {
-      // Update oids
-      $("#chaining-oids-form").css('display', 'block');
-    })
+      $(this).blur();
+    });
     $("#chaining-oid-save").on("click", function() {
       // Update oids
       var chaining_oids = $("#avail-chaining-oid-list").val();
@@ -375,7 +573,7 @@ $(document).ready( function() {
         $("#avail-chaining-oid-list option[value='" + chaining_oids[i] + "']").remove();
       }
       sort_list( $("#chaining-oid-list") );
-      $("#chaining-oids-form").css('display', 'none');
+      $("#chaining-oid-form").modal('toggle');
     });
     $("#delete-chaining-oid-button").on("click", function() {
       var oids = $("#chaining-oid-list").find('option:selected');
@@ -391,16 +589,6 @@ $(document).ready( function() {
     });
 
     // Chaining Comps
-    $("#chain-comp-close").on("click", function() {
-      $("#chaining-comp-form").css('display', 'none');
-    });
-    $("#chaining-comp-cancel").on("click", function() {
-      $("#chaining-comp-form").css('display', 'none');
-    });
-    $("#chaining-comp-button").on("click", function() {
-      // Update Comps
-      $("#chaining-comp-form").css('display', 'block');
-    })
     $("#delete-chaining-comp-button").on("click", function() {
       var comps = $("#chaining-comp-list").find('option:selected');
       if (comps && comps != '' && comps.length > 0) {
@@ -436,52 +624,100 @@ $(document).ready( function() {
     });
     $("#chaining-save").on("click", function() {
       // Create DB link, if LDAPS is selected replace remotefarmUrl "ldap://" with "ldaps://", and visa versa to remove ldaps://
+      var chaining_name = $("#chaining-name").val(); 
+      var parent_suffix = $("#db-tree").jstree().get_selected(true)[0];
+      var suffix = $("#db-tree").jstree().get_selected(true)[0].text.replace(/(\r\n|\n|\r)/gm,"");
+
+      // TODO - create db link in DS
+
+      $('#db-tree').jstree().create_node(parent_suffix,  
+                                         { "id" : "dblink-" + suffix, "text" : chaining_name, "icon" : "glyphicon glyphicon-link" }, 
+                                         "last");
       $("#create-db-link-form").css('display', 'none');
     });
 
     // Add Index
     $("#add-index-button").on("click", function() {
-      $("#add-index-form").css('display', 'block');
+      clear_index_form();
     })
-    $("#add-index-close").on("click", function() {
-      $("#add-index-form").css('display', 'none');
-    });
-    $("#add-index-cancel").on("click", function() {
-      $("#add-index-form").css('display', 'none');
-    });
+
     $("#add-index-save").on("click", function() {
+      var attr_name = $("#index-list-select").val();
+      var add_attr_type_eq = '<input type="checkbox" id="' + attr_name + '-eq">';
+      var add_attr_type_pres = '<input type="checkbox" id="' + attr_name + '-pres">';
+      var add_attr_type_sub = '<input type="checkbox" id="' + attr_name + '-sub">';
+      var add_attr_type_approx = '<input type="checkbox" id="' + attr_name + '-approx">';
+      var add_index_matchingrules = $("#add-index-matchingrules").val();
+  
+      if ( $("#add-index-type-eq").is(":checked") ){
+        add_attr_type_eq = '<input type="checkbox" id="' + attr_name + '-eq" checked>';
+      }
+      if ( $("#add-index-type-pres").is(":checked") ){
+        add_attr_type_pres = '<input type="checkbox" id="' + attr_name + '-pres" checked>';
+      }
+      if ( $("#add-index-type-sub").is(":checked") ){
+        add_attr_type_sub = '<input type="checkbox" id="' + attr_name + '-sub" checked>';
+      }
+      if ( $("#add-index-type-approx").is(":checked") ){
+        add_attr_type_approx = '<input type="checkbox" id="' + attr_name + '-approx" checked>';
+      }
+  
+      // TODO - add index to DS
+
+      // Update table on success
+      index_table.row.add( [
+        attr_name,
+        add_attr_type_eq,
+        add_attr_type_pres,
+        add_attr_type_sub,
+        add_attr_type_approx,
+        add_index_matchingrules,
+        index_btn_html
+      ] ).draw( false );
+  
       $("#add-index-form").css('display', 'none');
+      clear_index_form();
       // Do the actual save in DS
       // Update html
     });
+
 
     // Add encrypted attribute
     $("#add-encrypted-attr-button").on("click", function() {
-      $("#add-encrypted-attr-form").css('display', 'block');
+      clear_attr_encrypt_form();
     })
-    $("#add-encrypted-attr-close").on("click", function() {
-      $("#add-encrypted-attr-form").css('display', 'none');
-    });
-    $("#add-encrypted-attr-cancel").on("click", function() {
-      $("#add-encrypted-attr-form").css('display', 'none');
-    });
     $("#add-encrypted-attr-save").on("click", function() {
-      $("#add-encrypted-attr-form").css('display', 'none');
+      
       // Do the actual save in DS
       // Update html
+
+      var encrypt_attr_name = $("#attr-encrypt-list").val();
+      var attr_encrypt_algo = $("#nsencryptionalgorithm").val();
+      // TODO - add encrypted attr to DS
+
+console.log("Mark Save encrypted attribute");
+      // Update table on success
+      attr_encrypt_table.row.add( [
+        encrypt_attr_name,
+        attr_encrypt_algo,
+        attr_encrypt_del_html
+      ] ).draw( false );
+
+      $("#add-encrypted-attr-form").modal('toggle');
+
     });
 
     // Create Suffix
-    $("#add-suffix-close").on("click", function() {
-      $("#add-suffix-form").css('display', 'none');
-    });
-    $("#add-suffix-cancel").on("click", function() {
-      $("#add-suffix-form").css('display', 'none');
-    });
     $("#add-suffix-save").on("click", function() {
+      var suffix = $("#add-suffix-dn").val();
+      var backend = $("#add-suffix-backend").val();
+
+      // TODO - create suffix in DS
+
+      $('#db-tree').jstree().create_node('db-root', 
+                                         { "id" : "suffix-" + suffix, "text" : suffix, "icon" : "glyphicon glyphicon-tree-conifer" }, 
+                                         "last");
       $("#add-suffix-form").css('display', 'none');
-      // Do the actual save in DS
-      // Update html
     });
 
     // Create Sub Suffix
@@ -492,18 +728,19 @@ $(document).ready( function() {
       $("#add-subsuffix-form").css('display', 'none');
     });
     $("#add-subsuffix-save").on("click", function() {
+      var suffix = $("#add-subsuffix-dn").val();
+      var backend = $("#add-subsuffix-backend").val();
+      var parent_suffix = $("#db-tree").jstree().get_selected(true)[0];
+
+      // TODO - create suffix in DS
+
+      $('#db-tree').jstree().create_node(parent_suffix,  
+                                         { "id" : "subsuffix-" + suffix, "text" : suffix, "icon" : "glyphicon glyphicon-leaf" }, 
+                                         "last");
       $("#add-subsuffix-form").css('display', 'none');
-      // Do the actual save in DS
-      // Update html
     });
 
     // Init Suffix (import)
-    $("#import-ldif-close").on("click", function() {
-      $("#import-ldif-form").css('display', 'none');
-    });
-    $("#import-ldif-cancel").on("click", function() {
-      $("#import-ldif-form").css('display', 'none');
-    });
     $("#import-ldif-save").on("click", function() {
       $("#import-ldif-form").css('display', 'none');
       // Do the actual save in DS
@@ -522,28 +759,93 @@ $(document).ready( function() {
       // Do the actual save in DS
       // Update html
     });
+
+    $("#create-ref-save").on("click", function() {
+      
+      var ref = get_encoded_ref();
+      // Do the actual save in DS
+      // Update html
+      var tr_row = ref_table.row.add( [
+        ref,
+        ref_del_html
+      ] ).draw( false );
+      $( tr_row ).addClass('ds-nowrap-td');
+
+      $("#create-ref-form").modal('toggle');
+    });
+
+    $("#preview-ref-btn").on('click', function() {
+      $("#ref-preview-field").val(get_encoded_ref());
+    });
+
+    $(document).on('click', '.delete-referral-btn', function(e) {
+      e.preventDefault();
+      var data = ref_table.row( $(this).parents('tr') ).data();
+      var del_ref_name = data[0];
+      var ref_row = $(this);
+      bootpopup.confirm("Are you sure you want to delete referral: " + del_ref_name, "Confirmation", function (yes) {  
+        if (yes) {
+          // TODO Delete ref
+          ref_table.row( ref_row.parents('tr') ).remove().draw( false );
+        }
+      });
+    });
+
+
+    // suffix index actions
+    $(document).on('click', '.db-index-save-btn', function(e) {
+      e.preventDefault();
+      var data = index_table.row( $(this).parents('tr') ).data();
+      var save_index_name = data[0];
+        // Do save!
+    });
+
+    $(document).on('click', '.db-index-reindex-btn', function(e) {
+      e.preventDefault();
+      var data = index_table.row( $(this).parents('tr') ).data();
+      var reindex_name = data[0];
+      bootpopup.confirm("Are you sure you want to reindex attribute: " + reindex_name, "Confirmation", function (yes) {  
+        if (yes) {
+          // TODO reindex attr
+ 
+        }
+      });
+    });
+
+    $(document).on('click', '.db-index-delete-btn', function(e) {
+      e.preventDefault();
+      var data = index_table.row( $(this).parents('tr') ).data();
+      var del_index_name = data[0];
+      var index_row = $(this);
+
+      bootpopup.confirm("Are you sure you want to delete index: " + del_index_name, "Confirmation", function (yes) {  
+        if (yes) {
+          // TODO Delete index
+          index_table.row( index_row.parents('tr') ).remove().draw( false );
+        }
+      });
+    });
+
+    // Attribute encryption
+    $(document).on('click', '.attr-encrypt-delete-btn', function(e) {
+      e.preventDefault();
+      var data = attr_encrypt_table.row( $(this).parents('tr') ).data();
+      var attr_name = data[0];
+      var eattr_row = $(this);
+      bootpopup.confirm("Are you sure you want to delete encrypted attribute: " + attr_name, "Confirmation", function (yes) {  
+        if (yes) {
+          // TODO Delete ref
+          attr_encrypt_table.row( eattr_row.parents('tr') ).remove().draw( false );
+        }
+      });
+    });
+
   });
 });
 
 
 
 /*
-
-Global Settings
-=====================================
-nsslapd-lookthroughlimit: 5000
-nsslapd-idlistscanlimit: 4000
-nsslapd-dbcachesize: 536870912
-nsslapd-import-cache-autosize: -1
-nsslapd-import-cachesize: 16777216
-nsslapd-cache-autosize: 10
-nsslapd-cache-autosize-split: 40
-nsslapd-import-cachesize: 16777216
-nsslapd-pagedlookthroughlimit: 0
-nsslapd-pagedidlistscanlimit: 0
-nsslapd-rangelookthroughlimit: 5000
-
-
 
 
 Advanced:
@@ -570,17 +872,6 @@ nsslapd-serial-lock: on
 nsslapd-subtree-rename-switch: on
 nsslapd-backend-opt-level: 1
 
-
-
-backend
-=========================
-nsslapd-cachesize: -1
-nsslapd-cachememsize: 512000
-nsslapd-readonly: off
-nsslapd-require-index: off
-nsslapd-directory: /var/lib/dirsrv/slapd-localhost/db/NetscapeRoot
-nsslapd-dncachememsize: 16777216
-nsslapd-state:  <from mapping tree entry>
 
 
 
