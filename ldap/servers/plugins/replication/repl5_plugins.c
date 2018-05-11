@@ -1059,6 +1059,16 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
             goto common_return;
         }
 
+        /* Skip internal operations with no op csn if this is a read-only replica */
+        if (op_params->csn == NULL &&
+            operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+            replica_get_type(r) == REPLICA_TYPE_READONLY)
+        {
+            slapi_log_err(SLAPI_LOG_REPL, "write_changelog_and_ruv",
+                          "Skipping internal operation on read-only replica\n");
+            goto common_return;
+        }
+
         /* we might have stripped all the mods - in that case we do not
            log the operation */
         if (op_params->operation_type != SLAPI_OPERATION_MODIFY ||
