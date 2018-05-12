@@ -1005,8 +1005,10 @@ dse_write_file_nolock(struct dse *pdse)
                  * we need to open and fsync the dir to make the rename stick.
                  */
                 int fp_configdir = open(pdse->dse_configdir, O_PATH | O_DIRECTORY);
-                fsync(fp_configdir);
-                close(fp_configdir);
+                if (fp_configdir != -1) {
+                    fsync(fp_configdir);
+                    close(fp_configdir);
+                }
             }
         }
         if (fpw.fpw_prfd)

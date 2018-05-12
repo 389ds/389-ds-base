@@ -73,7 +73,7 @@ static RUVElement *ruvAddIndexReplicaNoCSN(RUV *ruv, ReplicaId rid, const char *
 static int ruvReplicaCompare(const void *el1, const void *el2);
 static RUVElement *get_ruvelement_from_berval(const struct berval *bval);
 static char *get_replgen_from_berval(const struct berval *bval);
-
+static PRInt32 ruv_replica_count_nolock(const RUV *ruv, int lock);
 static const char *const prefix_replicageneration = "{replicageneration}";
 static const char *const prefix_ruvcsn = "{replica "; /* intentionally missing '}' */
 
@@ -1366,20 +1366,28 @@ ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const ch
     return rc;
 }
 
-PRInt32
-ruv_replica_count(const RUV *ruv)
+static PRInt32
+ruv_replica_count_nolock(const RUV *ruv, int lock)
 {
     if (ruv == NULL)
         return 0;
     else {
         int count;
 
-        slapi_rwlock_rdlock(ruv->lock);
+        if (lock)
+            slapi_rwlock_rdlock(ruv->lock);
         count = dl_get_count(ruv->elements);
-        slapi_rwlock_unlock(ruv->lock);
+        if (lock)
+            slapi_rwlock_unlock(ruv->lock);
 
         return count;
     }
+}
+
+PRInt32
+ruv_replica_count(const RUV *ruv)
+{
+    return ruv_replica_count_nolock(ruv, 1);
 }
 
 /*
@@ -1406,7 +1414,7 @@ ruv_get_referrals(const RUV *ruv)
 
     slapi_rwlock_rdlock(ruv->lock);
 
-    n = ruv_replica_count(ruv);
+    n = ruv_replica_count_nolock(ruv, 0);
     if (n > 0) {
         RUVElement *replica;
         int cookie;
@@ -1664,7 +1672,11 @@ ruv_update_ruv(RUV *ruv, const CSN *csn, const char *replica_purl, void *replica
     slapi_rwlock_wrlock(ruv->lock);
     if (local_rid != prim_rid) {
         repl_ruv = ruvGetReplica(ruv, prim_rid);
-        rc = ruv_update_ruv_element(ruv, repl_ruv, prim_csn, replica_purl, PR_FALSE);
+        if ((rc = ruv_update_ruv_element(ruv, repl_ruv, prim_csn, replica_purl, PR_FALSE))) {
+           slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                         "ruv_update_ruv - failed to update primary ruv, error (%d)", rc);
+           return rc;
+        }
     }
     repl_ruv = ruvGetReplica(ruv, local_rid);
     rc = ruv_update_ruv_element(ruv, repl_ruv, prim_csn, replica_purl, PR_TRUE);

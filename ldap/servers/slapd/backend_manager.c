@@ -36,9 +36,13 @@ slapi_be_new(const char *type, const char *name, int isprivate, int logchanges)
         int oldsize = maxbackends;
         maxbackends += BACKEND_GRAB_SIZE;
         backends = (Slapi_Backend **)slapi_ch_realloc((char *)backends, maxbackends * sizeof(Slapi_Backend *));
-        memset(&backends[oldsize], '\0', BACKEND_GRAB_SIZE * sizeof(Slapi_Backend *));
+        for (i = oldsize; i < maxbackends; i++){
+            /* init the new be pointers so we can track empty slots */
+            backends[i] = NULL;
+        }
     }
 
+    /* Find the first open slot */
     for (i = 0; ((i < maxbackends) && (backends[i])); i++)
         ;
 

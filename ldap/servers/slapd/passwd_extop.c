@@ -146,29 +146,34 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods, 
          * that it was done by the root DN. */
         Connection *pb_conn = NULL;
         slapi_pblock_get(pb_orig, SLAPI_CONNECTION, &pb_conn);
-        slapi_pblock_set(pb, SLAPI_CONNECTION, pb_conn);
+        if (pb_conn){
+            slapi_pblock_set(pb, SLAPI_CONNECTION, pb_conn);
+            ret = slapi_modify_internal_pb(pb);
 
-        ret = slapi_modify_internal_pb(pb);
+            /* We now clean up the connection that we copied into the
+             * new pblock.  We want to leave it untouched. */
+            slapi_pblock_set(pb, SLAPI_CONNECTION, NULL);
 
-        /* We now clean up the connection that we copied into the
-         * new pblock.  We want to leave it untouched. */
-        slapi_pblock_set(pb, SLAPI_CONNECTION, NULL);
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+            /* Retrieve and duplicate the response controls since they will be
+             * destroyed along with the pblock used for the internal operation. */
+            slapi_pblock_get(pb, SLAPI_RESCONTROLS, &pb_resp_controls);
+            if (pb_resp_controls) {
+                slapi_add_controls(resp_controls, pb_resp_controls, 1);
+            }
 
-        /* Retrieve and duplicate the response controls since they will be
-         * destroyed along with the pblock used for the internal operation. */
-        slapi_pblock_get(pb, SLAPI_RESCONTROLS, &pb_resp_controls);
-        if (pb_resp_controls) {
-            slapi_add_controls(resp_controls, pb_resp_controls, 1);
+            if (ret != LDAP_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods",
+                              "WARNING: passwordPolicy modify error %d on entry '%s'\n",
+                              ret, slapi_sdn_get_dn(sdn));
+            }
+        } else {
+            ret = -1;
+            slapi_log_err(SLAPI_LOG_ERR, "passwd_apply_mods",
+                          "(%s) Original connection is NULL\n",
+                           slapi_sdn_get_dn(sdn));
         }
-
-        if (ret != LDAP_SUCCESS) {
-            slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods",
-                          "WARNING: passwordPolicy modify error %d on entry '%s'\n",
-                          ret, slapi_sdn_get_dn(sdn));
-        }
-
         slapi_pblock_destroy(pb);
     }
 

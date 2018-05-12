@@ -48,7 +48,8 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     struct berval *vals[2];
     char buf[BUFSIZ];
     uint64_t hits, tries;
-    uint64_t nentries, maxentries;
+    uint64_t nentries;
+    int64_t maxentries;
     uint64_t size, maxsize;
     /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
     struct stat astat;
@@ -100,7 +101,7 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     MSET("maxEntryCacheSize");
     sprintf(buf, "%" PRIu64, nentries);
     MSET("currentEntryCacheCount");
-    sprintf(buf, "%" PRIu64, maxentries);
+    sprintf(buf, "%" PRId64, maxentries);
     MSET("maxEntryCacheCount");
 
     if (entryrdn_get_switch()) {
@@ -119,7 +120,7 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("maxDnCacheSize");
         sprintf(buf, "%" PRIu64, nentries);
         MSET("currentDnCacheCount");
-        sprintf(buf, "%" PRIu64, maxentries);
+        sprintf(buf, "%" PRId64, maxentries);
         MSET("maxDnCacheCount");
     }
 

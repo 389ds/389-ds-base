@@ -600,6 +600,7 @@ new_task(const char *rawdn, void *plugin)
     if (task->task_log_lock == NULL) {
         /* Failed to allocate! Uh Oh! */
         slapi_ch_free((void **)&task);
+        slapi_ch_free_string(&dn);
         slapi_log_err(SLAPI_LOG_ERR, "new_task", "Unable to allocate task lock for: %s\n", rawdn);
         return NULL;
     }

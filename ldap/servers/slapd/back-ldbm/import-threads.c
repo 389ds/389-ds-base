@@ -1862,7 +1862,7 @@ upgradedn_producer(void *param)
             if (PL_strchr(rdnp, '\\')) {
                 do_dn_norm = 1;
             } else {
-                while ((++rdnp <= endrdn) && (*rdnp == ' ') && (*rdnp == '\t'))
+                while ((++rdnp <= endrdn) && (*rdnp == ' ' || *rdnp == '\t'))
                     ;
                 /* DN contains an RDN <type>="<value>" ? */
                 if ((rdnp != endrdn) && ('"' == *rdnp) && ('"' == *endrdn)) {

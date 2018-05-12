@@ -2448,7 +2448,7 @@ slapd_SSL_client_auth(LDAP *ld)
 
     /* Free config data */
 
-    if (!svrcore_setup()) {
+    if (!svrcore_setup() && token != NULL) {
 #ifdef WITH_SYSTEMD
         slapd_SSL_warn("Sending pin request to SVRCore. You may need to run "
                        "systemd-tty-ask-password-agent to provide the password.");

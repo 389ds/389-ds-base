@@ -29,8 +29,6 @@
 static const char retryWarning[] =
 "Warning: Incorrect PIN may result in disabling the token";
 static const char prompt[] = "Enter PIN for";
-static const char nt_retryWarning[] =
-"Warning: You entered an incorrect PIN. Incorrect PIN may result in disabling the token";
 
 struct SVRCOREUserPinObj
 {
@@ -122,14 +120,6 @@ static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
   /* If the program is not interactive then return no result */
   if (!tty->interactive) return 0;
 
-#ifdef _WIN32 
-  if (retry) {
-        MessageBox(GetDesktopWindow(), nt_retryWarning,
-                        "Netscape Server", MB_ICONEXCLAMATION | MB_OK);
-  }
-  return NT_PromptForPin(tokenName);
-#else
-
   if (retry)
     fprintf(stdout, "%s\n", retryWarning);
 
@@ -168,9 +158,6 @@ static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
   if (line[0] == 0) return 0;
 
   return strdup(line);
-
-#endif /* _WIN32 */
-
 }
 
 /*

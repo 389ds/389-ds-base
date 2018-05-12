@@ -494,7 +494,7 @@ cache_make_hashes(struct cache *cache, int type)
 
 /* initialize the cache */
 int
-cache_init(struct cache *cache, uint64_t maxsize, uint64_t maxentries, int type)
+cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type)
 {
     slapi_log_err(SLAPI_LOG_TRACE, "cache_init", "-->\n");
     cache->c_maxsize = maxsize;
@@ -703,7 +703,7 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes)
 }
 
 void
-cache_set_max_entries(struct cache *cache, long entries)
+cache_set_max_entries(struct cache *cache, int64_t entries)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
@@ -742,10 +742,10 @@ cache_get_max_size(struct cache *cache)
     return n;
 }
 
-long
+int64_t
 cache_get_max_entries(struct cache *cache)
 {
-    long n;
+    int64_t n;
 
     cache_lock(cache);
     n = cache->c_maxentries;
@@ -773,7 +773,7 @@ cache_entry_size(struct backentry *e)
  * these u_long *'s to a struct
  */
 void
-cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries, uint64_t *nentries, uint64_t *maxentries, uint64_t *size, uint64_t *maxsize)
+cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries, uint64_t *nentries, int64_t *maxentries, uint64_t *size, uint64_t *maxsize)
 {
     cache_lock(cache);
     if (hits)
@@ -1431,7 +1431,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
         /* don't add to lru since refcnt = 1 */
         LOG("added entry of size %lu -> total now %lu out of max %lu\n",
             e->ep_size, slapi_counter_get_value(cache->c_cursize), cache->c_maxsize);
-        if (cache->c_maxentries >= 0) {
+        if (cache->c_maxentries > 0) {
             LOG("    total entries %ld out of %ld\n",
                 cache->c_curentries, cache->c_maxentries);
         }
@@ -1838,7 +1838,7 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backd
         LOG("added entry of size %lu -> total now %lu out of max %lu\n",
             bdn->ep_size, slapi_counter_get_value(cache->c_cursize),
             cache->c_maxsize);
-        if (cache->c_maxentries >= 0) {
+        if (cache->c_maxentries > 0) {
             LOG("    total entries %ld out of %ld\n",
                 cache->c_curentries, cache->c_maxentries);
         }

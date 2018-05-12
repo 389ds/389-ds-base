@@ -115,7 +115,7 @@ batch_random(struct thread_info *info)
     size_t step = 0;
     size_t current_step = 0;
     size_t max_factors = info->iter / 2048;
-    size_t baseid;
+    size_t baseid = 0;
     void *output;
     /* Give ourselves a unique base id */
     for (size_t i = 0; i < info->tid; i++) {
@@ -188,7 +188,7 @@ batch_insert(struct thread_info *info)
     size_t cf = 0;
     size_t step = 0;
     size_t max_factors = info->iter / 2048;
-    size_t baseid;
+    size_t baseid = 0;
     /* Give ourselves a unique base id */
     for (size_t i = 0; i < info->tid; i++) {
         baseid += 50000;
@@ -215,7 +215,7 @@ batch_delete(struct thread_info *info)
     size_t cf = 0;
     size_t step = 0;
     size_t max_factors = info->iter / 2048;
-    size_t baseid;
+    size_t baseid = 0;
     /* Give ourselves a unique base id */
     for (size_t i = 0; i < info->tid; i++) {
         baseid += 50000;

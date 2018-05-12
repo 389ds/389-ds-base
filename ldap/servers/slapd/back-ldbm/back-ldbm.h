@@ -359,10 +359,10 @@ struct backdn
 /* for the in-core cache of entries */
 struct cache
 {
-    uint64_t c_maxsize;         /* max size in bytes */
+    uint64_t c_maxsize;       /* max size in bytes */
     Slapi_Counter *c_cursize; /* size in bytes */
-    uint64_t c_maxentries;        /* max entries allowed (-1: no limit) */
-    uint64_t c_curentries;        /* current # entries in cache */
+    int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
+    uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON

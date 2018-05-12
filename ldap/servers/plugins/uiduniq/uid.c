@@ -500,7 +500,7 @@ create_filter(const char **attributes, const struct berval *value, const char *r
     }
 
     /* Allocate the buffer */
-    filter = slapi_ch_malloc(filterLen);
+    filter = (char *)slapi_ch_calloc(1, filterLen + 1);
     fp = filter;
     max = &filter[filterLen];
 
