@@ -753,12 +753,12 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
-sbin_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
+libexec_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
 	ldap/admin/src/scripts/ds_selinux_port_query \
 	wrappers/ds_systemd_ask_password_acl
 
 if ENABLE_PERL
-sbin_SCRIPTS += ldap/admin/src/scripts/setup-ds.pl \
+sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/start-dirsrv \
@@ -2249,6 +2249,7 @@ fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
 	-e 's,@sbindir\@,$(sbindir),g' \
 	-e 's,@libdir\@,$(libdir),g' \
+	-e 's,@libexecdir\@,$(libexecdir),g' \
 	-e 's,@nspr_libdir\@,$(nspr_libdir),g' \
 	-e 's,@nss_libdir\@,$(nss_libdir),g' \
 	-e 's,@ldapsdk_libdir\@,$(ldapsdk_libdir),g' \

@@ -991,7 +991,7 @@ sub updateSelinuxPolicy {
 
     # if selinux is not available, do nothing
     # In perl, exit(1) is 256 from system. ds_selinux_enable returns 1 on true, 0 on false.
-    if ((getLogin() eq 'root') and "@with_selinux@" and system("$inf->{slapd}->{sbindir}/ds_selinux_enabled") == 256 ) {
+    if ((getLogin() eq 'root') and "@with_selinux@" and system("$inf->{slapd}->{libexecdir}/ds_selinux_enabled") == 256 ) {
         debug(1, "Selinux is enabled or permissive, fixing contexts\n");
         # -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
         my $localstatedir = $inf->{slapd}->{localstatedir};
@@ -1021,7 +1021,7 @@ sub updateSelinuxPolicy {
         # label the selected port as ldap_port_t
         # We should be doing this for secure port too .....
         if ($inf->{slapd}->{ServerPort} != 0 and not $ENV{DS_SKIP_LABEL}) {
-            my $port_query_cmd = ("$inf->{slapd}->{sbindir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t 2> $mydevnull");
+            my $port_query_cmd = ("$inf->{slapd}->{libexecdir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t 2> $mydevnull");
             my $need_label = 0;
             my $result = system($port_query_cmd);
 
@@ -1034,7 +1034,7 @@ sub updateSelinuxPolicy {
                 $need_label = 0;
                 debug(0, "Port $inf->{slapd}->{ServerPort} already belongs to another selinux type.\n");
                 debug(0, " The command below will show you the current type that owns the port.\n");
-                debug(0, "sudo $inf->{slapd}->{sbindir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t\n");
+                debug(0, "sudo $inf->{slapd}->{libexecdir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t\n");
                 debug(0, " It is highly likely your server will fail to start ... \n");
             }
             if ($result == 131072) {
@@ -1443,12 +1443,12 @@ sub removeDSInstance {
 
     # remove the selinux label from the ports if needed
     my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
-    if ((getLogin() eq 'root') and "@with_selinux@" and system("@sbindir@/ds_selinux_enabled") == 256 and not $ENV{DS_SKIP_UNLABEL}) {
+    if ((getLogin() eq 'root') and "@with_selinux@" and system("@libexecdir@/ds_selinux_enabled") == 256 and not $ENV{DS_SKIP_UNLABEL}) {
         foreach my $port (@{$entry->{"nsslapd-port"}}) 
         {
 
             my $need_remove_label = 0;
-            my $port_query_cmd = ("@sbindir@/ds_selinux_port_query $port ldap_port_t 2> $mydevnull");
+            my $port_query_cmd = ("@libexecdir@/ds_selinux_port_query $port ldap_port_t 2> $mydevnull");
             my $result = system($port_query_cmd);
 
             if ($result == 256) {
@@ -1487,7 +1487,7 @@ sub removeDSInstance {
         foreach my $secureport (@{$entry->{"nsslapd-secureport"}})
         {
             my $need_remove_label = 0;
-            my $port_query_cmd = ("@sbindir@/ds_selinux_port_query $secureport ldap_port_t 2> $mydevnull");
+            my $port_query_cmd = ("@libexecdir@/ds_selinux_port_query $secureport ldap_port_t 2> $mydevnull");
             my $result = system($port_query_cmd);
 
             if ($result == 256) {

@@ -346,6 +346,7 @@ autoreconf -fiv
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
+           --libexecdir=%{_libexecdir}/%{pkgname} \
            $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
            --enable-cmocka
 
@@ -548,9 +549,9 @@ fi
 %{_sbindir}/dsidm
 %{_sbindir}/ds-cockpit-setup
 %endif
-%{_sbindir}/ds_selinux_enabled
-%{_sbindir}/ds_selinux_port_query
-%{_sbindir}/ds_systemd_ask_password_acl
+%{_libexecdir}/%{pkgname}/ds_selinux_enabled
+%{_libexecdir}/%{pkgname}/ds_selinux_port_query
+%{_libexecdir}/%{pkgname}/ds_systemd_ask_password_acl
 %if %{use_perl}
 %{_sbindir}/monitor
 %{_sbindir}/bak2db

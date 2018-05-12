@@ -32,7 +32,7 @@ Environment=TSAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i
 Environment=MSAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.msan:print_stacktrace=1
 Environment=UBSAN_OPTIONS=log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.ubsan:print_stacktrace=1
 LimitCORE=infinity
-ExecStartPre=@sbindir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
+ExecStartPre=@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
 
 # Hardening options:
