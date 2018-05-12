@@ -19,8 +19,8 @@ from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX, BACKEND_NAME, PASS
 from lib389._controls import SSSRequestControl
 
 from lib389.idm.user import UserAccounts
-from lib389.idm.organization import Organisation
-from lib389.idm.organisationalunit import OrganisationalUnit
+from lib389.idm.organization import Organization
+from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.backend import Backends
 
 from lib389._mapped_object import DSLdapObject
@@ -97,7 +97,7 @@ def new_suffixes(topology_st):
     ACI_SUBJECT = '(userdn = "ldap:///anyone");)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
 
-    o_1 = Organisation(topology_st.standalone, NEW_SUFFIX_1)
+    o_1 = Organization(topology_st.standalone, NEW_SUFFIX_1)
     o_1.create(properties={
         'o': NEW_SUFFIX_1_NAME,
         'aci': ACI_BODY,
@@ -113,7 +113,7 @@ def new_suffixes(topology_st):
     mt = be_2.get_mapping_tree()
     mt.set_parent(NEW_SUFFIX_1)
 
-    ou_2 = OrganisationalUnit(topology_st.standalone, NEW_SUFFIX_2)
+    ou_2 = OrganizationalUnit(topology_st.standalone, NEW_SUFFIX_2)
     ou_2.create(properties={
         'ou': NEW_SUFFIX_2_NAME
     })

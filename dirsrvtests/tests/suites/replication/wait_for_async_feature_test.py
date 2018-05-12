@@ -16,7 +16,7 @@ from lib389.topologies import topology_m2
 from lib389._constants import SUFFIX, DEFAULT_SUFFIX, ErrorLog
 
 from lib389.agreement import Agreements
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def entries(topology_m2, request):
     test_list = []
 
     log.info("Add 100 nested entries under replicated suffix on %s" % master1.serverid)
-    ous = OrganisationalUnits(master1, DEFAULT_SUFFIX)
+    ous = OrganizationalUnits(master1, DEFAULT_SUFFIX)
     for i in range(100):
         ou = ous.create(properties={
             'ou' : 'test_ou_%s' % i,

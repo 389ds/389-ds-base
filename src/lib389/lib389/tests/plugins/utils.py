@@ -9,7 +9,7 @@
 
 from lib389.idm.user import UserAccount
 from lib389.idm.group import Group, UniqueGroup
-from lib389.idm.organisationalunit import OrganisationalUnit
+from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389._constants import DEFAULT_SUFFIX
 
 
@@ -97,7 +97,7 @@ def create_test_ou(instance, ou=None, suffix=None):
     ID each time. However, if it is provided with an existing ou/suffix it
     will fail to create a new ou and it will raise an LDAP error.
 
-    Returns an OrganisationalUnit object.
+    Returns an OrganizationalUnit object.
     """
     global test_ou_id
 
@@ -114,7 +114,7 @@ def create_test_ou(instance, ou=None, suffix=None):
         'ou': ou,
     }
 
-    ou = OrganisationalUnit(instance, dn)
+    ou = OrganizationalUnit(instance, dn)
     ou.create(properties=properties)
 
     return ou

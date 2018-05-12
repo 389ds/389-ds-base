@@ -16,7 +16,7 @@ from lib389.utils import *
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_st
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ def test_user(topology_st, request):
                                              'userPassword': PASSWORD})))
         log.info('Adding an aci for the bind user')
         BN_ACI = '(targetattr="*")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///%s";)' % BN
-        ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+        ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
         ou_people = ous.get('people')
         ou_people.add('aci', BN_ACI)
     except ldap.LDAPError as e:
@@ -63,7 +63,7 @@ def test_user(topology_st, request):
     def fin():
         log.info('Deleting user {}'.format(BN))
         topology_st.standalone.delete_s(BN)
-        ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+        ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
         ou_people = ous.get('people')
         ou_people.remove('aci', BN_ACI)
 
@@ -100,7 +100,7 @@ def password_policy(topology_st, test_user):
 
     log.info('Add pwdpolicysubentry attribute to {}'.format(OU_PEOPLE))
     try:
-        ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+        ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
         ou_people = ous.get('people')
         ou_people.set('pwdpolicysubentry', PWP_CONTAINER_PEOPLE)
     except ldap.LDAPError as e:

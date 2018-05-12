@@ -49,10 +49,5 @@ class Organizations(DSLdapObjects):
             'organization',
         ]
         self._filterattrs = [RDN]
-        self._childobject = Organisation
+        self._childobject = Organization
         self._basedn = basedn
-
-# Alias for "rest of world" :)
-Organisation = Organization
-Organisations = Organizations
-

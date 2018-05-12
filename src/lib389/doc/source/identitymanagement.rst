@@ -6,5 +6,5 @@ Identity Management
    user.rst
    group.rst
    domain.rst
-   organisationalunit.rst
+   organizationalunit.rst
    services.rst

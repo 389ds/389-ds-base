@@ -12,7 +12,7 @@ from .config import baseconfig, configoperation
 from .sample import sampleentries
 
 from lib389.idm.domain import Domain
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import UniqueGroups, UniqueGroup
 
 from lib389.plugins import WhoamiPlugin
@@ -37,7 +37,7 @@ class c001003006_sample_entries(sampleentries):
             'aci' : '(targetattr ="*")(version 3.0;acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///cn=Directory Administrators,{BASEDN}");)'.format(BASEDN=self._basedn)
             })
         # Create the OUs
-        ous = OrganisationalUnits(self._instance, self._basedn)
+        ous = OrganizationalUnits(self._instance, self._basedn)
         ous.create(properties = {
             'ou': 'Groups',
         })

@@ -10,7 +10,7 @@ from lib389._mapped_object import DSLdapObject, DSLdapObjects
 
 class nsContainer(DSLdapObject):
     """A single instance of a nsContainer. This is similar to OU
-    for organisation of a directory tree.
+    for organization of a directory tree.
 
     :param instance: An instance
     :type instance: lib389.DirSrv

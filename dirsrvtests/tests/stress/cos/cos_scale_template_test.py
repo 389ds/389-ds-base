@@ -14,7 +14,7 @@ from lib389.topologies import topology_st
 from lib389.plugins import ClassOfServicePlugin
 from lib389.cos import CosIndirectDefinitions, CosTemplates, CosTemplate
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 from lib389._constants import DEFAULT_SUFFIX
 
@@ -105,7 +105,7 @@ def test_indirect_template_scale(topology_st):
             ],
     })
 
-    ous = OrganisationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
     ou_temp = ous.create(properties={'ou': 'templates'})
     cos_temps = OUCosTemplates(topology_st.standalone, ou_temp.dn)
 

@@ -20,7 +20,7 @@ from lib389._constants import *
 from lib389.dseldif import DSEldif
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
 from lib389.topologies import create_topology, topology_i2 as topo
 
@@ -316,7 +316,7 @@ def test_automember(topo, args=None):
     groups = Groups(inst, DEFAULT_SUFFIX)
     group = groups.create(properties={'cn': 'group'})
 
-    ous = OrganisationalUnits(inst, DEFAULT_SUFFIX)
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
     branch1 = ous.create(properties={'ou': 'branch1'})
     branch2 = ous.create(properties={'ou': 'branch2'})
 
@@ -879,7 +879,7 @@ def test_mep(topo, args=None):
     # Configure plugin
     ############################################################################
     # Add our org units
-    ous = OrganisationalUnits(inst, DEFAULT_SUFFIX)
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
     ou_people = ous.create(properties={'ou': 'managed_people'})
     ou_groups = ous.create(properties={'ou': 'managed_groups'})
 

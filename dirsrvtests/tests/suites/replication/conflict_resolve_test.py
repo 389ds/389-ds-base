@@ -15,7 +15,7 @@ from lib389._constants import *
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import ReplicationManager
 from lib389.agreement import Agreements
 from lib389.plugins import MemberOfPlugin
@@ -489,7 +489,7 @@ class TestTwoMasters:
         M2 = topology_m2.ms["master2"]
         repl = ReplicationManager(SUFFIX)
 
-        ous = OrganisationalUnits(M1, DEFAULT_SUFFIX)
+        ous = OrganizationalUnits(M1, DEFAULT_SUFFIX)
         ou_people = ous.create(properties={'ou': 'managed_people'})
         ou_groups = ous.create(properties={'ou': 'managed_groups'})
 

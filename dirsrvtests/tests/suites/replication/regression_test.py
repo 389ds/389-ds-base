@@ -12,7 +12,7 @@ from lib389.utils import *
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3
 from lib389._constants import *
 from . import get_repl_entries
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccount
 from lib389.replica import Replicas, ReplicationManager
 from lib389.changelog import Changelog5
@@ -84,7 +84,7 @@ def test_repl_modrdn(topo_m2):
     :id: a3e17698-9eb4-41e0-b537-8724b9915fa6
     :setup: Two masters replication setup
     :steps:
-        1. Add 3 test OrganisationalUnits A, B and C
+        1. Add 3 test OrganizationalUnits A, B and C
         2. Add 1 test user under OU=A
         3. Add same test user under OU=B
         4. Stop Replication
@@ -111,7 +111,7 @@ def test_repl_modrdn(topo_m2):
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
     log.info("Add test entries - Add 3 OUs and 2 same users under 2 different OUs")
-    OUs = OrganisationalUnits(master1, DEFAULT_SUFFIX)
+    OUs = OrganizationalUnits(master1, DEFAULT_SUFFIX)
     OU_A = OUs.create(properties={
         'ou': 'A',
         'description': 'A',

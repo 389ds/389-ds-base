@@ -13,7 +13,7 @@ from lib389.utils import *
 from lib389.schema import Schema
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
-from lib389.idm.organisationalrole import OrganisationalRole, OrganisationalRoles
+from lib389.idm.organizationalrole import OrganizationalRole, OrganizationalRoles
 
 from lib389.topologies import topology_m2
 from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD
@@ -156,7 +156,7 @@ def _moddn_aci_deny_tree(topology_m2, mod_type=None,
     ACI_BODY = ACI_TARGET_TO + ACI_TARGET_FROM + ACI_ALLOW + ACI_SUBJECT
     # topology_m2.ms["master1"].modify_s(SUFFIX, mod)
     topology_m2.ms["master1"].log.info("Add a DENY aci under %s " % PROD_EXCEPT_DN)
-    prod_except = OrganisationalRole(topology_m2.ms["master1"], PROD_EXCEPT_DN)
+    prod_except = OrganizationalRole(topology_m2.ms["master1"], PROD_EXCEPT_DN)
     prod_except.set('aci', ACI_BODY, mod_type)
 
 
@@ -226,7 +226,7 @@ def moddn_setup(topology_m2):
     """
 
     m1 = topology_m2.ms["master1"]
-    o_roles = OrganisationalRoles(m1, SUFFIX)
+    o_roles = OrganizationalRoles(m1, SUFFIX)
 
     m1.log.info("\n\n######## INITIALIZATION ########\n")
 
@@ -250,7 +250,7 @@ def moddn_setup(topology_m2):
 
     # DIT for production/except
     m1.log.info("Add {}".format(PROD_EXCEPT_DN))
-    o_roles_prod = OrganisationalRoles(m1, PRODUCTION_DN)
+    o_roles_prod = OrganizationalRoles(m1, PRODUCTION_DN)
     o_roles_prod.create(properties={'cn': EXCEPT_CN, 'description': "production except DIT"})
 
     # enable acl error logging
@@ -445,7 +445,7 @@ def test_moddn_staging_prod_9(topology_m2, moddn_setup):
     old_dn = "%s,%s" % (old_rdn, STAGING_DN)
     new_rdn = old_rdn
     new_superior = PRODUCTION_DN
-    prod = OrganisationalRole(topology_m2.ms["master1"], PRODUCTION_DN)
+    prod = OrganizationalRole(topology_m2.ms["master1"], PRODUCTION_DN)
 
     #
     # Try to rename without the appropriate ACI  => INSUFFICIENT_ACCESS

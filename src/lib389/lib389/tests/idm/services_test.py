@@ -11,7 +11,7 @@ from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.services import ServiceAccounts
 
 from lib389.topologies import topology_st as topology
@@ -34,7 +34,7 @@ def test_services(topology):
 
     These are really useful in simple tests.
     """
-    ous = OrganisationalUnits(topology.standalone, DEFAULT_SUFFIX)
+    ous = OrganizationalUnits(topology.standalone, DEFAULT_SUFFIX)
     services = ServiceAccounts(topology.standalone, DEFAULT_SUFFIX)
 
     # Create the OU for them.

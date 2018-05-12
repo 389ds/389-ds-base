@@ -30,7 +30,7 @@ from lib389.idm.domain import Domain
 
 from lib389.idm.group import Groups
 from lib389.idm.services import ServiceAccounts
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 from lib389.agreement import Agreements
 
@@ -1385,7 +1385,7 @@ class ReplicationManager(object):
         """
         repl_group = self._create_service_group(from_instance)
         # Create our service account.
-        ous = OrganisationalUnits(from_instance, self._suffix)
+        ous = OrganizationalUnits(from_instance, self._suffix)
         ous.ensure_state(properties={
             'ou': 'Services'
         })

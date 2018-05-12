@@ -6,12 +6,12 @@ Usage example
 ::
 
     # Don't forget that Services requires created rdn='ou=Services'
-    # This you can create with OrganisationalUnits
+    # This you can create with OrganizationalUnits
      
-    from lib389.idm.organisationalunit import OrganisationalUnits
+    from lib389.idm.organizationalunit import OrganizationalUnits
     from lib389.idm.services import ServiceAccounts
      
-    ous = OrganisationalUnits(standalone, DEFAULT_SUFFIX)
+    ous = OrganizationalUnits(standalone, DEFAULT_SUFFIX)
     services = ServiceAccounts(standalone, DEFAULT_SUFFIX)
      
     # Create the OU for them

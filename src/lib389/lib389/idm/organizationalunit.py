@@ -13,7 +13,7 @@ MUST_ATTRIBUTES = [
 ]
 RDN = 'ou'
 
-class OrganisationalUnit(DSLdapObject):
+class OrganizationalUnit(DSLdapObject):
     """A single instance of OrganizationalUnit entry
 
     :param instance: An instance
@@ -23,7 +23,7 @@ class OrganisationalUnit(DSLdapObject):
     """
 
     def __init__(self, instance, dn=None):
-        super(OrganisationalUnit, self).__init__(instance, dn)
+        super(OrganizationalUnit, self).__init__(instance, dn)
         self._rdn_attribute = RDN
         # Can I generate these from schema?
         self._must_attributes = MUST_ATTRIBUTES
@@ -33,7 +33,7 @@ class OrganisationalUnit(DSLdapObject):
         ]
         self._protected = False
 
-class OrganisationalUnits(DSLdapObjects):
+class OrganizationalUnits(DSLdapObjects):
     """DSLdapObjects that represents OrganizationalUnits entry
 
     :param instance: An instance
@@ -43,12 +43,12 @@ class OrganisationalUnits(DSLdapObjects):
     """
 
     def __init__(self, instance, basedn):
-        super(OrganisationalUnits, self).__init__(instance)
+        super(OrganizationalUnits, self).__init__(instance)
         self._objectclasses = [
             'organizationalunit',
         ]
         self._filterattrs = [RDN]
-        self._childobject = OrganisationalUnit
+        self._childobject = OrganizationalUnit
         self._basedn = basedn
 
 

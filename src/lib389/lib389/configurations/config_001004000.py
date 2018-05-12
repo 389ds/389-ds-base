@@ -12,7 +12,7 @@ from .config import baseconfig, configoperation
 from .sample import sampleentries
 
 from lib389.idm.domain import Domain
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.posixgroup import PosixGroups
 from lib389.idm.user import nsUserAccounts
@@ -53,7 +53,7 @@ class c001004000_sample_entries(sampleentries):
             })
 
         # Create our ous.
-        ous = OrganisationalUnits(self._instance, self._basedn)
+        ous = OrganizationalUnits(self._instance, self._basedn)
         ous.create(properties = {
             'ou': 'groups',
             'aci': [

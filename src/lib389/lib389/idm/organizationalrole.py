@@ -14,7 +14,7 @@ MUST_ATTRIBUTES = [
 RDN = 'cn'
 
 
-class OrganisationalRole(DSLdapObject):
+class OrganizationalRole(DSLdapObject):
     """A single instance of OrganizationalRole entry
 
     :param instance: An instance
@@ -24,7 +24,7 @@ class OrganisationalRole(DSLdapObject):
     """
 
     def __init__(self, instance, dn=None):
-        super(OrganisationalRole, self).__init__(instance, dn)
+        super(OrganizationalRole, self).__init__(instance, dn)
         self._rdn_attribute = RDN
         self._must_attributes = MUST_ATTRIBUTES
         self._create_objectclasses = [
@@ -34,7 +34,7 @@ class OrganisationalRole(DSLdapObject):
         self._protected = False
 
 
-class OrganisationalRoles(DSLdapObjects):
+class OrganizationalRoles(DSLdapObjects):
     """DSLdapObjects that represents OrganizationalRole entry
 
     :param instance: An instance
@@ -44,11 +44,11 @@ class OrganisationalRoles(DSLdapObjects):
     """
 
     def __init__(self, instance, basedn):
-        super(OrganisationalRoles, self).__init__(instance)
+        super(OrganizationalRoles, self).__init__(instance)
         self._objectclasses = [
             'organizationalrole',
         ]
         self._filterattrs = [RDN]
-        self._childobject = OrganisationalRole
+        self._childobject = OrganizationalRole
         self._basedn = basedn
 

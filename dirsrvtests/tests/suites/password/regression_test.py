@@ -11,7 +11,7 @@ from lib389._constants import SUFFIX, PASSWORD, DN_DM
 from lib389.idm.user import UserAccounts
 from lib389.utils import ldap, os, logging, ensure_bytes
 from lib389.topologies import topology_st as topo
-from lib389.idm.organisationalunit import OrganisationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

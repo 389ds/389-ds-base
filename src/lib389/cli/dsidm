@@ -20,7 +20,7 @@ logging.basicConfig(format='%(message)s')
 from lib389._constants import DN_DM
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
-from lib389.cli_idm import organisationalunit as cli_ou
+from lib389.cli_idm import organizationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
 from lib389.cli_idm import user as cli_user

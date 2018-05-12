@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import argparse
-from lib389.idm.organisationalunit import OrganisationalUnit, OrganisationalUnits, MUST_ATTRIBUTES
+from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits, MUST_ATTRIBUTES
 
 from lib389.cli_base import (
     populate_attr_arguments,
@@ -22,8 +22,8 @@ from lib389.cli_base import (
     _warn,
     )
 
-SINGULAR = OrganisationalUnit
-MANY = OrganisationalUnits
+SINGULAR = OrganizationalUnit
+MANY = OrganizationalUnits
 RDN = 'ou'
 
 # These are a generic specification, try not to tamper with them
@@ -49,7 +49,7 @@ def delete(inst, basedn, log, args):
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn)
 
 def create_parser(subparsers):
-    ou_parser = subparsers.add_parser('organisationalunit', help='Manage organisational units')
+    ou_parser = subparsers.add_parser('organizationalunit', help='Manage organizational units')
 
     subcommands = ou_parser.add_subparsers(help='action')
 
