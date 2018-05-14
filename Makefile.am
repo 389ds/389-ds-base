@@ -288,7 +288,9 @@ clean-local:
 	-rm -rf dist
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man
+if RUST_ENABLE
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo clean --manifest-path=$(srcdir)/src/libsds/Cargo.toml
+endif
 
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
