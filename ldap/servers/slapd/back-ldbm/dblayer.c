@@ -6566,6 +6566,16 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                         goto error_out;
                     }
 
+                    if (inst->inst_parent_dir_name == NULL) {
+                        slapi_log_err(SLAPI_LOG_ERR, "dblayer_restore",
+                                      "Parent directory is not set, aborting restore\n");
+                        if (task) {
+                            slapi_task_log_notice(task, "dblayer_restore - Parent directory is not set, aborting restore\n");
+                        }
+                        PR_CloseDir(dirhandle);
+                        return_value = LDAP_UNWILLING_TO_PERFORM;
+                        goto error_out;
+                    }
                     if (slapd_comp_path(src_dir, inst->inst_parent_dir_name) == 0) {
                         slapi_log_err(SLAPI_LOG_ERR,
                                       "dblayer_restore", "Backup dir %s and target dir %s "

@@ -1178,7 +1178,7 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 }
 
 /*
- * Compare 2 pathes
+ * Compare 2 paths
  * Paths could contain ".", "..", "//" in the path, thus normalize them first.
  * One or two of the paths could be a relative path.
  */
@@ -1186,9 +1186,19 @@ int
 slapd_comp_path(char *p0, char *p1)
 {
     int rval = 0;
-    char *norm_p0 = rel2abspath(p0);
-    char *norm_p1 = rel2abspath(p1);
+    char *norm_p0;
+    char *norm_p1;
 
+    /*
+     * Neither path should be NULL, but it's possible when bad thing happen.
+     * Return 0 which triggers an error in the caller
+     */
+    if (p0 == NULL || p1 == NULL){
+        return 0;
+    }
+
+    norm_p0 = rel2abspath(p0);
+    norm_p1 = rel2abspath(p1);
     rval = strcmp(norm_p0, norm_p1);
     slapi_ch_free_string(&norm_p0);
     slapi_ch_free_string(&norm_p1);
