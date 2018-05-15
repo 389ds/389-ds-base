@@ -359,6 +359,13 @@ entry_add_present_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a)
  * Preserves LDAP Information Model constraints,
  * returning an LDAP result code.
  */
+static void entry_dump_stateinfo(char *msg, Slapi_Entry* e);
+static Slapi_Value *attr_most_recent_deleted_value(Slapi_Attr *a);
+static void resolve_single_valued_two_values(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, Slapi_Value *current_value, Slapi_Value *second_current_value);
+static void resolve_single_valued_check_restore_deleted_value(Slapi_Entry *e, Slapi_Attr *a);
+static void resolve_single_valued_zap_current(Slapi_Entry *e, Slapi_Attr *a);
+static void resolve_single_valued_set_adcsn(Slapi_Attr *a);
+static void resolve_single_valued_zap_deleted(Slapi_Attr *a);
 static void resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribute_state);
 static void resolve_attribute_state_deleted_to_present(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate);
 static void resolve_attribute_state_present_to_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate);
@@ -385,6 +392,20 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
         retVal = entry_add_present_values_wsi_multi_valued(e, a->a_type, bervals, csn, urp, 0);
     }
     return retVal;
+}
+
+/* Used for debug purpose, it dumps into the error log the
+ * entry with the replication stateinfo
+ */
+static void
+entry_dump_stateinfo(char *msg, Slapi_Entry* e)
+{
+	char *s;
+	int32_t len = 0;
+
+	s = slapi_entry2str_with_options(e, &len, SLAPI_DUMP_STATEINFO);
+	slapi_log_err(SLAPI_LOG_ERR, msg, "%s\n", s);
+	slapi_ch_free((void **)&s);
 }
 
 static int
@@ -705,6 +726,10 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
                 /* The attribute is single valued and the value was successful deleted */
                 /* but there could have been an add in the same operation, so double check */
                 if (valueset_isempty(&a->a_present_values)) {
+                    /* A doubt here, a direct update deletes the last value
+                     * of a single valued attribute. It will only contain deleted values.
+                     * Why not setting the adcsn (attr_set_deletion_csn) ?
+                     */
                     entry_present_attribute_to_deleted_attribute(e, a);
                 }
             } else if (retVal != LDAP_SUCCESS) {
@@ -1229,169 +1254,254 @@ resolve_attribute_state_present_to_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_
     }
 }
 
+/* Retrieve from the deleted values the one that
+ * was the most recently deleted. Based on its vdcsn
+ */
+static Slapi_Value *
+attr_most_recent_deleted_value(Slapi_Attr *a)
+{
+    Slapi_Value *v, *most_recent_v;
+    int i;
+    CSN *vdcsn, *most_recent_vdcsn;
+
+    vdcsn = NULL;
+    most_recent_vdcsn = NULL;
+    i = attr_first_deleted_value(a, &v);
+    most_recent_v = v;
+
+    while (i != -1) {
+        vdcsn = value_get_csn(v, CSN_TYPE_VALUE_DELETED);
+
+        if (csn_compare((const CSN *)most_recent_vdcsn, (const CSN *)vdcsn) < 0) {
+            most_recent_v = v;
+            most_recent_vdcsn = vdcsn;
+        }
+        i = attr_next_deleted_value(a, i, &v);
+    }
+    return most_recent_v;
+}
+
+/* This routine applies for single valued attribute.
+ * The attribute has two current values, it keeps the most recent one
+ * and zap the oldest
+ */
+static void
+resolve_single_valued_two_values(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, Slapi_Value *current_value, Slapi_Value *second_current_value)
+{
+
+    CSN *current_value_vucsn;
+    CSN *second_current_value_vucsn;
+    Slapi_Value *value_to_zap;
+    
+    current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
+    second_current_value_vucsn = value_get_csn(second_current_value, CSN_TYPE_VALUE_UPDATED);
+    
+    /* First determine which present value will be zapped */
+    if (csn_compare((const CSN *)second_current_value_vucsn, (const CSN *)current_value_vucsn) < 0) {
+        /*
+         * The second value is older but was distinguished at the time the current value was added
+         * then the second value should become current
+         */
+        if (value_distinguished_at_csn(e, a, second_current_value, (const CSN *)current_value_vucsn)) {
+            value_to_zap = current_value;
+        } else {
+            /* The second value being not distinguished, zap it as it is a single valued attribute */
+            value_to_zap = second_current_value;
+        }
+        
+    } else {
+        /* Here the current_value is older than the second_current_value */
+        if (value_distinguished_at_csn(e, a, current_value, (const CSN *)second_current_value_vucsn)) {
+            /* current_value was distinguished at the time the second value was added
+             * then the current_value should become the current */
+            value_to_zap = second_current_value;
+        } else {
+            value_to_zap = current_value;
+        }
+    }
+    entry_present_value_to_zapped_value(a, value_to_zap);
+    
+
+
+}
+
+/* This routine applies for single valued attribute.
+ * It checks if the deleted value is more recent than
+ * the present one. If it is, it resurect the deleted value
+ *
+ * This function leaves untouch the adcsn
+ */
+static void
+resolve_single_valued_check_restore_deleted_value(Slapi_Entry *e, Slapi_Attr *a)
+{
+    Slapi_Value *deleted_value = NULL;
+    Slapi_Value *current_value = NULL;
+
+    /* Retrieve the deleted and current value */
+    deleted_value = attr_most_recent_deleted_value(a);
+    if (deleted_value == NULL) {
+        return;
+    }
+    slapi_attr_first_value(a, &current_value);
+
+    if (current_value == NULL) {
+        /* An attribute needs a present value */
+        entry_deleted_value_to_present_value(a, deleted_value);
+    } else {
+        CSN *current_value_vucsn;
+        CSN *deleted_value_vucsn;
+        CSN *deleted_value_vdcsn;
+
+        deleted_value_vucsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_UPDATED);
+        deleted_value_vdcsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_DELETED);
+        current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
+        if (deleted_value_vucsn &&
+                !value_distinguished_at_csn(e, a, current_value, (const CSN *)deleted_value_vucsn) &&
+                (csn_compare((const CSN *)current_value_vucsn, (const CSN *)deleted_value_vucsn) < 0) &&
+                (csn_compare((const CSN *)deleted_value_vdcsn, (const CSN *)current_value_vucsn) < 0)) {
+            /* the condition to resurrect the deleted value is 
+             *  - it is more recent than the current value
+             *  - its value was deleted before the current value
+             *  - the current value is not distinguished
+             */
+            entry_present_value_to_zapped_value(a, current_value);
+            entry_deleted_value_to_present_value(a, deleted_value);
+        }
+    }
+}
+/* This function deals with single valued attribute
+ * It zap the current value if the adcsn is more recent and the value is not distinguished
+ */
+static void
+resolve_single_valued_zap_current(Slapi_Entry *e, Slapi_Attr *a)
+{
+    Slapi_Value *current_value = NULL;
+    CSN *current_value_vucsn;
+    CSN *adcsn;
+
+    /* check if the current value should be deleted because 
+     * older than adcsn and not distinguished
+     */
+    slapi_attr_first_value(a, &current_value);
+    current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
+    adcsn = attr_get_deletion_csn(a);
+    if (current_value != NULL) {
+        if (csn_compare((const CSN *)adcsn, (const CSN *) current_value_vucsn) > 0) {
+            /* the attribute was deleted after the value was last updated */
+            if (!value_distinguished_at_csn(e, a, current_value, (const CSN *) current_value_vucsn)) {
+                entry_present_value_to_zapped_value(a, current_value);
+            }
+        }
+    }
+}
+/* This function deals with single valued attribute
+ * It reset the adcsn if
+ * - there is no deleted value and current value is more recent than the adcsn
+ * - there is a deleted value and it is more recent than the adcsn
+ */
+static void
+resolve_single_valued_set_adcsn(Slapi_Attr *a)
+{
+    Slapi_Value *deleted_value = NULL;
+    Slapi_Value *current_value = NULL;
+    CSN *current_value_vucsn;
+    CSN *deleted_value_vucsn;
+    CSN *adcsn;
+    
+    slapi_attr_first_value(a, &current_value);
+    current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
+    deleted_value = attr_most_recent_deleted_value(a);
+    deleted_value_vucsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_UPDATED);
+    adcsn = attr_get_deletion_csn(a);
+    if ((deleted_value != NULL && (csn_compare(adcsn, (const CSN *) deleted_value_vucsn) < 0)) ||
+        (deleted_value == NULL && (csn_compare(adcsn, (const CSN *) current_value_vucsn) < 0))) {
+        attr_set_deletion_csn(a, NULL);
+    }
+}
+/* This function deals with single valued attribute
+ * It checks if the deleted value worth to be kept
+ * 
+ * deleted value is zapped if
+ * - it is the result of MOD_REPL that is older than current value
+ * - It is the result of MOD_DEL_<value> that is belong to the same operation that set the current value
+ */
+static void
+resolve_single_valued_zap_deleted(Slapi_Attr *a)
+{
+    Slapi_Value *deleted_value = NULL;
+    Slapi_Value *current_value = NULL;
+    CSN *current_value_vucsn;
+    CSN *deleted_value_vucsn;
+    CSN *deleted_value_vdcsn;
+    CSN *deleted_value_csn;
+    PRBool deleted_on_mod_del = PR_FALSE; /* flag if a value was deleted specifically */
+
+    /* Now determine if the deleted value worth to be kept */
+    slapi_attr_first_value(a, &current_value);
+    current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
+
+    deleted_value = attr_most_recent_deleted_value(a);
+    deleted_value_vucsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_UPDATED);
+    deleted_value_vdcsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_DELETED);
+
+    /* get the appropriate csn to take into consideration: either from MOD_REPL or from MOD_DEL_specific */
+    if (csn_compare((const CSN *) deleted_value_vdcsn, (const CSN *) deleted_value_vucsn) <= 0) {
+        deleted_value_csn = deleted_value_vucsn;
+    } else {
+        deleted_value_csn = deleted_value_vdcsn;
+        if (0 == csn_compare_ext((const CSN *) current_value_vucsn, (const CSN *) deleted_value_vdcsn, CSN_COMPARE_SKIP_SUBSEQ)) {
+            /* the deleted value was specifically delete in the same operation that set the current value */
+            deleted_on_mod_del = PR_TRUE;
+        }
+    }
+    if ((csn_compare((const CSN *) deleted_value_csn, (const CSN *) current_value_vucsn) < 0) || deleted_on_mod_del) {
+        entry_deleted_value_to_zapped_value(a, deleted_value);
+    }
+}
+
+/* This function deals with single valued attribute
+ * It does a set of cleanup in the current/deleted values in order
+ * to conform the schema, take care of distinguished values and only preserve the
+ * values that worth to be kept.
+ */
 static void
 resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribute_state)
 {
+    int32_t nbval, i;
     Slapi_Value *current_value = NULL;
-    Slapi_Value *pending_value = NULL;
-    Slapi_Value *new_value = NULL;
-    const CSN *current_value_vucsn;
-    const CSN *pending_value_vucsn;
-    const CSN *pending_value_vdcsn;
-    const CSN *adcsn;
-    int i;
 
-    /*
-     * this call makes sure that the attribute does not have a pending_value
-     * or deletion_csn which is before the current_value.
-     */
+    /* retrieve the current value(s) */
+    slapi_attr_get_numvalues(a, &nbval);
     i = slapi_attr_first_value(a, &current_value);
-    if (i != -1) {
-        slapi_attr_next_value(a, i, &new_value);
-    }
-    attr_first_deleted_value(a, &pending_value);
-    /* purge_attribute_state_single_valued */
-    adcsn = attr_get_deletion_csn(a);
-    current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
-    pending_value_vucsn = value_get_csn(pending_value, CSN_TYPE_VALUE_UPDATED);
-    pending_value_vdcsn = value_get_csn(pending_value, CSN_TYPE_VALUE_DELETED);
-    if ((pending_value != NULL && (csn_compare(adcsn, pending_value_vucsn) < 0)) ||
-        (pending_value == NULL && (csn_compare(adcsn, current_value_vucsn) < 0))) {
-        attr_set_deletion_csn(a, NULL);
-        adcsn = NULL;
-    }
 
-    /* in the case of the following:
-     * add: value2
-     * delete: value1
-     * we will have current_value with VUCSN CSN1
-     * and pending_value with VDCSN CSN2
-     * and new_value == NULL
-     * current_value != pending_value
-     * and
-     * VUCSN == VDCSN (ignoring subseq)
-     * even though value1.VDCSN > value2.VUCSN
-     * value2 should still win because the value is _different_
-     */
-    if (current_value && pending_value && !new_value && !adcsn &&
-        (0 != slapi_value_compare(a, current_value, pending_value)) &&
-        (0 == csn_compare_ext(current_value_vucsn, pending_value_vdcsn, CSN_COMPARE_SKIP_SUBSEQ))) {
-        /* just remove the deleted value */
-        entry_deleted_value_to_zapped_value(a, pending_value);
-        pending_value = NULL;
-    } else if (current_value && pending_value && !new_value && adcsn &&
-               (attribute_state == ATTRIBUTE_DELETED) &&
-               current_value_vucsn && !pending_value_vucsn && pending_value_vdcsn &&
-               (csn_compare(current_value_vucsn, pending_value_vdcsn) > 0) &&
-               (csn_compare(adcsn, pending_value_vdcsn) == 0)) {
-        /* in the case of the following:
-         * beginning attr state is a deleted value
-         * incoming operation is
-         * add: newvalue
-         * attribute_state is ATTRIBUTE_DELETED
-         * so we have both a current_value and a pending_value
-         * new_value is NULL
-         * current_value_vucsn is CSN1
-         * pending_value_vucsn is NULL
-         * pending_value_vdcsn is CSN2
-         * adcsn is CSN2 == pending_value_vdcsn
-         * CSN1 > CSN2
-         * since the pending_value is deleted, and the current_value has
-         * a greater CSN, we should keep the current_value and zap
-         * the pending_value
-         */
-        /* just remove the deleted value */
-        entry_deleted_value_to_zapped_value(a, pending_value);
-        /* move the attribute to the present attributes list */
-        entry_deleted_attribute_to_present_attribute(e, a);
-        pending_value = NULL;
-        attr_set_deletion_csn(a, NULL);
-        return; /* we are done - we are keeping the present value */
-    } else if (new_value == NULL) {
-        /* check if the pending value should become the current value */
-        if (pending_value != NULL) {
-            if (!value_distinguished_at_csn(e, a, current_value, pending_value_vucsn)) {
-                /* attribute.current_value = attribute.pending_value; */
-                /* attribute.pending_value = NULL; */
-                entry_present_value_to_zapped_value(a, current_value);
-                entry_deleted_value_to_present_value(a, pending_value);
-                current_value = pending_value;
-                pending_value = NULL;
-                current_value_vucsn = pending_value_vucsn;
-                pending_value_vucsn = NULL;
-            }
-        }
-        /* check if the current value should be deleted */
-        if (current_value != NULL) {
-            if (csn_compare(adcsn, current_value_vucsn) > 0) /* check if the attribute was deleted after the value was last updated */
-            {
-                if (!value_distinguished_at_csn(e, a, current_value, current_value_vucsn)) {
-                    entry_present_value_to_zapped_value(a, current_value);
-                    current_value = NULL;
-                    current_value_vucsn = NULL;
-                }
-            }
-        }
-    } else /* addition of a new value */
-    {
-        const CSN *new_value_vucsn = value_get_csn(new_value, CSN_TYPE_VALUE_UPDATED);
-        if (csn_compare(new_value_vucsn, current_value_vucsn) < 0) {
-            /*
-             * if the new value was distinguished at the time the current value was added
-             * then the new value should become current
-             */
-            if (value_distinguished_at_csn(e, a, new_value, current_value_vucsn)) {
-                /* attribute.pending_value = attribute.current_value  */
-                /* attribute.current_value = new_value  */
-                if (pending_value == NULL) {
-                    entry_present_value_to_deleted_value(a, current_value);
-                } else {
-                    entry_present_value_to_zapped_value(a, current_value);
-                }
-                pending_value = current_value;
-                current_value = new_value;
-                new_value = NULL;
-                pending_value_vucsn = current_value_vucsn;
-                current_value_vucsn = new_value_vucsn;
-            } else {
-                /* new_value= NULL */
-                entry_present_value_to_zapped_value(a, new_value);
-                new_value = NULL;
-            }
-        } else /* new value is after the current value */
-        {
-            if (!value_distinguished_at_csn(e, a, current_value, new_value_vucsn)) {
-                /* attribute.current_value = new_value */
-                entry_present_value_to_zapped_value(a, current_value);
-                current_value = new_value;
-                new_value = NULL;
-                current_value_vucsn = new_value_vucsn;
-            } else /* value is distinguished - check if we should replace the current pending value */
-            {
-                if (csn_compare(new_value_vucsn, pending_value_vucsn) > 0) {
-                    /* attribute.pending_value = new_value */
-                    entry_deleted_value_to_zapped_value(a, pending_value);
-                    entry_present_value_to_deleted_value(a, new_value);
-                    pending_value = new_value;
-                    new_value = NULL;
-                    pending_value_vucsn = new_value_vucsn;
-                }
-            }
+    /* If there are several values, first determine which value will be the current (present) one */
+    if (nbval > 1) {
+        /* There are several values for a single valued attribute, keep the most recent one */
+        if (i == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "resolve_attribute_state_single_valued", "Unexpected state of %s that contains more than one value but can not read the second\n", a->a_type);
+        } else {
+            Slapi_Value *second_current_value = NULL;
+
+            slapi_attr_next_value(a, i, &second_current_value);
+            resolve_single_valued_two_values(e, a, attribute_state, current_value, second_current_value);                
         }
     }
+    /* There is only one current value (present value) */
 
-    /*
-     * This call ensures that the attribute does not have a pending_value
-     * or a deletion_csn that is earlier than the current_value.
-     */
-    /* purge_attribute_state_single_valued */
-    if ((pending_value != NULL && (csn_compare(adcsn, pending_value_vucsn) < 0)) ||
-        (pending_value == NULL && (csn_compare(adcsn, current_value_vucsn) < 0))) {
-        attr_set_deletion_csn(a, NULL);
-        adcsn = NULL;
-    }
+    /* Now determine if the deleted value needs to replace the current value */
+    resolve_single_valued_check_restore_deleted_value(e, a);
 
-    /* set attribute state */
+    /* Now determine if the deleted value worth to be kept (vs. current value)  */
+    resolve_single_valued_zap_deleted(a);
+
+    /* Now determine if the current value worth to be kept (vs. adcsn) */
+    resolve_single_valued_zap_current(e, a);
+
+    /* Now set the adcsn */
+    resolve_single_valued_set_adcsn(a);
+
+    /* set the attribute in the correct list in the entry: present or deleted  */
+    slapi_attr_first_value(a, &current_value);
     if (current_value == NULL) {
         if (attribute_state == ATTRIBUTE_PRESENT) {
             entry_present_attribute_to_deleted_attribute(e, a);
