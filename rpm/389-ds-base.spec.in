@@ -126,6 +126,9 @@ BuildRequires:    python%{python3_pkgversion}-setuptools
 %if %{use_tcmalloc}
 BuildRequires:    gperftools-devel
 %endif
+
+# For cockpit
+BuildRequires:    rsync
 # END BUILD REQUIRES
 
 # Now, attach the requires only to the package that needs them.
@@ -293,6 +296,16 @@ Requires: python%{python3_pkgversion}-lib389
 %description  -n  python%{python3_pkgversion}-%{srcname}-tests
 The lib389 CI tests that can be run against the Directory Server.
 
+%package -n cockpit-389-ds
+Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
+BuildArch:        noarch
+Requires:         cockpit
+Requires:         python%{python3_pkgversion}
+Requires:         python%{python3_pkgversion}-lib389
+
+%description -n cockpit-389-ds
+A cockpit UI Plugin for configuring and administering the 389 Directory Server
+
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
 
@@ -371,7 +384,12 @@ make %{?_smp_mflags}
 rm -rf $RPM_BUILD_ROOT
 
 mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
+mkdir -p %{buildroot}%{_datadir}/cockpit
 make DESTDIR="$RPM_BUILD_ROOT" install
+
+# Cockpit directory and file list
+find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot}@@" | sed -e 's/^/\%dir /' > cockpit.list
+find %{buildroot}%{_datadir}/cockpit/389-console -type f | sed -e "s@%{buildroot}@@" >> cockpit.list
 
 # Copy in our docs from doxygen.
 cp -r %{_builddir}/%{name}-%{version}%{?prerel}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
@@ -547,7 +565,6 @@ fi
 %{_sbindir}/dscreate
 %{_sbindir}/dsctl
 %{_sbindir}/dsidm
-%{_sbindir}/ds-cockpit-setup
 %endif
 %{_libexecdir}/%{pkgname}/ds_selinux_enabled
 %{_libexecdir}/%{pkgname}/ds_selinux_port_query
@@ -660,6 +677,12 @@ fi
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+
 %{python3_sitelib}/dirsrvtests*
+%endif
+
+%if 0%{?rhel} > 7 || 0%{?fedora}
+%files -n cockpit-389-ds -f cockpit.list
+%defattr(-,root,root,-)
+%doc README.md
 %endif
 
 %changelog

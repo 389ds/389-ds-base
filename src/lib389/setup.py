@@ -59,7 +59,6 @@ setup(
     data_files=[
         ('/usr/sbin/', [
             # 'lib389/clitools/ds_setup',
-            'cli/ds-cockpit-setup',
             'cli/dsctl',
             'cli/dsconf',
             'cli/dscreate',
