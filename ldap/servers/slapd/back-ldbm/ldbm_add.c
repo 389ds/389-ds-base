@@ -905,10 +905,10 @@ ldbm_back_add(Slapi_PBlock *pb)
                 goto error_return;
             }
         }
-        if (is_tombstone_operation) {
+        if (is_tombstone_operation && slapi_is_loglevel_set(SLAPI_LOG_DEBUG)) {
             int len = 0;
             const char *rs = slapi_entry_get_rdn_const(addingentry->ep_entry);
-            char *es= slapi_entry2str_with_options(e, &len, SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID);
+            char *es= slapi_entry2str_with_options(addingentry->ep_entry, &len, SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID);
             slapi_log_err(SLAPI_LOG_DEBUG, "ldbm_back_add", "now adding entry: %s\n %s\n", rs?rs:"no rdn", es);
             slapi_ch_free_string(&es);
         }
