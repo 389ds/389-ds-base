@@ -17,12 +17,29 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-def test_ticket47384(topology_st):
-    '''
-    Test pluginpath validation: relative and absolute paths
-
+@pytest.mark.ds47384
+def test_pluginpath_validation(topology_st):
+    '''Test pluginpath validation: relative and absolute paths
     With the inclusion of ticket 47601 - we do allow plugin paths
     outside the default location
+
+    :id: 99f1fb2f-051d-4fd9-93d0-592dcd9b4c22
+    :setup: Standalone instance
+    :steps:
+         1. Copy the library to a temporary directory
+         2. Add valid plugin paths
+                * using the absolute path to the current library
+                * using new remote location
+         3. Set plugin path back to the default
+         4. Check invalid path (no library present)
+         5. Check invalid relative path (no library present)
+
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+         3. This should pass
+         4. This should fail
+         5. This should fail
     '''
 
     if os.geteuid() != 0:
@@ -53,63 +70,34 @@ def test_ticket47384(topology_st):
     # Test adding valid plugin paths
     #
     # Try using the absolute path to the current library
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', '%s/libwhoami-plugin' % plugin_dir)])
-    except ldap.LDAPError as e:
-        log.error('Failed to set valid plugin path (%s): error (%s)' %
-                  ('%s/libwhoami-plugin' % plugin_dir, e.message['desc']))
-        assert False
+    topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
+                                                 'nsslapd-pluginPath', ensure_bytes('%s/libwhoami-plugin' % plugin_dir))])
 
     # Try using new remote location
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', '%s/libwhoami-plugin' % tmp_dir)])
-    except ldap.LDAPError as e:
-        log.error('Failed to set valid plugin path (%s): error (%s)' %
-                  ('%s/libwhoami-plugin' % tmp_dir, e.message['desc']))
-        assert False
+    topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
+                                                 'nsslapd-pluginPath', ensure_bytes('%s/libwhoami-plugin' % tmp_dir))])
 
     # Set plugin path back to the default
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', 'libwhoami-plugin')])
-    except ldap.LDAPError as e:
-        log.error('Failed to set valid relative plugin path (%s): error (%s)' %
-                  ('libwhoami-plugin' % tmp_dir, e.message['desc']))
-        assert False
+    topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
+                                                 'nsslapd-pluginPath', b'libwhoami-plugin')])
 
     #
     # Test invalid path (no library present)
     #
-    try:
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', '/bin/libwhoami-plugin')])
+                                                     'nsslapd-pluginPath', b'/bin/libwhoami-plugin')])
         # No exception?! This is an error
         log.error('Invalid plugin path was incorrectly accepted by the server!')
-        assert False
-    except ldap.UNWILLING_TO_PERFORM:
-        # Correct, operation should be rejected
-        pass
-    except ldap.LDAPError as e:
-        log.error('Failed to set invalid plugin path (%s): error (%s)' %
-                  ('/bin/libwhoami-plugin', e.message['desc']))
 
     #
     # Test invalid relative path (no library present)
     #
-    try:
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', '../libwhoami-plugin')])
+                                                     'nsslapd-pluginPath', b'../libwhoami-plugin')])
         # No exception?! This is an error
         log.error('Invalid plugin path was incorrectly accepted by the server!')
-        assert False
-    except ldap.UNWILLING_TO_PERFORM:
-        # Correct, operation should be rejected
-        pass
-    except ldap.LDAPError as e:
-        log.error('Failed to set invalid plugin path (%s): error (%s)' %
-                  ('../libwhoami-plugin', e.message['desc']))
 
     log.info('Test complete')
 
@@ -119,3 +107,4 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
+
