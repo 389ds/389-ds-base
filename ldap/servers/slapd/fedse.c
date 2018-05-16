@@ -127,6 +127,33 @@ static const char *internal_entries[] =
         "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
         "nsslapd-plugintype: pwdstoragescheme\n"
         "nsslapd-pluginenabled: on\n",
+
+        "dn: cn=CRYPT-MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectClass: top\n"
+        "objectClass: nsSlapdPlugin\n"
+        "cn: CRYPT-MD5\n"
+        "nsslapd-pluginPath: libpwdstorage-plugin\n"
+        "nsslapd-pluginInitfunc: crypt_md5_pwd_storage_scheme_init\n"
+        "nsslapd-pluginType: pwdstoragescheme\n"
+        "nsslapd-pluginEnabled: on\n",
+
+        "dn: cn=CRYPT-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectClass: top\n"
+        "objectClass: nsSlapdPlugin\n"
+        "cn: CRYPT-SHA256\n"
+        "nsslapd-pluginPath: libpwdstorage-plugin\n"
+        "nsslapd-pluginInitfunc: crypt_sha256_pwd_storage_scheme_init\n"
+        "nsslapd-pluginType: pwdstoragescheme\n"
+        "nsslapd-pluginEnabled: on\n",
+
+        "dn: cn=CRYPT-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectClass: top\n"
+        "objectClass: nsSlapdPlugin\n"
+        "cn: CRYPT-SHA512\n"
+        "nsslapd-pluginPath: libpwdstorage-plugin\n"
+        "nsslapd-pluginInitfunc: crypt_sha512_pwd_storage_scheme_init\n"
+        "nsslapd-pluginType: pwdstoragescheme\n"
+        "nsslapd-pluginEnabled: on\n",
 };
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries) / sizeof(internal_entries[0]);
