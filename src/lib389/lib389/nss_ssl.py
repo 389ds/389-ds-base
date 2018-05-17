@@ -20,10 +20,11 @@ import shutil
 import logging
 # from nss import nss
 import subprocess
+from datetime import datetime, timedelta
 from subprocess import check_output
 from lib389.passwd import password_generate
 
-from lib389.utils import ensure_str, ensure_bytes
+from lib389.utils import ensure_str, ensure_bytes, format_cmd_list
 import uuid
 
 KEYBITS = 4096
@@ -36,10 +37,12 @@ CERT_SUFFIX = 'O=testing,L=389ds,ST=Queensland,C=AU'
 ISSUER = 'CN=ssca.389ds.example.com,%s' % CERT_SUFFIX
 SELF_ISSUER = 'CN={HOSTNAME},givenName={GIVENNAME},%s' % CERT_SUFFIX
 USER_ISSUER = 'CN={HOSTNAME},%s' % CERT_SUFFIX
-VALID = 2
+VALID = 24
+VALID_MIN = 61  # Days
 
 # My logger
 log = logging.getLogger(__name__)
+
 
 class NssSsl(object):
     def __init__(self, dirsrv=None, dbpassword=None, dbpath=None):
@@ -54,6 +57,10 @@ class NssSsl(object):
             self.dbpassword = password_generate()
         else:
             self.dbpassword = dbpassword
+
+        self.db_files = {"dbm_backend": ["%s/%s" % (self._certdb, f) for f in ("key3.db", "cert8.db", "secmod.db")],
+                         "sql_backend": ["%s/%s" % (self._certdb, f) for f in ("key4.db", "cert9.db", "pkcs11.txt")],
+                         "support": ["%s/%s" % (self._certdb, f) for f in ("noise.txt", "pin.txt", "pwdfile.txt")]}
 
     def detect_alt_names(self, alt_names=[]):
         """Attempt to determine appropriate subject alternate names for a host.
@@ -100,18 +107,12 @@ class NssSsl(object):
         with open(fpath, 'w') as f:
             f.write(noise)
 
-
     def reinit(self):
         """
         Re-init (create) the nss db.
         """
         # 48886: The DB that DS ships with is .... well, broken. Purge it!
-        for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
-            try:
-                # Perhaps we should be backing these up instead ...
-                os.remove("%s/%s" % (self._certdb, f ))
-            except:
-                pass
+        assert self.remove_db()
 
         try:
             os.makedirs(self._certdb)
@@ -132,27 +133,39 @@ class NssSsl(object):
         # 48886; This needs to be sql format ...
         cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
-        self.log.debug("nss cmd: %s" % cmd)
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         return True
 
     def _db_exists(self):
-        """
-        Check that a nss db exists at the certpath
-        """
-        key3 = os.path.exists("%s/key3.db" % (self._certdb))
-        cert8 = os.path.exists("%s/cert8.db" % (self._certdb))
-        key4 = os.path.exists("%s/key4.db" % (self._certdb))
-        cert9 = os.path.exists("%s/cert9.db" % (self._certdb))
-        secmod = os.path.exists("%s/secmod.db" % (self._certdb))
-        pkcs11 = os.path.exists("%s/pkcs11.txt" % (self._certdb))
+        """Check that a nss db exists at the certpath"""
 
-        if ((key3 and cert8 and secmod) or (key4 and cert9 and pkcs11)):
+        if all(map(os.path.exists, self.db_files["dbm_backend"])) or \
+           all(map(os.path.exists, self.db_files["sql_backend"])):
             return True
         return False
 
-    def create_rsa_ca(self):
+    def remove_db(self):
+        """Remove nss db files at the certpath"""
+
+        files = self.db_files["dbm_backend"] + \
+                self.db_files["sql_backend"] + \
+                self.db_files["support"]
+
+        for file in files:
+            try:
+                os.remove(file)
+            except FileNotFoundError:
+                pass
+
+        if os.path.isdir(self._certdb) and not os.listdir(self._certdb):
+            os.removedirs(self._certdb)
+
+        assert not self._db_exists()
+        return True
+
+    def create_rsa_ca(self, months=VALID):
         """
         Create a self signed CA.
         """
@@ -175,7 +188,7 @@ class NssSsl(object):
             '-t',
             'CT,,',
             '-v',
-            '%s' % VALID,
+            '%s' % months,
             '--keyUsage',
             'certSigning',
             '-d',
@@ -185,7 +198,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        self.log.debug("nss cmd: %s" % cmd)
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         # Now extract the CAcert to a well know place.
@@ -199,12 +212,111 @@ class NssSsl(object):
             self._certdb,
             '-a',
         ]
-        self.log.debug("nss cmd: %s" % cmd)
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
         certdetails = check_output(cmd, stderr=subprocess.STDOUT)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
-        check_output(['/usr/bin/c_rehash', self._certdb], stderr=subprocess.STDOUT)
+        cmd = ['/usr/bin/c_rehash', self._certdb]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
         return True
+
+    def rsa_ca_needs_renew(self):
+        """Check is our self signed CA is expired or
+        will expire less than a minimum period of time (VALID_MIN)
+        """
+
+        cmd = [
+            '/usr/bin/certutil',
+            '-L',
+            '-n',
+            CA_NAME,
+            '-d',
+            self._certdb,
+        ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
+        date_format = '%a %b %d %H:%M:%S %Y'
+        end_date = datetime.strptime(end_date_str, date_format)
+
+        if end_date - datetime.now() < timedelta(days=VALID_MIN):
+            return True
+        else:
+            return False
+
+    def renew_rsa_ca(self, months=VALID):
+        """Renew the self signed CA."""
+
+        csr_path = os.path.join(self._certdb, 'CA_renew.csr')
+        crt_path = '%s/ca.crt' % self._certdb
+
+        # Create noise.
+        self._generate_noise('%s/noise.txt' % self._certdb)
+
+        # Generate a CSR for a new CA cert
+        cmd = [
+            '/usr/bin/certutil',
+            '-R',
+            '-s',
+            ISSUER,
+            '-g',
+            '%s' % KEYBITS,
+            '-k',
+            'NSS Certificate DB:%s' % CA_NAME,
+            '-d',
+            self._certdb,
+            '-z',
+            '%s/noise.txt' % self._certdb,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+            '-a',
+            '-o', csr_path,
+            ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
+        # Sign the CSR with our old CA
+        cmd = [
+            '/usr/bin/certutil',
+            '-C',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+            '-a',
+            '-i', csr_path,
+            '-o', crt_path,
+            '-c', CA_NAME,
+            '--keyUsage',
+            'certSigning',
+            '-t',
+            'CT,,',
+            '-v',
+            '%s' % months,
+            ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
+        cmd = ['/usr/bin/c_rehash', self._certdb]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
+        # Import the new CA to our DB instead of the old CA
+        cmd = [
+            '/usr/bin/certutil',
+            '-A',
+            '-n', CA_NAME,
+            '-t', "CT,,",
+            '-a',
+            '-i', crt_path,
+            '-d', self._certdb,
+            '-f', '%s/%s' % (self._certdb, PWD_TXT),
+            ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
+        return crt_path
 
     def _rsa_cert_list(self):
         cmd = [
@@ -242,6 +354,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
 
         lines = result.split('\n')[1:-1]
@@ -304,8 +417,7 @@ class NssSsl(object):
                     have_user = True
         return have_user
 
-
-    def create_rsa_key_and_cert(self, alt_names=[]):
+    def create_rsa_key_and_cert(self, alt_names=[], months=VALID):
         """
         Create a key and a cert that is signed by the self signed ca
 
@@ -336,7 +448,7 @@ class NssSsl(object):
             '-t',
             ',,',
             '-v',
-            '%s' % VALID,
+            '%s' % months,
             '-d',
             self._certdb,
             '-z',
@@ -344,8 +456,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-
-        self.log.debug("nss cmd: %s" % cmd)
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         return True
@@ -381,8 +492,6 @@ class NssSsl(object):
             '-8', ','.join(alt_names),
             '-g',
             '%s' % KEYBITS,
-            '-v',
-            '%s' % VALID,
             '-d',
             self._certdb,
             '-z',
@@ -392,71 +501,90 @@ class NssSsl(object):
             '-a',
             '-o', csr_path,
         ]
-
-        self.log.debug("nss cmd: %s" % cmd)
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         return csr_path
 
-    def rsa_ca_sign_csr(self, csr_path):
+    def rsa_ca_sign_csr(self, csr_path, months=VALID):
         """ Given a CSR, sign it with our CA certificate (if present). This
         emits a signed certificate which can be imported with import_rsa_crt.
         """
         crt_path = 'crt'.join(csr_path.rsplit('csr', 1))
         ca_path = '%s/ca.crt' % self._certdb
 
-        check_output([
+        cmd = [
             '/usr/bin/certutil',
             '-C',
             '-d',
             self._certdb,
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
+            '-v',
+            '%s' % months,
             '-a',
             '-i', csr_path,
             '-o', crt_path,
             '-c', CA_NAME,
-        ], stderr=subprocess.STDOUT)
+        ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
 
         return (ca_path, crt_path)
 
-    def import_rsa_crt(self, ca, crt):
+    def import_rsa_crt(self, ca=None, crt=None):
         """Given a signed certificate from a ca, import the CA and certificate
         to our database.
-        """
-        shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
-        check_output(['/usr/bin/c_rehash', self._certdb], stderr=subprocess.STDOUT)
-        check_output([
-            '/usr/bin/certutil',
-            '-A',
-            '-n', CA_NAME,
-            '-t', "CT,,",
-            '-a',
-            '-i', '%s/ca.crt' % self._certdb,
-            '-d', self._certdb,
-            '-f',
-            '%s/%s' % (self._certdb, PWD_TXT),
-        ], stderr=subprocess.STDOUT)
-        check_output([
-            '/usr/bin/certutil',
-            '-A',
-            '-n', CERT_NAME,
-            '-t', ",,",
-            '-a',
-            '-i', crt,
-            '-d', self._certdb,
-            '-f',
-            '%s/%s' % (self._certdb, PWD_TXT),
-        ], stderr=subprocess.STDOUT)
-        check_output([
-            '/usr/bin/certutil',
-            '-V',
-            '-d', self._certdb,
-            '-n', CERT_NAME,
-            '-u', 'YCV'
-        ], stderr=subprocess.STDOUT)
 
-    def create_rsa_user(self, name):
+
+        """
+
+        assert ca is not None or crt is not None, "At least one parameter should be specified (ca or crt)"
+
+        if ca is not None:
+            shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
+            cmd = ['/usr/bin/c_rehash', self._certdb]
+            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            check_output(cmd, stderr=subprocess.STDOUT)
+            cmd = [
+                '/usr/bin/certutil',
+                '-A',
+                '-n', CA_NAME,
+                '-t', "CT,,",
+                '-a',
+                '-i', '%s/ca.crt' % self._certdb,
+                '-d', self._certdb,
+                '-f',
+                '%s/%s' % (self._certdb, PWD_TXT),
+            ]
+            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            check_output(cmd, stderr=subprocess.STDOUT)
+
+        if crt is not None:
+            cmd = [
+                '/usr/bin/certutil',
+                '-A',
+                '-n', CERT_NAME,
+                '-t', ",,",
+                '-a',
+                '-i', crt,
+                '-d', self._certdb,
+                '-f',
+                '%s/%s' % (self._certdb, PWD_TXT),
+            ]
+            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            check_output(cmd, stderr=subprocess.STDOUT)
+            cmd = [
+                '/usr/bin/certutil',
+                '-V',
+                '-d', self._certdb,
+                '-n', CERT_NAME,
+                '-u', 'YCV'
+            ]
+            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            check_output(cmd, stderr=subprocess.STDOUT)
+
+    def create_rsa_user(self, name, months=VALID):
         """
         Create a key and cert for a user to authenticate to the directory.
 
@@ -488,7 +616,7 @@ class NssSsl(object):
             '-t',
             ',,',
             '-v',
-            '%s' % VALID,
+            '%s' % months,
             '-d',
             self._certdb,
             '-z',
@@ -496,22 +624,25 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
 
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s" % result)
         # Now extract this into PEM files that we can use.
         # pk12util -o user-william.p12 -d . -k pwdfile.txt -n user-william -W ''
-        check_output([
+        cmd = [
             'pk12util',
             '-d', self._certdb,
             '-o', '%s/%s%s.p12' % (self._certdb, USER_PREFIX, name),
             '-k', '%s/%s' % (self._certdb, PWD_TXT),
             '-n', '%s%s' % (USER_PREFIX, name),
             '-W', '""'
-        ], stderr=subprocess.STDOUT)
+        ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
         # openssl pkcs12 -in user-william.p12 -passin pass:'' -out file.pem -nocerts -nodes
         # Extract the key
-        check_output([
+        cmd = [
             'openssl',
             'pkcs12',
             '-in', '%s/%s%s.p12' % (self._certdb, USER_PREFIX, name),
@@ -519,9 +650,11 @@ class NssSsl(object):
             '-out', '%s/%s%s.key' % (self._certdb, USER_PREFIX, name),
             '-nocerts',
             '-nodes'
-        ], stderr=subprocess.STDOUT)
+        ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
         # Extract the cert
-        check_output([
+        cmd = [
             'openssl',
             'pkcs12',
             '-in', '%s/%s%s.p12' % (self._certdb, USER_PREFIX, name),
@@ -530,16 +663,20 @@ class NssSsl(object):
             '-nokeys',
             '-clcerts',
             '-nodes'
-        ], stderr=subprocess.STDOUT)
+        ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
         # Convert the cert for userCertificate attr
-        check_output([
+        cmd = [
             'openssl',
             'x509',
             '-inform', 'PEM',
             '-outform', 'DER',
             '-in', '%s/%s%s.crt' % (self._certdb, USER_PREFIX, name),
             '-out', '%s/%s%s.der' % (self._certdb, USER_PREFIX, name),
-        ], stderr=subprocess.STDOUT)
+        ]
+        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
 
         return subject
 

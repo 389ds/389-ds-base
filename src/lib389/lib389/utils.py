@@ -33,6 +33,7 @@ import time
 import sys
 import filecmp
 import six
+import shlex
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
@@ -987,6 +988,7 @@ def pseudolocalize(string):
             pseudo_string += char
     return pseudo_string
 
+
 def assert_c(condition, msg="Assertion Failed"):
     """This is the same as assert, but assert is compiled out
     when optimisation is enabled. This prevents compiling out.
@@ -994,3 +996,8 @@ def assert_c(condition, msg="Assertion Failed"):
     if not condition:
         raise AssertionError(msg)
 
+
+def format_cmd_list(cmd):
+    """Format the subprocess command list to the quoted shell string"""
+
+    return " ".join(map(shlex.quote, cmd))

@@ -25,8 +25,9 @@ else:
 
 log = logging.getLogger(__name__)
 
+
 def test_external_ca():
-    """ Test the behaviour of our system ca database.
+    """Test the behaviour of our system ca database.
 
     :id: 321c85c1-9cf3-413f-9e26-99a8b327509c
 
@@ -54,9 +55,9 @@ def test_external_ca():
     (ca, crt) = ssca.rsa_ca_sign_csr(csr)
     tlsdb.import_rsa_crt(ca, crt)
 
+
 def test_nss_ssca_users(topo):
-    """
-    Validate that we can submit user certs to the ds ca for signing.
+    """Validate that we can submit user certs to the ds ca for signing.
 
     :id: a47e47ed-2056-440b-8797-d13fa89098f6
     :steps:
@@ -68,11 +69,13 @@ def test_nss_ssca_users(topo):
         2. It works.
         3. It works.
     """
+
     ssca = NssSsl(dbpath=topo.standalone.get_ssca_dir())
 
-    if not ssca._rsa_ca_exists():
+    if not ssca._db_exists():
         ssca.reinit()
-        ssca.create_rsa_ca()
+        if not ssca._rsa_ca_exists():
+            ssca.create_rsa_ca()
 
     # It better exist now!
     assert(ssca._rsa_ca_exists() is True)
@@ -80,9 +83,10 @@ def test_nss_ssca_users(topo):
     # Check making users certs. They should never conflict
     for user in ('william', 'noriko', 'mark'):
         # Create the user cert
-        assert(ssca.create_rsa_user(user) is True)
+        assert(ssca.create_rsa_user(user) is not None)
         # Assert it exists now
         assert(ssca._rsa_user_exists(user) is True)
+    assert(ssca._rsa_user_exists('non_existen') is False)
 
 
 if __name__ == "__main__":

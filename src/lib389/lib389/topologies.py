@@ -19,6 +19,7 @@ from lib389.utils import generate_ds_params
 from lib389.mit_krb5 import MitKrb5
 from lib389.saslmap import SaslMappings
 from lib389.replica import ReplicationManager, Replicas
+from lib389.nss_ssl import NssSsl
 from lib389._constants import *
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
@@ -27,6 +28,14 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+
+def _remove_ssca_db(topology):
+    ssca = NssSsl(dbpath=topology[0].get_ssca_dir())
+    if ssca._db_exists():
+        return ssca.remove_db()
+    else:
+        return True
 
 
 def _create_instances(topo_dict, suffix):
@@ -235,6 +244,7 @@ def topology_st(request):
         if DEBUGGING:
             topology.standalone.stop()
         else:
+            assert _remove_ssca_db(topology)
             if topology.standalone.exists():
                 topology.standalone.delete()
     request.addfinalizer(fin)
@@ -301,6 +311,7 @@ def topology_st_gssapi(request):
         if DEBUGGING:
             topology.standalone.stop()
         else:
+            assert _remove_ssca_db(topology)
             if topology.standalone.exists():
                 topology.standalone.delete()
             krb.destroy_realm()
@@ -320,6 +331,7 @@ def topology_i2(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -336,6 +348,7 @@ def topology_i3(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -351,6 +364,7 @@ def topology_m1(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -367,6 +381,7 @@ def topology_m1c1(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -383,6 +398,7 @@ def topology_m2(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -399,6 +415,7 @@ def topology_m3(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -415,6 +432,7 @@ def topology_m4(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -432,6 +450,7 @@ def topology_m2c2(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -467,6 +486,7 @@ def topology_m1h1c1(request):
         if DEBUGGING:
             [inst.stop() for inst in topology]
         else:
+            assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 

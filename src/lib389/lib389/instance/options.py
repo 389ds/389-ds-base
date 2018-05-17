@@ -192,6 +192,11 @@ class Slapd2Base(Options2):
         self._helptext['self_sign_cert'] = "Issue a self signed certificate during the setup process. This is not suitable for production TLS, but aids simplifying setup of TLS (you only need to replace a certificate instead)"
         self._example_comment['self_sign_cert'] = True
 
+        self._options['self_sign_cert_valid_months'] = 24
+        self._type['self_sign_cert_valid_months'] = int
+        self._helptext['self_sign_cert_valid_months'] = "Set a number of months for which the self signed cert will be issued."
+        self._example_comment['self_sign_cert_valid_months'] = True
+
         # In the future, make bin and sbin /usr/[s]bin, but we may need autotools assistance from Ds
         self._options['bin_dir'] = ds_paths.bin_dir
         self._type['bin_dir'] = str

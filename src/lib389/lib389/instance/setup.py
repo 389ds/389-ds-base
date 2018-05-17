@@ -430,19 +430,28 @@ class SetupDs(object):
         # Does this work?
         assert_c(ds_instance.exists(), "Instance failed to install, does not exist when expected")
 
-
         # Create a certificate database.
         tlsdb = NssSsl(dbpath=slapd['cert_dir'])
         if not tlsdb._db_exists():
             tlsdb.reinit()
 
         if slapd['self_sign_cert']:
-            # If it doesn't exist, create a cadb.
-            ssca_path = os.path.join(slapd['sysconf_dir'], 'dirsrv/ssca/')
+            etc_dirsrv_path = os.path.join(slapd['sysconf_dir'], 'dirsrv/')
+            ssca_path = os.path.join(etc_dirsrv_path, 'ssca/')
             ssca = NssSsl(dbpath=ssca_path)
+            # If it doesn't exist, create a CA DB
             if not ssca._db_exists():
                 ssca.reinit()
-                ssca.create_rsa_ca()
+                ssca.create_rsa_ca(months=slapd['self_sign_cert_valid_months'])
+            # If CA is expired or will expire soon,
+            # Reissue it and resign the existing certs that were signed by the cert previously
+            elif ssca.rsa_ca_needs_renew():
+                ca = ssca.renew_rsa_ca(months=slapd['self_sign_cert_valid_months'])
+                # Import CA to the existing instances except the one we install now (we import it later)
+                for dir in os.listdir(etc_dirsrv_path):
+                    if dir.startswith("slapd-") and dir != slapd['cert_dir']:
+                        tlsdb_inst = NssSsl(dbpath=os.path.join(etc_dirsrv_path, dir))
+                        tlsdb_inst.import_rsa_crt(ca)
 
             csr = tlsdb.create_rsa_key_and_csr()
             (ca, crt) = ssca.rsa_ca_sign_csr(csr)
