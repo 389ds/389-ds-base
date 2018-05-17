@@ -1822,9 +1822,17 @@ connection_threadmain()
 
             /* If we're in turbo mode, we keep our reference to the connection alive */
             /* can't use the more_data var because connection could have changed in another thread */
-            more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " check more_data %d thread_turbo_flag %d\n",
-                          conn->c_connid, more_data, thread_turbo_flag);
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " check more_data %d thread_turbo_flag %d"
+                          "repl_conn_bef %d, repl_conn_now %d\n",
+                          conn->c_connid, more_data, thread_turbo_flag,
+                          replication_connection, conn->c_isreplication_session);
+            if (!replication_connection &&  conn->c_isreplication_session) {
+                /* it a connection that was just flagged as replication connection */
+                more_data = 0;
+            } else {
+                /* normal connection or already established replication connection */
+                more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
+            }
             if (!more_data) {
                 if (!thread_turbo_flag) {
                     /*
