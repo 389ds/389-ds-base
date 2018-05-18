@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2018 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,6 +9,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
+import os
 import re
 import time
 import ldap
@@ -20,7 +21,7 @@ from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
 from ldap.controls import SimplePagedResultsControl
 
-VERSION = "1.2"
+VERSION = "1.3"
 RUV_FILTER = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
 LDAP = 'ldap'
 LDAPS = 'ldaps'
@@ -36,6 +37,7 @@ class Entry(object):
     ''' This is a stripped down version of Entry from python-lib389.
     Once python-lib389 is released on RHEL this class will go away.
     '''
+
     def __init__(self, entrydata):
         if entrydata:
             self.dn = entrydata[0]
@@ -51,7 +53,7 @@ class Entry(object):
 
 
 def get_entry(entries, dn):
-    ''' Loop over enties looking for a matching dn
+    ''' Loop over a list of enties looking for a matching dn
     '''
     for entry in entries:
         if entry.dn == dn:
@@ -60,7 +62,7 @@ def get_entry(entries, dn):
 
 
 def remove_entry(rentries, dn):
-    ''' Remove an entry from the array of entries
+    ''' Remove an entry from the list of entries
     '''
     for entry in rentries:
         if entry.dn == dn:
@@ -69,7 +71,7 @@ def remove_entry(rentries, dn):
 
 
 def extract_time(stateinfo):
-    ''' Take the nscpEntryWSI attribute and get the most recent timestamp from
+    ''' Take the nscpEntryWSI(state info) attribute and get the most recent timestamp from
     one of the csns (vucsn, vdcsn, mdcsn, adcsn)
 
     Return the timestamp in decimal
@@ -87,7 +89,7 @@ def extract_time(stateinfo):
 
 
 def convert_timestamp(timestamp):
-    ''' Convert createtimestamp to ctime: 20170405184656Z -> Wed Apr  5 19:46:56 2017
+    ''' Convert createtimestamp to ctime: 20170405184656Z ----> Wed Apr  5 19:46:56 2017
     '''
     time_tuple = (int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[6:8]),
                   int(timestamp[8:10]), int(timestamp[10:12]), int(timestamp[12:14]),
@@ -97,27 +99,43 @@ def convert_timestamp(timestamp):
 
 
 def convert_entries(entries):
-    '''Convert and normalize the ldap entries.  Take note of conflicts and tombstones
-    '''
+    '''For online report.  Convert and normalize the ldap entries.  Take note of
+    conflicts and tombstones '''
     new_entries = []
     conflict_entries = []
+    glue_entries = []
     result = {}
     tombstones = 0
+
     for entry in entries:
         new_entry = Entry(entry)
         new_entry.data = {k.lower(): v for k, v in list(new_entry.data.items())}
-        if 'nsds5replconflict' in new_entry.data:
+        if new_entry.dn.endswith("cn=mapping tree,cn=config"):
+            '''Skip replica entry (ldapsearch brings this in because the filter
+            we use triggers an internal operation to return the config entry - so
+            it must be skipped
+            '''
+            continue
+        if ('nsds5replconflict' in new_entry.data and 'nsTombstone' not in new_entry.data['objectclass'] and
+            'nstombstone' not in new_entry.data['objectclass']):
+            # This is a conflict entry that is NOT a tombstone entry (should this be reconsidered?)
             conflict_entries.append(new_entry)
+            if 'glue' in new_entry.data['objectclass']:
+                # A glue entry here is not necessarily a glue entry there.  Keep track of
+                # them for when we check missing entries
+                glue_entries.append(new_entry)
         else:
             new_entries.append(new_entry)
 
         if 'nstombstonecsn' in new_entry.data:
+            # Maintain tombstone count
             tombstones += 1
     del entries
 
     result['entries'] = new_entries
     result['conflicts'] = conflict_entries
     result['tombstones'] = tombstones
+    result['glue'] = glue_entries
 
     return result
 
@@ -174,20 +192,60 @@ def get_ruv_report(opts):
     return report
 
 
+def remove_attr_state_info(attr):
+    state_attr = None
+    idx = attr.find(';')
+    if idx > 0:
+        state_attr = attr  # preserve state info for diff report
+        if ";deleted" in attr:
+            # Ignore this attribute it was deleted
+            return None, state_attr
+        attr = attr[:idx]
+
+    return attr.lower(), state_attr
+
+def add_attr_entry(entry, val, attr, state_attr):
+    ''' Offline mode (ldif comparision) Add the attr to the entry, and if there
+    is state info add nscpentrywsi attr - we need consistency with online mode
+    to make code simpler '''
+    if attr is not None:
+        if attr in entry:
+            entry[attr].append(val)
+        else:
+            entry[attr] = [val]
+
+    # Handle state info for diff report
+    if state_attr is not None:
+        state_attr = state_attr + ": " + val
+        if 'nscpentrywsi' in entry:
+            entry['nscpentrywsi'].append(state_attr)
+        else:
+            entry['nscpentrywsi'] = [state_attr]
+    val = ""
+
+
 #
 # Offline mode helper functions
 #
-def ldif_search(LDIF, dn, conflicts=False):
-    ''' Search ldif by DN
+def ldif_search(LDIF, dn):
+    ''' Offline mode -  Search ldif for a single DN.  We need to factor in that
+    DN's and attribute values can wrap lines and are identified by a leading
+    white space.  So we can't fully process an attribute until we get to the
+    next attribute.
     '''
     result = {}
     data = {}
     found_conflict = False
+    found_subentry = False
     found_part_dn = False
+    found_part_val = False
+    found_attr = False
+    found_tombstone = False
+    found_glue = False
     found = False
-    reset_line = False
     count = 0
-
+    ignore_list = ['conflictcsn', 'modifytimestamp', 'modifiersname']
+    val = ""
     result['entry'] = None
     result['conflict'] = None
     result['tombstone'] = False
@@ -195,54 +253,132 @@ def ldif_search(LDIF, dn, conflicts=False):
     for line in LDIF:
         count += 1
         line = line.rstrip()
-        if reset_line:
-            reset_line = False
-            line = prev_line
+
         if found:
+            # We found our entry, now build up the entry (account from line wrap)
             if line == "":
-                # End of entry
+                # End of entry - update entry's last attribute value and break out
+                add_attr_entry(data, val, attr, state_attr)
+                val = ""
+                # Done!
                 break
 
             if line[0] == ' ':
-                # continuation line
-                prev = data[attr][len(data[attr]) - 1]
-                data[attr][len(data[attr]) - 1] = prev + line.strip()
+                # continuation line (wrapped value)
+                val += line[1:]
+                found_part_val = True
+                continue
+            elif found_part_val:
+                # We have the complete value now (it was wrapped)
+                found_part_val = False
+                found_attr = False
+                add_attr_entry(data, val, attr, state_attr)
+
+                # Now that the value is added to the entry lets process the new attribute...
+                value_set = line.split(":", 1)
+                attr, state_attr = remove_attr_state_info(value_set[0])
+
+                if attr in ignore_list or (attr is None and state_attr is None):
+                    # Skip it
+                    found_attr = False
+                    attr = None
+                    continue
+
+                val = value_set[1].strip()
+                found_attr = True
+
+                if attr is not None:
+                    # Set the entry type flags
+                    if attr.startswith('nsds5replconflict'):
+                        found_conflict = True
+                    if attr.startswith("objectclass") and val == "ldapsubentry":
+                        found_subentry = True
+                    if attr.startswith('nstombstonecsn'):
+                        result['tombstone'] = True
+                        found_tombstone = True
+                continue
+            else:
+                # New attribute...
+                if found_attr:
+                    # But first we have to add the previous complete attr value to the entry data
+                    add_attr_entry(data, val, attr, state_attr)
+
+                # Process new attribute
+                value_set = line.split(":", 1)
+                attr, state_attr = remove_attr_state_info(value_set[0])
+                if attr is None or attr in ignore_list:
+                    # Skip it (its deleted)
+                    found_attr = False
+                    attr = None
+                    continue
+
+                val = value_set[1].strip()
+                found_attr = True
+
+                # Set the entry type flags
+                if attr.startswith('nsds5replconflict'):
+                    found_conflict = True
+                if attr.startswith("objectclass") and (val == "ldapsubentry" or val == "glue"):
+                    if val == "glue":
+                        found_glue = True
+                    found_subentry = True
+                if attr.startswith('nstombstonecsn'):
+                    result['tombstone'] = True
+                    found_tombstone = True
                 continue
 
-            value_set = line.split(":", 1)
-            attr = value_set[0].lower()
-            if attr.startswith('nsds5replconflict'):
-                found_conflict = True
-            if attr.startswith('nstombstonecsn'):
-                result['tombstone'] = True
-
-            if attr in data:
-                data[attr].append(value_set[1].strip())
-            else:
-                data[attr] = [value_set[1].strip()]
         elif found_part_dn:
             if line[0] == ' ':
+                # DN is still wrapping, keep building up the dn value
                 part_dn += line[1:].lower()
             else:
-                # We have the full dn
+                # We now have the full dn
                 found_part_dn = False
-                reset_line = True
-                prev_line = line
                 if part_dn == dn:
+                    # We found our entry
                     found = True
+
+                    # But now we have a new attribute to process
+                    value_set = line.split(":", 1)
+                    attr, state_attr = remove_attr_state_info(value_set[0])
+                    if attr is None or attr in ignore_list:
+                        # Skip it (its deleted)
+                        found_attr = False
+                        attr = None
+                        continue
+
+                    val = value_set[1].strip()
+                    found_attr = True
+
+                    if attr.startswith('nsds5replconflict'):
+                        found_conflict = True
+                    if attr.startswith("objectclass") and val == "ldapsubentry":
+                        found_subentry = True
+
+                    if attr.startswith('nstombstonecsn'):
+                        result['tombstone'] = True
+                        found_tombstone = True
                     continue
+
         if line.startswith('dn: '):
             if line[4:].lower() == dn:
+                # We got our full DN, now process the entry
                 found = True
                 continue
             else:
+                # DN wraps the line, keep looping until we get the whole value
                 part_dn = line[4:].lower()
                 found_part_dn = True
 
+    # Keep track of entry index - we use this later when searching the LDIF again
     result['idx'] = count
-    if found_conflict:
+
+    result['glue'] = None
+    if found_conflict and found_subentry and found_tombstone is False:
         result['entry'] = None
         result['conflict'] = Entry([dn, data])
+        if found_glue:
+            result['glue'] = result['conflict']
     elif found:
         result['conflict'] = None
         result['entry'] = Entry([dn, data])
@@ -251,7 +387,7 @@ def ldif_search(LDIF, dn, conflicts=False):
 
 
 def get_dns(LDIF, opts):
-    ''' Get all the DN's
+    ''' Get all the DN's from an LDIF file
     '''
     dns = []
     found = False
@@ -275,7 +411,7 @@ def get_dns(LDIF, opts):
 
 
 def get_ldif_ruv(LDIF, opts):
-    ''' Search the ldif and get the ruv entry
+    ''' Search the LDIF and get the ruv entry
     '''
     LDIF.seek(0)
     result = ldif_search(LDIF, opts['ruv_dn'])
@@ -283,7 +419,7 @@ def get_ldif_ruv(LDIF, opts):
 
 
 def cmp_entry(mentry, rentry, opts):
-    ''' Compare the two entries, and return a diff map
+    ''' Compare the two entries, and return a "diff map"
     '''
     diff = {}
     diff['dn'] = mentry['dn']
@@ -307,6 +443,7 @@ def cmp_entry(mentry, rentry, opts):
                 diff['missing'].append(" - Replica missing attribute: \"%s\"" % (mattr))
                 diff_count += 1
                 if 'nscpentrywsi' in mentry.data:
+                    # Great we have state info so we can provide details about the missing attribute
                     found = False
                     for val in mentry.data['nscpentrywsi']:
                         if val.lower().startswith(mattr + ';'):
@@ -316,6 +453,7 @@ def cmp_entry(mentry, rentry, opts):
                             diff['missing'].append(" - Master's State Info: %s" % (val))
                             diff['missing'].append(" - Date: %s\n" % (time.ctime(extract_time(val))))
                 else:
+                    # No state info, just move on
                     diff['missing'].append("")
 
         elif mentry.data[mattr] != rentry.data[mattr]:
@@ -335,6 +473,9 @@ def cmp_entry(mentry, rentry, opts):
                     if not found:
                         diff['diff'].append("      Master: ")
                         for val in mentry.data[mattr]:
+                            # This is an "origin" value which means it's never been
+                            # updated since replication was set up.  So its the
+                            # original value
                             diff['diff'].append("        - Origin value: %s" % (val))
                         diff['diff'].append("")
 
@@ -350,10 +491,13 @@ def cmp_entry(mentry, rentry, opts):
                     if not found:
                         diff['diff'].append("      Replica: ")
                         for val in rentry.data[mattr]:
+                            # This is an "origin" value which means it's never been
+                            # updated since replication was set up.  So its the
+                            # original value
                             diff['diff'].append("        - Origin value: %s" % (val))
                         diff['diff'].append("")
                 else:
-                    # no state info
+                    # no state info, report what we got
                     diff['diff'].append("      Master: ")
                     for val in mentry.data[mattr]:
                         diff['diff'].append("        - %s: %s" % (mattr, val))
@@ -436,40 +580,62 @@ def do_offline_report(opts, output_file=None):
     MLDIF.seek(idx)
     RLDIF.seek(idx)
 
-    # Compare the master entries with the replica's
+    """ Compare the master entries with the replica's.  Take our list of dn's from
+    the master ldif and get that entry( dn) from the master and replica ldif.  In
+    this phase we keep keep track of conflict/tombstone counts, and we check for
+    missing entries and entry differences.   We only need to do the entry diff
+    checking in this phase - we do not need to do it when process the replica dn's
+    because if the entry exists in both LDIF's then we already checked or diffs
+    while processing the master dn's.
+    """
     print ("Comparing Master to Replica...")
     missing = False
     for dn in master_dns:
-        mresult = ldif_search(MLDIF, dn, True)
-        rresult = ldif_search(RLDIF, dn, True)
+        mresult = ldif_search(MLDIF, dn)
+        rresult = ldif_search(RLDIF, dn)
+
+        if dn in replica_dns:
+            if (rresult['entry'] is not None or rresult['glue'] is not None or
+                rresult['conflict'] is not None or rresult['tombstone']):
+                """ We can safely remove this DN from the replica dn list as it
+                does not need to be checked again.  This also speeds things up
+                when doing the replica vs master phase.
+                """
+                replica_dns.remove(dn)
 
         if mresult['tombstone']:
             mtombstones += 1
+            # continue
+        if rresult['tombstone']:
+            rtombstones += 1
 
         if mresult['conflict'] is not None or rresult['conflict'] is not None:
+            # If either entry is a conflict we still process it here
             if mresult['conflict'] is not None:
                 mconflicts.append(mresult['conflict'])
+            if rresult['conflict'] is not None:
+                rconflicts.append(rresult['conflict'])
         elif rresult['entry'] is None:
-            # missing entry - restart the search from beginning
+            # missing entry - restart the search from beginning in case it got skipped
             RLDIF.seek(0)
             rresult = ldif_search(RLDIF, dn)
-            if rresult['entry'] is None:
-                # missing entry in rentries
-                RLDIF.seek(mresult['idx'])  # Set the cursor to the last good line
+            if rresult['entry'] is None and rresult['glue'] is None:
+                # missing entry in Replica(rentries)
+                RLDIF.seek(mresult['idx'])  # Set the LDIF cursor/index to the last good line
                 if not missing:
-                    missing_report += ('Replica is missing entries:\n')
+                    missing_report += ('  Entries missing on Replica:\n')
                     missing = True
                 if mresult['entry'] and 'createtimestamp' in mresult['entry'].data:
-                    missing_report += ('  - %s  (Master\'s creation date:  %s)\n' %
+                    missing_report += ('   - %s  (Created on Master at: %s)\n' %
                                        (dn, convert_timestamp(mresult['entry'].data['createtimestamp'][0])))
                 else:
                     missing_report += ('  - %s\n' % dn)
-            else:
+            elif mresult['tombstone'] is False:
                 # Compare the entries
                 diff = cmp_entry(mresult['entry'], rresult['entry'], opts)
                 if diff:
                     diff_report.append(format_diff(diff))
-        else:
+        elif mresult['tombstone'] is False:
             # Compare the entries
             diff = cmp_entry(mresult['entry'], rresult['entry'], opts)
             if diff:
@@ -478,7 +644,10 @@ def do_offline_report(opts, output_file=None):
     if missing:
         missing_report += ('\n')
 
-    # Search Replica, and look for missing entries only.  Count entries as well
+    """ Search Replica, and look for missing entries only.  We already did the
+    diff checking, so its only missing entries we are worried about. Count the
+    remaining conflict & tombstone entries as well.
+    """
     print ("Comparing Replica to Master...")
     MLDIF.seek(0)
     RLDIF.seek(0)
@@ -486,26 +655,26 @@ def do_offline_report(opts, output_file=None):
     for dn in replica_dns:
         rresult = ldif_search(RLDIF, dn)
         mresult = ldif_search(MLDIF, dn)
-
         if rresult['tombstone']:
             rtombstones += 1
-        if mresult['entry'] is not None or rresult['conflict'] is not None:
-            if rresult['conflict'] is not None:
-                rconflicts.append(rresult['conflict'])
+            # continue
+
+        if rresult['conflict'] is not None:
+            rconflicts.append(rresult['conflict'])
         elif mresult['entry'] is None:
             # missing entry
             MLDIF.seek(0)
             mresult = ldif_search(MLDIF, dn)
-            if mresult['entry'] is None and mresult['conflict'] is not None:
-                MLDIF.seek(rresult['idx'])  # Set the cursor to the last good line
+            if mresult['entry'] is None and mresult['glue'] is None:
+                MLDIF.seek(rresult['idx'])  # Set the LDIF cursor/index to the last good line
                 if not missing:
-                    missing_report += ('Master is missing entries:\n')
+                    missing_report += ('  Entries missing on Master:\n')
                     missing = True
-                if 'createtimestamp' in rresult['entry'].data:
-                    missing_report += ('  - %s  (Replica\'s creation date:  %s)\n' %
+                if rresult['entry'] and 'createtimestamp' in rresult['entry'].data:
+                    missing_report += ('   - %s  (Created on Replica at: %s)\n' %
                                        (dn, convert_timestamp(rresult['entry'].data['createtimestamp'][0])))
                 else:
-                    missing_report += ('  - %s\n')
+                    missing_report += ('  - %s\n' % dn)
     if missing:
         missing_report += ('\n')
 
@@ -553,8 +722,8 @@ def do_offline_report(opts, output_file=None):
         print(final_report)
 
 
-def check_for_diffs(mentries, rentries, report, opts):
-    ''' Check for diffs, return the updated report
+def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
+    ''' Online mode only - Check for diffs, return the updated report
     '''
     diff_report = []
     m_missing = []
@@ -569,18 +738,26 @@ def check_for_diffs(mentries, rentries, report, opts):
     for mentry in mentries:
         rentry = get_entry(rentries, mentry.dn)
         if rentry:
-            diff = cmp_entry(mentry, rentry, opts)
-            if diff:
-                diff_report.append(format_diff(diff))
+            if 'nsTombstone' not in rentry.data['objectclass'] and 'nstombstone' not in rentry.data['objectclass']:
+                diff = cmp_entry(mentry, rentry, opts)
+                if diff:
+                    diff_report.append(format_diff(diff))
             # Now remove the rentry from the rentries so we can find stragglers
             remove_entry(rentries, rentry.dn)
         else:
-            # Add missing entry in Replica
-            r_missing.append(mentry)
+            rentry = get_entry(rglue, mentry.dn)
+            if rentry:
+                # Glue entry nothing to compare
+                remove_entry(rentries, rentry.dn)
+            else:
+                # Add missing entry in Replica
+                r_missing.append(mentry)
 
     for rentry in rentries:
         # We should not have any entries if we are sync
-        m_missing.append(rentry)
+        mentry = get_entry(mglue, rentry.dn)
+        if mentry is None:
+            m_missing.append(rentry)
 
     if len(diff_report) > 0:
         report['diff'] += diff_report
@@ -609,6 +786,12 @@ def connect_to_replicas(opts):
         ruri = "%s://%s:%s/" % (opts['rprotocol'], opts['rhost'], opts['rport'])
     replica = SimpleLDAPObject(ruri)
 
+    # Set timeouts
+    master.set_option(ldap.OPT_NETWORK_TIMEOUT,5.0)
+    master.set_option(ldap.OPT_TIMEOUT,5.0)
+    replica.set_option(ldap.OPT_NETWORK_TIMEOUT,5.0)
+    replica.set_option(ldap.OPT_TIMEOUT,5.0)
+
     # Setup Secure Conenction
     if opts['certdir'] is not None:
         # Setup Master
@@ -620,7 +803,7 @@ def connect_to_replicas(opts):
                 try:
                     master.start_tls_s()
                 except ldap.LDAPError as e:
-                    print('TLS negotiation failed on Master: %s' % str(e))
+                    print('TLS negotiation failed on Master: {}'.format(str(e)))
                     exit(1)
 
         # Setup Replica
@@ -632,7 +815,7 @@ def connect_to_replicas(opts):
                 try:
                     replica.start_tls_s()
                 except ldap.LDAPError as e:
-                    print('TLS negotiation failed on Master: %s' % str(e))
+                    print('TLS negotiation failed on Master: {}'.format(str(e)))
                     exit(1)
 
     # Open connection to master
@@ -642,7 +825,8 @@ def connect_to_replicas(opts):
         print("Cannot connect to %r" % muri)
         exit(1)
     except ldap.LDAPError as e:
-        print("Error: Failed to authenticate to Master: %s", str(e))
+        print("Error: Failed to authenticate to Master: ({}).  "
+              "Please check your credentials and LDAP urls are correct.".format(str(e)))
         exit(1)
 
     # Open connection to replica
@@ -652,7 +836,8 @@ def connect_to_replicas(opts):
         print("Cannot connect to %r" % ruri)
         exit(1)
     except ldap.LDAPError as e:
-        print("Error: Failed to authenticate to Replica: %s", str(e))
+        print("Error: Failed to authenticate to Replica: ({}).  "
+              "Please check your credentials and LDAP urls are correct.".format(str(e)))
         exit(1)
 
     # Get the RUVs
@@ -665,7 +850,7 @@ def connect_to_replicas(opts):
             print("Error: Master does not have an RUV entry")
             exit(1)
     except ldap.LDAPError as e:
-        print("Error: Failed to get Master RUV entry: %s", str(e))
+        print("Error: Failed to get Master RUV entry: {}".format(str(e)))
         exit(1)
 
     print ("Gathering Replica's RUV...")
@@ -678,7 +863,7 @@ def connect_to_replicas(opts):
             exit(1)
 
     except ldap.LDAPError as e:
-        print("Error: Failed to get Replica RUV entry: %s", str(e))
+        print("Error: Failed to get Replica RUV entry: {}".format(str(e)))
         exit(1)
 
     return (master, replica, opts)
@@ -687,6 +872,7 @@ def connect_to_replicas(opts):
 def print_online_report(report, opts, output_file):
     ''' Print the online report
     '''
+
     print ('Preparing final report...')
     m_missing = len(report['m_missing'])
     r_missing = len(report['r_missing'])
@@ -711,22 +897,23 @@ def print_online_report(report, opts, output_file):
         missing = True
         final_report += ('\nMissing Entries\n')
         final_report += ('=====================================================\n\n')
-        if m_missing > 0:
-            final_report += ('  Entries missing on Master:\n')
-            for entry in report['m_missing']:
-                if 'createtimestamp' in entry.data:
-                    final_report += ('   - %s  (Created on Replica at: %s)\n' %
-                                     (entry.dn, convert_timestamp(entry.data['createtimestamp'][0])))
-                else:
-                    final_report += ('   - %s\n' % (entry.dn))
 
         if r_missing > 0:
-            if m_missing > 0:
-                final_report += ('\n')
             final_report += ('  Entries missing on Replica:\n')
             for entry in report['r_missing']:
                 if 'createtimestamp' in entry.data:
                     final_report += ('   - %s  (Created on Master at: %s)\n' %
+                                     (entry.dn, convert_timestamp(entry.data['createtimestamp'][0])))
+                else:
+                    final_report += ('   - %s\n' % (entry.dn))
+
+        if m_missing > 0:
+            if r_missing > 0:
+                final_report += ('\n')
+            final_report += ('  Entries missing on Master:\n')
+            for entry in report['m_missing']:
+                if 'createtimestamp' in entry.data:
+                    final_report += ('   - %s  (Created on Replica at: %s)\n' %
                                      (entry.dn, convert_timestamp(entry.data['createtimestamp'][0])))
                 else:
                     final_report += ('   - %s\n' % (entry.dn))
@@ -751,7 +938,8 @@ def print_online_report(report, opts, output_file):
 def remove_state_info(entry):
     ''' Remove the state info for the attributes used in the conflict report
     '''
-    attrs = ['objectclass', 'nsds5replconflict', 'createtimestamp']
+    attrs = ['objectclass', 'nsds5replconflict', 'createtimestamp' , 'modifytimestamp']
+    # attrs = ['createtimestamp']
     for key, val in list(entry.data.items()):
         for attr in attrs:
             if key.lower().startswith(attr):
@@ -766,9 +954,6 @@ def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
     r_conflicts = []
 
     for entry in mentries:
-        if format_conflicts:
-            remove_state_info(entry)
-
         if 'glue' in entry.data['objectclass']:
             m_conflicts.append({'dn': entry.dn, 'conflict': entry.data['nsds5replconflict'][0],
                                 'date': entry.data['createtimestamp'][0], 'glue': 'yes'})
@@ -776,9 +961,6 @@ def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
             m_conflicts.append({'dn': entry.dn, 'conflict': entry.data['nsds5replconflict'][0],
                                 'date': entry.data['createtimestamp'][0], 'glue': 'no'})
     for entry in rentries:
-        if format_conflicts:
-            remove_state_info(entry)
-
         if 'glue' in entry.data['objectclass']:
             r_conflicts.append({'dn': entry.dn, 'conflict': entry.data['nsds5replconflict'][0],
                                 'date': entry.data['createtimestamp'][0], 'glue': 'yes'})
@@ -790,7 +972,7 @@ def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
         report = "\n\nConflict Entries\n"
         report += "=====================================================\n\n"
         if len(m_conflicts) > 0:
-            report += ('Master Conflict Entries: %d\n' % (len(m_conflicts)))
+            report += ('Master Conflict Entries:  %d\n' % (len(m_conflicts)))
             if verbose:
                 for entry in m_conflicts:
                     report += ('\n - %s\n' % (entry['dn']))
@@ -799,7 +981,7 @@ def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
                     report += ('    - Created:    %s\n' % (convert_timestamp(entry['date'])))
 
         if len(r_conflicts) > 0:
-            if len(m_conflicts) > 0:
+            if len(m_conflicts) > 0 and verbose:
                 report += "\n"  # add spacer
             report += ('Replica Conflict Entries: %d\n' % (len(r_conflicts)))
             if verbose:
@@ -812,46 +994,6 @@ def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
         return report
     else:
         return ""
-
-
-def get_tombstones(replica, opts):
-    ''' Return the number of tombstones
-    '''
-    paged_ctrl = SimplePagedResultsControl(True, size=opts['pagesize'], cookie='')
-    controls = [paged_ctrl]
-    req_pr_ctrl = controls[0]
-    count = 0
-
-    try:
-        msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
-                                   '(&(objectclass=nstombstone)(nstombstonecsn=*))',
-                                   ['dn'], serverctrls=controls)
-    except ldap.LDAPError as e:
-        print("Error: Failed to get tombstone entries: %s", str(e))
-        exit(1)
-
-    done = False
-    while not done:
-        rtype, rdata, rmsgid, rctrls = replica.result3(msgid)
-        count += len(rdata)
-
-        pctrls = [
-                c
-                for c in rctrls
-                if c.controlType == SimplePagedResultsControl.controlType
-                ]
-        if pctrls:
-            if pctrls[0].cookie:
-                # Copy cookie from response control to request control
-                req_pr_ctrl.cookie = pctrls[0].cookie
-                msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
-                                           '(&(objectclass=nstombstone)(nstombstonecsn=*))',
-                                           ['dn'], serverctrls=controls)
-            else:
-                done = True  # No more pages available
-        else:
-            done = True
-    return count
 
 
 def do_online_report(opts, output_file=None):
@@ -880,7 +1022,7 @@ def do_online_report(opts, output_file=None):
     req_pr_ctrl = controls[0]
     try:
         master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
-                                         "(|(objectclass=*)(objectclass=ldapsubentry))",
+                                         "(|(objectclass=*)(objectclass=ldapsubentry)(objectclass=nstombstone))",
                                          ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'],
                                          serverctrls=controls)
     except ldap.LDAPError as e:
@@ -888,7 +1030,7 @@ def do_online_report(opts, output_file=None):
         exit(1)
     try:
         replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
-                                           "(|(objectclass=*)(objectclass=ldapsubentry))",
+                                           "(|(objectclass=*)(objectclass=ldapsubentry)(objectclass=nstombstone))",
                                            ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'],
                                            serverctrls=controls)
     except ldap.LDAPError as e:
@@ -918,7 +1060,9 @@ def do_online_report(opts, output_file=None):
         rconflicts += rresult['conflicts']
 
         # Check for diffs
-        report = check_for_diffs(mresult['entries'], rresult['entries'], report, opts)
+        report = check_for_diffs(mresult['entries'], mresult['glue'],
+                                 rresult['entries'], rresult['glue'],
+                                 report, opts)
 
         if not m_done:
             # Master
@@ -933,7 +1077,7 @@ def do_online_report(opts, output_file=None):
                     req_pr_ctrl.cookie = m_pctrls[0].cookie
                     master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
                         "(|(objectclass=*)(objectclass=ldapsubentry))",
-                        ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'], serverctrls=controls)
+                        ['*', 'createtimestamp', 'nscpentrywsi', 'conflictcsn', 'nsds5replconflict'], serverctrls=controls)
                 else:
                     m_done = True  # No more pages available
             else:
@@ -953,7 +1097,7 @@ def do_online_report(opts, output_file=None):
                     req_pr_ctrl.cookie = r_pctrls[0].cookie
                     replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
                         "(|(objectclass=*)(objectclass=ldapsubentry))",
-                        ['*', 'createtimestamp', 'nscpentrywsi', 'nsds5replconflict'], serverctrls=controls)
+                        ['*', 'createtimestamp', 'nscpentrywsi', 'conflictcsn', 'nsds5replconflict'], serverctrls=controls)
                 else:
                     r_done = True  # No more pages available
             else:
@@ -961,10 +1105,8 @@ def do_online_report(opts, output_file=None):
 
     # Get conflicts & tombstones
     report['conflict'] = get_conflict_report(mconflicts, rconflicts, opts['conflicts'])
-    report['mtombstones'] = get_tombstones(master, opts)
-    report['rtombstones'] = get_tombstones(replica, opts)
-    report['m_count'] += report['mtombstones']
-    report['r_count'] += report['rtombstones']
+    report['mtombstones'] = mresult['tombstones']
+    report['rtombstones'] = rresult['tombstones']
 
     # Do the final report
     print_online_report(report, opts, output_file)
@@ -1027,11 +1169,16 @@ def main():
 
     # Parse the ldap URLs
     if args.murl is not None and args.rurl is not None:
+        # Make sure the URLs are different
+        if args.murl == args.rurl:
+            print("Master and Replica LDAP URLs are the same, they must be different")
+            exit(1)
+
         # Parse Master url
-        murl = ldapurl.LDAPUrl(args.murl)
         if not ldapurl.isLDAPUrl(args.murl):
             print("Master LDAP URL is invalid")
             exit(1)
+        murl = ldapurl.LDAPUrl(args.murl)
         if murl.urlscheme in VALID_PROTOCOLS:
             opts['mprotocol'] = murl.urlscheme
         else:
@@ -1052,10 +1199,10 @@ def main():
             opts['mport'] = parts[1]
 
         # Parse Replica url
-        rurl = ldapurl.LDAPUrl(args.rurl)
         if not ldapurl.isLDAPUrl(args.rurl):
             print("Replica LDAP URL is invalid")
             exit(1)
+        rurl = ldapurl.LDAPUrl(args.rurl)
         if rurl.urlscheme in VALID_PROTOCOLS:
             opts['rprotocol'] = rurl.urlscheme
         else:
@@ -1075,11 +1222,19 @@ def main():
             opts['rhost'] = parts[0]
             opts['rport'] = parts[1]
 
+    # Validate certdir
+    opts['certdir'] = None
+    if args.certdir:
+        if os.path.exists() and os.path.isdir(certdir):
+            opts['certdir'] = args.certdir
+        else:
+            print("certificate directory ({}) does not exist or is not a directory".format(args.certdir))
+            exit(1)
+
     # Initialize the options
     opts['binddn'] = args.binddn
     opts['bindpw'] = args.bindpw
     opts['suffix'] = args.suffix
-    opts['certdir'] = args.certdir
     opts['starttime'] = int(time.time())
     opts['verbose'] = args.verbose
     opts['mldif'] = args.mldif
@@ -1109,6 +1264,18 @@ def main():
 
     if opts['mldif'] is not None and opts['rldif'] is not None:
         print ("Performing offline report...")
+
+        # Validate LDIF files, must exist and not be empty
+        for ldif_dir in [opts['mldif'], opts['rldif']]:
+            if not os.path.exists(ldif_dir):
+                print ("LDIF file ({}) does not exist".format(ldif_dir))
+                exit(1)
+            if os.path.getsize(ldif_dir) == 0:
+                print ("LDIF file ({}) is empty".format(ldif_dir))
+                exit(1)
+        if opts['mldif'] == opts['rldif']:
+            print("The Master and Replica LDIF files must be different")
+            exit(1)
         do_offline_report(opts, OUTPUT_FILE)
     else:
         print ("Performing online report...")
@@ -1117,6 +1284,7 @@ def main():
     if OUTPUT_FILE is not None:
         print('Finished writing report to "%s"' % (args.file))
         OUTPUT_FILE.close()
+
 
 if __name__ == '__main__':
     main()
