@@ -91,6 +91,19 @@ connection_table_abandon_all_operations(Connection_Table *ct)
     }
 }
 
+void
+connection_table_disconnect_all(Connection_Table *ct)
+{
+    for (size_t i = 0; i < ct->size; i++) {
+        if (ct->c[i].c_mutex) {
+            Connection *c = &(ct->c[i]);
+            PR_EnterMonitor(c->c_mutex);
+            disconnect_server_nomutex(c, c->c_connid, -1, SLAPD_DISCONNECT_ABORT, ECANCELED);
+            PR_ExitMonitor(c->c_mutex);
+        }
+    }
+}
+
 /* Given a file descriptor for a socket, this function will return
  * a slot in the connection table to use.
  *

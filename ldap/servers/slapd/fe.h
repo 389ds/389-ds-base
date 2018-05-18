@@ -100,6 +100,7 @@ extern Connection_Table *the_connection_table; /* JCM - Exported from globals.c 
 Connection_Table *connection_table_new(int table_size);
 void connection_table_free(Connection_Table *ct);
 void connection_table_abandon_all_operations(Connection_Table *ct);
+void connection_table_disconnect_all(Connection_Table *ct);
 Connection *connection_table_get_connection(Connection_Table *ct, int sd);
 int connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c);
 void connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connection *c);

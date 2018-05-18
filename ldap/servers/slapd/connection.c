@@ -1716,7 +1716,9 @@ connection_threadmain()
         if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
             if (!more_data) {
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+                PR_EnterMonitor(conn->c_mutex);
                 connection_make_readable_nolock(conn);
+                PR_ExitMonitor(conn->c_mutex);
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner();
