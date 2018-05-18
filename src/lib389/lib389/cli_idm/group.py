@@ -8,9 +8,8 @@
 
 import argparse
 from lib389.idm.group import Group, Groups, MUST_ATTRIBUTES
-
-from lib389.cli_base import (
-    populate_attr_arguments,
+from lib389.cli_base import populate_attr_arguments
+from lib389.cli_idm import (
     _generic_list,
     _generic_get,
     _generic_get_dn,
@@ -29,25 +28,25 @@ RDN = 'cn'
 # These are a generic specification, try not to tamper with them
 
 def list(inst, basedn, log, args):
-    _generic_list(inst, basedn, log.getChild('_generic_list'), MANY)
+    _generic_list(inst, basedn, log.getChild('_generic_list'), MANY, args)
 
 def get(inst, basedn, log, args):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
-    _generic_get(inst, basedn, log.getChild('_generic_get'), MANY, rdn)
+    _generic_get(inst, basedn, log.getChild('_generic_get'), MANY, rdn, args)
 
 def get_dn(inst, basedn, log, args):
     dn = _get_arg( args.dn, msg="Enter dn to retrieve")
-    _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn)
+    _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
 
 def create(inst, basedn, log, args):
     kwargs = _get_attributes(args, MUST_ATTRIBUTES)
-    _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs)
+    _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
 
 def delete(inst, basedn, log, args, warn=True):
     dn = _get_arg( args.dn , msg="Enter dn to delete")
     if warn:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
-    _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn)
+    _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
 def members(inst, basedn, log, args):
     cn = _get_arg( args.cn, msg="Enter %s of group" % RDN)

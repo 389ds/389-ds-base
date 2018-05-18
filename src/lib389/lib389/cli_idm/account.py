@@ -9,7 +9,7 @@
 import argparse
 
 from lib389.idm.account import Account, Accounts
-from lib389.cli_base import (
+from lib389.cli_idm import (
     _generic_list,
     _get_arg,
     )
@@ -17,7 +17,7 @@ from lib389.cli_base import (
 MANY = Accounts
 
 def list(inst, basedn, log, args):
-    _generic_list(inst, basedn, log.getChild('_generic_list'), MANY)
+    _generic_list(inst, basedn, log.getChild('_generic_list'), MANY, args)
 
 def status(inst, basedn, log, args):
     dn = _get_arg( args.dn, msg="Enter dn to check")

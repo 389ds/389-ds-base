@@ -939,7 +939,12 @@ def ensure_bytes(val):
 
 def ensure_str(val):
     if val != None and type(val) != str:
-        return val.decode('utf-8')
+        try:
+            result = val.decode('utf-8')
+        except UnicodeDecodeError:
+            # binary value, just return str repr?
+            result = str(val)
+        return result
     return val
 
 

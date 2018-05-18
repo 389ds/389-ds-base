@@ -12,6 +12,8 @@
 """
 import glob
 import ldap
+from json import dumps as dump_json
+from operator import itemgetter
 from ldap.schema.models import AttributeType, ObjectClass, MatchingRule
 
 from lib389._constants import *
@@ -125,38 +127,75 @@ class SchemaLegacy(object):
         ent = ents[0]
         return ent.getValue('nsSchemaCSN')
 
-    def get_objectclasses(self):
+
+    def get_objectclasses(self, json=False):
         """Returns a list of ldap.schema.models.ObjectClass objects for all
         objectClasses supported by this instance.
         """
         attrs = ['objectClasses']
         results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE,
                                      'objectclass=*', attrs)[0]
-        objectclasses = [ObjectClass(oc) for oc in
-                         results.getValues('objectClasses')]
-        return objectclasses
+        if json:
+            objectclasses = [vars(ObjectClass(oc)) for oc in
+                results.getValues('objectClasses')]
+            for oc in objectclasses:
+                # Add normalized name for sorting
+                oc['name'] = oc['names'][0].lower()
+            objectclasses = sorted(objectclasses, key=itemgetter('name'))
+            result = {'type': 'list', 'items': objectclasses}
+            return dump_json(result)
+        else:
+            objectclasses = [ObjectClass(oc) for oc in
+                             results.getValues('objectClasses')]
+            return objectclasses
 
-    def get_attributetypes(self):
+    def get_attributetypes(self, json=False):
         """Returns a list of ldap.schema.models.AttributeType objects for all
         attributeTypes supported by this instance.
         """
         attrs = ['attributeTypes']
         results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE,
                                      'objectclass=*', attrs)[0]
-        attributetypes = [AttributeType(at) for at in
-                          results.getValues('attributeTypes')]
-        return attributetypes
 
-    def get_matchingrules(self):
+        if json:
+            attributetypes = [vars(AttributeType(at)) for at in
+                results.getValues('attributeTypes')]
+            for attr in attributetypes:
+                # Add normalized name for sorting
+                attr['name'] = attr['names'][0].lower()
+            attributetypes = sorted(attributetypes, key=itemgetter('name'))
+            result = {'type': 'list', 'items': attributetypes}
+            return dump_json(result)
+        else:
+            attributetypes = [AttributeType(at) for at in
+                results.getValues('attributeTypes')]
+            return attributetypes
+
+
+    def get_matchingrules(self, json=False):
         """Return a list of the server defined matching rules"""
         attrs = ['matchingrules']
         results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE,
                                      'objectclass=*', attrs)[0]
-        matchingRules = [MatchingRule(mr) for mr in
+        if json:
+            matchingRules = [vars(MatchingRule(mr)) for mr in
+                results.getValues('matchingRules')]
+            for mr in matchingRules:
+                # Add normalized name for sorting
+                if mr['names']:
+                    mr['name'] = mr['names'][0].lower()
+                else:
+                    mr['name'] = ""
+            matchingRules = sorted(matchingRules, key=itemgetter('name'))
+            result = {'type': 'list', 'items': matchingRules}
+            return dump_json(result)
+        else:
+            matchingRules = [MatchingRule(mr) for mr in
                          results.getValues('matchingRules')]
-        return matchingRules
+            return matchingRules
 
-    def query_matchingrule(self, mr_name):
+
+    def query_matchingrule(self, mr_name, json=False):
         """Returns a single matching rule instance that matches the mr_name.
         Returns None if the matching rule doesn't exist.
 
@@ -171,11 +210,18 @@ class SchemaLegacy(object):
                         list(map(str.lower, mr.names))]
         if len(matchingRule) != 1:
             # This is an error.
-            return None
+            if json:
+                raise ValueError('Could not find matchingrule: ' + objectclassname)
+            else:
+                return None
         matchingRule = matchingRule[0]
-        return matchingRule
+        if json:
+            result = {'type': 'schema', 'mr': vars(matchingRule)}
+            return dump_json(result)
+        else:
+            return matchingRule
 
-    def query_objectclass(self, objectclassname):
+    def query_objectclass(self, objectclassname, json=False):
         """Returns a single ObjectClass instance that matches objectclassname.
         Returns None if the objectClass doesn't exist.
 
@@ -192,11 +238,18 @@ class SchemaLegacy(object):
                        list(map(str.lower, oc.names))]
         if len(objectclass) != 1:
             # This is an error.
-            return None
+            if json:
+                raise ValueError('Could not find objectcass: ' + objectclassname)
+            else:
+                return None
         objectclass = objectclass[0]
-        return objectclass
+        if json:
+            result = {'type': 'schema', 'oc': vars(objectclass)}
+            return dump_json(result)
+        else:
+            return objectclass
 
-    def query_attributetype(self, attributetypename):
+    def query_attributetype(self, attributetypename, json=False):
         """Returns a tuple of the AttributeType, and what objectclasses may or
         must take this attributeType. Returns None if attributetype doesn't
         exist.
@@ -223,7 +276,10 @@ class SchemaLegacy(object):
                          list(map(str.lower, at.names))]
         if len(attributetype) != 1:
             # This is an error.
-            return None
+            if json:
+                raise ValueError('Could not find attribute: ' + attributetypename)
+            else:
+                return None
         attributetype = attributetype[0]
         # Get the primary name of this attribute
         attributetypename = attributetype.names[0]
@@ -233,4 +289,23 @@ class SchemaLegacy(object):
         # Build a set if they have must.
         must = [oc for oc in objectclasses if attributetypename.lower() in
                 list(map(str.lower, oc.must))]
-        return (attributetype, must, may)
+
+        if json:
+            # convert Objectclass class to dict, then sort each list
+            may = [vars(oc) for oc in may]
+            must = [vars(oc) for oc in must]
+            # Add normalized 'name' for sorting
+            for oc in may:
+                oc['name'] = oc['names'][0].lower()
+            for oc in must:
+                oc['name'] = oc['names'][0].lower()
+            may = sorted(may, key=itemgetter('name'))
+            must = sorted(must, key=itemgetter('name'))
+            result = {'type': 'schema',
+                      'at': vars(attributetype),
+                      'may': may,
+                      'must': must}
+            return dump_json(result)
+        else:
+           return (attributetype, must, may)
+

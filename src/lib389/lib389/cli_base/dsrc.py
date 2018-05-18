@@ -9,6 +9,7 @@
 import sys
 import os
 import ldap
+from lib389.properties import *
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -42,7 +43,16 @@ def dsrc_arg_concat(args, dsrc_inst):
             'tls_key': None,
             'tls_reqcert': ldap.OPT_X_TLS_HARD,
             'starttls': args.starttls,
+            'args': {}
         }
+        # Now gather the args
+        new_dsrc_inst['args'][SER_LDAP_URL] = new_dsrc_inst['uri']
+        new_dsrc_inst['args'][SER_ROOT_DN] = new_dsrc_inst['binddn']
+        if new_dsrc_inst['uri'][0:8] == 'ldapi://':
+            new_dsrc_inst['args'][SER_LDAPI_ENABLED] = "on"
+            new_dsrc_inst['args'][SER_LDAPI_SOCKET] = new_dsrc_inst['uri'][9:]
+            new_dsrc_inst['args'][SER_LDAPI_AUTOBIND] = "on"
+
         # Make new
         return new_dsrc_inst
     # overlay things.
@@ -89,6 +99,8 @@ def dsrc_to_ldap(path, instance_name, log):
         return None
 
     dsrc_inst = {}
+    dsrc_inst['args'] = {}
+
     # Read all the values
     dsrc_inst['uri'] = config.get(instance_name, 'uri')
     dsrc_inst['basedn'] = config.get(instance_name, 'basedn', fallback=None)
@@ -110,6 +122,15 @@ def dsrc_to_ldap(path, instance_name, log):
     else:
         dsrc_inst['tls_reqcert'] = ldap.OPT_X_TLS_HARD
     dsrc_inst['starttls'] = config.getboolean(instance_name, 'starttls', fallback=False)
+
+    # Now gather the args
+    dsrc_inst['args'][SER_LDAP_URL] = dsrc_inst['uri']
+    dsrc_inst['args'][SER_ROOT_DN] = dsrc_inst['binddn']
+    if dsrc_inst['uri'][0:8] == 'ldapi://':
+        dsrc_inst['args'][SER_LDAPI_ENABLED] = "on"
+        dsrc_inst['args'][SER_LDAPI_SOCKET] = dsrc_inst['uri'][9:]
+        dsrc_inst['args'][SER_LDAPI_AUTOBIND] = "on"
+
 
     # Return the dict.
     log.debug("dsrc completed with %s" % dsrc_inst)

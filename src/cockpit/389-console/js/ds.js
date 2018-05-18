@@ -35,6 +35,19 @@ function search_dse(){
   );
 }
 
+// POC - REMOVE!!!!!
+function test_json_and_dsconf () {
+    var cmd = ['/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf',
+               '-j', 'ldapi://%2fvar%2frun%2fslapd-localhost.socket','backend',
+               'list']
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": ["PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389"]}).done(function(data) {
+        var obj = JSON.parse(data);
+        console.log("backend: " + obj['items']);
+    }).fail(function(data) {
+        console.log("failed: " + data.message);
+    });
+}
+
 function sort_list (sel) {
   var opts_list = sel.find('option');
   opts_list.sort(function(a, b) { return $(a).text() > $(b).text() ? 1 : -1; });

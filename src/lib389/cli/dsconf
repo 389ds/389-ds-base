@@ -54,7 +54,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default=None,
+            default=None
         )
     parser.add_argument('-b', '--basedn',
             help="Basedn (root naming context) of the instance to manage",
@@ -62,6 +62,10 @@ if __name__ == '__main__':
         )
     parser.add_argument('-Z', '--starttls',
             help="Connect with StartTLS",
+            default=False, action='store_true'
+        )
+    parser.add_argument('-j', '--json',
+            help="Return result in JSON object",
             default=False, action='store_true'
         )
 
@@ -110,15 +114,20 @@ if __name__ == '__main__':
     if args.verbose:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
         args.func(inst, None, log, args)
-        log.info("Command successful.")
+        if not args.json:
+            log.info("Command successful.")
     else:
         try:
             inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
             args.func(inst, None, log, args)
-            log.info("Command successful.")
-        except Exception as e:
-            log.debug(e, exc_info=True)
-            log.error("Error: %s" % e)
+            if not args.json:
+                log.info("Command successful.")
+        except ldap.LDAPError as e:
+            #log.debug(e, exc_info=True)
+            if args and args.json:
+                print(e)
+            else:
+                log.error("Error!: %s" % str(e))
     disconnect_instance(inst)
 
     # Done!

@@ -169,9 +169,6 @@ $(document).ready( function() {
   check_for_389();
   $("#server-tab").css( 'color', '#228bc0');
 
-
-  
- 
   $("#server-content").load("servers.html", function () {
     // Initial page setup
     $('.disk-monitoring').hide();

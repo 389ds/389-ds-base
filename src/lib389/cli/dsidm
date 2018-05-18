@@ -49,10 +49,14 @@ if __name__ == '__main__':
         )
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default=None,
+            default=None
         )
     parser.add_argument('-Z', '--starttls',
             help="Connect with StartTLS",
+            default=False, action='store_true'
+        )
+    parser.add_argument('-j', '--json',
+            help="Return result in JSON object",
             default=False, action='store_true'
         )
 

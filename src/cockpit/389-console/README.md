@@ -37,7 +37,7 @@ This is the welcome page(panel).  You select which local instance you want to co
 
 ## Security
 
-- Enable Security and configureation settings
+- Enable Security and configuration settings
 - Manage Certificate Database
 - Manage ciphers
 
@@ -139,10 +139,27 @@ cockpit
 - Drop in 389's cockpit plugin bundle under **/usr/share/cockpit/**  -->  **/usr/share/cockpit/389-console/**
 - Done
 
-## setup-ds-cockpit
 
--Install script, see "man setup-ds-cockpit"
+# lib389 json representations
+--------------------------------
 
+Entry:
+
+  {
+    "type": "entry",
+    "dn": DN,
+    "attrs": {
+               ATTR: [val],
+               ATTR: [val, val, ...],
+             }
+  }
+
+List:
+
+  {
+    "type": "list",
+    "items": []
+  }
 
 # Misc
 ---------------------
@@ -182,21 +199,10 @@ LIB389 Requirements:
 - Edit plugin ...
 - Add/edit SASL Mapiing
 - Import/Export Certification (file location)
-
-- Add/edit schema (attrs & objectclasses)
-- Add/edit local password policy
+- All the cert stuff
 
 
-## Monitoring page
 
-- Nothing has been done yet
-- Some monitoring features need RFE that have yet to be coded
-
-## Nice to have/fix
-
-- Get "Cipher" Datatable to sort on checkbox (other wise we need a "yes/no" 'Enabled" column and a button (in its own column) to toggle it.
-- Figure out why the ds-flex page changes width between sever configuraton buttons (Server Configuration vs SASL)
-- Remove panel tab highlighting after slection
 
 
 

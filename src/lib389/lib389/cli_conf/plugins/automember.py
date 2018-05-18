@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-
+import json
 from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions
 from lib389.cli_conf.plugin import add_generic_plugin_parsers
 
@@ -25,14 +25,23 @@ def list_definition(inst, basedn, log, args):
     automembers = AutoMembershipDefinitions(inst)
 
     if args.name is not None:
-        automember = automembers.get(args.name)
-        log.info(automember.display())
+        if args.json:
+            print(automembers.get_all_attrs_json(args.name))
+        else:
+            automember = automembers.get(args.name)
+            log.info(automember.display())
     else:    
         all_definitions = automembers.list()
-
+        if args.json:
+            result = {'type': 'list', 'items': []}
         for definition in all_definitions:
-            log.info(definition.display())
+            if args.json:
+                result['items'].append(definition)
+            else:
+                log.info(definition.display())
 
+        if args.json:
+            print(json.dumps(result))
 
 def create_definition(inst, basedn, log, args):
     """
@@ -63,9 +72,12 @@ def create_definition(inst, basedn, log, args):
 
     automembers = AutoMembershipDefinitions(inst)
     
-    automember = automembers.create(properties=automember_prop)
-    log.info("Automember definition created successfully!")
-   
+    try:
+        automember = automembers.create(properties=automember_prop)
+        log.info("Automember definition created successfully!")
+    except Exception as e:
+        log.info("Failed to create Automember definition: {}".format(str(e)))
+        raise e
 
 def edit_definition(inst, basedn, log, args):
     """
@@ -94,7 +106,6 @@ def edit_definition(inst, basedn, log, args):
         automember.replace("automemberdefaultgroup", args.defaultgroup)
     if args.groupattr is not None:
         automember.replace("automembergroupingattr", args.groupattr)
-
     log.info("Definition updated successfully.")
 
 
@@ -111,8 +122,8 @@ def remove_definition(inst, basedn, log, args):
     automember = automembers.get(args.name)
 
     automember.delete()
-    log.info("Definition deleted successfully!")
-        
+    log.info("Definition deleted successfully.")
+
 
 def create_parser(subparsers):
     automember_parser = subparsers.add_parser('automember', help="Manage and configure automember plugin")
@@ -124,7 +135,7 @@ def create_parser(subparsers):
     create_parser = subcommands.add_parser('create', help='Create automember definition.')
     create_parser.set_defaults(func=create_definition)
     
-    create_parser.add_argument("name", nargs='?', required=True ,help='Set cn for group entry.')
+    create_parser.add_argument("name", help='Set cn for group entry.')
 
     create_parser.add_argument("--groupattr", help='Set member attribute in group entry.', default='member:dn')
 
@@ -137,7 +148,7 @@ def create_parser(subparsers):
     show_parser = subcommands.add_parser('list', help='List automember definition.')
     show_parser.set_defaults(func=list_definition)
 
-    show_parser.add_argument("name", nargs='?', help='Set cn for group entry.')
+    show_parser.add_argument("name", help='Set cn for group entry.')
 
     edit_parser = subcommands.add_parser('edit', help='Edit automember definition.')
     edit_parser.set_defaults(func=edit_definition)

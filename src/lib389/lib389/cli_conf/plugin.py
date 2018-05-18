@@ -27,15 +27,15 @@ RDN = 'cn'
 
 
 def plugin_list(inst, basedn, log, args):
-    _generic_list(inst, basedn, log.getChild('plugin_list'), MANY)
+    _generic_list(inst, basedn, log.getChild('plugin_list'), MANY, args)
 
 def plugin_get(inst, basedn, log, args):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
-    _generic_get(inst, basedn, log.getChild('plugin_get'), MANY, rdn)
+    _generic_get(inst, basedn, log.getChild('plugin_get'), MANY, rdn, args)
 
 def plugin_get_dn(inst, basedn, log, args):
     dn = _get_arg( args.dn, msg="Enter dn to retrieve")
-    _generic_get_dn(inst, basedn, log.getChild('plugin_get_dn'), MANY, dn)
+    _generic_get_dn(inst, basedn, log.getChild('plugin_get_dn'), MANY, dn, args)
 
 # Plugin enable
 def plugin_enable(inst, basedn, log, args):

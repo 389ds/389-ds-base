@@ -11,22 +11,64 @@ from lib389.schema import Schema
 
 
 def list_attributetype(inst, basedn, log, args):
-    for attributetype in inst.schema.get_attributetypes():
-        print(attributetype)
+    if args is not None and args.json:
+        print(inst.schema.get_attributetypes(json=True))
+    else:
+        for attributetype in inst.schema.get_attributetypes():
+            print(attributetype)
+
+
+def list_objectclasses(inst, basedn, log, args):
+    if args is not None and args.json:
+        print(inst.schema.get_objectclasses(json=True))
+    else:
+        for oc in inst.schema.get_objectclasses():
+            print(oc)
+
+
+def list_matchingrules(inst, basedn, log, args):
+    if args is not None and args.json:
+        print(inst.schema.get_matchingrules(json=True))
+    else:
+        for mr in inst.schema.matchingrules():
+            print(mr)
+
 
 def query_attributetype(inst, basedn, log, args):
     # Need the query type
     attr = _get_arg(args.attr, msg="Enter attribute to query")
-    attributetype, must, may = inst.schema.query_attributetype(attr)
-    print(attributetype)
-    print("")
-    print("MUST")
-    for oc in must:
-        print(oc)
-    print("")
-    print("MAY")
-    for oc in may:
-        print(oc)
+    if args.json:
+        print(inst.schema.query_attributetype(attr, json=True))
+    else:
+        attributetype, must, may = inst.schema.query_attributetype(attr)
+        print(attributetype)
+        print("")
+        print("MUST")
+        for oc in must:
+            print(oc)
+        print("")
+        print("MAY")
+        for oc in may:
+            print(oc)
+
+
+def query_objectclass(inst, basedn, log, args):
+    # Need the query type
+    oc = _get_arg(args.attr, msg="Enter objectclass to query")
+    if args.json:
+        print(inst.schema.query_objectclass(oc, json=True))
+    else:
+        print("Not done")
+
+
+def query_matchingrule(inst, basedn, log, args):
+    # Need the query type
+    attr = _get_arg(args.attr, msg="Enter attribute to query")
+    if args.json:
+        print(inst.schema.query_matchingrule(attr, json=True))
+    else:
+        print("Not done")
+
 
 def reload_schema(inst, basedn, log, args):
     schema = Schema(inst)
@@ -48,6 +90,21 @@ def create_parser(subparsers):
     query_attributetype_parser.set_defaults(func=query_attributetype)
     query_attributetype_parser.add_argument('attr', nargs='?', help='Attribute type to query')
 
+    list_objectclass_parser = subcommands.add_parser('list_objectclasses', help='List avaliable objectclasses on this system')
+    list_objectclass_parser.set_defaults(func=list_objectclasses)
+
+    query_objectclass_parser = subcommands.add_parser('query_objectclass', help='Query an objectclass')
+    query_objectclass_parser.set_defaults(func=query_objectclass)
+    query_objectclass_parser.add_argument('attr', nargs='?', help='Objectclass to query')
+
     reload_parser = subcommands.add_parser('reload', help='Dynamically reload schema while server is running')
     reload_parser.set_defaults(func=reload_schema)
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
+
+    list_matchingrules_parser = subcommands.add_parser('list_matchingrules', help='List avaliable matching rules on this system')
+    list_matchingrules_parser.set_defaults(func=list_matchingrules)
+
+    query_matchingrule_parser = subcommands.add_parser('query_matchingrule', help='Query a matchingrule')
+    query_matchingrule_parser.set_defaults(func=query_matchingrule)
+    query_matchingrule_parser.add_argument('attr', nargs='?', help='Matchingrule to query')
+

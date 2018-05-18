@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-v', '--verbose',
             help="Display verbose operation tracing during command execution",
-            action='store_true', default=False
+            action='store_true', default=False, dest='verbose'
         )
 
     subparsers = parser.add_subparsers(help="action")

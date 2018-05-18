@@ -10,6 +10,7 @@ import ldap
 import ldap.dn
 from ldap import filter as ldap_filter
 import logging
+import json
 from functools import partial
 
 from lib389._entry import Entry
@@ -167,9 +168,7 @@ class DSLdapObject(DSLogging):
         for k in attrs:
             str_attrs[ensure_str(k)] = ensure_list_str(attrs[k])
 
-        response = { "dn": ensure_str(self._dn), "attrs" : str_attrs }
-        print('json response')
-        print(response)
+        response = json.dumps({ "type": "entry", "dn": ensure_str(self._dn), "attrs" : str_attrs });
 
         return response
 
@@ -860,7 +859,7 @@ class DSLdapObjects(DSLogging):
             insts = []
         return insts
 
-    def get(self, selector=[], dn=None):
+    def get(self, selector=[], dn=None, json=False):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
         using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
 
@@ -884,7 +883,10 @@ class DSLdapObjects(DSLogging):
             raise ldap.NO_SUCH_OBJECT("No object exists given the filter criteria %s" % selector)
         if len(results) > 1:
             raise ldap.UNWILLING_TO_PERFORM("Too many objects matched selection criteria %s" % selector)
-        return self._entry_to_instance(results[0].dn, results[0])
+        if json:
+            return self._entry_to_instance(results[0].dn, results[0]).get_all_attrs_json()
+        else:
+            return self._entry_to_instance(results[0].dn, results[0])
 
     def _get_dn(self, dn):
         # This will yield and & filter for objectClass with as many terms as needed.

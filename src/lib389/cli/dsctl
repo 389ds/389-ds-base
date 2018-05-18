@@ -32,6 +32,10 @@ if __name__ == '__main__':
     parser.add_argument('instance',
             help="The name of the instance to act upon",
         )
+    parser.add_argument('-j', '--json',
+            help="Return result in JSON object",
+            default=False, action='store_true'
+        )
 
     subparsers = parser.add_subparsers(help="action")
 

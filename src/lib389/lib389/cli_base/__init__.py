@@ -8,11 +8,12 @@
 
 import logging
 import sys
+import json
 
 from getpass import getpass
 from lib389 import DirSrv
 from lib389.utils import assert_c
-from lib389.properties import SER_LDAP_URL, SER_ROOT_DN, SER_ROOT_PW
+from lib389.properties import *
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -21,7 +22,7 @@ def _input(msg):
     if MAJOR >= 3:
         return input(msg)
     else:
-        return raw_input(msg)
+        return input(msg)
 
 
 def _get_arg(args, msg=None, hidden=False, confirm=False):
@@ -82,15 +83,12 @@ def _warn(data, msg=None):
 
 # We'll need another of these that does a "connect via instance name?"
 def connect_instance(dsrc_inst, verbose):
-    dsargs = {
-        SER_LDAP_URL: dsrc_inst['uri'],
-        SER_ROOT_DN: dsrc_inst['binddn'],
-    }
+    dsargs = dsrc_inst['args']
     ds = DirSrv(verbose=verbose)
     ds.allocate(dsargs)
     if not ds.can_autobind() and dsrc_inst['binddn'] is not None:
         dsargs[SER_ROOT_PW] = getpass("Enter password for %s on %s : " % (dsrc_inst['binddn'], dsrc_inst['uri']))
-    elif dsrc_inst['binddn'] is None:
+    elif not ds.can_autobind() and dsrc_inst['binddn'] is None:
         raise Exception("Must provide a binddn to connect with")
     ds.allocate(dsargs)
     ds.open(saslmethod=dsrc_inst['saslmech'],
@@ -109,41 +107,56 @@ def populate_attr_arguments(parser, attributes):
     for attr in attributes:
         parser.add_argument('--%s' % attr, nargs='?', help="Value of %s" % attr)
 
-def _generic_list(inst, basedn, log, manager_class, **kwargs):
+def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     ol = mc.list()
     if len(ol) == 0:
-        log.info("No objects to display")
+        if args and args.json:
+            print(json.dumps({"type": "list", "items": []}))
+        else:
+            log.info("No objects to display")
     elif len(ol) > 0:
         # We might sort this in the future
+        if args and args.json:
+            json_result = {"type": "list", "items": []}
         for o in ol:
             o_str = o.__unicode__()
-            log.info(o_str)
+            if args and args.json:
+                json_result['items'].append(o_str)
+            else:
+                log.info(o_str)
+        if args and args.json:
+            print(json.dumps(json_result))
 
 # Display these entries better!
-def _generic_get(inst, basedn, log, manager_class, selector):
+def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.get(selector)
-    o_str = o.display()
-    log.info(o_str)
+    if args and args.json:
+         o = mc.get(selector, json=True)
+         print(o);
+    else:
+        o = mc.get(selector)
+        o_str = o.display()
+        log.info(o_str)
 
-def _generic_get_dn(inst, basedn, log, manager_class, dn):
+def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
     o = mc.get(dn=dn)
     o_str = o.display()
     log.info(o_str)
 
-def _generic_create(inst, basedn, log, manager_class, kwargs):
+def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
     o = mc.create(properties=kwargs)
     o_str = o.__unicode__()
-    log.info('Sucessfully created %s' % o_str)
 
-def _generic_delete(inst, basedn, log, object_class, dn):
+    log.info('Successfully created %s' % o_str)
+
+def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
     o = object_class(inst, dn)
     o.delete()
-    log.info('Sucessfully deleted %s' % dn)
+    log.info('Successfully deleted %s' % dn)
 
 
 class LogCapture(logging.Handler):
