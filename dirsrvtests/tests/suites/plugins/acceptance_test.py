@@ -47,11 +47,6 @@ else:
 '''
 
 
-################################################################################
-#
-# Test Plugin Dependency
-#
-################################################################################
 def check_dependency(inst, plugin, online=True):
     """Set the "account usability" plugin to depend on this plugin.
     This plugin is generic, always enabled, and perfect for our testing
@@ -75,12 +70,37 @@ def check_dependency(inst, plugin, online=True):
         inst.start()
 
 
-################################################################################
-#
-# Test Account Policy Plugin (0)
-#
-################################################################################
 def test_acctpolicy(topo, args=None):
+    """Test Account policy basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d829
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add a config entry for 'lastLoginTime'
+        4. Add a user
+        5. Bind as the user
+        6. Check testLastLoginTime was added to the user
+        7. Replace 'stateattrname': 'testLastLoginTime'
+        8. Bind as the user
+        9. Check testLastLoginTime was added to the user
+        10. Check nsslapd-plugin-depends-on-named for the plugin
+        11. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -162,12 +182,37 @@ def test_acctpolicy(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Attribute Uniqueness Plugin (1)
-#
-################################################################################
 def test_attruniq(topo, args=None):
+    """Test Attribute uniqueness basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d801
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add a user: with 'mail' and 'mailAlternateAddress' attributes
+        4. Replace 'uniqueness-attribute-name': 'cn'
+        5. Try to add a user with the same 'cn'
+        6. Replace 'uniqueness-attribute-name': 'mail'
+        7. Try to add a user with the same 'mail'
+        8. Add 'uniqueness-attribute-name': 'mailAlternateAddress'
+        9. Try to add a user with the same 'mailAlternateAddress'
+        10. Check nsslapd-plugin-depends-on-named for the plugin
+        11. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Should fail
+        6. Success
+        7. Should fail
+        8. Success
+        9. Should fail
+        10. Success
+        11. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -284,12 +329,50 @@ def test_attruniq(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Auto Membership Plugin (2)
-#
-################################################################################
 def test_automember(topo, args=None):
+    """Test Auto Membership basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d802
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add a group
+        4. Add two Organisation Units entries
+        5. Add a config entry for the group and one branch
+        6. Add a user that should get added to the group
+        7. Check the entry is in group
+        8. Set groupattr to 'uniquemember:dn' and scope to branch2
+        9. Add a user that should get added to the group
+        10. Check the group
+        11. Disable plugin and restart
+        12. Add an entry that should be picked up by automember
+        13. Verify that the entry is not picked up by automember (yet)
+        14. Check the group - uniquemember should not exist
+        15. Enable plugin and restart
+        16. Verify the fixup task worked
+        17. Check nsslapd-plugin-depends-on-named for the plugin
+        18. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
+        17. Success
+        18. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -303,8 +386,6 @@ def test_automember(topo, args=None):
     # If args is None then we run the test suite as pytest standalone and it's not dynamic
     if args is None:
         inst.restart()
-
-    CONFIG_DN = 'cn=config,cn=' + PLUGIN_AUTOMEMBER + ',cn=plugins,cn=config'
 
     log.info('Testing ' + PLUGIN_AUTOMEMBER + '...')
 
@@ -413,12 +494,38 @@ def test_automember(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test DNA Plugin (3)
-#
-################################################################################
 def test_dna(topo, args=None):
+    """Test DNA basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d803
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Configure plugin for uidNumber
+        4. Add a user
+        5. See if the entry now has the new uidNumber assignment - uidNumber=1
+        6. Test the magic regen value
+        7. See if the entry now has the new uidNumber assignment - uidNumber=2
+        8. Set 'dnaMagicRegen': '-2'
+        9. Test the magic regen value
+        10. See if the entry now has the new uidNumber assignment - uidNumber=3
+        11. Check nsslapd-plugin-depends-on-named for the plugin
+        12. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        12. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -507,12 +614,61 @@ def test_dna(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Linked Attrs Plugin (4)
-#
-################################################################################
 def test_linkedattrs(topo, args=None):
+    """Test Linked Attributes basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d804
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add a config entry for directReport
+        4. Add test entries
+        5. Add the linked attrs config entry
+        6. User1 - Set "directReport" to user2
+        7. See if manager was added to the other entry
+        8. User1 - Remove "directReport"
+        9. See if manager was removed
+        10. Change the config - using linkType "indirectReport" now
+        11. Make sure the old linkType(directManager) is not working
+        12. See if manager was added to the other entry, better not be...
+        13. Now, set the new linkType "indirectReport", which should add "manager" to the other entry
+        14. See if manager was added to the other entry, better not be
+        15. Remove "indirectReport" should remove "manager" to the other entry
+        16. See if manager was removed
+        17. Disable plugin and make some updates that would of triggered the plugin
+        18. The entry should not have a manager attribute
+        19. Enable the plugin and rerun the task entry
+        20. Add the task again
+        21. Check if user2 now has a manager attribute now
+        22. Check nsslapd-plugin-depends-on-named for the plugin
+        23. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
+        17. Success
+        18. Success
+        19. Success
+        20. Success
+        21. Success
+        22. Success
+        23. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -642,12 +798,81 @@ def test_linkedattrs(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test MemberOf Plugin (5)
-#
-################################################################################
 def test_memberof(topo, args=None):
+    """Test MemberOf basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d805
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Replace groupattr with 'member'
+        4. Add our test entries
+        5. Check if the user now has a "memberOf" attribute
+        6. Remove "member" should remove "memberOf" from the entry
+        7. Check that "memberOf" was removed
+        8. Replace 'memberofgroupattr': 'uniquemember'
+        9. Replace 'uniquemember': user1
+        10. Check if the user now has a "memberOf" attribute
+        11. Remove "uniquemember" should remove "memberOf" from the entry
+        12. Check that "memberOf" was removed
+        13. The shared config entry uses "member" - the above test uses "uniquemember"
+        14. Delete the test entries then read them to start with a clean slate
+        15. Check if the user now has a "memberOf" attribute
+        16. Check that "memberOf" was removed
+        17. Replace 'memberofgroupattr': 'uniquemember'
+        18. Check if the user now has a "memberOf" attribute
+        19. Remove "uniquemember" should remove "memberOf" from the entry
+        20. Check that "memberOf" was removed
+        21. Replace 'memberofgroupattr': 'member'
+        22. Remove shared config from plugin
+        23. Check if the user now has a "memberOf" attribute
+        24. Remove "uniquemember" should remove "memberOf" from the entry
+        25. Check that "memberOf" was removed
+        26. First change the plugin to use uniquemember
+        27. Add uniquemember, should not update user1
+        28. Check for "memberOf"
+        29. Enable memberof plugin
+        30. Run the task and validate that it worked
+        31. Check for "memberOf"
+        32. Check nsslapd-plugin-depends-on-named for the plugin
+        33. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
+        17. Success
+        18. Success
+        19. Success
+        20. Success
+        21. Success
+        22. Success
+        23. Success
+        24. Success
+        25. Success
+        26. Success
+        27. Success
+        28. Success
+        29. Success
+        30. Success
+        31. Success
+        32. Success
+        33. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -853,12 +1078,37 @@ def test_memberof(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Managed Entry Plugin (6)
-#
-################################################################################
 def test_mep(topo, args=None):
+    """Test Managed Entries basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d806
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add our org units
+        4. Set up config entry and template entry for the org units
+        5. Add an entry that meets the MEP scope
+        6. Check if a managed group entry was created
+        7. Add a new template entry
+        8. Add an entry that meets the MEP scope
+        9. Check if a managed group entry was created
+        10. Check nsslapd-plugin-depends-on-named for the plugin
+        11. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -955,12 +1205,41 @@ def test_mep(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Passthru Plugin (7)
-#
-################################################################################
 def test_passthru(topo, args=None):
+    """Test Passthrough Authentication basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d807
+    :setup: Standalone Instance
+    :steps:
+        1. Stop the plugin
+        2. Restart the instance
+        3. Create a second backend
+        4. Create the top of the tree
+        5. Add user to suffix1
+        6. Configure and start plugin
+        7. Login as user
+        8. Login as root DN
+        9. Replace 'nsslapd-pluginarg0': ldap uri for second instance
+        10. Login as user
+        11. Login as root DN
+        12. Check nsslapd-plugin-depends-on-named for the plugin
+        13. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+    """
+
     inst1 = topo[0]
     inst2 = topo[1]
 
@@ -1061,12 +1340,67 @@ def test_passthru(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Referential Integrity Plugin (8)
-#
-################################################################################
 def test_referint(topo, args=None):
+    """Test Referential Integrity basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d808
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Replace 'referint-membership-attr': 'member'
+        4. Add some users and a group
+        5. Grab the referint log file from the plugin
+        6. Add shared config entry
+        7. Delete one user
+        8. Check for integrity
+        9. Replace 'referint-membership-attr': 'uniquemember'
+        10. Delete second user
+        11. Check for integrity
+        12. The shared config entry uses "member" - the above test used "uniquemember"
+        13. Recreate users and a group
+        14. Delete one user
+        15. Check for integrity
+        16. Change the shared config entry to use 'uniquemember' and test the plugin
+        17. Delete second user
+        18. Check for integrity
+        19. First change the plugin to use member before we move the shared config that uses uniquemember
+        20. Remove shared config from plugin
+        21. Add test user
+        22. Add user to group
+        23. Delete a user
+        24. Check for integrity
+        25. Check nsslapd-plugin-depends-on-named for the plugin
+        26. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
+        17. Success
+        18. Success
+        19. Success
+        20. Success
+        21. Success
+        22. Success
+        23. Success
+        24. Success
+        25. Success
+        26. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -1207,12 +1541,35 @@ def test_referint(topo, args=None):
     return
 
 
-################################################################################
-#
-# Test Retro Changelog Plugin (9)
-#
-################################################################################
 def test_retrocl(topo, args=None):
+    """Test Retro Changelog basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d810
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Gather the current change count (it's not 1 once we start the stability tests)
+        4. Add a user
+        5. Check we logged this in the retro cl
+        6. Change the config - disable plugin
+        7. Delete the user
+        8. Check we didn't log this in the retro cl
+        9. Check nsslapd-plugin-depends-on-named for the plugin
+        10. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it
@@ -1297,12 +1654,39 @@ def _rootdn_restart(inst):
     inst.state = DIRSRV_STATE_ONLINE
 
 
-################################################################################
-#
-# Test Root DN Access Control Plugin (10)
-#
-################################################################################
 def test_rootdn(topo, args=None):
+    """Test Root DNA Access control basic functionality
+
+    :id: 9b87493b-0493-46f9-8364-6099d0e5d811
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add an user and aci to open up cn=config
+        4. Set an aci so we can modify the plugin after we deny the root dn
+        5. Set allowed IP to an unknown host - blocks root dn
+        6. Bind as Root DN
+        7. Bind as the user who can make updates to the config
+        8. Test that invalid plugin changes are rejected
+        9. Remove the restriction
+        10. Bind as Root DN
+        11. Check nsslapd-plugin-depends-on-named for the plugin
+        12. Clean up
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+    """
+
     inst = topo[0]
 
     # stop the plugin, and start it

@@ -319,16 +319,21 @@ def account_status(topology_st, suffix, subtree, userid, nousrs, ulimit, tochck)
 def test_glact_inact(topology_st, accpol_global):
     """Verify if user account is inactivated when accountInactivityLimit is exceeded.
 
-    :ID: 342af084-0ad0-442f-b6f6-5a8b8e5e4c28
-    :feature: Account Policy Plugin
+    :id: 342af084-0ad0-442f-b6f6-5a8b8e5e4c28
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=people subtree in the default suffix
-            2. Check if users are active just before it reaches accountInactivityLimit.
-            3. User accounts should not be inactivated, expected 0
-            4. Check if users are inactivated when accountInactivityLimit is exceeded.
-            5. User accounts should be inactivated, expected error 19.
-    :assert: Should return error code 19
+    :steps:
+        1. Add few users to ou=people subtree in the default suffix
+        2. Check if users are active just before it reaches accountInactivityLimit.
+        3. User accounts should not be inactivated, expected 0
+        4. Check if users are inactivated when accountInactivityLimit is exceeded.
+        5. User accounts should be inactivated, expected error 19.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Should return error code 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -353,18 +358,25 @@ def test_glact_inact(topology_st, accpol_global):
 def test_glremv_lastlogin(topology_st, accpol_global):
     """Verify if user account is inactivated by createTimeStamp, if lastLoginTime attribute is missing.
 
-    :ID: 8ded5d8e-ed93-4c22-9c8e-78c479189f84
-    :feature: Account Policy Plugin
+    :id: 8ded5d8e-ed93-4c22-9c8e-78c479189f84
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=people subtree in the default suffix
-            2. Wait for few secs and bind as user to create lastLoginTime attribute.
-            3. Remove the lastLoginTime attribute from the user.
-            4. Wait till accountInactivityLimit exceeded based on createTimeStamp value
-            5. Check if users are inactivated, expected error 19.
-            6. Replace lastLoginTime attribute and check if account is activated
-            7. User should be activated based on lastLoginTime attribute, expected 0
-    :assert: Should return error code 19
+    :steps:
+        1. Add few users to ou=people subtree in the default suffix
+        2. Wait for few secs and bind as user to create lastLoginTime attribute.
+        3. Remove the lastLoginTime attribute from the user.
+        4. Wait till accountInactivityLimit exceeded based on createTimeStamp value
+        5. Check if users are inactivated, expected error 19.
+        6. Replace lastLoginTime attribute and check if account is activated
+        7. User should be activated based on lastLoginTime attribute, expected 0
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Should return error code 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -390,16 +402,21 @@ def test_glremv_lastlogin(topology_st, accpol_global):
 def test_glact_login(topology_st, accpol_global):
     """Verify if user account can be activated by replacing the lastLoginTime attribute.
 
-    :ID: f89897cc-c13e-4824-af08-3dd1039bab3c
-    :feature: Account Policy Plugin
+    :id: f89897cc-c13e-4824-af08-3dd1039bab3c
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=groups subtree in the default suffix
-            2. Wait till accountInactivityLimit exceeded
-            3. Run ldapsearch as normal user, expected error 19.
-            4. Replace the lastLoginTime attribute and check if account is activated
-            5. Run ldapsearch as normal user, expected 0.
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Add few users to ou=groups subtree in the default suffix
+        2. Wait till accountInactivityLimit exceeded
+        3. Run ldapsearch as normal user, expected error 19.
+        4. Replace the lastLoginTime attribute and check if account is activated
+        5. Run ldapsearch as normal user, expected 0.
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -420,27 +437,43 @@ def test_glact_login(topology_st, accpol_global):
 def test_glinact_limit(topology_st, accpol_global):
     """Verify if account policy plugin functions well when changing accountInactivityLimit value.
 
-    :ID: 7fbc373f-a3d7-4774-8d34-89b057c5e74b
-    :feature: Account Policy Plugin
+    :id: 7fbc373f-a3d7-4774-8d34-89b057c5e74b
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=groups subtree in the default suffix
-            2. Check if users are active just before reaching accountInactivityLimit
-            3. Modify AccountInactivityLimit to a bigger value
-            4. Wait for additional few secs, but check users before it reaches accountInactivityLimit
-            5. Wait till accountInactivityLimit exceeded and check users, expected error 19
-            6. Modify accountInactivityLimit to use the min value.
-            7. Add few users to ou=groups subtree in the default suffix
-            8. Wait till it reaches accountInactivityLimit and check users, expected error 19
-            9. Modify accountInactivityLimit to 10 times(30 secs) bigger than the initial value.
-            10. Add few users to ou=groups subtree in the default suffix
-            11. Wait for 90 secs and check if account is not inactivated, expected 0
-            12. Wait for +27 secs and check if account is not inactivated, expected 0
-            13. Wait for +30 secs and check if account is inactivated, error 19
-            14. Replace the lastLoginTime attribute and check if account is activated
-            15. Modify accountInactivityLimit to 12 secs, which is the default
-            16. Run ldapsearch as normal user, expected 0.
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Add few users to ou=groups subtree in the default suffix
+        2. Check if users are active just before reaching accountInactivityLimit
+        3. Modify AccountInactivityLimit to a bigger value
+        4. Wait for additional few secs, but check users before it reaches accountInactivityLimit
+        5. Wait till accountInactivityLimit exceeded and check users, expected error 19
+        6. Modify accountInactivityLimit to use the min value.
+        7. Add few users to ou=groups subtree in the default suffix
+        8. Wait till it reaches accountInactivityLimit and check users, expected error 19
+        9. Modify accountInactivityLimit to 10 times(30 secs) bigger than the initial value.
+        10. Add few users to ou=groups subtree in the default suffix
+        11. Wait for 90 secs and check if account is not inactivated, expected 0
+        12. Wait for +27 secs and check if account is not inactivated, expected 0
+        13. Wait for +30 secs and check if account is inactivated, error 19
+        14. Replace the lastLoginTime attribute and check if account is activated
+        15. Modify accountInactivityLimit to 12 secs, which is the default
+        16. Run ldapsearch as normal user, expected 0.
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -483,29 +516,47 @@ def test_glinact_limit(topology_st, accpol_global):
 def test_glnologin_attr(topology_st, accpol_global):
     """Verify if user account is inactivated based on createTimeStamp attribute, no lastLoginTime attribute present
 
-    :ID: 3032f670-705d-4f69-96f5-d75445cffcfb
-    :feature: Account Policy Plugin
+    :id: 3032f670-705d-4f69-96f5-d75445cffcfb
     :setup: Standalone instance, Local account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Configure Global account policy plugin with createTimestamp as stateattrname
-            2. lastLoginTime attribute will not be effective.
-            3. Add few users to ou=groups subtree in the default suffix
-            4. Wait for 10 secs and check if account is not inactivated, expected 0
-            5. Modify AccountInactivityLimit to 20 secs
-            6. Wait for +9 secs and check if account is not inactivated, expected 0
-            7. Wait for +3 secs and check if account is inactivated, error 19
-            8. Modify accountInactivityLimit to 3 secs
-            9. Add few users to ou=groups subtree in the default suffix
-            10. Wait for 3 secs and check if account is inactivated, error 19
-            11. Modify accountInactivityLimit to 30 secs
-            12. Add few users to ou=groups subtree in the default suffix
-            13. Wait for 90 secs and check if account is not inactivated, expected 0
-            14. Wait for +28 secs and check if account is not inactivated, expected 0
-            15. Wait for +2 secs and check if account is inactivated, error 19
-            16. Replace the lastLoginTime attribute and check if account is activated
-            17. Modify accountInactivityLimit to 12 secs, which is the default
-            18. Run ldapsearch as normal user, expected 0.
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Configure Global account policy plugin with createTimestamp as stateattrname
+        2. lastLoginTime attribute will not be effective.
+        3. Add few users to ou=groups subtree in the default suffix
+        4. Wait for 10 secs and check if account is not inactivated, expected 0
+        5. Modify AccountInactivityLimit to 20 secs
+        6. Wait for +9 secs and check if account is not inactivated, expected 0
+        7. Wait for +3 secs and check if account is inactivated, error 19
+        8. Modify accountInactivityLimit to 3 secs
+        9. Add few users to ou=groups subtree in the default suffix
+        10. Wait for 3 secs and check if account is inactivated, error 19
+        11. Modify accountInactivityLimit to 30 secs
+        12. Add few users to ou=groups subtree in the default suffix
+        13. Wait for 90 secs and check if account is not inactivated, expected 0
+        14. Wait for +28 secs and check if account is not inactivated, expected 0
+        15. Wait for +2 secs and check if account is inactivated, error 19
+        16. Replace the lastLoginTime attribute and check if account is activated
+        17. Modify accountInactivityLimit to 12 secs, which is the default
+        18. Run ldapsearch as normal user, expected 0.
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
+        17. Success
+        18. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -555,17 +606,23 @@ def test_glnologin_attr(topology_st, accpol_global):
 def test_glnoalt_stattr(topology_st, accpol_global):
     """Verify if user account can be inactivated based on lastLoginTime attribute, altstateattrname set to 1.1
 
-    :ID: 8dcc3540-578f-422a-bb44-28c2cf20dbcd
-    :feature: Account Policy Plugin
+    :id: 8dcc3540-578f-422a-bb44-28c2cf20dbcd
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Configure Global account policy plugin with altstateattrname to 1.1
-            2. Add few users to ou=groups subtree in the default suffix
-            3. Wait till it reaches accountInactivityLimit
-            4. Remove lastLoginTime attribute from the user entry
-            5. Run ldapsearch as normal user, expected 0. no lastLoginTime attribute present
-            6. Wait till it reaches accountInactivityLimit and check users, expected error 19
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Configure Global account policy plugin with altstateattrname to 1.1
+        2. Add few users to ou=groups subtree in the default suffix
+        3. Wait till it reaches accountInactivityLimit
+        4. Remove lastLoginTime attribute from the user entry
+        5. Run ldapsearch as normal user, expected 0. no lastLoginTime attribute present
+        6. Wait till it reaches accountInactivityLimit and check users, expected error 19
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -594,18 +651,25 @@ def test_glnoalt_stattr(topology_st, accpol_global):
 def test_glattr_modtime(topology_st, accpol_global):
     """Verify if user account can be inactivated based on modifyTimeStamp attribute
 
-    :ID: 67380839-2966-45dc-848a-167a954153e1
-    :feature: Account Policy Plugin
+    :id: 67380839-2966-45dc-848a-167a954153e1
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Configure Global account policy plugin with altstateattrname to modifyTimestamp
-            2. Add few users to ou=groups subtree in the default suffix
-            3. Wait till the accountInactivityLimit exceeded and check users, expected error 19
-            4. Modify cn attribute for user, ModifyTimeStamp is updated.
-            5. Check if user is activated based on ModifyTimeStamp attribute, expected 0
-            6. Change the plugin to use createTimeStamp and remove lastLoginTime attribute
-            7. Check if account is inactivated, expected error 19
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Configure Global account policy plugin with altstateattrname to modifyTimestamp
+        2. Add few users to ou=groups subtree in the default suffix
+        3. Wait till the accountInactivityLimit exceeded and check users, expected error 19
+        4. Modify cn attribute for user, ModifyTimeStamp is updated.
+        5. Check if user is activated based on ModifyTimeStamp attribute, expected 0
+        6. Change the plugin to use createTimeStamp and remove lastLoginTime attribute
+        7. Check if account is inactivated, expected error 19
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -636,21 +700,31 @@ def test_glattr_modtime(topology_st, accpol_global):
 def test_glnoalt_nologin(topology_st, accpol_global):
     """Verify if account policy plugin works if we set altstateattrname set to 1.1 and alwaysrecordlogin to NO
 
-    :ID: 49eda7db-84de-47ba-8f81-ac5e4de3a500
-    :feature: Account Policy Plugin
+    :id: 49eda7db-84de-47ba-8f81-ac5e4de3a500
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Configure Global account policy plugin with altstateattrname to 1.1
-            2. Set alwaysrecordlogin to NO.
-            3. Add few users to ou=groups subtree in the default suffix
-            4. Wait till accountInactivityLimit exceeded and check users, expected 0
-            5. Check for lastLoginTime attribute, it should not be present
-            6. Wait for few more secs and check if account is not inactivated, expected 0
-            7. Run ldapsearch as normal user, expected 0. no lastLoginTime attribute present
-            8. Set altstateattrname to createTimeStamp
-            9. Check if user account is inactivated based on createTimeStamp attribute.
-            10. Account should be inactivated, expected error 19
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Configure Global account policy plugin with altstateattrname to 1.1
+        2. Set alwaysrecordlogin to NO.
+        3. Add few users to ou=groups subtree in the default suffix
+        4. Wait till accountInactivityLimit exceeded and check users, expected 0
+        5. Check for lastLoginTime attribute, it should not be present
+        6. Wait for few more secs and check if account is not inactivated, expected 0
+        7. Run ldapsearch as normal user, expected 0. no lastLoginTime attribute present
+        8. Set altstateattrname to createTimeStamp
+        9. Check if user account is inactivated based on createTimeStamp attribute.
+        10. Account should be inactivated, expected error 19
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -684,20 +758,29 @@ def test_glnoalt_nologin(topology_st, accpol_global):
 def test_glinact_nsact(topology_st, accpol_global):
     """Verify if user account can be activated using ns-activate.pl script.
 
-    :ID: 876a7a7c-0b3f-4cd2-9b45-1dc80846e334
-    :feature: Account Policy Plugin
+    :id: 876a7a7c-0b3f-4cd2-9b45-1dc80846e334
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Configure Global account policy plugin
-            2. Add few users to ou=groups subtree in the default suffix
-            3. Wait for few secs and inactivate user using ns-inactivate.pl
-            4. Wait till accountInactivityLimit exceeded.
-            5. Run ldapsearch as normal user, expected error 19.
-            6. Activate user using ns-activate.pl script
-            7. Check if account is activated, expected error 19
-            8. Replace the lastLoginTime attribute and check if account is activated
-            9. Run ldapsearch as normal user, expected 0.
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Configure Global account policy plugin
+        2. Add few users to ou=groups subtree in the default suffix
+        3. Wait for few secs and inactivate user using ns-inactivate.pl
+        4. Wait till accountInactivityLimit exceeded.
+        5. Run ldapsearch as normal user, expected error 19.
+        6. Activate user using ns-activate.pl script
+        7. Check if account is activated, expected error 19
+        8. Replace the lastLoginTime attribute and check if account is activated
+        9. Run ldapsearch as normal user, expected 0.
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -724,18 +807,25 @@ def test_glinact_nsact(topology_st, accpol_global):
 def test_glinact_acclock(topology_st, accpol_global):
     """Verify if user account is activated when account is unlocked by passwordlockoutduration.
 
-    :ID: 43601a61-065c-4c80-a7c2-e4f6ae17beb8
-    :feature: Account Policy Plugin
+    :id: 43601a61-065c-4c80-a7c2-e4f6ae17beb8
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=groups subtree in the default suffix
-            2. Wait for few secs and attempt invalid binds for user
-            3. User account should be locked based on Account Lockout policy.
-            4. Wait till accountInactivityLimit exceeded and check users, expected error 19
-            5. Wait for passwordlockoutduration and check if account is active
-            6. Check if account is unlocked, expected error 19, since account is inactivated
-            7. Replace the lastLoginTime attribute and check users, expected 0
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Add few users to ou=groups subtree in the default suffix
+        2. Wait for few secs and attempt invalid binds for user
+        3. User account should be locked based on Account Lockout policy.
+        4. Wait till accountInactivityLimit exceeded and check users, expected error 19
+        5. Wait for passwordlockoutduration and check if account is active
+        6. Check if account is unlocked, expected error 19, since account is inactivated
+        7. Replace the lastLoginTime attribute and check users, expected 0
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -773,20 +863,29 @@ def test_glinact_acclock(topology_st, accpol_global):
 def test_glnact_pwexp(topology_st, accpol_global):
     """Verify if user account is activated when password is reset after password is expired
 
-    :ID:  3bb97992-101a-4e5a-b60a-4cc21adcc76e
-    :feature: Account Policy Plugin
+    :id:  3bb97992-101a-4e5a-b60a-4cc21adcc76e
     :setup: Standalone instance, Global account policy plugin configuration,
             set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=groups subtree in the default suffix
-            2. Set passwordmaxage to few secs
-            3. Wait for passwordmaxage to reach and check if password expired
-            4. Run ldapsearch as normal user, expected error 19.
-            5. Reset the password for user account
-            6. Wait till accountInactivityLimit exceeded and check users
-            7. Run ldapsearch as normal user, expected error 19.
-            8. Replace the lastLoginTime attribute and check if account is activated
-            9. Run ldapsearch as normal user, expected 0.
-    :assert: Should return success once the user is activated
+    :steps:
+        1. Add few users to ou=groups subtree in the default suffix
+        2. Set passwordmaxage to few secs
+        3. Wait for passwordmaxage to reach and check if password expired
+        4. Run ldapsearch as normal user, expected error 19.
+        5. Reset the password for user account
+        6. Wait till accountInactivityLimit exceeded and check users
+        7. Run ldapsearch as normal user, expected error 19.
+        8. Replace the lastLoginTime attribute and check if account is activated
+        9. Run ldapsearch as normal user, expected 0.
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
     """
 
     suffix = DEFAULT_SUFFIX
@@ -849,17 +948,23 @@ def test_glnact_pwexp(topology_st, accpol_global):
 def test_locact_inact(topology_st, accpol_local):
     """Verify if user account is inactivated when accountInactivityLimit is exceeded.
 
-    :ID: 02140e36-79eb-4d88-ba28-66478689289b
-    :feature: Account Policy Plugin
+    :id: 02140e36-79eb-4d88-ba28-66478689289b
     :setup: Standalone instance, ou=people subtree configured for Local account
             policy plugin configuration, set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=people subtree in the default suffix
-            2. Wait for few secs before it reaches accountInactivityLimit and check users.
-            3. Run ldapsearch as normal user, expected 0
-            4. Wait till accountInactivityLimit is exceeded
-            5. Run ldapsearch as normal user and check if its inactivated, expected error 19.
-            6. Replace user's lastLoginTime attribute and check if its activated, expected 0
-    :assert: Should return error code 19
+    :steps:
+        1. Add few users to ou=people subtree in the default suffix
+        2. Wait for few secs before it reaches accountInactivityLimit and check users.
+        3. Run ldapsearch as normal user, expected 0
+        4. Wait till accountInactivityLimit is exceeded
+        5. Run ldapsearch as normal user and check if its inactivated, expected error 19.
+        6. Replace user's lastLoginTime attribute and check if its activated, expected 0
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Should return error code 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -887,18 +992,25 @@ def test_locact_inact(topology_st, accpol_local):
 def test_locinact_modrdn(topology_st, accpol_local):
     """Verify if user account is inactivated when moved from ou=groups to ou=people subtree.
 
-    :ID: 5f25bea3-fab0-4db4-b43d-2d47cc6e5ad1
-    :feature: Account Policy Plugin
+    :id: 5f25bea3-fab0-4db4-b43d-2d47cc6e5ad1
     :setup: Standalone instance, ou=people subtree configured for Local account
             policy plugin configuration, set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=groups subtree in the default suffix
-            2. Plugin configured to ou=people subtree only.
-            3. Wait for few secs before it reaches accountInactivityLimit and check users.
-            4. Run ldapsearch as normal user, expected 0
-            5. Wait till accountInactivityLimit exceeded
-            6. Move users from ou=groups subtree to ou=people subtree
-            7. Check if users are inactivated, expected error 19
-    :assert: Should return error code 0 and 19
+    :steps:
+        1. Add few users to ou=groups subtree in the default suffix
+        2. Plugin configured to ou=people subtree only.
+        3. Wait for few secs before it reaches accountInactivityLimit and check users.
+        4. Run ldapsearch as normal user, expected 0
+        5. Wait till accountInactivityLimit exceeded
+        6. Move users from ou=groups subtree to ou=people subtree
+        7. Check if users are inactivated, expected error 19
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Should return error code 0 and 19
     """
 
     suffix = DEFAULT_SUFFIX
@@ -930,16 +1042,21 @@ def test_locinact_modrdn(topology_st, accpol_local):
 def test_locact_modrdn(topology_st, accpol_local):
     """Verify if user account is inactivated when users moved from ou=people to ou=groups subtree.
 
-    :ID: e821cbae-bfc3-40d3-947d-b228c809987f
-    :feature: Account Policy Plugin
+    :id: e821cbae-bfc3-40d3-947d-b228c809987f
     :setup: Standalone instance, ou=people subtree configured for Local account
             policy plugin configuration, set accountInactivityLimit to few secs.
-    :steps: 1. Add few users to ou=people subtree in the default suffix
-            2. Wait for few secs and check if users not inactivated, expected 0.
-            3. Move users from ou=people to ou=groups subtree
-            4. Wait till accountInactivityLimit is exceeded
-            5. Check if users are active in ou=groups subtree, expected 0
-    :assert: Should return error code 0
+    :steps:
+        1. Add few users to ou=people subtree in the default suffix
+        2. Wait for few secs and check if users not inactivated, expected 0.
+        3. Move users from ou=people to ou=groups subtree
+        4. Wait till accountInactivityLimit is exceeded
+        5. Check if users are active in ou=groups subtree, expected 0
+    :assert:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
     """
 
     suffix = DEFAULT_SUFFIX

@@ -71,10 +71,24 @@ def test_acceptance(topology_m2):
     """Exercise each plugin and its main features, while
     changing the configuration without restarting the server.
 
-    Make sure that as configuration changes are made they take
-    effect immediately.  Cross plugin interaction (e.g. automember/memberOf)
-    needs to tested, as well as plugin tasks.  Need to test plugin
-    config validation(dependencies, etc).
+    :id: 96136538-0151-4b09-9933-0e0cbf2c786c
+    :setup: 2 Master Instances
+    :steps:
+        1. Pause all replication
+        2. Set nsslapd-dynamic-plugins to on
+        3. Try to update LDBM config entry
+        4. Go through all plugin basic functionality
+        5. Resume replication
+        6. Go through all plugin basic functionality again
+        7. Check that data in sync and replication is working
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
     """
 
     m1 = topology_m2.ms["master1"]
@@ -126,9 +140,32 @@ def test_acceptance(topology_m2):
 
 
 def test_memory_corruption(topology_m2):
-    """Memory Corruption - Restart the plugins many times, and in different orders and test
-    functionality, and stability.  This will excerise the internal
-    plugin linked lists, dse callbacks, and task handlers.
+    """Check the plugins for memory corruption issues while
+    dynamic plugins option is enabled
+
+    :id: 96136538-0151-4b09-9933-0e0cbf2c7862
+    :setup: 2 Master Instances
+    :steps:
+        1. Pause all replication
+        2. Set nsslapd-dynamic-plugins to on
+        3. Try to update LDBM config entry
+        4. Restart the plugin many times in a linked list fashion
+           restarting previous and preprevious plugins in the list of all plugins
+        5. Run the functional test
+        6. Repeat 4 and 5 steps for all plugins
+        7. Resume replication
+        8. Go through 4-6 steps once more
+        9. Check that data in sync and replication is working
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
     """
 
 
@@ -205,11 +242,48 @@ def test_memory_corruption(topology_m2):
 
 
 def test_stress(topology_m2):
-    """Test dynamic plugins got
+    """Test plugins while under a big load. Perform the test 5 times
 
-    Stress - Put the server under load that will trigger multiple plugins(MO, RI, DNA, etc)
-    Restart various plugins while these operations are going on.  Perform this test
-    5 times(stress_max_run).
+    :id: 96136538-0151-4b09-9933-0e0cbf2c7863
+    :setup: 2 Master Instances
+    :steps:
+        1. Pause all replication
+        2. Set nsslapd-dynamic-plugins to on
+        3. Try to update LDBM config entry
+        4. Do one run through all tests
+        5. Enable Referential integrity and MemberOf plugins
+        6. Launch three new threads to add a bunch of users
+        7. While we are adding users restart the MemberOf and
+           Linked Attributes plugins many times
+        8. Wait for the 'adding' threads to complete
+        9. Now launch three threads to delete the users
+        10. Restart both the MemberOf, Referential integrity and
+            Linked Attributes plugins during these deletes
+        11. Wait for the 'deleting' threads to complete
+        12. Now make sure both the MemberOf and Referential integrity plugins still work correctly
+        13. Cleanup the stress tests (delete the group entry)
+        14. Perform 4-13 steps five times
+        15. Resume replication
+        16. Go through 4-14 steps once more
+        17. Check that data in sync and replication is working
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+        16. Success
+        17. Success
     """
 
     m1 = topology_m2.ms["master1"]
