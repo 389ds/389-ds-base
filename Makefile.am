@@ -753,6 +753,7 @@ libexec_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
 	wrappers/ds_systemd_ask_password_acl
 
 install-data-hook:
+	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
 	rsync -rupE src/cockpit/389-console/ $(DESTDIR)$(cockpitdir)
 
 if ENABLE_PERL
