@@ -965,7 +965,7 @@ $(document).ready( function() {
 
 
       // Open form
-      $("#local-pwp-form").css('display', 'block');
+      $("#local-pwp-form").modal('toggle');
     });
 
   });

@@ -410,6 +410,21 @@
               "the available memory space for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
               DN Cache Size (bytes)</label><input class="ds-input" type="text" id="nsslapd-dncachememsize" size="20"/>
           </div>
+
+        </div>
+        <div class="ds-divider"></div>
+        <div class="ds-inline">
+          <div>
+            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-suffix"><label
+              for="nsslapd-readonly-suffix" class="ds-label" title="Put database in Read-Only mode (nsslapd-readonly)."> Database Read-Only Mode</label>
+          </div>
+          <div>
+            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-require-index" checked><label
+              for="nsslapd-require-index" class="ds-label" title="Block unindexed searches on this suffix (nsslapd-require-index)."> Block Unindexed Searches</label>
+          </div>
+        </div>
+      </div>
+
           <div>
             <hr>
             <table id="referral-table" class="display ds-referral-table" cellspacing="0" width="100%">
@@ -422,29 +437,17 @@
               <tbody id="referral-tbody">
                 <tr>
                   <td>ldaps://localhost.localdomain.lab.testing.domain.com:636</td>
-                  <td><button class="btn btn-default  delete-referral-btn" type="button"><span class="glyphicon glyphicon-trash"></span> Delete</button></td>
+                  <td class='ds-center'><button class="btn btn-default del-ref-btn" type="button"><span class="glyphicon glyphicon-trash"></span> Delete</button></td>
                 </tr>
                 <tr>
                   <td>ldaps://example.fedora.org:636</td>
-                  <td><button class="btn btn-default delete-referral-btn" type="button"><span class="glyphicon glyphicon-trash"></span> Delete</button></td>
+                  <td class='ds-center'><button class="btn btn-default del-ref-btn" type="button"><span class="glyphicon glyphicon-trash"></span> Delete</button></td>
                 </tr>
               </tbody>
             </table>
             <button class="btn btn-default" data-toggle="modal" data-target="#create-ref-form" id="create-ref-btn" type="button">Create Referral</button>
             <p></p>
           </div>
-        </div>
-        <div class="ds-inline">
-          <div>
-            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-readonly-suffix"><label
-              for="nsslapd-readonly-suffix" class="ds-label" title="Put database in Read-Only mode (nsslapd-readonly)."> Database Read-Only Mode</label>
-          </div>
-          <div>
-            <input type="checkbox" class="ds-config-checkbox" id="nsslapd-require-index" checked><label
-              for="nsslapd-require-index" class="ds-label" title="Block unindexed searches on this suffix (nsslapd-require-index)."> Block Unindexed Searches</label>
-          </div>
-        </div>
-      </div>
   
 
       <button class="accordion ds-accordion" id="db-system-index-accordion" type="button">&#9658 Show System Indexes </button>

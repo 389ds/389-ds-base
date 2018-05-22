@@ -1,5 +1,5 @@
 var prev_tree_node = null;
-var ref_del_html = "<button class=\"btn btn-default delete-referral-btn\" type=\"button\">Delete Referral</button>";
+var ref_del_html = "<button class=\"btn btn-default del-ref-btn\" type=\"button\"><span class='glyphicon glyphicon-trash'></span> Delete</button>";
 var attr_encrypt_del_html = "<button class=\"btn btn-default attr-encrypt-delete-btn\" type=\"button\">Remove Attribute</button></td>";
 var index_btn_html = 
   '<div class="dropdown"> ' +
@@ -309,14 +309,17 @@ $(document).ready( function() {
       "language": {
         "emptyTable": "No Referrals"
       },
-      "columnDefs": [ {
-        "targets": 1,
-        "orderable": false
-      } ]
+      "columnDefs": [
+        {
+          "targets": 1,
+          "orderable": false,
+        },
+        {
+           "targets": 1,
+           "className": "ds-center"
+        }
+      ]
     });
-
-
-
 
 
     $('#system-index-table').DataTable( {
@@ -479,6 +482,21 @@ $(document).ready( function() {
         $("#manual-cache-form").hide();
         $("#auto-cache-form").show();
       }
+    });
+
+    $(document).on('click', '.del-ref-btn', function(e) {
+      e.preventDefault();
+      var data = ref_table.row( $(this).parents('tr') ).data();
+      var del_ref_name = data[0];
+      var ref_row = $(this); // Store element for callback
+      bootpopup.confirm("Are you sure you want to delete referral:  " + del_ref_name, "Confirmation", function (yes) {
+        if (yes) {
+          // TODO Delete mapping from DS
+
+          // Update html table
+          ref_table.row( ref_row.parents('tr') ).remove().draw( false );
+        }
+      });
     });
 
     $("#backend-config-save-btn").on("click", function () {
@@ -695,7 +713,6 @@ $(document).ready( function() {
       var attr_encrypt_algo = $("#nsencryptionalgorithm").val();
       // TODO - add encrypted attr to DS
 
-console.log("Mark Save encrypted attribute");
       // Update table on success
       attr_encrypt_table.row.add( [
         encrypt_attr_name,
@@ -761,16 +778,16 @@ console.log("Mark Save encrypted attribute");
     });
 
     $("#create-ref-save").on("click", function() {
-      
       var ref = get_encoded_ref();
       // Do the actual save in DS
       // Update html
       var tr_row = ref_table.row.add( [
         ref,
         ref_del_html
-      ] ).draw( false );
+      ] );
       $( tr_row ).addClass('ds-nowrap-td');
-
+      $( tr_row ).find("td:nth-child(1))").addClass('ds-center');
+      tr_row.draw(false);
       $("#create-ref-form").modal('toggle');
     });
 

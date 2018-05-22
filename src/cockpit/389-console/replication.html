@@ -26,8 +26,10 @@
         Replica ID</label><input class="ds-input" type="text" id="nsds5replicaid" size="15"/>
     </div>
     <p></p>
+
     <div>
-      <table class="table table-bordered ds-mgr-table" title="Specifies entries that can perform replication updates on this server.  Also known as supplier DN, update DN, or Replication Manager">
+      <table class="table table-bordered ds-mgr-table" id="repl-mgr-table"
+        title="Specifies entries that can perform replication updates on this server.  Also known as supplier DN, update DN, or Replication Manager">
         <thead>
           <tr>
             <th>Replication Managers</th>
@@ -38,7 +40,7 @@
           <tr>
             <td class="ds-td">cn=replication manager,cn=config</td>
             <td class="ds-center">
-             <button type="button" class="btn btn-default ds-table-btn">
+             <button type="button" class="btn btn-default ds-table-btn del-repl-mgr">
                <span class="glyphicon glyphicon-trash"></span> Remove
              </button></td>
           </tr>

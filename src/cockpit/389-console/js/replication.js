@@ -103,13 +103,17 @@ function clear_repl_mgr_form () {
   $("#add-repl-mgr-passwd").hide();
 }
 
-function check_repl_binddn_list () {
-  if( $("#nsds5replicabinddngroup").val() == "" && $("#repl-managers-list").has('option').length < 1) {
-    $("#repl-managers-list").css('border-color', 'red');
-  } else {
-    $("#repl-managers-list").css('border-color', binddn_list_color);
-  }
-}
+
+function add_repl_mgr(dn){
+	$("#repl-mgr-table tbody").append(
+		"<tr>"+
+		"<td class='ds-td'>" + dn +"</td>"+
+    "<td class='ds-center'>"+
+    "<button type='button' class='btn btn-default ds-table-btn del-repl-mgr'>" +
+    "<span class='glyphicon glyphicon-trash'></span> Remove</button></td>" +
+		"</tr>");
+};
+
 
 $(document).ready( function() {
   $("#replication-content").load("replication.html", function () {
@@ -120,8 +124,6 @@ $(document).ready( function() {
 
     // Load existing replication config (if any), set role, etc
 
-    // Check repl managers list and if empty give it a red border
-    check_repl_binddn_list();
     $("#schedule-settings").hide();
 
     $("#repl-config-btn").on("click", function() {
@@ -361,6 +363,17 @@ $(document).ready( function() {
       clear_agmt_wizard();
     });
 
+    $(document).on('click', '.del-repl-mgr', function(e) {
+      e.preventDefault();
+      var row = $(this).parent().parent(); //tr
+      var repl_dn = row.children("td:nth-child(1)");
+      bootpopup.confirm("Are you sure you want to delete replication manager:  " + repl_dn.html(), "Confirmation", function (yes) {
+        if (yes) {
+          row.remove();
+        }
+      });
+    });
+
     // Delete agreement
     $(document).on('click', '.agmt-del-btn', function(e) {
       e.preventDefault();
@@ -377,6 +390,7 @@ $(document).ready( function() {
         }
       });
     });
+
 
     // Edit Agreement
     $(document).on('click', '.agmt-edit-btn', function(e) {
@@ -732,14 +746,12 @@ $(document).ready( function() {
       // Do the actual save in DS
 
       // Update html
-      $("#add-repl-mgr-form").css('display', 'none');
-      if (repl_dn != '') {
-        if ( $('#repl-managers-list option[value="' + repl_dn + '"]').val() === undefined) {
-          // It's not a duplicate
-          $('#repl-managers-list').append($("<option>").val(repl_dn).text(repl_dn));
-          check_repl_binddn_list();
-        }
-      }
+
+      add_repl_mgr(repl_dn);
+
+
+      $("#add-repl-mgr-form").modal('toggle');
+
     });
 
 

@@ -1,6 +1,6 @@
 var attr_btn_html = 
   '<div class="dropdown">' +
-    '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="" data-toggle="dropdown">' +
+    '<button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">' +
       '  Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
@@ -12,11 +12,11 @@ var attr_btn_html =
 
 var oc_btn_html = 
   '<div class="dropdown">' +
-    '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="oc-action-btn" data-toggle="dropdown">' +
+    '<button class="btn btn-default dropdown-toggle" type="button"data-toggle="dropdown">' +
       ' Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
-    '<ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="oc-action-btn">' +
+    '<ul class="dropdown-menu ds-agmt-dropdown" role="menu">' +
       '<li role=""><a role="menuitem" tabindex="0" class="oc-edit-btn" href="#">Edit Objectclass</a></li>' +
       '<li role=""><a role="menuitem" tabindex="1" class="oc-del-btn" href="#">Delete Objectclass</a></li>' +
     '</ul>' +
@@ -36,7 +36,6 @@ function clear_oc_form() {
 
 function clear_attr_form() {
   // Clear input fields and reset dropboxes
-  $(".ds-accordion-panel").css('display','none');
   $("#add-edit-attr-header").html('Add Attribute');
   $("#attr-name").attr('disabled', false);
   $("#attr-name").val("");
@@ -57,36 +56,14 @@ $(document).ready( function() {
     // TODO Get attributes, Objectclasses, syntaxes, and matching rules: populate tables and forms
 
     // Setup the tables: standard, custom, and Matching Rules
-    $('#standard-oc-table').DataTable({
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip', // Moves the search box to the left
-      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
-      "language": {
-        "emptyTable": "No objectclasses available",
-        "search": "Search Objectclasses"
-      },
-    });
 
-    $('#standard-attr-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip', // Moves the search box to the left
-      "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
-      "language": {
-        "emptyTable": "No attributes available",
-        "search": "Search Attributes"
-      },
-    });
-
-
-    var custom_oc_table = $('#custom-oc-table').DataTable ({
+    var oc_table = $('#oc-table').DataTable ({
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
       "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "language": {
-        "emptyTable": "No custom objectclasses defined",
+        "emptyTable": "No objectclasses defined",
         "search": "Search Objectclasses"
       },
       "columnDefs": [ {
@@ -94,13 +71,13 @@ $(document).ready( function() {
         "orderable": false
       } ]
     });
-    var custom_at_table = $('#custom-attr-table').DataTable({
+    var at_table = $('#attr-table').DataTable({
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip', // Moves the search box to the left
       "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
       "language": {
-        "emptyTable": "No custom attributes defined",
+        "emptyTable": "No attributes defined",
         "search": "Search Attributes"
       },
       "columnDefs": [ {
@@ -125,36 +102,21 @@ $(document).ready( function() {
     // Sort schema list awhile
     sort_list( $("#schema-list") );
 
-    $("#std-schema-btn").on("click", function() {
+    $("#objectclass-btn").on("click", function() {
       $(".all-pages").hide();
       $("#schema-content").show();
-      $("#std-schema-page").show();
+      $("#objectclass-page").show();
     });
-    $("#custom-schema-btn").on("click", function() {
+    $("#attribute-btn").on("click", function() {
       $(".all-pages").hide();
       $("#schema-content").show();
-      $("#custom-schema-page").show();
+      $("#attribute-page").show();
     });
     $("#schema-mr-btn").on("click", function() {
       $(".all-pages").hide();
       $("#schema-content").show();
       $("#schema-mr").show();
     });
-
-    // Accordions
-    $(".ds-accordion-panel").css('display','none');
-    var attr_opts_acc = document.getElementsByClassName("attr-opts-accordion");
-    for (var i = 0; i < attr_opts_acc.length; i++) {
-      attr_opts_acc[i].onclick = function() {
-        this.classList.toggle("active");
-        var panel = this.nextElementSibling;
-        if (panel.style.display == "block") {
-            panel.style.display = "none";
-        } else {
-            panel.style.display = "block";
-        }
-      }
-    }
 
     //
     // Modals/Forms
@@ -167,24 +129,21 @@ $(document).ready( function() {
      */
     $("#add-oc-button").on("click", function() {
       clear_oc_form();
-      $("#add-edit-oc-form").css('display', 'block');
     });
 
-    $("#add-edit-oc-close").on("click", function() {
-      $("#add-edit-oc-form").css('display', 'none');
-    });
-    $("#add-edit-oc-cancel").on("click", function() {
-      $("#add-edit-oc-form").css('display', 'none');
-    });
-    $("#add-edit-oc-save").on("click", function() {
-      
-      // Do the actual save in DS
+    $("#save-oc-button").on("click", function() {
+      var edit = false;
+      var oc_name = $("#oc-name").val();
 
-
+      if ( $("#add-edit-oc-header").text().indexOf("Edit Objectclass") != -1){
+        edit = true;
+      }
+      // TODO - Do the actual save in DS
 
       // Update html
       // If save successful close down form, otherwise keep form up and return      
-      $("#add-edit-oc-form").css('display', 'none');
+      $("#add-edit-oc-form").modal('toggle');
+
       $("#oc-name").attr('disabled', false);
   
   
@@ -192,9 +151,15 @@ $(document).ready( function() {
       var oc_required_list = $('#oc-required-list option').map(function() { return $(this).val(); }).get().join(', ');
       var oc_allowed_list = $('#oc-allowed-list option').map(function() { return $(this).val(); }).get().join(', ');
 
-      // Update html table
-      var oc_name = $("#oc-name").val();
-      custom_oc_table.row.add( [
+      // Add or edit?
+
+      // Update html table (if edit: delete old then add new)
+      if ( edit ) {
+        var selector = $('tr:contains(' + oc_name + ')');
+        oc_table.row(selector).remove().draw(false);
+      }
+
+      oc_table.row.add( [
         oc_name,
         $("#oc-oid").val(),
         $("#oc-parent").val(),
@@ -261,15 +226,10 @@ $(document).ready( function() {
      */
     $("#create-attr-button").on("click", function() {
       clear_attr_form();
-      $("#add-edit-attr-form").css('display', 'block');
+
     })
-    $("#attr-close").on("click", function() {
-      $("#add-edit-attr-form").css('display', 'none');
-    });
-    $("#attr-cancel").on("click", function() {
-      $("#add-edit-attr-form").css('display', 'none');
-    });
-    $("#attr-save").on("click", function() {
+
+    $("#save-attr-button").on("click", function() {
       var attr_name = $("#attr-name").val();
       var multiple = "no";
       var eq_mr= $('#attr-eq-mr-select').val();
@@ -279,15 +239,25 @@ $(document).ready( function() {
       if ( $("#attr-multivalued").is(":checked") ) {
         multiple = "yes";
       };
+      var edit = false;
+      if ( $("#add-edit-attr-header").text().indexOf("Edit Attribute") != -1){
+        edit = true;
+      }
 
       // Do the actual save in DS
-      
+
       // if save in DS successful close down form, otherwise keep form visible and return ^^^
-      $("#add-edit-attr-form").css('display', 'none');
+      $("#add-edit-attr-form").modal('toggle');
       $("#attr-name").attr('disabled', false);
 
-      // Create attribute row to dataTable with correct edit button id
-      custom_at_table.row.add( [
+      // Update html table (if edit: delete old then add new)
+      if ( edit ) {
+        var selector = $('tr:contains(' + attr_name + ')');
+        at_table.row(selector).remove().draw(false);
+      }
+
+      // Create attribute row to dataTable
+      at_table.row.add( [
             attr_name,
             $("#attr-oid").val(),
             $("#attr-syntax").val(),
@@ -302,7 +272,7 @@ $(document).ready( function() {
     $(document).on('click', '.attr-edit-btn', function(e) {
         e.preventDefault();
         clear_attr_form();
-        var data = custom_at_table.row( $(this).parents('tr') ).data();
+        var data = at_table.row( $(this).parents('tr') ).data();
         var edit_attr_name = data[0];
         var edit_attr_oid = "";
         var edit_attr_desc = "";
@@ -312,13 +282,12 @@ $(document).ready( function() {
         var edit_attr_eq_mr = "";
         var edit_attr_order_mr = "";
         var edit_attr_sub_mr = "";
-        
-        console.log("In edit attr,,,");
+
         $("#add-edit-attr-header").html('Edit Attribute: ' + edit_attr_name);
         $("#attr-name").val(edit_attr_name);
         $("#attr-name").attr('disabled', true);
 
-        $("#add-edit-attr-form").css('display', 'block');
+        $("#add-edit-attr-form").modal('toggle');
         
         // TODO Get fresh copy of attr to fill in edit form
 
@@ -327,7 +296,7 @@ $(document).ready( function() {
 
     $(document).on('click', '.attr-del-btn', function(e) {
       e.preventDefault();
-      var data = custom_at_table.row( $(this).parents('tr') ).data();
+      var data = at_table.row( $(this).parents('tr') ).data();
       var del_attr_name = data[0];
       var at_row = $(this);
       bootpopup.confirm("Are you sure you want to delete attribute: " + del_attr_name, "Confirmation", function (yes) {
@@ -335,7 +304,7 @@ $(document).ready( function() {
           // TODO Delete attr from DS
 
           // Update html table
-          custom_at_table.row( at_row.parents('tr') ).remove().draw( false );
+          at_table.row( at_row.parents('tr') ).remove().draw( false );
         }
       });
     });
@@ -343,7 +312,7 @@ $(document).ready( function() {
     $(document).on('click', '.oc-edit-btn', function(e) {
       e.preventDefault();
       clear_oc_form();
-      var data = custom_oc_table.row( $(this).parents('tr') ).data();
+      var data = oc_table.row( $(this).parents('tr') ).data();
       var edit_oc_name = data[0];
       var edit_oc_oid = "";
       var edit_oc_desc = "";
@@ -358,13 +327,13 @@ $(document).ready( function() {
       // TODO Get fresh copy of objectclass for edit form
 
       // Update modal html header and fields and show()
-      $("#add-edit-oc-form").css('display', 'block');
+      $("#add-edit-oc-form").modal('toggle');
       
-    } );
+    });
 
     $(document).on('click', '.oc-del-btn', function(e) {
       e.preventDefault();
-      var data = custom_oc_table.row( $(this).parents('tr') ).data();
+      var data = oc_table.row( $(this).parents('tr') ).data();
       var del_oc_name = data[0];
       var oc_row = $(this);
 
@@ -373,7 +342,7 @@ $(document).ready( function() {
           // TODO Delete attr from DS
 
           // Update html table
-          custom_oc_table.row( oc_row.parents('tr') ).remove().draw( false );
+          oc_table.row( oc_row.parents('tr') ).remove().draw( false );
         }
       });
 
