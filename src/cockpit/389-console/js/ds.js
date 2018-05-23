@@ -138,6 +138,26 @@ function report_err( input, msg) {
   $(".ds-modal-error").show();
 }
 
+
+function popup_err(title, msg) {
+  // Display errors from the cli (we have to use pre tags)
+  bootpopup({
+    title: title,
+    content: [
+      '<pre>' + msg + '</pre>'
+    ]
+  });
+}
+
+function popup_msg(title, msg) {
+  bootpopup({
+    title: title,
+    content: [
+      '<p>' + msg + '</p>'
+    ]
+  });
+}
+
 $(function() {
   $('#select-server').change(function() {
     server_id = $(this).val();
@@ -154,8 +174,5 @@ $(window.document).ready(function() {
       this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
     });
   }
-  
-
-
   
 });

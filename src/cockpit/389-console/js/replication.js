@@ -184,11 +184,11 @@ $(document).ready( function() {
 
       if (role == "master") {
         if ($("#nsds5replicaid").val() == "" || $("#nsds5replicaid").val() === undefined ){
-          bootpopup.alert("Replica ID is required for a Master role", "Attention!");
+          popup_msg("Attention!", "Replica ID is required for a Master role");
           return;
         }
         if ( !valid_num($("#nsds5replicaid").val()) ) {
-          bootpopup.alert("Replica ID must be a number", "Attention!");
+          popup_msg("Attention!", "Replica ID must be a number");
           return;
         }
 
@@ -308,7 +308,7 @@ $(document).ready( function() {
 
       // Confirm passwords match
       if (agmt_bindpw != agmt_bindpw_confirm) {
-        bootpopup.alert("Passwords do not match", "Attention!");
+        popup_msg("Attention!", "Passwords do not match");
         return;
       }
 
@@ -620,7 +620,7 @@ $(document).ready( function() {
       var passwd_confirm = $("#winsync-nsds5replicacredentials-confirm").val();
 
       if (agmt_passwd != passwd_confirm) {
-        bootpopup.alert("Passwords do not match!", "Attention!");
+        popup_msg("Attention!", "Passwords do not match!");
         return;
       }
       // Get form values
@@ -721,7 +721,7 @@ $(document).ready( function() {
     $("#add-repl-mgr-save").on("click", function() {
       var repl_dn = $("#add-repl-mgr-dn").val();
       if (repl_dn == ""){
-        bootpopup.alert("Replication Manager DN is required", "Attention!");
+        popup_msg("Attention!", "Replication Manager DN is required");
         return;
       }
       if ( $("#add-repl-mgr-checkbox").is(":checked") ){
@@ -729,7 +729,7 @@ $(document).ready( function() {
         var agmt_bindpw = $("#add-repl-pw").val();
         var agmt_bindpw_confirm = $("#add-repl-pw-confirm").val();
         if (agmt_bindpw != agmt_bindpw_confirm) {
-          bootpopup.alert("Passwords do not match", "Attention!");
+          popup_msg("Attention!", "Passwords do not match");
           $("#add-repl-pw").val("");
           $("#add-repl-pw-confirm").val("");
           return;
@@ -738,7 +738,7 @@ $(document).ready( function() {
 
       console.log("Validate dn...");
       if (!valid_dn(repl_dn)){
-        bootpopup.alert("Invalid DN for Replication Manager", "Attention!");
+        popup_msg("Attention!", "Invalid DN for Replication Manager");
         return;
       }
  

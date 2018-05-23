@@ -780,6 +780,7 @@ $(document).ready( function() {
         report_err($("#create-inst-serverid"), 'You must provide an Instance name');
         return;
       } else {
+        new_server_id = new_server_id.replace(/^slapd-/i, "");  // strip "slapd-"
         setup_inf = setup_inf.replace('INST_NAME', new_server_id);
       }
 
@@ -858,7 +859,8 @@ $(document).ready( function() {
 
       cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex) {
         // Failed to get FQDN
-        bootpopup.alert("Failed to get hostname: " + ex.message, "Failure!");
+        popup_err("Failed to get hostname!", ex.message);
+
       }).done(function (data){
         // Set the hostname in inf file
         setup_inf = setup_inf.replace('FQDN', data);
@@ -866,20 +868,20 @@ $(document).ready( function() {
         // Create setup inf file
         var cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" > /tmp/389setup.inf'];
         cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
-          bootpopup.alert("Failed to create installation file '/tmp/389setup.inf': " + ex.message, "Failure!");
+          popup_err("Failed to create installation file!", ex.message);
         }).done(function (){
           // Next, create the instance
           cmd = ['dscreate', 'fromfile', '/tmp/389setup.inf'];
           cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
             $("#create-inst-spinner").hide();
-            bootpopup.alert("Failed to create DS instance: " + ex.message, "Failure!");
+            popup_err("Failed to create instance!", ex.message);
           }).done(function (){
             // Cleanup
             $("#create-inst-spinner").hide();
             $("#server-list-menu").attr('disabled', false); 
             $("#no-instances").hide();
             get_insts();  // Refresh server list
-            bootpopup.alert("Successfully created instance:  slapd-" + new_server_id, "Success");
+            popup_msg("Success!", "Successfully created instance:  <b>slapd-" + new_server_id + "</b>", );
             $("#create-inst-form").modal('toggle');
           });
           $("#create-inst-spinner").show();

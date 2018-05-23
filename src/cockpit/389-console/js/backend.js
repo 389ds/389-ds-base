@@ -116,7 +116,7 @@ function get_encoded_ref () {
   }
 
   if (ref_suffix == "" && (ref_attrs != "" || ref_filter != "" || ref_scope != "")) {
-    bootpopup.alert("Missing suffix - you can not set the attributes, scope, or filter without a suffix.", "Attention!");
+    popup_msg("Attention!", "Missing suffix - you can not set the attributes, scope, or filter without a suffix.");
     return;
   }
   if (ref_suffix != "" || ref_attrs != "" || ref_filter != "" || ref_scope != "") {
