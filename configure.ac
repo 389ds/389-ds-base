@@ -104,7 +104,9 @@ AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  debug_defs="-g3 -DDEBUG -DMCC_DEBUG -O0"
+  debug_defs="-DDEBUG -DMCC_DEBUG"
+  debug_cflags="-g3 -O0"
+  debug_cxxflags="-g3 -O0"
   debug_rust_defs="-C debuginfo=2"
   cargo_defs=""
   rust_target_dir="debug"
@@ -113,11 +115,16 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
 [
   AC_MSG_RESULT(no)
   debug_defs=""
+  # set the default safe CFLAGS that would be set by AC_PROG_CC otherwise
+  debug_cflags="-g -O2"
+  debug_cxxflags="-g -O2"
   debug_rust_defs="-C debuginfo=2"
   cargo_defs="--release"
   rust_target_dir="release"
 ])
 AC_SUBST([debug_defs])
+AC_SUBST([debug_cflags])
+AC_SUBST([debug_cxxflags])
 AC_SUBST([debug_rust_defs])
 AC_SUBST([cargo_defs])
 AC_SUBST([rust_target_dir])
@@ -127,15 +134,15 @@ AC_MSG_CHECKING(for --enable-asan)
 AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc/clang address sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  asan_defs="-fsanitize=address -fno-omit-frame-pointer"
+  asan_cflags="-fsanitize=address -fno-omit-frame-pointer"
   asan_rust_defs="-Z sanitizer=address"
 ],
 [
   AC_MSG_RESULT(no)
-  asan_defs=""
+  asan_cflags=""
   asan_rust_defs=""
 ])
-AC_SUBST([asan_defs])
+AC_SUBST([asan_cflags])
 AC_SUBST([asan_rust_defs])
 AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
 
@@ -143,15 +150,15 @@ AC_MSG_CHECKING(for --enable-msan)
 AC_ARG_ENABLE(msan, AS_HELP_STRING([--enable-msan], [Enable gcc/clang memory sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  msan_defs="-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
+  msan_cflags="-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
   msan_rust_defs="-Z sanitizer=memory"
 ],
 [
   AC_MSG_RESULT(no)
-  msan_defs=""
+  msan_cflags=""
   msan_rust_defs=""
 ])
-AC_SUBST([msan_defs])
+AC_SUBST([msan_cflags])
 AC_SUBST([msan_rust_defs])
 AM_CONDITIONAL(enable_msan,test "$enable_msan" = "yes")
 
@@ -159,15 +166,15 @@ AC_MSG_CHECKING(for --enable-tsan)
 AC_ARG_ENABLE(tsan, AS_HELP_STRING([--enable-tsan], [Enable gcc/clang thread sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  tsan_defs="-fsanitize=thread -fno-omit-frame-pointer"
+  tsan_cflags="-fsanitize=thread -fno-omit-frame-pointer"
   tsan_rust_defs="-Z sanitizer=thread"
 ],
 [
   AC_MSG_RESULT(no)
-  tsan_defs=""
+  tsan_cflags=""
   tsan_rust_defs=""
 ])
-AC_SUBST([tsan_defs])
+AC_SUBST([tsan_cflags])
 AC_SUBST([tsan_rust_defs])
 AM_CONDITIONAL(enable_tsan,test "$enable_tsan" = "yes")
 
@@ -175,15 +182,15 @@ AC_MSG_CHECKING(for --enable-ubsan)
 AC_ARG_ENABLE(ubsan, AS_HELP_STRING([--enable-tsan], [Enable gcc/clang undefined behaviour sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  ubsan_defs="-fsanitize=undefined -fno-omit-frame-pointer"
+  ubsan_cflags="-fsanitize=undefined -fno-omit-frame-pointer"
   ubsan_rust_defs=""
 ],
 [
   AC_MSG_RESULT(no)
-  ubsan_defs=""
+  ubsan_cflags=""
   ubsan_rust_defs=""
 ])
-AC_SUBST([ubsan_defs])
+AC_SUBST([ubsan_cflags])
 AC_SUBST([ubsan_rust_defs])
 AM_CONDITIONAL(enable_ubsan,test "$enable_ubsan" = "yes")
 
@@ -220,19 +227,19 @@ AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc 
 [
   AC_MSG_RESULT(yes)
   AM_COND_IF([RPM_HARDEND_CC],
-  [ gccsec_defs="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 " ],
-  [ gccsec_defs="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security" ]
+  [ gccsec_cflags="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 " ],
+  [ gccsec_cflags="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security" ]
   )
 ],
 [
   # Without this, -fPIC doesn't work on generic fedora builds, --disable-gcc-sec.
   AC_MSG_RESULT(no)
   AM_COND_IF([RPM_HARDEND_CC],
-  [ gccsec_defs="-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1" ],
-  [ gccsec_defs="" ]
+  [ gccsec_cflags="-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1" ],
+  [ gccsec_cflags="" ]
   )
 ])
-AC_SUBST([gccsec_defs])
+AC_SUBST([gccsec_cflags])
 
 # Pull in profiling.
 AC_MSG_CHECKING(for --enable-profiling)

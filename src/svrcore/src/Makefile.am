@@ -1,8 +1,9 @@
-ASAN_DEFINES = @asan_defs@
+ASAN_CFLAGS = @asan_cflags@
 DEBUG_DEFINES = @debug_defs@
+DEBUG_CFLAGS = @debug_cflags@
 
-AM_CPPFLAGS = $(ASAN_DEFINES) $(DEBUG_DEFINES)
-AM_LDFLAGS = $(ASAN_DEFINES) $(DEBUG_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES)
+AM_CFLAGS = $(DEBUG_CFLAGS) $(ASAN_CFLAGS)
 
 EXTRA_DIST = key.ico \
 	     logo.ico \

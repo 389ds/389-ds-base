@@ -16,11 +16,13 @@ PYTHON := python3
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
-GCCSEC_DEFINES = @gccsec_defs@
-ASAN_DEFINES = @asan_defs@
-MSAN_DEFINES = @msan_defs@
-TSAN_DEFINES = @tsan_defs@
-UBSAN_DEFINES = @ubsan_defs@
+DEBUG_CFLAGS = @debug_cflags@
+DEBUG_CXXFLAGS = @debug_cxxflags@
+GCCSEC_CFLAGS = @gccsec_cflags@
+ASAN_CFLAGS = @asan_cflags@
+MSAN_CFLAGS = @msan_cflags@
+TSAN_CFLAGS = @tsan_cflags@
+UBSAN_CFLAGS = @ubsan_cflags@
 
 SYSTEMD_DEFINES = @systemd_defs@
 
@@ -133,7 +135,9 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
+AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
+AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
 DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ $(NSPR_INCLUDES) @systemd_inc@
@@ -190,7 +194,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 # Provide the tcmalloc links if needed
-AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK) $(CLANG_LDFLAGS)
+AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(TCMALLOC_LINK) $(CLANG_LDFLAGS)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
@@ -2151,37 +2155,37 @@ test_libsds_SOURCES =  src/libsds/test/test_sds.c \
 	src/libsds/test/test_sds_ht.c \
 	src/libsds/test/test_fixtures.c
 
-test_libsds_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
+test_libsds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 test_libsds_LDADD = libsds.la $(NSPR_LINK)
 test_libsds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS)
 
 benchmark_sds_SOURCES =  src/libsds/test/benchmark.c \
 	$(libavl_a_SOURCES)
-benchmark_sds_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
+benchmark_sds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 benchmark_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 benchmark_par_sds_SOURCES = src/libsds/test/benchmark_parwrap.c \
 	src/libsds/test/benchmark_par.c \
 	$(libavl_a_SOURCES)
-benchmark_par_sds_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS)
+benchmark_par_sds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 benchmark_par_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_par_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 test_nuncstans_SOURCES = src/nunc-stans/test/test_nuncstans.c
 test_nuncstans_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
 test_nuncstans_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 test_nuncstans_stress_large_SOURCES = src/nunc-stans/test/test_nuncstans_stress_large.c src/nunc-stans/test/test_nuncstans_stress_core.c
 test_nuncstans_stress_large_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
 test_nuncstans_stress_large_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_stress_large_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_stress_large_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 test_nuncstans_stress_small_SOURCES = src/nunc-stans/test/test_nuncstans_stress_small.c src/nunc-stans/test/test_nuncstans_stress_core.c
 test_nuncstans_stress_small_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
 test_nuncstans_stress_small_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_stress_small_LDFLAGS = $(ASAN_DEFINES) $(MSAN_DEFINES) $(TSAN_DEFINES) $(UBSAN_DEFINES) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
+test_nuncstans_stress_small_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
 
 
 endif
