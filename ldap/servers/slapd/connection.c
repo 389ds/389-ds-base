@@ -1811,9 +1811,17 @@ connection_threadmain()
         slapi_counter_increment(ops_completed);
         /* If this op isn't a persistent search, remove it */
         if (op->o_flags & OP_FLAG_PS) {
-            PR_EnterMonitor(conn->c_mutex);
-            connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
-            PR_ExitMonitor(conn->c_mutex);
+            /* Release the connection (i.e. decrease refcnt) at the condition
+             * this thread will not loop on it.
+             * If we are in turbo mode (dedicated to that connection) or
+             * more_data (continue reading buffered req) this thread
+             * continues to hold the connection
+             */
+            if (!thread_turbo_flag && !more_data) {
+                PR_EnterMonitor(conn->c_mutex);
+                connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
+                PR_ExitMonitor(conn->c_mutex);
+            }
             /* ps_add makes a shallow copy of the pb - so we
                  * can't free it or init it here - just set operation to NULL.
                  * ps_send_results will call connection_remove_operation_ext to free it
