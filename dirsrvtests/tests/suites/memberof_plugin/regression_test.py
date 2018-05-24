@@ -21,7 +21,7 @@ from lib389 import agreement, Entry
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups, Group
 from lib389.topologies import topology_m2 as topo_m2
-from lib389.replica import Replicas
+from lib389.replica import ReplicationManager
 
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
@@ -383,10 +383,8 @@ def test_memberof_with_changelog_reset(topo_m2):
     assert not m1.ds_error_log.match(error_msg)
 
     log.info("Check that the replication is working fine both ways, M1 <-> M2")
-    replicas_m1 = Replicas(m1)
-    replicas_m2 = Replicas(m2)
-    replicas_m1.test(DEFAULT_SUFFIX, m2)
-    replicas_m2.test(DEFAULT_SUFFIX, m1)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.test_replication_topology(topo_m2)
 
 
 if __name__ == '__main__':
