@@ -990,7 +990,7 @@ keys2idl(
         }
 #endif
         if (idl2 == NULL) {
-            slapi_log_err(SLAPI_LOG_WARNING, "keys2idl", "recieved NULL idl from index_read_ext_allids, treating as empty set\n");
+            slapi_log_err(SLAPI_LOG_WARNING, "keys2idl", "received NULL idl from index_read_ext_allids, treating as empty set\n");
             slapi_log_err(SLAPI_LOG_WARNING, "keys2idl", "this is probably a bug that should be reported\n");
             idl2 = idl_alloc(0);
         }
