@@ -197,7 +197,7 @@ def remove_attr_state_info(attr):
     idx = attr.find(';')
     if idx > 0:
         state_attr = attr  # preserve state info for diff report
-        if ";deleted" in attr:
+        if ";deleted" in attr or ";deletedattribute" in attr:
             # Ignore this attribute it was deleted
             return None, state_attr
         attr = attr[:idx]
