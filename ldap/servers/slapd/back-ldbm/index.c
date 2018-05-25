@@ -966,7 +966,10 @@ index_read_ext_allids(
         slapi_sdn_init_dn_byval(&sdn, val->bv_val);
         rc = entryrdn_index_read(be, &sdn, &id, txn);
         slapi_sdn_done(&sdn);
-        if (rc) { /* failure */
+        if (rc == DB_NOTFOUND) {
+            /* return an empty list */
+            return idl_alloc(0);
+        } else if (rc) { /* failure */
             return NULL;
         } else { /* success */
             rc = idl_append_extend(&idl, id);
