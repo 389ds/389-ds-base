@@ -31,28 +31,11 @@
 #include "fe.h"
 #include "certdb.h"
 
-#if !defined(USE_OPENLDAP)
-#include "ldap_ssl.h"
-#endif
-
 /* For IRIX... */
 #ifndef MAXPATHLEN
 #define MAXPATHLEN 1024
 #endif
 
-#if NSS_VMAJOR * 100 + NSS_VMINOR >= 315
-/* TLS1.2 is defined in RFC5246. */
-#define NSS_TLS12 1
-#elif NSS_VMAJOR * 100 + NSS_VMINOR >= 314
-/* TLS1.1 is defined in RFC4346. */
-#define NSS_TLS11 1
-#else
-#define NSS_TLS10 1
-#endif
-
-#if NSS_VMAJOR * 100 + NSS_VMINOR >= 320
-#define HAVE_NSS_DHE 1
-#endif
 
 /******************************************************************************
  * Default SSL Version Rule
@@ -70,10 +53,9 @@
 
 extern char *slapd_SSL3ciphers;
 extern symbol_t supported_ciphers[];
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
 static SSLVersionRange enabledNSSVersions;
 static SSLVersionRange slapdNSSVersions;
-#endif
+
 
 /* dongle_file_name is set in slapd_nss_init when we set the path for the
    key, cert, and secmod files - the dongle file must be in the same directory
@@ -109,12 +91,10 @@ static char *configDN = "cn=encryption,cn=config";
 #define CIPHER_SET_DEFAULTWEAKCIPHER 0x10  /* allowWeakCipher is not set in cn=encryption */
 #define CIPHER_SET_ALLOWWEAKCIPHER 0x20    /* allowWeakCipher is on */
 #define CIPHER_SET_DISALLOWWEAKCIPHER 0x40 /* allowWeakCipher is off */
-
-#ifdef HAVE_NSS_DHE
 #define CIPHER_SET_DEFAULTWEAKDHPARAM 0x100  /* allowWeakDhParam is not set in cn=encryption */
 #define CIPHER_SET_ALLOWWEAKDHPARAM 0x200    /* allowWeakDhParam is on */
 #define CIPHER_SET_DISALLOWWEAKDHPARAM 0x400 /* allowWeakDhParam is off */
-#endif
+
 
 #define CIPHER_SET_ISDEFAULT(flag) \
     (((flag)&CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE)
@@ -145,10 +125,7 @@ static char *configDN = "cn=encryption,cn=config";
 #define CIPHER_IS_WEAK 0x4
 #define CIPHER_IS_DEPRECATED 0x8
 
-#ifdef HAVE_NSS_DHE
 static int allowweakdhparam = CIPHER_SET_DEFAULTWEAKDHPARAM;
-#endif
-
 
 static char **cipher_names = NULL;
 static char **enabled_cipher_names = NULL;
@@ -225,12 +202,10 @@ static lookup_cipher _lookup_cipher[] = {
     /*{"tls_dhe_dss_1024_des_sha",          ""}, */
     {"tls_dhe_dss_1024_rc4_sha", "TLS_RSA_EXPORT1024_WITH_RC4_56_SHA"},
     {"tls_dhe_dss_rc4_128_sha", "TLS_DHE_DSS_WITH_RC4_128_SHA"},
-#if defined(NSS_TLS12)
     /* New in NSS 3.15 */
     {"tls_rsa_aes_128_gcm_sha", "TLS_RSA_WITH_AES_128_GCM_SHA256"},
     {"tls_dhe_rsa_aes_128_gcm_sha", "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"},
     {"tls_dhe_dss_aes_128_gcm_sha", NULL}, /* not available */
-#endif
     {NULL, NULL}};
 
 /* E.g., "SSL3", "TLS1.2", "Unknown SSL version: 0x0" */
@@ -317,7 +292,6 @@ getSupportedCiphers(void)
     SSLCipherSuiteInfo info;
     char *sep = "::";
     int number_of_ciphers = SSL_NumImplementedCiphers;
-    int i;
     int idx = 0;
     PRBool isFIPS = slapd_pk11_isFIPS();
 
@@ -325,7 +299,7 @@ getSupportedCiphers(void)
 
     if ((cipher_names == NULL) && (_conf_ciphers)) {
         cipher_names = (char **)slapi_ch_calloc((number_of_ciphers + 1), sizeof(char *));
-        for (i = 0; _conf_ciphers[i].name != NULL; i++) {
+        for (size_t i = 0; _conf_ciphers[i].name != NULL; i++) {
             SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[i].num, &info, sizeof(info));
             /* only support FIPS approved ciphers in FIPS mode */
             if (!isFIPS || info.isFIPS) {
@@ -341,7 +315,6 @@ getSupportedCiphers(void)
     return cipher_names;
 }
 
-#ifdef HAVE_NSS_DHE
 int
 get_allow_weak_dh_param(Slapi_Entry *e)
 {
@@ -365,7 +338,6 @@ get_allow_weak_dh_param(Slapi_Entry *e)
     slapi_ch_free((void **)&val);
     return allow;
 }
-#endif
 
 
 char **
@@ -374,7 +346,6 @@ getEnabledCiphers(void)
     SSLCipherSuiteInfo info;
     char *sep = "::";
     int number_of_ciphers = 0;
-    int x;
     int idx = 0;
     PRBool enabled;
 
@@ -383,14 +354,14 @@ getEnabledCiphers(void)
         return NULL;
     }
     if ((enabled_cipher_names == NULL) && _conf_ciphers) {
-        for (x = 0; _conf_ciphers[x].name; x++) {
+        for (size_t x = 0; _conf_ciphers[x].name; x++) {
             SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
             if (enabled) {
                 number_of_ciphers++;
             }
         }
         enabled_cipher_names = (char **)slapi_ch_calloc((number_of_ciphers + 1), sizeof(char *));
-        for (x = 0; _conf_ciphers[x].name; x++) {
+        for (size_t x = 0; _conf_ciphers[x].name; x++) {
             SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
             if (enabled) {
                 SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[x].num, &info, sizeof(info));
@@ -472,9 +443,6 @@ getSSLVersionRange(char **min, char **max)
         }
         return -1;
     }
-#if defined(NSS_TLS10)
-    return -1; /* not supported */
-#else          /* NSS_TLS11 or newer */
     if (min) {
         *min = slapi_getSSLVersion_str(slapdNSSVersions.min, NULL, 0);
     }
@@ -482,10 +450,8 @@ getSSLVersionRange(char **min, char **max)
         *max = slapi_getSSLVersion_str(slapdNSSVersions.max, NULL, 0);
     }
     return 0;
-#endif
 }
 
-#if defined(USE_OPENLDAP)
 void
 getSSLVersionRangeOL(int *min, int *max)
 {
@@ -499,10 +465,7 @@ getSSLVersionRangeOL(int *min, int *max)
     if (!slapd_ssl_listener_is_initialized()) {
         return;
     }
-#if defined(NSS_TLS10)
-    *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_0;
-    return;
-#else /* NSS_TLS11 or newer */
+
     if (min) {
         switch (slapdNSSVersions.min) {
         case SSL_LIBRARY_VERSION_3_0:
@@ -550,14 +513,11 @@ getSSLVersionRangeOL(int *min, int *max)
         }
     }
     return;
-#endif
 }
-#endif /* USE_OPENLDAP */
 
 static void
 _conf_init_ciphers(void)
 {
-    int x;
     SECStatus rc;
     SSLCipherSuiteInfo info;
     const PRUint16 *implementedCiphers = SSL_GetImplementedCiphers();
@@ -568,7 +528,7 @@ _conf_init_ciphers(void)
     }
     _conf_ciphers = (cipherstruct *)slapi_ch_calloc(SSL_NumImplementedCiphers + 1, sizeof(cipherstruct));
 
-    for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
+    for (size_t x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
         rc = SSL_GetCipherSuiteInfo(implementedCiphers[x], &info, sizeof info);
         if (SECFailure == rc) {
             slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
@@ -598,7 +558,6 @@ _conf_init_ciphers(void)
 static void
 _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
 {
-    int x;
     SECStatus rc;
     PRBool setdefault = CIPHER_SET_ISDEFAULT(flag);
     PRBool enabled = CIPHER_SET_ISALL(flag);
@@ -608,7 +567,7 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
 
     _conf_init_ciphers();
 
-    for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
+    for (size_t x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
         if (_conf_ciphers[x].flags & CIPHER_IS_DEFAULT) {
             /* certainly, not the first time. */
             setme = PR_TRUE;
@@ -663,11 +622,10 @@ charray2str(char **ary, const char *delim)
 void
 _conf_dumpciphers(void)
 {
-    int x;
     PRBool enabled;
     /* {"SSL3","rc4", SSL_EN_RC4_128_WITH_MD5}, */
     slapd_SSL_info("Configured NSS Ciphers");
-    for (x = 0; _conf_ciphers[x].name; x++) {
+    for (size_t x = 0; _conf_ciphers[x].name; x++) {
         SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
         if (enabled) {
             slapd_SSL_info("\t%s: enabled%s%s%s", _conf_ciphers[x].name,
@@ -687,7 +645,8 @@ char *
 _conf_setciphers(char *setciphers, int flags)
 {
     char *t, err[MAGNUS_ERROR_LEN];
-    int x, i, active;
+    int active;
+    size_t x = 0;
     char *raw = setciphers;
     char **suplist = NULL;
     char **unsuplist = NULL;
@@ -772,7 +731,7 @@ _conf_setciphers(char *setciphers, int flags)
                 }
             }
             if (lookup) { /* lookup with old cipher name and get NSS cipherSuiteName */
-                for (i = 0; _lookup_cipher[i].alias; i++) {
+                for (size_t i = 0; _lookup_cipher[i].alias; i++) {
                     if (!PL_strcasecmp(setciphers, _lookup_cipher[i].alias)) {
                         if (enabled && !_lookup_cipher[i].name[0]) {
                             slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d.  Ignoring %s",
@@ -915,9 +874,8 @@ getChildren(char *dn)
         slapi_pblock_get(new_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
         slapi_pblock_get(new_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &e);
         if (e != NULL) {
-            int i;
             list = (char **)slapi_ch_malloc(sizeof(*list) * (nEntries + 1));
-            for (i = 0; e[i] != NULL; i++) {
+            for (size_t i = 0; e[i] != NULL; i++) {
                 list[i] = slapi_ch_strdup(slapi_entry_get_dn(e[i]));
             }
             list[nEntries] = NULL;
@@ -935,8 +893,7 @@ static void
 freeChildren(char **list)
 {
     if (list != NULL) {
-        int i;
-        for (i = 0; list[i] != NULL; i++) {
+        for (size_t i = 0; list[i] != NULL; i++) {
             slapi_ch_free((void **)(&list[i]));
         }
         slapi_ch_free((void **)(&list));
@@ -1017,7 +974,6 @@ warn_if_no_key_file(const char *dir, int no_log)
     return ret;
 }
 
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
 /*
  * If non NULL buf and positive bufsize is given,
  * the memory is used to store the version string.
@@ -1183,7 +1139,6 @@ restrict_SSLVersionRange(void)
         }
     }
 }
-#endif
 
 /*
  * slapd_nss_init() is always called from main(), even if we do not
@@ -1206,7 +1161,6 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
     int create_certdb = 0;
     PRUint32 nssFlags = 0;
     char *certdir;
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     char emin[VERSION_STR_LENGTH], emax[VERSION_STR_LENGTH];
     /* Get the range of the supported SSL version */
     SSL_VersionRangeGetSupported(ssl_variant_stream, &enabledNSSVersions);
@@ -1216,7 +1170,6 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
     slapi_log_err(SLAPI_LOG_CONFIG, "Security Initialization",
                   "slapd_nss_init - Supported range by NSS: min: %s, max: %s\n",
                   emin, emax);
-#endif
 
     /* set in slapd_bootstrap_config,
        thus certdir is available even if config_available is false */
@@ -1385,9 +1338,7 @@ slapd_ssl_init()
     char *val = NULL;
     PK11SlotInfo *slot;
     Slapi_Entry *entry = NULL;
-#ifdef HAVE_NSS_DHE
     SECStatus rv = SECFailure;
-#endif
 
     /* Get general information */
 
@@ -1396,7 +1347,6 @@ slapd_ssl_init()
     val = slapi_entry_attr_get_charptr(entry, "nssslSessionTimeout");
     ciphers = slapi_entry_attr_get_charptr(entry, "nsssl3ciphers");
 
-#ifdef HAVE_NSS_DHE
     allowweakdhparam = get_allow_weak_dh_param(entry);
     if (allowweakdhparam & CIPHER_SET_ALLOWWEAKDHPARAM) {
         slapd_SSL_warn("notice, generating new WEAK DH param");
@@ -1405,7 +1355,6 @@ slapd_ssl_init()
             slapd_SSL_error("Warning, unable to generate weak dh parameters");
         }
     }
-#endif
 
     /* We are currently using the value of sslSessionTimeout
        for ssl3SessionTimeout, see SSL_ConfigServerSessionIDCache() */
@@ -1527,7 +1476,6 @@ slapd_ssl_init()
     return 0;
 }
 
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
 /*
  * val:   sslVersionMin/Max value set in cn=encription,cn=config (INPUT)
  * rval:  Corresponding value to set SSLVersionRange (OUTPUT)
@@ -1541,7 +1489,7 @@ static int
 set_NSS_version(char *val, PRUint16 *rval, int ismin)
 {
     char *vp, *endp;
-    int vnum;
+    int64_t vnum;
     char emin[VERSION_STR_LENGTH], emax[VERSION_STR_LENGTH];
 
     if (NULL == rval) {
@@ -1662,7 +1610,6 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
                 }
             }
         } else if (tlsv < 1.3) { /* TLS1.2 */
-#if defined(NSS_TLS12)
             if (ismin) {
                 if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_2) {
                     slapd_SSL_warn("The value of sslVersionMin "
@@ -1685,7 +1632,6 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
                     (*rval) = SSL_LIBRARY_VERSION_TLS_1_2;
                 }
             }
-#endif
         } else { /* Specified TLS is newer than supported */
             if (ismin) {
                 slapd_SSL_warn("The value of sslVersionMin "
@@ -1720,7 +1666,6 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
 #undef SSLLEN
 #undef TLSSTR
 #undef TLSLEN
-#endif
 
 int
 slapd_ssl_init2(PRFileDesc **fd, int startTLS)
@@ -1740,12 +1685,10 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     char *tmpDir;
     Slapi_Entry *e = NULL;
     PRBool fipsMode = PR_FALSE;
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     PRUint16 NSSVersionMin = enabledNSSVersions.min;
     PRUint16 NSSVersionMax = enabledNSSVersions.max;
     char mymin[VERSION_STR_LENGTH], mymax[VERSION_STR_LENGTH];
     char newmax[VERSION_STR_LENGTH];
-#endif
     char cipher_string[1024];
     int allowweakcipher = CIPHER_SET_DEFAULTWEAKCIPHER;
     int_fast16_t renegotiation = (int_fast16_t)SSL_RENEGOTIATE_REQUIRES_XTN;
@@ -1964,15 +1907,13 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                 }
 
                 if (SECSuccess == rv) {
+                    SSLKEAType certKEA;
 
-#ifdef HAVE_NSS_DHE
-                    /* Step If we want weak dh params, flag it on the socket now! */
-
+                    /* If we want weak dh params, flag it on the socket now! */
                     rv = SSL_OptionSet(*fd, SSL_ENABLE_SERVER_DHE, PR_TRUE);
                     if (rv != SECSuccess) {
                         slapd_SSL_warn("Warning, unable to start DHE");
                     }
-
                     if (allowweakdhparam & CIPHER_SET_ALLOWWEAKDHPARAM) {
                         slapd_SSL_warn("notice, allowing weak parameters on socket.");
                         rv = SSL_EnableWeakDHEPrimeGroup(*fd, PR_TRUE);
@@ -1980,13 +1921,9 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                             slapd_SSL_warn("Warning, unable to allow weak DH params on socket.");
                         }
                     }
-#endif
 
-                    if (slapd_pk11_fortezzaHasKEA(cert) == PR_TRUE) {
-                        rv = SSL_ConfigSecureServer(*fd, cert, key, kt_fortezza);
-                    } else {
-                        rv = SSL_ConfigSecureServer(*fd, cert, key, kt_rsa);
-                    }
+                    certKEA = NSS_FindCertKEAType(cert);
+                    rv = SSL_ConfigSecureServer(*fd, cert, key, certKEA);
                     if (SECSuccess != rv) {
                         errorCode = PR_GetError();
                         slapd_SSL_warn("ConfigSecureServer: "
@@ -2140,7 +2077,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             enableTLS1 = PR_TRUE; /* If available, enable TLS1 */
         }
         slapi_ch_free_string(&val);
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
         val = slapi_entry_attr_get_charptr(e, "sslVersionMin");
         if (val) {
             (void)set_NSS_version(val, &NSSVersionMin, 1);
@@ -2161,9 +2097,8 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                            mymax, newmax);
             NSSVersionMax = enabledNSSVersions.max;
         }
-#endif
     }
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
+
     if (NSSVersionMin > 0) {
         /* Use new NSS API SSL_VersionRangeSet (NSS3.14 or newer) */
         slapdNSSVersions.min = NSSVersionMin;
@@ -2183,7 +2118,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                             mymin, mymax);
         }
     } else {
-#endif
         /* deprecated code */
         sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, enableSSL3);
         if (sslStatus != SECSuccess) {
@@ -2202,9 +2136,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                            enableTLS1 ? "enable" : "disable",
                            errorCode, slapd_pr_strerror(errorCode));
         }
-#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     }
-#endif
 
     val = NULL;
     if (e != NULL) {
@@ -2382,12 +2314,8 @@ slapd_SSL_client_auth(LDAP *ld)
                              */
                             token = slapi_ch_strdup(internalTokenName);
                         }
-#if defined(USE_OPENLDAP)
                         /* openldap needs tokenname:certnick */
                         PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
-#else
-                        PL_strncpyz(cert_name, personality, sizeof(cert_name));
-#endif
                         slapi_ch_free_string(&ssltoken);
                     } else {
                         /* external PKCS #11 token - attach token name */
@@ -2461,7 +2389,6 @@ slapd_SSL_client_auth(LDAP *ld)
                            "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                            errorCode, slapd_pr_strerror(errorCode));
         } else {
-#if defined(USE_OPENLDAP)
             if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
                 char *certdir = config_get_certdir();
                 char *keyfile = NULL;
@@ -2532,29 +2459,6 @@ slapd_SSL_client_auth(LDAP *ld)
                                    cert_name);
                 }
             }
-/*
-             * not sure what else needs to be done for client auth - don't
-             * currently have a way to pass in the password to use to unlock
-             * the keydb - nor a way to disable caching
-             */
-#else /* !USE_OPENLDAP */
-            rc = ldapssl_enable_clientauth(ld, SERVER_KEY_NAME, pw, cert_name);
-            if (rc != 0) {
-                errorCode = PR_GetError();
-                slapd_SSL_error("ldapssl_enable_clientauth(%s, %s) %i (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-                                SERVER_KEY_NAME, cert_name, rc,
-                                errorCode, slapd_pr_strerror(errorCode));
-            } else {
-                /*
-                 * We cannot allow NSS to cache outgoing client auth connections -
-                 * each client auth connection must have it's own non-shared SSL
-                 * connection to the peer so that it will go through the
-                 * entire handshake protocol every time including the use of its
-                 * own unique client cert - see bug 605457
-                 */
-                ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
-            }
-#endif
         }
     }
 
