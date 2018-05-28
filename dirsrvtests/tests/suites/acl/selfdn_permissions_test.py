@@ -46,18 +46,14 @@ def _oc_definition(oid_ext, name, must=None, may=None):
         may = MAY
 
     new_oc = "( %s  NAME '%s' DESC '%s' SUP %s AUXILIARY MUST %s MAY %s )" % (oid, name, desc, sup, must, may)
-    return new_oc
+    return ensure_bytes(new_oc)
 
 
-def test_ticket47653_init(topology_st):
-    """
-        It adds
-           - Objectclass with MAY 'member'
-           - an entry ('bind_entry') with which we bind to test the 'SELFDN' operation
-        It deletes the anonymous aci
+@pytest.fixture(scope="module")
+def allow_user_init(topology_st):
+    """Initialize the test environment
 
-    """
-
+     """
     topology_st.standalone.log.info("Add %s that allows 'member' attribute" % OC_NAME)
     new_oc = _oc_definition(2, OC_NAME, must=MUST, may=MAY)
     topology_st.standalone.schema.add_schema('objectClasses', new_oc)
@@ -71,7 +67,7 @@ def test_ticket47653_init(topology_st):
         'userpassword': BIND_PW})))
 
     # enable acl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '128')]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'128')]
     topology_st.standalone.modify_s(DN_CONFIG, mod)
 
     # Remove aci's to start with a clean slate
@@ -87,13 +83,25 @@ def test_ticket47653_init(topology_st):
             'cn': name})))
 
 
-def test_ticket47653_add(topology_st):
-    '''
-        It checks that, bound as bind_entry,
-            - we can not ADD an entry without the proper SELFDN aci.
-            - with the proper ACI we can not ADD with 'member' attribute
-            - with the proper ACI and 'member' it succeeds to ADD
-    '''
+@pytest.mark.ds47653
+def test_selfdn_permission_add(topology_st, allow_user_init):
+    """Check add entry operation with and without SelfDN aci
+
+    :id: e837a9ef-be92-48da-ad8b-ebf42b0fede1
+    :setup: Standalone instance, add a entry which is used to bind,
+    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+    remove aci's to start with a clean slate, and add dummy entries
+    :steps:
+        1. Check we can not ADD an entry without the proper SELFDN aci
+        2. Check with the proper ACI we can not ADD with 'member' attribute
+        3. Check entry to add with memberS and with the ACI
+        4. Check with the proper ACI and 'member' it succeeds to ADD
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should fail with Insufficient Access
+        4. Operation should be successful
+     """
     topology_st.standalone.log.info("\n\n######################### ADD ######################\n")
 
     # bind as bind_entry
@@ -143,7 +151,7 @@ def test_ticket47653_add(topology_st):
     ACI_ALLOW = "(version 3.0; acl \"SelfDN add\"; allow (add)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
     ACI_BODY = ACI_TARGET + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_st.standalone.modify_s(SUFFIX, mod)
 
     # bind as bind_entry
@@ -176,12 +184,23 @@ def test_ticket47653_add(topology_st):
     topology_st.standalone.add_s(entry_with_member)
 
 
-def test_ticket47653_search(topology_st):
-    '''
-        It checks that, bound as bind_entry,
-            - we can not search an entry without the proper SELFDN aci.
-            - adding the ACI, we can search the entry
-    '''
+@pytest.mark.ds47653
+def test_selfdn_permission_search(topology_st, allow_user_init):
+    """Check search operation with and without SelfDN aci
+
+    :id: 06d51ef9-c675-4583-99b2-4852dbda190e
+    :setup: Standalone instance, add a entry which is used to bind,
+    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+    remove aci's to start with a clean slate, and add dummy entries
+    :steps:
+        1. Check we can not search an entry without the proper SELFDN aci
+        2. Add proper ACI
+        3. Check we can search with the proper ACI
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+     """
     topology_st.standalone.log.info("\n\n######################### SEARCH ######################\n")
     # bind as bind_entry
     topology_st.standalone.log.info("Bind as %s" % BIND_DN)
@@ -202,7 +221,7 @@ def test_ticket47653_search(topology_st):
     ACI_ALLOW = "(version 3.0; acl \"SelfDN search-read\"; allow (read, search, compare)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_st.standalone.modify_s(SUFFIX, mod)
 
     # bind as bind_entry
@@ -215,12 +234,23 @@ def test_ticket47653_search(topology_st):
     assert len(ents) == 1
 
 
-def test_ticket47653_modify(topology_st):
-    '''
-        It checks that, bound as bind_entry,
-            - we can not modify an entry without the proper SELFDN aci.
-            - adding the ACI, we can modify the entry
-    '''
+@pytest.mark.ds47653
+def test_selfdn_permission_modify(topology_st, allow_user_init):
+    """Check modify operation with and without SelfDN aci
+
+    :id: 97a58844-095f-44b0-9029-dd29a7d83d68
+    :setup: Standalone instance, add a entry which is used to bind,
+    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+    remove aci's to start with a clean slate, and add dummy entries
+    :steps:
+        1. Check we can not modify an entry without the proper SELFDN aci
+        2. Add proper ACI
+        3. Modify the entry and check the modified value
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+     """
     # bind as bind_entry
     topology_st.standalone.log.info("Bind as %s" % BIND_DN)
     topology_st.standalone.simple_bind_s(BIND_DN, BIND_PW)
@@ -230,7 +260,7 @@ def test_ticket47653_modify(topology_st):
     # entry to modify WITH member being BIND_DN but WITHOUT the ACI -> ldap.INSUFFICIENT_ACCESS
     try:
         topology_st.standalone.log.info("Try to modify  %s (aci is missing)" % ENTRY_DN)
-        mod = [(ldap.MOD_REPLACE, 'postalCode', '9876')]
+        mod = [(ldap.MOD_REPLACE, 'postalCode', b'9876')]
         topology_st.standalone.modify_s(ENTRY_DN, mod)
     except Exception as e:
         topology_st.standalone.log.info("Exception (expected): %s" % type(e).__name__)
@@ -246,7 +276,7 @@ def test_ticket47653_modify(topology_st):
     ACI_ALLOW = "(version 3.0; acl \"SelfDN write\"; allow (write)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_st.standalone.modify_s(SUFFIX, mod)
 
     # bind as bind_entry
@@ -255,20 +285,30 @@ def test_ticket47653_modify(topology_st):
 
     # modify the entry and checks the value
     topology_st.standalone.log.info("Try to modify  %s. It should succeeds" % ENTRY_DN)
-    mod = [(ldap.MOD_REPLACE, 'postalCode', '1928')]
+    mod = [(ldap.MOD_REPLACE, 'postalCode', b'1928')]
     topology_st.standalone.modify_s(ENTRY_DN, mod)
 
     ents = topology_st.standalone.search_s(ENTRY_DN, ldap.SCOPE_BASE, 'objectclass=*')
     assert len(ents) == 1
-    assert ents[0].postalCode == '1928'
+    assert ensure_str(ents[0].postalCode) == '1928'
 
 
-def test_ticket47653_delete(topology_st):
-    '''
-        It checks that, bound as bind_entry,
-            - we can not delete an entry without the proper SELFDN aci.
-            - adding the ACI, we can delete the entry
-    '''
+@pytest.mark.ds47653
+def test_selfdn_permission_delete(topology_st, allow_user_init):
+    """Check delete operation with and without SelfDN aci
+
+    :id: 0ec4c0ec-e7b0-4ef1-8373-ab25aae34516
+    :setup: Standalone instance, add a entry which is used to bind,
+    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+    remove aci's to start with a clean slate, and add dummy entries
+    :steps:
+        1. Check we can not delete an entry without the proper SELFDN aci
+        2. Add proper ACI
+        3. Check we can perform delete operation with proper ACI
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+     """
     topology_st.standalone.log.info("\n\n######################### DELETE ######################\n")
 
     # bind as bind_entry
@@ -292,14 +332,14 @@ def test_ticket47653_delete(topology_st):
     ACI_ALLOW = "(version 3.0; acl \"SelfDN delete\"; allow (delete)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
     ACI_BODY = ACI_TARGET + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_st.standalone.modify_s(SUFFIX, mod)
 
     # bind as bind_entry
     topology_st.standalone.log.info("Bind as %s" % BIND_DN)
     topology_st.standalone.simple_bind_s(BIND_DN, BIND_PW)
 
-    # entry to search with the proper aci
+    # entry to delete with the proper aci
     topology_st.standalone.log.info("Try to delete  %s should be successful" % ENTRY_DN)
     topology_st.standalone.delete_s(ENTRY_DN)
 

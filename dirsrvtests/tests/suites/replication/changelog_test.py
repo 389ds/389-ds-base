@@ -16,9 +16,17 @@ from lib389.replica import Replicas
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_m2 as topo
 from lib389._constants import *
+from lib389.tasks import *
+from lib389.utils import *
 
 TEST_ENTRY_NAME = 'replusr'
 NEW_RDN_NAME = 'cl5usr'
+CHANGELOG = 'cn=changelog5,cn=config'
+RETROCHANGELOG = 'cn=Retro Changelog Plugin,cn=plugins,cn=config'
+MAXAGE = 'nsslapd-changelogmaxage'
+TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
+COMPACTDBINTERVAL = 'nsslapd-changelogcompactdb-interval'
+FILTER = '(cn=*)'
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
@@ -107,6 +115,84 @@ def _check_changelog_ldif(topo, changelog_ldif):
     log.info('Ldap operations found: {}'.format(ldap_operations))
     assert ldap_operations == valid_operations, 'Changelog ldif file does not contain all \
             changetype operations'
+
+
+def get_ldap_error_msg(e, type):
+    return e.args[0][type]
+
+
+@pytest.fixture(scope="module")
+def changelog_init(topo):
+    """Initialize the test environment by changing log dir and
+    enabling cn=Retro Changelog Plugin,cn=plugins,cn=config
+     """
+    log.info('Testing Ticket 47669 - Test duration syntax in the changelogs')
+
+    # bind as directory manager
+    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+
+    try:
+        changelogdir = os.path.join(os.path.dirname(topo.ms["master1"].dbdir), 'changelog')
+        topo.ms["master1"].modify_s(CHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-changelogdir',
+                                                                    ensure_bytes(changelogdir))])
+    except ldap.LDAPError as e:
+        log.error('Failed to modify ' + CHANGELOG + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+        assert False
+
+    try:
+        topo.ms["master1"].modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', b'on')])
+    except ldap.LDAPError as e:
+        log.error('Failed to enable ' + RETROCHANGELOG + ': error {}'.format(get_ldap_error_msg(e, 'desc')))
+        assert False
+
+    # restart the server
+    topo.ms["master1"].restart(timeout=10)
+
+
+def add_and_check(topo, plugin, attr, val, isvalid):
+    """
+    Helper function to add/replace attr: val and check the added value
+    """
+    if isvalid:
+        log.info('Test %s: %s -- valid' % (attr, val))
+        try:
+            topo.ms["master1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+        except ldap.LDAPError as e:
+            log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+            assert False
+    else:
+        log.info('Test %s: %s -- invalid' % (attr, val))
+        if plugin == CHANGELOG:
+            try:
+                topo.ms["master1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+            except ldap.LDAPError as e:
+                log.error('Expectedly failed to add ' + attr + ': ' + val +
+                          ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+        else:
+            try:
+                topo.ms["master1"].modify_s(plugin, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+            except ldap.LDAPError as e:
+                log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+
+    try:
+        entries = topo.ms["master1"].search_s(plugin, ldap.SCOPE_BASE, FILTER, [attr])
+        if isvalid:
+            if not entries[0].hasValue(attr, val):
+                log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
+                assert False
+        else:
+            if plugin == CHANGELOG:
+                if entries[0].hasValue(attr, val):
+                    log.fatal('%s has unexpected (%s: %s)' % (plugin, attr, val))
+                    assert False
+            else:
+                if not entries[0].hasValue(attr, val):
+                    log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
+                    assert False
+    except ldap.LDAPError as e:
+        log.fatal('Unable to search for entry %s: error %s' % (plugin, e.message['desc']))
+        assert False
 
 
 def test_verify_changelog(topo):
@@ -230,8 +316,143 @@ def test_verify_changelog_offline_backup(topo):
     _check_changelog_ldif(topo, changelog_ldif)
 
 
+@pytest.mark.ds47669
+def test_changelog_maxage(topo, changelog_init):
+    """Check nsslapd-changelog max age values
+
+    :id: d284ff27-03b2-412c-ac74-ac4f2d2fae3b
+    :setup: Replication with two master, change nsslapd-changelogdir to
+    '/var/lib/dirsrv/slapd-master1/changelog' and
+    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+    :steps:
+        1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '12345','10s','30M','12h','2D','4w'
+        2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '-123','xyz'
+
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be unsuccessful
+     """
+    log.info('1. Test nsslapd-changelogmaxage in cn=changelog5,cn=config')
+
+    # bind as directory manager
+    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+
+    add_and_check(topo, CHANGELOG, MAXAGE, '12345', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '30M', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '2D', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, CHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
+
+
+@pytest.mark.ds47669
+def test_ticket47669_changelog_triminterval(topo, changelog_init):
+    """Check nsslapd-changelog triminterval values
+
+    :id: 8f850c37-7e7c-49dd-a4e0-9344638616d6
+    :setup: Replication with two master, change nsslapd-changelogdir to
+    '/var/lib/dirsrv/slapd-master1/changelog' and
+    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+    :steps:
+        1. Set nsslapd-changelogtrim-interval in cn=changelog5,cn=config to values -
+           '12345','10s','30M','12h','2D','4w'
+        2. Set nsslapd-changelogtrim-interval in cn=changelog5,cn=config to values - '-123','xyz'
+
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be unsuccessful
+     """
+    log.info('2. Test nsslapd-changelogtrim-interval in cn=changelog5,cn=config')
+
+    # bind as directory manager
+    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '12345', True)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '10s', True)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '30M', True)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '12h', True)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '2D', True)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '4w', True)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '-123', False)
+    add_and_check(topo, CHANGELOG, TRIMINTERVAL, 'xyz', False)
+
+
+@pytest.mark.ds47669
+def test_changelog_compactdbinterval(topo, changelog_init):
+    """Check nsslapd-changelog compactdbinterval values
+
+    :id: 0f4b3118-9dfa-4c2a-945c-72847b42a48c
+    :setup: Replication with two master, change nsslapd-changelogdir to
+    '/var/lib/dirsrv/slapd-master1/changelog' and
+    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+    :steps:
+        1. Set nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config to values -
+           '12345','10s','30M','12h','2D','4w'
+        2. Set nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config to values -
+           '-123','xyz'
+
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be unsuccessful
+     """
+    log.info('3. Test nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config')
+
+    # bind as directory manager
+    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '12345', True)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '10s', True)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '30M', True)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '12h', True)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '2D', True)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '4w', True)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '-123', False)
+    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, 'xyz', False)
+
+
+@pytest.mark.ds47669
+def test_retrochangelog_maxage(topo, changelog_init):
+    """Check nsslapd-retrochangelog max age values
+
+    :id: 0cb84d81-3e86-4dbf-84a2-66aefd8281db
+    :setup: Replication with two master, change nsslapd-changelogdir to
+    '/var/lib/dirsrv/slapd-master1/changelog' and
+    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+    :steps:
+        1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
+           '12345','10s','30M','12h','2D','4w'
+        2. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
+           '-123','xyz'
+
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be unsuccessful
+     """
+    log.info('4. Test nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config')
+
+    # bind as directory manager
+    topo.ms["master1"].log.info("Bind as %s" % DN_DM)
+    topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '30M', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '2D', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topo, RETROCHANGELOG, MAXAGE, 'xyz', False)
+
+    topo.ms["master1"].log.info("ticket47669 was successfully verified.")
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
-    pytest.main('-s {}'.format(CURRENT_FILE))
+    pytest.main("-s %s" % CURRENT_FILE)

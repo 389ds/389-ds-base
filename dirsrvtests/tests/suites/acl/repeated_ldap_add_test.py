@@ -34,6 +34,8 @@ BOGUSSUFFIX = 'uid=bogus,ou=people,dc=bogus'
 GROUPOU = 'ou=groups,%s' % DEFAULT_SUFFIX
 BOGUSOU = 'ou=OU,%s' % DEFAULT_SUFFIX
 
+def get_ldap_error_msg(e, type):
+    return e.args[0][type]
 
 def pattern_accesslog(file, log_pattern):
     for i in range(5):
@@ -111,7 +113,7 @@ def check_op_result(server, op, dn, superior, exists, rc):
             server.add_s(Entry((dn, {'objectclass': 'top extensibleObject'.split(),
                                      'cn': 'test entry'})))
         elif op == 'modify':
-            server.modify_s(dn, [(ldap.MOD_REPLACE, 'description', 'test')])
+            server.modify_s(dn, [(ldap.MOD_REPLACE, 'description', b'test')])
         elif op == 'modrdn':
             if superior is not None:
                 server.rename_s(dn, 'uid=new', newsuperior=superior, delold=1)
@@ -125,10 +127,10 @@ def check_op_result(server, op, dn, superior, exists, rc):
     except ldap.LDAPError as e:
         hit = 1
         log.info("Exception (expected): %s" % type(e).__name__)
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert isinstance(e, rc)
-        if 'matched' in e.message:
-            log.info('Matched is returned: ' + e.message['matched'])
+        if 'matched' in e.args:
+            log.info('Matched is returned: {}'.format(get_ldap_error_msg(e, 'matched')))
             if rc != ldap.NO_SUCH_OBJECT:
                 assert False
 
@@ -144,14 +146,43 @@ def check_op_result(server, op, dn, superior, exists, rc):
     log.info('PASSED\n')
 
 
-def test_ticket1347760(topology_st):
-    """
-    Prevent revealing the entry info to whom has no access rights.
+@pytest.mark.bz1347760
+def test_repeated_ldap_add(topology_st):
+    """Prevent revealing the entry info to whom has no access rights.
+
+    :id: 76d278bd-3e51-4579-951a-753e6703b4df
+    :setup: Standalone instance
+    :steps:
+        1.  Disable accesslog logbuffering
+        2.  Bind as "cn=Directory Manager"
+        3.  Add a organisational unit as BOU
+        4.  Add a bind user as uid=buser123,ou=BOU,dc=example,dc=com
+        5.  Add a test user as uid=tuser0,ou=People,dc=example,dc=com
+        6.  Delete aci in dc=example,dc=com
+        7.  Bind as Directory Manager, acquire an access log path and instance dir
+        8.  Bind as uid=buser123,ou=BOU,dc=example,dc=com who has no right to read the entry
+        9.  Bind as uid=bogus,ou=people,dc=bogus,bogus who does not exist
+        10. Bind as uid=buser123,ou=BOU,dc=example,dc=com,bogus with wrong password
+        11. Adding aci for uid=buser123,ou=BOU,dc=example,dc=com to ou=BOU,dc=example,dc=com.
+        12. Bind as uid=buser123,ou=BOU,dc=example,dc=com now who has right to read the entry
+    :expectedresults:
+        1.  Operation should be successful
+        2.  Operation should be successful
+        3.  Operation should be successful
+        4.  Operation should be successful
+        5.  Operation should be successful
+        6.  Operation should be successful
+        7.  Operation should be successful
+        8.  Bind operation should be successful with no search result
+        9.  Bind operation should Fail
+        10. Bind operation should Fail
+        11. Operation should be successful
+        12. Bind operation should be successful with search result
     """
     log.info('Testing Bug 1347760 - Information disclosure via repeated use of LDAP ADD operation, etc.')
 
     log.info('Disabling accesslog logbuffering')
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-accesslog-logbuffering', 'off')])
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-accesslog-logbuffering', b'off')])
 
     log.info('Bind as {%s,%s}' % (DN_DM, PASSWORD))
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -189,7 +220,7 @@ def test_ticket1347760(topology_st):
     try:
         topology_st.standalone.simple_bind_s(BINDDN, BINDPW)
     except ldap.LDAPError as e:
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert False
 
     file_obj = open(file_path, "r")
@@ -202,7 +233,7 @@ def test_ticket1347760(topology_st):
         topology_st.standalone.simple_bind_s(BOGUSDN, 'bogus')
     except ldap.LDAPError as e:
         log.info("Exception (expected): %s" % type(e).__name__)
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert isinstance(e, ldap.INVALID_CREDENTIALS)
         regex = re.compile('No such entry')
         cause = pattern_accesslog(file_obj, regex)
@@ -234,7 +265,7 @@ def test_ticket1347760(topology_st):
         topology_st.standalone.simple_bind_s(BINDDN, 'bogus')
     except ldap.LDAPError as e:
         log.info("Exception (expected): %s" % type(e).__name__)
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert isinstance(e, ldap.INVALID_CREDENTIALS)
         regex = re.compile('Invalid credentials')
         cause = pattern_accesslog(file_obj, regex)
@@ -250,7 +281,7 @@ def test_ticket1347760(topology_st):
     log.info('aci: %s' % acival)
     log.info('Bind as {%s,%s}' % (DN_DM, PASSWORD))
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(BINDOU, [(ldap.MOD_ADD, 'aci', acival)])
+    topology_st.standalone.modify_s(BINDOU, [(ldap.MOD_ADD, 'aci', ensure_bytes(acival))])
     time.sleep(1)
 
     log.info('Bind case 3. the bind user has the right to read the entry itself, bind should be successful.')
@@ -376,14 +407,14 @@ def test_ticket1347760(topology_st):
     acival = '(targetattr="*")(version 3.0; acl "%s-all"; allow(all) userdn = "ldap:///%s";)' % (BUID, BINDDN)
     log.info('Bind as {%s,%s}' % (DN_DM, PASSWORD))
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', acival)])
+    topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', ensure_bytes(acival))])
     time.sleep(1)
 
     log.info('Bind as {%s,%s}.' % (BINDDN, BINDPW))
     try:
         topology_st.standalone.simple_bind_s(BINDDN, BINDPW)
     except ldap.LDAPError as e:
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert False
     time.sleep(1)
 
@@ -434,7 +465,7 @@ def test_ticket1347760(topology_st):
         topology_st.standalone.simple_bind_s(BINDDN, BUID)
     except ldap.LDAPError as e:
         log.info("Exception (expected): %s" % type(e).__name__)
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert isinstance(e, ldap.UNWILLING_TO_PERFORM)
 
     log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, 'bogus', ldap.UNWILLING_TO_PERFORM.__name__))
@@ -442,7 +473,7 @@ def test_ticket1347760(topology_st):
         topology_st.standalone.simple_bind_s(BINDDN, 'bogus')
     except ldap.LDAPError as e:
         log.info("Exception (expected): %s" % type(e).__name__)
-        log.info('Desc ' + e.message['desc'])
+        log.info('Desc {}'.format(get_ldap_error_msg(e,'desc')))
         assert isinstance(e, ldap.UNWILLING_TO_PERFORM)
 
     log.info('SUCCESS')
@@ -453,3 +484,4 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
+

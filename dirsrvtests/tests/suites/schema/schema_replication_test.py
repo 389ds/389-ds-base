@@ -83,14 +83,14 @@ def _oc_definition(oid_ext, name, must=None, may=None):
 
 def add_OC(instance, oid_ext, name):
     new_oc = _oc_definition(oid_ext, name)
-    instance.schema.add_schema('objectClasses', new_oc)
+    instance.schema.add_schema('objectClasses', ensure_bytes(new_oc))
 
 
 def mod_OC(instance, oid_ext, name, old_must=None, old_may=None, new_must=None, new_may=None):
     old_oc = _oc_definition(oid_ext, name, old_must, old_may)
     new_oc = _oc_definition(oid_ext, name, new_must, new_may)
-    instance.schema.del_schema('objectClasses', old_oc)
-    instance.schema.add_schema('objectClasses', new_oc)
+    instance.schema.del_schema('objectClasses', ensure_bytes(old_oc))
+    instance.schema.add_schema('objectClasses', ensure_bytes(new_oc))
 
 
 def support_schema_learning(topology_m1c1):
@@ -109,7 +109,7 @@ def support_schema_learning(topology_m1c1):
     ent = topology_m1c1.cs["consumer1"].getEntry(DN_CONFIG, ldap.SCOPE_BASE, "(cn=config)", ['nsslapd-versionstring'])
     if ent.hasAttr('nsslapd-versionstring'):
         val = ent.getValue('nsslapd-versionstring')
-        version = val.split('/')[1].split('.')  # something like ['1', '3', '1', '23', 'final_fix']
+        version = ensure_str(val).split('/')[1].split('.')  # something like ['1', '3', '1', '23', 'final_fix']
         major = int(version[0])
         minor = int(version[1])
         if major > 1:
@@ -133,7 +133,7 @@ def trigger_update(topology_m1c1):
         trigger_update.value += 1
     except AttributeError:
         trigger_update.value = 1
-    replace = [(ldap.MOD_REPLACE, 'telephonenumber', str(trigger_update.value))]
+    replace = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(trigger_update.value)))]
     topology_m1c1.ms["master1"].modify_s(ENTRY_DN, replace)
 
     # wait 10 seconds that the update is replicated
@@ -173,13 +173,14 @@ def trigger_schema_push(topology_m1c1):
     trigger_update(topology_m1c1)
 
 
-def test_ticket47490_init(topology_m1c1):
+@pytest.fixture(scope="module")
+def schema_replication_init(topology_m1c1):
+    """Initialize the test environment
+
     """
-        Initialize the test environment
-    """
-    log.debug("test_ticket47490_init topology_m1c1 %r (master %r, consumer %r" % (
+    log.debug("test_schema_replication_init topology_m1c1 %r (master %r, consumer %r" % (
     topology_m1c1, topology_m1c1.ms["master1"], topology_m1c1.cs["consumer1"]))
-    # the test case will check if a warning message is logged in the
+    # check if a warning message is logged in the
     # error log of the supplier
     topology_m1c1.ms["master1"].errorlog_file = open(topology_m1c1.ms["master1"].errlog, "r")
 
@@ -190,23 +191,34 @@ def test_ticket47490_init(topology_m1c1):
         'cn': 'test_entry'})))
 
 
-def test_ticket47490_one(topology_m1c1):
-    """
-        Summary: Extra OC Schema is pushed - no error
+@pytest.mark.ds47490
+def test_schema_replication_one(topology_m1c1, schema_replication_init):
+    """Check supplier schema is a superset (one extra OC) of consumer schema, then
+    schema is pushed and there is no message in the error log
 
-        If supplier schema is a superset (one extra OC) of consumer schema, then
-        schema is pushed and there is no message in the error log
-        State at startup:
+    :id: d6c6ff30-b3ae-4001-80ff-0fb18563a393
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Update the schema of supplier, so it will be superset of consumer
+        2. Push the Schema (no error)
+        3. Check both master and consumer has same schemaCSN
+        4. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. State at startup:
             - supplier default schema
             - consumer default schema
-        Final state
+           Final state
             - supplier +masterNewOCA
             - consumer +masterNewOCA
-
     """
+
     _header(topology_m1c1, "Extra OC Schema is pushed - no error")
 
-    log.debug("test_ticket47490_one topology_m1c1 %r (master %r, consumer %r" % (
+    log.debug("test_schema_replication_one topology_m1c1 %r (master %r, consumer %r" % (
     topology_m1c1, topology_m1c1.ms["master1"], topology_m1c1.cs["consumer1"]))
     # update the schema of the supplier so that it is a superset of
     # consumer. Schema should be pushed
@@ -217,8 +229,8 @@ def test_ticket47490_one(topology_m1c1):
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_ticket47490_one master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_one onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_one master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_one onsumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
@@ -228,19 +240,33 @@ def test_ticket47490_one(topology_m1c1):
         assert False
 
 
-def test_ticket47490_two(topology_m1c1):
-    """
-        Summary: Extra OC Schema is pushed - (ticket 47721 allows to learn missing def)
-
-        If consumer schema is a superset (one extra OC) of supplier schema, then
+@pytest.mark.ds47490
+def test_schema_replication_two(topology_m1c1, schema_replication_init):
+    """Check consumer schema is a superset (one extra OC) of supplier schema, then
         schema is pushed and there is a message in the error log
-        State at startup
+
+    :id: b5db9b75-a9a7-458e-86ec-2a8e7bd1c014
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Update the schema of consumer, so it will be superset of supplier
+        2. Update the schema of supplier so ti make it's nsSchemaCSN larger than consumer
+        3. Push the Schema (error should be generated)
+        4. Check supplier learns the missing definition
+        5. Check the error logs
+        6. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. Operation should be successful
+        6. State at startup
             - supplier +masterNewOCA
             - consumer +masterNewOCA
-        Final state
+           Final state
             - supplier +masterNewOCA +masterNewOCB
             - consumer +masterNewOCA               +consumerNewOCA
-
     """
 
     _header(topology_m1c1, "Extra OC Schema is pushed - (ticket 47721 allows to learn missing def)")
@@ -259,8 +285,8 @@ def test_ticket47490_two(topology_m1c1):
 
     # Check the schemaCSN was NOT updated on the consumer
     # with 47721, supplier learns the missing definition
-    log.debug("test_ticket47490_two master_schema_csn=%s", master_schema_csn)
-    log.debug("test_ticket47490_two consumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_two master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_two consumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
         assert master_schema_csn == consumer_schema_csn
     else:
@@ -272,19 +298,31 @@ def test_ticket47490_two(topology_m1c1):
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
 
 
-def test_ticket47490_three(topology_m1c1):
-    """
-        Summary: Extra OC Schema is pushed - no error
+@pytest.mark.ds47490
+def test_schema_replication_three(topology_m1c1, schema_replication_init):
+    """Check supplier schema is again a superset (one extra OC), then
+    schema is pushed and there is no message in the error log
 
-        If supplier schema is again a superset (one extra OC), then
-        schema is  pushed and there is no message in the error log
-        State at startup
+    :id: 45888895-76bc-4cc3-9f90-33a69d027116
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Update the schema of master
+        2. Push the Schema (no error)
+        3. Check the schemaCSN was NOT updated on the consumer
+        4. Check the error logs for no errors
+        5. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. State at startup
             - supplier +masterNewOCA +masterNewOCB
             - consumer +masterNewOCA               +consumerNewOCA
-        Final state
+           Final state
             - supplier +masterNewOCA +masterNewOCB +consumerNewOCA
             - consumer +masterNewOCA +masterNewOCB +consumerNewOCA
-
     """
     _header(topology_m1c1, "Extra OC Schema is pushed - no error")
 
@@ -298,8 +336,8 @@ def test_ticket47490_three(topology_m1c1):
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
-    log.debug("test_ticket47490_three master_schema_csn=%s", master_schema_csn)
-    log.debug("test_ticket47490_three consumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_three master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_three consumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
@@ -309,21 +347,33 @@ def test_ticket47490_three(topology_m1c1):
         assert False
 
 
-def test_ticket47490_four(topology_m1c1):
-    """
-        Summary: Same OC - extra MUST: Schema is pushed - no error
+@pytest.mark.ds47490
+def test_schema_replication_four(topology_m1c1, schema_replication_init):
+    """Check supplier schema is again a superset (OC with more MUST), then
+    schema is pushed and there is no message in the error log
 
-        If supplier schema is again a superset (OC with more MUST), then
-        schema is  pushed and there is no message in the error log
-        State at startup
+    :id: 39304242-2641-4eb8-a9fb-5ff0cf80718f
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Add telenumber to 'masterNewOCA' on the master
+        2. Push the Schema (no error)
+        3. Check the schemaCSN was updated on the consumer
+        4. Check the error log of the supplier does not contain an error
+        5. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. State at startup
             - supplier +masterNewOCA +masterNewOCB +consumerNewOCA
             - consumer +masterNewOCA +masterNewOCB +consumerNewOCA
-        Final state
+           Final state
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber
-
     """
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - no error")
 
@@ -335,8 +385,8 @@ def test_ticket47490_four(topology_m1c1):
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_ticket47490_four master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_four onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_four master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_four onsumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
@@ -346,24 +396,39 @@ def test_ticket47490_four(topology_m1c1):
         assert False
 
 
-def test_ticket47490_five(topology_m1c1):
-    """
-        Summary: Same OC - extra MUST: Schema is pushed - (fix for 47721)
+@pytest.mark.ds47490
+def test_schema_replication_five(topology_m1c1, schema_replication_init):
+    """Check consumer schema is  a superset (OC with more MUST), then
+    schema is  pushed (fix for 47721) and there is a message in the error log
 
-        If consumer schema is  a superset (OC with more MUST), then
-        schema is  pushed (fix for 47721) and there is a message in the error log
-        State at startup
+    :id: 498527df-28c8-4e1a-bc9e-799fd2b7b2bb
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Add telenumber to 'consumerNewOCA' on the consumer
+        2. Add a new OC on the supplier so that its nsSchemaCSN is larger than the consumer
+        3. Push the Schema
+        4. Check the schemaCSN was NOT updated on the consumer
+        5. Check the error log of the supplier contain an error
+        6. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. Operation should be successful
+        6. State at startup
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
                         +must=telexnumber
-        Final state
+           Final state
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber                   +must=telexnumber
 
-        Note: replication log is enabled to get more details
+           Note: replication log is enabled to get more details
     """
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - (fix for 47721)")
 
@@ -383,8 +448,8 @@ def test_ticket47490_five(topology_m1c1):
 
     # Check the schemaCSN was NOT updated on the consumer
     # with 47721, supplier learns the missing definition
-    log.debug("test_ticket47490_five master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_five onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_five master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_five onsumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
         assert master_schema_csn == consumer_schema_csn
     else:
@@ -396,25 +461,37 @@ def test_ticket47490_five(topology_m1c1):
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
 
 
-def test_ticket47490_six(topology_m1c1):
-    """
-        Summary: Same OC - extra MUST: Schema is pushed - no error
+@pytest.mark.ds47490
+def test_schema_replication_six(topology_m1c1, schema_replication_init):
+    """Check supplier schema is  again a superset (OC with more MUST), then
+    schema is pushed and there is no message in the error log
 
-        If supplier schema is  again a superset (OC with more MUST), then
-        schema is  pushed and there is no message in the error log
-        State at startup
+    :id: ed57b0cc-6a10-4f89-94ae-9f18542b1954
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Add telenumber to 'consumerNewOCA' on the master
+        2. Push the Schema (no error)
+        3. Check the schemaCSN was NOT updated on the consumer
+        4. Check the error log of the supplier does not contain an error
+        5. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. State at startup
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber                   +must=telexnumber
-        Final state
+           Final state
 
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
-
-        Note: replication log is enabled to get more details
+           Note: replication log is enabled to get more details
     """
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - no error")
 
@@ -427,8 +504,8 @@ def test_ticket47490_six(topology_m1c1):
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
-    log.debug("test_ticket47490_six master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_six onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_six master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_six onsumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
@@ -439,18 +516,31 @@ def test_ticket47490_six(topology_m1c1):
         assert False
 
 
-def test_ticket47490_seven(topology_m1c1):
-    """
-        Summary: Same OC - extra MAY: Schema is pushed - no error
+@pytest.mark.ds47490
+def test_schema_replication_seven(topology_m1c1, schema_replication_init):
+    """Check supplier schema is again a superset (OC with more MAY), then
+    schema is pushed and there is no message in the error log
 
-        If supplier schema is again a superset (OC with more MAY), then
-        schema is  pushed and there is no message in the error log
-        State at startup
+    :id: 8725055a-b3f8-4d1d-a4d6-bb7dccf644d0
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Add telenumber to 'masterNewOCA' on the master
+        2. Push the Schema (no error)
+        3. Check the schemaCSN was updated on the consumer
+        4. Check the error log of the supplier does not contain an error
+        5. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. State at startup
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
-        Final stat
+           Final stat
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
@@ -468,8 +558,8 @@ def test_ticket47490_seven(topology_m1c1):
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_ticket47490_seven master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_seven consumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_seven master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_seven consumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
@@ -479,20 +569,35 @@ def test_ticket47490_seven(topology_m1c1):
         assert False
 
 
-def test_ticket47490_eight(topology_m1c1):
-    """
-        Summary: Same OC - extra MAY: Schema is pushed (fix for 47721)
+@pytest.mark.ds47490
+def test_schema_replication_eight(topology_m1c1, schema_replication_init):
+    """Check consumer schema is a superset (OC with more MAY), then
+    schema is  pushed (fix for 47721) and there is  message in the error log
 
-        If consumer schema is a superset (OC with more MAY), then
-        schema is  pushed (fix for 47721) and there is  message in the error log
-        State at startup
+    :id: 2310d150-a71a-498d-add8-4056beeb58c6
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Add telenumber to 'consumerNewOCA' on the consumer
+        2. Modify OC on the supplier so that its nsSchemaCSN is larger than the consumer
+        3. Push the Schema (no error)
+        4. Check the schemaCSN was updated on the consumer
+        5. Check the error log of the supplier does not contain an error
+        6. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. Operation should be successful
+        6. State at startup
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
-        Final state
+           Final state
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                                     +may=postOfficeBox
@@ -516,8 +621,8 @@ def test_ticket47490_eight(topology_m1c1):
 
     # Check the schemaCSN was not updated on the consumer
     # with 47721, supplier learns the missing definition
-    log.debug("test_ticket47490_eight master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_eight onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_eight master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_eight onsumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
         assert master_schema_csn == consumer_schema_csn
     else:
@@ -529,13 +634,27 @@ def test_ticket47490_eight(topology_m1c1):
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
 
 
-def test_ticket47490_nine(topology_m1c1):
-    """
-        Summary: Same OC - extra MAY: Schema is pushed - no error
+@pytest.mark.ds47490
+def test_schema_replication_nine(topology_m1c1, schema_replication_init):
+    """Check consumer schema is a superset (OC with more MAY), then
+    schema is  not pushed and there is message in the error log
 
-        If consumer schema is a superset (OC with more MAY), then
-        schema is  not pushed and there is  message in the error log
-        State at startup
+    :id: 851b24c6-b1e0-466f-9714-aa2940fbfeeb
+    :setup: Master Consumer, check if a warning message is logged in the
+    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :steps:
+        1. Add postOfficeBox to 'consumerNewOCA' on the master
+        3. Push the Schema
+        4. Check the schemaCSN was updated on the consumer
+        5. Check the error log of the supplier does contain an error
+        6. Check the startup/final state
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+        5. Operation should be successful
+        6. State at startup
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                                     +may=postOfficeBox
@@ -543,7 +662,7 @@ def test_ticket47490_nine(topology_m1c1):
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox
 
-        Final state
+           Final state
 
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
@@ -562,8 +681,8 @@ def test_ticket47490_nine(topology_m1c1):
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_ticket47490_nine master_schema_csn=%s", master_schema_csn)
-    log.debug("ctest_ticket47490_nine onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("test_schema_replication_nine master_schema_csn=%s", master_schema_csn)
+    log.debug("ctest_schema_replication_nine onsumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
