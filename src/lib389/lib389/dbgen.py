@@ -71,6 +71,8 @@ DBGEN_OUS = [
 "Product Testing",
 "Human Resources",
 "Payroll",
+"People",
+"Groups",
 ]
 
 DBGEN_TEMPLATE = """dn: {DN}

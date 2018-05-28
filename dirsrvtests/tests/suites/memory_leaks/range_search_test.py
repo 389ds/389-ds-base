@@ -9,50 +9,18 @@
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.paths import Paths
 from lib389.topologies import topology_st
-
-from lib389._constants import (PLUGIN_RETRO_CHANGELOG, BACKEND_NAME, RETROCL_SUFFIX,
-                              VALGRIND_LEAK_STR)
+from lib389._constants import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-
-@pytest.fixture(scope="module")
-def setup(topology_st, request):
-    """Enable retro cl, and valgrind.  Since valgrind tests move the ns-slapd binary
-    around it's important to always "valgrind_disable" before "assert False"ing,
-    otherwise we leave the wrong ns-slapd in place if there is a failure
-    """
-
-    log.info('Initializing test_range_search...')
-
-    topology_st.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
-
-    # First stop the instance
-    topology_st.standalone.stop(timeout=30)
-
-    # Get the sbin directory so we know where to replace 'ns-slapd'
-    sbin_dir = get_sbin_dir(prefix=topology_st.standalone.prefix)
-
-    # Enable valgrind
-    if not topology_st.standalone.has_asan():
-        valgrind_enable(sbin_dir)
-
-    def fin():
-        if not topology_st.standalone.has_asan():
-            topology_st.standalone.stop(timeout=30)
-            sbin_dir = topology_st.standalone.get_sbin_dir()
-            valgrind_disable(sbin_dir)
-            topology_st.standalone.start()
-
-    request.addfinalizer(fin)
-
-    # Now start the server with a longer timeout
-    topology_st.standalone.start()
+ds_paths = Paths()
 
 
-def test_range_search(topology_st, setup):
+@pytest.mark.skipif(not ds_paths.asan_enabled, reason="Don't run if ASAN is not enabled")
+def test_range_search(topology_st):
     """Add 100 entries, and run a range search. When we encounter an error
     we still need to disable valgrind before exiting
 
@@ -62,15 +30,16 @@ def test_range_search(topology_st, setup):
     :steps:
         1. Add 100 test entries
         2. Issue a range search with a changenumber filter
-        3. If the system doesn't have asan, get the valgrind results file,
-           stop the server, and check for the leak
+        3. There should be no leak
     :expectedresults:
         1. 100 test entries should be added
         2. Search should be successful
-        3. There should be no leak
+        3. Success
     """
 
     log.info('Running test_range_search...')
+    topology_st.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+    topology_st.standalone.restart()
 
     success = True
 
@@ -87,21 +56,10 @@ def test_range_search(topology_st, setup):
     time.sleep(1)
 
     # Issue range search
-    if success:
-        try:
-            topology_st.standalone.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE,
-                                            '(&(changenumber>=74)(changenumber<=84))')
-        except ldap.LDAPError as e:
-            log.fatal('test_range_search: Failed to search retro changelog(%s), error: %s' %
-                      (RETROCL_SUFFIX, e.message('desc')))
-            success = False
-    if success and not topology_st.standalone.has_asan():
-        # Get the results file, stop the server, and check for the leak
-        results_file = valgrind_get_results_file(topology_st.standalone)
-        topology_st.standalone.stop(timeout=30)
-        if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'range_candidates'):
-            log.fatal('test_range_search: Memory leak is still present!')
-            assert False
+    assert success
+    entries = topology_st.standalone.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE,
+                                              '(&(changenumber>=74)(changenumber<=84))')
+    assert entries
 
 
 if __name__ == '__main__':

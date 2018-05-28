@@ -1661,12 +1661,24 @@ class ReplicationManager(object):
         """
 
         rdn = '{}:{}'.format(from_instance.host, from_instance.sslport)
-        creds = self._repl_creds[rdn]
+        try:
+            creds = self._repl_creds[rdn]
+        except KeyError:
+            # okay, re-use the creds
+            fr_replicas = Replicas(from_instance)
+            fr_r = fr_replicas.get(self._suffix)
+            from_agmts = fr_r.get_agreements()
+            agmts = from_agmts.list()
+
+            assert len(agmts) > 0, "from_instance agreement is not found and credentials are not present \
+                                    in ReplicationManager. You should call create_first_master first."
+            agmt = agmts[0]
+            creds = agmt.get_attr_val_utf8('nsDS5ReplicaCredentials')
 
         services = ServiceAccounts(write_instance, self._suffix)
         sa_dn = services.get(rdn).dn
 
-        return (sa_dn, creds)
+        return sa_dn, creds
 
     def ensure_agreement(self, from_instance, to_instance, init=False):
         """Guarantee that a replication agreement exists 'from_instance' send

@@ -10,6 +10,7 @@ import ldap
 import pytest
 from lib389.topologies import topology_m2
 from lib389._constants import (DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2, TASK_WAIT)
+from lib389.agreement import Agreements
 
 from lib389.idm.user import (TEST_USER_PROPERTIES, UserAccounts)
 
@@ -41,7 +42,8 @@ def test_referral_during_tot(topology_m2):
     u = users.create(properties=TEST_USER_PROPERTIES)
     u.set('userPassword', 'password')
     # Now export them to master2
-    master1.agreement.init(DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
+    agmts = Agreements(master1)
+    agmts.list()[0].begin_reinit()
 
     # While that's happening try to bind as a user to master 2
     # This should trigger the referral code.
