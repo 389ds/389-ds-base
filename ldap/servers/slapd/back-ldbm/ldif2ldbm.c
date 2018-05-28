@@ -1639,7 +1639,7 @@ bye:
 
     dblayer_release_id2entry(be, db);
 
-    if (fd > STDERR_FILENO) {
+    if (fd >= 0) {
         close(fd);
     }
 

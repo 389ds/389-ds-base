@@ -2376,7 +2376,7 @@ slapd_SSL_client_auth(LDAP *ld)
 
     /* Free config data */
 
-    if (!svrcore_setup() && token != NULL) {
+    if (token && !svrcore_setup()) {
 #ifdef WITH_SYSTEMD
         slapd_SSL_warn("Sending pin request to SVRCore. You may need to run "
                        "systemd-tty-ask-password-agent to provide the password.");
@@ -2460,6 +2460,11 @@ slapd_SSL_client_auth(LDAP *ld)
                 }
             }
         }
+    } else {
+        if (token == NULL) {
+            slapd_SSL_warn("slapd_SSL_client_auth - certificate token was not found\n");
+        }
+        rc = -1;
     }
 
     slapi_ch_free_string(&token);

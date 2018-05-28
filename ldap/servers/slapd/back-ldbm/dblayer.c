@@ -5656,6 +5656,7 @@ dblayer_copy_directory(struct ldbminfo *li,
                                               inst_dir, MAXPATHLEN);
         if (!inst_dirp || !*inst_dirp) {
             slapi_log_err(SLAPI_LOG_ERR, "dblayer_copy_directory", "Instance dir is NULL.\n");
+            slapi_ch_free_string(&inst_dirp);
             return return_value;
         }
         len = strlen(inst_dirp);
@@ -5969,6 +5970,7 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     slapi_task_log_notice(task,
                                           "Backup: Instance dir is empty\n");
                 }
+                slapi_ch_free_string(&inst_dirp);
                 return_value = -1;
                 goto bail;
             }
@@ -7090,6 +7092,7 @@ dblayer_in_import(ldbm_instance *inst)
     inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                           inst_dir, MAXPATHLEN);
     if (!inst_dirp || !*inst_dirp) {
+        slapi_ch_free_string(&inst_dirp);
         rval = -1;
         goto done;
     }
@@ -7141,6 +7144,7 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
     if (NULL == inst_dirp || '\0' == *inst_dirp) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dblayer_update_db_ext", "Instance dir is NULL\n");
+        slapi_ch_free_string(&inst_dirp);
         return -1; /* non zero */
     }
     for (a = (struct attrinfo *)avl_getfirst(inst->inst_attrs);

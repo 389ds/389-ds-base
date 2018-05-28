@@ -42,18 +42,18 @@ slapi_be_new(const char *type, const char *name, int isprivate, int logchanges)
         }
     }
 
-    /* Find the first open slot */
-    for (i = 0; ((i < maxbackends) && (backends[i])); i++)
-        ;
-
-    PR_ASSERT(i < maxbackends);
 
     be = (Slapi_Backend *)slapi_ch_calloc(1, sizeof(Slapi_Backend));
     be->be_lock = slapi_new_rwlock();
     be_init(be, type, name, isprivate, logchanges, defsize, deftime);
 
-    backends[i] = be;
-    nbackends++;
+    for (size_t i = 0; i < maxbackends; i++) {
+        if (backends[i] == NULL) {
+            backends[i] = be;
+            nbackends++;
+            break;
+        }
+    }
 
     slapi_log_err(SLAPI_LOG_TRACE, "slapi_be_new",
                   "Added new backend name [%s] type [%s] nbackends [%d]\n",

@@ -550,7 +550,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         }
 
         /* Build the new list */
-        for (i = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
+        for (i = 0; theConfig.group_slapiattrs && theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
             theConfig.group_slapiattrs[i] = slapi_attr_new();
             slapi_attr_init(theConfig.group_slapiattrs[i], theConfig.groupattrs[i]);
         }
@@ -731,7 +731,7 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
             }
 
             /* Copy the attributes. */
-            for (i = 0; src->group_slapiattrs && src->group_slapiattrs[i]; i++) {
+            for (i = 0; dest->group_slapiattrs && src->group_slapiattrs && src->group_slapiattrs[i]; i++) {
                 dest->group_slapiattrs[i] = slapi_attr_dup(src->group_slapiattrs[i]);
             }
 

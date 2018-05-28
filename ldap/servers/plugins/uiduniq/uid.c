@@ -454,10 +454,10 @@ uid_op_error(int internal_error)
 static char *
 create_filter(const char **attributes, const struct berval *value, const char *requiredObjectClass)
 {
-    char *filter;
+    char *filter = NULL;
     char *fp;
     char *max;
-    int *attrLen;
+    int *attrLen = NULL;
     int totalAttrLen = 0;
     int attrCount = 0;
     int valueLen;
@@ -487,9 +487,10 @@ create_filter(const char **attributes, const struct berval *value, const char *r
         totalAttrLen += 3;
     }
 
-    if (ldap_quote_filter_value(value->bv_val,
-                                value->bv_len, 0, 0, &valueLen))
-        return 0;
+    if (ldap_quote_filter_value(value->bv_val, value->bv_len, 0, 0, &valueLen)) {
+        slapi_ch_free((void **)&attrLen);
+        return filter;
+    }
 
     if (requiredObjectClass) {
         classLen = strlen(requiredObjectClass);
@@ -523,9 +524,9 @@ create_filter(const char **attributes, const struct berval *value, const char *r
         *fp++ = '=';
 
         /* Place value in filter */
-        if (ldap_quote_filter_value(value->bv_val, value->bv_len,
-                                    fp, max - fp, &valueLen)) {
-            slapi_ch_free((void **)&filter);
+        if (ldap_quote_filter_value(value->bv_val, value->bv_len, fp, max - fp, &valueLen)) {
+            slapi_ch_free_string(&filter);
+            slapi_ch_free((void **)&attrLen);
             return 0;
         }
         fp += valueLen;
@@ -545,9 +546,8 @@ create_filter(const char **attributes, const struct berval *value, const char *r
             *fp++ = '=';
 
             /* Place value in filter */
-            if (ldap_quote_filter_value(value->bv_val, value->bv_len,
-                                        fp, max - fp, &valueLen)) {
-                slapi_ch_free((void **)&filter);
+            if (ldap_quote_filter_value(value->bv_val, value->bv_len, fp, max - fp, &valueLen)) {
+                slapi_ch_free_string(&filter);
                 slapi_ch_free((void **)&attrLen);
                 return 0;
             }

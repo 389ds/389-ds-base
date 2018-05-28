@@ -1164,6 +1164,7 @@ update_pw_history(Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw)
     if (old_pw) {
         /* we have a password to replace with the oldest one in the history. */
         if (!values_replace || !vacnt) { /* This is the first one to store */
+            slapi_ch_array_free(values_replace);
             values_replace = (char **)slapi_ch_calloc(2, sizeof(char *));
         }
     } else {

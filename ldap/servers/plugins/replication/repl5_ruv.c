@@ -1673,9 +1673,10 @@ ruv_update_ruv(RUV *ruv, const CSN *csn, const char *replica_purl, void *replica
     if (local_rid != prim_rid) {
         repl_ruv = ruvGetReplica(ruv, prim_rid);
         if ((rc = ruv_update_ruv_element(ruv, repl_ruv, prim_csn, replica_purl, PR_FALSE))) {
-           slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                         "ruv_update_ruv - failed to update primary ruv, error (%d)", rc);
-           return rc;
+            slapi_rwlock_unlock(ruv->lock);
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                          "ruv_update_ruv - failed to update primary ruv, error (%d)", rc);
+            return rc;
         }
     }
     repl_ruv = ruvGetReplica(ruv, local_rid);
