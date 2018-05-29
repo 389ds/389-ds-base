@@ -247,12 +247,10 @@ main(int argc, char *argv[])
 }
 
 /* ldif_read_record lineno argument type depends on openldap version */
-#if defined(USE_OPENLDAP)
 #if LDAP_VENDOR_VERSION >= 20434 /* changed in 2.4.34 */
 typedef unsigned long int ldif_record_lineno_t;
 #else
 typedef int ldif_record_lineno_t;
-#endif
 #endif
 
 /************************************************************************
@@ -265,14 +263,9 @@ load_config(char *conf_path)
 {
     server_instance *serv_p = NULL;
     FILE *conf_file = NULL;
-#if defined(USE_OPENLDAP)
     LDIFFP *dse_fp = NULL;
     int buflen = 0;
     ldif_record_lineno_t lineno = 0;
-#else
-    FILE *dse_fp = NULL;
-    int lineno = 0;
-#endif
     char line[MAXLINE];
     char *p = NULL;
     int error = 0;
@@ -406,13 +399,9 @@ load_config(char *conf_path)
                 goto close_and_exit;
             }
 
-/* Open dse.ldif */
-#if defined(USE_OPENLDAP)
+            /* Open dse.ldif */
             dse_fp = ldif_open(serv_p->dse_ldif, "r");
             buflen = 0;
-#else
-            dse_fp = fopen(serv_p->dse_ldif, "r");
-#endif
             if (dse_fp == NULL) {
                 printf("ldap-agent: Error opening server config file: %s\n",
                        serv_p->dse_ldif);
@@ -422,26 +411,18 @@ load_config(char *conf_path)
                 goto close_and_exit;
             }
 
-/* ldif_get_entry will realloc the entry if it's not null,
+            /* ldif_get_entry will realloc the entry if it's not null,
              * so we can just free it when we're done fetching entries
              * from the dse.ldif.  Unfortunately, ldif_getline moves
              * the pointer that is passed to it, so we need to save a
              * pointer to the beginning of the entry so we can free it
              * later. */
-#if defined(USE_OPENLDAP)
             while (ldif_read_record(dse_fp, &lineno, &entry, &buflen))
-#else
-            while ((entry = ldif_get_entry(dse_fp, &lineno)) != NULL)
-#endif
             {
                 char *entryp = entry;
                 char *attr = NULL;
                 char *val = NULL;
-#if defined(USE_OPENLDAP)
                 ber_len_t vlen;
-#else
-                int vlen;
-#endif
                 /* Check if this is the cn=config entry */
                 if (ldif_parse_line(ldif_getline(&entryp), &attr, &val, &vlen)) {
                     printf("ldap-agent: error parsing ldif line from [%s]\n", serv_p->dse_ldif);
@@ -554,11 +535,7 @@ close_and_exit:
     if (conf_file)
         fclose(conf_file);
     if (dse_fp) {
-#if defined(USE_OPENLDAP)
         ldif_close(dse_fp);
-#else
-        fclose(dse_fp);
-#endif
     }
     if (error)
         exit(error);

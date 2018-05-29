@@ -154,15 +154,10 @@ PROFILING_LINKS = @profiling_links@
 NSPR_LINK = $(NSPR_LIBS)
 NSS_LINK = $(NSS_LIBS)
 
-if OPENLDAP
 # with recent versions of openldap - if you link with both ldap_r and ldap, the
 # shared lib _fini for one will stomp on the other, and the program will crash
 LDAPSDK_LINK_NOTHR = @openldap_lib@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
-else
-LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
-LDAPSDK_LINK_NOTHR = $(LDAPSDK_LINK)
-endif
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
@@ -519,7 +514,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/http.h \
 	ldap/servers/slapd/intrinsics.h \
 	ldap/servers/slapd/log.h \
-	ldap/servers/slapd/mozldap.h \
 	ldap/servers/slapd/openldapber.h \
 	ldap/servers/slapd/pblock_v3.h \
 	ldap/servers/slapd/poll_using_select.h \

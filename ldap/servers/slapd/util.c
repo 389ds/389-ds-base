@@ -77,27 +77,6 @@ special_np_and_punct(unsigned char c)
     return UTIL_ESCAPE_NONE;
 }
 
-#ifndef USE_OPENLDAP
-static int
-special_filter(unsigned char c)
-{
-    /*
-     * Escape all non-printing chars and double-quotes in addition
-     * to those required by RFC 2254 so that we can use the string
-     * in log files.
-     */
-    return (c < 32 ||
-            c > 126 ||
-            c == '*' ||
-            c == '(' ||
-            c == ')' ||
-            c == '\\' ||
-            c == '"')
-               ? UTIL_ESCAPE_HEX
-               : UTIL_ESCAPE_NONE;
-}
-#endif
-
 /*
  *  Used by filter_stuff_func to help extract an attribute so we know
  *  how to normalize the value.
@@ -255,10 +234,8 @@ static PRIntn
 filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 {
     struct filter_ctx *ctx = (struct filter_ctx *)arg;
-#if defined(USE_OPENLDAP)
     struct berval escaped_filter;
     struct berval raw_filter;
-#endif
     char *buf = (char *)val;
     int extra_space;
     int filter_len = (int)slen;
@@ -351,7 +328,6 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
          *  Escape the filter value
          */
         if (ctx->next_arg_needs_esc_norm & ESCAPE_FILTER) {
-#if defined(USE_OPENLDAP)
             raw_filter.bv_val = (char *)buf;
             raw_filter.bv_len = filter_len;
             if (ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0) {
@@ -362,21 +338,6 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
                 filter_len = escaped_filter.bv_len;
                 buf = escaped_filter.bv_val;
             }
-#else
-            char *val2 = NULL;
-            buf = slapi_ch_calloc(sizeof(char), filter_len * 3 + 1);
-            val2 = (char *)do_escape_string(val, filter_len, buf, special_filter);
-            if (val2 == NULL) {
-                slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Failed to escape filter value(%s)\n", val);
-                ctx->next_arg_needs_esc_norm = 0;
-                slapi_ch_free_string(&buf);
-                return -1;
-            } else if (val == val2) { /* value did not need escaping and was just returned */
-                strcpy(buf, val);     /* just use value as-is - len did not change */
-            } else {
-                filter_len = strlen(buf);
-            }
-#endif
         }
 
         /*
@@ -475,10 +436,8 @@ slapi_filter_sprintf(const char *fmt, ...)
 char *
 slapi_escape_filter_value(char *filter_str, int len)
 {
-#if defined(USE_OPENLDAP)
     struct berval escaped_filter;
     struct berval raw_filter;
-#endif
     int filter_len;
 
     /*
@@ -494,7 +453,6 @@ slapi_escape_filter_value(char *filter_str, int len)
         /* the len is the length */
         filter_len = len;
     }
-#if defined(USE_OPENLDAP)
     /*
      *  Construct the berval and escape it
      */
@@ -507,17 +465,6 @@ slapi_escape_filter_value(char *filter_str, int len)
     } else {
         return escaped_filter.bv_val;
     }
-#else
-    char *buf = slapi_ch_calloc(sizeof(char), filter_len * 3 + 1);
-    char *esc_str = (char *)do_escape_string(filter_str, filter_len, buf, special_filter);
-
-    if (esc_str != buf) {
-        slapi_ch_free_string(&buf);
-        return slapi_ch_strdup(esc_str);
-    } else {
-        return buf;
-    }
-#endif
 }
 
 /*

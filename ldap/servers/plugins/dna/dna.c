@@ -2003,9 +2003,7 @@ dna_request_range(struct configEntry *config_entry,
     int ret = LDAP_OPERATIONS_ERROR;
     int port = 0;
     int timelimit;
-#if defined(USE_OPENLDAP)
     struct timeval timeout;
-#endif
     /* See if we're allowed to send a range request now */
     slapi_lock_mutex(config_entry->extend_lock);
     if (config_entry->extend_in_progress) {
@@ -2051,13 +2049,9 @@ dna_request_range(struct configEntry *config_entry,
     ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
     timelimit = config_entry->timeout / 1000; /* timeout is in msec */
     ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &timelimit);
-#if defined(USE_OPENLDAP)
     timeout.tv_sec = config_entry->timeout / 1000;
     timeout.tv_usec = (config_entry->timeout % 1000) * 1000;
     ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &timeout);
-#else
-    ldap_set_option(ld, LDAP_X_OPT_CONNECT_TIMEOUT, &config_entry->timeout);
-#endif
     /* Bind to the replica server */
     ret = slapi_ldap_bind(ld, bind_dn, bind_passwd, bind_method,
                           NULL, NULL, NULL, NULL);

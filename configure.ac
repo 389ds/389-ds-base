@@ -834,7 +834,6 @@ fi
 AC_SUBST(nss_libdir)
 
 m4_include(m4/openldap.m4)
-m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)
 
 PKG_CHECK_MODULES([SASL], [libsasl2])

@@ -59,9 +59,6 @@ dd/mm/yy | Author    | Comments
 
 #include <lber.h> /* ldap C-API BER declarations */
 #include <ldap.h> /* ldap C-API declarations */
-#if !defined(USE_OPENLDAP)
-#include <ldap_ssl.h> /* ldapssl_init(), etc... */
-#endif
 #include <prprf.h>
 #include "port.h"     /* Portability definitions */
 #include "ldclt.h"    /* This tool's include file */

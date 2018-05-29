@@ -158,7 +158,6 @@ st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *pw)
     return 1;
 }
 
-#if defined(USE_OPENLDAP)
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
 static PRCallOnceType ol_init_callOnce = {0, 0, 0};
 static PRLock *ol_init_lock = NULL;
@@ -175,12 +174,11 @@ internal_ol_init_init(void)
 
     return PR_SUCCESS;
 }
-#endif
+
 static int
 st_bind(SearchThread *st)
 {
     if (!st->ld) {
-#if defined(USE_OPENLDAP)
         int ret = 0;
         char *ldapurl = NULL;
 
@@ -201,16 +199,12 @@ st_bind(SearchThread *st)
                     ret, ldap_err2string(ret));
             return 0;
         }
-#else
-        st->ld = ldap_init(hostname, port);
-#endif
         if (!st->ld) {
             fprintf(stderr, "T%d: failed to init\n", st->id);
             return 0;
         }
     }
     if (!st->ld2) { /* aux LDAP handle */
-#if defined(USE_OPENLDAP)
         int ret = 0;
         char *ldapurl = NULL;
 
@@ -231,9 +225,6 @@ st_bind(SearchThread *st)
                     ret, ldap_err2string(ret));
             return 0;
         }
-#else
-        st->ld2 = ldap_init(hostname, port);
-#endif
         if (!st->ld2) {
             fprintf(stderr, "T%d: failed to init 2\n", st->id);
             return 0;

@@ -39,9 +39,6 @@
 #include <time.h>        /* ctime(), etc... */   /*JLS 18-08-00*/
 #include <lber.h>                                /* ldap C-API BER decl. */
 #include <ldap.h>                                /* ldap C-API decl. */
-#if !defined(USE_OPENLDAP)
-#include <ldap_ssl.h> /* ldapssl_init(), etc... */
-#endif
 #ifdef LDAP_H_FROM_QA_WKA
 #include <proto-ldap.h> /* ldap C-API prototypes */
 #endif
@@ -693,7 +690,6 @@ printGlobalStatistics(void)
                    mctx.pid, i, buf, mctx.errors[i]);
         }
     }
-#if defined(USE_OPENLDAP)
     for (i = 0; i < ABS(NEGATIVE_MAX_ERROR_NB); i++) {
         if (mctx.negativeErrors[i] > 0) {
             found = 1;
@@ -702,16 +698,11 @@ printGlobalStatistics(void)
                    mctx.pid, -i, buf, mctx.negativeErrors[i]);
         }
     }
-#endif
     if (mctx.errorsBad > 0) {
         found = 1;
         printf("ldclt[%d]: Global illegal errors (codes not in [%d, %d]) occurs %5d times\n",
                mctx.pid,
-#if defined(USE_OPENLDAP)
                NEGATIVE_MAX_ERROR_NB,
-#else
-               0,
-#endif
                MAX_ERROR_NB - 1, mctx.errorsBad);
     }
     if (!found)
@@ -1273,11 +1264,9 @@ basicInit(void)
     for (i = 0; i < MAX_ERROR_NB; i++) {
         mctx.errors[i] = 0;
     }
-#if defined(USE_OPENLDAP)
     for (i = 0; i < ABS(NEGATIVE_MAX_ERROR_NB); i++) {
         mctx.negativeErrors[i] = 0;
     }
-#endif
     /*
    * Initiate the mutex that protect the errors statistics
    */
@@ -1341,35 +1330,6 @@ basicInit(void)
             return (-1);
         }
     }
-
-#if !defined(USE_OPENLDAP)
-    /*
-   * SSL is enabled ?
-   */
-    if (mctx.mode & SSL) {
-        /*
-     * The initialization of certificate based and basic authentication differs
-     * B Kolics 23-11-00
-     */
-        if (mctx.mode & CLTAUTH) {
-            if (ldapssl_clientauth_init(mctx.certfile, NULL, 1, mctx.keydbfile, NULL) < 0) {
-                fprintf(stderr, "ldclt: %s\n", strerror(errno));
-                fprintf(stderr, "Cannot ldapssl_clientauth_init (%s,%s)\n",
-                        mctx.certfile, mctx.keydbfile);
-                fflush(stderr);
-                return (-1);
-            }
-        } else {
-            if (ldapssl_client_init(mctx.certfile, NULL) < 0) {
-                fprintf(stderr, "ldclt: %s\n", strerror(errno));
-                fprintf(stderr, "Cannot ldapssl_client_init (%s)\n", /*JLS 08-11-00*/
-                        mctx.certfile);                              /*JLS 08-11-00*/
-                fflush(stderr);
-                return (-1);
-            }
-        }
-    }
-#endif /* !defined(USE_OPENLDAP) */
 
     /*
    * Specific scenarios initialization...

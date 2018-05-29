@@ -302,15 +302,11 @@ do_modify(Slapi_PBlock *pb)
         goto free_and_return;
     }
 
-/* check for decoding error */
-/*
-      if using mozldap - will return LBER_END_OF_SEQORSET if loop
-      completed successfully, otherwise, other value
-      if using openldap - will return LBER_DEFAULT in either case
+    /* check for decoding error */
+    /* will return LBER_DEFAULT in either case
         if there was at least one element read, len will be -1
         if there were no elements read (empty modify) len will be 0
     */
-#if defined(USE_OPENLDAP)
     if (tag != LBER_END_OF_SEQORSET) {
         if ((len == 0) && (0 == smods.num_elements) && !ignored_some_mods) {
             /* ok - empty modify - allow empty modifies */
@@ -321,13 +317,6 @@ do_modify(Slapi_PBlock *pb)
         }
         /* else ok */
     }
-#else
-    if (tag != LBER_END_OF_SEQORSET) {
-        op_shared_log_error_access(pb, "MOD", rawdn, "decoding error");
-        send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL);
-        goto free_and_return;
-    }
-#endif
 
     /* decode the optional controls - put them in the pblock */
     if ((err = get_ldapmessage_controls(pb, ber, NULL)) != 0) {

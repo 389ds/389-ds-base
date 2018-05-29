@@ -40,8 +40,6 @@
 #include <config.h>
 #endif
 
-#if defined(USE_OPENLDAP)
-
 /* uft8.c - misc. utf8 "string" functions. */
 #include "slapi-plugin.h"
 
@@ -410,5 +408,3 @@ ldap_utf8isspace(char *s)
     /* should never reach here */
     return 0;
 }
-
-#endif /* USE_OPENLDAP */

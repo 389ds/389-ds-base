@@ -23,9 +23,8 @@
  * Used for ldap_result passed to ldbm_back_search_cleanup.
  * If (ldap_result == LDBM_SRCH_DEFAULT_RESULT) || (ldap_result == LDAP_SUCCESS),
  * don't call slapi_send_ldap_result.
- * Note: mozldap ldap_result codes are all positive; openldap result codes could
- *       be negative values.  OL (-1) is LDAP_SERVER_DOWN.  Thus, it's safe to
- *       borrow the value here.
+ * Note: openldap result codes could be negative values.  OL (-1) is LDAP_SERVER_DOWN.
+ *       Thus, it's safe to borrow the value here.
  */
 #define LDBM_SRCH_DEFAULT_RESULT (-1)
 

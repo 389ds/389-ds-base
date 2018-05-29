@@ -24,7 +24,6 @@
 int ldap_syslog;
 int ldap_syslog_level;
 
-#if defined(USE_OPENLDAP)
 static char *
 ldif_type_and_value(const char *type, const char *val, int vlen)
 {
@@ -41,7 +40,6 @@ ldif_type_and_value(const char *type, const char *val, int vlen)
 
     return (buf);
 }
-#endif
 
 static void
 display_usage(char *name)

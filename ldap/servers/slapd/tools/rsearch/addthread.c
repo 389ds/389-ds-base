@@ -155,7 +155,6 @@ static void at_disconnect(AddThread *at)
 }
 #endif
 
-#if defined(USE_OPENLDAP)
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
 static PRCallOnceType ol_init_callOnce = {0, 0, 0};
 static PRLock *ol_init_lock = NULL;
@@ -172,14 +171,12 @@ internal_ol_init_init(void)
 
     return PR_SUCCESS;
 }
-#endif
 
 static void
 at_bind(AddThread *at)
 {
     int ret;
     int retry = 0;
-#if defined(USE_OPENLDAP)
     char *ldapurl = NULL;
 
     at->ld = NULL;
@@ -199,9 +196,6 @@ at_bind(AddThread *at)
                 ret, ldap_err2string(ret));
         return;
     }
-#else
-    at->ld = ldap_init(hostname, port);
-#endif
     if (!at->ld) {
         fprintf(stderr, "T%d: failed to init: %s port %d\n", at->id, hostname, port);
         return;

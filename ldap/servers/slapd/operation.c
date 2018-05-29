@@ -107,7 +107,6 @@ get_operation_object_type()
     return operation_type;
 }
 
-#if defined(USE_OPENLDAP)
 /* openldap doesn't have anything like this, nor does it have
    a way to portably and without cheating discover the
    sizeof BerElement - see lber_pvt.h for the trick used
@@ -142,7 +141,6 @@ ber_special_free(void *buf, BerElement *ber)
     ber_free(ber, 1);
     slapi_ch_free(&buf);
 }
-#endif
 
 void
 operation_init(Slapi_Operation *o, int flags)
@@ -225,7 +223,6 @@ operation_done(Slapi_Operation **op, Connection *conn)
             (*op)->o_results.result_controls = NULL;
         }
         slapi_ch_free_string(&(*op)->o_results.result_matched);
-#if defined(USE_OPENLDAP)
         int options = 0;
         /* save the old options */
         if ((*op)->o_ber) {
@@ -235,12 +232,6 @@ operation_done(Slapi_Operation **op, Connection *conn)
             /* clear out the ber for the next operation */
             ber_init2((*op)->o_ber, NULL, options);
         }
-#else
-        if ((*op)->o_ber) {
-            ber_special_free(*op, (*op)->o_ber); /* have to free everything here */
-            *op = NULL;
-        }
-#endif
     }
 }
 

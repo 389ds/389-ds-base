@@ -534,13 +534,11 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
     /* Copy the Connection DN and SSF into the operation struct */
     op_copy_identity(conn, op);
 
-#if defined(USE_OPENLDAP)
     if (slapi_operation_is_flag_set(op, OP_FLAG_REPLICATED)) {
         /* If it is replicated op, ignore the maxbersize. */
         ber_len_t maxbersize = 0;
         ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
     }
-#endif
 
     /* If the minimum SSF requirements are not met, only allow
      * bind and extended operations through.  The bind and extop
@@ -780,7 +778,6 @@ struct Conn_private
     int use_buffer;                   /* if true, use the buffer - if false, ber_get_next reads directly from socket */
 };
 
-#if defined(USE_OPENLDAP)
 /* Copy up to bytes_to_read bytes from b into return_buffer.
  * Returns a count of bytes copied (always >= 0).
  */
@@ -834,7 +831,6 @@ openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 done:
     return bytes_to_copy;
 }
-#endif
 
 int
 connection_new_private(Connection *conn)
@@ -988,20 +984,12 @@ connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
     return ret;
 }
 
-#ifdef USE_OPENLDAP
 #include "openldapber.h"
-#else
-#include "mozldap.h"
-#endif
 
 static ber_tag_t
 _ber_get_len(BerElement *ber, ber_len_t *lenp)
 {
-#ifdef USE_OPENLDAP
     OLBerElement *lber = (OLBerElement *)ber;
-#else
-    MozElement *lber = (MozElement *)ber;
-#endif
 
     if (NULL == lenp) {
         return LBER_DEFAULT;
@@ -1041,12 +1029,7 @@ get_next_from_buffer(void *buffer __attribute__((unused)), size_t buffer_size __
     ber_len_t bytes_scanned = 0;
 
     *lenp = 0;
-#if defined(USE_OPENLDAP)
     *tagp = ber_get_next(conn->c_sb, &bytes_scanned, ber);
-#else
-    *tagp = ber_get_next_buffer_ext(buffer, buffer_size, lenp, ber,
-                                    &bytes_scanned, conn->c_sb);
-#endif
     /* openldap ber_get_next doesn't return partial bytes_scanned if it hasn't
        read a whole pdu - so we have to check the errno for the
        "would block" condition meaning openldap needs more data to read */
@@ -1080,15 +1063,8 @@ get_next_from_buffer(void *buffer __attribute__((unused)), size_t buffer_size __
             SLAPD_SYSTEM_WOULD_BLOCK_ERROR(errno)) {
             return -2; /* tells connection_read_operation we need to try again */
         }
-    } else {
-/* openldap_read_function will advance c_buffer_offset */
-#if !defined(USE_OPENLDAP)
-        /* success, or need to wait for more data */
-        /* if openldap could not read a whole pdu, bytes_scanned will be zero -
-              it does not return partial results */
-        conn->c_private->c_buffer_offset += bytes_scanned;
-#endif
-    }
+    } /* else, openldap_read_function will advance c_buffer_offset,
+         nothing to do (we had to previously with mozldap) */
     return 0;
 }
 

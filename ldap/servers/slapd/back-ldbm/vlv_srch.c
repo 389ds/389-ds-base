@@ -849,19 +849,11 @@ vlv_isvlv(char *filename)
 void
 internal_ldap_free_sort_keylist(LDAPsortkey **sortKeyList)
 {
-#if defined(USE_OPENLDAP)
     ldap_free_sort_keylist((LDAPSortKey **)sortKeyList);
-#else
-    ldap_free_sort_keylist(sortKeyList);
-#endif
 }
 
 int
 internal_ldap_create_sort_keylist(LDAPsortkey ***sortKeyList, const char *string_rep)
 {
-#if defined(USE_OPENLDAP)
     return ldap_create_sort_keylist((LDAPSortKey ***)sortKeyList, (char *)string_rep);
-#else
-    return ldap_create_sort_keylist(sortKeyList, string_rep);
-#endif
 }

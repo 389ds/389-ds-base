@@ -16,7 +16,7 @@ use File::Spec;
 
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
-$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
+$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin";
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 $single = 0;

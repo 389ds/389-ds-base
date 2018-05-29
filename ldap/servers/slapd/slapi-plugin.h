@@ -63,15 +63,10 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...)
     ;
 #endif
 
-/* OpenLDAP uses unsigned long for ber_tag_t and ber_len_t but mozldap uses unsigned int */
+/* OpenLDAP uses unsigned long for ber_tag_t and ber_len_t */
 /* use this macro for printf statements for ber_tag_t and ber_len_t */
-#if defined(USE_OPENLDAP)
 #define BERTAG_T "lu"
 #define BERLEN_T "lu"
-#else
-#define BERTAG_T "u"
-#define BERLEN_T "u"
-#endif
 
 #define DEFINETOSTR(xxx) #xxx
 #define STRINGIFYDEFINE(xxx) DEFINETOSTR(xxx)
@@ -220,43 +215,9 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...)
 
 /*
  * filter types
- * openldap defines these, but not mozldap
+ * openldap defines these, except the 'extended' is called 'ext' so just redefine
  */
-#ifndef LDAP_FILTER_AND
-#define LDAP_FILTER_AND 0xa0L
-#endif
-#ifndef LDAP_FILTER_OR
-#define LDAP_FILTER_OR 0xa1L
-#endif
-#ifndef LDAP_FILTER_NOT
-#define LDAP_FILTER_NOT 0xa2L
-#endif
-#ifndef LDAP_FILTER_EQUALITY
-#define LDAP_FILTER_EQUALITY 0xa3L
-#endif
-#ifndef LDAP_FILTER_SUBSTRINGS
-#define LDAP_FILTER_SUBSTRINGS 0xa4L
-#endif
-#ifndef LDAP_FILTER_GE
-#define LDAP_FILTER_GE 0xa5L
-#endif
-#ifndef LDAP_FILTER_LE
-#define LDAP_FILTER_LE 0xa6L
-#endif
-#ifndef LDAP_FILTER_PRESENT
-#define LDAP_FILTER_PRESENT 0x87L
-#endif
-#ifndef LDAP_FILTER_APPROX
-#define LDAP_FILTER_APPROX 0xa8L
-#endif
-
-#ifndef LDAP_FILTER_EXTENDED
-#ifdef LDAP_FILTER_EXT
 #define LDAP_FILTER_EXTENDED LDAP_FILTER_EXT
-#else
-#define LDAP_FILTER_EXTENDED 0xa9L
-#endif
-#endif
 
 #ifndef LBER_END_OF_SEQORSET
 #define LBER_END_OF_SEQORSET ((ber_tag_t)-2) /* 0xfffffffeU */
@@ -364,32 +325,6 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...)
 /* openldap does not use this */
 #ifndef LBER_OVERFLOW
 #define LBER_OVERFLOW ((ber_tag_t)-3) /* 0xfffffffdU */
-#endif
-
-#ifndef LDAP_MAXINT
-/* RFC 4511:  maxInt INTEGER ::= 2147483647 -- (2^^31 - 1) -- */
-#define LDAP_MAXINT (2147483647)
-#endif
-
-/* for mozldap builds */
-#ifndef LDAP_CANCELLED
-#define LDAP_CANCELLED 0x76
-#endif
-
-#ifndef LDAP_RES_INTERMEDIATE
-#define LDAP_RES_INTERMEDIATE ((ber_tag_t)0x79U)
-#endif
-
-#ifndef LDAP_TAG_IM_RES_OID
-#define LDAP_TAG_IM_RES_OID ((ber_tag_t)0x80U)
-#endif
-
-#ifndef LDAP_TAG_IM_RES_VALUE
-#define LDAP_TAG_IM_RES_VALUE ((ber_tag_t)0x81U)
-#endif
-
-#ifndef LDAP_SCOPE_ONE
-#define LDAP_SCOPE_ONE LDAP_SCOPE_ONELEVEL
 #endif
 
 #ifndef LDAP_SYNC_OID
@@ -7569,15 +7504,12 @@ int slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s);
 void slapi_ldif_put_type_and_value_with_options(char **out, const char *t, const char *val, int vlen, unsigned long options);
 
 /* ldif_read_record lineno argument type depends on openldap version */
-#if defined(USE_OPENLDAP)
 #if LDAP_VENDOR_VERSION >= 20434 /* changed in 2.4.34 */
 typedef unsigned long int ldif_record_lineno_t;
 #else
 typedef int ldif_record_lineno_t;
 #endif
-#endif
 
-#if defined(USE_OPENLDAP)
 /*
  * UTF-8 routines (should these move into libnls?)
  */
@@ -7621,7 +7553,6 @@ int ldap_utf8isspace(char *s);
 #define LDAP_UTF8COPY(d, s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8copy(d, s) : ((*(d) = *(s)), 1))
 #define LDAP_UTF8GETCC(s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8getcc(&s) : *s++)
 #define LDAP_UTF8GETC(s) ((0x80 & *(unsigned char *)(s)) ? ldap_utf8getcc((const char **)&s) : *s++)
-#endif /* USE_OPENLDAP */
 
 /* by default will allow dups */
 char **slapi_str2charray(char *str, char *brkstr);

@@ -41,9 +41,6 @@
 
 #include <sasl/sasl.h>
 #include "ldaptool-sasl.h"
-#if !defined(USE_OPENLDAP)
-#include <ldap_ssl.h> /* ldapssl_init(), etc... */
-#endif
 
 #include <prprf.h>
 #include <plstr.h>
@@ -55,9 +52,6 @@
 #define LDCLT_DEREF_ATTR "secretary"
 int ldclt_create_deref_control(LDAP *ld, char *derefAttr, char **attrs, LDAPControl **ctrlp);
 
-#if !defined(USE_OPENLDAP)
-int ldclt_build_control(char *oid, BerElement *ber, int freeber, char iscritical, LDAPControl **ctrlp);
-#endif
 int ldclt_alloc_ber(LDAP *ld, BerElement **berp);
 
 static SSLVersionRange enabledNSSVersions;
@@ -239,7 +233,6 @@ buildNewBindDN(
 }
 
 
-#if defined(USE_OPENLDAP)
 int
 refRebindProc(
     LDAP *ldapCtx,
@@ -258,47 +251,6 @@ refRebindProc(
     return ldap_sasl_bind_s(ldapCtx, tttctx->bufBindDN, LDAP_SASL_SIMPLE,
                             &cred, NULL, NULL, NULL);
 }
-#else  /* !USE_OPENLDAP */
-/* New function */ /*JLS 08-03-01*/
-/* ****************************************************************************
-    FUNCTION :    refRebindProc
-    PURPOSE :    This function is intended to perform the rebind when
-            a referral requires it.
-    INPUT :        None.
-    OUTPUT :    None.
-    RETURN :    Always LDAP_SUCCESS for the moment...
-    DESCRIPTION :
- *****************************************************************************/
-int
-refRebindProc(
-    LDAP *ldapCtx,
-    char **dnp,
-    char **passwdp,
-    int *authmethodp,
-    int freeit,
-    void *arg)
-{
-    thread_context *tttctx;
-
-    tttctx = (thread_context *)arg;
-
-    /*
-   * We will assume here that the same DN and passwd will be used to
-   * bind to the referred server, so we will just get the values used
-   * previously from the thread's context.
-   */
-    *dnp = tttctx->bufBindDN;
-    *passwdp = tttctx->bufPasswd;
-    *authmethodp = LDAP_AUTH_SIMPLE;
-
-    /*
-   * What should we do with the "freeit" argument ? I do not have any
-   * memory to free, so let's just ignore it.
-   */
-
-    return (LDAP_SUCCESS);
-}
-#endif /* !USE_OPENLDAP */
 
 
 /* ****************************************************************************
@@ -349,15 +301,14 @@ referralSetup(
 }
 
 
-#if defined(USE_OPENLDAP)
-/* ****************************************************************************
+/*****************************************************************************
     FUNCTION :    dirname
-    PURPOSE :    given a relative or absolute path name, return
-            the name of the directory containing the path
-    INPUT :        path
-    OUTPUT :    none
-    RETURN :    directory part of path or "."
-    DESCRIPTION :   caller must free return value when done
+    PURPOSE :     given a relative or absolute path name, return
+                  the name of the directory containing the path
+    INPUT :       path
+    OUTPUT :      none
+    RETURN :      directory part of path or "."
+    DESCRIPTION : caller must free return value when done
  *****************************************************************************/
 static char *
 ldclt_dirname(const char *path)
@@ -464,7 +415,6 @@ internal_ol_init_init(void)
 
     return PR_SUCCESS;
 }
-#endif /* USE_OPENLDAP */
 
 /* mctx is a global */
 LDAP *
@@ -474,9 +424,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
     struct berval cred = {0, NULL};
     int v2v3 = LDAP_VERSION3;
     const char *passwd = NULL;
-#if defined(USE_OPENLDAP)
     char *ldapurl = NULL;
-#endif
     int thrdNum = 0;
     int ret = -1;
     int binded = 0;
@@ -486,7 +434,6 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
         thrdNum = tttctx->thrdNum;
     }
 
-#if defined(USE_OPENLDAP)
     if (mctx.ldapurl != NULL) {
         ldapurl = PL_strdup(mctx.ldapurl);
     } else {
@@ -560,62 +507,6 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
         }
         free(certdir);
     }
-#else  /* !USE_OPENLDAP */
-    /*
-   * SSL is enabled ?
-   */
-    if (mode & SSL) {
-        /*
-     * LDAP session initialization in SSL mode
-     * added by: B Kolics (11/10/00)
-     */
-        ld = ldapssl_init(mctx.hostname, mctx.port, 1);
-        if (mode & VERY_VERBOSE)
-            printf("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%p\n",
-                   mctx.pid, thrdNum, mctx.hostname, mctx.port,
-                   ld);
-        if (ld == NULL) {
-            printf("ldclt[%d]: T%03d: Cannot ldapssl_init (%s, %d), errno=%d\n",
-                   mctx.pid, thrdNum, mctx.hostname, mctx.port, errno);
-            fflush(stdout);
-            ret = -1;
-            goto done;
-        }
-        /*
-     * Client authentication is used ?
-     */
-        if (mode & CLTAUTH) {
-            ret = ldapssl_enable_clientauth(ld, "", mctx.keydbpin, mctx.cltcertname);
-            if (mode & VERY_VERBOSE)
-                printf("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-                       mctx.pid, thrdNum, ld, mctx.keydbpin,
-                       mctx.cltcertname);
-            if (ret < 0) {
-                printf("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-                       mctx.pid, thrdNum, ld, mctx.keydbpin, mctx.cltcertname);
-                ldap_perror(ld, "ldapssl_enable_clientauth");
-                fflush(stdout);
-                goto done;
-            }
-        }
-    } else {
-        /*
-     * connection initialization in normal, unencrypted mode
-     */
-        ld = ldap_init(mctx.hostname, mctx.port);
-        if (mode & VERY_VERBOSE)
-            printf("ldclt[%d]: T%03d: After ldap_init (%s, %d), ldapCtx=0x%p\n",
-                   mctx.pid, thrdNum, mctx.hostname, mctx.port,
-                   ld);
-        if (ld == NULL) {
-            printf("ldclt[%d]: T%03d: Cannot ldap_init (%s, %d), errno=%d\n",
-                   mctx.pid, thrdNum, mctx.hostname, mctx.port, errno);
-            fflush(stdout);
-            ret = -1;
-            goto done;
-        }
-    }
-#endif /* !USE_OPENLDAP */
 
     if (mode & CLTAUTH) {
         passwd = NULL;
@@ -760,15 +651,9 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
             perror("malloc");
             exit(LDAP_NO_MEMORY);
         }
-#if defined(USE_OPENLDAP)
         ret = ldap_sasl_interactive_bind_s(ld, mctx.bindDN, mctx.sasl_mech,
                                            NULL, NULL, mctx.sasl_flags,
                                            ldaptool_sasl_interact, defaults);
-#else
-        ret = ldap_sasl_interactive_bind_ext_s(ld, mctx.bindDN, mctx.sasl_mech,
-                                               NULL, NULL, mctx.sasl_flags,
-                                               ldaptool_sasl_interact, defaults, NULL);
-#endif
         if (ret != LDAP_SUCCESS) {
             if (tttctx) {
                 tttctx->binded = 0;
@@ -865,12 +750,10 @@ done:
         ldap_unbind_ext(ld, NULL, NULL);
         ld = NULL;
     }
-#if defined(USE_OPENLDAP)
     if (ldapurl) {
         PR_smprintf_free(ldapurl);
         ldapurl = NULL;
     }
-#endif
     return ld;
 }
 
@@ -3701,9 +3584,7 @@ ldclt_create_deref_control(
 {
     BerElement *ber;
     int rc;
-#if defined(USE_OPENLDAP)
     struct berval *bv = NULL;
-#endif
 
     if (ld == 0) {
         return (LDAP_PARAM_ERROR);
@@ -3723,7 +3604,6 @@ ldclt_create_deref_control(
         return (LDAP_ENCODING_ERROR);
     }
 
-#if defined(USE_OPENLDAP)
     if (LBER_ERROR == ber_flatten(ber, &bv)) {
         ber_bvfree(bv);
         ber_free(ber, 1);
@@ -3736,69 +3616,9 @@ ldclt_create_deref_control(
     rc = ldap_control_create(LDAP_CONTROL_X_DEREF, 1, bv, 1, ctrlp);
     ber_bvfree(bv);
     ber_free(ber, 1);
-#else
-    rc = ldclt_build_control(LDAP_CONTROL_X_DEREF, ber, 1, 1, ctrlp);
-    ber_free(ber, 1);
-#endif
 
     return (rc);
 }
-
-#if !defined(USE_OPENLDAP)
-/*
- * Duplicated nsldapi_build_control from
- * mozilla/directory/c-sdk/ldap/libraries/libldap/control.c
- *
- * build an allocated LDAPv3 control.  Returns an LDAP error code.
- */
-int
-ldclt_build_control(char *oid, BerElement *ber, int freeber, char iscritical, LDAPControl **ctrlp)
-{
-    int rc;
-    struct berval *bvp;
-
-    if (ber == NULL) {
-        bvp = NULL;
-    } else {
-        /* allocate struct berval with contents of the BER encoding */
-        rc = ber_flatten(ber, &bvp);
-        if (freeber) {
-            ber_free(ber, 1);
-        }
-        if (rc == -1) {
-            return (LDAP_NO_MEMORY);
-        }
-    }
-
-    /* allocate the new control structure */
-    if ((*ctrlp = (LDAPControl *)malloc(sizeof(LDAPControl))) == NULL) {
-        if (bvp != NULL) {
-            ber_bvfree(bvp);
-        }
-        return (LDAP_NO_MEMORY);
-    }
-
-    /* fill in the fields of this new control */
-    (*ctrlp)->ldctl_iscritical = iscritical;
-    if (((*ctrlp)->ldctl_oid = strdup(oid)) == NULL) {
-        free(*ctrlp);
-        if (bvp != NULL) {
-            ber_bvfree(bvp);
-        }
-        return (LDAP_NO_MEMORY);
-    }
-
-    if (bvp == NULL) {
-        (*ctrlp)->ldctl_value.bv_len = 0;
-        (*ctrlp)->ldctl_value.bv_val = NULL;
-    } else {
-        (*ctrlp)->ldctl_value = *bvp; /* struct copy */
-        free(bvp);                    /* free container, not contents! */
-    }
-
-    return (LDAP_SUCCESS);
-}
-#endif
 
 /*
  * Duplicated nsldapi_build_control from
@@ -3811,11 +3631,7 @@ ldclt_alloc_ber(LDAP *ld __attribute__((unused)), BerElement **berp)
 {
     int err;
     int beropt;
-#if defined(USE_OPENLDAP)
     beropt = LBER_USE_DER;
-#else
-    beropt = LBER_OPT_USE_DER;
-#endif
     /* We use default lberoptions since the value is not public in mozldap. */
     if ((*berp = ber_alloc_t(beropt)) == (BerElement *)NULL) {
         err = LDAP_NO_MEMORY;

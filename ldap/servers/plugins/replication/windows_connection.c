@@ -24,9 +24,6 @@ replica locked. Seems like right thing to do.
 
 #include "repl5.h"
 #include "windowsrepl.h"
-#if !defined(USE_OPENLDAP)
-#include "ldappr.h"
-#endif
 #include "slap.h"
 #include "nss.h"
 
@@ -1231,11 +1228,7 @@ windows_conn_connect(Repl_Connection *conn)
     }
 
     if (return_value == CONN_OPERATION_SUCCESS) {
-#if !defined(USE_OPENLDAP)
-        int io_timeout_ms;
-#endif
         /* Now we initialize the LDAP Structure and set options */
-
         slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                       "windows_conn_connect - %s: Trying %s%s slapi_ldap_init_ext\n",
                       agmt_get_long_name(conn->agmt),
@@ -1274,14 +1267,8 @@ windows_conn_connect(Repl_Connection *conn)
         /* Don't chase any referrals (although we shouldn't get any) */
         ldap_set_option(conn->ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
 
-/* override the default timeout with the specified timeout */
-#if defined(USE_OPENLDAP)
+        /* override the default timeout with the specified timeout */
         ldap_set_option(conn->ld, LDAP_OPT_NETWORK_TIMEOUT, &conn->timeout);
-#else
-        io_timeout_ms = conn->timeout.tv_sec * 1000 + conn->timeout.tv_usec / 1000;
-        prldap_set_session_option(conn->ld, NULL, PRLDAP_OPT_IO_MAX_TIMEOUT,
-                                  io_timeout_ms);
-#endif
         /* We've got an ld. Now bind to the server. */
         conn->last_operation = CONN_BIND;
     }

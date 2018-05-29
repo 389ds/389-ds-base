@@ -169,9 +169,7 @@ dd/mm/yy | Author    | Comments
 #ifndef LDCLT_H
 #define LDCLT_H
 
-#if defined(USE_OPENLDAP)
 #define ABS(x) ((x > 0) ? (x) : (-x))
-#endif
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -192,9 +190,7 @@ dd/mm/yy | Author    | Comments
 #define MAX_ATTRIBS 40 /* Max number of attributes */   /*JLS 28-03-01*/
 #define MAX_DN_LENGTH 1024                              /* Max length for a DN */
 #define MAX_ERROR_NB 0x7b                               /* Max ldap err number + 1 */
-#if defined(USE_OPENLDAP)
 #define NEGATIVE_MAX_ERROR_NB (LDAP_X_CONNECTING - 1) /* Mininum ldap err number */
-#endif
 #define MAX_IGN_ERRORS 20                            /* Max errors ignored */
 #define MAX_FILTER 4096                               /* Max filters length */
 #define MAX_THREADS 1000 /* Max number of threads */ /*JLS 21-11-00*/
@@ -524,9 +520,7 @@ typedef struct main_context
     char *certfile; /* certificate file */     /* BK 11-10-00 */
     char *cltcertname; /* client cert name */  /* BK 23 11-00 */
     data_list_file *dlf; /* Data list files */ /*JLS 23-03-01*/
-#if defined(USE_OPENLDAP)
     int negativeErrors[ABS(NEGATIVE_MAX_ERROR_NB)]; /* Err stats */
-#endif
     int errors[MAX_ERROR_NB];                            /* Err stats */
     int errorsBad;                                       /* Bad errors */
     ldclt_mutex_t errors_mutex; /* Protect errors */     /*JLS 28-11-00*/

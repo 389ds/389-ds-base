@@ -1977,13 +1977,8 @@ slapd_poll(void *handle, int output)
  * Revision: handle changed to void * and first
  * argument which used to be integer system fd is now ignored.
  */
-#if defined(USE_OPENLDAP)
 static int
 write_function(int ignore __attribute__((unused)), void *buffer, int count, void *handle)
-#else
-static int
-write_function(int ignore, const void *buffer, int count, struct lextiof_socket_private *handle)
-#endif
 {
     int sentbytes = 0;
     int bytes;
@@ -2040,7 +2035,6 @@ write_function(int ignore, const void *buffer, int count, struct lextiof_socket_
     return -1;
 }
 
-#if defined(USE_OPENLDAP)
 /* The argument is a pointer to the socket descriptor */
 static int
 openldap_io_setup(Sockbuf_IO_Desc *sbiod, void *arg)
@@ -2094,8 +2088,6 @@ static Sockbuf_IO openldap_sockbuf_io = {
     openldap_write_function,               /* sbi_write */
     openldap_io_close                      /* sbi_close */
 };
-
-#endif /* USE_OPENLDAP */
 
 
 int connection_type = -1; /* The type number assigned by the Factory for 'Connection' */
@@ -2367,9 +2359,7 @@ bail:
 void
 handle_closed_connection(Connection *conn)
 {
-#ifdef USE_OPENLDAP
     ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io, LBER_SBIOD_LEVEL_PROVIDER);
-#endif
 }
 
 /* NOTE: this routine is not reentrant */
@@ -2436,25 +2426,10 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
      * won't have a mapping. */
 /* fds[ns].out_flags = 0; */
 
-#if defined(USE_OPENLDAP)
     ber_sockbuf_add_io(conn->c_sb, &openldap_sockbuf_io,
                        LBER_SBIOD_LEVEL_PROVIDER, conn);
-#else  /* !USE_OPENLDAP */
-    {
-        struct lber_x_ext_io_fns func_pointers = {0};
-        func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
-        func_pointers.lbextiofn_read = NULL; /* see connection_read_function */
-        func_pointers.lbextiofn_write = write_function;
-        func_pointers.lbextiofn_writev = NULL;
-        func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *)pr_clonefd;
-        ber_sockbuf_set_option(conn->c_sb,
-                               LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
-    }
-#endif /* !USE_OPENLDAP */
     maxbersize = conn->c_maxbersize;
-#if defined(USE_OPENLDAP)
     ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
-#endif
     if (secure && config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF) {
         /* Prepare to handle the client's certificate (if any): */
         int rv;

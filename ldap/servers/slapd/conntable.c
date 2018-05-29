@@ -37,16 +37,8 @@ connection_table_new(int table_size)
         ct->c[i].c_sb = ber_sockbuf_alloc();
         invalid_socket = SLAPD_INVALID_SOCKET;
         ct->c[i].c_sd = SLAPD_INVALID_SOCKET;
-#if defined(USE_OPENLDAP)
         ber_sockbuf_ctrl(ct->c[i].c_sb, LBER_SB_OPT_SET_FD, &invalid_socket);
         ber_sockbuf_ctrl(ct->c[i].c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
-#else
-        ber_sockbuf_set_option(ct->c[i].c_sb, LBER_SOCKBUF_OPT_DESC, &invalid_socket);
-        /* openldap by default does not use readahead - the implementation is
-           via a sockbuf_io layer */
-        ber_sockbuf_set_option(ct->c[i].c_sb, LBER_SOCKBUF_OPT_NO_READ_AHEAD, LBER_OPT_ON);
-        ber_sockbuf_set_option(ct->c[i].c_sb, LBER_SOCKBUF_OPT_MAX_INCOMING_SIZE, &maxbersize);
-#endif /* !USE_OPENLDAP */
         /* all connections start out invalid */
         ct->fd[i].fd = SLAPD_INVALID_SOCKET;
 

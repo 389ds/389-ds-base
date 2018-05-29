@@ -472,8 +472,7 @@ is_fullpath(char *path)
    want to change the ldif string because it will be
    parsed again in the future
    openldap ldif_getline() is more of a problem because
-   it does this for every comment line too, whereas mozldap
-   ldif_getline() just skips comment lines
+   it does this for every comment line too.
 */
 static void
 ldif_getline_fixline(char *start, char *end)

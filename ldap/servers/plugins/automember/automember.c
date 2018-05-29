@@ -2789,14 +2789,9 @@ automember_map_task_thread(void *arg)
     PRFileDesc *ldif_fd_out = NULL;
     char *entrystr = NULL;
     char *errstr = NULL;
-#if defined(USE_OPENLDAP)
     int buflen = 0;
     LDIFFP *ldif_fd_in = NULL;
     ldif_record_lineno_t lineno = 0;
-#else
-    FILE *ldif_fd_in = NULL;
-    int lineno = 0;
-#endif
     int rc = 0;
 
     if (!task) {
@@ -2828,15 +2823,9 @@ automember_map_task_thread(void *arg)
         goto out;
     }
 
-#if defined(USE_OPENLDAP)
     if ((ldif_fd_in = ldif_open(td->ldif_in, "r")) == NULL) {
         rc = errno;
         errstr = strerror(rc);
-#else
-    if ((ldif_fd_in = fopen(td->ldif_in, "r")) == NULL) {
-        rc = PR_GetOSError();
-        errstr = (char *)slapi_system_strerror(rc);
-#endif
         slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
                               td->ldif_in, rc, errstr);
         slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
@@ -2851,12 +2840,8 @@ automember_map_task_thread(void *arg)
      *  Convert each LDIF entry to a slapi_entry
      */
     automember_config_read_lock();
-#if defined(USE_OPENLDAP)
     while (ldif_read_record(ldif_fd_in, &lineno, &entrystr, &buflen)) {
         buflen = 0;
-#else
-    while ((entrystr = ldif_get_entry(ldif_fd_in, &lineno)) != NULL) {
-#endif
         e = slapi_str2entry(entrystr, 0);
         if (e != NULL) {
             if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
@@ -2892,11 +2877,7 @@ out:
         PR_Close(ldif_fd_out);
     }
     if (ldif_fd_in) {
-#if defined(USE_OPENLDAP)
         ldif_close(ldif_fd_in);
-#else
-        fclose(ldif_fd_in);
-#endif
     }
     slapi_task_inc_progress(task);
     slapi_task_finish(task, result);

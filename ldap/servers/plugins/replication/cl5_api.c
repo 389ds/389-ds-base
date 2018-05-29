@@ -768,14 +768,9 @@ done:;
 int
 cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
 {
-#if defined(USE_OPENLDAP)
     LDIFFP *file = NULL;
     int buflen = 0;
     ldif_record_lineno_t lineno = 0;
-#else
-    FILE *file = NULL;
-    int lineno = 0;
-#endif
     int rc;
     char *buff = NULL;
     slapi_operation_parameters op;
@@ -834,11 +829,7 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
     }
 
 /* open LDIF file */
-#if defined(USE_OPENLDAP)
     file = ldif_open(ldifFile, "r");
-#else
-    file = fopen(ldifFile, "r"); /* XXXggood Does fopen reliably work if > 255 files open? */
-#endif
     if (file == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ImportLDIF - Failed to open (%s) ldif file; system error - %d\n",
@@ -865,11 +856,7 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
     s_cl5Desc.dbState = CL5_STATE_OPEN; /* force to change the state */
 
 /* read entries and write them to changelog */
-#if defined(USE_OPENLDAP)
     while (ldif_read_record(file, &lineno, &buff, &buflen))
-#else
-    while ((buff = ldif_get_entry(file, &lineno)) != NULL)
-#endif
     {
         rc = _cl5LDIF2Operation(buff, &op, &replGen);
         if (rc != CL5_SUCCESS) {
@@ -925,15 +912,11 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
                 }
             }
             slapi_ch_free_string(&buff);
-#if defined(USE_OPENLDAP)
             buflen = 0;
-#endif
             goto next;
         }
         slapi_ch_free_string(&buff);
-#if defined(USE_OPENLDAP)
         buflen = 0;
-#endif
         /* if we perform selective import, check if the operation should be wriiten to changelog */
         replica_obj = _cl5GetReplica(&op, replGen);
         if (replica_obj == NULL) {
@@ -1023,11 +1006,7 @@ done:
     slapi_ch_free((void **)&maxvals);
 
     if (file) {
-#if defined(USE_OPENLDAP)
         ldif_close(file);
-#else
-        fclose(file);
-#endif
     }
     if (CL5_STATE_OPEN == s_cl5Desc.dbState) {
         _cl5Close();

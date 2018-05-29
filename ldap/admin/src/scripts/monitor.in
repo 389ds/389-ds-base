@@ -10,7 +10,7 @@ libpath_add "@nss_libdir@"
 export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
-PATH=$PATH:@ldaptool_bindir@:@ldaptool_bindir@:/usr/bin/:/usr/lib64/mozldap
+PATH=$PATH:@ldaptool_bindir@:@ldaptool_bindir@:/usr/bin/
 
 protocol=""
 

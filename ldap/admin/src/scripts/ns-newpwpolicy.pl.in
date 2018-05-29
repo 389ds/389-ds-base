@@ -17,7 +17,7 @@ use DSUtil;
 # all of this nonsense can be omitted if the mozldapsdk and perldap are
 # installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
 
-$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
+$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin";
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 DSUtil::libpath_add("@nss_libdir@");
