@@ -741,14 +741,18 @@ connection_acquire_nolock(Connection *conn)
 
 /* returns non-0 if connection can be reused and 0 otherwise */
 int
-connection_is_free(Connection *conn)
+connection_is_free(Connection *conn, int use_lock)
 {
     int rc;
 
-    PR_EnterMonitor(conn->c_mutex);
+    if (use_lock) {
+        PR_EnterMonitor(conn->c_mutex);
+    }
     rc = conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_refcnt == 0 &&
          !(conn->c_flags & CONN_FLAG_CLOSING);
-    PR_ExitMonitor(conn->c_mutex);
+    if (use_lock) {
+        PR_ExitMonitor(conn->c_mutex);
+    }
 
     return rc;
 }
