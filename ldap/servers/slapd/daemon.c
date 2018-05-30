@@ -1699,7 +1699,8 @@ ns_connection_post_io_or_closing_try(Connection *conn)
     }
 
     /*
-     * Cancel any existing ns jobs we have registered.
+     * A job was already scheduled.
+     * Let it be dispatched first
      */
     if (conn->c_job != NULL) {
         return 1;
@@ -1780,25 +1781,59 @@ ns_connection_post_io_or_closing_try(Connection *conn)
     }
     return 0;
 }
+
+/*
+ * Tries to schedule I/O for this connection
+ * If the connection is already busy with a scheduled I/O
+ * it can wait until scheduled I/O is dispatched
+ *
+ * caller must hold c_mutex
+ */
 void
 ns_connection_post_io_or_closing(Connection *conn)
 {
     while (ns_connection_post_io_or_closing_try(conn)) {
-	/* we should retry later */
-	
-	/* We are not suppose to work immediately on the connection that is taken by
-	 * another job
-	 * release the lock and give some time
-	 */
-	
-	if (CONN_NEEDS_CLOSING(conn) && conn->c_ns_close_jobs) {
-	    return;
-	} else {
-	    PR_ExitMonitor(conn->c_mutex);
-	    DS_Sleep(PR_MillisecondsToInterval(100));
+        /* Here a job is currently scheduled (c->job is set) and not yet dispatched
+         * Job can be either:
+         *  - ns_handle_closure
+         *  - ns_handle_pr_read_ready
+         */
 
-	    PR_EnterMonitor(conn->c_mutex);
-	}
+        if (connection_is_free(conn, 0)) {
+            PRStatus shutdown_status;
+
+            /* The connection being freed,
+             * It means that ns_handle_closure already completed and the connection
+             * is no longer on the active list.
+             * The scheduled job is useless and scheduling a new one as well
+             */
+            shutdown_status = ns_job_done(conn->c_job);
+            if (shutdown_status != PR_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_CRIT, "ns_connection_post_io_or_closing", "Failed cancel a job on a freed connection %d !\n", conn->c_sd);
+            }
+            conn->c_job = NULL;
+            return;
+        }
+        if (g_get_shutdown() && CONN_NEEDS_CLOSING(conn)) {
+            PRStatus shutdown_status;
+
+            /* This is shutting down cancel any scheduled job to register ns_handle_closure
+             */
+            shutdown_status = ns_job_done(conn->c_job);
+            if (shutdown_status != PR_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_CRIT, "ns_connection_post_io_or_closing", "Failed to cancel a job during shutdown %d !\n", conn->c_sd);
+            }
+            conn->c_job = NULL;
+            continue;
+        }
+
+        /* We are not suppose to work immediately on the connection that is taken by
+         * another job
+         * release the lock and give some time
+         */
+        PR_ExitMonitor(conn->c_mutex);
+        DS_Sleep(PR_MillisecondsToInterval(100));
+        PR_EnterMonitor(conn->c_mutex);
     }
 }
 

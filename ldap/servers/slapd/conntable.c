@@ -129,7 +129,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
             break;
         }
 
-        if (connection_is_free(&(ct->c[index]))) {
+        if (connection_is_free(&(ct->c[index]), 1 /*use lock */)) {
             break;
         }
     }
