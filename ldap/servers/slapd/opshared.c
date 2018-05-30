@@ -1483,17 +1483,16 @@ compute_limits(Slapi_PBlock *pb)
     /*
      * Compute the time limit.
      */
-    if (slapi_reslimit_get_integer_limit(pb_conn,
-                                         timelimit_reslimit_handle, &max_timelimit) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+    if (isroot) {
+        max_timelimit = -1; /* no limit */
+    } else  if (slapi_reslimit_get_integer_limit(pb_conn,
+        timelimit_reslimit_handle, &max_timelimit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
+    {
         /*
          * no limit associated with binder/connection or some other error
          * occurred.  use the default maximum.
-          */
-        if (isroot) {
-            max_timelimit = -1; /* no limit */
-        } else {
-            max_timelimit = be->be_timelimit;
-        }
+         */
+        max_timelimit = be->be_timelimit;
     }
 
     if (requested_timelimit) {
@@ -1519,30 +1518,31 @@ set_timelimit:
     /*
      * Compute the size limit.
      */
-    if (slapi_reslimit_get_integer_limit(pb_conn,
-                                         sizelimit_reslimit_handle, &max_sizelimit) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
-        /*
-         * no limit associated with binder/connection or some other error
-         * occurred.  use the default maximum.
-          */
-        if (isroot) {
-            max_sizelimit = -1; /* no limit */
-        } else {
-            max_sizelimit = be->be_sizelimit;
-        }
-    }
-
-    if (op_is_pagedresults(op)) {
+    if (isroot) {
+        max_sizelimit = -1; /* no limit */
+    } else {
         if (slapi_reslimit_get_integer_limit(pb_conn,
-                                             pagedsizelimit_reslimit_handle, &max_sizelimit) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+            sizelimit_reslimit_handle, &max_sizelimit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
+        {
             /*
              * no limit associated with binder/connection or some other error
              * occurred.  use the default maximum.
              */
-            if (be->be_pagedsizelimit) {
-                max_sizelimit = be->be_pagedsizelimit;
+            max_sizelimit = be->be_sizelimit;
+        }
+
+        if (op_is_pagedresults(op)) {
+            if (slapi_reslimit_get_integer_limit(pb_conn,
+                pagedsizelimit_reslimit_handle, &max_sizelimit) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
+                /*
+                 * no limit associated with binder/connection or some other error
+                 * occurred.  use the default maximum.
+                 */
+                if (be->be_pagedsizelimit) {
+                    max_sizelimit = be->be_pagedsizelimit;
+                }
+                /* else was already set above */
             }
-            /* else was already set above */
         }
     }
 

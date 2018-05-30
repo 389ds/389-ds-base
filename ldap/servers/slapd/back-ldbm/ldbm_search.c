@@ -52,37 +52,50 @@ compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li)
     Slapi_Connection *conn = NULL;
     int limit;
     Slapi_Operation *op;
+    int isroot = 0;
 
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
-    if (slapi_reslimit_get_integer_limit(conn,
-                                         li->li_reslimit_lookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
-        /*
-         * no limit associated with binder/connection or some other error
-         * occurred.  use the default.
-          */
-        int isroot = 0;
-
-        slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
-        if (isroot) {
-            limit = -1;
-        } else {
-            PR_Lock(li->li_config_mutex);
-            limit = li->li_lookthroughlimit;
-            PR_Unlock(li->li_config_mutex);
-        }
-    }
-
-    if (op_is_pagedresults(op)) {
-        if (slapi_reslimit_get_integer_limit(conn,
-                                             li->li_reslimit_pagedlookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS) {
-            PR_Lock(li->li_config_mutex);
-            if (li->li_pagedlookthroughlimit) {
-                limit = li->li_pagedlookthroughlimit;
+    if (isroot) {
+        limit = -1;
+    } else {
+        if (op_is_pagedresults(op)) {
+            if (slapi_reslimit_get_integer_limit(conn,
+                li->li_reslimit_pagedlookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
+            {
+                PR_Lock(li->li_config_mutex);
+                if (li->li_pagedlookthroughlimit) {
+                    limit = li->li_pagedlookthroughlimit;
+                } else {
+                    /* No paged search lookthroughlimit, so use DB lookthroughlimit.
+                     * First check if we have a "resource limit" that applies to this
+                     * connection, otherwise use the global DB lookthroughlimit
+                     */
+                    if (slapi_reslimit_get_integer_limit(conn,
+                            li->li_reslimit_lookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
+                    {
+                        /* Default to global DB lookthroughlimit */
+                        limit = li->li_lookthroughlimit;
+                    }
+                }
+                /* else set above */
+                PR_Unlock(li->li_config_mutex);
             }
-            /* else set above */
-            PR_Unlock(li->li_config_mutex);
+        } else {
+            /* Regular search */
+            if (slapi_reslimit_get_integer_limit(conn,
+                li->li_reslimit_lookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
+            {
+                /*
+                 * no limit associated with binder/connection or some other error
+                 * occurred.  use the default.
+                 */
+                PR_Lock(li->li_config_mutex);
+                limit = li->li_lookthroughlimit;
+                PR_Unlock(li->li_config_mutex);
+            }
         }
     }
     return (limit);
