@@ -243,6 +243,27 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
     int c_sd; /* for logging */
     /* we always have previous element because list contains a dummy header */;
     PR_ASSERT(c->c_prev);
+    if (c->c_prev == NULL) {
+        /* c->c_prev is set when the connection is moved ON the active list
+         * So this connection is already OUT of the active list
+         *
+         * Not sure how to recover from here.
+         * Considering c->c_prev is NULL we can assume refcnt is now 0
+         * and connection_cleanup was already called.
+         * If it is not the case, then consequences are:
+         *  - Leak some memory (connext, unsent page result entries, various buffers)
+         *  - hanging connection (fd not closed)
+         * A option would be to call connection_cleanup here.
+         *
+         * The logged message helps to know how frequently the problem exists
+         */
+        slapi_log_err(SLAPI_LOG_CRIT,
+                      "connection_table_move_connection_out_of_active_list",
+                      "conn %d is already OUT of the active list (refcnt is %d)\n",
+                      c->c_sd, c->c_refcnt);
+
+        return 0;
+    }
 
 #ifdef FOR_DEBUGGING
     slapi_log_err(SLAPI_LOG_DEBUG, "connection_table_move_connection_out_of_active_list", "Moving connection out of active list\n");
