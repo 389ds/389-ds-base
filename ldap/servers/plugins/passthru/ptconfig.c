@@ -228,7 +228,7 @@ passthru_config(int argc, char **argv)
         srvr->ptsrvr_port = ludp->lud_port;
         srvr->ptsrvr_secure = secure;
         if (starttls) {
-            srvr->ptsrvr_secure = 2;
+            srvr->ptsrvr_secure = SLAPI_LDAP_INIT_FLAG_startTLS;
         }
 
         /*
