@@ -26,6 +26,7 @@
 #include "portable.h"
 #include "slapi-plugin.h"
 #include <nspr.h>
+#include <errno.h>
 
 /* Private API: to get slapd_pr_strerror() and SLAPI_COMPONENT_NAME_NSPR */
 #include "slapi-private.h"
@@ -42,7 +43,6 @@
 
 #define PASSTHRU_OP_NOT_HANDLED 0
 #define PASSTHRU_OP_HANDLED 1
-
 #define PASSTHRU_CONN_TRIES 2
 
 /* #define    PASSTHRU_VERBOSE_LOGGING    */

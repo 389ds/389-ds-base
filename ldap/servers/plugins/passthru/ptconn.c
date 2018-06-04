@@ -115,7 +115,7 @@ passthru_dn2server(PassThruConfig *cfg, const char *normdn, PassThruServer **srv
 int
 passthru_get_connection(PassThruServer *srvr, LDAP **ldp)
 {
-    int rc;
+    int rc = LDAP_SUCCESS; /* optimistic */
     PassThruConnection *conn, *connprev;
     LDAP *ld;
 
@@ -125,7 +125,6 @@ passthru_get_connection(PassThruServer *srvr, LDAP **ldp)
     check_for_stale_connections(srvr);
 
     slapi_lock_mutex(srvr->ptsrvr_connlist_mutex);
-    rc = LDAP_SUCCESS; /* optimistic */
 
     slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
                   "=> passthru_get_connection server %s:%d conns: %d maxconns: %d\n",
@@ -134,8 +133,8 @@ passthru_get_connection(PassThruServer *srvr, LDAP **ldp)
 
     for (;;) {
         /*
-     * look for an available, already open connection
-     */
+         * look for an available, already open connection
+         */
         connprev = NULL;
         for (conn = srvr->ptsrvr_connlist; conn != NULL;
              conn = conn->ptconn_next) {
@@ -153,9 +152,9 @@ passthru_get_connection(PassThruServer *srvr, LDAP **ldp)
 
         if (srvr->ptsrvr_connlist_count < srvr->ptsrvr_maxconnections) {
             /*
-         * we have not exceeded the maximum number of connections allowed,
-         * so we initialize a new one and add it to the end of our list.
-         */
+             * we have not exceeded the maximum number of connections allowed,
+             * so we initialize a new one and add it to the end of our list.
+             */
             if ((ld = slapi_ldap_init(srvr->ptsrvr_hostname,
                                       srvr->ptsrvr_port, srvr->ptsrvr_secure, 1)) == NULL) {
 #ifdef PASSTHRU_VERBOSE_LOGGING
@@ -166,9 +165,37 @@ passthru_get_connection(PassThruServer *srvr, LDAP **ldp)
                 goto unlock_and_return;
             }
 
+            if (srvr->ptsrvr_secure == SLAPI_LDAP_INIT_FLAG_startTLS) {
+                if (srvr->ptsrvr_ldapversion == LDAP_VERSION3 ) {
+                    rc = ldap_start_tls_s(ld, NULL, NULL);
+                    if (LDAP_SUCCESS != rc) {
+                        if (errno != 0) {
+                            /* Log the system errno */
+                            slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM, "passthru_get_connection - "
+                                          "Error: could not send startTLS request: error %d (%s) errno %d (%s)\n",
+                                          rc, ldap_err2string(rc), errno,
+                                          slapd_system_strerror(errno));
+                        } else {
+                            /* Only LDAP error, no system error */
+                            slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM, "passthru_get_connection - "
+                                          "Error: could not send startTLS request: error %d (%s)\n",
+                                          rc, ldap_err2string(rc));
+                        }
+                        goto unlock_and_return;
+                    }
+                } else {
+                    /* We only support StartTLS on LDAPv3  */
+                    slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM, "passthru_get_connection - "
+                                  "Error: configured to use StartTLS but ldap version (v%d) is not supported "
+                                  "(version 3 is required).  Aborting connection...\n",srvr->ptsrvr_ldapversion);
+                    rc = LDAP_UNWILLING_TO_PERFORM;
+                    goto unlock_and_return;
+                }
+            }
+
             /*
-         * set protocol version to correct value for this server
-         */
+             * set protocol version to correct value for this server
+             */
             if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION,
                                 &srvr->ptsrvr_ldapversion) != 0) {
                 slapi_ldap_unbind(ld);
