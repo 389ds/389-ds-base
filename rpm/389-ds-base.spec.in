@@ -2,6 +2,12 @@
 %global pkgname   dirsrv
 %global srcname   389-ds-base
 
+%global bundle_jemalloc __BUNDLE_JEMALLOC__
+%if %{bundle_jemalloc}
+%global jemalloc_name jemalloc
+%global jemalloc_ver 5.0.1
+%endif
+
 # This is used in certain builds to help us know if it has extra features.
 %global variant base
 # for a pre-release, define the prerel field e.g. .a1 .rc2 - comment out for official release
@@ -29,14 +35,7 @@
 %define nss_version 3.11
 
 %if %{use_asan} || %{use_msan} || %{use_tsan} || %{use_ubsan}
-%global use_tcmalloc 0
 %global variant base-xsan
-%else
-%if %{_arch} != "s390x" && %{_arch} != "s390" && !%{use_rust}
-%global use_tcmalloc 1
-%else
-%global use_tcmalloc 0
-%endif
 %endif
 
 # Use Clang instead of GCC
@@ -81,6 +80,7 @@ BuildRequires:    libatomic
 BuildRequires:    clang
 BuildRequires:    compiler-rt
 %else
+BuildRequires:    gcc
 BuildRequires:    gcc-c++
 %if %{use_asan}
 BuildRequires:    libasan
@@ -123,10 +123,6 @@ BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
 BuildRequires:    python%{python3_pkgversion}-setuptools
 
-%if %{use_tcmalloc}
-BuildRequires:    gperftools-devel
-%endif
-
 # For cockpit
 BuildRequires:    rsync
 # END BUILD REQUIRES
@@ -137,10 +133,7 @@ Requires:         %{name}-libs = %{version}-%{release}
 %if 0%{?rhel} > 7 || 0%{?fedora}
 Requires:         python%{python3_pkgversion}-lib389 = %{version}-%{release}
 %endif
-# Attach to -base our script deps
-%if %{use_tcmalloc}
-Requires:         gperftools-libs
-%endif
+
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python
 # This is needed for our future move to python selinux interaction.
@@ -184,6 +177,9 @@ Source0:          http://www.port389.org/sources/%{name}-%{version}%{?prerel}.ta
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
+%if %{bundle_jemalloc}
+Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
+%endif
 
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
@@ -309,6 +305,10 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
 
+%if %{bundle_jemalloc}
+%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
+%endif
+
 cp %{SOURCE2} README.devel
 
 %build
@@ -339,16 +339,22 @@ TSAN_FLAGS="--enable-tsan --enable-debug"
 UBSAN_FLAGS="--enable-ubsan --enable-debug"
 %endif
 
-%if %{use_tcmalloc}
-TCMALLOC_FLAGS="--enable-tcmalloc"
-%endif
-
 %if %{use_rust}
 RUST_FLAGS="--enable-rust"
 %endif
 
 %if !%{use_perl}
 PERL_FLAGS="--disable-perl"
+%endif
+
+%if %{bundle_jemalloc}
+# Build jemalloc
+pushd ../%{jemalloc_name}-%{jemalloc_ver}
+%configure \
+        --libdir=%{_libdir}/%{pkgname}/lib \
+        --bindir=%{_libdir}/%{pkgname}/bin
+make
+popd
 %endif
 
 # Rebuild the autotool artifacts now.
@@ -360,7 +366,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
+           $NSSARGS $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
            --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
@@ -423,6 +429,14 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 %if %{use_perl}
 # make sure perl scripts have a proper shebang 
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
+%endif
+
+%if %{bundle_jemalloc}
+pushd ../%{jemalloc_name}-%{jemalloc_ver}
+make DESTDIR="$RPM_BUILD_ROOT" install_lib install_bin
+cp -pa COPYING ../%{name}-%{version}%{?prerel}/COPYING.jemalloc
+cp -pa README ../%{name}-%{version}%{?prerel}/README.jemalloc
+popd
 %endif
 
 %check
@@ -543,7 +557,11 @@ fi
 
 %files
 %defattr(-,root,root,-)
+%if %{bundle_jemalloc}
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.jemalloc COPYING.jemalloc
+%else
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl
+%endif
 %dir %{_sysconfdir}/%{pkgname}
 %dir %{_sysconfdir}/%{pkgname}/schema
 %config(noreplace)%{_sysconfdir}/%{pkgname}/schema/*.ldif
@@ -625,6 +643,10 @@ fi
 %exclude %{_sbindir}/ldap-agent*
 %exclude %{_mandir}/man1/ldap-agent.1.gz
 %exclude %{_unitdir}/%{pkgname}-snmp.service
+%if %{bundle_jemalloc}
+%{_libdir}/%{pkgname}/lib/
+%{_libdir}/%{pkgname}/bin/
+%endif
 
 %files devel
 %defattr(-,root,root,-)
@@ -638,6 +660,9 @@ fi
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
 %{_libdir}/%{pkgname}/libldaputil.so
+%if %{bundle_jemalloc}
+%{_libdir}/%{pkgname}/lib/libjemalloc.so
+%endif
 %{_libdir}/pkgconfig/svrcore.pc
 %{_libdir}/pkgconfig/dirsrv.pc
 %{_libdir}/pkgconfig/libsds.pc
@@ -653,6 +678,9 @@ fi
 %{_libdir}/%{pkgname}/libnunc-stans.so.*
 %{_libdir}/%{pkgname}/libsds.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
+%if %{bundle_jemalloc}
+%{_libdir}/%{pkgname}/lib/libjemalloc.so.*
+%endif
 %if %{use_rust}
 %{_libdir}/%{pkgname}/librsds.so
 %endif

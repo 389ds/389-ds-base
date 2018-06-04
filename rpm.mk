@@ -9,6 +9,9 @@ RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
 NUNC_STANS_ON = 1
+JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
+JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
+BUNDLE_JEMALLOC = 1
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
@@ -37,6 +40,9 @@ tarballs: local-archive
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+		wget $(JEMALLOC_URL) ; \
+	fi
 
 rpmroot:
 	rm -rf $(RPMBUILD)
@@ -55,6 +61,7 @@ rpmroot:
 	-e s/__UBSAN_ON__/$(UBSAN_ON)/ \
 	-e s/__PERL_ON__/$(PERL_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
+	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
 
 rpmdistdir:
@@ -66,6 +73,9 @@ srpmdistdir:
 rpmbuildprep:
 	cp dist/sources/$(TARBALL) $(RPMBUILD)/SOURCES/
 	cp rpm/$(PACKAGE)-* $(RPMBUILD)/SOURCES/
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
+	fi
 
 srpms: rpmroot srpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
