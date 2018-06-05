@@ -63,7 +63,7 @@ BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes:        %{name}-selinux
 Conflicts:        selinux-policy-base < 3.9.8
 # upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
-Obsoletes:        %{name} <= 1.3.5.4
+Obsoletes:        %{name} <= 1.4.0.9
 Provides:         ldif2ldbm
 
 # Attach the buildrequires to the top level package:
@@ -140,8 +140,6 @@ Requires:         policycoreutils-python
 Requires:         libsemanage-python
 # the following are needed for some of our scripts
 Requires:         openldap-clients
-# use_openldap assumes perl-Mozilla-LDAP is built with openldap support
-Requires:         perl-Mozilla-LDAP
 # this is needed to setup SSL if you are not using the
 # administration server package
 Requires:         nss-tools
@@ -159,19 +157,8 @@ Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $ver
 # Needed by logconv.pl
 Requires:         perl-DB_File
 Requires:         perl-Archive-Tar
-# for the init script
-Requires(post):   systemd-units
-Requires(preun):  systemd-units
-Requires(postun): systemd-units
-# for setup-ds.pl
-Requires:         bind-utils
-# for setup-ds.pl to support ipv6
-%if %{use_Socket6}
-Requires:         perl-Socket6
-%else
-Requires:         perl-Socket
-%endif
-Requires:         perl-NetAddr-IP
+# Picks up our systemd deps.
+%{?systemd_requires}
 
 Source0:          http://www.port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
@@ -229,6 +216,30 @@ Core libraries for the 389 Directory Server base package.  These libraries
 are used by the main package and the -devel package.  This allows the -devel
 package to be installed with just the -libs package and without the main package.
 
+%package          legacy-tools
+Summary:          Legacy utilities for 389 Directory Server (%{variant})
+Group:            System Environment/Daemons
+Obsoletes:        %{name} <= 1.4.0.9
+Requires:         %{name} = %{version}-%{release}
+%if %{use_perl}
+# for setup-ds.pl to support ipv6
+%if %{use_Socket6}
+Requires:         perl-Socket6
+%else
+Requires:         perl-Socket
+%endif
+Requires:         perl-NetAddr-IP
+# use_openldap assumes perl-Mozilla-LDAP is built with openldap support
+Requires:         perl-Mozilla-LDAP
+# for setup-ds.pl
+Requires:         bind-utils
+%endif
+# End use perl
+
+%description      legacy-tools
+Legacy (and deprecated) utilities for 389 Directory Server. This includes
+the old account management and task scripts. These are deprecated in favour of
+the dscreate, dsctl, dsconf and dsidm tools.
 
 %package          devel
 Summary:          Development libraries for 389 Directory Server (%{variant})
@@ -450,8 +461,13 @@ if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; f
 rm -rf $RPM_BUILD_ROOT
 
 %post
-output=/dev/null
-output2=/dev/null
+if [ -n "$DEBUGPOSTTRANS" ] ; then
+    output=$DEBUGPOSTTRANS
+    output2=${DEBUGPOSTTRANS}.upgrade
+else
+    output=/dev/null
+    output2=/dev/null
+fi
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >$output 2>&1 || :
 # reload to pick up any shared lib changes
@@ -459,10 +475,6 @@ output2=/dev/null
 # find all instances
 instances="" # instances that require a restart after upgrade
 ninst=0 # number of instances found in total
-if [ -n "$DEBUGPOSTTRANS" ] ; then
-   output=$DEBUGPOSTTRANS
-   output2=${DEBUGPOSTTRANS}.upgrade
-fi
 
 # https://fedoraproject.org/wiki/Packaging:UsersAndGroups#Soft_static_allocation
 # Soft static allocation for UID and GID
@@ -484,8 +496,41 @@ fi
 # Reload our sysctl before we restart (if we can)
 sysctl --system &> $output; true
 
+%preun
+if [ $1 -eq 0 ]; then # Final removal
+    # remove instance specific service files/links
+    rm -rf %{_sysconfdir}/systemd/system/%{groupname}.wants/* > /dev/null 2>&1 || :
+fi
+
+%postun
+/sbin/ldconfig
+if [ $1 = 0 ]; then # Final removal
+    rm -rf /var/run/%{pkgname}
+fi
+
+%post snmp
+%systemd_post %{pkgname}-snmp.service
+
+%preun snmp
+%systemd_preun %{pkgname}-snmp.service %{groupname}
+
+%postun snmp
+%systemd_postun_with_restart %{pkgname}-snmp.service
+
+%post legacy-tools
+
+
 %if %{use_perl}
 # START UPGRADE SCRIPT
+
+if [ -n "$DEBUGPOSTTRANS" ] ; then
+    output=$DEBUGPOSTTRANS
+    output2=${DEBUGPOSTTRANS}.upgrade
+else
+    output=/dev/null
+    output2=/dev/null
+fi
+
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
 instbase="%{_sysconfdir}/%{pkgname}"
 for dir in $instbase/slapd-* ; do
@@ -534,27 +579,6 @@ done
 
 exit 0
 
-%preun
-if [ $1 -eq 0 ]; then # Final removal
-    # remove instance specific service files/links
-    rm -rf %{_sysconfdir}/systemd/system/%{groupname}.wants/* > /dev/null 2>&1 || :
-fi
-
-%postun
-/sbin/ldconfig
-if [ $1 = 0 ]; then # Final removal
-    rm -rf /var/run/%{pkgname}
-fi
-
-%post snmp
-%systemd_post %{pkgname}-snmp.service
-
-%preun snmp
-%systemd_preun %{pkgname}-snmp.service %{groupname}
-
-%postun snmp
-%systemd_postun_with_restart %{pkgname}-snmp.service
-
 %files
 %defattr(-,root,root,-)
 %if %{bundle_jemalloc}
@@ -573,11 +597,30 @@ fi
 %config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}
 %config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}.systemd
 %{_datadir}/%{pkgname}
+%exclude %{_datadir}/%{pkgname}/script-templates
+%exclude %{_datadir}/%{pkgname}/updates
+%exclude %{_datadir}/%{pkgname}/properties/*.res
 %{_datadir}/gdb/auto-load/*
 %{_unitdir}
-%{_bindir}/*
+%{_bindir}/dbscan
+%{_mandir}/man1/dbscan.1.gz
+%{_bindir}/ds-replcheck
+%{_mandir}/man1/ds-replcheck.1.gz
+%{_bindir}/ds-logpipe.py
+%{_mandir}/man1/ds-logpipe.py.1.gz
+%{_bindir}/ldclt
+%{_mandir}/man1/ldclt.1.gz
+%{_sbindir}/ldif2ldap
+%{_mandir}/man8/ldif2ldap.8.gz
+%{_bindir}/logconv.pl
+%{_mandir}/man1/logconv.pl.1.gz
+%{_bindir}/pwdhash
+%{_mandir}/man1/pwdhash.1.gz
+%{_bindir}/readnsstate
+%{_mandir}/man1/readnsstate.1.gz
 # We have to seperate this from being a glob to ensure the caps are applied.
 %caps(CAP_NET_BIND_SERVICE=pe) %{_sbindir}/ns-slapd
+%{_mandir}/man8/ns-slapd.8.gz
 %if 0%{?rhel} > 7 || 0%{?fedora}
 %{_sbindir}/dsconf
 %{_sbindir}/dscreate
@@ -587,48 +630,30 @@ fi
 %{_libexecdir}/%{pkgname}/ds_selinux_enabled
 %{_libexecdir}/%{pkgname}/ds_selinux_port_query
 %{_libexecdir}/%{pkgname}/ds_systemd_ask_password_acl
-%if %{use_perl}
-%{_sbindir}/monitor
 %{_sbindir}/bak2db
-%{_sbindir}/bak2db.pl
-%{_sbindir}/cleanallruv.pl
+%{_mandir}/man8/bak2db.8.gz
 %{_sbindir}/db2bak
-%{_sbindir}/db2bak.pl
+%{_mandir}/man8/db2bak.8.gz
 %{_sbindir}/db2index
-%{_sbindir}/db2index.pl
+%{_mandir}/man8/db2index.8.gz
 %{_sbindir}/db2ldif
-%{_sbindir}/db2ldif.pl
-%{_sbindir}/dbmon.sh
+%{_mandir}/man8/db2ldif.8.gz
 %{_sbindir}/dbverify
-%{_sbindir}/dn2rdn
-%{_sbindir}/fixup-linkedattrs.pl
-%{_sbindir}/fixup-memberof.pl
+%{_mandir}/man8/dbverify.8.gz
 %{_sbindir}/ldif2db
-%{_sbindir}/ldif2db.pl
-%{_sbindir}/ldif2ldap
-%{_sbindir}/migrate-ds.pl
-%{_sbindir}/ns-accountstatus.pl
-%{_sbindir}/ns-activate.pl
-%{_sbindir}/ns-inactivate.pl
-%{_sbindir}/ns-newpwpolicy.pl
-%{_sbindir}/remove-ds.pl
+%{_mandir}/man8/ldif2db.8.gz
 %{_sbindir}/restart-dirsrv
-%{_sbindir}/restoreconfig
-%{_sbindir}/saveconfig
-%{_sbindir}/schema-reload.pl
-%{_sbindir}/setup-ds.pl
+%{_mandir}/man8/restart-dirsrv.8.gz
 %{_sbindir}/start-dirsrv
+%{_mandir}/man8/start-dirsrv.8.gz
 %{_sbindir}/status-dirsrv
+%{_mandir}/man8/status-dirsrv.8.gz
 %{_sbindir}/stop-dirsrv
-%{_sbindir}/suffix2instance
-%{_sbindir}/syntax-validate.pl
+%{_mandir}/man8/stop-dirsrv.8.gz
 %{_sbindir}/upgradedb
-%{_sbindir}/upgradednformat
-%{_sbindir}/usn-tombstone-cleanup.pl
-%{_sbindir}/verify-db.pl
+%{_mandir}/man8/upgradedb.8.gz
 %{_sbindir}/vlvindex
-%{_libdir}/%{pkgname}/perl
-%endif
+%{_mandir}/man8/vlvindex.8.gz
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
@@ -638,8 +663,6 @@ fi
 %dir %{_localstatedir}/lib/%{pkgname}
 %dir %{_localstatedir}/log/%{pkgname}
 %ghost %dir %{_localstatedir}/lock/%{pkgname}
-%{_mandir}/man1/*
-%{_mandir}/man8/*
 %exclude %{_sbindir}/ldap-agent*
 %exclude %{_mandir}/man1/ldap-agent.1.gz
 %exclude %{_unitdir}/%{pkgname}-snmp.service
@@ -683,6 +706,87 @@ fi
 %endif
 %if %{use_rust}
 %{_libdir}/%{pkgname}/librsds.so
+%endif
+
+%files legacy-tools
+%defattr(-,root,root,-)
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
+%{_bindir}/infadd
+%{_mandir}/man1/infadd.1.gz
+%{_bindir}/ldif
+%{_mandir}/man1/ldif.1.gz
+%{_bindir}/migratecred
+%{_mandir}/man1/migratecred.1.gz
+%{_bindir}/mmldif
+%{_mandir}/man1/mmldif.1.gz
+%{_bindir}/rsearch
+%{_mandir}/man1/rsearch.1.gz
+%{_sbindir}/monitor
+%{_mandir}/man8/monitor.8.gz
+%{_sbindir}/dbmon.sh
+%{_mandir}/man8/dbmon.sh.8.gz
+%{_sbindir}/dn2rdn
+%{_mandir}/man8/dn2rdn.8.gz
+%{_sbindir}/restoreconfig
+%{_mandir}/man8/restoreconfig.8.gz
+%{_sbindir}/saveconfig
+%{_mandir}/man8/saveconfig.8.gz
+%{_sbindir}/stop-dirsrv
+%{_sbindir}/suffix2instance
+%{_mandir}/man8/suffix2instance.8.gz
+%{_sbindir}/upgradednformat
+%{_mandir}/man8/upgradednformat.8.gz
+%if %{use_perl}
+%{_datadir}/%{pkgname}/properties/*.res
+%{_datadir}/%{pkgname}/script-templates
+%{_datadir}/%{pkgname}/updates
+%{_mandir}/man1/dbgen.pl.1.gz
+%{_bindir}/repl-monitor
+%{_mandir}/man1/repl-monitor.1.gz
+%{_bindir}/repl-monitor.pl
+%{_bindir}/cl-dump
+%{_mandir}/man1/cl-dump.1.gz
+%{_bindir}/cl-dump.pl
+%{_bindir}/dbgen.pl
+%{_mandir}/man8/bak2db.pl.8.gz
+%{_sbindir}/bak2db.pl
+%{_sbindir}/cleanallruv.pl
+%{_mandir}/man8/cleanallruv.pl.8.gz
+%{_sbindir}/db2bak.pl
+%{_mandir}/man8/db2bak.pl.8.gz
+%{_sbindir}/db2index.pl
+%{_mandir}/man8/db2index.pl.8.gz
+%{_sbindir}/db2ldif.pl
+%{_mandir}/man8/db2ldif.pl.8.gz
+%{_sbindir}/fixup-linkedattrs.pl
+%{_mandir}/man8/fixup-linkedattrs.pl.8.gz
+%{_sbindir}/fixup-memberof.pl
+%{_mandir}/man8/fixup-memberof.pl.8.gz
+%{_sbindir}/ldif2db.pl
+%{_mandir}/man8/ldif2db.pl.8.gz
+%{_sbindir}/migrate-ds.pl
+%{_mandir}/man8/migrate-ds.pl.8.gz
+%{_sbindir}/ns-accountstatus.pl
+%{_mandir}/man8/ns-accountstatus.pl.8.gz
+%{_sbindir}/ns-activate.pl
+%{_mandir}/man8/ns-activate.pl.8.gz
+%{_sbindir}/ns-inactivate.pl
+%{_mandir}/man8/ns-inactivate.pl.8.gz
+%{_sbindir}/ns-newpwpolicy.pl
+%{_mandir}/man8/ns-newpwpolicy.pl.8.gz
+%{_sbindir}/remove-ds.pl
+%{_mandir}/man8/remove-ds.pl.8.gz
+%{_sbindir}/schema-reload.pl
+%{_mandir}/man8/schema-reload.pl.8.gz
+%{_sbindir}/setup-ds.pl
+%{_mandir}/man8/setup-ds.pl.8.gz
+%{_sbindir}/syntax-validate.pl
+%{_mandir}/man8/syntax-validate.pl.8.gz
+%{_sbindir}/usn-tombstone-cleanup.pl
+%{_mandir}/man8/usn-tombstone-cleanup.pl.8.gz
+%{_sbindir}/verify-db.pl
+%{_mandir}/man8/verify-db.pl.8.gz
+%{_libdir}/%{pkgname}/perl
 %endif
 
 %files snmp
