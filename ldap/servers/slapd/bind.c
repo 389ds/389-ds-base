@@ -768,6 +768,12 @@ do_bind(Slapi_PBlock *pb)
                     if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                         /* check if need new password before sending the bind success result */
                         myrc = need_new_pw(pb, bind_target_entry, pw_response_requested);
+                    } else {
+                        /* We still need to check if we need to enforce "user MUST reset password" */
+                        if (!bind_target_entry) {
+                             bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
+                        }
+                        check_must_change_pw(pb, bind_target_entry);
                     }
                 }
                 if (auth_response_requested) {

@@ -952,6 +952,7 @@ int plugin_call_mmr_plugin_postop ( Slapi_PBlock *pb, Slapi_Entry *e, int flags)
  * pw_mgmt.c
  */
 void pw_init(void);
+void check_must_change_pw(Slapi_PBlock *pb, Slapi_Entry *e);
 int need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req);
 int update_pw_info(Slapi_PBlock *pb, char *old_pw);
 int check_pw_syntax(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, char **old_pw, Slapi_Entry *e, int mod_op);
