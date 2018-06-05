@@ -110,7 +110,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
     uint64_t delta = 0;
     uint64_t delta_original = 0;
 
@@ -194,7 +194,7 @@ ldbm_instance_config_dncachememsize_set(void *arg,
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t)value;
+    uint64_t val = (uint64_t)((uintptr_t)value);
     uint64_t delta = 0;
 
     /* Do whatever we can to make sure the data is ok. */

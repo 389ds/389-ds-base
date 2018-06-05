@@ -148,7 +148,7 @@ do_abandon(Slapi_PBlock *pb)
         slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
                                            " targetop=%d msgid=%d nentries=%d etime=%" PRId64 ".%010" PRId64 "\n",
                          pb_conn->c_connid, pb_op->o_opid, o->o_opid, id,
-                         o->o_results.r.r_search.nentries, o_hr_time_end.tv_sec, o_hr_time_end.tv_nsec);
+                         o->o_results.r.r_search.nentries, (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
     }
 
     PR_ExitMonitor(pb_conn->c_mutex);

@@ -527,8 +527,8 @@ sds_node_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bptree_n
     // Given the node write it out as:
     fprintf(fp, "subgraph c%" PRIu32 " { \n    rank=\"same\";\n", node->level);
     fprintf(fp, "    node_%p [label =\" {  node=%p items=%d txn=%" PRIu64 " parent=%p | { <f0> ", node, node, node->item_count, node->txn_id, node->parent);
-    for (size_t i = 0; i < SDS_BPTREE_DEFAULT_CAPACITY; i++) {
-        fprintf(fp, "| %" PRIu64 " | <f%" PRIu64 "> ", (uint64_t)node->keys[i], i + 1);
+    for (uint64_t i = 0; i < SDS_BPTREE_DEFAULT_CAPACITY; i++) {
+        fprintf(fp, "| %" PRIu64 " | <f%" PRIu64 "> ", (uint64_t)((uintptr_t)node->keys[i]), i + 1);
     }
     fprintf(fp, "}}\"]; \n}\n");
     return SDS_SUCCESS;
@@ -545,7 +545,7 @@ sds_node_ptrs_to_dot(sds_bptree_instance *binst __attribute__((unused)), sds_bpt
             fprintf(fp, "\"node_%p\" -> \"node_%p\"; \n", node, node->values[SDS_BPTREE_DEFAULT_CAPACITY]);
         }
     } else {
-        for (size_t i = 0; i < SDS_BPTREE_BRANCH; i++) {
+        for (uint64_t i = 0; i < SDS_BPTREE_BRANCH; i++) {
             if (node->values[i] != NULL) {
                 if (i == SDS_BPTREE_DEFAULT_CAPACITY) {
                     // Work around a graphviz display issue, with Left and Right pointers
@@ -566,7 +566,7 @@ sds_bptree_cow_display(sds_bptree_transaction *btxn)
 {
     sds_result result = SDS_SUCCESS;
 
-    char *path = malloc(sizeof(char) * 20);
+    char *path = malloc(sizeof(char) * 36);
     print_iter += 1;
 #ifdef SDS_DEBUG
     sds_log("sds_bptree_cow_display", "Writing step %03d\n", print_iter);

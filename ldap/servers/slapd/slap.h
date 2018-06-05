@@ -2428,7 +2428,7 @@ typedef struct _slapdFrontendConfig
     int localssf;                         /* the security strength factor to assign to local conns (ldapi) */
     int minssf;                           /* minimum security strength factor (for SASL and SSL/TLS) */
     slapi_onoff_t minssf_exclude_rootdse; /* ON: minssf is ignored when searching rootdse */
-    size_t maxsasliosize;                 /* limit incoming SASL IO packet size */
+    int32_t maxsasliosize;                 /* limit incoming SASL IO packet size */
     char *anon_limits_dn;                 /* template entry for anonymous resource limits */
     slapi_int_t listen_backlog_size;      /* size of backlog parameter to PR_Listen */
     struct passwd *localuserinfo;         /* userinfo of localuser */
@@ -2443,7 +2443,7 @@ typedef struct _slapdFrontendConfig
 
     /* disk monitoring */
     slapi_onoff_t disk_monitoring;
-    PRInt64 disk_threshold;
+    uint64_t disk_threshold;
     int disk_grace_period;
     slapi_onoff_t disk_logging_critical;
 

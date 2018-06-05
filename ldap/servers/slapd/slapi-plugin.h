@@ -5834,7 +5834,7 @@ char *slapi_ch_malloc(unsigned long size);
  * \param alignment The alignment. MUST be a power of 2!
  * \return Pointer to the allocated memory aligned by alignment.
  */
-char *slapi_ch_memalign(size_t size, size_t alignment);
+char *slapi_ch_memalign(uint32_t size, uint32_t alignment);
 char *slapi_ch_realloc(char *block, unsigned long size);
 char *slapi_ch_calloc(unsigned long nelem, unsigned long size);
 char *slapi_ch_strdup(const char *s);

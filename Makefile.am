@@ -1854,7 +1854,7 @@ ldap_agent_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/snmp/ldap-agent.c \
 	ldap/servers/slapd/agtmmap.c
 
-ldap_agent_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @netsnmp_inc@
+ldap_agent_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @netsnmp_inc@ -fPIC
 ldap_agent_LDADD = $(LDAPSDK_LINK_NOTHR) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
 
 
@@ -2273,7 +2273,7 @@ if HAVE_DOXYGEN
 
 doxyfile.stamp:
 	cd $(srcdir); $(DOXYGEN) $(abs_top_builddir)/docs/slapi.doxy
-	rm $(abs_top_builddir)/man/man3/_*
+	rm -f $(abs_top_builddir)/man/man3/_*
 	touch doxyfile.stamp
 
 # Add the docs to make all.

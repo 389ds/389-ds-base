@@ -359,10 +359,10 @@ struct backdn
 /* for the in-core cache of entries */
 struct cache
 {
-    size_t c_maxsize;         /* max size in bytes */
+    uint64_t c_maxsize;       /* max size in bytes */
     Slapi_Counter *c_cursize; /* size in bytes */
-    long c_maxentries;        /* max entries allowed (-1: no limit) */
-    long c_curentries;        /* current # entries in cache */
+    int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
+    uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON
@@ -552,7 +552,7 @@ struct ldbminfo
     char *li_directory;
     int li_reslimit_lookthrough_handle;
     size_t li_dbcachesize;
-    int li_dblock;
+    uint64_t li_dblock;
     int li_dbncache;
     int li_import_cache_autosize;       /* % of free memory to use
                                                * for the import caches
@@ -588,7 +588,7 @@ struct ldbminfo
      */
     char *li_new_directory;
     size_t li_new_dbcachesize;
-    int li_new_dblock;
+    uint64_t li_new_dblock;
 
     int li_new_dbncache;
 

@@ -698,7 +698,7 @@ main(int argc, char **argv)
             } else if (secs > 3600) {
                 secs = 3600;
             }
-            printf("slapd pid is %d - sleeping for %ld\n", getpid(), secs);
+            printf("slapd pid is %d - sleeping for %" PRId64 "\n", getpid(), secs);
             sleep(secs);
         }
     }

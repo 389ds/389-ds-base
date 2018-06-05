@@ -31,6 +31,7 @@ typedef void *config_get_fn_t(void *arg);
 #define CONFIG_TYPE_INT_OCTAL 5 /* Same as CONFIG_TYPE_INT, but shown in \
                               * octal */
 #define CONFIG_TYPE_SIZE_T 6    /* val = (size_t) value */
+#define CONFIG_TYPE_UINT64 7    /* val = (uint64_t) value */
 
 /* How changes to some config attributes are handled depends on what
  * "phase" the server is in.  Initialization, reading the config

@@ -28,7 +28,7 @@
 #endif /* solaris: mmap */
 #endif /* DB_USE_64LFS */
 
-#define DBLAYER_PAGESIZE (size_t)8 * 1024
+#define DBLAYER_PAGESIZE (uint32_t)8 * 1024
 #define DBLAYER_INDEX_PAGESIZE (size_t)8 * 1024 /* With the new idl design,      \
      the large 8Kbyte pages we use are not optimal. The page pool churns very    \
      quickly as we add new IDs under a sustained add load. Smaller pages stop    \
@@ -103,9 +103,9 @@ struct dblayer_private
     int dblayer_durable_transactions;
     int dblayer_checkpoint_interval;
     int dblayer_circular_logging;
-    uint64_t dblayer_page_size;       /* db page size if configured,
+    uint32_t dblayer_page_size;       /* db page size if configured,
                                      * otherwise default to DBLAYER_PAGESIZE */
-    uint64_t dblayer_index_page_size; /* db index page size if configured,
+    uint32_t dblayer_index_page_size; /* db index page size if configured,
                                      * otherwise default to
                                      * DBLAYER_INDEX_PAGESIZE */
     int dblayer_idl_divisor;          /* divide page size by this to get IDL

@@ -376,7 +376,7 @@ char *slapi_dn_normalize_case_original(char *dn);
 int32_t ndn_cache_init(void);
 void ndn_cache_destroy(void);
 int ndn_cache_started(void);
-void ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, size_t *thread_size, size_t *evicts, size_t *slots, long *count);
+void ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *max_size, uint64_t *thread_size, uint64_t *evicts, uint64_t *slots, uint64_t *count);
 #define NDN_DEFAULT_SIZE 20971520 /* 20mb - size of normalized dn cache */
 
 /* filter.c */

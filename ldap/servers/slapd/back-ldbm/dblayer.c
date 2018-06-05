@@ -822,10 +822,10 @@ dblayer_dump_config_tracing(dblayer_private *priv)
         slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "dbhome_directory=%s\n", priv->dblayer_dbhome_directory);
     }
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "trickle_percentage=%d\n", priv->dblayer_trickle_percentage);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "page_size=%lu\n", priv->dblayer_page_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "index_page_size=%lu\n", priv->dblayer_index_page_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "cachesize=%lu\n", priv->dblayer_cachesize);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "previous_cachesize=%lu\n", priv->dblayer_previous_cachesize);
+    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "page_size=%" PRIu32 "\n", priv->dblayer_page_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "index_page_size=%" PRIu32 "\n", priv->dblayer_index_page_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "cachesize=%" PRIu64 "\n", priv->dblayer_cachesize);
+    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "previous_cachesize=%" PRIu64 "\n", priv->dblayer_previous_cachesize);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "ncache=%d\n", priv->dblayer_ncache);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "previous_ncache=%d\n", priv->dblayer_previous_ncache);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "recovery_required=%d\n", priv->dblayer_recovery_required);
@@ -834,8 +834,8 @@ dblayer_dump_config_tracing(dblayer_private *priv)
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "transaction_batch_val=%d\n", trans_batch_limit);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "circular_logging=%d\n", priv->dblayer_circular_logging);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "idl_divisor=%d\n", priv->dblayer_idl_divisor);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "logfile_size=%lu\n", priv->dblayer_logfile_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "logbuf_size=%lu\n", priv->dblayer_logbuf_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "logfile_size=%" PRIu64 "\n", priv->dblayer_logfile_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "logbuf_size=%" PRIu64 "\n", priv->dblayer_logbuf_size);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "file_mode=%d\n", priv->dblayer_file_mode);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "cache_config=%d\n", priv->dblayer_cache_config);
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "lib_version=%d\n", priv->dblayer_lib_version);
@@ -1203,8 +1203,8 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
         /* Check if we have enough space */
         if (fsiz < expected_siz) {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "no_diskspace", "No enough space left on device (%s) (%lu bytes); "
-                                          "at least %lu bytes space is needed for db region files\n",
+                          "no_diskspace", "No enough space left on device (%s) (%" PRIu64 " bytes); "
+                                          "at least %" PRIu64 " bytes space is needed for db region files\n",
                           region_dir, fsiz, expected_siz);
             return 1;
         }
@@ -1406,7 +1406,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
          (priv->dblayer_lock_config != priv->dblayer_previous_lock_config)) &&
         !(dbmode & (DBLAYER_ARCHIVE_MODE | DBLAYER_EXPORT_MODE))) {
         if (priv->dblayer_cachesize != priv->dblayer_previous_cachesize) {
-            slapi_log_err(SLAPI_LOG_INFO, "dblayer_start", "Resizing db cache size: %lu -> %lu\n",
+            slapi_log_err(SLAPI_LOG_INFO, "dblayer_start", "Resizing db cache size: %" PRIu64 " -> %" PRIu64 "\n",
                           priv->dblayer_previous_cachesize, priv->dblayer_cachesize);
         }
         if (priv->dblayer_ncache != priv->dblayer_previous_ncache) {
@@ -1448,7 +1448,8 @@ dblayer_start(struct ldbminfo *li, int dbmode)
         if (priv->dblayer_logbuf_size >= 32768) {
             pEnv->dblayer_DB_ENV->set_lg_bsize(pEnv->dblayer_DB_ENV, priv->dblayer_logbuf_size);
         } else {
-            slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_start", "Using default value for log bufsize because configured value (%lu) is too small.\n",
+            slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_start",
+                          "Using default value for log bufsize because configured value (%" PRIu64 ") is too small.\n",
                           priv->dblayer_logbuf_size);
         }
     }
@@ -1499,7 +1500,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                  */
                 slapi_log_err(SLAPI_LOG_CRIT,
                               "dblayer_start", "mmap in opening database environment (recovery mode) "
-                                               "failed trying to allocate %lu bytes. (OS err %d - %s)\n",
+                                               "failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
                               li->li_dbcachesize, return_value, dblayer_strerror(return_value));
                 dblayer_free_env(&priv->dblayer_env);
                 priv->dblayer_env = CATASTROPHIC;
@@ -1509,7 +1510,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                               return_value, dblayer_strerror(return_value));
                 slapi_log_err(SLAPI_LOG_CRIT,
                               "dblayer_start", "Please make sure there is enough disk space for "
-                                               "dbcache (%lu bytes) and db region files\n",
+                                               "dbcache (%" PRIu64 " bytes) and db region files\n",
                               li->li_dbcachesize);
             }
             return return_value;
@@ -1588,7 +1589,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                  */
                 slapi_log_err(SLAPI_LOG_CRIT,
                               "dblayer_start", "mmap in opening database environment "
-                                               "failed trying to allocate %lu bytes. (OS err %d - %s)\n",
+                                               "failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
                               li->li_dbcachesize, return_value, dblayer_strerror(return_value));
                 dblayer_free_env(&priv->dblayer_env);
                 priv->dblayer_env = CATASTROPHIC;
@@ -1949,7 +1950,7 @@ dblayer_instance_start(backend *be, int mode)
                                          (priv->dblayer_page_size == 0) ? DBLAYER_PAGESIZE : priv->dblayer_page_size);
         if (0 != return_value) {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "dblayer_instance_start", "dbp->set_pagesize(%lu or %lu) failed %d\n",
+                          "dblayer_instance_start", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
                           priv->dblayer_page_size, DBLAYER_PAGESIZE,
                           return_value);
             goto out;
@@ -1976,7 +1977,7 @@ dblayer_instance_start(backend *be, int mode)
                                              (priv->dblayer_page_size == 0) ? DBLAYER_PAGESIZE : priv->dblayer_page_size);
             if (0 != return_value) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_instance_start", "dbp->set_pagesize(%lu or %lu) failed %d\n",
+                              "dblayer_instance_start", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
                               priv->dblayer_page_size, DBLAYER_PAGESIZE,
                               return_value);
                 goto out;
@@ -2223,7 +2224,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path
     rval = dbp->set_pagesize(dbp, (priv->dblayer_page_size == 0) ? DBLAYER_PAGESIZE : priv->dblayer_page_size);
     if (rval) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_get_aux_id2entry_ext", "dbp->set_pagesize(%lu or %lu) failed %d\n",
+                      "dblayer_get_aux_id2entry_ext", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
                       priv->dblayer_page_size, DBLAYER_PAGESIZE, rval);
         goto err;
     }
@@ -3495,11 +3496,11 @@ dblayer_txn_abort_all(struct ldbminfo *li, back_txn *txn)
     return (dblayer_txn_abort_ext(li, txn, PR_TRUE));
 }
 
-size_t
+uint32_t
 dblayer_get_optimal_block_size(struct ldbminfo *li)
 {
     dblayer_private *priv = NULL;
-    size_t page_size = 0;
+    uint32_t page_size = 0;
 
     PR_ASSERT(NULL != li);
 
@@ -3650,7 +3651,7 @@ typedef struct txn_test_iter
     DBC *cur;
     uint64_t cnt;
     const char *attr;
-    u_int32_t flags;
+    uint32_t flags;
     backend *be;
 } txn_test_iter;
 
@@ -3658,14 +3659,14 @@ typedef struct txn_test_cfg
 {
     PRUint32 hold_msec;
     PRUint32 loop_msec;
-    u_int32_t flags;
+    uint32_t flags;
     int use_txn;
     char **indexes;
     int verbose;
 } txn_test_cfg;
 
 static txn_test_iter *
-new_txn_test_iter(DB *db, const char *attr, backend *be, u_int32_t flags)
+new_txn_test_iter(DB *db, const char *attr, backend *be, uint32_t flags)
 {
     txn_test_iter *tti = (txn_test_iter *)slapi_ch_malloc(sizeof(txn_test_iter));
     tti->db = db;
@@ -3702,7 +3703,7 @@ free_txn_test_iter(txn_test_iter *tti)
 }
 
 static void
-free_ttilist(txn_test_iter ***ttilist, size_t *tticnt)
+free_ttilist(txn_test_iter ***ttilist, uint32_t *tticnt)
 {
     if (!ttilist || !*ttilist || !**ttilist) {
         return;
@@ -3715,7 +3716,7 @@ free_ttilist(txn_test_iter ***ttilist, size_t *tticnt)
 }
 
 static void
-init_ttilist(txn_test_iter **ttilist, size_t tticnt)
+init_ttilist(txn_test_iter **ttilist, uint32_t tticnt)
 {
     if (!ttilist || !*ttilist) {
         return;
@@ -3727,7 +3728,7 @@ init_ttilist(txn_test_iter **ttilist, size_t tticnt)
 }
 
 static void
-print_ttilist(txn_test_iter **ttilist, size_t tticnt)
+print_ttilist(txn_test_iter **ttilist, uint32_t tticnt)
 {
     while (tticnt > 0) {
         tticnt--;
@@ -3772,7 +3773,7 @@ txn_test_threadmain(void *param)
     Object *inst_obj;
     int rc = 0;
     txn_test_iter **ttilist = NULL;
-    uint64_t tticnt = 0;
+    uint32_t tticnt = 0;
     DB_TXN *txn = NULL;
     txn_test_cfg cfg = {0};
     uint64_t counter = 0;
@@ -3903,7 +3904,7 @@ wait_for_init:
             /* phase 1 - open a cursor to each db */
             if (cfg.verbose) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "txn_test_threadmain", "Starting [%lu] indexes\n", tticnt);
+                              "txn_test_threadmain", "Starting [%" PRIu32 "] indexes\n", tticnt);
             }
             for (ii = 0; ii < tticnt; ++ii) {
                 txn_test_iter *tti = ttilist[ii];
@@ -4015,7 +4016,7 @@ wait_for_init:
             init_ttilist(ttilist, tticnt);
             if (cfg.verbose) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "txn_test_threadmain", "Finished [%lu] indexes [%lu] records\n", tticnt, cnt);
+                              "txn_test_threadmain", "Finished [%" PRIu32 "] indexes [%" PRIu64 "] records\n", tticnt, cnt);
             }
             TXN_TEST_LOOP_WAIT(cfg.loop_msec);
         } else {
@@ -4612,10 +4613,10 @@ db_atoi(char *str, int *err)
     return db_atol(str, err);
 }
 
-unsigned long
+uint32_t
 db_strtoul(const char *str, int *err)
 {
-    unsigned long val = 0, result, multiplier = 1;
+    uint32_t val = 0, result, multiplier = 1;
     char *p;
     errno = 0;
 
@@ -4633,6 +4634,72 @@ db_strtoul(const char *str, int *err)
         return val;
     }
     val = strtoul(str, &p, 10);
+    if (errno != 0) {
+        if (err) {
+            *err = errno;
+        }
+        return val;
+    }
+
+    switch (*p) {
+    case 'g':
+    case 'G':
+        multiplier *= 1024 * 1024 * 1024;
+        break;
+    case 'm':
+    case 'M':
+        multiplier *= 1024 * 1024;
+        break;
+    case 'k':
+    case 'K':
+        multiplier *= 1024;
+        p++;
+        if (*p == 'b' || *p == 'B') {
+            p++;
+        }
+        if (err) {
+            /* extra chars? */
+            *err = (*p != '\0') ? EINVAL : 0;
+        }
+        break;
+    case '\0':
+        if (err) {
+            *err = 0;
+        }
+        break;
+    default:
+        if (err) {
+            *err = EINVAL;
+        }
+        return val;
+    }
+
+    result = val * multiplier;
+
+    return result;
+}
+
+uint64_t
+db_strtoull(const char *str, int *err)
+{
+    uint64_t val = 0, result, multiplier = 1;
+    char *p;
+    errno = 0;
+
+    /*
+     * manpage of strtoull: Negative  values  are considered valid input and
+     * are silently converted to the equivalent unsigned long int value.
+     */
+    /* We don't want to make it happen. */
+    for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++)
+        ;
+    if ('-' == *p) {
+        if (err) {
+            *err = ERANGE;
+        }
+        return val;
+    }
+    val = strtoull(str, &p, 10);
     if (errno != 0) {
         if (err) {
             *err = errno;
@@ -7200,9 +7267,9 @@ ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
         if (li) {
             dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
             if (prv && prv->dblayer_index_page_size) {
-                *(size_t *)info = prv->dblayer_index_page_size;
+                *(uint32_t *)info = prv->dblayer_index_page_size;
             } else {
-                *(size_t *)info = DBLAYER_INDEX_PAGESIZE;
+                *(uint32_t *)info = DBLAYER_INDEX_PAGESIZE;
             }
             rc = 0;
         }

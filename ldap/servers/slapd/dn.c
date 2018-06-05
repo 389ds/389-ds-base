@@ -41,14 +41,14 @@ struct ndn_cache_stats {
     Slapi_Counter *cache_count;
     Slapi_Counter *cache_size;
     Slapi_Counter *cache_evicts;
-    size_t max_size;
-    size_t thread_max_size;
-    size_t slots;
+    uint64_t max_size;
+    uint64_t thread_max_size;
+    uint64_t slots;
 };
 
 struct ndn_cache_value {
-    size_t size;
-    size_t slot;
+    uint64_t size;
+    uint64_t slot;
     char *dn;
     char *ndn;
     struct ndn_cache_value *next;
@@ -64,21 +64,21 @@ struct ndn_cache {
     /*
      * We keep per thread stats and flush them occasionally
      */
-    size_t max_size;
+    uint64_t max_size;
     /* Need to track this because we need to provide diffs to counter */
-    size_t last_count;
-    size_t count;
+    uint64_t last_count;
+    uint64_t count;
     /* Number of ops */
-    size_t tries;
+    uint64_t tries;
     /* hit vs miss. in theroy miss == tries - hits.*/
-    size_t hits;
+    uint64_t hits;
     /* How many values we kicked out */
-    size_t evicts;
+    uint64_t evicts;
     /* Need to track this because we need to provide diffs to counter */
-    size_t last_size;
-    size_t size;
+    uint64_t last_size;
+    uint64_t size;
 
-    size_t slots;
+    uint64_t slots;
     /*
      * This is used by siphash to prevent hash bugket attacks
      */
@@ -3260,7 +3260,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
 
 /* stats for monitor */
 void
-ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, size_t *thread_size, size_t *evicts, size_t *slots, long *count)
+ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *max_size, uint64_t *thread_size, uint64_t *evicts, uint64_t *slots, uint64_t *count)
 {
     *max_size = t_cache_stats.max_size;
     *thread_size = t_cache_stats.thread_max_size;

@@ -47,9 +47,10 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     struct berval val;
     struct berval *vals[2];
     char buf[BUFSIZ];
-    PRUint64 hits, tries;
-    long nentries, maxentries, count;
-    size_t size, maxsize;
+    uint64_t hits, tries;
+    uint64_t nentries;
+    int64_t maxentries;
+    uint64_t size, maxsize, count;
     size_t thread_size;
     size_t evicts;
     size_t slots;
@@ -91,19 +92,19 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     /* fetch cache statistics */
     cache_get_stats(&(inst->inst_cache), &hits, &tries,
                     &nentries, &maxentries, &size, &maxsize);
-    sprintf(buf, "%lu", (long unsigned int)hits);
+    sprintf(buf, "%" PRIu64, hits);
     MSET("entryCacheHits");
-    sprintf(buf, "%lu", (long unsigned int)tries);
+    sprintf(buf, "%" PRIu64, tries);
     MSET("entryCacheTries");
-    sprintf(buf, "%lu", (long unsigned int)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
+    sprintf(buf, "%" PRIu64, (uint64_t)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
     MSET("entryCacheHitRatio");
-    sprintf(buf, "%lu", (long unsigned int)size);
+    sprintf(buf, "%" PRIu64, size);
     MSET("currentEntryCacheSize");
-    sprintf(buf, "%lu", (long unsigned int)maxsize);
+    sprintf(buf, "%" PRIu64, maxsize);
     MSET("maxEntryCacheSize");
-    sprintf(buf, "%ld", nentries);
+    sprintf(buf, "%" PRId64, nentries);
     MSET("currentEntryCacheCount");
-    sprintf(buf, "%ld", maxentries);
+    sprintf(buf, "%" PRId64, maxentries);
     MSET("maxEntryCacheCount");
 
     if (entryrdn_get_switch()) {
@@ -114,15 +115,15 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("dnCacheHits");
         sprintf(buf, "%" PRIu64, tries);
         MSET("dnCacheTries");
-        sprintf(buf, "%lu", (unsigned long)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
+        sprintf(buf, "%" PRIu64, (uint64_t)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("dnCacheHitRatio");
-        sprintf(buf, "%lu", (long unsigned int)size);
+        sprintf(buf, "%" PRIu64, size);
         MSET("currentDnCacheSize");
-        sprintf(buf, "%lu", (long unsigned int)maxsize);
+        sprintf(buf, "%" PRIu64, maxsize);
         MSET("maxDnCacheSize");
-        sprintf(buf, "%ld", nentries);
+        sprintf(buf, "%" PRId64, nentries);
         MSET("currentDnCacheCount");
-        sprintf(buf, "%ld", maxentries);
+        sprintf(buf, "%" PRId64, maxentries);
         MSET("maxDnCacheCount");
     }
     /* normalized dn cache stats */
@@ -134,23 +135,23 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("normalizedDnCacheHits");
         sprintf(buf, "%" PRIu64, (tries - hits));
         MSET("normalizedDnCacheMisses");
-        sprintf(buf, "%lu", (unsigned long)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
+        sprintf(buf, "%" PRIu64, (uint64_t)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("normalizedDnCacheHitRatio");
         sprintf(buf, "%"PRIu64, evicts);
         MSET("NormalizedDnCacheEvictions");
-        sprintf(buf, "%lu", (long unsigned int)size);
+        sprintf(buf, "%" PRIu64, size);
         MSET("currentNormalizedDnCacheSize");
         if (maxsize == 0) {
             sprintf(buf, "%d", -1);
         } else {
-            sprintf(buf, "%lu", (long unsigned int)maxsize);
+            sprintf(buf, "%" PRIu64, maxsize);
         }
         MSET("maxNormalizedDnCacheSize");
         sprintf(buf, "%"PRIu64, thread_size);
         MSET("NormalizedDnCacheThreadSize");
         sprintf(buf, "%"PRIu64, slots);
         MSET("NormalizedDnCacheThreadSlots");
-        sprintf(buf, "%ld", count);
+        sprintf(buf, "%"PRIu64, count);
         MSET("currentNormalizedDnCacheCount");
     }
 
@@ -234,7 +235,7 @@ ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
     char buf[BUFSIZ];
     DB_MPOOL_STAT *mpstat = NULL;
     DB_MPOOL_FSTAT **mpfstat = NULL;
-    uintmax_t cache_tries;
+    uint64_t cache_tries;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -255,7 +256,7 @@ ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
 
     /* cache tries*/
     cache_tries = (mpstat->st_cache_miss + mpstat->st_cache_hit);
-    sprintf(buf, "%lu", cache_tries);
+    sprintf(buf, "%"PRIu64, cache_tries);
     MSET("dbCacheTries");
 
     /* cache hit ratio*/

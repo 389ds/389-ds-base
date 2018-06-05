@@ -177,8 +177,8 @@ ldbm_back_start_autotune(struct ldbminfo *li)
         }
     }
 
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk physical memory\n", mi->system_total_bytes / 1024);
-    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %luk available\n", mi->system_available_bytes / 1024);
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %" PRIu64 "k physical memory\n", mi->system_total_bytes / 1024);
+    slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "found %" PRIu64 "k available\n", mi->system_available_bytes / 1024);
 
     /* We've now calculated the autotuning values. Do we need to apply it?
      * we use the logic of "if size is 0, or autosize is > 0. This way three
@@ -193,7 +193,7 @@ ldbm_back_start_autotune(struct ldbminfo *li)
 
     /* First, check the dbcache */
     if (li->li_dbcachesize == 0 || li->li_cache_autosize > 0) {
-        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: db cache: %luk\n", db_size / 1024);
+        slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: db cache: %" PRIu64 "k\n", db_size / 1024);
         if (db_size < (500 * MEGABYTE)) {
             db_size = db_size / 1.25;
         }
@@ -223,12 +223,12 @@ ldbm_back_start_autotune(struct ldbminfo *li)
          * it's highly unlikely.
          */
         if (cache_size == 0 || cache_size == MINCACHESIZE || li->li_cache_autosize > 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%lu total): %luk\n", inst->inst_name, backend_count, entry_size / 1024);
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%" PRIu64 " total): %luk\n", inst->inst_name, backend_count, entry_size / 1024);
             cache_set_max_entries(&(inst->inst_cache), -1);
             cache_set_max_size(&(inst->inst_cache), li->li_cache_autosize_ec, CACHE_TYPE_ENTRY);
         }
         if (dncache_size == 0 || dncache_size == MINCACHESIZE || li->li_cache_autosize > 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s dn cache (%lu total): %luk\n", inst->inst_name, backend_count, dn_size / 1024);
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s dn cache (%" PRIu64 " total): %luk\n", inst->inst_name, backend_count, dn_size / 1024);
             cache_set_max_entries(&(inst->inst_dncache), -1);
             cache_set_max_size(&(inst->inst_dncache), li->li_dncache_autosize_ec, CACHE_TYPE_DN);
         }
@@ -389,7 +389,7 @@ ldbm_back_start(Slapi_PBlock *pb)
             return return_on_disk_full(li);
         else {
             if ((li->li_cache_autosize > 0) && (li->li_cache_autosize <= 100)) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to allocate %lu byte dbcache.  "
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to allocate %" PRIu64 " byte dbcache.  "
                                                                 "Please reduce the value of %s and restart the server.\n",
                               li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE);
             }

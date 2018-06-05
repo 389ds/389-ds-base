@@ -713,7 +713,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     ldap_result_code = LDAP_ALREADY_EXISTS;
                     if (is_resurect_operation) {
                         slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
-                                      "conn=%lu op=%d cache_add_tentative failed: %s\n",
+                                      "conn=%" PRIu64 " op=%d cache_add_tentative failed: %s\n",
                                       conn_id, op_id, slapi_entry_get_dn(ec->ep_entry));
                     }
                     goto error_return;
@@ -845,7 +845,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     retval = parent_update_on_childchange(&parent_modify_context,
                                                           PARENTUPDATE_DEL, NULL);
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                                  "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                                  "conn=%" PRIu64 " op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                                   conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
 
                     /* The parent modify context now contains info needed later */
@@ -857,7 +857,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     retval = parent_update_on_childchange(&newparent_modify_context,
                                                           PARENTUPDATE_ADD, NULL);
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                                  "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                                  "conn=%" PRIu64 " op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                                   conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
                     /* The newparent modify context now contains info needed later */
                     if (retval) {
@@ -870,7 +870,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 retval = parent_update_on_childchange(&parent_modify_context, PARENTUPDATE_RESURECT, NULL);
                 if (retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                                  "conn=%lu op=%d parent_update_on_childchange parent %s of %s failed, rc=%d\n",
+                                  "conn=%" PRIu64 " op=%d parent_update_on_childchange parent %s of %s failed, rc=%d\n",
                                   conn_id, op_id,
                                   slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
                                   slapi_entry_get_dn_const(ec->ep_entry), retval);
@@ -1053,7 +1053,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             {
                 retval = modify_update_all(be, pb, &newparent_modify_context, &txn);
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                              "conn=%lu op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                              "conn=%" PRIu64 " op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                               conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
                 if (DB_LOCK_DEADLOCK == retval) {
                     /* Retry txn */
@@ -1178,7 +1178,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     if (newparententry != NULL) {
         myrc = modify_switch_entries(&newparent_modify_context, be);
         slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                      "conn=%lu op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                      "conn=%" PRIu64 " op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                       conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, myrc);
     }
 
@@ -1455,13 +1455,13 @@ common_return:
     slapi_sdn_done(&dn_newrdn);
     slapi_sdn_done(&dn_parentdn);
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                  "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
+                  "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
                   conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry);
     myrc = modify_term(&parent_modify_context, be);
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                  "conn=%lu op=%d modify_term: rc=%d\n", conn_id, op_id, myrc);
+                  "conn=%" PRIu64 " op=%d modify_term: rc=%d\n", conn_id, op_id, myrc);
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                  "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
+                  "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
                   conn_id, op_id, newparent_modify_context.old_entry, newparent_modify_context.new_entry);
     myrc = modify_term(&newparent_modify_context, be);
     if (free_modrdn_existing_entry) {

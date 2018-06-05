@@ -81,13 +81,13 @@
 #include <getopt.h>
 #endif
 
-typedef PRUint32 ID;
+typedef uint32_t ID;
 
 typedef struct
 {
-    PRUint32 max;
-    PRUint32 used;
-    PRUint32 id[1];
+    uint32_t max;
+    uint32_t used;
+    uint32_t id[1];
 } IDL;
 
 #define RDN_BULK_FETCH_BUFFER_SIZE (8 * 1024)
@@ -109,9 +109,9 @@ static void display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent);
 static void display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent);
 static void display_entryrdn_item(DB *db, DBC *cursor, DBT *key);
 
-PRUint32 file_type = 0;
-PRUint32 min_display = 0;
-PRUint32 display_mode = 0;
+uint32_t file_type = 0;
+uint32_t min_display = 0;
+uint32_t display_mode = 0;
 int truncatesiz = 0;
 long pres_cnt = 0;
 long eq_cnt = 0;
@@ -145,15 +145,15 @@ db_printfln(char *fmt, ...)
     fprintf(stdout, "\n");
 }
 
-size_t MAX_BUFFER = 4096;
-size_t MIN_BUFFER = 20;
+uint32_t MAX_BUFFER = 4096;
+uint32_t MIN_BUFFER = 20;
 
 static IDL *
 idl_make(DBT *data)
 {
     IDL *idl = NULL, *xidl;
 
-    if (data->size < 2 * sizeof(PRUint32)) {
+    if (data->size < 2 * sizeof(uint32_t)) {
         idl = (IDL *)malloc(sizeof(IDL) + 64 * sizeof(ID));
         if (!idl)
             return NULL;
@@ -360,7 +360,7 @@ _cl5ReadMods(char **buff)
 {
     char *pos = *buff;
     ID i;
-    PRUint32 mod_count;
+    uint32_t mod_count;
 
     /* need to copy first, to skirt around alignment problems on certain
        architectures */
@@ -384,7 +384,7 @@ void
 print_ber_attr(char *attrname, char **buff)
 {
     char *val = NULL;
-    PRUint32 bv_len;
+    uint32_t bv_len;
 
     memcpy((char *)&bv_len, *buff, sizeof(bv_len));
     bv_len = ntohl(bv_len);
@@ -447,8 +447,8 @@ void
 _cl5ReadMod(char **buff)
 {
     char *pos = *buff;
-    PRUint32 i;
-    PRUint32 val_count;
+    uint32_t i;
+    uint32_t val_count;
     char *type = NULL;
 
     pos++;
@@ -458,7 +458,7 @@ _cl5ReadMod(char **buff)
        certain architectures */
     memcpy((char *)&val_count, pos, sizeof(val_count));
     val_count = ntohl(val_count);
-    pos += sizeof(PRUint32);
+    pos += sizeof(uint32_t);
 
     for (i = 0; i < val_count; i++) {
         print_ber_attr(type, &pos);
@@ -473,14 +473,14 @@ void
 print_ruv(unsigned char *buff)
 {
     char *pos = (char *)buff;
-    PRUint32 i;
-    PRUint32 val_count;
+    uint32_t i;
+    uint32_t val_count;
 
     /* need to do the copy first, to skirt around alignment problems on
        certain architectures */
     memcpy((char *)&val_count, pos, sizeof(val_count));
     val_count = ntohl(val_count);
-    pos += sizeof(PRUint32);
+    pos += sizeof(uint32_t);
 
     for (i = 0; i < val_count; i++) {
         print_ber_attr(NULL, &pos);
@@ -491,11 +491,11 @@ print_ruv(unsigned char *buff)
    *** Copied from cl5_api:cl5DBData2Entry ***
    Data in db format:
    ------------------
-   <1 byte version><1 byte change_type><sizeof PRUint32 time><null terminated dbid>
+   <1 byte version><1 byte change_type><sizeof uint32_t time><null terminated dbid>
    <null terminated csn><null terminated uniqueid><null terminated targetdn>
    [<null terminated newrdn><1 byte deleteoldrdn>][<4 byte mod count><mod1><mod2>....]
 
-Note: the length of time is set PRUint32 instead of time_t. Regardless of the
+Note: the length of time is set uint32_t instead of time_t. Regardless of the
 width of long (32-bit or 64-bit), it's stored using 4bytes by the server [153306].
 
    mod format:
@@ -509,9 +509,9 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
     uint8_t version;
     unsigned long operation_type;
     char *pos = (char *)data;
-    PRUint32 thetime32;
+    uint32_t thetime32;
     time_t thetime;
-    PRUint32 replgen;
+    uint32_t replgen;
 
     /* read byte of version */
     version = *((uint8_t *)pos);
@@ -530,7 +530,7 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
     memcpy((char *)&thetime32, pos, sizeof(thetime32));
 
     replgen = ntohl(thetime32);
-    pos += sizeof(PRUint32);
+    pos += sizeof(uint32_t);
     thetime = (time_t)replgen;
     db_printf("\treplgen: %ld %s", replgen, ctime((time_t *)&thetime));
 
@@ -608,7 +608,7 @@ display_index_item(DBC *cursor, DBT *key, DBT *data, unsigned char *buf, int buf
     while (ret == 0) {
         ret = cursor->c_get(cursor, key, data, DB_NEXT_DUP);
         if (ret == 0)
-            idl = idl_append(idl, *(PRUint32 *)(data->data));
+            idl = idl_append(idl, *(uint32_t *)(data->data));
     }
     if (ret == DB_NOTFOUND)
         ret = 0;
@@ -944,7 +944,7 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
     int indent = 2;
     DBT data;
     int rc;
-    PRUint32 flags = 0;
+    uint32_t flags = 0;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
     DBT dataret;
     int find_key_flag = 0;
@@ -1102,7 +1102,7 @@ usage(char *argv0)
     printf("  index file options:\n");
     printf("    -k <key>        lookup only a specific key\n");
     printf("    -l <size>       max length of dumped id list\n");
-    printf("                    (default %lu; 40 bytes <= size <= 1048576 bytes)\n", MAX_BUFFER);
+    printf("                    (default %" PRIu32 "; 40 bytes <= size <= 1048576 bytes)\n", MAX_BUFFER);
     printf("    -G <n>          only display index entries with more than <n> ids\n");
     printf("    -n              display ID list lengths\n");
     printf("    -r              display the conents of ID list\n");
@@ -1132,7 +1132,7 @@ main(int argc, char **argv)
     DBT key = {0}, data = {0};
     int ret;
     char *find_key = NULL;
-    PRUint32 entry_id = 0xffffffff;
+    uint32_t entry_id = 0xffffffff;
     int c;
 
     key.flags = DB_DBT_REALLOC;
@@ -1146,7 +1146,7 @@ main(int argc, char **argv)
             display_mode |= RAWDATA;
             break;
         case 'l': {
-            PRUint32 tmpmaxbufsz = atoi(optarg);
+            uint32_t tmpmaxbufsz = atoi(optarg);
             if (tmpmaxbufsz > ONEMEG) {
                 tmpmaxbufsz = ONEMEG;
                 printf("WARNING: max length of dumped id list too long, "

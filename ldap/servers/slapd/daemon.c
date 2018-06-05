@@ -1220,7 +1220,7 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
-                      "slapd shutting down - waiting for %lu thread%s to terminate\n",
+                      "slapd shutting down - waiting for %" PRIu64 " thread%s to terminate\n",
                       threads, (threads > 1) ? "s" : "");
     }
 
@@ -1257,7 +1257,7 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
         DS_Sleep(PR_INTERVAL_NO_WAIT);
         if (threads != g_get_active_threadcnt()) {
             slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon",
-                          "slapd shutting down - waiting for %lu threads to terminate\n",
+                          "slapd shutting down - waiting for %" PRIu64 " threads to terminate\n",
                           g_get_active_threadcnt());
             threads = g_get_active_threadcnt();
         }

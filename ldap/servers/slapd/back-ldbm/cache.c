@@ -183,7 +183,7 @@ new_hash(u_long size, u_long offset, HashFn hfn, HashTestFn tfn)
  * already there (filled into 'alt' if 'alt' is not NULL)
  */
 int
-add_hash(Hashtable *ht, void *key, size_t keylen, void *entry, void **alt)
+add_hash(Hashtable *ht, void *key, uint32_t keylen, void *entry, void **alt)
 {
     u_long val, slot;
     void *e;
@@ -209,7 +209,7 @@ add_hash(Hashtable *ht, void *key, size_t keylen, void *entry, void **alt)
 
 /* returns 1 if the item was found, and puts a ptr to it in 'entry' */
 int
-find_hash(Hashtable *ht, const void *key, size_t keylen, void **entry)
+find_hash(Hashtable *ht, const void *key, uint32_t keylen, void **entry)
 {
     u_long val, slot;
     void *e;
@@ -231,7 +231,7 @@ find_hash(Hashtable *ht, const void *key, size_t keylen, void **entry)
 
 /* returns 1 if the item was found and removed */
 int
-remove_hash(Hashtable *ht, const void *key, size_t keylen)
+remove_hash(Hashtable *ht, const void *key, uint32_t keylen)
 {
     u_long val, slot;
     void *e, *laste = NULL;
@@ -494,7 +494,7 @@ cache_make_hashes(struct cache *cache, int type)
 
 /* initialize the cache */
 int
-cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
+cache_init(struct cache *cache, uint64_t maxsize, long maxentries, int type)
 {
     slapi_log_err(SLAPI_LOG_TRACE, "cache_init", "-->\n");
     cache->c_maxsize = maxsize;
@@ -598,7 +598,7 @@ entrycache_clear_int(struct cache *cache)
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
         slapi_log_err(SLAPI_LOG_WARNING,
-                      "entrycache_clear_int", "There are still %ld entries "
+                      "entrycache_clear_int", "There are still %" PRIu64 " entries "
                                               "in the entry cache.\n",
                       cache->c_curentries);
 #ifdef LDAP_CACHE_DEBUG
@@ -648,7 +648,7 @@ cache_destroy_please(struct cache *cache, int type)
 }
 
 void
-cache_set_max_size(struct cache *cache, size_t bytes, int type)
+cache_set_max_size(struct cache *cache, uint64_t bytes, int type)
 {
     if (CACHE_TYPE_ENTRY == type) {
         entrycache_set_max_size(cache, bytes);
@@ -773,7 +773,7 @@ cache_entry_size(struct backentry *e)
  * these u_long *'s to a struct
  */
 void
-cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries, long *nentries, long *maxentries, size_t *size, size_t *maxsize)
+cache_get_stats(struct cache *cache, uint64_t *hits, uint64_t *tries, uint64_t *nentries, int64_t *maxentries, uint64_t *size, uint64_t *maxsize)
 {
     cache_lock(cache);
     if (hits)
@@ -1580,7 +1580,7 @@ dncache_clear_int(struct cache *cache)
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
         slapi_log_err(SLAPI_LOG_WARNING,
-                      "dncache_clear_int", "There are still %ld dn's "
+                      "dncache_clear_int", "There are still %" PRIu64 " dn's "
                                            "in the dn cache. :/\n",
                       cache->c_curentries);
     }

@@ -211,7 +211,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
                     CACHE_RETURN(&inst->inst_cache, &tombstone);
                     if (tombstone) {
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
-                                      "conn=%lu op=%d [retry: %d] tombstone %s is not freed!!! refcnt %d, state %d\n",
+                                      "conn=%" PRIu64 " op=%d [retry: %d] tombstone %s is not freed!!! refcnt %d, state %d\n",
                                       conn_id, op_id, retry_count, slapi_entry_get_dn(tombstone->ep_entry),
                                       tombstone->ep_refcnt, tombstone->ep_state);
                     }
@@ -220,7 +220,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
                     tmptombstone = NULL;
                 } else {
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
-                                  "conn=%lu op=%d [retry: %d] No original_tombstone for %s!!\n",
+                                  "conn=%" PRIu64 " op=%d [retry: %d] No original_tombstone for %s!!\n",
                                   conn_id, op_id, retry_count, slapi_entry_get_dn(e->ep_entry));
                 }
             }
@@ -294,11 +294,11 @@ replace_entry:
                 if (slapi_entry_has_conflict_children(e->ep_entry, (void *)li->li_identity) > 0) {
                     ldap_result_message = "Entry has replication conflicts as children";
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
-                                  "conn=%lu op=%d Deleting entry %s has replication conflicts as children.\n",
+                                  "conn=%" PRIu64 " op=%d Deleting entry %s has replication conflicts as children.\n",
                                    conn_id, op_id, slapi_entry_get_dn(e->ep_entry));
                 } else {
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
-                                  "conn=%lu op=%d Deleting entry %s has %d children.\n",
+                                  "conn=%" PRIu64 " op=%d Deleting entry %s has %d children.\n",
                                    conn_id, op_id, slapi_entry_get_dn(e->ep_entry), retval);
                 }
                 retval = -1;
@@ -566,7 +566,7 @@ replace_entry:
                     /* The modify context now contains info needed later */
                     if (0 != retval) {
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
-                                      "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                                      "conn=%" PRIu64 " op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                                       conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
                         ldap_result_code = LDAP_OPERATIONS_ERROR;
                         slapi_sdn_done(&parentsdn);
@@ -604,7 +604,7 @@ replace_entry:
                 if (slapi_entry_attr_hasvalue(e->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE) &&
                     slapi_is_special_rdn(edn, RDN_IS_TOMBSTONE)) {
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
-                                  "conn=%lu op=%d Turning a tombstone into a tombstone! \"%s\"; e: 0x%p, cache_state: 0x%x, refcnt: %d\n",
+                                  "conn=%" PRIu64 " op=%d Turning a tombstone into a tombstone! \"%s\"; e: 0x%p, cache_state: 0x%x, refcnt: %d\n",
                                   conn_id, op_id, edn, e, e->ep_state, e->ep_refcnt);
                     ldap_result_code = LDAP_OPERATIONS_ERROR;
                     retval = -1;
@@ -612,7 +612,7 @@ replace_entry:
                 }
                 if (!childuniqueid) {
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
-                                  "conn=%lu op=%d No nsUniqueId in the entry \"%s\"; e: 0x%p, cache_state: 0x%x, refcnt: %d\n",
+                                  "conn=%" PRIu64 " op=%d No nsUniqueId in the entry \"%s\"; e: 0x%p, cache_state: 0x%x, refcnt: %d\n",
                                   conn_id, op_id, edn, e, e->ep_state, e->ep_refcnt);
                     ldap_result_code = LDAP_OPERATIONS_ERROR;
                     retval = -1;
@@ -743,7 +743,7 @@ replace_entry:
             retval = cache_add_tentative(&inst->inst_cache, tombstone, NULL);
             if (0 > retval) {
                 slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_delete",
-                              "conn=%lu op=%d tombstone entry %s failed to add to the cache: %d\n",
+                              "conn=%" PRIu64 " op=%d tombstone entry %s failed to add to the cache: %d\n",
                               conn_id, op_id, slapi_entry_get_dn(tombstone->ep_entry), retval);
                 if (LDBM_OS_ERR_IS_DISKFULL(retval))
                     disk_full = 1;
@@ -844,7 +844,7 @@ replace_entry:
                 }
                 if (0 != retval) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "ldbm_back_delete", "delete tombsone csn(adding %s) failed, err=%d %s\n",
+                                  "ldbm_back_delete", "delete tombstone csn(adding %s) failed, err=%d %s\n",
                                   deletion_csn_str,
                                   retval,
                                   (msg = dblayer_strerror(retval)) ? msg : "");
@@ -1035,7 +1035,7 @@ replace_entry:
                 }
                 if (0 != retval) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "ldbm_back_delete", "delete tombsone csn(deleting %s) failed, err=%d %s\n",
+                                  "ldbm_back_delete", "delete tombstone csn(deleting %s) failed, err=%d %s\n",
                                   deletion_csn_str,
                                   retval,
                                   (msg = dblayer_strerror(retval)) ? msg : "");
@@ -1276,7 +1276,7 @@ replace_entry:
         /* Replace the old parent entry with the newly modified one */
         myrc = modify_switch_entries(&parent_modify_c, be);
         slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
-                      "conn=%lu op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                      "conn=%" PRIu64 " op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                       conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
         if (myrc == 0) {
             parent_switched = 1;
@@ -1435,7 +1435,7 @@ error_return:
          */
         myrc = modify_unswitch_entries(&parent_modify_c, be);
         slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
-                      "conn=%lu op=%d modify_unswitch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                      "conn=%" PRIu64 " op=%d modify_unswitch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                       conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
     }
 
@@ -1514,7 +1514,7 @@ diskfull_return:
         }
     }
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
-                  "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p, in_cache=%d\n",
+                  "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p, in_cache=%d\n",
                   conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry,
                   cache_is_in_cache(&inst->inst_cache, parent_modify_c.new_entry));
     myrc = modify_term(&parent_modify_c, be);
