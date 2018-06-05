@@ -23,6 +23,39 @@
 /****************************************************************************/
 
 /*
+ * For chaining, particularly chain-on-update, we still need to check if the user's
+ * password MUST be reset before proceeding.
+ */
+void
+check_must_change_pw(Slapi_PBlock *pb, Slapi_Entry *e)
+{
+    passwdPolicy *pwpolicy = NULL;
+    Connection *pb_conn = NULL;
+    time_t pw_exp_date;
+    char *passwordExpirationTime = NULL;
+
+    if ((passwordExpirationTime = slapi_entry_attr_get_charptr(e, "passwordExpirationTime"))) {
+        pw_exp_date = parse_genTime(passwordExpirationTime);
+        slapi_ch_free_string(&passwordExpirationTime);
+
+        /* Check if password has been reset */
+        if (pw_exp_date == NO_TIME) {
+            pwpolicy = new_passwdPolicy(pb, slapi_entry_get_ndn(e));
+
+            /* check if changing password is required */
+            if (pwpolicy->pw_must_change) {
+                /* set c_needpw for this connection to be true.  this client
+                   now can only change its own password */
+                slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+                if (pb_conn) {
+                    pb_conn->c_needpw = 1;
+                }
+            }
+        }
+    }
+}
+
+/*
  * need_new_pw() is called when non rootdn bind operation succeeds with authentication
  *
  * Return  0 - password is okay
