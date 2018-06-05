@@ -11,6 +11,7 @@ import logging
 import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
+from lib389.replica import ReplicationManager
 
 from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
                                REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
@@ -28,12 +29,9 @@ def test_ticket47781(topology_st):
 
     log.info('Testing Ticket 47781 - Testing for deadlock after importing LDIF with replication data')
 
-    #
-    # Setup Replication
-    #
-    log.info('Setting up replication...')
-    topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER,
-                                                     replicaId=REPLICAID_MASTER_1)
+    master = topology_st.standalone
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.create_first_master(master)
 
     properties = {RA_NAME: r'meTo_$host:$port',
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
@@ -41,77 +39,59 @@ def test_ticket47781(topology_st):
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     # The agreement should point to a server that does NOT exist (invalid port)
-    repl_agreement = topology_st.standalone.agreement.create(suffix=DEFAULT_SUFFIX,
-                                                             host=topology_st.standalone.host,
-                                                             port=5555,
-                                                             properties=properties)
+    repl_agreement = master.agreement.create(suffix=DEFAULT_SUFFIX,
+                                             host=master.host,
+                                             port=5555,
+                                             properties=properties)
 
     #
     # add two entries
     #
     log.info('Adding two entries...')
-    try:
-        topology_st.standalone.add_s(Entry(('cn=entry1,dc=example,dc=com', {
-            'objectclass': 'top person'.split(),
-            'sn': 'user',
-            'cn': 'entry1'})))
-    except ldap.LDAPError as e:
-        log.error('Failed to add entry 1: ' + e.message['desc'])
-        assert False
 
-    try:
-        topology_st.standalone.add_s(Entry(('cn=entry2,dc=example,dc=com', {
-            'objectclass': 'top person'.split(),
-            'sn': 'user',
-            'cn': 'entry2'})))
-    except ldap.LDAPError as e:
-        log.error('Failed to add entry 2: ' + e.message['desc'])
-        assert False
+    master.add_s(Entry(('cn=entry1,dc=example,dc=com', {
+        'objectclass': 'top person'.split(),
+        'sn': 'user',
+        'cn': 'entry1'})))
+
+    master.add_s(Entry(('cn=entry2,dc=example,dc=com', {
+        'objectclass': 'top person'.split(),
+        'sn': 'user',
+        'cn': 'entry2'})))
 
     #
     # export the replication ldif
     #
     log.info('Exporting replication ldif...')
     args = {EXPORT_REPL_INFO: True}
-    exportTask = Tasks(topology_st.standalone)
-    try:
-        exportTask.exportLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
-    except ValueError:
-        assert False
+    exportTask = Tasks(master)
+    exportTask.exportLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
 
     #
     # Restart the server
     #
     log.info('Restarting server...')
-    topology_st.standalone.stop()
-    topology_st.standalone.start()
+    master.stop()
+    master.start()
 
     #
     # Import the ldif
     #
     log.info('Import replication LDIF file...')
-    importTask = Tasks(topology_st.standalone)
+    importTask = Tasks(master)
     args = {TASK_WAIT: True}
-    try:
-        importTask.importLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
-        os.remove("/tmp/export.ldif")
-    except ValueError:
-        os.remove("/tmp/export.ldif")
-        assert False
+    importTask.importLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
+    os.remove("/tmp/export.ldif")
 
     #
     # Search for tombstones - we should not hang/timeout
     #
     log.info('Search for tombstone entries(should find one and not hang)...')
-    topology_st.standalone.set_option(ldap.OPT_NETWORK_TIMEOUT, 5)
-    topology_st.standalone.set_option(ldap.OPT_TIMEOUT, 5)
-    try:
-        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=nsTombstone')
-        if not entries:
-            log.fatal('Search failed to find any entries.')
-            assert PR_False
-    except ldap.LDAPError as e:
-        log.fatal('Search failed: ' + e.message['desc'])
+    master.set_option(ldap.OPT_NETWORK_TIMEOUT, 5)
+    master.set_option(ldap.OPT_TIMEOUT, 5)
+    entries = master.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=nsTombstone')
+    if not entries:
+        log.fatal('Search failed to find any entries.')
         assert PR_False
 
 

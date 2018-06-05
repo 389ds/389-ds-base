@@ -17,6 +17,7 @@ from lib389._constants import (PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DN_CONFIG
                               DN_DM, PASSWORD, PLUGIN_REPL_SYNC, HOST_STANDALONE,
                               PORT_STANDALONE)
 
+
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
 
@@ -47,9 +48,9 @@ def test_ticket48013(topology_st):
 
     # Enable dynamic plugins
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
     except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.error('Failed to enable dynamic plugin! {}'.format(e.args[0]['desc']))
         assert False
 
     # Enable retro changelog
@@ -67,7 +68,7 @@ def test_ticket48013(topology_st):
     try:
         ldap_connection.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError as e:
-        print('Login to LDAP server failed: %s' % e.message['desc'])
+        log.error('Login to LDAP server failed: {}'.format(e.args[0]['desc']))
         assert False
 
     # Test invalid cookies
@@ -79,7 +80,7 @@ def test_ticket48013(topology_st):
             log.fatal('Invalid cookie accepted!')
             assert False
         except Exception as e:
-            log.info('Invalid cookie correctly rejected: %s' % e.message['info'])
+            log.info('Invalid cookie correctly rejected: {}'.format(e.args[0]['info']))
             pass
 
     # Success

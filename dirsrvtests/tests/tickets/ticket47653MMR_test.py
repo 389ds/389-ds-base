@@ -56,7 +56,7 @@ def _oc_definition(oid_ext, name, must=None, may=None):
         may = MAY
 
     new_oc = "( %s  NAME '%s' DESC '%s' SUP %s AUXILIARY MUST %s MAY %s )" % (oid, name, desc, sup, must, may)
-    return new_oc
+    return ensure_bytes(new_oc)
 
 
 def test_ticket47653_init(topology_m2):
@@ -82,7 +82,7 @@ def test_ticket47653_init(topology_m2):
 
     if DEBUGGING:
         # enable acl error logging
-        mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(128 + 8192))]  # ACL + REPL
+        mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(128 + 8192)))]  # ACL + REPL
         topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
         topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
@@ -159,7 +159,7 @@ def test_ticket47653_add(topology_m2):
     ACI_ALLOW = "(version 3.0; acl \"SelfDN add\"; allow (add)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
     ACI_BODY = ACI_TARGET + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_m2.ms["master1"].modify_s(SUFFIX, mod)
     time.sleep(1)
 
@@ -215,7 +215,7 @@ def test_ticket47653_add(topology_m2):
 
     # Now update the entry on Master2 (as DM because 47653 is possibly not fixed on M2)
     topology_m2.ms["master1"].log.info("Update  %s on M2" % ENTRY_DN)
-    mod = [(ldap.MOD_REPLACE, 'description', 'test_add')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'test_add')]
     topology_m2.ms["master2"].modify_s(ENTRY_DN, mod)
     time.sleep(1)
 
@@ -224,13 +224,13 @@ def test_ticket47653_add(topology_m2):
     while loop <= 10:
         try:
             ent = topology_m2.ms["master1"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('description') and (ent.getValue('description') == 'test_add'):
+            if ent.hasAttr('description') and (ensure_str(ent.getValue('description')) == 'test_add'):
                 break
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
             loop += 1
 
-    assert ent.getValue('description') == 'test_add'
+    assert ensure_str(ent.getValue('description')) == 'test_add'
 
 
 def test_ticket47653_modify(topology_m2):
@@ -252,7 +252,7 @@ def test_ticket47653_modify(topology_m2):
     # entry to modify WITH member being BIND_DN but WITHOUT the ACI -> ldap.INSUFFICIENT_ACCESS
     try:
         topology_m2.ms["master1"].log.info("Try to modify  %s (aci is missing)" % ENTRY_DN)
-        mod = [(ldap.MOD_REPLACE, 'postalCode', '9876')]
+        mod = [(ldap.MOD_REPLACE, 'postalCode', b'9876')]
         topology_m2.ms["master1"].modify_s(ENTRY_DN, mod)
     except Exception as e:
         topology_m2.ms["master1"].log.info("Exception (expected): %s" % type(e).__name__)
@@ -268,7 +268,7 @@ def test_ticket47653_modify(topology_m2):
     ACI_ALLOW = "(version 3.0; acl \"SelfDN write\"; allow (write)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_m2.ms["master1"].modify_s(SUFFIX, mod)
     time.sleep(2)
 
@@ -279,7 +279,7 @@ def test_ticket47653_modify(topology_m2):
 
     # modify the entry and checks the value
     topology_m2.ms["master1"].log.info("M1: Try to modify  %s. It should succeeds" % ENTRY_DN)
-    mod = [(ldap.MOD_REPLACE, 'postalCode', '1928')]
+    mod = [(ldap.MOD_REPLACE, 'postalCode', b'1928')]
     topology_m2.ms["master1"].modify_s(ENTRY_DN, mod)
 
     topology_m2.ms["master1"].log.info("M1: Bind as %s" % DN_DM)
@@ -288,7 +288,7 @@ def test_ticket47653_modify(topology_m2):
     topology_m2.ms["master1"].log.info("M1: Check the update of %s" % ENTRY_DN)
     ents = topology_m2.ms["master1"].search_s(ENTRY_DN, ldap.SCOPE_BASE, 'objectclass=*')
     assert len(ents) == 1
-    assert ents[0].postalCode == '1928'
+    assert ensure_str(ents[0].postalCode) == '1928'
 
     # Now check the update has been replicated on M2
     topology_m2.ms["master1"].log.info("M2: Bind as %s" % DN_DM)
@@ -298,13 +298,13 @@ def test_ticket47653_modify(topology_m2):
     while loop <= 10:
         try:
             ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('postalCode') and (ent.getValue('postalCode') == '1928'):
+            if ent.hasAttr('postalCode') and (ensure_str(ent.getValue('postalCode')) == '1928'):
                 break
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
             loop += 1
     assert loop <= 10
-    assert ent.getValue('postalCode') == '1928'
+    assert ensure_str(ent.getValue('postalCode')) == '1928'
 
     # Now update the entry on Master2 bound as BIND_DN (update may fail if  47653 is  not fixed on M2)
     topology_m2.ms["master1"].log.info("M2: Update  %s (bound as %s)" % (ENTRY_DN, BIND_DN))
@@ -312,7 +312,7 @@ def test_ticket47653_modify(topology_m2):
     time.sleep(1)
     fail = False
     try:
-        mod = [(ldap.MOD_REPLACE, 'postalCode', '1929')]
+        mod = [(ldap.MOD_REPLACE, 'postalCode', b'1929')]
         topology_m2.ms["master2"].modify_s(ENTRY_DN, mod)
         fail = False
     except ldap.INSUFFICIENT_ACCESS:
@@ -332,12 +332,12 @@ def test_ticket47653_modify(topology_m2):
         while loop <= 10:
             try:
                 ent = topology_m2.ms["master1"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-                if ent.hasAttr('postalCode') and (ent.getValue('postalCode') == '1929'):
+                if ent.hasAttr('postalCode') and (ensure_str(ent.getValue('postalCode')) == '1929'):
                     break
             except ldap.NO_SUCH_OBJECT:
                 time.sleep(1)
                 loop += 1
-        assert ent.getValue('postalCode') == '1929'
+        assert ensure_str(ent.getValue('postalCode')) == '1929'
 
 
 if __name__ == '__main__':

@@ -34,12 +34,12 @@ def test_ticket48026(topology_st):
     try:
         # This plugin enable / disable doesn't seem to create the nsslapd-pluginId correctly?
         inst.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                      [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'),
+                      [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', b'mail'),
                        (ldap.MOD_ADD, 'uniqueness-attribute-name',
-                        'mailAlternateAddress'),
+                        b'mailAlternateAddress'),
                        ])
     except ldap.LDAPError as e:
-        log.fatal('test_ticket48026: Failed to configure plugin for "mail": error ' + e.message['desc'])
+        log.fatal('test_ticket48026: Failed to configure plugin for "mail": error {}'.format(e.args[0]['desc']))
         assert False
 
     inst.restart(timeout=30)
@@ -54,7 +54,7 @@ def test_ticket48026(topology_st):
                                      'mailAlternateAddress': 'user1@alt.example.com',
                                      'userpassword': 'password'})))
     except ldap.LDAPError as e:
-        log.fatal('test_ticket48026: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
+        log.fatal('test_ticket48026: Failed to add test user' + USER1_DN + ': error {}'.format(e.args[0]['desc']))
         assert False
 
     try:

@@ -105,11 +105,11 @@ def test_ticket47920_mod_readentry_ctrl(topology_st):
     topology_st.standalone.log.info("Check the initial value of the entry")
     ent = topology_st.standalone.getEntry(ACTIVE_USER_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
     assert ent.hasAttr('description')
-    assert ent.getValue('description') == INITIAL_DESC
+    assert ensure_str(ent.getValue('description')) == INITIAL_DESC
 
     pr = PostReadControl(criticality=True, attrList=['cn', 'description'])
     _, _, _, resp_ctrls = topology_st.standalone.modify_ext_s(ACTIVE_USER_DN,
-                                                              [(ldap.MOD_REPLACE, 'description', [FINAL_DESC])],
+                                                              [(ldap.MOD_REPLACE, 'description', [ensure_bytes(FINAL_DESC)])],
                                                               serverctrls=[pr])
 
     assert resp_ctrls[0].dn == ACTIVE_USER_DN
@@ -119,7 +119,7 @@ def test_ticket47920_mod_readentry_ctrl(topology_st):
 
     ent = topology_st.standalone.getEntry(ACTIVE_USER_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
     assert ent.hasAttr('description')
-    assert ent.getValue('description') == FINAL_DESC
+    assert ensure_str(ent.getValue('description')) == FINAL_DESC
 
 
 if __name__ == '__main__':

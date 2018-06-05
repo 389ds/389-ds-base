@@ -43,12 +43,12 @@ def test_ticket48370(topology_st):
     try:
         topology_st.standalone.modify_s(DN, [(ldap.MOD_DELETE,
                                               'mail',
-                                              'user0099@dev.null'),
+                                              b'user0099@dev.null'),
                                              (ldap.MOD_DELETE,
                                               'mail',
-                                              'alias@dev.null'),
+                                              b'alias@dev.null'),
                                              (ldap.MOD_ADD,
-                                              'mail', 'user0099@dev.null')])
+                                              'mail', b'user0099@dev.null')])
     except ldap.LDAPError as e:
         log.fatal('Failedto modify user: ' + str(e))
         assert False
@@ -87,10 +87,10 @@ def test_ticket48370(topology_st):
     try:
         topology_st.standalone.modify_s(DN, [(ldap.MOD_DELETE,
                                               'mail',
-                                              'user0099@dev.null'),
+                                              b'user0099@dev.null'),
                                              (ldap.MOD_DELETE,
                                               'mail',
-                                              'user0099@redhat.com')
+                                              b'user0099@redhat.com')
                                              ])
     except ldap.LDAPError as e:
         log.fatal('Failed to modify user: ' + str(e))
@@ -132,8 +132,8 @@ def test_ticket48370(topology_st):
     try:
         topology_st.standalone.modify_s(DN, [(ldap.MOD_ADD,
                                               'mail',
-                                              ['user0099@dev.null',
-                                               'alias@dev.null'])])
+                                              [b'user0099@dev.null',
+                                               b'alias@dev.null'])])
     except ldap.LDAPError as e:
         log.fatal('Failedto modify user: ' + str(e))
         assert False
@@ -144,12 +144,12 @@ def test_ticket48370(topology_st):
     try:
         topology_st.standalone.modify_s(DN, [(ldap.MOD_DELETE,
                                               'mail',
-                                              'alias@dev.null'),
+                                              b'alias@dev.null'),
                                              (ldap.MOD_DELETE,
                                               'mail',
-                                              'user0099@dev.null'),
+                                              b'user0099@dev.null'),
                                              (ldap.MOD_ADD,
-                                              'mail', 'user0099@dev.null')])
+                                              'mail', b'user0099@dev.null')])
     except ldap.LDAPError as e:
         log.fatal('Failedto modify user: ' + str(e))
         assert False

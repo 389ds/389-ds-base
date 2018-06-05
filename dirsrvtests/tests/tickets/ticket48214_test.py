@@ -85,12 +85,12 @@ def test_ticket48214_run(topology_st):
     checkMaxBerSize(topology_st)
 
     topology_st.standalone.log.info("\n\n######################### Add nsslapd-maxbersize: 0 ######################\n")
-    topology_st.standalone.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-maxbersize', '0')])
+    topology_st.standalone.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-maxbersize', b'0')])
     checkMaxBerSize(topology_st)
 
     topology_st.standalone.log.info(
         "\n\n######################### Add nsslapd-maxbersize: 10000 ######################\n")
-    topology_st.standalone.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-maxbersize', '10000')])
+    topology_st.standalone.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-maxbersize', b'10000')])
     checkMaxBerSize(topology_st)
 
     topology_st.standalone.log.info("ticket48214 was successfully verified.")

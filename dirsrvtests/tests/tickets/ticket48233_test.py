@@ -19,9 +19,9 @@ def test_ticket48233(topology_st):
                 '(userdn = "ldap:///anyone") and (ip="127.0.0.1");)')
 
     try:
-        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', aci_text)])
+        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', ensure_bytes(aci_text))])
     except ldap.LDAPError as e:
-        log.error('Failed to add aci: (%s) error %s' % (aci_text, e.message['desc']))
+        log.error('Failed to add aci: ({}) error {}'.format(aci_text,e.args[0]['desc']))
         assert False
     time.sleep(1)
 
@@ -29,7 +29,7 @@ def test_ticket48233(topology_st):
     try:
         topology_st.standalone.simple_bind_s("", "")
     except ldap.LDAPError as e:
-        log.error('Failed to anonymously bind -error %s' % (e.message['desc']))
+        log.error('Failed to anonymously bind -error {}'.format(e.args[0]['desc']))
         assert False
 
     try:

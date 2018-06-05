@@ -80,12 +80,12 @@ def test_ticket47714_run_0(topology_st):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     # Modify Account Policy config entry
-    topology_st.standalone.modify_s(ACCT_POLICY_CONFIG_DN, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes'),
-                                                            (ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime'),
-                                                            (ldap.MOD_REPLACE, 'altstateattrname', 'createTimestamp'),
-                                                            (ldap.MOD_REPLACE, 'specattrname', 'acctPolicySubentry'),
+    topology_st.standalone.modify_s(ACCT_POLICY_CONFIG_DN, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', b'yes'),
+                                                            (ldap.MOD_REPLACE, 'stateattrname', b'lastLoginTime'),
+                                                            (ldap.MOD_REPLACE, 'altstateattrname', b'createTimestamp'),
+                                                            (ldap.MOD_REPLACE, 'specattrname', b'acctPolicySubentry'),
                                                             (ldap.MOD_REPLACE, 'limitattrname',
-                                                             'accountInactivityLimit')])
+                                                             b'accountInactivityLimit')])
 
     # Enable the plugins
     topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
@@ -96,7 +96,7 @@ def test_ticket47714_run_0(topology_st):
     try:
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
     except ldap.CONSTRAINT_VIOLATION as e:
-        log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
+        log.error('CONSTRAINT VIOLATION {}'.format(e.args[0]['desc']))
 
     time.sleep(2)
 
@@ -109,7 +109,7 @@ def test_ticket47714_run_0(topology_st):
     try:
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
     except ldap.CONSTRAINT_VIOLATION as e:
-        log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
+        log.error('CONSTRAINT VIOLATION {}'.format(e.args[0]['desc']))
 
     time.sleep(2)
 
@@ -125,7 +125,7 @@ def test_ticket47714_run_0(topology_st):
 
     # Now, change the inactivity limit, because that should trigger the account to now be locked. This is possible because the check is "delayed" until the usage of the account.
 
-    topology_st.standalone.modify_s(ACCT_POLICY_DN, [(ldap.MOD_REPLACE, 'accountInactivityLimit', '1'),])
+    topology_st.standalone.modify_s(ACCT_POLICY_DN, [(ldap.MOD_REPLACE, 'accountInactivityLimit', b'1'),])
     time.sleep(2)
 
     entry = topology_st.standalone.search_s(ACCT_POLICY_DN, ldap.SCOPE_BASE, SEARCHFILTER)
@@ -137,13 +137,13 @@ def test_ticket47714_run_0(topology_st):
     try:
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
     except ldap.CONSTRAINT_VIOLATION as e:
-        log.info('CONSTRAINT VIOLATION ' + e.message['desc'])
+        log.info('CONSTRAINT VIOLATION {}'.format(e.args[0]['desc']))
         log.info("%s was successfully inactivated." % TEST_USER_DN)
         pass
 
     # Now reset the value high to prevent issues with the next test.
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ACCT_POLICY_DN, [(ldap.MOD_REPLACE, 'accountInactivityLimit', INACTIVITY_LIMIT),])
+    topology_st.standalone.modify_s(ACCT_POLICY_DN, [(ldap.MOD_REPLACE, 'accountInactivityLimit', ensure_bytes(INACTIVITY_LIMIT)),])
 
 
 def test_ticket47714_run_1(topology_st):
@@ -161,14 +161,14 @@ def test_ticket47714_run_1(topology_st):
     topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_DELETE, 'lastLoginTime', None)])
 
     # Modify Account Policy config entry
-    topology_st.standalone.modify_s(ACCT_POLICY_CONFIG_DN, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes'),
-                                                            (ldap.MOD_REPLACE, 'stateattrname', 'bogus'),
-                                                            (ldap.MOD_REPLACE, 'altstateattrname', 'modifyTimestamp'),
+    topology_st.standalone.modify_s(ACCT_POLICY_CONFIG_DN, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', b'yes'),
+                                                            (ldap.MOD_REPLACE, 'stateattrname', b'bogus'),
+                                                            (ldap.MOD_REPLACE, 'altstateattrname', b'modifyTimestamp'),
                                                             (
-                                                            ldap.MOD_REPLACE, 'alwaysRecordLoginAttr', 'lastLoginTime'),
-                                                            (ldap.MOD_REPLACE, 'specattrname', 'acctPolicySubentry'),
+                                                            ldap.MOD_REPLACE, 'alwaysRecordLoginAttr', b'lastLoginTime'),
+                                                            (ldap.MOD_REPLACE, 'specattrname', b'acctPolicySubentry'),
                                                             (ldap.MOD_REPLACE, 'limitattrname',
-                                                             'accountInactivityLimit')])
+                                                             b'accountInactivityLimit')])
 
     # Enable the plugins
     topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
@@ -179,7 +179,7 @@ def test_ticket47714_run_1(topology_st):
     try:
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
     except ldap.CONSTRAINT_VIOLATION as e:
-        log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
+        log.error('CONSTRAINT VIOLATION {}'.format(e.args[0]['desc']))
 
     time.sleep(1)
 
@@ -191,7 +191,7 @@ def test_ticket47714_run_1(topology_st):
     try:
         topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
     except ldap.CONSTRAINT_VIOLATION as e:
-        log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
+        log.error('CONSTRAINT VIOLATION {}'.format(e.args[0]['desc']))
 
     time.sleep(1)
 

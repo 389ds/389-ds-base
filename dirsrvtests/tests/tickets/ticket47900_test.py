@@ -13,6 +13,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_st
+from lib389.utils import *
 
 log = logging.getLogger(__name__)
 
@@ -50,24 +51,20 @@ def test_ticket47900(topology_st):
     try:
         topology_st.standalone.add_s(entry)
     except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Unexpected result ' + e.message['desc'])
+        topology_st.standalone.log.error('Unexpected result ' + e.args[0]['desc'])
         assert False
         topology_st.standalone.log.error("Failed to add Password Administator %s, error: %s "
-                                         % (ADMIN_DN, e.message['desc']))
+                                         % (ADMIN_DN, e.args[0]['desc']))
         assert False
 
     topology_st.standalone.log.info("Configuring password policy...")
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on'),
-                                                    (ldap.MOD_REPLACE, 'passwordCheckSyntax', 'on'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinCategories', '1'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinTokenLength', '1'),
-                                                    (ldap.MOD_REPLACE, 'passwordExp', 'on'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinDigits', '1'),
-                                                    (ldap.MOD_REPLACE, 'passwordMinSpecials', '1')])
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed configure password policy: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.config.replace_many(('nsslapd-pwpolicy-local', 'on'),
+                                               ('passwordCheckSyntax', 'on'),
+                                               ('passwordMinCategories', '1'),
+                                               ('passwordMinTokenLength', '1'),
+                                               ('passwordExp', 'on'),
+                                               ('passwordMinDigits', '1'),
+                                               ('passwordMinSpecials', '1'))
 
     #
     # Add an aci to allow everyone all access (just makes things easier)
@@ -79,22 +76,14 @@ def test_ticket47900(topology_st):
     ACI_ALLOW = "(version 3.0; acl \"Password Admin Access\"; allow (all) "
     ACI_SUBJECT = "(userdn = \"ldap:///anyone\");)"
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    try:
-        topology_st.standalone.modify_s(SUFFIX, mod)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to add aci for password admin: ' + e.message['desc'])
-        assert False
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
+    topology_st.standalone.modify_s(SUFFIX, mod)
 
     #
     # Bind as the Password Admin
     #
     topology_st.standalone.log.info("Bind as the Password Administator (before activating)...")
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to bind as the Password Admin: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
 
     #
     # Setup our test entry, and test password policy is working
@@ -118,7 +107,7 @@ def test_ticket47900(topology_st):
             # We failed as expected
             failed_as_expected = True
             topology_st.standalone.log.info('Add failed as expected: password (%s) result (%s)'
-                                            % (passwd, e.message['desc']))
+                                            % (passwd, e.args[0]['desc']))
 
         if not failed_as_expected:
             topology_st.standalone.log.error("We were incorrectly able to add an entry " +
@@ -132,25 +121,13 @@ def test_ticket47900(topology_st):
     topology_st.standalone.log.info("Activate the Password Administator...")
 
     # Bind as Root DN
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     # Update config
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ADMIN_DN)])
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to add password admin to config: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ensure_bytes(ADMIN_DN))])
 
     # Bind as Password Admin
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to bind as the Password Admin: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
 
     #
     # Start adding entries with invalid passwords, delete the entry after each pass.
@@ -158,32 +135,17 @@ def test_ticket47900(topology_st):
     for passwd in INVALID_PWDS:
         entry.setValues('userpassword', passwd)
         topology_st.standalone.log.info("Create a regular user entry %s with password (%s)..." % (ENTRY_DN, passwd))
-        try:
-            topology_st.standalone.add_s(entry)
-        except ldap.LDAPError as e:
-            topology_st.standalone.log.error('Failed to add entry with password (%s) result (%s)'
-                                             % (passwd, e.message['desc']))
-            assert False
+        topology_st.standalone.add_s(entry)
 
         topology_st.standalone.log.info('Succesfully added entry (%s)' % ENTRY_DN)
 
         # Delete entry for the next pass
-        try:
-            topology_st.standalone.delete_s(ENTRY_DN)
-        except ldap.LDAPError as e:
-            topology_st.standalone.log.error('Failed to delete entry: %s' % (e.message['desc']))
-            assert False
-
+        topology_st.standalone.delete_s(ENTRY_DN)
     #
     # Add the entry for the next round of testing (modify password)
     #
     entry.setValues('userpassword', ADMIN_PWD)
-    try:
-        topology_st.standalone.add_s(entry)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to add entry with valid password (%s) result (%s)'
-                                         % (passwd, e.message['desc']))
-        assert False
+    topology_st.standalone.add_s(entry)
 
     #
     # Deactivate the password admin and make sure invalid password updates fail
@@ -191,25 +153,13 @@ def test_ticket47900(topology_st):
     topology_st.standalone.log.info("Deactivate Password Administator and try invalid password updates...")
 
     # Bind as root DN
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-    # Update config
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_DELETE, 'passwordAdminDN', None)])
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to remove password admin from config: ' + e.message['desc'])
-        assert False
+    # Update conf
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_DELETE, 'passwordAdminDN', None)])
 
     # Bind as Password Admin
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to bind as the Password Admin: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
 
     #
     # Make invalid password updates that should fail
@@ -218,12 +168,12 @@ def test_ticket47900(topology_st):
         failed_as_expected = False
         entry.setValues('userpassword', passwd)
         try:
-            topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
+            topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(passwd))])
         except ldap.LDAPError as e:
             # We failed as expected
             failed_as_expected = True
             topology_st.standalone.log.info('Password update failed as expected: password (%s) result (%s)'
-                                            % (passwd, e.message['desc']))
+                                            % (passwd, e.args[0]['desc']))
 
         if not failed_as_expected:
             topology_st.standalone.log.error("We were incorrectly able to add an invalid password (%s)"
@@ -235,38 +185,21 @@ def test_ticket47900(topology_st):
     #
     topology_st.standalone.log.info("Activate Password Administator and try updates again...")
 
-    # Bind as root DN
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
-        assert False
+    # Bind as root D
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     # Update config
-    try:
-        topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ADMIN_DN)])
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to add password admin to config: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ensure_bytes(ADMIN_DN))])
 
     # Bind as Password Admin
-    try:
-        topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
-    except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Failed to bind as the Password Admin: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
 
     #
     # Make the same password updates, but this time they should succeed
     #
     for passwd in INVALID_PWDS:
         entry.setValues('userpassword', passwd)
-        try:
-            topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
-        except ldap.LDAPError as e:
-            topology_st.standalone.log.error('Password update failed unexpectedly: password (%s) result (%s)'
-                                             % (passwd, e.message['desc']))
-            assert False
+        topology_st.standalone.modify_s(ENTRY_DN, [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(passwd))])
         topology_st.standalone.log.info('Password update succeeded (%s)' % passwd)
 
 

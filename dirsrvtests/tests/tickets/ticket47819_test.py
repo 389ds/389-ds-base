@@ -11,6 +11,7 @@ import logging
 import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
+from lib389.replica import ReplicationManager
 
 from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
                                REPLICAID_MASTER_1, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
@@ -38,9 +39,10 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
     #
     # Setup Replication
     #
-    log.info('Setting up replication...')
-    topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER,
-                                                     replicaId=REPLICAID_MASTER_1)
+    master = topology_st.standalone
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.create_first_master(master)
+    repl.ensure_agreement(master, master)
 
     #
     # Part 1 create a tombstone entry and make sure nsTombstoneCSN is added
@@ -190,9 +192,9 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
     #
     log.info('Part 4:  test tombstone purging...')
 
-    args = {REPLICA_PRECISE_PURGING: 'on',
-            REPLICA_PURGE_DELAY: '5',
-            REPLICA_PURGE_INTERVAL: '5'}
+    args = {REPLICA_PRECISE_PURGING: b'on',
+            REPLICA_PURGE_DELAY: b'5',
+            REPLICA_PURGE_INTERVAL: b'5'}
     try:
         topology_st.standalone.replica.setProperties(DEFAULT_SUFFIX, None, None, args)
     except:

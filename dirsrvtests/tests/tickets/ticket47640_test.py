@@ -28,7 +28,7 @@ def test_ticket47640(topology_st):
 
     # Enable Dynamic plugins, and the linked Attrs plugin
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False

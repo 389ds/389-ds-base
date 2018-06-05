@@ -23,6 +23,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_m2
+from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -114,11 +115,11 @@ def test_ticket47988_init(topology_m2):
     _header(topology_m2, 'test_ticket47988_init')
 
     # enable acl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192))]  # REPL
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(8192)))]  # REPL
     topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
     topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-accesslog-level', str(260))]  # Internal op
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-accesslog-level', ensure_bytes(str(260)))]  # Internal op
     topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
     topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
@@ -164,7 +165,7 @@ def _do_update_schema(server, range=3999):
     NAME = 'thierry%s' % postfix
     value = '( %s NAME \'%s\' DESC \'Override for Group Attributes\' STRUCTURAL MUST ( cn ) MAY sn X-ORIGIN ( \'IPA v4.1.2\' \'user defined\' ) )' % (
     OID, NAME)
-    mod = [(ldap.MOD_ADD, 'objectclasses', value)]
+    mod = [(ldap.MOD_ADD, 'objectclasses', ensure_bytes(value))]
     server.modify_s('cn=schema', mod)
 
 
@@ -177,13 +178,13 @@ def _do_update_entry(supplier=None, consumer=None, attempts=10):
     assert (consumer)
     entryDN = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     value = str(randint(100, 200))
-    mod = [(ldap.MOD_REPLACE, 'telephonenumber', value)]
+    mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(value))]
     supplier.modify_s(entryDN, mod)
 
     loop = 0
     while loop <= attempts:
         ent = consumer.getEntry(entryDN, ldap.SCOPE_BASE, "(objectclass=*)", ['telephonenumber'])
-        read_val = ent.telephonenumber or "0"
+        read_val = ensure_str(ent.telephonenumber) or "0"
         if read_val == value:
             break
         # the expected value is not yet replicated. try again

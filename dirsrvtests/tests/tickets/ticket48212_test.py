@@ -15,7 +15,7 @@ UIDNUMBERDN = "cn=uidnumber,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=
 
 def runDbVerify(topology_st):
     topology_st.standalone.log.info("\n\n	+++++ dbverify +++++\n")
-    sbin_dir = get_sbin_dir(prefix=topology_st.standalone.prefix)
+    sbin_dir = get_sbin_dir()
     dbverifyCMD = sbin_dir + "/dbverify -Z " + topology_st.standalone.serverid + " -V"
     dbverifyOUT = os.popen(dbverifyCMD, "r")
     topology_st.standalone.log.info("Running %s" % dbverifyCMD)
@@ -69,7 +69,7 @@ def test_ticket48212(topology_st):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     data_dir_path = topology_st.standalone.getDir(__file__, DATA_DIR)
-    ldif_file = data_dir_path + "ticket48212/" + _MYLDIF
+    ldif_file = f"{data_dir_path}ticket48212/{_MYLDIF}"
     try:
         ldif_dir = topology_st.standalone.get_ldif_dir()
         shutil.copy(ldif_file, ldif_dir)
@@ -103,7 +103,7 @@ def test_ticket48212(topology_st):
 
     topology_st.standalone.log.info("\n\n######################### Add nsMatchingRule ######################\n")
     try:
-        topology_st.standalone.modify_s(UIDNUMBERDN, [(ldap.MOD_ADD, 'nsMatchingRule', 'integerOrderingMatch')])
+        topology_st.standalone.modify_s(UIDNUMBERDN, [(ldap.MOD_ADD, 'nsMatchingRule', b'integerOrderingMatch')])
     except ValueError:
         topology_st.standalone.log.fatal("modify_s failed: %s", ValueError)
 
@@ -114,7 +114,7 @@ def test_ticket48212(topology_st):
 
     topology_st.standalone.log.info("\n\n######################### Delete nsMatchingRule ######################\n")
     try:
-        topology_st.standalone.modify_s(UIDNUMBERDN, [(ldap.MOD_DELETE, 'nsMatchingRule', 'integerOrderingMatch')])
+        topology_st.standalone.modify_s(UIDNUMBERDN, [(ldap.MOD_DELETE, 'nsMatchingRule', b'integerOrderingMatch')])
     except ValueError:
         topology_st.standalone.log.fatal("modify_s failed: %s", ValueError)
 

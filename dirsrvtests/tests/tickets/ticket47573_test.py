@@ -20,6 +20,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_m1c1
+from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ def _oc_definition(oid_ext, name, must=None, may=None):
         may = MAY_OLD
 
     new_oc = "( %s  NAME '%s' DESC '%s' SUP %s AUXILIARY MUST %s MAY %s )" % (oid, name, desc, sup, must, may)
-    return new_oc
+    return ensure_bytes(new_oc)
 
 
 def add_OC(instance, oid_ext, name):
@@ -92,7 +93,7 @@ def trigger_schema_push(topology_m1c1):
         trigger_schema_push.value += 1
     except AttributeError:
         trigger_schema_push.value = 1
-    replace = [(ldap.MOD_REPLACE, 'telephonenumber', str(trigger_schema_push.value))]
+    replace = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(trigger_schema_push.value)))]
     topology_m1c1.ms["master1"].modify_s(ENTRY_DN, replace)
 
     # wait 10 seconds that the update is replicated

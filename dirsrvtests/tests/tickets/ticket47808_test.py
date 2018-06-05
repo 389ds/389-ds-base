@@ -13,6 +13,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_st
+from lib389.utils import *
 
 log = logging.getLogger(__name__)
 
@@ -36,8 +37,8 @@ def test_ticket47808_run(topology_st):
     topology_st.standalone.log.info("\n\n######################### SETUP ATTR UNIQ PLUGIN ######################\n")
 
     # enable attribute uniqueness plugin
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on'), (ldap.MOD_REPLACE, 'nsslapd-pluginarg0', 'sn'),
-           (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', SUFFIX)]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', b'on'), (ldap.MOD_REPLACE, 'nsslapd-pluginarg0', b'sn'),
+           (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', ensure_bytes(SUFFIX))]
     topology_st.standalone.modify_s(ATTRIBUTE_UNIQUENESS_PLUGIN, mod)
 
     topology_st.standalone.log.info("\n\n######################### ADD USER 1 ######################\n")

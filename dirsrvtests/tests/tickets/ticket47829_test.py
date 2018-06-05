@@ -93,7 +93,7 @@ def _find_memberof(topology_st, user_dn=None, group_dn=None, find_result=True):
 
         for val in ent.getValues('memberof'):
             topology_st.standalone.log.info("!!!!!!! %s: memberof->%s" % (user_dn, val))
-            if val == group_dn:
+            if ensure_str(val) == group_dn:
                 found = True
                 break
 
@@ -113,7 +113,7 @@ def _find_member(topology_st, user_dn=None, group_dn=None, find_result=True):
 
         for val in ent.getValues('member'):
             topology_st.standalone.log.info("!!!!!!! %s: member ->%s" % (group_dn, val))
-            if val == user_dn:
+            if ensure_str(val) == user_dn:
                 found = True
                 break
 
@@ -171,7 +171,7 @@ def _check_memberof(topology_st=None, action=None, user_dn=None, group_dn=None, 
     topology_st.standalone.log.info('\n%s entry %s' % (txt, user_dn))
     topology_st.standalone.log.info('to group %s' % group_dn)
 
-    topology_st.standalone.modify_s(group_dn, [(action, 'member', user_dn)])
+    topology_st.standalone.modify_s(group_dn, [(action, 'member', ensure_bytes(user_dn))])
     time.sleep(1)
     _find_memberof(topology_st, user_dn=user_dn, group_dn=group_dn, find_result=find_result)
 
@@ -218,15 +218,15 @@ def test_ticket47829_init(topology_st):
     # enable memberof of with scope IN except provisioning
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     dn = "cn=%s,%s" % (PLUGIN_MEMBER_OF, DN_PLUGIN)
-    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScope', SCOPE_IN_DN)])
-    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScopeExcludeSubtree', PROVISIONING_DN)])
+    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScope', ensure_bytes(SCOPE_IN_DN))])
+    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScopeExcludeSubtree', ensure_bytes(PROVISIONING_DN))])
 
     # enable RI with scope IN except provisioning
     topology_st.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
     dn = "cn=%s,%s" % (PLUGIN_REFER_INTEGRITY, DN_PLUGIN)
-    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsslapd-pluginentryscope', SCOPE_IN_DN)])
-    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsslapd-plugincontainerscope', SCOPE_IN_DN)])
-    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsslapd-pluginExcludeEntryScope', PROVISIONING_DN)])
+    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsslapd-pluginentryscope', ensure_bytes(SCOPE_IN_DN))])
+    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsslapd-plugincontainerscope', ensure_bytes(SCOPE_IN_DN))])
+    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsslapd-pluginExcludeEntryScope', ensure_bytes(PROVISIONING_DN))])
 
     topology_st.standalone.restart(timeout=10)
 
@@ -494,7 +494,7 @@ def test_ticket47829_mod_stage_user_modrdn_stage_user_1(topology_st):
 def test_ticket47829_indirect_active_group_1(topology_st):
     _header(topology_st, 'add an Active group (G1) to an active group (G0). Then add active user to G1')
 
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
 
     # add an active user to G1. Checks that user is memberof G1
     _check_memberof(topology_st, action=ldap.MOD_ADD, user_dn=ACTIVE_USER_DN, group_dn=ACTIVE_GROUP_DN,
@@ -502,7 +502,7 @@ def test_ticket47829_indirect_active_group_1(topology_st):
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=INDIRECT_ACTIVE_GROUP_DN, find_result=True)
 
     # remove G1 from G0
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_DELETE, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_DELETE, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=INDIRECT_ACTIVE_GROUP_DN, find_result=False)
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=ACTIVE_GROUP_DN, find_result=True)
 
@@ -515,7 +515,7 @@ def test_ticket47829_indirect_active_group_2(topology_st):
     _header(topology_st,
             'add an Active group (G1) to an active group (G0). Then add active user to G1. Then move active user to stage')
 
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
 
     # add an active user to G1. Checks that user is memberof G1
     _check_memberof(topology_st, action=ldap.MOD_ADD, user_dn=ACTIVE_USER_DN, group_dn=ACTIVE_GROUP_DN,
@@ -523,7 +523,7 @@ def test_ticket47829_indirect_active_group_2(topology_st):
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=INDIRECT_ACTIVE_GROUP_DN, find_result=True)
 
     # remove G1 from G0
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_DELETE, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_DELETE, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=INDIRECT_ACTIVE_GROUP_DN, find_result=False)
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=ACTIVE_GROUP_DN, find_result=True)
 
@@ -555,7 +555,7 @@ def test_ticket47829_indirect_active_group_3(topology_st):
     _header(topology_st,
             'add an Active group (G1) to an active group (G0). Then add active user to G1. Then move active user to out of the scope')
 
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
 
     # add an active user to G1. Checks that user is memberof G1
     _check_memberof(topology_st, action=ldap.MOD_ADD, user_dn=ACTIVE_USER_DN, group_dn=ACTIVE_GROUP_DN,
@@ -563,7 +563,7 @@ def test_ticket47829_indirect_active_group_3(topology_st):
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=INDIRECT_ACTIVE_GROUP_DN, find_result=True)
 
     # remove G1 from G0
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_DELETE, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_DELETE, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=INDIRECT_ACTIVE_GROUP_DN, find_result=False)
     _find_memberof(topology_st, user_dn=ACTIVE_USER_DN, group_dn=ACTIVE_GROUP_DN, find_result=True)
 
@@ -595,7 +595,7 @@ def test_ticket47829_indirect_active_group_4(topology_st):
     _header(topology_st,
             'add an Active group (G1) to an active group (G0). Then add stage user to G1. Then move user to active. Then move it back')
 
-    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ACTIVE_GROUP_DN)])
+    topology_st.standalone.modify_s(INDIRECT_ACTIVE_GROUP_DN, [(ldap.MOD_ADD, 'member', ensure_bytes(ACTIVE_GROUP_DN))])
 
     # add stage user to active group
     _check_memberof(topology_st, action=ldap.MOD_ADD, user_dn=STAGE_USER_DN, group_dn=ACTIVE_GROUP_DN,

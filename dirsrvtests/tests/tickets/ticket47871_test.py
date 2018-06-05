@@ -41,8 +41,8 @@ def test_ticket47871_init(topology_m1c1):
         Initialize the test environment
     """
     topology_m1c1.ms["master1"].plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-changelogmaxage', "10s"),  # 10 second triming
-           (ldap.MOD_REPLACE, 'nsslapd-changelog-trim-interval', "5s")]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-changelogmaxage', b"10s"),  # 10 second triming
+           (ldap.MOD_REPLACE, 'nsslapd-changelog-trim-interval', b"5s")]
     topology_m1c1.ms["master1"].modify_s("cn=%s,%s" % (PLUGIN_RETRO_CHANGELOG, DN_PLUGIN), mod)
     # topology_m1c1.ms["master1"].plugins.enable(name=PLUGIN_MEMBER_OF)
     # topology_m1c1.ms["master1"].plugins.enable(name=PLUGIN_REFER_INTEGRITY)

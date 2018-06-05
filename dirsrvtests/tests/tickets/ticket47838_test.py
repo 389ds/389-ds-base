@@ -15,6 +15,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_st
+from lib389.nss_ssl import NssSsl
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ from lib389.utils import *
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
-MY_SECURE_PORT = '36363'
+MY_SECURE_PORT = '63601'
 RSA = 'RSA'
 RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
 SERVERCERT = 'Server-Cert'
@@ -57,26 +58,25 @@ def test_47838_init(topology_st):
     Enable SSL
     """
     _header(topology_st, 'Testing Ticket 47838 - harden the list of ciphers available by default')
-
     onss_version = os.popen("rpm -q nss | awk -F'-' '{print $2}'", "r")
     global nss_version
     nss_version = onss_version.readline()
-
-    topology_st.standalone.nss_ssl.reinit()
-    topology_st.standalone.nss_ssl.create_rsa_ca()
-    topology_st.standalone.nss_ssl.create_rsa_key_and_cert()
+    nss_ssl = NssSsl(dbpath=topology_st.standalone.get_cert_dir())
+    nss_ssl.reinit()
+    nss_ssl.create_rsa_ca()
+    nss_ssl.create_rsa_key_and_cert()
 
     log.info("\n######################### enable SSL in the directory server with all ciphers ######################\n")
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
-                                                    (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
-                                                    (ldap.MOD_REPLACE, 'nsSSLClientAuth', 'allowed'),
-                                                    (ldap.MOD_REPLACE, 'allowWeakCipher', 'on'),
-                                                    (ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', b'off'),
+                                                    (ldap.MOD_REPLACE, 'nsTLS1', b'on'),
+                                                    (ldap.MOD_REPLACE, 'nsSSLClientAuth', b'allowed'),
+                                                    (ldap.MOD_REPLACE, 'allowWeakCipher', b'on'),
+                                                    (ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'+all')])
 
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
-                                                (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
-                                                (ldap.MOD_REPLACE, 'nsslapd-secureport', MY_SECURE_PORT)])
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', b'on'),
+                                                (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', b'off'),
+                                                (ldap.MOD_REPLACE, 'nsslapd-secureport', ensure_bytes(MY_SECURE_PORT))])
 
     topology_st.standalone.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
                                                  'cn': RSA,
@@ -111,9 +111,8 @@ def test_47838_run_0(topology_st):
     Note: allowWeakCipher: on
     """
     _header(topology_st, 'Test Case 1 - Check the ciphers availability for "+all"; allowWeakCipher: on')
-
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'64')])
     time.sleep(5)
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.restart(timeout=120)
@@ -152,7 +151,7 @@ def test_47838_run_1(topology_st):
     _header(topology_st, 'Test Case 2 - Check the ciphers availability for "+all" with default allowWeakCiphers')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'64')])
     time.sleep(1)
     # Make sure allowWeakCipher is not set.
     topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'allowWeakCipher', None)])
@@ -198,7 +197,7 @@ def test_47838_run_2(topology_st):
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology_st.standalone.modify_s(ENCRYPTION_DN,
-                                    [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+rsa_aes_128_sha,+rsa_aes_256_sha')])
+                                    [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'+rsa_aes_128_sha,+rsa_aes_256_sha')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -231,7 +230,7 @@ def test_47838_run_3(topology_st):
     _header(topology_st, 'Test Case 4 - Check the ciphers availability for "-all"')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '-all')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'-all')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -263,7 +262,7 @@ def test_47838_run_4(topology_st):
     _header(topology_st, 'Test Case 5 - Check no nsSSL3Ciphers (default setting) with default allowWeakCipher')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3Ciphers', '-all')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3Ciphers', b'-all')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -271,7 +270,6 @@ def test_47838_run_4(topology_st):
     os.system('touch %s' % (topology_st.standalone.errlog))
     time.sleep(1)
     topology_st.standalone.start(timeout=120)
-
     enabled = os.popen('egrep "SSL info:" %s | egrep \": enabled\" | wc -l' % topology_st.standalone.errlog)
     disabled = os.popen('egrep "SSL info:" %s | egrep \": disabled\" | wc -l' % topology_st.standalone.errlog)
     ecount = int(enabled.readline().rstrip())
@@ -282,7 +280,7 @@ def test_47838_run_4(topology_st):
     global plus_all_ecount
     global plus_all_dcount
     if nss_version >= NSS330:
-        assert ecount == 26
+        assert ecount == 28
     elif nss_version >= NSS323:
         assert ecount == 29
     else:
@@ -306,7 +304,7 @@ def test_47838_run_5(topology_st):
     _header(topology_st, 'Test Case 6 - Check default nsSSL3Ciphers (default setting) with default allowWeakCipher')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'default')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'default')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -325,7 +323,7 @@ def test_47838_run_5(topology_st):
     global plus_all_ecount
     global plus_all_dcount
     if nss_version >= NSS330:
-        assert ecount == 26
+        assert ecount == 28
     elif nss_version >= NSS323:
         assert ecount == 29
     else:
@@ -351,7 +349,7 @@ def test_47838_run_6(topology_st):
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology_st.standalone.modify_s(ENCRYPTION_DN,
-                                    [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all,-tls_dhe_rsa_aes_128_gcm_sha')])
+                                    [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'+all,-tls_dhe_rsa_aes_128_gcm_sha')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -386,7 +384,7 @@ def test_47838_run_7(topology_st):
     _header(topology_st, 'Test Case 8 - Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5 with default allowWeakCipher')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '-all,+rsa_rc4_128_md5')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'-all,+rsa_rc4_128_md5')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -418,8 +416,8 @@ def test_47838_run_8(topology_st):
     _header(topology_st, 'Test Case 9 - Check default nsSSL3Ciphers (default setting + allowWeakCipher: off)')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'default'),
-                                                    (ldap.MOD_REPLACE, 'allowWeakCipher', 'off')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'default'),
+                                                    (ldap.MOD_REPLACE, 'allowWeakCipher', b'off')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -438,7 +436,7 @@ def test_47838_run_8(topology_st):
     global plus_all_ecount
     global plus_all_dcount
     if nss_version >= NSS330:
-        assert ecount == 26
+        assert ecount == 28
     elif nss_version >= NSS323:
         assert ecount == 29
     else:
@@ -465,7 +463,7 @@ def test_47838_run_9(topology_st):
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', None),
-                                                    (ldap.MOD_REPLACE, 'allowWeakCipher', 'on')])
+                                                    (ldap.MOD_REPLACE, 'allowWeakCipher', b'on')])
     topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', None)])
 
     log.info("\n######################### Restarting the server ######################\n")
@@ -483,7 +481,7 @@ def test_47838_run_9(topology_st):
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
     if nss_version >= NSS330:
-        assert ecount == 31
+        assert ecount == 33
     elif nss_version >= NSS327:
         assert ecount == 34
     elif nss_version >= NSS323:
@@ -523,7 +521,7 @@ def test_47838_run_10(topology_st):
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers',
-                                                     '-TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,+TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,+TLS_DHE_RSA_WITH_DES_CBC_SHA,+SSL_RSA_FIPS_WITH_DES_CBC_SHA,+TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,+SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,+TLS_RSA_EXPORT1024_WITH_RC4_56_SHA,+TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA,-SSL_CK_RC4_128_WITH_MD5,-SSL_CK_RC4_128_EXPORT40_WITH_MD5,-SSL_CK_RC2_128_CBC_WITH_MD5,-SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5,-SSL_CK_DES_64_CBC_WITH_MD5,-SSL_CK_DES_192_EDE3_CBC_WITH_MD5')])
+                                                     b'-TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,+TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,+TLS_DHE_RSA_WITH_DES_CBC_SHA,+SSL_RSA_FIPS_WITH_DES_CBC_SHA,+TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,+SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,+TLS_RSA_EXPORT1024_WITH_RC4_56_SHA,+TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA,-SSL_CK_RC4_128_WITH_MD5,-SSL_CK_RC4_128_EXPORT40_WITH_MD5,-SSL_CK_RC2_128_CBC_WITH_MD5,-SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5,-SSL_CK_DES_64_CBC_WITH_MD5,-SSL_CK_DES_192_EDE3_CBC_WITH_MD5')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -564,7 +562,7 @@ def test_47838_run_11(topology_st):
     _header(topology_st, 'Test Case 12 - Check nsSSL3Ciphers: +fortezza, which is not supported')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+fortezza')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'+fortezza')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -593,15 +591,15 @@ def test_47928_run_0(topology_st):
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     # add them once and remove them
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
-                                                    (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
-                                                    (ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.1'),
-                                                    (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.2')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', b'off'),
+                                                    (ldap.MOD_REPLACE, 'nsTLS1', b'on'),
+                                                    (ldap.MOD_REPLACE, 'sslVersionMin', b'TLS1.1'),
+                                                    (ldap.MOD_REPLACE, 'sslVersionMax', b'TLS1.2')])
     topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3', None),
                                                     (ldap.MOD_DELETE, 'nsTLS1', None),
                                                     (ldap.MOD_DELETE, 'sslVersionMin', None),
                                                     (ldap.MOD_DELETE, 'sslVersionMax', None)])
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'64')])
     time.sleep(5)
 
     log.info("\n######################### Restarting the server ######################\n")
@@ -629,8 +627,8 @@ def test_47928_run_1(topology_st):
     _header(topology_st, 'Test Case 14 - No nsSSL3, nsTLS1; sslVersionMin > sslVersionMax')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.2'),
-                                                    (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.1')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', b'TLS1.2'),
+                                                    (ldap.MOD_REPLACE, 'sslVersionMax', b'TLS1.1')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -665,9 +663,9 @@ def test_47928_run_2(topology_st):
     _header(topology_st, 'Test Case 15 - nsSSL3: on; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.1'),
-                                                    (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.2'),
-                                                    (ldap.MOD_REPLACE, 'nsSSL3', 'on')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', b'TLS1.1'),
+                                                    (ldap.MOD_REPLACE, 'sslVersionMax', b'TLS1.2'),
+                                                    (ldap.MOD_REPLACE, 'nsSSL3', b'on')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -711,10 +709,10 @@ def test_47928_run_3(topology_st):
     _header(topology_st, 'Test Case 16 - nsSSL3: on; nsTLS1: off; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2')
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.1'),
-                                                    (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.2'),
-                                                    (ldap.MOD_REPLACE, 'nsSSL3', 'on'),
-                                                    (ldap.MOD_REPLACE, 'nsTLS1', 'off')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', b'TLS1.1'),
+                                                    (ldap.MOD_REPLACE, 'sslVersionMax', b'TLS1.2'),
+                                                    (ldap.MOD_REPLACE, 'nsSSL3', b'on'),
+                                                    (ldap.MOD_REPLACE, 'nsTLS1', b'off')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)
@@ -759,7 +757,7 @@ def test_47838_run_last(topology_st):
 
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', None)])
-    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'all')])
+    topology_st.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', b'all')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology_st.standalone.stop(timeout=10)

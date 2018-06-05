@@ -109,7 +109,7 @@ def _find_member(topology_st, user_dn=None, group_dn=None, find_result=True):
 
         for val in ent.getValues('member'):
             topology_st.standalone.log.info("!!!!!!! %s: member ->%s" % (group_dn, val))
-            if val == user_dn:
+            if ensure_str(val) == user_dn:
                 found = True
                 break
 
@@ -144,7 +144,7 @@ def _check_memberof(topology_st=None, action=None, user_dn=None, group_dn=None, 
     topology_st.standalone.log.info('\n%s entry %s' % (txt, user_dn))
     topology_st.standalone.log.info('to group %s' % group_dn)
 
-    topology_st.standalone.modify_s(group_dn, [(action, 'member', user_dn)])
+    topology_st.standalone.modify_s(group_dn, [(action, 'member', ensure_bytes(user_dn))])
     time.sleep(1)
     _find_memberof(topology_st, user_dn=user_dn, group_dn=group_dn, find_result=find_result)
 
@@ -188,7 +188,7 @@ def test_ticket47829_init(topology_st):
     # enable memberof of with scope account
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     dn = "cn=%s,%s" % (PLUGIN_MEMBER_OF, DN_PLUGIN)
-    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScope', ACTIVE_DN)])
+    topology_st.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScope', ensure_bytes(ACTIVE_DN))])
 
     topology_st.standalone.restart(timeout=10)
 

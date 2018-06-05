@@ -22,7 +22,7 @@ def test_ticket48170(topology_st):
     INDEX_DN = 'cn=cn,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config'
     REJECTED = False
     try:
-        topology_st.standalone.modify_s(INDEX_DN, [(ldap.MOD_ADD, 'nsINdexType', 'eq,pres')])
+        topology_st.standalone.modify_s(INDEX_DN, [(ldap.MOD_ADD, 'nsINdexType', b'eq,pres')])
     except ldap.UNWILLING_TO_PERFORM:
         log.info('Index update correctly rejected')
         REJECTED = True

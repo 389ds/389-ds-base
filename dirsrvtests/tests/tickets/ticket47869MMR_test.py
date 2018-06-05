@@ -14,6 +14,8 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_m2
+from lib389.replica import ReplicationManager
+from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -26,6 +28,11 @@ BIND_NAME = 'bind_entry'
 BIND_DN = 'cn=%s, %s' % (BIND_NAME, SUFFIX)
 BIND_PW = 'password'
 
+def replication_check(topology_m2):
+    repl = ReplicationManager(SUFFIX)
+    master1 = topology_m2.ms["master1"]
+    master2 = topology_m2.ms["master2"]
+    return repl.test_replication(master1, master2)
 
 def test_ticket47869_init(topology_m2):
     """
@@ -34,7 +41,7 @@ def test_ticket47869_init(topology_m2):
 
     """
     # enable acl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192))]  # REPL
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(8192)))]  # REPL
     topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
     topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
@@ -45,21 +52,12 @@ def test_ticket47869_init(topology_m2):
         'sn': BIND_NAME,
         'cn': BIND_NAME,
         'userpassword': BIND_PW})))
-    loop = 0
-    ent = None
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(BIND_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-            break
-        except ldap.NO_SUCH_OBJECT:
-            time.sleep(1)
-            loop += 1
-    if ent is None:
-        assert False
-
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(BIND_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ent
     # keep anonymous ACI for use 'read-search' aci in SEARCH test
     ACI_ANONYMOUS = "(targetattr!=\"userPassword\")(version 3.0; acl \"Enable anonymous access\"; allow (read, search, compare) userdn=\"ldap:///anyone\";)"
-    mod = [(ldap.MOD_REPLACE, 'aci', ACI_ANONYMOUS)]
+    mod = [(ldap.MOD_REPLACE, 'aci', ensure_bytes(ACI_ANONYMOUS))]
     topology_m2.ms["master1"].modify_s(SUFFIX, mod)
     topology_m2.ms["master2"].modify_s(SUFFIX, mod)
 
@@ -71,18 +69,9 @@ def test_ticket47869_init(topology_m2):
                                                {'objectclass': "top person".split(),
                                                 'sn': name,
                                                 'cn': name})))
-        loop = 0
-        ent = None
-        while loop <= 10:
-            try:
-                ent = topology_m2.ms["master2"].getEntry(mydn, ldap.SCOPE_BASE, "(objectclass=*)")
-                break
-            except ldap.NO_SUCH_OBJECT:
-                time.sleep(1)
-                loop += 1
-        if ent is None:
-            assert False
-
+        replication_check(topology_m2)
+        ent = topology_m2.ms["master2"].getEntry(mydn, ldap.SCOPE_BASE, "(objectclass=*)")
+        assert ent
 
 def test_ticket47869_check(topology_m2):
     '''

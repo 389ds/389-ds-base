@@ -81,8 +81,8 @@ def test_ticket47828_run_0(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -99,8 +99,8 @@ def test_ticket47828_run_1(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -117,8 +117,8 @@ def test_ticket47828_run_2(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -135,8 +135,8 @@ def test_ticket47828_run_3(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -147,7 +147,7 @@ def test_ticket47828_run_4(topology_st):
     _header(topology_st, 'Exclude the provisioning container')
 
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
-    mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', PROVISIONING)]
+    mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', ensure_bytes(PROVISIONING))]
     topology_st.standalone.modify_s(dn_config, mod)
 
 
@@ -164,8 +164,8 @@ def test_ticket47828_run_5(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ensure_str(ent.getValue(ALLOCATED_ATTR))) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ensure_str(ent.getValue(ALLOCATED_ATTR)))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -183,8 +183,8 @@ def test_ticket47828_run_6(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ensure_str(ent.getValue(ALLOCATED_ATTR))) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ensure_str(ent.getValue(ALLOCATED_ATTR)))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -201,8 +201,8 @@ def test_ticket47828_run_7(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -220,8 +220,8 @@ def test_ticket47828_run_8(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -238,8 +238,8 @@ def test_ticket47828_run_9(topology_st):
                                 ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -257,8 +257,8 @@ def test_ticket47828_run_10(topology_st):
                                 ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -269,7 +269,7 @@ def test_ticket47828_run_11(topology_st):
     _header(topology_st, 'Exclude (in addition) the dummy container')
 
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
-    mod = [(ldap.MOD_ADD, 'dnaExcludeScope', DUMMY_CONTAINER)]
+    mod = [(ldap.MOD_ADD, 'dnaExcludeScope', ensure_bytes(DUMMY_CONTAINER))]
     topology_st.standalone.modify_s(dn_config, mod)
 
 
@@ -286,8 +286,8 @@ def test_ticket47828_run_12(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -305,8 +305,8 @@ def test_ticket47828_run_13(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -324,8 +324,8 @@ def test_ticket47828_run_14(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -343,8 +343,8 @@ def test_ticket47828_run_15(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -362,8 +362,8 @@ def test_ticket47828_run_16(topology_st):
                                 ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -381,8 +381,8 @@ def test_ticket47828_run_17(topology_st):
                                 ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -393,10 +393,10 @@ def test_ticket47828_run_18(topology_st):
     _header(topology_st, 'Exclude PROVISIONING and a wrong container')
 
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
-    mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', PROVISIONING)]
+    mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', ensure_bytes(PROVISIONING))]
     topology_st.standalone.modify_s(dn_config, mod)
     try:
-        mod = [(ldap.MOD_ADD, 'dnaExcludeScope', "invalidDN,%s" % SUFFIX)]
+        mod = [(ldap.MOD_ADD, 'dnaExcludeScope', ensure_bytes("invalidDN,%s" % SUFFIX))]
         topology_st.standalone.modify_s(dn_config, mod)
         raise ValueError("invalid dnaExcludeScope value (not a DN)")
     except ldap.INVALID_SYNTAX:
@@ -417,8 +417,8 @@ def test_ticket47828_run_19(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -436,8 +436,8 @@ def test_ticket47828_run_20(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -455,8 +455,8 @@ def test_ticket47828_run_21(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -474,8 +474,8 @@ def test_ticket47828_run_22(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -493,8 +493,8 @@ def test_ticket47828_run_23(topology_st):
                                 ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -512,8 +512,8 @@ def test_ticket47828_run_24(topology_st):
                                 ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -526,7 +526,7 @@ def test_ticket47828_run_25(topology_st):
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
 
     try:
-        mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', "invalidDN,%s" % SUFFIX)]
+        mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', ensure_bytes("invalidDN,%s" % SUFFIX))]
         topology_st.standalone.modify_s(dn_config, mod)
         raise ValueError("invalid dnaExcludeScope value (not a DN)")
     except ldap.INVALID_SYNTAX:
@@ -546,8 +546,8 @@ def test_ticket47828_run_26(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -565,8 +565,8 @@ def test_ticket47828_run_27(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(ACTIVE_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(ACTIVE_USER1_DN)
 
 
@@ -583,8 +583,8 @@ def test_ticket47828_run_28(topology_st):
                                  ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -602,8 +602,8 @@ def test_ticket47828_run_29(topology_st):
                                  ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(STAGED_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(STAGED_USER1_DN)
 
 
@@ -620,8 +620,8 @@ def test_ticket47828_run_30(topology_st):
                                 ALLOCATED_ATTR: str(-1)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) != str(-1)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) != str(-1)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 
@@ -639,8 +639,8 @@ def test_ticket47828_run_31(topology_st):
                                 ALLOCATED_ATTR: str(20)})))
     ent = topology_st.standalone.getEntry(DUMMY_USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent.hasAttr(ALLOCATED_ATTR)
-    assert ent.getValue(ALLOCATED_ATTR) == str(20)
-    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
+    assert ensure_str(ent.getValue(ALLOCATED_ATTR)) == str(20)
+    topology_st.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ensure_str(ent.getValue(ALLOCATED_ATTR))))
     topology_st.standalone.delete_s(DUMMY_USER1_DN)
 
 

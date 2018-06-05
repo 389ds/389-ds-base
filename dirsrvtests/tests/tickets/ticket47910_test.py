@@ -22,6 +22,8 @@ from lib389.utils import *
 
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
+
+
 @pytest.fixture(scope="module")
 def log_dir(topology_st):
     '''
@@ -60,8 +62,8 @@ def execute_logconv(inst, start_time_stamp, end_time_stamp, access_log):
     log.info(" ".join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
-    log.info("standard output" + stdout)
-    log.info("standard errors" + stderr)
+    log.info("standard output" + ensure_str(stdout))
+    log.info("standard errors" + ensure_str(stderr))
     return proc.returncode
 
 
@@ -151,8 +153,8 @@ def test_ticket47910_logconv_noaccesslogs(topology_st, log_dir):
     log.info(" ".join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
-    log.info("standard output" + stdout)
-    log.info("standard errors" + stderr)
+    log.info("standard output" + ensure_str(stdout))
+    log.info("standard errors" + ensure_str(stderr))
 
     assert proc.returncode == 1
 

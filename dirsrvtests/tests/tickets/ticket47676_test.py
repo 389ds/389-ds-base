@@ -19,6 +19,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_m2
+from lib389.replica import ReplicationManager
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 from lib389.utils import *
@@ -66,8 +67,13 @@ def _oc_definition(oid_ext, name, must=None, may=None):
         may = MAY
 
     new_oc = "( %s  NAME '%s' DESC '%s' SUP %s AUXILIARY MUST %s MAY %s )" % (oid, name, desc, sup, must, may)
-    return new_oc
+    return ensure_bytes(new_oc)
 
+def replication_check(topology_m2):
+    repl = ReplicationManager(SUFFIX)
+    master1 = topology_m2.ms["master1"]
+    master2 = topology_m2.ms["master2"]
+    return repl.test_replication(master1, master2)
 
 def test_ticket47676_init(topology_m2):
     """
@@ -91,7 +97,7 @@ def test_ticket47676_init(topology_m2):
         'userpassword': BIND_PW})))
 
     # enable acl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(128 + 8192))]  # ACL + REPL
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(128 + 8192)))]  # ACL + REPL
     topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
     topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
@@ -138,31 +144,18 @@ def test_ticket47676_skip_oc_at(topology_m2):
     #
     topology_m2.ms["master2"].simple_bind_s(DN_DM, PASSWORD)
     topology_m2.ms["master1"].log.info("Try to retrieve %s from Master2" % ENTRY_DN)
-    loop = 0
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-            break
-        except ldap.NO_SUCH_OBJECT:
-            time.sleep(2)
-            loop += 1
-    assert loop <= 10
-
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ent
     # Now update the entry on Master2 (as DM because 47676 is possibly not fixed on M2)
     topology_m2.ms["master1"].log.info("Update  %s on M2" % ENTRY_DN)
-    mod = [(ldap.MOD_REPLACE, 'description', 'test_add')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'test_add')]
     topology_m2.ms["master2"].modify_s(ENTRY_DN, mod)
 
     topology_m2.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
-    loop = 0
-    while loop <= 10:
-        ent = topology_m2.ms["master1"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-        if ent.hasAttr('description') and (ent.getValue('description') == 'test_add'):
-            break
-        time.sleep(1)
-        loop += 1
-
-    assert ent.getValue('description') == 'test_add'
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master1"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ensure_str(ent.getValue('description')) == 'test_add'
 
 
 def test_ticket47676_reject_action(topology_m2):
@@ -172,7 +165,7 @@ def test_ticket47676_reject_action(topology_m2):
     topology_m2.ms["master2"].simple_bind_s(DN_DM, PASSWORD)
 
     # make master1 to refuse to push the schema if OC_NAME is present in consumer schema
-    mod = [(ldap.MOD_ADD, 'schemaUpdateObjectclassReject', '%s' % (OC_NAME))]  # ACL + REPL
+    mod = [(ldap.MOD_ADD, 'schemaUpdateObjectclassReject', ensure_bytes('%s' % (OC_NAME)))]  # ACL + REPL
     topology_m2.ms["master1"].modify_s(REPL_SCHEMA_POLICY_SUPPLIER, mod)
 
     # Restart is required to take into account that policy
@@ -197,20 +190,15 @@ def test_ticket47676_reject_action(topology_m2):
 
     # Do an update of M1 so that M1 will try to push the schema
     topology_m2.ms["master1"].log.info("Update  %s on M1" % ENTRY_DN)
-    mod = [(ldap.MOD_REPLACE, 'description', 'test_reject')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'test_reject')]
     topology_m2.ms["master1"].modify_s(ENTRY_DN, mod)
 
     # Check the replication occured and so also M1 attempted to push the schema
     topology_m2.ms["master1"].log.info("Check updated %s on M2" % ENTRY_DN)
-    loop = 0
-    while loop <= 10:
-        ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
-        if ent.hasAttr('description') and ent.getValue('description') == 'test_reject':
-            # update was replicated
-            break
-        time.sleep(2)
-        loop += 1
-    assert loop <= 10
+
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
+    assert ensure_str(ent.getValue('description')) == 'test_reject'
 
     # Check that the schema has not been pushed
     topology_m2.ms["master1"].log.info("Check %s is not in M2" % OC2_NAME)
@@ -226,7 +214,7 @@ def test_ticket47676_reject_action(topology_m2):
     topology_m2.ms["master1"].log.info("\n\n######################### NO MORE REJECT ACTION ######################\n")
 
     # make master1 to do no specific action on OC_NAME
-    mod = [(ldap.MOD_DELETE, 'schemaUpdateObjectclassReject', '%s' % (OC_NAME))]  # ACL + REPL
+    mod = [(ldap.MOD_DELETE, 'schemaUpdateObjectclassReject', ensure_bytes('%s' % (OC_NAME)))]  # ACL + REPL
     topology_m2.ms["master1"].modify_s(REPL_SCHEMA_POLICY_SUPPLIER, mod)
 
     # Restart is required to take into account that policy
@@ -235,21 +223,15 @@ def test_ticket47676_reject_action(topology_m2):
 
     # Do an update of M1 so that M1 will try to push the schema
     topology_m2.ms["master1"].log.info("Update  %s on M1" % ENTRY_DN)
-    mod = [(ldap.MOD_REPLACE, 'description', 'test_no_more_reject')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'test_no_more_reject')]
     topology_m2.ms["master1"].modify_s(ENTRY_DN, mod)
 
     # Check the replication occured and so also M1 attempted to push the schema
     topology_m2.ms["master1"].log.info("Check updated %s on M2" % ENTRY_DN)
-    loop = 0
-    while loop <= 10:
-        ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
-        if ent.hasAttr('description') and ent.getValue('description') == 'test_no_more_reject':
-            # update was replicated
-            break
-        time.sleep(2)
-        loop += 1
-    assert loop <= 10
 
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
+    assert ensure_str(ent.getValue('description')) == 'test_no_more_reject'
     # Check that the schema has been pushed
     topology_m2.ms["master1"].log.info("Check %s is in M2" % OC2_NAME)
     ent = topology_m2.ms["master2"].getEntry(SCHEMA_DN, ldap.SCOPE_BASE, "(objectclass=*)", ["objectclasses"])

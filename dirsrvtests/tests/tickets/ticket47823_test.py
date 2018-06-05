@@ -201,7 +201,7 @@ def _active_container_mod(topology_st, type_config='old'):
         'cn': ACTIVE_USER_2_CN})))
 
     try:
-        topology_st.standalone.modify_s(ACTIVE_USER_2_DN, [(ldap.MOD_ADD, 'cn', ACTIVE_USER_1_CN)])
+        topology_st.standalone.modify_s(ACTIVE_USER_2_DN, [(ldap.MOD_ADD, 'cn', ensure_bytes(ACTIVE_USER_1_CN))])
     except ldap.CONSTRAINT_VIOLATION:
         # yes it is expected
         pass
@@ -209,7 +209,7 @@ def _active_container_mod(topology_st, type_config='old'):
     topology_st.standalone.log.info('Uniqueness enforced: checks MOD REPLACE entry is rejected')
     try:
         topology_st.standalone.modify_s(ACTIVE_USER_2_DN,
-                                        [(ldap.MOD_REPLACE, 'cn', [ACTIVE_USER_1_CN, ACTIVE_USER_2_CN])])
+                                        [(ldap.MOD_REPLACE, 'cn', [ensure_bytes(ACTIVE_USER_1_CN), ensure_bytes(ACTIVE_USER_2_CN)])])
     except ldap.CONSTRAINT_VIOLATION:
         # yes it is expected
         pass
@@ -316,7 +316,7 @@ def _active_stage_containers_mod(topology_st, type_config='old', across_subtrees
     try:
 
         # modify add same value
-        topology_st.standalone.modify_s(STAGE_USER_1_DN, [(ldap.MOD_ADD, 'cn', [ACTIVE_USER_2_CN])])
+        topology_st.standalone.modify_s(STAGE_USER_1_DN, [(ldap.MOD_ADD, 'cn', [ensure_bytes(ACTIVE_USER_2_CN)])])
     except ldap.CONSTRAINT_VIOLATION:
         assert across_subtrees
 
@@ -328,7 +328,7 @@ def _active_stage_containers_mod(topology_st, type_config='old', across_subtrees
     try:
         # modify replace same value
         topology_st.standalone.modify_s(STAGE_USER_1_DN,
-                                        [(ldap.MOD_REPLACE, 'cn', [STAGE_USER_2_CN, ACTIVE_USER_1_CN])])
+                                        [(ldap.MOD_REPLACE, 'cn', [ensure_bytes(STAGE_USER_2_CN), ensure_bytes(ACTIVE_USER_1_CN)])])
     except ldap.CONSTRAINT_VIOLATION:
         assert across_subtrees
 
@@ -371,7 +371,7 @@ def _active_stage_containers_modrdn(topology_st, type_config='old', across_subtr
         assert stage_ent.hasAttr('cn')
         found = False
         for value in stage_ent.getValues('cn'):
-            if value == 'dummy':
+            if ensure_str(value) == 'dummy':
                 found = True
         assert found
 
@@ -380,7 +380,7 @@ def _active_stage_containers_modrdn(topology_st, type_config='old', across_subtr
         assert active_ent.hasAttr('cn')
         found = False
         for value in stage_ent.getValues('cn'):
-            if value == 'dummy':
+            if ensure_str(value) == 'dummy':
                 found = True
         assert found
 
@@ -607,7 +607,7 @@ def test_ticket47823_invalid_config_1(topology_st):
     topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
 
     # Check the server did not restart
-    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
+    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'65536')])
     try:
         topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
@@ -715,7 +715,7 @@ def test_ticket47823_invalid_config_3(topology_st):
     topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
 
     # Check the server did not restart
-    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
+    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'65536')])
     try:
         topology_st.standalone.restart()
         ent = topology_st.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)",
@@ -917,7 +917,7 @@ def test_ticket47823_invalid_config_7(topology_st):
     config = _build_config(topology_st, attr_name='cn', subtree_1="this_is dummy DN", subtree_2="an other=dummy DN",
                            type_config='new', across_subtrees=False)
 
-    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
+    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'65536')])
     # replace 'cn' uniqueness entry
     try:
         topology_st.standalone.delete_s(config.dn)

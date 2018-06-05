@@ -30,7 +30,7 @@ def test_ticket48383(topology_st):
     # Create some stupid huge objects / attributes in DS.
     # seeAlso is indexed by default. Lets do that!
     # This will take a while ...
-    data = [random.choice(string.letters) for x in xrange(10000000)]
+    data = [random.choice(string.ascii_letters) for x in range(10000000)]
     s = "".join(data)
 
     # This was here for an iteration test.
@@ -50,18 +50,14 @@ def test_ticket48383(topology_st):
         'padding': padding,
     }))
 
-    try:
-        topology_st.standalone.add_s(user)
-    except ldap.LDAPError as e:
-        log.fatal('test 48383: Failed to user%s: error %s ' % (i, e.message['desc']))
-        assert False
+    topology_st.standalone.add_s(user)
 
     # Set the dbsize really low.
     try:
         topology_st.standalone.modify_s(DEFAULT_BENAME, [(ldap.MOD_REPLACE,
-                                                          'nsslapd-cachememsize', '1')])
+                                                          'nsslapd-cachememsize', b'1')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to change nsslapd-cachememsize ' + e.message['desc'])
+        log.fatal('Failed to change nsslapd-cachememsize {}'.format(e.args[0]['desc']))
 
     ## Does ds try and set a minimum possible value for this?
     ## Yes: [16/Feb/2016:16:39:18 +1000] - WARNING: cache too small, increasing to 500K bytes

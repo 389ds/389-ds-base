@@ -19,6 +19,8 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_m2
+from lib389.replica import ReplicationManager
+from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -57,24 +59,29 @@ SLEEP_INTERVAL = 60
 def _add_custom_at_definition(name='ATticket47721'):
     new_at = "( %s-oid NAME '%s' DESC 'test AT ticket 47721' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN ( 'Test 47721' 'user defined' ) )" % (
     name, name)
-    return new_at
+    return ensure_bytes(new_at)
 
 
 def _chg_std_at_defintion():
     new_at = "( 2.16.840.1.113730.3.1.569 NAME 'cosPriority' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 X-ORIGIN 'Netscape Directory Server' )"
-    return new_at
+    return ensure_bytes(new_at)
 
 
 def _add_custom_oc_defintion(name='OCticket47721'):
     new_oc = "( %s-oid NAME '%s' DESC 'An group of related automount objects' SUP top STRUCTURAL MUST ou X-ORIGIN 'draft-howard-rfc2307bis' )" % (
     name, name)
-    return new_oc
+    return ensure_bytes(new_oc)
 
 
 def _chg_std_oc_defintion():
     new_oc = "( 5.3.6.1.1.1.2.0 NAME 'trustAccount' DESC 'Sets trust accounts information' SUP top AUXILIARY MUST trustModel MAY ( accessTo $ ou ) X-ORIGIN 'nss_ldap/pam_ldap' )"
-    return new_oc
+    return ensure_bytes(new_oc)
 
+def replication_check(topology_m2):
+    repl = ReplicationManager(SUFFIX)
+    master1 = topology_m2.ms["master1"]
+    master2 = topology_m2.ms["master2"]
+    return repl.test_replication(master1, master2)
 
 def test_ticket47721_init(topology_m2):
     """
@@ -94,7 +101,7 @@ def test_ticket47721_init(topology_m2):
         'userpassword': BIND_PW})))
 
     # enable repl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192))]  # REPL logging
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(8192)))]  # REPL logging
     topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
     topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
@@ -109,17 +116,9 @@ def test_ticket47721_init(topology_m2):
 
 def test_ticket47721_0(topology_m2):
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
-    loop = 0
-    ent = None
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
-            break
-        except ldap.NO_SUCH_OBJECT:
-            time.sleep(1)
-            loop += 1
-    if ent is None:
-        assert False
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ent
 
 
 def test_ticket47721_1(topology_m2):
@@ -143,20 +142,13 @@ def test_ticket47721_1(topology_m2):
     topology_m2.ms["master1"].log.info("Chg (M2) %s " % new)
     topology_m2.ms["master2"].schema.add_schema('objectClasses', new)
 
-    mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 1')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 1')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     topology_m2.ms["master2"].modify_s(dn, mod)
 
-    loop = 0
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master1"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('description') and (ent.getValue('description') == 'Hello world 1'):
-                break
-        except ldap.NO_SUCH_OBJECT:
-            loop += 1
-        time.sleep(1)
-    assert loop <= 10
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master1"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ensure_str(ent.getValue('description')) == 'Hello world 1'
 
     time.sleep(2)
     schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
@@ -168,20 +160,13 @@ def test_ticket47721_1(topology_m2):
 def test_ticket47721_2(topology_m2):
     log.info('Running test 2...')
 
-    mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 2')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 2')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     topology_m2.ms["master1"].modify_s(dn, mod)
 
-    loop = 0
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('description') and (ent.getValue('description') == 'Hello world 2'):
-                break
-        except ldap.NO_SUCH_OBJECT:
-            loop += 1
-        time.sleep(1)
-    assert loop <= 10
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ensure_str(ent.getValue('description')) == 'Hello world 2'
 
     time.sleep(2)
     schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
@@ -222,20 +207,13 @@ def test_ticket47721_3(topology_m2):
     topology_m2.ms["master2"].schema.add_schema('objectClasses', new)
     time.sleep(1)
 
-    mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 3')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 3')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     topology_m2.ms["master1"].modify_s(dn, mod)
 
-    loop = 0
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('description') and (ent.getValue('description') == 'Hello world 3'):
-                break
-        except ldap.NO_SUCH_OBJECT:
-            loop += 1
-        time.sleep(1)
-    assert loop <= 10
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ensure_str(ent.getValue('description')) == 'Hello world 3'
 
     time.sleep(5)
     schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
@@ -273,36 +251,22 @@ def test_ticket47721_4(topology_m2):
     topology_m2.ms["master1"].schema.add_schema('objectClasses', new)
 
     topology_m2.ms["master1"].log.info("trigger replication M1->M2: to update the schema")
-    mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 4')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 4')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     topology_m2.ms["master1"].modify_s(dn, mod)
 
-    loop = 0
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('description') and (ent.getValue('description') == 'Hello world 4'):
-                break
-        except ldap.NO_SUCH_OBJECT:
-            loop += 1
-        time.sleep(1)
-    assert loop <= 10
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ensure_str(ent.getValue('description')) == 'Hello world 4'
 
     topology_m2.ms["master1"].log.info("trigger replication M1->M2: to push the schema")
-    mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 5')]
+    mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 5')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     topology_m2.ms["master1"].modify_s(dn, mod)
 
-    loop = 0
-    while loop <= 10:
-        try:
-            ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
-            if ent.hasAttr('description') and (ent.getValue('description') == 'Hello world 5'):
-                break
-        except ldap.NO_SUCH_OBJECT:
-            loop += 1
-        time.sleep(1)
-    assert loop <= 10
+    replication_check(topology_m2)
+    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    assert ensure_str(ent.getValue('description')) == 'Hello world 5'
 
     time.sleep(2)
     schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()

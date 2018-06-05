@@ -20,6 +20,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_m2
+from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -187,7 +188,7 @@ def _find_tombstone(instance, base, attr, value):
     for ent in ents:
         if ent.hasAttr(attr):
             for val in ent.getValues(attr):
-                if val == value:
+                if ensure_str(val) == value:
                     instance.log.debug("tombstone found: %r" % ent)
                     return ent
     return None
@@ -198,12 +199,13 @@ def _delete_entry(instance, entry_dn, name):
 
     # delete the entry
     instance.delete_s(entry_dn)
-    assert _find_tombstone(instance, SUFFIX, 'sn', name) is not None
+    ent = _find_tombstone(instance, SUFFIX, 'sn', name)
+    assert ent is not None
 
 
 def _mod_entry(instance, entry_dn, attr, value):
     instance.log.info("\n\n######################### MOD %s (M2) ######################\n" % entry_dn)
-    mod = [(ldap.MOD_REPLACE, attr, value)]
+    mod = [(ldap.MOD_REPLACE, attr, ensure_bytes(value))]
     instance.modify_s(entry_dn, mod)
 
 
@@ -262,7 +264,7 @@ def _check_replication(topology_m2, entry_dn):
     while loop <= 10:
         attr = 'description'
         value = 'test_value_%d' % loop
-        mod = [(ldap.MOD_REPLACE, attr, value)]
+        mod = [(ldap.MOD_REPLACE, attr, ensure_bytes(value))]
         topology_m2.ms["master1"].modify_s(entry_dn, mod)
         _check_mod_received(topology_m2.ms["master2"], SUFFIX, filt, attr, value)
         loop += 1
@@ -272,7 +274,7 @@ def _check_replication(topology_m2, entry_dn):
     while loop <= 10:
         attr = 'description'
         value = 'test_value_%d' % loop
-        mod = [(ldap.MOD_REPLACE, attr, value)]
+        mod = [(ldap.MOD_REPLACE, attr, ensure_bytes(value))]
         topology_m2.ms["master2"].modify_s(entry_dn, mod)
         _check_mod_received(topology_m2.ms["master1"], SUFFIX, filt, attr, value)
         loop += 1
@@ -312,7 +314,7 @@ def test_ticket47787_init(topology_m2):
         'description': "production DIT"})))
 
     # enable replication error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '8192')]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')]
     topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
     topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
 
@@ -414,7 +416,7 @@ def test_ticket47787_2(topology_m2):
     assert loop <= 10
     assert ent
     assert ent.hasAttr(attr)
-    assert ent.getValue(attr) == value
+    assert ensure_str(ent.getValue(attr)) == value
 
 
 if __name__ == '__main__':

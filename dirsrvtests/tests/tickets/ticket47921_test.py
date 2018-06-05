@@ -25,79 +25,55 @@ def test_ticket47921(topology_st):
     USER_DN = 'uid=user,ou=people,' + DEFAULT_SUFFIX
 
     # Add COS definition
-    try:
-        topology_st.standalone.add_s(Entry((INDIRECT_COS_DN,
-                                            {
-                                                'objectclass': 'top cosSuperDefinition cosIndirectDefinition ldapSubEntry'.split(),
-                                                'cosIndirectSpecifier': 'manager',
-                                                'cosAttribute': 'roomnumber'
-                                                })))
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add cos defintion, error: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.add_s(Entry((INDIRECT_COS_DN,
+                                        {
+                                            'objectclass': 'top cosSuperDefinition cosIndirectDefinition ldapSubEntry'.split(),
+                                            'cosIndirectSpecifier': 'manager',
+                                            'cosAttribute': 'roomnumber'
+                                            })))
 
     # Add manager entry
-    try:
-        topology_st.standalone.add_s(Entry((MANAGER_DN,
-                                            {'objectclass': 'top extensibleObject'.split(),
-                                             'uid': 'my manager',
-                                             'roomnumber': '1'
-                                             })))
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add manager entry, error: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.add_s(Entry((MANAGER_DN,
+                                        {'objectclass': 'top extensibleObject'.split(),
+                                         'uid': 'my manager',
+                                         'roomnumber': '1'
+                                         })))
 
     # Add user entry
-    try:
-        topology_st.standalone.add_s(Entry((USER_DN,
-                                            {'objectclass': 'top person organizationalPerson inetorgperson'.split(),
-                                             'sn': 'last',
-                                             'cn': 'full',
-                                             'givenname': 'mark',
-                                             'uid': 'user',
-                                             'manager': MANAGER_DN
-                                             })))
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add manager entry, error: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.add_s(Entry((USER_DN,
+                                        {'objectclass': 'top person organizationalPerson inetorgperson'.split(),
+                                         'sn': 'last',
+                                         'cn': 'full',
+                                         'givenname': 'mark',
+                                         'uid': 'user',
+                                         'manager': MANAGER_DN
+                                         })))
 
     # Test COS is working
-    try:
-        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                                "uid=user",
-                                                ['roomnumber'])
-        if entry:
-            if entry[0].getValue('roomnumber') != '1':
-                log.fatal('COS is not working.')
-                assert False
-        else:
-            log.fatal('Failed to find user entry')
+    entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                            "uid=user",
+                                            ['roomnumber'])
+    if entry:
+        if ensure_str(entry[0].getValue('roomnumber')) != '1':
+            log.fatal('COS is not working.')
             assert False
-    except ldap.LDAPError as e:
-        log.error('Failed to search for user entry: ' + e.message['desc'])
+    else:
+        log.fatal('Failed to find user entry')
         assert False
 
     # Modify manager entry
-    try:
-        topology_st.standalone.modify_s(MANAGER_DN, [(ldap.MOD_REPLACE, 'roomnumber', '2')])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify manager entry: ' + e.message['desc'])
-        assert False
+    topology_st.standalone.modify_s(MANAGER_DN, [(ldap.MOD_REPLACE, 'roomnumber', b'2')])
 
     # Confirm COS is returning the new value
-    try:
-        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
-                                                "uid=user",
-                                                ['roomnumber'])
-        if entry:
-            if entry[0].getValue('roomnumber') != '2':
-                log.fatal('COS is not working after manager update.')
-                assert False
-        else:
-            log.fatal('Failed to find user entry')
+    entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                                            "uid=user",
+                                            ['roomnumber'])
+    if entry:
+        if ensure_str(entry[0].getValue('roomnumber')) != '2':
+            log.fatal('COS is not working after manager update.')
             assert False
-    except ldap.LDAPError as e:
-        log.error('Failed to search for user entry: ' + e.message['desc'])
+    else:
+        log.fatal('Failed to find user entry')
         assert False
 
     log.info('Test complete')

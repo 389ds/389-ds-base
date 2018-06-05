@@ -15,6 +15,7 @@ from lib389 import Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.topologies import topology_st
+from lib389.utils import *
 
 log = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ def test_ticket47560(topology_st):
         except ldap.ALREADY_EXISTS:
             log.debug("Entry %s already exists" % (member_DN))
 
-        replace = [(ldap.MOD_REPLACE, 'memberof', group_DN)]
+        replace = [(ldap.MOD_REPLACE, 'memberof', ensure_bytes(group_DN))]
         topology_st.standalone.modify_s(member_DN, replace)
 
         #
@@ -111,7 +112,7 @@ def test_ticket47560(topology_st):
         assert len(ents) == 1
         ent = ents[0]
         # print ent
-        value = ent.getValue('memberof')
+        value = ensure_str(ent.getValue('memberof'))
         # print "memberof: %s" % (value)
         assert value == group_DN
 
@@ -165,7 +166,7 @@ def test_ticket47560(topology_st):
     ent = ents[0]
     log.debug("Fixed entry %r\n" % ent)
 
-    if ent.getValue('memberof') == group_DN:
+    if ensure_str(ent.getValue('memberof')) == group_DN:
         log.warning("Error the fixupMemberOf did not fix %s" % (member_DN))
         result_successful = False
     else:
