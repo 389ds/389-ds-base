@@ -37,7 +37,7 @@ run_dir = @localstatedir@/run/dirsrv
 # This is the expected location of ldapi.
 ldapi = @localstatedir@/run/slapd-{instance_name}.socket
 pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
-inst_dir = @serverdir@
+inst_dir = @serverdir@/slapd-{instance_name}
 plugin_dir = @serverplugindir@
 system_schema_dir = @systemschemadir@
 

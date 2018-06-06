@@ -399,7 +399,7 @@ class SetupDs(object):
                 ldif_dir=slapd['ldif_dir'],
                 bak_dir=slapd['backup_dir'],
                 run_dir=slapd['run_dir'],
-                inst_dir="",
+                inst_dir=slapd['inst_dir'],
                 log_dir=slapd['log_dir'],
                 fqdn=general['full_machine_name'],
                 ds_port=slapd['port'],

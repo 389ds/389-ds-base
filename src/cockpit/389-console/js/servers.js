@@ -40,7 +40,7 @@ var create_full_template =
   "user = USER\n" +
   "group = GROUP\n" +
   "initconfig_dir = /etc/sysconfig\n" +
-  "inst_dir = /usr/lib64/dirsrv\n" +
+  "inst_dir = /usr/lib64/dirsrv/slapd-{instance_name}\n" +
   "instance_name = localhost\n" +
   "ldif_dir = /var/lib/dirsrv/slapd-{instance_name}/ldif\n" +
   "lib_dir = /usr/lib64\n" +
@@ -72,7 +72,7 @@ var create_inf_template =
   "root_password = ROOTPW\n" +
   "secure_port = SECURE_PORT\n" +
   "self_sign_cert = SELF_SIGN\n";
-  // TODO LDAPI Option (WIP)
+
 
 function load_server_config() {
   var mark = document.getElementById("server-config-title");
