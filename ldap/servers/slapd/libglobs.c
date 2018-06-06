@@ -121,6 +121,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <signal.h>
 #include <pwd.h> /* pwdnam */
 #ifdef USE_SYSCONF
 #include <unistd.h>
@@ -1376,6 +1377,7 @@ void
 g_set_shutdown(int reason)
 {
     slapd_shutdown = reason;
+    raise(SIGTERM);
 }
 
 int

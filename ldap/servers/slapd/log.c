@@ -3086,6 +3086,7 @@ void
 log__delete_rotated_logs()
 {
     struct logfileinfo *logp = NULL;
+    struct logfileinfo *prev_log = NULL;
     char buffer[BUFSIZ];
     char tbuf[TBUFSIZE];
 
@@ -3097,17 +3098,20 @@ log__delete_rotated_logs()
         tbuf[0] = buffer[0] = '\0';
         log_convert_time(logp->l_ctime, tbuf, 1);
         PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
-
-        slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
-                      "Deleted Rotated Log: %s\n", buffer);
-
         if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
+                          "Unable to remove file: %s - error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
             logp = logp->l_next;
             continue;
         }
+        prev_log = logp;
         loginfo.log_numof_access_logs--;
         logp = logp->l_next;
+        slapi_ch_free((void **)&prev_log);
     }
+
     /*
      *  Audit Log
      */
@@ -3117,12 +3121,41 @@ log__delete_rotated_logs()
         log_convert_time(logp->l_ctime, tbuf, 1);
         PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_audit_file, tbuf);
         if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
+                          "Unable to remove file: %s - error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
             logp = logp->l_next;
             continue;
         }
+        prev_log = logp;
         loginfo.log_numof_audit_logs--;
         logp = logp->l_next;
+        slapi_ch_free((void **)&prev_log);
     }
+
+    /*
+     *  Audit Fail Log
+     */
+    logp = loginfo.log_auditfail_logchain;
+    while (logp) {
+        tbuf[0] = buffer[0] = '\0';
+        log_convert_time(logp->l_ctime, tbuf, 1);
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_auditfail_file, tbuf);
+        if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
+                          "Unable to remove file: %s - error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
+            logp = logp->l_next;
+            continue;
+        }
+        prev_log = logp;
+        loginfo.log_numof_auditfail_logs--;
+        logp = logp->l_next;
+        slapi_ch_free((void **)&prev_log);
+    }
+
     /*
      *  Error log
      */
@@ -3132,11 +3165,17 @@ log__delete_rotated_logs()
         log_convert_time(logp->l_ctime, tbuf, 1);
         PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
         if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
+                          "Unable to remove file: %s - error %d (%s)\n",
+                          buffer, prerr, slapd_pr_strerror(prerr));
             logp = logp->l_next;
             continue;
         }
+        prev_log = logp;
         loginfo.log_numof_error_logs--;
         logp = logp->l_next;
+        slapi_ch_free((void **)&prev_log);
     }
 }
 

@@ -572,8 +572,8 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
              */
             if (passed_threshold) {
                 if (logs_disabled) {
-                    slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread", "Disk space is now within acceptable levels.  "
-                                                                            "Restoring the log settings.\n");
+                    slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
+                            "Disk space is now within acceptable levels.  Restoring the log settings.\n");
                     if (using_accesslog) {
                         config_set_accesslog_enabled(LOGGING_ON);
                     }
@@ -599,25 +599,27 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          *  Check if we are already critical
          */
         if (disk_space < 4096) { /* 4 k */
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is critically low on disk (%s), "
-                                                                     "remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
-                          dirstr, (disk_space / 1024));
-            g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space is critically low on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
+                    dirstr, (disk_space / 1024));
+            g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
             return;
         }
         /*
          *  If we are low, see if we are using verbose error logging, and turn it off
          *  if logging is not critical
          */
-        if (verbose_logging != 0 && verbose_logging != LDAP_DEBUG_ANY) {
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is low on disk (%s), remaining space: "
-                                                                     "%" PRIu64 " Kb, temporarily setting error loglevel to the default level(%d).\n",
-                          dirstr,
-                          (disk_space / 1024), SLAPD_DEFAULT_ERRORLOG_LEVEL);
+        if (verbose_logging != 0 &&
+            verbose_logging != LDAP_DEBUG_ANY &&
+            verbose_logging != SLAPD_DEFAULT_FE_ERRORLOG_LEVEL &&
+            verbose_logging != SLAPD_DEFAULT_ERRORLOG_LEVEL)
+        {
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space is low on disk (%s), remaining space: %" PRIu64 " Kb, "
+                    "temporarily setting error loglevel to the default level.\n",
+                    dirstr, (disk_space / 1024));
             /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
-            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
-                                      STRINGIFYDEFINE(SLAPD_DEFAULT_ERRORLOG_LEVEL),
-                                      NULL, CONFIG_APPLY);
+            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE, "0", NULL, CONFIG_APPLY);
             continue;
         }
         /*
@@ -625,9 +627,9 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          *  access/audit logs, log another error, and continue.
          */
         if (!logs_disabled && !logging_critical) {
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is too low on disk (%s), remaining "
-                                                                     "space: %" PRIu64 " Kb, disabling access and audit logging.\n",
-                          dirstr, (disk_space / 1024));
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space is too low on disk (%s), remaining space: %" PRIu64 " Kb, disabling access and audit logging.\n",
+                    dirstr, (disk_space / 1024));
             config_set_accesslog_enabled(LOGGING_OFF);
             config_set_auditlog_enabled(LOGGING_OFF);
             config_set_auditfaillog_enabled(LOGGING_OFF);
@@ -639,9 +641,9 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          *  access/audit logging, then delete the rotated logs, log another error, and continue.
          */
         if (!deleted_rotated_logs && !logging_critical) {
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is too low on disk (%s), remaining "
-                                                                     "space: %" PRIu64 " Kb, deleting rotated logs.\n",
-                          dirstr, (disk_space / 1024));
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space is too low on disk (%s), remaining space: %" PRIu64 " Kb, deleting rotated logs.\n",
+                    dirstr, (disk_space / 1024));
             log__delete_rotated_logs();
             deleted_rotated_logs = 1;
             continue;
@@ -650,22 +652,21 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          *  Ok, we've done what we can, log a message if we continue to lose available disk space
          */
         if (disk_space < previous_mark) {
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is too low on disk (%s), remaining "
-                                                                     "space: %" PRIu64 " Kb\n",
-                          dirstr, (disk_space / 1024));
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space is too low on disk (%s), remaining space: %" PRIu64 " Kb\n",
+                    dirstr, (disk_space / 1024));
         }
         /*
-         *
          *  If we are below the halfway mark, and we did everything else,
          *  go into shutdown mode. If the disk space doesn't get critical,
          *  wait for the grace period before shutting down.  This gives an
          *  admin the chance to clean things up.
-         *
          */
         if (disk_space < halfway) {
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space on (%s) is too far below the threshold(%" PRIu64 " bytes).  "
-                                                                     "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
-                          dirstr, threshold, (grace_period / 60));
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space on (%s) is too far below the threshold(%" PRIu64 " bytes).  "
+                    "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
+                    dirstr, threshold, (grace_period / 60));
             start = slapi_current_utc_time();
             now = start;
             while ((now - start) < grace_period) {
@@ -685,9 +686,9 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     /*
                      *  Excellent, we are back to acceptable levels, reset everything...
                      */
-                    slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread", "Available disk space is now "
-                                                                            "acceptable (%" PRIu64 " bytes).  Aborting shutdown, and restoring the log settings.\n",
-                                  disk_space);
+                    slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
+                            "Available disk space is now acceptable (%" PRIu64 " bytes).  Aborting shutdown, and restoring the log settings.\n",
+                            disk_space);
                     if (logs_disabled && using_accesslog) {
                         config_set_accesslog_enabled(LOGGING_ON);
                     }
@@ -709,9 +710,9 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     /*
                      *  Disk space is critical, log an error, and shut it down now!
                      */
-                    slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is critically low "
-                                                                             "on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
-                                  dirstr, (disk_space / 1024));
+                    slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                            "Disk space is critically low on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
+                            dirstr, (disk_space / 1024));
                     g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
                     return;
                 }
@@ -727,9 +728,9 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             /*
              *  If disk space was freed up we would of detected in the above while loop.  So shut it down.
              */
-            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread", "Disk space is still too low "
-                                                                     "(%" PRIu64 " Kb).  Signaling slapd for shutdown...\n",
-                          (disk_space / 1024));
+            slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                    "Disk space is still too low (%" PRIu64 " Kb).  Signaling slapd for shutdown...\n",
+                    (disk_space / 1024));
             g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
 
             return;
@@ -2717,7 +2718,9 @@ set_shutdown(int sig __attribute__((unused)))
 #if 0
     slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon", "slapd got shutdown signal\n");
 #endif
-    g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
+    if (g_get_shutdown() == 0) {
+        g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
+    }
 #ifndef LINUX
     /* don't mess with USR1/USR2 on linux, used by libpthread */
     (void)SIGNAL(SIGUSR2, set_shutdown);
