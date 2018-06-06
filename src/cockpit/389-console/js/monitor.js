@@ -1,4 +1,7 @@
-
+var accesslog_cont_refresh;
+var auditlog_cont_refresh;
+var auditfaillog_cont_refresh;
+var erorrslog_cont_refresh;
 
 function gen_ratio_chart(ratio, chart ) {
   var c3ChartDefaults = patternfly.c3ChartDefaults();
@@ -270,6 +273,38 @@ $(document).ready( function() {
       }
     });
 
+    // The continuous log refresh intervals
+    $("#accesslog-cont-refresh").change(function() {
+      if(this.checked) {
+        accesslog_cont_refresh = setInterval(refresh_access_log, 1000);
+      } else {
+        clearInterval(accesslog_cont_refresh);
+      }
+    });
+
+    $("#auditlog-cont-refresh").change(function() {
+      if(this.checked) {
+        auditlog_cont_refresh = setInterval(refresh_audit_log, 1000);
+      } else {
+        clearInterval(auditlog_cont_refresh);
+      }
+    });
+
+    $("#auditfaillog-cont-refresh").change(function() {
+      if(this.checked) {
+        auditfaillog_cont_refresh = setInterval(refresh_auditfail_log, 1000);
+      } else {
+        clearInterval(auditfaillog_cont_refresh);
+      }
+    });
+
+    $("#errorslog-cont-refresh").change(function() {
+      if(this.checked) {
+        errorslog_cont_refresh = setInterval(refresh_errors_log, 1000);
+      } else {
+        clearInterval(errorslog_cont_refresh);
+      }
+    });
 
     $(document).on('click', '.repl-detail-btn', function(e) {
       e.preventDefault();

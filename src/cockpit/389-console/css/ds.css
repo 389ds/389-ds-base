@@ -983,7 +983,6 @@ Zbutton:focus {
 .ds-adj-btn {
   padding: 0 !important;
   margin-left: 10px !important;
-  height: 26px !important;
   width: 100px !important;  
 }
 
@@ -1247,7 +1246,11 @@ option {
 }
 
 .ds-left-margin {
-  margin-left: 10px;
+  margin-left: 10px !important;
+}
+
+.ds-sm-left-margin {
+  margin-left: 5px !important;
 }
 
 .ds-table-btn {
@@ -1354,3 +1357,4 @@ option {
 .ds-suffix-cfg-div {
   min-width: 500px;
 }
+
