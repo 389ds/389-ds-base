@@ -1,7 +1,29 @@
+
 var accesslog_cont_refresh;
 var auditlog_cont_refresh;
 var auditfaillog_cont_refresh;
-var erorrslog_cont_refresh;
+var errorslog_cont_refresh;
+
+var sev_emerg =  " - EMERG - ";
+var sev_crit =   " - CRIT - ";
+var sev_alert =  " - ALERT - ";
+var sev_err =    " - ERR - ";
+var sev_warn =   " - WARN - ";
+var sev_notice = " - NOTICE - ";
+var sev_info =   " - INFO - ";
+var sev_debug =  " - DEBUG - ";
+var sev_levels = {"Emergency": sev_emerg,
+                  "Critical": sev_crit,
+                  "Alert": sev_alert,
+                  "Error": sev_err,
+                  "Warning": sev_warn,
+                  "Notice": sev_notice,
+                  "Info": sev_info,
+                  "Debug": sev_debug
+                 };
+var sev_all_errs = [sev_emerg, sev_crit, sev_alert, sev_err];
+var sev_all_info = [sev_warn, sev_notice, sev_info, sev_debug];
+
 
 function gen_ratio_chart(ratio, chart ) {
   var c3ChartDefaults = patternfly.c3ChartDefaults();
@@ -68,18 +90,18 @@ function gen_util_chart(used, maxsize, hitratio, chart ) {
 function refresh_access_log () {
   var access_log = "/var/log/dirsrv/" + server_id + "/access";  // TODO - get actual log location from config
   var lines = $("#accesslog-lines").val();
-  var logging = cockpit.spawn(["tail", "-" + lines, access_log], 
+  var logging = cockpit.spawn(["tail", "-" + lines, access_log],
                               { "superuser": "try" }).done(function(data) {
-    $("#accesslog-area").text(data); 
+    $("#accesslog-area").text(data);
   });
 }
 
 function refresh_audit_log () {
   var audit_log = "/var/log/dirsrv/" + server_id + "/audit";  // TODO - get actual log location from config
   var lines = $("#auditlog-lines").val();
-  var logging = cockpit.spawn(["tail", "-" + lines, audit_log], 
+  var logging = cockpit.spawn(["tail", "-" + lines, audit_log],
                               { "superuser": "try" }).done(function(data) {
-    $("#auditlog-area").text(data); 
+    $("#auditlog-area").text(data);
   });
 }
 
@@ -95,10 +117,36 @@ function refresh_auditfail_log () {
 function refresh_errors_log () {
   var errors_log = "/var/log/dirsrv/" + server_id + "/errors";  // TODO - get actual log location from config
   var lines = $("#errorslog-lines").val();
-  var logging = cockpit.spawn(["tail", "-" + lines, errors_log], 
+  var sev_level = $("#errorslog-sev-level").val();
+  var logging = cockpit.spawn(["tail", "-" + lines, errors_log],
                               { "superuser": "try" }).done(function(data) {
+    if (sev_level != "Everything"){
+      // Filter Data
+      var lines = data.split('\n');
+      var new_data = "";
+      for (var i = 0; i < lines.length; i++){
+        var line = "";
+        if (sev_level == "Error Messages"){
+          for (var lev = 0; lev < sev_all_errs.length; lev++) {
+            if (lines[i].indexOf(sev_all_errs[lev]) != -1){
+              line = lines[i] + "\n";
+            }
+          }
+        } else if (sev_level == "Info Messages"){
+          for (var lev = 0; lev < sev_all_info.length; lev++) {
+            if (lines[i].indexOf(sev_all_info[lev]) != -1){
+              line = lines[i] + "\n";
+            }
+          }
+        } else if (lines[i].indexOf(sev_levels[sev_level]) != -1){
+          line = lines[i] + "\n";
+        }
+        // Add the filtered line to new data
+        new_data += line;
+      }
+      data = new_data;
+    }
     $("#errorslog-area").text(data);
-    
   });
 }
 
@@ -170,7 +218,6 @@ $(document).ready( function() {
       refresh_errors_log();
       $("#monitor-log-errors-page").show();
     });
-
 
     $("#accesslog-refresh-btn").on('click', function () {
       refresh_access_log();
@@ -304,6 +351,11 @@ $(document).ready( function() {
       } else {
         clearInterval(errorslog_cont_refresh);
       }
+    });
+
+    // Refresh page after changing severity level
+    $("#errorslog-sev-level").on("change", function() {
+       refresh_errors_log();
     });
 
     $(document).on('click', '.repl-detail-btn', function(e) {

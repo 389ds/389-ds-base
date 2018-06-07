@@ -589,7 +589,7 @@
     <h3>Errors Log</h3>
     <hr>
     <label for="errorslog-lines"> Log Lines To Show</label><select
-      class="btn btn-default dropdown ds-log-dropdown" id="errorslog-lines">
+      class="btn btn-default dropdown ds-left-margin" id="errorslog-lines">
       <option>50</option>
       <option>100</option>
       <option>200</option>
@@ -601,7 +601,24 @@
       <option>5000</option>
       <option>10000</option>
     </select><button id="errorslog-refresh-btn" class="ds-adj-btn">Refresh</button><label
-      class="ds-left-margin">Continuously Refresh<input type="checkbox" class="ds-sm-left-margin" id="errorslog-cont-refresh"></label>
+      class="ds-left-margin">Continuously Refresh<input type="checkbox" class="ds-sm-left-margin" id="errorslog-cont-refresh"></label><div 
+      class="dropdown ds-float-right"><label 
+      for="errorslog-sev-level">Filter Logging By Severity Level</label><select
+        class="btn btn-default dropdown ds-left-margin" id="errorslog-sev-level">
+          <option>Everything</option>
+          <option>Error Messages</option>
+          <option>Info Messages</option>
+          <option disabled>──────────</option>
+          <option>Emergency</option>
+          <option>Alert</option>
+          <option>Critical</option>
+          <option>Error</option>
+          <option>Warning</option>
+          <option>Notice</option>
+          <option>Info</option>
+          <option>Debug</option>
+        </select>
+      </div>
     <textarea id="errorslog-area" class="ds-logarea"></textarea>
     <p></p>
   </div>
