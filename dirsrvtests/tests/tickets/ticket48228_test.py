@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
+import time
 
 import pytest
 from lib389.tasks import *
@@ -33,14 +34,14 @@ def set_global_pwpolicy(topology_st, inhistory):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     # Enable password policy
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', b'on')])
     except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
 
     log.info("		Set global password history on\n")
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordHistory', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordHistory', b'on')])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordHistory: error ' + e.message['desc'])
         assert False
@@ -48,7 +49,7 @@ def set_global_pwpolicy(topology_st, inhistory):
     log.info("		Set global passwords in history\n")
     try:
         count = "%d" % inhistory
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordInHistory', count)])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordInHistory', count.encode())])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordInHistory: error ' + e.message['desc'])
         assert False
@@ -113,9 +114,9 @@ def check_passwd_inhistory(topology_st, user, cpw, passwd):
     topology_st.standalone.simple_bind_s(user, cpw)
     time.sleep(1)
     try:
-        topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
+        topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', passwd.encode())])
     except ldap.LDAPError as e:
-        log.info('		The password ' + passwd + ' of user' + USER1_DN + ' in history: error ' + e.message['desc'])
+        log.info('		The password ' + passwd + ' of user' + USER1_DN + ' in history: error {0}'.format(e))
         inhistory = 1
     time.sleep(1)
     return inhistory
@@ -130,7 +131,7 @@ def update_passwd(topology_st, user, passwd, times):
         # Now update the value for this iter.
         cpw = 'password%d' % i
         try:
-            topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', cpw)])
+            topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', cpw.encode())])
         except ldap.LDAPError as e:
             log.fatal(
                 'test_ticket48228: Failed to update the password ' + cpw + ' of user ' + user + ': error ' + e.message[
@@ -146,7 +147,6 @@ def test_ticket48228_test_global_policy(topology_st):
     """
     Check global password policy
     """
-
     log.info('	Set inhistory = 6')
     set_global_pwpolicy(topology_st, 6)
 
@@ -201,7 +201,7 @@ def test_ticket48228_test_global_policy(topology_st):
     log.info("Global policy was successfully verified.")
 
 
-def test_ticket48228_test_subtree_policy(topology_st):
+def text_ticket48228_text_subtree_policy(topology_st):
     """
     Check subtree level password policy
     """
@@ -233,7 +233,7 @@ def test_ticket48228_test_subtree_policy(topology_st):
     log.info('	Set inhistory = 4')
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
-        topology_st.standalone.modify_s(SUBTREE_PWP, [(ldap.MOD_REPLACE, 'passwordInHistory', '4')])
+        topology_st.standalone.modify_s(SUBTREE_PWP, [(ldap.MOD_REPLACE, 'passwordInHistory', b'4')])
     except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False

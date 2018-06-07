@@ -42,7 +42,7 @@ def set_global_pwpolicy(topology_st, min_=1, max_=10, warn=3):
     log.info("	+++++ Enable global password policy +++++\n")
     # Enable password policy
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', b'on')])
     except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
@@ -54,28 +54,28 @@ def set_global_pwpolicy(topology_st, min_=1, max_=10, warn=3):
 
     log.info("		Set global password Min Age -- %s day\n" % min_)
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordMinAge', '%s' % min_secs)])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordMinAge', ('%s' % min_secs).encode())])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordMinAge: error ' + e.message['desc'])
         assert False
 
     log.info("		Set global password Expiration -- on\n")
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordExp', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordExp', b'on')])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordExp: error ' + e.message['desc'])
         assert False
 
     log.info("		Set global password Max Age -- %s days\n" % max_)
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordMaxAge', '%s' % max_secs)])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordMaxAge', ('%s' % max_secs).encode())])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordMaxAge: error ' + e.message['desc'])
         assert False
 
     log.info("		Set global password Warning -- %s days\n" % warn)
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordWarning', '%s' % warn_secs)])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordWarning', ('%s' % warn_secs).encode())])
     except ldap.LDAPError as e:
         log.error('Failed to set passwordWarning: error ' + e.message['desc'])
         assert False
@@ -93,6 +93,8 @@ def set_subtree_pwpolicy(topology_st, min_=2, max_=20, warn=6):
     try:
         topology_st.standalone.add_s(Entry((SUBTREE_CONTAINER, {'objectclass': 'top nsContainer'.split(),
                                                                 'cn': 'nsPwPolicyContainer'})))
+    except ldap.ALREADY_EXISTS:
+        pass
     except ldap.LDAPError as e:
         log.error('Failed to add subtree container: error ' + e.message['desc'])
         # assert False
@@ -128,6 +130,8 @@ def set_subtree_pwpolicy(topology_st, min_=2, max_=20, warn=6):
                                       'cosPriority': '1',
                                       'cn': SUBTREE_COS_TMPLDN,
                                       'pwdpolicysubentry': SUBTREE_PWP})))
+    except ldap.ALREADY_EXISTS:
+        pass
     except ldap.LDAPError as e:
         log.error('Failed to add COS template: error ' + e.message['desc'])
         # assert False
@@ -139,6 +143,8 @@ def set_subtree_pwpolicy(topology_st, min_=2, max_=20, warn=6):
                                      'cn': SUBTREE_PWPDN,
                                      'costemplatedn': SUBTREE_COS_TMPL,
                                      'cosAttribute': 'pwdpolicysubentry default operational-default'})))
+    except ldap.ALREADY_EXISTS:
+        pass
     except ldap.LDAPError as e:
         log.error('Failed to add COS def: error ' + e.message['desc'])
         # assert False
@@ -150,7 +156,7 @@ def update_passwd(topology_st, user, passwd, newpasswd):
     log.info("		Bind as {%s,%s}" % (user, passwd))
     topology_st.standalone.simple_bind_s(user, passwd)
     try:
-        topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', newpasswd)])
+        topology_st.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', newpasswd.encode())])
     except ldap.LDAPError as e:
         log.fatal('test_ticket548: Failed to update the password ' + cpw + ' of user ' + user + ': error ' + e.message[
             'desc'])
