@@ -126,7 +126,11 @@ static const char *internal_entries[] =
         "nsslapd-pluginpath: libpwdstorage-plugin\n"
         "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
         "nsslapd-plugintype: pwdstoragescheme\n"
-        "nsslapd-pluginenabled: on\n",
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: PBKDF2_SHA256\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: PBKDF2_SHA256\n",
 
         "dn: cn=CRYPT-MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectClass: top\n"
@@ -135,7 +139,11 @@ static const char *internal_entries[] =
         "nsslapd-pluginPath: libpwdstorage-plugin\n"
         "nsslapd-pluginInitfunc: crypt_md5_pwd_storage_scheme_init\n"
         "nsslapd-pluginType: pwdstoragescheme\n"
-        "nsslapd-pluginEnabled: on\n",
+        "nsslapd-pluginEnabled: on\n"
+        "nsslapd-pluginId: CRYPT-MD5\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: CRYPT-MD5\n",
 
         "dn: cn=CRYPT-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectClass: top\n"
@@ -144,7 +152,11 @@ static const char *internal_entries[] =
         "nsslapd-pluginPath: libpwdstorage-plugin\n"
         "nsslapd-pluginInitfunc: crypt_sha256_pwd_storage_scheme_init\n"
         "nsslapd-pluginType: pwdstoragescheme\n"
-        "nsslapd-pluginEnabled: on\n",
+        "nsslapd-pluginEnabled: on\n"
+        "nsslapd-pluginId: CRYPT-SHA256\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: CRYPT-SHA256\n",
 
         "dn: cn=CRYPT-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectClass: top\n"
@@ -153,7 +165,11 @@ static const char *internal_entries[] =
         "nsslapd-pluginPath: libpwdstorage-plugin\n"
         "nsslapd-pluginInitfunc: crypt_sha512_pwd_storage_scheme_init\n"
         "nsslapd-pluginType: pwdstoragescheme\n"
-        "nsslapd-pluginEnabled: on\n",
+        "nsslapd-pluginEnabled: on\n"
+        "nsslapd-pluginId: CRYPT-SHA512\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: CRYPT-SHA512\n",
 };
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries) / sizeof(internal_entries[0]);
