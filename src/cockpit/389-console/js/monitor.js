@@ -305,7 +305,7 @@ $(document).ready( function() {
       "lengthMenu": [ 10, 25, 50, 100],
       "language": {
         "emptyTable": "No Replication Agreements",
-        "search": "Search Agreements"
+        "search": "Search"
       }
     });
 
@@ -316,7 +316,7 @@ $(document).ready( function() {
       "lengthMenu": [ 10, 25, 50, 100],
       "language": {
         "emptyTable": "No Winsync Agreements",
-        "search": "Search Agreements"
+        "search": "Search"
       }
     });
 
@@ -390,7 +390,6 @@ $(document).ready( function() {
       // clear_agmt_form();
 
       $("#repl-winsync-agmt-header").html("<b>Winsync Agreement Details:</b>&nbsp;&nbsp; " + agmt_name + " " + agmt_status);
-      console.log("MARK we are here");
       // TODO  - get agreement details and populate form
       $("#monitor-winsync-agmt-form").css('display', 'block');
     });

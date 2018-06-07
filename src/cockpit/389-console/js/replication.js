@@ -11,12 +11,12 @@ var agmt_action_html =
       '<span class="caret"></span>' +
     '</button>' +
     '<ul class="dropdown-menu ds-agmt-dropdown" role="menu">' +
-      '<li role=""><a role="menuitem" tabindex="0" class="repl-agmt-btn agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="1" class="repl-agmt-btn" href="#">Initialize Consumer (online)</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn" href="#">Initialize Consumer (ldif)</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn" href="#">Send Updates Now</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn" href="#">Enable/Disable Agreement</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn agmt-del-btn" href="#">Delete Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn" href="#">Initialize Consumer (online)</a></li>' +
+      '<li role=""><a class="repl-agmt-btn" href="#">Initialize Consumer (ldif)</a></li>' +
+      '<li role=""><a class="repl-agmt-btn" href="#">Send Updates Now</a></li>' +
+      '<li role=""><a class="repl-agmt-btn" href="#">Enable/Disable Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn agmt-del-btn" href="#">Delete Agreement</a></li>' +
     '</ul>' +
   '</div>';
 
@@ -27,10 +27,10 @@ var winsync_agmt_action_html =
       '<span class="caret"></span>' +
     '</button>' +
     '<ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu2">' +
-      '<li role=""><a role="menuitem" tabindex="0" class="repl-agmt-btn agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="1" class="repl-agmt-btn" href="#">Send/Receives Updates Now</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn" href="#">Full Re-synchronization</a></li>' +
-      '<li role=""><a role="menuitem" tabindex="-1" class="repl-agmt-btn agmt-del-btn" href="#">Delete Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn winsync-agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn" href="#">Send/Receives Updates Now</a></li>' +
+      '<li role=""><a class="repl-agmt-btn" href="#">Full Re-synchronization</a></li>' +
+      '<li role=""><a class="repl-agmt-btn winsync-agmt-del-btn" href="#">Delete Agreement</a></li>' +
     '</ul>' +
   '</div>';
 
@@ -397,17 +397,33 @@ $(document).ready( function() {
       e.preventDefault();
       clear_agmt_wizard();
 
-      // Update HTML table
       var data = repl_agmt_table.row( $(this).parents('tr') ).data();
       var edit_agmt_name = data[0];
 
-      // TODO Get agreement from DS
+      // TODO Get agreement from DS and populate form
 
       // Set agreement form values
       $("#agmt-wizard-title").html("<b>Edit Replication Agreement</b>");
 
       // Open form
-      $("#agmt-form").css('display', 'block');
+      $("#agmt-form").modal('toggle');
+    });
+
+    // Edit Winsync Agreement
+    $(document).on('click', '.winsync-agmt-edit-btn', function(e) {
+      e.preventDefault();
+      clear_winsync_agmt_wizard();
+
+      var data = repl_winsync_agmt_table.row( $(this).parents('tr') ).data();
+      var edit_agmt_name = data[0];
+
+      // TODO Get agreement from DS and populate form
+
+      // Set agreement form values
+      $("#winsync-label").html("<b>Edit Winsync Agreement</b>");
+
+      // Open form
+      $("#winsync-agmt-form").modal('toggle');
     });
 
     // Handle disabling/enabling of agmt schedule panel

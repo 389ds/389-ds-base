@@ -626,18 +626,18 @@
 
 
   <div id="monitor-repl-page" class="all-pages" hidden>
-    <h3>Replication Monitoring</h3>
-    <hr class="ds-hr">
-    <input type="checkbox" class="ds-config-checkbox" id="skipped-disabled" checked><label
-      for="skipped-disabled" class="ds-label" title="Do not list replication agreements that are disabled"> Ignore Disabled Replication Agreements</label>
+    <h3>Replication Monitoring for <select class="btn btn-default dropdown ds-select" id="monitor-repl-backend-list">
+      <option>dc=example,dc=com</option></select></h3>
+    <hr>
+    <h4>Replication Agreements</h4>
     <table id="monitor-repl-table" class="display ds-table" cellspacing="0" width="100%">
       <thead>
         <tr class="ds-table-header">
           <th>Agreement</th>
           <th>Replica</th>
-          <th>Suffix</th>
-          <th>Replication State</th>
+          <th>Enabled</th>
           <th>Replication Lag</th>
+          <th>Replication State</th>
           <th></th>
         </tr>
       </thead>
@@ -645,41 +645,40 @@
         <tr>
           <td>me2localhost</td>
           <td>localhost.localdomain:5555</td>
-          <td>dc=example,dc=com</td>
-          <td><div class="ds-repl-state-good">Good</div></td>
-          <td class="ds-repl-agmt-good">00:00:00</td>
+          <td>Yes</td>
+          <td>00:00:00</td>
+          <td data-sort="good"><div class="ds-repl-state-good"><span class="glyphicon glyphicon-thumbs-up"></span></div></td>
           <td><button class="btn btn-default ds-agmt-dropdown-button repl-detail-btn" data-toggle="modal" data-target="#monitor-agmt-form" type="button">View Details</button></td>
         </tr>
         <tr>
           <td>me2beaker</td>
           <td>lab1.localdomain.com:389</td>
-          <td>o=ipaca</td>
-          <td><div class="ds-repl-state-good">Good</div></td>
-          <td class="ds-repl-agmt-good">00:00:02</td>
+          <td>Yes</td>
+          <td >00:00:02</td>
+          <td data-sort="good"><div class="ds-repl-state-good"><span class="glyphicon glyphicon-thumbs-up"></span></div></td>
           <td><button class="btn btn-default ds-agmt-dropdown-button repl-detail-btn" data-toggle="modal" data-target="#monitor-agmt-form" type="button">View Details</button></td>
         </tr>
         <tr>
           <td>me2fedora</td>
           <td>lab45.localdomain.com:389</td>
-          <td>o=ipaca</td>
-          <td><div class="ds-repl-state-good">Good</div></td>
-          <td class="ds-repl-agmt-warning">00:09:02</td>
+          <td>Yes</td>
+          <td>00:09:02</td>
+          <td data-sort="good"><div class="ds-repl-state-good"><span class="glyphicon glyphicon-thumbs-up"></span></div></td>
           <td><button class="btn btn-default ds-agmt-dropdown-button repl-detail-btn" data-toggle="modal" data-target="#monitor-agmt-form" type="button">View Details</button></td>
         </tr>
         <tr>
           <td>me2beaker</td>
           <td>lab11.localdomain.com:389</td>
-          <td>o=ipaca</td>
-          <td><div class="ds-repl-state-bad">Bad</div></td>
-          <td class="ds-repl-agmt-bad">00:45:02</td>
+          <td>Yes</td>
+          <td class="ds-repl-lag-bad">00:45:02</td>
+          <td data-sort="bad"><div class="ds-repl-state-bad"><span class="glyphicon glyphicon-thumbs-down"></span></div></td>
           <td><button class="btn btn-default ds-agmt-dropdown-button repl-detail-btn" data-toggle="modal" data-target="#monitor-agmt-form" type="button">View Details</button></td>
         </tr>
       </tbody>
     </table>
     <p></p>
-
-    <h3>Windows Synchronization</h3>
-    <hr class="ds-hr">
+    <hr>
+    <h4>Windows Synchronization Agreements</h4>
     <table id="monitor-winsync-table" class="display ds-table" cellspacing="0" width="100%">
     <thead>
         <tr class="ds-table-header">
@@ -697,7 +696,7 @@
           <td>localhost.domain.com:389</td>
           <td>cn=users,dc=example,dc=com</td>
           <td>ou=people,dc=example,dc=com</td>
-          <td><div class="ds-repl-state-good">Good</div></td>
+          <td data-sort="good"><div class="ds-repl-state-good"><span class="glyphicon glyphicon-thumbs-up"></span></div></td>
           <td><button class="btn btn-default ds-agmt-dropdown-button repl-winsync-detail-btn" data-toggle="modal" 
             data-target="#monitor-winsync-agmt-form" type="button">View Details</button></td>
         </tr>

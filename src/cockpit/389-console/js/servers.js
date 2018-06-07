@@ -147,14 +147,14 @@ function clear_inst_input() {
 function clear_inst_form() {
   $(".ds-modal-error").hide();
   $("#create-inst-serverid").val("");
-  $("#create-inst-port").val("");
-  $("#create-inst-secureport").val("");
-  $("#create-inst-rootdn").val("");
+  $("#create-inst-port").val("389");
+  $("#create-inst-secureport").val("636");
+  $("#create-inst-rootdn").val("cn=Directory Manager");
   $("#create-inst-user").val("dirsrv");
   $("#create-inst-group").val("dirsrv");
   $("#rootdn-pw").val("");
   $("#rootdn-pw-confirm").val("");
-  $("#create-inst-tls").prop('checked', true);
+  $("#create-inst-tls").prop('checked', false);
   clear_inst_input();
 }
 
@@ -756,6 +756,7 @@ $(document).ready( function() {
     // Create instance form
     $("#create-server-btn").on("click", function() {;
       clear_inst_form();
+      set_ports();
     });
     $("#no-inst-create-btn").on("click", function () {
       clear_inst_form();

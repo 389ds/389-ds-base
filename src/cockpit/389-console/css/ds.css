@@ -75,15 +75,15 @@
 
 .ds-repl-state-good {
   margin: auto;
-  width: 70px;
+  width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: 50%;
   font-size: 12px;
   font-weight: bold;
   color: white;
   line-height: 1;
   text-align: center;
-  background-color: green;
+  background-color: #4dac26;
   border-color: black;
   padding-top: 8px; 
   align-content: center !important;
@@ -92,15 +92,15 @@
 
 .ds-repl-state-bad {
   margin: auto;
-  width: 70px;
+  width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: 50%;
   font-size: 12px;
   font-weight: bold;
   color: white;
   line-height: 1;
   text-align: center;
-  background-color:  #f11710 ;
+  background-color:  #d01c8b;
   border-color: black;
   padding-top: 8px; 
   align-content: center !important;
@@ -121,18 +121,9 @@
   margin-bottom: 15px;
 }
 
-.ds-repl-agmt-good {
-  background-color: lightgreen !important;
-  color: black;
-}
-
-.ds-repl-agmt-warning {
-  background-color: yellow !important;
-  color: black;
-}
-.ds-repl-agmt-bad {
-  background-color: lightsalmon !important;
-  color: black;
+.ds-repl-lag-bad {
+  font-weight: bold;
+  color: #7b3294;
 }
 
 .ds-button-border {

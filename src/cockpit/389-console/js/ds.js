@@ -25,6 +25,7 @@ function tableize (val) {
   return val;
 }
 
+// Example
 function search_dse(){
   document.getElementById('results').innerHTML = "Searching root dse...";
   var cmd = ['/usr/bin/ldapsearch','-Y', 'EXTERNAL' , '-H',
@@ -33,6 +34,27 @@ function search_dse(){
   cockpit.spawn(cmd, { superuser: true }).done(function(data) {
     $("#results").text(data); }
   );
+}
+
+/*
+ * Set the ports numbers on the instance creation form.  If the default ports
+ * are taken just unset the values.
+ */
+function set_ports() {
+  var cmd = ['ss', '-ntpl'];
+  cockpit.spawn(cmd, { superuser: true, "err": "message"}).done(function(data) {
+    var lines = data.split('\n');
+    $("#create-inst-port").val("389");
+    $("#create-inst-secureport").val("636");
+    for (var i = 0; i < lines.length; i++){
+      if (lines[i].indexOf("LISTEN") != -1 && lines[i].indexOf(":389 ") != -1) {
+        $("#create-inst-port").val("");
+      }
+      if (lines[i].indexOf("LISTEN") != -1 && lines[i].indexOf(":636 ") != -1) {
+        $("#create-inst-secureport").val("");
+      }
+    }
+  });
 }
 
 // POC - REMOVE!!!!!

@@ -285,15 +285,15 @@
             <div class="ds-inline">
               <div>
                 <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to \"slapi-\"">
-                  Instance Name</label><input class="ds-input" type="text" id="create-inst-serverid" placeholder="Your_Instance" required />
+                  Instance Name</label><input class="ds-input" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
               </div>
               <div>
                 <label for="create-inst-port" class="ds-config-label" title="The server port number">
-                  Port</label><input class="ds-input" type="text" placeholder="389" id="create-inst-port" required />
+                  Port</label><input class="ds-input" type="text" value="389" id="create-inst-port" required />
               </div>
               <div>
                 <label for="create-inst-secureport" class="ds-config-label" title="The secure port number for TLS connections">
-                  Secure Port</label><input class="ds-input" type="text" placeholder="636" id="create-inst-secureport" required />
+                  Secure Port</label><input class="ds-input" type="text" value="636" id="create-inst-secureport" required />
               </div>
               <div>
                 <label for="create-inst-user" class="ds-config-label" title="Server user that the server runs as">
@@ -305,7 +305,7 @@
               </div>
               <div>
                 <label for="create-inst-rootdn" class="ds-config-label" title="The DN for the unrestricted  user">
-                  Directory Manager DN</label><input class="ds-input" placeholder="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
+                  Directory Manager DN</label><input class="ds-input" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
               </div>
               <div>
                 <label for="rootdn-pw" class="ds-config-label" title="Directory Manager password.">Directory Manager Password</label><input
@@ -317,7 +317,7 @@
               </div>
               <div>
                 <p></p>
-                <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
+                <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls"><label
                   for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
               </div>
               <div id="create-inst-spinner" class="ds-center" hidden>
