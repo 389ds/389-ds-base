@@ -1237,6 +1237,11 @@ ns_job_rearm(ns_job_t *job)
     /* Unreachable code .... */
     return NS_INVALID_REQUEST;
 }
+int
+ns_job_is_func(struct ns_job_t *job, ns_job_func_t func)
+{
+    return(job && job->func == func);
+}
 
 static void
 ns_thrpool_delete(ns_thrpool_t *tp)

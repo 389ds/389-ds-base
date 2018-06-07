@@ -959,4 +959,7 @@ ns_result_t ns_thrpool_wait(struct ns_thrpool_t *tp);
  */
 ns_result_t ns_job_rearm(struct ns_job_t *job);
 
+int
+ns_job_is_func(struct ns_job_t *job, ns_job_func_t func);
+
 #endif /* NS_THRPOOL_H */
