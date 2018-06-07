@@ -1644,6 +1644,10 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
     int attr_free_flags = 0;
     int rc = 0;
     int optype = -1;
+    int free_e = 1; /* reset if e is taken from pb */
+    if (pb) {
+        slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);
+    }
 
     /* If we already allocated a pw policy, return it */
     if (pb != NULL) {
@@ -1707,7 +1711,43 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             /*  If we're not doing an add, we look for the pwdpolicysubentry
             attribute in the target entry itself. */
         } else {
-            if ((e = get_entry(pb, dn)) != NULL) {
+            if (optype == SLAPI_OPERATION_SEARCH) {
+                Slapi_Entry *pb_e;
+
+                /* During a search the entry should be in the pblock
+                 * For safety check entry DN is identical to 'dn'
+                 */
+                slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &pb_e);
+                if (pb_e) {
+                    Slapi_DN * sdn;
+                    const char *ndn;
+                    char *pb_ndn;
+
+                    pb_ndn = slapi_entry_get_ndn(pb_e);
+
+                    sdn = slapi_sdn_new_dn_byval(dn);
+                    ndn = slapi_sdn_get_ndn(sdn);
+
+                    if (strcasecmp(pb_ndn, ndn) == 0) {
+                        /* We are using the candidate entry that is already loaded in the pblock
+                         * Do not trigger an additional internal search
+                         * Also we will not need to free the entry that will remain in the pblock
+                         */
+                        e = pb_e;
+                        free_e = 0;
+                    } else {
+                        e = get_entry(pb, dn);
+                    }
+                    slapi_sdn_free(&sdn);
+                } else {
+                    e = get_entry(pb, dn);
+                }
+            } else {
+                /* For others operations but SEARCH */
+                e = get_entry(pb, dn);
+            }
+
+            if (e) {
                 Slapi_Attr *attr = NULL;
                 rc = slapi_entry_attr_find(e, "pwdpolicysubentry", &attr);
                 if (attr && (0 == rc)) {
@@ -1737,7 +1777,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                 }
             }
             slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
-            slapi_entry_free(e);
+            if (free_e) {
+                slapi_entry_free(e);
+            }
 
             if (pw_entry == NULL) {
                 slapi_log_err(SLAPI_LOG_ERR, "new_passwdPolicy",
@@ -1935,7 +1977,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                 slapi_pblock_set_pwdpolicy(pb, pwdpolicy);
             }
             return pwdpolicy;
-        } else if (e) {
+        } else if (free_e) {
             slapi_entry_free(e);
         }
     }
