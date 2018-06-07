@@ -152,12 +152,21 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRN
  */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn);
 static void ns_handle_new_connection(struct ns_job_t *job);
+static void ns_handle_closure(struct ns_job_t *job);
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
 static int clear_signal(struct POLL_STRUCT *fds);
 static void unfurl_banners(Connection_Table *ct, daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
 static int write_pid_file(void);
 static int init_shutdown_detect(void);
 
+#define NS_HANDLER_NEW_CONNECTION   0
+#define NS_HANDLER_READ_CONNECTION  1
+#define NS_HANDLER_CLOSE_CONNECTION 2
+static ns_job_func_t ns_handlers[] = {
+    ns_handle_new_connection,
+    ns_handle_pr_read_ready,
+    ns_handle_closure
+};
 /*
  * NSPR has different implementations for PRMonitor, depending
  * on the availble threading model
@@ -1058,7 +1067,7 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
         for (size_t ii = 0; ii < listeners; ++ii) {
             listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
             ns_result_t result = ns_add_io_job(tp, listener_idxs[ii].listenfd, NS_JOB_ACCEPT | NS_JOB_PERSIST | NS_JOB_PRESERVE_FD,
-                                               ns_handle_new_connection, &listener_idxs[ii], &(listener_idxs[ii].ns_job));
+                                               ns_handlers[NS_HANDLER_NEW_CONNECTION], &listener_idxs[ii], &(listener_idxs[ii].ns_job));
             if (result != NS_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_CRIT, "slapd_daemon", "ns_add_io_job failed to create add acceptor %d\n", result);
             }
@@ -1684,27 +1693,83 @@ ns_handle_closure(struct ns_job_t *job)
 /**
  * Schedule more I/O for this connection, or make sure that it
  * is closed in the event loop.
+ * 
  * caller must hold c_mutex
- * It returns
- *  0 on success
- *  1 on need to retry
  */
-static int
-ns_connection_post_io_or_closing_try(Connection *conn)
+void
+ns_connection_post_io_or_closing(Connection *conn)
 {
     struct timeval tv;
 
     if (!enable_nunc_stans) {
-        return 0;
+        return;
     }
 
     /*
      * A job was already scheduled.
-     * Let it be dispatched first
+     * Check if it is the appropriate one
      */
     if (conn->c_job != NULL) {
-        return 1;
+        if (connection_is_free(conn, 0)) {
+            PRStatus shutdown_status;
+
+            /* The connection being freed,
+             * It means that ns_handle_closure already completed and the connection
+             * is no longer on the active list.
+             * The scheduled job is useless and scheduling a new one as well
+             */
+            shutdown_status = ns_job_done(conn->c_job);
+            if (shutdown_status != PR_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_CRIT, "ns_connection_post_io_or_closing", "Failed cancel a job on a freed connection %d !\n", conn->c_sd);
+            }
+            conn->c_job = NULL;
+            return;
+        }
+        if (CONN_NEEDS_CLOSING(conn)) {
+            if (ns_job_is_func(conn->c_job, ns_handlers[NS_HANDLER_CLOSE_CONNECTION])) {
+                /* Due to the closing state we would schedule a ns_handle_closure
+                 * but one is already registered.
+                 * Just return;
+                 */
+                slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already ns_handle_closure "
+                        "job in progress on conn %" PRIu64 " for fd=%d\n",
+                        conn->c_connid, conn->c_sd);
+                return;
+            } else {
+                /* Due to the closing state we would schedule a ns_handle_closure
+                 * but a different handler is registered. Stop it and schedule (below) ns_handle_closure
+                 */
+                ns_job_done(conn->c_job);
+                conn->c_job = NULL;
+            }
+        } else {
+            /* Here the connection is still active => ignore the call and return */
+            if (ns_job_is_func(conn->c_job, ns_handlers[NS_HANDLER_READ_CONNECTION])) {
+                /* Connection is still active and a read_ready is already scheduled
+                 * Likely a consequence of async operations
+                 * Just let the current read_ready do its job
+                 */
+                slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already ns_handle_pr_read_ready "
+                                                                               "job in progress on conn %" PRIu64 " for fd=%d\n",
+                          conn->c_connid, conn->c_sd);
+            } else {
+                /* Weird situation where the connection is not flagged closing but ns_handle_closure
+                 * is scheduled.
+                 * We should not try to read it anymore
+                 */
+                PR_ASSERT(ns_job_is_func(conn->c_job, ns_handlers[NS_HANDLER_CLOSE_CONNECTION]));
+            }
+            return;
+        }
     }
+
+    /* At this point conn->c_job is NULL
+     * Either it was null when the function was called
+     * Or we cleared it (+ns_job_done) if the wrong (according
+     * to the connection state) handler was scheduled
+     *
+     * Now we need to determine which handler to schedule
+     */
 
     if (CONN_NEEDS_CLOSING(conn)) {
         /* there should only ever be 0 or 1 active closure jobs */
@@ -1718,7 +1783,7 @@ ns_connection_post_io_or_closing_try(Connection *conn)
             conn->c_ns_close_jobs++;                                                      /* now 1 active closure job */
             connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
             /* Close the job asynchronously. Why? */
-            ns_result_t job_result = ns_add_job(conn->c_tp, NS_JOB_TIMER, ns_handle_closure, conn, &(conn->c_job));
+            ns_result_t job_result = ns_add_job(conn->c_tp, NS_JOB_TIMER, ns_handlers[NS_HANDLER_CLOSE_CONNECTION], conn, &(conn->c_job));
             if (job_result != NS_SUCCESS) {
                 if (job_result == NS_SHUTDOWN) {
                     slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post closure job "
@@ -1762,7 +1827,7 @@ ns_connection_post_io_or_closing_try(Connection *conn)
 #endif
         ns_result_t job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
                                                        NS_JOB_READ | NS_JOB_PRESERVE_FD,
-                                                       ns_handle_pr_read_ready, conn, &(conn->c_job));
+                                                       ns_handlers[NS_HANDLER_READ_CONNECTION], conn, &(conn->c_job));
         if (job_result != NS_SUCCESS) {
             if (job_result == NS_SHUTDOWN) {
                 slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post I/O job for "
@@ -1780,61 +1845,6 @@ ns_connection_post_io_or_closing_try(Connection *conn)
         }
     }
     return 0;
-}
-
-/*
- * Tries to schedule I/O for this connection
- * If the connection is already busy with a scheduled I/O
- * it can wait until scheduled I/O is dispatched
- *
- * caller must hold c_mutex
- */
-void
-ns_connection_post_io_or_closing(Connection *conn)
-{
-    while (ns_connection_post_io_or_closing_try(conn)) {
-        /* Here a job is currently scheduled (c->job is set) and not yet dispatched
-         * Job can be either:
-         *  - ns_handle_closure
-         *  - ns_handle_pr_read_ready
-         */
-
-        if (connection_is_free(conn, 0)) {
-            PRStatus shutdown_status;
-
-            /* The connection being freed,
-             * It means that ns_handle_closure already completed and the connection
-             * is no longer on the active list.
-             * The scheduled job is useless and scheduling a new one as well
-             */
-            shutdown_status = ns_job_done(conn->c_job);
-            if (shutdown_status != PR_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_CRIT, "ns_connection_post_io_or_closing", "Failed cancel a job on a freed connection %d !\n", conn->c_sd);
-            }
-            conn->c_job = NULL;
-            return;
-        }
-        if (g_get_shutdown() && CONN_NEEDS_CLOSING(conn)) {
-            PRStatus shutdown_status;
-
-            /* This is shutting down cancel any scheduled job to register ns_handle_closure
-             */
-            shutdown_status = ns_job_done(conn->c_job);
-            if (shutdown_status != PR_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_CRIT, "ns_connection_post_io_or_closing", "Failed to cancel a job during shutdown %d !\n", conn->c_sd);
-            }
-            conn->c_job = NULL;
-            continue;
-        }
-
-        /* We are not suppose to work immediately on the connection that is taken by
-         * another job
-         * release the lock and give some time
-         */
-        PR_ExitMonitor(conn->c_mutex);
-        DS_Sleep(PR_MillisecondsToInterval(100));
-        PR_EnterMonitor(conn->c_mutex);
-    }
 }
 
 /* This function must be called without the thread flag, in the
