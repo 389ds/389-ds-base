@@ -54,11 +54,11 @@ def enable_ssl(server, ldapsport, mycert):
                               (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
                               (ldap.MOD_REPLACE, 'nsslapd-secureport', ldapsport)])
 
-    server.rsa.create(properties={'objectclass': "top nsEncryptionModule".split(),
-                                  'cn': 'RSA',
-                                  'nsSSLPersonalitySSL': mycert,
-                                  'nsSSLToken': 'internal (software)',
-                                  'nsSSLActivation': 'on'})
+    server.rsa.ensure_state(properties={'objectclass': "top nsEncryptionModule".split(),
+                                        'cn': 'RSA',
+                                        'nsSSLPersonalitySSL': mycert,
+                                        'nsSSLToken': 'internal (software)',
+                                        'nsSSLActivation': 'on'})
 
 
 def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
@@ -125,6 +125,12 @@ def doAndPrintIt(cmdline):
 
 def create_keys_certs(topology_m2):
     log.info("\n######################### Creating SSL Keys and Certs ######################\n")
+
+    for inst in topology_m2:
+        log.info("##### Ensure that nsslapd-extract-pemfiles is 'off' on {}".format(inst.serverid))
+        inst.config.set('nsslapd-extract-pemfiles', 'off')
+        log.info("##### restart {}".format(inst.serverid))
+        inst.restart()
 
     global m1confdir
     m1confdir = topology_m2.ms["master1"].confdir

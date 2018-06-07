@@ -36,6 +36,15 @@ extern char *localuser;
 char *rel2abspath(char *);
 
 static char *bootstrap_plugins[] = {
+    "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+    "objectclass: top\n"
+    "objectclass: nsSlapdPlugin\n"
+    "cn: PBKDF2_SHA256\n"
+    "nsslapd-pluginpath: libpwdstorage-plugin\n"
+    "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
+    "nsslapd-plugintype: pwdstoragescheme\n"
+    "nsslapd-pluginenabled: on",
+
     NULL
 };
 

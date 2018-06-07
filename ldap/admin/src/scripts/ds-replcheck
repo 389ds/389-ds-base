@@ -110,6 +110,14 @@ def convert_entries(entries):
     for entry in entries:
         new_entry = Entry(entry)
         new_entry.data = {k.lower(): v for k, v in list(new_entry.data.items())}
+
+        # Decode nscpentrywsi bytes values for future use
+        nscpentrywsi_list = []
+        if 'nscpentrywsi' in new_entry.data:
+            for val in map(bytes.decode, new_entry.data['nscpentrywsi']):
+                nscpentrywsi_list.append(val)
+            new_entry.data['nscpentrywsi'] = nscpentrywsi_list
+
         if new_entry.dn.endswith("cn=mapping tree,cn=config"):
             '''Skip replica entry (ldapsearch brings this in because the filter
             we use triggers an internal operation to return the config entry - so

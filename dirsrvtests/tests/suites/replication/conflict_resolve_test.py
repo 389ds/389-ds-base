@@ -396,6 +396,8 @@ class TestTwoMasters:
             10. It should pass
         """
 
+        pytest.xfail("Issue 49591 - work in progress")
+
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
         test_users_m1 = UserAccounts(M1, test_base.dn, rdn=None)
@@ -485,6 +487,8 @@ class TestTwoMasters:
             8. It should pass
         """
 
+        pytest.xfail("Issue 49591 - work in progress")
+
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
         repl = ReplicationManager(SUFFIX)
@@ -573,6 +577,8 @@ class TestTwoMasters:
             13. It should pass
             14. It should pass
         """
+
+        pytest.xfail("Issue 49591 - work in progress")
 
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
@@ -784,6 +790,8 @@ class TestThreeMasters:
             7. It should pass
             8. It should pass
         """
+
+        pytest.xfail("Issue 49591 - work in progress")
 
         M1 = topology_m3.ms["master1"]
         M2 = topology_m3.ms["master2"]
