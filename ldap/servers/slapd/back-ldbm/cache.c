@@ -731,10 +731,10 @@ cache_set_max_entries(struct cache *cache, int64_t entries)
     }
 }
 
-size_t
+uint64_t
 cache_get_max_size(struct cache *cache)
 {
-    size_t n = 0;
+    uint64_t n = 0;
 
     cache_lock(cache);
     n = cache->c_maxsize;
