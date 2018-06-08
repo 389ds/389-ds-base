@@ -1778,7 +1778,7 @@ ns_connection_post_io_or_closing(Connection *conn)
             slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already a close "
                                                                                "job in progress on conn %" PRIu64 " for fd=%d\n",
                           conn->c_connid, conn->c_sd);
-            return 0;
+            return;
         } else {
             conn->c_ns_close_jobs++;                                                      /* now 1 active closure job */
             connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
@@ -1822,7 +1822,7 @@ ns_connection_post_io_or_closing(Connection *conn)
              * The error occurs when we get a connection in a closing state.
              * For now we return, but there is probably a better way to handle the error case.
              */
-            return 0;
+            return;
         }
 #endif
         ns_result_t job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
@@ -1844,7 +1844,7 @@ ns_connection_post_io_or_closing(Connection *conn)
                           conn->c_connid, conn->c_sd);
         }
     }
-    return 0;
+    return;
 }
 
 /* This function must be called without the thread flag, in the
