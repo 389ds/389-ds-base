@@ -759,6 +759,7 @@ libexec_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
 
 install-data-hook:
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
+	mkdir -p $(DESTDIR)$(cockpitdir)
 	rsync -rupE src/cockpit/389-console/ $(DESTDIR)$(cockpitdir)
 
 if ENABLE_PERL
