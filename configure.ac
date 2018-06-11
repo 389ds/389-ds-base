@@ -545,12 +545,12 @@ if test -n "$with_pythonexec"; then
   if test  "$with_pythonexec" = yes ; then
     AC_MSG_ERROR([You must specify --with-pythonexec=/full/path/to/python])
   elif test  "$with_pythonexec" = no ; then
-    with_pythonexec=/usr/bin/python2
+    with_pythonexec=/usr/bin/python3
   else
     AC_MSG_RESULT([$with_pythonexec])
   fi
 else
-  with_pythonexec=/usr/bin/python2
+  with_pythonexec=/usr/bin/python3
 fi
 
 AC_SUBST(prefixdir)
@@ -630,7 +630,7 @@ fi
 if test -n "$with_pythonexec"; then
   pythonexec="$with_pythonexec"
 else
-  pythonexec='/usr/bin/env python2'
+  pythonexec='/usr/bin/python3'
 fi
 
 # Default to no atomic queue operations.
