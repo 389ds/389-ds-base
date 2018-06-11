@@ -731,7 +731,6 @@ exit 0
 %{_mandir}/man8/restoreconfig.8.gz
 %{_sbindir}/saveconfig
 %{_mandir}/man8/saveconfig.8.gz
-%{_sbindir}/stop-dirsrv
 %{_sbindir}/suffix2instance
 %{_mandir}/man8/suffix2instance.8.gz
 %{_sbindir}/upgradednformat
@@ -797,25 +796,19 @@ exit 0
 %{_mandir}/man1/ldap-agent.1.gz
 %{_unitdir}/%{pkgname}-snmp.service
 
-%if 0%{?rhel} > 7 || 0%{?fedora}
 %files -n python%{python3_pkgversion}-lib389
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+
 %{python3_sitelib}/lib389*
-%endif
 
-%if 0%{?rhel} > 7 || 0%{?fedora}
 %files -n python%{python3_pkgversion}-%{srcname}-tests
 %defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+
 %{python3_sitelib}/dirsrvtests*
-%endif
 
-%if 0%{?rhel} > 7 || 0%{?fedora}
 %files -n cockpit-389-ds -f cockpit.list
 %defattr(-,root,root,-)
 %doc README.md
-%endif
 
 %changelog
 * Mon Dec 21 2015 Mark Reynolds <mreynolds@redhat.com> - 1.3.4.1-3
