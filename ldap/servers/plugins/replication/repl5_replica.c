@@ -72,8 +72,8 @@ struct replica
 typedef struct reap_callback_data
 {
     int rc;
-    unsigned long num_entries;
-    unsigned long num_purged_entries;
+    uint64_t num_entries;
+    uint64_t num_purged_entries;
     CSN *purge_csn;
     PRBool *tombstone_reap_stop;
 } reap_callback_data;
@@ -1897,7 +1897,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     /* Verify backoff min and max work together */
     if (backoff_min > backoff_max) {
         PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Backoff minimum (%ld) can not be greater than the backoff maximum (%ld).",
+                    "Backoff minimum (%" PRId64 ") can not be greater than the backoff maximum (%ld).",
                     backoff_min, backoff_max);
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - "
                       "%s\n", errormsg);
@@ -2994,8 +2994,8 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
 {
     char deletion_csn_str[CSN_STRSIZE];
     char purge_csn_str[CSN_STRSIZE];
-    unsigned long *num_entriesp = &((reap_callback_data *)cb_data)->num_entries;
-    unsigned long *num_purged_entriesp = &((reap_callback_data *)cb_data)->num_purged_entries;
+    uint64_t *num_entriesp = &((reap_callback_data *)cb_data)->num_entries;
+    uint64_t *num_purged_entriesp = &((reap_callback_data *)cb_data)->num_purged_entries;
     CSN *purge_csn = ((reap_callback_data *)cb_data)->purge_csn;
     /* this is a pointer into the actual value in the Replica object - so that
        if the value is set in the replica, we will know about it immediately */
@@ -3179,14 +3179,14 @@ _replica_reap_tombstones(void *arg)
         if (LDAP_SUCCESS != oprc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                           "_replica_reap_tombstones - Failed when searching for "
-                          "tombstones in replica %s: %s. Will try again in %ld "
+                          "tombstones in replica %s: %s. Will try again in %" PRId64 " "
                           "seconds.\n",
                           slapi_sdn_get_dn(replica->repl_root),
                           ldap_err2string(oprc), replica->tombstone_reap_interval);
         } else {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "_replica_reap_tombstones - Purged %ld of %ld tombstones "
-                          "in replica %s. Will try again in %ld "
+                          "_replica_reap_tombstones - Purged %" PRId64 " of %" PRId64 " tombstones "
+                          "in replica %s. Will try again in %" PRId64 " "
                           "seconds.\n",
                           cb_data.num_purged_entries, cb_data.num_entries,
                           slapi_sdn_get_dn(replica->repl_root),
@@ -3615,7 +3615,7 @@ replica_set_tombstone_reap_interval(Replica *r, long interval)
 
         found = slapi_eq_cancel(r->repl_eqcxt_tr);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "replica_set_tombstone_reap_interval - tombstone_reap event (interval=%ld) was %s\n",
+                      "replica_set_tombstone_reap_interval - tombstone_reap event (interval=%" PRId64 ") was %s\n",
                       r->tombstone_reap_interval, (found ? "cancelled" : "not found"));
         r->repl_eqcxt_tr = NULL;
     }
@@ -3625,7 +3625,7 @@ replica_set_tombstone_reap_interval(Replica *r, long interval)
                                            slapi_current_utc_time() + r->tombstone_reap_interval,
                                            1000 * r->tombstone_reap_interval);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "replica_set_tombstone_reap_interval - tombstone_reap event (interval=%ld) was %s\n",
+                      "replica_set_tombstone_reap_interval - tombstone_reap event (interval=%" PRId64 ") was %s\n",
                       r->tombstone_reap_interval, (r->repl_eqcxt_tr ? "scheduled" : "not scheduled successfully"));
     }
     replica_unlock(r->repl_lock);

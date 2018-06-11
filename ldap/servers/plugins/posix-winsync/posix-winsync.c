@@ -233,7 +233,7 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
 {
     int ds_is_enabled = 1; /* default to true */
     int ad_is_enabled = 1; /* default to true */
-    uint64_t adval = 0;    /* raw account val from ad entry */
+    uint32_t adval = 0;    /* raw account val from ad entry */
     int isvirt = 0;
 
     /* get the account lock state of the ds entry */
@@ -257,7 +257,7 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
 
     /* have to enable or disable */
     if (direction == ACCT_DISABLE_TO_AD) {
-        unsigned long mask;
+        uint32_t mask;
         /* set the mod or entry */
         if (ds_is_enabled) {
             mask = ~0x2;
@@ -269,7 +269,7 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
         if (update_entry) {
             slapi_entry_attr_set_ulong(update_entry, "userAccountControl", adval);
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                          "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
+                          "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu32 "]\n",
                           (ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(update_entry), adval);
         } else {
             /* iterate through the mods - if there is already a mod
@@ -318,13 +318,13 @@ sync_acct_disable(void *cbdata __attribute__((unused)), /* the usual domain conf
                     mask = 0x2;
                     adval |= mask; /* set the 0x2 disable bit */
                 }
-                PR_snprintf(acctvalstr, sizeof(acctvalstr), "%lu", adval);
+                PR_snprintf(acctvalstr, sizeof(acctvalstr), "%" PRIu32, adval);
                 slapi_ch_free_string(&mod_bval->bv_val);
                 mod_bval->bv_val = slapi_ch_strdup(acctvalstr);
                 mod_bval->bv_len = strlen(acctvalstr);
             }
             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                          "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu64 "]\n",
+                          "<-- sync_acct_disable - %s AD account [%s] - new value is [%" PRIu32 "]\n",
                           (ds_is_enabled) ? "enabled" : "disabled", slapi_entry_get_dn_const(ad_entry), adval);
         }
     }

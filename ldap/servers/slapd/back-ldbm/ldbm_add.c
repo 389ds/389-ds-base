@@ -1053,7 +1053,7 @@ ldbm_back_add(Slapi_PBlock *pb)
             /* Push out the db modifications from the parent entry */
             retval = modify_update_all(be, pb, &parent_modify_c, &txn);
             slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
-                          "conn=%lu op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                          "conn=%" PRIu64 " op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                           conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
             if (DB_LOCK_DEADLOCK == retval) {
                 slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 6 DEADLOCK\n");

@@ -280,8 +280,8 @@ idl_new_fetch(
         slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns allids\n",
                       (char *)key.data);
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns nids=%" PRIu64 "\n",
-                      (char *)key.data, (u_long)IDL_NIDS(idl));
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns nids=%" PRIu32 "\n",
+                      (char *)key.data, (uint32_t)IDL_NIDS(idl));
     }
 
 error:
@@ -584,8 +584,8 @@ idl_new_range_fetch(
         slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns allids\n",
                       (char *)cur_key.data);
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns nids=%" PRIu64 "\n",
-                      (char *)cur_key.data, (uint64_t)IDL_NIDS(idl));
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_range_fetch", "%s returns nids=%" PRIu32 "\n",
+                      (char *)cur_key.data, (uint32_t)IDL_NIDS(idl));
     }
 
 error:

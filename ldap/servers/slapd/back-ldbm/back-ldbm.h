@@ -551,7 +551,7 @@ struct ldbminfo
     int li_allidsthreshold;
     char *li_directory;
     int li_reslimit_lookthrough_handle;
-    size_t li_dbcachesize;
+    uint64_t li_dbcachesize;
     uint64_t li_dblock;
     int li_dbncache;
     int li_import_cache_autosize;       /* % of free memory to use

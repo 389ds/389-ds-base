@@ -3733,7 +3733,7 @@ print_ttilist(txn_test_iter **ttilist, uint32_t tticnt)
     while (tticnt > 0) {
         tticnt--;
         slapi_log_err(SLAPI_LOG_ERR,
-                      "txn_test_threadmain", "attr [%s] cnt [%lu]\n",
+                      "txn_test_threadmain", "attr [%s] cnt [%" PRIu64 "]\n",
                       ttilist[tticnt]->attr, ttilist[tticnt]->cnt);
     }
 }

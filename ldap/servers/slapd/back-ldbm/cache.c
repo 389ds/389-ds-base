@@ -703,7 +703,7 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes)
 }
 
 void
-cache_set_max_entries(struct cache *cache, long entries)
+cache_set_max_entries(struct cache *cache, int64_t entries)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
@@ -731,10 +731,10 @@ cache_set_max_entries(struct cache *cache, long entries)
     }
 }
 
-size_t
+uint64_t
 cache_get_max_size(struct cache *cache)
 {
-    size_t n = 0;
+    uint64_t n = 0;
 
     cache_lock(cache);
     n = cache->c_maxsize;
@@ -742,10 +742,10 @@ cache_get_max_size(struct cache *cache)
     return n;
 }
 
-long
+int64_t
 cache_get_max_entries(struct cache *cache)
 {
-    long n;
+    int64_t n;
 
     cache_lock(cache);
     n = cache->c_maxentries;

@@ -51,9 +51,9 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     uint64_t nentries;
     int64_t maxentries;
     uint64_t size, maxsize, count;
-    size_t thread_size;
-    size_t evicts;
-    size_t slots;
+    uint64_t thread_size;
+    uint64_t evicts;
+    uint64_t slots;
     /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
     struct stat astat;
     /* end of NPCTE fix for bugid 544365 */

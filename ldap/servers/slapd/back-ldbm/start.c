@@ -223,12 +223,12 @@ ldbm_back_start_autotune(struct ldbminfo *li)
          * it's highly unlikely.
          */
         if (cache_size == 0 || cache_size == MINCACHESIZE || li->li_cache_autosize > 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%" PRIu64 " total): %luk\n", inst->inst_name, backend_count, entry_size / 1024);
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s entry cache (%" PRIu64 " total): %" PRIu64 "k\n", inst->inst_name, backend_count, entry_size / 1024);
             cache_set_max_entries(&(inst->inst_cache), -1);
             cache_set_max_size(&(inst->inst_cache), li->li_cache_autosize_ec, CACHE_TYPE_ENTRY);
         }
         if (dncache_size == 0 || dncache_size == MINCACHESIZE || li->li_cache_autosize > 0) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s dn cache (%" PRIu64 " total): %luk\n", inst->inst_name, backend_count, dn_size / 1024);
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: %s dn cache (%" PRIu64 " total): %" PRIu64 "k\n", inst->inst_name, backend_count, dn_size / 1024);
             cache_set_max_entries(&(inst->inst_dncache), -1);
             cache_set_max_size(&(inst->inst_dncache), li->li_dncache_autosize_ec, CACHE_TYPE_DN);
         }

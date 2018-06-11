@@ -36,9 +36,9 @@ int cache_init(struct cache *cache, uint64_t maxsize, long maxentries, int type)
 void cache_clear(struct cache *cache, int type);
 void cache_destroy_please(struct cache *cache, int type);
 void cache_set_max_size(struct cache *cache, uint64_t bytes, int type);
-void cache_set_max_entries(struct cache *cache, long entries);
-size_t cache_get_max_size(struct cache *cache);
-long cache_get_max_entries(struct cache *cache);
+void cache_set_max_entries(struct cache *cache, int64_t entries);
+uint64_t cache_get_max_size(struct cache *cache);
+int64_t cache_get_max_entries(struct cache *cache);
 void cache_get_stats(struct cache *cache, uint64_t *hits, uint64_t *tries, uint64_t *entries, int64_t *maxentries, uint64_t *size, uint64_t *maxsize);
 void cache_debug_hash(struct cache *cache, char **out);
 int cache_remove(struct cache *cache, void *e);
