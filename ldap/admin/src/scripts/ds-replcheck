@@ -1225,7 +1225,7 @@ def main():
     # Validate certdir
     opts['certdir'] = None
     if args.certdir:
-        if os.path.exists() and os.path.isdir(certdir):
+        if os.path.exists(args.certdir) and os.path.isdir(args.certdir):
             opts['certdir'] = args.certdir
         else:
             print("certificate directory ({}) does not exist or is not a directory".format(args.certdir))
