@@ -6,8 +6,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import argparse
-
 from lib389.backend import Backend, Backends
 from lib389.config import Encryption, Config
 from lib389 import plugins
@@ -24,6 +22,7 @@ CHECK_OBJECTS = [
     plugins.ReferentialIntegrityPlugin
 ]
 
+
 def _format_check_output(log, result):
     log.info("==== DS Lint Error: %s ====" % result['dsle'])
     log.info(" Severity: %s " % result['severity'])
@@ -34,6 +33,7 @@ def _format_check_output(log, result):
     log.info(result['detail'])
     log.info(" Resolution:")
     log.info(result['fix'])
+
 
 def health_check_run(inst, basedn, log, args):
     log.info("Beginning lint report, this could take a while ...")
@@ -54,6 +54,7 @@ def health_check_run(inst, basedn, log, args):
     log.info("Healthcheck complete!")
     for item in report:
         _format_check_output(log, item)
+
 
 def create_parser(subparsers):
     run_healthcheck_parser = subparsers.add_parser('healthcheck', help="Run a healthcheck report on your Directory Server instance. This is a safe, read only operation.")

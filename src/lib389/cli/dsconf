@@ -82,7 +82,7 @@ if __name__ == '__main__':
     cli_whoami.create_parser(subparsers)
     cli_referint.create_parser(subparsers)
     cli_automember.create_parser(subparsers)
-    
+
     args = parser.parse_args()
 
     log = reset_get_logger('dsconf', args.verbose)
@@ -111,26 +111,26 @@ if __name__ == '__main__':
     # Connect
     # We don't need a basedn, because the config objects derive it properly
     inst = None
-    if args.verbose:
+    result = False
+    try:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
-        args.func(inst, None, log, args)
-        if not args.json:
+        result = args.func(inst, None, log, args)
+        if args.verbose:
             log.info("Command successful.")
-    else:
-        try:
-            inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
-            args.func(inst, None, log, args)
-            if not args.json:
-                log.info("Command successful.")
-        except ldap.LDAPError as e:
-            #log.debug(e, exc_info=True)
-            if args and args.json:
-                print(e)
-            else:
-                log.error("Error!: %s" % str(e))
+    except Exception as e:
+        log.debug(e, exc_info=True)
+        if args and args.json:
+            print(e)
+        else:
+            log.error("Error!: %s" % str(e))
+        result = False
+
     disconnect_instance(inst)
 
     # Done!
     log.debug("dsconf is brought to you by the letter H and the number 25.")
+
+    if result is False:
+        sys.exit(1)
 
 

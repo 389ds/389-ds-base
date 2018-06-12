@@ -29,13 +29,15 @@ if __name__ == '__main__':
 
     fromfile_parser = subparsers.add_parser('fromfile', help="Create an instance of Directory Server from an inf answer file")
     fromfile_parser.add_argument('file', help="Inf file to use with prepared answers. You can generate an example of this with 'dscreate example'")
-    fromfile_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.", action='store_true', default=False)
+    fromfile_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.",
+                                 action='store_true', default=False)
     fromfile_parser.add_argument('--IsolemnlyswearthatIamuptonogood', dest="ack",
-                        help="""You are here likely here by mistake! You want setup-ds.pl!
+                                 help="""You are here likely here by mistake! You want setup-ds.pl!
 By setting this value you acknowledge and take responsibility for the fact this command is UNTESTED and NOT READY. You are ON YOUR OWN!
 """,
-                        action='store_true', default=False)
-    fromfile_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.", action='store_true', default=False)
+                                 action='store_true', default=False)
+    fromfile_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.",
+                                 action='store_true', default=False)
     fromfile_parser.set_defaults(func=cli_instance.instance_create)
 
     example_parser = subparsers.add_parser('example', help="Display an example ini answer file, with comments")
@@ -62,19 +64,12 @@ By setting this value you acknowledge and take responsibility for the fact this 
 
     result = False
 
-    if args.verbose:
+    try:
         result = args.func(inst, log, args)
-    else:
-        try:
-            result = args.func(inst, log, args)
-        except Exception as e:
-            log.debug(e, exc_info=True)
-            log.error("Error: %s" % str(e))
-
-    if result is True:
-        log.info('FINISH: Command succeeded')
-    elif result is False:
-        log.info('FAIL: Command failed. See output for details.')
+    except Exception as e:
+        log.debug(e, exc_info=True)
+        log.error("Error: %s" % str(e))
+        result = False
 
     # Done!
     log.debug("dscreate is brought to you by the letter S and the number 22.")

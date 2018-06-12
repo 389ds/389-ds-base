@@ -7,8 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.plugins import Plugin, Plugins
-import argparse
-
 from lib389.cli_base import (
     _generic_list,
     _generic_get,
@@ -29,26 +27,30 @@ RDN = 'cn'
 def plugin_list(inst, basedn, log, args):
     _generic_list(inst, basedn, log.getChild('plugin_list'), MANY, args)
 
+
 def plugin_get(inst, basedn, log, args):
-    rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
+    rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_get(inst, basedn, log.getChild('plugin_get'), MANY, rdn, args)
 
+
 def plugin_get_dn(inst, basedn, log, args):
-    dn = _get_arg( args.dn, msg="Enter dn to retrieve")
+    dn = _get_arg(args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('plugin_get_dn'), MANY, dn, args)
+
 
 # Plugin enable
 def plugin_enable(inst, basedn, log, args):
-    dn = _get_arg( args.dn, msg="Enter plugin dn to enable")
+    dn = _get_arg(args.dn, msg="Enter plugin dn to enable")
     mc = MANY(inst, basedn)
     o = mc.get(dn=dn)
     o.enable()
     o_str = o.display()
     log.info('Enabled %s', o_str)
 
+
 # Plugin disable
 def plugin_disable(inst, basedn, log, args, warn=True):
-    dn = _get_arg( args.dn, msg="Enter plugin dn to disable")
+    dn = _get_arg(args.dn, msg="Enter plugin dn to disable")
     if warn:
         _warn(dn, msg="Disabling %s %s" % (SINGULAR.__name__, dn))
     mc = MANY(inst, basedn)
@@ -57,31 +59,37 @@ def plugin_disable(inst, basedn, log, args, warn=True):
     o_str = o.display()
     log.info('Disabled %s', o_str)
 
+
 # Plugin configure?
 def plugin_configure(inst, basedn, log, args):
     pass
+
 
 def generic_show(inst, basedn, log, args):
     """Display plugin configuration."""
     plugin = args.plugin_cls(inst)
     log.info(plugin.display())
 
+
 def generic_enable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     plugin.enable()
     log.info("Enabled %s", plugin.rdn)
+
 
 def generic_disable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     plugin.disable()
     log.info("Disabled %s", plugin.rdn)
 
+
 def generic_status(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
-    if plugin.status() == True:
+    if plugin.status() is True:
         log.info("%s is enabled", plugin.rdn)
     else:
         log.info("%s is disabled", plugin.rdn)
+
 
 def add_generic_plugin_parsers(subparser, plugin_cls):
     show_parser = subparser.add_parser('show', help='display plugin configuration')

@@ -104,21 +104,20 @@ if __name__ == '__main__':
 
     # Connect
     inst = None
-    if args.verbose:
+    result = False
+    try:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
-        args.func(inst, dsrc_inst['basedn'], log, args)
-        log.info("Command successful.")
-    else:
-        try:
-            inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
-            args.func(inst, dsrc_inst['basedn'], log, args)
+        result = args.func(inst, dsrc_inst['basedn'], log, args)
+        if args.verbose:
             log.info("Command successful.")
-        except Exception as e:
-            log.debug(e, exc_info=True)
-            log.error("Error: %s" % str(e))
-    disconnect_instance(inst)
+    except Exception as e:
+        log.debug(e, exc_info=True)
+        log.error("Error: %s" % str(e))
+        result = False
 
+    disconnect_instance(inst)
 
     log.debug("dsidm is brought to you by the letter E and the number 26.")
 
-
+    if result is False:
+        sys.exit(1)

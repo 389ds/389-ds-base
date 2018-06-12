@@ -42,18 +42,20 @@ format_keys = [
 
 ds_paths = Paths()
 
+
 class Options2(object):
     # This stores the base options in a self._options dict.
     # It provides a number of options for:
     # - dict overlay
     # - parsing the config parser types.
+
     def __init__(self, log):
         # 'key' : (default, helptext, valid_func )
-        self._options = {} # this takes the default
-        self._type = {} # Lists the type the item should be.
-        self._helptext = {} # help text for the option, MANDATORY.
-        self._example_comment = {} # If this is a commented value in the example.
-        self._valid_func = {} # options verification function.
+        self._options = {}  # this takes the default
+        self._type = {}  # Lists the type the item should be.
+        self._helptext = {}  # help text for the option, MANDATORY.
+        self._example_comment = {}  # If this is a commented value in the example.
+        self._valid_func = {}  # options verification function.
         self._section = None
         self.log = log
 
@@ -102,6 +104,7 @@ class Options2(object):
 # Base, example dicts of the general, backend (userRoot) options.
 #
 
+
 class General2Base(Options2):
     def __init__(self, log):
         super(General2Base, self).__init__(log)
@@ -139,8 +142,9 @@ class General2Base(Options2):
 
 #
 # This module contains the base options and configs for Director Server
-# setup and install. This allows 
+# setup and install. This allows
 #
+
 
 class Slapd2Base(Options2):
     def __init__(self, log):

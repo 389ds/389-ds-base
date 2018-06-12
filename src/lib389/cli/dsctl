@@ -86,22 +86,13 @@ if __name__ == '__main__':
     inst.allocate(insts[0])
     log.debug('Instance allocated')
 
-    if args.verbose:
+    try:
         result = args.func(inst, log, args)
-        log.info("Command successful.")
-    else:
-        try:
-            result = args.func(inst, log, args)
-            log.info("Command successful.")
-        except Exception as e:
-            log.debug(e, exc_info=True)
-            log.error("Error: %s" % str(e))
+    except Exception as e:
+        log.debug(e, exc_info=True)
+        log.error("Error: %s" % str(e))
+        result = False
     disconnect_instance(inst)
-
-    if result is True:
-        log.info('FINISH: Command succeeded')
-    elif result is False:
-        log.info('FAIL: Command failed. See output for details.')
 
     # Done!
     log.debug("dsctl is brought to you by the letter R and the number 27.")

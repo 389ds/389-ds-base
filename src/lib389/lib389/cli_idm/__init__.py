@@ -89,7 +89,7 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
         o = mc.get(selector, json=True)
-        print(o);
+        print(o)
     else:
         o = mc.get(selector)
         o_str = o.display()

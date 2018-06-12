@@ -17,6 +17,7 @@ from lib389.properties import *
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
+
 # REALLY PYTHON 3? REALLY???
 def _input(msg):
     if MAJOR >= 3:
@@ -43,6 +44,7 @@ def _get_arg(args, msg=None, hidden=False, confirm=False):
         else:
             return _input("%s : " % msg)
 
+
 def _get_args(args, kws):
     kwargs = {}
     while len(kws) > 0:
@@ -56,6 +58,7 @@ def _get_args(args, kws):
             else:
                 kwargs[kw] = _input("%s : " % msg)
     return kwargs
+
 
 # This is really similar to get_args, but generates from an array
 def _get_attributes(args, attrs):
@@ -81,6 +84,7 @@ def _warn(data, msg=None):
         raise Exception("Not sure if want")
     return data
 
+
 # We'll need another of these that does a "connect via instance name?"
 def connect_instance(dsrc_inst, verbose):
     dsargs = dsrc_inst['args']
@@ -99,13 +103,16 @@ def connect_instance(dsrc_inst, verbose):
             starttls=dsrc_inst['starttls'], connOnly=True)
     return ds
 
+
 def disconnect_instance(inst):
     if inst is not None:
         inst.close()
 
+
 def populate_attr_arguments(parser, attributes):
     for attr in attributes:
         parser.add_argument('--%s' % attr, nargs='?', help="Value of %s" % attr)
+
 
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
@@ -128,16 +135,18 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             print(json.dumps(json_result))
 
+
 # Display these entries better!
 def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
          o = mc.get(selector, json=True)
-         print(o);
+         print(o)
     else:
         o = mc.get(selector)
         o_str = o.display()
         log.info(o_str)
+
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
@@ -145,12 +154,13 @@ def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     o_str = o.display()
     log.info(o_str)
 
+
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
     o = mc.create(properties=kwargs)
     o_str = o.__unicode__()
-
     log.info('Successfully created %s' % o_str)
+
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
@@ -190,6 +200,7 @@ class LogCapture(logging.Handler):
     def flush(self):
         self.outputs = []
 
+
 class FakeArgs(object):
     def __init__(self):
         pass
@@ -206,6 +217,7 @@ log_verbose_handler = logging.StreamHandler()
 log_verbose_handler.setFormatter(
     logging.Formatter('%(levelname)s: %(message)s')
 )
+
 
 def reset_get_logger(name, verbose=False):
     """Reset the python logging system for STDOUT, and attach a new

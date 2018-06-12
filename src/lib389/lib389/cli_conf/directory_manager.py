@@ -7,18 +7,16 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.idm.directorymanager import DirectoryManager
-
 from lib389.cli_base import _get_arg
 
-import argparse
 
 def password_change(inst, basedn, log, args):
     # Due to an issue, we can't use extended op, so we have to
     # submit the password directly to the field.
-
     password = _get_arg(args.password, msg="Enter new directory manager password", hidden=True, confirm=True)
     dm = DirectoryManager(inst)
     dm.change_password(password)
+
 
 def create_parsers(subparsers):
     directory_manager_parser = subparsers.add_parser('directory_manager', help="Manage the directory manager account")

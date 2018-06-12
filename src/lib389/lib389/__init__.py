@@ -1663,7 +1663,7 @@ class DirSrv(SimpleLDAPObject, object):
 
     def get_ldaps_uri(self):
         """Return what our ldaps (TLS) uri would be for this instance
-        
+
         :returns: The string of the servers ldaps (TLS) uri.
         """
         return 'ldaps://%s:%s' % (self.host, self.sslport)
@@ -1674,7 +1674,7 @@ class DirSrv(SimpleLDAPObject, object):
 
     def get_ldap_uri(self):
         """Return what our ldap uri would be for this instance
-        
+
         :returns: The string of the servers ldap uri.
         """
         return 'ldap://%s:%s' % (self.host, self.port)
@@ -2777,8 +2777,13 @@ class DirSrv(SimpleLDAPObject, object):
         if encrypt:
             cmd.append('-E')
 
-        result = subprocess.check_output(cmd)
-        u_result = ensure_str(result)
+        try:
+            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+            u_result = ensure_str(result)
+        except subprocess.CalledProcessError as e:
+            self.log.debug("Command: {} failed with the return code {} and the error {}".format(
+                           format_cmd_list(cmd), e.returncode, e.output))
+            return False
 
         self.log.debug("ldif2db output: BEGIN")
         for line in u_result.split("\n"):
@@ -2830,12 +2835,24 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append('-E')
         if repl_data:
             cmd.append('-r')
-        if outputfile:
+        if outputfile is not None:
             cmd.append('-a')
             cmd.append(outputfile)
-
-        result = subprocess.check_output(cmd)
-        u_result = ensure_str(result)
+        else:
+            # No output file specified.  Use the default ldif location/name
+            cmd.append('-a')
+            if bename:
+                ldifname = "/" + self.serverid + "-" + bename + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            else:
+                ldifname = "/" + self.serverid + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            cmd.append(self.get_ldif_dir() + ldifname)
+        try:
+            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+            u_result = ensure_str(result)
+        except subprocess.CalledProcessError as e:
+            self.log.debug("Command: {} failed with the return code {} and the error {}".format(
+                           format_cmd_list(cmd), e.returncode, e.output))
+            return False
 
         self.log.debug("db2ldif output: BEGIN")
         for line in u_result.split("\n"):
@@ -2861,13 +2878,18 @@ class DirSrv(SimpleLDAPObject, object):
             self.log.error("bak2db: backup directory missing")
             return False
 
-        result = subprocess.check_output([
-            prog,
-            'archive2db',
-            '-a', archive_dir,
-            '-D', self.get_config_dir()
-        ])
-        u_result = ensure_str(result)
+        try:
+            result = subprocess.check_output([
+                prog,
+                'archive2db',
+                '-a', archive_dir,
+                '-D', self.get_config_dir()
+            ], stderr=subprocess.STDOUT, encoding='utf-8')
+            u_result = ensure_str(result)
+        except subprocess.CalledProcessError as e:
+            self.log.debug("Command: {} failed with the return code {} and the error {}".format(
+                           format_cmd_list(cmd), e.returncode, e.output))
+            return False
 
         self.log.debug("bak2db output: BEGIN")
         for line in u_result.split("\n"):
@@ -2888,17 +2910,24 @@ class DirSrv(SimpleLDAPObject, object):
             self.log.error("db2bak: Can not operate while directory server is running")
             return False
 
-        if not archive_dir:
-            self.log.error("db2bak: archive directory missing")
-            return False
+        if archive_dir is None:
+            # Use the instance name and date/time as the default backup name
+            archive_dir = self.get_bak_dir() + "/" + self.serverid + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        elif archive_dir[0] != "/":
+            # Relative path, append it to the bak directory
+            archive_dir = self.get_bak_dir() + "/" + archive_dir
 
-        result = subprocess.check_output([
-            prog,
-            'db2archive',
-            '-a', archive_dir,
-            '-D', self.get_config_dir()
-        ])
-        u_result = ensure_str(result)
+        try:
+            result = subprocess.check_output([
+                prog,
+                'db2archive',
+                '-a', archive_dir,
+                '-D', self.get_config_dir()
+            ], stderr=subprocess.STDOUT, encoding='utf-8')
+            u_result = ensure_str(result)
+        except subprocess.CalledProcessError as e:
+            self.log.debug("Command: {} failed with the return code {} and the error {}".format(
+                        format_cmd_list(cmd), e.returncode, e.output))
 
         self.log.debug("db2bak output: BEGIN")
         for line in u_result.split("\n"):
@@ -2937,7 +2966,6 @@ class DirSrv(SimpleLDAPObject, object):
         cmd.append('-D')
         cmd.append(self.get_config_dir())
 
-
         if bename:
             cmd.append('-n')
             cmd.append(bename)
@@ -2957,15 +2985,20 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append('-T')
             cmd.append(vlvTag)
 
-        result = subprocess.check_output(cmd)
-        u_result = ensure_str(result)
+        try:
+            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+            u_result = ensure_str(result)
+        except subprocess.CalledProcessError as e:
+            self.log.debug("Command: {} failed with the return code {} and the error {}".format(
+                           format_cmd_list(cmd), e.returncode, e.output))
+            return False
 
         self.log.debug("db2index output: BEGIN")
         for line in u_result.split("\n"):
             self.log.debug(line)
         self.log.debug("db2index output: END")
 
-        return result
+        return True
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information

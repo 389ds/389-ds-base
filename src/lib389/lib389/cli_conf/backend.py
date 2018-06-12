@@ -7,8 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.backend import Backend, Backends
-import argparse
-
 from lib389.cli_base import (
     populate_attr_arguments,
     _generic_list,
@@ -26,24 +24,28 @@ SINGULAR = Backend
 MANY = Backends
 RDN = 'cn'
 
+
 def backend_list(inst, basedn, log, args):
     _generic_list(inst, basedn, log.getChild('backend_list'), MANY, args)
 
+
 def backend_get(inst, basedn, log, args):
-    rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
+    rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_get(inst, basedn, log.getChild('backend_get'), MANY, rdn, args)
 
+
 def backend_get_dn(inst, basedn, log, args):
-    dn = _get_arg( args.dn, msg="Enter dn to retrieve")
+    dn = _get_arg(args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('backend_get_dn'), MANY, dn, args)
 
+
 def backend_create(inst, basedn, log, args):
-    args.json = True
     kwargs = _get_attributes(args, Backend._must_attributes)
     _generic_create(inst, basedn, log.getChild('backend_create'), MANY, kwargs, args)
 
+
 def backend_delete(inst, basedn, log, args, warn=True):
-    dn = _get_arg( args.dn, msg="Enter dn to delete")
+    dn = _get_arg(args.dn, msg="Enter dn to delete")
     if warn:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('backend_delete'), SINGULAR, dn, args)

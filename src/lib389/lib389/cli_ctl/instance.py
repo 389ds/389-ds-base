@@ -18,6 +18,7 @@ import sys
 
 from lib389.instance.options import General2Base, Slapd2Base
 
+
 def instance_list(inst, log, args):
     instances = inst.list(all=True)
 
@@ -31,14 +32,18 @@ def instance_list(inst, log, args):
         log.info(e)
         log.info("Perhaps you need to be a different user?")
 
+
 def instance_restart(inst, log, args):
     inst.restart(post_open=False)
+
 
 def instance_start(inst, log, args):
     inst.start(post_open=False)
 
+
 def instance_stop(inst, log, args):
     inst.stop()
+
 
 def instance_status(inst, log, args):
     if inst.status() is True:
@@ -46,17 +51,19 @@ def instance_status(inst, log, args):
     else:
         log.info("Instance is not running")
 
+
 def instance_create(inst, log, args):
     if args.containerised:
         log.debug("Containerised features requested.")
     sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
-    ### If args.file is not set, we need to interactively get answers!
+    ### TODO - If args.file is not set, we need to interactively get answers!
     if sd.create_from_inf(args.file):
         # print("Sucessfully created instance")
         return True
     else:
         # print("Failed to create instance")
         return False
+
 
 def instance_example(inst, log, args):
     print("""
@@ -85,22 +92,28 @@ def instance_example(inst, log, args):
     s2b = Slapd2Base(log)
     print(g2b.collect_help())
     print(s2b.collect_help())
+    return True
+
 
 def instance_remove(inst, log, args):
     if not args.ack:
         log.info("""Not removing: if you are sure, add --doit""")
-        sys.exit(0)
+        return True
     else:
         log.info("""
 About to remove instance %s!
 If this is not what you want, press ctrl-c now ...
         """ % inst.serverid)
-    for i in range(1,6):
+    for i in range(1, 6):
         log.info('%s ...' % (5 - int(i)))
         time.sleep(1)
     log.info('Removing instance ...')
-    remove_ds_instance(inst)
-    log.info('Completed instance removal')
+    try:
+        remove_ds_instance(inst)
+        log.info('Completed instance removal')
+    except:
+        log.fatal('Instance removal failed')
+        return False
 
 
 def create_parser(subcommands):
@@ -121,7 +134,8 @@ def create_parser(subcommands):
     status_parser.set_defaults(func=instance_status)
 
     remove_parser = subcommands.add_parser('remove', help="Destroy an instance of Directory Server, and remove all data.")
-    remove_parser.add_argument('--doit', dest="ack", help="By default we do a dry run. This actually initiates the removal.", action='store_true', default=False)
+    remove_parser.add_argument('--doit', dest="ack", help="By default we do a dry run. This actually initiates the removal.",
+                               action='store_true', default=False)
     remove_parser.set_defaults(func=instance_remove)
 
 

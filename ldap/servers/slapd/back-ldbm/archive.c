@@ -366,6 +366,7 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
             slapi_task_log_notice(task, "mkdir(%s) failed; errno %i (%s)",
                                   directory, errno, msg ? msg : "unknown");
         }
+        return_value = -1;
         goto err;
     }
 
