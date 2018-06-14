@@ -241,12 +241,14 @@ utf8char_validate(
          * the second byte. */
         if (*p == '\xF0') {
             /* The next byte must be %x90-BF. */
+            p++;
             if (((unsigned char)*p < (unsigned char)'\x90') || ((unsigned char)*p > (unsigned char)'\xBF')) {
                 rc = 1;
                 goto exit;
             }
         } else if (*p == '\xF4') {
             /* The next byte must be %x80-BF. */
+            p++;
             if (((unsigned char)*p < (unsigned char)'\x80') || ((unsigned char)*p > (unsigned char)'\xBF')) {
                 rc = 1;
                 goto exit;
