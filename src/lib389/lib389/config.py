@@ -31,24 +31,24 @@ class Config(DSLdapObject):
         - set access and error logging
         - get and set "cn=config" attributes
     """
-    def __init__(self, conn):
+    def __init__(self, conn, dn=None):
         """@param conn - a DirSrv instance """
         super(Config, self).__init__(instance=conn)
         self._dn = DN_CONFIG
         # self._instance = conn
         # self.log = conn.log
         config_compare_exclude = [
-            'nsslapd-ldapifilepath', 
-            'nsslapd-accesslog', 
-            'nsslapd-auditfaillog', 
+            'nsslapd-ldapifilepath',
+            'nsslapd-accesslog',
+            'nsslapd-auditfaillog',
             'nsslapd-ldifdir',
-            'nsslapd-errorlog', 
-            'nsslapd-instancedir', 
-            'nsslapd-lockdir', 
+            'nsslapd-errorlog',
+            'nsslapd-instancedir',
+            'nsslapd-lockdir',
             'nsslapd-bakdir',
-            'nsslapd-schemadir', 
+            'nsslapd-schemadir',
             'nsslapd-auditlog',
-            'nsslapd-rootpw', 
+            'nsslapd-rootpw',
             'nsslapd-workingdir',
             'nsslapd-certdir'
         ]

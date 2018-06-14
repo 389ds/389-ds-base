@@ -18,6 +18,7 @@ logging.basicConfig(format='%(message)s')
 
 from lib389 import DirSrv
 from lib389._constants import DN_CONFIG, DN_DM
+from lib389.cli_conf import config as cli_config
 from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import directory_manager as cli_directory_manager
 from lib389.cli_conf import plugin as cli_plugin
@@ -71,6 +72,7 @@ if __name__ == '__main__':
 
     subparsers = parser.add_subparsers(help="resources to act upon")
 
+    cli_config.create_parser(subparsers)
     cli_backend.create_parser(subparsers)
     cli_directory_manager.create_parsers(subparsers)
     cli_schema.create_parser(subparsers)
@@ -122,7 +124,7 @@ if __name__ == '__main__':
         if args and args.json:
             print(e)
         else:
-            log.error("Error!: %s" % str(e))
+            log.error("Error: %s" % str(e))
         result = False
 
     disconnect_instance(inst)

@@ -9,6 +9,7 @@
 import logging
 import sys
 import json
+import ldap
 
 from getpass import getpass
 from lib389 import DirSrv
@@ -140,12 +141,29 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
 def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
-         o = mc.get(selector, json=True)
-         print(o)
+        o = mc.get(selector, json=True)
+        log.info(o)
     else:
         o = mc.get(selector)
         o_str = o.display()
         log.info(o_str)
+
+
+def _generic_get_entry(inst, basedn, log, manager_class, args=None):
+    mc = manager_class(inst, basedn)
+    if args and args.json:
+        log.info(mc.get_all_attrs_json())
+    else:
+        log.info(mc.display())
+
+
+def _generic_get_attr(inst, basedn, log, manager_class, args=None):
+    mc = manager_class(inst, basedn)
+    for attr in args.attrs:
+        if args and args.json:
+            log.info(mc.get_attr_vals_json(attr))
+        else:
+            log.info(mc.display_attr(attr).rstrip())
 
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
@@ -167,6 +185,56 @@ def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     o = object_class(inst, dn)
     o.delete()
     log.info('Successfully deleted %s' % dn)
+
+
+# Attr functions expect attribute values to be "attr=value"
+
+def _generic_replace_attr(inst, basedn, log, manager_class, args=None):
+    mc = manager_class(inst, basedn)
+    if args and args.attr:
+        for myattr in args.attr:
+            if "=" in myattr:
+                [attr, val] = myattr.split("=", 1)
+                mc.replace(attr, val)
+                log.info("Successfully replaced \"{}\"".format(attr))
+            else:
+                raise ValueError("You must specify a value to replace the attribute ({})".format(myattr))
+    else:
+        # Missing value
+        raise ValueError("Missing attribute to replace")
+
+
+def _generic_add_attr(inst, basedn, log, manager_class, args=None):
+    mc = manager_class(inst, basedn)
+    if args and args.attr:
+        for myattr in args.attr:
+            if "=" in myattr:
+                [attr, val] = myattr.split("=", 1)
+                mc.add(attr, val)
+                log.info("Successfully added \"{}\"".format(attr))
+            else:
+                raise ValueError("You must specify a value to add for the attribute ({})".format(myattr))
+    else:
+        # Missing value
+        raise ValueError("Missing attribute to add")
+
+
+def _generic_del_attr(inst, basedn, log, manager_class, args=None):
+    mc = manager_class(inst, basedn)
+    if args and args.attr:
+        for myattr in args.attr:
+            if "=" in myattr:
+                # we have a specific value
+                [attr, val] = myattr.split("=", 1)
+                mc.remove(attr, val)
+            else:
+                # remove all
+                mc.remove_all(myattr)
+                attr = myattr  # for logging
+            log.info("Successfully removed \"{}\"".format(attr))
+    else:
+        # Missing value
+        raise ValueError("Missing attribute to delete")
 
 
 class LogCapture(logging.Handler):

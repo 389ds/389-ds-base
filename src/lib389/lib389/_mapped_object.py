@@ -163,12 +163,11 @@ class DSLdapObject(DSLogging):
 
     def _jsonify(self, fn, *args, **kwargs):
         # This needs to map all the values to ensure_str
-        attrs = fn(*args, **kwargs)
+        attrs = fn(use_json=True, *args, **kwargs)
         str_attrs = {}
         for k in attrs:
             str_attrs[ensure_str(k)] = ensure_list_str(attrs[k])
-
-        response = json.dumps({ "type": "entry", "dn": ensure_str(self._dn), "attrs" : str_attrs });
+        response = json.dumps({"type": "entry", "dn": ensure_str(self._dn), "attrs": str_attrs})
 
         return response
 
@@ -183,7 +182,7 @@ class DSLdapObject(DSLogging):
 
         if (name.endswith('_json')):
             int_name = name.replace('_json', '')
-            pfunc = partial(self._jsonify, fn=getattr(self, int_name))
+            pfunc = partial(self._jsonify, getattr(self, int_name))
             return pfunc
 
     # We make this a property so that we can over-ride dynamically if needed
@@ -326,10 +325,20 @@ class DSLdapObject(DSLogging):
         :raises: ValueError - if instance is not online
         """
 
-        if value is None or len(value) < 512:
-            self._log.debug("%s set(%r, %r)" % (self._dn, key, value))
+        if action == ldap.MOD_ADD:
+            action_txt = "ADD"
+        elif action == ldap.MOD_REPLACE:
+            action_txt = "REPLACE"
+        elif action == ldap.MOD_DELETE:
+            action_txt = "DELETE"
         else:
-            self._log.debug("%s set(%r, value too large)" % (self._dn, key))
+            # This should never happen (bug!)
+            action_txt = "UNKNOWN"
+
+        if value is None or len(value) < 512:
+            self._log.debug("%s set %s: (%r, %r)" % (self._dn, action_txt, key, value))
+        else:
+            self._log.debug("%s set %s: (%r, value too large)" % (self._dn, action_txt, key))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot set properties on instance that is not ONLINE.")
 
@@ -418,7 +427,7 @@ class DSLdapObject(DSLogging):
                 return False
         return True
 
-    def get_compare_attrs(self):
+    def get_compare_attrs(self, use_json=False):
         """Get a dictionary having attributes to be compared
         i.e. excluding self._compare_exclude
         """
@@ -430,7 +439,7 @@ class DSLdapObject(DSLogging):
         compare_attrs_dict = {attr:all_attrs_dict[attr] for attr in compare_attrs}
         return compare_attrs_dict
 
-    def get_all_attrs(self):
+    def get_all_attrs(self, use_json=False):
         """Get a dictionary having all the attributes of the entry
 
         :returns: Dict with real attributes and operational attributes
@@ -446,7 +455,7 @@ class DSLdapObject(DSLogging):
             attrs_dict = attrs_entry.data
             return attrs_dict
 
-    def get_attrs_vals(self, keys):
+    def get_attrs_vals(self, keys, use_json=False):
         self._log.debug("%s get_attrs_vals(%r)" % (self._dn, keys))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
@@ -454,7 +463,7 @@ class DSLdapObject(DSLogging):
             entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             return entry.getValuesSet(keys)
 
-    def get_attr_vals(self, key):
+    def get_attr_vals(self, key, use_json=False):
         self._log.debug("%s get_attr_vals(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
@@ -465,9 +474,16 @@ class DSLdapObject(DSLogging):
             # It would be good to prevent the entry code intercepting this ....
             # We have to do this in this method, because else we ignore the scope base.
             entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
-            return entry.getValues(key)
+            vals = entry.getValues(key)
+            if use_json:
+                result = {key: []}
+                for val in vals:
+                    result[key].append(val)
+                return result
+            else:
+                return vals
 
-    def get_attr_val(self, key):
+    def get_attr_val(self, key, use_json=False):
         self._log.debug("%s getVal(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
@@ -478,7 +494,7 @@ class DSLdapObject(DSLogging):
             entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             return entry.getValue(key)
 
-    def get_attr_val_bytes(self, key):
+    def get_attr_val_bytes(self, key, use_json=False):
         """Get a single attribute value from the entry in bytes type
 
         :param key: An attribute name
@@ -489,7 +505,7 @@ class DSLdapObject(DSLogging):
 
         return ensure_bytes(self.get_attr_val(key))
 
-    def get_attr_vals_bytes(self, key):
+    def get_attr_vals_bytes(self, key, use_json=False):
         """Get attribute values from the entry in bytes type
 
         :param key: An attribute name
@@ -500,7 +516,7 @@ class DSLdapObject(DSLogging):
 
         return ensure_list_bytes(self.get_attr_vals(key))
 
-    def get_attr_val_utf8(self, key):
+    def get_attr_val_utf8(self, key, use_json=False):
         """Get a single attribute value from the entry in utf8 type
 
         :param key: An attribute name
@@ -511,7 +527,7 @@ class DSLdapObject(DSLogging):
 
         return ensure_str(self.get_attr_val(key))
 
-    def get_attr_val_utf8_l(self, key):
+    def get_attr_val_utf8_l(self, key, use_json=False):
         """Get a single attribute value from the entry in utf8 type
 
         :param key: An attribute name
@@ -526,7 +542,7 @@ class DSLdapObject(DSLogging):
         else:
             return None
 
-    def get_attr_vals_utf8(self, key):
+    def get_attr_vals_utf8(self, key, use_json=False):
         """Get attribute values from the entry in utf8 type
 
         :param key: An attribute name
@@ -537,7 +553,7 @@ class DSLdapObject(DSLogging):
 
         return ensure_list_str(self.get_attr_vals(key))
 
-    def get_attr_vals_utf8_l(self, key):
+    def get_attr_vals_utf8_l(self, key, use_json=False):
         """Get attribute values from the entry in utf8 type and lowercase
 
         :param key: An attribute name
@@ -548,7 +564,7 @@ class DSLdapObject(DSLogging):
 
         return [x.lower() for x in ensure_list_str(self.get_attr_vals(key))]
 
-    def get_attr_val_int(self, key):
+    def get_attr_val_int(self, key, use_json=False):
         """Get a single attribute value from the entry in int type
 
         :param key: An attribute name
@@ -559,7 +575,7 @@ class DSLdapObject(DSLogging):
 
         return ensure_int(self.get_attr_val(key))
 
-    def get_attr_vals_int(self, key):
+    def get_attr_vals_int(self, key, use_json=False):
         """Get attribute values from the entry in int type
 
         :param key: An attribute name
@@ -796,7 +812,8 @@ class DSLdapObject(DSLogging):
                 results.append(result)
         return results
 
-# A challenge of this, is how do we manage indexes? They have two naming attribunes....
+
+# A challenge of this, is how do we manage indexes? They have two naming attributes....
 
 class DSLdapObjects(DSLogging):
     """The object represents the next idea: "Everything is an instance of something
