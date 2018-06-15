@@ -142,7 +142,7 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
         o = mc.get(selector, json=True)
-        log.info(o)
+        print(o)
     else:
         o = mc.get(selector)
         o_str = o.display()
@@ -152,7 +152,7 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
 def _generic_get_entry(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
-        log.info(mc.get_all_attrs_json())
+        print(mc.get_all_attrs_json())
     else:
         log.info(mc.display())
 
@@ -161,7 +161,7 @@ def _generic_get_attr(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     for attr in args.attrs:
         if args and args.json:
-            log.info(mc.get_attr_vals_json(attr))
+            print(mc.get_attr_vals_json(attr))
         else:
             log.info(mc.display_attr(attr).rstrip())
 

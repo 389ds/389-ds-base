@@ -52,9 +52,9 @@
         </div>
         <div>
           <label for="nsslapd-disk-monitoring-grace-period" class="ds-config-diskmon-label disk-monitoring" title=
-            "How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)."> 
+            "How many minute to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minute. (nsslapd-disk-monitoring-grace-period).">
             Disk Monitoring Grace Period </label><input
-            class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period " size="10"/>
+            class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period" size="10"/>
         </div>
         <div>
           <input type="checkbox" class="ds-config-diskmon-checkbox disk-monitoring" id="nsslapd-disk-monitoring-logging-critical"><label
@@ -120,8 +120,8 @@
      <div>
        <label for="nsslapd-allow-anonymous-access" class="ds-config-label" title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."> Allow Anonymous Access</label><select
           class="btn btn-default dropdown" id="nsslapd-allow-anonymous-access">
-            <option>On</option>
-            <option>Off</option>
+            <option>on</option>
+            <option>off</option>
             <option title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ">rootdse</option>
        </select>
      </div>
@@ -143,7 +143,7 @@
        </div>
        <div>
          <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password.">Confirm Password</label><input
-           class="ds-input" type="password" id="nsslapd-rootdn-confirm" size="40"/>
+           class="ds-input" type="password" id="nsslapd-rootpw-confirm" size="40"/>
        </div>
        <div>
          <label for="nsslapd-rootpwstoragescheme" class="ds-config-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme).">Password Storage Scheme</label><select
@@ -168,7 +168,7 @@
     <p></p>
 
     <div class="ds-footer">
-      <button id="server-config-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 
@@ -193,7 +193,7 @@
       </div>
     </div>
     <div class="ds-footer">
-      <button id="server-sasl-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
 
     <h4 class="ds-config-header"><br>SASL Mappings</h4>
@@ -436,7 +436,7 @@
           </div>
         </div>
         <div class="ds-footer">
-          <button id="server-pwp-save-btn" class="btn btn-primary">Save</button>
+          <button class="btn btn-primary save-button">Save</button>
         </div>
       </div>
     </div>
@@ -532,11 +532,11 @@
           <div>
             <label for="nsslapd-accesslog-logrotationtime" class="ds-config-sub-label" title="Access log rotation time settings (nsslapd-accesslog-logrotationtime).">Create New Log Every...</label><input
               class="ds-input" type="text" id="nsslapd-accesslog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-accesslog-logrotationtimeunit">
-                <option>Minutes</option>
-                <option>Hours</option>
-                <option>Days</option>
-                <option>Weeks</option>
-                <option>Months</option>
+                <option>minute</option>
+                <option>hours</option>
+                <option>day</option>
+                <option>week</option>
+                <option>month</option>
               </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-accesslog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
                 title="Minute" id="nsslapd-accesslog-logrotationsyncminute" size="1"/>
           </div>
@@ -556,9 +556,9 @@
           <div>
             <label for="nsslapd-accesslog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-accesslog-logexpirationtime).">Log File is Older Than... </label><input
               class="ds-input" type="text" id="nsslapd-accesslog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-accesslog-logexpirationtimeunit">
-                <option>Days</option>
-                <option>Weeks</option>
-                <option>Months</option>
+                <option>day</option>
+                <option>week</option>
+                <option>month</option>
               </select>
           </div>
         </div>
@@ -587,7 +587,7 @@
         </table>
       </div>
     <div class="ds-footer">
-      <button id="server-access-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 
@@ -622,11 +622,11 @@
         <div>
           <label for="nsslapd-auditlog-logrotationtime" class="ds-config-sub-label" title="Audit log rotation time settings (nsslapd-auditlog-logrotationtime).">Create New Log Every...</label><input
             class="ds-input" type="text" id="nsslapd-auditlog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditlog-logrotationtimeunit">
-              <option>Minutes</option>
-              <option>Hours</option>
-              <option>Days</option>
-              <option>Weeks</option>
-              <option>Months</option>
+              <option>minute</option>
+              <option>hours</option>
+              <option>day</option>
+              <option>week</option>
+              <option>month</option>
             </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
               title="Minute" id="nsslapd-auditlog-logrotationsyncminute" size="1"/>
         </div>
@@ -646,15 +646,15 @@
         <div>
           <label for="nsslapd-auditlog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditlog-logexpirationtime).">Log File is Older Than... </label><input
             class="ds-input" type="text" id="nsslapd-auditlog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditlog-logexpirationtimeunit">
-              <option>Days</option>
-              <option>Weeks</option>
-              <option>Months</option>
+              <option>day</option>
+              <option>week</option>
+              <option>month</option>
             </select>
         </div>
       </div>
     </div>
     <div class="ds-footer">
-      <button id="server-audit-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 
@@ -681,11 +681,11 @@
         <div>
           <label for="nsslapd-auditfaillog-logrotationtime" class="ds-config-sub-label" title="Audit failure log rotation time settings (nsslapd-auditlog-logrotationtime).">Create New Log Every...</label><input
             class="ds-input" type="text" id="nsslapd-auditfaillog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditfaillog-logrotationtimeunit">
-              <option>Minutes</option>
-              <option>Hours</option>
-              <option>Days</option>
-              <option>Weeks</option>
-              <option>Months</option>
+              <option>minute</option>
+              <option>hours</option>
+              <option>day</option>
+              <option>week</option>
+              <option>month</option>
             </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditfaillog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
               title="Minute" id="nsslapd-auditfaillog-logrotationsyncminute" size="1"/>
         </div>
@@ -704,15 +704,15 @@
         <div>
           <label for="nsslapd-auditfaillog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime).">Log File is Older Than... </label><input
             class="ds-input" type="text" id="nsslapd-auditfaillog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-auditfaillog-logexpirationtimeunit">
-              <option>Days</option>
-              <option>Weeks</option>
-              <option>Months</option>
+              <option>day</option>
+              <option>week</option>
+              <option>month</option>
             </select>
         </div>
       </div>
     </div>
     <div class="ds-footer">
-      <button id="server-auditfail-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 
@@ -738,11 +738,11 @@
         <div>
           <label for="nsslapd-errorlog-logrotationtime" class="ds-config-sub-label" title="Errors log rotation time settings (nsslapd-errorlog-logrotationtime).">Create New Log Every...</label><input
             class="ds-input" type="text" id="nsslapd-errorlog-logrotationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-errorlog-logrotationtimeunit">
-              <option>Minutes</option>
-              <option>Hours</option>
-              <option>Days</option>
-              <option>Weeks</option>
-              <option>Months</option>
+              <option>minute</option>
+              <option>hours</option>
+              <option>day</option>
+              <option>week</option>
+              <option>month</option>
             </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-errorlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
               title="Minute" id="nsslapd-errorlog-logrotationsyncminute" size="1"/>
         </div>
@@ -762,9 +762,9 @@
         <div>
           <label for="nsslapd-errorlog-logexpirationtime" class="ds-config-sub-label" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime).">Log File is Older Than... </label><input
             class="ds-input" type="text" id="nsslapd-errorlog-logexpirationtime" size="40"/> <select class="btn btn-default dropdown" id="nsslapd-errorlog-logexpirationtimeunit">
-              <option>Days</option>
-              <option>Weeks</option>
-              <option>Months</option>
+              <option>day</option>
+              <option>week</option>
+              <option>month</option>
             </select>
         </div>
       </div>
@@ -843,7 +843,7 @@
       </table>
     </div>
     <div class="ds-footer">
-      <button id="server-errors-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 
@@ -951,7 +951,7 @@
       </div>
     </div>
     <div class="ds-footer">
-      <button id="server-tuning-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 
@@ -1007,7 +1007,7 @@
       </div>
     </div>
     <div class="ds-footer">
-      <button id="server-ldapi-save-btn" class="btn btn-primary">Save</button>
+      <button class="btn btn-primary save-button">Save</button>
     </div>
   </div>
 

@@ -62,7 +62,7 @@ var create_full_template =
 var create_inf_template = 
   "[general]\n" +
   "config_version = 2\n" +
-  "full_machine_name = FQDN\n" +
+  "full_machine_name = FQDN\n\n" +
   "[slapd]\n" +
   "user = USER\n" +
   "group = GROUP\n" +
@@ -159,6 +159,106 @@ function clear_inst_form() {
 }
 
 
+function get_and_set_config () {
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'get'];
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    var obj = JSON.parse(data);
+    for (var attr in obj['attrs']) {
+      var val = obj['attrs'][attr][0];
+      attr = attr.toLowerCase();
+      if( $('#' + attr).length ) {
+        // We have  an element that matches, set the html and store the original value
+        $("#" + attr).val(val);  // Always set value, then check if its something else
+        if (val == "on") {
+          $("#" + attr).prop('checked', true);
+          $("#" + attr).trigger('change');
+        } else if (val == "off") {
+          $("#" + attr).prop('checked', false);
+          $("#" + attr).trigger('change');
+        }
+        config_values[attr] = val;
+      }
+    }
+  }).fail(function(data) {
+      console.log("failed: " + data.message);
+  });
+}
+
+function apply_mods(mods) {
+  var mod = mods.pop();
+
+  if (!mod){
+    popup_success("Successfully updated configuration");
+    return; /* all done*/
+  }
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'replace'];
+  cmd.push(mod.attr + "=" + mod.val);
+
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
+    config_values[mod.attr] = mod.val;
+    // Continue with next mods (if any))
+    apply_mods(mods);
+  }, function(ex) {
+     popup_err("Error", "Failed to update attribute: " + mod.attr + "\n\n" +  ex);
+     // Reset HTML for remaining values that have not been processed
+     $("#" + mod.attr).val(config_values[mod.attr]);
+     for (remaining in mods) {
+       $("#" + remaining.attr).val(config_values[remaining.attr]);
+     }
+     return;  // Stop on error
+  });
+}
+
+function save_config() {
+  // Loop over current config_values check for differences
+  var mod_list = [];
+
+  for (var attr in config_values) {
+    var mod = {};
+    if ( $("#" + attr).is(':checkbox')) {
+      // Handle check boxes
+      if ( $("#" + attr).is(":checked")) {
+        if (config_values[attr] != "on") {
+          mod['attr'] = attr;
+          mod['val'] = "on";
+          mod_list.push(mod);
+        }
+      } else {
+        // Not checked
+        if (config_values[attr] != "off") {
+          mod['attr'] = attr;
+          mod['val'] = "off";
+          mod_list.push(mod);
+        }
+      }
+    } else {
+      // Normal input
+      var val = $("#" + attr).val();
+
+      // But first check for rootdn-pw changes and check confirm input matches
+      if (attr == "nsslapd-rootpw" && val != config_values[attr]) {
+        // Password change, make sure passwords match
+        if (val != $("#nsslapd-rootpw-confirm").val()){
+          popup_msg("Passwords do not match!", "The Directory Manager passwords do not match, please correct before saving again.");
+          return;
+        }
+      }
+
+      if ( val && val != config_values[attr]) {
+        mod['attr'] = attr;
+        mod['val'] = val;
+        mod_list.push(mod);
+      }
+    }
+  }
+
+  // Build dsconf commands to apply all the mods
+  if (mod_list.length) {
+    apply_mods(mod_list);
+  } else {
+    // No changes to save, log msg?  popup_msg()
+  }
+}
 
 // load the server config pages
 $(document).ready( function() {
@@ -167,15 +267,21 @@ $(document).ready( function() {
   // Fill in the server instance dropdown  
   get_insts();
   check_for_389();
+
   $("#server-tab").css( 'color', '#228bc0');
 
   $("#server-content").load("servers.html", function () {
-    // Initial page setup
+    // Handle changing instance here
+    $('#select-server').on("change", function() {
+      server_id = $(this).val();
+      load_config();
+    });
+
     $('.disk-monitoring').hide();
     $(".all-pages").hide();
     $("#server-content").show();
     $("#server-config").show();
-    
+
     // To remove text border on firefox on dropdowns)
     if(navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {  
       $("select").focus( function() {      
@@ -184,7 +290,12 @@ $(document).ready( function() {
         this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
       });
     }
-    
+
+    $(".save-button").on('click', function (){
+      // This is for all pages.  Click Save -> it saves everything
+      save_all();
+    });
+
     // Events
     $(".ds-nav-choice").on('click', function (){
       $(".ds-tab-list").css( 'color', '#777');
@@ -196,7 +307,6 @@ $(document).ready( function() {
       $(".ds-tab-list").css( 'color', '#777');
       $(this).css( 'color', '#228bc0');
     });
-
 
     $("#server-config-btn").on("click", function() {
       $(".all-pages").hide();
@@ -902,8 +1012,8 @@ $(document).ready( function() {
               /* 
                * Next, create the instance...
                */
-              cmd = ['dscreate', 'install', setup_file];
-              cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+              cmd = [DSCREATE, 'install', setup_file];
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex) {
                 // Failed to create the new instance!
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
                 $("#create-inst-spinner").hide();

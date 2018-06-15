@@ -487,8 +487,11 @@ class SetupDs(object):
         # Change the root password finally
 
         # Initialise ldapi socket information. IPA expects this ....
-        ds_instance.config.set('nsslapd-ldapifilepath', ds_instance.get_ldapi_path())
+        ldapi_path = slapd['run_dir'].replace('dirsrv', 'slapd-' + slapd['instance_name'] + '.socket')
+        ds_instance.config.set('nsslapd-ldapifilepath', ldapi_path)
         ds_instance.config.set('nsslapd-ldapilisten', 'on')
+        ds_instance.config.set('nsslapd-ldapiautobind', 'on')
+        ds_instance.config.set('nsslapd-ldapimaprootdn', slapd['root_dn'])
 
         # Complete.
         ds_instance.config.set('nsslapd-rootpw',

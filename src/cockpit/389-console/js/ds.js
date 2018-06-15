@@ -1,8 +1,20 @@
 var DS_HOME = "/etc/dirsrv/";
 var server_id = "None";
 var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
+var config_values = {};
+//TODO - need "config_values" for all the other pages: SASL, backend, suffix, etc.
 
-
+// Used for local development testing
+var DSCONF = "dsconf";
+var DSCTL = "dsctl";
+var DSCREATE = "dscreate";
+var ENV = "";
+/*
+var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
+var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
+var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
+var ENV = "PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389";
+*/
 
 // TODO validation functions
 
@@ -57,12 +69,19 @@ function set_ports() {
   });
 }
 
-// POC - REMOVE!!!!!
+/* Example - remove eventually
+ *
+ * To test a local version of dsconf/lib389 use something like:
+ *
+ *     var cmd = ['/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf',
+ *               '-j', 'ldapi://%2fvar%2frun%2fslapd-' + server_id + '.socket','config',
+ *               'replace'];
+ *    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": ["PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389"]}).done(function() {
+ */
 function test_json_and_dsconf () {
-    var cmd = ['/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf',
-               '-j', 'ldapi://%2fvar%2frun%2fslapd-localhost.socket','backend',
-               'list']
-    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": ["PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389"]}).done(function(data) {
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2fslapd-' + server_id + '.socket','backend', 'list']
+    cockpit.spawn(cmd, { superuser: true, "err": "message"}).done(function(data) {
+        console.log(data);
         var obj = JSON.parse(data);
         console.log("backend: " + obj['items']);
     }).fail(function(data) {
@@ -83,7 +102,6 @@ function example() {
 }
 
 function set_no_insts () {
-    console.log("Settign no instance");
     var select = document.getElementById("select-server");
     var el = document.createElement("option");
     el.textContent = "No instances";
@@ -112,7 +130,6 @@ function check_for_389 () {
 function get_insts() {
   var insts = [];
   var cmd = ["/bin/sh", "-c", "/usr/bin/ls -d " + DS_HOME + "slapd-*"];
-
   cockpit.spawn(cmd, { superuser: true }).done(function(data) {
     // Parse the output, and skip removed instances and empty lines
     var lines = data.split('\n');
@@ -158,6 +175,7 @@ function get_insts() {
       $("#server-content").show();
       $("#server-config").show();
       server_id = insts[0];
+      get_and_set_config();
     }
 
     $("body").show();
@@ -193,12 +211,31 @@ function popup_msg(title, msg) {
   });
 }
 
-$(function() {
-  $('#select-server').change(function() {
-    server_id = $(this).val();
-    // TODO - reload config - do everything!!!!!
-  });
-});
+function popup_success(msg) {
+  $('#success-msg').html(msg);
+  $('#success-form').modal('show');
+  setTimeout(function() {$('#success-form').modal('hide');}, 1500);
+}
+
+// This is called when any Save button is clicked on the main page.  We call
+// all the save functions for all the pages here.  This is not used for modal forms
+function save_all () {
+  save_config();  // Server Config Page
+  //
+  // TODO:
+  //   save_chaining();
+  //   save_chaining_suffix();
+  //   save_global_backend();
+  //   save_suffix();
+  //   save_sasl();
+  //   save_security();
+}
+
+function load_config (){
+  // TODO - set all the pages
+  get_and_set_config(); // cn=config stuff
+
+}
 
 $(window.document).ready(function() {
 
@@ -209,5 +246,7 @@ $(window.document).ready(function() {
       this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
     });
   }
+
+
   
 });

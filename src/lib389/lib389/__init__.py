@@ -2778,15 +2778,14 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append('-E')
 
         try:
-            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
-            u_result = ensure_str(result)
+            result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: {} failed with the return code {} and the error {}".format(
                            format_cmd_list(cmd), e.returncode, e.output))
             return False
 
         self.log.debug("ldif2db output: BEGIN")
-        for line in u_result.split("\n"):
+        for line in result.split("\n"):
             self.log.debug(line)
         self.log.debug("ldif2db output: END")
 
@@ -2847,15 +2846,14 @@ class DirSrv(SimpleLDAPObject, object):
                 ldifname = "/" + self.serverid + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
             cmd.append(self.get_ldif_dir() + ldifname)
         try:
-            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
-            u_result = ensure_str(result)
+            result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: {} failed with the return code {} and the error {}".format(
                            format_cmd_list(cmd), e.returncode, e.output))
             return False
 
         self.log.debug("db2ldif output: BEGIN")
-        for line in u_result.split("\n"):
+        for line in result.split("\n"):
             self.log.debug(line)
         self.log.debug("db2ldif output: END")
 
@@ -2884,15 +2882,14 @@ class DirSrv(SimpleLDAPObject, object):
                 'archive2db',
                 '-a', archive_dir,
                 '-D', self.get_config_dir()
-            ], stderr=subprocess.STDOUT, encoding='utf-8')
-            u_result = ensure_str(result)
+            ], encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: {} failed with the return code {} and the error {}".format(
                            format_cmd_list(cmd), e.returncode, e.output))
             return False
 
         self.log.debug("bak2db output: BEGIN")
-        for line in u_result.split("\n"):
+        for line in result.split("\n"):
             self.log.debug(line)
         self.log.debug("bak2db output: END")
 
@@ -2923,14 +2920,14 @@ class DirSrv(SimpleLDAPObject, object):
                 'db2archive',
                 '-a', archive_dir,
                 '-D', self.get_config_dir()
-            ], stderr=subprocess.STDOUT, encoding='utf-8')
-            u_result = ensure_str(result)
+            ], encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: {} failed with the return code {} and the error {}".format(
-                        format_cmd_list(cmd), e.returncode, e.output))
+                           format_cmd_list(cmd), e.returncode, e.output))
+            return False
 
         self.log.debug("db2bak output: BEGIN")
-        for line in u_result.split("\n"):
+        for line in result.split("\n"):
             self.log.debug(line)
         self.log.debug("db2bak output: END")
 
@@ -2986,15 +2983,14 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append(vlvTag)
 
         try:
-            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
-            u_result = ensure_str(result)
+            result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: {} failed with the return code {} and the error {}".format(
                            format_cmd_list(cmd), e.returncode, e.output))
             return False
 
         self.log.debug("db2index output: BEGIN")
-        for line in u_result.split("\n"):
+        for line in result.split("\n"):
             self.log.debug(line)
         self.log.debug("db2index output: END")
 

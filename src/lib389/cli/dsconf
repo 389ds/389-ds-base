@@ -123,7 +123,7 @@ if __name__ == '__main__':
     except Exception as e:
         log.debug(e, exc_info=True)
         if args and args.json:
-            print(e)
+            sys.stderr.write(str(e))
         else:
             log.error("Error: %s" % str(e))
         result = False

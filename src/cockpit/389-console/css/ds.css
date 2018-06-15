@@ -302,7 +302,6 @@ td {
   max-height: 400px;
   margin: 23px 10px 2px 0px;
   overflow: auto;
-  border-radius: 5px !important;
 }
 
 .ds-monitor-tree {
@@ -317,7 +316,6 @@ td {
   max-height: 400px;
   margin: 10px;
   overflow: auto;
-  border-radius: 5px !important;
 }
 
 .ds-treenode {
