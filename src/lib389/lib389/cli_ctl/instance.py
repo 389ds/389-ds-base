@@ -84,6 +84,9 @@ def instance_example(inst, log, args):
 ;
 ; The special value {instance_name} is substituted at installation time.
 ;
+; By default, all configuration parameters in this file are commented out.
+; To use an INF file with dscreate, you must at least set the parameters
+; flagged with [REQUIRED].
 
     """
     g2b = General2Base(log)
