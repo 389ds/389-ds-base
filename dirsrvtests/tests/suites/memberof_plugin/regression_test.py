@@ -13,24 +13,28 @@ import time
 import ldap
 import subprocess
 from random import sample
-from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes
-from lib389.topologies import topology_m1h1c1 as topo
+from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
+from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin
 from lib389 import agreement, Entry
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups, Group
-from lib389.topologies import topology_m2 as topo_m2
 from lib389.replica import ReplicationManager
+from lib389.tasks import *
+from lib389.idm.nscontainer import nsContainers
+
 
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
 
 USER_CN = 'user_'
 GROUP_CN = 'group1'
+DEBUGGING = os.getenv('DEBUGGING', False)
+SUBTREE_1 = 'cn=sub1,%s' % SUFFIX
+SUBTREE_2 = 'cn=sub2,%s' % SUFFIX
 
 
-DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 else:
@@ -387,10 +391,127 @@ def test_memberof_with_changelog_reset(topo_m2):
     repl.test_replication_topology(topo_m2)
 
 
+def add_container(inst, dn, name, sleep=False):
+    """Creates container entry"""
+    conts = nsContainers(inst, dn)
+    cont = conts.create(properties={'cn': name})
+    if sleep:
+        time.sleep(1)
+    return cont
+
+
+def add_member(server, cn, subtree):
+    dn = subtree
+    users = UserAccounts(server, dn, rdn=None)
+    users.create(properties={'uid': 'test_%s' % cn,
+                             'cn': "%s" % cn,
+                             'sn': 'SN',
+                             'description': 'member',
+                             'uidNumber': '1000',
+                             'gidNumber': '2000',
+                             'homeDirectory': '/home/testuser'
+                             })
+
+
+def add_group(server, cn, subtree):
+    group = Groups(server, subtree, rdn=None)
+    group.create(properties={'cn': "%s" % cn,
+                             'member': ['uid=test_m1,%s' % SUBTREE_1, 'uid=test_m2,%s' % SUBTREE_1],
+                             'description': 'group'})
+
+
+def rename_entry(server, cn, from_subtree, to_subtree):
+    dn = '%s,%s' % (cn, from_subtree)
+    nrdn = '%s-new' % cn
+    log.fatal('Renaming user (%s): new %s' % (dn, nrdn))
+    server.rename_s(dn, nrdn, newsuperior=to_subtree, delold=0)
+
+
+def _find_memberof(server, user_dn=None, group_dn=None, find_result=True):
+    assert (server)
+    assert (user_dn)
+    assert (group_dn)
+    ent = server.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+    found = False
+    if ent.hasAttr('memberof'):
+
+        for val in ent.getValues('memberof'):
+            server.log.info("!!!!!!! %s: memberof->%s" % (user_dn, val))
+            if ensure_str(val) == group_dn:
+                found = True
+                break
+
+    if find_result:
+        assert found
+    else:
+        assert (not found)
+
+
+@pytest.mark.ds49161
+def test_memberof_group(topology_st):
+    """Test memberof does not fail if group is moved into scope
+
+    :id: 552850aa-agc3-473e-9d39-aae812b46f11
+
+    :setup: Single instance
+
+    :steps:
+         1. Enable memberof plugin and set memberofentryscope
+         2. Restart the server
+         3. Add test sub-suffixes
+         4. Add test users
+         5. Add test groups
+         6. Check for memberof attribute added to the test users
+         7. Rename the group entry
+         8. Check the new name is reflected in memberof attribute of user
+
+    :expectedresults:
+         1. memberof plugin should be enabled and memberofentryscope should be set
+         2. Server should be restarted
+         3. Sub-suffixes should be added
+         4. Test users should be added
+         5. Test groups should be added
+         6. memberof attribute should be present in the test users
+         7. Group entry should be renamed
+         8. New group name should be present in memberof attribute of user
+    """
+
+    inst = topology_st.standalone
+    log.info('Enable memberof plugin and set the scope as cn=sub1,dc=example,dc=com')
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+    memberof.replace('memberOfEntryScope', SUBTREE_1)
+    inst.restart()
+
+    add_container(inst, SUFFIX, 'sub1')
+    add_container(inst, SUFFIX, 'sub2')
+    add_member(inst, 'm1', SUBTREE_1)
+    add_member(inst, 'm2', SUBTREE_1)
+    add_group(inst, 'g1', SUBTREE_1)
+    add_group(inst, 'g2', SUBTREE_2)
+
+    # _check_memberof
+    dn1 = '%s,%s' % ('uid=test_m1', SUBTREE_1)
+    dn2 = '%s,%s' % ('uid=test_m2', SUBTREE_1)
+    g1 = '%s,%s' % ('cn=g1', SUBTREE_1)
+    g2 = '%s,%s' % ('cn=g2', SUBTREE_2)
+    _find_memberof(inst, dn1, g1, True)
+    _find_memberof(inst, dn2, g1, True)
+    _find_memberof(inst, dn1, g2, False)
+    _find_memberof(inst, dn2, g2, False)
+
+    rename_entry(inst, 'cn=g2', SUBTREE_2, SUBTREE_1)
+
+    g2n = '%s,%s' % ('cn=g2-new', SUBTREE_1)
+    _find_memberof(inst, dn1, g1, True)
+    _find_memberof(inst, dn2, g1, True)
+    _find_memberof(inst, dn1, g2n, True)
+    _find_memberof(inst, dn2, g2n, True)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
 
