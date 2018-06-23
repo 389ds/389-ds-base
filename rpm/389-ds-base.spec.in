@@ -1,4 +1,3 @@
-
 %global pkgname   dirsrv
 %global srcname   389-ds-base
 
@@ -141,7 +140,7 @@ Requires:         perl-Socket
 %endif
 Requires:         perl-NetAddr-IP
 
-Source0:          http://www.port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
+Source0:          https://releases.pagure.org/%{name}/%{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
