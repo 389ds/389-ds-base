@@ -286,6 +286,7 @@ Requires: python%{python3_pkgversion}-six
 Requires: python%{python3_pkgversion}-pyasn1
 Requires: python%{python3_pkgversion}-pyasn1-modules
 Requires: python%{python3_pkgversion}-dateutil
+Requires: python%{python3_pkgversion}-argcomplete
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 %description -n python%{python3_pkgversion}-lib389
 This module contains tools and libraries for accessing, testing,
@@ -437,7 +438,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 
 
 %if %{use_perl}
-# make sure perl scripts have a proper shebang 
+# make sure perl scripts have a proper shebang
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
 %endif
 
@@ -573,7 +574,7 @@ for inst in $instances ; do
     echo restarting instance $inst >> $output 2>&1 || :
     /bin/systemctl start $inst >> $output 2>&1 || :
 done
-#END UPGRADE 
+#END UPGRADE
 %endif
 
 exit 0
@@ -960,7 +961,7 @@ exit 0
 - bump version to 1.3.0.rc3
 - Ticket 549 - DNA plugin no longer reports additional info when range is depleted
 - Ticket 541 - need to set plugin as off in ldif template
-- Ticket 541 - RootDN Access Control plugin is missing after upgrade 
+- Ticket 541 - RootDN Access Control plugin is missing after upgrade
 
 * Fri Dec 14 2012 Noriko Hosoi <nhosoi@redhat.com> - 1.3.0-0.2.rc2
 - bump version to 1.3.0.rc2
@@ -1028,16 +1029,16 @@ exit 0
 * Tue Oct 9 2012 Mark Reynolds <mareynol@redhat.com> - 1.3.0.a1-1
 Ticket #28 	MOD operations with chained delete/add get back error 53 on backend config
 Ticket #173 	ds-logpipe.py script's man page and script help should be updated for -t option.
-Ticket #196 	RFE: Interpret IPV6 addresses for ACIs, replication, and chaining 
-Ticket #218 	RFE - Make RIP working with Replicated Entries 
-Ticket #328 	make sure all internal search filters are properly escaped 
+Ticket #196 	RFE: Interpret IPV6 addresses for ACIs, replication, and chaining
+Ticket #218 	RFE - Make RIP working with Replicated Entries
+Ticket #328 	make sure all internal search filters are properly escaped
 Ticket #329 	389-admin build fails on F-18 with new apache 	
 Ticket #344 	deadlock in replica_write_ruv
 Ticket #351 	use betxn plugins by default
-Ticket #352 	make cos, roles, views betxn aware 
+Ticket #352 	make cos, roles, views betxn aware
 Ticket #356 	logconv.pl - RFE - track bind info
-Ticket #365 	Audit log - clear text password in user changes 
-Ticket #370 	Opening merge qualifier CoS entry using RHDS console changes the entry. 
+Ticket #365 	Audit log - clear text password in user changes
+Ticket #370 	Opening merge qualifier CoS entry using RHDS console changes the entry.
 Ticket #372 	Setting nsslapd-listenhost or nsslapd-securelistenhost breaks ACI processing 	
 Ticket #386 	Overconsumption of memory with large cachememsize and heavy use of ldapmodify 	
 Ticket #402 	unhashedTicket #userTicket #password in entry extension 	
@@ -1568,7 +1569,7 @@ ice is restarted
 * Wed Mar  2 2011 Rich Megginson <rmeggins@redhat.com> - 1.2.8-0.6.rc1
 - 389-ds-base-1.2.8 release candidate 1 - git tag 389-ds-base-1.2.8.rc1
 - Bug 518890 - setup-ds-admin.pl - improve hostname validation
-- Bug 681015 - RFE: allow fine grained password policy duration attributes in 
+- Bug 681015 - RFE: allow fine grained password policy duration attributes in
 -     days, hours, minutes, as well
 - Bug 514190 - setup-ds-admin.pl --debug does not log to file
 - Bug 680555 - ns-slapd segfaults if I have more than 100 DBs
@@ -1621,12 +1622,12 @@ ice is restarted
 - Bug 151705 - Need to update Console Cipher Preferences with new ciphers
 - Bug 668862 - init scripts return wrong error code
 - Bug 670616 - Allow SSF to be set for local (ldapi) connections
-- Bug 667935 - DS pipe log script's logregex.py plugin is not redirecting the 
+- Bug 667935 - DS pipe log script's logregex.py plugin is not redirecting the
 -    log output to the text file
 - Bug 668619 - slapd stops responding
 - Bug 624547 - attrcrypt should query the given slot/token for
 -    supported ciphers
-- Bug 646381 - Faulty password for nsmultiplexorcredentials does not give any 
+- Bug 646381 - Faulty password for nsmultiplexorcredentials does not give any
 -    error message in logs
 
 * Fri Jan 21 2011 Nathan Kinder <nkinder@redhat.com> - 1.2.8-0.1.a1
@@ -1685,7 +1686,7 @@ erral)
 
 * Mon Nov  1 2010 Rich Megginson <rmeggins@redhat.com> - 1.2.7-0.5.a4
 - 1.2.7.a4 release - git tag 389-ds-base-1.2.7.a4
-- Bug 647932 - multiple memberOf configuration adding memberOf where there is 
+- Bug 647932 - multiple memberOf configuration adding memberOf where there is
 no member
 - Bug 491733 - dbtest crashes
 - Bug 606545 - core schema should include numSubordinates
@@ -2030,7 +2031,7 @@ ions
 
 * Tue Jan 09 2007 Dennis Gilmore <dennis@ausil.us> - 1.1-0.1.cvs20070108
 - update to a cvs snapshot
-- fedorafy the spec 
+- fedorafy the spec
 - create -devel subpackage
 - apply a patch to use mozldap not mozldap6
 - apply a patch to allow --prefix to work correctly

@@ -847,42 +847,80 @@ $(document).ready( function() {
         report_err($("#rootdn-pw"), 'Directory Manager passwords do not match!');
         $("#rootdn-pw-confirm").css("border-color", "red");
         return;
-      } else if (root_pw == "" || root_pw_confirm == ""){
+      } else if (root_pw == ""){
         report_err($("#rootdn-pw"), 'Directory Manager password can not be empty!');
         $("#rootdn-pw-confirm").css("border-color", "red");
         return;
       } else {
-        setup_inf = setup_inf.replace('ROOTPW', 'False');
+        setup_inf = setup_inf.replace('ROOTPW', root_pw);
       }
 
+      /*
+       * Here are steps we take to create the instance
+       *
+       * [1] Get FQDN Name for nsslapd-localhost setting in setup file
+       * [2] Create a file for the inf setup parameters
+       * [3] Set strict permissions on that file
+       * [4] Populate the new setup file with settings (including cleartext password)
+       * [5] Create the instance
+       * [6] Remove setup file
+       */
       cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex) {
         // Failed to get FQDN
         popup_err("Failed to get hostname!", ex.message);
-
       }).done(function (data){
-        // Set the hostname in inf file
+        /* 
+         * We have FQDN, so set the hostname in inf file, and create the setup file
+         */
         setup_inf = setup_inf.replace('FQDN', data);
-
-        // Create setup inf file
-        var cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" > /tmp/389setup.inf'];
-        cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+        var setup_file = "/tmp/389-setup-" + (new Date).getTime() + ".inf";
+        var rm_cmd = ['rm', setup_file];
+        var create_file_cmd = ['touch', setup_file];
+        cockpit.spawn(create_file_cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+          // Failed to create setup file
           popup_err("Failed to create installation file!", ex.message);
         }).done(function (){
-          // Next, create the instance
-          cmd = ['dscreate', 'fromfile', '/tmp/389setup.inf'];
-          cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+          /*
+           * We have our new setup file, now set permissions on that setup file before we add sensitive data
+           */
+          var chmod_cmd = ['chmod', '600', setup_file];
+          cockpit.spawn(chmod_cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+            // Failed to set permissions on setup file
+            cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
             $("#create-inst-spinner").hide();
-            popup_err("Failed to create instance!", ex.message);
+            popup_err("Failed to set permission on setup file " + setup_file + ": ", ex.message);
           }).done(function (){
-            // Cleanup
-            $("#create-inst-spinner").hide();
-            $("#server-list-menu").attr('disabled', false); 
-            $("#no-instances").hide();
-            get_insts();  // Refresh server list
-            popup_msg("Success!", "Successfully created instance:  <b>slapd-" + new_server_id + "</b>", );
-            $("#create-inst-form").modal('toggle');
+            /*
+             * Success we have our setup file and it has the correct permissions.  
+             * Now populate the setup file...
+             */
+            var cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
+            cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+              // Failed to populate setup file
+              popup_err("Failed to populate installation file!", ex.message);
+            }).done(function (){
+              /* 
+               * Next, create the instance...
+               */
+              cmd = ['dscreate', 'install', setup_file];
+              cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+                // Failed to create the new instance!
+                cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
+                $("#create-inst-spinner").hide();
+                popup_err("Failed to create instance!", ex.message);
+              }).done(function (){
+                // Success!!!  Now cleanup everything up...
+                cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
+                $("#create-inst-spinner").hide();
+                $("#server-list-menu").attr('disabled', false); 
+                $("#no-instances").hide();
+                get_insts();  // Refresh server list
+                popup_msg("Success!", "Successfully created instance:  <b>slapd-" + new_server_id + "</b>", );
+                $("#create-inst-form").modal('toggle');
+              });
+            }); 
+            $("#create-inst-spinner").show();
           });
-          $("#create-inst-spinner").show();
         });
       });
     });

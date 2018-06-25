@@ -7,8 +7,10 @@
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
+#
+# PYTHON_ARGCOMPLETE_OK
 
-import argparse
+import argparse, argcomplete
 import logging
 import ldap
 import sys
@@ -84,7 +86,7 @@ if __name__ == '__main__':
     cli_whoami.create_parser(subparsers)
     cli_referint.create_parser(subparsers)
     cli_automember.create_parser(subparsers)
-
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     log = reset_get_logger('dsconf', args.verbose)
@@ -98,7 +100,6 @@ if __name__ == '__main__':
     dsrc_inst = dsrc_to_ldap("~/.dsrc", args.instance, log.getChild('dsrc'))
 
     # Now combine this with our arguments
-
     dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
 
     log.debug("Called with: %s" % args)

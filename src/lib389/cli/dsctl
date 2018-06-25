@@ -7,8 +7,10 @@
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
+#
+# PYTHON_ARGCOMPLETE_OK
 
-import argparse
+import argparse, argcomplete
 import logging
 import sys
 
@@ -36,8 +38,8 @@ if __name__ == '__main__':
             help="Return result in JSON object",
             default=False, action='store_true'
         )
-
     subparsers = parser.add_subparsers(help="action")
+    argcomplete.autocomplete(parser)
 
     # We stack our needed options in via submodules.
 

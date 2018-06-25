@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2018 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -66,16 +66,14 @@ def instance_create(inst, log, args):
 
 
 def instance_example(inst, log, args):
-    print("""
+    gpl_copyright = """
 ; --- BEGIN COPYRIGHT BLOCK ---
-; Copyright (C) 2015 Red Hat, Inc.
+; Copyright (C) 2018 Red Hat, Inc.
 ; All rights reserved.
 ;
 ; License: GPL (version 3 or any later version).
 ; See LICENSE for details.
 ; --- END COPYRIGHT BLOCK ---
-
-; Author: firstyear at redhat.com
 
 ; This is a version 2 ds setup inf file.
 ; It is used by the python versions of setup-ds-*
@@ -87,11 +85,29 @@ def instance_example(inst, log, args):
 ; The special value {instance_name} is substituted at installation time.
 ;
 
-    """)
+    """
     g2b = General2Base(log)
     s2b = Slapd2Base(log)
-    print(g2b.collect_help())
-    print(s2b.collect_help())
+    if args.template_file:
+        try:
+            # Create file and set permissions
+            template_file = open(args.template_file, 'w')
+            template_file.close()
+            os.chmod(args.template_file, 0o600)
+
+            # Open file and populate it
+            template_file = open(args.template_file, 'w')
+            template_file.write(gpl_copyright)
+            template_file.write(g2b.collect_help())
+            template_file.write(s2b.collect_help())
+            template_file.close()
+        except OSError as e:
+            log.error("Failed trying to create template file ({}), error: {}".format(args.template_file, str(e)))
+            return False
+    else:
+        print(gpl_copyright)
+        print(g2b.collect_help())
+        print(s2b.collect_help())
     return True
 
 
