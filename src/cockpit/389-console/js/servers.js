@@ -134,6 +134,7 @@ function clear_local_pwp_form () {
 }
 
 function clear_inst_input() {
+  // Reset the color of the fields
   $("#create-inst-serverid").css("border-color", "initial");
   $("#create-inst-port").css("border-color", "initial");
   $("#create-inst-secureport").css("border-color", "initial");
@@ -142,6 +143,8 @@ function clear_inst_input() {
   $("#create-inst-group").css("border-color", "initial");
   $("#rootdn-pw").css("border-color", "initial");
   $("#rootdn-pw-confirm").css("border-color", "initial");
+  $("#backend-name").css("border-color", "initial");
+  $("#backend-suffix").css("border-color", "initial");
 }
 
 function clear_inst_form() {
@@ -154,6 +157,8 @@ function clear_inst_form() {
   $("#create-inst-group").val("dirsrv");
   $("#rootdn-pw").val("");
   $("#rootdn-pw-confirm").val("");
+  $("#backend-suffix").val("");
+  $("#backend-name").val("");
   $("#create-inst-tls").prop('checked', true);
   clear_inst_input();
 }
@@ -1153,6 +1158,30 @@ $(document).ready( function() {
         return;
       } else {
         setup_inf = setup_inf.replace('ROOTPW', root_pw);
+      }
+
+      // Backend/Suffix
+      var backend_name = $("#backend-name").val();
+      var backend_suffix = $("#backend-suffix").val();
+      if ( (backend_name != "" && backend_suffix == "") || (backend_name == "" && backend_suffix != "") ) {
+        if (backend_name == ""){
+          report_err($("#backend-name"), 'If you specify a backend suffix, you must also specify a backend name');
+          return;
+        } else {
+          report_err($("#backend-suffix"), 'If you specify a backend name, you must also specify a backend suffix');
+          return;
+        }
+      }
+      if (backend_name != ""){
+        // We definitely have a backend name and suffix, next validate the suffix is a DN
+        if (valid_dn(backend_suffix)) {
+          // It's valid, add it
+          setup_inf += "\n[backend-" + backend_name + "]\nsuffix = " + backend_suffix + "\n";
+        } else {
+          // Not a valid DN
+          report_err($("#backend-suffix"), 'Invalid DN for Backend Suffix');
+          return;
+        }
       }
 
       /*

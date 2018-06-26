@@ -1,4 +1,4 @@
-var attr_btn_html = 
+var attr_btn_html =
   '<div class="dropdown">' +
     '<button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">' +
       '  Choose Action...' +
@@ -10,7 +10,7 @@ var attr_btn_html =
      '</ul>' +
   '</div>';
 
-var oc_btn_html = 
+var oc_btn_html =
   '<div class="dropdown">' +
     '<button class="btn btn-default dropdown-toggle" type="button"data-toggle="dropdown">' +
       ' Choose Action...' +
@@ -141,12 +141,12 @@ $(document).ready( function() {
       // TODO - Do the actual save in DS
 
       // Update html
-      // If save successful close down form, otherwise keep form up and return      
+      // If save successful close down form, otherwise keep form up and return
       $("#add-edit-oc-form").modal('toggle');
 
       $("#oc-name").attr('disabled', false);
-  
-  
+
+
       // Convert allowed/requires list to html format
       var oc_required_list = $('#oc-required-list option').map(function() { return $(this).val(); }).get().join(', ');
       var oc_allowed_list = $('#oc-allowed-list option').map(function() { return $(this).val(); }).get().join(', ');
@@ -288,7 +288,7 @@ $(document).ready( function() {
         $("#attr-name").attr('disabled', true);
 
         $("#add-edit-attr-form").modal('toggle');
-        
+
         // TODO Get fresh copy of attr to fill in edit form
 
         // Update modal html header and fields and show()
@@ -323,12 +323,12 @@ $(document).ready( function() {
       $("#oc-name").attr('disabled', true);
       $("#oc-name").val(edit_oc_name);
       $("#add-edit-oc-header").html('Edit Objectclass: ' + edit_oc_name);
-      
+
       // TODO Get fresh copy of objectclass for edit form
 
       // Update modal html header and fields and show()
       $("#add-edit-oc-form").modal('toggle');
-      
+
     });
 
     $(document).on('click', '.oc-del-btn', function(e) {

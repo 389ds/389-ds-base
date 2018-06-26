@@ -288,7 +288,7 @@
     </div>
   </div>
 
-  <!-- Restore from backup -->
+  <!-- Manage Backups/restore -->
   <div class="modal fade" id="restore-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restore-label" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content ds-modal-wide">
@@ -326,6 +326,7 @@
     </div>
   </div>
 
+  <!-- Create database link -->
   <div class="modal fade" id="create-db-link-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="dblink-label" aria-hidden="true">
     <div class="modal-dialog ds-modal">
       <div class="modal-content">
@@ -436,6 +437,15 @@
                 <label for="rootdn-pw-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
                   class="ds-input" type="password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
               </div>
+              <hr>
+              <div>
+                <label for="backend-name" class="ds-config-label" title="The backend name, like 'userroot'">Backend Name (optional)</label><input
+                  class="ds-input" type="text" id="backend-name">
+              </div>
+              <div>
+                <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'">Backend Suffix (optional)</label><input
+                  class="ds-input" type="text" id="backend-suffix">
+              </div>
               <div>
                 <p></p>
                 <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
@@ -455,7 +465,6 @@
       </div>
     </div>
   </div>
-
 
   <!--
       Do Backup
@@ -488,7 +497,6 @@
       </div>
     </div>
   </div>
-
 
   <!-- The Nav Tabs  -->
 
@@ -528,8 +536,6 @@
     </div>
 
   </div>
-
-
 
 </body>
 </html>

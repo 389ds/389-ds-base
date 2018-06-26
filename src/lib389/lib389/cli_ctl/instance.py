@@ -16,7 +16,7 @@ import os
 import time
 import sys
 
-from lib389.instance.options import General2Base, Slapd2Base
+from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 
 
 def instance_list(inst, log, args):
@@ -88,9 +88,12 @@ def instance_example(inst, log, args):
 ; To use an INF file with dscreate, you must at least set the parameters
 ; flagged with [REQUIRED].
 
-    """
+"""
+
     g2b = General2Base(log)
     s2b = Slapd2Base(log)
+    b2b = Backend2Base(log, "backend-userroot")
+
     if args.template_file:
         try:
             # Create file and set permissions
@@ -103,6 +106,7 @@ def instance_example(inst, log, args):
             template_file.write(gpl_copyright)
             template_file.write(g2b.collect_help())
             template_file.write(s2b.collect_help())
+            template_file.write(b2b.collect_help())
             template_file.close()
         except OSError as e:
             log.error("Failed trying to create template file ({}), error: {}".format(args.template_file, str(e)))
@@ -111,6 +115,7 @@ def instance_example(inst, log, args):
         print(gpl_copyright)
         print(g2b.collect_help())
         print(s2b.collect_help())
+        print(b2b.collect_help())
     return True
 
 

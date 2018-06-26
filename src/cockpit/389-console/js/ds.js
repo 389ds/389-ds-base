@@ -260,14 +260,11 @@ function load_config (){
 
 $(window.document).ready(function() {
 
-  if(navigator.userAgent.toLowerCase().indexOf('firefoxf') > -1) {  
-    $("select@@@").focus( function() {     
+  if(navigator.userAgent.toLowerCase().indexOf('firefoxf') > -1) {
+    $("select@@@").focus( function() {
       this.style.setProperty( 'outline', 'none', 'important' );
       this.style.setProperty( 'color', 'rgba(0,0,0,0)', 'important' );
       this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
     });
   }
-
-
-  
 });

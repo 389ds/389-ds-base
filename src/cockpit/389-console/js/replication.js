@@ -4,7 +4,7 @@ var prev_role_button;
 var prev_rid = "";
 var binddn_list_color = "";
 
-var agmt_action_html = 
+var agmt_action_html =
   '<div class="dropdown">' +
      '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">' +
       ' Choose Action...' +
@@ -20,7 +20,7 @@ var agmt_action_html =
     '</ul>' +
   '</div>';
 
-var winsync_agmt_action_html = 
+var winsync_agmt_action_html =
   '<div class="dropdown">' +
      '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu2" data-toggle="dropdown">' +
       ' Choose Action...' +
@@ -41,7 +41,7 @@ function load_repl_jstree() {
   $('#repl-tree').jstree( {
     "plugins" : [ "wholerow" ]
   });
-  
+
   // Set rid for each suffix if applicable
   prev_rid = "1";
 
@@ -117,9 +117,9 @@ function add_repl_mgr(dn){
 
 $(document).ready( function() {
   $("#replication-content").load("replication.html", function () {
-    
+
     // Load the dropdown TODO
-    
+
     binddn_list_color = $("#repl-managers-list").css("border-color");
 
     // Load existing replication config (if any), set role, etc
@@ -149,7 +149,7 @@ $(document).ready( function() {
       $("#repl-cleanallruv").show();
     });
 
-    
+
     $("#nsds5replicaid").on("change", function() {
       prev_rid = $("#nsds5replicaid").val();
     });
@@ -157,15 +157,15 @@ $(document).ready( function() {
     $("#save-repl-cfg-btn").on('click', function () {
        // validate values
 
-       // Do the save in DS 
+       // Do the save in DS
 
        // In case we updated the bind group...
        check_repl_binddn_list();
     });
 
 
-    /* 
-     * Setting/Changing the replication role 
+    /*
+     * Setting/Changing the replication role
      */
     $("#nsds5replicaid").on('click', function () {
       if ( $("#nsds5replicaid").prop('disabled') == false ) {
@@ -214,7 +214,7 @@ $(document).ready( function() {
           // TODO - if prev_role is not "disabled" after for confirmation before demoting replica
           $('#repl-agmts').hide();
           $("#nsds5replicaid").val("");
-          $("#repl-settings-header").html("Consumer Replication Settings");   
+          $("#repl-settings-header").html("Consumer Replication Settings");
         }
       }
       if (role == "no-repl") {
@@ -535,7 +535,7 @@ $(document).ready( function() {
         $(this).blur();
       }
     });
- 
+
     /*
      * Handle the repl agmt wizard select lists
      */
@@ -757,7 +757,7 @@ $(document).ready( function() {
         popup_msg("Attention!", "Invalid DN for Replication Manager");
         return;
       }
- 
+
 
       // Do the actual save in DS
 

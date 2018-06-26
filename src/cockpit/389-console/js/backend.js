@@ -1,7 +1,7 @@
 var prev_tree_node = null;
 var ref_del_html = "<button class=\"btn btn-default del-ref-btn\" type=\"button\"><span class='glyphicon glyphicon-trash'></span> Delete</button>";
 var attr_encrypt_del_html = "<button class=\"btn btn-default attr-encrypt-delete-btn\" type=\"button\">Remove Attribute</button></td>";
-var index_btn_html = 
+var index_btn_html =
   '<div class="dropdown"> ' +
      '<button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">' +
        'Choose Action...' +
@@ -23,7 +23,7 @@ function customMenu (node) {
       "action": function (data) {
         popup_confirm("Are you sure you want to delete this Database Link?", "Confirmation", function (yes) {
           if (yes) {
-    
+
            // TODO  Delete db link
           }
         });
@@ -149,8 +149,8 @@ function load_jstree() {
     }
   });
 
-  $('#db-tree').jstree('select_node', 'ul > li:first'); 
-  
+  $('#db-tree').jstree('select_node', 'ul > li:first');
+
 
   $('#db-tree').on("changed.jstree", function (e, data) {
     var node_type = data.selected[0];
@@ -296,7 +296,7 @@ $(document).ready( function() {
 
 
     /*
-      We need logic to see if autocaching (import and db) is being used, and disable fields, 
+      We need logic to see if autocaching (import and db) is being used, and disable fields,
       and set radio buttons, et
     */
 
@@ -584,9 +584,9 @@ $(document).ready( function() {
       // Update oids
       var chaining_oids = $("#avail-chaining-oid-list").val();
       for (var i = 0; chaining_oids && i < chaining_oids.length; i++) {
-        $('#chaining-oid-list').append($('<option/>', { 
+        $('#chaining-oid-list').append($('<option/>', {
           value: chaining_oids[i],
-          text : chaining_oids[i] 
+          text : chaining_oids[i]
         }));
         $("#avail-chaining-oid-list option[value='" + chaining_oids[i] + "']").remove();
       }
@@ -620,12 +620,12 @@ $(document).ready( function() {
       sort_list($('#avail-chaining-comp-list') );
     });
     $("#chaining-comp-save").on("click", function() {
-      // Update comps      
+      // Update comps
       var chaining_comps = $("#avail-chaining-comp-list").val();
       for (var i = 0; chaining_comps && i < chaining_comps.length; i++) {
-        $('#chaining-comp-list').append($('<option/>', { 
+        $('#chaining-comp-list').append($('<option/>', {
           value: chaining_comps[i],
-          text : chaining_comps[i] 
+          text : chaining_comps[i]
         }));
         $("#avail-chaining-comp-list option[value='" + chaining_comps[i] + "']").remove();
       }
@@ -642,14 +642,14 @@ $(document).ready( function() {
     });
     $("#chaining-save").on("click", function() {
       // Create DB link, if LDAPS is selected replace remotefarmUrl "ldap://" with "ldaps://", and visa versa to remove ldaps://
-      var chaining_name = $("#chaining-name").val(); 
+      var chaining_name = $("#chaining-name").val();
       var parent_suffix = $("#db-tree").jstree().get_selected(true)[0];
       var suffix = $("#db-tree").jstree().get_selected(true)[0].text.replace(/(\r\n|\n|\r)/gm,"");
 
       // TODO - create db link in DS
 
-      $('#db-tree').jstree().create_node(parent_suffix,  
-                                         { "id" : "dblink-" + suffix, "text" : chaining_name, "icon" : "glyphicon glyphicon-link" }, 
+      $('#db-tree').jstree().create_node(parent_suffix,
+                                         { "id" : "dblink-" + suffix, "text" : chaining_name, "icon" : "glyphicon glyphicon-link" },
                                          "last");
       $("#create-db-link-form").css('display', 'none');
     });
@@ -666,7 +666,7 @@ $(document).ready( function() {
       var add_attr_type_sub = '<input type="checkbox" id="' + attr_name + '-sub">';
       var add_attr_type_approx = '<input type="checkbox" id="' + attr_name + '-approx">';
       var add_index_matchingrules = $("#add-index-matchingrules").val();
-  
+
       if ( $("#add-index-type-eq").is(":checked") ){
         add_attr_type_eq = '<input type="checkbox" id="' + attr_name + '-eq" checked>';
       }
@@ -679,7 +679,7 @@ $(document).ready( function() {
       if ( $("#add-index-type-approx").is(":checked") ){
         add_attr_type_approx = '<input type="checkbox" id="' + attr_name + '-approx" checked>';
       }
-  
+
       // TODO - add index to DS
 
       // Update table on success
@@ -692,7 +692,7 @@ $(document).ready( function() {
         add_index_matchingrules,
         index_btn_html
       ] ).draw( false );
-  
+
       $("#add-index-form").css('display', 'none');
       clear_index_form();
       // Do the actual save in DS
@@ -705,7 +705,7 @@ $(document).ready( function() {
       clear_attr_encrypt_form();
     })
     $("#add-encrypted-attr-save").on("click", function() {
-      
+
       // Do the actual save in DS
       // Update html
 
@@ -731,8 +731,8 @@ $(document).ready( function() {
 
       // TODO - create suffix in DS
 
-      $('#db-tree').jstree().create_node('db-root', 
-                                         { "id" : "suffix-" + suffix, "text" : suffix, "icon" : "glyphicon glyphicon-tree-conifer" }, 
+      $('#db-tree').jstree().create_node('db-root',
+                                         { "id" : "suffix-" + suffix, "text" : suffix, "icon" : "glyphicon glyphicon-tree-conifer" },
                                          "last");
       $("#add-suffix-form").css('display', 'none');
     });
@@ -751,8 +751,8 @@ $(document).ready( function() {
 
       // TODO - create suffix in DS
 
-      $('#db-tree').jstree().create_node(parent_suffix,  
-                                         { "id" : "subsuffix-" + suffix, "text" : suffix, "icon" : "glyphicon glyphicon-leaf" }, 
+      $('#db-tree').jstree().create_node(parent_suffix,
+                                         { "id" : "subsuffix-" + suffix, "text" : suffix, "icon" : "glyphicon glyphicon-leaf" },
                                          "last");
       $("#add-subsuffix-form").css('display', 'none');
     });
@@ -824,7 +824,7 @@ $(document).ready( function() {
       popup_confirm("Are you sure you want to reindex attribute: <b>" + reindex_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO reindex attr
- 
+
         }
       });
     });

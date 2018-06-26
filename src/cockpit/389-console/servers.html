@@ -52,7 +52,7 @@
         </div>
         <div>
           <label for="nsslapd-disk-monitoring-grace-period" class="ds-config-diskmon-label disk-monitoring" title=
-            "How many minute to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minute. (nsslapd-disk-monitoring-grace-period).">
+            "How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period).">
             Disk Monitoring Grace Period </label><input
             class="ds-input disk-monitoring" type="text" id="nsslapd-disk-monitoring-grace-period" size="10"/>
         </div>
@@ -446,7 +446,7 @@
     ---------------------------------------- -->
     <div id="local-password-policy" class="all-pages" hidden>
       <h3 class="ds-config-header">Local Password Policies  </h3>
-      <label class="ds-config-label-med" for="local-pwp-suffix">Database Suffix</Label> <select 
+      <label class="ds-config-label-med" for="local-pwp-suffix">Database Suffix</Label> <select
         class="btn btn-default dropdown ds-select" id="local-pwp-suffix">
         <option>dc=example,dc=com</option>
         <option>o=ipaca</option>
@@ -511,7 +511,7 @@
           <div>
             <label for="nsslapd-accesslog" class="ds-config-label" title="The access log location and name (nsslapd-accesslog).">Access Log Location</label><input
               class="ds-input" type="text" id="nsslapd-accesslog" size="40"/>
-          </div> 
+          </div>
           <div>
             <input type="checkbox" class="ds-server-checkbox" id="nsslapd-accesslog-logbuffering"><label
               for="nsslapd-accesslog-logbuffering" class="ds-label" title="Disable access log buffering for faster troubleshooting (nsslapd-accesslog-logbuffering)."> Disable Access Log Buffering</label>
@@ -601,9 +601,9 @@
           <label for="nsslapd-auditlog" class="ds-config-label" title="The audit log location and name (nsslapd-auditlog).">Audit Log Location</label><input
             class="ds-input" type="text" id="nsslapd-auditlog" size="40"/>
         </div>
-        <div> 
+        <div>
           <input type="checkbox" class="ds-server-checkbox" id="nsslapd-auditfaillog-logging-enabled2"><label
-            for="nsslapd-auditfaillog-logging-enabled2" class="ds-label" title="Log failed operations in the audit log (nsslapd-auditfaillog-logging-enabled)."> 
+            for="nsslapd-auditfaillog-logging-enabled2" class="ds-label" title="Log failed operations in the audit log (nsslapd-auditfaillog-logging-enabled).">
             Log Failed Operations</label>
         </div>
       </div>
@@ -1015,6 +1015,8 @@
 
   <!-- Modals/Popups/Wizards -->
 
+
+  <!-- Create SASL Mapping -->
   <div class="modal fade" id="sasl-map-form" data-backdrop="static" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="sasl-header" aria-hidden="true">
     <div class="modal-dialog ds-modal">
       <div class="modal-content">
@@ -1061,6 +1063,7 @@
   </div>
 
 
+  <!-- Create Local PA\assword Policy -->
   <div class="modal fade" id="local-pwp-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="local-pwp-label" aria-hidden="true">
     <div class="modal-dialog ds-modal-wide">
       <div class="modal-content">
@@ -1090,7 +1093,7 @@
                 </div>
                 <hr>
               <div>
-                
+
               </div>
             </div>
             <div class="ds-container">
@@ -1198,7 +1201,7 @@
                 <p></p>
               </div>
             </div>
-      
+
             <h4><br>Password Syntax Settings</h4>
             <hr class="ds-hr">
             <input type="checkbox" class="ds-config-checkbox" id="local-passwordchecksyntax"><label

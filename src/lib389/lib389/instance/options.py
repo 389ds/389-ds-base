@@ -54,7 +54,6 @@ class Options2(object):
         self._options = {}  # this takes the default
         self._type = {}  # Lists the type the item should be.
         self._helptext = {}  # help text for the option, MANDATORY.
-        self._example_comment = {}  # If this is a commented value in the example.
         self._valid_func = {}  # options verification function.
         self._section = None
         self.log = log
@@ -70,13 +69,12 @@ class Options2(object):
                 elif self._type[k] == str:
                     v = config.get(self._section, k)
                 # How does this handle wrong types?
-            except ValueError:
-                # Should we raise an assertion error?
-                # No, the sectons don't exist, continue
-                self.log.debug('%s:%s not in inf, or incorrect type, using default' % (self._section, k))
-                continue
+            except ValueError as e:
+                # Invalid type
+                err_msg = ('Invalid value in section "%s", "%s" has incorrect type (%s)' % (self._section, k, str(e)))
+                raise ValueError(err_msg)
             except configparser.NoOptionError:
-                self.log.debug('%s:%s not in inf, or incorrect type, using default' % (self._section, k))
+                self.log.debug('%s:%s not in inf, using default' % (self._section, k))
                 continue
             self._options[k] = v
 
@@ -89,19 +87,13 @@ class Options2(object):
     def collect(self):
         return self._options
 
-    def collect_help(self):
+    def collect_help(self, comment=False):
         helptext = "[%s]\n" % self._section
         for k in sorted(self._options.keys()):
-            if self._example_comment[k]:
-                helptext += "# %s (%s) [optional]\n" % (k, self._type[k].__name__)
-                helptext += "# Description: %s\n" % (self._helptext[k])
-                helptext += "# Default value: %s \n" % (self._options[k])
-                helptext += ";%s = %s\n\n" % (k, self._options[k])
-            else:
-                helptext += "# %s (%s) [REQUIRED]\n" % (k, self._type[k].__name__)
-                helptext += "# Description: %s\n" % (self._helptext[k])
-                helptext += "# Default value: %s \n" % (self._options[k])
-                helptext += ";%s = %s\n\n" % (k, self._options[k])
+            helptext += "# %s (%s)\n" % (k, self._type[k].__name__)
+            helptext += "# Description: %s\n" % (self._helptext[k])
+            helptext += "# Default value: %s \n" % (self._options[k])
+            helptext += ";%s = %s\n\n" % (k, self._options[k])
         return helptext
 
 #
@@ -117,35 +109,29 @@ class General2Base(Options2):
         self._options['config_version'] = 2
         self._type['config_version'] = int
         self._helptext['config_version'] = "Sets the format version of this INF file. To use the INF file with dscreate, you must set this parameter to \"2\"."
-        self._example_comment['config_version'] = False
 
-        self._options['full_machine_name'] = socket.gethostname()
+        self._options['full_machine_name'] = socket.getfqdn()
         self._type['full_machine_name'] = str
         self._helptext['full_machine_name'] = "Sets the fully qualified hostname (FQDN) of this system. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to the FQDN of the load balancer and, additionally, set \"strict_host_checking\" to \"false\"."
-        self._example_comment['full_machine_name'] = False
 
         self._options['strict_host_checking'] = True
         self._type['strict_host_checking'] = bool
         self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\"."
-        self._example_comment['strict_host_checking'] = True
 
         self._options['selinux'] = True
         self._type['selinux'] = bool
         self._helptext['selinux'] = "Enables SELinux detection and integration during the installation of this instance. If set to \"True\", dscreate auto-detects whether SELinux is enabled. Set this parameter only to \"False\" in a development environment."
-        self._example_comment['selinux'] = True
 
         self._options['systemd'] = ds_paths.with_systemd
         self._type['systemd'] = bool
         self._helptext['systemd'] = "Enables systemd platform features. If set to \"True\", dscreate auto-detects whether systemd is installed. Set this only to \"False\" in a development environment."
-        self._example_comment['systemd'] = True
 
         self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str
         self._helptext['defaults'] = "Directory Server enables administrators to use the default values for cn=config entries from a specific version. If you set this parameter to \"{LATEST}\", which is the default, the instance always uses the default values of the latest version. For example, to configure that the instance uses default values from version 1.3.5, set this parameter to \"001003005\". The format of this value is XXXYYYZZZ, where X is the major version, Y the minor version, and Z the patch level. Note that each part of the value uses 3 digits and must be filled with leading zeros if necessary.".format(LATEST=INSTALL_LATEST_CONFIG)
-        self._example_comment['defaults'] = True
 
 #
-# This module contains the base options and configs for Director Server
+# This module contains the base options and configs for Directory Server
 # setup and install. This allows
 #
 
@@ -158,144 +144,120 @@ class Slapd2Base(Options2):
         self._options['instance_name'] = 'localhost'
         self._type['instance_name'] = str
         self._helptext['instance_name'] = "Sets the name of the instance. You can refer to this value in other parameters of this INF file using the \"{instance_name}\" variable. Note that this name cannot be changed after the installation!"
-        self._example_comment['instance_name'] = False
 
         self._options['user'] = ds_paths.user
         self._type['user'] = str
         self._helptext['user'] = "Sets the user name the ns-slapd process will use after the service started."
-        self._example_comment['user'] = True
 
         self._options['group'] = ds_paths.group
         self._type['group'] = str
         self._helptext['group'] = "Sets the group name the ns-slapd process will use after the service started."
-        self._example_comment['group'] = True
 
         self._options['root_dn'] = ds_paths.root_dn
         self._type['root_dn'] = str
         self._helptext['root_dn'] = "Sets the Distinquished Name (DN) of the administrator account for this instance."
-        self._example_comment['root_dn'] = True
 
-        self._options['root_password'] = 'directory manager password'
+        self._options['root_password'] = 'Directory_Manager_Password'
         self._type['root_password'] = str
-        self._helptext['root_password'] = "Sets the password of the account specified in the \"root_dn\" parameter. You can either set this parameter to a plain text password dscreate hashes during the installation or to a \"{algorithm}hash\" string generated by the pwdhash utility. Note that setting a plain text password can be a security risk if unprivileged users can read this INF file!"
-        self._example_comment['root_password'] = False
+        self._helptext['root_password'] = ("Sets the password of the account specified in the \"root_dn\" parameter. " +
+                                           "You can either set this parameter to a plain text password dscreate hashes " +
+                                           "during the installation or to a \"{algorithm}hash\" string generated by the " +
+                                           "pwdhash utility. Note that setting a plain text password can be a security " +
+                                           "risk if unprivileged users can read this INF file!")
 
         self._options['prefix'] = ds_paths.prefix
         self._type['prefix'] = str
         self._helptext['prefix'] = "Sets the file system prefix for all other directories. You can refer to this value in other fields using the {prefix} variable or the $PREFIX environment variable. Only set this parameter in a development environment."
-        self._example_comment['prefix'] = True
 
         self._options['port'] = 389
         self._type['port'] = int
         self._helptext['port'] = "Sets the TCP port the instance uses for LDAP connections."
-        self._example_comment['port'] = True
 
         self._options['secure_port'] = 636
         self._type['secure_port'] = int
         self._helptext['secure_port'] = "Sets the TCP port the instance uses for TLS-secured LDAP connections (LDAPS)."
-        self._example_comment['secure_port'] = True
 
         self._options['self_sign_cert'] = True
         self._type['self_sign_cert'] = bool
         self._helptext['self_sign_cert'] = "Sets whether the setup creates a self-signed certificate and enables TLS encryption during the installation. This is not suitable for production, but it enables administrators to use TLS right after the installation. You can replace the self-signed certificate with a certificate issued by a Certificate Authority."
-        self._example_comment['self_sign_cert'] = True
 
         self._options['self_sign_cert_valid_months'] = 24
         self._type['self_sign_cert_valid_months'] = int
         self._helptext['self_sign_cert_valid_months'] = "Set the number of months the issued self-signed certificate will be valid."
-        self._example_comment['self_sign_cert_valid_months'] = True
 
         # In the future, make bin and sbin /usr/[s]bin, but we may need autotools assistance from Ds
         self._options['bin_dir'] = ds_paths.bin_dir
         self._type['bin_dir'] = str
         self._helptext['bin_dir'] = "Sets the location where the Directory Server binaries are stored. Only set this parameter in a development environment."
-        self._example_comment['bin_dir'] = True
 
         self._options['sbin_dir'] = ds_paths.sbin_dir
         self._type['sbin_dir'] = str
         self._helptext['sbin_dir'] = "Sets the location where the Directory Server administration binaries are stored. Only set this parameter in a development environment."
-        self._example_comment['sbin_dir'] = True
 
         self._options['sysconf_dir'] = ds_paths.sysconf_dir
         self._type['sysconf_dir'] = str
         self._helptext['sysconf_dir'] = "Sets the location of the system's configuration directory. Only set this parameter in a development environment."
-        self._example_comment['sysconf_dir'] = True
 
         self._options['initconfig_dir'] = ds_paths.initconfig_dir
         self._type['initconfig_dir'] = str
         self._helptext['initconfig_dir'] = "Sets the directory of the operating system's rc configuration directory. Only set this parameter in a development environment."
-        self._example_comment['initconfig_dir'] = True
 
         # In the future, make bin and sbin /usr/[s]bin, but we may need autotools assistance from Ds
         self._options['data_dir'] = ds_paths.data_dir
         self._type['data_dir'] = str
         self._helptext['data_dir'] = "Sets the location of Directory Server shared static data. Only set this parameter in a development environment."
-        self._example_comment['data_dir'] = True
 
         self._options['local_state_dir'] = ds_paths.local_state_dir
         self._type['local_state_dir'] = str
         self._helptext['local_state_dir'] = "Sets the location of Directory Server variable data. Only set this parameter in a development environment."
-        self._example_comment['local_state_dir'] = True
 
         self._options['lib_dir'] = ds_paths.lib_dir
         self._type['lib_dir'] = str
         self._helptext['lib_dir'] = "Sets the location of Directory Server shared libraries. Only set this parameter in a development environment."
-        self._example_comment['lib_dir'] = True
 
         self._options['cert_dir'] = ds_paths.cert_dir
         self._type['cert_dir'] = str
         self._helptext['cert_dir'] = "Sets the directory of the instance's Network Security Services (NSS) database."
-        self._example_comment['cert_dir'] = True
 
         self._options['config_dir'] = ds_paths.config_dir
         self._type['config_dir'] = str
         self._helptext['config_dir'] = "Sets the configuration directory of the instance."
-        self._example_comment['config_dir'] = True
 
         self._options['inst_dir'] = ds_paths.inst_dir
         self._type['inst_dir'] = str
         self._helptext['inst_dir'] = "Sets the directory of instance-specific scripts."
-        self._example_comment['inst_dir'] = True
 
         self._options['backup_dir'] = ds_paths.backup_dir
         self._type['backup_dir'] = str
         self._helptext['backup_dir'] = "Set the backup directory of the instance."
-        self._example_comment['backup_dir'] = True
 
         self._options['db_dir'] = ds_paths.db_dir
         self._type['db_dir'] = str
         self._helptext['db_dir'] = "Sets the database directory of the instance."
-        self._example_comment['db_dir'] = True
 
         self._options['ldif_dir'] = ds_paths.ldif_dir
         self._type['ldif_dir'] = str
         self._helptext['ldif_dir'] = "Sets the LDIF export and import directory of the instance."
-        self._example_comment['ldif_dir'] = True
 
         self._options['lock_dir'] = ds_paths.lock_dir
         self._type['lock_dir'] = str
         self._helptext['lock_dir'] = "Sets the lock directory of the instance."
-        self._example_comment['lock_dir'] = True
 
         self._options['log_dir'] = ds_paths.log_dir
         self._type['log_dir'] = str
         self._helptext['log_dir'] = "Sets the log directory of the instance."
-        self._example_comment['log_dir'] = True
 
         self._options['run_dir'] = ds_paths.run_dir
         self._type['run_dir'] = str
         self._helptext['run_dir'] = "Sets PID directory of the instance."
-        self._example_comment['run_dir'] = True
 
         self._options['schema_dir'] = ds_paths.schema_dir
         self._type['schema_dir'] = str
         self._helptext['schema_dir'] = "Sets schema directory of the instance."
-        self._example_comment['schema_dir'] = True
 
         self._options['tmp_dir'] = ds_paths.tmp_dir
         self._type['tmp_dir'] = str
         self._helptext['tmp_dir'] = "Sets the temporary directory of the instance."
-        self._example_comment['tmp_dir'] = True
 
     def _format(self, d):
         new_d = {}
@@ -317,3 +279,24 @@ class Slapd2Base(Options2):
         return self._format(self._options)
 
 
+class Backend2Base(Options2):
+    def __init__(self, log, section):
+        super(Backend2Base, self).__init__(log)
+        self._section = section
+
+        self._options['suffix'] = 'dc=example,dc=com'
+        self._type['suffix'] = str
+        self._helptext['suffix'] = "Sets the root suffix stored in this database."
+
+        self._options['sample_entries'] = "no"
+        self._type['sample_entries'] = str
+        self._helptext['sample_entries'] = ("Set this parameter to 'yes' to add latest version of sample " +
+                                            "entries to this database.  Or, use '001003006' to use the " +
+                                            "1.3.6 version sample entries.  Use this option, for example, " +
+                                            "to create a database for testing purposes.")
+
+        self._options['require_index'] = False
+        self._type['require_index'] = bool
+        self._helptext['require_index'] = "Sets this parameter to \"True\" to refuse unindexed searches in this database."
+
+        # TODO - Add other backend settings

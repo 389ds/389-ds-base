@@ -26,7 +26,7 @@ from lib389.nss_ssl import NssSsl
 
 from lib389.configurations import get_config
 
-from lib389.instance.options import General2Base, Slapd2Base
+from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 
 # The poc backend api
 from lib389.backend import Backends
@@ -139,12 +139,35 @@ class SetupDs(object):
         backends = []
         for section in config.sections():
             if section.startswith('backend-'):
-                be = {}
-                # TODO: Add the other BACKEND_ types
-                be[BACKEND_NAME] = section.replace('backend-', '')
-                be[BACKEND_SUFFIX] = config.get(section, 'suffix')
-                be[BACKEND_SAMPLE_ENTRIES] = config.get(section, 'sample_entries')
-                backends.append(be)
+                backend_options = Backend2Base(self.log, section)
+                backend_options.parse_inf_config(config)
+
+                suffix = config.get(section, 'suffix', fallback='')
+                if suffix != '':
+                    be = {}
+
+                    # Suffix
+                    be[BACKEND_NAME] = section.replace('backend-', '')
+                    be[BACKEND_SUFFIX] = config.get(section, 'suffix')
+
+                    # Sample entries
+                    sample_entries = config.get(section, 'sample_entries', fallback='no')
+                    if sample_entries.lower() != 'no':
+                        if sample_entries.lower() == 'yes':
+                            be[BACKEND_SAMPLE_ENTRIES] = INSTALL_LATEST_CONFIG
+                        elif (sample_entries != '001003006' and sample_entries != '001004000'):
+                            # invalid value
+                            raise ValueError('Invalid value for sample_entries ({}), you must use "yes", "no", "001003006", or "001004000"'.format(sample_entries))
+                        else:
+                            be[BACKEND_SAMPLE_ENTRIES] = sample_entries
+
+                    # Require index
+                    req_idx = config.getboolean(section, 'require_index', fallback=False)
+                    if req_idx:
+                        be[BACKEND_REQ_INDEX] = "on"
+
+                    # Add this backend to the list
+                    backends.append(be)
 
         if self.verbose:
             self.log.info("Configuration backends %s" % backends)
@@ -156,9 +179,7 @@ class SetupDs(object):
         # Check we have all the sections.
         # Make sure we have needed keys.
         assert_c(config.has_section('general'), "Missing configuration section [general]")
-        assert_c(config.has_option('general', 'config_version'), "Missing configuration config_version in section [general]")
-        assert_c(config.get('general', 'config_version') >= '2', "config_version in section [general] should be 2 or greater")
-        if config.get('general', 'config_version') == '2':
+        if config.get('general', 'config_version', fallback='2') == '2':
             # Call our child api to validate itself from the inf.
             self._validate_config_2(config)
             return self._validate_ds_2_config(config)
@@ -244,7 +265,8 @@ class SetupDs(object):
         assert_c(slapd['root_dn'] is not None, "Configuration root_dn in section [slapd] not found")
         # Assert this is a valid DN
         assert_c(is_a_dn(slapd['root_dn']), "root_dn in section [slapd] is not a well formed LDAP DN")
-        assert_c(slapd['root_password'] is not None, "Configuration root_password in section [slapd] not found")
+        assert_c(slapd['root_password'] is not None and slapd['root_password'] != '',
+                 "Configuration attribute 'root_password' in section [slapd] not found")
         # Check if pre-hashed or not.
         # !!!!!!!!!!!!!!
 

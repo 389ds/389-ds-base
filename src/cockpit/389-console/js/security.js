@@ -40,7 +40,7 @@ $(document).ready( function() {
       $("#security-content").show();
       $("#sec-ciphers-page").show();
     });
-    
+
     $("#sec-config").show();
 
     // Clear forms as theyare clicked
@@ -50,7 +50,7 @@ $(document).ready( function() {
 
     });
 
-    $("#add-crl-btn").on('click', function () {   
+    $("#add-crl-btn").on('click', function () {
       // Add CRL/CKL
 
       // Close form

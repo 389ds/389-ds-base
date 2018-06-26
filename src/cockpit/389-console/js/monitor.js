@@ -108,9 +108,9 @@ function refresh_audit_log () {
 function refresh_auditfail_log () {
   var auditfail_log = "/var/log/dirsrv/" + server_id + "/auditfail";  // TODO - get actual log location from config
   var lines = $("#auditfaillog-lines").val();
-  var logging = cockpit.spawn(["tail", "-" + lines, auditfail_log], 
+  var logging = cockpit.spawn(["tail", "-" + lines, auditfail_log],
                               { "superuser": "try" }).done(function(data) {
-    $("#auditfaillog-area").text(data); 
+    $("#auditfaillog-area").text(data);
   });
 }
 
@@ -167,8 +167,8 @@ $(document).ready( function() {
     $("#monitor-db-btn").on("click", function() {
       $(".all-pages").hide();
       $("#monitor-content").show();
-      
-      // TODO - NDN cache prior to 1.4.0 is duplicated under each suffix/backend monitor - 
+
+      // TODO - NDN cache prior to 1.4.0 is duplicated under each suffix/backend monitor -
       // so we need to bring it forward to the global database stats here
       var db_hitratio = '99';
       var ndn_hitratio = '83';
@@ -238,7 +238,7 @@ $(document).ready( function() {
       var tree_node = data.selected;
       if (tree_node == "monitor-db-main") {
 
-        // TODO - NDN cache prior to 1.4.0 is duplicated under each suffix/backend monitor - 
+        // TODO - NDN cache prior to 1.4.0 is duplicated under each suffix/backend monitor -
         // so we need to bring it forward to the global database stats here
         var db_hitratio = '99';
         var ndn_hitratio = '83';
@@ -264,7 +264,7 @@ $(document).ready( function() {
         var dn_hitratio = '89';
         var dn_maxsize = '51200';
         var dn_cursize = '51200';
-        
+
         // Generate the donut charts
         gen_ratio_chart(entry_hitratio, '#monitor-entry-cache-hitratio-chart');
         gen_util_chart(entry_cursize, entry_maxsize, entry_hitratio, '#monitor-entry-cache-util-chart');
@@ -367,7 +367,7 @@ $(document).ready( function() {
       var agmt_status = "";
       if (agmt_enabled == "off") {
           agmt_status = "&nbsp;<font size=\"2\" color=\"red\"><b>(Agreement Disabled)</b></font>";
-      } 
+      }
       // clear_agmt_form();
 
       $("#monitor-agmt-header").html("<b>Replication Agreement Details:</b>&nbsp;&nbsp; " + agmt_name + " " + agmt_status);
@@ -386,7 +386,7 @@ $(document).ready( function() {
       var agmt_status = "";
       if (agmt_enabled == "off") {
           agmt_status = "&nbsp;<font size=\"2\" color=\"red\"><b>(Agreement Disabled)</b></font>";
-      } 
+      }
       // clear_agmt_form();
 
       $("#repl-winsync-agmt-header").html("<b>Winsync Agreement Details:</b>&nbsp;&nbsp; " + agmt_name + " " + agmt_status);
@@ -394,6 +394,6 @@ $(document).ready( function() {
       $("#monitor-winsync-agmt-form").css('display', 'block');
     });
 
-    
+
   });
 });
