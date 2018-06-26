@@ -16,16 +16,16 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-DEFAULT_LEVEL = "16384"
-COMB_LEVEL = "73864"  # 65536+8192+128+8 = 73864
-COMB_DEFAULT_LEVEL = "90248"  # 65536+8192+128+8+16384 = 90248
+DEFAULT_LEVEL = b"16384"
+COMB_LEVEL = b"73864"  # 65536+8192+128+8 = 73864
+COMB_DEFAULT_LEVEL = b"90248"  # 65536+8192+128+8+16384 = 90248
 
 
 def set_level(topo, level):
     ''' Set the error log level
     '''
     try:
-        topo.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', level)])
+        topo.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(level))])
         time.sleep(1)
     except ldap.LDAPError as e:
         log.fatal('Failed to set loglevel to %s - error: %s' % (level, str(e)))
@@ -66,7 +66,7 @@ def test_ticket49227(topo):
     # Set connection logging
     set_level(topo, '8')
     level = get_level(topo)
-    if level != '8':
+    if level != b'8':
         log.fatal('Incorrect connection logging level: %s' % (level))
         assert False
 

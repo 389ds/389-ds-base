@@ -33,7 +33,7 @@ def test_user(topology_st):
         })))
     except ldap.LDAPError as e:
         log.error('Failed to add user (%s): error (%s)' % (TEST_USER_DN,
-                                                           e.message['desc']))
+                                                           e.args[0]['desc']))
         raise e
 
 
@@ -62,7 +62,7 @@ def add_users(topology_st, users_num):
             })))
         except ldap.LDAPError as e:
             log.error('Failed to add user (%s): error (%s)' % (USER_DN,
-                                                               e.message['desc']))
+                                                               e.args[0]['desc']))
             raise e
     return users_list
 
@@ -76,7 +76,7 @@ def del_users(topology_st, users_list):
             topology_st.standalone.delete_s(user_dn)
         except ldap.LDAPError as e:
             log.error('Failed to delete user (%s): error (%s)' % (user_dn,
-                                                                  e.message['desc']))
+                                                                  e.args[0]['desc']))
             raise e
 
 
@@ -102,7 +102,7 @@ def change_conf_attr(topology_st, suffix, attr_name, attr_value):
                                                       attr_value)])
     except ldap.LDAPError as e:
         log.error('Failed to change attr value (%s): error (%s)' % (attr_name,
-                                                                    e.message['desc']))
+                                                                    e.args[0]['desc']))
         raise e
 
     return attr_value_bck
@@ -168,7 +168,7 @@ def test_ticket48808(topology_st, test_user):
     req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
     controls = [req_ctrl]
 
-    for ii in xrange(3):
+    for ii in range(3):
         log.info('Iteration %d' % ii)
         msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
                                                   ldap.SCOPE_SUBTREE,
@@ -225,8 +225,8 @@ def test_ticket48808(topology_st, test_user):
 
     log.info("Search should fail with 'nsPagedSizeLimit = 5'"
              "and 'nsslapd-pagedsizelimit = 15' with 10 users")
-    conf_attr = '15'
-    user_attr = '5'
+    conf_attr = b'15'
+    user_attr = b'5'
     expected_rs = ldap.SIZELIMIT_EXCEEDED
     users_num = 10
     page_size = 10
@@ -260,8 +260,8 @@ def test_ticket48808(topology_st, test_user):
 
     log.info("Search should pass with 'nsPagedSizeLimit = 15'"
              "and 'nsslapd-pagedsizelimit = 5' with 10 users")
-    conf_attr = '5'
-    user_attr = '15'
+    conf_attr = b'5'
+    user_attr = b'15'
     users_num = 10
     page_size = 10
     users_list = add_users(topology_st, users_num)

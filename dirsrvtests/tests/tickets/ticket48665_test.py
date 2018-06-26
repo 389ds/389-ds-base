@@ -23,10 +23,10 @@ def test_ticket48665(topology_st):
     # This will trigger a mod delete then add.
 
     topology_st.standalone.modify_s('cn=config,cn=ldbm database,cn=plugins,cn=config',
-                                    [(ldap.MOD_REPLACE, 'nsslapd-cache-autosize', '0')])
+                                    [(ldap.MOD_REPLACE, 'nsslapd-cache-autosize', b'0')])
 
     try:
-        modlist = [(ldap.MOD_DELETE, 'nsslapd-cachememsize', None), (ldap.MOD_ADD, 'nsslapd-cachememsize', '1')]
+        modlist = [(ldap.MOD_DELETE, 'nsslapd-cachememsize', None), (ldap.MOD_ADD, 'nsslapd-cachememsize', b'1')]
         topology_st.standalone.modify_s("cn=%s,cn=ldbm database,cn=plugins,cn=config" % DEFAULT_BENAME,
                                         modlist)
     except:
@@ -40,9 +40,9 @@ def test_ticket48665(topology_st):
     # This has a magic hack to determine if we are in cn=config.
     try:
         topology_st.standalone.modify_s(DEFAULT_BENAME, [(ldap.MOD_REPLACE,
-                                                          'nsslapd-cachememsize', '1')])
+                                                          'nsslapd-cachememsize', b'1')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to change nsslapd-cachememsize ' + e.message['desc'])
+        log.fatal('Failed to change nsslapd-cachememsize ' + e.args[0]['desc'])
 
     # Check the server has not commited seppuku.
     entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=*)')
@@ -51,7 +51,7 @@ def test_ticket48665(topology_st):
 
     # Now try with mod_replace. This should be okay.
 
-    modlist = [(ldap.MOD_REPLACE, 'nsslapd-cachememsize', '1')]
+    modlist = [(ldap.MOD_REPLACE, 'nsslapd-cachememsize', b'1')]
     topology_st.standalone.modify_s("cn=%s,cn=ldbm database,cn=plugins,cn=config" % DEFAULT_BENAME,
                                     modlist)
 

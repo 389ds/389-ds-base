@@ -34,7 +34,7 @@ def task_complete(conn, task_dn):
             # task is done
             finished = True
     except ldap.LDAPError as e:
-        log.fatal('wait_for_task: Search failed: ' + e.message['desc'])
+        log.fatal('wait_for_task: Search failed: ' + e.args[0]['desc'])
         assert False
 
     return finished
@@ -57,7 +57,7 @@ def test_ticket47973(topology_st):
             'uid': 'user1'
         })))
     except ldap.LDAPError as e:
-        log.error('Failed to add user1: error ' + e.message['desc'])
+        log.error('Failed to add user1: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -77,7 +77,7 @@ def test_ticket47973(topology_st):
                 'cn': 'task-' + str(task_count)
             })))
         except ldap.LDAPError as e:
-            log.error('Failed to add task entry: error ' + e.message['desc'])
+            log.error('Failed to add task entry: error ' + e.args[0]['desc'])
             assert False
 
         #
@@ -96,7 +96,7 @@ def test_ticket47973(topology_st):
                     log.fatal('User was not returned from search!')
                     assert False
             except ldap.LDAPError as e:
-                log.fatal('Unable to search for entry %s: error %s' % (USER_DN, e.message['desc']))
+                log.fatal('Unable to search for entry %s: error %s' % (USER_DN, e.args[0]['desc']))
                 assert False
 
             #
@@ -138,13 +138,13 @@ def test_ticket47973_case(topology_st):
                                              ["objectclasses"])
         oclist = schemaentry[0].data.get("objectclasses")
     except ldap.LDAPError as e:
-        log.error('Failed to get schema entry: error (%s)' % e.message['desc'])
+        log.error('Failed to get schema entry: error (%s)' % e.args[0]['desc'])
         raise e
 
     found = 0
     for oc in oclist:
         log.info('OC: %s' % oc)
-        moz = re.findall(Mozattr0, oc)
+        moz = re.findall(Mozattr0, oc.decode('utf-8'))
         if moz:
             found = 1
             log.info('case 1: %s is in the objectclasses list -- PASS' % Mozattr0)
@@ -178,12 +178,12 @@ def test_ticket47973_case(topology_st):
                                              ["objectclasses"])
         oclist = schemaentry[0].data.get("objectclasses")
     except ldap.LDAPError as e:
-        log.error('Failed to get schema entry: error (%s)' % e.message['desc'])
+        log.error('Failed to get schema entry: error (%s)' % e.args[0]['desc'])
         raise e
 
     for oc in oclist:
         log.info('OC: %s' % oc)
-        moz = re.findall(Mozattr1, oc)
+        moz = re.findall(Mozattr1, oc.decode('utf-8'))
         if moz:
             log.error('case 2: %s is in the objectclasses list -- FAILURE' % Mozattr1)
             assert False
@@ -200,7 +200,7 @@ def test_ticket47973_case(topology_st):
                                                             'cn': name,
                                                             Mozattr2: name})))
     except ldap.LDAPError as e:
-        log.error('Failed to add a test entry: error (%s)' % e.message['desc'])
+        log.error('Failed to add a test entry: error (%s)' % e.args[0]['desc'])
         raise e
 
     try:
@@ -208,7 +208,7 @@ def test_ticket47973_case(topology_st):
                                                     'objectclass=mozillaobject',
                                                     [Mozattr2])
     except ldap.LDAPError as e:
-        log.error('Failed to get schema entry: error (%s)' % e.message['desc'])
+        log.error('Failed to get schema entry: error (%s)' % e.args[0]['desc'])
         raise e
 
     mozattrval = testentry[0].data.get(Mozattr2)

@@ -33,7 +33,7 @@ def test_ticket47937(topology_st):
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
-        log.error('Failed to add ou=people org unit: error ' + e.message['desc'])
+        log.error('Failed to add ou=people org unit: error ' + e.args[0]['desc'])
         assert False
 
     log.info("Creating \"ou=ranges\"...")
@@ -44,7 +44,7 @@ def test_ticket47937(topology_st):
         })))
 
     except ldap.LDAPError as e:
-        log.error('Failed to add ou=ranges org unit: error ' + e.message['desc'])
+        log.error('Failed to add ou=ranges org unit: error ' + e.args[0]['desc'])
         assert False
 
     log.info("Creating \"cn=entry\"...")
@@ -55,7 +55,7 @@ def test_ticket47937(topology_st):
         })))
 
     except ldap.LDAPError as e:
-        log.error('Failed to add test entry: error ' + e.message['desc'])
+        log.error('Failed to add test entry: error ' + e.args[0]['desc'])
         assert False
 
     log.info("Creating DNA shared config entry...")
@@ -69,7 +69,7 @@ def test_ticket47937(topology_st):
         })))
 
     except ldap.LDAPError as e:
-        log.error('Failed to add shared config entry: error ' + e.message['desc'])
+        log.error('Failed to add shared config entry: error ' + e.args[0]['desc'])
         assert False
 
     log.info("Add dna plugin config entry...")
@@ -87,14 +87,14 @@ def test_ticket47937(topology_st):
             })))
 
     except ldap.LDAPError as e:
-        log.error('Failed to add DNA config entry: error ' + e.message['desc'])
+        log.error('Failed to add DNA config entry: error ' + e.args[0]['desc'])
         assert False
 
     log.info("Enable the DNA plugin...")
     try:
         topology_st.standalone.plugins.enable(name=PLUGIN_DNA)
     except e:
-        log.error("Failed to enable DNA Plugin: error " + e.message['desc'])
+        log.error("Failed to enable DNA Plugin: error " + e.args[0]['desc'])
         assert False
 
     log.info("Restarting the server...")
@@ -107,9 +107,9 @@ def test_ticket47937(topology_st):
 
     try:
         topology_st.standalone.modify_s('cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config',
-                                        [(ldap.MOD_REPLACE, 'dnaType', 'foo')])
+                                        [(ldap.MOD_REPLACE, 'dnaType', b'foo')])
     except ldap.LDAPError as e:
-        log.info('Operation failed as expected (error: %s)' % e.message['desc'])
+        log.info('Operation failed as expected (error: %s)' % e.args[0]['desc'])
     else:
         log.error('Operation incorectly succeeded!  Test Failed!')
         assert False

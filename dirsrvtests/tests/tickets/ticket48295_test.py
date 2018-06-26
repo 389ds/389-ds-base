@@ -13,6 +13,7 @@ import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.topologies import topology_st
+from lib389.utils import *
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def check_attr_val(topology_st, dn, attr, expected, revert):
             log.fatal('Failed to get %s' % dn)
             assert False
     except ldap.LDAPError as e:
-        log.fatal('Failed to search ' + dn + ': ' + e.message['desc'])
+        log.fatal('Failed to search ' + dn + ': ' + e.args[0]['desc'])
         assert False
 
 
@@ -70,15 +71,15 @@ def test_48295_init(topology_st):
 
     log.info('Enable Dynamic plugins, and the linked Attrs plugin')
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.fatal('Failed to enable dynamic plugin!' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
     except ValueError as e:
-        log.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
+        log.fatal('Failed to enable linked attributes plugin!' + e.args[0]['desc'])
         assert False
 
     log.info('Add the plugin config entry')
@@ -90,7 +91,7 @@ def test_48295_init(topology_st):
             'managedType': MANAGEDTYPE
         })))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add linked attr config entry: error ' + e.message['desc'])
+        log.fatal('Failed to add linked attr config entry: error ' + e.args[0]['desc'])
         assert False
 
     log.info('Add 2 entries: manager1 and employee1')
@@ -99,7 +100,7 @@ def test_48295_init(topology_st):
             'objectclass': 'top extensibleObject'.split(),
             'uid': 'manager1'})))
     except ldap.LDAPError as e:
-        log.fatal('Add manager1 failed: error ' + e.message['desc'])
+        log.fatal('Add manager1 failed: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -107,7 +108,7 @@ def test_48295_init(topology_st):
             'objectclass': 'top extensibleObject'.split(),
             'uid': 'employee1'})))
     except ldap.LDAPError as e:
-        log.fatal('Add employee1 failed: error ' + e.message['desc'])
+        log.fatal('Add employee1 failed: error ' + e.args[0]['desc'])
         assert False
 
     log.info('PASSED')
@@ -122,14 +123,14 @@ def test_48295_run(topology_st):
             'Add 2 linktypes to manager1 - one exists, another does not to make sure the managed entry does not have managed type.')
     try:
         topology_st.standalone.modify_s('uid=manager1,%s' % OU_PEOPLE,
-                                        [(ldap.MOD_ADD, LINKTYPE, 'uid=employee1,%s' % OU_PEOPLE),
-                                         (ldap.MOD_ADD, LINKTYPE, 'uid=doNotExist,%s' % OU_PEOPLE)])
+                                        [(ldap.MOD_ADD, LINKTYPE, ensure_bytes('uid=employee1,%s' % OU_PEOPLE)),
+                                         (ldap.MOD_ADD, LINKTYPE, ensure_bytes('uid=doNotExist,%s' % OU_PEOPLE))])
     except ldap.UNWILLING_TO_PERFORM:
         log.info('Add uid=employee1 and uid=doNotExist expectedly failed.')
         pass
 
     log.info('Check managed attribute does not exist.')
-    check_attr_val(topology_st, 'uid=employee1,%s' % OU_PEOPLE, MANAGEDTYPE, 'uid=manager1,%s' % OU_PEOPLE, True)
+    check_attr_val(topology_st, 'uid=employee1,%s' % OU_PEOPLE, MANAGEDTYPE, ensure_bytes('uid=manager1,%s' % OU_PEOPLE), True)
 
     log.info('PASSED')
 

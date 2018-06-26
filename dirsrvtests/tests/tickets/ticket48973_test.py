@@ -173,7 +173,7 @@ def _check_entry(topology, filterHead=None, filterValueUpper=False, entry_ext=No
     if found:
         assert len(ents) == 1
         assert ents[0].hasAttr('homedirectory')
-        valueHome = "%s%d" % (HOMEHEAD, entry_ext)
+        valueHome = ensure_bytes("%s%d" % (HOMEHEAD, entry_ext))
         assert valueHome in ents[0].getValues('homedirectory')
     else:
         assert len(ents) == 0
@@ -210,7 +210,7 @@ def test_ticket48973_ces_not_indexed(topology):
     ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, Filter)
     assert len(ents) == 1
     assert ents[0].hasAttr('homedirectory')
-    assert searchedHome in ents[0].getValues('homedirectory')
+    assert ensure_bytes(searchedHome) in ents[0].getValues('homedirectory')
     
     result = _find_next_notes(topology, Filter)
     log.info("result=%s" % result)
@@ -269,10 +269,10 @@ def test_ticket48973_homeDirectory_caseExactIA5Match_caseIgnoreIA5Match_indexing
     entry_ext = 4
     
     log.info("\n\nindex homeDirectory in caseExactIA5Match and caseIgnoreIA5Match")
-    EXACTIA5_MR_NAME='caseExactIA5Match'
-    IGNOREIA5_MR_NAME='caseIgnoreIA5Match'
-    EXACT_MR_NAME='caseExactMatch'
-    IGNORE_MR_NAME='caseIgnoreMatch'
+    EXACTIA5_MR_NAME=b'caseExactIA5Match'
+    IGNOREIA5_MR_NAME=b'caseIgnoreIA5Match'
+    EXACT_MR_NAME=b'caseExactMatch'
+    IGNORE_MR_NAME=b'caseIgnoreMatch'
     mod = [(ldap.MOD_REPLACE, MATCHINGRULE, (EXACT_MR_NAME, IGNORE_MR_NAME, EXACTIA5_MR_NAME, IGNOREIA5_MR_NAME))]
     topology.standalone.modify_s(HOMEDIRECTORY_INDEX, mod)
 

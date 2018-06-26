@@ -73,7 +73,7 @@ def test_ticket47976_init(topology_st):
 
 
 def test_ticket47976_1(topology_st):
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-pluginConfigArea', DEFINITIONS_DN)]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-pluginConfigArea', ensure_bytes(DEFINITIONS_DN))]
     topology_st.standalone.modify_s('cn=%s,cn=plugins,cn=config' % PLUGIN_MANAGED_ENTRY, mod)
     topology_st.standalone.stop(timeout=10)
     topology_st.standalone.start(timeout=10)
@@ -95,7 +95,7 @@ def test_ticket47976_2(topology_st):
     """
 
     log.info('Test complete')
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-db-page-size', str(128 * 1024))]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-db-page-size', ensure_bytes(str(128 * 1024)))]
     topology_st.standalone.modify_s(DN_LDBM, mod)
 
     # Get the the full path and name for our LDIF we will be exporting

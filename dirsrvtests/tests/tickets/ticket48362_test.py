@@ -16,9 +16,9 @@ PEOPLE_DN = "ou=%s,%s" % (PEOPLE_OU, SUFFIX)
 MAX_ACCOUNTS = 5
 
 BINDMETHOD_ATTR = 'dnaRemoteBindMethod'
-BINDMETHOD_VALUE = "SASL/GSSAPI"
+BINDMETHOD_VALUE = b'SASL/GSSAPI'
 PROTOCOLE_ATTR = 'dnaRemoteConnProtocol'
-PROTOCOLE_VALUE = 'LDAP'
+PROTOCOLE_VALUE = b'LDAP'
 
 SHARE_CFG_BASE = 'ou=ranges,' + SUFFIX
 
@@ -82,8 +82,8 @@ def _shared_cfg_server_update(server, method=BINDMETHOD_VALUE, transport=PROTOCO
     log.info('\n======================== Update dnaPortNum=%d ============================\n' % server.port)
     try:
         ent = server.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % server.port)
-        mod = [(ldap.MOD_REPLACE, BINDMETHOD_ATTR, method),
-               (ldap.MOD_REPLACE, PROTOCOLE_ATTR, transport)]
+        mod = [(ldap.MOD_REPLACE, BINDMETHOD_ATTR, ensure_bytes(method)),
+               (ldap.MOD_REPLACE, PROTOCOLE_ATTR, ensure_bytes(transport))]
         server.modify_s(ent.dn, mod)
 
         log.info('\n======================== Update done\n')

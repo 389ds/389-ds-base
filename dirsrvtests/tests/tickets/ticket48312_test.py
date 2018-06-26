@@ -26,9 +26,9 @@ def test_ticket48312(topology_st):
     # First enable dynamic plugins
     #
     try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
+        log.fatal('Failed to enable dynamic plugin!' + e.args[0]['desc'])
         assert False
     topology_st.standalone.plugins.enable(name=PLUGIN_MANAGED_ENTRY)
 
@@ -42,7 +42,7 @@ def test_ticket48312(topology_st):
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
-        log.fatal('test_mep: Failed to add people org unit: error ' + e.message['desc'])
+        log.fatal('test_mep: Failed to add people org unit: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -52,7 +52,7 @@ def test_ticket48312(topology_st):
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
-        log.fatal('test_mep: Failed to add people org unit: error ' + e.message['desc'])
+        log.fatal('test_mep: Failed to add people org unit: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -67,7 +67,7 @@ def test_ticket48312(topology_st):
             'mepMappedAttr': ['cn: $uid', 'uid: $cn', 'gidNumber: $uidNumber']
         })))
     except ldap.LDAPError as e:
-        log.fatal('test_mep: Failed to add template entry: error ' + e.message['desc'])
+        log.fatal('test_mep: Failed to add template entry: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -83,7 +83,7 @@ def test_ticket48312(topology_st):
             'managedTemplate': TEMPLATE_DN
         })))
     except ldap.LDAPError as e:
-        log.fatal('test_mep: Failed to add config entry: error ' + e.message['desc'])
+        log.fatal('test_mep: Failed to add config entry: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -100,7 +100,7 @@ def test_ticket48312(topology_st):
             'description': 'uiser description'
         })))
     except ldap.LDAPError as e:
-        log.fatal('test_mep: Failed to user1: error ' + e.message['desc'])
+        log.fatal('test_mep: Failed to user1: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -109,7 +109,7 @@ def test_ticket48312(topology_st):
     try:
         topology_st.standalone.rename_s(USER_DN, USER_NEWRDN, delold=1)
     except ldap.LDAPError as e:
-        log.error('Failed to modrdn: error ' + e.message['desc'])
+        log.error('Failed to modrdn: error ' + e.args[0]['desc'])
         assert False
 
     log.info('Test complete')

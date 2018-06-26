@@ -11,6 +11,7 @@ import shutil
 
 import pytest
 from lib389.tasks import *
+from lib389.utils import *
 from lib389.topologies import topology_st
 
 from lib389._constants import DATA_DIR, DEFAULT_SUFFIX
@@ -56,10 +57,10 @@ def test_ticket47953(topology_st):
 
     log.info('Attempting to remove invalid aci...')
     try:
-        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', acival)])
+        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', ensure_bytes(acival))])
         log.info('Removed invalid aci.')
     except ldap.LDAPError as e:
-        log.error('Failed to remove invalid aci: ' + e.message['desc'])
+        log.error('Failed to remove invalid aci: ' + e.args[0]['desc'])
         assert False
 
 

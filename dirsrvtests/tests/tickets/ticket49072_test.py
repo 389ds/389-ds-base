@@ -55,7 +55,7 @@ def test_ticket49072_basedn(topo):
         except subprocess.CalledProcessError as err:
             output = err.output
     log.info('output: {}'.format(output))
-    expected = "Successfully added task entry"
+    expected = b"Successfully added task entry"
     assert expected in output
     log_entry = topo.standalone.ds_error_log.match('.*Failed to get be backend.*')
     log.info('Error log out: {}'.format(log_entry))
@@ -96,7 +96,7 @@ def test_ticket49072_filter(topo):
         except subprocess.CalledProcessError as err:
             output = err.output
     log.info('output: {}'.format(output))
-    expected = "Successfully added task entry"
+    expected = b"Successfully added task entry"
     assert expected in output
     log_entry = topo.standalone.ds_error_log.match('.*Bad search filter.*')
     log.info('Error log out: {}'.format(log_entry))

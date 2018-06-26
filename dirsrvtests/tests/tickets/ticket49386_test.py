@@ -3,7 +3,7 @@ import pytest
 import os
 import ldap
 import time
-from lib389.utils import ds_is_older
+from lib389.utils import *
 from lib389.topologies import topology_st as topo
 from lib389._constants import *
 from lib389.config import Config
@@ -40,7 +40,7 @@ def add_group(server, nr, sleep=True):
         time.sleep(2)
         
 def update_member(server, member_dn, group_dn, op, sleep=True):
-    mod = [(op, 'member', member_dn)]
+    mod = [(op, 'member', ensure_bytes(member_dn))]
     server.modify_s(group_dn, mod)
     if sleep:
         time.sleep(2)
@@ -51,8 +51,8 @@ def config_memberof(server):
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
     server.modify_s(MEMBEROF_PLUGIN_DN, [(ldap.MOD_REPLACE,
                                           'memberOfAllBackends',
-                                          'on'),
-                                          (ldap.MOD_REPLACE, 'memberOfAutoAddOC', 'nsMemberOf')])
+                                          b'on'),
+                                          (ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsMemberOf')])
 
 
 def _find_memberof(server, member_dn, group_dn, find_result=True):
@@ -64,7 +64,7 @@ def _find_memberof(server, member_dn, group_dn, find_result=True):
             server.log.info("!!!!!!! %s: memberof->%s" % (member_dn, val))
             server.log.info("!!!!!!! %s" % (val))
             server.log.info("!!!!!!! %s" % (group_dn))
-            if val.lower() == group_dn.lower():
+            if val.lower() == ensure_bytes(group_dn.lower()):
                 found = True
                 break
 

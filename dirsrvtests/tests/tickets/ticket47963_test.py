@@ -10,6 +10,7 @@ import logging
 
 import pytest
 from lib389.tasks import *
+from lib389.utils import *
 from lib389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, PLUGIN_MEMBER_OF
@@ -36,9 +37,9 @@ def test_ticket47963(topology_st):
     #
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofskipnested', 'on')])
+        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofskipnested', b'on')])
     except ldap.LDAPError as e:
-        log.error('test_automember: Failed to modify config entry: error ' + e.message['desc'])
+        log.error('test_automember: Failed to modify config entry: error ' + e.args[0]['desc'])
         assert False
 
     topology_st.standalone.restart(timeout=10)
@@ -52,7 +53,7 @@ def test_ticket47963(topology_st):
             'uid': 'test_user'
         })))
     except ldap.LDAPError as e:
-        log.error('Failed to add teset user: error ' + e.message['desc'])
+        log.error('Failed to add teset user: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -62,7 +63,7 @@ def test_ticket47963(topology_st):
             'member': USER_DN
         })))
     except ldap.LDAPError as e:
-        log.error('Failed to add group1: error ' + e.message['desc'])
+        log.error('Failed to add group1: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -72,7 +73,7 @@ def test_ticket47963(topology_st):
             'member': USER_DN
         })))
     except ldap.LDAPError as e:
-        log.error('Failed to add group2: error ' + e.message['desc'])
+        log.error('Failed to add group2: error ' + e.args[0]['desc'])
         assert False
 
     # Add group with no member(yet)
@@ -82,7 +83,7 @@ def test_ticket47963(topology_st):
             'cn': 'group'
         })))
     except ldap.LDAPError as e:
-        log.error('Failed to add group3: error ' + e.message['desc'])
+        log.error('Failed to add group3: error ' + e.args[0]['desc'])
         assert False
     time.sleep(1)
 
@@ -96,14 +97,14 @@ def test_ticket47963(topology_st):
             log.fatal('User is missing expected memberOf attrs')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('Search for user1 failed: ' + e.message['desc'])
+        log.fatal('Search for user1 failed: ' + e.args[0]['desc'])
         assert False
 
     # Add the user to the group
     try:
-        topology_st.standalone.modify_s(GROUP_DN3, [(ldap.MOD_ADD, 'member', USER_DN)])
+        topology_st.standalone.modify_s(GROUP_DN3, [(ldap.MOD_ADD, 'member', ensure_bytes(USER_DN))])
     except ldap.LDAPError as e:
-        log.error('Failed to member to group: error ' + e.message['desc'])
+        log.error('Failed to member to group: error ' + e.args[0]['desc'])
         assert False
     time.sleep(1)
 
@@ -116,7 +117,7 @@ def test_ticket47963(topology_st):
             log.fatal('User is missing expected memberOf attrs')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('Search for user1 failed: ' + e.message['desc'])
+        log.fatal('Search for user1 failed: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -125,7 +126,7 @@ def test_ticket47963(topology_st):
     try:
         topology_st.standalone.delete_s(GROUP_DN2)
     except ldap.LDAPError as e:
-        log.error('Failed to delete test group2: ' + e.message['desc'])
+        log.error('Failed to delete test group2: ' + e.args[0]['desc'])
         assert False
     time.sleep(1)
 
@@ -136,7 +137,7 @@ def test_ticket47963(topology_st):
             log.fatal('User incorrect memberOf attrs')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('Search for user1 failed: ' + e.message['desc'])
+        log.fatal('Search for user1 failed: ' + e.args[0]['desc'])
         assert False
 
     log.info('Test complete')

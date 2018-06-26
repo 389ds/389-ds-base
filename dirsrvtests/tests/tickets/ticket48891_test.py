@@ -42,10 +42,7 @@ def test_ticket48891_setup(topology_st):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     # check there is no core
-    entry = topology_st.standalone.search_s(CONFIG_DN, ldap.SCOPE_BASE,
-                                            "(cn=config)", ['nsslapd-errorlog'])
-    assert entry
-    path = entry[0].getValue('nsslapd-errorlog').replace('errors', '')
+    path = topology_st.standalone.config.get_attr_val_utf8('nsslapd-errorlog').replace('errors', '')
     log.debug('Looking for a core file in: ' + path)
     cores = fnmatch.filter(os.listdir(path), 'core.*')
     assert len(cores) == 0

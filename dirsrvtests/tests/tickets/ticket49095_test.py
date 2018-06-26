@@ -36,24 +36,24 @@ def test_ticket49095(topo):
             'telephonenumber': '555-555-5555'
         })))
     except ldap.LDAPError as e:
-            log.fatal('Failed to add test user: ' + e.message['desc'])
+            log.fatal('Failed to add test user: ' + e.args[0]['desc'])
             assert False
 
     for aci in acis:
         # Add ACI
         try:
             topo.standalone.modify_s(DEFAULT_SUFFIX,
-                          [(ldap.MOD_REPLACE, 'aci', aci)])
+                          [(ldap.MOD_REPLACE, 'aci', ensure_bytes(aci))])
 
         except ldap.LDAPError as e:
-            log.fatal('Failed to set aci: ' + aci + ': ' + e.message['desc'])
+            log.fatal('Failed to set aci: ' + aci + ': ' + e.args[0]['desc'])
             assert False
 
         # Set Anonymous Bind to test aci
         try:
             topo.standalone.simple_bind_s("", "")
         except ldap.LDAPError as e:
-            log.fatal('Failed to bind anonymously: ' + e.message['desc'])
+            log.fatal('Failed to bind anonymously: ' + e.args[0]['desc'])
             assert False
 
         # Search for entry - should not get any results
@@ -64,14 +64,14 @@ def test_ticket49095(topo):
                 log.fatal('The entry was incorrectly returned')
                 assert False
         except ldap.LDAPError as e:
-            log.fatal('Failed to search anonymously: ' + e.message['desc'])
+            log.fatal('Failed to search anonymously: ' + e.args[0]['desc'])
             assert False
 
         # Set root DN Bind so we can update aci's
         try:
             topo.standalone.simple_bind_s(DN_DM, PASSWORD)
         except ldap.LDAPError as e:
-            log.fatal('Failed to bind anonymously: ' + e.message['desc'])
+            log.fatal('Failed to bind anonymously: ' + e.args[0]['desc'])
             assert False
 
     log.info("Test Passed")

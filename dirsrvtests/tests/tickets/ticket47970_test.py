@@ -31,17 +31,17 @@ def test_ticket47970(topology_st):
     # Enable account lockout
     #
     try:
-        topology_st.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'passwordLockout', 'on')])
+        topology_st.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'passwordLockout', b'on')])
         log.info('account lockout enabled.')
     except ldap.LDAPError as e:
-        log.error('Failed to enable account lockout: ' + e.message['desc'])
+        log.error('Failed to enable account lockout: ' + e.args[0]['desc'])
         assert False
 
     try:
-        topology_st.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'passwordMaxFailure', '5')])
+        topology_st.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'passwordMaxFailure', b'5')])
         log.info('passwordMaxFailure set.')
     except ldap.LDAPError as e:
-        log.error('Failed to to set passwordMaxFailure: ' + e.message['desc'])
+        log.error('Failed to to set passwordMaxFailure: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -69,7 +69,7 @@ def test_ticket47970(topology_st):
                                                 "passwordRetryCount=*",
                                                 ['passwordRetryCount'])
     except ldap.LDAPError as e:
-        log.error('Failed to search Root DSE entry: ' + e.message['desc'])
+        log.error('Failed to search Root DSE entry: ' + e.args[0]['desc'])
         assert False
 
     if entry:

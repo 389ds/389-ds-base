@@ -30,7 +30,7 @@ def _add_group_with_members(topo, group_dn):
                                       {'objectclass': 'top groupofnames extensibleObject'.split(),
                                        'cn': 'group'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add group: error ' + e.message['desc'])
+        log.fatal('Failed to add group: error ' + e.args[0]['desc'])
         assert False
 
     # Add members to the group - set timeout
@@ -41,10 +41,10 @@ def _add_group_with_members(topo, group_dn):
             topo.standalone.modify_s(group_dn,
                                       [(ldap.MOD_ADD,
                                         'member',
-                                        MEMBER_VAL)])
+                                        ensure_bytes(MEMBER_VAL))])
         except ldap.LDAPError as e:
             log.fatal('Failed to update group: member (%s) - error: %s' %
-                      (MEMBER_VAL, e.message['desc']))
+                      (MEMBER_VAL, e.args[0]['desc']))
             assert False
 
 def _check_memberof(topo, member=None, memberof=True, group_dn=None):
@@ -54,21 +54,21 @@ def _check_memberof(topo, member=None, memberof=True, group_dn=None):
             USER_DN = ("uid=member%d,%s" % (idx, DEFAULT_SUFFIX))
             ent = topo.standalone.getEntry(USER_DN, ldap.SCOPE_BASE, "(objectclass=*)")
             if presence_flag:
-                assert ent.hasAttr('memberof') and ent.getValue('memberof') == group_dn
+                assert ent.hasAttr('memberof') and ent.getValue('memberof') == ensure_bytes(group_dn)
             else:
                 assert not ent.hasAttr('memberof')
         except ldap.LDAPError as e:
-            log.fatal('Failed to retrieve user (%s): error %s' % (USER_DN, e.message['desc']))
+            log.fatal('Failed to retrieve user (%s): error %s' % (USER_DN, e.args[0]['desc']))
             assert False
             
 def _check_memberof(topo, member=None, memberof=True, group_dn=None):
     ent = topo.standalone.getEntry(member, ldap.SCOPE_BASE, "(objectclass=*)")
     if memberof:
         assert group_dn
-        assert ent.hasAttr('memberof') and group_dn in ent.getValues('memberof')
+        assert ent.hasAttr('memberof') and ensure_bytes(group_dn) in ent.getValues('memberof')
     else:
         if ent.hasAttr('memberof'):
-            assert group_dn not in ent.getValues('memberof')
+            assert ensure_bytes(group_dn) not in ent.getValues('memberof')
 
             
 def test_ticket49184(topo):
@@ -92,7 +92,7 @@ def test_ticket49184(topo):
                                           {'objectclass': 'top extensibleObject'.split(),
                                            'uid': 'member%d' % (idx)})))
         except ldap.LDAPError as e:
-            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.message['desc']))
+            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.args[0]['desc']))
             assert False
 
     # add all users in GROUP_DN_1 and checks each users is memberof GROUP_DN_1
@@ -115,17 +115,17 @@ def test_ticket49184(topo):
     topo.standalone.modify_s(SUPER_GRP1,
                                       [(ldap.MOD_ADD,
                                         'member',
-                                        GROUP_DN_1),
+                                        ensure_bytes(GROUP_DN_1)),
                                         (ldap.MOD_ADD,
                                         'member',
-                                        GROUP_DN_2)])
+                                        ensure_bytes(GROUP_DN_2))])
     topo.standalone.modify_s(SUPER_GRP2,
                                       [(ldap.MOD_ADD,
                                         'member',
-                                        GROUP_DN_1),
+                                        ensure_bytes(GROUP_DN_1)),
                                         (ldap.MOD_ADD,
                                         'member',
-                                        GROUP_DN_2)])
+                                        ensure_bytes(GROUP_DN_2))])
     return
     topo.standalone.delete_s(GROUP_DN_2)
     for idx in range(1, 5):

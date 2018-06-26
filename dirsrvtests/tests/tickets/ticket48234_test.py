@@ -34,7 +34,7 @@ def test_ticket48234(topology_st):
     try:
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
+        topology_st.standalone.log.error('Root DN failed to authenticate: ' + e.args[0]['desc'])
         assert False
 
     ouname = 'outest'
@@ -48,9 +48,9 @@ def test_ticket48234(topology_st):
                 '(userdn = "ldap:///%s??sub?(&(cn=%s)(ou:dn:=%s))");)' % (DEFAULT_SUFFIX, username, ouname))
 
     try:
-        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', aci_text)])
+        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', ensure_bytes(aci_text))])
     except ldap.LDAPError as e:
-        log.error('Failed to add aci: (%s) error %s' % (aci_text, e.message['desc']))
+        log.error('Failed to add aci: (%s) error %s' % (aci_text, e.args[0]['desc']))
         assert False
 
     log.info('Add entries ...')
@@ -72,7 +72,7 @@ def test_ticket48234(topology_st):
     try:
         topology_st.standalone.simple_bind_s(binddn, passwd)
     except ldap.LDAPError as e:
-        topology_st.standalone.log.error(bindn + ' failed to authenticate: ' + e.message['desc'])
+        topology_st.standalone.log.error(bindn + ' failed to authenticate: ' + e.args[0]['desc'])
         assert False
 
     filter = '(cn=%s)' % username
@@ -84,7 +84,7 @@ def test_ticket48234(topology_st):
                 log.fatal('aci with extensible filter failed -- %s')
                 assert False
     except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Search (%s, %s) failed: ' % (DEFAULT_SUFFIX, filter) + e.message['desc'])
+        topology_st.standalone.log.error('Search (%s, %s) failed: ' % (DEFAULT_SUFFIX, filter) + e.args[0]['desc'])
         assert False
 
     log.info('Test complete')

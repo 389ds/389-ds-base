@@ -29,14 +29,14 @@ def _dna_config(server, nextValue=500, maxValue=510):
         })))
 
     except ldap.LDAPError as e:
-        log.error('Failed to add DNA config entry: error ' + e.message['desc'])
+        log.error('Failed to add DNA config entry: error ' + e.args[0]['desc'])
         assert False
 
     log.info("Enable the DNA plugin...")
     try:
         server.plugins.enable(name=PLUGIN_DNA)
     except e:
-        log.error("Failed to enable DNA Plugin: error " + e.message['desc'])
+        log.error("Failed to enable DNA Plugin: error " + e.args[0]['desc'])
         assert False
 
     log.info("Restarting the server...")
@@ -86,7 +86,7 @@ def test_ticket4026(topology_m3):
 
     # Turn on lots of error logging now.
 
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '16384')]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'16384')]
     # mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '1')]
     topology_m3.ms["master1"].modify_s('cn=config', mod)
     topology_m3.ms["master2"].modify_s('cn=config', mod)
@@ -124,7 +124,7 @@ def test_ticket4026(topology_m3):
         })))
     log.info('Test complete')
     # add on master1 users with description DNA
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '16384')]
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'16384')]
     # mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '1')]
     topology_m3.ms["master1"].modify_s('cn=config', mod)
     topology_m3.ms["master2"].modify_s('cn=config', mod)

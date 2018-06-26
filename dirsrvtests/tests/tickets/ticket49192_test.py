@@ -39,7 +39,7 @@ def test_ticket49192(topo):
             'objectclass': 'top organization'.split(),
             'o': 'hang.com'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to create 2nd suffix: error ' + e.message['desc'])
+        log.fatal('Failed to create 2nd suffix: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -54,7 +54,7 @@ def test_ticket49192(topo):
                             'nsManagedRoleDefinition'],
             'cn': 'nsManagedDisabledRole'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add managed role: error ' + e.message['desc'])
+        log.fatal('Failed to add managed role: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -66,7 +66,7 @@ def test_ticket49192(topo):
             'cn': 'nsDisabledRole',
             'nsRoledn': 'cn=nsManagedDisabledRole,' + MY_SUFFIX})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add nested role: error ' + e.message['desc'])
+        log.fatal('Failed to add nested role: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -74,7 +74,7 @@ def test_ticket49192(topo):
             'objectclass': ['top', 'nsContainer'],
             'cn': 'nsAccountInactivationTmp'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add container: error ' + e.message['desc'])
+        log.fatal('Failed to add container: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -83,7 +83,7 @@ def test_ticket49192(topo):
                             'ldapsubentry'],
             'nsAccountLock': 'true'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add cos1: error ' + e.message['desc'])
+        log.fatal('Failed to add cos1: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -95,7 +95,7 @@ def test_ticket49192(topo):
             'cosSpecifier': 'nsRole',
             'cosAttribute': 'nsAccountLock operational'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add cos2 : error ' + e.message['desc'])
+        log.fatal('Failed to add cos2 : error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -108,7 +108,7 @@ def test_ticket49192(topo):
             'userpassword': 'password',
         })))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add user: error ' + e.message['desc'])
+        log.fatal('Failed to add user: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -118,9 +118,9 @@ def test_ticket49192(topo):
         topo.standalone.modify_s(USER_DN,
                                 [(ldap.MOD_ADD,
                                   'nsRoleDN',
-                                  'cn=nsManagedDisabledRole,' + MY_SUFFIX)])
+                                  ensure_bytes('cn=nsManagedDisabledRole,' + MY_SUFFIX))])
     except ldap.LDAPError as e:
-        log.fatal('Failed to disable user: error ' + e.message['desc'])
+        log.fatal('Failed to disable user: error ' + e.args[0]['desc'])
         assert False
 
     time.sleep(1)
@@ -133,14 +133,14 @@ def test_ticket49192(topo):
     except ldap.UNWILLING_TO_PERFORM:
         log.info('Got error 53 as expected')
     except ldap.LDAPError as e:
-        log.fatal('Bind has unexpected error ' + e.message['desc'])
+        log.fatal('Bind has unexpected error ' + e.args[0]['desc'])
         assert False
 
     # Bind as root DN
     try:
         topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError as e:
-        log.fatal('RootDN Bind has unexpected error ' + e.message['desc'])
+        log.fatal('RootDN Bind has unexpected error ' + e.args[0]['desc'])
         assert False
 
     #

@@ -73,8 +73,8 @@ def test_ticket48844_init(topology_st):
     BITW_SCHEMA_AT_2 = '( NAME \'testUserStatus\' DESC \'State of User account active/disabled\' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )'
     BITW_SCHEMA_OC_1 = '( NAME \'testperson\' SUP top STRUCTURAL MUST ( sn $ cn $ testUserAccountControl $ testUserStatus )' + \
                        ' MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) X-ORIGIN \'BitWise\' )'
-    topology_st.standalone.schema.add_schema('attributetypes', [BITW_SCHEMA_AT_1, BITW_SCHEMA_AT_2])
-    topology_st.standalone.schema.add_schema('objectClasses', BITW_SCHEMA_OC_1)
+    topology_st.standalone.schema.add_schema('attributetypes', [ensure_bytes(BITW_SCHEMA_AT_1), ensure_bytes(BITW_SCHEMA_AT_2)])
+    topology_st.standalone.schema.add_schema('objectClasses', ensure_bytes(BITW_SCHEMA_OC_1))
 
     topology_st.standalone.backend.create(TESTBASEDN, {BACKEND_NAME: TESTBACKEND_NAME})
     topology_st.standalone.mappingtree.create(TESTBASEDN, bename=TESTBACKEND_NAME, parent=None)

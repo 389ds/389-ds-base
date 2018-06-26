@@ -8,11 +8,11 @@ log = logging.getLogger(__name__)
 
 
 def _add_custom_schema(server):
-    attr_value = "( 10.0.9.2342.19200300.100.1.1 NAME 'customManager' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'user defined' )"
+    attr_value = b"( 10.0.9.2342.19200300.100.1.1 NAME 'customManager' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'user defined' )"
     mod = [(ldap.MOD_ADD, 'attributeTypes', attr_value)]
     server.modify_s('cn=schema', mod)
 
-    oc_value = "( 1.3.6.1.4.1.4843.2.1 NAME 'customPerson' SUP inetorgperson STRUCTURAL MAY (customManager) X-ORIGIN 'user defined' )"
+    oc_value = b"( 1.3.6.1.4.1.4843.2.1 NAME 'customPerson' SUP inetorgperson STRUCTURAL MAY (customManager) X-ORIGIN 'user defined' )"
     mod = [(ldap.MOD_ADD, 'objectclasses', oc_value)]
     server.modify_s('cn=schema', mod)
 
@@ -37,9 +37,9 @@ def _create_user(server):
 
 def _modify_user(server):
     mod = [
-        (ldap.MOD_ADD, 'objectClass', ['customPerson']),
-        (ldap.MOD_ADD, 'sn', ['User']),
-        (ldap.MOD_ADD, 'customManager', ['cn=manager']),
+        (ldap.MOD_ADD, 'objectClass', [b'customPerson']),
+        (ldap.MOD_ADD, 'sn', [b'User']),
+        (ldap.MOD_ADD, 'customManager', [b'cn=manager']),
     ]
     server.modify("uid=testuser,ou=People,%s" % DEFAULT_SUFFIX, mod)
 

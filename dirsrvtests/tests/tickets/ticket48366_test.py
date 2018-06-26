@@ -77,13 +77,13 @@ def test_ticket48366_init(topology_st):
     ACI_ALLOW = "(version 3.0; acl \"Allow search-read to green subtree\"; allow (read, search, compare)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % TEST_USER_DN
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_st.standalone.modify_s(SUFFIX, mod)
 
     ACI_ALLOW = "(version 3.0; acl \"Allow use pf proxy auth to green subtree\"; allow (proxy)"
     ACI_SUBJECT = " userdn = \"ldap:///%s\";)" % PROXY_USER_DN
     ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_ALLOW + ACI_SUBJECT
-    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    mod = [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI_BODY))]
     topology_st.standalone.modify_s(SUFFIX, mod)
 
     log.info("Adding %d test entries...")
@@ -107,7 +107,7 @@ def test_ticket48366_init(topology_st):
 
 
 def test_ticket48366_search_user(topology_st):
-    proxy_ctrl = ProxyAuthzControl(criticality=True, authzId="dn: " + TEST_USER_DN)
+    proxy_ctrl = ProxyAuthzControl(criticality=True, authzId=ensure_bytes("dn: " + TEST_USER_DN))
     # searching as test user should return one entry from the green subtree
     topology_st.standalone.simple_bind_s(TEST_USER_DN, PASSWORD)
     ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid=test1')
@@ -130,12 +130,12 @@ def test_ticket48366_search_dm(topology_st):
     assert (len(ents) == 2)
 
     # searching as directory manager proxying test user should return one entry
-    proxy_ctrl = ProxyAuthzControl(criticality=True, authzId="dn: " + TEST_USER_DN)
+    proxy_ctrl = ProxyAuthzControl(criticality=True, authzId=ensure_bytes("dn: " + TEST_USER_DN))
     ents = topology_st.standalone.search_ext_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid=test1', serverctrls=[proxy_ctrl])
     assert (len(ents) == 1)
 
     # searching as directory manager proxying proxy user should return no entry
-    proxy_ctrl = ProxyAuthzControl(criticality=True, authzId="dn: " + PROXY_USER_DN)
+    proxy_ctrl = ProxyAuthzControl(criticality=True, authzId=ensure_bytes("dn: " + PROXY_USER_DN))
     ents = topology_st.standalone.search_ext_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid=test1', serverctrls=[proxy_ctrl])
     assert (len(ents) == 0)
 

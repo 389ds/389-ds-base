@@ -31,7 +31,7 @@ class modifySecondBackendThread(threading.Thread):
         self.timeout = timeout
 
     def run(self):
-        conn = self.inst.openConnection()
+        conn = self.inst.clone()
         conn.set_option(ldap.OPT_TIMEOUT, self.timeout)
         log.info('Modify second suffix...')
         for x in range(0, 5000):
@@ -39,10 +39,10 @@ class modifySecondBackendThread(threading.Thread):
                 conn.modify_s(SECOND_SUFFIX,
                               [(ldap.MOD_REPLACE,
                                 'description',
-                                'new description')])
+                                b'new description')])
             except ldap.LDAPError as e:
                 log.fatal('Failed to modify second suffix - error: %s' %
-                          (e.message['desc']))
+                          (e.args[0]['desc']))
                 assert False
 
         conn.close()
@@ -69,9 +69,9 @@ def test_ticket47931(topology_st):
         topology_st.standalone.modify_s(DN_CONFIG,
                                         [(ldap.MOD_REPLACE,
                                           'nsslapd-dynamic-plugins',
-                                          'on')])
+                                          b'on')])
     except ldap.LDAPError as e:
-        log.error('Failed to enable dynamic plugins! ' + e.message['desc'])
+        log.error('Failed to enable dynamic plugins! ' + e.args[0]['desc'])
         assert False
 
     # Enable the plugins
@@ -88,7 +88,7 @@ def test_ticket47931(topology_st):
                                             {'objectclass': 'top domain'.split(),
                                              'dc': 'deadlock'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to create suffix entry: error ' + e.message['desc'])
+        log.fatal('Failed to create suffix entry: error ' + e.args[0]['desc'])
         assert False
 
     # Configure retrocl scope
@@ -96,9 +96,9 @@ def test_ticket47931(topology_st):
         topology_st.standalone.modify_s(RETROCL_PLUGIN_DN,
                                         [(ldap.MOD_REPLACE,
                                           'nsslapd-include-suffix',
-                                          DEFAULT_SUFFIX)])
+                                          ensure_bytes(DEFAULT_SUFFIX))])
     except ldap.LDAPError as e:
-        log.error('Failed to configure retrocl plugin: ' + e.message['desc'])
+        log.error('Failed to configure retrocl plugin: ' + e.args[0]['desc'])
         assert False
 
     # Configure memberOf group attribute
@@ -106,9 +106,9 @@ def test_ticket47931(topology_st):
         topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                         [(ldap.MOD_REPLACE,
                                           'memberofgroupattr',
-                                          'uniquemember')])
+                                          b'uniquemember')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to configure memberOf plugin: error ' + e.message['desc'])
+        log.fatal('Failed to configure memberOf plugin: error ' + e.args[0]['desc'])
         assert False
     time.sleep(1)
 
@@ -118,7 +118,7 @@ def test_ticket47931(topology_st):
                                             {'objectclass': 'top extensibleObject'.split(),
                                              'cn': 'group'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add grouo: error ' + e.message['desc'])
+        log.fatal('Failed to add grouo: error ' + e.args[0]['desc'])
         assert False
 
     # Create 1500 entries (future members of the group)
@@ -129,7 +129,7 @@ def test_ticket47931(topology_st):
                                                 {'objectclass': 'top extensibleObject'.split(),
                                                  'uid': 'member%d' % (idx)})))
         except ldap.LDAPError as e:
-            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.message['desc']))
+            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.args[0]['desc']))
             assert False
 
     # Modify second backend (separate thread)
@@ -146,13 +146,13 @@ def test_ticket47931(topology_st):
             topology_st.standalone.modify_s(GROUP_DN,
                                             [(ldap.MOD_ADD,
                                               'uniquemember',
-                                              MEMBER_VAL)])
+                                              ensure_bytes(MEMBER_VAL))])
         except ldap.TIMEOUT:
             log.fatal('Deadlock!  Bug verification failed.')
             assert False
         except ldap.LDAPError as e:
             log.fatal('Failed to update group(not a deadlock) member (%s) - error: %s' %
-                      (MEMBER_VAL, e.message['desc']))
+                      (MEMBER_VAL, e.args[0]['desc']))
             assert False
     log.info('Finished adding members to the group.')
 

@@ -73,10 +73,10 @@ def _check_inactivity(topology_st, mysuffix):
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-    assert (_check_status(topology_st, TEST_USER_DN, '- activated'))
+    assert (_check_status(topology_st, TEST_USER_DN, b'- activated'))
 
     time.sleep(int(INACTIVITY_LIMIT) + 5)
-    assert (_check_status(topology_st, TEST_USER_DN, '- inactivated (inactivity limit exceeded'))
+    assert (_check_status(topology_st, TEST_USER_DN, b'- inactivated (inactivity limit exceeded'))
 
 
 def test_ticket48956(topology_st):
@@ -88,14 +88,14 @@ def test_ticket48956(topology_st):
     """
 
     topology_st.standalone.modify_s(ACCT_POLICY_PLUGIN_DN,
-                                    [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ACCT_POLICY_CONFIG_DN)])
+                                    [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ensure_bytes(ACCT_POLICY_CONFIG_DN))])
 
-    topology_st.standalone.modify_s(ACCT_POLICY_CONFIG_DN, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes'),
-                                                            (ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime'),
-                                                            (ldap.MOD_REPLACE, 'altstateattrname', 'createTimestamp'),
-                                                            (ldap.MOD_REPLACE, 'specattrname', 'acctPolicySubentry'),
+    topology_st.standalone.modify_s(ACCT_POLICY_CONFIG_DN, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', b'yes'),
+                                                            (ldap.MOD_REPLACE, 'stateattrname', b'lastLoginTime'),
+                                                            (ldap.MOD_REPLACE, 'altstateattrname', b'createTimestamp'),
+                                                            (ldap.MOD_REPLACE, 'specattrname', b'acctPolicySubentry'),
                                                             (ldap.MOD_REPLACE, 'limitattrname',
-                                                             'accountInactivityLimit')])
+                                                             b'accountInactivityLimit')])
 
     # Enable the plugins
     topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)

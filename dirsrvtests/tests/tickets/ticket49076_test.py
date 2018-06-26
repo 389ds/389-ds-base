@@ -28,7 +28,7 @@ def _check_configured_value(topology_st, attr=txn_begin_flag, expected_value=Non
         assert (entries[0].hasValue(attr))
     if entries[0].hasValue(attr):
         topology_st.standalone.log.info('Current value is %s' % entries[0].getValue(attr))
-        assert (entries[0].getValue(attr) == expected_value)
+        assert (entries[0].getValue(attr) == ensure_bytes(expected_value))
         
 def _update_db(topology_st):
     topology_st.standalone.add_s(
@@ -53,7 +53,7 @@ def test_ticket49076(topo):
     
     # switch to wait mode
     topo.standalone.modify_s(ldbm_config,
-                                    [(ldap.MOD_REPLACE, txn_begin_flag, "on")])
+                                    [(ldap.MOD_REPLACE, txn_begin_flag, b"on")])
                                     # check default value is DB_TXN_NOWAIT
     _check_configured_value(topo, expected_value="on")
     _update_db(topo)
@@ -61,7 +61,7 @@ def test_ticket49076(topo):
     
     # switch back to "normal mode"
     topo.standalone.modify_s(ldbm_config,
-                                    [(ldap.MOD_REPLACE, txn_begin_flag, "off")])
+                                    [(ldap.MOD_REPLACE, txn_begin_flag, b"off")])
     # check default value is DB_TXN_NOWAIT
     _check_configured_value(topo, expected_value="off")
     # tests we are able to update DB
@@ -69,7 +69,7 @@ def test_ticket49076(topo):
     
     # check that settings are not reset by restart
     topo.standalone.modify_s(ldbm_config,
-                                    [(ldap.MOD_REPLACE, txn_begin_flag, "on")])
+                                    [(ldap.MOD_REPLACE, txn_begin_flag, b"on")])
                                     # check default value is DB_TXN_NOWAIT
     _check_configured_value(topo, expected_value="on")
     _update_db(topo)

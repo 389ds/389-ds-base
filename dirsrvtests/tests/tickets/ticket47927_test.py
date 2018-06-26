@@ -42,11 +42,11 @@ def test_ticket47927_init(topology_st):
     topology_st.standalone.plugins.enable(name=PLUGIN_ATTR_UNIQUENESS)
     try:
         topology_st.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'telephonenumber'),
-                                         (ldap.MOD_REPLACE, 'uniqueness-subtrees', DEFAULT_SUFFIX),
+                                        [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', b'telephonenumber'),
+                                         (ldap.MOD_REPLACE, 'uniqueness-subtrees', ensure_bytes(DEFAULT_SUFFIX)),
                                          ])
     except ldap.LDAPError as e:
-        log.fatal('test_ticket47927: Failed to configure plugin for "telephonenumber": error ' + e.message['desc'])
+        log.fatal('test_ticket47927: Failed to configure plugin for "telephonenumber": error ' + e.args[0]['desc'])
         assert False
     topology_st.standalone.restart(timeout=120)
 
@@ -81,12 +81,12 @@ def test_ticket47927_one(topology_st):
     '''
     Check that uniqueness is enforce on all SUFFIX
     '''
-    UNIQUE_VALUE = '1234'
+    UNIQUE_VALUE = b'1234'
     try:
         topology_st.standalone.modify_s(USER_1_DN,
                                         [(ldap.MOD_REPLACE, 'telephonenumber', UNIQUE_VALUE)])
     except ldap.LDAPError as e:
-        log.fatal('test_ticket47927_one: Failed to set the telephonenumber for %s: %s' % (USER_1_DN, e.message['desc']))
+        log.fatal('test_ticket47927_one: Failed to set the telephonenumber for %s: %s' % (USER_1_DN, e.args[0]['desc']))
         assert False
 
     # we expect to fail because user1 is in the scope of the plugin
@@ -97,7 +97,7 @@ def test_ticket47927_one(topology_st):
         assert False
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_one: Failed (expected) to set the telephonenumber for %s: %s' % (
-        USER_2_DN, e.message['desc']))
+        USER_2_DN, e.args[0]['desc']))
         pass
 
     # we expect to fail because user1 is in the scope of the plugin
@@ -108,7 +108,7 @@ def test_ticket47927_one(topology_st):
         assert False
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_one: Failed (expected) to set the telephonenumber for %s: %s' % (
-        USER_3_DN, e.message['desc']))
+        USER_3_DN, e.args[0]['desc']))
         pass
 
 
@@ -118,10 +118,10 @@ def test_ticket47927_two(topology_st):
     '''
     try:
         topology_st.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                                        [(ldap.MOD_REPLACE, 'uniqueness-exclude-subtrees', EXCLUDED_CONTAINER_DN)])
+                                        [(ldap.MOD_REPLACE, 'uniqueness-exclude-subtrees', ensure_bytes(EXCLUDED_CONTAINER_DN))])
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_two: Failed to configure plugin for to exclude %s: error %s' % (
-        EXCLUDED_CONTAINER_DN, e.message['desc']))
+        EXCLUDED_CONTAINER_DN, e.args[0]['desc']))
         assert False
     topology_st.standalone.restart(timeout=120)
 
@@ -132,12 +132,12 @@ def test_ticket47927_three(topology_st):
     First case: it exists an entry (with the same attribute value) in the scope
     of the plugin and we set the value in an entry that is in an excluded scope
     '''
-    UNIQUE_VALUE = '9876'
+    UNIQUE_VALUE = b'9876'
     try:
         topology_st.standalone.modify_s(USER_1_DN,
                                         [(ldap.MOD_REPLACE, 'telephonenumber', UNIQUE_VALUE)])
     except ldap.LDAPError as e:
-        log.fatal('test_ticket47927_three: Failed to set the telephonenumber ' + e.message['desc'])
+        log.fatal('test_ticket47927_three: Failed to set the telephonenumber ' + e.args[0]['desc'])
         assert False
 
     # we should not be allowed to set this value (because user1 is in the scope)
@@ -148,7 +148,7 @@ def test_ticket47927_three(topology_st):
         assert False
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_three: Failed (expected) to set the telephonenumber for %s: %s' % (
-        USER_2_DN, e.message['desc']))
+        USER_2_DN, e.args[0]['desc']))
 
     # USER_3_DN is in EXCLUDED_CONTAINER_DN so update should be successful
     try:
@@ -157,7 +157,7 @@ def test_ticket47927_three(topology_st):
         log.fatal('test_ticket47927_three: success to set the telephonenumber for %s' % (USER_3_DN))
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_three: Failed (unexpected) to set the telephonenumber for %s: %s' % (
-        USER_3_DN, e.message['desc']))
+        USER_3_DN, e.args[0]['desc']))
         assert False
 
 
@@ -167,7 +167,7 @@ def test_ticket47927_four(topology_st):
     Second case: it exists an entry (with the same attribute value) in an excluded scope
     of the plugin and we set the value in an entry is in the scope
     '''
-    UNIQUE_VALUE = '1111'
+    UNIQUE_VALUE = b'1111'
     # USER_3_DN is in EXCLUDED_CONTAINER_DN so update should be successful
     try:
         topology_st.standalone.modify_s(USER_3_DN,
@@ -175,7 +175,7 @@ def test_ticket47927_four(topology_st):
         log.fatal('test_ticket47927_four: success to set the telephonenumber for %s' % USER_3_DN)
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_four: Failed (unexpected) to set the telephonenumber for %s: %s' % (
-        USER_3_DN, e.message['desc']))
+        USER_3_DN, e.args[0]['desc']))
         assert False
 
     # we should be allowed to set this value (because user3 is excluded from scope)
@@ -184,7 +184,7 @@ def test_ticket47927_four(topology_st):
                                         [(ldap.MOD_REPLACE, 'telephonenumber', UNIQUE_VALUE)])
     except ldap.LDAPError as e:
         log.fatal(
-            'test_ticket47927_four: Failed to set the telephonenumber for %s: %s' % (USER_1_DN, e.message['desc']))
+            'test_ticket47927_four: Failed to set the telephonenumber for %s: %s' % (USER_1_DN, e.args[0]['desc']))
         assert False
 
     # we should not be allowed to set this value (because user1 is in the scope)
@@ -195,7 +195,7 @@ def test_ticket47927_four(topology_st):
         assert False
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_four: Failed (expected) to set the telephonenumber for %s: %s' % (
-        USER_2_DN, e.message['desc']))
+        USER_2_DN, e.args[0]['desc']))
         pass
 
 
@@ -205,10 +205,10 @@ def test_ticket47927_five(topology_st):
     '''
     try:
         topology_st.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                                        [(ldap.MOD_ADD, 'uniqueness-exclude-subtrees', EXCLUDED_BIS_CONTAINER_DN)])
+                                        [(ldap.MOD_ADD, 'uniqueness-exclude-subtrees', ensure_bytes(EXCLUDED_BIS_CONTAINER_DN))])
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_five: Failed to configure plugin for to exclude %s: error %s' % (
-        EXCLUDED_BIS_CONTAINER_DN, e.message['desc']))
+        EXCLUDED_BIS_CONTAINER_DN, e.args[0]['desc']))
         assert False
     topology_st.standalone.restart(timeout=120)
     topology_st.standalone.getEntry('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config', ldap.SCOPE_BASE)
@@ -221,12 +221,12 @@ def test_ticket47927_six(topology_st):
     First case: it exists an entry (with the same attribute value) in the scope
     of the plugin and we set the value in an entry that is in an excluded scope
     '''
-    UNIQUE_VALUE = '222'
+    UNIQUE_VALUE = b'222'
     try:
         topology_st.standalone.modify_s(USER_1_DN,
                                         [(ldap.MOD_REPLACE, 'telephonenumber', UNIQUE_VALUE)])
     except ldap.LDAPError as e:
-        log.fatal('test_ticket47927_six: Failed to set the telephonenumber ' + e.message['desc'])
+        log.fatal('test_ticket47927_six: Failed to set the telephonenumber ' + e.args[0]['desc'])
         assert False
 
     # we should not be allowed to set this value (because user1 is in the scope)
@@ -237,7 +237,7 @@ def test_ticket47927_six(topology_st):
         assert False
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_six: Failed (expected) to set the telephonenumber for %s: %s' % (
-        USER_2_DN, e.message['desc']))
+        USER_2_DN, e.args[0]['desc']))
 
     # USER_3_DN is in EXCLUDED_CONTAINER_DN so update should be successful
     try:
@@ -246,7 +246,7 @@ def test_ticket47927_six(topology_st):
         log.fatal('test_ticket47927_six: success to set the telephonenumber for %s' % (USER_3_DN))
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_six: Failed (unexpected) to set the telephonenumber for %s: %s' % (
-        USER_3_DN, e.message['desc']))
+        USER_3_DN, e.args[0]['desc']))
         assert False
     # USER_4_DN is in EXCLUDED_CONTAINER_DN so update should be successful
     try:
@@ -255,7 +255,7 @@ def test_ticket47927_six(topology_st):
         log.fatal('test_ticket47927_six: success to set the telephonenumber for %s' % (USER_4_DN))
     except ldap.LDAPError as e:
         log.fatal('test_ticket47927_six: Failed (unexpected) to set the telephonenumber for %s: %s' % (
-        USER_4_DN, e.message['desc']))
+        USER_4_DN, e.args[0]['desc']))
         assert False
 
 

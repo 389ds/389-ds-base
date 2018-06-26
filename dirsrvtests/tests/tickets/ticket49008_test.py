@@ -39,7 +39,7 @@ def test_ticket49008(T):
 
     # Set the auto OC to an objectclass that does NOT allow memberOf
     B.modify_s('cn=MemberOf Plugin,cn=plugins,cn=config',
-               [(ldap.MOD_REPLACE, 'memberofAutoAddOC', 'referral')])
+               [(ldap.MOD_REPLACE, 'memberofAutoAddOC', b'referral')])
     B.restart(timeout=10)
 
     # add a few entries allowing memberof
@@ -87,7 +87,7 @@ def test_ticket49008(T):
     elements = B_RUV[0].getValues('nsds50ruv')
     ruv_before = 'ruv_before'
     for ruv in elements:
-        if 'replica 2' in ruv:
+        if b'replica 2' in ruv:
             ruv_before = ruv
 
     # add a group with members allowing memberof and members which don't
@@ -108,7 +108,7 @@ def test_ticket49008(T):
     elements = B_RUV[0].getValues('nsds50ruv')
     ruv_after = 'ruv_after'
     for ruv in elements:
-        if 'replica 2' in ruv:
+        if b'replica 2' in ruv:
             ruv_after = ruv
 
     log.info('ruv before fail: {}'.format(ruv_before))

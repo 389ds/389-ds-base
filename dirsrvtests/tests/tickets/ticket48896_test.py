@@ -49,7 +49,7 @@ def replace_pw(server, curpw, newpw, expstr, rc):
     hit = 0
     log.info('Replacing password: %s -> %s, which should %s' % (curpw, newpw, expstr))
     try:
-        server.modify_s(TESTDN, [(ldap.MOD_REPLACE, 'userPassword', newpw)])
+        server.modify_s(TESTDN, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(newpw))])
     except Exception as e:
         log.info("Exception (expected): %s" % type(e).__name__)
         hit = 1
@@ -69,8 +69,8 @@ def test_ticket48896(topology_st):
 
     log.info("Setting global password policy with password syntax.")
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordCheckSyntax', 'on'),
-                                                (ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
+    topology_st.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordCheckSyntax', b'on'),
+                                                (ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', b'on')])
 
     config = topology_st.standalone.search_s(CONFIG_DN, ldap.SCOPE_BASE, 'cn=*')
     mintokenlen = config[0].getValue('passwordMinTokenLength')

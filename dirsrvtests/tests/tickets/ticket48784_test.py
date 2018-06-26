@@ -51,12 +51,12 @@ def config_tls_agreements(topology_m2):
     log.info("##### Update the agreement of master1")
     m1 = topology_m2.ms["master1"]
     m1_m2_agmt = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
-    topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
+    topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', b'TLS')])
 
     log.info("##### Update the agreement of master2")
     m2 = topology_m2.ms["master2"]
     m2_m1_agmt = m2.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
-    topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', 'TLS')])
+    topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', b'TLS')])
 
     time.sleep(1)
 
@@ -70,10 +70,10 @@ def set_ssl_Version(server, name, version):
     log.info("\n######################### Set %s on %s ######################\n" %
              (version, name))
     server.simple_bind_s(DN_DM, PASSWORD)
-    server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
-                                    (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
-                                    (ldap.MOD_REPLACE, 'sslVersionMin', version),
-                                    (ldap.MOD_REPLACE, 'sslVersionMax', version)])
+    server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', b'off'),
+                                    (ldap.MOD_REPLACE, 'nsTLS1', b'on'),
+                                    (ldap.MOD_REPLACE, 'sslVersionMin', ensure_bytes(version)),
+                                    (ldap.MOD_REPLACE, 'sslVersionMax', ensure_bytes(version))])
 
 
 def test_ticket48784(topology_m2):

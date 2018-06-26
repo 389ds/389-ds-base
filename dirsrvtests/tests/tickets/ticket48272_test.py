@@ -104,7 +104,7 @@ def test_ticket48272(topology_st):
     # This means we have a conflicting user in scope now!
 
     topology_st.standalone.modify_s("cn=example.com,cn=addn,cn=plugins,cn=config",
-                                    [(ldap.MOD_REPLACE, 'addn_base', DEFAULT_SUFFIX)])
+                                    [(ldap.MOD_REPLACE, 'addn_base', ensure_bytes(DEFAULT_SUFFIX))])
     topology_st.standalone.restart(60)
 
     # Make sure our binds still work.

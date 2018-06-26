@@ -46,8 +46,8 @@ def test_ticket48270_homeDirectory_indexed_cis(topology_st):
     # log.info("attach debugger")
     # time.sleep(60)
 
-    IGNORE_MR_NAME = 'caseIgnoreIA5Match'
-    EXACT_MR_NAME = 'caseExactIA5Match'
+    IGNORE_MR_NAME = b'caseIgnoreIA5Match'
+    EXACT_MR_NAME = b'caseExactIA5Match'
     mod = [(ldap.MOD_REPLACE, MATCHINGRULE, (IGNORE_MR_NAME, EXACT_MR_NAME))]
     topology_st.standalone.modify_s(HOMEDIRECTORY_INDEX, mod)
 
@@ -78,7 +78,7 @@ def test_ticket48270_homeDirectory_indexed_cis(topology_st):
 def test_ticket48270_homeDirectory_mixed_value(topology_st):
     # Set a homedirectory value with mixed case
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
-    mod = [(ldap.MOD_REPLACE, 'homeDirectory', MIXED_VALUE)]
+    mod = [(ldap.MOD_REPLACE, 'homeDirectory', ensure_bytes(MIXED_VALUE))]
     topology_st.standalone.modify_s(name, mod)
 
 
