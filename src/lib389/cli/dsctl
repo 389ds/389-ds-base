@@ -23,31 +23,26 @@ from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
 from lib389.cli_base import disconnect_instance, reset_get_logger
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-v', '--verbose',
+        help="Display verbose operation tracing during command execution",
+        action='store_true', default=False
+    )
+parser.add_argument('instance',
+        help="The name of the instance to act upon",
+    )
+parser.add_argument('-j', '--json',
+        help="Return result in JSON object",
+        default=False, action='store_true'
+    )
+subparsers = parser.add_subparsers(help="action")
+argcomplete.autocomplete(parser)
+# We stack our needed options in via submodules.
+cli_instance.create_parser(subparsers)
+cli_dbtasks.create_parser(subparsers)
+
+
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('-v', '--verbose',
-            help="Display verbose operation tracing during command execution",
-            action='store_true', default=False
-        )
-    parser.add_argument('instance',
-            help="The name of the instance to act upon",
-        )
-    parser.add_argument('-j', '--json',
-            help="Return result in JSON object",
-            default=False, action='store_true'
-        )
-    subparsers = parser.add_subparsers(help="action")
-    argcomplete.autocomplete(parser)
-
-    # We stack our needed options in via submodules.
-
-    cli_instance.create_parser(subparsers)
-    cli_dbtasks.create_parser(subparsers)
-
-    # Then we tell it to execute.
-
     args = parser.parse_args()
 
     log = reset_get_logger('dsctl', args.verbose)

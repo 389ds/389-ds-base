@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH RESTORECONFIG 8 "March 31, 2017"
+.TH DIRSRV 5 "Jun 26, 2018"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -16,31 +16,31 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .SH NAME 
-restoreconfig - Directory Server script for restoring the Admin Server configuration
+/etc/sysconfig/dirsrv - Systemd EnvironmentFile that affects all Directory Server instances.
+
 .SH SYNOPSIS
-restoreconfig [ \-Z serverID ] [\-h]
+/etc/sysconfig/dirsrv
+
 .SH DESCRIPTION
-Restores the most recently saved Admin Server configuration information to the NetscapeRoot partition under the /etc/dirsrv/slapd-instance_name/ directory. 
-.SH OPTIONS
-A summary of options is included below:
-.TP
-.B \fB\-Z\fR \fIServer Identifier\fR
-The server ID of the Directory Server instance.  If there is only 
-one instance on the system, this option can be skipped.
-.TP
-.B \fB\-h\fR
-.br
-Display the usage.
+dirsrv
+
+This file is sourced by dirsrv upon startup to set
+the default environment for all directory server instances.
+To set instance specific defaults, use the file in the same
+directory called dirsrv-instance where "instance"
+is the name of your directory server instance e.g.
+dirsrv-localhost for the slapd-localhost instance.
+
+This file is in systemd EnvironmentFile format - see man systemd.exec
+
 .SH EXAMPLE
-.TP
-restoreconfig \-Z instance2
-.SH DIAGNOSTICS
-Exit status is zero if no errors occur.  Errors result in a 
-non-zero exit status and a diagnostic message being written 
-to standard error.
+LD_PRELOAD=/usr/lib64/dirsrv/lib/libjemalloc.so
+
+
 .SH AUTHOR
-restoreconfig was written by the 389 Project.
+dirsrv was written by the 389 Project.
 .SH "REPORTING BUGS"
 Report bugs to https://pagure.io/389-ds-base/new_issue
 .SH COPYRIGHT
 Copyright \(co 2018 Red Hat, Inc.
+

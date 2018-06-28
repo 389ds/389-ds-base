@@ -12,7 +12,7 @@ Source0: http://www.port389.org/binaries/%{name}-%{tarver}.tar.bz2
 License: GPLv3+
 Group: Development/Libraries
 BuildArch: noarch
-Url: http://port389.org/docs/389ds/FAQ/upstream-test-framework.html
+Url: http://www.port389.org/
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 BuildRequires: python2-devel
 BuildRequires: python2-setuptools
@@ -23,7 +23,7 @@ BuildRequires: python-devel
 BuildRequires: python-setuptools
 %endif
 %description
-This module contains tools and libraries for accessing, testing, 
+This module contains tools and libraries for accessing, testing,
 and configuring the 389 Directory Server.
 
 
@@ -53,10 +53,10 @@ Requires: python-dateutil
 %endif
 %{?python_provide:%python_provide python2-%{srcname}}
 %description -n python2-%{srcname}
-This module contains tools and libraries for accessing, testing, 
+This module contains tools and libraries for accessing, testing,
 and configuring the 389 Directory Server.
 
-# Can't build on EL7! Python3 tooling is too broken :( 
+# Can't build on EL7! Python3 tooling is too broken :(
 # We have to use >= 8, because <= 7 doesn't work ....
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 %package -n python%{python3_pkgversion}-%{srcname}
@@ -74,7 +74,7 @@ Requires: python%{python3_pkgversion}-pyasn1-modules
 Requires: python%{python3_pkgversion}-dateutil
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 %description -n python%{python3_pkgversion}-%{srcname}
-This module contains tools and libraries for accessing, testing, 
+This module contains tools and libraries for accessing, testing,
 and configuring the 389 Directory Server.
 %endif
 
@@ -230,7 +230,7 @@ and configuring the 389 Directory Server.
 * Mon Dec 7 2015 Mark Reynolds <mreynolds@redhat.com> - 1.0.1-1
 - Removed downloaded dependencies, and added python_provide macro
 - Fixed Source0 URL in spec file
- 
+
 * Fri Dec 4 2015 Mark Reynolds <mreynolds@redhat.com> - 1.0.1-1
 - Renamed package to python-lib389, and simplified the spec file
 

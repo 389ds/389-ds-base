@@ -39,56 +39,52 @@ from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 
 from lib389.cli_base import reset_get_logger
 
+parser = argparse.ArgumentParser(allow_abbrev=True)
+parser.add_argument('instance',
+        help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
+    )
+parser.add_argument('-v', '--verbose',
+        help="Display verbose operation tracing during command execution",
+        action='store_true', default=False
+    )
+parser.add_argument('-D', '--binddn',
+        help="The account to bind as for executing operations",
+        default=None
+    )
+parser.add_argument('-b', '--basedn',
+        help="Basedn (root naming context) of the instance to manage",
+        default=None
+    )
+parser.add_argument('-Z', '--starttls',
+        help="Connect with StartTLS",
+        default=False, action='store_true'
+    )
+parser.add_argument('-j', '--json',
+        help="Return result in JSON object",
+        default=False, action='store_true'
+    )
+
+subparsers = parser.add_subparsers(help="resources to act upon")
+
+cli_config.create_parser(subparsers)
+cli_backend.create_parser(subparsers)
+cli_directory_manager.create_parsers(subparsers)
+cli_schema.create_parser(subparsers)
+cli_health.create_parser(subparsers)
+cli_plugin.create_parser(subparsers)
+cli_memberof.create_parser(subparsers)
+cli_usn.create_parser(subparsers)
+cli_rootdn_ac.create_parser(subparsers)
+cli_whoami.create_parser(subparsers)
+cli_referint.create_parser(subparsers)
+cli_automember.create_parser(subparsers)
+argcomplete.autocomplete(parser)
+
+
 if __name__ == '__main__':
 
     defbase = ldap.get_option(ldap.OPT_DEFBASE)
-
-    parser = argparse.ArgumentParser(allow_abbrev=True)
-    # Build the base ldap options, this keeps in unified.
-
-    # Can we get default options for these from .rc file?
-
-    parser.add_argument('instance',
-            help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
-        )
-    parser.add_argument('-v', '--verbose',
-            help="Display verbose operation tracing during command execution",
-            action='store_true', default=False
-        )
-    parser.add_argument('-D', '--binddn',
-            help="The account to bind as for executing operations",
-            default=None
-        )
-    parser.add_argument('-b', '--basedn',
-            help="Basedn (root naming context) of the instance to manage",
-            default=None
-        )
-    parser.add_argument('-Z', '--starttls',
-            help="Connect with StartTLS",
-            default=False, action='store_true'
-        )
-    parser.add_argument('-j', '--json',
-            help="Return result in JSON object",
-            default=False, action='store_true'
-        )
-
-    subparsers = parser.add_subparsers(help="resources to act upon")
-
-    cli_config.create_parser(subparsers)
-    cli_backend.create_parser(subparsers)
-    cli_directory_manager.create_parsers(subparsers)
-    cli_schema.create_parser(subparsers)
-    cli_health.create_parser(subparsers)
-    cli_plugin.create_parser(subparsers)
-    cli_memberof.create_parser(subparsers)
-    cli_usn.create_parser(subparsers)
-    cli_rootdn_ac.create_parser(subparsers)
-    cli_whoami.create_parser(subparsers)
-    cli_referint.create_parser(subparsers)
-    cli_automember.create_parser(subparsers)
-    argcomplete.autocomplete(parser)
     args = parser.parse_args()
-
     log = reset_get_logger('dsconf', args.verbose)
 
     log.debug("The 389 Directory Server Configuration Tool")

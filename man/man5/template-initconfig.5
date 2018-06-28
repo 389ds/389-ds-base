@@ -1,0 +1,62 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH TEMPLATE-INITCONFIG 5 "Jun 26, 2018"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+/etc/dirsrv/config/template-initconfig - Systemd configuration file used when starting a Directory Server instance.
+
+.SH SYNOPSIS
+/etc/dirsrv/config/template-initconfig
+
+.SH DESCRIPTION
+template-initconfig
+
+This file is sourced by dirsrv upon startup to set
+the default environment for a single specific directory
+server instances.  To set defaults for all instances, edit
+the file in the same directory named dirsrv.
+
+These settings are used by the start-dirsrv and
+start-slapd scripts (as well as their associates stop
+and restart scripts).  Do not edit them unless you know
+what you are doing.
+
+This file is in systemd EnvironmentFile format - see man systemd.exec
+
+.SH SYNTAX
+SERVER_DIR={{SERVER-DIR}}
+.br
+SERVERBIN_DIR={{SERVERBIN-DIR}}
+.br
+CONFIG_DIR={{CONFIG-DIR}}
+.br
+INST_DIR={{INST-DIR}}
+.br
+RUN_DIR={{RUN-DIR}}
+.br
+DS_ROOT={{DS-ROOT}}
+.br
+PRODUCT_NAME={{PRODUCT-NAME}}
+.br
+
+
+.SH AUTHOR
+template-initconfig was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to https://pagure.io/389-ds-base/new_issue
+.SH COPYRIGHT
+Copyright \(co 2018 Red Hat, Inc.
+

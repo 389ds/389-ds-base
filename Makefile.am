@@ -939,6 +939,7 @@ include_HEADERS = src/svrcore/src/svrcore.h
 #------------------------
 dist_man_MANS = man/man1/dbscan.1 \
         man/man1/cl-dump.1 \
+        man/man1/cl-dump.pl.1 \
         man/man1/dbgen.pl.1 \
         man/man1/ds-logpipe.py.1 \
         man/man1/ds-replcheck.1 \
@@ -951,8 +952,10 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man1/mmldif.1 \
         man/man1/pwdhash.1 \
         man/man1/repl-monitor.1 \
+        man/man1/repl-monitor.pl.1 \
         man/man1/rsearch.1 \
         man/man1/readnsstate.1 \
+        man/man5/99user.ldif.5 \
         man/man8/migrate-ds.pl.8 \
         man/man8/ns-slapd.8 \
         man/man8/restart-dirsrv.8 \
@@ -960,23 +963,48 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/start-dirsrv.8 \
         man/man8/stop-dirsrv.8 \
         man/man8/status-dirsrv.8 \
-        man/man8/bak2db.8 man/man8/bak2db.pl.8 \
-        man/man8/db2bak.8 man/man8/db2bak.pl.8 \
-        man/man8/db2ldif.8 man/man8/db2ldif.pl.8 \
-        man/man8/db2index.8 man/man8/db2index.pl.8 \
-        man/man8/ldif2db.8 man/man8/ldif2db.pl.8 \
-        man/man8/dbverify.8 man/man8/verify-db.pl.8 \
+        man/man8/bak2db.8 \
+        man/man8/bak2db.pl.8 \
+        man/man5/certmap.conf.5 \
+        man/man8/cleanallruv.pl.8 \
+        man/man8/dbverify.8 \
+        man/man8/db2bak.8 \
+        man/man8/db2bak.pl.8 \
+        man/man8/db2ldif.8 \
+        man/man8/db2ldif.pl.8 \
+        man/man8/db2index.8 \
+        man/man8/db2index.pl.8 \
+        man/man8/dsconf.8 \
+        man/man8/dsctl.8 \
+        man/man8/dsidm.8 \
+        man/man8/dscreate.8 \
+        man/man8/fixup-linkedattrs.pl.8 \
+        man/man8/fixup-memberof.pl.8 \
+        man/man8/ldif2db.8 \
+        man/man8/ldif2db.pl.8 \
         man/man8/dbmon.sh.8 \
-        man/man8/dn2rdn.8 man/man8/ldif2ldap.8 \
-        man/man8/restoreconfig.8 man/man8/saveconfig.8 \
-        man/man8/suffix2instance.8 man/man8/monitor.8 \
-        man/man8/upgradednformat.8 man/man8/vlvindex.8 \
-        man/man8/cleanallruv.pl.8 man/man8/schema-reload.pl.8 \
-        man/man8/fixup-linkedattrs.pl.8 man/man8/fixup-memberof.pl.8 \
-        man/man8/syntax-validate.pl.8 man/man8/usn-tombstone-cleanup.pl.8 \
-        man/man8/ns-accountstatus.pl.8 man/man8/ns-newpwpolicy.pl.8 \
-        man/man8/ns-activate.pl.8 man/man8/ns-inactivate.pl.8 \
-        man/man8/upgradedb.8 man/man8/remove-ds.pl.8
+        man/man5/dirsrv.5 \
+        man/man5/dirsrv.systemd.5 \
+        man/man8/dn2rdn.8 \
+        man/man8/ldif2ldap.8 \
+        man/man8/monitor.8 \
+        man/man8/ns-accountstatus.pl.8 \
+        man/man8/ns-newpwpolicy.pl.8 \
+        man/man8/ns-activate.pl.8 \
+        man/man8/ns-inactivate.pl.8 \
+        man/man8/remove-ds.pl.8 \
+        man/man8/restoreconfig.8 \
+        man/man8/saveconfig.8 \
+        man/man8/schema-reload.pl.8 \
+        man/man5/slapd-collations.conf.5 \
+        man/man8/suffix2instance.8 \
+        man/man8/syntax-validate.pl.8 \
+        man/man5/template-initconfig.5 \
+        man/man8/upgradednformat.8 \
+        man/man8/upgradedb.8 \
+        man/man8/usn-tombstone-cleanup.pl.8 \
+        man/man8/vlvindex.8 \
+        man/man8/verify-db.pl.8
 
 #------------------------
 # updates
@@ -2352,7 +2380,7 @@ git-archive:
 # How will we update this to python 3?
 
 lib389: src/lib389/setup.py
-	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build
+	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build ; $(PYTHON) setup.py build_manpages
 
 lib389-install: lib389
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force

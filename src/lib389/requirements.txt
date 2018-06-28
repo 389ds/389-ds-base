@@ -3,6 +3,6 @@ pyasn1-modules
 pytest
 python-dateutil
 six
-enum34;python_version=="2.7"
-python-ldap;python_version=="2.7"
-pyldap;python_version>="3.4"
+argcomplete
+argparse-manpage
+python3-ldap

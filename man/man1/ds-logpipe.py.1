@@ -83,7 +83,7 @@ The directory server will usually need to be configured to log to the named pipe
 
 NOTE: Before doing this, you should save your current configuration so you can restore it later.
  ldapsearch ... \-s base \-b "cn=config" nsslapd-accesslog-maxlogsperdir nsslapd-accesslog-logexpirationtime \
-  nsslapd-accesslog-logrotationtime nsslapd-accesslog nsslapd-accesslog > savedaccesslog.ldif
+  nsslapd-accesslog-logrotationtime nsslapd-accesslog > savedaccesslog.ldif
 
 The error log and audit log have similarly named configuration attributes e.g. nsslapd-errorlog, nsslapd-auditlog.  Note that the audit log is disabled by default - use nsslapd-auditlog-logging-enabled: on to enable it.
 .br
@@ -92,7 +92,7 @@ ds-logpipe.py was written by the 389 Project.
 .SH "REPORTING BUGS"
 Report bugs to https://pagure.io/389-ds-base/new_issue
 .SH COPYRIGHT
-Copyright \(co 2017 Red Hat, Inc.
+Copyright \(co 2018 Red Hat, Inc.
 .br
 This is free software.  You may redistribute copies of it under the terms of
 the Directory Server license found in the LICENSE file of this

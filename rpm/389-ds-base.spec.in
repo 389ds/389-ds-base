@@ -61,7 +61,6 @@ Group:            System Environment/Daemons
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes:        %{name}-selinux
 Conflicts:        selinux-policy-base < 3.9.8
-# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
 Obsoletes:        %{name} <= 1.4.0.9
 Provides:         ldif2ldbm
 
@@ -96,7 +95,6 @@ BuildRequires:    net-snmp-devel
 BuildRequires:    bzip2-devel
 BuildRequires:    zlib-devel
 BuildRequires:    openssl-devel
-BuildRequires:    tcp_wrappers
 # the following is for the pam passthru auth plug-in
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
@@ -121,6 +119,13 @@ BuildRequires:    libevent-devel
 BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
 BuildRequires:    python%{python3_pkgversion}-setuptools
+BuildRequires:    python%{python3_pkgversion}-ldap
+BuildRequires:    python%{python3_pkgversion}-six
+BuildRequires:    python%{python3_pkgversion}-pyasn1
+BuildRequires:    python%{python3_pkgversion}-pyasn1-modules
+BuildRequires:    python%{python3_pkgversion}-dateutil
+BuildRequires:    python%{python3_pkgversion}-argcomplete
+BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 
 # For cockpit
 BuildRequires:    rsync
@@ -134,9 +139,9 @@ Requires:         python%{python3_pkgversion}-lib389 = %{version}-%{release}
 %endif
 
 # this is needed for using semanage from our setup scripts
-Requires:         policycoreutils-python
+Requires:         policycoreutils-python-utils
 # This is needed for our future move to python selinux interaction.
-Requires:         libsemanage-python
+Requires:         libsemanage-python%{python3_pkgversion}
 # the following are needed for some of our scripts
 Requires:         openldap-clients
 # this is needed to setup SSL if you are not using the
@@ -263,7 +268,6 @@ Development Libraries and headers for the 389 Directory Server base package.
 Summary:          SNMP Agent for 389 Directory Server
 Group:            System Environment/Daemons
 Requires:         %{name} = %{version}-%{release}
-# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
 Obsoletes:        %{name} <= 1.3.5.4
 
 %description      snmp
@@ -281,7 +285,7 @@ Requires: openssl-perl
 Requires: iproute
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
-Requires: python%{python3_pkgversion}-pyldap
+Requires: python%{python3_pkgversion}-ldap
 Requires: python%{python3_pkgversion}-six
 Requires: python%{python3_pkgversion}-pyasn1
 Requires: python%{python3_pkgversion}-pyasn1-modules
@@ -387,6 +391,12 @@ make setup.py
 pushd ./src/lib389
 %py3_build
 popd
+# argparse-manpage dynamic man pages have hardcoded man v1 in header,
+# need to change it to v8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/man/man8/dsconf.8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/man/man8/dsctl.8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/man/man8/dsidm.8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/man/man8/dscreate.8
 
 # tests
 %py3_build
@@ -468,6 +478,7 @@ else
     output=/dev/null
     output2=/dev/null
 fi
+
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >$output 2>&1 || :
 # reload to pick up any shared lib changes
@@ -623,9 +634,13 @@ exit 0
 %{_mandir}/man8/ns-slapd.8.gz
 %if 0%{?rhel} > 7 || 0%{?fedora}
 %{_sbindir}/dsconf
+%{_mandir}/man8/dsconf.8.gz
 %{_sbindir}/dscreate
+%{_mandir}/man8/dscreate.8.gz
 %{_sbindir}/dsctl
+%{_mandir}/man8/dsctl.8.gz
 %{_sbindir}/dsidm
+%{_mandir}/man8/dsidm.8.gz
 %endif
 %{_libexecdir}/%{pkgname}/ds_selinux_enabled
 %{_libexecdir}/%{pkgname}/ds_selinux_port_query
@@ -654,10 +669,17 @@ exit 0
 %{_mandir}/man8/upgradedb.8.gz
 %{_sbindir}/vlvindex
 %{_mandir}/man8/vlvindex.8.gz
+%{_mandir}/man5/99user.ldif.5.gz
+%{_mandir}/man5/certmap.conf.5.gz
+%{_mandir}/man5/template-initconfig.5.gz
+%{_mandir}/man5/slapd-collations.conf.5.gz
+%{_mandir}/man5/dirsrv.5.gz
+%{_mandir}/man5/dirsrv.systemd.5.gz
+
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
-# THis has to be hardcoded to /lib - $libdir changes between lib/lib64, but
+# This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
 %{_prefix}/lib/sysctl.d/*
 %dir %{_localstatedir}/lib/%{pkgname}
@@ -743,9 +765,11 @@ exit 0
 %{_bindir}/repl-monitor
 %{_mandir}/man1/repl-monitor.1.gz
 %{_bindir}/repl-monitor.pl
+%{_mandir}/man1/repl-monitor.pl.1.gz
 %{_bindir}/cl-dump
 %{_mandir}/man1/cl-dump.1.gz
 %{_bindir}/cl-dump.pl
+%{_mandir}/man1/cl-dump.pl.1.gz
 %{_bindir}/dbgen.pl
 %{_mandir}/man8/bak2db.pl.8.gz
 %{_sbindir}/bak2db.pl

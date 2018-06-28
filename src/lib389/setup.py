@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2018 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -14,6 +14,9 @@
 
 from setuptools import setup, find_packages
 from os import path
+from build_manpages import build_manpages
+from setuptools.command.build_py import build_py
+from setuptools.command.install import install
 
 here = path.abspath(path.dirname(__file__))
 
@@ -33,7 +36,7 @@ setup(
     description='A library for accessing and configuring the 389 Directory ' +
                 'Server',
     long_description=long_description,
-    url='http://port389.org/wiki/Upstream_test_framework',
+    url='http://www.port389.org/docs/389ds/FAQ/upstream-test-framework.html',
 
     author='Red Hat Inc.',
     author_email='389-devel@lists.fedoraproject.org',
@@ -58,7 +61,6 @@ setup(
     # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
     data_files=[
         ('/usr/sbin/', [
-            # 'lib389/clitools/ds_setup',
             'cli/dsctl',
             'cli/dsconf',
             'cli/dscreate',
@@ -72,8 +74,15 @@ setup(
         'pytest',
         'python-dateutil',
         'six',
-        'enum34;python_version=="2.7"',
-        'python-ldap;python_version=="2.7"',
-        'pyldap;python_version>="3.4"',
+        'argcomplete',
+        'argparse-manpage',
+        'python3-ldap',
         ],
+
+    cmdclass={
+        # Dynamically build man pages for cli tools
+        'build_manpages': build_manpages.build_manpages,
+        'build_py': build_manpages.get_build_py_cmd(build_py),
+    }
+
 )

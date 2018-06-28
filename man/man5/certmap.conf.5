@@ -1,0 +1,133 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH CERTMAP.CONF 5 "Jun 26, 2018"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+/etc/dirsrv/config/certmap.conf - Configuration file for TLS client authentication in 389 Directory Server.
+
+.SH SYNOPSIS
+/etc/dirsrv/config/certmap.conf
+
+.SH DESCRIPTION
+certmap.conf
+
+This file configures how a certificate is mapped to an LDAP entry.  See the
+documentation for more information on this file: https://access.redhat.com/documentation/en-us/red_hat_directory_server/10/html/configuration_command_and_file_reference/configuration_file_reference#certmap_conf
+
+.SH SYNTAX
+The format of this file is as follows:
+.br
+	certmap <name> <issuerDN>
+.br
+	<name>:<prop1> [<val1>]
+.br
+	<name>:<prop2> [<val2>]
+.br
+
+Notes:
+
+ 1.  Mapping can be defined per issuer of a certificate.  If mapping doesn't
+     exists for a particular 'issuerDN' then the server uses the default
+     mapping. 
+
+ 2.  There must be an entry for <name>=default and issuerDN "default".
+     This mapping is the default mapping.
+
+ 3.  '#' can be used to comment out a line.
+
+ 4.  DNComps & FilterComps are used to form the base DN and filter responsible for 
+     performing an LDAP search while mapping the certificate to a user entry.
+
+.SH OPTIONS
+.IP DNComps
+The DNComps parameter determines how Directory Server generates the base DN 
+used to search for a user in the directory.  This setting accepts a comma 
+separated list of attributes to form a DN.  However, the order of the 
+attributes in the DNComps parameter must match the order in the subject of the
+certificate.  For example, if your certificate's subject is 
+"e=user_name@example.com,cn=user_name,o=Example Inc.,c=US", and you want 
+Directory Server to use "cn=user_name,o=Example Inc.,c=US" as the base DN when 
+searching for the user, set the DNComps parameter to "cn, o, c". 
+  
+Comment out or do not set this parameter, if either the subject field of the 
+certificate matches exactly the DN of the user in Directory Server or if you 
+want to use the setting from the CmapLdapAttr parameter. 
+
+If the value is empty, it will search the entire LDAP tree by using the 
+FilterComps parameter.
+ 
+.IP FilterComps
+This parameter sets which attributes from the subject field of the certificate
+Directory Server uses to generate the search filter to locate the user.
+
+Set this parameter to a comma-separated list of attributes used in the 
+certificate's subject. Directory Server will use these attributes in an AND 
+operation in the filter.
+
+Note - Certificate Subjects use the e attribute for the email address, which 
+does not exist in the default Directory Server schema. For this reason, 
+Directory Server automatically maps this attribute to the mail attribute. This
+means, if you use the mail attribute in the FilterComps parameter, Directory 
+Server reads the value of the e attribute from the subject of the certificate.
+
+For example, if the subject of a certificate is 
+"e=user_name@example.com,cn=user_name,dc=example,dc=com,o=Example Inc.,c=US" 
+and you want to dynamically generate the 
+"(&(mail=username@domain)(cn=user_name))" filter, set the FilterComps parameter 
+to "mail, cn". 
+ 
+If the parameter is commented out or set to an empty value, the (objectclass=*) filter will be used.
+
+.IP verifycert
+Directory Server always verifies if the certificate has been issued by a 
+trusted Certificate Authority (CA). However, if you additionally set the 
+verifycert parameter to on, Directory Server additionally verifies that the 
+certificate matches the Distinguished Encoding Rules (DER)-formatted 
+certificate stored in the userCertificate binary attribute of the user.
+
+If you do not set this parameter, verifycert is disabled
+
+.IP CmapLdapAttr
+If your user entries contain an attribute that stores the subject DN of the 
+user certificate, set the CmapLdapAttr to this attribute name. Directory Server
+will use this attribute and the subject DN to locate the user. In this case the
+no filter is generated based on the attributes in the FilterComps parameter.
+ 
+
+.SH EXAMPLES
+certmap default         default
+.br
+default:DNComps         cn, o, c
+.br
+#default:FilterComps    e, uid
+.br
+#default:verifycert     on
+.br
+#default:CmapLdapAttr   certSubjectDN
+.br
+.sp 1
+certmap example         o=Example Inc.,c=US
+.br
+example:DNComps
+.br
+
+.SH AUTHOR
+certmap.conf was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to https://pagure.io/389-ds-base/new_issue
+.SH COPYRIGHT
+Copyright \(co 2018 Red Hat, Inc.
+
