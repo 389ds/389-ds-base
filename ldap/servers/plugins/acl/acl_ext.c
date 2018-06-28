@@ -22,7 +22,6 @@ static Acl_PBlock *acl__get_aclpb_from_pool(void);
 static int acl__put_aclpb_back_to_pool(Acl_PBlock *aclpb);
 static Acl_PBlock *acl__malloc_aclpb(void);
 static void acl__free_aclpb(Acl_PBlock **aclpb_ptr);
-static PRLock *aclext_get_lock(void);
 
 
 struct acl_pbqueue
@@ -120,73 +119,6 @@ acl_set_ext(ext_type type, void *object, void *data)
     }
 }
 
-/****************************************************************************
- * Global lock array so that private extension between connection and operation
- * co-exist
- *
- ******************************************************************************/
-struct ext_lockArray
-{
-    PRLock **lockArray;
-    int numlocks;
-};
-
-static struct ext_lockArray extLockArray;
-
-/* PKBxxx: make this a configurable. Start with 2 * maxThreads */
-#define ACLEXT_MAX_LOCKS 40
-
-int
-aclext_alloc_lockarray()
-{
-
-    int i;
-    PRLock *lock;
-
-    extLockArray.lockArray =
-        (PRLock **)slapi_ch_calloc(ACLEXT_MAX_LOCKS, sizeof(PRLock *));
-
-    for (i = 0; i < ACLEXT_MAX_LOCKS; i++) {
-        if (NULL == (lock = PR_NewLock())) {
-            slapi_log_err(SLAPI_LOG_ERR, plugin_name,
-                          "aclext_alloc_lockarray - Unable to allocate locks used for private extension\n");
-            return 1;
-        }
-        extLockArray.lockArray[i] = lock;
-    }
-    extLockArray.numlocks = ACLEXT_MAX_LOCKS;
-    return 0;
-}
-
-/*
- * Not in use! The connection table still has references to these locks.
- * We need to free these after freeing the connection table in daemon.c
- */
-void
-aclext_free_lockarray()
-{
-    int i = 0;
-
-    for (i = 0; i < ACLEXT_MAX_LOCKS; i++) {
-        if (extLockArray.lockArray[i]) {
-            PR_DestroyLock(extLockArray.lockArray[i]);
-            extLockArray.lockArray[i] = NULL;
-        }
-    }
-
-    slapi_ch_free((void **)&extLockArray.lockArray);
-}
-
-static PRUint32 slot_id = 0;
-
-static PRLock *
-aclext_get_lock(void)
-{
-
-    PRUint16 slot = slot_id % ACLEXT_MAX_LOCKS;
-    slot_id++;
-    return (extLockArray.lockArray[slot]);
-}
 /****************************************************************************/
 /* CONNECTION EXTENSION SPECIFIC                                            */
 /****************************************************************************/
@@ -195,7 +127,7 @@ acl_conn_ext_constructor(void *object __attribute__((unused)), void *parent __at
 {
     struct acl_cblock *ext = NULL;
     ext = (struct acl_cblock *)slapi_ch_calloc(1, sizeof(struct acl_cblock));
-    if ((ext->aclcb_lock = aclext_get_lock()) == NULL) {
+    if ((ext->aclcb_lock = PR_NewLock()) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "acl_conn_ext_constructor - Unable to get Read/Write lock for CONNECTION extension\n");
         slapi_ch_free((void **)&ext);
@@ -228,6 +160,7 @@ acl_conn_ext_destructor(void *ext, void *object __attribute__((unused)), void *p
     aclcb->aclcb_lock = NULL;
     slapi_ch_free((void **)&aclcb);
     PR_Unlock(shared_lock);
+    PR_DestroyLock(shared_lock);
 }
 
 /****************************************************************************/

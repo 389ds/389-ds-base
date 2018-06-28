@@ -287,7 +287,6 @@ aclplugin_stop(Slapi_PBlock *pb __attribute__((unused)))
     ACL_DestroyPools();
     aclanom__del_profile(1);
     aclgroup_free();
-    //aclext_free_lockarray();
     acllist_free();
 
     return rc;

@@ -253,6 +253,39 @@ _ger_parse_control(
 }
 
 static void
+_ger_swap_aclcb(struct acl_cblock *cb_1, struct acl_cblock *cb_2)
+{
+    short swap_aclcb_aclsignature;
+    short swap_aclcb_state;
+    Slapi_DN *swap_aclcb_sdn;
+    aclEvalContext swap_aclcb_eval_context;
+
+    /* swap the data of two acl cblocks
+     * while holding th elock of one of them. This allows
+     * to temporarily use different content in the cblock
+     * without freeing data that might be accessed by another thread
+     * Since the lock in one cblock is used to give exclusive access
+     * the locks will not be swapped
+     */
+    swap_aclcb_aclsignature = cb_1->aclcb_aclsignature;
+    swap_aclcb_state = cb_1->aclcb_state;
+    swap_aclcb_sdn = cb_1->aclcb_sdn;
+    swap_aclcb_eval_context = cb_1->aclcb_eval_context;
+
+    cb_1->aclcb_aclsignature = cb_2->aclcb_aclsignature;
+    cb_1->aclcb_state = cb_2->aclcb_state;
+    cb_1->aclcb_sdn = cb_2->aclcb_sdn;
+    cb_1->aclcb_eval_context = cb_2->aclcb_eval_context;
+
+
+    cb_2->aclcb_aclsignature = swap_aclcb_aclsignature;
+    cb_2->aclcb_state = swap_aclcb_state;
+    cb_2->aclcb_sdn = swap_aclcb_sdn;
+    cb_2->aclcb_eval_context = swap_aclcb_eval_context;
+
+}
+
+static void
 _ger_release_gerpb(
     Slapi_PBlock **gerpb,
     void **aclcb,    /* original aclcb */
@@ -269,10 +302,12 @@ _ger_release_gerpb(
         Connection *conn = NULL;
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         if (conn) {
-            struct aclcb *geraclcb;
-            geraclcb = (struct aclcb *)acl_get_ext(ACL_EXT_CONNECTION, conn);
-            acl_conn_ext_destructor(geraclcb, NULL, NULL);
-            acl_set_ext(ACL_EXT_CONNECTION, conn, *aclcb);
+            struct acl_cblock *geraclcb;
+            geraclcb = (struct acl_cblock *)acl_get_ext(ACL_EXT_CONNECTION, conn);
+            PR_Lock(geraclcb->aclcb_lock);
+            _ger_swap_aclcb(geraclcb, (struct acl_cblock *)*aclcb);
+            acl_conn_ext_destructor((struct acl_cblock *)*aclcb, NULL, NULL);
+            PR_Unlock(geraclcb->aclcb_lock);
             *aclcb = NULL;
         }
     }
@@ -284,16 +319,17 @@ _ger_new_gerpb(
     Slapi_Entry *e __attribute__((unused)),
     const char *subjectndn,
     Slapi_PBlock **gerpb,
-    void **aclcb, /* original aclcb */
+    void **save_aclcb, /* original aclcb */
     char **errbuf __attribute__((unused)))
 {
     Connection *conn;
-    struct acl_cblock *geraclcb;
+    struct acl_cblock *ger_aclcb;
+    struct acl_cblock *conn_aclcb;
     Acl_PBlock *geraclpb;
     Operation *gerop;
     int rc = LDAP_SUCCESS;
 
-    *aclcb = NULL;
+    *save_aclcb = NULL;
     *gerpb = slapi_pblock_new();
     if (*gerpb == NULL) {
         rc = LDAP_NO_MEMORY;
@@ -318,14 +354,17 @@ _ger_new_gerpb(
         slapi_pblock_set(*gerpb, SLAPI_CONNECTION, conn);
 
         /* Can't share the conn->aclcb because of different context */
-        geraclcb = (struct acl_cblock *)acl_conn_ext_constructor(NULL, NULL);
-        if (geraclcb == NULL) {
+        ger_aclcb = (struct acl_cblock *)acl_conn_ext_constructor(NULL, NULL);
+        if (ger_aclcb == NULL) {
             rc = LDAP_NO_MEMORY;
             goto bailout;
         }
-        slapi_sdn_set_ndn_byval(geraclcb->aclcb_sdn, subjectndn);
-        *aclcb = acl_get_ext(ACL_EXT_CONNECTION, conn);
-        acl_set_ext(ACL_EXT_CONNECTION, conn, (void *)geraclcb);
+        slapi_sdn_set_ndn_byval(ger_aclcb->aclcb_sdn, subjectndn);
+        conn_aclcb = acl_get_ext(ACL_EXT_CONNECTION, conn);
+        PR_Lock(conn_aclcb->aclcb_lock);
+        _ger_swap_aclcb(conn_aclcb, ger_aclcb);
+        *save_aclcb = ger_aclcb;
+        PR_Unlock(conn_aclcb->aclcb_lock);
     }
 
     {
@@ -349,7 +388,7 @@ _ger_new_gerpb(
 
 bailout:
     if (rc != LDAP_SUCCESS) {
-        _ger_release_gerpb(gerpb, aclcb, pb);
+        _ger_release_gerpb(gerpb, save_aclcb, pb);
     }
 
     return rc;
