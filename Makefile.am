@@ -355,7 +355,7 @@ bin_PROGRAMS = dbscan \
 # based on defines
 # ----------------------------------------------------------------------------------------
 
-server_LTLIBRARIES = libsds.la libnunc-stans.la libldaputil.la libslapd.la libns-dshttpd.la
+server_LTLIBRARIES = libsds.la libnunc-stans.la libslapd.la libldaputil.la libns-dshttpd.la
 
 lib_LTLIBRARIES = libsvrcore.la
 
