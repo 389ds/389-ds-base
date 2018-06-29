@@ -683,14 +683,13 @@ Zbutton:focus {
   padding-bottom: 10px;
 }
 
-
 .ds-modal {
-  width: 650px;
+  width: 450px;
 }
 
 .ds-modal-wide {
   width: 850px;
-  z-index: 10;
+  vertical-align: middle;
 }
 
 .modal-content {

@@ -284,7 +284,7 @@ CleanAllRUV Tasks
 
 
   <div class="modal fade" id="agmt-form" data-backdrop="static" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="agmt-wizard-title" aria-hidden="true">
-    <div class="modal-dialog ds-modal">
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
@@ -351,7 +351,7 @@ CleanAllRUV Tasks
             <p></p>
             <button class="accordion ds-accordion" id="frac-accordion" type="button">&#9658 Show Fractional Settings</button>
             <div class="ds-accordion-panel">
-              <h4>Excluded Attributes</h4>
+              <p><b>Excluded Attributes</b></p>
               <div class="ds-container">
                 <div>
                   <form>
@@ -370,7 +370,8 @@ CleanAllRUV Tasks
                 </div>
               </div>
 
-              <h4>Excluded Attributes From Total Initializations</h4>
+              <hr>
+              <p><b>Excluded Attributes From Total Initializations</b></p>
               <div class="ds-container">
                 <div>
                   <form>
@@ -389,7 +390,8 @@ CleanAllRUV Tasks
                 </div>
               </div>
     
-              <h4>Strip Attributes</h4>
+              <hr>
+              <p><b>Strip Attributes</b></p>
               <div class="ds-container">
                 <div>
                   <form>
@@ -418,7 +420,8 @@ CleanAllRUV Tasks
               <div id="agmt-schedule-panel">
                 <div class="ds-container" id="schedule-settings" hidden>
                   <div class="ds-fractional-panel">
-                    <h4>Days to keep replication in sync</h4>
+                    <hr>
+                    <b>Days to keep replication in sync</b>
                     <div class="ds-container">
                       <div class="ds-inline">
                         <div>
@@ -456,14 +459,16 @@ CleanAllRUV Tasks
                     </div>
                   </div>
                   <div class="ds-fractional-panel">
-                    <h4>Replication Time Range</h4>
-                    <div class="ds-inline ds-left-margin">
-                      <div>
-                        <label for="agmt-start-time" class="ds-config-label-med">Start Time</label><input class="timepicker ds-agmt-schedule-timeZ" name="start" id="agmt-start-time" size="4"/>
-                      </div>
-                      <div>
-                      <div>
-                        <label for="agmt-start-time" class="ds-config-label-med">End Time</label><input class="timepicker ds-agmt-schedule-timeZ" name="start" id="agmt-end-time" size="4"/>
+                    <hr>
+                    <b>Replication Time Range</b>
+                    <div class="ds-container">
+                      <div class="ds-inline ds-left-margin">
+                        <div>
+                          <label for="agmt-start-time" class="ds-config-label-med">Start Time</label><input class="timepicker" name="start" id="agmt-start-time" size="4"/>
+                        </div>
+                        <div>
+                          <label for="agmt-start-time" class="ds-config-label-med">End Time</label><input class="timepicker" name="start" id="agmt-end-time" size="4"/>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -471,7 +476,6 @@ CleanAllRUV Tasks
               </div>
             </div>
           </div>
-        </div>
         <div class="modal-footer ds-modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="agmt-save">Create Agreement</button>

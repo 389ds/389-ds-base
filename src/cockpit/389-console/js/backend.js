@@ -21,7 +21,7 @@ function customMenu (node) {
       "label": "Delete DB Link",
       "icon": "glyphicon glyphicon-trash",
       "action": function (data) {
-        bootpopup.confirm("Are you sure you want to delete this Database Link?", "Confirmation", function (yes) {  
+        popup_confirm("Are you sure you want to delete this Database Link?", "Confirmation", function (yes) {
           if (yes) {
     
            // TODO  Delete db link
@@ -52,7 +52,7 @@ function customMenu (node) {
        "label": "Reindex Suffix",
        "icon": "glyphicon glyphicon-wrench",
        "action": function (data) {
-         bootpopup.confirm("This will impact DB performance during the indexing.  Are you sure you want to reindex all attributes?", "Confirmation", function (yes) {  
+         popup_confirm("This will impact DB performance during the indexing.  Are you sure you want to reindex all attributes?", "Confirmation", function (yes) {
            if (yes) {
               // TODO Reindex suffix
            }
@@ -84,7 +84,7 @@ function customMenu (node) {
        "label": "Delete Suffix",
        "icon": "glyphicon glyphicon-remove",
        "action": function (data) {
-          bootpopup.confirm("Are you sure you want to delete suffix?", "Confirmation", function (yes) {  
+          popup_confirm("Are you sure you want to delete suffix?", "Confirmation", function (yes) {
             if (yes) {
               // TODO
             }
@@ -489,7 +489,7 @@ $(document).ready( function() {
       var data = ref_table.row( $(this).parents('tr') ).data();
       var del_ref_name = data[0];
       var ref_row = $(this); // Store element for callback
-      bootpopup.confirm("Are you sure you want to delete referral:  " + del_ref_name, "Confirmation", function (yes) {
+      popup_confirm("Are you sure you want to delete referral:  <b>" + del_ref_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete mapping from DS
 
@@ -800,7 +800,7 @@ $(document).ready( function() {
       var data = ref_table.row( $(this).parents('tr') ).data();
       var del_ref_name = data[0];
       var ref_row = $(this);
-      bootpopup.confirm("Are you sure you want to delete referral: " + del_ref_name, "Confirmation", function (yes) {  
+      popup_confirm("Are you sure you want to delete referral: " + del_ref_name, "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete ref
           ref_table.row( ref_row.parents('tr') ).remove().draw( false );
@@ -821,7 +821,7 @@ $(document).ready( function() {
       e.preventDefault();
       var data = index_table.row( $(this).parents('tr') ).data();
       var reindex_name = data[0];
-      bootpopup.confirm("Are you sure you want to reindex attribute: " + reindex_name, "Confirmation", function (yes) {  
+      popup_confirm("Are you sure you want to reindex attribute: <b>" + reindex_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO reindex attr
  
@@ -835,7 +835,7 @@ $(document).ready( function() {
       var del_index_name = data[0];
       var index_row = $(this);
 
-      bootpopup.confirm("Are you sure you want to delete index: " + del_index_name, "Confirmation", function (yes) {  
+      popup_confirm("Are you sure you want to delete index: <b>" + del_index_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete index
           index_table.row( index_row.parents('tr') ).remove().draw( false );
@@ -849,7 +849,7 @@ $(document).ready( function() {
       var data = attr_encrypt_table.row( $(this).parents('tr') ).data();
       var attr_name = data[0];
       var eattr_row = $(this);
-      bootpopup.confirm("Are you sure you want to delete encrypted attribute: " + attr_name, "Confirmation", function (yes) {  
+      popup_confirm("Are you sure you want to delete encrypted attribute: <b>" + attr_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete ref
           attr_encrypt_table.row( eattr_row.parents('tr') ).remove().draw( false );
@@ -859,40 +859,4 @@ $(document).ready( function() {
 
   });
 });
-
-
-
-/*
-
-
-Advanced:
-=====================
-nsslapd-mode: 600
-nsslapd-directory: /var/lib/dirsrv/slapd-localhost/db
-nsslapd-db-logdirectory: /var/lib/dirsrv/slapd-localhost/db
-nsslapd-db-home-directory
-nsslapd-db-compactdb-interval: 2592000
-nsslapd-db-locks: 10000
-nsslapd-db-checkpoint-interval: 60
-nsslapd-db-durable-transaction: on
-nsslapd-db-transaction-wait: off
-nsslapd-db-transaction-batch-val: 0
-nsslapd-db-transaction-batch-min-wait: 50
-nsslapd-db-transaction-batch-max-wait: 50
-nsslapd-db-logbuf-size: 0
-nsslapd-db-private-import-mem: on
-nsslapd-idl-switch: new
-nsslapd-search-bypass-filter-test: on
-nsslapd-search-use-vlv-index: on
-nsslapd-exclude-from-export:
-nsslapd-serial-lock: on
-nsslapd-subtree-rename-switch: on
-nsslapd-backend-opt-level: 1
-
-
-
-
-
-*/
-
 

@@ -74,8 +74,16 @@ def reload_schema(inst, basedn, log, args):
     schema = Schema(inst)
     log.info('Attempting to add task entry... This will fail if Schema Reload plug-in is not enabled.')
     task = schema.reload(args.schemadir)
-    log.info('Successfully added task entry ' + task.dn)
-    log.info("To verify that the schema reload operation was successful, please check the error logs.")
+    if args.wait:
+        task.wait()
+        rc = task.get_exit_code()
+        if rc == 0:
+            log.info("Schema reload task ({}) successfully finished.".format(task.dn))
+        else:
+            raise ValueError("Schema reload task failed, please check the errors log for more information")
+    else:
+        log.info('Successfully added task entry ' + task.dn)
+        log.info("To verify that the schema reload operation was successful, please check the error logs.")
 
 
 def create_parser(subparsers):
@@ -100,6 +108,7 @@ def create_parser(subparsers):
     reload_parser = subcommands.add_parser('reload', help='Dynamically reload schema while server is running')
     reload_parser.set_defaults(func=reload_schema)
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
+    reload_parser.add_argument('--wait', action='store_true', default=False, help="Wait for the reload task to complete")
 
     list_matchingrules_parser = subcommands.add_parser('list_matchingrules', help='List avaliable matching rules on this system')
     list_matchingrules_parser.set_defaults(func=list_matchingrules)

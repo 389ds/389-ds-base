@@ -51,6 +51,21 @@ def dbtasks_ldif2db(inst, log, args):
         log.info("ldif2db successful")
 
 
+def dbtasks_backups(inst, log, args):
+    if args.delete:
+        # Delete backup
+        inst.del_backup(args.delete)
+    else:
+        # list backups
+        if not inst.backups(args.json):
+            log.fatal("Failed to get list of backups")
+            return False
+        else:
+            if args.json is None:
+                log.info("backups successful")
+
+
+
 def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.")
     # db2index_parser.add_argument('suffix', help="The suffix to reindex. IE dc=example,dc=com.")
@@ -80,3 +95,6 @@ def create_parser(subcommands):
     ldif2db_parser.add_argument('--encrypted', help="Import encrypted attributes", default=False, action='store_true')
     ldif2db_parser.set_defaults(func=dbtasks_ldif2db)
 
+    backups_parser = subcommands.add_parser('backups', help="List backup's found in the server's default backup directory")
+    backups_parser.add_argument('--delete', help="Delete backup directory")
+    backups_parser.set_defaults(func=dbtasks_backups)

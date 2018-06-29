@@ -13,7 +13,7 @@ import ldap
 
 from getpass import getpass
 from lib389 import DirSrv
-from lib389.utils import assert_c
+from lib389.utils import assert_c, get_ldapurl_from_serverid
 from lib389.properties import *
 
 MAJOR, MINOR, _, _, _ = sys.version_info
@@ -86,13 +86,26 @@ def _warn(data, msg=None):
     return data
 
 
-# We'll need another of these that does a "connect via instance name?"
 def connect_instance(dsrc_inst, verbose):
     dsargs = dsrc_inst['args']
+    if '//' not in dsargs['ldapurl']:
+        # We have an instance name - generate url from dse.ldif
+        ldapurl, certdir = get_ldapurl_from_serverid(dsargs['ldapurl'])
+        if ldapurl is not None:
+            dsargs['ldapurl'] = ldapurl
+            if 'ldapi://' in ldapurl:
+                dsargs['ldapi_enabled'] = 'on'
+                dsargs['ldapi_socket'] = ldapurl.replace('ldapi://', '')
+                dsargs['ldapi_autobind'] = 'on'
+            elif 'ldaps://' in ldapurl:
+                dsrc_inst['tls_cert'] = certdir
+        else:
+            # The instance name does not match any instances
+            raise ValueError("Could not find configuration for instance: " + dsargs['ldapurl'])
     ds = DirSrv(verbose=verbose)
     ds.allocate(dsargs)
     if not ds.can_autobind() and dsrc_inst['binddn'] is not None:
-        dsargs[SER_ROOT_PW] = getpass("Enter password for %s on %s : " % (dsrc_inst['binddn'], dsrc_inst['uri']))
+        dsargs[SER_ROOT_PW] = getpass("Enter password for {} on {}: ".format(dsrc_inst['binddn'], dsrc_inst['uri']))
     elif not ds.can_autobind() and dsrc_inst['binddn'] is None:
         raise Exception("Must provide a binddn to connect with")
     ds.allocate(dsargs)

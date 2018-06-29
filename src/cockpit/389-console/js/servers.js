@@ -22,7 +22,7 @@ var local_pwp_html =
      '</ul>' +
    '</div>';
 
-var create_full_template = 
+var create_full_template =
   "[general]\n" +
   "config_version = 2\n" +
   "defaults = 999999999\n" +
@@ -59,7 +59,7 @@ var create_full_template =
   "sysconf_dir = /etc\n" +
   "tmp_dir = /tmp\n";
 
-var create_inf_template = 
+var create_inf_template =
   "[general]\n" +
   "config_version = 2\n" +
   "full_machine_name = FQDN\n\n" +
@@ -154,7 +154,7 @@ function clear_inst_form() {
   $("#create-inst-group").val("dirsrv");
   $("#rootdn-pw").val("");
   $("#rootdn-pw-confirm").val("");
-  $("#create-inst-tls").prop('checked', false);
+  $("#create-inst-tls").prop('checked', true);
   clear_inst_input();
 }
 
@@ -179,8 +179,10 @@ function get_and_set_config () {
         config_values[attr] = val;
       }
     }
+    check_inst_alive();
   }).fail(function(data) {
       console.log("failed: " + data.message);
+      check_inst_alive();
   });
 }
 
@@ -264,7 +266,7 @@ function save_config() {
 $(document).ready( function() {
   $("#main-banner").load("banner.html");
 
-  // Fill in the server instance dropdown  
+  // Fill in the server instance dropdown
   get_insts();
   check_for_389();
 
@@ -274,6 +276,7 @@ $(document).ready( function() {
     // Handle changing instance here
     $('#select-server').on("change", function() {
       server_id = $(this).val();
+      server_inst = server_id.replace("slapd-", "");
       load_config();
     });
 
@@ -283,8 +286,8 @@ $(document).ready( function() {
     $("#server-config").show();
 
     // To remove text border on firefox on dropdowns)
-    if(navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {  
-      $("select").focus( function() {      
+    if(navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+      $("select").focus( function() {
         this.style.setProperty( 'outline', 'none', 'important' );
         this.style.setProperty( 'color', 'rgba(0,0,0,0)', 'important' );
         this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
@@ -425,7 +428,7 @@ $(document).ready( function() {
         var data = sasl_table.row( $(this).parents('tr') ).data();
         var del_sasl_name = data[0];
         var sasl_row = $(this); // Store element for callback
-        bootpopup.confirm("Are you sure you want to delete sasl mapping: " + del_sasl_name, "Confirmation", function (yes) {
+        popup_confirm("Are you sure you want to delete sasl mapping: <b>" + del_sasl_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete mapping from DS
 
@@ -615,7 +618,7 @@ $(document).ready( function() {
     });
 
     $("#nsslapd-ldapiautobind").change(function() {
-      if (this.checked){ 
+      if (this.checked){
         $(".autobind-attrs").show();
         if ( $("#nsslapd-ldapimaptoentries").is(":checked") ){
           $(".autobind-entry-attrs").show();
@@ -648,9 +651,16 @@ $(document).ready( function() {
         "search": "Search Backups"
       },
       "columnDefs": [ {
-        "targets": 2,
+        "targets": [3, 4],
         "orderable": false
-      } ]
+      } ],
+      "columns": [
+        { "width": "120px" },
+        { "width": "80px" },
+        { "width": "30px" },
+        { "width": "40px" },
+        { "width": "30px" }
+      ],
     });
 
     // Set up local passwd policy table
@@ -674,26 +684,26 @@ $(document).ready( function() {
       // Get the values
       var pwp_track = "off";
       if ( $("#passwordtrackupdatetime").is(":checked") ) {
-        pwp_track = "on"; 
+        pwp_track = "on";
       }
       var pwp_admin = $("#passwordadmindn").val();
       var pwp_passwordchange = "off";
       if ($("#passwordchange").is(":checked") ){
-        pwp_passwordchange = "on"; 
+        pwp_passwordchange = "on";
       }
       var pwp_passwordmustchange = "off";
       if ($("#passwordmustchange").is(":checked") ){
-        pwp_passwordmustchange = "on"; 
+        pwp_passwordmustchange = "on";
       }
       var pwp_history = "off";
       if ($("#passwordhistory").is(":checked") ){
-        pwp_history = "on"; 
+        pwp_history = "on";
       }
       var pwp_inhistory = $("#passwordinhistory").val();
       var pwp_minage = $("#passwordminage").val();
       var pwp_exp = "off";
       if ($("#passwordexp").is(":checked") ){
-        pwp_exp = "on"; 
+        pwp_exp = "on";
       }
       var pwp_maxage = $("#passwordmaxage").val();
       var pwp_gracelimit = $("#passwordgracelimit").val();
@@ -701,22 +711,22 @@ $(document).ready( function() {
 
       var pwp_sendexp = "off";
       if ($("#passwordsendexpiringtime").is(":checked") ){
-        pwp_sendexp = "on"; 
+        pwp_sendexp = "on";
       }
       var pwp_lockout = "off";
       if ($("#passwordlockout").is(":checked") ){
-        pwp_lockout = "on"; 
+        pwp_lockout = "on";
       }
       var pwp_maxfailure = $("#passwordmaxfailure").val();
       var pwp_failcount = $("#passwordresetfailurecount").val();
       var pwp_unlock = "off";
       if ($("#passwordunlock").is(":checked") ){
-        pwp_unlock = "on"; 
+        pwp_unlock = "on";
       }
       var pwp_lockoutdur = $("#passwordlockoutduration").val();
       var pwp_checksyntax = "off";
       if ($("#passwordchecksyntax").is(":checked") ){
-        pwp_checksyntax = "on"; 
+        pwp_checksyntax = "on";
       }
       var pwp_minlen = $("#passwordminlength").val();
       var pwp_mindigit = $("#passwordmindigits").val();
@@ -731,7 +741,7 @@ $(document).ready( function() {
 
       // TODO  - save to DS
 
-    } 
+    }
     /*
      *  Modal Forms
      */
@@ -745,26 +755,26 @@ $(document).ready( function() {
       var policy_name = $("#local-entry-dn").val();
       var pwp_track = "off";
       if ( $("#local-passwordtrackupdatetime").is(":checked") ) {
-        pwp_track = "on"; 
+        pwp_track = "on";
       }
       var pwp_admin = $("#local-passwordadmindn").val();
       var pwp_passwordchange = "off";
       if ($("#local-passwordchange").is(":checked") ){
-        pwp_passwordchange = "on"; 
+        pwp_passwordchange = "on";
       }
       var pwp_passwordmustchange = "off";
       if ($("#local-passwordmustchange").is(":checked") ){
-        pwp_passwordmustchange = "on"; 
+        pwp_passwordmustchange = "on";
       }
       var pwp_history = "off";
       if ($("#local-passwordhistory").is(":checked") ){
-        pwp_history = "on"; 
+        pwp_history = "on";
       }
       var pwp_inhistory = $("#local-passwordinhistory").val();
       var pwp_minage = $("#local-passwordminage").val();
       var pwp_exp = "off";
       if ($("#local-passwordexp").is(":checked") ){
-        pwp_exp = "on"; 
+        pwp_exp = "on";
       }
       var pwp_maxage = $("#local-passwordmaxage").val();
       var pwp_gracelimit = $("#local-passwordgracelimit").val();
@@ -772,22 +782,22 @@ $(document).ready( function() {
 
       var pwp_sendexp = "off";
       if ($("#local-passwordsendexpiringtime").is(":checked") ){
-        pwp_sendexp = "on"; 
+        pwp_sendexp = "on";
       }
       var pwp_lockout = "off";
       if ($("#local-passwordlockout").is(":checked") ){
-        pwp_lockout = "on"; 
+        pwp_lockout = "on";
       }
       var pwp_maxfailure = $("#local-passwordmaxfailure").val();
       var pwp_failcount = $("#local-passwordresetfailurecount").val();
       var pwp_unlock = "off";
       if ($("#local-passwordunlock").is(":checked") ){
-        pwp_unlock = "on"; 
+        pwp_unlock = "on";
       }
       var pwp_lockoutdur = $("#local-passwordlockoutduration").val();
       var pwp_checksyntax = "off";
       if ($("#local-passwordchecksyntax").is(":checked") ){
-        pwp_checksyntax = "on"; 
+        pwp_checksyntax = "on";
       }
       var pwp_minlen = $("#local-passwordminlength").val();
       var pwp_mindigit = $("#local-passwordmindigits").val();
@@ -803,7 +813,7 @@ $(document).ready( function() {
 
       var pwp_type = "User Password Policy";
       if ( $("#subtree-pwp-radio").is(":checked")) {
-        pwp_type = "Subtree Password Policy"; 
+        pwp_type = "Subtree Password Policy";
       }
 
       // TODO - add to DS
@@ -819,7 +829,7 @@ $(document).ready( function() {
       $("#local-pwp-form").modal('toggle');
       clear_local_pwp_form();
     });
-    
+
     // Delete local password policy
     $(document).on('click', '.delete-local-pwp', function(e) {
       e.preventDefault();
@@ -828,7 +838,7 @@ $(document).ready( function() {
       var data = pwp_table.row( $(this).parents('tr') ).data();
       var del_pwp_name = data[0];
       var pwp_row = $(this);
-      bootpopup.confirm("Are you sure you want to delete local password policy: " + del_pwp_name, "Confirmation", function (yes) {
+      popup_confirm("Are you sure you want to delete local password policy: <b>" + del_pwp_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete pwp from DS
 
@@ -837,7 +847,7 @@ $(document).ready( function() {
         }
       });
     });
- 
+
     // SASL Mappings Form
     $("#sasl-map-save").on("click", function() {
       var sasl_name = $("#sasl-map-name").val();
@@ -863,8 +873,188 @@ $(document).ready( function() {
       $("#sasl-map-form").modal('toggle');
     });
 
+    /*
+     *  Stop, Start, and Restart server
+     */
+    $("#start-server-btn").on("click", function () {
+      $("#ds-start-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Starting instance <b>" + server_id + "</b>...");
+      $("#start-instance-form").modal('toggle');
+      var cmd = [DSCTL, server_inst, 'start'];
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        $("#start-instance-form").modal('toggle');
+        load_config();
+        popup_success("Started instance \"" + server_id + "\"");
+      }).fail(function(data) {
+        $("#start-instance-form").modal('toggle');
+        popup_err("Error", "Failed to start instance \"" + server_id + "\"\n" + data.message);
+      });
+    });
+
+    $("#stop-server-btn").on("click", function () {
+      $("#ds-stop-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Stopping instance <b>" + server_id + "</b>...");
+      $("#stop-instance-form").modal('toggle');
+      var cmd = [DSCTL, server_inst, 'stop'];
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        $("#stop-instance-form").modal('toggle');
+        popup_success("Stopped instance \"" + server_id + "\"");
+        check_inst_alive();
+      }).fail(function(data) {
+        $("#stop-instance-form").modal('toggle');
+        popup_err("Error", "Failed to stop instance \"" + server_id + "\"\n" + data.message);
+        check_inst_alive();
+      });
+    });
+
+    $("#restart-server-btn").on("click", function () {
+      $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Retarting instance <b>" + server_id + "</b>...");
+      $("#restart-instance-form").modal('toggle');
+      var cmd = [DSCTL, server_inst, 'restart'];
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        $("#restart-instance-form").modal('toggle');
+        load_config();
+        popup_success("Restarted instance \"" + server_id + "\"");
+      }).fail(function(data) {
+        $("#restart-instance-form").modal('toggle');
+        popup_err("Error", "Failed to restart instance \"" + server_id + "\"\n" + data.message);
+      });
+    });
+
+    /* Backup server */
+    $("#ds-backup-btn").on('click', function () {
+      var backup_name = $("#backup-name").val();
+      if (backup_name == ""){
+        popup_msg("Error", "Backup must have a name");
+        return;
+      }
+      if (backup_name.indexOf(' ') >= 0) {
+        popup_msg("Error", "Backup name can not contain any spaces");
+        return;
+      }
+      if (backup_name.startsWith('/')) {
+        popup_msg("Error", "Backup name can not start with a forward slash.  Backups are written to the server's backup directory (nsslapd-bakdir)");
+        return;
+      }
+      var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+      $("#backup-spinner").show();
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Error", "Failed to backup the server\n" + data.message);
+      });
+    });
+
+    $("#backup-server-btn").on('click', function () {
+      $("#backup-name").val("");
+    });
+
+    /* Restore.  load restore table with current backups */
+    $("#restore-server-btn").on('click', function () {
+      var cmd = [DSCTL, server_id, '-j', 'backups'];
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var backup_btn = "<button class=\"btn btn-default restore-btn\" type=\"button\">Restore</button>";
+        var del_btn =  "<button title=\"Delete backup directory\" class=\"btn btn-default ds-del-backup-btn\" type=\"button\"><span class='glyphicon glyphicon-trash'></span></button>";
+        var obj = JSON.parse(data);
+        backup_table.clear().draw( false );
+        for (var i = 0; i < obj.items.length; i++) {
+          var backup_name = obj.items[i][0];
+          var backup_date = obj.items[i][1];
+          var backup_size = obj.items[i][2];
+          backup_table.row.add([backup_name, backup_date, backup_size, backup_btn, del_btn]).draw( false );
+        }
+      }).fail(function(data) {
+        popup_err("Error", "Failed to get list of backups\n" + data.message);
+      });
+    });
+
+    /* Restore server */
+    $(document).on('click', '.restore-btn', function(e) {
+      e.preventDefault();
+      var data = backup_table.row( $(this).parents('tr') ).data();
+      var restore_name = data[0];
+      popup_confirm("Are you sure you want to restore this backup:  <b>" + restore_name + "<b>", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
+          $("#restore-spinner").show();
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            popup_success("The backup has been restored");
+            $("#restore-spinner").hide();
+            $("#restore-form").modal('toggle');
+          }).fail(function(data) {
+            $("#restore-spinner").hide();
+            popup_err("Error", "Failed to restore from the backup\n" + data.message);
+          });
+        }
+      });
+    });
+
+    /* Delete backup directory */
+    $(document).on('click', '.ds-del-backup-btn', function(e) {
+      e.preventDefault();
+      var data = backup_table.row( $(this).parents('tr') ).data();
+      var restore_name = data[0];
+      var backup_row = $(this);
+      popup_confirm("Are you sure you want to delete this backup: <b>" + restore_name + "</b>", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCTL, server_inst, 'backups', '--delete', restore_name];
+          $("#restore-spinner").show();
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#restore-spinner").hide();
+            backup_table.row( backup_row.parents('tr') ).remove().draw( false );
+            popup_success("The backup has been deleted");
+          }).fail(function(data) {
+            $("#restore-spinner").hide();
+            popup_err("Error", "Failed to delete the backup\n" + data.message);
+          });
+        }
+      });
+    });
+
+    /* reload schema */
+    $("#schema-reload-btn").on("click", function () {
+      var schema_dir = $("#reload-dir").val();
+      if (schema_dir != ""){
+        var cmd = [DSCONF, server_id, 'schema', 'reload', '--schemadir', schema_dir, '--wait'];
+      } else {
+        var cmd = [DSCONF, server_id, 'schema', 'reload', '--wait'];
+      }
+      $("#reload-spinner").show();
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        popup_msg("Success", "Successfully reloaded schema");  // TODO use timed interval success msg (waiting for another PR top be merged before we can add it)
+        $("#schema-reload-form").modal('toggle');
+        $("#reload-spinner").hide();
+      }).fail(function(data) {
+        popup_err("Error", "Failed to reload schema files\n" + data.message);
+        $("#reload-spinner").hide();
+      });
+    });
+
+
+    // Remove instance
+    $("#remove-server-btn").on("click", function () {
+      popup_confirm("Are you sure you want to this remove instance: <b>" + server_id + "</b>", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCTL, server_id, "remove", "--doit"];
+          $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
+          $("#remove-instance-form").modal('toggle');
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#remove-instance-form").modal('toggle');
+            popup_msg("Success", "Instance has been deleted");
+            get_insts();
+            check_for_389();
+            load_config();
+          }).fail(function(data) {
+            $("#remove-instance-form").modal('toggle');
+            popup_err("Error", "Failed to remove instance\n" + data.message);
+          });
+        }
+      });
+    });
+
     // Create instance form
-    $("#create-server-btn").on("click", function() {;
+    $("#create-server-btn").on("click", function() {
       clear_inst_form();
       set_ports();
     });
@@ -979,7 +1169,7 @@ $(document).ready( function() {
         // Failed to get FQDN
         popup_err("Failed to get hostname!", ex.message);
       }).done(function (data){
-        /* 
+        /*
          * We have FQDN, so set the hostname in inf file, and create the setup file
          */
         setup_inf = setup_inf.replace('FQDN', data);
@@ -1001,7 +1191,7 @@ $(document).ready( function() {
             popup_err("Failed to set permission on setup file " + setup_file + ": ", ex.message);
           }).done(function (){
             /*
-             * Success we have our setup file and it has the correct permissions.  
+             * Success we have our setup file and it has the correct permissions.
              * Now populate the setup file...
              */
             var cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
@@ -1009,7 +1199,7 @@ $(document).ready( function() {
               // Failed to populate setup file
               popup_err("Failed to populate installation file!", ex.message);
             }).done(function (){
-              /* 
+              /*
                * Next, create the instance...
                */
               cmd = [DSCREATE, 'install', setup_file];
@@ -1022,40 +1212,18 @@ $(document).ready( function() {
                 // Success!!!  Now cleanup everything up...
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
                 $("#create-inst-spinner").hide();
-                $("#server-list-menu").attr('disabled', false); 
+                $("#server-list-menu").attr('disabled', false);
                 $("#no-instances").hide();
                 get_insts();  // Refresh server list
                 popup_msg("Success!", "Successfully created instance:  <b>slapd-" + new_server_id + "</b>", );
                 $("#create-inst-form").modal('toggle');
               });
-            }); 
+            });
             $("#create-inst-spinner").show();
           });
         });
       });
     });
-
-    $("#backup-save").on("click", function() {
-      // TODO - Do backup
-
-      $("#backup-form").modal('toggle');
-    });
-
-    $(document).on('click', '.restore-btn', function(e) {
-      e.preventDefault();
-      // Backend name is inside input of table cell
-      //var backup_name = $(this).parents('tr').find('input').val();
-      var data = backup_table.row( $(this).parents('tr') ).data();
-      var backup_name = data[0];
-
-      bootpopup.confirm("Are you sure you want to restore: " + backup_name, "Confirmation", function (yes) {
-        // TODO Do the restore
-        if (yes) {
-          // TODO - the restore operation
-          $("#restore-form").modal('toggle');
-        }
-      });
-     });
 
     // Accordion opening/closings
     $(".ds-accordion-panel").css('display','none');

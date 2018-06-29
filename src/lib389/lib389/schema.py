@@ -127,7 +127,6 @@ class SchemaLegacy(object):
         ent = ents[0]
         return ent.getValue('nsSchemaCSN')
 
-
     def get_objectclasses(self, json=False):
         """Returns a list of ldap.schema.models.ObjectClass objects for all
         objectClasses supported by this instance.
@@ -171,7 +170,6 @@ class SchemaLegacy(object):
                 results.getValues('attributeTypes')]
             return attributetypes
 
-
     def get_matchingrules(self, json=False):
         """Return a list of the server defined matching rules"""
         attrs = ['matchingrules']
@@ -193,7 +191,6 @@ class SchemaLegacy(object):
             matchingRules = [MatchingRule(mr) for mr in
                          results.getValues('matchingRules')]
             return matchingRules
-
 
     def query_matchingrule(self, mr_name, json=False):
         """Returns a single matching rule instance that matches the mr_name.
@@ -307,5 +304,4 @@ class SchemaLegacy(object):
                       'must': must}
             return dump_json(result)
         else:
-           return (attributetype, must, may)
-
+            return (attributetype, must, may)

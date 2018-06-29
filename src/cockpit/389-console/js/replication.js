@@ -220,7 +220,7 @@ $(document).ready( function() {
       if (role == "no-repl") {
         // This also means disable replication: delete agmts, everything
 
-        bootpopup.confirm("Are you sure you want to disable replication and remove all agreements?", "Confirmation", function (yes) {
+        popup_confirm("Are you sure you want to disable replication and remove all agreements?", "Confirmation", function (yes) {
           if (yes) {
             // TODO Delete attr from DS
 
@@ -367,7 +367,7 @@ $(document).ready( function() {
       e.preventDefault();
       var row = $(this).parent().parent(); //tr
       var repl_dn = row.children("td:nth-child(1)");
-      bootpopup.confirm("Are you sure you want to delete replication manager:  " + repl_dn.html(), "Confirmation", function (yes) {
+      popup_confirm("Are you sure you want to delete replication manager:  <b>" + repl_dn.html() + "</b>", "Confirmation", function (yes) {
         if (yes) {
           row.remove();
         }
@@ -383,7 +383,7 @@ $(document).ready( function() {
       var data = repl_agmt_table.row( $(this).parents('tr') ).data();
       var del_agmt_name = data[0];
       var agmt_row = $(this);
-      bootpopup.confirm("Are you sure you want to delete replication agreement: " + del_agmt_name, "Confirmation", function (yes) {
+      popup_confirm("Are you sure you want to delete replication agreement: <b>" + del_agmt_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete agmt
           repl_agmt_table.row( agmt_row.parents('tr') ).remove().draw( false );
@@ -711,7 +711,7 @@ $(document).ready( function() {
     $("#delete-repl-manager").on("click", function () {
       var repl_mgr_dn = $("#repl-managers-list").find('option:selected');
       if (repl_mgr_dn.val() !== undefined) {
-        bootpopup.confirm("Are you sure you want to delete replication manager: " + repl_mgr_dn.val(), "Confirmation", function (yes) {  
+        popup_confirm("Are you sure you want to delete replication manager: <b>" + repl_mgr_dn.val() + "</b>", "Confirmation", function (yes) {
           if (yes) {
             // TODO Update replica config entry, do not delete the real repl mgr entry
 

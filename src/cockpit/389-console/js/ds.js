@@ -1,15 +1,17 @@
 var DS_HOME = "/etc/dirsrv/";
 var server_id = "None";
+var server_inst = "";
 var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
 var config_values = {};
 //TODO - need "config_values" for all the other pages: SASL, backend, suffix, etc.
 
-// Used for local development testing
 var DSCONF = "dsconf";
 var DSCTL = "dsctl";
 var DSCREATE = "dscreate";
 var ENV = "";
+
 /*
+// Used for local development testing
 var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
 var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
 var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
@@ -69,26 +71,6 @@ function set_ports() {
   });
 }
 
-/* Example - remove eventually
- *
- * To test a local version of dsconf/lib389 use something like:
- *
- *     var cmd = ['/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf',
- *               '-j', 'ldapi://%2fvar%2frun%2fslapd-' + server_id + '.socket','config',
- *               'replace'];
- *    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": ["PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389"]}).done(function() {
- */
-function test_json_and_dsconf () {
-    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2fslapd-' + server_id + '.socket','backend', 'list']
-    cockpit.spawn(cmd, { superuser: true, "err": "message"}).done(function(data) {
-        console.log(data);
-        var obj = JSON.parse(data);
-        console.log("backend: " + obj['items']);
-    }).fail(function(data) {
-        console.log("failed: " + data.message);
-    });
-}
-
 function sort_list (sel) {
   var opts_list = sel.find('option');
   opts_list.sort(function(a, b) { return $(a).text() > $(b).text() ? 1 : -1; });
@@ -109,6 +91,7 @@ function set_no_insts () {
     select.appendChild(el);
     select.selectedIndex = "0";
     server_id = "";
+    server_inst = "";
 
     $("#server-list-menu").attr('disabled', true);
     $("#ds-navigation").hide();
@@ -117,13 +100,34 @@ function set_no_insts () {
 }
 
 function check_for_389 () {
-  var cmd = ["ls", "/etc/dirsrv"];
+  var cmd = ["rpm", "-q", "389-ds-base"];
 
   cockpit.spawn(cmd, { superuser: true }).fail(function(data) {
     $("#server-list-menu").attr('disabled', true);
     $("#ds-navigation").hide();
     $(".all-pages").hide();
     $("#no-package").show();
+  });
+}
+
+function check_inst_alive () {
+  // Check if this instance is started, if not hide configuration pages
+  cmd = ['status-dirsrv', server_inst];
+  console.log("MARK cmd: " + cmd);
+  cockpit.spawn(cmd, { superuser: true }).done(function () {
+    $(".all-pages").hide();
+    $("#ds-navigation").show();
+    $("#server-content").show();
+    $("#server-config").show();
+    //$("#no-instances").hide();
+    //$("#no-package").hide();
+    $("#not-running").hide();
+    console.log("Running");
+  }).fail(function(data) {
+    $("#ds-navigation").hide();
+    $(".all-pages").hide();
+    $("#not-running").show();
+    console.log("Not Running");
   });
 }
 
@@ -175,6 +179,7 @@ function get_insts() {
       $("#server-content").show();
       $("#server-config").show();
       server_id = insts[0];
+      server_inst = insts[0].replace("slapd-", "");
       get_and_set_config();
     }
 
@@ -211,6 +216,23 @@ function popup_msg(title, msg) {
   });
 }
 
+function popup_confirm(msg, title, callback) {
+  if(typeof callback !== "function") {
+    callback = function() {};
+  }
+  var answer = false;
+  return bootpopup({
+    title: title,
+    content: [
+      msg
+    ],
+    showclose: false,
+    buttons: ["no", "yes"],
+    yes: function() { answer = true; },
+    dismiss: function() { callback(answer); }
+  });
+}
+
 function popup_success(msg) {
   $('#success-msg').html(msg);
   $('#success-form').modal('show');
@@ -234,7 +256,6 @@ function save_all () {
 function load_config (){
   // TODO - set all the pages
   get_and_set_config(); // cn=config stuff
-
 }
 
 $(window.document).ready(function() {

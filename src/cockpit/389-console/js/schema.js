@@ -299,7 +299,7 @@ $(document).ready( function() {
       var data = at_table.row( $(this).parents('tr') ).data();
       var del_attr_name = data[0];
       var at_row = $(this);
-      bootpopup.confirm("Are you sure you want to delete attribute: " + del_attr_name, "Confirmation", function (yes) {
+      popup_confirm("Are you sure you want to delete attribute: <b>" + del_attr_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete attr from DS
 
@@ -337,7 +337,7 @@ $(document).ready( function() {
       var del_oc_name = data[0];
       var oc_row = $(this);
 
-      bootpopup.confirm("Are you sure you want to delete objectclass: " + del_oc_name, "Confirmation", function (yes) {
+      popup_confirm("Are you sure you want to delete objectclass: <b>" + del_oc_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           // TODO Delete attr from DS
 
@@ -345,7 +345,6 @@ $(document).ready( function() {
           oc_table.row( oc_row.parents('tr') ).remove().draw( false );
         }
       });
-
     });
   });
 });

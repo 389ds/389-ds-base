@@ -53,6 +53,7 @@ import errno
 import pwd
 import grp
 import uuid
+import json
 from shutil import copy2
 try:
     # There are too many issues with this on EL7
@@ -764,6 +765,8 @@ class DirSrv(SimpleLDAPObject, object):
         # Don't need a default value now since it's set in init.
         if serverid is None and hasattr(self, 'serverid'):
             serverid = self.serverid
+        else:
+            serverid = serverid.replace('slapd-', '')
 
         # first identify the directories we will scan
         sysconfig_head = self.ds_paths.initconfig_dir
@@ -1055,6 +1058,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         if not uri:
             uri = self.toLDAPURL()
+
         self.log.debug('open(): Connecting to uri %s' % uri)
         if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
             super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
@@ -2995,6 +2999,35 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug("db2index output: END")
 
         return True
+
+    def backups(self, use_json):
+        # Return a list of backups from the bakdir
+        bakdir = self.get_bak_dir()
+        dirlist = [item for item in os.listdir(bakdir) if os.path.isdir(os.path.join(bakdir, item))]
+        if use_json:
+            json_result = {'type': 'list', 'items': []}
+        for backup in dirlist:
+            bak = bakdir + "/" + backup
+            bak_date = os.path.getctime(bak)
+            bak_date = datetime.fromtimestamp(bak_date).strftime('%Y-%m-%d %H:%M:%S')
+            bak_size = subprocess.check_output(['du', '-sh', bak]).split()[0].decode('utf-8')
+            if use_json:
+                json_item = [backup, bak_date, bak_size]
+                json_result['items'].append(json_item)
+            else:
+                self.log.info('Backup: {} - {} ({})'.format(bak, bak_date, bak_size))
+
+        if use_json:
+            print(json.dumps(json_result))
+
+        return True
+
+    def del_backup(self, bak_dir):
+        # Delete backup directory
+        bakdir = self.get_bak_dir()
+        del_dir = bakdir + "/" + bak_dir
+        self.log.debug("Deleting backup directory: " + del_dir)
+        shutil.rmtree(del_dir)
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information

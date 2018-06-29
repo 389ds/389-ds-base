@@ -26,6 +26,7 @@ def remove_ds_instance(dirsrv):
     remove_paths['cert_dir'] = dirsrv.ds_paths.cert_dir
     remove_paths['config_dir'] = dirsrv.ds_paths.config_dir
     remove_paths['db_dir'] = dirsrv.ds_paths.db_dir
+    remove_paths['db_dir_parent'] = dirsrv.ds_paths.db_dir + "/../"
     ### WARNING: The changelogdb isn't removed. we assume it's in:
     # db_dir ../changelogdb. So remove that too!
     # abspath will resolve the ".." down.
@@ -63,6 +64,8 @@ def remove_ds_instance(dirsrv):
     for path_k in remove_paths:
         _log.debug("Removing %s" % remove_paths[path_k])
         shutil.rmtree(remove_paths[path_k], ignore_errors=True)
+    # Remove parent (/var/lib/dirsrv/slapd-INST)
+    shutil.rmtree(remove_paths['db_dir'].replace('db', ''))
 
     # Finally remove the sysconfig marker.
     os.remove(marker_path)

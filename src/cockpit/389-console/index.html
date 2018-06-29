@@ -42,7 +42,7 @@
     <nav class="navbar navbar-default" id="ds-navigation" role="navigation">
       <div class="collapse navbar-collapse navbar-collapse-5 ds-nav">
         <ul class="nav navbar-nav navbar-primary">
-    
+
           <!-- Server Config navtab -->
           <li class="dropdown ds-nav-tab">
             <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="server-tab">
@@ -72,7 +72,7 @@
               </li>
             </ul>
           </li>
-    
+
           <!-- Security navtab -->
           <li class="dropdown ds-nav-tab">
             <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="security-tab">
@@ -185,9 +185,113 @@
     </div>
   </div>
 
+  <div class="modal fade" id="restart-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restart-inst-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="restart-inst-label">Restart Instance</h4>
+        </div>
+        <div class="modal-body">
+          <div id="reload-spinner" class="ds-center">
+            <p></p>
+            <p id="ds-restart-inst"><span class="spinner spinner-xs spinner-inline"></span> Restarting instance...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="stop-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="stop-inst-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="stop-inst-label">Stop Instance</h4>
+        </div>
+        <div class="modal-body">
+          <div id="reload-spinner" class="ds-center">
+            <p></p>
+            <p id="ds-stop-inst"><span class="spinner spinner-xs spinner-inline"></span> Stopping instance...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="start-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="start-inst-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="start-inst-label">Start Instance</h4>
+        </div>
+        <div class="modal-body">
+          <div id="reload-spinner" class="ds-center">
+            <p></p>
+            <p id="ds-start-inst"><span class="spinner spinner-xs spinner-inline"></span> Starting instance...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="remove-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="remove-inst-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="remove-inst-label">Remove Instance</h4>
+        </div>
+        <div class="modal-body">
+          <div id="reload-spinner" class="ds-center">
+            <p></p>
+            <p id="ds-remove-inst"><span class="spinner spinner-xs spinner-inline"></span> Removing instance...</p>
+          </div>
+        </div>>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="schema-reload-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="reload-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="reload-label">Reload Schema Files</h4>
+        </div>
+        <div class="modal-body">
+          <form class="form-horizontal">
+            <label for="reload-dir" class="ds-config-label" title="The name of the database link.">Schema File Directory</label><input
+              class="ds-input" type="text" placeholder="Leave empty to use default schema location" id="reload-dir">
+          </form>
+          <div id="reload-spinner" class="ds-center" hidden>
+            <p></p>
+            <p><span class="spinner spinner-xs spinner-inline"></span> Reloading schema files...</p>
+          </div>
+        </div>
+        <div class="modal-footer ds-modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id ="schema-reload-btn">Reload Schema</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Restore from backup -->
   <div class="modal fade" id="restore-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restore-label" aria-hidden="true">
-    <div class="modal-dialog ds-modal-wide">
-      <div class="modal-content">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal-wide">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>
@@ -201,21 +305,22 @@
                 <tr class="ds-table-header">
                   <th>Backup Name</th>
                   <th>Date</th>
-                  <th></th>
+                  <th>Size</th>
+                  <th>Restore</th>
+                  <th>Delete</th>
                 </tr>
               </thead>
               <tbody id="restore-tbody">
-                <tr>
-                  <td>my_backup</td>
-                  <td>11/22/2018</td>
-                  <td><button class="btn btn-default restore-btn" type="button">Restore</button></td>
-                </tr>
               </tbody>
             </table>
           </form>
+          <div id="restore-spinner" class="ds-center" hidden>
+            <p></p>
+            <p><span class="spinner spinner-xs spinner-inline"></span> Restoring the server...</p>
+          </div>
         </div>
         <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
         </div>
       </div>
     </div>
@@ -279,10 +384,13 @@
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="chaining-save">Create Link</button>
         </div>
-      </div> 
+      </div>
     </div>
   </div>
 
+  <!--
+      Create New Instance
+  -->
   <div class="modal fade" id="create-inst-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="create-inst-header" aria-hidden="true">
     <div class="modal-dialog ds-modal">
       <div class="modal-content animate">
@@ -330,7 +438,7 @@
               </div>
               <div>
                 <p></p>
-                <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls"><label
+                <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
                   for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
               </div>
               <div id="create-inst-spinner" class="ds-center" hidden>
@@ -349,10 +457,12 @@
   </div>
 
 
-
+  <!--
+      Do Backup
+  -->
   <div class="modal fade" id="backup-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="backup-label" aria-hidden="true">
-    <div class="modal-dialog ds-modal-wide">
-      <div class="modal-content">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>
@@ -366,17 +476,18 @@
                 Backup Name</label><input class="ds-input ds-left-margin" type="text" id="backup-name"/>
             </div>
           </form>
+          <div id="backup-spinner" class="ds-center" hidden>
+            <p></p>
+            <p><span class="spinner spinner-xs spinner-inline"></span> Backing up the server...</p>
+          </div>
         </div>
         <div class="modal-footer ds-modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="ds-backup-btn" data-dismiss="modal">Do Backup</button>
+          <button type="button" class="btn btn-primary" id="ds-backup-btn">Do Backup</button>
         </div>
       </div>
     </div>
   </div>
-
-
-
 
 
   <!-- The Nav Tabs  -->
@@ -390,6 +501,9 @@
       <p>
         <button type="button" class="btn btn-primary" id="no-inst-create-btn" data-toggle="modal" data-target="#create-inst-form">Create New Instance</button>
       </p>
+    </div>
+    <div id="not-running" class="all-pages ds-center" hidden>
+      <h3>This server instance is not running, either start it from the <b>Actions</b> dropdown menu, or choose a different instance</h3>
     </div>
 
     <div id="server-content" class="all-pages" hidden>

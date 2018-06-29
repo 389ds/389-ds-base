@@ -20,6 +20,7 @@ import ldap
 from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
+from lib389.dseldif import DSEldif
 from lib389.utils import ensure_bytes, ensure_str
 
 from lib389.lint import DSCLE0001, DSCLE0002, DSELE0001

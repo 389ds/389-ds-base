@@ -17,12 +17,18 @@ class DSEldif(object):
     :type instance: lib389.DirSrv
     """
 
-    def __init__(self, instance):
+    def __init__(self, instance, serverid=None):
         self._instance = instance
         self._contents = []
 
-        ds_paths = Paths(self._instance.serverid, self._instance)
-        self.path = os.path.join(ds_paths.config_dir, 'dse.ldif')
+        if serverid:
+            # Get the dse.ldif from the instance name
+            prefix = os.environ.get('PREFIX', ""),
+            serverid = serverid.replace("slapd-", "")
+            self.path = "{}/etc/dirsrv/slapd-{}/dse.ldif".format(prefix[0], serverid)
+        else:
+            ds_paths = Paths(self._instance.serverid, self._instance)
+            self.path = os.path.join(ds_paths.config_dir, 'dse.ldif')
 
         with open(self.path, 'r') as file_dse:
             for line in file_dse.readlines():
@@ -67,13 +73,15 @@ class DSEldif(object):
 
         return entry_dn_i, attr_data
 
-    def get(self, entry_dn, attr):
+    def get(self, entry_dn, attr, single=False):
         """Return attribute values under a given entry
 
         :param entry_dn: a DN of entry we want to get attribute from
         :type entry_dn: str
         :param attr: an attribute name
         :type attr: str
+        :param single: Return a single value instead of a list
+        :type sigle: boolean
         """
 
         try:
@@ -81,6 +89,12 @@ class DSEldif(object):
         except ValueError:
             return None
 
+        if single:
+            vals = list(attr_data.values())
+            if len(vals) > 0:
+                return vals[0]
+            else:
+                return None
         return attr_data.values()
 
     def add(self, entry_dn, attr, value):
