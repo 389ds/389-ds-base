@@ -33,7 +33,7 @@ RUN dnf install -y 389-ds-base/dist/rpms/*389*.rpm && \
 
 # Create the example setup inf. It's valid for containers!
 # Build the instance from the new installer tools.
-RUN /usr/sbin/dscreate example > /root/ds-setup.inf && /usr/sbin/dscreate -v fromfile /root/ds-setup.inf --IsolemnlyswearthatIamuptonogood --containerised
+RUN /usr/sbin/dscreate create-template > /root/ds-setup.inf && /usr/sbin/dscreate -v install /root/ds-setup.inf --IsolemnlyswearthatIamuptonogood --containerised
 
 # Finally add the volumes, they will inherit the contents of these directories.
 VOLUME /etc/dirsrv
