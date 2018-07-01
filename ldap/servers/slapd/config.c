@@ -526,10 +526,18 @@ slapd_bootstrap_config(const char *configdir)
                 if (e == NULL) {
                     continue;
                 }
-                if (plugin_setup(e, 0, 0, 1, returntext) != 0) {
-                    slapi_log_err(SLAPI_LOG_TRACE, "slapd_bootstrap_config", "Application of plugin failed, maybe already there?\n");
-                } else {
+                rc = plugin_setup(e, 0, 0, 1, returntext);
+                if (rc == 0) {
                     slapi_log_err(SLAPI_LOG_TRACE, "slapd_bootstrap_config", "Application of plugin SUCCESS\n");
+                } else if (rc == 1) {
+                    /* It means that the plugin entry already exists */
+                    slapi_log_err(SLAPI_LOG_TRACE, "slapd_bootstrap_config",
+                                  "The plugin entry [%s] in the configfile %s was invalid. %s\n",
+                                  slapi_entry_get_dn(e), configfile, returntext);
+                } else {
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
+                                  "The plugin entry [%s] in the configfile %s was invalid. %s\n",
+                                  slapi_entry_get_dn(e), configfile, returntext);
                 }
                 slapi_entry_free(e);
             }

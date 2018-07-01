@@ -2786,12 +2786,12 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     }
 
     if ((existname = plugin_exists(slapi_entry_get_sdn_const(plugin_entry))) != NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "plugin_setup", "The plugin named %s already exists, "
-                                                     "or is already setup.\n",
+        slapi_log_err(SLAPI_LOG_TRACE, "plugin_setup", "The plugin named %s already exists, "
+                                                       "or is already setup.\n",
                       existname);
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                     "the plugin named %s already exists, or is already setup.", existname);
-        return -1;
+        return 1;
     }
 
     /*
@@ -3016,7 +3016,9 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     }
 
     if (!status) {
-        status = plugin_add_descriptive_attributes(plugin_entry, plugin);
+        if (plugin_add_descriptive_attributes(plugin_entry, plugin) != 0) {
+            status = -1;
+        }
     }
 
     slapi_ch_free((void **)&value);
