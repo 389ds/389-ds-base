@@ -66,6 +66,12 @@ setup(
             'cli/dscreate',
             'cli/dsidm',
             ]),
+        ('/usr/share/man/man8', [
+            'man/dsctl.8',
+            'man/dsconf.8',
+            'man/dscreate.8',
+            'man/dsidm.8',
+            ]),
     ],
 
     install_requires=[

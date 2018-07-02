@@ -974,10 +974,6 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/db2ldif.pl.8 \
         man/man8/db2index.8 \
         man/man8/db2index.pl.8 \
-        man/man8/dsconf.8 \
-        man/man8/dsctl.8 \
-        man/man8/dsidm.8 \
-        man/man8/dscreate.8 \
         man/man8/fixup-linkedattrs.pl.8 \
         man/man8/fixup-memberof.pl.8 \
         man/man8/ldif2db.8 \
