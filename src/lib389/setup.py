@@ -76,7 +76,7 @@ setup(
         'six',
         'argcomplete',
         'argparse-manpage',
-        'python3-ldap',
+        'python-ldap',
         ],
 
     cmdclass={

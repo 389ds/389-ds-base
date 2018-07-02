@@ -5,4 +5,4 @@ python-dateutil
 six
 argcomplete
 argparse-manpage
-python3-ldap
+python-ldap
