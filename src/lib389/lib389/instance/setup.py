@@ -7,52 +7,65 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
-import ldap
-import shutil
 import sys
+import shutil
 import pwd
 import grp
 import re
 import socket
 import subprocess
 import getpass
-
+import configparser
 from lib389 import _ds_shutil_copytree
 from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
-
 from lib389.nss_ssl import NssSsl
-
 from lib389.configurations import get_config
-
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
-
-# The poc backend api
-from lib389.backend import Backends
+from lib389.paths import Paths
 from lib389.utils import (
     assert_c,
     is_a_dn,
-    ensure_bytes,
     ensure_str,
     socket_check_open,)
 
-try:
-    # There are too many issues with this on EL7
-    # Out of the box, it's just outright broken ...
-    import six.moves.urllib.request
-    import six.moves.urllib.parse
-    import six.moves.urllib.error
-    import six
-except ImportError:
-    pass
+ds_paths = Paths()
 
-MAJOR, MINOR, _, _, _ = sys.version_info
 
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+def get_port(port, default_port, secure=False):
+    # Get the port number for the interactive installer and validate it
+    while 1:
+        if secure:
+            val = input('\nEnter Secure Port Number [{}]: '.format(default_port))
+        else:
+            val = input('\nEnter Port Number [{}]: '.format(default_port))
+
+        if val != "" or default_port == "":
+            # Validate port is number and in a valid range
+            try:
+                port = int(val)
+                if port < 1 or port > 65535:
+                    print("Port number {} is not in range (1 thru 65535)".format(port))
+                    continue
+            except ValueError:
+                # not a number
+                print('Port number {} is not a number'.format(val))
+                continue
+
+            # Validate port is available
+            if socket_check_open('::1', port):
+                print('Port number {} is already in use, please choose a different port number'.format(port))
+                continue
+
+            # It's a good port
+            return port
+        elif val == "" and default_port == "":
+            print('You must specify a port number')
+            continue
+        else:
+            # Use default
+            return default_port
 
 
 class SetupDs(object):
@@ -186,6 +199,278 @@ class SetupDs(object):
         else:
             assert_c(False, "Unsupported config_version in section [general]")
 
+    def create_from_cli(self):
+        # Ask questions to generate general, slapd, and backends
+        print('Install Directory Server (interactive mode)')
+        print('===========================================')
+
+        # Set the defaults
+        general = {'config_version': 2, 'full_machine_name': socket.getfqdn(),
+                   'strict_host_checking': True, 'selinux': True, 'systemd': ds_paths.with_systemd,
+                   'defaults': '999999999'}
+
+        slapd = {'self_sign_cert_valid_months': 24,
+                 'group': ds_paths.group,
+                 'root_dn': ds_paths.root_dn,
+                 'initconfig_dir': ds_paths.initconfig_dir,
+                 'self_sign_cert': True,
+                 'root_password': '',
+                 'port': 389,
+                 'instance_name': 'localhost',
+                 'user': ds_paths.user,
+                 'secure_port': 636,
+                 'prefix': ds_paths.prefix,
+                 'bin_dir': ds_paths.bin_dir,
+                 'sbin_dir': ds_paths.sbin_dir,
+                 'sysconf_dir': ds_paths.sysconf_dir,
+                 'data_dir': ds_paths.data_dir,
+                 'local_state_dir': ds_paths.local_state_dir,
+                 'lib_dir': ds_paths.lib_dir,
+                 'run_dir': ds_paths.run_dir,
+                 'tmp_dir': ds_paths.tmp_dir,
+                 'cert_dir': ds_paths.cert_dir,
+                 'config_dir': ds_paths.config_dir,
+                 'inst_dir': ds_paths.inst_dir,
+                 'backup_dir': ds_paths.backup_dir,
+                 'db_dir': ds_paths.db_dir,
+                 'ldif_dir': ds_paths.ldif_dir,
+                 'lock_dir': ds_paths.lock_dir,
+                 'log_dir': ds_paths.log_dir,
+                 'schema_dir': ds_paths.schema_dir}
+
+        # Start asking questions, beginning with the hostname...
+        val = input('\nEnter System\'s Hostname [{}]: '.format(general['full_machine_name']))
+        if val != "":
+            general['full_machine_name'] = val
+
+        # Strict host name checking
+        msg = ("\nUse strict hostname verification (set to \"off\" if using GSSAPI behind a load balancer) [on]: ")
+        while 1:
+            val = input(msg)
+            if val != "":
+                if val.lower() == "no" or val.lower() == "n":
+                    slapd['strict_host_checking'] = False
+                    break
+                if val.lower() == "yes" or val.lower() == "y":
+                    # Use default
+                    break
+
+                # Unknown value
+                print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
+                continue
+            else:
+                break
+
+        # Get and check user
+        while 1:
+            val = input('\nSystem user the server will run as [{}]: '.format(slapd['user']))
+            if val != "":
+                # Check is user exists
+                try:
+                    pwd.getpwnam(val)
+                except KeyError:
+                    print("User \"{}\" does not exist, please choose an existing user".format(val))
+                    continue
+                slapd['user'] = val
+            else:
+                # Use default, but double check dirsrv exists...
+                try:
+                    pwd.getpwnam(slapd['user'])
+                except KeyError:
+                    print("User \"{}\" does not exist, please choose an existing user".format(val))
+                    continue
+                break
+
+        # Get and check the group
+        while 1:
+            val = input('\nSystem group the server will belong to [{}]: '.format(slapd['group']))
+            if val != "":
+                # Check is user exists
+                try:
+                    grp.getgrnam(val)
+                except KeyError:
+                    print("Group \"{}\" does not exist, please choose an existing group".format(val))
+                    continue
+                slapd['group'] = val
+            else:
+                # Use default, but double check dirsrv exists...
+                try:
+                    grp.getgrnam(slapd['user'])
+                except KeyError:
+                    print("Group \"{}\" does not exist, please choose an existing group".format(val))
+                    continue
+                break
+
+        # Prefix
+        while 1:
+            val = input('\nInstallation prefix [{}]: '.format(slapd['prefix']))
+            if val != "":
+                if not val.startswith('/'):
+                    print("Not a valid path\n")
+                    continue
+                if not os.path.isdir(val):
+                    print("Prefix directory does not exist")
+                    continue
+                slapd['prefix'] = val
+                break
+            else:
+                break
+
+        # Instance name - adjust defaults once set
+        while 1:
+            slapd['instance_name'] = general['full_machine_name'].split('.', 1)[0]
+            val = input('\nEnter The Server\'s Indentifer Name [{}]: '.format(slapd['instance_name']))
+            if val != "":
+                if ' ' in val:
+                    print("Server identifier can not contain a space")
+                    continue
+                if val == 'admin':
+                    print("Server identifier \"admin\" is reserved, please choose a different identifier")
+                    continue
+
+                # Check that valid characters are used
+                safe = re.compile(r'^[#%:\w@_-]+$').search
+                if not bool(safe(val)):
+                    print("Server identifier has invalid characters, please choose a different value")
+                    continue
+
+                # Check if server id is taken
+                if slapd['prefix'] != "/usr":
+                    inst_dir = slapd['prefix'] + slapd['config_dir'] + "/" + val
+                else:
+                    inst_dir = slapd['config_dir'] + "/" + val
+                if os.path.isdir(inst_dir):
+                    print("Server identifier \"{}\" is already taken, please choose a new name".format(val))
+                    continue
+
+                # instance name is good
+                slapd['instance_name'] = val
+                break
+            else:
+                # Check if default server id is taken
+                if slapd['prefix'] != "/usr":
+                    inst_dir = slapd['prefix'] + slapd['config_dir'] + "/" + slapd['instance_name']
+                else:
+                    inst_dir = slapd['config_dir'] + "/" + slapd['instance_name']
+                if os.path.isdir(inst_dir):
+                    print("Server identifier \"{}\" is already taken, please choose a new name".format(slapd['instance_name']))
+                    continue
+                break
+
+        # Finally have a good server id, adjust the default paths
+        for key, value in slapd.items():
+            if isinstance(value, str):
+                slapd[key] = value.format(instance_name=slapd['instance_name'])
+
+        # Non-Secure Port
+        if not socket_check_open('::1', slapd['port']):
+            port = get_port(slapd['port'], slapd['port'])
+        else:
+            # Port 389 is already taken, pick another port
+            port = get_port(slapd['port'], "")
+        slapd['port'] = port
+
+        # Secure Port
+        if not socket_check_open('::1', slapd['secure_port']):
+            port = get_port(slapd['secure_port'], slapd['secure_port'], secure=True)
+        else:
+            # Port 636 is already taken, pick another port
+            port = get_port(slapd['secure_port'], "", secure=True)
+        slapd['secure_port'] = port
+
+        # Self-Signed Cert DB
+        while 1:
+            val = input('\nCreate Self-Signed Certificate Database [yes]: ')
+            if val != "":
+                if val.lower() == 'no' or val.lower() == "n":
+                    slapd['self_sign_cert'] = False
+                    break
+                elif val.lower() == "yes" or val.lower() == "y":
+                    # Default value is already yes
+                    break
+                else:
+                    print('Invalid value "{}", please use "yes" or "no"')
+                    continue
+            else:
+                # use default
+                break
+
+        # Root DN
+        while 1:
+            val = input('\nEnter Directory Manager DN [{}]: '.format(slapd['root_dn']))
+            if val != '':
+                # Validate value is a DN
+                if is_a_dn(val, allow_anon=False):
+                    slapd['root_dn'] = val
+                    break
+                else:
+                    print('The value "{}" is not a valid DN'.format(val))
+                    continue
+            else:
+                # use default
+                break
+
+        # Root DN Password
+        while 1:
+            rootpw1 = getpass.getpass('\nEnter Directory Manager Password: ')
+            if rootpw1 == '':
+                print('Password can not be empty')
+                continue
+
+            rootpw2 = getpass.getpass('Confirm Directory Manager Password: ')
+            if rootpw1 != rootpw2:
+                print('Passwords do not match')
+                continue
+
+            # Passwords match, set it
+            slapd['root_password'] = rootpw1
+            break
+
+        # Backend   [{'name': 'userroot', 'suffix': 'dc=example,dc=com'}]
+        backend = {'name': 'userroot', 'suffix': ''}
+        backends = [backend]
+        suffix = ''
+        domain_comps = general['full_machine_name'].split('.')
+        for comp in domain_comps:
+            if suffix == '':
+                suffix = "dc=" + comp
+            else:
+                suffix += ",dc=" + comp
+
+        while 1:
+            val = input("\nEnter the database suffix (or enter \"none\" to skip) [{}]: ".format(suffix))
+            if val != '':
+                if val.lower() == "none":
+                    # No database, no problem
+                    backends = []
+                    break
+                if is_a_dn(val, allow_anon=False):
+                    backend['suffix'] = val
+                    break
+                else:
+                    print("The suffix \"{}\" is not a valid DN")
+                    continue
+            else:
+                backend['suffix'] = suffix
+                break
+
+        # Are you ready?
+        while 1:
+            val = input('\nAre you ready to install? [no]: ')
+            if val == '' or val.lower() == "no" or val.lower() == 'n':
+                print('Aborting installation...')
+                sys.exit(0)
+            elif val.lower() == 'yes' or val.lower() == 'y':
+                # lets do it!
+                break
+            else:
+                print('Invalid value, please use \"yes\" or \"no\"')
+                continue
+
+        self.create_from_args(general, slapd, backends, self.extra)
+
+        return True
+
     def create_from_inf(self, inf_path):
         """
         Will trigger a create from the settings stored in inf_path
@@ -306,14 +591,19 @@ class SetupDs(object):
         """
         Actually does the setup. this is what you want to call as an api.
         """
-        # Check we have privs to run
 
-        self.log.info("READY: Preparing installation for %s" % slapd['instance_name'])
+        self.log.info("\nStarting installation...")
+
+        # Check we have privs to run
+        if self.verbose:
+            self.log.info("READY: Preparing installation for %s..." % slapd['instance_name'])
+
         self._prepare_ds(general, slapd, backends)
         # Call our child api to prepare itself.
         self._prepare(extra)
 
-        self.log.info("READY: Beginning installation for %s" % slapd['instance_name'])
+        if self.verbose:
+            self.log.info("READY: Beginning installation for %s..." % slapd['instance_name'])
 
         if self.dryrun:
             self.log.info("NOOP: Dry run requested")
@@ -322,7 +612,10 @@ class SetupDs(object):
             self._install_ds(general, slapd, backends)
             # Call the child api to do anything it needs.
             self._install(extra)
-        self.log.info("FINISH: Completed installation for %s" % slapd['instance_name'])
+        if self.verbose:
+            self.log.info("FINISH: Completed installation for %s" % slapd['instance_name'])
+        else:
+            self.log.info("Completed installation for %s" % slapd['instance_name'])
 
     def _install_ds(self, general, slapd, backends):
         """
@@ -392,7 +685,7 @@ class SetupDs(object):
             # Should create the symlink we need, but without starting it.
             subprocess.check_call(["/usr/bin/systemctl",
                                     "enable",
-                                    "dirsrv@%s" % slapd['instance_name']])
+                                    "dirsrv@%s" % slapd['instance_name']], stderr=subprocess.DEVNULL)
         # Else we need to detect other init scripts?
 
         # Bind sockets to our type?

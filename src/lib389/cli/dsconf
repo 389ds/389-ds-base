@@ -14,6 +14,7 @@ import argparse, argcomplete
 import logging
 import ldap
 import sys
+import signal
 
 # This has to happen before we import  DirSrv else it tramples our config ... :(
 logging.basicConfig(format='%(message)s')
@@ -79,6 +80,13 @@ cli_whoami.create_parser(subparsers)
 cli_referint.create_parser(subparsers)
 cli_automember.create_parser(subparsers)
 argcomplete.autocomplete(parser)
+
+# handle a control-c gracefully
+def signal_handler(signal, frame):
+    print('\n\nExiting...')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == '__main__':

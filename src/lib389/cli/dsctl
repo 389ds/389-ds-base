@@ -13,6 +13,7 @@
 import argparse, argcomplete
 import logging
 import sys
+import signal
 
 # This has to happen before we import  DirSrv else it tramples our config ... :(
 logging.basicConfig(format='%(message)s')
@@ -40,6 +41,14 @@ argcomplete.autocomplete(parser)
 # We stack our needed options in via submodules.
 cli_instance.create_parser(subparsers)
 cli_dbtasks.create_parser(subparsers)
+
+
+# handle a control-c gracefully
+def signal_handler(signal, frame):
+    print('\n\nExiting...')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == '__main__':
