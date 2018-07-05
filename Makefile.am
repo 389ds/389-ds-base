@@ -2273,7 +2273,7 @@ if HAVE_DOXYGEN
 
 doxyfile.stamp:
 	cd $(srcdir); $(DOXYGEN) $(abs_top_builddir)/docs/slapi.doxy
-	rm $(abs_top_builddir)/man/man3/_*
+	rm -f $(abs_top_builddir)/man/man3/_*
 	touch doxyfile.stamp
 
 # Add the docs to make all.
