@@ -25,6 +25,52 @@ TEST_SUFFIX1 = "dc=importest1,dc=com"
 TEST_BACKEND1 = "importest1"
 TEST_SUFFIX2 = "dc=importest2,dc=com"
 TEST_BACKEND2 = "importest2"
+TEST_DEFAULT_SUFFIX = "dc=default,dc=com"
+TEST_DEFAULT_NAME = "default"
+
+
+def test_import_be_default(topo):
+    """ Create a backend using the name "default". previously this name was
+    used int
+
+    :id: 8e507beb-e917-4330-8cac-1ff0eee10508
+    :feature: Import
+    :setup: Standalone instance
+    :steps:
+        1. Create a test suffix using the be name of "default"
+        2. Create an ldif for the "default" backend
+        3. Import ldif
+        4. Verify all entries were imported
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+    log.info('Adding suffix:{} and backend: {}...'.format(TEST_DEFAULT_SUFFIX,
+                                                          TEST_DEFAULT_NAME))
+    backends = Backends(topo.standalone)
+    backends.create(properties={BACKEND_SUFFIX: TEST_DEFAULT_SUFFIX,
+                                BACKEND_NAME: TEST_DEFAULT_NAME})
+
+    log.info('Create LDIF file and import it...')
+    ldif_dir = topo.standalone.get_ldif_dir()
+    ldif_file = os.path.join(ldif_dir, 'default.ldif')
+    dbgen(topo.standalone, 5, ldif_file, TEST_DEFAULT_SUFFIX)
+
+    log.info('Stopping the server and running offline import...')
+    topo.standalone.stop()
+    assert topo.standalone.ldif2db(TEST_DEFAULT_NAME, None, None,
+                                   None, ldif_file)
+    topo.standalone.start()
+
+    log.info('Verifying entry count after import...')
+    entries = topo.standalone.search_s(TEST_DEFAULT_SUFFIX,
+                                       ldap.SCOPE_SUBTREE,
+                                       "(objectclass=*)")
+    assert len(entries) > 1
+
+    log.info('Test PASSED')
 
 
 def test_del_suffix_import(topo):
