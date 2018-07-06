@@ -113,8 +113,13 @@ usercertificate;binary:: MIIBvjCCASegAwIBAgIBAjANBgkqhkiG9w0BAQQFADAnMQ8wDQYD
 DBGEN_HEADER = """dn: {SUFFIX}
 objectClass: top
 objectClass: domain
+<<<<<<< HEAD
 dc: example
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl1"; allow(write) userdn = "ldap:///self";) 
+=======
+dc: {RDN}
+aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl1"; allow(write) userdn = "ldap:///self";)
+>>>>>>> 8fa838a4f... Ticket 49830 - Import fails if backend name is "default"
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl2"; allow(write) groupdn = "ldap:///cn=Directory Administrators, {SUFFIX}";)
 aci: (target=ldap:///{SUFFIX})(targetattr=*)(version 3.0; acl "acl3"; allow(read, search, compare) userdn = "ldap:///anyone";)
 
@@ -145,7 +150,7 @@ ou: Payroll
 
 """
 
-def dbgen(instance, number, ldif_file, suffix):
+def dbgen(instance, number, ldif_file, suffix, pseudol10n=False):
     familyname_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-FamilyNames')
     givename_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-GivenNames')
     familynames = []
@@ -156,7 +161,11 @@ def dbgen(instance, number, ldif_file, suffix):
         givennames = [n.strip() for n in f]
 
     with open(ldif_file, 'w') as output:
-        output.write(DBGEN_HEADER.format(SUFFIX=suffix))
+        rdn = suffix.split(",", 1)[0].split("=", 1)[1]
+        output.write(DBGEN_HEADER.format(SUFFIX=suffix, RDN=rdn))
+        for ou in DBGEN_OUS:
+            ou = pseudolocalize(ou) if pseudol10n else ou
+            output.write(DBGEN_OU_TEMPLATE.format(SUFFIX=suffix, OU=ou))
         for i in range(0, number):
             # Pick a random ou
             ou = random.choice(DBGEN_OUS)
