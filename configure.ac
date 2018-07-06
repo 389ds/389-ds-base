@@ -652,7 +652,6 @@ case $host in
     platform="linux"
     initdir='$(sysconfdir)/rc.d/init.d'
     # do arch specific linux stuff here
-    # TCMalloc is only on i686, x86_64, ppc64 and arm, so we pick that here.
     case $host in
       i*86-*-linux*)
         AC_DEFINE([CPU_x86], [], [cpu type x86])
@@ -849,7 +848,6 @@ m4_include(m4/selinux.m4)
 m4_include(m4/systemd.m4)
 m4_include(m4/cmocka.m4)
 m4_include(m4/doxygen.m4)
-m4_include(m4/tcmalloc.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)

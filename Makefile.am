@@ -177,7 +177,6 @@ PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
-TCMALLOC_LINK = @tcmalloc_lib@
 EVENT_LINK = @event_lib@
 
 LIBSOCKET=@LIBSOCKET@
@@ -193,8 +192,7 @@ if HPUX
 AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
-# Provide the tcmalloc links if needed
-AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(TCMALLOC_LINK) $(CLANG_LDFLAGS)
+AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CLANG_LDFLAGS)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
