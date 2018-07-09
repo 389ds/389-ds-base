@@ -1384,7 +1384,7 @@ $(document).ready( function() {
       // TODO - lookup the entry, and get the current settings
 
       // Set the form header and fields
-      $("#local-pwp-form-header").html("<b>Edit Local Password Policy</b>");
+      $("#local-pwp-header").html("<b>Edit Local Password Policy</b>");
       $("#local-entry-dn").val(policy_name);
       // Set radio button for type of policy - TODO
 

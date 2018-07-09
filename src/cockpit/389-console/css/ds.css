@@ -370,8 +370,25 @@ Zbutton:focus {
 }
 
 .ds-input {
+  margin-top: 5px !important;
+  padding-right: 5px !important;
+  padding-left: 5px !important;
+}
+
+.ds-pw-input {
+  margin-top: 5px;
   padding-right: 5px;
   padding-left: 5px !important;
+  min-width: 65px !important;
+  max-width: 65px !important;
+}
+
+.ds-pw-list-input {
+  margin-top: 5px;
+  padding-right: 5px;
+  padding-left: 5px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
 }
 
 .ds-ro-input {
@@ -885,6 +902,12 @@ Zbutton:focus {
   width: 285px !important;
 }
 
+.ds-pw-list-label {
+  margin-top: 7px !important;
+  margin-bottom: 7px !important;
+  width: 200px !important;
+}
+
 .ds-passwd-label {
   width: 300px !important;
 }
@@ -1281,7 +1304,7 @@ option {
 }
 
 .ds-checkbox-group {
-  margin-top: 10px;
+  margin-top: 10px !important;
 }
 
 .ds-alert-header {

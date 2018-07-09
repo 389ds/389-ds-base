@@ -354,7 +354,7 @@
 
       <div class="ds-inline">
         <h4><br>Password Syntax Settings</h4>
-        <hr class="ds-hr-pwp">
+        <hr class="ds-hr">
         <input type="checkbox" class="ds-config-checkbox" id="passwordchecksyntax" checked><label
           for="passwordchecksyntax" class="ds-label" title="Enable account lockout (passwordCheckSyntax).">Check Password Syntax</label>
         <div class="ds-container ds-expired-div" id="syntax-attrs">
@@ -384,10 +384,6 @@
                 "Reject passwords with fewer than this many lowercase characters (passwordMinLowers).">Minimum Lowercase Characters </label><input
                 class="ds-input" type="text" id="passwordminlowers" size="5"/>
             </div>
-          </div>
-          <div class="ds-divider"></div>
-         <div class="ds-divider"></div>
-          <div class="ds-inline">
             <div>
               <label for="passwordminspecials" class="ds-expire-label" title=
                 "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).">Minimum Special Characters </label><input
@@ -399,11 +395,6 @@
                 class="ds-input" type="text" id="passwordmin8bit" size="5"/>
             </div>
             <div>
-              <label for="passwordmaxrepeats" class="ds-expire-label" title=
-                "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).">Maximum Number Of Repeated Characters </label><input
-                class="ds-input" type="text" id="passwordmaxrepeats" size="5"/>
-            </div>
-            <div>
               <label for="passwordmincategories" class="ds-expire-label" title=
                 "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).">Minimum Required Character Categories </label><input
                 class="ds-input" type="text" id="passwordmincategories" size="5"/>
@@ -412,6 +403,50 @@
               <label for="passwordmintokenlength" class="ds-expire-label" title=
                 "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).">Minimum Token Length </label><input
                 class="ds-input" type="text" id="passwordmintokenlength" size="5"/>
+            </div>
+          </div>
+          <div class="ds-divider"></div>
+          <div class="ds-divider"></div>
+          <div class="ds-inline">
+            <div>
+              <label for="passwordbadwords" class="ds-expire-label" title=
+                "A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).">Reject Passwords That Contain These Words </label><input
+                class="ds-input" type="text" id="passwordbadwords" size="20"/>
+            </div>
+            <div>
+              <label for="passworduserattributes" class="ds-expire-label" title=
+                "A space-separated list of entry attributes to compare to the new password (passwordUserAttributes).">Entry Attributes To Compare </label><input
+                class="ds-input" type="text" id="passworduserattributes" size="20"/>
+            </div>
+            <div>
+              <label for="passwordmaxrepeats" class="ds-expire-label" title=
+                "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).">Maximum Number Of Repeated Characters </label><input
+                class="ds-input" type="text" id="passwordmaxrepeats" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmaxsequence" class="ds-expire-label" title=
+                "The maximum number of allowed monotonic characters sequences (passwordMaxSequence).">Maximum Character Sequences </label><input
+                class="ds-input" type="text" id="passwordmaxsequence" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmaxseqsets" class="ds-expire-label" title=
+                "The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).">Maximum Character Sequence Sets </label><input
+                class="ds-input" type="text" id="passwordmaxseqsets" size="5"/>
+            </div>
+            <div>
+              <label for="passwordmaxclasschars" class="ds-expire-label" title=
+                "The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).">Maximum Consecutive Chars Per Char Class </label><input
+                class="ds-input" type="text" id="passwordmaxclasschars" size="5"/>
+            </div>
+            <div>
+              <label for="passwordpalindrome" class="ds-expire-label" title=
+                "Reject a password if it is a palindrome (passwordPalindrome).">Reject Passwords that Are Palindromes </label><input
+                class="ds-checkbox-group" type="checkbox" id="passwordpalindrome"/>
+            </div>
+            <div>
+              <label for="passworddictcheck" class="ds-expire-label" title=
+                "Check the password against the system's CrackLib dictionary (passwordDictCheck).">Check Password Contains Dictionary Word </label><input
+                class="ds-checkbox-group" type="checkbox" id="passworddictcheck"/>
             </div>
           </div>
         </div>
@@ -1057,14 +1092,14 @@
 
 
   <!-- Create Local Password Policy -->
-  <div class="modal fade" id="local-pwp-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="local-pwp-label" aria-hidden="true">
+  <div class="modal fade" id="local-pwp-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="local-pwp-header" aria-hidden="true">
     <div class="modal-dialog ds-modal-wide">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>
           </button>
-          <h4 class="modal-title" id="local-pwp-label">Create Local Password Policy</h4>
+          <h4 class="modal-title" id="local-pwp-header">Create Local Password Policy</h4>
         </div>
         <div class="modal-body">
           <form class="form-horizontal">
@@ -1203,38 +1238,59 @@
               <div>
                 <label for="local-passwordminlength" class="ds-expire-label" title=
                   "The minimum number of characters in the password (passwordMinLength).">Password Minimum Length </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordminlength" size="5"/>
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordminlength" size="5"/>
                 <label for="local-passwordmindigits" class="ds-expire-label" title=
                   "Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).">Minimum Digit Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordmindigits" size="5"/>
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmindigits" size="5"/>
                 <label for="local-passwordminalphas" class="ds-expire-label" title=
                   "Reject passwords with fewer than this many alpha characters (passwordMinAlphas).">Minimum Alpha Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordminalphas" size="5"/>
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordminalphas" size="5"/>
                 <label for="local-passwordminuppers" class="ds-expire-label" title=
                   "Reject passwords with fewer than this many uppercase characters (passwordMinUppers).">Minimum Uppercase Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordminuppers" size="5"/>
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordminuppers" size="5"/>
                 <label for="local-passwordminlowers" class="ds-expire-label" title=
                   "Reject passwords with fewer than this many lowercase characters (passwordMinLowers).">Minimum Lowercase Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordminlowers" size="5"/>
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordminlowers" size="5"/>
+                <label for="local-passwordminspecials" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).">Minimum Special Characters </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordminspecials" size="5"/>
+                <label for="local-passwordmin8bit" class="ds-expire-label" title=
+                  "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).">Minimum 8-bit Characters </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmin8bit" size="5"/>
+                <label for="local-passwordmincategories" class="ds-expire-label" title=
+                  "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).">Minimum Required Character Categories </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmincategories" size="5"/>
+                <label for="local-passwordmintokenlength" class="ds-expire-label" title=
+                  "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).">Minimum Token Length </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmintokenlength" size="5"/>
               </div>
               <div class="ds-divider"></div>
               <div class="ds-divider"></div>
               <div>
-                <label for="local-passwordminspecials" class="ds-expire-label" title=
-                  "Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).">Minimum Special Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordminspecials" size="5"/>
-                <label for="local-passwordmin8bit" class="ds-expire-label" title=
-                  "Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).">Minimum 8-bit Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordmin8bit" size="5"/>
+                <label for="local-passwordbadwords" class="ds-pw-list-label" title=
+                  "A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).">Reject Passwords That Contain These Words </label><input
+                  class="ds-pw-list-input ds-pwp-input" type="text" id="local-passwordbadwords"/>
+                <label for="local-passworduserattributes" class="ds-pw-list-label" title=
+                  "A space-separated list of entry attributes to compare to the new password (passwordUserAttributes).">Entry Attributes To Compare </label><input
+                  class="ds-pw-list-input ds-pwp-input" type="text" id="local-passworduserattributes"/>
                 <label for="local-passwordmaxrepeats" class="ds-expire-label" title=
                   "The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).">Maximum Number Of Repeated Characters </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordmaxrepeats" size="5"/>
-                <label for="local-passwordmincategories" class="ds-expire-label" title=
-                  "The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).">Minimum Required Character Categories </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordmincategories" size="5"/>
-                <label for="local-passwordmintokenlength" class="ds-expire-label" title=
-                  "The smallest attribute value used when checking if the password contains any of the user's account information (passwordMinTokenLength).">Minimum Token Length </label><input
-                  class="ds-input ds-pwp-input" type="text" id="local-passwordmintokenlength" size="5"/>
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmaxrepeats"/>
+                <label for="local-passwordmaxsequence" class="ds-expire-label" title=
+                  "The maximum number of allowed monotonic characters sequences (passwordMaxSequence).">Maximum Character Sequences </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmaxsequence"/>
+                <label for="local-passwordmaxseqsets" class="ds-expire-label" title=
+                  "The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).">Maximum Character Sequence Sets </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmaxseqsets"/>
+                <label for="local-passwordmaxclasschars" class="ds-expire-label" title=
+                  "The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).">Maximum Consecutive Chars Per Char Class </label><input
+                  class="ds-pw-input ds-pwp-input" type="text" id="local-passwordmaxclasschars"/>
+                <label for="local-passwordpalindrome" class="ds-expire-label" title=
+                  "Reject a password if it is a palindrome (passwordPalindrome).">Reject Passwords that Are Palindromes </label><input
+                  class="ds-checkbox-group ds-pwp-checkbox" type="checkbox" id="local-passwordpalindrome"/>
+                <label for="local-passworddictcheck" class="ds-expire-label" title=
+                  "Check the password against the system's CrackLib dictionary (passwordDictCheck).">Check Password Contains Dictionary Word </label><input
+                  class="ds-checkbox-group ds-pwp-checkbox" type="checkbox" id="local-passworddictcheck"/>
               </div>
             </div>
           </form>
