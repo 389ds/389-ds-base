@@ -48,8 +48,6 @@ def signal_handler(signal, frame):
     print('\n\nExiting...')
     sys.exit(0)
 
-signal.signal(signal.SIGINT, signal_handler)
-
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -80,6 +78,7 @@ if __name__ == '__main__':
     if args.verbose:
         insts = inst.list(serverid=args.instance)
     else:
+        signal.signal(signal.SIGINT, signal_handler)
         try:
             insts = inst.list(serverid=args.instance)
         except PermissionError:

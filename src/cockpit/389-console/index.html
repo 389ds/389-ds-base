@@ -418,14 +418,6 @@
                   Secure Port</label><input class="ds-input" type="text" value="636" id="create-inst-secureport" required />
               </div>
               <div>
-                <label for="create-inst-user" class="ds-config-label" title="Server user that the server runs as">
-                  Server User</label><input class="ds-input" value="dirsrv" type="text" id="create-inst-user" required />
-              </div>
-              <div>
-                <label for="create-inst-group" class="ds-config-label" title="Server group that the server runs as">
-                  Server Group</label><input class="ds-input" value="dirsrv" type="text" id="create-inst-group" required />
-              </div>
-              <div>
                 <label for="create-inst-rootdn" class="ds-config-label" title="The DN for the unrestricted  user">
                   Directory Manager DN</label><input class="ds-input" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
               </div>
@@ -447,12 +439,16 @@
                   class="ds-input" type="text" id="backend-suffix">
               </div>
               <div>
-                <p></p>
+                <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
+                  type="checkbox" class="ds-input ds-config-checkbox" id="create-sample-entries">
+              </div>
+              <hr>
+              <div>
                 <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
                   for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
               </div>
               <div id="create-inst-spinner" class="ds-center" hidden>
-                <p></p>
+                <hr>
                 <p><span class="spinner spinner-xs spinner-inline"></span> Creating instance...</p>
               </div>
             </div>

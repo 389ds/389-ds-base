@@ -37,8 +37,8 @@ var create_full_template =
   "config_dir = /etc/dirsrv/slapd-{instance_name}\n" +
   "data_dir = /usr/share\n" +
   "db_dir = /var/lib/dirsrv/slapd-{instance_name}/db\n" +
-  "user = USER\n" +
-  "group = GROUP\n" +
+  "user = dirsrv\n" +
+  "group = dirsrv\n" +
   "initconfig_dir = /etc/sysconfig\n" +
   "inst_dir = /usr/lib64/dirsrv/slapd-{instance_name}\n" +
   "instance_name = localhost\n" +
@@ -64,8 +64,8 @@ var create_inf_template =
   "config_version = 2\n" +
   "full_machine_name = FQDN\n\n" +
   "[slapd]\n" +
-  "user = USER\n" +
-  "group = GROUP\n" +
+  "user = dirsrv\n" +
+  "group = dirsrv\n" +
   "instance_name = INST_NAME\n" +
   "port = PORT\n" +
   "root_dn = ROOTDN\n" +
@@ -153,12 +153,11 @@ function clear_inst_form() {
   $("#create-inst-port").val("389");
   $("#create-inst-secureport").val("636");
   $("#create-inst-rootdn").val("cn=Directory Manager");
-  $("#create-inst-user").val("dirsrv");
-  $("#create-inst-group").val("dirsrv");
   $("#rootdn-pw").val("");
   $("#rootdn-pw-confirm").val("");
   $("#backend-suffix").val("");
   $("#backend-name").val("");
+  $("#create-sample-entries").prop('checked', false);
   $("#create-inst-tls").prop('checked', true);
   clear_inst_input();
 }
@@ -1111,24 +1110,6 @@ $(document).ready( function() {
         setup_inf = setup_inf.replace('SECURE_PORT', secure_port);
       }
 
-      // DS User
-      var server_user = $("#create-inst-user").val();
-      if (server_user == ""){
-        report_err($("#create-inst-user"), 'You must provide the server user name');
-        return;
-      } else {
-        setup_inf = setup_inf.replace('USER', server_user);
-      }
-
-      // DS Group
-      var server_group = $("#create-inst-group").val();
-      if (server_group == ""){
-        report_err($("#create-inst-group"), 'You must provide the server group name');
-        return;
-      } else {
-        setup_inf = setup_inf.replace('GROUP', server_group);
-      }
-
       // Root DN
       var server_rootdn = $("#create-inst-rootdn").val();
       if (server_rootdn == ""){
@@ -1182,6 +1163,11 @@ $(document).ready( function() {
           report_err($("#backend-suffix"), 'Invalid DN for Backend Suffix');
           return;
         }
+        if ( $("#create-sample-entries").is(":checked") ) {
+          setup_inf += '\nsample_entries = yes\n';
+        } else {
+          setup_inf += '\nsample_entries = no\n';
+        }
       }
 
       /*
@@ -1231,7 +1217,7 @@ $(document).ready( function() {
               /*
                * Next, create the instance...
                */
-              cmd = [DSCREATE, 'install', setup_file];
+              cmd = [DSCREATE, 'fromfile', setup_file];
               cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex) {
                 // Failed to create the new instance!
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password

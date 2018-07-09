@@ -52,14 +52,17 @@ def instance_status(inst, log, args):
         log.info("Instance is not running")
 
 
+def instance_create_interactive(inst, log, args):
+    sd = SetupDs(args.verbose, False, log, False)
+    return sd.create_from_cli()
+
+
 def instance_create(inst, log, args):
     if args.containerised:
         log.debug("Containerised features requested.")
+
     sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
-    if args.file is None:
-        # Interactive installer
-        return sd.create_from_cli()
-    elif sd.create_from_inf(args.file):
+    if sd.create_from_inf(args.file):
         # print("Sucessfully created instance")
         return True
     else:

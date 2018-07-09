@@ -86,8 +86,6 @@ def signal_handler(signal, frame):
     print('\n\nExiting...')
     sys.exit(0)
 
-signal.signal(signal.SIGINT, signal_handler)
-
 
 if __name__ == '__main__':
 
@@ -114,6 +112,9 @@ if __name__ == '__main__':
         log.error("No action provided, here is some --help.")
         parser.print_help()
         sys.exit(1)
+
+    if not args.verbose:
+        signal.signal(signal.SIGINT, signal_handler)
 
     # Connect
     # We don't need a basedn, because the config objects derive it properly

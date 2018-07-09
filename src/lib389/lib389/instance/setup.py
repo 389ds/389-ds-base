@@ -37,9 +37,9 @@ def get_port(port, default_port, secure=False):
     # Get the port number for the interactive installer and validate it
     while 1:
         if secure:
-            val = input('\nEnter Secure Port Number [{}]: '.format(default_port))
+            val = input('\nEnter secure port number [{}]: '.format(default_port))
         else:
-            val = input('\nEnter Port Number [{}]: '.format(default_port))
+            val = input('\nEnter port number [{}]: '.format(default_port))
 
         if val != "" or default_port == "":
             # Validate port is number and in a valid range
@@ -239,12 +239,12 @@ class SetupDs(object):
                  'schema_dir': ds_paths.schema_dir}
 
         # Start asking questions, beginning with the hostname...
-        val = input('\nEnter System\'s Hostname [{}]: '.format(general['full_machine_name']))
+        val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name']))
         if val != "":
             general['full_machine_name'] = val
 
         # Strict host name checking
-        msg = ("\nUse strict hostname verification (set to \"off\" if using GSSAPI behind a load balancer) [on]: ")
+        msg = ("\nUse strict hostname verification (set to \"no\" if using GSSAPI behind a load balancer) [yes]: ")
         while 1:
             val = input(msg)
             if val != "":
@@ -261,65 +261,10 @@ class SetupDs(object):
             else:
                 break
 
-        # Get and check user
-        while 1:
-            val = input('\nSystem user the server will run as [{}]: '.format(slapd['user']))
-            if val != "":
-                # Check is user exists
-                try:
-                    pwd.getpwnam(val)
-                except KeyError:
-                    print("User \"{}\" does not exist, please choose an existing user".format(val))
-                    continue
-                slapd['user'] = val
-            else:
-                # Use default, but double check dirsrv exists...
-                try:
-                    pwd.getpwnam(slapd['user'])
-                except KeyError:
-                    print("User \"{}\" does not exist, please choose an existing user".format(val))
-                    continue
-                break
-
-        # Get and check the group
-        while 1:
-            val = input('\nSystem group the server will belong to [{}]: '.format(slapd['group']))
-            if val != "":
-                # Check is user exists
-                try:
-                    grp.getgrnam(val)
-                except KeyError:
-                    print("Group \"{}\" does not exist, please choose an existing group".format(val))
-                    continue
-                slapd['group'] = val
-            else:
-                # Use default, but double check dirsrv exists...
-                try:
-                    grp.getgrnam(slapd['user'])
-                except KeyError:
-                    print("Group \"{}\" does not exist, please choose an existing group".format(val))
-                    continue
-                break
-
-        # Prefix
-        while 1:
-            val = input('\nInstallation prefix [{}]: '.format(slapd['prefix']))
-            if val != "":
-                if not val.startswith('/'):
-                    print("Not a valid path\n")
-                    continue
-                if not os.path.isdir(val):
-                    print("Prefix directory does not exist")
-                    continue
-                slapd['prefix'] = val
-                break
-            else:
-                break
-
         # Instance name - adjust defaults once set
         while 1:
             slapd['instance_name'] = general['full_machine_name'].split('.', 1)[0]
-            val = input('\nEnter The Server\'s Indentifer Name [{}]: '.format(slapd['instance_name']))
+            val = input('\nEnter the instance name [{}]: '.format(slapd['instance_name']))
             if val != "":
                 if ' ' in val:
                     print("Server identifier can not contain a space")
@@ -335,10 +280,7 @@ class SetupDs(object):
                     continue
 
                 # Check if server id is taken
-                if slapd['prefix'] != "/usr":
-                    inst_dir = slapd['prefix'] + slapd['config_dir'] + "/" + val
-                else:
-                    inst_dir = slapd['config_dir'] + "/" + val
+                inst_dir = slapd['config_dir'] + "/" + val
                 if os.path.isdir(inst_dir):
                     print("Server identifier \"{}\" is already taken, please choose a new name".format(val))
                     continue
@@ -370,17 +312,9 @@ class SetupDs(object):
             port = get_port(slapd['port'], "")
         slapd['port'] = port
 
-        # Secure Port
-        if not socket_check_open('::1', slapd['secure_port']):
-            port = get_port(slapd['secure_port'], slapd['secure_port'], secure=True)
-        else:
-            # Port 636 is already taken, pick another port
-            port = get_port(slapd['secure_port'], "", secure=True)
-        slapd['secure_port'] = port
-
         # Self-Signed Cert DB
         while 1:
-            val = input('\nCreate Self-Signed Certificate Database [yes]: ')
+            val = input('\nCreate self-signed certificate database [yes]: ')
             if val != "":
                 if val.lower() == 'no' or val.lower() == "n":
                     slapd['self_sign_cert'] = False
@@ -394,6 +328,15 @@ class SetupDs(object):
             else:
                 # use default
                 break
+
+        # Secure Port (only if using self signed cert)
+        if slapd['self_sign_cert']:
+            if not socket_check_open('::1', slapd['secure_port']):
+                port = get_port(slapd['secure_port'], slapd['secure_port'], secure=True)
+            else:
+                # Port 636 is already taken, pick another port
+                port = get_port(slapd['secure_port'], "", secure=True)
+            slapd['secure_port'] = port
 
         # Root DN
         while 1:
@@ -412,12 +355,12 @@ class SetupDs(object):
 
         # Root DN Password
         while 1:
-            rootpw1 = getpass.getpass('\nEnter Directory Manager Password: ')
+            rootpw1 = getpass.getpass('\nEnter the Directory Manager password: ')
             if rootpw1 == '':
                 print('Password can not be empty')
                 continue
 
-            rootpw2 = getpass.getpass('Confirm Directory Manager Password: ')
+            rootpw2 = getpass.getpass('Confirm the Directory Manager Password: ')
             if rootpw1 != rootpw2:
                 print('Passwords do not match')
                 continue
@@ -454,6 +397,22 @@ class SetupDs(object):
                 backend['suffix'] = suffix
                 break
 
+        # Add sample entries?
+        while 1:
+            val = input("\nCreate sample entries in the suffix [no]: ".format(suffix))
+            if val != "":
+                if val.lower() == "no" or val.lower() == "n":
+                    break
+                if val.lower() == "yes" or val.lower() == "y":
+                    backend['sample_entries'] = INSTALL_LATEST_CONFIG
+                    break
+
+                # Unknown value
+                print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
+                continue
+            else:
+                break
+
         # Are you ready?
         while 1:
             val = input('\nAre you ready to install? [no]: ')
@@ -476,8 +435,7 @@ class SetupDs(object):
         Will trigger a create from the settings stored in inf_path
         """
         # Get the inf file
-        if self.verbose:
-            self.log.info("Using inf from %s", inf_path)
+        self.log.debug("Using inf from %s" % inf_path)
         if not os.path.isfile(inf_path):
             self.log.error("%s is not a valid file path", inf_path)
             return False
@@ -489,9 +447,7 @@ class SetupDs(object):
             self.log.error("Exception %s occured", e)
             return False
 
-        if self.verbose:
-            self.log.info("Configuration %s", config.sections())
-
+        self.log.debug("Configuration %s" % config.sections())
         (general, slapd, backends) = self._validate_ds_config(config)
 
         # Actually do the setup now.
@@ -502,8 +458,7 @@ class SetupDs(object):
     def _prepare_ds(self, general, slapd, backends):
 
         assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
-        if self.verbose:
-            self.log.info("PASSED: using config settings %s", general['defaults'])
+        self.log.debug("PASSED: using config settings %s" % general['defaults'])
         # Validate our arguments.
         assert_c(slapd['user'] is not None, "Configuration user in section [slapd] not found")
         # check the user exists
@@ -516,22 +471,19 @@ class SetupDs(object):
         # Check that we are running as this user / group, or that we are root.
         assert_c(os.geteuid() == 0 or getpass.getuser() == slapd['user'], "Not running as user root or %s, may not have permission to continue" % slapd['user'])
 
-        if self.verbose:
-            self.log.info("PASSED: user / group checking")
+        self.log.debug("PASSED: user / group checking")
 
         assert_c(general['full_machine_name'] is not None, "Configuration full_machine_name in section [general] not found")
         assert_c(general['strict_host_checking'] is not None, "Configuration strict_host_checking in section [general] not found")
         if general['strict_host_checking'] is True:
             # Check it resolves with dns
             assert_c(socket.gethostbyname(general['full_machine_name']), "Strict hostname check failed. Check your DNS records for %s" % general['full_machine_name'])
-            if self.verbose:
-                self.log.info("PASSED: Hostname strict checking")
+            self.log.debug("PASSED: Hostname strict checking")
 
         assert_c(slapd['prefix'] is not None, "Configuration prefix in section [slapd] not found")
         if (slapd['prefix'] != ""):
             assert_c(os.path.exists(slapd['prefix']), "Prefix location '%s' not found" % slapd['prefix'])
-        if self.verbose:
-            self.log.info("PASSED: prefix checking")
+        self.log.debug("PASSED: prefix checking")
 
         # We need to know the prefix before we can do the instance checks
         assert_c(slapd['instance_name'] is not None, "Configuration instance_name in section [slapd] not found")
@@ -544,8 +496,7 @@ class SetupDs(object):
         insts = ds.list(serverid=slapd['instance_name'])
         assert_c(len(insts) == 0, "Another instance named '%s' may already exist" % slapd['instance_name'])
 
-        if self.verbose:
-            self.log.info("PASSED: instance checking")
+        self.log.debug("PASSED: instance checking")
 
         assert_c(slapd['root_dn'] is not None, "Configuration root_dn in section [slapd] not found")
         # Assert this is a valid DN
@@ -571,17 +522,15 @@ class SetupDs(object):
         self._raw_secure_password = password_generate()
         self._secure_password = password_hash(self._raw_secure_password, bin_dir=slapd['bin_dir'])
 
-        if self.verbose:
-            self.log.info("INFO: temp root password set to %s", self._raw_secure_password)
-            self.log.info("PASSED: root user checking")
+        self.log.debug("INFO: temp root password set to %s" % self._raw_secure_password)
+        self.log.debug("PASSED: root user checking")
 
         assert_c(slapd['port'] is not None, "Configuration port in section [slapd] not found")
         assert_c(socket_check_open('::1', slapd['port']) is False, "port %s is already in use" % slapd['port'])
         # We enable secure port by default.
         assert_c(slapd['secure_port'] is not None, "Configuration secure_port in section [slapd] not found")
         assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use" % slapd['secure_port'])
-        if self.verbose:
-            self.log.info("PASSED: network avaliability checking")
+        self.log.debug("PASSED: network avaliability checking")
 
         # Make assert_cions of the paths?
 
@@ -685,7 +634,8 @@ class SetupDs(object):
             # Should create the symlink we need, but without starting it.
             subprocess.check_call(["/usr/bin/systemctl",
                                     "enable",
-                                    "dirsrv@%s" % slapd['instance_name']], stderr=subprocess.DEVNULL)
+                                    "dirsrv@%s" % slapd['instance_name']])
+
         # Else we need to detect other init scripts?
 
         # Bind sockets to our type?
@@ -789,8 +739,8 @@ class SetupDs(object):
         base_config_inst.apply_config(install=True)
 
         # Setup TLS with the instance.
-        ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
+            ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
             ds_instance.config.set('nsslapd-security', 'on')
 
         # Create the backends as listed

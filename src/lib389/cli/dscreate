@@ -25,13 +25,16 @@ parser.add_argument('-v', '--verbose',
                     action='store_true', default=False, dest='verbose')
 subparsers = parser.add_subparsers(help="action")
 
-install_parser = subparsers.add_parser('install', help="Create an instance of Directory Server from an inf answer file")
-install_parser.add_argument('file', nargs="?", default=None, help="Inf file to use with prepared answers. You can generate an example of this with 'dscreate create-template'")
-install_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.",
-                            action='store_true', default=False)
-install_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.",
-                            action='store_true', default=False)
-install_parser.set_defaults(func=cli_instance.instance_create)
+fromfile_parser = subparsers.add_parser('fromfile', help="Create an instance of Directory Server from an inf answer file")
+fromfile_parser.add_argument('file', help="Inf file to use with prepared answers. You can generate an example of this with 'dscreate create-template'")
+fromfile_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.",
+                             action='store_true', default=False)
+fromfile_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.",
+                             action='store_true', default=False)
+fromfile_parser.set_defaults(func=cli_instance.instance_create)
+
+interactive_parser = subparsers.add_parser('interactive', help="Start interactive installer for Directory Server installation")
+interactive_parser.set_defaults(func=cli_instance.instance_create_interactive)
 
 template_parser = subparsers.add_parser('create-template', help="Display an example inf answer file, or provide a file name to write it to disk.")
 template_parser.add_argument('template_file', nargs="?", default=None, help="Write example template to this file")
@@ -42,8 +45,6 @@ argcomplete.autocomplete(parser)
 def signal_handler(signal, frame):
     print('\n\nExiting interactive installation...')
     sys.exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == '__main__':
@@ -63,6 +64,9 @@ if __name__ == '__main__':
         log.error("No action provided, here is some --help.")
         parser.print_help()
         sys.exit(1)
+
+    if not args.verbose:
+        signal.signal(signal.SIGINT, signal_handler)
 
     inst = DirSrv(verbose=args.verbose)
 
