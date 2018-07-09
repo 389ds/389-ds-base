@@ -262,7 +262,7 @@ class Tasks(object):
         dn = entry.dn
         while not done:
             entry = self.conn.getEntry(dn, attrlist=attrlist)
-            self.log.debug("task entry %r" % entry)
+            self.log.debug("task entry %r", entry)
 
             if entry.nsTaskExitCode:
                 exitCode = int(entry.nsTaskExitCode)
@@ -331,11 +331,11 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: import task %s for file %s exited with %d" %
-                           (cn, input_file, exitCode))
+            self.log.error("Error: import task %s for file %s exited with %d",
+                           cn, input_file, exitCode)
         else:
-            self.log.info("Import task %s for file %s completed successfully" %
-                          (cn, input_file))
+            self.log.info("Import task %s for file %s completed successfully",
+                          cn, input_file)
         self.dn = dn
         self.entry = entry
         return exitCode
@@ -400,11 +400,11 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: export task %s for file %s exited with %d" %
-                           (cn, output_file, exitCode))
+            self.log.error("Error: export task %s for file %s exited with %d",
+                           cn, output_file, exitCode)
         else:
-            self.log.info("Export task %s for file %s completed successfully" %
-                          (cn, output_file))
+            self.log.info("Export task %s for file %s completed successfully",
+                          cn, output_file)
 
         self.dn = dn
         self.entry = entry
@@ -444,7 +444,7 @@ class Tasks(object):
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
-            self.log.error("Fail to add the backup task (%s)" % dn)
+            self.log.error("Fail to add the backup task (%s)", dn)
             return -1
 
         exitCode = 0
@@ -452,10 +452,10 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: backup task %s exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: backup task %s exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Backup task %s completed successfully" % (cn))
+            self.log.info("Backup task %s completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -506,7 +506,7 @@ class Tasks(object):
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
-            self.log.error("Fail to add the backup task (%s)" % dn)
+            self.log.error("Fail to add the backup task (%s)", dn)
             return -1
 
         exitCode = 0
@@ -514,10 +514,10 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: restore task %s exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: restore task %s exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Restore task %s completed successfully" % (cn))
+            self.log.info("Restore task %s completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -605,7 +605,7 @@ class Tasks(object):
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
-            self.log.error("Fail to add the index task for %s" % attrname)
+            self.log.error("Fail to add the index task for %s", attrname)
             return -1
 
         exitCode = 0
@@ -613,10 +613,10 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: index task %s exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: index task %s exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Index task %s completed successfully" % (cn))
+            self.log.info("Index task %s completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -692,12 +692,12 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: fixupMemberOf task %s for basedn %s exited with %d" %
-                (cn, suffix, exitCode))
+                "Error: fixupMemberOf task %s for basedn %s exited with %d",
+                cn, suffix, exitCode)
         else:
             self.log.info(
-                "fixupMemberOf task %s for basedn %s completed successfully" %
-                (cn, suffix))
+                "fixupMemberOf task %s for basedn %s completed successfully",
+                cn, suffix)
 
         self.dn = dn
         self.entry = entry
@@ -751,12 +751,14 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: tombstone fixup task %s for backend %s exited with %d"
-                % (cn, bename, exitCode))
+                "Error: tombstone fixup task %s for backend %s exited "
+                "with %d",
+                cn, bename, exitCode)
         else:
             self.log.info(
-                "tombstone fixup task %s for backend %s completed successfully"
-                % (cn, bename))
+                "tombstone fixup task %s for backend %s completed "
+                "successfully",
+                cn, bename)
 
         self.dn = dn
         self.entry = entry
@@ -799,12 +801,12 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: Automember Rebuild Membership task (%s) exited with %d"
-                % (cn, exitCode))
+                "Error: Automember Rebuild Membership task (%s) exited "
+                "with %d", cn, exitCode)
         else:
             self.log.info(
-                "Automember Rebuild Membership task(%s) completed successfully"
-                % (cn))
+                "Automember Rebuild Membership task(%s) completed"
+                "successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -852,12 +854,12 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: Automember Export Updates task (%s) exited with %d" %
-                (cn, exitCode))
+                "Error: Automember Export Updates task (%s) exited with %d",
+                cn, exitCode)
         else:
             self.log.info(
-                "Automember Export Updates task (%s) completed successfully" %
-                (cn))
+                "Automember Export Updates task (%s) completed successfully",
+                cn)
 
         self.dn = dn
         self.entry = entry
@@ -900,12 +902,11 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: Automember Map Updates task (%s) exited with %d" %
-                (cn, exitCode))
+                "Error: Automember Map Updates task (%s) exited with %d",
+                cn, exitCode)
         else:
             self.log.info(
-                "Automember Map Updates task (%s) completed successfully" %
-                (cn))
+                "Automember Map Updates task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -943,12 +944,11 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: Fixup Linked Attributes task (%s) exited with %d" %
-                (cn, exitCode))
+                "Error: Fixup Linked Attributes task (%s) exited with %d",
+                cn, exitCode)
         else:
             self.log.info(
-                "Fixup Linked Attributes task (%s) completed successfully" %
-                (cn))
+                "Fixup Linked Attributes task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -984,11 +984,10 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Schema Reload task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: Schema Reload task (%s) exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Schema Reload task (%s) completed successfully" %
-                          (cn))
+            self.log.info("Schema Reload task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -1028,11 +1027,11 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "fixupWinsyncMembers 'memberuid task' (%s) exited with %d" %
-                (cn, exitCode))
+                "fixupWinsyncMembers 'memberuid task' (%s) exited with %d",
+                cn, exitCode)
         else:
             self.log.info(
-                "'memberuid task' (%s) completed successfully" % (cn))
+                "'memberuid task' (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -1071,11 +1070,11 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Syntax Validate (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: Syntax Validate (%s) exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Syntax Validate task (%s) completed successfully" %
-                          (cn))
+            self.log.info("Syntax Validate task (%s) completed successfully",
+                          cn)
 
         self.dn = dn
         self.entry = entry
@@ -1120,12 +1119,11 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: USN tombstone cleanup task (%s) exited with %d" %
-                (cn, exitCode))
+                "Error: USN tombstone cleanup task (%s) exited with %d",
+                cn, exitCode)
         else:
             self.log.info(
-                "USN tombstone cleanup task (%s) completed successfully" %
-                (cn))
+                "USN tombstone cleanup task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -1168,11 +1166,11 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Sysconfig Reload task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: Sysconfig Reload task (%s) exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Sysconfig Reload task (%s) completed successfully" %
-                          (cn))
+            self.log.info("Sysconfig Reload task (%s) completed successfully",
+                          cn)
 
         self.dn = dn
         self.entry = entry
@@ -1217,11 +1215,10 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: cleanAllRUV task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: cleanAllRUV task (%s) exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("cleanAllRUV task (%s) completed successfully" %
-                          (cn))
+            self.log.info("cleanAllRUV task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -1271,12 +1268,11 @@ class Tasks(object):
 
         if exitCode:
             self.log.error(
-                "Error: Abort cleanAllRUV task (%s) exited with %d" %
-                (cn, exitCode))
+                "Error: Abort cleanAllRUV task (%s) exited with %d",
+                cn, exitCode)
         else:
             self.log.info(
-                "Abort cleanAllRUV task (%s) completed successfully" %
-                (cn))
+                "Abort cleanAllRUV task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry
@@ -1322,10 +1318,10 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: upgradedb task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error("Error: upgradedb task (%s) exited with %d",
+                           cn, exitCode)
         else:
-            self.log.info("Upgradedb task (%s) completed successfully" % (cn))
+            self.log.info("Upgradedb task (%s) completed successfully", cn)
 
         self.dn = dn
         self.entry = entry

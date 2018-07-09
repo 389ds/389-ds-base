@@ -64,11 +64,11 @@ class BackendLegacy(object):
 
         filt = "(objectclass=%s)" % BACKEND_OBJECTCLASS_VALUE
         if backend_dn:
-            self.log.info("List backend %s" % backend_dn)
+            self.log.info("List backend %s", backend_dn)
             base = backend_dn
             scope = ldap.SCOPE_BASE
         elif suffix:
-            self.log.info("List backend with suffix=%s" % suffix)
+            self.log.info("List backend with suffix=%s", suffix)
             base = DN_PLUGIN
             scope = ldap.SCOPE_SUBTREE
             filt = ("(&%s(|(%s=%s)(%s=%s)))" %
@@ -78,7 +78,7 @@ class BackendLegacy(object):
                      normalizeDN(suffix))
                     )
         elif bename:
-            self.log.info("List backend 'cn=%s'" % bename)
+            self.log.info("List backend 'cn=%s'", bename)
             base = "%s=%s,%s" % (BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME],
                                  bename, DN_LDBM)
             scope = ldap.SCOPE_BASE
@@ -155,7 +155,7 @@ class BackendLegacy(object):
                 (suffix, backend_dn, bename))
         elif len(be_ents) > 1:
             for ent in be_ents:
-                self.log.fatal("Multiple backend match the definition: %s" %
+                self.log.fatal("Multiple backend match the definition: %s",
                                ent.dn)
             if (not suffix) and (not backend_dn) and (not bename):
                 raise ldap.UNWILLING_TO_PERFORM(
@@ -193,10 +193,10 @@ class BackendLegacy(object):
         # finally delete the backend children and the backend itself
         ents = self.conn.search_s(be_ent.dn, ldap.SCOPE_ONELEVEL)
         for ent in ents:
-            self.log.debug("Delete entry children %s" % (ent.dn))
+            self.log.debug("Delete entry children %s", ent.dn)
             self.conn.delete_s(ent.dn)
 
-        self.log.debug("Delete backend entry %s" % (be_ent.dn))
+        self.log.debug("Delete backend entry %s", be_ent.dn)
         self.conn.delete_s(be_ent.dn)
 
         return
@@ -246,12 +246,12 @@ class BackendLegacy(object):
                         (BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME],
                          bename, parent))
                 filt = "(objectclass=%s)" % BACKEND_OBJECTCLASS_VALUE
-                self.log.debug("_getBackendName: baser=%s : fileter=%s" %
-                               (base, filt))
+                self.log.debug("_getBackendName: baser=%s : fileter=%s",
+                               base, filt)
                 try:
                     self.conn.getEntry(base, ldap.SCOPE_BASE, filt)
                 except (NoSuchEntryError, ldap.NO_SUCH_OBJECT):
-                    self.log.info("backend name will be %s" % bename)
+                    self.log.info("backend name will be %s", bename)
                     return bename
                 index += 1
 
@@ -265,7 +265,7 @@ class BackendLegacy(object):
 
         # Check it does not already exist a backend for that suffix
         if self.conn.verbose:
-            self.log.info("Checking suffix %s for existence" % suffix)
+            self.log.info("Checking suffix %s for existence", suffix)
         ents = self.conn.backend.list(suffix=suffix)
         if len(ents) != 0:
             raise ldap.ALREADY_EXISTS
@@ -317,13 +317,13 @@ class BackendLegacy(object):
                      properties[BACKEND_CHAIN_BIND_PW]
                      })
 
-            self.log.debug("adding entry: %r" % entry)
+            self.log.debug("adding entry: %r", entry)
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS as e:
-            self.log.error("Entry already exists: %r" % dn)
+            self.log.error("Entry already exists: %r", dn)
             raise ldap.ALREADY_EXISTS("%s : %r" % (e, dn))
         except ldap.LDAPError as e:
-            self.log.error("Could not add backend entry: %r" % dn)
+            self.log.error("Could not add backend entry: %r", dn)
             raise e
 
         backend_entry = self.conn._test_entry(dn, ldap.SCOPE_BASE)
@@ -365,7 +365,7 @@ class BackendLegacy(object):
 
             attrs = [attr_suffix]
             ent = self.conn.getEntry(name, ldap.SCOPE_BASE, filt, attrs)
-            self.log.debug("toSuffix: %s found by its DN" % ent.dn)
+            self.log.debug("toSuffix: %s found by its DN", ent.dn)
 
             if not ent.hasValue(attr_suffix):
                 raise ValueError("Entry has no %s attribute %r" %

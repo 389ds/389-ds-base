@@ -76,7 +76,7 @@ class IndexLegacy(object):
         self.conn.delete_branch_s(dn, ldap.SCOPE_ONELEVEL)
 
         # Then delete the top index entry
-        self.log.debug("Delete head index entry %s" % (dn))
+        self.log.debug("Delete head index entry %s", dn)
         self.conn.delete_s(dn)
 
     def create(self, suffix=None, be_name=None, attr=None, args=None):

@@ -113,10 +113,10 @@ class ReplicaLegacy(object):
                 raise KeyError
         except KeyError:
             if not repl_manager_pw:
-                self.log.warning("replica_createReplMgr: bind DN password " +
+                self.log.warning("replica_createReplMgr: bind DN password "
                                  "not specified")
             if not repl_manager_dn:
-                self.log.warning("replica_createReplMgr: bind DN not " +
+                self.log.warning("replica_createReplMgr: bind DN not "
                                  "specified")
             raise
 
@@ -136,7 +136,7 @@ class ReplicaLegacy(object):
                      'passwordExpirationTime': '20381010000000Z'}
             self.conn.setupBindDN(repl_manager_dn, repl_manager_pw, attrs)
         except ldap.ALREADY_EXISTS:
-            self.log.warn("User already exists (weird we just checked: %s " %
+            self.log.warn("User already exists (weird we just checked: %s ",
                           repl_manager_dn)
 
     def list(self, suffix=None, replica_dn=None):
@@ -215,8 +215,8 @@ class ReplicaLegacy(object):
             if not inProperties(prop, REPLICA_PROPNAME_TO_ATTRNAME):
                 raise ValueError("unknown property: %s" % prop)
             else:
-                self.log.debug("setProperties: %s:%s" %
-                               (prop, properties[prop]))
+                self.log.debug("setProperties: %s:%s",
+                               prop, properties[prop])
 
         # At least we need to have suffix/replica_dn/replica_entry
         if not suffix and not replica_dn and not replica_entry:
@@ -334,12 +334,12 @@ class ReplicaLegacy(object):
             raise InvalidArgumentError("role missing")
 
         if not ReplicaLegacy._valid_role(role):
-            self.log.fatal("enableReplication: replica role invalid (%s) " % role)
+            self.log.fatal("enableReplication: replica role invalid (%s) ", role)
             raise ValueError("invalid role: %s" % role)
 
         # check the validity of 'rid'
         if not ReplicaLegacy._valid_rid(role, rid=rid):
-            self.log.fatal("Replica.create: replica role is master but 'rid'" +
+            self.log.fatal("Replica.create: replica role is master but 'rid'"
                            " is missing or invalid value")
             raise InvalidArgumentError("rid missing or invalid value")
 
@@ -390,7 +390,7 @@ class ReplicaLegacy(object):
         dn_replica = ','.join((RDN_REPLICA, mtent.dn))
         try:
             entry = self.conn.getEntry(dn_replica, ldap.SCOPE_BASE)
-            self.log.warn("Already setup replica for suffix %r" % nsuffix)
+            self.log.warn("Already setup replica for suffix %r", nsuffix)
             self.conn.suffixes.setdefault(nsuffix, {})
             self.conn.replica.setProperties(replica_dn=dn_replica,
                                             properties=properties)
@@ -434,13 +434,13 @@ class ReplicaLegacy(object):
                 try:
                     self.conn.delete_s(agmt.dn)
                 except ldap.LDAPError as e:
-                    self.log.fatal('Failed to delete replica agreement (%s),' +
-                                   ' error: %s' %
-                                   (agmt.dn, str(e)))
+                    self.log.fatal('Failed to delete replica agreement (%s),'
+                                   ' error: %s',
+                                   agmt.dn, e)
                     raise
         except ldap.LDAPError as e:
-            self.log.fatal('Failed to search for replication agreements ' +
-                           'under (%s), error: %s' % (dn_replica, str(e)))
+            self.log.fatal('Failed to search for replication agreements '
+                           'under (%s), error: %s', dn_replica, e)
             raise
 
     def disableReplication(self, suffix=None):
@@ -481,8 +481,8 @@ class ReplicaLegacy(object):
         try:
             self.conn.delete_s(dn_replica)
         except ldap.LDAPError as e:
-            self.log.fatal('Failed to delete replica configuration ' +
-                           '(%s), error: %s' % (dn_replica, str(e)))
+            self.log.fatal('Failed to delete replica configuration '
+                           '(%s), error: %s', dn_replica, e)
             raise
 
     def enableReplication(self, suffix=None, role=None,
@@ -493,7 +493,7 @@ class ReplicaLegacy(object):
             raise ValueError("suffix missing")
 
         if not role:
-            self.log.fatal("enableReplication: replica role not specify " +
+            self.log.fatal("enableReplication: replica role not specify "
                            "(ReplicaRole.*)")
             raise ValueError("role missing")
 
@@ -502,10 +502,11 @@ class ReplicaLegacy(object):
         #
 
         # First role and replicaID
-        if role != ReplicaRole.MASTER and \
-           role != ReplicaRole.HUB and \
-           role != ReplicaRole.CONSUMER:
-            self.log.fatal("enableReplication: replica role invalid (%s) " %
+        if (role != ReplicaRole.MASTER and
+            role != ReplicaRole.HUB and
+            role != ReplicaRole.CONSUMER
+        ):
+            self.log.fatal("enableReplication: replica role invalid (%s) ",
                            role)
             raise ValueError("invalid role: %s" % role)
 
@@ -515,29 +516,29 @@ class ReplicaLegacy(object):
                (replicaId <= 0) or \
                (replicaId >= CONSUMER_REPLICAID):
                 self.log.fatal("enableReplication: invalid replicaId (%s) "
-                               "for a RW replica" % replicaId)
+                               "for a RW replica", replicaId)
                 raise ValueError("invalid replicaId %d (expected [1.."
                                  "CONSUMER_REPLICAID]" % replicaId)
         elif replicaId != CONSUMER_REPLICAID:
             # check the replicaId is CONSUMER_REPLICAID
             self.log.fatal("enableReplication: invalid replicaId (%s) for a "
-                           "Read replica (expected %d)" %
-                           (replicaId, CONSUMER_REPLICAID))
+                           "Read replica (expected %d)",
+                           replicaId, CONSUMER_REPLICAID)
             raise ValueError("invalid replicaId: %d for HUB/CONSUMER "
                              "replicaId is CONSUMER_REPLICAID" % replicaId)
 
         # Now check we have a suffix
         entries_backend = self.conn.backend.list(suffix=suffix)
         if not entries_backend:
-            self.log.fatal("enableReplication: unable to retrieve the " +
-                           "backend for %s" % suffix)
+            self.log.fatal("enableReplication: unable to retrieve the "
+                           "backend for %s", suffix)
             raise ValueError("no backend for suffix %s" % suffix)
 
         ent = entries_backend[0]
         if normalizeDN(suffix) != normalizeDN(ent.getValue('nsslapd-suffix')):
             self.log.warning("enableReplication: suffix (%s) and backend "
-                             "suffix (%s) differs" %
-                             (suffix, entries_backend[0].nsslapd - suffix))
+                             "suffix (%s) differs",
+                             suffix, entries_backend[0].nsslapd - suffix)
             pass
 
         # Now prepare the bindDN property
@@ -551,7 +552,7 @@ class ReplicaLegacy(object):
                 # weird, internal error we do not retrieve the default
                 # replication bind DN this replica will not be updatable
                 # through replication until the binddn property will be set
-                self.log.warning("enableReplication: binddn not provided and" +
+                self.log.warning("enableReplication: binddn not provided and"
                                  " default value unavailable")
                 pass
 
@@ -586,7 +587,7 @@ class ReplicaLegacy(object):
             entry = self.conn.getEntry(
                 agmtdn, ldap.SCOPE_BASE, "(objectclass=*)", attrlist)
         except NoSuchEntryError:
-            self.log.exception("Error reading status from agreement %r" %
+            self.log.exception("Error reading status from agreement %r",
                                agmtdn)
             hasError = 1
         else:
@@ -639,7 +640,7 @@ class ReplicaLegacy(object):
         """Initialize replication without waiting.
             @param agmtdn - agreement dn
         """
-        self.log.info("Starting async replication %s" % agmtdn)
+        self.log.info("Starting async replication %s", agmtdn)
         mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', b'start')]
         self.conn.modify_s(agmtdn, mod)
 
@@ -666,8 +667,8 @@ class ReplicaLegacy(object):
         if ents and (len(ents) > 0):
             ent = ents[0]
         elif tryrepl:
-            self.log.warn("Could not get RUV from %r entry -" +
-                          " trying cn=replica" % suffix)
+            self.log.warn("Could not get RUV from %r entry -"
+                          " trying cn=replica", suffix)
             ensuffix = escapeDNValue(normalizeDN(suffix))
             dn = ','.join(("cn=replica", "cn=%s" % ensuffix, DN_MAPPING_TREE))
             ents = self.conn.search_s(dn, ldap.SCOPE_BASE, "objectclass=*",
@@ -675,7 +676,7 @@ class ReplicaLegacy(object):
 
         if ents and (len(ents) > 0):
             ent = ents[0]
-            self.log.debug("RUV entry is %r" % ent)
+            self.log.debug("RUV entry is %r", ent)
             return RUV(ent)
 
         raise NoSuchEntryError("RUV not found: suffix: %r" % suffix)

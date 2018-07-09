@@ -336,7 +336,7 @@ class AgreementLegacy(object):
             raise
 
         # update it
-        self.log.info("Schedule replication agreement %s" % agmtdn)
+        self.log.info("Schedule replication agreement %s", agmtdn)
         mod = [(ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [ensure_bytes(interval)])]
         self.conn.modify_s(agmtdn, mod)
 
@@ -436,12 +436,12 @@ class AgreementLegacy(object):
             if not inProperties(prop, RA_PROPNAME_TO_ATTRNAME):
                 raise ValueError("unknown property: %s" % prop)
             else:
-                self.log.debug("setProperties: %s:%s" %
-                               (prop, properties[prop]))
+                self.log.debug("setProperties: %s:%s",
+                               prop, properties[prop])
 
         # At least we need to have suffix/agmnt_dn/agmnt_entry
         if not suffix and not agmnt_dn and not agmnt_entry:
-            raise InvalidArgumentError("suffix and agmnt_dn and agmnt_entry " +
+            raise InvalidArgumentError("suffix and agmnt_dn and agmnt_entry "
                                        "are missing")
 
         # TODO
@@ -634,7 +634,7 @@ class AgreementLegacy(object):
         # we can just raise ALREADY_EXISTS
         try:
             entry = self.conn.getEntry(dn_agreement, ldap.SCOPE_BASE)
-            self.log.warn("Agreement already exists: %r" % dn_agreement)
+            self.log.warn("Agreement already exists: %r", dn_agreement)
             return dn_agreement
         except ldap.NO_SUCH_OBJECT:
             entry = None
@@ -657,10 +657,10 @@ class AgreementLegacy(object):
             self.conn.setupWinSyncAgmt(propertiescopy, entry)
 
         try:
-            self.log.debug("Adding replica agreement: [%r]" % entry)
+            self.log.debug("Adding replica agreement: [%r]", entry)
             self.conn.add_s(entry)
         except ldap.LDAPError as e:
-            self.log.fatal('Failed to add replication agreement: %s' % str(e))
+            self.log.fatal('Failed to add replication agreement: %s', e)
             raise e
 
         entry = self.conn.waitForEntry(dn_agreement)
@@ -728,10 +728,10 @@ class AgreementLegacy(object):
                 try:
                     agmt_dn = agmts[0].dn
                     self.conn.delete_s(agmt_dn)
-                    self.log.info('Agreement (%s) was successfully removed' % agmt_dn)
+                    self.log.info('Agreement (%s) was successfully removed', agmt_dn)
                 except ldap.LDAPError as e:
-                    self.log.error('Failed to delete agreement (%s), ' +
-                                   'error: %s' % (agmt_dn, str(e)))
+                    self.log.error('Failed to delete agreement (%s), '
+                                   'error: %s', agmt_dn, e)
                     raise
         else:
             raise NoSuchEntryError('No agreements were found')
@@ -777,8 +777,8 @@ class AgreementLegacy(object):
             raise NoSuchEntryError(
                 "Error: no replica set up for suffix " + suffix)
         replica_entry = replica_entries[0]
-        self.log.debug("initAgreement: looking for replica agreements " +
-                       "under %s" % replica_entry.dn)
+        self.log.debug("initAgreement: looking for replica agreements "
+                       "under %s", replica_entry.dn)
         try:
             '''
             Currently python does not like long continuous lines when it
@@ -802,7 +802,7 @@ class AgreementLegacy(object):
         #
         # trigger the total init
         #
-        self.log.info("Starting total init %s" % entry.dn)
+        self.log.info("Starting total init %s", entry.dn)
         mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', ensure_bytes('start'))]
         self.conn.modify_s(entry.dn, mod)
 
@@ -827,7 +827,7 @@ class AgreementLegacy(object):
         :raises: ValueError - if interval is not valid
         """
 
-        self.log.info("Pausing replication %s" % agmtdn)
+        self.log.info("Pausing replication %s", agmtdn)
         mod = [(ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', [b'off'])]
         self.conn.modify_s(ensure_str(agmtdn), mod)
 
@@ -853,7 +853,7 @@ class AgreementLegacy(object):
                   - ldap.NO_SUCH_OBJECT - if agmtdn does not exist
         """
 
-        self.log.info("Resuming replication %s" % agmtdn)
+        self.log.info("Resuming replication %s", agmtdn)
         mod = [(ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', [b'on'])]
         self.conn.modify_s(ensure_str(agmtdn), mod)
 

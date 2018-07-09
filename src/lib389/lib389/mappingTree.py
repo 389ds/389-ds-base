@@ -69,7 +69,7 @@ class MappingTreeLegacy(object):
             ents = self.conn.search_s(DN_MAPPING_TREE, ldap.SCOPE_ONELEVEL,
                                       filt)
             for ent in ents:
-                self.log.debug('list: %r' % ent)
+                self.log.debug('list: %r', ent)
         except:
             raise
 
@@ -151,8 +151,8 @@ class MappingTreeLegacy(object):
             entry.setValues(MT_PROPNAME_TO_ATTRNAME[MT_PARENT_SUFFIX], nparent)
 
         try:
-            self.log.debug("Creating entry: %s" % entry.dn)
-            self.log.info("Entry %r" % entry)
+            self.log.debug("Creating entry: %s", entry.dn)
+            self.log.info("Entry %r", entry)
             self.conn.add_s(entry)
         except ldap.LDAPError as e:
             raise ldap.LDAPError("Error adding suffix entry " + dn, e)
@@ -187,7 +187,7 @@ class MappingTreeLegacy(object):
             filt = "(objectclass=%s)" % MT_OBJECTCLASS_VALUE
             try:
                 ent = self.conn.getEntry(name, ldap.SCOPE_BASE, filt)
-                self.log.debug("delete: %s found by its DN" % ent.dn)
+                self.log.debug("delete: %s found by its DN", ent.dn)
             except NoSuchEntryError:
                 raise ldap.NO_SUCH_OBJECT("mapping tree DN not found: %s" %
                                           name)
@@ -210,7 +210,7 @@ class MappingTreeLegacy(object):
             try:
                 ent = self.conn.getEntry(DN_MAPPING_TREE, ldap.SCOPE_ONELEVEL,
                                          filt)
-                self.log.debug("delete: %s found by with %s" % (ent.dn, filt))
+                self.log.debug("delete: %s found by with %s", ent.dn, filt)
             except NoSuchEntryError:
                 raise ldap.NO_SUCH_OBJECT("mapping tree DN not found: %s" %
                                           name)
@@ -227,13 +227,13 @@ class MappingTreeLegacy(object):
             raise
         if len(ents) != 1:
             for entry in ents:
-                self.log.warning("Error: it exists %s under %s" %
-                                 (entry.dn, ent.dn))
+                self.log.warning("Error: it exists %s under %s",
+                                 entry.dn, ent.dn)
             raise ldap.UNWILLING_TO_PERFORM(
                 "Unable to delete %s, it is not a leaf" % ent.dn)
         else:
             for entry in ents:
-                self.log.warning("Warning: %s (%s)" % (entry.dn, ent.dn))
+                self.log.warning("Warning: %s (%s)", entry.dn, ent.dn)
             self.conn.delete_s(ent.dn)
 
     def getProperties(self, suffix=None, bename=None, name=None,
@@ -272,7 +272,7 @@ class MappingTreeLegacy(object):
                 ent = self.conn.getEntry(name, ldap.SCOPE_BASE, filt,
                                          list(MT_PROPNAME_TO_ATTRNAME.values())
                                          )
-                self.log.debug("delete: %s found by its DN" % ent.dn)
+                self.log.debug("delete: %s found by its DN", ent.dn)
             except NoSuchEntryError:
                 raise ldap.NO_SUCH_OBJECT("mapping tree DN not found: %s" %
                                           name)
@@ -296,7 +296,7 @@ class MappingTreeLegacy(object):
                                          filt,
                                          list(MT_PROPNAME_TO_ATTRNAME.values())
                                          )
-                self.log.debug("delete: %s found by with %s" % (ent.dn, filt))
+                self.log.debug("delete: %s found by with %s", ent.dn, filt)
             except NoSuchEntryError:
                 raise ldap.NO_SUCH_OBJECT("mapping tree DN not found: %s" %
                                           name)
@@ -311,8 +311,8 @@ class MappingTreeLegacy(object):
                 prop_attr = MT_PROPNAME_TO_ATTRNAME[prop_name]
                 if not prop_attr:
                     raise ValueError("Improper property name: %s ", prop_name)
-                self.log.debug("Look for attr %s (property: %s)" %
-                               (prop_attr, prop_name))
+                self.log.debug("Look for attr %s (property: %s)",
+                               prop_attr, prop_name)
                 attrs.append(prop_attr)
 
         # now look for each attribute from the MT entry
@@ -327,7 +327,7 @@ class MappingTreeLegacy(object):
                 if len(attrs) > 0:
                     if MT_PROPNAME_TO_ATTRNAME[props[0]] in attrs:
                         # if the properties was requested
-                        self.log.debug("keep only attribute %s " % (props[0]))
+                        self.log.debug("keep only attribute %s ", props[0])
                         result[props[0]] = ent.getValues(attr)
                 else:
                     result[props[0]] = ent.getValues(attr)
@@ -365,7 +365,7 @@ class MappingTreeLegacy(object):
             try:
                 attrs = [attr_suffix]
                 ent = self.conn.getEntry(name, ldap.SCOPE_BASE, filt, attrs)
-                self.log.debug("toSuffix: %s found by its DN" % ent.dn)
+                self.log.debug("toSuffix: %s found by its DN", ent.dn)
             except NoSuchEntryError:
                 raise ldap.NO_SUCH_OBJECT("mapping tree DN not found: %s" %
                                           name)

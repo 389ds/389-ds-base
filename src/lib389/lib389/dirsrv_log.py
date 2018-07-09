@@ -208,7 +208,7 @@ class DirsrvAccessLog(DirsrvLog):
         }
         # First, pull some well known info out.
         if self.dirsrv.verbose:
-            self.log.info("--> %s " % line)
+            self.log.info("--> %s ", line)
 
         for regex in self.full_regexs:
             result = regex.match(line)

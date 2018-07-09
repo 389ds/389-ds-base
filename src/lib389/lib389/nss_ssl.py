@@ -133,9 +133,9 @@ class NssSsl(object):
         # 48886; This needs to be sql format ...
         cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
-        self.log.debug("nss output: %s" % result)
+        self.log.debug("nss output: %s", result)
         return True
 
     def _db_exists(self):
@@ -198,9 +198,9 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
-        self.log.debug("nss output: %s" % result)
+        self.log.debug("nss output: %s", result)
         # Now extract the CAcert to a well know place.
         # This allows us to point the cacert dir here and it "just works"
         cmd = [
@@ -212,12 +212,12 @@ class NssSsl(object):
             self._certdb,
             '-a',
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         certdetails = check_output(cmd, stderr=subprocess.STDOUT)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
         cmd = ['/usr/bin/c_rehash', self._certdb]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
         return True
 
@@ -234,7 +234,7 @@ class NssSsl(object):
             '-d',
             self._certdb,
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
         end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
         date_format = '%a %b %d %H:%M:%S %Y'
@@ -273,7 +273,7 @@ class NssSsl(object):
             '-a',
             '-o', csr_path,
             ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         # Sign the CSR with our old CA
@@ -295,11 +295,11 @@ class NssSsl(object):
             '-v',
             '%s' % months,
             ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         cmd = ['/usr/bin/c_rehash', self._certdb]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         # Import the new CA to our DB instead of the old CA
@@ -313,7 +313,7 @@ class NssSsl(object):
             '-d', self._certdb,
             '-f', '%s/%s' % (self._certdb, PWD_TXT),
             ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         return crt_path
@@ -330,11 +330,11 @@ class NssSsl(object):
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
 
         # We can skip the first few lines. They are junk
-        # IE ['', 
-        #     'Certificate Nickname                                         Trust Attributes', 
-        #     '                                                             SSL,S/MIME,JAR/XPI', 
-        #     '', 
-        #     'Self-Signed-CA                                               CTu,u,u', 
+        # IE ['',
+        #     'Certificate Nickname                                         Trust Attributes',
+        #     '                                                             SSL,S/MIME,JAR/XPI',
+        #     '',
+        #     'Self-Signed-CA                                               CTu,u,u',
         #     '']
         lines = result.split('\n')[4:-1]
         # Now make the lines usable
@@ -354,7 +354,7 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
 
         lines = result.split('\n')[1:-1]
@@ -456,9 +456,9 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
-        self.log.debug("nss output: %s" % result)
+        self.log.debug("nss output: %s", result)
         return True
 
     def create_rsa_key_and_csr(self, alt_names=[]):
@@ -501,7 +501,7 @@ class NssSsl(object):
             '-a',
             '-o', csr_path,
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         return csr_path
@@ -527,7 +527,7 @@ class NssSsl(object):
             '-o', crt_path,
             '-c', CA_NAME,
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         return (ca_path, crt_path)
@@ -544,7 +544,7 @@ class NssSsl(object):
         if ca is not None:
             shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
             cmd = ['/usr/bin/c_rehash', self._certdb]
-            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
             check_output(cmd, stderr=subprocess.STDOUT)
             cmd = [
                 '/usr/bin/certutil',
@@ -557,7 +557,7 @@ class NssSsl(object):
                 '-f',
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
-            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
             check_output(cmd, stderr=subprocess.STDOUT)
 
         if crt is not None:
@@ -572,7 +572,7 @@ class NssSsl(object):
                 '-f',
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
-            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
             check_output(cmd, stderr=subprocess.STDOUT)
             cmd = [
                 '/usr/bin/certutil',
@@ -581,7 +581,7 @@ class NssSsl(object):
                 '-n', CERT_NAME,
                 '-u', 'YCV'
             ]
-            self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
             check_output(cmd, stderr=subprocess.STDOUT)
 
     def create_rsa_user(self, name, months=VALID):
@@ -624,10 +624,10 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
 
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
-        self.log.debug("nss output: %s" % result)
+        self.log.debug("nss output: %s", result)
         # Now extract this into PEM files that we can use.
         # pk12util -o user-william.p12 -d . -k pwdfile.txt -n user-william -W ''
         cmd = [
@@ -638,7 +638,7 @@ class NssSsl(object):
             '-n', '%s%s' % (USER_PREFIX, name),
             '-W', '""'
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
         # openssl pkcs12 -in user-william.p12 -passin pass:'' -out file.pem -nocerts -nodes
         # Extract the key
@@ -651,7 +651,7 @@ class NssSsl(object):
             '-nocerts',
             '-nodes'
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
         # Extract the cert
         cmd = [
@@ -664,7 +664,7 @@ class NssSsl(object):
             '-clcerts',
             '-nodes'
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
         # Convert the cert for userCertificate attr
         cmd = [
@@ -675,7 +675,7 @@ class NssSsl(object):
             '-in', '%s/%s%s.crt' % (self._certdb, USER_PREFIX, name),
             '-out', '%s/%s%s.der' % (self._certdb, USER_PREFIX, name),
         ]
-        self.log.debug("nss cmd: %s" % format_cmd_list(cmd))
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
         return subject

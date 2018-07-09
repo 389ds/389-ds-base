@@ -117,7 +117,7 @@ class SetupDs(object):
         except ValueError:
             return value
         except configparser.NoOptionError:
-            self.log.info("%s not specified:setting to default - %s" % (attr, value))
+            self.log.info("%s not specified:setting to default - %s", attr, value)
             return value
 
     def _validate_config_2(self, config):
@@ -139,7 +139,7 @@ class SetupDs(object):
         general = general_options.collect()
 
         if self.verbose:
-            self.log.info("Configuration general %s" % general)
+            self.log.info("Configuration general %s", general)
 
         slapd_options = Slapd2Base(self.log)
         slapd_options.parse_inf_config(config)
@@ -147,7 +147,7 @@ class SetupDs(object):
         slapd = slapd_options.collect()
 
         if self.verbose:
-            self.log.info("Configuration slapd %s" % slapd)
+            self.log.info("Configuration slapd %s", slapd)
 
         backends = []
         for section in config.sections():
@@ -183,7 +183,7 @@ class SetupDs(object):
                     backends.append(be)
 
         if self.verbose:
-            self.log.info("Configuration backends %s" % backends)
+            self.log.info("Configuration backends %s", backends)
 
         return (general, slapd, backends)
 
@@ -477,20 +477,20 @@ class SetupDs(object):
         """
         # Get the inf file
         if self.verbose:
-            self.log.info("Using inf from %s" % inf_path)
+            self.log.info("Using inf from %s", inf_path)
         if not os.path.isfile(inf_path):
-            self.log.error("%s is not a valid file path" % inf_path)
+            self.log.error("%s is not a valid file path", inf_path)
             return False
         config = None
         try:
             config = configparser.SafeConfigParser()
             config.read([inf_path])
         except Exception as e:
-            self.log.error("Exception %s occured" % e)
+            self.log.error("Exception %s occured", e)
             return False
 
         if self.verbose:
-            self.log.info("Configuration %s" % config.sections())
+            self.log.info("Configuration %s", config.sections())
 
         (general, slapd, backends) = self._validate_ds_config(config)
 
@@ -503,7 +503,7 @@ class SetupDs(object):
 
         assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
         if self.verbose:
-            self.log.info("PASSED: using config settings %s" % general['defaults'])
+            self.log.info("PASSED: using config settings %s", general['defaults'])
         # Validate our arguments.
         assert_c(slapd['user'] is not None, "Configuration user in section [slapd] not found")
         # check the user exists
@@ -572,7 +572,7 @@ class SetupDs(object):
         self._secure_password = password_hash(self._raw_secure_password, bin_dir=slapd['bin_dir'])
 
         if self.verbose:
-            self.log.info("INFO: temp root password set to %s" % self._raw_secure_password)
+            self.log.info("INFO: temp root password set to %s", self._raw_secure_password)
             self.log.info("PASSED: root user checking")
 
         assert_c(slapd['port'] is not None, "Configuration port in section [slapd] not found")
@@ -596,14 +596,14 @@ class SetupDs(object):
 
         # Check we have privs to run
         if self.verbose:
-            self.log.info("READY: Preparing installation for %s..." % slapd['instance_name'])
+            self.log.info("READY: Preparing installation for %s...", slapd['instance_name'])
 
         self._prepare_ds(general, slapd, backends)
         # Call our child api to prepare itself.
         self._prepare(extra)
 
         if self.verbose:
-            self.log.info("READY: Beginning installation for %s..." % slapd['instance_name'])
+            self.log.info("READY: Beginning installation for %s...", slapd['instance_name'])
 
         if self.dryrun:
             self.log.info("NOOP: Dry run requested")
@@ -613,9 +613,9 @@ class SetupDs(object):
             # Call the child api to do anything it needs.
             self._install(extra)
         if self.verbose:
-            self.log.info("FINISH: Completed installation for %s" % slapd['instance_name'])
+            self.log.info("FINISH: Completed installation for %s", slapd['instance_name'])
         else:
-            self.log.info("Completed installation for %s" % slapd['instance_name'])
+            self.log.info("Completed installation for %s", slapd['instance_name'])
 
     def _install_ds(self, general, slapd, backends):
         """
@@ -649,7 +649,7 @@ class SetupDs(object):
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir? schema_dir,
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             if self.verbose:
-                self.log.info("ACTION: creating %s" % slapd[path])
+                self.log.info("ACTION: creating %s", slapd[path])
             try:
                 os.makedirs(slapd[path], mode=0o775)
             except OSError:
@@ -692,7 +692,7 @@ class SetupDs(object):
 
         # Create certdb in sysconfidir
         if self.verbose:
-            self.log.info("ACTION: Creating certificate database is %s" % slapd['cert_dir'])
+            self.log.info("ACTION: Creating certificate database is %s", slapd['cert_dir'])
 
         # Create dse.ldif with a temporary root password.
         # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif

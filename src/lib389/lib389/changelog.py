@@ -122,12 +122,12 @@ class ChangelogLegacy(object):
             CHANGELOG_PROPNAME_TO_ATTRNAME[CHANGELOG_NAME]: changelog_name,
             CHANGELOG_PROPNAME_TO_ATTRNAME[CHANGELOG_DIR]: dirpath
         })
-        self.log.debug("adding changelog entry: %r" % entry)
+        self.log.debug("adding changelog entry: %r", entry)
         self.conn.changelogdir = dirpath
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
-            self.log.warn("entry %s already exists" % dn)
+            self.log.warn("entry %s already exists", dn)
         return dn
 
     def delete(self):
@@ -139,7 +139,7 @@ class ChangelogLegacy(object):
         try:
             self.conn.delete_s(DN_CHANGELOG)
         except ldap.LDAPError as e:
-            self.log.error('Failed to delete the changelog: ' + str(e))
+            self.log.error('Failed to delete the changelog: %s', e)
             raise
 
     def setProperties(self, changelogdn=None, properties=None):

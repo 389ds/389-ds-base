@@ -74,7 +74,7 @@ class Options2(object):
                 err_msg = ('Invalid value in section "%s", "%s" has incorrect type (%s)' % (self._section, k, str(e)))
                 raise ValueError(err_msg)
             except configparser.NoOptionError:
-                self.log.debug('%s:%s not in inf, using default' % (self._section, k))
+                self.log.debug('%s:%s not in inf, using default', self._section, k)
                 continue
             self._options[k] = v
 
