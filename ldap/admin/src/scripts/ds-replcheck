@@ -10,18 +10,19 @@
 #
 
 import os
+import sys
 import re
 import time
 import ldap
 import ldapurl
 import argparse
 import getpass
-
+from ldif import LDIFRecordList
 from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
 from ldap.controls import SimplePagedResultsControl
 
-VERSION = "1.3"
+VERSION = "1.4"
 RUV_FILTER = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
 LDAP = 'ldap'
 LDAPS = 'ldaps'
@@ -394,14 +395,17 @@ def ldif_search(LDIF, dn):
     return result
 
 
-def get_dns(LDIF, opts):
+def get_dns(LDIF, filename, opts):
     ''' Get all the DN's from an LDIF file
     '''
     dns = []
     found = False
+    found_ruv = False
+    LDIF.seek(0)
     for line in LDIF:
         if line.startswith('dn: ') and line[4:].startswith('nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff'):
             opts['ruv_dn'] = line[4:].lower().strip()
+            found_ruv = True
         elif line.startswith('dn: '):
             found = True
             dn = line[4:].lower().strip()
@@ -415,6 +419,14 @@ def get_dns(LDIF, opts):
             found = False
             dns.append(dn)
 
+    if not found_ruv:
+        print('Failed to find the database RUV in the LDIF file: ' + filename + ', the LDIF ' +
+              'file must contain replication state information.')
+        dns = None
+    else:
+        # All good, reset cursor
+        LDIF.seek(0)
+
     return dns
 
 
@@ -423,6 +435,7 @@ def get_ldif_ruv(LDIF, opts):
     '''
     LDIF.seek(0)
     result = ldif_search(LDIF, opts['ruv_dn'])
+    LDIF.seek(0)  # Reset cursor
     return result['entry'].data['nsds50ruv']
 
 
@@ -557,6 +570,7 @@ def do_offline_report(opts, output_file=None):
     rconflicts = []
     rtombstones = 0
     mtombstones = 0
+    idx = 0
 
     # Open LDIF files
     try:
@@ -569,12 +583,36 @@ def do_offline_report(opts, output_file=None):
         RLDIF = open(opts['rldif'], "r")
     except Exception as e:
         print('Failed to open Replica LDIF: ' + str(e))
+        MLDIF.close()
+        return None
+
+    # Verify LDIF Files
+    try:
+        print("Validating Master ldif file ({})...".format(opts['mldif']))
+        LDIFRecordList(MLDIF).parse()
+    except ValueError:
+        print('Master LDIF file in invalid, aborting...')
+        MLDIF.close()
+        RLDIF.close()
+        return None
+    try:
+        print("Validating Replica ldif file ({})...".format(opts['rldif']))
+        LDIFRecordList(RLDIF).parse()
+    except ValueError:
+        print('Replica LDIF file is invalid, aborting...')
+        MLDIF.close()
+        RLDIF.close()
         return None
 
     # Get all the dn's, and entry counts
     print ("Gathering all the DN's...")
-    master_dns = get_dns(MLDIF, opts)
-    replica_dns = get_dns(RLDIF, opts)
+    master_dns = get_dns(MLDIF, opts['mldif'], opts)
+    replica_dns = get_dns(RLDIF, opts['rldif'], opts)
+    if master_dns is None or replica_dns is None:
+        print("Aborting scan...")
+        MLDIF.close()
+        RLDIF.close()
+        sys.exit(1)
     m_count = len(master_dns)
     r_count = len(replica_dns)
 
@@ -582,11 +620,6 @@ def do_offline_report(opts, output_file=None):
     print ("Gathering the database RUV's...")
     opts['master_ruv'] = get_ldif_ruv(MLDIF, opts)
     opts['replica_ruv'] = get_ldif_ruv(RLDIF, opts)
-
-    # Reset the cursors
-    idx = 0
-    MLDIF.seek(idx)
-    RLDIF.seek(idx)
 
     """ Compare the master entries with the replica's.  Take our list of dn's from
     the master ldif and get that entry( dn) from the master and replica ldif.  In
