@@ -299,6 +299,16 @@ int config_set_pwpolicy_local(const char *attrname, char *value, char *errorbuf,
 int config_set_allow_hashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pwpolicy_inherit_global(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_syntax(const char *attrname, char *value, char *errorbuf, int apply);
+
+int32_t config_set_pw_palindrome(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_dict_check(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_user_attrs(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_bad_words(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_max_seq_sets(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_max_seq(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_pw_max_class_repeats(const char *attrname, char *value, char *errorbuf, int apply);
+
 int config_set_pw_minlength(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_mindigits(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_minalphas(const char *attrname, char *value, char *errorbuf, int apply);

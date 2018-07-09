@@ -397,6 +397,14 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_PW_LOCKDURATION 3600
 #define SLAPD_DEFAULT_PW_LOCKDURATION_STR "3600"
 
+#define SLAPD_DEFAULT_PW_MAX_SEQ_ATTRIBUTE 0
+#define SLAPD_DEFAULT_PW_MAX_SEQ_ATTRIBUTE_STR "0"
+#define SLAPD_DEFAULT_PW_MAX_SEQ_SETS_ATTRIBUTE 0
+#define SLAPD_DEFAULT_PW_MAX_SEQ_SETS_ATTRIBUTE_STR "0"
+#define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE 0
+#define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE_STR "0"
+
+
 /* Default password values. */
 
 /* ================ END CONFIGURATION DEFAULTS ============================ */
@@ -1752,16 +1760,33 @@ typedef struct passwordpolicyarray
     slapi_onoff_t pw_change;      /* 1 - indicates that users are allowed to change the pwd */
     slapi_onoff_t pw_must_change; /* 1 - indicates that users must change pwd upon reset */
     slapi_onoff_t pw_syntax;
-    int pw_minlength;
-    int pw_mindigits;
-    int pw_minalphas;
-    int pw_minuppers;
-    int pw_minlowers;
-    int pw_minspecials;
-    int pw_min8bit;
-    int pw_maxrepeats;
-    int pw_mincategories;
-    int pw_mintokenlength;
+    int32_t pw_minlength;
+    int32_t pw_mindigits;
+    int32_t pw_minalphas;
+    int32_t pw_minuppers;
+    int32_t pw_minlowers;
+    int32_t pw_minspecials;
+    int32_t pw_min8bit;
+    int32_t pw_maxrepeats;
+    int32_t pw_mincategories;
+    int32_t pw_mintokenlength;
+
+    slapi_onoff_t pw_palindrome;  /* Reject passwords that are palindromes */
+    int32_t pw_max_seq;           /* max number of monotonic sequences: 2345, lmnop */
+    int32_t pw_seq_char_sets;     /* max number of identical monotonic sequences that are
+                                   * allowed multiple times.  For example: "az12of12", if
+                                   * value is set to 2, meaning sequence of two
+                                   * characters, then this password would be blocked.  If
+                                   * it's set to 3, then the password is allowed. */
+    int32_t pw_max_class_repeats; /* The maximum number of consecutive characters from
+                                     the same character class. */
+    slapi_onoff_t pw_check_dict;
+    char *pw_dict_path;           /* custom dictionary */
+    char **pw_cmp_attrs;          /* Space-separated list of attributes to see if the
+                                     attribute values (and reversed values) in the entry
+                                     are contained in the new password. */
+    char **pw_bad_words;          /* Space-separated list of words to reject */
+
     slapi_onoff_t pw_exp;
     slapi_onoff_t pw_send_expiring;
     time_t pw_maxage;
@@ -2109,6 +2134,14 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_MAXREPEATS_ATTRIBUTE "passwordMaxRepeats"
 #define CONFIG_PW_MINCATEGORIES_ATTRIBUTE "passwordMinCategories"
 #define CONFIG_PW_MINTOKENLENGTH_ATTRIBUTE "passwordMinTokenLength"
+#define CONFIG_PW_PALINDROME_ATTRIBUTE "passwordPalindrome"
+#define CONFIG_PW_MAX_SEQ_ATTRIBUTE "passwordMaxSequence"
+#define CONFIG_PW_MAX_SEQ_SETS_ATTRIBUTE "passwordMaxSeqSets"
+#define CONFIG_PW_MAX_CLASS_CHARS_ATTRIBUTE "passwordMaxClassChars"
+#define CONFIG_PW_CHECK_DICT_ATTRIBUTE "passwordDictCheck"
+#define CONFIG_PW_DICT_PATH_ATTRIBUTE "passwordDictPath"
+#define CONFIG_PW_USERATTRS_ATTRIBUTE "passwordUserAttributes"
+#define CONFIG_PW_BAD_WORDS_ATTRIBUTE "passwordBadWords"
 #define CONFIG_PW_EXP_ATTRIBUTE "passwordExp"
 #define CONFIG_PW_MAXAGE_ATTRIBUTE "passwordMaxAge"
 #define CONFIG_PW_MINAGE_ATTRIBUTE "passwordMinAge"

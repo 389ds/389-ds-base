@@ -73,6 +73,7 @@ BuildRequires:    cyrus-sasl-devel
 BuildRequires:    icu
 BuildRequires:    libicu-devel
 BuildRequires:    pcre-devel
+BuildRequires:    cracklib-devel
 %if %{use_clang}
 BuildRequires:    libatomic
 BuildRequires:    clang

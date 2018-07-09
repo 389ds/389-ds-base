@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2018 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -11,6 +11,63 @@
  * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
+
+/* Copyright notice below for using portions of pam_pwquality source code
+ * (pam_cracklib.c) */
+/*
+ * Copyright (c) Cristian Gafton <gafton@redhat.com>, 1996.
+ *                                              All rights reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ *
+ * ALTERNATIVELY, this product may be distributed under the terms of
+ * the GNU Public License, in which case the provisions of the GPL are
+ * required INSTEAD OF the above restrictions.  (This clause is
+ * necessary due to a potential bad interaction between the GPL and
+ * the restrictions contained in a BSD-style copyright.)
+ *
+ * THIS SOFTWARE IS PROVIDED `AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The following copyright was appended for the long password support
+ * added with the libpam 0.58 release:
+ *
+ * Modificaton Copyright (c) Philip W. Dalrymple III <pwd@mdtsoft.com>
+ *       1997. All rights reserved
+ *
+ * THE MODIFICATION THAT PROVIDES SUPPORT FOR LONG PASSWORD TYPE CHECKING TO
+ * THIS SOFTWARE IS PROVIDED `AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -25,12 +82,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sechash.h>
-#if defined(USE_MOZLDAP)
-#define LDAP_MOD_OP (0x0007)
-#endif /* USE_MOZLDAP */
-
+#include <crack.h>
 #include "slap.h"
 
+#ifndef CRACKLIB_DICTS
+#define CRACKLIB_DICTS NULL
+#endif
 
 #define DENY_PW_CHANGE_ACI "(targetattr = \"userPassword\") ( version 3.0; acl \"disallow_pw_change_aci\"; deny (write ) userdn = \"ldap:///self\";)"
 #define GENERALIZED_TIME_LENGTH 15
@@ -769,6 +826,156 @@ check_pw_minage(Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __at
     return (0);
 }
 
+
+/* pam_pwquality functions */
+static int
+palindrome(const char *new)
+{
+    int i, j;
+
+    i = strlen(new);
+    for (j = 0;j < i;j++)
+        if (new[i - j - 1] != new[j])
+            return 0;
+
+    return 1;
+}
+
+static int
+pw_sequence_sets(const char *new, int32_t max_seq, int check_sets)
+{
+    char c;
+    int i;
+    int sequp = 1;
+    int seqdown = 1;
+
+    if (new[0] == '\0')
+        return 0;
+
+    for (i = 1; new[i]; i++) {
+        c = new[i-1];
+        if (new[i] == c+1) {
+            ++sequp;
+            if (sequp > max_seq) {
+                if (check_sets) {
+                    /* remember this seq, can call pw_sequence on remaining password */
+                    char *remaining = slapi_ch_smprintf("%s", new + i);
+                    char token[11];
+
+                    memcpy(token, new + (i - max_seq), max_seq);
+                    if (strstr(remaining, token)) {
+                        /* we have a duplicate set */
+                        slapi_ch_free_string(&remaining);
+                        return 1;
+                    }
+                    slapi_ch_free_string(&remaining);
+                } else {
+                    return 1;
+                }
+            }
+            seqdown = 1;
+        } else if (new[i] == c-1) {
+            ++seqdown;
+            if (seqdown > max_seq) {
+                if (check_sets) {
+                    /* remember this seq, so we can check if it occurs again */
+                    char *remaining = slapi_ch_smprintf("%s", new + i);
+                    char token[11] = {0};
+
+                    memcpy(token, new + (i - max_seq), max_seq);
+                    if (strstr(remaining, token)) {
+                        /* we have a duplicate set */
+                        slapi_ch_free_string(&remaining);
+                        return 1;
+                    }
+                    slapi_ch_free_string(&remaining);
+
+                } else {
+                    return 1;
+                }
+            }
+            sequp = 1;
+        } else {
+            sequp = 1;
+            seqdown = 1;
+        }
+    }
+    return 0;
+}
+
+static int
+pw_sequence(const char *new, int32_t max_seq)
+{
+    return pw_sequence_sets(new, max_seq, 0);
+}
+
+static int
+pw_max_class_repeats(const char *new, int32_t max_repeats)
+{
+    int digits = 0;
+    int uppers = 0;
+    int lowers = 0;
+    int others = 0;
+    int i;
+    enum { NONE, DIGIT, UCASE, LCASE, OTHER } prevclass = NONE;
+    int sameclass = 0;
+
+    for (i = 0; new[i]; i++) {
+        if (isdigit(new[i])) {
+            digits++;
+            if (prevclass != DIGIT) {
+                prevclass = DIGIT;
+                sameclass = 1;
+            } else {
+                sameclass++;
+            }
+        } else if (isupper (new[i])) {
+            uppers++;
+            if (prevclass != UCASE) {
+                prevclass = UCASE;
+                sameclass = 1;
+            } else {
+                sameclass++;
+            }
+        } else if (islower (new[i])) {
+            lowers++;
+            if (prevclass != LCASE) {
+                prevclass = LCASE;
+                sameclass = 1;
+            } else {
+                sameclass++;
+            }
+        } else {
+            others++;
+            if (prevclass != OTHER) {
+                prevclass = OTHER;
+                sameclass = 1;
+            } else {
+                sameclass++;
+            }
+        }
+        if (sameclass > max_repeats) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void
+report_pw_violation(Slapi_PBlock *pb, int pwresponse_req, char *fmt, ...)
+{
+    char errormsg[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
+    va_list msg;
+
+    va_start(msg, fmt);
+    PR_vsnprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE - 1, fmt, msg);
+    if (pwresponse_req == 1) {
+        slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
+    }
+    pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
+    va_end(msg);
+}
+
 /* check_pw_syntax is called before add or modify operation on userpassword attribute*/
 
 int
@@ -835,12 +1042,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
         if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
             if (!is_replication && !config_get_allow_hashed_pw() &&
                 ((internal_op && pb_conn && !slapi_dn_isroot(pb_conn->c_dn)) ||
-                 (!internal_op && !pw_is_pwp_admin(pb, pwpolicy)))) {
-                PR_snprintf(errormsg, sizeof(errormsg) - 1, "invalid password syntax - passwords with storage scheme are not allowed");
-                if (pwresponse_req == 1) {
-                    slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX);
-                }
-                pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
+                 (!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))
+            {
+                report_pw_violation(pb, pwresponse_req, "invalid password syntax - passwords with storage scheme are not allowed");
                 return (1);
             } else {
                 /* We want to skip syntax checking since this is a pre-hashed password */
@@ -862,21 +1066,71 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             int max_repeated = 0;
             int num_categories = 0;
 
-            /* check for the minimum password length */
-            if (pwpolicy->pw_minlength >
-                (int)ldap_utf8characters((char *)slapi_value_get_string(vals[i]))) {
-                PR_snprintf(errormsg, sizeof(errormsg) - 1, "invalid password syntax - password must be at least %d characters long",
-                            pwpolicy->pw_minlength);
-                if (pwresponse_req == 1) {
-                    slapi_pwpolicy_make_response_control(pb, -1, -1,
-                                                         LDAP_PWPOLICY_PWDTOOSHORT);
+            pwd = (char *)slapi_value_get_string(vals[i]);
+
+            /* Check dictionary */
+            if (pwpolicy->pw_check_dict) {
+                const char *crack_msg;
+                if ((crack_msg = FascistCheck(pwd, pwpolicy->pw_dict_path))) {
+                    report_pw_violation(pb, pwresponse_req, "Password failed dictionary check: %s", crack_msg);
+                    return (1);
                 }
-                pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
+            }
+
+            /* check palindrome */
+            if (pwpolicy->pw_palindrome) {
+                if (palindrome(pwd)) {
+                    report_pw_violation(pb, pwresponse_req, "Password is a palindrome");
+                    return (1);
+                }
+            }
+
+            /* Check for bad words */
+            if (pwpolicy->pw_bad_words) {
+                for (size_t b = 0; pwpolicy->pw_bad_words && pwpolicy->pw_bad_words[b]; b++) {
+                    if (strcasestr(pwd, pwpolicy->pw_bad_words[b])) {
+                        report_pw_violation(pb, pwresponse_req, "Password contains a restricted word");
+                        return (1);
+                    }
+                }
+            }
+
+            /* Check for sequences */
+            if (pwpolicy->pw_max_seq) {
+                if (pw_sequence(pwd, pwpolicy->pw_max_seq)) {
+                    report_pw_violation(pb, pwresponse_req, "Password contains a monotonic sequence");
+                    PR_snprintf(errormsg, sizeof(errormsg) - 1, "Password contains a monotonic sequence");
+
+                    return (1);
+                }
+            }
+
+            /* Check for sets of sequences */
+            if (pwpolicy->pw_seq_char_sets) {
+                if (pw_sequence_sets(pwd, pwpolicy->pw_seq_char_sets, 1)){
+                    report_pw_violation(pb, pwresponse_req, "Password contains repeated identical sequences");
+                    return (1);
+                }
+            }
+
+            /* Check for max repeated characters from the same class */
+            if (pwpolicy->pw_max_class_repeats) {
+                if (pw_max_class_repeats(pwd, pwpolicy->pw_max_class_repeats)){
+                    report_pw_violation(pb, pwresponse_req,
+                            "Password contains too many repeated characters from the same character class");
+                    return (1);
+                }
+            }
+
+            /* check for the minimum password length */
+            if (pwpolicy->pw_minlength > (int)ldap_utf8characters((char *)pwd)) {
+                report_pw_violation(pb, pwresponse_req,
+                        "invalid password syntax - password must be at least %d characters long",
+                        pwpolicy->pw_minlength);
                 return (1);
             }
 
             /* check character types */
-            pwd = (char *)slapi_value_get_string(vals[i]);
             p = pwd;
             while (p && *p) {
                 if (ldap_utf8isdigit(p)) {
@@ -1065,6 +1319,17 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             }
 
             return 1;
+        }
+        /* Check user attributes */
+        if (pwpolicy->pw_cmp_attrs) {
+            for (size_t a = 0; pwpolicy->pw_cmp_attrs && pwpolicy->pw_cmp_attrs[a]; a++) {
+                if (check_trivial_words(pb, e, vals, pwpolicy->pw_cmp_attrs[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
+                    if (mod_op) {
+                        slapi_entry_free(e);
+                    }
+                    return 1;
+                }
+            }
         }
     }
 
@@ -1946,6 +2211,64 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_admin = slapi_sdn_new_dn_byval(slapi_value_get_string(*sval));
                         pw_get_admin_users(pwdpolicy);
+                    }
+                } else if (!strcasecmp(attr_name, "passwordPalindrome")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_palindrome =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
+                } else if (!strcasecmp(attr_name, "passwordDictCheck")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_check_dict =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
+                } else if (!strcasecmp(attr_name, "passwordUserAttributes")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        char **attrs = NULL;
+                        char *attr = NULL;
+                        char *token = NULL;
+                        char *next = NULL;
+
+                        token = slapi_ch_strdup(slapi_value_get_string(*sval));
+                        for (attr = ldap_utf8strtok_r(token, " ", &next); attr != NULL;
+                             attr = ldap_utf8strtok_r(NULL, " ", &next))
+                        {
+                            slapi_ch_array_add(&attrs, slapi_ch_strdup(attr));
+                        }
+                        slapi_ch_free_string(&token);
+                        pwdpolicy->pw_cmp_attrs = attrs;
+                    }
+                }  else if (!strcasecmp(attr_name, "passwordBadWords")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        char **words = NULL;
+                        char *word = NULL;
+                        char *token = NULL;
+                        char *next = NULL;
+
+                        token = slapi_ch_strdup(slapi_value_get_string(*sval));
+                        for (word = ldap_utf8strtok_r(token, " ", &next); word != NULL;
+                             word = ldap_utf8strtok_r(NULL, " ", &next))
+                        {
+                            slapi_ch_array_add(&words, slapi_ch_strdup(word));
+                        }
+                        slapi_ch_free_string(&token);
+                        pwdpolicy->pw_bad_words = words;
+                    }
+                } else if (!strcasecmp(attr_name, "passwordMaxSequence")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_max_seq = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, "passwordMaxSeqSets")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_seq_char_sets = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, "passwordMaxClassChars")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_max_class_repeats = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, "passwordDictPath")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_dict_path = (char *)slapi_value_get_string(*sval);
                     }
                 }
             } /* end of for() loop */
@@ -2913,3 +3236,4 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     slapi_log_err(SLAPI_LOG_TRACE, "add_shadow_ext_password_attrs", "<=\n");
     return rc;
 }
+

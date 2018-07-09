@@ -194,6 +194,8 @@ slapi_onoff_t init_pw_track_update_time;
 slapi_onoff_t init_pw_change;
 slapi_onoff_t init_pw_exp;
 slapi_onoff_t init_pw_send_expiring;
+slapi_onoff_t init_pw_palindrome;
+slapi_onoff_t init_pw_dict_check;
 slapi_onoff_t init_allow_hashed_pw;
 slapi_onoff_t init_pw_syntax;
 slapi_onoff_t init_schemacheck;
@@ -499,6 +501,47 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_mintokenlength,
      CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINTOKENLENGTH_STR},
+
+    /* Password palindrome */
+    {CONFIG_PW_PALINDROME_ATTRIBUTE, config_set_pw_palindrome,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_palindrome,
+     CONFIG_ON_OFF, NULL, &init_pw_palindrome},
+    /* password dictionary check */
+    {CONFIG_PW_CHECK_DICT_ATTRIBUTE, config_set_pw_dict_check,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_check_dict,
+     CONFIG_ON_OFF, NULL, &init_pw_dict_check},
+    /* password dictionary path */
+    {CONFIG_PW_DICT_PATH_ATTRIBUTE, config_set_pw_dict_path,
+      NULL, 0,
+      (void **)&global_slapdFrontendConfig.pw_policy.pw_dict_path,
+      CONFIG_STRING, NULL, ""},
+    /* password user attr check list */
+    {CONFIG_PW_USERATTRS_ATTRIBUTE, config_set_pw_user_attrs,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_cmp_attrs,
+     CONFIG_CHARRAY, NULL, NULL},
+    /* password bad work list */
+    {CONFIG_PW_BAD_WORDS_ATTRIBUTE, config_set_pw_bad_words,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_bad_words,
+     CONFIG_CHARRAY, NULL, NULL},
+    /* password max sequence */
+    {CONFIG_PW_MAX_SEQ_ATTRIBUTE, config_set_pw_max_seq,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_max_seq,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MAX_SEQ_ATTRIBUTE_STR},
+    /* Max sequence sets */
+    {CONFIG_PW_MAX_SEQ_SETS_ATTRIBUTE, config_set_pw_max_seq_sets,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_seq_char_sets,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MAX_SEQ_SETS_ATTRIBUTE_STR},
+    /* password max repeated characters per class */
+    {CONFIG_PW_MAX_CLASS_CHARS_ATTRIBUTE, config_set_pw_max_class_repeats,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_max_class_repeats,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE_STR},
     {CONFIG_ERRORLOG_ATTRIBUTE, config_set_errorlog,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.errorlog,
@@ -1467,6 +1510,8 @@ pwpolicy_fe_init_onoff(passwdPolicy *pw_policy)
     init_pw_unlock = pw_policy->pw_unlock;
     init_pw_is_legacy = pw_policy->pw_is_legacy;
     init_pw_track_update_time = pw_policy->pw_track_update_time;
+    init_pw_palindrome = pw_policy->pw_palindrome;
+    init_pw_dict_check = pw_policy->pw_check_dict;
 }
 
 void
@@ -2751,6 +2796,220 @@ config_set_pw_syntax(const char *attrname, char *value, char *errorbuf, int appl
     return retVal;
 }
 
+int32_t
+config_set_pw_palindrome(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->pw_policy.pw_palindrome),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_pw_dict_check(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->pw_policy.pw_check_dict),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        value = NULL;
+    } else {
+        /* We have a value, do some basic checks */
+        if (value[0] != '/') {
+            /* Not a path - error */
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "password dictionary path \"%s\" is invalid.", value);
+            retVal = LDAP_OPERATIONS_ERROR;
+            return retVal;
+        }
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_dict_path);
+        slapdFrontendConfig->pw_policy.pw_dict_path = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_user_attrs(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    char **attrs = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        value = NULL;
+    }
+    if (apply) {
+        if (value) {
+            /* Take list of attributes and break it up into a char array */
+            char *attr = NULL;
+            char *token = NULL;
+            char *next = NULL;
+
+            token = slapi_ch_strdup(value);
+            for (attr = ldap_utf8strtok_r(token, " ", &next); attr != NULL;
+                 attr = ldap_utf8strtok_r(NULL, " ", &next))
+            {
+                slapi_ch_array_add(&attrs, slapi_ch_strdup(attr));
+            }
+            slapi_ch_free_string(&token);
+        }
+
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_cmp_attrs);
+        slapdFrontendConfig->pw_policy.pw_cmp_attrs = attrs;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_bad_words(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    char **words = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        value = NULL;
+    }
+    if (apply) {
+        if (value) {
+            /* Take list of attributes and break it up into a char array */
+            char *word = NULL;
+            char *token = NULL;
+            char *next = NULL;
+
+            token = slapi_ch_strdup(value);
+            for (word = ldap_utf8strtok_r(token, " ", &next); word != NULL;
+                 word = ldap_utf8strtok_r(NULL, " ", &next))
+            {
+                slapi_ch_array_add(&words, slapi_ch_strdup(word));
+            }
+            slapi_ch_free_string(&token);
+        }
+
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_bad_words);
+        slapdFrontendConfig->pw_policy.pw_bad_words = words;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_max_seq(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    int32_t max = 0;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        max = 0;
+    } else {
+        errno = 0;
+        max = (int32_t)strtol(value, &endp, 10);
+
+        if (*endp != '\0' || errno == ERANGE || max < 0 || max > 10) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "password maximum sequence \"%s\" is invalid. The range is from 0 to 10.", value);
+            retVal = LDAP_OPERATIONS_ERROR;
+            return retVal;
+        }
+    }
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_max_seq = max;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+
+int32_t
+config_set_pw_max_seq_sets(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    int32_t max = 0;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        max = 0;
+    } else {
+        errno = 0;
+        max = (int32_t)strtol(value, &endp, 10);
+
+        if (*endp != '\0' || errno == ERANGE || max < 0 || max > 10) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "password maximum sequence sets \"%s\" is invalid. The range is from 0 to 10.", value);
+            retVal = LDAP_OPERATIONS_ERROR;
+            return retVal;
+        }
+    }
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_seq_char_sets = max;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int32_t
+config_set_pw_max_class_repeats(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    int32_t max = 0;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        max = 0;
+    } else {
+        errno = 0;
+        max = (int32_t)strtol(value, &endp, 10);
+
+        if (*endp != '\0' || errno == ERANGE || max < 0 || max > 1024) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "password maximum repated characters per characters class \"%s\" is invalid. "
+                    "The range is from 0 to 1024.", value);
+            retVal = LDAP_OPERATIONS_ERROR;
+            return retVal;
+        }
+    }
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_max_class_repeats = max;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
 
 int
 config_set_pw_minlength(const char *attrname, char *value, char *errorbuf, int apply)

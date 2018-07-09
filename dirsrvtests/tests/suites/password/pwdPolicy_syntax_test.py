@@ -41,6 +41,7 @@ def test_user(topology_st):
         USER_DN, {
             'objectClass': 'top account simplesecurityobject'.split(),
             'uid': 'user',
+            'description': 'd_e_s_c',
             'userpassword': PASSWORD
         })))
 
@@ -169,6 +170,19 @@ def test_basic(topology_st, test_user, password_policy):
         26. Set userPassword to 'password' in cn=config
         27. Set userPassword to 'PASSWORD' in cn=config
         28. Set passwordMinUppers to 0 in cn=config
+        29. Test passwordDictCheck
+        30. Test passwordPalindrome
+        31. Test passwordMaxSequence for forward number sequence
+        32. Test passwordMaxSequence for backward number sequence
+        33. Test passwordMaxSequence for forward alpha sequence
+        34. Test passwordMaxSequence for backward alpha sequence
+        35. Test passwordMaxClassChars for digits
+        36. Test passwordMaxClassChars for specials
+        37. Test passwordMaxClassChars for lowers
+        38. Test passwordMaxClassChars for uppers
+        39. Test passwordBadWords using 'redhat' and 'fedora'
+        40. Test passwordUserAttrs using description attribute
+
     :expectedresults:
         1. passwordMinLength should be successfully set
         2. Password should be rejected because length too short
@@ -203,6 +217,18 @@ def test_basic(topology_st, test_user, password_policy):
             it does not contain minimum number of lowercase characters
         27. Password should be accepted
         28. passwordMinUppers should be successfully set
+        29. The passwordDictCheck test succeeds
+        30. The passwordPalindrome test succeeds
+        31. Test passwordMaxSequence for forward number sequence succeeds
+        32. Test passwordMaxSequence for backward number sequence succeeds
+        33. Test passwordMaxSequence for forward alpha sequence succeeds
+        34. Test passwordMaxSequence for backward alpha sequence succeeds
+        35. Test passwordMaxClassChars for digits succeeds
+        36. Test passwordMaxClassChars for specials succeeds
+        37. Test passwordMaxClassChars for lowers succeeds
+        38. Test passwordMaxClassChars for uppers succeeds
+        39. The passwordBadWords test succeeds
+        40. The passwordUserAttrs test succeeds
     """
 
     #
@@ -234,6 +260,49 @@ def test_basic(topology_st, test_user, password_policy):
                 'PASSWORD',
                 'does not contain minimum number of lowercase characters')
     # Min 8-bits - "ldap" package only accepts ascii strings at the moment
+
+    if ds_is_newer('1.4.0.13'):
+        # Dictionary check
+        tryPassword(topology_st.standalone, 'passwordDictCheck', 'on', 'on', 'PASSWORD',
+                    '13_#Kad472h', 'Password found in dictionary')
+
+        # Palindromes
+        tryPassword(topology_st.standalone, 'passwordPalindrome', 'on', 'on', 'Za12_#_21aZ',
+                    '13_#Kad472h', 'Password is palindrome')
+
+        # Sequences
+        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_1234',
+                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_4321',
+                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_abcd',
+                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+        tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_dcba',
+                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+
+        # Sequence Sets
+        tryPassword(topology_st.standalone, 'passwordMaxSeqSets', 2, 0, 'Za1_123--123',
+                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+
+        # Max characters in a character class
+        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_9376',
+                    '13_#Kad472h', 'Too may consecutive characters from the same class')
+        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_#$&!',
+                    '13_#Kad472h', 'Too may consecutive characters from the same class')
+        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_ahtf',
+                    '13_#Kad472h', 'Too may consecutive characters from the same class')
+        tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_HTSE',
+                    '13_#Kad472h', 'Too may consecutive characters from the same class')
+
+        # Bad words
+        tryPassword(topology_st.standalone, 'passwordBadWords', 'redhat fedora', 'none', 'Za1_redhat',
+                    '13_#Kad472h', 'Too may consecutive characters from the same class')
+        tryPassword(topology_st.standalone, 'passwordBadWords', 'redhat fedora', 'none', 'Za1_fedora',
+                    '13_#Kad472h', 'Too may consecutive characters from the same class')
+
+        # User Attributes
+        tryPassword(topology_st.standalone, 'passwordUserAttributes', 'description', 0, 'Za1_d_e_s_c',
+                    '13_#Kad472h', 'Password found in user entry')
 
     log.info('pwdPolicy tests PASSED')
 
