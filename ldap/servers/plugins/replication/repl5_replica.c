@@ -2026,7 +2026,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     /* get replication bind dn groups */
     r->updatedn_groups = replica_updatedn_group_new(e);
     r->groupdn_list = replica_groupdn_list_new(r->updatedn_groups);
-    r->updatedn_group_last_check = time(NULL);
+    r->updatedn_group_last_check = 0;
     /* get groupdn check interval */
     if ((val = slapi_entry_attr_get_charptr(e, attr_replicaBindDnGroupCheckInterval))) {
         if (repl_config_valid_num(attr_replicaBindDnGroupCheckInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
