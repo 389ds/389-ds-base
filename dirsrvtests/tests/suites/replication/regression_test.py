@@ -13,7 +13,10 @@ from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 
 from lib389._constants import *
 from . import get_repl_entries
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.agreement import Agreements
 from lib389.idm.user import UserAccount
+from lib389 import Entry
+from lib389.idm.group import Groups, Group
 from lib389.replica import Replicas, ReplicationManager
 from lib389.changelog import Changelog5
 
@@ -32,6 +35,41 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+def find_start_location(file, no):
+    log_pattern = re.compile("slapd_daemon - slapd started.")
+    count = 0
+    while True:
+        line = file.readline()
+        log.debug("_pattern_errorlog: [%d] %s" % (file.tell(), line))
+        found = log_pattern.search(line)
+        if (found):
+            count = count + 1
+            if (count == no):
+                return file.tell()
+        if (line == ''):
+            break
+    return -1
+
+
+def pattern_errorlog(file, log_pattern, start_location=0):
+
+    count = 0
+    log.debug("_pattern_errorlog: start from the beginning" )
+    file.seek(start_location)
+
+    # Use a while true iteration because 'for line in file: hit a
+    # python bug that break file.tell()
+    while True:
+        line = file.readline()
+        log.debug("_pattern_errorlog: [%d] %s" % (file.tell(), line))
+        found = log_pattern.search(line)
+        if (found):
+            count = count + 1
+        if (line == ''):
+            break
+
+    log.debug("_pattern_errorlog: complete (count=%d)" % count)
+    return count
 
 @pytest.fixture()
 def test_entry(topo_m2, request):
@@ -254,6 +292,161 @@ def test_invalid_agmt(topo_m2):
     repl.test_replication(m1, m2)
     repl.test_replication(m2, m1)
 
+def test_fetch_bindDnGroup(topo_m2):
+    """Check the bindDNGroup is fetched on first replication session
+
+    :id: 5f1b1f59-6744-4260-b091-c82d22130025
+    :setup: 2 Master Instances
+    :steps:
+        1. Create a replication bound user and group, but the user *not* member of the group
+        2. Check that replication is working
+        3. Some preparation is required because of lib389 magic that already define a replication via group
+           - define the group as groupDN for replication and 60sec as fetch interval
+           - pause RA in both direction
+           - Define the user as bindDn of the RAs
+        4. restart servers.
+            It sets the fetch time to 0, so next session will refetch the group
+        5. Before resuming RA, add user to groupDN (on both side as replication is not working at that time)
+        6. trigger an update and check replication is working and
+           there is no failure logged on supplier side 'does not have permission to supply replication updates to the replica'
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    # If you need any test suite initialization,
+    # please, write additional fixture for that (including finalizer).
+    # Topology for suites are predefined in lib389/topologies.py.
+
+    # If you need host, port or any other data about instance,
+    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    M1 = topo_m2.ms['master1']
+    M2 = topo_m2.ms['master2']
+
+    # Enable replication log level. Not really necessary
+    M1.modify_s('cn=config',[(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
+    M2.modify_s('cn=config',[(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
+
+    # Create a group and a user
+    PEOPLE = "ou=People,%s" % SUFFIX
+    PASSWD = 'password'
+    REPL_MGR_BOUND_DN='repl_mgr_bound_dn'
+
+    uid = REPL_MGR_BOUND_DN.encode()
+    users = UserAccounts(M1, PEOPLE, rdn=None)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': uid, 'cn': uid, 'sn': '_%s' % uid, 'userpassword': PASSWD.encode(), 'description': b'value creation'})
+    test_user = users.create(properties=user_props)
+
+    groups_M1 = Groups(M1, DEFAULT_SUFFIX)
+    group_properties = {
+        'cn' : 'group1',
+        'description' : 'testgroup'}
+    group_M1 = groups_M1.create(properties=group_properties)
+    group_M2 = Group(M2, group_M1.dn)
+    assert(not group_M1.is_member(test_user.dn))
+
+
+
+    # Check that M1 and M2 are in sync
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(M1, M2, timeout=20)
+
+    # Define the group as the replication manager and fetch interval as 60sec
+    replicas = Replicas(M1)
+    replica = replicas.list()[0]
+    replica.apply_mods([(ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroupCheckInterval', '60'),
+                        (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroup', group_M1.dn)])
+
+
+    replicas = Replicas(M2)
+    replica = replicas.list()[0]
+    replica.apply_mods([(ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroupCheckInterval', '60'),
+                        (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroup', group_M1.dn)])
+
+
+    # Then pause the replication agreement to prevent them trying to acquire
+    # while the user is not member of the group
+    topo_m2.pause_all_replicas()
+
+    # Define the user as the bindDN of the RAs
+    for inst in (M1, M2):
+        agmts = Agreements(inst)
+        agmt = agmts.list()[0]
+        agmt.replace('nsDS5ReplicaBindDN', test_user.dn.encode())
+        agmt.replace('nsds5ReplicaCredentials', PASSWD.encode())
+
+
+    # Key step
+    # The restart will fetch the group/members define in the replica
+    #
+    # The user NOT member of the group replication will not work until bindDNcheckInterval
+    #
+    # With the fix, the first fetch is not taken into account (fetch time=0)
+    # so on the first session, the group will be fetched
+    M1.restart()
+    M2.restart()
+
+    # Replication being broken here we need to directly do the same update.
+    # Sorry not found another solution except total update
+    group_M1.add_member(test_user.dn)
+    group_M2.add_member(test_user.dn)
+
+    topo_m2.resume_all_replicas()
+
+    # trigger updates to be sure to have a replication session, giving some time
+    M1.modify_s(test_user.dn,[(ldap.MOD_ADD, 'description', b'value_1_1')])
+    M2.modify_s(test_user.dn,[(ldap.MOD_ADD, 'description', b'value_2_2')])
+    time.sleep(10)
+
+    # Check replication is working
+    ents = M1.search_s(test_user.dn, ldap.SCOPE_BASE, '(objectclass=*)')
+    for ent in ents:
+        assert (ent.hasAttr('description'))
+        found = 0
+        for val in ent.getValues('description'):
+            if (val == b'value_1_1'):
+                found = found + 1
+            elif (val == b'value_2_2'):
+                found = found + 1
+        assert (found == 2)
+
+    ents = M2.search_s(test_user.dn, ldap.SCOPE_BASE, '(objectclass=*)')
+    for ent in ents:
+        assert (ent.hasAttr('description'))
+        found = 0
+        for val in ent.getValues('description'):
+            if (val == b'value_1_1'):
+                found = found + 1
+            elif (val == b'value_2_2'):
+                found = found + 1
+        assert (found == 2)
+
+    # Check in the logs that the member was detected in the group although
+    # at startup it was not member of the group
+    regex = re.compile("does not have permission to supply replication updates to the replica.")
+    errorlog_M1 = open(M1.errlog, "r")
+    errorlog_M2 = open(M1.errlog, "r")
+
+    # Find the last restart position
+    restart_location_M1 = find_start_location(errorlog_M1, 2)
+    assert (restart_location_M1 != -1)
+    restart_location_M2 = find_start_location(errorlog_M2, 2)
+    assert (restart_location_M2 != -1)
+
+    # Then check there is no failure to authenticate
+    count = pattern_errorlog(errorlog_M1, regex, start_location=restart_location_M1)
+    assert(count <= 1)
+    count = pattern_errorlog(errorlog_M2, regex, start_location=restart_location_M2)
+    assert(count <=1)
+
+    if DEBUGGING:
+        # Add debugging steps(if any)...
+        pass
 
 def test_cleanallruv_repl(topo_m3):
     """Test that cleanallruv could not break replication if anchor csn in ruv originated in deleted replica
@@ -358,6 +551,7 @@ def test_cleanallruv_repl(topo_m3):
 
     assert set(expected_m1_users).issubset(current_m1_users)
     assert set(expected_m2_users).issubset(current_m2_users)
+
 
 
 if __name__ == '__main__':
