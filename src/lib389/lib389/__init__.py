@@ -55,15 +55,8 @@ import grp
 import uuid
 import json
 from shutil import copy2
-try:
-    # There are too many issues with this on EL7
-    # Out of the box, it's just outright broken ...
-    import six.moves.urllib.request
-    import six.moves.urllib.parse
-    import six.moves.urllib.error
-    import six
-except ImportError:
-    pass
+import six
+
 from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
 from ldap import LDAPError

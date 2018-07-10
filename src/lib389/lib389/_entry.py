@@ -21,9 +21,7 @@ from lib389.utils import ensure_str, ensure_bytes, ensure_list_bytes
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
-
 
 class FormatDict(cidict):
     def __getitem__(self, name):

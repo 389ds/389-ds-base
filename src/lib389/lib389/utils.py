@@ -53,7 +53,6 @@ from lib389.properties import (
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 #
 # Decorator

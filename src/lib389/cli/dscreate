@@ -17,7 +17,7 @@ import signal
 
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
-from lib389.cli_base import reset_get_logger
+from lib389.cli_base import setup_script_logger
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
@@ -49,7 +49,7 @@ signal.signal(signal.SIGINT, signal_handler)
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    log = reset_get_logger("dscreate", args.verbose)
+    log = setup_script_logger("dscreate", args.verbose)
 
     log.debug("The 389 Directory Server Creation Tool")
     # Leave this comment here: UofA let me take this code with me provided

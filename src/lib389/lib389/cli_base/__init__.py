@@ -289,18 +289,8 @@ class FakeArgs(object):
     def __len__(self):
         return len(self.__dict__.keys())
 
-log_simple_handler = logging.StreamHandler()
-log_simple_handler.setFormatter(
-    logging.Formatter('%(message)s')
-)
 
-log_verbose_handler = logging.StreamHandler()
-log_verbose_handler.setFormatter(
-    logging.Formatter('%(levelname)s: %(message)s')
-)
-
-
-def reset_get_logger(name, verbose=False):
+def setup_script_logger(name, verbose=False):
     """Reset the python logging system for STDOUT, and attach a new
     console logger with cli expected formatting.
 
@@ -311,21 +301,18 @@ def reset_get_logger(name, verbose=False):
     :return: logging.logger
     """
     root = logging.getLogger()
-    if root.handlers:
-        for handler in root.handlers:
-                root.removeHandler(handler)
-
-    if verbose:
-        root.addHandler(log_verbose_handler)
-    else:
-        root.addHandler(log_simple_handler)
-
     log = logging.getLogger(name)
+    log_handler = logging.StreamHandler()
 
     if verbose:
         log.setLevel(logging.DEBUG)
+        log_format = '%(levelname)s: %(message)s'
     else:
         log.setLevel(logging.INFO)
+        log_format = '%(message)s'
+
+    log_handler.setFormatter(logging.Formatter(log_format))
+    root.addHandler(log_handler)
 
     return log
 

@@ -1,7 +1,7 @@
 import logging
 import six
+
 logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
 
 DN_RMANAGER = 'uid=rmanager,cn=config'
 

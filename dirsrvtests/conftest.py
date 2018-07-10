@@ -1,5 +1,6 @@
-import pytest
 import subprocess
+import logging
+import pytest
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
 
@@ -26,6 +27,10 @@ def _environment(request):
         for pkg in pkgs:
             request.config._metadata[pkg] = get_rpm_version(pkg)
         request.config._metadata['FIPS'] = is_fips()
+
+
+def pytest_cmdline_main(config):
+    logging.basicConfig(level=logging.DEBUG)
 
 
 def pytest_report_header(config):

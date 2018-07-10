@@ -27,7 +27,7 @@ from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
 from lib389.cli_idm import user as cli_user
 
-from lib389.cli_base import connect_instance, disconnect_instance, reset_get_logger
+from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 
@@ -78,12 +78,9 @@ signal.signal(signal.SIGINT, signal_handler)
 if __name__ == '__main__':
 
     defbase = ldap.get_option(ldap.OPT_DEFBASE)
-
-
-
     args = parser.parse_args()
 
-    log = reset_get_logger('dsidm', args.verbose)
+    log = setup_script_logger('dsidm', args.verbose)
 
     log.debug("The 389 Directory Server Identity Manager")
     # Leave this comment here: UofA let me take this code with me provided

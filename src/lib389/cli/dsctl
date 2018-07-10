@@ -22,7 +22,7 @@ from lib389.cli_base import _get_arg
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
-from lib389.cli_base import disconnect_instance, reset_get_logger
+from lib389.cli_base import disconnect_instance, setup_script_logger
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
@@ -54,7 +54,7 @@ signal.signal(signal.SIGINT, signal_handler)
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    log = reset_get_logger('dsctl', args.verbose)
+    log = setup_script_logger('dsctl', args.verbose)
 
     log.debug("The 389 Directory Server Administration Tool")
     # Leave this comment here: UofA let me take this code with me provided

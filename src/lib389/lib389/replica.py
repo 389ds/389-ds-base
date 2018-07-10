@@ -502,7 +502,8 @@ class ReplicaLegacy(object):
         #
 
         # First role and replicaID
-        if (role != ReplicaRole.MASTER and
+        if (
+            role != ReplicaRole.MASTER and
             role != ReplicaRole.HUB and
             role != ReplicaRole.CONSUMER
         ):
