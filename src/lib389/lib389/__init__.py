@@ -103,6 +103,7 @@ TRACE_LEVEL = 0
 # My logger
 logger = logging.getLogger(__name__)
 
+
 # Initiate the paths object here. Should this be part of the DirSrv class
 # for submodules?
 def wrapper(f, name):
@@ -309,6 +310,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.index import IndexLegacy as Index
         from lib389.monitor import Monitor, MonitorLDBM
         from lib389.rootdse import RootDSE
+        from lib389.saslmap import SaslMapping, SaslMappings
 
         # Need updating
         self.agreement = Agreement(self)
@@ -321,6 +323,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.schema = Schema(self)
         self.plugins = Plugins(self)
         self.tasks = Tasks(self)
+        self.saslmap = SaslMapping(self)
         # Do we have a certdb path?
         # if MAJOR < 3:
         self.monitor = Monitor(self)
@@ -335,6 +338,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ldclt = Ldclt(self)
+        self.saslmaps = SaslMappings(self)
 
     def __init__(self, verbose=False, external_log=None):
         """

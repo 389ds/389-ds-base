@@ -110,19 +110,29 @@ function check_for_389 () {
   });
 }
 
-function check_inst_alive () {
+function check_inst_alive (connect_err) {
   // Check if this instance is started, if not hide configuration pages
+  if (connect_err === undefined) {
+    connect_err = 0;
+  }
   cmd = ['status-dirsrv', server_inst];
-  console.log("MARK cmd: " + cmd);
   cockpit.spawn(cmd, { superuser: true }).done(function () {
-    $(".all-pages").hide();
-    $("#ds-navigation").show();
-    $("#server-content").show();
-    $("#server-config").show();
-    //$("#no-instances").hide();
-    //$("#no-package").hide();
-    $("#not-running").hide();
-    console.log("Running");
+    if (connect_err) {
+      $("#ds-navigation").hide();
+      $(".all-pages").hide();
+      $("#no-connect").show();
+
+    } else {
+      $(".all-pages").hide();
+      $("#ds-navigation").show();
+      $("#server-content").show();
+      $("#server-config").show();
+      //$("#no-instances").hide();
+      //$("#no-package").hide();
+      $("#not-running").hide();
+      $("#no_connect").hide();
+      console.log("Running");
+    }
   }).fail(function(data) {
     $("#ds-navigation").hide();
     $(".all-pages").hide();
@@ -180,7 +190,7 @@ function get_insts() {
       $("#server-config").show();
       server_id = insts[0];
       server_inst = insts[0].replace("slapd-", "");
-      get_and_set_config();
+      load_config();
     }
 
     $("body").show();
@@ -256,6 +266,7 @@ function save_all () {
 function load_config (){
   // TODO - set all the pages
   get_and_set_config(); // cn=config stuff
+  get_and_set_sasl();  // Fill in sasl mapping table
 }
 
 $(window.document).ready(function() {

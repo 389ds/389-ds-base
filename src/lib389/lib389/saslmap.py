@@ -8,6 +8,7 @@
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 
+
 class SaslMapping(DSLdapObject):
     """A sasl map providing a link from a sasl user and realm
     to a valid directory server entry.
@@ -18,20 +19,24 @@ class SaslMapping(DSLdapObject):
     :type dn: str
     """
 
-    def __init__(self, instance, dn=None):
-        super(SaslMapping, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
-        self._must_attributes = [
+    _must_attributes = [
             'cn',
             'nsSaslMapRegexString',
             'nsSaslMapBaseDNTemplate',
             'nsSaslMapFilterTemplate',
+            'nsSaslMapPriority'
         ]
+
+    def __init__(self, instance, dn=None):
+        super(SaslMapping, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+
         self._create_objectclasses = [
             'top',
             'nsSaslMapping',
         ]
         self._protected = False
+
 
 class SaslMappings(DSLdapObjects):
     """DSLdapObjects that represents SaslMappings in the server.
@@ -42,7 +47,7 @@ class SaslMappings(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance):
+    def __init__(self, instance, dn=None):
         super(SaslMappings, self).__init__(instance)
         self._objectclasses = [
             'nsSaslMapping',

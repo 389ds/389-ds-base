@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.backend import Backend, Backends
+from lib389.utils import ensure_str
 from lib389.cli_base import (
     populate_attr_arguments,
     _generic_list,
@@ -45,8 +46,20 @@ def backend_create(inst, basedn, log, args):
 
 
 def backend_delete(inst, basedn, log, args, warn=True):
-    dn = _get_arg(args.dn, msg="Enter dn to delete")
-    if warn:
+    found = False
+    be_insts = Backends(inst).list()
+    for be in be_insts:
+        cn = ensure_str(be.get_attr_val('cn')).lower()
+        suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
+        del_be_name = args.be_name.lower()
+        if cn == del_be_name or suffix == del_be_name:
+            dn = be.dn
+            found = True
+            break
+    if not found:
+        raise ValueError("Unable to find a backend with the name: ({})".format(args.be_name))
+
+    if warn and args.json is False:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('backend_delete'), SINGULAR, dn, args)
 
@@ -73,6 +86,6 @@ def create_parser(subparsers):
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=backend_delete)
-    delete_parser.add_argument('dn', nargs='?', help='The dn to delete')
+    delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
 
 

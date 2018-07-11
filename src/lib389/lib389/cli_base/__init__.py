@@ -50,7 +50,7 @@ def _get_args(args, kws):
     kwargs = {}
     while len(kws) > 0:
         kw, msg, priv = kws.pop(0)
-
+        kw = kw.lower()
         if args is not None and len(args) > 0:
             kwargs[kw] = args.pop(0)
         else:
@@ -69,12 +69,15 @@ def _get_attributes(args, attrs):
         # in many places, so we have to normalise this.
         attr_normal = attr.replace('-', '_')
         if args is not None and hasattr(args, attr_normal) and getattr(args, attr_normal) is not None:
+            attr = attr.lower()
             kwargs[attr] = getattr(args, attr_normal)
         else:
             if attr.lower() == 'userpassword':
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
             else:
-                kwargs[attr] = _input("Enter value for %s : " % attr)
+                attr_normal = attr.lower()
+                kwargs[attr_normal] = _input("Enter value for %s : " % attr)
+
     return kwargs
 
 

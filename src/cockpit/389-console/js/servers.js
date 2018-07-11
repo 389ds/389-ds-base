@@ -6,8 +6,7 @@ var sasl_action_html =
       '<span class="caret"></span>' +
     '</button>' +
     '<ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu1">' +
-      '<li role=""><a role="menuitem" class="sasl-edit-btn" tabindex="0" href="#">Edit Mapping</a></li>' +
-      '<li role=""><a role="menuitem" class="sasl-verify-btn" tabindex="0" href="#">Test Mapping</a></li>' +
+      '<li role=""><a role="menuitem" class="sasl-edit-btn" tabindex="2" href="#">Edit Mapping</a></li>' +
       '<li role=""><a role="menuitem" class="sasl-del-btn" tabindex="1" href="#">Delete Mapping</a></li>' +
     '</ul>' +
   '</div>';
@@ -74,77 +73,30 @@ var create_inf_template =
   "self_sign_cert = SELF_SIGN\n";
 
 
+var sasl_table;
+
 function load_server_config() {
   var mark = document.getElementById("server-config-title");
   mark.innerHTML = "Configuration for server: <b>" + server_id + "</b>";
 }
 
-function server_hide_all(){
-  // Jquery can problem do this better using names/roles
-  $("#server-config").hide();
-  $("#server-security").hide();
-  $("#server-logs").hide();
-  $("#server-pwpolicy").hide();
-  $("#server-tuning").hide();
-  $("#server-tuning").hide();
-};
-
 function clear_sasl_map_form () {
-  $("#sasl-map-name").val("");
-  $("#sasl-map-regex").val("");
-  $("#sasl-map-base").val("");
-  $("#sasl-map-filter").val("");
-  $("#sasl-map-priority").val("");
+  $(".ds-modal-error").hide();
+  $(".sasl-input").val("");
+  $(".sasl-input").css("border-color", "initial");
 }
 
 function clear_local_pwp_form () {
-  $("#local-entry-dn").val("");
-  $("#local-passwordtrackupdatetime").prop('checked', false);
-  $("#local-passwordadmindn").val("");
-  $("#local-passwordchange").prop('checked', false);
-  $("#local-passwordmustchange").prop('checked', false);
-  $("#local-passwordhistory").prop('checked', false);
-  $("#local-passwordinhistory").val("");
-  $("#local-passwordminage").val("");
-  $("#local-passwordexp").prop('checked', false);
-  $("#local-passwordmaxage").val("");
-  $("#local-passwordgracelimit").val("");
-  $("#local-passwordwarning").val("");
-  $("#local-passwordsendexpiringtime").prop('checked', false);
-  $("#local-passwordlockout").prop('checked', false);
-  $("#local-passwordmaxfailure").val("");
-  $("#local-passwordresetfailurecount").val("");
-  $("#local-passwordunlock").prop('checked', false);
-  $("#local-passwordlockoutduration").val("");
-  $("#local-passwordchecksyntax").prop('checked', false);
-  $("#local-passwordminlength").val("");
-  $("#local-passwordmindigits").val("");
-  $("#local-passwordminalphas").val("");
-  $("#local-passwordminuppers").val("");
-  $("#local-passwordminlowers").val("");
-  $("#local-passwordminspecials").val("");
-  $("#local-passwordmin8bit").val("");
-  $("#local-passwordmaxrepeats").val("");
-  $("#local-passwordmincategories").val("");
-  $("#local-passwordmintokenlength").val("");
+  $(".ds-pwp-input").val("");
+  $(".ds-pwp-checkbox").prop('checked', false);
   $("#local-passwordstoragescheme").prop('selectedIndex',0);
-  $("#subtree-pwp-radio").prop('checked', true);
   $("#subtree-pwp-radio").attr('disabled', false);
   $("#user-pwp-radio").attr('disabled', false);
 }
 
 function clear_inst_input() {
   // Reset the color of the fields
-  $("#create-inst-serverid").css("border-color", "initial");
-  $("#create-inst-port").css("border-color", "initial");
-  $("#create-inst-secureport").css("border-color", "initial");
-  $("#create-inst-rootdn").css("border-color", "initial");
-  $("#create-inst-user").css("border-color", "initial");
-  $("#create-inst-group").css("border-color", "initial");
-  $("#rootdn-pw").css("border-color", "initial");
-  $("#rootdn-pw-confirm").css("border-color", "initial");
-  $("#backend-name").css("border-color", "initial");
-  $("#backend-suffix").css("border-color", "initial");
+  $(".ds-inst-input").css("border-color", "initial");
 }
 
 function clear_inst_form() {
@@ -159,9 +111,8 @@ function clear_inst_form() {
   $("#backend-name").val("");
   $("#create-sample-entries").prop('checked', false);
   $("#create-inst-tls").prop('checked', true);
-  clear_inst_input();
+  $(".ds-inst-input").css("border-color", "initial");
 }
-
 
 function get_and_set_config () {
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'get'];
@@ -186,7 +137,40 @@ function get_and_set_config () {
     check_inst_alive();
   }).fail(function(data) {
       console.log("failed: " + data.message);
-      check_inst_alive();
+      check_inst_alive(1);
+  });
+}
+
+function get_and_set_sasl () {
+  // First empty the table
+  $("#sasl-table").find("tr:gt(0)").empty();
+
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'list'];
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    var obj = JSON.parse(data);
+    for (var idx in obj['items']) {
+      var map_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'get', obj['items'][idx] ];
+      cockpit.spawn(map_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var map_obj = JSON.parse(data);
+
+        // Update html table
+        var sasl_priority = '100';
+        if ( map_obj['attrs'].hasOwnProperty('nssaslmappriority') ){
+          sasl_priority = map_obj['attrs'].nssaslmappriority
+        }
+        sasl_table.row.add( [
+          map_obj['attrs'].cn,
+          map_obj['attrs'].nssaslmapregexstring,
+          map_obj['attrs'].nssaslmapbasedntemplate,
+          map_obj['attrs'].nssaslmapfiltertemplate,
+          sasl_priority,
+          sasl_action_html
+        ] ).draw( false );
+      });
+    }
+  }).fail(function(data) {
+      console.log("failed: " + data.message);
+      check_inst_alive(1);
   });
 }
 
@@ -386,7 +370,7 @@ $(document).ready( function() {
         }
     });
 
-    var sasl_table = $('#sasl-table').DataTable( {
+    sasl_table = $('#sasl-table').DataTable( {
       "paging": true,
       "bAutoWidth": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
@@ -403,19 +387,51 @@ $(document).ready( function() {
 
     $("#create-sasl-map-btn").on("click", function () {
       clear_sasl_map_form();
+      $("#sasl-map-name").prop("readonly", false);
+    });
+
+    $("#test-sasl-regex").change(function() {
+      if(this.checked) {
+        // Test SASL mapping
+        $("#sasl-test-div").show();
+      } else {
+        $("#sasl-test-div").hide();
+      }
+    });
+
+    // Test SASL Mapping Regex
+    $("#sasl-test-regex-btn").on('click', function () {
+      var result = "No match!"
+      var regex = $("#sasl-map-regex").val().replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+      var test_string = $("#sasl-test-regex-string").val();
+      var sasl_regex = RegExp(regex);
+      if (sasl_regex.test(test_string)){
+        popup_msg("Match", "The text matches the regular expression");
+      } else {
+        popup_msg("No Match", "The text does not match the regular expression");
+      }
     });
 
     // Edit SASL mapping
     $(document).on('click', '.sasl-edit-btn', function(e) {
-        // TODO - get this working
-        e.preventDefault();
-        clear_sasl_map_form();
-        var data = sasl_table.row( $(this).parents('tr') ).data();
-        var edit_sasl_name = data[0];
+      // Load the Edit form
+      e.preventDefault();
+      clear_sasl_map_form();
+      var data = sasl_table.row( $(this).parents('tr') ).data();
+      var edit_sasl_name = data[0];
+      var edit_sasl_regex = data[1];
+      var edit_sasl_base = data[2];
+      var edit_sasl_filter = data[3];
+      var edit_sasl_priority = data[4];
 
-        $("#sasl-header").html("Edit SASL Mapping");
-        $("#sasl-map-name").val(edit_sasl_name);
-        $("#sasl-map-form").modal("toggle");
+      $("#sasl-header").html("Edit SASL Mapping");
+      $("#sasl-map-name").val(edit_sasl_name);
+      $("#sasl-map-name").prop("readonly", true);
+      $("#sasl-map-regex").val(edit_sasl_regex);
+      $("#sasl-map-base").val(edit_sasl_base);
+      $("#sasl-map-filter").val(edit_sasl_filter);
+      $("#sasl-map-priority").val(edit_sasl_priority);
+      $("#sasl-map-form").modal("toggle");
     });
 
     // Verify SASL Mapping regex - open modal and ask for "login" to test regex mapping
@@ -434,10 +450,14 @@ $(document).ready( function() {
         var sasl_row = $(this); // Store element for callback
         popup_confirm("Are you sure you want to delete sasl mapping: <b>" + del_sasl_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
-          // TODO Delete mapping from DS
-
-          // Update html table
-          sasl_table.row( sasl_row.parents('tr') ).remove().draw( false );
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'delete', del_sasl_name];
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            sasl_table.row( sasl_row.parents('tr') ).remove().draw( false );
+            popup_success("Removed SASL mapping <b>" + del_sasl_name + "</b>");
+          }).fail(function(data) {
+            popup_err("Failure Deleting SASL Mapping",
+                      "Failed To Delete SASL Mapping: <b>" + del_sasl_name + "</b>: \n" + data.message);
+          });
         }
       });
     });
@@ -854,27 +874,105 @@ $(document).ready( function() {
 
     // SASL Mappings Form
     $("#sasl-map-save").on("click", function() {
-      var sasl_name = $("#sasl-map-name").val();
-      var sasl_regex = $("#sasl-map-regex").val();
-      var sasl_base = $("#sasl-map-base").val();
+      var sasl_map_name = $("#sasl-map-name").val();
+      var sasl_regex =  $("#sasl-map-regex").val();
+      var sasl_base =  $("#sasl-map-base").val();
       var sasl_filter = $("#sasl-map-filter").val();
       var sasl_priority = $("#sasl-map-priority").val();
 
-      // TODO - Add mapping to DS
+      // Validate values
+      if (sasl_map_name == '') {
+        report_err($("#sasl-map-name"), 'You must provide an mapping name');
+        return;
+      }
+      if (sasl_map_name == '') {
+        report_err($("#sasl-map-regex"), 'You must provide an regex');
+        return;
+      }
+      if (sasl_regex == '') {
+        report_err($("#sasl-map-base"), 'You must provide a base DN template');
+        return;
+      }
+      if (sasl_filter == '') {
+        report_err($("#sasl-map-filter"), 'You must provide an filter template');
+        return;
+      }
+      if (sasl_priority == '') {
+        sasl_priority = '100'
+      } else if (valid_num(sasl_priority)) {
+        var priority = Number(sasl_priority);
+        if (priority < 1 || priority > 100) {
+          report_err($("#sasl-map-priority"), 'You must provide a number between 1 and 100');
+          return;
+        }
+      } else {
+        report_err($("#sasl-map-priority"), 'You must provide a number between 1 and 100');
+        return;
+      }
 
-      // Update html table
-      sasl_table.row.add( [
-        sasl_name,
-        sasl_regex,
-        sasl_base,
-        sasl_filter,
-        sasl_priority,
-        sasl_action_html
-      ] ).draw( false );
+      // Build command line args
+      var sasl_name_cmd = "--cn=" + sasl_map_name ;
+      var sasl_regex_cmd = "--nsSaslMapRegexString=" + sasl_regex;
+      var sasl_base_cmd = "--nsSaslMapBaseDNTemplate=" + sasl_base;
+      var sasl_filter_cmd = "--nsSaslMapFilterTemplate=" + sasl_filter;
+      var sasl_priority_cmd = "--nsSaslMapPriority=" + sasl_priority;
 
-      // Done
-      //$("#sasl-map-form").css('display', 'none');
-      $("#sasl-map-form").modal('toggle');
+      if ( $("#sasl-header").html().includes("Create") ) {
+        // Create new mapping and update table
+        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'create',
+                   sasl_name_cmd, sasl_regex_cmd, sasl_base_cmd, sasl_filter_cmd, sasl_priority_cmd];
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+          // Update html table
+          sasl_table.row.add( [
+            sasl_map_name,
+            sasl_regex,
+            sasl_base,
+            sasl_filter,
+            sasl_priority,
+            sasl_action_html
+          ] ).draw( false );
+          popup_success("Successfully added new SASL mapping");
+          $("#sasl-map-form").modal('toggle');
+        }).fail(function(data) {
+          popup_err("Failure Adding SASL Mapping",
+                    "Failed To Add SASL Mapping: <b>" + sasl_map_name + "</b>: \n" + data.message);
+          $("#sasl-map-form").modal("toggle");
+        });
+      } else {
+        // Editing mapping.  First delete the old mapping
+        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'delete', sasl_map_name];
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+          // Remove row from old
+          sasl_table.rows( function ( idx, data, node ) {
+            return data[0] == sasl_map_name;
+          }).remove().draw();
+
+          // Then add new mapping and update table
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'create',
+                     sasl_name_cmd, sasl_regex_cmd, sasl_base_cmd, sasl_filter_cmd, sasl_priority_cmd];
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+            // Update html table
+            sasl_table.row.add( [
+              sasl_map_name,
+              sasl_regex,
+              sasl_base,
+              sasl_filter,
+              sasl_priority,
+              sasl_action_html
+            ] ).draw( false );
+            popup_success("Successfully added new SASL mapping");
+            $("#sasl-map-form").modal('toggle');
+          }).fail(function(data) {
+            popup_err("Failure Adding SASL Mapping",
+                      "Failed To Add SASL Mapping: <b>" + sasl_map_name + "</b>: \n" + data.message);
+            $("#sasl-map-form").modal("toggle");
+          });
+        }).fail(function(data) {
+          popup_err("Failure Deleting Old SASL Mapping",
+                    "Failed To Delete SASL Mapping: <b>" + sasl_map_name + "</b>: \n" + data.message);
+          $("#sasl-map-form").modal("toggle");
+        });
+      }
     });
 
     /*
@@ -1069,7 +1167,7 @@ $(document).ready( function() {
     // Create Instance
     $("#create-inst-save").on("click", function() {
       $(".ds-modal-error").hide();
-      clear_inst_input();
+      $(".ds-inst-input").css("border-color", "initial");
 
       /*
        * Validate settings and update the INF settings

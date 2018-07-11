@@ -167,6 +167,10 @@ class DSLdapObject(DSLogging):
         str_attrs = {}
         for k in attrs:
             str_attrs[ensure_str(k)] = ensure_list_str(attrs[k])
+
+        # ensure all the keys are lowercase
+        str_attrs = dict((k.lower(), v) for k, v in str_attrs.items())
+
         response = json.dumps({"type": "entry", "dn": ensure_str(self._dn), "attrs": str_attrs})
 
         return response
@@ -662,9 +666,10 @@ class DSLdapObject(DSLogging):
 
         # I think this needs to be made case insensitive
         # How will this work with the dictionary?
-        for attr in self._must_attributes:
-            if properties.get(attr, None) is None:
-                raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
+        if self._must_attributes is not None:
+            for attr in self._must_attributes:
+                if properties.get(attr, None) is None:
+                    raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
 
         # Make sure the naming attribute is present
         if properties.get(self._rdn_attribute, None) is None and rdn is None:
@@ -677,7 +682,7 @@ class DSLdapObject(DSLogging):
                 pass
             else:
                 # Turn it into a list instead.
-                properties[k] = [v,]
+                properties[k] = [v, ]
 
         # This change here, means we can pre-load a full dn to _dn, or we can
         # accept based on the rdn

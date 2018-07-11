@@ -644,6 +644,12 @@ class SetupDs(object):
         if self.verbose:
             self.log.info("ACTION: Creating certificate database is %s", slapd['cert_dir'])
 
+        # Get suffix for sasl map entries (template-sasl.ldif)
+        if len(backends) > 0:
+            ds_suffix = backends[0]['suffix']
+        else:
+            ds_suffix = ''
+
         # Create dse.ldif with a temporary root password.
         # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
         # Variables are done with %KEY%.
@@ -654,6 +660,11 @@ class SetupDs(object):
         with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
+
+        if ds_suffix != '':
+            with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-sasl.ldif')) as template_sasl:
+                for line in template_sasl.readlines():
+                    dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
         with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
             file_dse.write(dse.format(
@@ -672,7 +683,7 @@ class SetupDs(object):
                 rootdn=slapd['root_dn'],
                 # ds_passwd=slapd['root_password'],
                 ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
-                ds_suffix='',
+                ds_suffix=ds_suffix,
                 config_dir=slapd['config_dir'],
                 db_dir=slapd['db_dir'],
             ))

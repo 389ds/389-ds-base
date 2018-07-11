@@ -442,7 +442,7 @@ $(document).ready( function() {
     }
 
 
-    $(".index-type").attr('readonly', 'readonly');
+    $(".index-type").attr('readonly', true);
 
     if ( $("#manual-cache").is(":checked") ){
       $("#auto-cache-form").hide();

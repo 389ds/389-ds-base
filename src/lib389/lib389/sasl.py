@@ -13,17 +13,18 @@ These should be upstreamed if possible.
 """
 
 from ldap.sasl import sasl, CB_AUTHNAME, CB_PASS, CB_USER
-
 from lib389.utils import ensure_bytes
+
 
 class LdapSSOTokenSASL(sasl):
     """
     This class handles draft-wibrown-ldapssotoken-01 authentication.
     """
 
-    def __init__(self,token):
-        auth_dict = { CB_PASS:token }
+    def __init__(self, token):
+        auth_dict = {CB_PASS: token}
         sasl.__init__(self, auth_dict, "LDAPSSOTOKEN")
+
 
 class PlainSASL(sasl):
     """
@@ -31,6 +32,6 @@ class PlainSASL(sasl):
     """
 
     def __init__(self, authz_id, passwd):
-        auth_dict = { CB_AUTHNAME:authz_id, CB_PASS:passwd }
+        auth_dict = {CB_AUTHNAME: authz_id, CB_PASS: passwd}
         sasl.__init__(self, auth_dict, "PLAIN")
 
