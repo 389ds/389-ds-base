@@ -496,8 +496,8 @@ dsOpsTable_get_value(netsnmp_request_info *request,
         the_stat = &context->ops_tbl.dsConnectionsInMaxThreads;
         break;
 
-    case COLUMN_DSMAXTHREADSHIT:
-        the_stat = &context->ops_tbl.dsMaxThreadsHit;
+    case COLUMN_DSMAXTHREADSHITS:
+        the_stat = &context->ops_tbl.dsMaxThreadsHits;
         break;
 
     default: /* We shouldn't get here */
