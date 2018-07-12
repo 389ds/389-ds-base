@@ -1886,7 +1886,7 @@ struct snmp_ops_tbl_t
     Slapi_Counter *dsBytesSent;     /* Count of bytes sent to clients */
     Slapi_Counter *dsEntriesReturned;
     Slapi_Counter *dsReferralsReturned;
-    Slapi_Counter *dsMaxThreadsHit;
+    Slapi_Counter *dsMaxThreadsHits;
     Slapi_Counter *dsConnectionsInMaxThreads;
 };
 

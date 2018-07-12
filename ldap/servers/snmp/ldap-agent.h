@@ -161,7 +161,7 @@ extern size_t snmptrap_oid_len;
 #define COLUMN_DSERRORS 20
 #define COLUMN_DSCONNECTIONS 21
 #define COLUMN_DSCONNECTIONSINMAXTHREADS 22
-#define COLUMN_DSMAXTHREADSHIT 23
+#define COLUMN_DSMAXTHREADSHITS 23
 #define dsOpsTable_COL_MIN 1
 #define dsOpsTable_COL_MAX 23
 
