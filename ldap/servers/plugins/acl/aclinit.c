@@ -119,13 +119,6 @@ aclinit_main()
 		return 1;
 	} */
 
-	/* create the mutex array */
-	if ( 0 != aclext_alloc_lockarray ( ) ) {
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,
-			"Unable to create the mutext array\n");
-		return 1;
-	}
-
     /* Allocate the pool */
 	if ( 0 != acl_create_aclpb_pool () ) {
 		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,
