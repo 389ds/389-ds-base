@@ -806,9 +806,6 @@ int               acl_create_aclpb_pool(void);
 void        acl_destroy_aclpb_pool(void);
 int		acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e, int access );
 
-int                     aclext_alloc_lockarray(void);
-void              aclext_free_lockarray(void);
-
 int			aclutil_str_append(char **str1, const char *str2);
 void		aclutil_print_err (int rv , const Slapi_DN *sdn,
 			const struct berval* val, char **errbuf);
