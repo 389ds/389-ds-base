@@ -1911,7 +1911,7 @@ connection_activity(Connection *conn, int maxthreads)
         slapi_counter_increment(max_threads_count);
         slapi_counter_increment(conns_in_maxthreads);
         slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHit);
+        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHits);
     }
     op_stack_obj = connection_get_operation();
     connection_add_operation(conn, op_stack_obj->op);

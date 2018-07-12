@@ -102,7 +102,7 @@ struct ops_stats_t
     uint64_t dsErrors;
     uint64_t dsConnections;             /* Number of currently connected clients */
     uint64_t dsConnectionSeq;           /* Monotonically increasing number bumped on each new conn est */
-    uint64_t dsMaxThreadsHit;           /* Number of times a connection hit max threads */
+    uint64_t dsMaxThreadsHits;          /* Number of times a connection hit max threads */
     uint64_t dsConnectionsInMaxThreads; /* current number of connections that are in max threads */
     uint64_t dsBytesRecv;               /* Count of bytes read from clients */
     uint64_t dsBytesSent;               /* Count of bytes sent to clients */

@@ -87,7 +87,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
                   dsErrors,
                   dsConnections,
                   dsConnectionsInMaxThreads,
-                  dsMaxThreadsHit,
+                  dsMaxThreadsHits,
                   dsMasterEntries,
                   dsCopyEntries,
                   dsCacheEntries,
@@ -190,7 +190,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
             Counter64,
         dsConnectionsInMaxThreads
             Counter64,
-        dsMaxThreadsHit
+        dsMaxThreadsHits
             Counter64
 
     }
@@ -472,7 +472,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
             "Redhat defined 1.2."
         ::= { dsOpsEntry 22 }
 
-    dsMaxThreadsHit OBJECT-TYPE
+    dsMaxThreadsHits OBJECT-TYPE
         SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
@@ -596,7 +596,7 @@ RHDS-MIB DEFINITIONS ::= BEGIN
 
     DsIntEntry ::= SEQUENCE {
        dsIntIndex
-	       INTEGER,
+           Integer32,
        dsName
            DistinguishedName,
        dsTimeOfCreation
