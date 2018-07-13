@@ -7,10 +7,13 @@
 #
 import pytest
 import time
-from lib389._constants import SUFFIX, PASSWORD, DN_DM
+from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB
+from lib389 import Entry
 from lib389.idm.user import UserAccounts
 from lib389.utils import ldap, os, logging, ensure_bytes
 from lib389.topologies import topology_st as topo
+from lib389.topologies import topology_m1 as topo_master
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -33,6 +36,23 @@ TEST_PASSWORDS += ['CNpwtest1ZZZZ', 'ZZZZZCNpwtest1',
 TEST_PASSWORDS2 = (
     'CN12pwtest31', 'SN3pwtest231', 'UID1pwtest123', 'MAIL2pwtest12@redhat.com', '2GN1pwtest123', 'People123')
 
+def _check_unhashed_userpw(inst, user_dn, is_present=False):
+    """Check if unhashed#user#password attribute is present of not in the changelog"""
+    unhashed_pwd_attribute = 'unhashed#user#password'
+
+    changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
+    for dbfile in os.listdir(changelog_dbdir):
+        if dbfile.endswith('.db'):
+            changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
+            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+    log.info('Running dbscan -f to check {} attr'.format(unhashed_pwd_attribute))
+    dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+    for entry in dbscanOut.split(b'dbid: '):
+        if ensure_bytes('operation: modify') in entry and ensure_bytes(user_dn) in entry and ensure_bytes('userPassword') in entry:
+            if is_present:
+                assert ensure_bytes(unhashed_pwd_attribute) in entry
+            else:
+                assert ensure_bytes(unhashed_pwd_attribute) not in entry
 
 @pytest.fixture(scope="module")
 def passw_policy(topo, request):
@@ -187,6 +207,105 @@ def test_global_vs_local(topo, passw_policy, test_user, user_pasw):
     finally:
         conn.unbind_s()
         test_user.set('userPassword', PASSWORD)
+
+@pytest.mark.ds49789
+def test_unhashed_pw_switch(topo_master):
+    """Check that nsslapd-unhashed-pw-switch works corrently
+
+    :id: e5aba180-d174-424d-92b0-14fe7bb0b92a
+    :setup: Master Instance
+    :steps:
+        1. A Master is created, enable retrocl (not  used here)
+        2. create a set of users
+        3. update userpassword of user1 and check that unhashed#user#password is not logged (default)
+        4. udpate userpassword of user2 and check that unhashed#user#password is not logged ('nolog')
+        5. udpate userpassword of user3 and check that unhashed#user#password is logged ('on')
+    :expectedresults:
+        1. Success
+        2. Success
+        3  Success (unhashed#user#password is not logged in the replication changelog)
+        4. Success (unhashed#user#password is not logged in the replication changelog)
+        5. Success (unhashed#user#password is     logged in the replication changelog)
+    """
+    MAX_USERS = 10
+    PEOPLE_DN = ("ou=people," + DEFAULT_SUFFIX)
+
+    inst = topo_master.ms["master1"]
+    inst.modify_s("cn=Retro Changelog Plugin,cn=plugins,cn=config",
+                                        [(ldap.MOD_REPLACE, 'nsslapd-changelogmaxage', b'2m'),
+                                         (ldap.MOD_REPLACE, 'nsslapd-changelog-trim-interval', b"5s"),
+                                         (ldap.MOD_REPLACE, 'nsslapd-logAccess', b'on')])
+    inst.config.loglevel(vals=[256 + 4], service='access')
+    inst.restart()
+    # If you need any test suite initialization,
+    # please, write additional fixture for that (including finalizer).
+    # Topology for suites are predefined in lib389/topologies.py.
+
+    # enable dynamic plugins, memberof and retro cl plugin
+    #
+    log.info('Enable plugins...')
+    try:
+        inst.modify_s(DN_CONFIG,
+                                        [(ldap.MOD_REPLACE,
+                                          'nsslapd-dynamic-plugins',
+                                          b'on')])
+    except ldap.LDAPError as e:
+        ldap.error('Failed to enable dynamic plugins! ' + e.message['desc'])
+        assert False
+
+    #topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+    inst.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+    #topology_st.standalone.modify_s("cn=changelog,cn=ldbm database,cn=plugins,cn=config", [(ldap.MOD_REPLACE, 'nsslapd-cachememsize', str(100000))])
+    inst.restart()
+
+    log.info('create users and group...')
+    for idx in range(1, MAX_USERS):
+        try:
+            USER_DN = ("uid=member%d,%s" % (idx, PEOPLE_DN))
+            inst.add_s(Entry((USER_DN,
+                                                {'objectclass': 'top extensibleObject'.split(),
+                                                 'uid': 'member%d' % (idx)})))
+        except ldap.LDAPError as e:
+            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.message['desc']))
+            assert False
+
+    # Check default is that unhashed#user#password is not logged
+    user = "uid=member1,%s" % (PEOPLE_DN)
+    inst.modify_s(user, [(ldap.MOD_REPLACE,
+                                          'userpassword',
+                                          PASSWORD.encode())])
+    inst.stop()
+    _check_unhashed_userpw(inst, user, is_present=False)
+
+    #  Check with nolog that unhashed#user#password is not logged
+    inst.modify_s(DN_CONFIG,
+                                        [(ldap.MOD_REPLACE,
+                                          'nsslapd-unhashed-pw-switch',
+                                          b'nolog')])
+    inst.restart()
+    user = "uid=member2,%s" % (PEOPLE_DN)
+    inst.modify_s(user, [(ldap.MOD_REPLACE,
+                                          'userpassword',
+                                          PASSWORD.encode())])
+    inst.stop()
+    _check_unhashed_userpw(inst, user, is_present=False)
+
+    #  Check with value 'on' that unhashed#user#password is logged
+    inst.modify_s(DN_CONFIG,
+                                        [(ldap.MOD_REPLACE,
+                                          'nsslapd-unhashed-pw-switch',
+                                          b'on')])
+    inst.restart()
+    user = "uid=member3,%s" % (PEOPLE_DN)
+    inst.modify_s(user, [(ldap.MOD_REPLACE,
+                                          'userpassword',
+                                          PASSWORD.encode())])
+    inst.stop()
+    _check_unhashed_userpw(inst, user, is_present=True)
+
+    if DEBUGGING:
+        # Add debugging steps(if any)...
+        pass
 
 
 if __name__ == '__main__':
