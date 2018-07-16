@@ -43,6 +43,7 @@ def _set_memberofgroupattr_add(topology_st, values):
 def _get_user_rdn(ext):
     return ensure_bytes("uid=%s_%s" % (USER_RDN, ext))
 
+
 def _get_user_dn(ext):
     return ensure_bytes("%s,%s" % (ensure_str(_get_user_rdn(ext)), USERS_CONTAINER))
 
@@ -102,7 +103,6 @@ def _check_memberattr(topology_st, entry, memberattr, value):
     return found
 
 
-
 def _check_memberof(topology_st, member, group):
     log.info("Lookup memberof from %s" % member)
     entry = topology_st.standalone.getEntry(ensure_str(member), ldap.SCOPE_BASE, '(objectclass=*)', ['memberof'])
@@ -119,10 +119,19 @@ def _check_memberof(topology_st, member, group):
     return found
 
 
-def text_memberof_683241_01(topology_st):
+def test_betxnpostoperation_replace(topology_st):
+    """Test modify the memberof plugin operation to use the new type
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a91
+    :setup: Standalone instance
+    :steps:
+        1. Set plugin type to betxnpostoperation
+        2. Check is was changed
+    :expectedresults:
+        1. Success
+        2. Success
     """
-    Test Modify the memberof plugin to use the new type
-    """
+
     topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                     [(ldap.MOD_REPLACE,
                                       PLUGIN_TYPE,
@@ -130,27 +139,22 @@ def text_memberof_683241_01(topology_st):
     topology_st.standalone.restart()
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_TYPE])
     assert ent.hasAttr(PLUGIN_TYPE)
-    assert ent.getValue(PLUGIN_TYPE) == 'betxnpostoperation'
+    assert ent.getValue(PLUGIN_TYPE) == b'betxnpostoperation'
 
 
-def text_memberof_683241_01(topology_st):
-    """
-    Test Modify the memberof plugin to use the new type
-    """
-    topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
-                                    [(ldap.MOD_REPLACE,
-                                      PLUGIN_TYPE,
-                                      b'betxnpostoperation')])
-    topology_st.standalone.restart()
-    ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)", [PLUGIN_TYPE])
-    assert ent.hasAttr(PLUGIN_TYPE)
-    assert ent.getValue(PLUGIN_TYPE) == 'betxnpostoperation'
+def test_memberofgroupattr_add(topology_st):
+    """Check multiple grouping attributes supported
 
+    :id: d222af17-17a6-48a0-8f22-a38306726a92
+    :setup: Standalone instance
+    :steps:
+        1. Add memberofgroupattr - 'uniqueMember'
+        2. Check we have 'uniqueMember' and 'member' values
+    :expectedresults:
+        1. Success
+        2. Success
+    """
 
-def test_memberof_MultiGrpAttr_001(topology_st):
-    """
-    Checking multiple grouping attributes supported
-    """
     _set_memberofgroupattr_add(topology_st, 'uniqueMember')
     ent = topology_st.standalone.getEntry(MEMBEROF_PLUGIN_DN, ldap.SCOPE_BASE, "(objectclass=*)",
                                           [PLUGIN_MEMBEROF_GRP_ATTR])
@@ -159,10 +163,19 @@ def test_memberof_MultiGrpAttr_001(topology_st):
     assert b'uniqueMember'.lower() in [x.lower() for x in ent.getValues(PLUGIN_MEMBEROF_GRP_ATTR)]
 
 
-def test_memberof_MultiGrpAttr_003(topology_st):
+def test_enable(topology_st):
+    """Check the plug-in is started
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a93
+    :setup: Standalone instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+    :expectedresults:
+        1. Success
+        2. Server should start and plugin should be on
     """
-    Check the plug-in is started
-    """
+
     log.info("Enable MemberOf plugin")
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     topology_st.standalone.restart()
@@ -171,10 +184,21 @@ def test_memberof_MultiGrpAttr_003(topology_st):
     assert ent.getValue(PLUGIN_ENABLED).lower() == b'on'
 
 
-def test_memberof_MultiGrpAttr_004(topology_st):
+def test_member_add(topology_st):
+    """MemberOf attribute should be successfully added to both the users
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a94
+    :setup: Standalone instance
+    :steps:
+        1. Create user and groups
+        2. Add the users as members to the groups
+        3. Check the membership
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
     """
-    MemberOf attribute should be successfully added to both the users
-    """
+
     memofenh1 = _create_user(topology_st, 'memofenh1')
     memofenh2 = _create_user(topology_st, 'memofenh2')
 
@@ -199,10 +223,19 @@ def test_memberof_MultiGrpAttr_004(topology_st):
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
 
 
-def test_memberof_MultiGrpAttr_005(topology_st):
+def test_member_delete_gr1(topology_st):
+    """Partial removal of memberofgroupattr: removing member attribute from Group1
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a95
+    :setup: Standalone instance
+    :steps:
+        1. Delete a member: enh1 in grp1
+        2. Check the states of the members were changed accordingly
+    :expectedresults:
+        1. Success
+        2. Success
     """
-    Partial removal of memberofgroupattr: removing member attribute from Group1
-    """
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -221,10 +254,19 @@ def test_memberof_MultiGrpAttr_005(topology_st):
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
 
 
-def test_memberof_MultiGrpAttr_006(topology_st):
+def test_member_delete_gr2(topology_st):
+    """Partial removal of memberofgroupattr: removing uniqueMember attribute from Group2
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a96
+    :setup: Standalone instance
+    :steps:
+        1. Delete a uniqueMember: enh2 in grp2
+        2. Check the states of the members were changed accordingly
+    :expectedresults:
+        1. Success
+        2. Success
     """
-    Partial removal of memberofgroupattr: removing uniqueMember attribute from Group2
-    """
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -244,10 +286,19 @@ def test_memberof_MultiGrpAttr_006(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
 
 
-def test_memberof_MultiGrpAttr_007(topology_st):
+def test_member_delete_all(topology_st):
+    """Complete removal of memberofgroupattr
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a97
+    :setup: Standalone instance
+    :steps:
+        1. Delete the rest of the members
+        2. Check the states of the members were changed accordingly
+    :expectedresults:
+        1. Success
+        2. Success
     """
-    Complete removal of memberofgroupattr
-    """
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -271,10 +322,21 @@ def test_memberof_MultiGrpAttr_007(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
 
 
-def test_memberof_MultiGrpAttr_008(topology_st):
+def test_member_after_restart(topology_st):
+    """MemberOf attribute should be present on both the users
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a98
+    :setup: Standalone instance
+    :steps:
+        1. Add a couple of members to the groups
+        2. Restart the instance
+        3. Check the states of the members were changed accordingly
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
     """
-    MemberOf attribute should be present on both the users
-    """
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -317,10 +379,17 @@ def test_memberof_MultiGrpAttr_008(topology_st):
     topology_st.standalone.restart()
 
 
-def test_memberof_MultiGrpAttr_009(topology_st):
+def test_memberofgroupattr_uid(topology_st):
+    """MemberOf attribute should not be added to the user since memberuid is not a DN syntax attribute
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a99
+    :setup: Standalone instance
+    :steps:
+        1. Try to add memberUid to the group
+    :expectedresults:
+        1. It should fail with Unwilling to perform error
     """
-    MemberOf attribute should not be added to the user since memberuid is not a DN syntax attribute
-    """
+
     try:
         _set_memberofgroupattr_add(topology_st, 'memberUid')
         log.error("Setting 'memberUid' as memberofgroupattr should be rejected")
@@ -330,16 +399,19 @@ def test_memberof_MultiGrpAttr_009(topology_st):
         assert True
 
 
-def test_memberof_MultiGrpAttr_010(topology_st):
-    """
-    Duplicate member attribute to groups
+def test_member_add_duplicate_usr1(topology_st):
+    """Duplicate member attribute to groups
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a10
+    :setup: Standalone instance
+    :steps:
+        1. Try to add a member: enh1 which already exists
+    :expectedresults:
+        1. It should fail with Type of value exists error
     """
 
     memofenh1 = _get_user_dn('memofenh1')
-    memofenh2 = _get_user_dn('memofenh2')
-
     memofegrp1 = _get_group_dn('memofegrp1')
-    memofegrp2 = _get_group_dn('memofegrp2')
 
     # assert enh1 is member of grp1
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
@@ -356,17 +428,15 @@ def test_memberof_MultiGrpAttr_010(topology_st):
         assert True
 
 
-def test_memberof_MultiGrpAttr_011(topology_st):
-    """
-    Duplicate uniqueMember attributes to groups
+def test_member_add_duplicate_usr2(topology_st):
+    """Duplicate uniqueMember attributes to groups
 
-    At the beginning:
-        memofenh1 is memberof memofegrp1
-        memofenh2 is memberof memofegrp2
-
-    At the end
-        memofenh1 is memberof memofegrp1
-        memofenh2 is memberof memofegrp2
+    :id: d222af17-17a6-48a0-8f22-a38306726a11
+    :setup: Standalone instance
+    :steps:
+        1. Try to add a uniqueMember: enh2 which already exists
+    :expectedresults:
+        1. It should fail with Type of value exists error
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -405,63 +475,75 @@ def test_memberof_MultiGrpAttr_011(topology_st):
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
 
 
-def test_memberof_MultiGrpAttr_012(topology_st):
-    """
-    MemberURL attritbute should reflect the modrdn changes in the group.
-
-    This test has been covered in MODRDN test suite
-
-    At the beginning:
-        memofenh1 is memberof memofegrp1
-        memofenh2 is memberof memofegrp2
-
-    At the end
-        memofenh1 is memberof memofegrp1
-        memofenh2 is memberof memofegrp2
-    """
-    pass
-
-
-def test_memberof_MultiGrpAttr_013(topology_st):
-    """
-    MemberURL attritbute should reflect the modrdn changes in the group.
-
-    This test has been covered in MODRDN test suite
-
-    At the beginning:
-        memofenh1 is memberof memofegrp1
-        memofenh2 is memberof memofegrp2
-
-    At the end
-        memofenh1 is memberof memofegrp1
-        memofenh2 is memberof memofegrp2
-    """
-    pass
+#def test_memberof_MultiGrpAttr_012(topology_st):
+#    """
+#    MemberURL attritbute should reflect the modrdn changes in the group.
+#
+#    This test has been covered in MODRDN test suite
+#
+#    At the beginning:
+#        memofenh1 is memberof memofegrp1
+#        memofenh2 is memberof memofegrp2
+#
+#    At the end
+#        memofenh1 is memberof memofegrp1
+#        memofenh2 is memberof memofegrp2
+#    """
+#    pass
 
 
-def test_memberof_MultiGrpAttr_014(topology_st):
-    """
-    Both member and uniqueMember pointing to the same user
+#def test_memberof_MultiGrpAttr_013(topology_st):
+#    """
+#    MemberURL attritbute should reflect the modrdn changes in the group.
+#
+#    This test has been covered in MODRDN test suite
+#
+#    At the beginning:
+#        memofenh1 is memberof memofegrp1
+#        memofenh2 is memberof memofegrp2
+#
+#    At the end
+#        memofenh1 is memberof memofegrp1
+#        memofenh2 is memberof memofegrp2
+#    """
+#    pass
 
-    At the beginning:
-        enh1 is member of
+
+def test_member_uniquemember_same_user(topology_st):
+    """Check the situation when both member and uniqueMember
+    pointing to the same user
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a13
+    :setup: Standalone instance, grp3,
+            enh1 is member of
             - grp1 (member)
             - not grp2
-
-        enh2 is member of
+            enh2 is member of
             - not grp1
             - grp2 (uniquemember)
-
-    At the end
-        enh1 is member of
-            - grp1 (member)
-            - not grp2
-            - grp3 (uniquemember)
-
-        enh2 is member of
-            - not grp1
-            - grp2 (uniquemember)
-            - grp3 (member)
+    :steps:
+        1. Add member: enh1 and uniqueMember: enh1 to grp3
+        2. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (member uniquemember)
+        3. Delete member: enh1 from grp3
+        4. Add member: enh2 to grp3
+        5. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+        6. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -512,7 +594,7 @@ def test_memberof_MultiGrpAttr_014(topology_st):
 
     # assert enh2 is member of
     #       - not grp1
-    #       - not grp2 (uniquemember)
+    #       - grp2 (uniquemember)
     #       - grp3 (member)
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp1)
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp2)
@@ -544,33 +626,35 @@ def test_memberof_MultiGrpAttr_014(topology_st):
     assert _check_memberof(topology_st, member=memofenh2, group=memofegrp3)
 
 
-def test_memberof_MultiGrpAttr_015(topology_st):
-    """
-    Non-existing users to member attribut
+def test_member_not_exists(topology_st):
+    """Check the situation when we add non-existing users to member attribute
 
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a14
+    :setup: Standalone instance, grp015,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
-
-        enh2 is member of
+            enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
-
-    At the end:
-        enh1 is member of
-            - grp1 (member)
-            - not grp2
-            - grp3 (uniquemember)
-            - not grp015
-
-        enh2 is member of
-            - not grp1
-            - grp2 (uniquemember)
-            - grp3 (member)
-            - not grp015
+    :steps:
+        1. Add member: dummy1 and uniqueMember: dummy2 to grp015
+        2. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+           - not grp015
+        3. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+           - not grp015
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -634,37 +718,55 @@ def test_memberof_MultiGrpAttr_015(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp015)
 
 
-def test_memberof_MultiGrpAttr_016(topology_st):
-    """
-    ldapmodify non-existing users to the member attribute
+def test_member_not_exists_complex(topology_st):
+    """Check the situation when we modify non-existing users member attribute
 
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a15
+    :setup: Standalone instance,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
             - not grp015
-
-        enh2 is member of
+            enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
             - not grp015
-
-    At the end:
-        enh1 is member of
-            - grp1 (member)
-            - not grp2
-            - grp3 (uniquemember)
-            - not grp015
-            - grp016 (member uniquemember)
-
-        enh2 is member of
-            - not grp1
-            - grp2 (uniquemember)
-            - grp3 (member)
-            - not grp015
-            - not grp016
+    :steps:
+        1. Add member: enh1 and uniqueMember: enh1 to grp016
+        2. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+           - not grp15
+           - grp16 (member uniquemember)
+        3. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+           - not grp15
+           - not grp16
+        4. Add member: dummy1 and uniqueMember: dummy2 to grp016
+        5. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+           - not grp15
+           - grp16 (member uniquemember)
+        6. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+           - not grp15
+           - not grp16
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -772,67 +874,74 @@ def test_memberof_MultiGrpAttr_016(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp016)
 
 
-def test_memberof_MultiGrpAttr_017(topology_st):
-    """
-    Add user1 and user2 as memberof grp017
+def test_complex_group_scenario_1(topology_st):
+    """Check the situation when user1 and user2 are memberof grp017
     user2 is member of grp017 but not with a memberof attribute (memberUid)
 
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a16
+    :setup: Standalone instance, grp017,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
             - not grp015
             - grp016 (member uniquemember)
-
-        enh2 is member of
+            enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
             - not grp015
             - not grp016
-
-    At the end:
-        enh1 is member of
-            - grp1 (member)
-            - not grp2
-            - grp3 (uniquemember)
-            - not grp015
-            - grp016 (member uniquemember)
-            - not grp17
-
-        enh2 is member of
-            - not grp1
-            - grp2 (uniquemember)
-            - grp3 (member)
-            - not grp015
-            - not grp016
-            - not grp017
-
-        user1 is member of
-            - not grp1
-            - not grp2
-            - not grp3
-            - not grp015
-            - not grp016
-            - grp017 (member)
-
-        user2 is member of
-            - not grp1
-            - not grp2
-            - not grp3
-            - not grp015
-            - not grp016
-            - grp017 (uniquemember)
-
-        user3 is member of
-            - not grp1
-            - not grp2
-            - not grp3
-            - not grp015
-            - not grp016
-            - not grp017 (memberuid)
+    :steps:
+        1. Create user1 as grp17 (member)
+        2. Create user2 as grp17 (uniqueMember)
+        3. Create user3 as grp17 (memberuid) (not memberof attribute)
+        4. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+           - not grp15
+           - grp16 (member uniquemember)
+           - not grp17
+        5. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+           - not grp15
+           - not grp16
+           - not grp17
+        6. Assert user1 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - grp17 (member)
+        7. Assert user2 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - grp17 (uniqueMember)
+        8. Assert user3 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - NOT grp17 (memberuid)
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
     """
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -973,68 +1082,89 @@ def test_memberof_MultiGrpAttr_017(topology_st):
     assert not _check_memberof(topology_st, member=memofuser3, group=memofegrp017)
 
 
-def test_memberof_MultiGrpAttr_018(topology_st):
-    """
-    Add user1 and user2 as memberof grp018
+def test_complex_group_scenario_2(topology_st):
+    """Check the situation when user1 and user2 are memberof grp018
     user2 is member of grp018 but not with a memberof attribute (memberUid)
 
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a17
+    :setup: Standalone instance, grp018,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
             - not grp015
             - grp016 (member uniquemember)
             - not grp17
-
-        enh2 is member of
+            enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
             - not grp015
             - not grp016
             - not grp017
-
-        user1 is member of
+            user1 is member of
             - not grp1
             - not grp2
             - not grp3
             - not grp015
             - not grp016
             - grp017 (member)
-
-        user2 is member of
+            user2 is member of
             - not grp1
             - not grp2
             - not grp3
             - not grp015
             - not grp016
             - grp017 (uniquemember)
-
-        user3 is member of
+            user3 is member of
             - not grp1
             - not grp2
             - not grp3
             - not grp015
             - not grp016
             - not grp017 (memberuid)
-
-    At the end:
-        enh1 is member of
-            - grp1 (member)
-            - not grp2
-            - grp3 (uniquemember)
-            - not grp015
-            - grp016 (member uniquemember)
-            - not grp018
-
-        enh2 is member of
-            - not grp1
-            - grp2 (uniquemember)
-            - grp3 (member)
-            - not grp015
-            - not grp016
-            - not grp018
+    :steps:
+        1. Add user1 as a member of grp18 (member, uniquemember)
+        2. Assert user1 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - grp17 (member)
+           - grp18 (member, uniquemember)
+        3. Delete user1 member/uniquemember attributes from grp018
+        4. Assert user1 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - grp17 (member)
+           - NOT grp18 (memberUid)
+        5. Delete user1, user2, user3, grp17 entries
+        6. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+           - not grp15
+           - grp16 (member uniquemember)
+           - not grp018
+        7. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+           - not grp15
+           - not grp16
+           - not grp018
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -1203,46 +1333,112 @@ def test_memberof_MultiGrpAttr_018(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp018)
 
 
-def test_memberof_MultiGrpAttr_019(topology_st):
-    """
-    Add user2 to grp19_2
-    Add user3 to grp19_3
+def test_complex_group_scenario_3(topology_st):
+    """Test a complex memberOf case:
+    Add user2 to grp19_2,
+    Add user3 to grp19_3,
     Add grp19_2 and grp_19_3 to grp19_1
 
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a18
+    :setup: Standalone instance,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
             - not grp015
             - grp016 (member uniquemember)
             - not grp018
-
-        enh2 is member of
+            enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
             - not grp015
             - not grp016
             - not grp018
-    At the end:
-        enh1 is member of
-            - grp1 (member)
-            - not grp2
-            - grp3 (uniquemember)
-            - not grp015
-            - grp016 (member uniquemember)
-            - not grp018
+    :steps:
+        1. Create user2 and user3
+        2. Create a group grp019_2 with user2 member
+        3. Create a group grp019_3 with user3 member
+        4. Create a group grp019_1 with memofegrp019_2, memofegrp019_3 member
+        5. Assert memofegrp019_1 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - not grp018
+           - not grp19_1
+           - not grp019_2
+           - not grp019_3
 
-       enh2 is member of
-            - not grp1
-            - grp2 (uniquemember)
-            - grp3 (member)
-            - not grp015
-            - not grp016
-            - not grp018
-
-
+        6. Assert memofegrp019_2 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - not grp018
+           - grp19_1
+           - not grp019_2
+           - not grp019_3
+        7. Assert memofegrp019_3 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - not grp018
+           - grp19_1
+           - not grp019_2
+           - not grp019_3
+        8. Assert memofuser2 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - not grp018
+           - grp19_1
+           - grp019_2
+           - not grp019_3
+        9. Assert memofuser3 is member of
+           - not grp1
+           - not grp2
+           - not grp3
+           - not grp15
+           - not grp16
+           - not grp018
+           - grp19_1
+           - not grp019_2
+           - grp019_3
+        10. Delete user2, user3, and all grp19* entries
+        11. Assert enh1 is member of
+           - grp1 (member)
+           - not grp2
+           - grp3 (uniquemember)
+           - not grp15
+           - grp16 (member uniquemember)
+           - not grp018
+        12. Assert enh2 is member of
+           - not grp1
+           - grp2 (uniquemember)
+           - grp3 (member)
+           - not grp15
+           - not grp16
+           - not grp018
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -1441,32 +1637,43 @@ def test_memberof_MultiGrpAttr_019(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp018)
 
 
-def test_memberof_MultiGrpAttr_020(topology_st):
-    """
+def test_complex_group_scenario_4(topology_st):
+    """Test a complex memberOf case:
     Add user1 and grp[1-5]
     Add user1 member of grp[1-4]
     Add grp[1-4] member of grp5
     Check user1 is member of grp[1-5]
 
-    At the beginning:
-        enh1 is member of
+    :id: d223af17-17a6-48a0-8f22-a38306726a19
+    :setup: Standalone instance,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
             - not grp015
             - grp016 (member uniquemember)
             - not grp018
-
-       enh2 is member of
+           enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
             - not grp015
             - not grp016
             - not grp018
-
-    At the end:
-        Idem
+    :steps:
+        1. Create user1
+        2. Create grp[1-5] that can be inetUser (having memberof)
+        3. Add user1 to grp[1-4] (uniqueMember)
+        4. Create grp5 with grp[1-4] as member
+        5. Assert user1 is a member grp[1-5]
+        6. Delete user1 and all grp20 entries
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -1543,36 +1750,43 @@ def test_memberof_MultiGrpAttr_020(topology_st):
         topology_st.standalone.delete_s(ensure_str(grp))
 
 
-def test_memberof_MultiGrpAttr_021(topology_st):
-    """
+def test_complex_group_scenario_5(topology_st):
+    """Test a complex memberOf case:
     Add user[1-4] and Grp[1-4]
     Add userX as uniquemember of GrpX
-    ADD Grp5
+    Add Grp5
         Grp[1-4] as members of Grp5
         user1 as member of Grp5
     Check that user1 is member of Grp1 and Grp5
-    check that user* are members of Grp5
+    Check that user* are members of Grp5
 
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a20
+    :setup: Standalone instance,
+            enh1 is member of
             - grp1 (member)
             - not grp2
             - grp3 (uniquemember)
             - not grp015
             - grp016 (member uniquemember)
             - not grp018
-
-       enh2 is member of
+           enh2 is member of
             - not grp1
             - grp2 (uniquemember)
             - grp3 (member)
             - not grp015
             - not grp016
             - not grp018
-
-    At the end:
-
-        enh1 is member of
+    :steps:
+        1. Create user1-4
+        2. Create grp[1-4] that can be inetUser (having memberof)
+        3. Add userX (uniquemember) to grpX
+        4. Create grp5 with grp[1-4] as member + user1
+        5. Assert user[1-4] are member of grp20_5
+        6. Assert userX is uniqueMember of grpX
+        7. Check that user[1-4] is only 'uniqueMember' of the grp20_[1-4]
+        8. Check that grp20_[1-4] are only 'member' of grp20_5
+        9. Check that user1 are only 'member' of grp20_5
+        10. Assert enh1 is member of
            - grp1 (member)
            - not grp2
            - grp3 (uniquemember)
@@ -1580,7 +1794,7 @@ def test_memberof_MultiGrpAttr_021(topology_st):
            - grp16 (member uniquemember)
            - not grp018
            - not grp20*
-        enh2 is member of
+        11. Assert enh2 is member of
            - not grp1
            - grp2 (uniquemember)
            - grp3 (member)
@@ -1588,11 +1802,18 @@ def test_memberof_MultiGrpAttr_021(topology_st):
            - not grp16
            - not grp018
            - not grp20*
-
-        user1 is member of grp20_5
-        userX is uniquemember of grp20_X
-        grp[1-4] are member of grp20_5
-
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -1727,14 +1948,40 @@ def test_memberof_MultiGrpAttr_021(topology_st):
     assert not _check_memberof(topology_st, member=memofenh2, group=memofegrp020_5)
 
 
-def test_memberof_MultiGrpAttr_022(topology_st):
-    """
+def test_complex_group_scenario_6(topology_st):
+    """Test a complex memberOf case:
     add userX as member/uniqueMember of GrpX
     add Grp5 as uniquemember of GrpX (this create a loop)
 
-
-    At the beginning:
-        enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a21
+    :setup: Standalone instance
+            enh1 is member of
+            - grp1 (member)
+            - not grp2
+            - grp3 (uniquemember)
+            - not grp15
+            - grp16 (member uniquemember)
+            - not grp018
+            - not grp20*
+            enh2 is member of
+            - not grp1
+            - grp2 (uniquemember)
+            - grp3 (member)
+            - not grp15
+            - not grp16
+            - not grp018
+            - not grp20*
+            user1 is member of grp20_5
+            userX is uniquemember of grp20_X
+            grp[1-4] are member of grp20_5
+    :steps:
+        1. Add user[1-4] (member) to grp020_[1-4]
+        2. Check that user[1-4] are 'member' and 'uniqueMember' of the grp20_[1-4]
+        3. Add Grp[1-4] (uniqueMember) to grp5
+        4. Assert user[1-4] are member of grp20_[1-4]
+        5. Assert that all groups are members of each others because Grp5 is member of all grp20_[1-4]
+        6. Assert user[1-5] is uniqueMember of grp[1-5]
+        7. Assert enh1 is member of
            - grp1 (member)
            - not grp2
            - grp3 (uniquemember)
@@ -1742,7 +1989,7 @@ def test_memberof_MultiGrpAttr_022(topology_st):
            - grp16 (member uniquemember)
            - not grp018
            - not grp20*
-        enh2 is member of
+        8. Assert enh2 is member of
            - not grp1
            - grp2 (uniquemember)
            - grp3 (member)
@@ -1750,35 +1997,15 @@ def test_memberof_MultiGrpAttr_022(topology_st):
            - not grp16
            - not grp018
            - not grp20*
-
-
-        user1 is member of grp20_5
-        userX is uniquemember of grp20_X
-        grp[1-4] are member of grp20_5
-
-    At the end:
-
-        enh1 is member of
-           - grp1 (member)
-           - not grp2
-           - grp3 (uniquemember)
-           - not grp15
-           - grp16 (member uniquemember)
-           - not grp018
-           - not grp20*
-        enh2 is member of
-           - not grp1
-           - grp2 (uniquemember)
-           - grp3 (member)
-           - not grp15
-           - not grp16
-           - not grp018
-           - not grp20*
-
-        grp[1-4] are member of grp20_5
-        user1 is member (member) of group_5
-        grp5 is uniqueMember of grp20_[1-4]
-        user[1-4] is member/uniquemember of grp20_[1-4]
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
     """
 
     memofenh1 = _get_user_dn('memofenh1')
@@ -2009,13 +2236,12 @@ def verify_post_023(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
         assert _check_memberof(topology_st, member=memofuser1, group=grp)
 
 
-def test_memberof_MultiGrpAttr_023(topology_st):
-    """
+def test_complex_group_scenario_7(topology_st):
+    """Check the user removal from the complex membership topology
 
-
-
-    At the beginning:
-       enh1 is member of
+    :id: d222af17-17a6-48a0-8f22-a38306726a22
+    :setup: Standalone instance,
+           enh1 is member of
            - grp1 (member)
            - not grp2
            - grp3 (uniquemember)
@@ -2023,7 +2249,7 @@ def test_memberof_MultiGrpAttr_023(topology_st):
            - grp16 (member uniquemember)
            - not grp018
            - not grp20*
-        enh2 is member of
+            enh2 is member of
            - not grp1
            - grp2 (uniquemember)
            - grp3 (member)
@@ -2031,41 +2257,35 @@ def test_memberof_MultiGrpAttr_023(topology_st):
            - not grp16
            - not grp018
            - not grp20*
-
         grp[1-4] are member of grp20_5
         user1 is member (member) of group_5
         grp5 is uniqueMember of grp20_[1-4]
         user[1-4] is member/uniquemember of grp20_[1-4]
+    :steps:
+        1. Delete user1 as 'member' of grp20_1
+        2. Delete grp020_5 as 'uniqueMember' of grp20_1
+        3. Check the result membership
+    :expectedresults:
+        1. Success
+        2. Success
+        3. The result should be like this
 
-          /----member ---> G1 ---member/uniqueMember -\
-         /<--uniquemember-                            V
-    G5 ------------------------>member ----------  --->U1
-         |
-         |----member ---> G2 ---member/uniqueMember -> U2
-         |<--uniquemember-/
-         |
-         |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/
-         |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/
+            ::
 
-
-
-
-    At the end:
-          /----member ---> G1 ---uniqueMember -------\
-         /                                            V
-    G5 ------------------------>member ----------  --->U1
-         |
-         |----member ---> G2 ---member/uniqueMember -> U2
-         |<--uniquemember-/
-         |
-         |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/
-         |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/
+                      /----member ---> G1 ---uniqueMember -------\
+                     /                                            V
+                G5 ------------------------>member ----------  --->U1
+                     |
+                     |----member ---> G2 ---member/uniqueMember -> U2
+                     |<--uniquemember-/
+                     |
+                     |----member ---> G3 ---member/uniqueMember -> U3
+                     |<--uniquemember-/
+                     |----member ---> G4 ---member/uniqueMember -> U4
+                     |<--uniquemember-/
 
     """
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -2240,35 +2460,47 @@ def verify_post_024(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
         assert _check_memberof(topology_st, member=memofuser1, group=grp)
 
 
-def test_memberof_MultiGrpAttr_024(topology_st):
-    """
-    At the beginning:
+def test_complex_group_scenario_8(topology_st):
+    """Check the user add operation to the complex membership topology
 
+    :id: d222af17-17a6-48a0-8f22-a38306726a23
+    :setup: Standalone instance,
 
-          /----member ---> G1 ---uniqueMember -------\
-         /                                            V
-    G5 ------------------------>member ----------  --->U1
-         |
-         |----member ---> G2 ---member/uniqueMember -> U2
-         |<--uniquemember-/
-         |
-         |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/
-         |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/
+        ::
 
-    At the end:
-          /----member ---> G1 ---member/uniqueMember -\
-         /                                             V
-    G5 ------------------------>member ----------  --->U1
-         |
-         |----member ---> G2 ---member/uniqueMember -> U2
-         |<--uniquemember-/
-         |
-         |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/
-         |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/
+                  /----member ---> G1 ---uniqueMember -------\
+                 /                                            V
+            G5 ------------------------>member ----------  --->U1
+                 |
+                 |----member ---> G2 ---member/uniqueMember -> U2
+                 |<--uniquemember-/
+                 |
+                 |----member ---> G3 ---member/uniqueMember -> U3
+                 |<--uniquemember-/
+                 |----member ---> G4 ---member/uniqueMember -> U4
+                 |<--uniquemember-/
+
+    :steps:
+        1. Add user1 to grp020_1
+        2. Check the result membership
+    :expectedresults:
+        1. Success
+        2. The result should be like this
+
+            ::
+
+                      /----member ---> G1 ---member/uniqueMember -\
+                     /                                             V
+                G5 ------------------------>member ----------  --->U1
+                     |
+                     |----member ---> G2 ---member/uniqueMember -> U2
+                     |<--uniquemember-/
+                     |
+                     |----member ---> G3 ---member/uniqueMember -> U3
+                     |<--uniquemember-/
+                     |----member ---> G4 ---member/uniqueMember -> U4
+                     |<--uniquemember-/
+
     """
 
     memofuser1 = _get_user_dn('memofuser1')
@@ -2327,30 +2559,42 @@ def verify_post_025(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3,
             assert not _check_memberof(topology_st, member=user, group=grp)
 
 
-def test_memberof_MultiGrpAttr_025(topology_st):
-    """
-    At the beginning:
+def test_complex_group_scenario_9(topology_st):
+    """Check the massive user deletion from the complex membership topology
 
+    :id: d222af17-17a6-48a0-8f22-a38306726a24
+    :setup: Standalone instance,
 
-          /----member ---> G1 ---member/uniqueMember -\
-         /                                             V
-    G5 ------------------------>member ----------  --->U1
-         |
-         |----member ---> G2 ---member/uniqueMember -> U2
-         |<--uniquemember-/
-         |
-         |----member ---> G3 ---member/uniqueMember -> U3
-         |<--uniquemember-/
-         |----member ---> G4 ---member/uniqueMember -> U4
-         |<--uniquemember-/
-    At the end:
-          /----member ---> G1
-         /
-    G5 ------------------------>member ----------  --->U1
-         |
-         |----member ---> G2
-         |----member ---> G3
-         |----member ---> G4
+        ::
+
+                  /----member ---> G1 ---member/uniqueMember -\
+                 /                                             V
+            G5 ------------------------>member ----------  --->U1
+                 |
+                 |----member ---> G2 ---member/uniqueMember -> U2
+                 |<--uniquemember-/
+                 |
+                 |----member ---> G3 ---member/uniqueMember -> U3
+                 |<--uniquemember-/
+                 |----member ---> G4 ---member/uniqueMember -> U4
+                 |<--uniquemember-/
+
+    :steps:
+        1. Delete user[1-5] as 'member' and 'uniqueMember' from grp20_[1-5]
+        2. Check the result membership
+    :expectedresults:
+        1. Success
+        2. The result should be like this
+
+            ::
+
+                      /----member ---> G1
+                     /
+                G5 ------------------------>member ----------  --->U1
+                     |
+                     |----member ---> G2
+                     |----member ---> G3
+                     |----member ---> G4
 
     """
 
@@ -2411,8 +2655,35 @@ def test_memberof_MultiGrpAttr_025(topology_st):
 
 
 def test_memberof_auto_add_oc(topology_st):
-    """Test the auto add objectclass feature.  The plugin should add a predefined
+    """Test the auto add objectclass (OC) feature. The plugin should add a predefined
     objectclass that will allow memberOf to be added to an entry.
+
+    :id: d222af17-17a6-48a0-8f22-a38306726a25
+    :setup: Standalone instance
+    :steps:
+        1. Enable dynamic plugins
+        2. Enable memberOf plugin
+        3. Test that the default add OC works.
+        4. Add a group that already includes one user
+        5. Assert memberOf on user1
+        6. Delete user1 and the group
+        7. Test invalid value (config validation)
+        8. Add valid objectclass
+        9. Add two users
+        10. Add a group that already includes one user
+        11. Add a user to the group
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
     """
 
     # enable dynamic plugins

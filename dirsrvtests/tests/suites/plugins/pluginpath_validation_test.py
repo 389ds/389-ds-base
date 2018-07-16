@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 @pytest.mark.ds47384
 def test_pluginpath_validation(topology_st):
-    '''Test pluginpath validation: relative and absolute paths
+    """Test pluginpath validation: relative and absolute paths
     With the inclusion of ticket 47601 - we do allow plugin paths
     outside the default location
 
@@ -40,7 +40,7 @@ def test_pluginpath_validation(topology_st):
          3. This should pass
          4. This should fail
          5. This should fail
-    '''
+    """
 
     if os.geteuid() != 0:
         log.warn('This script must be run as root')

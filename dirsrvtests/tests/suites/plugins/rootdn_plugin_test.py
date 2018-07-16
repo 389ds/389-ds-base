@@ -24,21 +24,21 @@ PLUGIN_DN = 'cn=' + PLUGIN_ROOTDN_ACCESS + ',cn=plugins,cn=config'
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 
 
-def test_rootdn_init(topology_st):
-    '''
-    Initialize our setup to test the ROot DN Access Control Plugin
+@pytest.fixture(scope="module")
+def rootdn_setup(topology_st):
+    """Initialize our setup to test the Root DN Access Control Plugin
 
-        Test the following access control type:
+    Test the following access control type:
 
-        - Allowed IP address *
-        - Denied IP address *
-        - Specific time window
-        - Days allowed access
-        - Allowed host *
-        - Denied host *
+    - Allowed IP address *
+    - Denied IP address *
+    - Specific time window
+    - Days allowed access
+    - Allowed host *
+    - Denied host *
 
-        * means mulitple valued
-    '''
+    * means mulitple valued
+    """
 
     log.info('Initializing root DN test suite...')
 
@@ -83,10 +83,24 @@ def test_rootdn_init(topology_st):
     log.info('test_rootdn_init: Initialized root DN test suite.')
 
 
-def test_rootdn_access_specific_time(topology_st):
-    '''
-    Test binding inside and outside of a specific time
-    '''
+def test_rootdn_access_specific_time(topology_st, rootdn_setup):
+    """Test binding inside and outside of a specific time
+
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e8
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Get the current time, and bump it ahead twohours
+        2. Bind as Root DN
+        3. Set config to allow the entire day
+        4. Bind as Root DN
+        5. Cleanup - undo the changes we made so the next test has a clean slate
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+        5. Success
+    """
 
     log.info('Running test_rootdn_access_specific_time...')
 
@@ -165,10 +179,24 @@ def test_rootdn_access_specific_time(topology_st):
     log.info('test_rootdn_access_specific_time: PASSED')
 
 
-def test_rootdn_access_day_of_week(topology_st):
-    '''
-    Test the days of week feature
-    '''
+def test_rootdn_access_day_of_week(topology_st, rootdn_setup):
+    """Test the days of week feature
+
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e1
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set the deny days
+        2. Bind as Root DN
+        3. Set the allow days
+        4. Bind as Root DN
+        5. Cleanup - undo the changes we made so the next test has a clean slate
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+        5. Success
+    """
 
     log.info('Running test_rootdn_access_day_of_week...')
 
@@ -258,10 +286,24 @@ def test_rootdn_access_day_of_week(topology_st):
     log.info('test_rootdn_access_day_of_week: PASSED')
 
 
-def test_rootdn_access_denied_ip(topology_st):
-    '''
-    Test denied IP feature - we can just test denying 127.0.0.1
-    '''
+def test_rootdn_access_denied_ip(topology_st, rootdn_setup):
+    """Test denied IP feature - we can just test denying 127.0.0.1
+
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e2
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set rootdn-deny-ip to '127.0.0.1' and '::1'
+        2. Bind as Root DN
+        3. Change the denied IP so root DN succeeds
+        4. Bind as Root DN
+        5. Cleanup - undo the changes we made so the next test has a clean slate
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+        5. Success
+    """
 
     log.info('Running test_rootdn_access_denied_ip...')
     try:
@@ -333,10 +375,24 @@ def test_rootdn_access_denied_ip(topology_st):
     log.info('test_rootdn_access_denied_ip: PASSED')
 
 
-def test_rootdn_access_denied_host(topology_st):
-    '''
-    Test denied Host feature - we can just test denying localhost
-    '''
+def test_rootdn_access_denied_host(topology_st, rootdn_setup):
+    """Test denied Host feature - we can just test denying localhost
+
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e3
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set rootdn-deny-host to hostname (localhost if not accessable)
+        2. Bind as Root DN
+        3. Change the denied host so root DN succeeds
+        4. Bind as Root DN
+        5. Cleanup - undo the changes we made so the next test has a clean slate
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+        5. Success
+    """
 
     log.info('Running test_rootdn_access_denied_host...')
     hostname = socket.gethostname()
@@ -410,15 +466,29 @@ def test_rootdn_access_denied_host(topology_st):
     log.info('test_rootdn_access_denied_host: PASSED')
 
 
-def test_rootdn_access_allowed_ip(topology_st):
-    '''
-    Test allowed ip feature
-    '''
+def test_rootdn_access_allowed_ip(topology_st, rootdn_setup):
+    """Test allowed ip feature
+
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e4
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set allowed ip to 255.255.255.255 - blocks the Root DN
+        2. Bind as Root DN
+        3. Allow localhost
+        4. Bind as Root DN
+        5. Cleanup - undo the changes we made so the next test has a clean slate
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+        5. Success
+    """
 
     log.info('Running test_rootdn_access_allowed_ip...')
 
     #
-    # Set allowed host to an unknown host - blocks the Root DN
+    # Set allowed ip to 255.255.255.255 - blocks the Root DN
     #
     try:
         conn = ldap.initialize('ldap://{}:{}'.format(LOCALHOST_IP, topology_st.standalone.port))
@@ -488,10 +558,24 @@ def test_rootdn_access_allowed_ip(topology_st):
     log.info('test_rootdn_access_allowed_ip: PASSED')
 
 
-def test_rootdn_access_allowed_host(topology_st):
-    '''
-    Test allowed ip feature
-    '''
+def test_rootdn_access_allowed_host(topology_st, rootdn_setup):
+    """Test allowed host feature
+
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e5
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set allowed host to an unknown host - blocks the Root DN
+        2. Bind as Root DN
+        3. Allow localhost
+        4. Bind as Root DN
+        5. Cleanup - undo the changes we made so the next test has a clean slate
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+        5. Success
+    """
 
     log.info('Running test_rootdn_access_allowed_host...')
 
@@ -572,15 +656,52 @@ def test_rootdn_access_allowed_host(topology_st):
     log.info('test_rootdn_access_allowed_host: PASSED')
 
 
-def test_rootdn_config_validate(topology_st):
-    '''
-    Test configuration validation
+def test_rootdn_config_validate(topology_st, rootdn_setup):
+    """Test plugin configuration validation
 
-    test single valued attributes: rootdn-open-time,
-                                   rootdn-close-time,
-                                   rootdn-days-allowed
-
-    '''
+    :id: a0ef30e5-538b-46fa-9762-01a4435a15e6
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Replace 'rootdn-open-time' with '0000'
+        2. Add 'rootdn-open-time': '0000' and 'rootdn-open-time': '0001'
+        3. Replace 'rootdn-open-time' with '-1' and 'rootdn-close-time' with '0000'
+        4. Replace 'rootdn-open-time' with '2400' and 'rootdn-close-time' with '0000'
+        5. Replace 'rootdn-open-time' with 'aaaaa' and 'rootdn-close-time' with '0000'
+        6. Replace 'rootdn-close-time' with '0000'
+        7. Add 'rootdn-close-time': '0000' and 'rootdn-close-time': '0001'
+        8. Replace 'rootdn-open-time' with '0000' and 'rootdn-close-time' with '-1'
+        9. Replace 'rootdn-open-time' with '0000' and 'rootdn-close-time' with '2400'
+        10. Replace 'rootdn-open-time' with '0000' and 'rootdn-close-time' with 'aaaaa'
+        11. Add 'rootdn-days-allowed': 'Mon' and 'rootdn-days-allowed': 'Tue'
+        12. Replace 'rootdn-days-allowed' with 'Mon1'
+        13. Replace 'rootdn-days-allowed' with 'Tue, Mon1'
+        14. Replace 'rootdn-days-allowed' with 'm111m'
+        15. Replace 'rootdn-days-allowed' with 'Gur'
+        16. Replace 'rootdn-allow-ip' with '12.12.Z.12'
+        17. Replace 'rootdn-deny-ip' with '12.12.Z.12'
+        18. Replace 'rootdn-allow-host' with 'host._.com'
+        19. Replace 'rootdn-deny-host' with 'host.####.com'
+    :expectedresults:
+        1. Should fail
+        2. Should fail
+        3. Should fail
+        4. Should fail
+        5. Should fail
+        6. Should fail
+        7. Should fail
+        8. Should fail
+        9. Should fail
+        10. Should fail
+        11. Should fail
+        12. Should fail
+        13. Should fail
+        14. Should fail
+        15. Should fail
+        16. Should fail
+        17. Should fail
+        18. Should fail
+        19. Should fail
+    """
 
     log.info('Running test_rootdn_config_validate...')
 
