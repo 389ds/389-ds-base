@@ -66,7 +66,7 @@ Provides:         ldif2ldbm
 
 # Attach the buildrequires to the top level package:
 BuildRequires:    nspr-devel
-BuildRequires:    nss-devel
+BuildRequires:    nss-devel >= 3.34
 BuildRequires:    openldap-devel
 BuildRequires:    libdb-devel
 BuildRequires:    cyrus-sasl-devel
@@ -147,6 +147,7 @@ Requires:         openldap-clients
 # this is needed to setup SSL if you are not using the
 # administration server package
 Requires:         nss-tools
+Requires:         nss >= 3.34
 # these are not found by the auto-dependency method
 # they are required to support the mandatory LDAP SASL mechs
 Requires:         cyrus-sasl-gssapi
@@ -182,7 +183,6 @@ Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
 %endif
 
 
-
 %package          libs
 Summary:          Core libraries for 389 Directory Server (%{variant})
 Group:            System Environment/Daemons
@@ -191,7 +191,7 @@ Obsoletes:        svrcore <= 4.1.3
 Conflicts:        svrcore
 # You can work this out by running LDD on libslapd.so to see what it needs in
 # isolation.
-Requires:         nss
+Requires:         nss >= 3.34
 Requires:         nspr
 Requires:         openldap
 Requires:         libevent
@@ -254,7 +254,7 @@ Conflicts:        svrcore-devel
 Requires:         %{name}-libs = %{version}-%{release}
 Requires:         pkgconfig
 Requires:         nspr-devel
-Requires:         nss-devel
+Requires:         nss-devel >= 3.34
 Requires:         openldap-devel
 # systemd-libs contains the headers iirc.
 Requires:         systemd-libs
@@ -292,6 +292,7 @@ Requires: python%{python3_pkgversion}-pyasn1-modules
 Requires: python%{python3_pkgversion}-dateutil
 Requires: python%{python3_pkgversion}-argcomplete
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
+
 %description -n python%{python3_pkgversion}-lib389
 This module contains tools and libraries for accessing, testing,
  and configuring the 389 Directory Server.
@@ -592,7 +593,8 @@ exit 0
 %files
 %defattr(-,root,root,-)
 %if %{bundle_jemalloc}
-%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.jemalloc COPYING.jemalloc
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.jemalloc
+%license COPYING.jemalloc
 %else
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl
 %endif
