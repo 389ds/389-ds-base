@@ -7,7 +7,7 @@ Usage example
 
     # You can get any variable from the list bellow. Like this:
     product = standalone.ds_paths.product
-     
+
     variables = [
         'product',
         'version',
@@ -33,6 +33,7 @@ Usage example
         'backup_dir',
         'ldif_dir',
         'initconfig_dir',
+        'tmpfiles_d',
     ]
 
 Module documentation

@@ -35,6 +35,7 @@ def remove_ds_instance(dirsrv):
     remove_paths['lock_dir'] = dirsrv.ds_paths.lock_dir
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir
     # remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
+    remove_paths['tmpfiles_d'] = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
 
     marker_path = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
 
