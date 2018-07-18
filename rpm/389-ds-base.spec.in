@@ -544,6 +544,7 @@ fi
 
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
 instbase="%{_sysconfdir}/%{pkgname}"
+ninst=0
 for dir in $instbase/slapd-* ; do
     echo dir = $dir >> $output 2>&1 || :
     if [ ! -d "$dir" ] ; then continue ; fi
