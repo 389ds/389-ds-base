@@ -15,10 +15,6 @@ import logging
 import ldap
 import sys
 import signal
-
-# This has to happen before we import  DirSrv else it tramples our config ... :(
-logging.basicConfig(format='%(message)s')
-
 from lib389 import DirSrv
 from lib389._constants import DN_CONFIG, DN_DM
 from lib389.cli_conf import config as cli_config
@@ -34,12 +30,10 @@ from lib389.cli_conf.plugins import rootdn_ac as cli_rootdn_ac
 from lib389.cli_conf.plugins import whoami as cli_whoami
 from lib389.cli_conf.plugins import referint as cli_referint
 from lib389.cli_conf.plugins import automember as cli_automember
-
 from lib389.cli_base import disconnect_instance, connect_instance
-
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
-
 from lib389.cli_base import setup_script_logger
+
 
 parser = argparse.ArgumentParser(allow_abbrev=True)
 parser.add_argument('instance',
@@ -81,6 +75,7 @@ cli_whoami.create_parser(subparsers)
 cli_referint.create_parser(subparsers)
 cli_automember.create_parser(subparsers)
 cli_sasl.create_parser(subparsers)
+
 argcomplete.autocomplete(parser)
 
 # handle a control-c gracefully

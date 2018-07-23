@@ -15,10 +15,6 @@ import argparse, argcomplete
 import logging
 import sys
 import signal
-
-# This has to happen before we import  DirSrv else it tramples our config ... :(
-logging.basicConfig(format='%(message)s')
-
 from lib389._constants import DN_DM
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
@@ -26,10 +22,9 @@ from lib389.cli_idm import organizationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
 from lib389.cli_idm import user as cli_user
-
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
-
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
+
 
 parser = argparse.ArgumentParser(allow_abbrev=True)
 # First, add the LDAP options
@@ -64,6 +59,7 @@ cli_init.create_parser(subparsers)
 cli_ou.create_parser(subparsers)
 cli_posixgroup.create_parser(subparsers)
 cli_user.create_parser(subparsers)
+
 argcomplete.autocomplete(parser)
 
 # handle a control-c gracefully
