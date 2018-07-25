@@ -61,6 +61,7 @@ class AddUsers(threading.Thread):
                 pass
         conn.close()
 
+
 def remove_master4_agmts(msg, topology_m4):
     """Remove all the repl agmts to master4. """
 
@@ -70,6 +71,7 @@ def remove_master4_agmts(msg, topology_m4):
     # to m4.
     repl.remove_master(topology_m4.ms["master4"],
         [topology_m4.ms["master1"], topology_m4.ms["master2"], topology_m4.ms["master3"]])
+
 
 def check_ruvs(msg, topology_m4, m4rid):
     """Check masters 1- 3 for master 4's rid."""
@@ -89,6 +91,7 @@ def check_ruvs(msg, topology_m4, m4rid):
         if not clean:
             raise Exception("Master %s was not cleaned in time." % inst.serverid)
     return True
+
 
 def task_done(topology_m4, task_dn, timeout=60):
     """Check if the task is complete"""
@@ -136,8 +139,11 @@ def restore_master4(topology_m4):
 
     log.info('Master 4 has been successfully restored.')
 
+
 @pytest.fixture()
 def m4rid(request, topology_m4):
+    log.debug("Wait a bit before the reset - it is required fot the slow machines")
+    time.sleep(5)
     log.debug("-------------- BEGIN RESET of m4 -----------------")
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.test_replication_topology(topology_m4.ms.values())
@@ -146,10 +152,15 @@ def m4rid(request, topology_m4):
 
     def fin():
         try:
+            # Restart the masters and rerun cleanallruv
+            for inst in topology_m4.ms.values():
+                inst.restart()
+
             cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
             cruv_task.create(properties={
                 'replica-id': m4rid,
-                'replica-base-dn': DEFAULT_SUFFIX
+                'replica-base-dn': DEFAULT_SUFFIX,
+                'replica-force-cleaning': 'no',
                 })
             cruv_task.wait()
         except ldap.UNWILLING_TO_PERFORM:
@@ -161,6 +172,7 @@ def m4rid(request, topology_m4):
     request.addfinalizer(fin)
     log.debug("-------------- FINISH RESET of m4 -----------------")
     return m4rid
+
 
 def test_clean(topology_m4, m4rid):
     """Check that cleanallruv task works properly
@@ -192,7 +204,8 @@ def test_clean(topology_m4, m4rid):
     cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
     cruv_task.create(properties={
         'replica-id': m4rid,
-        'replica-base-dn': DEFAULT_SUFFIX
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no'
         })
     cruv_task.wait()
 
@@ -247,7 +260,9 @@ def test_clean_restart(topology_m4, m4rid):
     cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
     cruv_task.create(properties={
         'replica-id': m4rid,
-        'replica-base-dn': DEFAULT_SUFFIX
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no',
+        'replica-certify-all': 'yes'
         })
 
     # Sleep a bit, then stop master 1
@@ -271,6 +286,7 @@ def test_clean_restart(topology_m4, m4rid):
     assert clean
 
     log.info('test_clean_restart PASSED, restoring master 4...')
+
 
 def test_clean_force(topology_m4, m4rid):
     """Check that multiple tasks with a 'force' option work properly
@@ -362,7 +378,9 @@ def test_abort(topology_m4, m4rid):
     cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
     cruv_task.create(properties={
         'replica-id': m4rid,
-        'replica-base-dn': DEFAULT_SUFFIX
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no',
+        'replica-certify-all': 'yes'
         })
     # Wait a bit
     time.sleep(2)
@@ -381,6 +399,7 @@ def test_abort(topology_m4, m4rid):
     topology_m4.ms["master2"].start()
 
     log.info('test_abort PASSED, restoring master 4...')
+
 
 def test_abort_restart(topology_m4, m4rid):
     """Test the abort task can handle a restart, and then resume
@@ -424,13 +443,15 @@ def test_abort_restart(topology_m4, m4rid):
     cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
     cruv_task.create(properties={
         'replica-id': m4rid,
-        'replica-base-dn': DEFAULT_SUFFIX
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no',
+        'replica-certify-all': 'yes'
         })
     # Wait a bit
     time.sleep(2)
 
     # Abort the task
-    abort_task = cruv_task.abort()
+    cruv_task.abort(certify=True)
 
     # Check master 1 does not have the clean task running
     log.info('test_abort_abort: check master 1 no longer has a cleanAllRUV task...')
@@ -488,7 +509,9 @@ def test_abort_certify(topology_m4, m4rid):
     cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
     cruv_task.create(properties={
         'replica-id': m4rid,
-        'replica-base-dn': DEFAULT_SUFFIX
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no',
+        'replica-certify-all': 'yes'
         })
     # Wait a bit
     time.sleep(2)
@@ -498,10 +521,9 @@ def test_abort_certify(topology_m4, m4rid):
     abort_task = cruv_task.abort(certify=True)
 
     # Wait a while and make sure the abort task is still running
-    log.info('test_abort_certify: sleep for 5 seconds')
-    time.sleep(5)
+    log.info('test_abort_certify...')
 
-    if task_done(topology_m4, abort_task.dn, 60):
+    if task_done(topology_m4, abort_task.dn, 10):
         log.fatal('test_abort_certify: abort task incorrectly finished')
         assert False
 
@@ -510,7 +532,7 @@ def test_abort_certify(topology_m4, m4rid):
     topology_m4.ms["master2"].start()
 
     # Wait for the abort task to stop
-    if not task_done(topology_m4, abort_task.dn, 60):
+    if not task_done(topology_m4, abort_task.dn, 90):
         log.fatal('test_abort_certify: The abort CleanAllRUV task was not aborted')
         assert False
 
@@ -577,7 +599,8 @@ def test_stress_clean(topology_m4, m4rid):
     cruv_task = CleanAllRUVTask(topology_m4.ms["master1"])
     cruv_task.create(properties={
         'replica-id': m4rid,
-        'replica-base-dn': DEFAULT_SUFFIX
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no'
         })
     cruv_task.wait()
 
@@ -657,18 +680,21 @@ def test_multiple_tasks_with_force(topology_m4, m4rid):
     cruv_task.create(properties={
         'replica-id': m4rid,
         'replica-base-dn': DEFAULT_SUFFIX,
-        'replica-force-cleaning': 'yes'
+        'replica-force-cleaning': 'yes',
+        'replica-certify-all': 'no'
         })
 
     log.info('test_multiple_tasks_with_force: run the cleanAllRUV task with "force" off...')
 
     # NOTE: This must be try not py.test raises, because the above may or may
-    # not have completed yet .... 
+    # not have completed yet ....
     try:
         cruv_task_fail = CleanAllRUVTask(topology_m4.ms["master1"])
         cruv_task_fail.create(properties={
             'replica-id': m4rid,
-            'replica-base-dn': DEFAULT_SUFFIX
+            'replica-base-dn': DEFAULT_SUFFIX,
+            'replica-force-cleaning': 'no',
+            'replica-certify-all': 'no'
             })
         cruv_task_fail.wait()
     except ldap.UNWILLING_TO_PERFORM:

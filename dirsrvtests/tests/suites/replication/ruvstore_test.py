@@ -113,7 +113,8 @@ def test_ruv_entry_backup(topo):
         parser = MyLDIF(ldif_file)
         parser.parse()
 
-@pytest.mark.skip(reason="No method to safety access DB ruv currenty exists online.")
+
+@pytest.mark.xfail(reason="No method to safety access DB ruv currently exists online.")
 def test_memoryruv_sync_with_databaseruv(topo):
     """Check if memory ruv and database ruv are synced
 

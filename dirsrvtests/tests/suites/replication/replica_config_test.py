@@ -178,7 +178,7 @@ def test_replica_num_modify(topo, attr, too_small, too_big, overflow, notnum, va
     replica.replace(attr, valid)
 
 
-@pytest.mark.skip(reason="Agreement validation current does not work.")
+@pytest.mark.xfail(reason="Agreement validation current does not work.")
 @pytest.mark.parametrize("attr, too_small, too_big, overflow, notnum, valid", agmt_attrs)
 def test_agmt_num_add(topo, attr, too_small, too_big, overflow, notnum, valid):
     """Test all the number values you can set for a replica config entry
@@ -198,6 +198,7 @@ def test_agmt_num_add(topo, attr, too_small, too_big, overflow, notnum, valid):
         4. Add is rejected
         5. Add is allowed
     """
+
     agmt_reset(topo)
     replica = replica_setup(topo)
 
@@ -217,7 +218,7 @@ def test_agmt_num_add(topo, attr, too_small, too_big, overflow, notnum, valid):
     agmts.create(properties=my_agmt)
 
 
-@pytest.mark.skip(reason="Agreement validation current does not work.")
+@pytest.mark.xfail(reason="Agreement validation current does not work.")
 @pytest.mark.parametrize("attr, too_small, too_big, overflow, notnum, valid", agmt_attrs)
 def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid):
     """Test all the number values you can set for a replica config entry
