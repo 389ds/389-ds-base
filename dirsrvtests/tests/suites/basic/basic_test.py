@@ -12,13 +12,13 @@
 """
 
 from subprocess import check_output, Popen
-
+from lib389.idm.user import UserAccounts
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.dbgen import dbgen
-
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM
 from lib389.topologies import topology_st
 
@@ -886,6 +886,135 @@ adds nsslapd-return-default-opattr attr with value of one operation attribute.
     except ldap.LDAPError as e:
         log.fatal('Search failed, error: ' + e.message['desc'])
         assert False
+
+
+@pytest.fixture(scope="module")
+def test_users(topology_st):
+    """Add users to the default suffix
+    """
+
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user_names = ["Directory", "Server", "389", "lib389", "pytest"]
+
+    log.info('Adding 5 test users')
+    for name in user_names:
+        user = users.create(properties={
+            'uid': name,
+            'sn': name,
+            'cn': name,
+            'uidNumber': '1000',
+            'gidNumber': '1000',
+            'homeDirectory': '/home/%s' % name,
+            'mail': '%s@example.com' % name,
+            'userpassword': 'pass%s' % name,
+        })
+
+
+def test_basic_anonymous_search(topology_st, test_users):
+    """Tests basic anonymous search operations
+
+    :id: c7831e04-f458-4e50-83c7-b6f77109f639
+    :setup: Standalone instance
+            Add 5 test users with different user names
+    :steps:
+         1. Execute anonymous search with different filters
+    :expectedresults:
+         1. Search should be successful
+    """
+
+    filters = ["uid=Directory", "(|(uid=S*)(uid=3*))", "(&(uid=l*)(mail=l*))", "(&(!(uid=D*))(ou=People))"]
+    log.info("Execute anonymous search with different filters")
+    for filtr in filters:
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filtr)
+        assert len(entries) != 0
+
+
+@pytest.mark.ds604
+@pytest.mark.bz915801
+def test_search_original_type(topology_st, test_users):
+    """Test ldapsearch returning original attributes
+        using nsslapd-search-return-original-type-switch
+
+    :id: d7831d04-f558-4e50-93c7-b6f77109f640
+    :setup: Standalone instance
+            Add some test entries
+    :steps:
+         1. Set nsslapd-search-return-original-type-switch to ON
+         2. Check that ldapsearch *does* return unknown attributes
+         3. Turn off nsslapd-search-return-original-type-switch
+         4. Check that ldapsearch doesn't return any unknown attributes
+    :expectedresults:
+         1. nsslapd-search-return-original-type-switch should be set to ON
+         2. ldapsearch should return unknown attributes
+         3. nsslapd-search-return-original-type-switch should be OFF
+         4. ldapsearch should not return any unknown attributes
+    """
+
+    log.info("Set nsslapd-search-return-original-type-switch to ON")
+    topology_st.standalone.config.set('nsslapd-search-return-original-type-switch', 'on')
+
+    log.info("Check that ldapsearch *does* return unknown attributes")
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'uid=Directory',
+                                              ['objectclass overflow', 'unknown'])
+    assert "objectclass overflow" in entries[0].getAttrs()
+
+    log.info("Set nsslapd-search-return-original-type-switch to Off")
+    topology_st.standalone.config.set('nsslapd-search-return-original-type-switch', 'off')
+    log.info("Check that ldapsearch *does not* return unknown attributes")
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'uid=Directory',
+                                              ['objectclass overflow', 'unknown'])
+    assert "objectclass overflow" not in entries[0].getAttrs()
+
+
+@pytest.mark.bz192901
+def test_search_ou(topology_st):
+    """Test that DS should not return an entry that does not match the filter
+
+    :id: d7831d05-f117-4e89-93c7-b6f77109f640
+    :setup: Standalone instance
+    :steps:
+         1. Create an OU entry without sub entries
+         2. Search from the OU with the filter that does not match the OU
+    :expectedresults:
+         1. Creation of OU should be successful
+         2. Search should not return any results
+    """
+
+    log.info("Create a test OU without sub entries")
+    ou = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou.create(properties={
+        'ou': 'test_ou',
+    })
+
+    search_base = ("ou=test_ou,%s" % DEFAULT_SUFFIX)
+    log.info("Search from the OU with the filter that does not match the OU, it should not return anything")
+    entries = topology_st.standalone.search_s(search_base, ldap.SCOPE_SUBTREE, 'uid=*', ['dn'])
+    assert len(entries) == 0
+
+
+@pytest.mark.bz1044135
+@pytest.mark.ds47319
+def test_connection_buffer_size(topology_st):
+    """Test connection buffer size adjustable with different values(valid values and invalid)
+
+    :id: e7831d05-f117-4ec9-1203-b6f77109f117
+    :setup: Standalone instance
+    :steps:
+         1. Set nsslapd-connection-buffer to some valid values (2, 0 , 1)
+         2. Set nsslapd-connection-buffer to some invalid values (-1, a)
+    :expectedresults:
+         1. This should pass
+         2. This should fail
+    """
+
+    valid_values = ['2', '0', '1']
+    for value in valid_values:
+        topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
+
+    invalid_values = ['-1', 'a']
+    for value in invalid_values:
+        with pytest.raises(ldap.OPERATIONS_ERROR):
+            topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
 
 if __name__ == '__main__':
     # Run isolated

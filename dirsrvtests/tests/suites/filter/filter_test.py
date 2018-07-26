@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 ENTRY_NAME = 'test_entry'
 
 
+@pytest.mark.bz918686
+@pytest.mark.ds497
 def test_filter_escaped(topology_st):
     """Test we can search for an '*' in a attribute value.
 
