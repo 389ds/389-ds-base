@@ -476,34 +476,6 @@
             </tr>
           </thead>
           <tbody id="local-pwpolicy-tbody">
-            <tr>
-              <td>ou=people,dc=example,dc=com</td>
-              <td>Subtree Password Policy</td>
-              <td>
-                <div class="dropdown" >
-                  <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
-                    <span class="caret"></span></button>
-                  <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
-                    <li role="policy-role"><a role="pwpolicy" tabindex="0" class="edit-local-pwp" href="#">View/Edit Policy</a></li>
-                    <li role="policy-role"><a role="pwpolicy" tabindex="-1" class="delete-local-pwp" href="#">Delete Policy</a></li>
-                  </ul>
-                 </div>
-              </td>
-            </tr>
-            <tr>
-              <td>uid=mark,ou=people,dc=example,dc=com,uid=mark,ou=people,dc=example,dc=com,uid=mark,ou=people,dc=example,dc=com</td>
-              <td>User Password Policy</td>
-              <td>
-                <div class="dropdown" >
-                  <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...
-                    <span class="caret"></span></button>
-                  <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
-                    <li role="policy-role"><a role="pwpolicy" tabindex="0" class="edit-local-pwp" href="#">View/Edit Policy</a></li>
-                    <li role="policy-role"><a role="pwpolicy" tabindex="-1" class="delete-local-pwp" href="#">Delete Policy</a></li>
-                  </ul>
-                 </div>
-              </td>
-            </tr>
           </tbody>
         </table>
         <button class="btn btn-primary" data-toggle="modal" data-target="#local-pwp-form" id="create-local-pwp-btn">Create Local Password Policy</button>
@@ -1117,7 +1089,7 @@
                   <label for="local-entry-dn" class="ds-config-label ds-pwp-input" title="The entry to apply a local policy to.">Entry for Password Policy</label>
                 </div>
                 <div class="ds-inline">
-                  <input class="ds-input ds-pwp-input" type="text" id="local-entry-dn" size="70" required /><button class="btn btn-default ds-trailing-btn" type="button">Pick Entry</button>
+                  <input class="ds-input ds-pwp-input" type="text" id="local-entry-dn" size="70" required />
                 </div>
                 <hr>
               <div>
@@ -1153,11 +1125,7 @@
                       "Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime)."> Track Password Update Time</label>
                   </div>
                   <div>
-                    <input type="checkbox" class="ds-config-checkbox ds-pwp-checkbox" id="nsslapd-allow-hashed-passwords"><label
-                      for="local-nsslapd-allow-hashed-passwords" class="ds-label" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords)."> Allow Adding Pre-Hashed Passwords</label>
-                  </div>
-                  <div>
-                    <label for="local-passwordadmindn" class="ds-labelZ" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
+                    <label for="local-passwordadmindn" title="The DN for a password administrator or administrator group (passwordAdminDN)">Password Administrator</label><input
                       class="ds-input ds-pwp-input" type="text" id="local-passwordadmindn" size="40"/>
                   </div>
                 </div>

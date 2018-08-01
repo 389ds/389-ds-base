@@ -311,6 +311,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.monitor import Monitor, MonitorLDBM
         from lib389.rootdse import RootDSE
         from lib389.saslmap import SaslMapping, SaslMappings
+        from lib389.pwpolicy import Pwpolicy
 
         # Need updating
         self.agreement = Agreement(self)
@@ -324,6 +325,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.plugins = Plugins(self)
         self.tasks = Tasks(self)
         self.saslmap = SaslMapping(self)
+        self.pwpolicy = Pwpolicy(self)
         # Do we have a certdb path?
         # if MAJOR < 3:
         self.monitor = Monitor(self)

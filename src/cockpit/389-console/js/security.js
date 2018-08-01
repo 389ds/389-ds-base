@@ -130,7 +130,8 @@ $(document).ready( function() {
         "orderable": false
       } ]
     });
-
+    // Page is loaded, mark it as so...
+    security_page_loaded = 1;
   });
 });
 

@@ -52,7 +52,6 @@ function clear_attr_form() {
 
 $(document).ready( function() {
   $("#schema-content").load("schema.html", function (){
-
     // TODO Get attributes, Objectclasses, syntaxes, and matching rules: populate tables and forms
 
     // Setup the tables: standard, custom, and Matching Rules
@@ -346,6 +345,8 @@ $(document).ready( function() {
         }
       });
     });
+    // Page is loaded, mark it as so...
+    schema_page_loaded = 1;
   });
 });
 

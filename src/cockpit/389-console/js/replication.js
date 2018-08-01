@@ -117,7 +117,6 @@ function add_repl_mgr(dn){
 
 $(document).ready( function() {
   $("#replication-content").load("replication.html", function () {
-
     // Load the dropdown TODO
 
     binddn_list_color = $("#repl-managers-list").css("border-color");
@@ -775,6 +774,7 @@ $(document).ready( function() {
        // TODO - abort the cleantask - update table (remove or update existing clean task?)
     });
 
-
+    // Page is loaded, mark it as so...
+    repl_page_loaded = 1;
   });
 });

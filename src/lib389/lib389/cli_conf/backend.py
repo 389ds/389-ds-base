@@ -20,6 +20,7 @@ from lib389.cli_base import (
     _get_attributes,
     _warn,
     )
+import json
 
 SINGULAR = Backend
 MANY = Backends
@@ -27,7 +28,19 @@ RDN = 'cn'
 
 
 def backend_list(inst, basedn, log, args):
-    _generic_list(inst, basedn, log.getChild('backend_list'), MANY, args)
+    if 'suffix' in args:
+        result = {"type": "list", "items": []}
+        be_insts = Backends(inst).list()
+        for be in be_insts:
+            if args.json:
+                result['items'].append(ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower())
+            else:
+                print(ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower())
+        if args.json:
+            print(json.dumps(result))
+
+    else:
+        _generic_list(inst, basedn, log.getChild('backend_list'), MANY, args)
 
 
 def backend_get(inst, basedn, log, args):
@@ -71,6 +84,7 @@ def create_parser(subparsers):
 
     list_parser = subcommands.add_parser('list', help="List current active backends and suffixes")
     list_parser.set_defaults(func=backend_list)
+    list_parser.add_argument('--suffix', action='store_true', help='Display the suffix for each backend')
 
     get_parser = subcommands.add_parser('get', help='get')
     get_parser.set_defaults(func=backend_get)

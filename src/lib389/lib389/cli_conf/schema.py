@@ -91,14 +91,14 @@ def create_parser(subparsers):
 
     subcommands = schema_parser.add_subparsers(help='schema')
 
-    list_attributetype_parser = subcommands.add_parser('list_attributetype', help='List avaliable attribute types on this system')
+    list_attributetype_parser = subcommands.add_parser('list_attributetype', help='List available attribute types on this system')
     list_attributetype_parser.set_defaults(func=list_attributetype)
 
     query_attributetype_parser = subcommands.add_parser('query_attributetype', help='Query an attribute to determine object classes that may or must take it')
     query_attributetype_parser.set_defaults(func=query_attributetype)
     query_attributetype_parser.add_argument('attr', nargs='?', help='Attribute type to query')
 
-    list_objectclass_parser = subcommands.add_parser('list_objectclasses', help='List avaliable objectclasses on this system')
+    list_objectclass_parser = subcommands.add_parser('list_objectclasses', help='List available objectclasses on this system')
     list_objectclass_parser.set_defaults(func=list_objectclasses)
 
     query_objectclass_parser = subcommands.add_parser('query_objectclass', help='Query an objectclass')
@@ -110,7 +110,7 @@ def create_parser(subparsers):
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
     reload_parser.add_argument('--wait', action='store_true', default=False, help="Wait for the reload task to complete")
 
-    list_matchingrules_parser = subcommands.add_parser('list_matchingrules', help='List avaliable matching rules on this system')
+    list_matchingrules_parser = subcommands.add_parser('list_matchingrules', help='List available matching rules on this system')
     list_matchingrules_parser.set_defaults(func=list_matchingrules)
 
     query_matchingrule_parser = subcommands.add_parser('query_matchingrule', help='Query a matchingrule')

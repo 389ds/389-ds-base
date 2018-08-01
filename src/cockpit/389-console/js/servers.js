@@ -74,6 +74,7 @@ var create_inf_template =
 
 
 var sasl_table;
+var pwp_table;
 
 function load_server_config() {
   var mark = document.getElementById("server-config-title");
@@ -92,6 +93,8 @@ function clear_local_pwp_form () {
   $("#local-passwordstoragescheme").prop('selectedIndex',0);
   $("#subtree-pwp-radio").attr('disabled', false);
   $("#user-pwp-radio").attr('disabled', false);
+  $("#local-entry-dn").attr('disabled', false);
+  $("#local-pwp-header").html("<b>Create Local Password Policy</b>");
 }
 
 function clear_inst_input() {
@@ -112,6 +115,39 @@ function clear_inst_form() {
   $("#create-sample-entries").prop('checked', false);
   $("#create-inst-tls").prop('checked', true);
   $(".ds-inst-input").css("border-color", "initial");
+}
+
+/*
+ * Validate the val and add it to the argument list for "dsconf"
+ *
+ * arg_list - array of options for dsconf
+ * valtype - value type:  "num" or "dn"
+ * val - the new value
+ * def_val - set this default is there is no new value("")
+ * edit - if we are editing a value, we accept ("") and do not ignore it
+ * attr - the dict key(its also the element ID)
+ * arg - the CLI argument (--pwdlen)
+ * msg - error message to display when things go wrong
+ *
+ * Return false on validation failure
+ */
+function add_validate_arg (arg_list, valtype, val, def_val, edit, attr, arg, msg) {
+  if ( val != "" || (edit && localpwp_values[attr] !== undefined && val != localpwp_values[attr])) {
+    if (val == "") {
+       val = def_val;
+    }
+    if ( valtype == "num" && !valid_num(val) ) {
+      popup_msg("Error", "\"" + msg + "\" value \"" + val + "\" is not a number");
+      return false;
+    } else if (valtype == "dn" && !valid_dn(val) && val != "" ) {
+      popup_msg("Error", "\"" + msg + "\" value \"" + val + "\" is not a DN (distinguished name)");
+      return false;
+    }
+    arg_list.push(arg + '=' + val);
+    return true;
+  }
+  // No change, no error
+  return true;
 }
 
 function get_and_set_config () {
@@ -141,9 +177,50 @@ function get_and_set_config () {
   });
 }
 
+function update_suffix_dropdowns () {
+    var dropdowns = ['local-pwp-suffix', 'select_repl_suffix', 'select-repl-cfg-suffix',
+                     'select-repl-agmt-suffix', 'select-repl-winsync-suffix',
+                     'monitor-repl-backend-list'];
+
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'list', '--suffix'];
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      // Clear all the dropdowns first
+      for (var idx in dropdowns) {
+        $("#" + dropdowns[idx]).empty();
+      }
+      // Update dropdowns
+      var obj = JSON.parse(data);
+      for (var idx in obj['items']) {
+        for (var list in dropdowns){
+          $("#" + dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
+        }
+      }
+  });
+}
+
+function get_and_set_localpwp () {
+  // Now populate the table
+  var suffix = $('#local-pwp-suffix').val();
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'list', suffix ];
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    var obj = JSON.parse(data);
+    // Empty table
+    pwp_table.clear().draw();
+
+    // Populate table
+    for (var idx in obj['items']) {
+      pwp_table.row.add([
+        obj['items'][idx][0],
+        obj['items'][idx][1],
+        local_pwp_html,]
+      ).draw( false );
+    }
+  });
+}
+
 function get_and_set_sasl () {
   // First empty the table
-  $("#sasl-table").find("tr:gt(0)").empty();
+  sasl_table.clear().draw();
 
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'list'];
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
@@ -195,6 +272,7 @@ function apply_mods(mods) {
      for (remaining in mods) {
        $("#" + remaining.attr).val(config_values[remaining.attr]);
      }
+     check_inst_alive(1);
      return;  // Stop on error
   });
 }
@@ -252,15 +330,80 @@ function save_config() {
 
 // load the server config pages
 $(document).ready( function() {
-  $("#main-banner").load("banner.html");
 
-  // Fill in the server instance dropdown
-  get_insts();
+  // Set an interval event to wait for all the pages to load, then load the config
+  var init_config = setInterval(function() {
+      if (server_page_loaded == 1 && security_page_loaded == 1 && db_page_loaded == 1 &&
+          repl_page_loaded == 1 && schema_page_loaded == 1 && plugin_page_loaded == 1 &&
+          monitor_page_loaded == 1)
+      {
+        get_insts();
+        console.log("Loaded configuration.");
+        clearInterval(init_config);
+      }
+  }, 200);
+
+  $("#main-banner").load("banner.html");
   check_for_389();
 
   $("#server-tab").css( 'color', '#228bc0');
 
   $("#server-content").load("servers.html", function () {
+    // Initialize all the tables first
+    sasl_table = $('#sasl-table').DataTable( {
+      "paging": true,
+      "bAutoWidth": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No SASL Mappings",
+        "search": "Search Mappings"
+      },
+      "columnDefs": [ {
+        "targets": 5,
+        "orderable": false
+      } ]
+    });
+
+    // backup/restore table
+    var backup_table = $('#backup-table').DataTable( {
+      "paging": true,
+      "bAutoWidth": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No backups available for restore",
+        "search": "Search Backups"
+      },
+      "columnDefs": [ {
+        "targets": [3, 4],
+        "orderable": false
+      } ],
+      "columns": [
+        { "width": "120px" },
+        { "width": "80px" },
+        { "width": "30px" },
+        { "width": "40px" },
+        { "width": "30px" }
+      ],
+    });
+
+    // Set up local passwd policy table
+    pwp_table = $('#passwd-policy-table').DataTable( {
+      "paging": true,
+      "bAutoWidth": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No local policies",
+        "search": "Search Policies"
+      },
+      "columnDefs": [ {
+        "targets": 2,
+        "orderable": false
+      } ]
+    });
+
     // Handle changing instance here
     $('#select-server').on("change", function() {
       server_id = $(this).val();
@@ -368,21 +511,6 @@ $(document).ready( function() {
         if (event.target.type !== 'checkbox') {
             $(':checkbox', this).trigger('click');
         }
-    });
-
-    sasl_table = $('#sasl-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "lengthMenu": [ 10, 25, 50, 100],
-      "language": {
-        "emptyTable": "No SASL Mappings",
-        "search": "Search Mappings"
-      },
-      "columnDefs": [ {
-        "targets": 5,
-        "orderable": false
-      } ]
     });
 
     $("#create-sasl-map-btn").on("click", function () {
@@ -664,124 +792,39 @@ $(document).ready( function() {
       }
     });
 
-    // backup/restore table
-    var backup_table = $('#backup-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "lengthMenu": [ 10, 25, 50, 100],
-      "language": {
-        "emptyTable": "No backups available for restore",
-        "search": "Search Backups"
-      },
-      "columnDefs": [ {
-        "targets": [3, 4],
-        "orderable": false
-      } ],
-      "columns": [
-        { "width": "120px" },
-        { "width": "80px" },
-        { "width": "30px" },
-        { "width": "40px" },
-        { "width": "30px" }
-      ],
-    });
-
-    // Set up local passwd policy table
-    var pwp_table = $('#passwd-policy-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "lengthMenu": [ 10, 25, 50, 100],
-      "language": {
-        "emptyTable": "No local policies",
-        "search": "Search Policies"
-      },
-      "columnDefs": [ {
-        "targets": 2,
-        "orderable": false
-      } ]
-    });
-
-    // Save the global password Policy
-    $("#server-pwp-save-btn").on("click"), function() {
-      // Get the values
-      var pwp_track = "off";
-      if ( $("#passwordtrackupdatetime").is(":checked") ) {
-        pwp_track = "on";
-      }
-      var pwp_admin = $("#passwordadmindn").val();
-      var pwp_passwordchange = "off";
-      if ($("#passwordchange").is(":checked") ){
-        pwp_passwordchange = "on";
-      }
-      var pwp_passwordmustchange = "off";
-      if ($("#passwordmustchange").is(":checked") ){
-        pwp_passwordmustchange = "on";
-      }
-      var pwp_history = "off";
-      if ($("#passwordhistory").is(":checked") ){
-        pwp_history = "on";
-      }
-      var pwp_inhistory = $("#passwordinhistory").val();
-      var pwp_minage = $("#passwordminage").val();
-      var pwp_exp = "off";
-      if ($("#passwordexp").is(":checked") ){
-        pwp_exp = "on";
-      }
-      var pwp_maxage = $("#passwordmaxage").val();
-      var pwp_gracelimit = $("#passwordgracelimit").val();
-      var pwp_warning = $("#passwordwarning").val();
-
-      var pwp_sendexp = "off";
-      if ($("#passwordsendexpiringtime").is(":checked") ){
-        pwp_sendexp = "on";
-      }
-      var pwp_lockout = "off";
-      if ($("#passwordlockout").is(":checked") ){
-        pwp_lockout = "on";
-      }
-      var pwp_maxfailure = $("#passwordmaxfailure").val();
-      var pwp_failcount = $("#passwordresetfailurecount").val();
-      var pwp_unlock = "off";
-      if ($("#passwordunlock").is(":checked") ){
-        pwp_unlock = "on";
-      }
-      var pwp_lockoutdur = $("#passwordlockoutduration").val();
-      var pwp_checksyntax = "off";
-      if ($("#passwordchecksyntax").is(":checked") ){
-        pwp_checksyntax = "on";
-      }
-      var pwp_minlen = $("#passwordminlength").val();
-      var pwp_mindigit = $("#passwordmindigits").val();
-      var pwp_minalphas = $("#passwordminalphas").val();
-      var pwp_minuppers = $("#passwordminuppers").val();
-      var pwp_minlowers = $("#passwordminlowers").val();
-      var pwp_minspecials = $("#passwordminspecials").val();
-      var pwp_min8bit = $("#passwordmin8bit").val();
-      var pwp_maxrepeats = $("#passwordmaxrepeats").val();
-      var pwp_mincat = $("#passwordmincategories").val();
-      var pwp_mintoken = $("#passwordmintokenlength").val();
-
-      // TODO  - save to DS
-
-    }
     /*
      *  Modal Forms
      */
 
-    // Local password policy
+    /*
+     * Local password policy
+     */
     $("#create-local-pwp-btn").on("click", function () {
       clear_local_pwp_form();
     });
 
     $("#local-pwp-save").on("click", function() {
+      /*
+       * We are either saving a new policy or editing an existing one
+       * If we are editing and we remove a setting, we have to set it
+       * to the default value - so it makes things a little more tedious
+       * for editing a local policy
+       */
+
+      // Is this the create or edit form?
+      var edit = false;
+      if ( $("#local-pwp-header").text().startsWith('Edit') ) {
+        edit = true;
+      }
+
+      /*
+       * Get all the current values from the form.
+       */
       var policy_name = $("#local-entry-dn").val();
       var pwp_track = "off";
       if ( $("#local-passwordtrackupdatetime").is(":checked") ) {
         pwp_track = "on";
       }
-      var pwp_admin = $("#local-passwordadmindn").val();
       var pwp_passwordchange = "off";
       if ($("#local-passwordchange").is(":checked") ){
         pwp_passwordchange = "on";
@@ -794,16 +837,10 @@ $(document).ready( function() {
       if ($("#local-passwordhistory").is(":checked") ){
         pwp_history = "on";
       }
-      var pwp_inhistory = $("#local-passwordinhistory").val();
-      var pwp_minage = $("#local-passwordminage").val();
       var pwp_exp = "off";
       if ($("#local-passwordexp").is(":checked") ){
         pwp_exp = "on";
       }
-      var pwp_maxage = $("#local-passwordmaxage").val();
-      var pwp_gracelimit = $("#local-passwordgracelimit").val();
-      var pwp_warning = $("#local-passwordwarning").val();
-
       var pwp_sendexp = "off";
       if ($("#local-passwordsendexpiringtime").is(":checked") ){
         pwp_sendexp = "on";
@@ -812,62 +849,158 @@ $(document).ready( function() {
       if ($("#local-passwordlockout").is(":checked") ){
         pwp_lockout = "on";
       }
-      var pwp_maxfailure = $("#local-passwordmaxfailure").val();
-      var pwp_failcount = $("#local-passwordresetfailurecount").val();
       var pwp_unlock = "off";
       if ($("#local-passwordunlock").is(":checked") ){
         pwp_unlock = "on";
       }
-      var pwp_lockoutdur = $("#local-passwordlockoutduration").val();
       var pwp_checksyntax = "off";
       if ($("#local-passwordchecksyntax").is(":checked") ){
         pwp_checksyntax = "on";
       }
+      var pwp_palindrome = "on";
+      if ( $("#local-passwordpalindrome").is(":checked") ){
+        pwp_palindrome = "off";
+      }
+      var pwp_dictcheck = "off";
+      if ( $("#local-passworddictcheck").is(":checked") ){
+         pwp_dictcheck = "on";
+      }
+
+      var pwp_admin = $("#local-passwordadmindn").val();
+      var pwp_inhistory = $("#local-passwordinhistory").val();
+      var pwp_minage = $("#local-passwordminage").val();
+      var pwp_maxage = $("#local-passwordmaxage").val();
+      var pwp_gracelimit = $("#local-passwordgracelimit").val();
+      var pwp_warning = $("#local-passwordwarning").val();
+      var pwp_maxfailure = $("#local-passwordmaxfailure").val();
+      var pwp_failcount = $("#local-passwordresetfailurecount").val();
+      var pwp_lockoutdur = $("#local-passwordlockoutduration").val();
       var pwp_minlen = $("#local-passwordminlength").val();
-      var pwp_mindigit = $("#local-passwordmindigits").val();
+      var pwp_mindigits = $("#local-passwordmindigits").val();
       var pwp_minalphas = $("#local-passwordminalphas").val();
       var pwp_minuppers = $("#local-passwordminuppers").val();
       var pwp_minlowers = $("#local-passwordminlowers").val();
       var pwp_minspecials = $("#local-passwordminspecials").val();
-      var pwp_min8bit = $("#local-passwordmin8bit").val();
+      var pwp_min8bits = $("#local-passwordmin8bit").val();
       var pwp_maxrepeats = $("#local-passwordmaxrepeats").val();
       var pwp_mincat = $("#local-passwordmincategories").val();
       var pwp_mintoken = $("#local-passwordmintokenlength").val();
+      var pwp_badwords = $("#local-passwordbadwords").val();
+      var pwp_userattrs = $("#local-passworduserattributes").val();
+      var pwp_maxseq = $("#local-passwordmaxsequence").val();
+      var pwp_maxseqset = $("#local-passwordmaxseqsets").val();
+      var pwp_maxclass = $("#local-passwordmaxclasschars").val();
+      var pwp_scheme = $("#local-passwordstoragescheme").val();
 
-
-      var pwp_type = "User Password Policy";
+      var pwp_type = "User Policy";
       if ( $("#subtree-pwp-radio").is(":checked")) {
-        pwp_type = "Subtree Password Policy";
+        pwp_type = "Subtree Policy";
       }
 
-      // TODO - add to DS
+      /*
+       * Go through all the settings and create an arg list, but if editing
+       * the policy and the value is now "", we need to set it to the default
+       * value.
+       */
+      arg_list = [];
 
-      // Update Pwp Table
-      pwp_table.row.add( [
-            policy_name,
-            pwp_type,
-            local_pwp_html
-        ] ).draw( false );
+      // Do the on/off settings first
+      arg_list.push('--pwdtrack=' + pwp_track);
+      arg_list.push('--pwdchange=' + pwp_passwordchange);
+      arg_list.push('--pwdmustchange=' + pwp_passwordmustchange);
+      arg_list.push('--pwdhistory=' + pwp_history);
+      arg_list.push('--pwdexpire=' + pwp_exp);
+      arg_list.push('--pwdlockout=' + pwp_lockout);
+      arg_list.push('--pwdunlock=' + pwp_unlock);
+      arg_list.push('--pwdchecksyntax=' + pwp_checksyntax);
+      arg_list.push('--pwdpalindrome=' + pwp_palindrome);
+      arg_list.push('--pwddictcheck=' + pwp_dictcheck);
+      arg_list.push('--pwdsendexpiring=' + pwp_sendexp);
+      // Do the rest
+      if ( !add_validate_arg (arg_list, "num", pwp_inhistory, "0", edit, 'passwordinhistory', '--pwdhistorycount', 'Passwords in history') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_minage, "0", edit, 'passwordminage', '--pwdminage', 'Allowed Password Changes') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_maxage, "0", edit, 'passwordmaxage', '--pwdmaxage', 'Password Expiration Time') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_gracelimit, "0", edit, 'passwordgracelimit', '--pwdgracelimit', 'Allowed Logins') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_inhistory, "0", edit, 'passwordwarning', '--pwdwarning', 'Password Warning') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_maxfailure, "0", edit, 'passwordmaxfailure', '--pwdmaxfailures', 'Number of Failed Logins') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_failcount, "0", edit, 'passwordresetfailurecount', '--pwdresetfailcount', 'Failure Count Reset') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_lockoutdur, "0", edit, 'passwordlockoutduration', '--pwdlockoutduration', 'Time Until Account Unlock') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_minlen, "6", edit, 'passwordminlength', '--pwdminlen', 'Password Minimum Length') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_mindigits, "0", edit, 'passwordmindigits', '--pwdmindigits', 'Minimum Digits') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_minalphas, "0", edit, 'passwordminalphas', '--pwdminalphas', 'Minimum Alphas') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_minuppers, "0", edit, 'passwordminuppers', '--pwdminuppers', 'Minimum Uppercase Characters') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_minlowers, "0", edit, 'passwordminlowers', '--pwdminlowers', 'Minimum Lowercase Characters') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_minspecials, "0", edit, 'passwordminspecials', '--pwdminspecials', 'Minimum Special Characters') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_min8bits, "0", edit, 'passwordmin8bits', '--pwdmin8bits', 'Minimum Alphas') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_maxrepeats, "0", edit, 'passwordmaxrepeats', '--pwdmaxrepeats', 'Maximum Repeats') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_mincat, "3", edit, 'passwordmincategories', '--pwdmincatagories', 'Minimum Catagories') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_mintoken, "3", edit, 'passwordmintokenlength', '--pwdmintokenlen', 'Minimum Alphas') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_maxseq, "0", edit, 'passwordmaxsequence', '--pwdmaxseq', 'Maximum Sequence') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_maxseqset, "0", edit, 'passwordmaxseqsets', '--pwdmaxseqsets', 'Maximum Sequence Sets') ) { return; }
+      if ( !add_validate_arg (arg_list, "num", pwp_maxclass, "0", edit, 'passwordmaxclasschars', '--pwdmaxclasschars', 'Maximum Character Classes') ) { return; }
+      if ( !add_validate_arg (arg_list, "dn", pwp_admin, "", edit, 'passwordadmindn', '--pwdadmin', 'Password Administrator') ) { return; }
+      if (pwp_badwords != "" || (edit && localpwp_values['passwordbadwords'] !== undefined && pwp_badwords != localpwp_values['passwordbadwords'])) {
+        arg_list.push('--pwdbadwords=' + pwp_badwords);
+      }
+      if (pwp_userattrs != "" || (edit && localpwp_values['passworduserattributes'] !== undefined && pwp_userattrs != localpwp_values['passworduserattributes'])) {
+        arg_list.push('--pwduserattrs=' + pwp_userattrs);
+      }
+      if (pwp_scheme != "" || (edit && localpwp_values['passwordstoragescheme'] !== undefined && pwp_scheme != localpwp_values['passwordstoragescheme'])) {
+        arg_list.push('--pwdscheme=' + pwp_scheme);
+      }
 
-      // Done, close the form
-      $("#local-pwp-form").modal('toggle');
-      clear_local_pwp_form();
+      /*
+       * Update/Add Password policy to DS
+       */
+      if ( edit ) {
+        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'set', policy_name];
+        cmd = cmd.concat(arg_list);
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+          popup_success('Successfully edited local password policy');
+          $("#local-pwp-form").modal('toggle')
+        }).fail(function(data) {
+            popup_err("Failed to edit local password policy", data.message);
+        });
+      } else {
+        // Create new local policy
+        var action = "addsubtree";
+        if (pwp_type == "User Policy") {
+          action = "adduser";
+        }
+        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', action, policy_name];
+        cmd = cmd.concat(arg_list);
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+          pwp_table.row.add( [
+              policy_name,
+              pwp_type,
+              local_pwp_html
+          ] ).draw( false );
+          popup_success('Successfully created local password policy');
+          $("#local-pwp-form").modal('toggle');
+        }).fail(function(data) {
+            popup_err("Failed to create local password policy", data.message);
+        });
+      }
     });
 
     // Delete local password policy
     $(document).on('click', '.delete-local-pwp', function(e) {
       e.preventDefault();
-
       // Update HTML table
       var data = pwp_table.row( $(this).parents('tr') ).data();
       var del_pwp_name = data[0];
       var pwp_row = $(this);
       popup_confirm("Are you sure you want to delete local password policy: <b>" + del_pwp_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
-          // TODO Delete pwp from DS
-
-          // Update html table
-          pwp_table.row( pwp_row.parents('tr') ).remove().draw( false );
+          // Delete pwp from DS
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'remove', del_pwp_name];
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            // Update html table
+            pwp_table.row( pwp_row.parents('tr') ).remove().draw( false );
+            popup_success('Successfully deleted local password policy');
+          }).fail(function(data) {
+              popup_err("Failed to delete local password policy\n" + data.message);
+          });
         }
       });
     });
@@ -882,7 +1015,7 @@ $(document).ready( function() {
 
       // Validate values
       if (sasl_map_name == '') {
-        report_err($("#sasl-map-name"), 'You must provide an mapping name');
+        report_err($("#sasl-map-name"), 'You must provide a mapping name');
         return;
       }
       if (sasl_map_name == '') {
@@ -1145,8 +1278,6 @@ $(document).ready( function() {
             $("#remove-instance-form").modal('toggle');
             popup_msg("Success", "Instance has been deleted");
             get_insts();
-            check_for_389();
-            load_config();
           }).fail(function(data) {
             $("#remove-instance-form").modal('toggle');
             popup_err("Error", "Failed to remove instance\n" + data.message);
@@ -1372,30 +1503,60 @@ $(document).ready( function() {
         $(this).blur();
       }
     });
+
+    $('#local-pwp-suffix').on('change', function () {
+      // Reload the table for the new selected suffix
+      get_and_set_localpwp();
+    });
+
     // Edit Local Password Policy
     $(document).on('click', '.edit-local-pwp', function(e) {
       e.preventDefault();
       clear_local_pwp_form();
 
-      // Update HTML table
       var data = pwp_table.row( $(this).parents('tr') ).data();
       var policy_name = data[0];
 
-      // TODO - lookup the entry, and get the current settings
+      // lookup the entry, and get the current settings
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'get', policy_name];
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        localpwp_values = {};  // Clear it out
+        var obj = JSON.parse(data);
+        for (var attr in obj['attrs']) {
+          var val = obj['attrs'][attr];
+          $("#local-" + attr).val(val);
+          if (val == "on") {
+            $("#local-" + attr).prop('checked', true);
+            $("#local" + attr).trigger('change');
+          } else if (val == "off") {
+            $("#local" + attr).prop('checked', false);
+            $("#local" + attr).trigger('change');
+          }
+          localpwp_values[attr] = val;
+        }
+        if ( obj['pwp_type'] == "User") {
+          $("#user-pwp-radio").prop("checked", true );
+        } else {
+          $("#subtree-pwp-radio").prop("checked", true );
+        }
 
-      // Set the form header and fields
-      $("#local-pwp-header").html("<b>Edit Local Password Policy</b>");
-      $("#local-entry-dn").val(policy_name);
-      // Set radio button for type of policy - TODO
+        // Set the form header and fields
+        $("#local-pwp-header").html("<b>Edit Local Password Policy</b>");
+        $("#local-entry-dn").val(policy_name);
+        // Disable radio buttons
+        $("#subtree-pwp-radio").attr('disabled', true);
+        $("#user-pwp-radio").attr('disabled', true);
+        $("#local-entry-dn").attr('disabled', true);
 
-      // Disable radio buttons
-      $("#subtree-pwp-radio").attr('disabled', true);
-      $("#user-pwp-radio").attr('disabled', true);
+        // Open form
+        $("#local-pwp-form").modal('toggle');
 
-
-      // Open form
-      $("#local-pwp-form").modal('toggle');
+      }).fail(function(data) {
+          popup_err("Failed to get local password policy", data.message);
+      });
     });
 
-  });
-});
+    // Mark this page as loaded
+    server_page_loaded = 1;
+  }); // servers.html loaded
+}); // Document ready

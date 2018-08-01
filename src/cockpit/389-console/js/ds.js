@@ -2,8 +2,23 @@ var DS_HOME = "/etc/dirsrv/";
 var server_id = "None";
 var server_inst = "";
 var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
+
+/*
+ * We can't load the config until all the html pages are load, so we'll use vars
+ * to track the loading, and once all the pages are loaded, then we can load the config
+ */
+var server_page_loaded = 0;
+var security_page_loaded = 0;
+var db_page_loaded = 0;
+var repl_page_loaded = 0;
+var plugin_page_loaded = 0;
+var schema_page_loaded = 0;
+var monitor_page_loaded = 0;
+
+// objects to store original values (used for comparing what changed when saving
 var config_values = {};
-//TODO - need "config_values" for all the other pages: SASL, backend, suffix, etc.
+var localpwp_values = {};
+//TODO - need "config_values" for all the other pages: backend, replication, suffix, etc.
 
 var DSCONF = "dsconf";
 var DSCTL = "dsctl";
@@ -39,17 +54,6 @@ function tableize (val) {
   return val;
 }
 
-// Example
-function search_dse(){
-  document.getElementById('results').innerHTML = "Searching root dse...";
-  var cmd = ['/usr/bin/ldapsearch','-Y', 'EXTERNAL' , '-H',
-             'ldapi://%2fvar%2frun%2fslapd-localhost.socket',
-             '-b' ,'' ,'-s', 'base', 'objectclass=top'];
-  cockpit.spawn(cmd, { superuser: true }).done(function(data) {
-    $("#results").text(data); }
-  );
-}
-
 /*
  * Set the ports numbers on the instance creation form.  If the default ports
  * are taken just unset the values.
@@ -77,11 +81,6 @@ function sort_list (sel) {
   sel.html('').append(opts_list);
 }
 
-function example() {
-  // Example test function
-  $("#search").on("click", search_dse);
-  //$("#getservers").on("click", get_insts);
-}
 
 function set_no_insts () {
     var select = document.getElementById("select-server");
@@ -121,7 +120,6 @@ function check_inst_alive (connect_err) {
       $("#ds-navigation").hide();
       $(".all-pages").hide();
       $("#no-connect").show();
-
     } else {
       $(".all-pages").hide();
       $("#ds-navigation").show();
@@ -131,13 +129,11 @@ function check_inst_alive (connect_err) {
       //$("#no-package").hide();
       $("#not-running").hide();
       $("#no_connect").hide();
-      console.log("Running");
     }
   }).fail(function(data) {
     $("#ds-navigation").hide();
     $(".all-pages").hide();
     $("#not-running").show();
-    console.log("Not Running");
   });
 }
 
@@ -170,7 +166,6 @@ function get_insts() {
 
     // Update the list
     for (i = 0; i < insts.length; i++) {
-      console.log("Add instance: " + insts[i]);
       var opt = insts[i];
       var el = document.createElement("option");
       el.textContent = opt;
@@ -190,9 +185,10 @@ function get_insts() {
       $("#server-config").show();
       server_id = insts[0];
       server_inst = insts[0].replace("slapd-", "");
+      check_inst_alive();
+      // We have an instance, so load its config
       load_config();
     }
-
     $("body").show();
   }).fail(function(error){
     set_no_insts();
@@ -259,18 +255,27 @@ function save_all () {
   //   save_chaining_suffix();
   //   save_global_backend();
   //   save_suffix();
-  //   save_sasl();
   //   save_security();
 }
 
 function load_config (){
-  // TODO - set all the pages
+  // Populate all the suffix dropdown lists
+  update_suffix_dropdowns();
+
+  // Server page
   get_and_set_config(); // cn=config stuff
-  get_and_set_sasl();  // Fill in sasl mapping table
+  get_and_set_sasl();
+  get_and_set_localpwp();
+
+  // Security page
+  // Database page
+  // Replication page
+  // Schema page
+  // Plugin page
+  // Monitoring page
 }
 
 $(window.document).ready(function() {
-
   if(navigator.userAgent.toLowerCase().indexOf('firefoxf') > -1) {
     $("select@@@").focus( function() {
       this.style.setProperty( 'outline', 'none', 'important' );
@@ -279,3 +284,5 @@ $(window.document).ready(function() {
     });
   }
 });
+
+

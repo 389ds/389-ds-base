@@ -150,7 +150,7 @@ do_add(Slapi_PBlock *pb)
         }
 
         if (vals == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "do_add - no values for type %s\n", type, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "do_add", "no values for type %s\n", type);
             op_shared_log_error_access(pb, "ADD", slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), "null value");
             send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL,
                              0, NULL);

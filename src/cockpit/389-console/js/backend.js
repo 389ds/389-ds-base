@@ -156,8 +156,6 @@ function load_jstree() {
     var node_type = data.selected[0];
     var suffix = data.instance.get_node(data.selected[0]).text.replace(/(\r\n|\n|\r)/gm,"");
 
-    console.log("The selected nodes are: " + node_type + " = " + suffix);
-
     if (node_type.startsWith("dblink")) {
       var parent_suffix = node_type.substring(node_type.indexOf('-')+1);
       $(".all-pages").hide();
@@ -857,6 +855,8 @@ $(document).ready( function() {
       });
     });
 
+    // Page is loaded, mark it as so...
+    db_page_loaded = 1;
   });
 });
 

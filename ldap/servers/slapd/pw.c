@@ -2096,6 +2096,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                                           slapi_value_get_string(*sval));
                         }
                     }
+                } else if (!strcasecmp(attr_name, "passwordsendexpiringtime")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_send_expiring =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
+                    }
                 } else if (!strcasecmp(attr_name, "passwordhistory")) {
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_history =

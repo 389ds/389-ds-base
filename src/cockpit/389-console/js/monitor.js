@@ -153,7 +153,6 @@ function refresh_errors_log () {
 
 $(document).ready( function() {
   $("#monitor-content").load("monitor.html", function () {
-
     $('#monitor-db-tree').jstree({
       "plugins": [ "contextmenu", "wholerow" ],
     });
@@ -233,8 +232,6 @@ $(document).ready( function() {
     });
 
     $('#monitor-db-tree').on("changed.jstree", function (e, data) {
-      console.log("MONITOR The selected nodes are:");
-      console.log(data.selected);
       var tree_node = data.selected;
       if (tree_node == "monitor-db-main") {
 
@@ -394,6 +391,7 @@ $(document).ready( function() {
       $("#monitor-winsync-agmt-form").css('display', 'block');
     });
 
-
+    // Page is loaded, mark it as so...
+    monitor_page_loaded = 1;
   });
 });
