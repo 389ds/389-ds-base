@@ -47,6 +47,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdl
 
 # These are *required* headers without option.
 AC_CHECK_HEADERS([inttypes.h], [], AC_MSG_ERROR([unable to locate required header inttypes.h]))
+AC_CHECK_HEADERS([crack.h], [], AC_MSG_ERROR([unable to locate required header crack.h]))
 
 
 # Checks for typedefs, structures, and compiler characteristics.
