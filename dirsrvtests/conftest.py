@@ -1,9 +1,22 @@
 import subprocess
 import logging
 import pytest
+import os
+
+from enum import Enum
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
 
+class FIPSState(Enum):
+    ENABLED = 'enabled'
+    DISABLED = 'disabled'
+    NOT_AVAILABLE = 'not_available'
+
+    def __unicode__(self):
+        return self.value
+
+    def __str__(self):
+        return self.value
 
 def get_rpm_version(pkg):
     try:
@@ -17,8 +30,15 @@ def get_rpm_version(pkg):
 
 def is_fips():
     # Are we running in FIPS mode?
+    if not os.path.exists('/proc/sys/crypto/fips_enabled'):
+        return FIPSState.NOT_AVAILABLE
+    state = None
     with open('/proc/sys/crypto/fips_enabled', 'r') as f:
-        return f.readline()
+        state = f.readline()
+    if state == '1':
+        return FIPSState.ENABLED
+    else:
+        return FIPSState.DISABLED
 
 
 @pytest.fixture(autouse=True)
@@ -36,8 +56,8 @@ def pytest_cmdline_main(config):
 def pytest_report_header(config):
     header = ""
     for pkg in pkgs:
-        header += pkg + ": " + get_rpm_version(pkg) + "\n"
-    header += "FIPS: " + is_fips()
+        header += "%s: %s\n" % (pkg, get_rpm_version(pkg))
+    header += "FIPS: %s" % is_fips()
     return header
 
 
