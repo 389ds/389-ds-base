@@ -238,6 +238,7 @@ Requires:         perl-NetAddr-IP
 Requires:         perl-Mozilla-LDAP
 # for setup-ds.pl
 Requires:         bind-utils
+%{?perl_default_filter}
 %endif
 # End use perl
 
