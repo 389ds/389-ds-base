@@ -79,9 +79,11 @@ from lib389.utils import (
     update_newhost_with_fqdn,
     formatInfData,
     ensure_bytes,
-    ensure_str)
+    ensure_str,
+    format_cmd_list)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
+from lib389.tasks import BackupTask, RestoreTask
 
 # mixin
 # from lib389.tools import DirSrvTools
@@ -2879,14 +2881,15 @@ class DirSrv(SimpleLDAPObject, object):
         if not archive_dir:
             self.log.error("bak2db: backup directory missing")
             return False
+        elif not archive_dir.startswith("/"):
+            archive_dir = os.path.join(self.ds_paths.backup_dir, archive_dir)
 
         try:
-            result = subprocess.check_output([
-                prog,
-                'archive2db',
-                '-a', archive_dir,
-                '-D', self.get_config_dir()
-            ], encoding='utf-8')
+            cmd = [prog,
+                   'archive2db',
+                   '-a', archive_dir,
+                   '-D', self.get_config_dir()]
+            result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
                            format_cmd_list(cmd), e.returncode, e.output)
@@ -2914,17 +2917,16 @@ class DirSrv(SimpleLDAPObject, object):
         if archive_dir is None:
             # Use the instance name and date/time as the default backup name
             archive_dir = self.get_bak_dir() + "/" + self.serverid + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        elif archive_dir[0] != "/":
+        elif not archive_dir.startswith("/"):
             # Relative path, append it to the bak directory
-            archive_dir = self.get_bak_dir() + "/" + archive_dir
+            archive_dir = os.path.join(self.ds_paths.backup_dir, archive_dir)
 
         try:
-            result = subprocess.check_output([
-                prog,
-                'db2archive',
-                '-a', archive_dir,
-                '-D', self.get_config_dir()
-            ], encoding='utf-8')
+            cmd = [prog,
+                   'db2archive',
+                   '-a', archive_dir,
+                   '-D', self.get_config_dir()]
+            result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
                            format_cmd_list(cmd), e.returncode, e.output)
@@ -3409,3 +3411,39 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
             self.log.debug("Delete entry children %s", ent.dn)
             self.delete_ext_s(ent.dn, serverctrls=serverctrls, clientctrls=clientctrls)
+
+    def backup_online(self, archive=None, db_type=None):
+        """Creates a backup of the database"""
+
+        if archive is None:
+            # Use the instance name and date/time as the default backup name
+            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            archive = os.path.join(self.ds_paths.backup_dir,
+                                   "%s_%s" % (self.serverid, tnow))
+        elif archive[0] != "/":
+            # Relative path, append it to the bak directory
+            archive = os.path.join(self.ds_paths.backup_dir, archive)
+
+        task = BackupTask(self)
+        task_properties = {'nsArchiveDir': archive}
+        if db_type is not None:
+            task_properties['nsDatabaseType'] = db_type
+        task.create(properties=task_properties)
+
+        return task
+
+    def restore_online(self, archive, db_type=None):
+        """Restores a database from a backup"""
+
+        # Relative path, append it to the bak directory
+        if archive[0] != "/":
+            archive = os.path.join(self.ds_paths.backup_dir, archive)
+
+        task = RestoreTask(self)
+        task_properties = {'nsArchiveDir': archive}
+        if db_type is not None:
+            task_properties['nsDatabaseType'] = db_type
+
+        task.create(properties=task_properties)
+
+        return task

@@ -235,6 +235,66 @@ class CleanAllRUVTask(Task):
         return abort_task
 
 
+class ImportTask(Task):
+    """Create the import ldif task
+
+    :param instance: The instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'import_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=import," + DN_TASKS
+        self._properties = None
+
+        super(ImportTask, self).__init__(instance, dn)
+
+
+class ExportTask(Task):
+    """Create the export to ldif task
+
+    :param instance: The instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'export_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=export," + DN_TASKS
+        self._properties = None
+
+        super(ExportTask, self).__init__(instance, dn)
+
+
+class BackupTask(Task):
+    """Create the backup DB task
+
+    :param instance: The instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'backup_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=backup," + DN_TASKS
+        self._properties = None
+
+        super(BackupTask, self).__init__(instance, dn)
+
+
+class RestoreTask(Task):
+    """Create the restore DB task
+
+    :param instance: The instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'restore_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=restore," + DN_TASKS
+        self._properties = None
+
+        super(RestoreTask, self).__init__(instance, dn)
+
+
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()
 

@@ -92,6 +92,8 @@ def _warn(data, msg=None):
 def connect_instance(dsrc_inst, verbose):
     dsargs = dsrc_inst['args']
     if '//' not in dsargs['ldapurl']:
+        # Connecting to the local instance
+        dsargs['server-id'] = dsargs['ldapurl']
         # We have an instance name - generate url from dse.ldif
         ldapurl, certdir = get_ldapurl_from_serverid(dsargs['ldapurl'])
         if ldapurl is not None:

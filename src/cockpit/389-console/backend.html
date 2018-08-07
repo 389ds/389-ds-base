@@ -850,7 +850,7 @@
   </div>
 
   <div class="modal fade" id="import-ldif-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="import-label" aria-hidden="true">
-    <div class="modal-dialog ds-modal">
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
@@ -859,11 +859,32 @@
           <h4 class="modal-title" id="import-label">Initialize Database</h4>
         </div>
         <div class="modal-body">
-          <form class="form-horizontal">
-            <label for="ldif-file" class="" title=
-              "Full path to LDIF file">
-              LDIF File</label><input class="ds-form-input" type="text" id="ldif-file" size="40"/>
-          </form>
+          <div class="ds-inline">
+            <div>
+              <label for="root-suffix-import" class="ds-config-label-lrg" title=
+                      "Suffix where to import">
+                Root Suffix</label><input class="ds-input" type="text" id="root-suffix-import" size="40" disabled/>
+            </div>
+            <div>
+              <label for="ldif-file-import" class="ds-config-label-lrg" title=
+                      "LDIF filename without an extension. LDIF files are written to the server's LDIF directory (nsslapd-ldifdir)">
+                LDIF Filename</label><input class="ds-input" type="text" id="ldif-file-import" size="40"/>
+            </div>
+            <div>
+              <label for="exclude-suffix-import" class="ds-config-label-lrg" title=
+                      "Exclude Suffix (Optional)">
+                Exclude Suffix (Optional)</label><input class="ds-input" type="text" id="exclude-suffix-import" size="40"/>
+            </div>
+            <div>
+              <label for="include-suffix-import" class="ds-config-label-lrg" title=
+                      "Include Suffix (Optional)">
+                Include Suffix (Optional)</label><input class="ds-input" type="text" id="include-suffix-import" size="40"/>
+            </div>
+          </div>
+          <div id="import-ldif-spinner" class="ds-center" hidden>
+            <p></p>
+            <p><span class="spinner spinner-xs spinner-inline"></span> Running LDIF import task...</p>
+          </div>
         </div>
         <div class="modal-footer ds-modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -874,7 +895,7 @@
   </div>
 
   <div class="modal fade" id="export-ldif-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="export-label" aria-hidden="true">
-    <div class="modal-dialog ds-modal">
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
@@ -883,10 +904,32 @@
           <h4 class="modal-title" id="export-label">Export Database</h4>
         </div>
         <div class="modal-body">
-          <form class="form-horizontal">
-            <label for="export-ldif-file" class="" title="Full path to LDIF file">
-            LDIF File</label><input class="ds-form-input" type="text" id="export-ldif-file" size="40"/>
-          </form>
+          <div class="ds-inline">
+            <div>
+              <label for="root-suffix-export" class="ds-config-label-lrg" title=
+                      "Suffix where to export">
+                Root Suffix</label><input class="ds-input" type="text" id="root-suffix-export" size="40" disabled/>
+            </div>
+            <div>
+              <label for="ldif-file-export" class="ds-config-label-lrg" title=
+                      "LDIF filename without an extension. LDIF files are written to the server's LDIF directory (nsslapd-ldifdir)">
+                LDIF Filename (Optional)</label><input class="ds-input" type="text" id="ldif-file-export" size="40"/>
+            </div>
+            <div>
+              <label for="exclude-suffix-export" class="ds-config-label-lrg" title=
+                      "Exclude Suffix (Optional)">
+                Exclude Suffix (Optional)</label><input class="ds-input" type="text" id="exclude-suffix-export" size="40"/>
+            </div>
+            <div>
+              <label for="include-suffix-export" class="ds-config-label-lrg" title=
+                      "Include Suffix (Optional)">
+                Include Suffix (Optional)</label><input class="ds-input" type="text" id="include-suffix-export" size="40"/>
+            </div>
+          </div>
+          <div id="export-ldif-spinner" class="ds-center" hidden>
+            <p></p>
+            <p><span class="spinner spinner-xs spinner-inline"></span> Running LDIF export task...</p>
+          </div>
         </div>
         <div class="modal-footer ds-modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>

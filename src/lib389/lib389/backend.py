@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+from datetime import datetime
 import ldap
 from lib389._constants import *
 from lib389.properties import *
@@ -21,6 +22,7 @@ from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
 from lib389.index import Indexes
+from lib389.tasks import ImportTask, ExportTask
 
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
@@ -561,6 +563,24 @@ class Backend(DSLdapObject):
         return indexes
     # Future: add reindex task for this be.
 
+    def import_ldif(self, ldifs, chunk_size=None, encrypted=False, gen_uniq_id=False, only_core=False,
+                    include_suffixes=None, exclude_suffixes=None):
+        """Do an import of the suffix"""
+
+        bs = Backends(self._instance)
+        task = bs.import_ldif(self.rdn, ldifs, chunk_size, encrypted, gen_uniq_id, only_core,
+                              include_suffixes, exclude_suffixes)
+        return task
+
+    def export_ldif(self, ldif=None, use_id2entry=False, encrypted=False, min_base64=False, no_uniq_id=False,
+                    replication=False, not_folded=False, no_seq_num=False, include_suffixes=None, exclude_suffixes=None):
+        """Do an export of the suffix"""
+
+        bs = Backends(self._instance)
+        task = bs.export_ldif(self.rdn, ldif, use_id2entry, encrypted, min_base64, no_uniq_id,
+                              replication, not_folded, no_seq_num, include_suffixes, exclude_suffixes)
+        return task
+
 
 class Backends(DSLdapObjects):
     """DSLdapObjects that represents DN_LDBM base DN
@@ -579,3 +599,75 @@ class Backends(DSLdapObjects):
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
         self._childobject = Backend
         self._basedn = DN_LDBM
+
+    def import_ldif(self, be_name, ldifs, chunk_size=None, encrypted=False, gen_uniq_id=None, only_core=False,
+                    include_suffixes=None, exclude_suffixes=None):
+        """Do an import of the suffix"""
+
+        if not ldifs:
+            self.log.error("import_ldif: LDIF filename is missing")
+            return False
+        ldif_paths = []
+        for ldif in list(ldifs):
+            if not ldif.startswith("/"):
+                ldif = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
+                ldif_paths.append(ldif)
+
+        task = ImportTask(self._instance)
+        task_properties = {'nsInstance': be_name,
+                           'nsFilename': ldif_paths}
+        if include_suffixes is not None:
+            task_properties['nsIncludeSuffix'] = include_suffixes
+        if exclude_suffixes is not None:
+            task_properties['nsExcludeSuffix'] = exclude_suffixes
+        if encrypted:
+            task_properties['nsExportDecrypt'] = 'true'
+        if only_core:
+            task_properties['nsImportIndexAttrs'] = 'false'
+        if chunk_size is not None:
+            task_properties['nsImportChunkSize'] = chunk_size
+        if gen_uniq_id is not None:
+            if gen_uniq_id in ("none", "empty") or gen_uniq_id.startswith("deterministic"):
+                raise ValueError("'gen_uniq_id should be none (no unique ID) |"
+                                 "empty (time-based ID) | deterministic namespace (name-based ID)")
+            task_properties['nsUniqueIdGenerator'] = gen_uniq_id
+
+        task.create(properties=task_properties)
+
+        return task
+
+    def export_ldif(self, be_names, ldif=None, use_id2entry=False, encrypted=False, min_base64=False, no_dump_uniq_id=False,
+                    replication=False, not_folded=False, no_seq_num=False, include_suffixes=None, exclude_suffixes=None):
+        """Do an export of the suffix"""
+
+        task = ExportTask(self._instance)
+        task_properties = {'nsInstance': be_names}
+        if ldif is not None and not ldif.startswith("/"):
+            task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
+        else:
+            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir,
+                                                         "%s_%s_%s.ldif" % (self._instance.serverid,
+                                                                            "_".join(be_names), tnow))
+        if include_suffixes is not None:
+            task_properties['nsIncludeSuffix'] = include_suffixes
+        if exclude_suffixes is not None:
+            task_properties['nsExcludeSuffix'] = exclude_suffixes
+        if use_id2entry:
+            task_properties['nsUseId2Entry'] = 'true'
+        if encrypted:
+            task_properties['nsExportDecrypt'] = 'true'
+        if replication:
+            task_properties['nsExportReplica'] = 'true'
+        if min_base64:
+            task_properties['nsMinimalEncoding'] = 'true'
+        if not_folded:
+            task_properties['nsNoWrap'] = 'true'
+        if no_dump_uniq_id:
+            task_properties['nsDumpUniqId'] = 'false'
+        if no_seq_num:
+            task_properties['nsPrintKey'] = 'false'
+
+        task = task.create(properties=task_properties)
+        return task
+

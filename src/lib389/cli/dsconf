@@ -25,6 +25,7 @@ from lib389.cli_conf import schema as cli_schema
 from lib389.cli_conf import health as cli_health
 from lib389.cli_conf import saslmappings as cli_sasl
 from lib389.cli_conf import pwpolicy as cli_pwpolicy
+from lib389.cli_conf import backup as cli_backup
 from lib389.cli_conf.plugins import memberof as cli_memberof
 from lib389.cli_conf.plugins import usn as cli_usn
 from lib389.cli_conf.plugins import rootdn_ac as cli_rootdn_ac
@@ -77,6 +78,7 @@ cli_referint.create_parser(subparsers)
 cli_automember.create_parser(subparsers)
 cli_sasl.create_parser(subparsers)
 cli_pwpolicy.create_parser(subparsers)
+cli_backup.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 

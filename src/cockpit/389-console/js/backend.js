@@ -36,6 +36,9 @@ function customMenu (node) {
       "label": "Initialize Suffix",
        "icon": "glyphicon glyphicon-circle-arrow-right",
        "action": function (data) {
+         var suffix_id = $(node).attr('id');
+         var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
+         $("#root-suffix-import").val(parent_suffix);
          $("#import-ldif-file").val("");
          $("#import-ldif-form").modal('toggle');
        }
@@ -44,6 +47,9 @@ function customMenu (node) {
        "label": "Export Suffix",
        "icon": "glyphicon glyphicon-circle-arrow-left",
        "action": function (data) {
+         var suffix_id = $(node).attr('id');
+         var parent_suffix = suffix_id.substring(suffix_id.indexOf('-')+1);
+         $("#root-suffix-export").val(parent_suffix);
          $("#export-ldif-file").val("");
          $("#export-ldif-form").modal('toggle');
        }
@@ -757,9 +763,42 @@ $(document).ready( function() {
 
     // Init Suffix (import)
     $("#import-ldif-save").on("click", function() {
-      $("#import-ldif-form").css('display', 'none');
-      // Do the actual save in DS
-      // Update html
+      var root_suffix_import = $("#root-suffix-import").val();
+      var ldif_file_import = $("#ldif-file-import").val();
+      var exclude_suffix_import = $("#exclude-suffix-import").val();
+      var include_suffix_import = $("#include-suffix-import").val();
+      var cmd = [DSCONF, server_inst, 'backend', 'import', root_suffix_import];
+      // Process and validate parameters
+      if (ldif_file_import == ""){
+        popup_msg("Error", "LDIF file should be specified");
+        return;
+      } else if (ldif_file_import.indexOf(' ') >= 0) {
+        popup_msg("Error", "LDIF file can not contain any spaces");
+        return;
+      } else if (ldif_file_import.startsWith('/')) {
+        popup_msg("Error", "LDIF file can not start with a forward slash. " +
+                           "LDIF files are written to the server's LDIF directory (nsslapd-ldifdir)");
+        return;
+      } else {
+        cmd.push(ldif_file_import);
+      }
+      if (include_suffix_import != "") {
+        cmd.push.apply(cmd, ["-s", include_suffix_import]);
+      }
+      if (exclude_suffix_import != "") {
+        cmd.push.apply(cmd, ["-x", exclude_suffix_import]);
+      }
+      $("#import-ldif-spinner").show();
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#import-ldif-spinner").hide();
+        popup_success("LDIF has been imported");
+        $("#import-ldif-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#import-ldif-spinner").hide();
+        popup_err("Error", "Failed to import LDIF\n" + data.message);
+      })
     });
 
     // Export Suffix (import)
@@ -770,9 +809,39 @@ $(document).ready( function() {
       $("#export-ldif-form").css('display', 'none');
     });
     $("#export-ldif-save").on("click", function() {
-      $("#export-ldif-form").css('display', 'none');
-      // Do the actual save in DS
-      // Update html
+      var root_suffix_export = $("#root-suffix-export").val();
+      var ldif_file_export = $("#ldif-file-export").val();
+      var exclude_suffix_export = $("#exclude-suffix-export").val();
+      var include_suffix_export = $("#include-suffix-export").val();
+      var cmd = [DSCONF, server_inst, 'backend', 'export', root_suffix_export];
+      // Process and validate parameters
+      if (ldif_file_export.indexOf(' ') >= 0) {
+        popup_msg("Error", "LDIF file can not contain any spaces");
+        return;
+      } else if (ldif_file_export.startsWith('/')) {
+        popup_msg("Error", "LDIF file can not start with a forward slash. " +
+                           "LDIF files are written to the server's LDIF directory (nsslapd-ldifdir)");
+        return;
+      } else if (ldif_file_export != ""){
+        cmd.push.apply(cmd, ["-l", ldif_file_export]);
+      }
+      if (include_suffix_export != "") {
+        cmd.push.apply(cmd, ["-s", include_suffix_export]);
+      }
+      if (exclude_suffix_export != "") {
+        cmd.push.apply(cmd, ["-x", exclude_suffix_export]);
+      }
+      $("#export-ldif-spinner").show();
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#export-ldif-spinner").hide();
+        popup_success("LDIF has been exported");
+        $("#export-ldif-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#export-ldif-spinner").hide();
+        popup_err("Error", "Failed to export LDIF\n" + data.message);
+      })
     });
 
     $("#create-ref-save").on("click", function() {

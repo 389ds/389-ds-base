@@ -1166,18 +1166,38 @@ $(document).ready( function() {
         return;
       }
       if (backup_name.startsWith('/')) {
-        popup_msg("Error", "Backup name can not start with a forward slash.  Backups are written to the server's backup directory (nsslapd-bakdir)");
+        popup_msg("Error", "Backup name can not start with a forward slash. " +
+                           "Backups are written to the server's backup directory (nsslapd-bakdir)");
         return;
       }
-      var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+      var cmd = ['status-dirsrv', server_inst];
       $("#backup-spinner").show();
-      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-        $("#backup-spinner").hide();
-        popup_success("Backup has been created");
-        $("#backup-form").modal('toggle');
-      }).fail(function(data) {
-        $("#backup-spinner").hide();
-        popup_err("Error", "Failed to backup the server\n" + data.message);
+      cockpit.spawn(cmd, { superuser: true}).
+      done(function() {
+        var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+        done(function(data) {
+          $("#backup-spinner").hide();
+          popup_success("Backup has been created");
+          $("#backup-form").modal('toggle');
+        }).
+        fail(function(data) {
+          $("#backup-spinner").hide();
+          popup_err("Error", "Failed to backup the server\n" + data.message);
+        })
+      }).
+      fail(function() {
+        var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+        done(function(data) {
+          $("#backup-spinner").hide();
+          popup_success("Backup has been created");
+          $("#backup-form").modal('toggle');
+        }).
+        fail(function(data) {
+          $("#backup-spinner").hide();
+          popup_err("Error", "Failed to backup the server\n" + data.message);
+        });
       });
     });
 
@@ -1211,15 +1231,34 @@ $(document).ready( function() {
       var restore_name = data[0];
       popup_confirm("Are you sure you want to restore this backup:  <b>" + restore_name + "<b>", "Confirmation", function (yes) {
         if (yes) {
-          var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
+          var cmd = ['status-dirsrv', server_inst];
           $("#restore-spinner").show();
-          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-            popup_success("The backup has been restored");
-            $("#restore-spinner").hide();
-            $("#restore-form").modal('toggle');
-          }).fail(function(data) {
-            $("#restore-spinner").hide();
-            popup_err("Error", "Failed to restore from the backup\n" + data.message);
+          cockpit.spawn(cmd, { superuser: true}).
+          done(function() {
+            var cmd = [DSCONF, server_inst, 'backup', 'restore',  restore_name];
+            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+            done(function(data) {
+              $("#restore-spinner").hide();
+              popup_success("The backup has been restored");
+              $("#restore-form").modal('toggle');
+            }).
+            fail(function(data) {
+              $("#restore-spinner").hide();
+              popup_err("Error", "Failed to restore from the backup\n" + data.message);
+            });
+          }).
+          fail(function() {
+            var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
+            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+            done(function(data) {
+              $("#restore-spinner").hide();
+              popup_success("The backup has been restored");
+              $("#restore-form").modal('toggle');
+            }).
+            fail(function(data) {
+              $("#restore-spinner").hide();
+              popup_err("Error", "Failed to restore from the backup\n" + data.message);
+            });
           });
         }
       });
