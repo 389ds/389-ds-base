@@ -1736,7 +1736,7 @@ FrontendConfig_init(void)
     cfg->maxbersize = SLAPD_DEFAULT_MAXBERSIZE;
     cfg->logging_backend = slapi_ch_strdup(SLAPD_INIT_LOGGING_BACKEND_INTERNAL);
     cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
-    init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_ON;
+    init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
 #if defined(LINUX)
     init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
     init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
