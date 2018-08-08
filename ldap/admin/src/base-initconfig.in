@@ -45,4 +45,4 @@
 # fragmentation avoidance and scalable concurrency support.  jemalloc
 # has been shown to have a significant positive impact on the Directory
 # Server's process size/growth.
-LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so
+LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so.2
