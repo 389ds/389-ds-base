@@ -267,7 +267,6 @@ slapi_add_internal(const char *idn,
     if (opresult != LDAP_SUCCESS) {
         goto done;
     }
-
     result_pb = slapi_add_entry_internal(e, controls, dummy);
 
 done:
@@ -404,7 +403,9 @@ add_internal_pb(Slapi_PBlock *pb)
     set_config_params(pb);
 
     /* perform the add operation */
+    slapi_td_internal_op_start();
     op_shared_add(pb);
+    slapi_td_internal_op_finish();
 
     slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 
@@ -463,9 +464,16 @@ op_shared_add(Slapi_PBlock *pb)
                              slapi_entry_get_dn_const(e),
                              proxystr ? proxystr : "");
         } else {
-            slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d ADD dn=\"%s\"\n",
-                             LOG_INTERNAL_OP_CON_ID,
-                             LOG_INTERNAL_OP_OP_ID,
+            uint64_t connid;
+            int32_t op_id;
+            int32_t op_internal_id;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+            slapi_log_access(LDAP_DEBUG_ARGS,
+                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d) ADD dn=\"%s\"\n" :
+                                         "conn=%" PRId64 " (Internal) op=%d(%d) ADD dn=\"%s\"\n",
+                             connid,
+                             op_id,
+                             op_internal_id,
                              slapi_entry_get_dn_const(e));
         }
     }

@@ -364,7 +364,9 @@ rename_internal_pb(Slapi_PBlock *pb)
     /* set actions taken to process the operation */
     set_config_params(pb);
 
+    slapi_td_internal_op_start();
     op_shared_rename(pb, 0 /* not passing ownership of args */);
+    slapi_td_internal_op_finish();
 
     slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 
@@ -474,10 +476,16 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
                              newsuperior ? newsuperior : "(null)",
                              proxystr ? proxystr : "");
         } else {
+            uint64_t connid;
+            int32_t op_id;
+            int32_t op_internal_id;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id);
             slapi_log_access(LDAP_DEBUG_ARGS,
-                             "conn=%s op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
-                             LOG_INTERNAL_OP_CON_ID,
-                             LOG_INTERNAL_OP_OP_ID,
+                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
+                                         "conn=%" PRId64 " (Internal) op=%d(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+                             connid,
+                             op_id,
+                             op_internal_id,
                              dn,
                              newrdn ? newrdn : "(null)",
                              newsuperior ? newsuperior : "(null)",

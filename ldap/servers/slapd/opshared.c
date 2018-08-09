@@ -292,12 +292,19 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
     if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
         char *fmtstr;
+        uint64_t connid;
+        int32_t op_id;
+        int32_t op_internal_id;
 
 #define SLAPD_SEARCH_FMTSTR_BASE "conn=%" PRIu64 " op=%d SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_BASE_INT "conn=%s op=%d SRCH base=\"%s\" scope=%d "
+#define SLAPD_SEARCH_FMTSTR_BASE_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d) SRCH base=\"%s\" scope=%d "
+#define SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "conn=%" PRIu64 " (Internal) op=%d(%d) SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s%s\n"
 
         PR_ASSERT(fstr);
+        if (internal_op) {
+            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+        }
         if (strlen(fstr) > 1024) {
             /*
            * slapi_log_access() throws away log lines that are longer than
@@ -307,13 +314,21 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             if (!internal_op) {
                 fmtstr = SLAPD_SEARCH_FMTSTR_BASE "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
             } else {
-                fmtstr = SLAPD_SEARCH_FMTSTR_BASE_INT "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
+                if (connid == 0) {
+                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_INT_INT "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
+                } else {
+                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
+                }
             }
         } else {
             if (!internal_op) {
                 fmtstr = SLAPD_SEARCH_FMTSTR_BASE "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
             } else {
-                fmtstr = SLAPD_SEARCH_FMTSTR_BASE_INT "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
+                if (connid == 0) {
+                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_INT_INT "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
+                } else {
+                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
+                }
             }
         }
 
@@ -339,8 +354,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                              proxystr ? proxystr : "");
         } else {
             slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
-                             LOG_INTERNAL_OP_CON_ID,
-                             LOG_INTERNAL_OP_OP_ID,
+                             connid,
+                             op_id,
+                             op_internal_id,
                              normbase,
                              scope, fstr, attrliststr,
                              flag_psearch ? " options=persistent" : "",

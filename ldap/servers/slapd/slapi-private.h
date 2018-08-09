@@ -1172,13 +1172,36 @@ int slapd_security_library_is_initialized(void);
 int slapd_nss_is_initialized(void);
 char *slapd_get_tmp_dir(void);
 
+/* thread-data.c */
+int slapi_td_init(void);
+int slapi_td_set_val(int indexType, void *value);
+void slapi_td_get_val(int indexType, void **value);
+int slapi_td_dn_init(void);
+int slapi_td_set_dn(char *dn);
+void slapi_td_get_dn(char **dn);
+int slapi_td_plugin_lock_init(void);
+int slapi_td_get_plugin_locked(void);
+int slapi_td_set_plugin_locked(void);
+int slapi_td_set_plugin_unlocked(void);
+void slapi_td_internal_op_start(void);
+void slapi_td_internal_op_finish(void);
+
+/*  Thread Local Storage Index Types - thread_data.c */
+#define SLAPI_TD_REQUESTOR_DN 1
+#define SLAPI_TD_PLUGIN_LIST_LOCK 2
+#define SLAPI_TD_CONN_ID 3
+#define SLAPI_TD_OP_ID 4
+#define SLAPI_TD_OP_INTERNAL_ID 5
+#define SLAPI_TD_OP_NESTED_COUNT 6
+#define SLAPI_TD_OP_NESTED_STATE 7
+
 /* util.c */
 #include <stdio.h> /* GGOODREPL - For BUFSIZ, below, gak */
 const char *escape_string(const char *str, char buf[BUFSIZ]);
 const char *escape_string_with_punctuation(const char *str, char buf[BUFSIZ]);
 const char *escape_string_for_filename(const char *str, char buf[BUFSIZ]);
 void strcpy_unescape_value(char *d, const char *s);
-
+void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id);
 char *slapi_berval_get_string_copy(const struct berval *bval);
 
 /* lenstr stuff */

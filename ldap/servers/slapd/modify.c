@@ -582,7 +582,9 @@ modify_internal_pb(Slapi_PBlock *pb)
     set_config_params(pb);
 
     /* perform modify operation */
+    slapi_td_internal_op_start();
     op_shared_modify(pb, pw_change, old_pw);
+    slapi_td_internal_op_finish();
 
     /* free the normalized_mods don't forget to add this*/
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &normalized_mods);
@@ -671,9 +673,16 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                              slapi_sdn_get_dn(sdn),
                              proxystr ? proxystr : "");
         } else {
-            slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s\n",
-                             LOG_INTERNAL_OP_CON_ID,
-                             LOG_INTERNAL_OP_OP_ID,
+            uint64_t connid;
+            int32_t op_id;
+            int32_t op_internal_id;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+            slapi_log_access(LDAP_DEBUG_ARGS,
+                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d) MOD dn=\"%s\"%s\n" :
+                                         "conn=%" PRId64 " (Internal) op=%d(%d) MOD dn=\"%s\"%s\n",
+                             connid,
+                             op_id,
+                             op_internal_id,
                              slapi_sdn_get_dn(sdn),
                              proxystr ? proxystr : "");
         }

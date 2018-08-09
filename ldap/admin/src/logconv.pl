@@ -2589,7 +2589,9 @@ sub parseLineNormal
 			$hashes->{saslmech}->{$mech}--;
 		}
 	}
-	if (/ conn=Internal op=-1 / && !/ RESULT err=/){ $internalOpCount++; }
+	if (/ conn=Internal op=-1 / && !/ RESULT err=/){ $internalOpCount++; }  # Old format
+	if (/ conn=Internal\(/ && !/ op=-1 / && !/ RESULT err=/){ $internalOpCount++;}  # New format #1
+	if (/ conn= *([0-9]+) \(Internal\) op=/ && !/ RESULT err=/){ $internalOpCount++;}  # New format #2
 	if (/ ENTRY dn=/ ){ $entryOpCount++; }
 	if (/ conn=/ && /op=/ && / REFERRAL/){ $referralCount++; }
 	if (/ options=persistent/){$persistentSrchCount++;}

@@ -377,12 +377,14 @@ seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_ca
     /* set common parameters */
     set_common_params(pb);
 
+    slapi_td_internal_op_start();
     if (be->be_seq != NULL) {
         rc = (*be->be_seq)(pb);
     } else {
         send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL);
         rc = 0;
     }
+    slapi_td_internal_op_finish();
 
     slapi_ch_free_string(&attrname);
     slapi_ch_free_string(&val);
@@ -724,7 +726,9 @@ search_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result
      * memory so we need to keep track of
      * changed base search strings
      */
+    slapi_td_internal_op_start();
     op_shared_search(pb, 1);
+    slapi_td_internal_op_finish();
 
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
 

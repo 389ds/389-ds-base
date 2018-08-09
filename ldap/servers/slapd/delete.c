@@ -205,7 +205,9 @@ delete_internal_pb(Slapi_PBlock *pb)
     set_config_params(pb);
 
     /* perform delete operation */
+    slapi_td_internal_op_start();
     op_shared_delete(pb);
+    slapi_td_internal_op_finish();
 
     slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 
@@ -267,9 +269,16 @@ op_shared_delete(Slapi_PBlock *pb)
                              slapi_sdn_get_dn(sdn),
                              proxystr ? proxystr : "");
         } else {
-            slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d DEL dn=\"%s\"%s\n",
-                             LOG_INTERNAL_OP_CON_ID,
-                             LOG_INTERNAL_OP_OP_ID,
+            uint64_t connid;
+            int32_t op_id;
+            int32_t op_internal_id;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+            slapi_log_access(LDAP_DEBUG_ARGS,
+                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d) DEL dn=\"%s\"%s\n" :
+                                         "conn=%" PRId64 " (Internal) op=%d(%d) DEL dn=\"%s\"%s\n",
+                             connid,
+                             op_id,
+                             op_internal_id,
                              slapi_sdn_get_dn(sdn),
                              proxystr ? proxystr : "");
         }

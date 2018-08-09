@@ -1066,6 +1066,7 @@ main(int argc, char **argv)
     /* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
 
     if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
+        int32_t init_val = 0;
         int rc;
         Slapi_DN *sdn;
 
@@ -1112,9 +1113,13 @@ main(int argc, char **argv)
          */
         task_cleanup();
 
-        /* init the thread data indexes */
-        slapi_td_dn_init();
-        slapi_td_plugin_lock_init();
+        /* init the thread data indexes - need to initialize internal logging TD here for bootstrap startup */
+        slapi_td_init();
+        slapi_td_set_val(SLAPI_TD_CONN_ID, NULL);
+        slapi_td_set_val(SLAPI_TD_OP_ID, NULL);
+        slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)&init_val);
+        slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)&init_val);
+        slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)&init_val);
 
         /*
          * Initialize password storage in entry extension.
