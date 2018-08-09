@@ -329,6 +329,9 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 
 cp %{SOURCE2} README.devel
 
+# Make sure python3 is used in shebangs
+sed -r -i '1s|^#!\s*/usr/bin.*python.*|#!%{__python3}|' ldap/admin/src/scripts/{*.py,ds-replcheck,readnsstate}
+
 %build
 
 %if %{use_clang}
