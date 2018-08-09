@@ -546,6 +546,16 @@ compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s, baggage_carrier *bc, int *e
             /* Now copy it, so the second call doesn't crap on it */
             value_a = slapi_ch_bvecdup(temp_value); /* Really, we'd prefer to not call the chXXX variant...*/
             matchrule_values_to_keys(this_one->mr_pb, actual_value_b, &value_b);
+
+            if ((actual_value_a && !value_a) ||
+                (actual_value_b && !value_b)) {
+                ber_bvecfree(actual_value_a);
+                ber_bvecfree(actual_value_b);
+                CACHE_RETURN(&inst->inst_cache, &a);
+                CACHE_RETURN(&inst->inst_cache, &b);
+                *error = 1;
+                return 0;
+            }
             if (actual_value_a)
                 ber_bvecfree(actual_value_a);
             if (actual_value_b)
@@ -717,6 +727,8 @@ recurse:
                A[i] >= A[lo] for higuy <= i <= hi */
 
             do {
+                if (error)
+                    return LDAP_OPERATIONS_ERROR;
                 loguy++;
             } while (loguy <= hi && compare_entries_sv(loguy, lo, s, bc, &error) <= 0);
 
@@ -724,6 +736,8 @@ recurse:
                either loguy > hi or A[loguy] > A[lo] */
 
             do {
+                if (error)
+                    return LDAP_OPERATIONS_ERROR;
                 higuy--;
             } while (higuy > lo && compare_entries_sv(higuy, lo, s, bc, &error) >= 0);
 
