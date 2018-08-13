@@ -4,7 +4,7 @@
 %global bundle_jemalloc __BUNDLE_JEMALLOC__
 %if %{bundle_jemalloc}
 %global jemalloc_name jemalloc
-%global jemalloc_ver 5.0.1
+%global jemalloc_ver 5.1.0
 %endif
 
 # This is used in certain builds to help us know if it has extra features.
@@ -688,6 +688,12 @@ exit 0
 %if %{bundle_jemalloc}
 %{_libdir}/%{pkgname}/lib/
 %{_libdir}/%{pkgname}/bin/
+%exclude %{_libdir}/%{pkgname}/bin/jemalloc-config
+%exclude %{_libdir}/%{pkgname}/bin/jemalloc.sh
+%exclude %{_libdir}/%{pkgname}/lib/libjemalloc.a
+%exclude %{_libdir}/%{pkgname}/lib/libjemalloc.so
+%exclude %{_libdir}/%{pkgname}/lib/libjemalloc_pic.a
+%exclude %{_libdir}/%{pkgname}/lib/pkgconfig
 %endif
 
 %files devel
@@ -702,9 +708,6 @@ exit 0
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %{_libdir}/%{pkgname}/libsds.so
 %{_libdir}/%{pkgname}/libldaputil.so
-%if %{bundle_jemalloc}
-%{_libdir}/%{pkgname}/lib/libjemalloc.so
-%endif
 %{_libdir}/pkgconfig/svrcore.pc
 %{_libdir}/pkgconfig/dirsrv.pc
 %{_libdir}/pkgconfig/libsds.pc
@@ -721,7 +724,7 @@ exit 0
 %{_libdir}/%{pkgname}/libsds.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
 %if %{bundle_jemalloc}
-%{_libdir}/%{pkgname}/lib/libjemalloc.so.*
+%{_libdir}/%{pkgname}/lib/libjemalloc.so.2
 %endif
 %if %{use_rust}
 %{_libdir}/%{pkgname}/librsds.so
