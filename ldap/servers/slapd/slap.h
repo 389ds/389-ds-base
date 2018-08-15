@@ -45,9 +45,6 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_DBVERIFY        12
 #define SLAPD_EXEMODE_UPGRADEDNFORMAT 13
 
-#define DEFBACKEND_TYPE "default"
-#define DEFBACKEND_NAME "DirectoryServerDefaultBackend"
-
 #define LDAP_SYSLOG
 #include <syslog.h>
 #define RLIM_TYPE int

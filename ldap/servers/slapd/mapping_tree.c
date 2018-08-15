@@ -748,7 +748,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
         be_names = (char **)slapi_ch_calloc(1, sizeof(char *));
         be_states = (int *)slapi_ch_calloc(1, sizeof(int));
 
-        tmp_backend_name = (char *)slapi_ch_strdup(DEFBACKEND_NAME); /* "NULL_CONTAINER" */
+        tmp_backend_name = (char *)slapi_ch_strdup("default"); /* "NULL_CONTAINER" */
         (be_names)[be_list_count] = tmp_backend_name;
 
         /* set backend as started by default */
@@ -2250,10 +2250,7 @@ slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list, Slapi_E
         if (ret != LDAP_SUCCESS) {
             /* flag we have problems at least on part of the tree */
             flag_partial_result = 1;
-        } else if ((((!slapi_sdn_issuffix(sdn, slapi_mtn_get_dn(node)) && !slapi_sdn_issuffix(slapi_mtn_get_dn(node), sdn))) ||
-                    ((node_list == mapping_tree_root) && node->mtn_private && (scope != LDAP_SCOPE_BASE))) &&
-                    (!be || strncmp(be->be_name, DEFBACKEND_NAME, 8)))
-        {
+        } else if ((((!slapi_sdn_issuffix(sdn, slapi_mtn_get_dn(node)) && !slapi_sdn_issuffix(slapi_mtn_get_dn(node), sdn))) || ((node_list == mapping_tree_root) && node->mtn_private && (scope != LDAP_SCOPE_BASE))) && (!be || strncmp(be->be_name, "default", 8))) {
             if (be && !be_isdeleted(be)) {
                 /* wrong backend or referall, ignore it */
                 slapi_log_err(SLAPI_LOG_ARGS, "slapi_mapping_tree_select_all",

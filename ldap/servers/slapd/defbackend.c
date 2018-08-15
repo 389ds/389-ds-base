@@ -23,6 +23,8 @@
 /*
  * ---------------- Macros ---------------------------------------------------
  */
+#define DEFBACKEND_TYPE "default"
+
 #define DEFBACKEND_OP_NOT_HANDLED 0
 #define DEFBACKEND_OP_HANDLED 1
 
@@ -63,7 +65,7 @@ defbackend_init(void)
     /*
      * create a new backend
      */
-    defbackend_backend = slapi_be_new(DEFBACKEND_TYPE, DEFBACKEND_NAME, 1 /* Private */, 0 /* Do Not Log Changes */);
+    defbackend_backend = slapi_be_new(DEFBACKEND_TYPE, DEFBACKEND_TYPE, 1 /* Private */, 0 /* Do Not Log Changes */);
     if ((rc = slapi_pblock_set(pb, SLAPI_BACKEND, defbackend_backend)) != 0) {
         errmsg = "slapi_pblock_set SLAPI_BACKEND failed";
         goto cleanup_and_return;
