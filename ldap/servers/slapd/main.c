@@ -1066,7 +1066,6 @@ main(int argc, char **argv)
     /* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
 
     if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
-        int32_t init_val = 0;
         int rc;
         Slapi_DN *sdn;
 
@@ -1115,11 +1114,7 @@ main(int argc, char **argv)
 
         /* init the thread data indexes - need to initialize internal logging TD here for bootstrap startup */
         slapi_td_init();
-        slapi_td_set_val(SLAPI_TD_CONN_ID, NULL);
-        slapi_td_set_val(SLAPI_TD_OP_ID, NULL);
-        slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)&init_val);
-        slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)&init_val);
-        slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)&init_val);
+        slapi_td_init_internal_logging();
 
         /*
          * Initialize password storage in entry extension.
@@ -1199,6 +1194,7 @@ main(int argc, char **argv)
     vattr_cleanup();
     sasl_map_done();
 cleanup:
+    slapi_td_free_internal_logging();
     compute_terminate();
     SSL_ShutdownServerSessionIDCache();
     SSL_ClearSessionCache();
@@ -1206,6 +1202,7 @@ cleanup:
     NSS_Shutdown();
     main_stop_ns(tp);
     PR_Cleanup();
+
     /*
      * Server has stopped, lets force everything to disk: logs
      * db, dse.ldif, all of it.

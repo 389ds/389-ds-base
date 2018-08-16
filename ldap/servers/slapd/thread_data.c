@@ -55,8 +55,6 @@ static PRUintn td_op_internal_nested_count;
 int
 slapi_td_init(void)
 {
-    int32_t init_val = 0;
-
     if (PR_NewThreadPrivateIndex(&td_requestor_dn, td_dn_destructor) == PR_FAILURE) {
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_requestor_dn/td_dn_destructor\n");
         return PR_FAILURE;
@@ -71,35 +69,32 @@ slapi_td_init(void)
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_conn_id\n");
         return PR_FAILURE;
     }
-    slapi_td_set_val(SLAPI_TD_CONN_ID, (void *)&init_val);
 
     if(PR_NewThreadPrivateIndex(&td_op_id, NULL) == PR_FAILURE){
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_id\n");
         return PR_FAILURE;
     }
-    slapi_td_set_val(SLAPI_TD_OP_ID, (void *)&init_val);
 
     if(PR_NewThreadPrivateIndex(&td_op_internal_id, NULL) == PR_FAILURE){
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_internal_id\n");
         return PR_FAILURE;
     }
-    slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)&init_val);
 
     if(PR_NewThreadPrivateIndex(&td_op_internal_nested_count, NULL) == PR_FAILURE){
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_internal_nested_count\n");
         return PR_FAILURE;
     }
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)&init_val);
+
 
     if(PR_NewThreadPrivateIndex(&td_op_internal_nested_state, NULL) == PR_FAILURE){
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_internal_nested_state\n");
         return PR_FAILURE;
     }
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)&init_val);
-
 
     return PR_SUCCESS;
 }
+
+
 
 /*
  *  Caller needs to cast value to (void *)
@@ -307,7 +302,6 @@ slapi_td_get_dn(char **value)
 void
 slapi_td_internal_op_start(void)
 {
-    int32_t initial_count = 1;
     int32_t *id_count_ptr = NULL;
     int32_t *nested_state_ptr = NULL;
     int32_t *nested_count_ptr = NULL;
@@ -321,11 +315,7 @@ slapi_td_internal_op_start(void)
 
     /* increment the internal op id counter */
     slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&id_count_ptr);
-    if (id_count_ptr == NULL){
-        id_count_ptr = &initial_count;
-    } else {
-        (*id_count_ptr)++;
-    }
+    (*id_count_ptr)++;
 
     /*
      * Bump the nested count so we can maintain our counts after plugins call
@@ -339,7 +329,6 @@ slapi_td_internal_op_start(void)
         /* We are now nested, mark it as so */
         slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state_ptr);
         *nested_state_ptr = NESTED;
-        slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)nested_state_ptr);
     } else if (*nested_count_ptr == 1) {
         /*
          * Back to the beginning, but if we were previously nested then the
@@ -349,12 +338,9 @@ slapi_td_internal_op_start(void)
         if (*nested_state_ptr == UNNESTED){
             /* We were nested but anymore, need to bump the internal id count again */
             *nested_state_ptr = NOTNESTED;  /* reset nested state */
-            slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)nested_state_ptr);
             (*id_count_ptr)++;
         }
     }
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)nested_count_ptr);
-    slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)id_count_ptr);
 }
 
 /*
@@ -378,31 +364,85 @@ slapi_td_internal_op_finish(void)
     }
 
     slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&nested_count_ptr);
-    if (nested_count_ptr){
-        if ( *nested_count_ptr > 1 ){
-            /* Nested op just finished, decr op id */
-            slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&id_count_ptr);
-            if (id_count_ptr){
-                (*id_count_ptr)--;
-                slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)id_count_ptr);
-            }
-            if ( (*nested_count_ptr - 1) == 1 ){
-                /*
-                 * Okay we are back to the beginning, We were nested but not
-                 * anymore.  So when we start the next internal op on this
-                 * conn we need to double increment the internal op id to
-                 * maintain the correct op id sequence.  Set the nested state
-                 * to "unnested".
-                 */
-                slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state_ptr);
-                (*nested_state_ptr) = UNNESTED;
-                slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)nested_state_ptr);
-            }
+    if ( *nested_count_ptr > 1 ){
+        /* Nested op just finished, decr op id */
+        slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&id_count_ptr);
+        (*id_count_ptr)--;
+
+        if ( (*nested_count_ptr - 1) == 1 ){
+            /*
+             * Okay we are back to the beginning, We were nested but not
+             * anymore.  So when we start the next internal op on this
+             * conn we need to double increment the internal op id to
+             * maintain the correct op id sequence.  Set the nested state
+             * to "unnested".
+             */
+            slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state_ptr);
+            *nested_state_ptr = UNNESTED;
         }
-        /* decrement nested count */
-        (*nested_count_ptr)--;
-        slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)nested_count_ptr);
     }
+    /* decrement nested count */
+    (*nested_count_ptr)--;
+}
+
+void
+slapi_td_init_internal_logging(void)
+{
+    uint64_t *conn_id = (uint64_t *)slapi_ch_calloc(1, sizeof(uint64_t));
+    int32_t *op_id = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
+    int32_t *internal_op_id = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
+    int32_t *nested_count = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
+    int32_t *nested_state = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
+
+    slapi_td_set_val(SLAPI_TD_CONN_ID, (void *)conn_id);
+    slapi_td_set_val(SLAPI_TD_OP_ID, (void *)op_id);
+    slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)internal_op_id);
+    slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)nested_count);
+    slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)nested_state);
+}
+
+void
+slapi_td_reset_internal_logging(uint64_t new_conn_id, int32_t new_op_id)
+{
+    uint64_t *conn_id;
+    int32_t *op_id;
+    int32_t *internal_op_id;
+    int32_t *nested_count;
+    int32_t *nested_state;
+
+    slapi_td_get_val(SLAPI_TD_CONN_ID, (void **)&conn_id);
+    slapi_td_get_val(SLAPI_TD_OP_ID, (void **)&op_id);
+    slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&internal_op_id);
+    slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&nested_count);
+    slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state);
+
+    *conn_id = new_conn_id;
+    *op_id = new_op_id;
+    *internal_op_id = 0;
+    *nested_count = 0;
+    *nested_state = 0;
+}
+
+void
+slapi_td_free_internal_logging(void)
+{
+    uint64_t *conn_id = NULL;
+    int32_t *val = NULL;
+
+    slapi_td_get_val(SLAPI_TD_CONN_ID, (void **)&conn_id);
+    slapi_ch_free((void **)&conn_id);
+
+    slapi_td_get_val(SLAPI_TD_OP_ID, (void **)&val);
+    slapi_ch_free((void **)&val);
+
+    slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&val);
+    slapi_ch_free((void **)&val);
+
+    slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&val);
+    slapi_ch_free((void **)&val);
+
+    slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&val);
+    slapi_ch_free((void **)&val);
 }
 
 /*

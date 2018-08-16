@@ -1185,6 +1185,9 @@ int slapi_td_set_plugin_locked(void);
 int slapi_td_set_plugin_unlocked(void);
 void slapi_td_internal_op_start(void);
 void slapi_td_internal_op_finish(void);
+void slapi_td_init_internal_logging(void);
+void slapi_td_reset_internal_logging(uint64_t conn_id, int32_t op_id);
+void slapi_td_free_internal_logging(void);
 
 /*  Thread Local Storage Index Types - thread_data.c */
 #define SLAPI_TD_REQUESTOR_DN 1

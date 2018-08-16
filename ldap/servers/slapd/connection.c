@@ -520,24 +520,13 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
     int minssf = config_get_minssf();
     int minssf_exclude_rootdse = 0;
-    uint64_t td_conn_id;
-    int32_t td_op_id;
-    int32_t td_internal_op = 0;
-    int32_t td_internal_nested_count = 0;
-    int32_t td_internal_nested_state = 0;
 #ifdef TCP_CORK
     int enable_nagle = config_get_nagle();
     int pop_cork = 0;
 #endif
 
-    /* Set the connid and op_id to be used by intenral op logging */
-    td_conn_id = conn->c_connid;
-    td_op_id = op->o_opid;
-    slapi_td_set_val(SLAPI_TD_CONN_ID,(void *)&td_conn_id);
-    slapi_td_set_val(SLAPI_TD_OP_ID,(void *)&td_op_id);
-    slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)&td_internal_op);
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)&td_internal_nested_count);
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)&td_internal_nested_state);
+    /* Set the connid and op_id to be used by internal op logging */
+    slapi_td_reset_internal_logging(conn->c_connid, op->o_opid);
 
     /* Get the effective key length now since the first SSL handshake should be complete */
     connection_set_ssl_ssf(conn);
@@ -1525,6 +1514,8 @@ connection_threadmain()
     SIGNAL(SIGPIPE, SIG_IGN);
 #endif
 
+    slapi_td_init_internal_logging();
+
     while (1) {
         int is_timedout = 0;
         time_t curtime = 0;
@@ -1534,6 +1525,7 @@ connection_threadmain()
                           "op_thread received shutdown signal\n");
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
+            slapi_td_free_internal_logging();
             return;
         }
 
@@ -1555,6 +1547,7 @@ connection_threadmain()
                               "op_thread received shutdown signal\n");
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
+                slapi_td_free_internal_logging();
                 return;
             case CONN_FOUND_WORK_TO_DO:
                 /* note - don't need to lock here - connection should only
@@ -1567,6 +1560,7 @@ connection_threadmain()
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
+                    slapi_td_free_internal_logging();
                     return;
                 }
 
@@ -1633,6 +1627,7 @@ connection_threadmain()
             slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
+            slapi_td_free_internal_logging();
             return;
         }
         maxthreads = config_get_maxthreadsperconn();
@@ -1811,6 +1806,7 @@ connection_threadmain()
             PR_ExitMonitor(conn->c_mutex);
             signal_listner();
             slapi_pblock_destroy(pb);
+            slapi_td_free_internal_logging();
             return;
         }
         /*
@@ -1819,12 +1815,6 @@ connection_threadmain()
          * threads devoted to this connection, and see if
          * there's more work to do right now on this conn.
          */
-        int32_t def_val = 0;
-        slapi_td_set_val(SLAPI_TD_CONN_ID, NULL);
-        slapi_td_set_val(SLAPI_TD_OP_ID, NULL);
-        slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)&def_val);
-        slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)&def_val);
-        slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)&def_val);
 
         /* number of ops on this connection */
         PR_AtomicIncrement(&conn->c_opscompleted);
@@ -1906,6 +1896,7 @@ connection_threadmain()
             PR_ExitMonitor(conn->c_mutex);
         }
     } /* while (1) */
+    slapi_td_free_internal_logging();
 }
 
 /* thread need to hold conn->c_mutex before calling this function */
