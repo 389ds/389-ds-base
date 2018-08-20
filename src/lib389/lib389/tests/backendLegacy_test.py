@@ -108,20 +108,20 @@ def test_list(topology):
     # In the new api this becomes a get over the selector type
     # In the case this fails, this actually throws exception
     ent = topology.standalone.backends.get(NEW_SUFFIX_1)
+    assert ent is not None
     topology.standalone.log.info("List suffix (%d): backend %s" %
                                  (1, ent.dn))
-    assert ent is not None
 
     log.info("Check list a backend by its name")
     ent = topology.standalone.backends.get(NEW_BACKEND_2)
+    assert ent is not None
     topology.standalone.log.info("List name (%d): backend %s" %
                                  (1, ent.dn))
-    assert ent is not None
 
     log.info("Check get backends by their DN")
     ents = topology.standalone.backends.get(dn=ent.dn)
-    topology.standalone.log.info("List DN (%d): backend %s" % (1, ents.dn))
     assert ents is not None
+    topology.standalone.log.info("List DN (%d): backend %s" % (1, ents.dn))
 
     # The new backends api just does selection on a single attr, and
     # You would then validate the other attributes on retrival.

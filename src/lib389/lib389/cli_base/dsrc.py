@@ -87,7 +87,7 @@ def dsrc_to_ldap(path, instance_name, log):
     log.debug("dsrc path: %s" % path)
     # First read our config
     # No such file?
-    config = configparser.SafeConfigParser()
+    config = configparser.ConfigParser()
     config.read([path])
 
     log.debug("dsrc instances: %s" % config.sections())

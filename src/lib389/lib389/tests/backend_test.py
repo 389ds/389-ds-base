@@ -179,18 +179,18 @@ def test_get_valid(topology_st, backend):
 
     log.info("Try to get a backend with backend suffix")
     d1 = backends.get(NEW_SUFFIX_1_RDN)
-    topology_st.standalone.log.info("Suffix (%d): backend %s" % (1, d1.dn))
     assert d1 is not None
+    topology_st.standalone.log.info("Suffix (%d): backend %s" % (1, d1.dn))
 
     log.info("Try to get a backend with backend name")
     d2 = backends.get(BACKEND_NAME_1)
-    topology_st.standalone.log.info("Backend (%d): backend (%s)" % (1, d2.dn))
     assert d2 is not None
+    topology_st.standalone.log.info("Backend (%d): backend %s" % (1, d2.dn))
 
     log.info("Try to get a backend with backend DN")
     d3 = backends.get(dn=backend.dn)
-    topology_st.standalone.log.info("DN (%d): backend %s" % (1, d3.dn))
     assert d3 is not None
+    topology_st.standalone.log.info("DN (%d): backend %s" % (1, d3.dn))
 
 
 def test_get_invalid(topology_st, backend):

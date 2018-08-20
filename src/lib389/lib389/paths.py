@@ -128,7 +128,7 @@ class Paths(object):
 
     def _read_defaults(self):
         spath = self._get_defaults_loc(DEFAULTS_PATH)
-        self._config = configparser.SafeConfigParser()
+        self._config = configparser.ConfigParser()
         self._config.read([spath])
         self._defaults_cached = True
 

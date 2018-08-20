@@ -54,17 +54,6 @@ from lib389.properties import (
 MAJOR, MINOR, _, _, _ = sys.version_info
 
 log = logging.getLogger(__name__)
-#
-# Decorator
-#
-
-
-def static_var(varname, value):
-    def decorate(func):
-        setattr(func, varname, value)
-        return func
-    return decorate
-
 
 #
 # Various searches to be used in getEntry

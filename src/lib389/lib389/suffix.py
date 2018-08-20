@@ -86,8 +86,6 @@ class Suffix(object):
         else:
             return None
 
-        raise NotImplemented
-
     def setProperties(self, suffix):
         '''
             Supported properties:

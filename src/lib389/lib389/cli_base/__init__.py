@@ -16,16 +16,6 @@ from lib389 import DirSrv
 from lib389.utils import assert_c, get_ldapurl_from_serverid
 from lib389.properties import *
 
-MAJOR, MINOR, _, _, _ = sys.version_info
-
-
-# REALLY PYTHON 3? REALLY???
-def _input(msg):
-    if MAJOR >= 3:
-        return input(msg)
-    else:
-        return input(msg)
-
 
 def _get_arg(args, msg=None, hidden=False, confirm=False):
     if args is not None and len(args) > 0:
@@ -43,7 +33,7 @@ def _get_arg(args, msg=None, hidden=False, confirm=False):
             else:
                 return getpass("%s : " % msg)
         else:
-            return _input("%s : " % msg)
+            return input("%s : " % msg)
 
 
 def _get_args(args, kws):
@@ -57,7 +47,7 @@ def _get_args(args, kws):
             if priv:
                 kwargs[kw] = getpass("%s : " % msg)
             else:
-                kwargs[kw] = _input("%s : " % msg)
+                kwargs[kw] = input("%s : " % msg)
     return kwargs
 
 
@@ -76,7 +66,7 @@ def _get_attributes(args, attrs):
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
             else:
                 attr_normal = attr.lower()
-                kwargs[attr_normal] = _input("Enter value for %s : " % attr)
+                kwargs[attr_normal] = input("Enter value for %s : " % attr)
 
     return kwargs
 
@@ -84,7 +74,7 @@ def _get_attributes(args, attrs):
 def _warn(data, msg=None):
     if msg is not None:
         print("%s :" % msg)
-    if 'Yes I am sure' != _input("Type 'Yes I am sure' to continue: "):
+    if 'Yes I am sure' != input("Type 'Yes I am sure' to continue: "):
         raise Exception("Not sure if want")
     return data
 

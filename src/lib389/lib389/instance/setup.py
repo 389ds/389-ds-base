@@ -442,7 +442,7 @@ class SetupDs(object):
             return False
         config = None
         try:
-            config = configparser.SafeConfigParser()
+            config = configparser.ConfigParser()
             config.read([inf_path])
         except Exception as e:
             self.log.error("Exception %s occured", e)

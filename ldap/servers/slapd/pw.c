@@ -1221,7 +1221,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,
                             "invalid password syntax - a character cannot be repeated more than %d times",
-                            (pwpolicy->pw_maxrepeats + 1));
+                            (pwpolicy->pw_maxrepeats));
             } else if (pwpolicy->pw_mincategories > num_categories) {
                 syntax_violation = 1;
                 PR_snprintf(errormsg, sizeof(errormsg) - 1,

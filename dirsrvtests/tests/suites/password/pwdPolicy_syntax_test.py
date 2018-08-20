@@ -246,7 +246,7 @@ def test_basic(topology_st, create_user, password_policy):
                 'password123', 'does not contain minimum number of alphas')
     # Max Repeats
     tryPassword(topology_st.standalone, 'passwordMaxRepeats', 2, 0, 'passsword',
-                'pasword123', 'too many repeating characters')
+                'password123', 'too many repeating characters')
     # Min Specials
     tryPassword(topology_st.standalone, 'passwordMinSpecials', 2, 0, 'passwd',
                 'password_#$',
