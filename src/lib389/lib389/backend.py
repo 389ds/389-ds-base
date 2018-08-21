@@ -23,6 +23,7 @@ from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 from lib389.monitor import MonitorBackend
 from lib389.index import Indexes
 from lib389.tasks import ImportTask, ExportTask
+from lib389.encrypted_attributes import EncryptedAttrs
 
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
@@ -580,6 +581,12 @@ class Backend(DSLdapObject):
         task = bs.export_ldif(self.rdn, ldif, use_id2entry, encrypted, min_base64, no_uniq_id,
                               replication, not_folded, no_seq_num, include_suffixes, exclude_suffixes)
         return task
+
+    def get_encrypted_attrs(self):
+        """Get Encrypted Attributes(DSLdapObject) for the backend"""
+
+        encrypt_attrs = EncryptedAttrs(instance=self._instance, basedn="cn=encrypted attributes,%s" % self._dn)
+        return encrypt_attrs
 
 
 class Backends(DSLdapObjects):
