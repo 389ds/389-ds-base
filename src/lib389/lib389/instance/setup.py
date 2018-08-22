@@ -24,6 +24,7 @@ from lib389.nss_ssl import NssSsl
 from lib389.configurations import get_config
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 from lib389.paths import Paths
+from lib389.saslmap import SaslMappings
 from lib389.utils import (
     assert_c,
     is_a_dn,
@@ -532,9 +533,21 @@ class SetupDs(object):
         assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use" % slapd['secure_port'])
         self.log.debug("PASSED: network avaliability checking")
 
-        # Make assert_cions of the paths?
+        # Make assertions of the paths?
 
-        # Make assert_cions of the backends?
+        # Make assertions of the backends?
+        # First fix some compat shenanigans. I hate legacy ...
+        for be in backends:
+            for k in BACKEND_PROPNAME_TO_ATTRNAME:
+                if k in be:
+                    be[BACKEND_PROPNAME_TO_ATTRNAME[k]] = be[k]
+                    del(be[k])
+        for be in backends:
+            assert_c('nsslapd-suffix' in be)
+            assert_c('cn' in be)
+        # Add an assertion that we don't double suffix or double CN here ...
+
+
 
     def create_from_args(self, general, slapd, backends=[], extra=None):
         """
@@ -648,15 +661,19 @@ class SetupDs(object):
 
         # Bind sockets to our type?
 
+        # Get suffix for some plugin defaults (if possible)
+        # annoyingly for legacy compat backend takes TWO key types
+        # and we have to now deal with that ....
+        #
+        # Create ds_suffix here else it won't be in scope ....
+        ds_suffix = ''
+        if len(backends) > 0:
+            ds_suffix = backends[0]['nsslapd-suffix']
+
+
         # Create certdb in sysconfidir
         if self.verbose:
             self.log.info("ACTION: Creating certificate database is %s", slapd['cert_dir'])
-
-        # Get suffix for sasl map entries (template-sasl.ldif)
-        if len(backends) > 0:
-            ds_suffix = backends[0]['suffix']
-        else:
-            ds_suffix = ''
 
         # Create dse.ldif with a temporary root password.
         # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
@@ -668,11 +685,6 @@ class SetupDs(object):
         with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
-
-        if ds_suffix != '':
-            with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-sasl.ldif')) as template_sasl:
-                for line in template_sasl.readlines():
-                    dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
         with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
             file_dse.write(dse.format(
@@ -746,6 +758,7 @@ class SetupDs(object):
         # Restorecon of paths?
 
         # Start the server
+        # Make changes using the temp root
         ds_instance.start(timeout=60)
         ds_instance.open()
 
@@ -767,9 +780,6 @@ class SetupDs(object):
         for backend in backends:
             ds_instance.backends.create(properties=backend)
 
-        # Make changes using the temp root
-        # Change the root password finally
-
         # Initialise ldapi socket information. IPA expects this ....
         ldapi_path = slapd['run_dir'].replace('dirsrv', 'slapd-' + slapd['instance_name'] + '.socket')
         ds_instance.config.set('nsslapd-ldapifilepath', ldapi_path)
@@ -777,7 +787,32 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-ldapiautobind', 'on')
         ds_instance.config.set('nsslapd-ldapimaprootdn', slapd['root_dn'])
 
+        # Create all required sasl maps: if we have a single backend ...
+        # our default maps are really really bad, and we should feel bad.
+        # they basically only work with a single backend, and they'll break
+        # GSSAPI in some cases too :(
+        if len(backends) > 0:
+            self.log.debug("Adding sasl maps for suffix %s" % backend['nsslapd-suffix'])
+            backend = backends[0]
+            saslmappings = SaslMappings(ds_instance)
+            saslmappings.create(properties={
+                'cn': 'rfc 2829 u syntax',
+                'nsSaslMapRegexString': '^u:\\(.*\\)',
+                'nsSaslMapBaseDNTemplate': backend['nsslapd-suffix'],
+                'nsSaslMapFilterTemplate': '(uid=\\1)'
+            })
+            # I think this is for LDAPI
+            saslmappings.create(properties={
+                'cn': 'uid mapping',
+                'nsSaslMapRegexString': '^[^:@]+$',
+                'nsSaslMapBaseDNTemplate': backend['nsslapd-suffix'],
+                'nsSaslMapFilterTemplate': '(uid=&)'
+            })
+        else:
+            self.log.debug("Skipping default SASL maps - no backend found!")
+
         # Complete.
+        # Change the root password finally
         ds_instance.config.set('nsslapd-rootpw',
                                ensure_str(slapd['root_password']))
 
