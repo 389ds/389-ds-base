@@ -2004,7 +2004,6 @@ TESTS = test_slapd \
 test_slapd_SOURCES = test/main.c \
 	test/libslapd/test.c \
 	test/libslapd/counters/atomic.c \
-	test/libslapd/filter/optimise.c \
 	test/libslapd/pblock/analytics.c \
 	test/libslapd/pblock/v3_compat.c \
 	test/libslapd/operation/v3_compat.c \
