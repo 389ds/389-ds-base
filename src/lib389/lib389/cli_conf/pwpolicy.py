@@ -6,7 +6,11 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 import ldap
+from lib389.utils import ensure_str, ensure_list_str
+from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
+from lib389.idm.account import Account
 
 arg_to_attr = {
         'pwdlocal': 'nsslapd-pwpolicy-local',
@@ -51,51 +55,170 @@ arg_to_attr = {
         'pwdallowhash': 'nsslapd-allow-hashed-passwords'
     }
 
-
-def list_policies(inst, basedn, log, args):
-    print(inst.pwpolicy.list_policies(args.DN[0], use_json=args.json))
-
-
-def get_local_policy(inst, basedn, log, args):
-    print(inst.pwpolicy.get_pwpolicy(targetdn=args.DN[0], use_json=args.json))
-
-
-def get_global_policy(inst, basedn, log, args):
-    print(inst.pwpolicy.get_pwpolicy(targetdn=None, use_json=args.json))
-
-
-def create_subtree_policy(inst, basedn, log, args):
-    try:
-        inst.pwpolicy.create_subtree_policy(args.DN[0], args, arg_to_attr)
-        print('Successfully created subtree password policy')
-    except ldap.ALREADY_EXISTS:
-        raise ValueError('There is already a subtree password policy created for this entry')
-
-
-def create_user_policy(inst, basedn, log, args):
-    try:
-        inst.pwpolicy.create_user_policy(args.DN[0], args, arg_to_attr)
-        print('Successfully created user password policy')
-    except ldap.ALREADY_EXISTS:
-        raise ValueError('There is already a user password policy created for this entry')
-
-
-def set_global_policy(inst, basedn, log, args):
+def _args_to_attrs(args):
+    attrs = {}
     for arg in vars(args):
         val = getattr(args, arg)
         if arg in arg_to_attr and val is not None:
-            inst.config.set(arg_to_attr[arg], val)
-    print("Successfully updated global policy")
+            attrs[arg_to_attr[arg]] = val
+    return attrs
+
+
+def _get_policy_type(inst, dn=None):
+    pwp_manager = PwPolicyManager(inst)
+    if dn is None:
+        return "Global Password Policy"
+    elif pwp_manager.is_user_policy(dn):
+        return "User Policy"
+    elif pwp_manager.is_subtree_policy(dn):
+        return "Subtree Policy"
+    else:
+        raise ValueError("The policy wasn't set up for the target dn entry or it is invalid")
+
+
+def _get_pw_policy(inst, targetdn, log, use_json=None):
+    pwp_manager = PwPolicyManager(inst)
+    policy_type = _get_policy_type(inst, targetdn)
+
+    if "global" in policy_type.lower():
+        targetdn = 'cn=config'
+        pwp_manager.pwp_attributes.extend(['passwordIsGlobalPolicy', 'nsslapd-pwpolicy_local'])
+    else:
+        targetdn = pwp_manager.get_pwpolicy_entry(targetdn).dn
+
+    entries = inst.search_s(targetdn, ldap.SCOPE_BASE, 'objectclass=*', pwp_manager.pwp_attributes)
+    entry = entries[0]
+
+    if use_json:
+        str_attrs = {}
+        for k in entry.data:
+            str_attrs[ensure_str(k)] = ensure_list_str(entry.data[k])
+
+        # ensure all the keys are lowercase
+        str_attrs = dict((k.lower(), v) for k, v in str_attrs.items())
+
+        print(json.dumps({"type": "entry", "pwp_type": policy_type, "dn": ensure_str(targetdn), "attrs": str_attrs}))
+    else:
+        if "global" in policy_type.lower():
+            response = "Global Password Policy: cn=config\n------------------------------------\n"
+        else:
+            response = "Local {} Policy: {}\n------------------------------------\n".format(policy_type, targetdn)
+        for k in entry.data:
+            response += "{}: {}\n".format(k, ensure_str(entry.data[k][0]))
+        log.info(response)
+
+
+def list_policies(inst, basedn, log, args):
+    log = log.getChild('list_policies')
+    targetdn = args.DN[0]
+    pwp_manager = PwPolicyManager(inst)
+
+    if args.json:
+        result = {'type': 'list', 'items': []}
+    else:
+        result = ""
+
+    # Verify target dn exists before getting started
+    user_entry = Account(inst, args.DN[0])
+    if not user_entry.exists():
+        raise ValueError('The target entry dn does not exist')
+
+    # User pwpolicy entry is under the container that is under the parent,
+    # so we need to go one level up
+    if pwp_manager.is_user_policy(targetdn):
+        policy_type = _get_policy_type(inst, user_entry.dn)
+        if args.json:
+            result['items'].append([user_entry.dn, policy_type])
+        else:
+            result += "%s (%s)\n" % (user_entry.dn, policy_type.lower())
+    else:
+        pwp_entries = PwPolicyEntries(inst, targetdn)
+        for pwp_entry in pwp_entries.list():
+            cn = pwp_entry.get_attr_val_utf8_l('cn')
+            if pwp_entry.is_subtree_policy():
+                entrydn = cn.replace('cn=nspwpolicyentry_subtree,', '')
+            else:
+                entrydn = cn.replace('cn=nspwpolicyentry_user,', '')
+            policy_type = _get_policy_type(inst, entrydn)
+
+            if args.json:
+                result['items'].append([entrydn, policy_type])
+            else:
+                result += "%s (%s)\n" % (entrydn, policy_type.lower())
+
+    if args.json:
+        return print(json.dumps(result))
+    else:
+        log.info(result)
+
+
+def get_local_policy(inst, basedn, log, args):
+    log = log.getChild('get_local_policy')
+    _get_pw_policy(inst, args.DN[0], log, args.json)
+
+
+def get_global_policy(inst, basedn, log, args):
+    log = log.getChild('get_global_policy')
+    _get_pw_policy(inst, None, log, args.json)
+
+
+def create_subtree_policy(inst, basedn, log, args):
+    log = log.getChild('create_subtree_policy')
+    # Gather the attributes
+    attrs = _args_to_attrs(args)
+    pwp_manager = PwPolicyManager(inst)
+    pwp_manager.create_subtree_policy(args.DN[0], attrs)
+
+    log.info('Successfully created subtree password policy')
+
+
+def create_user_policy(inst, basedn, log, args):
+    log = log.getChild('create_user_policy')
+    # Gather the attributes
+    attrs = _args_to_attrs(args)
+    pwp_manager = PwPolicyManager(inst)
+    pwp_manager.create_user_policy(args.DN[0], attrs)
+
+    log.info('Successfully created user password policy')
+
+
+def set_global_policy(inst, basedn, log, args):
+    log = log.getChild('set_global_policy')
+    # Gather the attributes
+    attrs = _args_to_attrs(args)
+    pwp_manager = PwPolicyManager(inst)
+    pwp_manager.set_global_policy(attrs)
+
+    log.info('Successfully updated global password policy')
 
 
 def set_local_policy(inst, basedn, log, args):
-    inst.pwpolicy.set_policy(args.DN[0], args, arg_to_attr)
-    print("Successfully updated local policy")
+    log = log.getChild('set_local_policy')
+    targetdn = args.DN[0]
+    # Gather the attributes
+    attrs = _args_to_attrs(args)
+    pwp_manager = PwPolicyManager(inst)
+    pwp_entry = pwp_manager.get_pwpolicy_entry(args.DN[0])
+    policy_type = _get_policy_type(inst, targetdn)
+
+    modlist = []
+    for attr, value in attrs.items():
+        modlist.append((attr, value))
+    if len(modlist) > 0:
+        pwp_entry.replace_many(*modlist)
+    else:
+        raise ValueError("There are no password policies to set")
+
+    log.info('Successfully updated %s' % policy_type.lower())
 
 
 def del_local_policy(inst, basedn, log, args):
-    inst.pwpolicy.delete_local_policy(args.DN[0])
-    print("Successfully removed local password policy")
+    log = log.getChild('del_local_policy')
+    targetdn = args.DN[0]
+    policy_type = _get_policy_type(inst, targetdn)
+    pwp_manager = PwPolicyManager(inst)
+    pwp_manager.delete_local_policy(targetdn)
+    log.info('Successfully deleted %s' % policy_type.lower())
 
 
 def create_parser(subparsers):

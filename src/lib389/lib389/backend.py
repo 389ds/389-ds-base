@@ -610,8 +610,11 @@ class Backends(DSLdapObjects):
         ldif_paths = []
         for ldif in list(ldifs):
             if not ldif.startswith("/"):
-                ldif = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
-                ldif_paths.append(ldif)
+                if ldif.endswith(".ldif"):
+                    ldif = os.path.join(self._instance.ds_paths.ldif_dir, ldif)
+                else:
+                    ldif = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
+            ldif_paths.append(ldif)
 
         task = ImportTask(self._instance)
         task_properties = {'nsInstance': be_name,
@@ -643,12 +646,15 @@ class Backends(DSLdapObjects):
         task = ExportTask(self._instance)
         task_properties = {'nsInstance': be_names}
         if ldif is not None and not ldif.startswith("/"):
-            task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
+            if ldif.endswith(".ldif"):
+                task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, ldif)
+            else:
+                task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
         else:
             tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
             task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir,
-                                                         "%s_%s_%s.ldif" % (self._instance.serverid,
-                                                                            "_".join(be_names), tnow))
+                                                         "%s-%s-%s.ldif" % (self._instance.serverid,
+                                                                            "-".join(be_names), tnow))
         if include_suffixes is not None:
             task_properties['nsIncludeSuffix'] = include_suffixes
         if exclude_suffixes is not None:

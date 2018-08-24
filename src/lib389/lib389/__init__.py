@@ -313,7 +313,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.monitor import Monitor, MonitorLDBM
         from lib389.rootdse import RootDSE
         from lib389.saslmap import SaslMapping, SaslMappings
-        from lib389.pwpolicy import Pwpolicy
+        from lib389.pwpolicy import PwPolicyManager
 
         # Need updating
         self.agreement = Agreement(self)
@@ -327,7 +327,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.plugins = Plugins(self)
         self.tasks = Tasks(self)
         self.saslmap = SaslMapping(self)
-        self.pwpolicy = Pwpolicy(self)
+        self.pwpolicy = PwPolicyManager(self)
         # Do we have a certdb path?
         # if MAJOR < 3:
         self.monitor = Monitor(self)
@@ -2846,11 +2846,12 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             # No output file specified.  Use the default ldif location/name
             cmd.append('-a')
+            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
             if bename:
-                ldifname = "/" + self.serverid + "-" + bename + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                ldifname = os.path.join(self._instance.ds_paths.ldif_dir, "%s-%s-%s.ldif" % (self._instance.serverid, be_name, tnow))
             else:
-                ldifname = "/" + self.serverid + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-            cmd.append(self.get_ldif_dir() + ldifname)
+                ldifname = os.path.join(self._instance.ds_paths.ldif_dir, "%s-%s.ldif" % (self._instance.serverid, tnow))
+            cmd.append(ldifname)
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
@@ -2916,7 +2917,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         if archive_dir is None:
             # Use the instance name and date/time as the default backup name
-            archive_dir = self.get_bak_dir() + "/" + self.serverid + "-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            archive_dir = os.path.join(self.ds_paths.backup_dir, "%s-%s" % (self.serverid, tnow))
         elif not archive_dir.startswith("/"):
             # Relative path, append it to the bak directory
             archive_dir = os.path.join(self.ds_paths.backup_dir, archive_dir)
@@ -3418,8 +3420,11 @@ class DirSrv(SimpleLDAPObject, object):
         if archive is None:
             # Use the instance name and date/time as the default backup name
             tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-            archive = os.path.join(self.ds_paths.backup_dir,
-                                   "%s_%s" % (self.serverid, tnow))
+            if self.serverid is not None:
+                backup_dir_name = "%s-%s" % (self.serverid, tnow)
+            else:
+                backup_dir_name = "backup-%s" % tnow
+            archive = os.path.join(self.ds_paths.backup_dir, backup_dir_name)
         elif archive[0] != "/":
             # Relative path, append it to the bak directory
             archive = os.path.join(self.ds_paths.backup_dir, archive)

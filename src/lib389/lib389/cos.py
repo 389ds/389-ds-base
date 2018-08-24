@@ -14,15 +14,17 @@ from lib389._mapped_object import DSLdapObject, DSLdapObjects
 
 from lib389.utils import ensure_str
 
-class CosTemplate(DSLdapObject):
-    def __init__(self, instance, dn=None):
-        """A Cos Template defining the values to override on a target.
 
-        :param instance: DirSrv instance
-        :type instance: DirSrv
-        :param dn: The dn of the template
-        :type dn: str
-        """
+class CosTemplate(DSLdapObject):
+    """A Cos Template defining the values to override on a target.
+
+    :param instance: DirSrv instance
+    :type instance: DirSrv
+    :param dn: The dn of the template
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
         super(CosTemplate, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
@@ -35,18 +37,20 @@ class CosTemplate(DSLdapObject):
         ]
         self._protected = False
 
-class CosTemplates(DSLdapObjects):
-    def __init__(self, instance, basedn, rdn=None):
-        """The set of costemplates that exist for direct and indirect
-        implementations.
 
-        :param instance: A dirsrv instance
-        :type instance: DirSrv
-        :param basedn: The basedn of the templates
-        :type basedn: str
-        :param rdn: The rdn of the templates
-        :type rdn: str
-        """
+class CosTemplates(DSLdapObjects):
+    """The set of costemplates that exist for direct and indirect
+    implementations.
+
+    :param instance: A dirsrv instance
+    :type instance: DirSrv
+    :param basedn: The basedn of the templates
+    :type basedn: str
+    :param rdn: The rdn of the templates
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn, rdn=None):
         super(CosTemplates, self).__init__(instance)
         self._objectclasses = [
             'cosTemplate'
@@ -59,18 +63,19 @@ class CosTemplates(DSLdapObjects):
 
 
 class CosIndirectDefinition(DSLdapObject):
-    def __init__(self, instance, dn=None):
-        """A Cos Indirect Definition associating an attr:value pair as a link
-        attr to a template type.
+    """A Cos Indirect Definition associating an attr:value pair as a link
+    attr to a template type.
 
-        :param instance: DirSrv instance
-        :type instance: DirSrv
-        :param dn: The dn of the template
-        :type dn: str
-        """
+    :param instance: DirSrv instance
+    :type instance: DirSrv
+    :param dn: The dn of the template
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
         super(CosIndirectDefinition, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
-        self._must_attributes = ['cn', 'cosIndirectSpecifier', 'cosAttribute']
+        self._must_attributes = ['cn', 'cosIndirectSpecifier', 'cosattribute']
         self._create_objectclasses = [
             'top',
             'cosSuperDefinition',
@@ -78,17 +83,19 @@ class CosIndirectDefinition(DSLdapObject):
         ]
         self._protected = False
 
-class CosIndirectDefinitions(DSLdapObjects):
-    def __init__(self, instance, basedn, rdn=None):
-        """The set of cos indirect definitions that exist.
 
-        :param instance: A dirsrv instance
-        :type instance: DirSrv
-        :param basedn: The basedn of the templates
-        :type basedn: str
-        :param rdn: The rdn of the templates
-        :type rdn: str
-        """
+class CosIndirectDefinitions(DSLdapObjects):
+    """The set of cos indirect definitions that exist.
+
+    :param instance: A dirsrv instance
+    :type instance: DirSrv
+    :param basedn: The basedn of the templates
+    :type basedn: str
+    :param rdn: The rdn of the templates
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn, rdn=None):
         super(CosIndirectDefinitions, self).__init__(instance)
         self._objectclasses = [
             'cosSuperDefinition',
@@ -102,38 +109,43 @@ class CosIndirectDefinitions(DSLdapObjects):
 
 
 class CosPointerDefinition(DSLdapObject):
-    def __init__(self, instance, dn=None):
-        """A Cos Pointer Definition associating a dn syntax type as a link
-        attr to a template type.
+    """A Cos Pointer Definition associating a dn syntax type as a link
+    attr to a template type.
 
-        :param instance: DirSrv instance
-        :type instance: DirSrv
-        :param dn: The dn of the template
-        :type dn: str
-        """
+    :param instance: DirSrv instance
+    :type instance: DirSrv
+    :param dn: The dn of the template
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
         super(CosPointerDefinition, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', 'cosTemplateDn', 'cosAttribute']
         self._create_objectclasses = [
             'top',
+            'ldapsubentry',
             'cosSuperDefinition',
             'cosPointerDefinition',
         ]
         self._protected = False
 
-class CosPointerDefinitions(DSLdapObjects):
-    def __init__(self, instance, basedn, rdn=None):
-        """The set of cos pointer definitions that exist.
 
-        :param instance: A dirsrv instance
-        :type instance: DirSrv
-        :param basedn: The basedn of the templates
-        :type basedn: str
-        :param rdn: The rdn of the templates
-        :type rdn: str
-        """
+class CosPointerDefinitions(DSLdapObjects):
+    """The set of cos pointer definitions that exist.
+
+    :param instance: A dirsrv instance
+    :type instance: DirSrv
+    :param basedn: The basedn of the templates
+    :type basedn: str
+    :param rdn: The rdn of the templates
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn, rdn=None):
         super(CosPointerDefinitions, self).__init__(instance)
         self._objectclasses = [
+            'ldapsubentry',
             'cosSuperDefinition',
             'cosPointerDefinition',
         ]

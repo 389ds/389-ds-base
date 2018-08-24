@@ -775,8 +775,8 @@ $(document).ready( function() {
       } else if (ldif_file_import.indexOf(' ') >= 0) {
         popup_msg("Error", "LDIF file can not contain any spaces");
         return;
-      } else if (ldif_file_import.startsWith('/')) {
-        popup_msg("Error", "LDIF file can not start with a forward slash. " +
+      } else if (ldif_file_import.indexOf('/') === -1 ) {
+        popup_msg("Error", "LDIF file can not contain a forward slash. " +
                            "LDIF files are written to the server's LDIF directory (nsslapd-ldifdir)");
         return;
       } else {
@@ -818,8 +818,8 @@ $(document).ready( function() {
       if (ldif_file_export.indexOf(' ') >= 0) {
         popup_msg("Error", "LDIF file can not contain any spaces");
         return;
-      } else if (ldif_file_export.startsWith('/')) {
-        popup_msg("Error", "LDIF file can not start with a forward slash. " +
+      } else if (ldif_file_import.indexOf('/') === -1 ) {
+        popup_msg("Error", "LDIF file can not contain a forward slash. " +
                            "LDIF files are written to the server's LDIF directory (nsslapd-ldifdir)");
         return;
       } else if (ldif_file_export != ""){

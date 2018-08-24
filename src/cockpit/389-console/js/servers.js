@@ -1217,8 +1217,8 @@ $(document).ready( function() {
         popup_msg("Error", "Backup name can not contain any spaces");
         return;
       }
-      if (backup_name.startsWith('/')) {
-        popup_msg("Error", "Backup name can not start with a forward slash. " +
+      if (backup_name.indexOf('/') === -1) {
+        popup_msg("Error", "Backup name can not contain a forward slash. " +
                            "Backups are written to the server's backup directory (nsslapd-bakdir)");
         return;
       }
