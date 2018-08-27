@@ -76,6 +76,11 @@ var create_inf_template =
 var sasl_table;
 var pwp_table;
 
+// log levels
+var accesslog_levels = [4, 256, 512]
+var errorlog_levels =  [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 2048,
+                        4096, 8192, 16384, 32768, 65536, 262144, 1048576];
+
 function load_server_config() {
   var mark = document.getElementById("server-config-title");
   mark.innerHTML = "Configuration for server: <b>" + server_id + "</b>";
@@ -154,6 +159,10 @@ function get_and_set_config () {
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'get'];
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
+    // Reset tables before populating them
+    $(".ds-accesslog-table").prop('checked', false);
+    $(".ds-errorlog-table").prop('checked', false);
+
     for (var attr in obj['attrs']) {
       var val = obj['attrs'][attr][0];
       attr = attr.toLowerCase();
@@ -168,6 +177,23 @@ function get_and_set_config () {
           $("#" + attr).trigger('change');
         }
         config_values[attr] = val;
+      }
+
+      // Do the log level tables
+      if (attr == "nsslapd-accesslog-level") {
+        var level_val = parseInt(val);
+        for ( var level in accesslog_levels ) {
+          if (level_val & accesslog_levels[level]) {
+            $("#accesslog-" + accesslog_levels[level].toString()).prop('checked', true);
+          }
+        }
+      } else if (attr == "nsslapd-errorlog-level") {
+        var level_val = parseInt(val);
+        for ( var level in errorlog_levels ) {
+          if (level_val & errorlog_levels[level]) {
+            $("#errorlog-" + errorlog_levels[level].toString()).prop('checked', true);
+          }
+        }
       }
     }
     check_inst_alive();
@@ -319,6 +345,32 @@ function save_config() {
       }
     }
   }
+
+  // Save access log levels
+  var access_log_level = 0;
+  $(".ds-accesslog-table").each(function() {
+    var val = this.id;
+    if (this.checked){
+      val = parseInt(val.replace("accesslog-", ""));
+      access_log_level += val;
+    }
+  });
+  mod['attr'] = "nsslapd-accesslog-level";
+  mod['val'] = access_log_level;
+  mod_list.push(mod);
+
+  // Save error log levels
+  var error_log_level = 0;
+  $(".ds-errorlog-table").each(function() {
+    var val = this.id;
+    if (this.checked) {
+      val = parseInt(val.replace("errorlog-", ""));
+      error_log_level += val;
+    }
+  });
+  mod['attr'] = "nsslapd-errorlog-level";
+  mod['val'] = error_log_level;
+  mod_list.push(mod);
 
   // Build dsconf commands to apply all the mods
   if (mod_list.length) {

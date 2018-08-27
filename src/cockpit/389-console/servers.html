@@ -554,7 +554,7 @@
         <hr class="ds-hr-logs">
 
 
-        <table class="table table-striped table-bordered table-hover ds-loglevel-table" id="errorlog-level-table">
+        <table class="table table-striped table-bordered table-hover ds-loglevel-table" id="accesslog-level-table">
           <thead>
             <tr>
               <th class="ds-table-checkbox"></th>
@@ -563,11 +563,15 @@
           </thead>
           <tbody>
             <tr>
-             <td class="ds-table-checkbox" id="4"><input type="checkbox"></td>
+             <td class="ds-table-checkbox"><input class="ds-accesslog-table" id="accesslog-256" type="checkbox"></td>
+             <td>Default Logging</td>
+            </tr>
+            <tr>
+             <td class="ds-table-checkbox"><input class="ds-accesslog-table"  id="accesslog-4"type="checkbox"></td>
              <td>Internal Operations</td>
             </tr>
             <tr>
-             <td class="ds-table-checkbox" id="512"><input type="checkbox"></td>
+             <td class="ds-table-checkbox"><input class="ds-accesslog-table" id="accesslog-512" type="checkbox"></td>
              <td>Entry Access and Referrals</td>
             </tr>
           <tbody>
@@ -767,63 +771,63 @@
         </thead>
         <tbody>
           <tr>
-           <td class="ds-table-checkbox" id="1"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-1" type="checkbox"></td>
            <td>Trace Function Calls</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="2"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-2" type="checkbox"></td>
            <td>Packet Handling</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="4"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-4" type="checkbox"></td>
            <td>Heavy Trace Output</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="8"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-8" type="checkbox"></td>
            <td>Connection Management</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="16"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-16" type="checkbox"></td>
            <td>Packets Sent/Received</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="32"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-32" type="checkbox"></td>
            <td>Search Filter Processing</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="64"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-64" type="checkbox"></td>
            <td>Config File Processing</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="128"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-128" type="checkbox"></td>
            <td>Access Control List Processing</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="2048"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-2048" type="checkbox"></td>
            <td>Log Entry Parsing</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="4096"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-4096" type="checkbox"></td>
            <td>Housekeeping</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="8192"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-8192" type="checkbox"></td>
            <td>Replication</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="32768"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-32768" type="checkbox"></td>
            <td>Entry Cache</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="65536"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-65536" type="checkbox"></td>
            <td>Plug-ins</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="262144"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-262144" type="checkbox"></td>
            <td>Access Control Summary</td>
           </tr>
           <tr>
-           <td class="ds-table-checkbox" id="1048576"><input type="checkbox"></td>
+           <td class="ds-table-checkbox"><input class="ds-errorlog-table" id="errorlog-1048576" type="checkbox"></td>
            <td>Nunc-Stans Connection Logging</td>
           </tr>
         </tbody>
