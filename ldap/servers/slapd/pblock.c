@@ -322,6 +322,8 @@ slapi_pblock_clone(Slapi_PBlock *pb)
     if (pb->pb_intop != NULL) {
         _pblock_assert_pb_intop(new_pb);
         *(new_pb->pb_intop) = *(pb->pb_intop);
+        /* set pwdpolicy to NULL so this clone allocates its own policy */
+        new_pb->pb_intop->pwdpolicy = NULL;
     }
     if (pb->pb_intplugin != NULL) {
         _pblock_assert_pb_intplugin(new_pb);
