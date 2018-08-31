@@ -37,7 +37,7 @@ TEMP_USER_DN = '%s,%s' % (TEMP_USER, OU_PEOPLE)
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st, request):
+def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user {}'.format(BN))
@@ -71,7 +71,7 @@ def test_user(topology_st, request):
 
 
 @pytest.fixture(scope="module")
-def password_policy(topology_st, test_user):
+def password_policy(topology_st, create_user):
     """Set global password policy.
     Then, set fine-grained subtree level password policy
     to ou=People with no password syntax.
@@ -140,7 +140,7 @@ def check_attr_val(topology_st, dn, attr, expected):
 
 @pytest.mark.parametrize('inherit_value,checksyntax_value',
                          [('off', 'off'), ('on', 'off'), ('off', 'on')])
-def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
+def test_entry_has_no_restrictions(topology_st, password_policy, create_user,
                                    inherit_value, checksyntax_value):
     """Make sure an entry added to ou=people has no password syntax restrictions
 
@@ -201,7 +201,7 @@ def test_entry_has_no_restrictions(topology_st, password_policy, test_user,
 
 
 @pytest.mark.parametrize('container', [DN_CONFIG, PWP_CONTAINER_PEOPLE])
-def test_entry_has_restrictions(topology_st, password_policy, test_user, container):
+def test_entry_has_restrictions(topology_st, password_policy, create_user, container):
     """Set 'nsslapd-pwpolicy-inherit-global: on' and 'passwordCheckSyntax: on'.
     Make sure that syntax rules work, if set them at both: cn=config and
     ou=people policy container.

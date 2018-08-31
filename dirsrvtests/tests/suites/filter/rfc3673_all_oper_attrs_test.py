@@ -63,7 +63,7 @@ TEST_PARAMS = [(DN_ROOT, False, [
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st):
+def create_user(topology_st):
     """User for binding operation"""
 
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
@@ -111,7 +111,7 @@ def test_supported_features(topology_st):
 @pytest.mark.parametrize('add_attr', ['', '*', 'objectClass'])
 @pytest.mark.parametrize('search_suffix,regular_user,oper_attr_list',
                          TEST_PARAMS)
-def test_search_basic(topology_st, test_user, user_aci, add_attr,
+def test_search_basic(topology_st, create_user, user_aci, add_attr,
                       search_suffix, regular_user, oper_attr_list):
     """Verify that you can get all expected operational attributes
        by a Search Request [RFC2251] with '+' (ASCII 43) filter.
@@ -159,7 +159,7 @@ def test_search_basic(topology_st, test_user, user_aci, add_attr,
         assert all(attr in found_attrs
                    for attr in ['objectClass', expected_attrs[0]])
     else:
-        assert cmp(found_attrs, expected_attrs) == 0
+        assert set(expected_attrs).issubset(set(found_attrs))
 
 
 if __name__ == '__main__':

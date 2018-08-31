@@ -114,7 +114,7 @@ def _test_base(topology):
     M1 = topology.ms["master1"]
 
     conts = nsContainers(M1, SUFFIX)
-    test_base = conts.create(properties={'cn': 'test_container'})
+    base_m2 = conts.create(properties={'cn': 'test_container'})
 
     for inst in topology:
         inst.config.loglevel([ErrorLog.DEFAULT, ErrorLog.REPLICA], service='error')
@@ -123,13 +123,13 @@ def _test_base(topology):
         inst.config.enable_log('audit')
         inst.restart()
 
-    return test_base
+    return base_m2
 
 
-def _delete_test_base(inst, test_base_dn):
+def _delete_test_base(inst, base_m2_dn):
     """Delete test container with entries and entry conflicts"""
 
-    ents = inst.search_s(test_base_dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+    ents = inst.search_s(base_m2_dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
 
     for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
         log.debug("Delete entry children {}".format(ent.dn))
@@ -140,7 +140,7 @@ def _delete_test_base(inst, test_base_dn):
 
 
 @pytest.fixture
-def test_base(topology_m2, request):
+def base_m2(topology_m2, request):
     tb = _test_base(topology_m2)
 
     def fin():
@@ -152,7 +152,7 @@ def test_base(topology_m2, request):
 
 
 @pytest.fixture
-def test_base_m3(topology_m3, request):
+def base_m3(topology_m3, request):
     tb = _test_base(topology_m3)
 
     def fin():
@@ -164,7 +164,7 @@ def test_base_m3(topology_m3, request):
 
 
 class TestTwoMasters:
-    def test_add_modrdn(self, topology_m2, test_base):
+    def test_add_modrdn(self, topology_m2, base_m2):
         """Check that conflict properly resolved for create - modrdn operations
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908ebb
@@ -194,8 +194,8 @@ class TestTwoMasters:
 
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
-        test_users_m1 = UserAccounts(M1, test_base.dn, rdn=None)
-        test_users_m2 = UserAccounts(M2, test_base.dn, rdn=None)
+        test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
+        test_users_m2 = UserAccounts(M2, base_m2.dn, rdn=None)
         repl = ReplicationManager(SUFFIX)
 
         for user_num in range(1000, 1005):
@@ -233,7 +233,7 @@ class TestTwoMasters:
         user_dns_m2 = [user.dn for user in test_users_m2.list()]
         assert set(user_dns_m1) == set(user_dns_m2)
 
-    def test_complex_add_modify_modrdn_delete(self, topology_m2, test_base):
+    def test_complex_add_modify_modrdn_delete(self, topology_m2, base_m2):
         """Check that conflict properly resolved for complex operations
         which involve add, modify, modrdn and delete
 
@@ -269,8 +269,8 @@ class TestTwoMasters:
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
 
-        test_users_m1 = UserAccounts(M1, test_base.dn, rdn=None)
-        test_users_m2 = UserAccounts(M2, test_base.dn, rdn=None)
+        test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
+        test_users_m2 = UserAccounts(M2, base_m2.dn, rdn=None)
         repl = ReplicationManager(SUFFIX)
 
         for user_num in range(1100, 1110):
@@ -365,7 +365,7 @@ class TestTwoMasters:
         user_dns_m2 = [user.dn for user in test_users_m2.list()]
         assert set(user_dns_m1) == set(user_dns_m2)
 
-    def test_memberof_groups(self, topology_m2, test_base):
+    def test_memberof_groups(self, topology_m2, base_m2):
         """Check that conflict properly resolved for operations
         with memberOf and groups
 
@@ -400,9 +400,9 @@ class TestTwoMasters:
 
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
-        test_users_m1 = UserAccounts(M1, test_base.dn, rdn=None)
-        test_groups_m1 = Groups(M1, test_base.dn, rdn=None)
-        test_groups_m2 = Groups(M2, test_base.dn, rdn=None)
+        test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
+        test_groups_m1 = Groups(M1, base_m2.dn, rdn=None)
+        test_groups_m2 = Groups(M2, base_m2.dn, rdn=None)
 
         repl = ReplicationManager(SUFFIX)
 
@@ -539,7 +539,7 @@ class TestTwoMasters:
         user_dns_m2 = [user.dn for user in test_users_m2.list()]
         assert set(user_dns_m1) == set(user_dns_m2)
 
-    def test_nested_entries_with_children(self, topology_m2, test_base):
+    def test_nested_entries_with_children(self, topology_m2, base_m2):
         """Check that conflict properly resolved for operations
         with nested entries with children
 
@@ -583,14 +583,14 @@ class TestTwoMasters:
         M1 = topology_m2.ms["master1"]
         M2 = topology_m2.ms["master2"]
         repl = ReplicationManager(SUFFIX)
-        test_users_m1 = UserAccounts(M1, test_base.dn, rdn=None)
-        test_users_m2 = UserAccounts(M2, test_base.dn, rdn=None)
+        test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
+        test_users_m2 = UserAccounts(M2, base_m2.dn, rdn=None)
         _create_user(test_users_m1, 4000)
         _create_user(test_users_m1, 4001)
 
         cont_list = []
         for num in range(15):
-            cont = _create_container(M1, test_base.dn, 'sub{}'.format(num))
+            cont = _create_container(M1, base_m2.dn, 'sub{}'.format(num))
             cont_list.append(cont)
 
         repl.test_replication(M1, M2)
@@ -598,20 +598,20 @@ class TestTwoMasters:
         topology_m2.pause_all_replicas()
 
         log.info("Create parent-child on master2 and master1")
-        _create_container(M2, test_base.dn, 'p0', sleep=True)
-        cont_p = _create_container(M1, test_base.dn, 'p0', sleep=True)
+        _create_container(M2, base_m2.dn, 'p0', sleep=True)
+        cont_p = _create_container(M1, base_m2.dn, 'p0', sleep=True)
         _create_container(M1, cont_p.dn, 'c0', sleep=True)
         _create_container(M2, cont_p.dn, 'c0', sleep=True)
 
         log.info("Create parent-child on master1 and master2")
-        cont_p = _create_container(M1, test_base.dn, 'p1', sleep=True)
-        _create_container(M2, test_base.dn, 'p1', sleep=True)
+        cont_p = _create_container(M1, base_m2.dn, 'p1', sleep=True)
+        _create_container(M2, base_m2.dn, 'p1', sleep=True)
         _create_container(M1, cont_p.dn, 'c1', sleep=True)
         _create_container(M2, cont_p.dn, 'c1', sleep=True)
 
         log.info("Create parent-child on master1 and master2 different child rdn")
-        cont_p = _create_container(M1, test_base.dn, 'p2', sleep=True)
-        _create_container(M2, test_base.dn, 'p2', sleep=True)
+        cont_p = _create_container(M1, base_m2.dn, 'p2', sleep=True)
+        _create_container(M2, base_m2.dn, 'p2', sleep=True)
         _create_container(M1, cont_p.dn, 'c2', sleep=True)
         _create_container(M2, cont_p.dn, 'c3', sleep=True)
 
@@ -746,7 +746,7 @@ class TestTwoMasters:
         for num in range(1, 3):
             inst = topology_m2.ms["master{}".format(num)]
             conts_dns[inst.serverid] = []
-            conts = nsContainers(inst, test_base.dn)
+            conts = nsContainers(inst, base_m2.dn)
             for cont in conts.list():
                 conts_p = nsContainers(inst, cont.dn)
                 for cont_p in conts_p.list():
@@ -763,7 +763,7 @@ class TestTwoMasters:
 
 
 class TestThreeMasters:
-    def test_nested_entries(self, topology_m3, test_base_m3):
+    def test_nested_entries(self, topology_m3, base_m3):
         """Check that conflict properly resolved for operations
         with nested entries with children
 
@@ -800,7 +800,7 @@ class TestThreeMasters:
 
         cont_list = []
         for num in range(11):
-            cont = _create_container(M1, test_base_m3.dn, 'sub{}'.format(num))
+            cont = _create_container(M1, base_m3.dn, 'sub{}'.format(num))
             cont_list.append(cont)
 
         repl.test_replication(M1, M2)
@@ -858,7 +858,7 @@ class TestThreeMasters:
         for num in range(1, 4):
             inst = topology_m3.ms["master{}".format(num)]
             conts_dns[inst.serverid] = []
-            conts = nsContainers(inst, test_base_m3.dn)
+            conts = nsContainers(inst, base_m3.dn)
             for cont in conts.list():
                 conts_p = nsContainers(inst, cont.dn)
                 for cont_p in conts_p.list():
@@ -876,5 +876,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
-

@@ -889,7 +889,7 @@ adds nsslapd-return-default-opattr attr with value of one operation attribute.
 
 
 @pytest.fixture(scope="module")
-def test_users(topology_st):
+def create_users(topology_st):
     """Add users to the default suffix
     """
 
@@ -910,7 +910,7 @@ def test_users(topology_st):
         })
 
 
-def test_basic_anonymous_search(topology_st, test_users):
+def test_basic_anonymous_search(topology_st, create_users):
     """Tests basic anonymous search operations
 
     :id: c7831e04-f458-4e50-83c7-b6f77109f639
@@ -931,7 +931,7 @@ def test_basic_anonymous_search(topology_st, test_users):
 
 @pytest.mark.ds604
 @pytest.mark.bz915801
-def test_search_original_type(topology_st, test_users):
+def test_search_original_type(topology_st, create_users):
     """Test ldapsearch returning original attributes
         using nsslapd-search-return-original-type-switch
 

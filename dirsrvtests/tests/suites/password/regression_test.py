@@ -68,7 +68,7 @@ def passw_policy(topo, request):
 
 
 @pytest.fixture(scope="module")
-def test_user(topo, request):
+def create_user(topo, request):
     """Add test users using UserAccounts"""
 
     log.info('Adding user-uid={},ou=people,{}'.format(user_data['uid'], SUFFIX))
@@ -89,7 +89,7 @@ def test_user(topo, request):
     return tuser
 
 
-def test_pwp_local_unlock(topo, passw_policy, test_user):
+def test_pwp_local_unlock(topo, passw_policy, create_user):
     """Test subtree policies use the same global default for passwordUnlock
 
     :id: 741a8417-5f65-4012-b9ed-87987ce3ca1b
@@ -105,12 +105,12 @@ def test_pwp_local_unlock(topo, passw_policy, test_user):
     """
 
     log.info("Verify user can bind...")
-    test_user.bind(PASSWORD)
+    create_user.bind(PASSWORD)
 
     log.info('Test passwordUnlock default - user should be able to reset password after lockout')
     for i in range(0, 2):
         try:
-            test_user.bind("bad-password")
+            create_user.bind("bad-password")
         except ldap.INVALID_CREDENTIALS:
             # expected
             pass
@@ -120,18 +120,18 @@ def test_pwp_local_unlock(topo, passw_policy, test_user):
 
     log.info('Verify account is locked')
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-        test_user.bind(PASSWORD)
+        create_user.bind(PASSWORD)
 
     log.info('Wait for lockout duration...')
     time.sleep(4)
 
     log.info('Check if user can now bind with correct password')
-    test_user.bind(PASSWORD)
+    create_user.bind(PASSWORD)
 
 
 @pytest.mark.bz1465600
 @pytest.mark.parametrize("user_pasw", TEST_PASSWORDS)
-def test_trivial_passw_check(topo, passw_policy, test_user, user_pasw):
+def test_trivial_passw_check(topo, passw_policy, create_user, user_pasw):
     """PasswordCheckSyntax attribute fails to validate cn, sn, uid, givenname, ou and mail attributes
 
     :id: bf9fe1ef-56cb-46a3-a6f8-5530398a06dc
@@ -148,20 +148,20 @@ def test_trivial_passw_check(topo, passw_policy, test_user, user_pasw):
         4. Resetting userPassword to cn, sn, uid and mail should be rejected.
     """
 
-    conn = test_user.bind(PASSWORD)
+    conn = create_user.bind(PASSWORD)
     try:
         log.info('Replace userPassword attribute with {}'.format(user_pasw))
         with pytest.raises(ldap.CONSTRAINT_VIOLATION) as excinfo:
-            conn.modify_s(test_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
+            conn.modify_s(create_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
             log.fatal('Failed: Userpassword with {} is accepted'.format(user_pasw))
         assert 'password based off of user entry' in str(excinfo.value)
     finally:
         conn.unbind_s()
-        test_user.set('userPassword', PASSWORD)
+        create_user.set('userPassword', PASSWORD)
 
 
 @pytest.mark.parametrize("user_pasw", TEST_PASSWORDS)
-def test_global_vs_local(topo, passw_policy, test_user, user_pasw):
+def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     """Passwords rejected if its similar to uid, cn, sn, givenname, ou and mail attributes
 
     :id: dfd6cf5d-8bcd-4895-a691-a43ad9ec1be8
@@ -179,17 +179,17 @@ def test_global_vs_local(topo, passw_policy, test_user, user_pasw):
     log.info('Configure Pwpolicy with PasswordCheckSyntax and nsslapd-pwpolicy-local set to off')
     topo.standalone.config.set('nsslapd-pwpolicy-local', 'off')
 
-    conn = test_user.bind(PASSWORD)
+    conn = create_user.bind(PASSWORD)
     log.info('Replace userPassword attribute with {}'.format(user_pasw))
     try:
         try:
-            conn.modify_s(test_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
+            conn.modify_s(create_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
         except ldap.LDAPError as e:
             log.fatal('Failed to replace userPassword: error {}'.format(e.message['desc']))
             raise e
     finally:
         conn.unbind_s()
-        test_user.set('userPassword', PASSWORD)
+        create_user.set('userPassword', PASSWORD)
 
 
 if __name__ == '__main__':

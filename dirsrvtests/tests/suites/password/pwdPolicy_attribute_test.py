@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st, request):
+def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user {}'.format(TEST_USER_DN))
@@ -60,7 +60,7 @@ def test_user(topology_st, request):
 
 
 @pytest.fixture(scope="module")
-def password_policy(topology_st, test_user):
+def password_policy(topology_st, create_user):
     """Set up password policy for subtree and user"""
 
     log.info('Enable fine-grained policy')
@@ -122,7 +122,7 @@ def password_policy(topology_st, test_user):
                          [('on', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'on', None), ('on', 'on', None)])
-def test_change_pwd(topology_st, test_user, password_policy,
+def test_change_pwd(topology_st, create_user, password_policy,
                     subtree_pwchange, user_pwchange, exception):
     """Verify that 'passwordChange' attr works as expected
     User should have a priority over a subtree.
@@ -194,7 +194,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
                                                         ensure_bytes(TEST_USER_PWD))])
 
 
-def test_pwd_min_age(topology_st, test_user, password_policy):
+def test_pwd_min_age(topology_st, create_user, password_policy):
     """If we set passwordMinAge to some value, for example to 10, then it
     should not allow the user to change the password within 10 seconds after
     his previous change.

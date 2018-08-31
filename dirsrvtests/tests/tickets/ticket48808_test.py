@@ -17,7 +17,7 @@ TEST_USER_PWD = 'simplepaged_test'
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st):
+def create_user(topology_st):
     """User for binding operation"""
 
     try:
@@ -153,7 +153,7 @@ def paged_search(topology_st, controls, search_flt, searchreq_attrlist):
     return all_results
 
 
-def test_ticket48808(topology_st, test_user):
+def test_ticket48808(topology_st, create_user):
     log.info('Run multiple paging controls on a single connection')
     users_num = 100
     page_size = 30

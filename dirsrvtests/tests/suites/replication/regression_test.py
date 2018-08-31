@@ -72,7 +72,7 @@ def pattern_errorlog(file, log_pattern, start_location=0):
     return count
 
 @pytest.fixture()
-def test_entry(topo_m2, request):
+def create_entry(topo_m2, request):
     """Add test entry using UserAccounts"""
 
     log.info('Adding a test entry user')
@@ -81,7 +81,7 @@ def test_entry(topo_m2, request):
     return tuser
 
 
-def test_double_delete(topo_m2, test_entry):
+def test_double_delete(topo_m2, create_entry):
     """Check that double delete of the entry doesn't crash server
 
     :id: 3496c82d-636a-48c9-973c-2455b12164cc
@@ -103,11 +103,11 @@ def test_double_delete(topo_m2, test_entry):
     repl.disable_to_master(m1, [m2])
     repl.disable_to_master(m2, [m1])
 
-    log.info('Deleting entry {} from master1'.format(test_entry.dn))
-    topo_m2.ms["master1"].delete_s(test_entry.dn)
+    log.info('Deleting entry {} from master1'.format(create_entry.dn))
+    topo_m2.ms["master1"].delete_s(create_entry.dn)
 
-    log.info('Deleting entry {} from master2'.format(test_entry.dn))
-    topo_m2.ms["master2"].delete_s(test_entry.dn)
+    log.info('Deleting entry {} from master2'.format(create_entry.dn))
+    topo_m2.ms["master2"].delete_s(create_entry.dn)
 
     repl.enable_to_master(m2, [m1])
     repl.enable_to_master(m1, [m2])
@@ -201,7 +201,7 @@ def test_repl_modrdn(topo_m2):
 
 
 
-def test_password_repl_error(topo_m2, test_entry):
+def test_password_repl_error(topo_m2, create_entry):
     """Check that error about userpassword replication is properly logged
 
     :id: 714130ff-e4f0-4633-9def-c1f4b24abfef
@@ -226,9 +226,9 @@ def test_password_repl_error(topo_m2, test_entry):
     log.info('Set replication loglevel')
     m2.config.loglevel((ErrorLog.REPLICA,))
 
-    log.info('Modifying entry {} - change userpassword on master 1'.format(test_entry.dn))
+    log.info('Modifying entry {} - change userpassword on master 1'.format(create_entry.dn))
 
-    test_entry.set('userpassword', TEST_ENTRY_NEW_PASS)
+    create_entry.set('userpassword', TEST_ENTRY_NEW_PASS)
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.wait_for_replication(m1, m2)
@@ -239,11 +239,11 @@ def test_password_repl_error(topo_m2, test_entry):
 
     try:
         log.info('Check that password works on master 2')
-        test_entry_m2 = UserAccount(m2, test_entry.dn)
-        test_entry_m2.bind(TEST_ENTRY_NEW_PASS)
+        create_entry_m2 = UserAccount(m2, create_entry.dn)
+        create_entry_m2.bind(TEST_ENTRY_NEW_PASS)
 
-        log.info('Check the error log for the error with {}'.format(test_entry.dn))
-        assert not m2.ds_error_log.match('.*can.t add a change for {}.*'.format(test_entry.dn))
+        log.info('Check the error log for the error with {}'.format(create_entry.dn))
+        assert not m2.ds_error_log.match('.*can.t add a change for {}.*'.format(create_entry.dn))
     finally:
         log.info('Set the default loglevel')
         m2.config.loglevel((ErrorLog.DEFAULT,))
@@ -340,7 +340,7 @@ def test_fetch_bindDnGroup(topo_m2):
     users = UserAccounts(M1, PEOPLE, rdn=None)
     user_props = TEST_USER_PROPERTIES.copy()
     user_props.update({'uid': uid, 'cn': uid, 'sn': '_%s' % uid, 'userpassword': PASSWD.encode(), 'description': b'value creation'})
-    test_user = users.create(properties=user_props)
+    create_user = users.create(properties=user_props)
 
     groups_M1 = Groups(M1, DEFAULT_SUFFIX)
     group_properties = {
@@ -348,7 +348,7 @@ def test_fetch_bindDnGroup(topo_m2):
         'description' : 'testgroup'}
     group_M1 = groups_M1.create(properties=group_properties)
     group_M2 = Group(M2, group_M1.dn)
-    assert(not group_M1.is_member(test_user.dn))
+    assert(not group_M1.is_member(create_user.dn))
 
 
 
@@ -377,7 +377,7 @@ def test_fetch_bindDnGroup(topo_m2):
     for inst in (M1, M2):
         agmts = Agreements(inst)
         agmt = agmts.list()[0]
-        agmt.replace('nsDS5ReplicaBindDN', test_user.dn.encode())
+        agmt.replace('nsDS5ReplicaBindDN', create_user.dn.encode())
         agmt.replace('nsds5ReplicaCredentials', PASSWD.encode())
 
 
@@ -393,18 +393,18 @@ def test_fetch_bindDnGroup(topo_m2):
 
     # Replication being broken here we need to directly do the same update.
     # Sorry not found another solution except total update
-    group_M1.add_member(test_user.dn)
-    group_M2.add_member(test_user.dn)
+    group_M1.add_member(create_user.dn)
+    group_M2.add_member(create_user.dn)
 
     topo_m2.resume_all_replicas()
 
     # trigger updates to be sure to have a replication session, giving some time
-    M1.modify_s(test_user.dn,[(ldap.MOD_ADD, 'description', b'value_1_1')])
-    M2.modify_s(test_user.dn,[(ldap.MOD_ADD, 'description', b'value_2_2')])
+    M1.modify_s(create_user.dn,[(ldap.MOD_ADD, 'description', b'value_1_1')])
+    M2.modify_s(create_user.dn,[(ldap.MOD_ADD, 'description', b'value_2_2')])
     time.sleep(10)
 
     # Check replication is working
-    ents = M1.search_s(test_user.dn, ldap.SCOPE_BASE, '(objectclass=*)')
+    ents = M1.search_s(create_user.dn, ldap.SCOPE_BASE, '(objectclass=*)')
     for ent in ents:
         assert (ent.hasAttr('description'))
         found = 0
@@ -415,7 +415,7 @@ def test_fetch_bindDnGroup(topo_m2):
                 found = found + 1
         assert (found == 2)
 
-    ents = M2.search_s(test_user.dn, ldap.SCOPE_BASE, '(objectclass=*)')
+    ents = M2.search_s(create_user.dn, ldap.SCOPE_BASE, '(objectclass=*)')
     for ent in ents:
         assert (ent.hasAttr('description'))
         found = 0
@@ -559,4 +559,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

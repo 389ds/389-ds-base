@@ -48,7 +48,7 @@ IP_ADDRESS = socket.gethostbyname(HOSTNAME)
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st, request):
+def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user simplepaged_test')
@@ -221,7 +221,7 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
 
 
 @pytest.mark.parametrize("page_size,users_num", [(6, 5), (5, 5), (5, 25)])
-def test_search_success(topology_st, test_user, page_size, users_num):
+def test_search_success(topology_st, create_user, page_size, users_num):
     """Verify that search with a simple paged results control
     returns all entries it should without errors.
 
@@ -241,8 +241,8 @@ def test_search_success(topology_st, test_user, page_size, users_num):
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
-    log.info('Set user bind %s ' % test_user)
-    conn = test_user.bind(TEST_USER_PWD)
+    log.info('Set user bind %s ' % create_user)
+    conn = create_user.bind(TEST_USER_PWD)
 
     req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
     all_results = paged_search(conn, DEFAULT_SUFFIX, [req_ctrl], search_flt, searchreq_attrlist)
@@ -264,7 +264,7 @@ def test_search_success(topology_st, test_user, page_size, users_num):
      ldap.SIZELIMIT_EXCEEDED),
     (5, 50, 'cn=config,%s' % DN_LDBM, 'nsslapd-lookthroughlimit', '20',
      ldap.ADMINLIMIT_EXCEEDED)])
-def test_search_limits_fail(topology_st, test_user, page_size, users_num,
+def test_search_limits_fail(topology_st, create_user, page_size, users_num,
                             suffix, attr_name, attr_value, expected_err):
     """Verify that search with a simple paged results control
     throws expected exceptoins when corresponding limits are
@@ -293,7 +293,7 @@ def test_search_limits_fail(topology_st, test_user, page_size, users_num,
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -343,7 +343,7 @@ def test_search_limits_fail(topology_st, test_user, page_size, users_num,
         change_conf_attr(topology_st, suffix, attr_name, attr_value_bck)
 
 
-def test_search_sort_success(topology_st, test_user):
+def test_search_sort_success(topology_st, create_user):
     """Verify that search with a simple paged results control
     and a server side sort control returns all entries
     it should without errors.
@@ -367,7 +367,7 @@ def test_search_sort_success(topology_st, test_user):
     searchreq_attrlist = ['dn', 'sn']
 
     try:
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         sort_ctrl = SSSRequestControl(True, ['sn'])
@@ -388,7 +388,7 @@ def test_search_sort_success(topology_st, test_user):
         del_users(users_list)
 
 
-def test_search_abandon(topology_st, test_user):
+def test_search_abandon(topology_st, create_user):
     """Verify that search with simple paged results control
     can be abandon
 
@@ -414,7 +414,7 @@ def test_search_abandon(topology_st, test_user):
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -433,7 +433,7 @@ def test_search_abandon(topology_st, test_user):
         del_users(users_list)
 
 
-def test_search_with_timelimit(topology_st, test_user):
+def test_search_with_timelimit(topology_st, create_user):
     """Verify that after performing multiple simple paged searches
     to completion, each with a timelimit, it wouldn't fail, if we sleep
     for a time more than the timelimit.
@@ -463,7 +463,7 @@ def test_search_with_timelimit(topology_st, test_user):
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -506,7 +506,7 @@ def test_search_with_timelimit(topology_st, test_user):
 @pytest.mark.parametrize('aci_subject',
                          ('dns = "{}"'.format(HOSTNAME),
                           'ip = "{}"'.format(IP_ADDRESS)))
-def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
+def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI
 
@@ -549,7 +549,7 @@ def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
         ACI_BODY = ensure_bytes(ACI_TARGET + ACI_ALLOW + ACI_SUBJECT)
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE, 'aci', ACI_BODY)])
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -572,7 +572,7 @@ def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
         del_users(users_list)
 
 
-def test_search_multiple_paging(topology_st, test_user):
+def test_search_multiple_paging(topology_st, create_user):
     """Verify that after performing multiple simple paged searches
     on a single connection without a complition, it wouldn't fail.
 
@@ -599,7 +599,7 @@ def test_search_multiple_paging(topology_st, test_user):
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -625,7 +625,7 @@ def test_search_multiple_paging(topology_st, test_user):
 
 
 @pytest.mark.parametrize("invalid_cookie", [1000, -1])
-def test_search_invalid_cookie(topology_st, test_user, invalid_cookie):
+def test_search_invalid_cookie(topology_st, create_user, invalid_cookie):
     """Verify that using invalid cookie while performing
     search with the simple paged results control throws
     a TypeError exception
@@ -653,7 +653,7 @@ def test_search_invalid_cookie(topology_st, test_user, invalid_cookie):
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -673,7 +673,7 @@ def test_search_invalid_cookie(topology_st, test_user, invalid_cookie):
         del_users(users_list)
 
 
-def test_search_abandon_with_zero_size(topology_st, test_user):
+def test_search_abandon_with_zero_size(topology_st, create_user):
     """Verify that search with simple paged results control
     can be abandon using page_size = 0
 
@@ -697,7 +697,7 @@ def test_search_abandon_with_zero_size(topology_st, test_user):
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -716,7 +716,7 @@ def test_search_abandon_with_zero_size(topology_st, test_user):
         del_users(users_list)
 
 
-def test_search_pagedsizelimit_success(topology_st, test_user):
+def test_search_pagedsizelimit_success(topology_st, create_user):
     """Verify that search with a simple paged results control
     returns all entries it should without errors while
     valid value set to nsslapd-pagedsizelimit.
@@ -746,7 +746,7 @@ def test_search_pagedsizelimit_success(topology_st, test_user):
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -763,7 +763,7 @@ def test_search_pagedsizelimit_success(topology_st, test_user):
 
 @pytest.mark.parametrize('conf_attr,user_attr,expected_rs',
                          (('5', '15', 'PASS'), ('15', '5', ldap.SIZELIMIT_EXCEEDED)))
-def test_search_nspagedsizelimit(topology_st, test_user,
+def test_search_nspagedsizelimit(topology_st, create_user,
                                  conf_attr, user_attr, expected_rs):
     """Verify that nsPagedSizeLimit attribute overrides
     nsslapd-pagedsizelimit while performing search with
@@ -804,11 +804,11 @@ def test_search_nspagedsizelimit(topology_st, test_user,
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     conf_attr_bck = change_conf_attr(topology_st, DN_CONFIG, 'nsslapd-pagedsizelimit', conf_attr)
-    user_attr_bck = change_conf_attr(topology_st, test_user.dn, 'nsPagedSizeLimit', user_attr)
+    user_attr_bck = change_conf_attr(topology_st, create_user.dn, 'nsPagedSizeLimit', user_attr)
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -826,13 +826,13 @@ def test_search_nspagedsizelimit(topology_st, test_user,
     finally:
         del_users(users_list)
         change_conf_attr(topology_st, DN_CONFIG, 'nsslapd-pagedsizelimit', conf_attr_bck)
-        change_conf_attr(topology_st, test_user.dn, 'nsPagedSizeLimit', user_attr_bck)
+        change_conf_attr(topology_st, create_user.dn, 'nsPagedSizeLimit', user_attr_bck)
 
 
 @pytest.mark.parametrize('conf_attr_values,expected_rs',
                          ((('5000', '100', '100'), ldap.ADMINLIMIT_EXCEEDED),
                           (('5000', '120', '122'), 'PASS')))
-def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_rs):
+def test_search_paged_limits(topology_st, create_user, conf_attr_values, expected_rs):
     """Verify that nsslapd-idlistscanlimit and
     nsslapd-lookthroughlimit can limit the administrator
     search abilities.
@@ -879,7 +879,7 @@ def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -904,7 +904,7 @@ def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_
 @pytest.mark.parametrize('conf_attr_values,expected_rs',
                          ((('1000', '100', '100'), ldap.ADMINLIMIT_EXCEEDED),
                           (('1000', '120', '122'), 'PASS')))
-def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expected_rs):
+def test_search_paged_user_limits(topology_st, create_user, conf_attr_values, expected_rs):
     """Verify that nsPagedIDListScanLimit and nsPagedLookthroughLimit
     override nsslapd-idlistscanlimit and nsslapd-lookthroughlimit
     while performing search with the simple paged results control.
@@ -947,12 +947,12 @@ def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expe
     searchreq_attrlist = ['dn', 'sn']
     lookthrough_attr_bck = change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM, 'nsslapd-lookthroughlimit', conf_attr_values[0])
     idlistscan_attr_bck = change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM, 'nsslapd-idlistscanlimit', conf_attr_values[0])
-    user_idlistscan_attr_bck = change_conf_attr(topology_st, test_user.dn, 'nsPagedIDListScanLimit', conf_attr_values[1])
-    user_lookthrough_attr_bck = change_conf_attr(topology_st, test_user.dn, 'nsPagedLookthroughLimit', conf_attr_values[2])
+    user_idlistscan_attr_bck = change_conf_attr(topology_st, create_user.dn, 'nsPagedIDListScanLimit', conf_attr_values[1])
+    user_lookthrough_attr_bck = change_conf_attr(topology_st, create_user.dn, 'nsPagedLookthroughLimit', conf_attr_values[2])
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -970,11 +970,11 @@ def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expe
         del_users(users_list)
         change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM, 'nsslapd-lookthroughlimit', lookthrough_attr_bck)
         change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM, 'nsslapd-idlistscanlimit', idlistscan_attr_bck)
-        change_conf_attr(topology_st, test_user.dn, 'nsPagedIDListScanLimit', user_idlistscan_attr_bck)
-        change_conf_attr(topology_st, test_user.dn, 'nsPagedLookthroughLimit', user_lookthrough_attr_bck)
+        change_conf_attr(topology_st, create_user.dn, 'nsPagedIDListScanLimit', user_idlistscan_attr_bck)
+        change_conf_attr(topology_st, create_user.dn, 'nsPagedLookthroughLimit', user_lookthrough_attr_bck)
 
 
-def test_ger_basic(topology_st, test_user):
+def test_ger_basic(topology_st, create_user):
     """Verify that search with a simple paged results control
     and get effective rights control returns all entries
     it should without errors.
@@ -1011,7 +1011,7 @@ def test_ger_basic(topology_st, test_user):
         del_users(users_list)
 
 
-def test_multi_suffix_search(topology_st, test_user, new_suffixes):
+def test_multi_suffix_search(topology_st, create_user, new_suffixes):
     """Verify that page result search returns empty cookie
     if there is no returned entry.
 
@@ -1069,7 +1069,7 @@ def test_multi_suffix_search(topology_st, test_user, new_suffixes):
 
 
 @pytest.mark.parametrize('conf_attr_value', (None, '-1', '1000'))
-def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value):
+def test_maxsimplepaged_per_conn_success(topology_st, create_user, conf_attr_value):
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: 192e2f25-04ee-4ff9-9340-d875dcbe8011
@@ -1096,7 +1096,7 @@ def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
@@ -1112,7 +1112,7 @@ def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value
 
 
 @pytest.mark.parametrize('conf_attr_value', ('0', '1'))
-def test_maxsimplepaged_per_conn_failure(topology_st, test_user, conf_attr_value):
+def test_maxsimplepaged_per_conn_failure(topology_st, create_user, conf_attr_value):
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: eb609e63-2829-4331-8439-a35f99694efa
@@ -1140,7 +1140,7 @@ def test_maxsimplepaged_per_conn_failure(topology_st, test_user, conf_attr_value
 
     try:
         log.info('Set user bind')
-        conn = test_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')

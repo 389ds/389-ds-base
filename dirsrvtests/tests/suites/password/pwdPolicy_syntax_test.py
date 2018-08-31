@@ -34,7 +34,7 @@ def password_policy(topology_st):
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st):
+def create_user(topology_st):
     """Create the test user."""
 
     topology_st.standalone.add_s(Entry((
@@ -132,7 +132,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     setPolicy(inst, policy_attr, reset_value)
 
 
-def test_basic(topology_st, test_user, password_policy):
+def test_basic(topology_st, create_user, password_policy):
     """Ensure that on a password change, the policy syntax
     is enforced correctly.
 

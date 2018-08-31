@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="function")
-def test_entry(topo_m4, request):
+def create_entry(topo_m4, request):
     """Add test entry to master1"""
 
     log.info('Adding entry {}'.format(TEST_ENTRY_DN))
@@ -79,7 +79,7 @@ def new_suffix(topo_m4, request):
     request.addfinalizer(fin)
 
 
-def test_add_entry(topo_m4, test_entry):
+def test_add_entry(topo_m4, create_entry):
     """Check that entries are replicated after add operation
 
     :id: 024250f1-5f7e-4f3b-a9f5-27741e6fd405
@@ -94,7 +94,7 @@ def test_add_entry(topo_m4, test_entry):
     assert all(entries), "Entry {} wasn't replicated successfully".format(TEST_ENTRY_DN)
 
 
-def test_modify_entry(topo_m4, test_entry):
+def test_modify_entry(topo_m4, create_entry):
     """Check that entries are replicated after modify operation
 
     :id: 36764053-622c-43c2-a132-d7a3ab7d9aaa
@@ -148,7 +148,7 @@ def test_modify_entry(topo_m4, test_entry):
         assert "{}@greenhat.com".format(TEST_ENTRY_NAME) not in u.get_attr_vals_utf8('mail')
 
 
-def test_delete_entry(topo_m4, test_entry):
+def test_delete_entry(topo_m4, create_entry):
     """Check that entry deletion is replicated after delete operation
 
     :id: 18437262-9d6a-4b98-a47a-6182501ab9bc
@@ -169,7 +169,7 @@ def test_delete_entry(topo_m4, test_entry):
 
 
 @pytest.mark.parametrize("delold", [0, 1])
-def test_modrdn_entry(topo_m4, test_entry, delold):
+def test_modrdn_entry(topo_m4, create_entry, delold):
     """Check that entries are replicated after modrdn operation
 
     :id: 02558e6d-a745-45ae-8d88-34fe9b16adc9
@@ -324,7 +324,7 @@ def test_new_suffix(topo_m4, new_suffix):
     repl.remove_master(m1)
     repl.remove_master(m2)
 
-def test_many_attrs(topo_m4, test_entry):
+def test_many_attrs(topo_m4, create_entry):
     """Check a replication with many attributes (add and delete)
 
     :id: d540b358-f67a-43c6-8df5-7c74b3cb7523
@@ -366,7 +366,7 @@ def test_many_attrs(topo_m4, test_entry):
             assert value not in delete_list
 
 
-def test_double_delete(topo_m4, test_entry):
+def test_double_delete(topo_m4, create_entry):
     """Check that double delete of the entry doesn't crash server
 
     :ID: 3496c82d-636a-48c9-973c-2455b12164cc
@@ -392,7 +392,7 @@ def test_double_delete(topo_m4, test_entry):
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
 
 
-def test_password_repl_error(topo_m4, test_entry):
+def test_password_repl_error(topo_m4, create_entry):
     """Check that error about userpassword replication is properly logged
 
     :ID: 714130ff-e4f0-4633-9def-c1f4b24abfef
