@@ -283,6 +283,53 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
     }
 }
 
+/* This routine checks that the entry id of the suffix is
+ * stored in the parentid index
+ * The entry id of the suffix is stored with the equality key 0 (i.e. '=0')
+ * It first checks if the key '=0' exists. If it does not exists or if the first value
+ * stored with that key, does not match the suffix entryid (stored in the suffix entry
+ * from id2entry.db then it updates the value
+ */
+static void
+check_suffix_entryID(Slapi_Backend *be, Slapi_Entry *suffix)
+{
+    u_int32_t entryid;
+    char *entryid_str;
+    struct _back_info_index_key bck_info;
+
+    /* we are using a specific key in parentid to store the suffix entry id: '=0' */
+    bck_info.index = SLAPI_ATTR_PARENTID;
+    bck_info.key = "0";
+
+    /* First try to retrieve from parentid index the suffix entryID */
+    if (slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **) &bck_info)) {
+        slapi_log_err(SLAPI_LOG_REPL, "check_suffix_entryID", "Total update: fail to retrieve suffix entryID. Let's try to write it\n");
+    }
+
+    /* Second retrieve the suffix entryid from the suffix entry itself */
+    entryid_str = slapi_entry_attr_get_charptr(suffix, "entryid");
+    if (entryid_str == NULL) {
+        char *dn;
+        dn = slapi_entry_get_ndn(suffix);
+        slapi_log_err(SLAPI_LOG_ERR, "check_suffix_entryID", "Unable to retrieve entryid of the suffix entry %s\n", dn ? dn : "<unknown>");
+        slapi_ch_free_string(&entryid_str);
+        return;
+    }
+    entryid = (u_int32_t) atoi(entryid_str);
+    slapi_ch_free_string(&entryid_str);
+
+    if (!bck_info.key_found || bck_info.id != entryid) {
+        /* The suffix entryid is not present in parentid index
+         *  or differs from what is in id2entry (entry 'suffix')
+         * So write it to the parentid so that the range index used
+         * during total init will know the entryid of the suffix
+         */
+        bck_info.id = entryid;
+        if (slapi_back_set_info(be, BACK_INFO_INDEX_KEY, (void **) &bck_info)) {
+            slapi_log_err(SLAPI_LOG_ERR, "check_suffix_entryID", "Total update: fail to register suffix entryid, continue assuming suffix is the first entry\n");
+        }
+    }
+}
 
 /*
  * Completely refresh a replica. The basic protocol interaction goes
@@ -467,6 +514,7 @@ retry:
         replica_subentry_check(area_sdn, rid);
 
         /* Send the subtree of the suffix in the order of parentid index plus ldapsubentry and nstombstone. */
+        check_suffix_entryID(be, suffix);
         slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
                                      LDAP_SCOPE_SUBTREE, "(parentid>=1)", NULL, 0, ctrls, NULL,
                                      repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), OP_FLAG_BULK_IMPORT);

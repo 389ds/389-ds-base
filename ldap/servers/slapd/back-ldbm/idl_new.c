@@ -320,6 +320,9 @@ typedef struct _range_id_pair
  * In the total update (bulk import), an entry requires its ancestors already added.
  * To guarantee it, the range search with parentid is used with setting the flag
  * SLAPI_OP_RANGE_NO_IDL_SORT in operator.
+ * In bulk import the range search is parentid>=1 to retrieve all the entries
+ * But we need to order the IDL with the parents first => retrieve the suffix entry ID
+ * to store the children
  *
  * If the flag is set,
  * 1. the IDList is not sorted by the ID.
@@ -365,6 +368,23 @@ idl_new_range_fetch(
 
     if (NULL == flag_err) {
         return NULL;
+    }
+    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+            struct _back_info_index_key bck_info;
+            int rc;
+            /* We are doing a bulk import
+             * try to retrieve the suffix entry id from the index
+             */
+
+            bck_info.index = SLAPI_ATTR_PARENTID;
+            bck_info.key = "0";
+
+            if (rc = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info)) {
+                slapi_log_err(SLAPI_LOG_WARNING, "idl_new_range_fetch", "Total update: fail to retrieve suffix entryID, continue assuming it is the first entry\n");
+            }
+            if (bck_info.key_found) {
+                suffix = bck_info.id;
+            }
     }
 
     if (NEW_IDL_NOOP == *flag_err) {
@@ -455,7 +475,7 @@ idl_new_range_fetch(
             *flag_err = LDAP_TIMELIMIT_EXCEEDED;
             goto error;
         }
-        if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
+        if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
             key = (ID)strtol((char *)cur_key.data + 1, (char **)NULL, 10);
         }
         while (PR_TRUE) {
@@ -487,9 +507,13 @@ idl_new_range_fetch(
             /* note the last id read to check for dups */
             lastid = id;
             /* we got another ID, add it to our IDL */
-            if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
-                if (count == 0) {
-                    /* First time.  Keep the suffix ID. */
+            if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+                if ((count == 0) && (suffix == 0)) {
+                    /* First time.  Keep the suffix ID. 
+                     * note that 'suffix==0' mean we did not retrieve the suffix entry id
+                     * from the parentid index (key '=0'), so let assume the first
+                     * found entry is the one from the suffix
+                     */
                     suffix = key;
                     idl_rc = idl_append_extend(&idl, id);
                 } else if ((key == suffix) || idl_id_is_in_idlist(idl, key)) {
@@ -615,9 +639,11 @@ error:
     }
     if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
         size_t remaining = leftovercnt;
+
         while(remaining > 0) {
             for (size_t i = 0; i < leftovercnt; i++) {
                 if (leftover[i].key > 0 && idl_id_is_in_idlist(idl, leftover[i].key) != 0) {
+                    /* if the leftover key has its parent in the idl */
                     idl_rc = idl_append_extend(&idl, leftover[i].id);
                     if (idl_rc) {
                         slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
