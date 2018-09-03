@@ -7295,6 +7295,10 @@ ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
         *(int *)info = entryrdn_get_switch();
         break;
     }
+    case BACK_INFO_INDEX_KEY : {
+        rc = get_suffix_key(be, (struct _back_info_index_key *)info);
+        break;
+    }
     default:
         break;
     }
@@ -7311,6 +7315,10 @@ ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info)
     }
 
     switch (cmd) {
+    case BACK_INFO_INDEX_KEY : {
+        rc = set_suffix_key(be, (struct _back_info_index_key *)info);
+        break;
+    }
     default:
         break;
     }

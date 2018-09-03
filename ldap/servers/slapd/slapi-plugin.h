@@ -7763,9 +7763,17 @@ enum
     BACK_INFO_CRYPT_DECRYPT_VALUE, /* Ctrl: clcrypt_decrypt_value */
     BACK_INFO_DIRECTORY,           /* Get the directory path */
     BACK_INFO_LOG_DIRECTORY,       /* Get the txn log directory */
-    BACK_INFO_IS_ENTRYRDN          /* Get the flag for entryrdn */
+    BACK_INFO_IS_ENTRYRDN,         /* Get the flag for entryrdn */
+    BACK_INFO_INDEX_KEY            /* Get the status of a key in an index */
 };
 
+struct _back_info_index_key
+{
+    char *index;              /* input: name of the index (parentid) */
+    char *key;                /* input: searched key (0) with equality -> '=0' */
+    PRBool key_found;         /* output: TRUE if '=0' is found in the index */
+    u_int32_t id;             /* output: if key_found it is the first value (suffix entryID) */
+};
 struct _back_info_crypt_init
 {
     char *dn;                  /* input -- entry to store nsSymmetricKey */
