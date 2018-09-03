@@ -1236,6 +1236,120 @@ error:
     return ret;
 }
 
+/* This routine add in a given index (parentid)
+ * the key/value = '=0'/<suffix entryID>
+ * Input: 
+ *      info->key contains the key to lookup (i.e. '0')
+ *      info->index index name used to retrieve syntax and db file
+ *      info->id  the entryID of the suffix
+ */
+int
+set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
+{
+    struct ldbminfo *li;
+    int rc;
+    back_txn txn;
+    Slapi_Value *sv_key[2];
+    Slapi_Value tmpval;
+
+    if (info->index== NULL || info->key == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Invalid index %s or key %s\n",
+                info->index ? info->index : "NULL",
+                info->key ? info->key : "NULL");
+        return -1;
+    }
+    
+    /* Start a txn */
+    li = (struct ldbminfo *)be->be_database->plg_private;
+    dblayer_txn_init(li, &txn);
+    if (rc = dblayer_txn_begin(be, txn.back_txn_txn, &txn)) {
+        slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Fail to update %s index with  %s/%d (key/ID): txn begin fails\n",
+                  info->index, info->key, info->id);
+        return rc;
+    }
+
+    sv_key[0] = &tmpval;
+    sv_key[1] = NULL;
+    slapi_value_init_string(sv_key[0], info->key);
+
+    if (rc = index_addordel_values_sv(be, info->index, sv_key, NULL, info->id, BE_INDEX_ADD, &txn)) {
+        value_done(sv_key[0]);
+        dblayer_txn_abort(be, &txn);
+        slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Fail to update %s index with  %s/%d (key/ID): index_addordel_values_sv fails\n",
+                  info->index, info->key, info->id);
+        return rc;
+    }
+
+    value_done(sv_key[0]);
+    if (rc = dblayer_txn_commit(be, &txn)) {
+        slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Fail to update %s index with  %s/%d (key/ID): commit fails\n",
+                  info->index, info->key, info->id);
+        return rc;
+    }
+
+    return 0;
+}
+/* This routine retrieves from a given index (parentid)
+ * the key/value = '=0'/<suffix entryID>
+ * Input: 
+ *      info->key contains the key to lookup (i.e. '0')
+ *      info->index index name used to retrieve syntax and db file
+ * Output
+ *      info->id It returns the first id that is found for the key.
+ *               If the key is not found, or there is no value for the key
+ *               it contains '0'
+ *      info->key_found  Boolean that says if the key leads to a valid ID in info->id
+ */
+int
+get_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
+{
+    struct berval bv;
+    int err;
+    IDList *idl = NULL;
+    ID id;
+    int rc = 0;
+
+    if (info->index== NULL || info->key == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "get_suffix_key", "Invalid index %s or key %s\n",
+                info->index ? info->index : "NULL",
+                info->key ? info->key : "NULL");
+        return -1;
+    }
+
+    /* This is the key to retrieve */
+    bv.bv_val = info->key;
+    bv.bv_len = strlen(bv.bv_val);
+
+    /* Assuming we are not going to find the key*/
+    info->key_found = PR_FALSE;
+    id = 0;
+    idl = index_read(be, info->index, indextype_EQUALITY, &bv, NULL, &err);
+
+    if (idl == NULL) {
+        if (err != 0 && err != DB_NOTFOUND) {
+            slapi_log_err(SLAPI_LOG_ERR, "get_suffix_key", "Fail to read key %s (err=%d)\n",
+                    info->key ? info->key : "NULL",
+                    err);
+            rc = err;
+        }
+    } else {
+        /* info->key was found */
+        id = idl_firstid(idl);
+        if (id != NOID) {
+            info->key_found = PR_TRUE;
+        } else {
+            /* there is no ID in that key, make it as it was not found */
+            id = 0;
+        }
+        idl_free(&idl);
+    }
+
+    /* now set the returned id */
+    info->id = id;
+
+    return rc;
+}
+
 IDList *
 index_range_read_ext(
     Slapi_PBlock *pb,
