@@ -178,7 +178,7 @@ class PwPolicyManager(object):
         # that has the pwdpolicysubentry value pointing to the above (nsPwPolicyEntry) entry
         cos_templates = CosTemplates(self._instance, pwp_container.dn)
         cos_template = cos_templates.create(properties={'cosPriority': '1',
-                                                        'pwpolicysubentry': pwp_entry.dn,
+                                                        'pwdpolicysubentry': pwp_entry.dn,
                                                         'cn': 'cn=nsPwTemplateEntry,%s' % dn})
 
         # The CoS specification entry at the subtree level
