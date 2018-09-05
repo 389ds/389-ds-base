@@ -2231,11 +2231,11 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     if (logging_hr_timestamps_enabled == 1) {
         struct timespec tsnow;
         if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to determine system time for message :: %s", msg);
+            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to determine system time for message :: %s\n", msg);
             return;
         }
         if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
+            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s\n", msg);
             return;
         }
     } else {
@@ -2243,14 +2243,14 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
         time_t tnl;
         tnl = slapi_current_utc_time();
         if (format_localTime_log(tnl, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
+            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s\n", msg);
             return;
         }
 #ifdef HAVE_CLOCK_GETTIME
     }
 #endif
 
-    PR_snprintf(buffer, sizeof(buffer), "%s - EMERG - %s", tbuf, msg);
+    PR_snprintf(buffer, sizeof(buffer), "%s - EMERG - %s\n", tbuf, msg);
     size = strlen(buffer);
 
     if (!locked) {
@@ -2531,7 +2531,7 @@ vslapd_log_access(char *fmt, va_list ap)
 
     if (SLAPI_LOG_BUFSIZ - blen < vlen) {
         /* We won't be able to fit the message in! Uh-oh! */
-        /* Should we actually just do the snprintf, and warn that message was trunced? */
+        /* Should we actually just do the snprintf, and warn that message was truncated? */
         log__error_emergency("Insufficent buffer capacity to fit timestamp and message!", 1, 0);
         return -1;
     }
@@ -4447,6 +4447,13 @@ log__error_emergency(const char *errstr, int reopen, int locked)
     if (!reopen) {
         return;
     }
+    if (!locked) {
+        /*
+         * Take the lock because we are closing and reopening the error log (fd),
+         * and we don't want any other threads trying to use this fd
+         */
+        LOG_ERROR_LOCK_WRITE();
+    }
     if (NULL != loginfo.log_error_fdes) {
         LOG_CLOSE(loginfo.log_error_fdes);
     }
@@ -4455,7 +4462,10 @@ log__error_emergency(const char *errstr, int reopen, int locked)
         PRErrorCode prerr = PR_GetError();
         syslog(LOG_ERR, "Failed to reopen errors log file, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", prerr, slapd_pr_strerror(prerr));
     } else {
-        vslapd_log_emergency_error(loginfo.log_error_fdes, errstr, locked);
+        vslapd_log_emergency_error(loginfo.log_error_fdes, errstr, 1 /* locked */);
+    }
+    if (!locked) {
+        LOG_ERROR_UNLOCK_WRITE();
     }
     return;
 }
