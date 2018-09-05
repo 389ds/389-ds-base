@@ -84,7 +84,10 @@ def user_aci(topology_st):
     under whole suffix
     """
 
-    ACI_BODY = ensure_bytes('(targetattr= "objectClass || cn || sn || mail || uid || uidNumber || gidNumber || homeDirectory || creatorsName || createTimestamp || modifyTimestamp || nsUniqueId || parentid || entryid || entrydn || ou || numSubordinates")(version 3.0; acl "Allow read for user"; allow (read,search,compare) userdn = "ldap:///%s";)' % TEST_USER_DN)
+    ACI_TARGET = '(targetattr= "modifiersName")'
+    ACI_RULE = ('(version 3.0; acl "Deny modifiersName for user"; deny (read)'
+                ' userdn = "ldap:///%s";)' % TEST_USER_DN)
+    ACI_BODY = ensure_bytes(ACI_TARGET + ACI_RULE)
     topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', ACI_BODY)])
 
 
@@ -142,24 +145,20 @@ def test_search_basic(topology_st, create_user, user_aci, add_attr,
         topology_st.standalone.simple_bind_s(DN_DM, ensure_bytes(PASSWORD))
 
     search_filter = ['+']
+    expected_attrs = oper_attr_list
     if add_attr:
         search_filter.append(add_attr)
-        expected_attrs = sorted(oper_attr_list + ['objectClass'])
-    else:
-        expected_attrs = sorted(oper_attr_list)
+        expected_attrs += ['objectClass']
 
     entries = topology_st.standalone.search_s(search_suffix, ldap.SCOPE_BASE,
                                               '(objectclass=*)',
                                               search_filter)
-    found_attrs = sorted(entries[0].data.keys())
+    found_attrs = entries[0].data.keys()
 
     if add_attr == '*':
-        # Check that found attrs contain both operational
-        # and non-operational attributes
-        assert all(attr in found_attrs
-                   for attr in ['objectClass', expected_attrs[0]])
+        assert set(expected_attrs) - set(found_attrs) == set()
     else:
-        assert set(expected_attrs).issubset(set(found_attrs))
+        assert set(expected_attrs) == set(found_attrs)
 
 
 if __name__ == '__main__':
