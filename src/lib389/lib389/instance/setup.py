@@ -226,6 +226,7 @@ class SetupDs(object):
                  'sysconf_dir': ds_paths.sysconf_dir,
                  'data_dir': ds_paths.data_dir,
                  'local_state_dir': ds_paths.local_state_dir,
+                 'ldapi' : ds_paths.ldapi,
                  'lib_dir': ds_paths.lib_dir,
                  'run_dir': ds_paths.run_dir,
                  'tmp_dir': ds_paths.tmp_dir,
@@ -781,7 +782,7 @@ class SetupDs(object):
             ds_instance.backends.create(properties=backend)
 
         # Initialise ldapi socket information. IPA expects this ....
-        ldapi_path = slapd['run_dir'].replace('dirsrv', 'slapd-' + slapd['instance_name'] + '.socket')
+        ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])
         ds_instance.config.set('nsslapd-ldapifilepath', ldapi_path)
         ds_instance.config.set('nsslapd-ldapilisten', 'on')
         ds_instance.config.set('nsslapd-ldapiautobind', 'on')
