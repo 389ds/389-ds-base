@@ -10,276 +10,95 @@
  *   Thread Local Storage Functions
  */
 #include "slap.h"
-#include <prthread.h>
-
-void td_dn_destructor(void *priv);
+#include <pthread.h>
 
 /*
  * Thread Local Storage Indexes
  */
-static PRUintn td_requestor_dn; /* TD_REQUESTOR_DN */
-static PRUintn td_plugin_list;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
-static PRUintn td_conn_id;
-static PRUintn td_op_id;
-static PRUintn td_op_internal_id;
-static PRUintn td_op_internal_nested_state;
-static PRUintn td_op_internal_nested_count;
-
-/* defines for internal logging */
-#define NOTNESTED 0
-#define NESTED 1
-#define UNNESTED 2
+static pthread_key_t td_requestor_dn; /* TD_REQUESTOR_DN */
+static pthread_key_t td_plugin_list;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
+static pthread_key_t td_op_state;
 
 /*
- *   Index types defined in slapi-plugin.h
- *
- *   #define  SLAPI_TD_REQUESTOR_DN   1
- *   ...
- *   ...
+ *   Destructor Functions
  */
 
+static void
+td_dn_destructor(void *priv)
+{
+    slapi_ch_free((void **)&priv);
+}
 
-/*
- *  The Process:
- *
- *   [1]  Create new index type macro in slapi-plugin.h
- *   [2]  Create new static "PRUintn" index
- *   [3]  Update these functions with the new index:
- *          slapi_td_init()
- *          slapi_td_set_val()
- *          slapi_td_get_val()
- *   [4]  Create wrapper functions if so desired, and update slapi_plugin.h
- *   [5]  Create destructor (if necessary)
- */
+static void
+td_op_state_destroy(void *priv) {
+    slapi_ch_free((void **)&priv);
+}
 
-int
+int32_t
 slapi_td_init(void)
 {
-    if (PR_NewThreadPrivateIndex(&td_requestor_dn, td_dn_destructor) == PR_FAILURE) {
+    if (pthread_key_create(&td_requestor_dn, td_dn_destructor) != 0) {
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_requestor_dn/td_dn_destructor\n");
         return PR_FAILURE;
     }
 
-    if (PR_NewThreadPrivateIndex(&td_plugin_list, NULL) == PR_FAILURE) {
+    if (pthread_key_create(&td_plugin_list, NULL) != 0) {
         slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_plugin_list\n");
         return PR_FAILURE;
     }
 
-    if(PR_NewThreadPrivateIndex(&td_conn_id, NULL) == PR_FAILURE){
-        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_conn_id\n");
-        return PR_FAILURE;
-    }
-
-    if(PR_NewThreadPrivateIndex(&td_op_id, NULL) == PR_FAILURE){
-        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_id\n");
-        return PR_FAILURE;
-    }
-
-    if(PR_NewThreadPrivateIndex(&td_op_internal_id, NULL) == PR_FAILURE){
-        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_internal_id\n");
-        return PR_FAILURE;
-    }
-
-    if(PR_NewThreadPrivateIndex(&td_op_internal_nested_count, NULL) == PR_FAILURE){
-        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_internal_nested_count\n");
-        return PR_FAILURE;
-    }
-
-
-    if(PR_NewThreadPrivateIndex(&td_op_internal_nested_state, NULL) == PR_FAILURE){
-        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_internal_nested_state\n");
+    if(pthread_key_create(&td_op_state, td_op_state_destroy) != 0){
+        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_op_state\n");
         return PR_FAILURE;
     }
 
     return PR_SUCCESS;
 }
 
-
-
-/*
- *  Caller needs to cast value to (void *)
- */
-int
-slapi_td_set_val(int indexType, void *value)
-{
-    switch (indexType) {
-    case SLAPI_TD_REQUESTOR_DN:
-        if (td_requestor_dn) {
-            if (PR_SetThreadPrivate(td_requestor_dn, value) == PR_FAILURE) {
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    case SLAPI_TD_PLUGIN_LIST_LOCK:
-        if (td_plugin_list) {
-            if (PR_SetThreadPrivate(td_plugin_list, value) == PR_FAILURE) {
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    case SLAPI_TD_CONN_ID:
-        if(td_conn_id){
-            if(PR_SetThreadPrivate(td_conn_id, value) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    case SLAPI_TD_OP_ID:
-        if(td_op_id){
-            if(PR_SetThreadPrivate(td_op_id, value) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    case SLAPI_TD_OP_INTERNAL_ID:
-        if(td_op_internal_id){
-            if(PR_SetThreadPrivate(td_op_internal_id, value) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    case SLAPI_TD_OP_NESTED_COUNT:
-        if(td_op_internal_nested_count){
-            if(PR_SetThreadPrivate(td_op_internal_nested_count, value) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    case SLAPI_TD_OP_NESTED_STATE:
-        if(td_op_internal_nested_state){
-            if(PR_SetThreadPrivate(td_op_internal_nested_state, value) == PR_FAILURE){
-                return PR_FAILURE;
-            }
-        } else {
-            return PR_FAILURE;
-        }
-        break;
-    default:
-        return PR_FAILURE;
-    }
-
-    return PR_SUCCESS;
-}
-
-/*
- *  Caller needs to cast value to (void **)
- */
-void
-slapi_td_get_val(int indexType, void **value)
-{
-    switch (indexType) {
-    case SLAPI_TD_REQUESTOR_DN:
-        if (td_requestor_dn) {
-            *value = PR_GetThreadPrivate(td_requestor_dn);
-        } else {
-            *value = NULL;
-        }
-        break;
-    case SLAPI_TD_PLUGIN_LIST_LOCK:
-        if (td_plugin_list) {
-            *value = PR_GetThreadPrivate(td_plugin_list);
-        } else {
-            *value = 0;
-        }
-        break;
-    case SLAPI_TD_CONN_ID:
-        if(td_conn_id){
-            *value = PR_GetThreadPrivate(td_conn_id);
-        } else {
-            *value = 0;
-        }
-        break;
-    case SLAPI_TD_OP_ID:
-        if(td_op_id){
-            *value = PR_GetThreadPrivate(td_op_id);
-        } else {
-            *value = 0;
-        }
-        break;
-    case SLAPI_TD_OP_INTERNAL_ID:
-        if(td_op_internal_id){
-            *value = PR_GetThreadPrivate(td_op_internal_id);
-        } else {
-            *value = 0;
-        }
-        break;
-    case SLAPI_TD_OP_NESTED_COUNT:
-        if(td_op_internal_nested_count){
-            *value = PR_GetThreadPrivate(td_op_internal_nested_count);
-        } else {
-            *value = 0;
-        }
-        break;
-    case SLAPI_TD_OP_NESTED_STATE:
-        if(td_op_internal_nested_state){
-            *value = PR_GetThreadPrivate(td_op_internal_nested_state);
-        } else {
-            *value = 0;
-        }
-        break;
-    default:
-        *value = NULL;
-        return;
-    }
-}
 
 /*
  *  Wrapper Functions
  */
 
 /* plugin list locking */
-int
+int32_t
 slapi_td_set_plugin_locked()
 {
-    int val = 12345;
+    int32_t val = 12345;
 
-    if (slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void *)&val) == PR_FAILURE) {
+    if (pthread_setspecific(td_plugin_list, (void *)&val) != 0) {
         return PR_FAILURE;
     }
 
     return PR_SUCCESS;
 }
 
-int
+int32_t
 slapi_td_set_plugin_unlocked()
 {
-    if (slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, NULL) == PR_FAILURE) {
+    if (pthread_setspecific(td_plugin_list, NULL) != 0) {
         return PR_FAILURE;
     }
 
     return PR_SUCCESS;
 }
 
-int
+int32_t
 slapi_td_get_plugin_locked()
 {
-    int *value = 0;
+    int32_t *value = pthread_getspecific(td_plugin_list);
 
-    slapi_td_get_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void **)&value);
-    if (value) {
-        return 1;
-    } else {
+    if (value == NULL) {
         return 0;
     }
+    return 1;
 }
 
 /* requestor dn */
-int
+int32_t
 slapi_td_set_dn(char *value)
 {
-    if (slapi_td_set_val(SLAPI_TD_REQUESTOR_DN, (void *)value) == PR_FAILURE) {
+    if (pthread_setspecific(td_requestor_dn, value) != 0) {
         return PR_FAILURE;
     }
 
@@ -289,8 +108,17 @@ slapi_td_set_dn(char *value)
 void
 slapi_td_get_dn(char **value)
 {
-    slapi_td_get_val(SLAPI_TD_REQUESTOR_DN, (void **)value);
+    if (value) {
+        *value = pthread_getspecific(td_requestor_dn);
+    }
 }
+
+/* Worker op-state */
+struct slapi_td_log_op_state_t *
+slapi_td_get_log_op_state() {
+    return pthread_getspecific(td_op_state);
+}
+
 
 /*
  * Increment the internal operation count.  Since internal operations
@@ -302,43 +130,41 @@ slapi_td_get_dn(char **value)
 void
 slapi_td_internal_op_start(void)
 {
-    int32_t *id_count_ptr = NULL;
-    int32_t *nested_state_ptr = NULL;
-    int32_t *nested_count_ptr = NULL;
-    uint64_t *connid = NULL;
+    struct slapi_td_log_op_state_t *op_state = pthread_getspecific(td_op_state);
 
-    slapi_td_get_val(SLAPI_TD_CONN_ID, (void **)&connid);
-    if (connid == NULL){
-        /* No connection id, just return */
-        return;
+    /* Allocate if needed */
+    if (op_state == NULL) {
+        op_state = (struct slapi_td_log_op_state_t *)slapi_ch_calloc(1, sizeof(struct slapi_td_log_op_state_t));
+        if (pthread_setspecific(td_op_state, op_state) != 0) {
+            slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_internal_op_start",
+                          "Failed to set op_state to td_op_state. OOM?\n");
+            return;
+        }
     }
 
     /* increment the internal op id counter */
-    slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&id_count_ptr);
-    (*id_count_ptr)++;
+    op_state->op_int_id += 1;
 
     /*
      * Bump the nested count so we can maintain our counts after plugins call
      * plugins, etc.
      */
-    slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&nested_count_ptr);
-    (*nested_count_ptr)++;
+    op_state->op_nest_count += 1;
 
     /* Now check for special cases in the nested count */
-    if (*nested_count_ptr == 2){
+    if (op_state->op_nest_count == 2){
         /* We are now nested, mark it as so */
-        slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state_ptr);
-        *nested_state_ptr = NESTED;
-    } else if (*nested_count_ptr == 1) {
+        /* THERE IS A BETTER WAY! We should track parent op structs instead! */
+        op_state->op_nest_state = OP_STATE_NESTED;
+    } else if (op_state->op_nest_count == 1) {
         /*
          * Back to the beginning, but if we were previously nested then the
          * internal op id count is off
          */
-        slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state_ptr);
-        if (*nested_state_ptr == UNNESTED){
+        if (op_state->op_nest_state == OP_STATE_UNNESTED){
             /* We were nested but anymore, need to bump the internal id count again */
-            *nested_state_ptr = NOTNESTED;  /* reset nested state */
-            (*id_count_ptr)++;
+            op_state->op_nest_state = OP_STATE_NOTNESTED; /* reset nested state */
+            op_state->op_int_id += 1;
         }
     }
 }
@@ -352,24 +178,24 @@ slapi_td_internal_op_start(void)
 void
 slapi_td_internal_op_finish(void)
 {
-    int32_t *nested_count_ptr = NULL;
-    int32_t *nested_state_ptr = NULL;
-    int32_t *id_count_ptr = NULL;
-    uint64_t *connid = NULL;
+    struct slapi_td_log_op_state_t *op_state = pthread_getspecific(td_op_state);
 
-    slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&connid);
-    if (connid == NULL){
-        /* No connection id, just return */
-        return;
+    /* Allocate if needed - should be unreachable!*/
+    PR_ASSERT(op_state);
+    if (op_state == NULL) {
+        op_state = (struct slapi_td_log_op_state_t *)slapi_ch_calloc(1, sizeof(struct slapi_td_log_op_state_t));
+        if (pthread_setspecific(td_op_state, op_state) != 0) {
+            slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_internal_op_finish",
+                          "Failed to set op_state to td_op_state. OOM?\n");
+            return;
+        }
     }
 
-    slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&nested_count_ptr);
-    if ( *nested_count_ptr > 1 ){
+    if ( op_state->op_nest_count > 1 ){
         /* Nested op just finished, decr op id */
-        slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&id_count_ptr);
-        (*id_count_ptr)--;
+        op_state->op_int_id -= 1;
 
-        if ( (*nested_count_ptr - 1) == 1 ){
+        if ( (op_state->op_nest_count - 1) == 1 ){
             /*
              * Okay we are back to the beginning, We were nested but not
              * anymore.  So when we start the next internal op on this
@@ -377,81 +203,30 @@ slapi_td_internal_op_finish(void)
              * maintain the correct op id sequence.  Set the nested state
              * to "unnested".
              */
-            slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state_ptr);
-            *nested_state_ptr = UNNESTED;
+            op_state->op_nest_state = OP_STATE_UNNESTED;
         }
     }
     /* decrement nested count */
-    (*nested_count_ptr)--;
-}
-
-void
-slapi_td_init_internal_logging(void)
-{
-    uint64_t *conn_id = (uint64_t *)slapi_ch_calloc(1, sizeof(uint64_t));
-    int32_t *op_id = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
-    int32_t *internal_op_id = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
-    int32_t *nested_count = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
-    int32_t *nested_state = (int32_t *)slapi_ch_calloc(1, sizeof(int32_t));
-
-    slapi_td_set_val(SLAPI_TD_CONN_ID, (void *)conn_id);
-    slapi_td_set_val(SLAPI_TD_OP_ID, (void *)op_id);
-    slapi_td_set_val(SLAPI_TD_OP_INTERNAL_ID, (void *)internal_op_id);
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_COUNT, (void *)nested_count);
-    slapi_td_set_val(SLAPI_TD_OP_NESTED_STATE, (void *)nested_state);
+    op_state->op_nest_count -= 1;
 }
 
 void
 slapi_td_reset_internal_logging(uint64_t new_conn_id, int32_t new_op_id)
 {
-    uint64_t *conn_id;
-    int32_t *op_id;
-    int32_t *internal_op_id;
-    int32_t *nested_count;
-    int32_t *nested_state;
+    struct slapi_td_log_op_state_t *op_state = pthread_getspecific(td_op_state);
 
-    slapi_td_get_val(SLAPI_TD_CONN_ID, (void **)&conn_id);
-    slapi_td_get_val(SLAPI_TD_OP_ID, (void **)&op_id);
-    slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&internal_op_id);
-    slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&nested_count);
-    slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&nested_state);
-
-    *conn_id = new_conn_id;
-    *op_id = new_op_id;
-    *internal_op_id = 0;
-    *nested_count = 0;
-    *nested_state = 0;
+    /* Allocate if needed */
+    if (op_state == NULL) {
+        op_state = (struct slapi_td_log_op_state_t *)slapi_ch_calloc(1, sizeof(struct slapi_td_log_op_state_t));
+        if (pthread_setspecific(td_op_state, op_state) != 0) {
+            slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_internal_op_finish",
+                          "Failed to set op_state to td_op_state. OOM?\n");
+            return;
+        }
+    }
+    op_state->conn_id = new_conn_id;
+    op_state->op_id = new_op_id;
+    op_state->op_int_id = 0;
+    op_state->op_nest_count = 0;
+    op_state->op_nest_state = OP_STATE_NOTNESTED;
 }
-
-void
-slapi_td_free_internal_logging(void)
-{
-    uint64_t *conn_id = NULL;
-    int32_t *val = NULL;
-
-    slapi_td_get_val(SLAPI_TD_CONN_ID, (void **)&conn_id);
-    slapi_ch_free((void **)&conn_id);
-
-    slapi_td_get_val(SLAPI_TD_OP_ID, (void **)&val);
-    slapi_ch_free((void **)&val);
-
-    slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID, (void **)&val);
-    slapi_ch_free((void **)&val);
-
-    slapi_td_get_val(SLAPI_TD_OP_NESTED_COUNT, (void **)&val);
-    slapi_ch_free((void **)&val);
-
-    slapi_td_get_val(SLAPI_TD_OP_NESTED_STATE, (void **)&val);
-    slapi_ch_free((void **)&val);
-}
-
-/*
- *   Destructor Functions
- */
-
-void
-td_dn_destructor(void *priv)
-{
-    slapi_ch_free((void **)&priv);
-}
-

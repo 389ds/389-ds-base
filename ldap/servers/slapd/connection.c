@@ -1514,8 +1514,6 @@ connection_threadmain()
     SIGNAL(SIGPIPE, SIG_IGN);
 #endif
 
-    slapi_td_init_internal_logging();
-
     while (1) {
         int is_timedout = 0;
         time_t curtime = 0;
@@ -1525,7 +1523,6 @@ connection_threadmain()
                           "op_thread received shutdown signal\n");
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
-            slapi_td_free_internal_logging();
             return;
         }
 
@@ -1547,7 +1544,6 @@ connection_threadmain()
                               "op_thread received shutdown signal\n");
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
-                slapi_td_free_internal_logging();
                 return;
             case CONN_FOUND_WORK_TO_DO:
                 /* note - don't need to lock here - connection should only
@@ -1560,7 +1556,6 @@ connection_threadmain()
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
-                    slapi_td_free_internal_logging();
                     return;
                 }
 
@@ -1627,7 +1622,6 @@ connection_threadmain()
             slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
-            slapi_td_free_internal_logging();
             return;
         }
         maxthreads = config_get_maxthreadsperconn();
@@ -1806,7 +1800,6 @@ connection_threadmain()
             PR_ExitMonitor(conn->c_mutex);
             signal_listner();
             slapi_pblock_destroy(pb);
-            slapi_td_free_internal_logging();
             return;
         }
         /*
@@ -1896,7 +1889,6 @@ connection_threadmain()
             PR_ExitMonitor(conn->c_mutex);
         }
     } /* while (1) */
-    slapi_td_free_internal_logging();
 }
 
 /* thread need to hold conn->c_mutex before calling this function */

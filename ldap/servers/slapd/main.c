@@ -925,6 +925,17 @@ main(int argc, char **argv)
     }
 
     /*
+     * init the thread data indexes. Nothing should be creating their
+     * own thread data, and should be using this function instead
+     * as we may swap to context based storage in the future rather
+     * than direct thread-local accesses (especially important with
+     * consideration of rust etc)
+     *
+     * DOES THIS NEED TO BE BEFORE OR AFTER NS?
+     */
+    slapi_td_init();
+
+    /*
      * Create our thread pool here for tasks to utilise.
      */
     main_create_ns(&tp);
@@ -1112,10 +1123,6 @@ main(int argc, char **argv)
          */
         task_cleanup();
 
-        /* init the thread data indexes - need to initialize internal logging TD here for bootstrap startup */
-        slapi_td_init();
-        slapi_td_init_internal_logging();
-
         /*
          * Initialize password storage in entry extension.
          * Need to be initialized before plugin_startall in case stucked
@@ -1194,7 +1201,6 @@ main(int argc, char **argv)
     vattr_cleanup();
     sasl_map_done();
 cleanup:
-    slapi_td_free_internal_logging();
     compute_terminate();
     SSL_ShutdownServerSessionIDCache();
     SSL_ClearSessionCache();

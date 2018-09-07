@@ -1172,30 +1172,35 @@ int slapd_nss_is_initialized(void);
 char *slapd_get_tmp_dir(void);
 
 /* thread-data.c */
+/* defines for internal logging */
+typedef enum _slapi_op_nest_state {
+    OP_STATE_NOTNESTED = 0,
+    OP_STATE_NESTED = 1,
+    OP_STATE_UNNESTED = 2,
+} slapi_log_nest_state;
+
+
+struct slapi_td_log_op_state_t {
+    int32_t op_id;
+    int32_t op_int_id;
+    int32_t op_nest_count;
+    slapi_log_nest_state op_nest_state;
+    int64_t conn_id;
+};
+
 int slapi_td_init(void);
-int slapi_td_set_val(int indexType, void *value);
-void slapi_td_get_val(int indexType, void **value);
-int slapi_td_dn_init(void);
 int slapi_td_set_dn(char *dn);
 void slapi_td_get_dn(char **dn);
 int slapi_td_plugin_lock_init(void);
 int slapi_td_get_plugin_locked(void);
 int slapi_td_set_plugin_locked(void);
 int slapi_td_set_plugin_unlocked(void);
+struct slapi_td_log_op_state_t * slapi_td_get_log_op_state(void);
 void slapi_td_internal_op_start(void);
 void slapi_td_internal_op_finish(void);
-void slapi_td_init_internal_logging(void);
 void slapi_td_reset_internal_logging(uint64_t conn_id, int32_t op_id);
-void slapi_td_free_internal_logging(void);
 
 /*  Thread Local Storage Index Types - thread_data.c */
-#define SLAPI_TD_REQUESTOR_DN 1
-#define SLAPI_TD_PLUGIN_LIST_LOCK 2
-#define SLAPI_TD_CONN_ID 3
-#define SLAPI_TD_OP_ID 4
-#define SLAPI_TD_OP_INTERNAL_ID 5
-#define SLAPI_TD_OP_NESTED_COUNT 6
-#define SLAPI_TD_OP_NESTED_STATE 7
 
 /* util.c */
 #include <stdio.h> /* GGOODREPL - For BUFSIZ, below, gak */

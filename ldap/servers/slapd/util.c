@@ -1591,31 +1591,16 @@ slapi_create_errormsg(
 }
 
 void
-get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id)
-{
-    uint64_t default_id = 0;
-    uint64_t *td_conn;
+get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id) {
+    struct slapi_td_log_op_state_t *op_state = slapi_td_get_log_op_state();
 
-    slapi_td_get_val(SLAPI_TD_CONN_ID,(void **)&td_conn);
-    if (td_conn) {
-        int32_t *td_op;
-        int32_t *td_internal_op;
-        *connid = *td_conn;
-        slapi_td_get_val(SLAPI_TD_OP_ID,(void **)&td_op);
-        if (td_op) {
-            *op_id = *td_op;
-        } else {
-            *op_id = default_id;
-        }
-        slapi_td_get_val(SLAPI_TD_OP_INTERNAL_ID,(void **)&td_internal_op);
-        if (td_internal_op){
-            *op_internal_id = *td_internal_op;
-        } else {
-            *op_internal_id = default_id;
-        }
+    if (op_state != NULL) {
+        *connid = op_state->conn_id;
+        *op_id = op_state->op_id;
+        *op_internal_id = op_state->op_int_id;
     } else {
-        *connid = default_id;
-        *op_id = default_id;
-        *op_internal_id = default_id;
+        *connid = 0;
+        *op_id = 0;
+        *op_internal_id = 0;
     }
 }
