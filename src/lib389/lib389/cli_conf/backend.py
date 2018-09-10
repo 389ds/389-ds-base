@@ -163,12 +163,12 @@ def create_parser(subparsers):
                                help="Specifies the filename of the input LDIF files."
                                     "When multiple files are imported, they are imported in the order"
                                     "they are specified on the command line.")
-    import_parser.add_argument('-c', '--chunks_size', type=int,
+    import_parser.add_argument('-c', '--chunks-size', type=int,
                                help="The number of chunks to have during the import operation.")
     import_parser.add_argument('-E', '--encrypted', action='store_true',
                                help="Decrypts encrypted data during export. This option is used only"
                                     "if database encryption is enabled.")
-    import_parser.add_argument('-g', '--gen_uniq_id',
+    import_parser.add_argument('-g', '--gen-uniq-id',
                                help="Generate a unique id. Type none for no unique ID to be generated"
                                     "and deterministic for the generated unique ID to be name-based."
                                     "By default, a time-based unique ID is generated."
@@ -176,11 +176,11 @@ def create_parser(subparsers):
                                     "it is also possible to specify the namespace for the server to use."
                                     "namespaceId is a string of characters"
                                     "in the format 00-xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx.")
-    import_parser.add_argument('-O', '--only_core', action='store_true',
+    import_parser.add_argument('-O', '--only-core', action='store_true',
                                help="Requests that only the core database is created without attribute indexes.")
-    import_parser.add_argument('-s', '--include_suffixes', nargs='+',
+    import_parser.add_argument('-s', '--include-suffixes', nargs='+',
                                help="Specifies the suffixes or the subtrees to be included.")
-    import_parser.add_argument('-x', '--exclude_suffixes', nargs='+',
+    import_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
                                help="Specifies the suffixes to be excluded.")
 
     export_parser = subcommands.add_parser('export', help='do an online export of the suffix')
@@ -190,21 +190,21 @@ def create_parser(subparsers):
     export_parser.add_argument('-l', '--ldif',
                                help="Gives the filename of the output LDIF file."
                                     "If more than one are specified, use a space as a separator")
-    export_parser.add_argument('-C', '--use_id2entry', action='store_true', help="Uses only the main database file.")
+    export_parser.add_argument('-C', '--use-id2entry', action='store_true', help="Uses only the main database file.")
     export_parser.add_argument('-E', '--encrypted', action='store_true',
                                help="""Decrypts encrypted data during export. This option is used only
                                        if database encryption is enabled.""")
-    export_parser.add_argument('-m', '--min_base64', action='store_true',
+    export_parser.add_argument('-m', '--min-base64', action='store_true',
                                help="Sets minimal base-64 encoding.")
-    export_parser.add_argument('-N', '--no_seq_num', action='store_true',
+    export_parser.add_argument('-N', '--no-seq-num', action='store_true',
                                help="Enables you to suppress printing the sequence number.")
     export_parser.add_argument('-r', '--replication', action='store_true',
                                help="Exports the information required to initialize a replica when the LDIF is imported")
-    export_parser.add_argument('-u', '--no_dump_uniq_id', action='store_true',
+    export_parser.add_argument('-u', '--no-dump-uniq-id', action='store_true',
                                help="Requests that the unique ID is not exported.")
-    export_parser.add_argument('-U', '--not_folded', action='store_true',
+    export_parser.add_argument('-U', '--not-folded', action='store_true',
                                help="Requests that the output LDIF is not folded.")
-    export_parser.add_argument('-s', '--include_suffixes', nargs='+',
+    export_parser.add_argument('-s', '--include-suffixes', nargs='+',
                                help="Specifies the suffixes or the subtrees to be included.")
-    export_parser.add_argument('-x', '--exclude_suffixes', nargs='+',
+    export_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
                                help="Specifies the suffixes to be excluded.")

@@ -7,7 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-import os
 import decimal
 import time
 import logging
@@ -17,8 +16,6 @@ from itertools import permutations
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import normalizeDN, escapeDNValue, ensure_bytes, ensure_str, ensure_list_str, ds_is_older
-from lib389._replication import RUV
-from lib389.repltools import ReplTools
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
@@ -27,12 +24,9 @@ from lib389.agreement import Agreements
 from lib389.changelog import Changelog5
 
 from lib389.idm.domain import Domain
-
 from lib389.idm.group import Groups
 from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
-
-from lib389.agreement import Agreements
 
 
 class ReplicaLegacy(object):
@@ -883,6 +877,7 @@ class RUV(object):
                 return False
         return True
 
+
 class Replica(DSLdapObject):
     """Replica DSLdapObject with:
     - must attributes = ['cn', 'nsDS5ReplicaType', 'nsDS5ReplicaRoot',
@@ -987,29 +982,38 @@ class Replica(DSLdapObject):
     def _delete_agreements(self):
         """Delete all the agreements for the suffix
 
-        :raises: LDAPError - If failing to delete or search for agreeme        :type binddn: strnts
+        :raises: LDAPError - If failing to delete or search for agreements
         """
         # Get the suffix
         self._populate_suffix()
+
+        # Delete standard agmts
         agmts = self.get_agreements()
         for agmt in agmts.list():
             agmt.delete()
 
-    def promote(self, newrole, binddn=None, rid=None):
+        # Delete winysnc agmts
+        agmts = self.get_agreements(winsync=True)
+        for agmt in agmts.list():
+            agmt.delete()
+
+    def promote(self, newrole, binddn=None, binddn_group=None, rid=None):
         """Promote the replica to hub or master
 
         :param newrole: The new replication role for the replica: MASTER and HUB
         :type newrole: ReplicaRole
         :param binddn: The replication bind dn - only applied to master
         :type binddn: str
+        :param binddn_group: The replication bind dn group - only applied to master
+        :type binddn: str
         :param rid: The replication ID, applies only to promotions to "master"
         :type rid: int
-
         :returns: None
         :raises: ValueError - If replica is not promoted
         """
 
-        if not binddn:
+
+        if binddn is None and binddn_group is None:
             binddn = defaultProperties[REPLICATION_BIND_DN]
 
         # Check the role type
@@ -1025,8 +1029,14 @@ class Replica(DSLdapObject):
             rid = CONSUMER_REPLICAID
 
         # Create the changelog
+        cl = Changelog5(self._instance)
         try:
-            self._instance.changelog.create()
+            cl.create(properties={
+                'cn': 'changelog5',
+                'nsslapd-changelogdir': self._instance.get_changelog_dir()
+            })
+        except ldap.ALREADY_EXISTS:
+            pass
         except ldap.LDAPError as e:
             raise ValueError('Failed to create changelog: %s' % str(e))
 
@@ -1044,7 +1054,10 @@ class Replica(DSLdapObject):
 
         # Set bind dn
         try:
-            self.set(REPL_BINDDN, binddn)
+            if binddn:
+                self.set(REPL_BINDDN, binddn)
+            else:
+                self.set(REPL_BIND_GROUP, binddn_group)
         except ldap.LDAPError as e:
             raise ValueError('Failed to update replica: ' + str(e))
 
@@ -1169,12 +1182,13 @@ class Replica(DSLdapObject):
 
         return True
 
-    def get_agreements(self):
+    def get_agreements(self, winsync=False):
         """Return the set of agreements related to this suffix replica
-
+        :param: winsync: If True then return winsync replication agreements,
+                         otherwise return teh standard replication agreements.
         :returns: Agreements object
         """
-        return Agreements(self._instance, self.dn)
+        return Agreements(self._instance, self.dn, winsync=winsync)
 
     def get_rid(self):
         """Return the current replicas RID for this suffix
@@ -1187,6 +1201,7 @@ class Replica(DSLdapObject):
         """Return the in memory ruv of this replica suffix.
 
         :returns: RUV object
+        :raises: LDAPError
         """
         self._populate_suffix()
 
@@ -1201,10 +1216,28 @@ class Replica(DSLdapObject):
 
         return RUV(data)
 
+    def get_ruv_agmt_maxcsns(self):
+        """Return the in memory ruv of this replica suffix.
+
+        :returns: RUV object
+        :raises: LDAPError
+        """
+        self._populate_suffix()
+
+        ent = self._instance.search_ext_s(
+            base=self._suffix,
+            scope=ldap.SCOPE_SUBTREE,
+            filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
+            attrlist=['nsds5agmtmaxcsn'],
+            serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+
+        return ensure_list_str(ent.getValues('nsds5agmtmaxcsn'))
+
     def begin_task_cl2ldif(self):
         """Begin the changelog to ldif task
         """
         self.replace('nsds5task', 'cl2ldif')
+
 
 class Replicas(DSLdapObjects):
     """Replica DSLdapObjects for all replicas
@@ -1239,6 +1272,7 @@ class Replicas(DSLdapObjects):
             replica._populate_suffix()
         return replica
 
+
 class BootstrapReplicationManager(DSLdapObject):
     """A Replication Manager credential for bootstrapping the repl process.
     This is used by the replication manager object to coordinate the initial
@@ -1255,7 +1289,8 @@ class BootstrapReplicationManager(DSLdapObject):
         self._must_attributes = ['cn', 'userPassword']
         self._create_objectclasses = [
             'top',
-            'netscapeServer'
+            'netscapeServer',
+            'nsAccount'
             ]
         self._protected = False
         self.common_name = 'replication manager'

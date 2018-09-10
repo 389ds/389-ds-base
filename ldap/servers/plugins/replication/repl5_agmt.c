@@ -3029,8 +3029,9 @@ agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn)
                  * temporarily mark it as "unavailable".
                  */
                 slapi_ch_free_string(&agmt->maxcsn);
-                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%" PRId64 ";unavailable", slapi_sdn_get_dn(agmt->replarea),
-                                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname, agmt->port);
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%" PRId64 ";unavailable;%s", slapi_sdn_get_dn(agmt->replarea),
+                                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname,
+                                                 agmt->port, maxcsn);
             } else if (rid == oprid) {
                 slapi_ch_free_string(&agmt->maxcsn);
                 agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%" PRId64 ";%" PRIu16 ";%s", slapi_sdn_get_dn(agmt->replarea),

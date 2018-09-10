@@ -83,6 +83,14 @@ class CSN(object):
                 retstr = "equal"
         return retstr
 
+    def get_time_lag(self, oth):
+        diff = oth.ts - self.ts
+        if diff < 0:
+            lag = datetime.timedelta(seconds=-diff)
+        else:
+            lag = datetime.timedelta(seconds=diff)
+        return "{:0>8}".format(str(lag))
+
     def __repr__(self):
         return ("%s seq: %s rid: %s" % (time.strftime("%x %X", time.localtime(self.ts)),
                                         str(self.seq), str(self.rid)))

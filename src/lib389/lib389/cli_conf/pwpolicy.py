@@ -147,7 +147,7 @@ def list_policies(inst, basedn, log, args):
                 result += "%s (%s)\n" % (entrydn, policy_type.lower())
 
     if args.json:
-        return print(json.dumps(result))
+        print(json.dumps(result))
     else:
         log.info(result)
 

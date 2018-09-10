@@ -80,6 +80,7 @@ from lib389.utils import (
     formatInfData,
     ensure_bytes,
     ensure_str,
+    ensure_list_str,
     format_cmd_list)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
@@ -3286,21 +3287,28 @@ class DirSrv(SimpleLDAPObject, object):
                                    ldif_file, e.errno, e.strerror)
                 raise e
 
-    def getConsumerMaxCSN(self, replica_entry):
+    def getConsumerMaxCSN(self, replica_entry, binddn=None, bindpw=None):
         """
         Attempt to get the consumer's maxcsn from its database
         """
-        host = replica_entry.getValue(AGMT_HOST)
-        port = replica_entry.getValue(AGMT_PORT)
-        suffix = replica_entry.getValue(REPL_ROOT)
+        host = replica_entry.get_attr_val_utf8(AGMT_HOST)
+        port = replica_entry.get_attr_val_utf8(AGMT_PORT)
+        suffix = replica_entry.get_attr_val_utf8(REPL_ROOT)
         error_msg = "Unavailable"
+
+        # If we are using LDAPI we need to provide the credentials, otherwise
+        # use the existing credentials
+        if binddn is None:
+            binddn = self.binddn
+        if bindpw is None:
+            bindpw = self.bindpw
 
         # Open a connection to the consumer
         consumer = DirSrv(verbose=self.verbose)
         args_instance[SER_HOST] = host
         args_instance[SER_PORT] = int(port)
-        args_instance[SER_ROOT_DN] = self.binddn
-        args_instance[SER_ROOT_PW] = self.bindpw
+        args_instance[SER_ROOT_DN] = binddn
+        args_instance[SER_ROOT_PW] = bindpw
         args_standalone = args_instance.copy()
         consumer.allocate(args_standalone)
         try:
@@ -3317,7 +3325,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # Error
                 consumer.close()
                 return None
-            rid = replica_entries[0].getValue(REPL_ID)
+            rid = ensure_str(replica_entries[0].getValue(REPL_ID))
         except:
             # Error
             consumer.close()
@@ -3330,8 +3338,9 @@ class DirSrv(SimpleLDAPObject, object):
             consumer.close()
             if not entry:
                 # Error out?
+                self.log.error("Failed to retrieve database RUV entry from consumer")
                 return error_msg
-            elements = entry[0].getValues('nsds50ruv')
+            elements = ensure_list_str(entry[0].getValues('nsds50ruv'))
             for ruv in elements:
                 if ('replica %s ' % rid) in ruv:
                     ruv_parts = ruv.split()
@@ -3345,16 +3354,17 @@ class DirSrv(SimpleLDAPObject, object):
             consumer.close()
             return error_msg
 
-    def getReplAgmtStatus(self, agmt_entry):
+    def getReplAgmtStatus(self, agmt_entry, binddn=None, bindpw=None):
         '''
         Return the status message, if consumer is not in synch raise an
         exception
         '''
         agmt_maxcsn = None
-        suffix = agmt_entry.getValue(REPL_ROOT)
-        agmt_name = agmt_entry.getValue('cn')
+        suffix = agmt_entry.get_attr_val_utf8(REPL_ROOT)
+        agmt_name = agmt_entry.get_attr_val_utf8('cn')
         status = "Unknown"
         rc = -1
+
         try:
             entry = self.search_s(suffix, ldap.SCOPE_SUBTREE,
                                   REPLICA_RUV_FILTER, [AGMT_MAXCSN])
@@ -3373,7 +3383,8 @@ class DirSrv(SimpleLDAPObject, object):
             dc=example,dc=com;test_agmt;localhost;389;unavailable
 
         '''
-        maxcsns = entry[0].getValues(AGMT_MAXCSN)
+
+        maxcsns = ensure_list_str(entry[0].getValues(AGMT_MAXCSN))
         for csn in maxcsns:
             comps = csn.split(';')
             if agmt_name == comps[1]:
@@ -3384,19 +3395,19 @@ class DirSrv(SimpleLDAPObject, object):
                     agmt_maxcsn = comps[5]
 
         if agmt_maxcsn:
-            con_maxcsn = self.getConsumerMaxCSN(agmt_entry)
+            con_maxcsn = self.getConsumerMaxCSN(agmt_entry, binddn=binddn, bindpw=bindpw)
             if con_maxcsn:
                 if agmt_maxcsn == con_maxcsn:
                     status = "In Synchronization"
                     rc = 0
                 else:
-                    # Not in sync - attmpt to discover the cause
+                    # Not in sync - attempt to discover the cause
                     repl_msg = "Unknown"
-                    if agmt_entry.getValue(AGMT_UPDATE_IN_PROGRESS) == 'TRUE':
+                    if agmt_entry.get_attr_val_utf8(AGMT_UPDATE_IN_PROGRESS) == 'TRUE':
                         # Replication is on going - this is normal
                         repl_msg = "Replication still in progress"
                     elif "Can't Contact LDAP" in \
-                         agmt_entry.getValue(AGMT_UPDATE_STATUS):
+                         agmt_entry.get_attr_val_utf8(AGMT_UPDATE_STATUS):
                         # Consumer is down
                         repl_msg = "Consumer can not be contacted"
 

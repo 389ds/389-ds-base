@@ -16,6 +16,7 @@ from lib389 import DirSrv, Entry, InvalidArgumentError
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import ds_is_older
 
+
 class Changelog5(DSLdapObject):
     """Represents the Directory Server changelog. This is used for
     replication. Only one changelog is needed for every server.
@@ -25,9 +26,9 @@ class Changelog5(DSLdapObject):
     """
 
     def __init__(self, instance, dn='cn=changelog5,cn=config'):
-        super(Changelog5,self).__init__(instance, dn)
+        super(Changelog5, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
-        self._must_attributes = [ 'cn', 'nsslapd-changelogdir' ]
+        self._must_attributes = ['cn', 'nsslapd-changelogdir']
         self._create_objectclasses = [
             'top',
             'nsChangelogConfig',
@@ -37,7 +38,7 @@ class Changelog5(DSLdapObject):
                 'top',
                 'extensibleobject',
             ]
-        self._protected = True
+        self._protected = False
 
     def set_max_entries(self, value):
         """Configure the max entries the changelog can hold.

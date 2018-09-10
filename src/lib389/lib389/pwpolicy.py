@@ -7,14 +7,11 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-import json
-from ldap import modlist
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.config import Config
-from lib389.idm.account import Account, Accounts
+from lib389.idm.account import Account
 from lib389.idm.nscontainer import nsContainers, nsContainer
 from lib389.cos import CosPointerDefinitions, CosPointerDefinition, CosTemplates
-from lib389.utils import ensure_str, ensure_list_str, ensure_bytes
 
 USER_POLICY = 1
 SUBTREE_POLICY = 2
@@ -146,6 +143,9 @@ class PwPolicyManager(object):
         # Add policy to the entry
         user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
 
+        # make sure that local policies are enabled
+        self.set_global_policy({'nsslapd-pwpolicy-local': 'on'})
+
         return pwp_entry
 
     def create_subtree_policy(self, dn, properties):
@@ -186,6 +186,9 @@ class PwPolicyManager(object):
         cos_pointer_defs.create(properties={'cosAttribute': 'pwdpolicysubentry default operational',
                                             'cosTemplateDn': cos_template.dn,
                                             'cn': 'nsPwPolicy_CoS'})
+
+        # make sure that local policies are enabled
+        self.set_global_policy({'nsslapd-pwpolicy-local': 'on'})
 
         return pwp_entry
 

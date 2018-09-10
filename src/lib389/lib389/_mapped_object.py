@@ -169,7 +169,7 @@ class DSLdapObject(DSLogging):
             str_attrs[ensure_str(k)] = ensure_list_str(attrs[k])
 
         # ensure all the keys are lowercase
-        str_attrs = dict((k.lower(), v) for k, v in str_attrs.items())
+        str_attrs = dict((k.lower(), v) for k, v in list(str_attrs.items()))
 
         response = json.dumps({"type": "entry", "dn": ensure_str(self._dn), "attrs": str_attrs})
 
@@ -969,7 +969,7 @@ class DSLdapObjects(DSLogging):
         # This may not work in all cases, especially when we consider plugins.
         #
         co = self._entry_to_instance(dn=None, entry=None)
-        # Make the rdn naming attr avaliable
+        # Make the rdn naming attr available
         self._rdn_attribute = co._rdn_attribute
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
