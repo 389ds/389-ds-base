@@ -74,7 +74,6 @@ static void automember_free_regex_rule(struct automemberRegexRule *rule);
 static int automember_parse_grouping_attr(char *value, char **grouping_attr, char **grouping_value);
 static int automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileDesc *ldif_fd);
 static int automember_add_member_value(Slapi_Entry *member_e, const char *group_dn, char *grouping_attr, char *grouping_value, PRFileDesc *ldif_fd);
-const char *fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val);
 
 /*
  * task functions
@@ -1926,25 +1925,6 @@ typedef struct _task_data
     char *bind_dn;
     int scope;
 } task_data;
-
-/*
- * extract a single value from the entry (as a string) -- if it's not in the
- * entry, the default will be returned (which can be NULL).
- * you do not need to free anything returned by this.
- */
-const char *
-fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
-{
-    Slapi_Value *val = NULL;
-    Slapi_Attr *attr;
-
-    if (slapi_entry_attr_find(e, attrname, &attr) != 0) {
-        return default_val;
-    }
-    slapi_attr_first_value(attr, &val);
-
-    return slapi_value_get_string(val);
-}
 
 static void
 automember_task_destructor(Slapi_Task *task)

@@ -142,7 +142,6 @@ static int memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *con
 static int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_DN *replace_with_sdn, Slapi_DN *op_to_sdn, memberofstringll *stack);
 static int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static void memberof_task_destructor(Slapi_Task *task);
-static const char *fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val);
 static void memberof_fixup_task_thread(void *arg);
 static int memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *td);
 static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
@@ -2869,22 +2868,6 @@ done:
     slapi_task_dec_refcount(task);
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "memberof_fixup_task_thread - refcount decremented.\n");
-}
-
-/* extract a single value from the entry (as a string) -- if it's not in the
- * entry, the default will be returned (which can be NULL).
- * you do not need to free anything returned by this.
- */
-const char *
-fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
-{
-    Slapi_Attr *attr;
-    Slapi_Value *val = NULL;
-
-    if (slapi_entry_attr_find(e, attrname, &attr) != 0)
-        return default_val;
-    slapi_attr_first_value(attr, &val);
-    return slapi_value_get_string(val);
 }
 
 int
