@@ -1579,3 +1579,20 @@ slapi_create_errormsg(
         va_end(ap);
     }
 }
+
+/*
+ * Extract a single value from an entry (as a string) -- if it's not in the
+ * entry, the default will be returned (which can be NULL).  You do not need
+ * to free the returned string value.
+ */
+const char *
+fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
+{
+    Slapi_Attr *attr;
+    Slapi_Value *val = NULL;
+
+    if (slapi_entry_attr_find(e, attrname, &attr) != 0)
+        return default_val;
+    slapi_attr_first_value(attr, &val);
+    return slapi_value_get_string(val);
+}

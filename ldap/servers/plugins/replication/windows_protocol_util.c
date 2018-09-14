@@ -720,39 +720,79 @@ send_password_modify(Slapi_DN *sdn,
     } else {
         Slapi_Attr *attr = NULL;
         int force_reset_pw = 0;
+        int pwd_already_reset = 0;
+        int ds_must_change = config_get_pw_must_change();
+
         /*
-             * If AD entry has password must change flag is set,
-             * we keep the flag (pwdLastSet == 0).
-             * msdn.microsoft.com: Windows Dev Centor - Desktop
-             * To force a user to change their password at next logon,
-             * set the pwdLastSet attribute to zero (0).
-             */
+         * If AD entry has password must change flag is set,
+         * we keep the flag (pwdLastSet == 0).
+         * msdn.microsoft.com: Windows Dev Centor - Desktop
+         * To force a user to change their password at next logon,
+         * set the pwdLastSet attribute to zero (0).
+         */
         if (remote_entry &&
             (0 == slapi_entry_attr_find(remote_entry, "pwdLastSet", &attr)) &&
-            attr) {
+            attr)
+        {
             Slapi_Value *v = NULL;
             int i = 0;
+
             for (i = slapi_attr_first_value(attr, &v);
                  v && (i != -1);
-                 i = slapi_attr_next_value(attr, i, &v)) {
+                 i = slapi_attr_next_value(attr, i, &v))
+            {
                 const char *s = slapi_value_get_string(v);
                 if (NULL == s) {
                     continue;
                 }
                 if (0 == strcmp(s, "0")) {
-                    slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
-                                  "%s: AD entry %s set \"user must change password at next logon\". ",
-                                  agmt_get_long_name(prp->agmt), slapi_entry_get_dn(remote_entry));
                     force_reset_pw = 1;
+                    if (ds_must_change) {
+                        /*
+                         * DS already enforces "password must be changed after reset".
+                         * Do an internal search and check the passwordExpirationtime
+                         * to see if is it actually needs to be reset.  If it doesn't,
+                         * then set pwdLastSet to -1
+                         */
+                        char *expiration_val;
+                        int rc = 0;
+                        Slapi_DN *local_sdn = NULL;
+
+                        rc = map_entry_dn_inbound(remote_entry, &local_sdn, prp->agmt);
+                        if ((0 == rc) && local_sdn) {
+                            Slapi_Entry *local_entry = NULL;
+                            /* Get the local entry if it exists */
+                            rc = windows_get_local_entry(local_sdn, &local_entry);
+                            if ((0 == rc) && local_entry) {
+                                expiration_val = (char *)fetch_attr(local_entry, "passwordExpirationtime", NULL);
+                                if (expiration_val && parse_genTime(expiration_val) != NO_TIME){
+                                    /* The user did reset their password */
+                                    slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
+                                        "send_password_modify - entry (%s) password was reset by user send that info to AD\n",
+                                        slapi_sdn_get_dn(local_sdn));
+                                    pwd_already_reset = 1;
+                                    force_reset_pw = 0;
+                                }
+                                slapi_entry_free(local_entry);
+                            }
+                        }
+                        slapi_sdn_free(&local_sdn);
+                    } else {
+                        slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
+                                      "%s: AD entry %s set \"user must change password at next logon\n",
+                                      agmt_get_long_name(prp->agmt), slapi_entry_get_dn(remote_entry));;
+                    }
                 }
             }
         }
-        /* We will attempt to bind to AD with the new password first. We do
-             * this to avoid playing a password change that originated from AD
-             * back to AD.  If we just played the password change back, then
-             * both sides would be in sync, but AD would contain the new password
-             * twice in it's password history, which undermines the password
-             * history policies in AD. */
+        /*
+         * We will attempt to bind to AD with the new password first. We do
+         * this to avoid playing a password change that originated from AD
+         * back to AD.  If we just played the password change back, then
+         * both sides would be in sync, but AD would contain the new password
+         * twice in it's password history, which undermines the password
+         * history policies in AD.
+         */
         if (windows_check_user_password(prp->conn, sdn, password)) {
             char *quoted_password = NULL;
             /* AD wants the password in quotes ! */
@@ -792,9 +832,18 @@ send_password_modify(Slapi_DN *sdn,
                     pw_mod.mod_bvalues = bvals;
 
                     pw_mods[0] = &pw_mod;
-                    if (force_reset_pw) {
-                        reset_bv.bv_len = 1;
-                        reset_bv.bv_val = "0";
+
+                    if (force_reset_pw || pwd_already_reset) {
+                        if (force_reset_pw) {
+                            reset_bv.bv_val = "0";
+                            reset_bv.bv_len = 1;
+                        } else if (pwd_already_reset) {
+                            /* Password was reset by the user, there is no
+                             * need to make the user change their password
+                             * again in AD so set pwdLastSet to -1 */
+                            reset_bv.bv_val = "-1";
+                            reset_bv.bv_len = 2;
+                        }
                         reset_bvals[0] = &reset_bv;
                         reset_bvals[1] = NULL;
                         reset_pw_mod.mod_type = "pwdLastSet";
@@ -807,7 +856,6 @@ send_password_modify(Slapi_DN *sdn,
                     }
 
                     pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL);
-
                     slapi_ch_free((void **)&unicode_password);
                 }
                 PR_smprintf_free(quoted_password);

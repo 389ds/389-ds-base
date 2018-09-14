@@ -22,7 +22,6 @@ static void linked_attrs_fixup_task_thread(void *arg);
 static void linked_attrs_fixup_links(struct configEntry *config);
 static int linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data);
 static int linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data);
-static const char *fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val);
 
 /*
  * Function Implementations
@@ -458,23 +457,4 @@ done:
     slapi_pblock_destroy(pb);
 
     return rc;
-}
-
-/* extract a single value from the entry (as a string) -- if it's not in the
- * entry, the default will be returned (which can be NULL).
- * you do not need to free anything returned by this.
- */
-static const char *
-fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
-{
-    Slapi_Attr *attr;
-    Slapi_Value *val = NULL;
-
-    if (slapi_entry_attr_find(e, attrname, &attr) != 0) {
-        return default_val;
-    }
-
-    slapi_attr_first_value(attr, &val);
-
-    return slapi_value_get_string(val);
 }

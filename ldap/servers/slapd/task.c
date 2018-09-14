@@ -80,7 +80,6 @@ static void destroy_task(time_t when, void *arg);
 static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static void task_generic_destructor(Slapi_Task *task);
-static const char *fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val);
 static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn);
 static void modify_internal_entry(char *dn, LDAPMod **mods);
 static void fixup_tombstone_task_destructor(Slapi_Task *task);
@@ -682,22 +681,6 @@ destroy_task(time_t when, void *arg)
 
     slapi_ch_free((void **)&task->task_dn);
     slapi_ch_free((void **)&task);
-}
-
-/* extract a single value from the entry (as a string) -- if it's not in the
- * entry, the default will be returned (which can be NULL).
- * you do not need to free anything returned by this.
- */
-static const char *
-fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
-{
-    Slapi_Attr *attr;
-    Slapi_Value *val = NULL;
-
-    if (slapi_entry_attr_find(e, attrname, &attr) != 0)
-        return default_val;
-    slapi_attr_first_value(attr, &val);
-    return slapi_value_get_string(val);
 }
 
 /* supply the pblock, destroy it when you're done */
