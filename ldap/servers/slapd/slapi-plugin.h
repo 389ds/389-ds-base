@@ -8294,6 +8294,8 @@ int32_t slapi_atomic_decr_32(int32_t *ptr, int memorder);
  */
 uint64_t slapi_atomic_decr_64(uint64_t *ptr, int memorder);
 
+/* helper function */
+const char * fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val);
 
 #ifdef __cplusplus
 }
