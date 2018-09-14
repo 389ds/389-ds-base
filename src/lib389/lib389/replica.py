@@ -1292,6 +1292,8 @@ class BootstrapReplicationManager(DSLdapObject):
             'netscapeServer',
             'nsAccount'
             ]
+        if ds_is_older('1.4.0'):
+            self._create_objectclasses.remove('nsAccount')
         self._protected = False
         self.common_name = 'replication manager'
 
