@@ -28,6 +28,32 @@ OBJECT_MODEL_PARAMS = {ObjectClass: {'names': (), 'oid': None, 'desc': None, 'ob
                                        'sup': (), 'equality': None, 'ordering': None, 'substr': None,
                                        'syntax': None, 'syntax_len': None, 'single_value': 0, 'collective': 0,
                                        'no_user_mod': 0, 'usage': 0, 'x_origin': None, 'x_ordered': None}}
+ATTR_SYNTAXES = {"Binary": "1.3.6.1.4.1.1466.115.121.1.5",
+                 "Bit String": "1.3.6.1.4.1.1466.115.121.1.6",
+                 "Boolean": "1.3.6.1.4.1.1466.115.121.1.7",
+                 "Country String": "1.3.6.1.4.1.1466.115.121.1.11",
+                 "DN": "1.3.6.1.4.1.1466.115.121.1.12",
+                 "Delivery Method": "1.3.6.1.4.1.1466.115.121.1.14",
+                 "Directory String": "1.3.6.1.4.1.1466.115.121.1.15",
+                 "Enhanced Guide": "1.3.6.1.4.1.1466.115.121.1.21",
+                 "Facsimile": "1.3.6.1.4.1.1466.115.121.1.22",
+                 "Fax": "1.3.6.1.4.1.1466.115.121.1.23",
+                 "Generalized Time": "1.3.6.1.4.1.1466.115.121.1.24",
+                 "Guide": "1.3.6.1.4.1.1466.115.121.1.25",
+                 "IA5 String": "1.3.6.1.4.1.1466.115.121.1.26",
+                 "Integer": "1.3.6.1.4.1.1466.115.121.1.27",
+                 "JPEG": "1.3.6.1.4.1.1466.115.121.1.28",
+                 "Name and Optional UID": "1.3.6.1.4.1.1466.115.121.1.34",
+                 "Numeric String": "1.3.6.1.4.1.1466.115.121.1.36",
+                 "OctetString": "1.3.6.1.4.1.1466.115.121.1.40",
+                 "Object Class Description": "1.3.6.1.4.1.1466.115.121.1.37",
+                 "OID": "1.3.6.1.4.1.1466.115.121.1.38",
+                 "Postal Address": "1.3.6.1.4.1.1466.115.121.1.41",
+                 "Printable String": "1.3.6.1.4.1.1466.115.121.1.44",
+                 "Space-Insensitive String": "2.16.840.1.113730.3.7.1",
+                 "TelephoneNumber": "1.3.6.1.4.1.1466.115.121.1.50",
+                 "Teletex Terminal Identifier": "1.3.6.1.4.1.1466.115.121.1.51",
+                 "Telex Number": "1.3.6.1.4.1.1466.115.121.1.52"}
 
 
 class Schema(DSLdapObject):
@@ -50,6 +76,34 @@ class Schema(DSLdapObject):
         else:
             raise ValueError("Wrong object model was specified")
 
+    @staticmethod
+    def _validate_ldap_schema_value(value):
+        """Validate the values that we suppl to ldap.schema.models
+        because it expects some exact values.
+        It should tuple, not list.
+        It should be None or () if we don't want """
+
+        if type(value) == list:
+            value = tuple(value)
+        elif value == "":
+            value = None
+        if value == ("",):
+            value = ()
+        return value
+
+    @staticmethod
+    def get_attr_syntaxes(json=False):
+        """Get a list of available attribute syntaxes"""
+
+        if json:
+            attr_syntaxes_list = []
+            for name, id in ATTR_SYNTAXES.items():
+                attr_syntaxes_list.append({'name': name, 'id': id})
+            result = {'type': 'list', 'items': attr_syntaxes_list}
+        else:
+            result = ATTR_SYNTAXES
+        return result
+
     def _get_schema_objects(self, object_model, json=False):
         attr_name = self._get_attr_name_by_model(object_model)
 
@@ -60,21 +114,29 @@ class Schema(DSLdapObject):
 
             for obj_i in object_insts:
                 # Add normalized name for sorting. Some matching rules don't have a name
-                if len(obj_i["names"]) > 0:
-                    obj_i['name'] = obj_i['names'][0].lower()
+                if len(obj_i["names"]) == 1:
+                    obj_i['name'] = obj_i['names'][0]
+                    obj_i['aliases'] = ""
+                elif len(obj_i["names"]) > 1:
+                    obj_i['name'] = obj_i['names'][0]
+                    obj_i['aliases'] = obj_i['names'][1:]
                 else:
                     obj_i['name'] = ""
             object_insts = sorted(object_insts, key=itemgetter('name'))
             result = {'type': 'list', 'items': object_insts}
 
-            return dump_json(result)
+            return result
         else:
             return [object_model(obj_i) for obj_i in results]
 
     def _get_schema_object(self, name, object_model, json=False):
         objects = self._get_schema_objects(object_model, json=json)
-        schema_object = [obj_i for obj_i in objects if name.lower() in
-                         list(map(str.lower, obj_i.names))]
+        if json:
+            schema_object = [obj_i for obj_i in objects["items"] if name.lower() in
+                             list(map(str.lower, obj_i["names"]))]
+        else:
+            schema_object = [obj_i for obj_i in objects if name.lower() in
+                             list(map(str.lower, obj_i.names))]
 
         if len(schema_object) != 1:
             # This is an error.
@@ -106,9 +168,7 @@ class Schema(DSLdapObject):
             if oc_param.lower() not in OBJECT_MODEL_PARAMS[object_model].keys():
                 raise ValueError('Wrong parameter name was specified: %s' % oc_param)
             if value is not None:
-                # ldap.schema.models requires tuple
-                if type(value) == list:
-                    value = tuple(value)
+                value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param.lower(), value)
 
         # Set other not defined arguments so objectClass model work correctly
@@ -137,9 +197,7 @@ class Schema(DSLdapObject):
             if oc_param.lower() not in OBJECT_MODEL_PARAMS[object_model].keys():
                 raise ValueError('Wrong parameter name was specified: %s' % oc_param)
             if value is not None:
-                # ldap.schema.models requires tuple
-                if type(value) == list:
-                    value = tuple(value)
+                value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param.lower(), value)
 
         schema_object_str = str(schema_object)
@@ -310,10 +368,10 @@ class Schema(DSLdapObject):
         matching_rule = self._get_schema_object(mr_name, MatchingRule, json=json)
 
         if json:
-            result = {'type': 'schema', 'mr': vars(matching_rule)}
-            return dump_json(result)
+            result = {'type': 'schema', 'mr': matching_rule}
+            return result
         else:
-            return str(matching_rule)
+            return matching_rule
 
     def query_objectclass(self, objectclassname, json=False):
         """Returns a single ObjectClass instance that matches objectclassname.
@@ -333,10 +391,10 @@ class Schema(DSLdapObject):
         objectclass = self._get_schema_object(objectclassname, ObjectClass, json=json)
 
         if json:
-            result = {'type': 'schema', 'oc': vars(objectclass)}
-            return dump_json(result)
+            result = {'type': 'schema', 'oc': objectclass}
+            return result
         else:
-            return str(objectclass)
+            return objectclass
 
     def query_attributetype(self, attributetypename, json=False):
         """Returns a tuple of the AttributeType, and what objectclasses may or
@@ -363,13 +421,21 @@ class Schema(DSLdapObject):
         objectclasses = self.get_objectclasses()
 
         # Get the primary name of this attribute
-        attributetypename = attributetype.names[0]
+        if json:
+            attributetypenames = attributetype["names"]
+        else:
+            attributetypenames = attributetype.names
+
         # Build a set if they have may.
-        may = [oc for oc in objectclasses if attributetypename.lower() in
-               list(map(str.lower, oc.may))]
+        may = []
+        for attributetypename in attributetypenames:
+            may.extend([oc for oc in objectclasses if attributetypename.lower() in
+                        list(map(str.lower, oc.may))])
         # Build a set if they have must.
-        must = [oc for oc in objectclasses if attributetypename.lower() in
-                list(map(str.lower, oc.must))]
+        must = []
+        for attributetypename in attributetypenames:
+            must.extend([oc for oc in objectclasses if attributetypename.lower() in
+                         list(map(str.lower, oc.must))])
 
         if json:
             # convert Objectclass class to dict, then sort each list
@@ -377,16 +443,16 @@ class Schema(DSLdapObject):
             must = [vars(oc) for oc in must]
             # Add normalized 'name' for sorting
             for oc in may:
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             for oc in must:
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             may = sorted(may, key=itemgetter('name'))
             must = sorted(must, key=itemgetter('name'))
             result = {'type': 'schema',
-                      'at': vars(attributetype),
+                      'at': attributetype,
                       'may': may,
                       'must': must}
-            return dump_json(result)
+            return result
         else:
             return str(attributetype), may, must
 

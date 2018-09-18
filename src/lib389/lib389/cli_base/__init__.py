@@ -269,6 +269,7 @@ class LogCapture(logging.Handler):
         self.outputs = []
         self.log = logging.getLogger("LogCapture")
         self.log.addHandler(self)
+        self.log.setLevel(logging.INFO)
 
     def emit(self, record):
         self.outputs.append(record)

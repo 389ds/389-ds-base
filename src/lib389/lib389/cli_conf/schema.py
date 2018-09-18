@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+from json import dumps as dump_json
 from lib389.cli_base import _get_arg
 from lib389.schema import Schema
 
@@ -24,7 +25,7 @@ def list_attributetypes(inst, basedn, log, args):
     log = log.getChild('list_attributetypes')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(schema.get_attributetypes(json=True))
+        print(dump_json(schema.get_attributetypes(json=True)))
     else:
         for attributetype in schema.get_attributetypes():
             log.info(attributetype)
@@ -34,7 +35,7 @@ def list_objectclasses(inst, basedn, log, args):
     log = log.getChild('list_objectclasses')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(schema.get_objectclasses(json=True))
+        print(dump_json(schema.get_objectclasses(json=True)))
     else:
         for oc in schema.get_objectclasses():
             log.info(oc)
@@ -44,7 +45,7 @@ def list_matchingrules(inst, basedn, log, args):
     log = log.getChild('list_matchingrules')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(schema.get_matchingrules(json=True))
+        print(dump_json(schema.get_matchingrules(json=True)))
     else:
         for mr in schema.get_matchingrules():
             log.info(mr)
@@ -54,9 +55,9 @@ def query_attributetype(inst, basedn, log, args):
     log = log.getChild('query_attributetype')
     schema = Schema(inst)
     # Need the query type
-    attr = _get_arg(args.attr, msg="Enter attribute to query")
+    attr = _get_arg(args.name, msg="Enter attribute to query")
     if args.json:
-        print(schema.query_attributetype(attr, json=args.json))
+        print(dump_json(schema.query_attributetype(attr, json=args.json)))
     else:
         attributetype, must, may = schema.query_attributetype(attr, json=args.json)
         log.info(attributetype)
@@ -74,10 +75,10 @@ def query_objectclass(inst, basedn, log, args):
     log = log.getChild('query_objectclass')
     schema = Schema(inst)
     # Need the query type
-    oc = _get_arg(args.attr, msg="Enter objectclass to query")
+    oc = _get_arg(args.name, msg="Enter objectclass to query")
     result = schema.query_objectclass(oc, json=args.json)
     if args.json:
-        print(result)
+        print(dump_json(result))
     else:
         log.info(result)
 
@@ -86,10 +87,10 @@ def query_matchingrule(inst, basedn, log, args):
     log = log.getChild('query_matchingrule')
     schema = Schema(inst)
     # Need the query type
-    attr = _get_arg(args.attr, msg="Enter attribute to query")
+    attr = _get_arg(args.name, msg="Enter attribute to query")
     result = schema.query_matchingrule(attr, json=args.json)
     if args.json:
-        print(result)
+        print(dump_json(result))
     else:
         log.info(result)
 
@@ -98,6 +99,10 @@ def add_attributetype(inst, basedn, log, args):
     log = log.getChild('add_attributetype')
     schema = Schema(inst)
     parameters = _get_parameters(args, 'attributetypes')
+    aliases = parameters.pop("aliases", None)
+    if aliases is not None and aliases != [""]:
+        parameters["names"].extend(aliases)
+
     schema.add_attributetype(parameters)
     log.info("Successfully added the attributeType")
 
@@ -115,6 +120,10 @@ def edit_attributetype(inst, basedn, log, args):
     log = log.getChild('edit_attributetype')
     schema = Schema(inst)
     parameters = _get_parameters(args, 'attributetypes')
+    aliases = parameters.pop("aliases", None)
+    if aliases is not None and aliases != [""]:
+        parameters["names"].extend(aliases)
+
     schema.edit_attributetype(args.name, parameters)
     log.info("Successfully changed the attributetype")
 
@@ -160,17 +169,29 @@ def reload_schema(inst, basedn, log, args):
         log.info("To verify that the schema reload operation was successful, please check the error logs.")
 
 
+def get_syntaxes(inst, basedn, log, args):
+    log = log.getChild('get_syntaxes')
+    schema = Schema(inst)
+    result = schema.get_attr_syntaxes(json=args.json)
+    if args.json:
+        print(dump_json(result))
+    else:
+        for name, id in result.items():
+            log.info("%s (%s)", name, id)
+
+
 def _get_parameters(args, type):
     if type not in ('attributetypes', 'objectclasses'):
         raise ValueError("Wrong parser type: %s" % type)
 
-    parameters = {'names': (args.name,),
+    parameters = {'names': [args.name,],
                   'oid': args.oid,
                   'desc': args.desc,
                   'obsolete': _validate_dual_args(args.obsolete, args.not_obsolete)}
 
     if type == 'attributetypes':
         parameters.update({'single_value': _validate_dual_args(args.single_value, args.multi_value),
+                           'aliases': args.aliases,
                            'syntax': args.syntax,
                            'syntax_len': None,  # We need it for
                            'x_ordered': None,   # the correct ldap.schema.models work
@@ -208,6 +229,7 @@ def _add_parser_args(parser, type):
     if type == 'attributetypes':
         parser.add_argument('--syntax', required=True,
                             help='OID of the LDAP syntax assigned to the attribute')
+        parser.add_argument('--aliases', nargs='+', help='Additional NAMEs of the object.')
         parser.add_argument('--single-value', action='store_true',
                             help='True if the matching rule must have only one value'
                                  'Only one of the flags this or --multi-value should be specified')
@@ -259,11 +281,13 @@ def create_parser(subparsers):
 
     attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system')
     attributetypes_subcommands = attributetypes_parser.add_subparsers(help='schema')
+    at_get_syntaxes_parser = attributetypes_subcommands.add_parser('get_syntaxes', help='List all available attribute type syntaxes')
+    at_get_syntaxes_parser.set_defaults(func=get_syntaxes)
     at_list_parser = attributetypes_subcommands.add_parser('list', help='List available attribute types on this system')
     at_list_parser.set_defaults(func=list_attributetypes)
     at_query_parser = attributetypes_subcommands.add_parser('query', help='Query an attribute to determine object classes that may or must take it')
     at_query_parser.set_defaults(func=query_attributetype)
-    at_query_parser.add_argument('attr', nargs='?', help='Attribute type to query')
+    at_query_parser.add_argument('name', nargs='?', help='Attribute type to query')
     at_add_parser = attributetypes_subcommands.add_parser('add', help='Add an attribute type to this system')
     at_add_parser.set_defaults(func=add_attributetype)
     _add_parser_args(at_add_parser, 'attributetypes')
@@ -280,7 +304,7 @@ def create_parser(subparsers):
     oc_list_parser.set_defaults(func=list_objectclasses)
     oc_query_parser = objectclasses_subcommands.add_parser('query', help='Query an objectClass')
     oc_query_parser.set_defaults(func=query_objectclass)
-    oc_query_parser.add_argument('attr', nargs='?', help='ObjectClass to query')
+    oc_query_parser.add_argument('name', nargs='?', help='ObjectClass to query')
     oc_add_parser = objectclasses_subcommands.add_parser('add', help='Add an objectClass to this system')
     oc_add_parser.set_defaults(func=add_objectclass)
     _add_parser_args(oc_add_parser, 'objectclasses')
@@ -297,7 +321,7 @@ def create_parser(subparsers):
     mr_list_parser.set_defaults(func=list_matchingrules)
     mr_query_parser = matchingrules_subcommands.add_parser('query', help='Query a matching rule')
     mr_query_parser.set_defaults(func=query_matchingrule)
-    mr_query_parser.add_argument('attr', nargs='?', help='Matching rule to query')
+    mr_query_parser.add_argument('name', nargs='?', help='Matching rule to query')
 
     reload_parser = schema_subcommands.add_parser('reload', help='Dynamically reload schema while server is running')
     reload_parser.set_defaults(func=reload_schema)

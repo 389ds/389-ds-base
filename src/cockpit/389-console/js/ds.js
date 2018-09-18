@@ -266,6 +266,7 @@ function load_config (){
   get_and_set_config(); // cn=config stuff
   get_and_set_sasl();
   get_and_set_localpwp();
+  get_and_set_schema_tables();
 
   // Security page
   // Database page

@@ -525,7 +525,7 @@ Zbutton:focus {
   color: #181818 !important;
   padding: 0px !important;
   line-height: 0 !important;
-  height: 40px;
+  height: 30px;
   max-height: 200px !important;
   width: 315px !important;
   text-align: left;
