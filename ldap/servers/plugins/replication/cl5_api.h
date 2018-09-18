@@ -39,7 +39,7 @@
 /* changelog configuration structure */
 typedef struct cl5dbconfig
 {
-    size_t pageSize;           /* page size in bytes */
+    uint32_t pageSize;           /* page size in bytes */
     PRInt32 fileMode;          /* file mode */
     char *encryptionAlgorithm; /* nsslapd-encryptionalgorithm */
     char *symmetricKey;

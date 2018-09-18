@@ -1852,7 +1852,7 @@ _cl5AppInit(void)
 {
     int rc = -1; /* initialize to failure */
     DB_ENV *dbEnv = NULL;
-    size_t pagesize = 0;
+    uint32_t pagesize = 0;
     int openflags = 0;
     char *cookie = NULL;
     Slapi_Backend *be = slapi_get_first_backend(&cookie);
