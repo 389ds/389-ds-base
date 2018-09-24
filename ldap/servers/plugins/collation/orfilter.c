@@ -531,10 +531,8 @@ or_filter_create(Slapi_PBlock *pb)
             default:
                 break;
             }
-            for (; len > 0 && *val != ' '; ++val, --len)
+            for (; len > 0 && *val == ' '; ++val, --len)
                 ;
-            if (len > 0)
-                ++val, --len; /* skip the space */
             bv.bv_len = len;
             bv.bv_val = (len > 0) ? val : NULL;
         } else { /* mrOID does not identify an ordering rule. */

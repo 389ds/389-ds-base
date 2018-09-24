@@ -82,6 +82,206 @@ def test_filter_search_original_attrs(topology_st):
 
     log.info('test_filter_search_original_attrs: PASSED')
 
+@pytest.mark.bz1511462
+def test_filter_scope_one(topology_st):
+    """Test ldapsearch with scope one gives only single entry
+
+    :id: cf5a6078-bbe6-4d43-ac71-553c45923f91
+    :setup: Standalone instance
+    :steps:
+         1. Search cn=Directory Administrators,dc=example,dc=com using ldapsearch with
+            scope one using base as dc=example,dc=com
+         2. Check that search should return only one entry
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+    """
+
+    parent_dn="dn: dc=example,dc=com"
+    child_dn="dn: cn=Directory Administrators,dc=example,dc=com"
+
+    log.info('Search user using ldapsearch with scope one')
+    results = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL,'cn=Directory Administrators',['cn'] )
+    log.info(results)
+
+    log.info('Search should only have one entry')
+    assert len(results) == 1
+
+@pytest.mark.ds47313
+def test_filter_with_attribute_subtype(topology_st):
+    """Adds 2 test entries and Search with
+    filters including subtype and !
+
+    :id: 0e69f5f2-6a0a-480e-8282-fbcc50231908
+    :setup: Standalone instance
+    :steps:
+        1. Add 2 entries and create 3 filters
+        2. Search for entry with filter: (&(cn=test_entry en only)(!(cn=test_entry fr)))
+        3. Search for entry with filter: (&(cn=test_entry en only)(!(cn;fr=test_entry fr)))
+        4. Search for entry with filter: (&(cn=test_entry en only)(!(cn;en=test_entry en)))
+        5. Delete the added entries
+    :expectedresults:
+        1. Operation should be successful
+        2. Search should be successful
+        3. Search should be successful
+        4. Search should not be successful
+        5. Delete the added entries
+    """
+
+    # bind as directory manager
+    topology_st.standalone.log.info("Bind as %s" % DN_DM)
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    # enable filter error logging
+    # mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '32')]
+    # topology_st.standalone.modify_s(DN_CONFIG, mod)
+
+    topology_st.standalone.log.info("\n\n######################### ADD ######################\n")
+
+    # Prepare the entry with cn;fr & cn;en
+    entry_name_fr = '%s fr' % (ENTRY_NAME)
+    entry_name_en = '%s en' % (ENTRY_NAME)
+    entry_name_both = '%s both' % (ENTRY_NAME)
+    entry_dn_both = 'cn=%s, %s' % (entry_name_both, SUFFIX)
+    entry_both = Entry(entry_dn_both)
+    entry_both.setValues('objectclass', 'top', 'person')
+    entry_both.setValues('sn', entry_name_both)
+    entry_both.setValues('cn', entry_name_both)
+    entry_both.setValues('cn;fr', entry_name_fr)
+    entry_both.setValues('cn;en', entry_name_en)
+
+    # Prepare the entry with one member
+    entry_name_en_only = '%s en only' % (ENTRY_NAME)
+    entry_dn_en_only = 'cn=%s, %s' % (entry_name_en_only, SUFFIX)
+    entry_en_only = Entry(entry_dn_en_only)
+    entry_en_only.setValues('objectclass', 'top', 'person')
+    entry_en_only.setValues('sn', entry_name_en_only)
+    entry_en_only.setValues('cn', entry_name_en_only)
+    entry_en_only.setValues('cn;en', entry_name_en)
+
+    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_both, entry_both))
+    topology_st.standalone.add_s(entry_both)
+
+    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_en_only, entry_en_only))
+    topology_st.standalone.add_s(entry_en_only)
+
+    topology_st.standalone.log.info("\n\n######################### SEARCH ######################\n")
+
+    # filter: (&(cn=test_entry en only)(!(cn=test_entry fr)))
+    myfilter = '(&(sn=%s)(!(cn=%s)))' % (entry_name_en_only, entry_name_fr)
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+    assert ensure_str(ents[0].sn) == entry_name_en_only
+    topology_st.standalone.log.info("Found %s" % ents[0].dn)
+
+    # filter: (&(cn=test_entry en only)(!(cn;fr=test_entry fr)))
+    myfilter = '(&(sn=%s)(!(cn;fr=%s)))' % (entry_name_en_only, entry_name_fr)
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+    assert ensure_str(ents[0].sn) == entry_name_en_only
+    topology_st.standalone.log.info("Found %s" % ents[0].dn)
+
+    # filter: (&(cn=test_entry en only)(!(cn;en=test_entry en)))
+    myfilter = '(&(sn=%s)(!(cn;en=%s)))' % (entry_name_en_only, entry_name_en)
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 0
+    topology_st.standalone.log.info("Found none")
+
+    topology_st.standalone.log.info("\n\n######################### DELETE ######################\n")
+
+    topology_st.standalone.log.info("Try to delete  %s " % entry_dn_both)
+    topology_st.standalone.delete_s(entry_dn_both)
+
+    topology_st.standalone.log.info("Try to delete  %s " % entry_dn_en_only)
+    topology_st.standalone.delete_s(entry_dn_en_only)
+
+    log.info('Testcase PASSED')
+
+@pytest.mark.bz1615155
+def test_extended_search(topology_st):
+    """Test we can search with equality extended matching rule
+
+    :id: 
+    :setup: Standalone instance
+    :steps:
+         1. Add a test user with 'sn: ext-test-entry'
+         2. Search '(cn:de:=ext-test-entry)'
+         3. Search '(sn:caseIgnoreIA5Match:=EXT-TEST-ENTRY)'
+         4. Search '(sn:caseIgnoreMatch:=EXT-TEST-ENTRY)'
+         5. Search '(sn:caseExactMatch:=EXT-TEST-ENTRY)'
+         6. Search '(sn:caseExactMatch:=ext-test-entry)'
+         7. Search '(sn:caseExactIA5Match:=EXT-TEST-ENTRY)'
+         8. Search '(sn:caseExactIA5Match:=ext-test-entry)'
+    :expectedresults:
+         1. This should pass
+         2. This should return one entry
+         3. This should return one entry
+         4. This should return one entry
+         5. This should return NO entry
+         6. This should return one entry
+         7. This should return NO entry
+         8. This should return one entry
+         3. return one entry
+    """
+    log.info('Running test_filter_escaped...')
+    
+    ATTR_VAL = 'ext-test-entry'
+    USER1_DN = "uid=%s,%s" % (ATTR_VAL, DEFAULT_SUFFIX)
+
+    try:
+        topology_st.standalone.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
+                                                       'sn': ATTR_VAL.encode(),
+                                                       'cn': ATTR_VAL.encode(),
+                                                       'uid': ATTR_VAL.encode()})))
+    except ldap.LDAPError as e:
+        log.fatal('test_extended_search: Failed to add test user ' + USER1_DN + ': error ' +
+                  e.message['desc'])
+        assert False
+
+    # filter: '(cn:de:=ext-test-entry)'
+    myfilter = '(cn:de:=%s)' % ATTR_VAL
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseIgnoreIA5Match:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseIgnoreIA5Match:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseIgnoreMatch:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseIgnoreMatch:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseExactMatch:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseExactMatch:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 0
+
+    # filter: '(sn:caseExactMatch:=ext-test-entry)'
+    myfilter = '(cn:caseExactMatch:=%s)' % ATTR_VAL
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseExactIA5Match:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseExactIA5Match:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 0
+
+    # filter: '(sn:caseExactIA5Match:=ext-test-entry)'
+    myfilter = '(cn:caseExactIA5Match:=%s)' % ATTR_VAL
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
 
 if __name__ == '__main__':
     # Run isolated
