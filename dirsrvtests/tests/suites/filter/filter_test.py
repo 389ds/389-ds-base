@@ -223,6 +223,88 @@ def test_filter_with_attribute_subtype(topology_st):
 
     log.info('Testcase PASSED')
 
+@pytest.mark.bz1615155
+def test_extended_search(topology_st):
+    """Test we can search with equality extended matching rule
+
+    :id: 
+    :setup: Standalone instance
+    :steps:
+         1. Add a test user with 'sn: ext-test-entry'
+         2. Search '(cn:de:=ext-test-entry)'
+         3. Search '(sn:caseIgnoreIA5Match:=EXT-TEST-ENTRY)'
+         4. Search '(sn:caseIgnoreMatch:=EXT-TEST-ENTRY)'
+         5. Search '(sn:caseExactMatch:=EXT-TEST-ENTRY)'
+         6. Search '(sn:caseExactMatch:=ext-test-entry)'
+         7. Search '(sn:caseExactIA5Match:=EXT-TEST-ENTRY)'
+         8. Search '(sn:caseExactIA5Match:=ext-test-entry)'
+    :expectedresults:
+         1. This should pass
+         2. This should return one entry
+         3. This should return one entry
+         4. This should return one entry
+         5. This should return NO entry
+         6. This should return one entry
+         7. This should return NO entry
+         8. This should return one entry
+         3. return one entry
+    """
+    log.info('Running test_filter_escaped...')
+    
+    ATTR_VAL = 'ext-test-entry'
+    USER1_DN = "uid=%s,%s" % (ATTR_VAL, DEFAULT_SUFFIX)
+
+    try:
+        topology_st.standalone.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
+                                                       'sn': ATTR_VAL.encode(),
+                                                       'cn': ATTR_VAL.encode(),
+                                                       'uid': ATTR_VAL.encode()})))
+    except ldap.LDAPError as e:
+        log.fatal('test_extended_search: Failed to add test user ' + USER1_DN + ': error ' +
+                  e.message['desc'])
+        assert False
+
+    # filter: '(cn:de:=ext-test-entry)'
+    myfilter = '(cn:de:=%s)' % ATTR_VAL
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseIgnoreIA5Match:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseIgnoreIA5Match:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseIgnoreMatch:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseIgnoreMatch:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseExactMatch:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseExactMatch:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 0
+
+    # filter: '(sn:caseExactMatch:=ext-test-entry)'
+    myfilter = '(cn:caseExactMatch:=%s)' % ATTR_VAL
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
+
+    # filter: '(sn:caseExactIA5Match:=EXT-TEST-ENTRY)'
+    myfilter = '(cn:caseExactIA5Match:=%s)' % ATTR_VAL.upper()
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 0
+
+    # filter: '(sn:caseExactIA5Match:=ext-test-entry)'
+    myfilter = '(cn:caseExactIA5Match:=%s)' % ATTR_VAL
+    topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
+    ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
+    assert len(ents) == 1
 
 if __name__ == '__main__':
     # Run isolated
