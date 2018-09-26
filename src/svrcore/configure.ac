@@ -46,7 +46,7 @@ AC_MSG_CHECKING(for --enable-asan)
 AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  asan_cflags="-fsanitize=address -fno-omit-frame-pointer"
+  asan_cflags="-fsanitize=address -fno-omit-frame-pointer -lasan"
 ],
 [
   AC_MSG_RESULT(no)
