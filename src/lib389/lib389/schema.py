@@ -13,6 +13,7 @@
 import glob
 import ldap
 import ldif
+from itertools import count
 from json import dumps as dump_json
 from operator import itemgetter
 from ldap.schema.models import AttributeType, ObjectClass, MatchingRule
@@ -22,38 +23,45 @@ from lib389.utils import ds_is_newer
 from lib389._mapped_object import DSLdapObject
 from lib389.tasks import SchemaReloadTask
 
-OBJECT_MODEL_PARAMS = {ObjectClass: {'names': (), 'oid': None, 'desc': None, 'obsolete': 0,
-                                     'kind': 0, 'sup': (), 'must': (), 'may': ()},
-                       AttributeType: {'names': (), 'oid': None, 'desc': None, 'obsolete': 0,
-                                       'sup': (), 'equality': None, 'ordering': None, 'substr': None,
-                                       'syntax': None, 'syntax_len': None, 'single_value': 0, 'collective': 0,
-                                       'no_user_mod': 0, 'usage': 0, 'x_origin': None, 'x_ordered': None}}
-ATTR_SYNTAXES = {"Binary": "1.3.6.1.4.1.1466.115.121.1.5",
-                 "Bit String": "1.3.6.1.4.1.1466.115.121.1.6",
-                 "Boolean": "1.3.6.1.4.1.1466.115.121.1.7",
-                 "Country String": "1.3.6.1.4.1.1466.115.121.1.11",
-                 "DN": "1.3.6.1.4.1.1466.115.121.1.12",
-                 "Delivery Method": "1.3.6.1.4.1.1466.115.121.1.14",
-                 "Directory String": "1.3.6.1.4.1.1466.115.121.1.15",
-                 "Enhanced Guide": "1.3.6.1.4.1.1466.115.121.1.21",
-                 "Facsimile": "1.3.6.1.4.1.1466.115.121.1.22",
-                 "Fax": "1.3.6.1.4.1.1466.115.121.1.23",
-                 "Generalized Time": "1.3.6.1.4.1.1466.115.121.1.24",
-                 "Guide": "1.3.6.1.4.1.1466.115.121.1.25",
-                 "IA5 String": "1.3.6.1.4.1.1466.115.121.1.26",
-                 "Integer": "1.3.6.1.4.1.1466.115.121.1.27",
-                 "JPEG": "1.3.6.1.4.1.1466.115.121.1.28",
-                 "Name and Optional UID": "1.3.6.1.4.1.1466.115.121.1.34",
-                 "Numeric String": "1.3.6.1.4.1.1466.115.121.1.36",
-                 "OctetString": "1.3.6.1.4.1.1466.115.121.1.40",
-                 "Object Class Description": "1.3.6.1.4.1.1466.115.121.1.37",
-                 "OID": "1.3.6.1.4.1.1466.115.121.1.38",
-                 "Postal Address": "1.3.6.1.4.1.1466.115.121.1.41",
-                 "Printable String": "1.3.6.1.4.1.1466.115.121.1.44",
-                 "Space-Insensitive String": "2.16.840.1.113730.3.7.1",
-                 "TelephoneNumber": "1.3.6.1.4.1.1466.115.121.1.50",
-                 "Teletex Terminal Identifier": "1.3.6.1.4.1.1466.115.121.1.51",
-                 "Telex Number": "1.3.6.1.4.1.1466.115.121.1.52"}
+# Count should start with 0 because of the python-ldap API
+ObjectclassKind = Enum("Objectclass kind",
+                       zip(["STRUCTURAL", "ABSTRACT", "AUXILIARY"], count()))
+AttributeUsage = Enum("Attribute usage",
+                      zip(["userApplications", "directoryOperation", "distributedOperation", "dSAOperation"], count()))
+
+OBJECT_MODEL_PARAMS = {ObjectClass: {'names': (), 'oid': None, 'desc': None, 'x_origin': None, 'obsolete': 0,
+                                     'kind': ObjectclassKind.STRUCTURAL.value, 'sup': (), 'must': (), 'may': ()},
+                       AttributeType: {'names': (), 'oid': None, 'desc': None, 'sup': (), 'obsolete': 0,
+                                       'equality': None, 'ordering': None, 'substr': None, 'collective': 0,
+                                       'syntax': None, 'syntax_len': None, 'single_value': 0,
+                                       'no_user_mod': 0, 'usage': AttributeUsage.userApplications.value,
+                                       'x_origin': None, 'x_ordered': None}}
+ATTR_SYNTAXES = {"1.3.6.1.4.1.1466.115.121.1.5": "Binary",
+                 "1.3.6.1.4.1.1466.115.121.1.6": "Bit String",
+                 "1.3.6.1.4.1.1466.115.121.1.7": "Boolean",
+                 "1.3.6.1.4.1.1466.115.121.1.11": "Country String",
+                 "1.3.6.1.4.1.1466.115.121.1.12": "DN",
+                 "1.3.6.1.4.1.1466.115.121.1.14":  "Delivery Method",
+                 "1.3.6.1.4.1.1466.115.121.1.15": "Directory String",
+                 "1.3.6.1.4.1.1466.115.121.1.21": "Enhanced Guide",
+                 "1.3.6.1.4.1.1466.115.121.1.22": "Facsimile",
+                 "1.3.6.1.4.1.1466.115.121.1.23": "Fax",
+                 "1.3.6.1.4.1.1466.115.121.1.24": "Generalized Time",
+                 "1.3.6.1.4.1.1466.115.121.1.25": "Guide",
+                 "1.3.6.1.4.1.1466.115.121.1.26": "IA5 String",
+                 "1.3.6.1.4.1.1466.115.121.1.27": "Integer",
+                 "1.3.6.1.4.1.1466.115.121.1.28": "JPEG",
+                 "1.3.6.1.4.1.1466.115.121.1.34": "Name and Optional UID",
+                 "1.3.6.1.4.1.1466.115.121.1.36": "Numeric String",
+                 "1.3.6.1.4.1.1466.115.121.1.40": "OctetString",
+                 "1.3.6.1.4.1.1466.115.121.1.37": "Object Class Description",
+                 "1.3.6.1.4.1.1466.115.121.1.38": "OID",
+                 "1.3.6.1.4.1.1466.115.121.1.41": "Postal Address",
+                 "1.3.6.1.4.1.1466.115.121.1.44": "Printable String",
+                 "2.16.840.1.113730.3.7.1": "Space-Insensitive String",
+                 "1.3.6.1.4.1.1466.115.121.1.50": "TelephoneNumber",
+                 "1.3.6.1.4.1.1466.115.121.1.51": "Teletex Terminal Identifier",
+                 "1.3.6.1.4.1.1466.115.121.1.52": "Telex Number"}
 
 
 class Schema(DSLdapObject):
@@ -97,7 +105,7 @@ class Schema(DSLdapObject):
 
         if json:
             attr_syntaxes_list = []
-            for name, id in ATTR_SYNTAXES.items():
+            for id, name in ATTR_SYNTAXES.items():
                 attr_syntaxes_list.append({'name': name, 'id': id})
             result = {'type': 'list', 'items': attr_syntaxes_list}
         else:
@@ -122,6 +130,12 @@ class Schema(DSLdapObject):
                     obj_i['aliases'] = obj_i['names'][1:]
                 else:
                     obj_i['name'] = ""
+                # Temporary workaround for X-ORIGIN in ObjectClass objects.
+                # It should be removed after https://github.com/python-ldap/python-ldap/pull/247 is merged
+                if "x_origin" not in obj_i and object_model != MatchingRule:
+                    for object_str in results:
+                        if obj_i['names'] == vars(object_model(object_str))['names'] and "X-ORIGIN" in object_str:
+                            obj_i['x_origin'] = object_str.split("X-ORIGIN '")[1].split("'")[0]
             object_insts = sorted(object_insts, key=itemgetter('name'))
             result = {'type': 'list', 'items': object_insts}
 

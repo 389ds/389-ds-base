@@ -8,7 +8,7 @@
 
 from json import dumps as dump_json
 from lib389.cli_base import _get_arg
-from lib389.schema import Schema
+from lib389.schema import Schema, AttributeUsage, ObjectclassKind
 
 
 def _validate_dual_args(enable_arg, disable_arg):
@@ -176,7 +176,7 @@ def get_syntaxes(inst, basedn, log, args):
     if args.json:
         print(dump_json(result))
     else:
-        for name, id in result.items():
+        for id, name in result.items():
             log.info("%s (%s)", name, id)
 
 
@@ -187,26 +187,45 @@ def _get_parameters(args, type):
     parameters = {'names': [args.name,],
                   'oid': args.oid,
                   'desc': args.desc,
-                  'obsolete': _validate_dual_args(args.obsolete, args.not_obsolete)}
+                  'x_origin': args.x_origin,
+                  'obsolete': None}
 
     if type == 'attributetypes':
+        if args.usage is not None:
+            usage = args.usage
+            if usage in [item.name for item in AttributeUsage]:
+                usage = AttributeUsage[usage].value
+            else:
+                raise ValueError("Attribute usage should be one of the next: "
+                                 "userApplications, directoryOperation, distributedOperation, dSAOperation")
+        else:
+            usage = None
+
         parameters.update({'single_value': _validate_dual_args(args.single_value, args.multi_value),
                            'aliases': args.aliases,
                            'syntax': args.syntax,
                            'syntax_len': None,  # We need it for
                            'x_ordered': None,   # the correct ldap.schema.models work
-                           'no_user_mod': _validate_dual_args(args.no_user_mod, args.with_user_mod),
+                           'collective': None,
+                           'no_user_mod': _validate_dual_args(args.no_user_mod, args.user_mod),
                            'equality': args.equality,
                            'substr': args.substr,
                            'ordering': args.ordering,
-                           'x_origin': args.x_origin,
-                           'collective': _validate_dual_args(args.collective, args.not_collective),
-                           'usage': args.usage,
+                           'usage': usage,
                            'sup': args.sup})
     elif type == 'objectclasses':
+        if args.kind is not None:
+            kind = args.kind.upper()
+            if kind in [item.name for item in ObjectclassKind]:
+                kind = ObjectclassKind[kind].value
+            else:
+                raise ValueError("ObjectClass kind should be one of the next: STRUCTURAL, ABSTRACT, AUXILIARY")
+        else:
+            kind = None
+
         parameters.update({'must': args.must,
                            'may': args.may,
-                           'kind': args.kind,
+                           'kind': kind,
                            'sup': args.sup})
 
     return parameters
@@ -219,16 +238,9 @@ def _add_parser_args(parser, type):
     parser.add_argument('name',  help='NAME of the object')
     parser.add_argument('--oid', help='OID assigned to the object')
     parser.add_argument('--desc', help='Description text(DESC) of the object')
-    parser.add_argument('--obsolete', action='store_true',
-                        help='True if the object is marked as OBSOLETE in the schema.'
-                             'Only one of the flags this or --not-obsolete should be specified')
-    parser.add_argument('--not-obsolete', action='store_true',
-                        help='True if the OBSOLETE mark should be removed'
-                             'object is marked as OBSOLETE in the schema'
-                             'Only one of the flags this or --obsolete should be specified')
+    parser.add_argument('--x-origin',
+                        help='Provides information about where the attribute type is defined')
     if type == 'attributetypes':
-        parser.add_argument('--syntax', required=True,
-                            help='OID of the LDAP syntax assigned to the attribute')
         parser.add_argument('--aliases', nargs='+', help='Additional NAMEs of the object.')
         parser.add_argument('--single-value', action='store_true',
                             help='True if the matching rule must have only one value'
@@ -238,8 +250,8 @@ def _add_parser_args(parser, type):
                                  'Only one of the flags this or --single-value should be specified')
         parser.add_argument('--no-user-mod', action='store_true',
                             help='True if the attribute is not modifiable by a client application'
-                                 'Only one of the flags this or --with-user-mod should be specified')
-        parser.add_argument('--with-user-mod', action='store_true',
+                                 'Only one of the flags this or --user-mod should be specified')
+        parser.add_argument('--user-mod', action='store_true',
                             help='True if the attribute is modifiable by a client application (default)'
                                  'Only one of the flags this or --no-user-mode should be specified')
         parser.add_argument('--equality',
@@ -251,24 +263,15 @@ def _add_parser_args(parser, type):
         parser.add_argument('--ordering',
                             help='NAME or OID of the matching rule used for checking'
                                  'whether attribute values are lesser - equal than')
-        parser.add_argument('--x-origin',
-                            help='Provides information about where the attribute type is defined')
-        parser.add_argument('--collective',
-                            help='True if the attribute is assigned their values by virtue in their membership in some collection'
-                                 'Only one of the flags this or --not-collective should be specified')
-        parser.add_argument('--not-collective',
-                            help='True if the attribute is not assigned their values by virtue in their membership in some collection (default)'
-                                 'Only one of the flags this or --collective should be specified')
         parser.add_argument('--usage',
-                            help='The flag indicates how the attribute type is to be used.'
-                                 'userApplications - user, directoryOperation - directory operational,'
-                                 'distributedOperation - DSA-shared operational, dSAOperation - DSA - specific operational')
-        parser.add_argument('--sup', nargs='?', help='The list of NAMEs or OIDs of attribute types'
+                            help='The flag indicates how the attribute type is to be used. Choose from the list: '
+                                 'userApplications (default), directoryOperation, distributedOperation, dSAOperation')
+        parser.add_argument('--sup', nargs='+', help='The list of NAMEs or OIDs of attribute types'
                                                      'this attribute type is derived from')
     elif type == 'objectclasses':
         parser.add_argument('--must', nargs='+', help='NAMEs or OIDs of all attributes an entry of the object must have')
         parser.add_argument('--may', nargs='+', help='NAMEs or OIDs of additional attributes an entry of the object may have')
-        parser.add_argument('--kind', help='Kind of an object. 0 = STRUCTURAL (default), 1 = ABSTRACT, 2 = AUXILIARY')
+        parser.add_argument('--kind', help='Kind of an object. STRUCTURAL (default), ABSTRACT, AUXILIARY')
         parser.add_argument('--sup', nargs='+', help='NAMEs or OIDs of object classes this object is derived from')
     else:
         raise ValueError("Wrong parser type: %s" % type)
@@ -291,9 +294,11 @@ def create_parser(subparsers):
     at_add_parser = attributetypes_subcommands.add_parser('add', help='Add an attribute type to this system')
     at_add_parser.set_defaults(func=add_attributetype)
     _add_parser_args(at_add_parser, 'attributetypes')
+    at_add_parser.add_argument('--syntax', required=True, help='OID of the LDAP syntax assigned to the attribute')
     at_edit_parser = attributetypes_subcommands.add_parser('edit', help='Edit an attribute type on this system')
     at_edit_parser.set_defaults(func=edit_attributetype)
     _add_parser_args(at_edit_parser, 'attributetypes')
+    at_edit_parser.add_argument('--syntax', help='OID of the LDAP syntax assigned to the attribute')
     at_remove_parser = attributetypes_subcommands.add_parser('remove', help='Remove an attribute type on this system')
     at_remove_parser.set_defaults(func=remove_attributetype)
     at_remove_parser.add_argument('name',  help='NAME of the object')

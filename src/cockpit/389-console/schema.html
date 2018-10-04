@@ -2,6 +2,10 @@
 <div id="schema-content">
   <div id="objectclass-page" class="all-pages" hidden>
     <h3 class="ds-config-header">Objectclasses</h3>
+    <div>
+      <input type="checkbox" class="ds-config-checkbox" id="oc-user-defined"><label
+            for="oc-user-defined" class="ds-label">Only Non-standard Schema (objectClasses with X-ORIGIN: "user defined")</label>
+    </div>
     <table id="oc-table" class="display ds-repl-table" cellspacing="0" width="100%">
       <thead>
         <tr class="ds-table-header">
@@ -20,6 +24,10 @@
   </div>
   <div id="attribute-page" class="all-pages" hidden>
     <h3 class="ds-config-header">Attributes</h3>
+    <div>
+      <input type="checkbox" class="ds-config-checkbox" id="attr-user-defined"><label
+            for="attr-user-defined" class="ds-label">Only Non-standard Schema (attributes with X-ORIGIN: "user defined")</label>
+    </div>
     <table id="attr-table" class="display ds-repl-table" cellspacing="0" width="100%">
       <thead>
         <tr class="ds-table-header">
@@ -73,8 +81,22 @@
           <div class="ds-inline">
             <p class="ds-modal-error"></p>
             <div>
+              <label for="attr-parent" class="ds-config-label-lrg" title="The parent attribute"><b>Parent Attribute</b></label><select
+                    class="btn btn-default dropdown ds-oc-dropdown" id="attr-parent">
+              <option value=""></option>
+            </select>
+            </div>
+            <div>
               <label for="attr-name" class="ds-config-label-lrg" title="The attribute name"><b
                 >Attribute Name</b></label><input class="ds-input" type="text" id="attr-name" size="40"/>
+            </div>
+            <div>
+              <label for="attr-desc" class="ds-config-label-lrg" title="The attribute description"><b
+              >Attribute Description</b></label><input class="ds-input" type="text" id="attr-desc" size="40"/>
+            </div>
+            <div>
+              <label for="attr-oid" class="ds-config-label-lrg" title="The attribute name"><b
+              >Attribute OID</b></label><input class="ds-input" type="text" id="attr-oid" size="40"/>
             </div>
             <div>
               <label for="attr-syntax" class="ds-config-label-lrg" title="The attribute syntax"><b>Attribute Syntax</b></label><select
@@ -83,43 +105,49 @@
               </select>
             </div>
             <div>
+              <label for="attr-usage" class="ds-config-label-lrg" title="The parent attribute"><b>Attribute Usage</b></label><select
+                    class="btn btn-default dropdown ds-oc-dropdown" id="attr-usage">
+              </select>
+            </div>
+            <div>
               <input type="checkbox" class="ds-config-checkbox" id="attr-multivalued"><label
                 for="attr-multivalued" class="ds-label"> Attribute Multi-Valued </label>
             </div>
             <div>
-              <label for="attr-desc" class="ds-config-label-lrg" title="The attribute description"><b
-                >Attribute Description</b></label><input class="ds-input" type="text" id="attr-desc" size="40"/>
-            </div>
-            <div>
-              <label for="attr-oid" class="ds-config-label-lrg" title="The attribute name"><b
-                >Attribute OID</b></label><input class="ds-input" type="text" id="attr-oid" size="40"/>
+              <input type="checkbox" class="ds-config-checkbox" id="attr-no-user-mod"><label
+                    for="attr-no-user-mod" class="ds-label"> Read-only (NO-USER-MODIFICATION flag) </label>
             </div>
             <div>
               <label for="attr-alias" class="ds-config-label-lrg" title="The attribute alias list separated by space"><b
                 >Attribute Aliases</b></label><input class="ds-input" type="text" id="attr-alias" size="40"/>
             </div>
-              <div class="panel panel-default">
-              <div class="panel-heading"><strong>Matching rules</strong></div>
-              <div class="panel-body">
-                <div>
-                  <label for="attr-eq-mr-select" class="ds-config-label-lrg"><b>Equality</b></label><select
-                        class="btn btn-default dropdown ds-oc-dropdown" id="attr-eq-mr-select">
-                  <option></option>
-                </select>
-                </div>
-                <div>
-                  <label for="attr-order-mr-select" class="ds-config-label-lrg"><b>Ordering</b></label><select
-                        class="btn btn-default dropdown ds-oc-dropdown" id="attr-order-mr-select">
-                  <option></option>
-                </select>
-                </div>
-                <div>
-                  <label for="attr-sub-mr-select" class="ds-config-label-lrg"><b>Substring</b></label><select
-                        class="btn btn-default dropdown ds-oc-dropdown" id="attr-sub-mr-select">
-                  <option></option>
-                </select>
-                </div>
+            <div class="panel panel-default">
+            <div class="panel-heading"><strong>Matching rules</strong></div>
+            <div class="panel-body">
+              <div>
+                <label for="attr-eq-mr-select" class="ds-config-label-lrg"><b>Equality</b></label><select
+                      class="btn btn-default dropdown ds-oc-dropdown" id="attr-eq-mr-select">
+                <option></option>
+              </select>
               </div>
+              <div>
+                <label for="attr-order-mr-select" class="ds-config-label-lrg"><b>Ordering</b></label><select
+                      class="btn btn-default dropdown ds-oc-dropdown" id="attr-order-mr-select">
+                <option></option>
+              </select>
+              </div>
+              <div>
+                <label for="attr-sub-mr-select" class="ds-config-label-lrg"><b>Substring</b></label><select
+                      class="btn btn-default dropdown ds-oc-dropdown" id="attr-sub-mr-select">
+                <option></option>
+              </select>
+              </div>
+            </div>
+            </div>
+            <div>
+              <label for="attr-x-origin" class="ds-config-label-lrg"
+              title="The attribute X-ORIGIN (keep 'user defined' if it's a non-standard attribute)"><b
+              >Attribute X-ORIGIN</b></label><input class="ds-input" type="text" id="attr-x-origin" size="40"/>
             </div>
           </div>
           <div id="save-attr-spinner" class="ds-center" hidden>
@@ -151,17 +179,27 @@
             <div class="ds-inline">
               <p class="ds-modal-error"></p>
               <div>
+                <label for="oc-parent" class="ds-label-sm" title="The parent objectclass"><b>Parent Objectclass</b></label><select
+                      class="btn btn-default dropdown ds-oc-dropdown" id="oc-parent">
+              </select>
+              </div>
+              <div>
                 <label for="oc-name" class="ds-label-sm" title="The objectclass name"><b
                   >Objectclass Name</b></label><input class="ds-input" type="text" id="oc-name" size="40" required />
+              </div>
+              <div>
+                <label for="oc-desc" class="ds-label-sm" title="The objectClass description"><b
+                >ObjectClass Description</b></label><input class="ds-input" type="text" id="oc-desc" size="40"/>
               </div>
               <div>
                 <label for="oc-oid" class="ds-label-sm" title="Objectclass OID (optional)"><b
                   >OID (optional)</b></label><input class="ds-input" value="" type="text" id="oc-oid" size="40"/>
               </div>
               <div>
-                <label for="oc-parent" class="ds-label-sm" title="The parent objectclass"><b>Parent Objectclass</b></label><select
-                  class="btn btn-default dropdown ds-oc-dropdown" id="oc-parent">
-                  </select>
+                <label for="oc-kind" class="ds-label-sm" title="The parent objectclass"><b>Objectclass Kind</b></label><select
+                      class="btn btn-default dropdown ds-oc-dropdown" id="oc-kind">
+                <option value=""></option>
+              </select>
               </div>
               <hr>
               <div class="ds-container">
@@ -194,6 +232,11 @@
                   <select id="oc-allowed-list" class="ds-may-must-list" name="availattrs" multiple>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label for="oc-x-origin" class="ds-config-label-lrg"
+                       title="The objectClass X-ORIGIN (keep 'user defined' if it's a non-standard objectClass)"><b
+                >ObjectClass X-ORIGIN</b></label><input class="ds-input" type="text" id="oc-x-origin" size="40"/>
               </div>
             </div>
           </form>
