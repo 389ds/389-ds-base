@@ -87,8 +87,8 @@ do_unbind(Slapi_PBlock *pb)
     /* pass the unbind to all backends */
     be_unbindall(pb_conn, operation);
 
+free_and_return:;
+
     /* close the connection to the client */
     disconnect_server(pb_conn, operation->o_connid, operation->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
-
-free_and_return:;
 }

@@ -209,6 +209,7 @@ do_search(Slapi_PBlock *pb)
     if (attrs != NULL) {
         char *normaci = slapi_attr_syntax_normalize("aci");
         int replace_aci = 0;
+        int attr_count = 0;
         if (!normaci) {
             normaci = slapi_ch_strdup("aci");
         } else if (strcasecmp(normaci, "aci")) {
@@ -218,9 +219,19 @@ do_search(Slapi_PBlock *pb)
         /*
          * . store gerattrs if any
          * . add "aci" once if "*" is given
+         * . check that attrs are not degenerated
          */
         for (i = 0; attrs[i] != NULL; i++) {
             char *p = NULL;
+            attr_count++;
+
+            if ( attrs[i][0] == '\0') {
+                log_search_access(pb, base, scope, fstr, "invalid attribute request");
+                send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+                slapi_ch_free_string(&normaci);
+                goto free_and_return;
+            }
+
             /* check if @<objectclass> is included */
             p = strchr(attrs[i], '@');
             if (p) {
@@ -244,6 +255,7 @@ do_search(Slapi_PBlock *pb)
             } else if (strcmp(attrs[i], LDAP_ALL_USER_ATTRS /* '*' */) == 0) {
                 if (!charray_inlist(attrs, normaci)) {
                     charray_add(&attrs, slapi_ch_strdup(normaci));
+                    attr_count++;
                 }
             } else if (replace_aci && (strcasecmp(attrs[i], "aci") == 0)) {
                 slapi_ch_free_string(&attrs[i]);
@@ -263,13 +275,13 @@ do_search(Slapi_PBlock *pb)
             }
         } else {
             /* return the chopped type, e.g., "sn" */
-            operation->o_searchattrs = NULL;
+            operation->o_searchattrs = (char **)slapi_ch_calloc(sizeof(char *), attr_count+1);
             for (i = 0; attrs[i] != NULL; i++) {
                 char *type;
                 type = slapi_attr_syntax_normalize_ext(attrs[i],
                                                        ATTR_SYNTAX_NORM_ORIG_ATTR);
                 /* attrs[i] is consumed */
-                charray_add(&operation->o_searchattrs, attrs[i]);
+                operation->o_searchattrs[i] = attrs[i];
                 attrs[i] = type;
             }
         }
