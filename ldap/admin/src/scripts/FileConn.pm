@@ -360,7 +360,7 @@ sub add {
         return $self->write();
     }
 
-    if (exists($self->{$ndn})) {
+    if ($ndn && exists($self->{$ndn})) {
         $self->setErrorCode(LDAP_ALREADY_EXISTS);
         return 0;
     }
