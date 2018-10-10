@@ -210,6 +210,7 @@ do_search(Slapi_PBlock *pb)
         char *normaci = slapi_attr_syntax_normalize("aci");
         int replace_aci = 0;
         int attr_count = 0;
+        int empty_attrs = 0;
         if (!normaci) {
             normaci = slapi_ch_strdup("aci");
         } else if (strcasecmp(normaci, "aci")) {
@@ -226,10 +227,13 @@ do_search(Slapi_PBlock *pb)
             attr_count++;
 
             if ( attrs[i][0] == '\0') {
-                log_search_access(pb, base, scope, fstr, "invalid attribute request");
-                send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
-                slapi_ch_free_string(&normaci);
-                goto free_and_return;
+                empty_attrs++;
+                if (empty_attrs > 1) {
+                    log_search_access(pb, base, scope, fstr, "invalid attribute request");
+                    send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+                    slapi_ch_free_string(&normaci);
+                    goto free_and_return;
+                }
             }
 
             /* check if @<objectclass> is included */
