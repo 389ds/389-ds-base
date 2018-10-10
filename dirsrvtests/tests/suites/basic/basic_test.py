@@ -1016,6 +1016,78 @@ def test_connection_buffer_size(topology_st):
         with pytest.raises(ldap.OPERATIONS_ERROR):
             topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
 
+@pytest.mark.bz1637439
+def test_critical_msg_on_empty_range_idl(topology_st):
+    """Doing a range index lookup should not report a critical message even if IDL is empty
+
+    :id: a07a2222-0551-44a6-b113-401d23799364
+    :setup: Standalone instance
+    :steps:
+         1. Create an index for internationalISDNNumber. (attribute chosen because it is
+         unlikely that previous tests used it)
+         2. telephoneNumber being indexed by default create 20 users without telephoneNumber
+         3. add a telephoneNumber value and delete it to trigger an empty index database
+         4. Do a search that triggers a range lookup on empty telephoneNumber
+         5. Check that the critical message is not logged in error logs
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+         3. This should pass
+         4. This should pass on normal build but could abort a debug build
+         4. This should pass
+    """
+    indexedAttr = 'internationalISDNNumber'
+
+    # Step 1
+    from lib389.index import Indexes
+
+    indexes = Indexes(topology_st.standalone)
+    indexes.create(properties={
+        'cn': indexedAttr,
+        'nsSystemIndex': 'false',
+        'nsIndexType': 'eq'
+        })
+    topology_st.standalone.restart()
+
+    # Step 2
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    log.info('Adding 20 users without "%s"' % indexedAttr)
+    for i in range(20):
+        name = 'user_%d' % i
+        last_user = users.create(properties={
+            'uid': name,
+            'sn': name,
+            'cn': name,
+            'uidNumber': '1000',
+            'gidNumber': '1000',
+            'homeDirectory': '/home/%s' % name,
+            'mail': '%s@example.com' % name,
+            'userpassword': 'pass%s' % name,
+        })
+
+    # Step 3
+    # required update to create the indexAttr (i.e. 'loginShell') database, and then make it empty
+    topology_st.standalone.modify_s(last_user.dn, [(ldap.MOD_ADD, indexedAttr, b'1234')])
+    ent = topology_st.standalone.getEntry(last_user.dn, ldap.SCOPE_BASE,)
+    assert ent
+    assert ent.hasAttr(indexedAttr)
+    topology_st.standalone.modify_s(last_user.dn, [(ldap.MOD_DELETE, indexedAttr, None)])
+    ent = topology_st.standalone.getEntry(last_user.dn, ldap.SCOPE_BASE,)
+    assert ent
+    assert not ent.hasAttr(indexedAttr)
+
+    # Step 4
+    # The first component being not indexed the range on second is evaluated
+    try:
+        ents = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(&(sudoNotAfter=*)(%s>=111))' % indexedAttr)
+        assert len(ents) == 0
+    except ldap.SERVER_DOWN:
+        log.error('Likely testing against a debug version that asserted')
+        pass
+
+    # Step 5
+    assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

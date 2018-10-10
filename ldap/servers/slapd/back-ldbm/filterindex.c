@@ -803,16 +803,10 @@ list_candidates(
         }
 
         /*
-         * Assert we recieved a valid idl. If it was NULL, it means somewhere we failed
-         * during the dblayer interactions.
-         *
-         * idl_set requires a valid idl structure to generate the linked list of
-         * idls that we insert.
+         * The IDL for that component is NULL, so no candidate retrieved from that component. This is all normal
+         * Just build a idl with an empty set
          */
         if (tmp == NULL) {
-            slapi_log_err(SLAPI_LOG_CRIT, "list_candidates", "NULL idl was recieved from filter_candidates_ext.");
-            slapi_log_err(SLAPI_LOG_CRIT, "list_candidates", "Falling back to empty IDL set. This may affect your search results.");
-            PR_ASSERT(tmp);
             tmp = idl_alloc(0);
         }
 
