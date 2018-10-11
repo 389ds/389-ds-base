@@ -1002,6 +1002,22 @@ slapi_ldap_init(char *ldaphost, int ldapport, int secure, int shared)
     return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL /*, NULL*/);
 }
 
+static PRCallOnceType krb5_callOnce = {0, 0, 0};
+static PRLock *krb5_lock = NULL;
+
+static PRStatus
+internal_krb5_init(void)
+{
+    PR_ASSERT(NULL == krb5_lock);
+    if ((krb5_lock = PR_NewLock()) == NULL) {
+        PRErrorCode errorCode = PR_GetError();
+        slapi_log_err(SLAPI_LOG_ERR, "internal_krb5_init", "PR_NewLock failed %d:%s\n",
+                      errorCode, slapd_pr_strerror(errorCode));
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
 /*
  * Does the correct bind operation simple/sasl/cert depending
  * on the arguments passed in.  If the user specified to use
@@ -1272,6 +1288,13 @@ slapi_ldap_bind(
             }
         }
     } else {
+        int krb5_serialized = 0;
+
+#ifdef HAVE_KRB5
+        if (mech && !strcmp(mech, "GSSAPI")) {
+            krb5_serialized = 1;
+        }
+#endif
 /*
          * a SASL mech - set the sasl ssf to 0 if using TLS/SSL.
          * openldap supports tls + sasl security
@@ -1282,6 +1305,23 @@ slapi_ldap_bind(
             ldap_set_option(ld, LDAP_OPT_X_SASL_SSF_MAX, &max_ssf);
         }
 #endif
+        /*
+         * we are using static variables and sharing an in-memory credentials cache
+         * so we put a lock around all kerberos interactions
+         */
+        if (PR_SUCCESS != PR_CallOnce(&krb5_callOnce, internal_krb5_init)) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                    "Could not perform internal krb5 init\n");
+            rc = LDAP_LOCAL_ERROR;
+            goto done;
+        }
+
+#ifdef HAVE_KRB5
+        if (krb5_serialized) {
+            PR_Lock(krb5_lock);
+        }
+#endif
+
         rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
                                               serverctrls, returnedctrls, msgidp);
         if (LDAP_SUCCESS != rc) {
@@ -1298,6 +1338,11 @@ slapi_ldap_bind(
             }
 #endif
         }
+#ifdef HAVE_KRB5
+        if (krb5_serialized) {
+            PR_Unlock(krb5_lock);
+        }
+#endif
     }
 
 done:
@@ -1853,22 +1898,6 @@ cleanup:
     return myrc;
 }
 
-static PRCallOnceType krb5_callOnce = {0, 0, 0};
-static PRLock *krb5_lock = NULL;
-
-static PRStatus
-internal_krb5_init(void)
-{
-    PR_ASSERT(NULL == krb5_lock);
-    if ((krb5_lock = PR_NewLock()) == NULL) {
-        PRErrorCode errorCode = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "internal_krb5_init", "PR_NewLock failed %d:%s\n",
-                      errorCode, slapd_pr_strerror(errorCode));
-        return PR_FAILURE;
-    }
-
-    return PR_SUCCESS;
-}
 
 /*
  * This implementation assumes that we want to use the
@@ -1906,19 +1935,6 @@ set_krb5_creds(
                                              used for, does not
                                              appear to be used
                                              currently */
-
-    /*
-     * we are using static variables and sharing an in-memory credentials cache
-     * so we put a lock around all kerberos interactions
-     */
-    if (PR_SUCCESS != PR_CallOnce(&krb5_callOnce, internal_krb5_init)) {
-        slapi_log_err(SLAPI_LOG_ERR, logname,
-                      "Could not perform internal krb5 init\n");
-        rc = -1;
-        goto cleanup;
-    }
-
-    PR_Lock(krb5_lock);
 
     /* initialize the kerberos context */
     if ((rc = krb5_init_context(&ctx))) {
@@ -2221,7 +2237,6 @@ cleanup:
     if (ctx) { /* cannot pass NULL to free context */
         krb5_free_context(ctx);
     }
-    PR_Unlock(krb5_lock);
 
     return;
 }
@@ -2232,8 +2247,6 @@ clear_krb5_ccache(void)
     krb5_context ctx = NULL;
     krb5_ccache cc = NULL;
     int rc = 0;
-
-    PR_Lock(krb5_lock);
 
     /* initialize the kerberos context */
     if ((rc = krb5_init_context(&ctx))) {
@@ -2260,7 +2273,6 @@ done:
         krb5_free_context(ctx);
     }
 
-    PR_Unlock(krb5_lock);
 }
 
 #endif /* HAVE_KRB5 */
