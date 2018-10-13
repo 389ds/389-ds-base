@@ -543,7 +543,7 @@ replica_config_modify(Slapi_PBlock *pb,
                 } else if (strcasecmp(config_attr, type_replicaReleaseTimeout) == 0) {
                     if (apply_mods) {
                         int64_t val;
-                        if (repl_config_valid_num(config_attr, config_attr_value, 1, INT_MAX, returncode, errortext, &val) == 0) {
+                        if (repl_config_valid_num(config_attr, config_attr_value, 0, INT_MAX, returncode, errortext, &val) == 0) {
                             replica_set_release_timeout(r, val);
                         } else {
                             break;

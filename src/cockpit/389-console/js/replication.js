@@ -1,8 +1,24 @@
 var repl_suffix = "";
-var prev_repl_role ="no-repl";
+var prev_repl_role = "no-repl";
 var prev_role_button;
-var prev_rid = "";
 var binddn_list_color = "";
+var repl_mgr_table;
+var current_role = "";
+var current_rid = "";
+var repl_agmt_table;
+var repl_winsync_agmt_table;
+var repl_clean_table;
+var mgr_dn;
+var repl_agmt_values = {};
+var repl_winsync_agmt_values = {};
+var frac_prefix = "(objectclass=*) $ EXCLUDE";
+var agmt_init_intervals = [];
+var agmt_init_counter = 0;
+var winsync_init_intervals = [];
+var winsync_init_counter = 0;
+
+// HTML items
+var progress_html = '<p><span class="spinner spinner-xs spinner-inline"></span> Initializing Agreement...</p>';
 
 var agmt_action_html =
   '<div class="dropdown">' +
@@ -11,11 +27,10 @@ var agmt_action_html =
       '<span class="caret"></span>' +
     '</button>' +
     '<ul class="dropdown-menu ds-agmt-dropdown" role="menu">' +
-      '<li role=""><a class="repl-agmt-btn agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
-      '<li role=""><a class="repl-agmt-btn" href="#">Initialize Consumer (online)</a></li>' +
-      '<li role=""><a class="repl-agmt-btn" href="#">Initialize Consumer (ldif)</a></li>' +
-      '<li role=""><a class="repl-agmt-btn" href="#">Send Updates Now</a></li>' +
-      '<li role=""><a class="repl-agmt-btn" href="#">Enable/Disable Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn agmt-edit-btn" href="#">Edit Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn agmt-init-btn" href="#">Initialize Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn agmt-send-updates-btn" href="#">Send Updates Now</a></li>' +
+      '<li role=""><a class="repl-agmt-btn agmt-enable-btn" href="#">Enable/Disable Agreement</a></li>' +
       '<li role=""><a class="repl-agmt-btn agmt-del-btn" href="#">Delete Agreement</a></li>' +
     '</ul>' +
   '</div>';
@@ -27,66 +42,87 @@ var winsync_agmt_action_html =
       '<span class="caret"></span>' +
     '</button>' +
     '<ul class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="dropdownMenu2">' +
-      '<li role=""><a class="repl-agmt-btn winsync-agmt-edit-btn" href="#">View/Edit Agreement</a></li>' +
-      '<li role=""><a class="repl-agmt-btn" href="#">Send/Receives Updates Now</a></li>' +
-      '<li role=""><a class="repl-agmt-btn" href="#">Full Re-synchronization</a></li>' +
+      '<li role=""><a class="repl-agmt-btn winsync-agmt-edit-btn" href="#">Edit Agreement</a></li>' +
+      '<li role=""><a class="repl-agmt-btn winsync-agmt-send-updates-btn" href="#">Send/Receives Updates Now</a></li>' +
+      '<li role=""><a class="repl-agmt-btn winsync-agmt-init-btn" href="#">Full Re-synchronization</a></li>' +
+      '<li role=""><a class="repl-agmt-btn winsync-agmt-enable-btn" href="#">Enable/Disable Agreement</a></li>' +
       '<li role=""><a class="repl-agmt-btn winsync-agmt-del-btn" href="#">Delete Agreement</a></li>' +
     '</ul>' +
   '</div>';
 
 var cleanallruv_action_html =
-  '<button class="btn btn-default ds-agmt-dropdown-button" type="button" class="abort-cleanallruv">Abort Task</button>';
+  '<button class="btn btn-default ds-agmt-dropdown-button abort_cleanallruv_btn" type="button" class="abort-cleanallruv">Abort Task</button>';
 
-function load_repl_jstree() {
-  $('#repl-tree').jstree( {
-    "plugins" : [ "wholerow" ]
-  });
-
-  // Set rid for each suffix if applicable
-  prev_rid = "1";
-
-  $('#repl-tree').on("changed.jstree", function (e, data) {
-    console.log("The selected nodes are:");
-    console.log(data.selected);
-    repl_suffix = data.selected;
-    if (repl_suffix == "repl-root") {
-      $("#repl-config").hide();
-      $("#repl-splash").show();
-    } else {
-      // Suffix
-      $("#repl-splash").hide();
-      $("#replica-header").html("Replication Configuration <font size='3'>(<b>" + repl_suffix + "</b>)</font>");
-      // Check if this suffix is already setup for replication.  If so set the radio button, and populate the form
-      $("#repl-config").show();
-    }
-  });
+// Attribute to CLI argument mappings
+var repl_attr_map = {
+  'nsds5replicaid': '--replica-id',
+  'nsds5replicapurgedelay': '--repl-purge-delay',
+  'nsds5replicatombstonepurgeinterval': '--repl-tombstone-purge-interval',
+  'nsds5Replicaprecisetombstonepurging': '--repl-fast-tombstone-purging',
+  'nsds5replicabinddngroup': '--repl-bind-group',
+  'nsds5replicabinddngroupcheckinterval':  '--repl-bind-group-interval',
+  'nsds5replicaprotocoltimeout': '--repl-protocol-timeout',
+  'nsds5replicabackoffmin': '--repl-backoff-min',
+  'nsds5replicabackoffmax': '--repl-backoff-_max',
+  'nsds5replicareleasetimeout': '--repl-release-timeout',
+  'nsds5flags': '',
+  'nsds5replicatype': '',
+  'nsds5replicabinddn': '',
+  'nsslapd-changelogdir': '--cl-dir',
+  'nsslapd-changelogmaxentries': '--max-entries',
+  'nsslapd-changelogmaxage': '--max-age',
+  'nsslapd-changelogcompactdb-interval': '--compact-interval',
+  'nsslapd-changelogtrim-interval': '--trim-interval',
+  'nsslapd-encryptionalgorithm': '--encrypt-algo',
 };
 
+var repl_cl_attrs = ['nsslapd-changelogdir', 'nsslapd-changelogmaxentries', 'nsslapd-changelogmaxage',
+                     'nsslapd-changelogcompactdb-interval', 'nsslapd-changelogtrim-interval',
+                     'nsslapd-encryptionalgorithm' ];
+
+var repl_attrs = ['nsds5replicaid', 'nsds5replicapurgedelay', 'nsds5replicatombstonepurgeinterval',
+                  'nsds5replicaprecisetombstonepurging', 'nsds5replicabinddngroup',
+                  'nsds5replicabinddngroupcheckinterval', 'nsds5replicaprotocoltimeout', 'nsds5replicabackoffmin',
+                  'nsds5replicabackoffmax', 'nsds5replicareleasetimeout'];
+
+
+// Helper functions
 function clear_agmt_wizard () {
   // Clear input fields and reset dropboxes
-  $('.ds-agmt-schedule-checkbox').prop('checked', true);
+  $('.ds-agmt-schedule-checkbox').prop('checked', false);
   $('#agmt-schedule-checkbox').prop('checked', true);
-  $(".ds-wiz-input").val("");
-  $("#agmt-start-time").val("");
-  $("#agmt-end-time").val("");
+  $("#agmt-start-time").val("00:00");
+  $("#agmt-end-time").val("00:15");
   $(".ds-agmt-wiz-dropdown").prop('selectedIndex',0);
   $(".ds-agmt-panel").css('display','none');
+  $(".agmt-form-input").css("border-color", "initial");
+  $(".agmt-form-input").val("");
+  $('#frac-exclude-list').find('option').remove();
+  $('#frac-exclude-tot-list').find('option').remove();
+  $('#frac-strip-list').find('option').remove();
+  load_schema_objects_to_select('attributetypes', 'select-attr-list');
+  $("#select-attr-list").prop('selectedIndex',-1);
+  $("#init-options").prop("selectedIndex", 0);
+  $("#init-agmt-dropdown").show();
 };
 
 function clear_winsync_agmt_wizard() {
   // Clear out winsync agreement form
   $("#winsync-agmt-cn").val("");
-  $("#nsds7windowsdomain").val("");
+  $("#winsync-nsds7windowsdomain").val("");
   $("#winsync-nsds5replicahost").val("");
   $("#winsync-nsds5replicaport").val("");
-  $("#nsds7windowsreplicasubtree").val("");
-  $("#nsds7directoryreplicasubtree").val("");
-  $("#nsds7newwinusersyncenabled-checkbox").prop('checked', false);
-  $("#nsds7newwingroupsyncenabled-checkbox").prop('checked', false);
+  $("#winsync-nsds7windowsreplicasubtree").val("");
+  $("#winsync-nsds7directoryreplicasubtree").val("");
+  $("#winsync-nsds7newwinusersyncenabled-checkbox").prop('checked', false);
+  $("#winsync-nsds7newwingroupsyncenabled-checkbox").prop('checked', false);
+  $("#winsync-init-checkbox").prop('checked', false);
+  $("#winsync-init-chbx").show();
   $("#winsync-nsds5replicabinddn").val("");
   $("#winsync-nsds5replicacredentials").val("");
   $("#winsync-nsds5replicacredentials-confirm").val("");
-  $("#winsync-nsds5replicabindmethod").prop('selectedIndex', 0);
+  $("#winsync-nsds5replicatransportinfo").prop('selectedIndex', 0);
+  $("#winsync-agmt-wizard-title").html("<b>Create Winsync Agreement</b>");
 }
 
 function clear_cleanallruv_form () {
@@ -105,19 +141,516 @@ function clear_repl_mgr_form () {
 
 
 function add_repl_mgr(dn){
+  // First check if manager is set to none
 	$("#repl-mgr-table tbody").append(
 		"<tr>"+
 		"<td class='ds-td'>" + dn +"</td>"+
     "<td class='ds-center'>"+
-    "<button type='button' class='btn btn-default ds-table-btn del-repl-mgr'>" +
-    "<span class='glyphicon glyphicon-trash'></span> Remove</button></td>" +
+    "<button type='button' class='btn btn-default remove-repl-mgr' data-toggle='modal' data-target='#del-repl-mgr-form' title='Remove the manager from the replication configuration'>" +
+    "<span class='glyphicon glyphicon-trash'></span> Remove </button></td>" +
 		"</tr>");
 };
 
 
+function do_agmt_init(suffix, agmt_cn, idx) {
+  var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init-status', '--suffix=' + suffix, '"' + agmt_cn + '"' ];
+  console.log("CMD: Get initialization status for agmt: " + status_cmd.join(' '));
+  cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    var init_stat = JSON.parse(data);
+    if (init_stat == 'Agreement successfully initialized.' ||
+        init_stat == 'Agreement initialization failed.')
+    {
+      // Init is done (good or bad)
+      get_and_set_repl_agmts();
+      clearInterval(agmt_init_intervals[idx]);
+    }
+  });
+}
+
+function do_winsync_agmt_init(suffix, agmt_cn, idx) {
+  var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init-status', '--suffix=' + suffix, '"' + agmt_cn + '"' ];
+  console.log("CMD: Get initialization status for agmt: " + status_cmd.join(' '))
+  cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    var init_stat = JSON.parse(data);
+    if (init_stat == 'Agreement successfully initialized.' ||
+        init_stat == 'Agreement initialization failed.')
+    {
+      // Init is done (good or bad)
+      get_and_set_repl_winsync_agmts();
+      clearInterval(agmt_init_intervals[idx]);
+    }
+  });
+}
+
+function get_and_set_repl_winsync_agmts() {
+  /*
+   * Get the replication agreements for the selected suffix
+   */
+  var suffix = $("#select-repl-winsync-suffix").val();
+  repl_winsync_agmt_table.clear();
+
+  if (suffix) {
+    console.log("Loading winsync replication agreements...");
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'list', '--suffix=' + suffix ];
+    console.log("CMD: Get winsync agmts: " + cmd.join(' '))
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      var obj = JSON.parse(data);
+      for (var idx in obj['items']) {
+        var state = "Enabled";
+        var con_host = "";
+        var con_port = "";
+        var ds_subtree = "";
+        var win_subtree = "";
+        agmt_attrs = obj['items'][idx]['attrs'];
+        var agmt_name = agmt_attrs['cn'][0];
+
+        // Compute state (enabled by default)
+        if ('nsds5replicaenabled' in agmt_attrs) {
+          if (agmt_attrs['nsds5replicaenabled'][0].toLowerCase() == 'off'){
+            state = "Disabled";
+          }
+        }
+        var ws_agmt_init_status = "Initialized";
+        if ('nsds5replicalastinitstatus' in agmt_attrs &&
+            agmt_attrs['nsds5replicalastinitstatus'][0] != "")
+        {
+          ws_agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
+          if (ws_agmt_init_status == "Error (0) Total update in progress") {
+            ws_agmt_init_status = progress_html;
+            var ws_interval_agmt_name = agmt_name;
+            var ws_init_status_interval = setInterval(function() {
+              var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init-status', '--suffix=' + suffix, '"' + ws_interval_agmt_name + '"' ];
+              console.log("CMD: Get initialization status for winsync agmt: " + status_cmd.join(' '))
+              cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                var init_stat = JSON.parse(data);
+                if (init_stat == 'Agreement successfully initialized.' ||
+                    init_stat == 'Agreement initialization failed.')
+                {
+                  // Init is done (good or bad)
+                  get_and_set_repl_winsync_agmts();
+                  clearInterval(ws_init_status_interval);
+                }
+              });
+            }, 2000);
+          } else if (ws_agmt_init_status == "Error (0) Total update succeeded") {
+            ws_agmt_init_status = "Initialized";
+          }
+        } else if (agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z"){
+          ws_agmt_init_status = "Not initialized";
+        }
+
+        repl_winsync_agmt_table.row.add( [
+          agmt_attrs['cn'][0],
+          agmt_attrs['nsds5replicahost'][0],
+          agmt_attrs['nsds5replicaport'][0],
+          state,
+          agmt_attrs['nsds5replicalastupdatestatus'][0],
+          ws_agmt_init_status,
+          winsync_agmt_action_html
+        ] ).draw( false );
+        console.log("Finished loading winsync replication agreements.");
+      }
+    });
+  } // suffix
+}
+
+
+function get_and_set_repl_agmts () {
+  /*
+   * Get the replication agreements for the selected suffix
+   */
+  var suffix = $("#select-repl-agmt-suffix").val();
+  repl_agmt_table.clear();
+
+  if (suffix) {
+    console.log("Loading replication agreements...");
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'list', '--suffix=' + suffix ];
+    console.log("CMD: Get agmts: " + cmd.join(' '))
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      var obj = JSON.parse(data);
+      for (var idx in obj['items']) {
+        agmt_attrs = obj['items'][idx]['attrs'];
+        var agmt_name = agmt_attrs['cn'][0];
+        var state = "Enabled";
+        var update_status = "";
+        var agmt_init_status = "Initialized";
+
+        // Compute state (enabled by default)
+        if ('nsds5replicaenabled' in agmt_attrs) {
+          if (agmt_attrs['nsds5replicaenabled'][0].toLowerCase() == 'off'){
+            state = "Disabled";
+          }
+        }
+
+        // Check for status msgs
+        if ('nsds5replicalastupdatestatus' in agmt_attrs) {
+          update_status = agmt_attrs['nsds5replicalastupdatestatus'][0];
+        }
+        if ('nsds5replicalastinitstatus' in agmt_attrs &&
+            agmt_attrs['nsds5replicalastinitstatus'][0] != "")
+        {
+          agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
+          if (agmt_init_status == "Error (0) Total update in progress") {
+            agmt_init_status = progress_html;
+            var interval_agmt_name = agmt_name;
+            var init_idx = agmt_init_counter;
+            agmt_init_counter += 1;
+            agmt_init_intervals[init_idx] = setInterval( do_agmt_init, 2000, suffix, interval_agmt_name, init_idx);
+          } else if (agmt_init_status == "Error (0) Total update succeeded") {
+            agmt_init_status = "Initialized";
+          }
+        } else if (agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z"){
+          agmt_init_status = "Not initialized";
+        }
+
+        // Update table
+        repl_agmt_table.row.add( [
+          agmt_attrs['cn'][0],
+          agmt_attrs['nsds5replicahost'][0],
+          agmt_attrs['nsds5replicaport'][0],
+          state,
+          update_status,
+          agmt_init_status,
+          agmt_action_html
+        ] ).draw( false );
+      }
+      console.log("Finished loading replication agreements.");
+    }).fail(function () {
+      repl_agmt_table.clear().draw();
+    });
+  } // suffix
+}
+
+
+function get_and_set_cleanallruv() {
+  console.log("Loading replication tasks...");
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
+  console.log("CMD: Get repl tasks: " + cmd.join(' '));
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    var tasks = JSON.parse(data);
+    repl_clean_table.clear();
+    for (var idx in tasks['items']) {
+      task_attrs = tasks['items'][idx]['attrs'];
+      // Update table
+      var abort_btn = cleanallruv_action_html;
+      if (task_attrs['nstaskstatus'][0].includes('Successfully cleaned rid') ){
+        abort_btn = "<i>Task Complete</i>";
+      } else if (task_attrs['nstaskstatus'][0].includes('Task aborted for rid') ){
+         abort_btn = "<i>Task Aborted</i>";
+      }
+      repl_clean_table.row.add( [
+          task_attrs['cn'][0],
+          get_date_string(task_attrs['createtimestamp'][0]),
+          task_attrs['replica-base-dn'][0],
+          task_attrs['replica-id'][0],
+          task_attrs['nstaskstatus'][0],
+          abort_btn
+        ] );
+    }
+    repl_clean_table.draw(false);
+    console.log("Finished loading replication tasks.");
+  });
+}
+
+
+function get_and_set_repl_config () {
+  var suffix = $("#select-repl-cfg-suffix").val();
+  if (suffix) {
+    $("#nsds5replicaid").css("border-color", "initial");
+    $("#nsds5replicaid").val("");
+    console.log("Loading replication configuration...");
+
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get', '--suffix=' + suffix ];
+    console.log("CMD: Get repl config: " + cmd.join(' '));
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      var repl = JSON.parse(data);
+      var repl_type;
+      var repl_flags;
+      var manager = false;
+      repl_config_values = {};
+      repl_cl_values = {};
+
+      // Clear the tables
+      //$("#repl-mgr-table tr").remove();
+      $('#repl-mgr-table').find("tr:gt(0)").remove();
+
+      // Set configuration and the repl manager table
+      for (var attr in repl['attrs']) {
+        var vals = repl['attrs'][attr];
+        attr = attr.toLowerCase();
+
+        if (attr in repl_attr_map) {
+          if (attr == "nsds5replicabinddn") {
+            // update manager table
+            for (var val_idx in vals){
+              add_repl_mgr(vals[val_idx]);
+              manager = true;
+            }
+          } else if (attr == "nsds5replicatype") {
+            repl_type = vals[0];
+          } else if (attr == "nsds5flags") {
+            repl_flags = vals[0];
+          } else {
+            // regular config value, add it any existing input fields that match
+            $("#" + attr ).val(vals[0]);
+            repl_config_values[attr] = vals[0];
+          }
+        }
+      }
+      if (!manager) {
+        // Add an empty row to define the table
+        $("#repl-mgr-table tbody").append(
+		      "<tr>"+
+		      "<td class='ds-td'>None</td>"+
+          "<td></td>" +
+          "</tr>");
+      }
+
+      // Set the replica role
+      if (repl_type == "3"){
+        $("#select-repl-role").val("Master");
+        current_role = "Master";
+        $("#nsds5replicaid").prop("readonly", false);
+      } else {
+        if (repl_flags == "1"){
+          $("#select-repl-role").val("Hub");
+          current_role = "Hub";
+          $("#nsds5replicaid").prop("readonly", true);
+        } else {
+          $("#select-repl-role").val("Consumer");
+          current_role = "Consumer";
+          $("#nsds5replicaid").prop("readonly", true);
+        }
+      }
+      current_rid = $("#nsds5replicaid").val();
+
+      // Show the page (in case it was hidden)
+      $("#repl-config-content").show();
+
+      console.log("Finished loading replication configuration.");
+    }).fail(function(data) {
+      // No replication
+      $("#select-repl-role").val("Disabled");
+      current_role = "Disabled";
+      $("#repl-config-content").hide();
+    });
+  } else {
+    // No suffixes - hide page
+    $("#select-repl-role").val("Disabled");
+    current_role = "Disabled";
+    $("#repl-config-content").hide();
+  }
+
+  // Do the changelog settings
+  $("#cl-create-div").show();
+  $("#cl-del-div").hide();
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get-changelog'];
+  console.log("CMD: Get changelog: " + cmd.join(' '));
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    $(".ds-cl").val("");  // Clear form
+    var cl = JSON.parse(data);
+    for (var attr in cl['attrs']) {
+      var val = cl['attrs'][attr][0];
+      attr = attr.toLowerCase();
+      $("#" + attr ).val(val);
+      $("#cl-create-div").hide();
+      $("#cl-del-div").show();
+      repl_cl_values[attr] = val;
+    }
+  }).fail(function() {
+    // No changelog, clear the form
+    $(".ds-cl").val("");
+  });
+}
+
+
+function save_repl_config(suffix, ignore_rid) {
+  /*
+   * Check for changes in the replication settings
+   */
+  var set_repl_values = {};
+  var set_cl_values = {};
+  var arg_list = [];
+  for (var attr in repl_attrs) {
+    attr = repl_attrs[attr];
+    var val = $("#" + attr).val();
+    var prev_val = "";
+    if (attr in repl_config_values) {
+      prev_val = repl_config_values[attr];
+    }
+    if (val != prev_val) {
+      if (ignore_rid && attr == "nsds5replicaid"){
+        // skip it since we are doing a promotion
+        continue;
+      }
+      if (val != "") {
+        // Regular setting - add to the list
+        arg_list.push(repl_attr_map[attr] + "=" + val );
+      } else {
+        // removed
+        arg_list.push(repl_attr_map[attr] + "=");
+      }
+      set_repl_values[attr] = val;
+    }
+  }
+
+  get_and_set_repl_config();
+
+  /*
+   * Check for changes in the changelog settings
+   */
+  var arg_cl_list = [];
+  for (var attr in repl_cl_attrs) {
+    attr = repl_cl_attrs[attr];
+    var val = $("#" + attr).val();
+    var prev_val = "";
+    if (attr in repl_cl_values) {
+      prev_val = repl_cl_values[attr];
+    }
+    if (val != prev_val) {
+      // we have a difference
+      if (val != "") {
+        // Regular setting -add to the list
+        arg_cl_list.push(repl_attr_map[attr] + "=" + val);
+      } else {
+        // removed
+        arg_cl_list.push(repl_attr_map[attr] + "=");
+      }
+      set_cl_values[attr] = val;
+    }
+  }
+
+  /*
+   * Save repl config settings
+   */
+  if (arg_list.length > 0){
+
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--suffix=' + suffix ];
+    cmd = cmd.concat(arg_list);
+    console.log("CMD: set replication: " + cmd.join(' '));
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      popup_success('Saved replication configuration');
+      for (var key in set_repl_values) {
+        // Update current in memory values
+        repl_config_values[key] = set_repl_values[key];
+      }
+      get_and_set_repl_config();
+      /*
+       * Save changelog settings
+       */
+      if (arg_cl_list.length > 0){
+        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set-changelog'];
+        cmd = cmd.concat(arg_cl_list);
+        console.log("CMD: Set changelog: " + cmd.join(' '));
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+          popup_success('Saved changelog configuration');
+          for (var key in set_cl_values) {
+            // Update current in memory values
+            repl_cl_values[key] = set_cl_values[key];
+          }
+          get_and_set_repl_config();
+        }).fail(function(data) {
+          get_and_set_repl_config();
+          popup_err("Failed to save changelog configuration", data.message);
+        });
+      }
+    }).fail(function(data) {
+      // Restore prev values
+      get_and_set_repl_config();
+      popup_err("Failed to set replication configuration", data.message);
+    });
+  } else if (arg_cl_list.length > 0) {
+    /*
+     * Only changelog settings need to be applied
+     */
+    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set-changelog'];
+    cmd = cmd.concat(arg_cl_list);
+    console.log("CMD: Set changelog: " + cmd.join(' '));
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      popup_success('Saved changelog configuration');
+      for (var key in set_cl_values) {
+        // Update current in memory values
+        repl_cl_values[key] = set_cl_values[key];
+      }
+      get_and_set_repl_config();
+    }).fail(function(data) {
+      get_and_set_repl_config();
+      popup_err("Failed to save changelog configuration", data.message);
+    });
+  }
+}
+
+
+/*
+ * Load the replication page, and set the handlers
+ */
 $(document).ready( function() {
   $("#replication-content").load("replication.html", function () {
-    // Load the dropdown TODO
+        // Set up agreement table
+    repl_agmt_table = $('#repl-agmt-table').DataTable( {
+      "paging": true,
+      "bAutoWidth": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No agreements configured",
+        "search": "Search Agreements"
+      },
+      "columnDefs": [ {
+        "targets": 6,
+        "orderable": false
+      } ],
+      "columns": [
+        { "width": "20%" },
+        { "width": "20%" },
+        { "width": "50px" },
+        { "width": "50px" },
+        { "width": "20%" },
+        { "width": "20%" },
+        { "width": "130px" }
+      ],
+    });
+
+    // Set up windows sync agreement table
+    repl_winsync_agmt_table = $('#repl-winsync-agmt-table').DataTable( {
+      "paging": true,
+      "bAutoWidth": false,
+      "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthMenu": [ 10, 25, 50, 100],
+      "language": {
+        "emptyTable": "No winsync agreements configured",
+        "search": "Search Agreements"
+      },
+      "columnDefs": [ {
+        "targets": 6,
+        "orderable": false
+      } ]
+    });
+
+    // Set up CleanAllRUV Table
+    repl_clean_table = $('#repl-clean-table').DataTable( {
+      "paging": true,
+      "searching": false,
+      "bAutoWidth": false,
+      "dom": 'B<"pull-left"f><"pull-right"l>tip',
+      buttons: [
+            {
+                text: 'Refresh Task List',
+                action: function ( e, dt, node, config ) {
+                  console.log("hmmm");
+                  get_and_set_cleanallruv();
+                }
+            }
+        ],
+      "lengthChange": false,
+      "language": {
+        "emptyTable": "No CleanAllRUV tasks",
+      },
+      "columnDefs": [ {
+        "targets": 5,
+        "orderable": false
+      } ]
+    });
 
     binddn_list_color = $("#repl-managers-list").css("border-color");
 
@@ -148,149 +681,241 @@ $(document).ready( function() {
       $("#repl-cleanallruv").show();
     });
 
-
-    $("#nsds5replicaid").on("change", function() {
-      prev_rid = $("#nsds5replicaid").val();
+    $("#select-repl-cfg-suffix").on("change", function() {
+      get_and_set_repl_config();
     });
 
-    $("#save-repl-cfg-btn").on('click', function () {
-       // validate values
-
-       // Do the save in DS
-
-       // In case we updated the bind group...
-       check_repl_binddn_list();
+    $("#select-repl-agmt-suffix").on("change", function() {
+      get_and_set_repl_agmts();
     });
 
+    $("#select-repl-winsync-suffix").on("change", function() {
+      get_and_set_repl_winsync_agmts();
+    });
+
+    $("#select-repl-role").on("change", function() {
+      var new_role = $(this).val();
+      if (current_role == new_role) {
+        // reset rid
+        $("#nsds5replicaid").val(current_rid);
+      }
+      if (new_role == "Master"){
+        $("#nsds5replicaid").prop("readonly", false);
+        var cur_rid = $("#nsds5replicaid").val();
+        var rid_num;
+        if (cur_rid == ""){
+          rid_num = 0;
+        } else {
+          rid_num = parseInt(cur_rid, 10);
+        }
+        if (rid_num < 1 || rid_num >= 65535){
+          $("#nsds5replicaid").css("border-color", "red");
+        }
+        $("#repl-config-content").show();
+      } else {
+        if (new_role == "Disabled"){
+          $("#nsds5replicaid").val("");
+          $("#repl-config-content").hide();
+        } else {
+          $("#nsds5replicaid").val("65535");
+          $("#repl-config-content").show();
+        }
+        $("#nsds5replicaid").prop("readonly", true);
+        $("#nsds5replicaid").css("border-color", "initial");
+      }
+    });
 
     /*
-     * Setting/Changing the replication role
+     * Save replication configuration
      */
-    $("#nsds5replicaid").on('click', function () {
-      if ( $("#nsds5replicaid").prop('disabled') == false ) {
-        // Set radio button to master role when we click on the rid input
-        $("#master").prop("checked", true);
-      }
-    });
-    $("#change-repl-role").on("click", function() {
-      var role_button = $("input[name=repl-role]:checked");
-      var role = $("input[name=repl-role]:checked").val();
+    $("#repl-config-save").on('click', function () {
+      var suffix = $("#select-repl-cfg-suffix").val();
+      var rid = $("#nsds5replicaid").val();
 
-      if (prev_repl_role == role) {
-        // Nothing changed
-        return;
-      }
-
-      if (role == "master") {
-        if ($("#nsds5replicaid").val() == "" || $("#nsds5replicaid").val() === undefined ){
-          popup_msg("Attention!", "Replica ID is required for a Master role");
-          return;
-        }
-        if ( !valid_num($("#nsds5replicaid").val()) ) {
-          popup_msg("Attention!", "Replica ID must be a number");
-          return;
-        }
-
-        // TODO - check if replication is set up, if not launch a basic popup windows asking for replica ID
-
-        // TODO - if prev_role is not "disabled" after for confirmation before promoting replica
-        $("#repl-settings-header").html("Master Replication Settings");
-        $('#repl-cleanallruv').show();
-        $('#repl-agmts').show();
-        $("#nsds5replicaid").prop('disabled', true); // Can not edit rid after setup
-      } else {
-        $("#nsds5replicaid").prop('disabled', false);
-        $('#repl-cleanallruv').hide()
-        $("#nsds5replicaid").prop('required', false);
-
-        if (role == "hub"){
-          // TODO - if prev_role is not "disabled" after for confirmation before promoting/demoting replica
-          $("#nsds5replicaid").val("");
-          $("#repl-settings-header").html("Hub Replication Settings");
-          $('#repl-agmts').show();
-        } else if (role == "consumer") {
-          // consumer
-          // TODO - if prev_role is not "disabled" after for confirmation before demoting replica
-          $('#repl-agmts').hide();
-          $("#nsds5replicaid").val("");
-          $("#repl-settings-header").html("Consumer Replication Settings");
-        }
-      }
-      if (role == "no-repl") {
-        // This also means disable replication: delete agmts, everything
-
-        popup_confirm("Are you sure you want to disable replication and remove all agreements?", "Confirmation", function (yes) {
-          if (yes) {
-            // TODO Delete attr from DS
-
-            //delete everything
-            $("#repl-form").hide();
-            $("#nsds5replicaid").val("");
-            prev_role_button = role_button;
-            prev_repl_role = role;
+      if (suffix) {
+        /*
+         * Did we enable, disable, promote, or demote this replica?
+         */
+        var new_role = $("#select-repl-role").val();
+        if (new_role != current_role) {
+          if (current_role == "Disabled"){
+            /*
+             * Enable replication for the first time
+             */
+            var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'enable',
+                       '--suffix=' + suffix, "--role=" + new_role];
+            if (new_role == "Master") {
+              if (rid == ""){
+                popup_msg("Missing Required Replica ID",
+                          "A Master replica requires a unique identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
+                return;
+              }
+              cmd.push("--replica-id=" + rid);
+            }
+            console.log("CMD: Enable replication: " + cmd.join(' '));
+            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+              popup_success('Successfully enabled replication');
+              get_and_set_repl_config();
+              save_repl_config(suffix, true);
+            }).fail(function(data) {
+              popup_err("Failed to enable replication configuration", data.message);
+              get_and_set_repl_config();
+              return;
+            });
+          } else if (new_role == "Disabled") {
+            /*
+             * Disable replication
+             */
+            popup_confirm("Are you sure you want to disable replication?  This will remove all your replication agreements and can not be undone!", "Confirmation", function (yes) {
+              if (yes) {
+                var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'disable', '--suffix=' + suffix ];
+                console.log("CMD: Disable replication: " + cmd.join(' '));
+                cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                  current_role = "Disabled";
+                  $("#repl-config-content").hide();
+                  popup_success('Successfully disabled replication');
+                  get_and_set_repl_config();
+                }).fail(function(data) {
+                  popup_err("Failed to disable replication", data.message);
+                  get_and_set_repl_config();
+                });
+              }
+            });
           } else {
-            // We don't change the prev anything in this case
-            prev_role_button.prop('checked', true);
+            /*
+             * Promote/demote the replica
+             */
+            popup_confirm("Are you sure you want to change the <i>replication role</i> to \"<b>" + new_role + "</b>\"?", "Confirmation", function (yes) {
+              if (yes) {
+                if (new_role == "Master"){
+                  /*
+                   * Promote to Master
+                   */
+                  if ( !valid_num(rid) ) {
+                    popup_msg("Missing Required Replica ID",
+                              "A Master replica requires a unique numerical identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
+                    get_and_set_repl_config();
+                    return;
+                  }
+                  var rid_num = parseInt(rid, 10);
+                  if (rid_num < 1 || rid_num >= 65535){
+                    popup_msg("Missing Required Replica ID",
+                              "A Master replica requires a unique numerical identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
+                    get_and_set_repl_config();
+                    return;
+                  }
+                  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
+                             '--suffix=' + suffix, "--newrole=" + new_role, "--replica-id=" + rid];
+                  console.log("CMD: Promote replica: " + cmd.join(' '));
+                  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                    current_role = "Master";;
+                    popup_success('Successfully promoted replica to a <b>Master</b>');
+                    get_and_set_repl_config();
+                    save_repl_config(suffix, true);
+                  }).fail(function(data) {
+                    popup_err("Failed to promote replica to a Master", data.message);
+                    get_and_set_repl_config();
+                  });
+                } else if (new_role == "Hub" && current_role == "Master"){
+                  /*
+                   * Demote to Hub
+                   */
+                  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'demote',
+                             '--suffix=' + suffix, "--newrole=" + new_role];
+                  console.log("CMD: Demote replica: " + cmd.join(' '));
+                  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                    current_role = "Hub";
+                    popup_success('Successfully demoted replica to a <b>Hub</b>');
+                    save_repl_config(suffix, true);
+                  }).fail(function(data) {
+                    popup_err("Failed to demote replica to a Hub", data.message);
+                    get_and_set_repl_config();
+                  });
+                } else if (new_role == "Hub" && current_role == "Consumer"){
+                  /*
+                   * Promote to Hub
+                   */
+                  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
+                             '--suffix=' + suffix, "--newrole=" + new_role];
+                  console.log("CMD: Promote replica: " + cmd.join(' '));
+                  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                    current_role = "Hub";;
+                    popup_success('Successfully promoted replica to a <b>Hub</b>');
+                    save_repl_config(suffix, true);
+                  }).fail(function(data) {
+                    popup_err("Failed to promote replica to a Hub", data.message);
+                    get_and_set_repl_config();
+                  });
+                } else {
+                  /*
+                   * Demote to Consumer
+                   */
+                  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'demote',
+                             '--suffix=' + suffix, "--newrole=" + new_role];
+                  console.log("CMD: Demote replica: " + cmd.join(' '));
+                  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                    current_role = "Consumer";
+                    popup_success('Successfully demoted replica to a <b>Consumer</b>');
+                    save_repl_config(suffix, true);
+                  }).fail(function(data) {
+                    popup_err("Failed to demote replica to a Consumer", data.message);
+                    get_and_set_repl_config();
+                  });
+                }
+              } else {
+                // NO - not changing the role - seset the dropdown
+                $("#select-repl-role").val(current_role);
+                get_and_set_repl_config();
+              }
+            }); // popup_confirm
           }
-        });
-      } else {
-        $("#repl-form").show();
-        prev_role_button = role_button;
-        prev_repl_role = role;
-      }
+        } else {
+          /*
+           * We did NOT promote/demote, etc.  This was just a configuration change...
+           */
+          save_repl_config(suffix, false);
+        }
+      } // Suffix
     });
 
-    // Set up agreement table
-    var repl_agmt_table = $('#repl-agmt-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "lengthMenu": [ 10, 25, 50, 100],
-      "language": {
-        "emptyTable": "No agreements configured",
-        "search": "Search Agreements"
-      },
-      "columnDefs": [ {
-        "targets": 4,
-        "orderable": false
-      } ]
+    // Create changelog
+    $("#create-cl-btn").on('click', function () {
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'create-changelog'];
+      console.log("CMD: Create changelog: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        get_and_set_repl_config();
+        popup_success('Successfully created replication changelog');
+      }).fail(function(data) {
+        get_and_set_repl_config();
+        popup_err("Failed to create replication changelog", data.message);
+      });
     });
 
-    // Set up windows sync agreement table
-    var repl_winsync_agmt_table = $('#repl-winsync-agmt-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "lengthMenu": [ 10, 25, 50, 100],
-      "language": {
-        "emptyTable": "No winsync agreements configured",
-        "search": "Search Agreements"
-      },
-      "columnDefs": [ {
-        "targets": 5,
-        "orderable": false
-      } ]
+    // Remove changelog
+    $("#delete-cl-btn").on('click', function () {
+      popup_confirm("Are you sure you want to delete the replication changelog as it will break all the existing agreements?", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'delete-changelog'];
+          console.log("CMD: Delete changelog: " + cmd.join(' '));
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            get_and_set_repl_config();
+            popup_success('Successfully removed replication changelog');
+          }).fail(function(data) {
+            get_and_set_repl_config();
+            popup_err("Failed to remove replication changelog", data.message);
+          });
+        }
+      });
     });
 
-    // Set up CleanAllRUV Table
-    var repl_clean_table = $('#repl-clean-table').DataTable( {
-      "paging": true,
-      "bAutoWidth": false,
-      "dom": '<"pull-left"f><"pull-right"l>tip',
-      "lengthMenu": [ 10, 25, 50, 100],
-      "language": {
-        "emptyTable": "No CleanAllRUV tasks",
-        "search": "Search Tasks"
-      },
-      "columnDefs": [ {
-        "targets": 3,
-        "orderable": false
-      } ]
-    });
 
-    // Repl Agreement Wizard
+    // Save Repl Agreement Wizard
     $("#agmt-save").on("click", function() {
       // Get all the settings
+      var suffix = $("#select-repl-agmt-suffix").val();
+      var cmd = [];
+      var cmd_args = [];
+      var param_err = false;
       var agmt_name = $("#agmt-cn").val();
       var agmt_host = $("#nsds5replicahost").val();
       var agmt_port = $("#nsds5replicaport").val();
@@ -299,21 +924,137 @@ $(document).ready( function() {
       var agmt_bindpw_confirm = $("#nsds5replicacredentials-confirm").val();
       var agmt_conn = $("#nsds5replicatransportinfo").val();
       var agmt_method = $("#nsds5replicabindmethod").val();
-      var agmt_exclude = $("#frac-list").val();  // exclude list
-      var agmt_tot_exclude = $("#frac-total-list").val();  // total init exclude list
-      var agmt_strip = $("#frac-strip-list").val();
       var agmt_schedule = "";
       var agmt_init = $("#init_options").val();
+      var agmt_exclude = "";
+      var agmt_tot_exclude = "";
+      var agmt_strip = "";
+      var editing = false;
+      var init_replica = false;
 
-      // Confirm passwords match
+      if ($("#agmt-wizard-title").text().includes('Edit') ) {
+        editing = true;
+      }
+
+      // Check required settings
+      if ( agmt_port == "") {
+        $("#nsds5replicaport").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#nsds5replicaport").css("border-color", "initial");
+        cmd_args.push("--port=" + agmt_port);
+      }
+      if ( agmt_host == "") {
+        $("#nsds5replicahost").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#nsds5replicahost").css("border-color", "initial");
+        cmd_args.push('--host=' + agmt_host);
+      }
+      if ( agmt_conn == "") {
+        $("#nsds5replicatransportinfo").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#nsds5replicatransportinfo").css("border-color", "initial");
+        cmd_args.push('--conn-protocol=' + agmt_conn);
+      }
+      if ( agmt_method == "") {
+        $("#nsds5replicabindmethod").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#nsds5replicabindmethod").css("border-color", "initial");
+        cmd_args.push('--bind-method=' + agmt_method);
+      }
+     if ( agmt_bind == "") {
+        $("#nsds5replicabinddn").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#nsds5replicabinddn").css("border-color", "initial");
+        cmd_args.push('--bind-dn=' + agmt_bind);
+      }
+      if (param_err ){
+        popup_msg("Error", "Missing required parameters");
+        return;
+      }
+
+      /*
+       * Handle the optional settings
+       */
+      $("#frac-exclude-list option").each(function() {
+        agmt_exclude += $(this).val() + " ";
+      });
+      $("#frac-exclude-tot-list option").each(function() {
+        agmt_tot_exclude += $(this).val() + " ";
+      });
+      $("#frac-strip-list option").each(function() {
+        agmt_strip += $(this).val() + " ";
+      });
+
       if (agmt_bindpw != agmt_bindpw_confirm) {
         popup_msg("Attention!", "Passwords do not match");
         return;
       }
 
-      if ( !$("#agmt-schedule-checkbox").is(":checked") ){
+      // Bind Password
+      if (!editing ){
+        if (agmt_bindpw != "") {
+          cmd_args.push('--bind-passwd=' + agmt_bindpw);
+        }
+      } else {
+        if ( !('nsds5replicacredentials' in repl_agmt_values) ||
+             agmt_bindpw != repl_agmt_values['nsds5replicacredentials'])
+        {
+          cmd_args.push('--bind-passwd="' + agmt_bindpw);
+        }
+      }
+      // Frac attrs
+      agmt_exclude = agmt_exclude.trim();
+      if (!editing) {
+        if (agmt_exclude != "") {
+          cmd_args.push('--frac-list='+ agmt_exclude);
+        }
+      } else {
+        if ( !('nsds5replicatedattributelist' in repl_agmt_values) ||
+            agmt_exclude != repl_agmt_values['nsds5replicatedattributelist'].replace(frac_prefix, ""))
+        {
+          cmd_args.push('--frac-list=' + frac_prefix + ' ' + agmt_exclude);
+        }
+      }
+      // Frac total attr
+      agmt_tot_exclude = agmt_tot_exclude.trim();
+      if (!editing) {
+        if (agmt_tot_exclude != "") {
+          cmd_args.push('--frac-list-total='+ agmt_tot_exclude);
+        }
+      } else {
+        if ( !('nsds5replicatedattributelisttotal' in repl_agmt_values) ||
+             agmt_tot_exclude != repl_agmt_values['nsds5replicatedattributelisttotal'].replace(frac_prefix, ""));
+        {
+          cmd_args.push('--frac-list-total=' + frac_prefix + ' ' + agmt_tot_exclude);
+        }
+      }
+      // Strip attrs
+      agmt_strip = agmt_strip.trim();
+      if (!editing) {
+        if (agmt_strip != "") {
+          cmd_args.push('--strip-list='+ agmt_strip);
+        }
+      } else {
+        if ( !('nsds5replicastripattrs' in repl_agmt_values) ||
+             agmt_strip != repl_agmt_values['nsds5replicastripattrs']);
+        {
+          cmd_args.push('--strip-list='+ agmt_strip);
+        }
+      }
+
+      if ( !($("#agmt-schedule-checkbox").is(":checked")) ){
         agmt_start = $("#agmt-start-time").val().replace(':','');
         agmt_end = $("#agmt-end-time").val().replace(':','');
+
+        if (agmt_start == agmt_end) {
+          popup_msg("Error", "The replication start and end times can not behte same");
+          return;
+        }
 
         // build the days
         var agmt_days = "";
@@ -338,92 +1079,400 @@ $(document).ready( function() {
         if ( $("#schedule-sat").is(":checked") ){
           agmt_days += "6";
         }
-        agmt_schedule = agmt_start + "-" + agmt_end + " " + agmt_days
+        if (agmt_days == "" ){
+          popup_msg("Error", "You must set at least one day in the schedule to perform replication");
+          return;
+        }
+        // Set final value
+        agmt_schedule = agmt_start + "-" + agmt_end + " " + agmt_days;
+
+        if (!editing ){
+          cmd_args.push('--schedule=' + agmt_schedule);
+        } else {
+          if ( !('nsds5replicaupdateschedule' in repl_agmt_values) ||
+               agmt_schedule != repl_agmt_values['nsds5replicaupdateschedule'] )
+          {
+            cmd_args.push('--schedule=' + agmt_schedule);
+          }
+        }
+      } else {
+        // if "sync all the time" is checked, might need to remove the schedule attribute
+        if ('nsds5replicaupdateschedule' in repl_agmt_values) {
+          cmd_args.push('--schedule=');
+        }
       }
 
-      // TODO add agmt to DS
 
-      // TODO Do agmt init (if requested)
+      if (agmt_init == "Do Online Initialization") {
+        init_replica = true;
+      }
+      if ( agmt_name == "") {
+        $("#agmt-cn").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#agmt-cn").css("border-color", "initial");
+        cmd_args.push('"' + agmt_name + '"');
+      }
 
-      // TODO get agmt status for table
-      var agmt_status = "";
-
-      // Update Agmt Table
-      repl_agmt_table.row.add( [
-            agmt_name,
-            agmt_host,
-            agmt_port,
-            "Enabled",
-            agmt_action_html
-        ] ).draw( false );
+      // Create agreement in DS
+      if ( editing ) {
+        cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'set', '--suffix=' + suffix ];
+      } else {
+        cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'create', '--suffix=' + suffix];
+      }
+      cmd = cmd.concat(cmd_args);
+      console.log("CMD: Set/Create repl agmt: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        if (editing){
+          popup_success('Successfully edited replication agreement');
+        } else {
+          popup_success('Successfully created replication agreement');
+        }
+        if (init_replica) {
+          // Launch popup stating initialization has begun
+          var init_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init', '--suffix=' + suffix, agmt_name ];
+          console.log("CMD: Init agmt: " + init_cmd.join(' '));
+          cockpit.spawn(init_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+            popup_msg("Agreement Initialization", "The agreement initialization has begun...");
+          }).fail(function(data) {
+            popup_err("Failed to initialize replication agreement", data.message);
+          });
+        }
+        // Reload table
+        get_and_set_repl_agmts();
+      }).fail(function(data) {
+        if (editing) {
+         popup_err("Failed to edit replication agreement", data.message);
+       } else {
+         popup_err("Failed to create replication agreement", data.message);
+       }
+      });
 
       // Done, close the form
       $("#agmt-form").modal('toggle');
       clear_agmt_wizard();
     });
 
-    $(document).on('click', '.del-repl-mgr', function(e) {
+    /*
+     * Initialize agreement
+     */
+    $(document).on('click', '.agmt-init-btn', function(e) {
       e.preventDefault();
-      var row = $(this).parent().parent(); //tr
-      var repl_dn = row.children("td:nth-child(1)");
-      popup_confirm("Are you sure you want to delete replication manager:  <b>" + repl_dn.html() + "</b>", "Confirmation", function (yes) {
-        if (yes) {
-          row.remove();
-        }
+      var suffix = $("#select-repl-agmt-suffix").val();
+      var data = repl_agmt_table.row( $(this).parents('tr') ).data();
+      var agmt_name = data[0];
+      var row_idx = $(this).closest('tr').index();
+      repl_agmt_table.cell({row: row_idx, column: 5}).data(progress_html).draw();
+
+      var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
+      console.log("CMD: init agmt: " + status_cmd.join(' '));
+      cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var init_idx = agmt_init_counter;
+        agmt_init_counter += 1;
+        agmt_init_intervals[init_idx] = setInterval( do_agmt_init, 2000, suffix, agmt_name, init_idx);
+      }).fail(function(data) {
+        get_and_set_repl_agmts();
+        popup_err("Failed to initialize agreement", data.message);
       });
     });
 
-    // Delete agreement
+    $(document).on('click', '.winsync-agmt-init-btn', function(e) {
+      e.preventDefault();
+      var suffix = $("#select-repl-winsync-suffix").val();
+      var data = repl_winsync_agmt_table.row( $(this).parents('tr') ).data();
+      var agmt_name = data[0];
+      var row_idx = $(this).closest('tr').index();
+      repl_winsync_agmt_table.cell({row: row_idx, column: 5}).data(progress_html).draw();
+
+      var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
+      console.log("CMD: Init winsync agmt: " + status_cmd.join(' '));
+      cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var init_idx = agmt_init_counter;
+        agmt_init_counter += 1;
+        agmt_init_intervals[init_idx] = setInterval( do_winsync_agmt_init, 2000, suffix, agmt_name, init_idx);
+      }).fail(function(data) {
+        get_and_set_repl_winsync_agmts();
+        popup_err("Failed to initialize winsync agreement", data.message);
+      });
+    });
+
+
+    /* Store the repl dn from the table when opening the mgr delete confirmation modal */
+    $(document).on('click', '.remove-repl-mgr', function(e) {
+      e.preventDefault();
+      var mgr_row =  $(this).parent().parent();
+      mgr_dn = mgr_row.children("td:nth-child(1)");
+    });
+
+    /* delete manager from confirmation response */
+    $(document).on('click', '#remove-mgr-btn', function(e) {
+      e.preventDefault();
+      var suffix = $("#select-repl-cfg-suffix").val();
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set',
+                 '--repl-del-bind-dn=' + mgr_dn.text(), '--suffix=' + suffix];
+      console.log("CMD: Set replication config: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        /* Success, now check if they want the entry deleted */
+        if ($("#delete-mgr-checkbox").is(":checked")) {
+          /* Remove the manager entry */
+          var del_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication',
+                         'delete-manager', "--name=" + mgr_dn.text()];
+          console.log("CMD: Delete replication manager: " + del_cmd.join(' '));
+          cockpit.spawn(del_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            popup_success('Successfully removed replication manager');
+          });
+          /* Reset config/tables */
+          get_and_set_repl_config();
+          popup_success('Successfully removed replication manager');
+          $("#del-repl-mgr-form").modal('toggle');
+        }
+      }).fail(function(data) {
+        get_and_set_repl_config();
+        $("#del-repl-mgr-form").modal('toggle');
+        popup_err("Failed to remove replication manager", data.message);
+      });
+    });
+
+    /*
+     * Delete repl agreement
+     */
     $(document).on('click', '.agmt-del-btn', function(e) {
       e.preventDefault();
-      // TODO  -delete agreement in DS
-
-      // Update HTML table
       var data = repl_agmt_table.row( $(this).parents('tr') ).data();
       var del_agmt_name = data[0];
       var agmt_row = $(this);
       popup_confirm("Are you sure you want to delete replication agreement: <b>" + del_agmt_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
-          // TODO Delete agmt
-          repl_agmt_table.row( agmt_row.parents('tr') ).remove().draw( false );
+          var suffix = $("#select-repl-agmt-suffix").val();
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'delete', '--suffix=' + suffix, '"' + del_agmt_name + '"'];
+          console.log("CMD: Delete agmt: " + cmd.join(' '));
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            popup_success('Successfully removed replication agreement');
+            // Update table
+            repl_agmt_table.row( agmt_row.parents('tr') ).remove().draw( false );
+          }).fail(function(data) {
+            get_and_set_repl_config();
+            popup_err("Failed to remove replication agreement", data.message);
+          });
         }
       });
     });
 
+    $(document).on('click', '.winsync-agmt-del-btn', function(e) {
+      e.preventDefault();
+      var data = repl_winsync_agmt_table.row( $(this).parents('tr') ).data();
+      var del_agmt_name = data[0];
+      var agmt_row = $(this);
+      popup_confirm("Are you sure you want to delete replication agreement: <b>" + del_agmt_name + "</b>", "Confirmation", function (yes) {
+        if (yes) {
+          var suffix = $("#select-repl-agmt-suffix").val();
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'delete', '--suffix=' + suffix, '"' + del_agmt_name + '"'];
+          console.log("CMD: Delete winsync agmt: " + cmd.join(' '));
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            popup_success('Successfully removed replication winsync agreement');
+            // Update table
+            repl_winsync_agmt_table.row( agmt_row.parents('tr') ).remove().draw( false );
+          }).fail(function(data) {
+            get_and_set_repl_config();
+            popup_err("Failed to remove replication winsync agreement", data.message);
+          });
+        }
+      });
+    });
 
-    // Edit Agreement
+    /*
+     * Edit Agreement
+     */
     $(document).on('click', '.agmt-edit-btn', function(e) {
       e.preventDefault();
       clear_agmt_wizard();
-
+      var suffix = $("#select-repl-agmt-suffix").val();
       var data = repl_agmt_table.row( $(this).parents('tr') ).data();
       var edit_agmt_name = data[0];
-
-      // TODO Get agreement from DS and populate form
-
       // Set agreement form values
       $("#agmt-wizard-title").html("<b>Edit Replication Agreement</b>");
 
-      // Open form
-      $("#agmt-form").modal('toggle');
+      // Hide init dropdown
+      $("#init-agmt-dropdown").hide();
+
+      // Get agreement from DS and populate form
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'get', '--suffix=' + suffix, '"' + edit_agmt_name + '"'];
+      console.log("CMD: Get agmt: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var agmt_obj = JSON.parse(data);
+        var frac_attrs = "";
+        var frac_tot_attrs = "";
+        var strip_attrs = "";
+
+        $("#agmt-cn").val(edit_agmt_name);
+        for (var attr in agmt_obj['attrs']) {
+          var val = agmt_obj['attrs'][attr][0];
+          attr = attr.toLowerCase();
+          $("#" + attr).val(val);
+          repl_agmt_values[attr] = val;
+        }
+
+        // Fill Password Confirm Input
+        if ( 'nsds5replicacredentials' in agmt_obj['attrs'] ){
+          $("#nsds5replicacredentials-confirm").val(agmt_obj['attrs']["nsds5replicacredentials"][0]);
+        }
+
+        // Transport info
+        val = agmt_obj['attrs']["nsds5replicatransportinfo"][0].toLowerCase();
+        if (val == "ldap"){
+          $("#nsds5replicatransportinfo").val("LDAP");
+        } else if (val == "ldaps"){
+          $("#nsds5replicatransportinfo").val("LDAPS");
+        } else if (val == "starttls" || val == "tls"){
+          $("#nsds5replicatransportinfo").val("StartTLS");
+        }
+
+        // Bind Method
+        val = agmt_obj['attrs']["nsds5replicabindmethod"][0].toLowerCase();
+        if (val == "simple"){
+          $("#nsds5replicabindmethod").val("SIMPLE");
+        } else if (val == "sasl/digest-md5"){
+          $("#nsds5replicabindmethod").val("SASL/DIGEST-MD5");
+        } else if (val == "sasl/gssapi"){
+          $("#nsds5replicabindmethod").val("SASL/GSSAPI");
+        } else if (val == "sslclientauth"){
+          $("#nsds5replicatransportinfo").val("SSLCLIENTAUTH");
+        }
+
+        // Load fractional lists
+        if ( 'nsds5replicatedattributelist' in agmt_obj['attrs'] ){
+          frac_attrs = agmt_obj['attrs']['nsds5replicatedattributelist'][0];
+          frac_attrs = frac_attrs.replace(frac_prefix, "").split(" ");
+          for(var i = 0; i < frac_attrs.length; i++) {
+            var opt = frac_attrs[i];
+            if (opt != "") {
+              var option = $('<option></option>').attr("value", opt).text(opt);
+              $("#frac-exclude-list").append(option);
+            }
+          }
+        }
+        if ( 'nsds5replicatedattributelisttotal' in agmt_obj['attrs'] ){
+          frac_tot_attrs = agmt_obj['attrs']['nsds5replicatedattributelisttotal'][0];
+          frac_tot_attrs = frac_tot_attrs.replace(frac_prefix, "").split(" ");
+          for(var i = 0; i < frac_tot_attrs.length; i++) {
+            var opt = frac_tot_attrs[i];
+            if (opt != "") {
+             var option = $('<option></option>').attr("value", opt).text(opt);
+              $("#frac-exclude-tot-list").append(option);
+            }
+          }
+        }
+        if ( 'nsds5replicastripattrs' in agmt_obj['attrs'] ){
+          strip_attrs = agmt_obj['attrs']['nsds5replicastripattrs'][0];
+          strip_attrs = strip_attrs.split(" ");
+          for(var i = 0; i < strip_attrs.length; i++) {
+            var opt = strip_attrs[i];
+            if (opt != "") {
+              var option = $('<option></option>').attr("value", opt).text(opt);
+              $("#frac-strip-list").append(option);
+            }
+          }
+        }
+
+        // Set schedule
+        if ( 'nsds5replicaupdateschedule' in agmt_obj['attrs'] ){
+          var val =  agmt_obj['attrs']['nsds5replicaupdateschedule'][0];
+          var parts = val.split(" ");
+          var days = parts[1];
+          var times = parts[0].split("-");
+          var start_time = times[0].substring(0,2) + ":" + times[0].substring(2,4);
+          var end_time = times[1].substring(0,2) + ":" + times[1].substring(2,4);
+
+          $("#agmt-schedule-checkbox").prop('checked', false);
+          $('#agmt-schedule-panel *').attr('disabled', false);
+          $("#schedule-settings").show();
+
+          $("#agmt-start-time").val(start_time);
+          $("#agmt-end-time").val(end_time);
+          if ( days.indexOf('0') != -1){ // Sunday
+            $("#schedule-sun").prop('checked', true);
+          }
+          if ( days.indexOf('1') != -1){ // Monday
+            $("#schedule-mon").prop('checked', true);
+          }
+          if ( days.indexOf('2') != -1){ // Tuesday
+            $("#schedule-tue").prop('checked', true);
+          }
+          if ( days.indexOf('3') != -1){ // Wednesday
+            $("#schedule-wed").prop('checked', true);
+          }
+          if ( days.indexOf('4') != -1){ // Thursday
+            $("#schedule-thu").prop('checked', true);
+          }
+          if ( days.indexOf('5') != -1){ // Friday
+            $("#schedule-fri").prop('checked', true);
+          }
+          if ( days.indexOf('6') != -1){ // Saturday
+            $("#schedule-sat").prop('checked', true);
+          }
+        }
+        // Finally Open form
+        $("#agmt-form").modal('toggle');
+      }).fail(function(data) {
+        popup_err("Failed to get replication agreement entry", data.message);
+      });
     });
 
-    // Edit Winsync Agreement
+    /*
+     * Edit Winsync Agreement
+     */
     $(document).on('click', '.winsync-agmt-edit-btn', function(e) {
       e.preventDefault();
       clear_winsync_agmt_wizard();
-
+      var suffix = $("#select-repl-winsync-suffix").val();
       var data = repl_winsync_agmt_table.row( $(this).parents('tr') ).data();
       var edit_agmt_name = data[0];
 
-      // TODO Get agreement from DS and populate form
+      // Get agreement from DS and populate form
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'get', '--suffix=' + suffix, '"' + edit_agmt_name + '"'];
+      console.log("CMD: Get winsync agmt: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var agmt_obj = JSON.parse(data);
 
-      // Set agreement form values
-      $("#winsync-label").html("<b>Edit Winsync Agreement</b>");
+        // Set agreement form values
+        $("#winsync-agmt-wizard-title").html("<b>Edit Winsync Agreement</b>");
+        // Hide init dropdown
+        $("#winsync-init-chbx").hide();
+        $("#winsync-agmt-cn").val(edit_agmt_name);
+        for (var attr in agmt_obj['attrs']) {
+          var val = agmt_obj['attrs'][attr][0];
+          attr = attr.toLowerCase();
+          $("#winsync-" + attr).val(val);
+          if (val == "on") {
+            $("#winsync-" + attr + "-checkbox").prop('checked', true);
+          } else if (val == "off") {
+            $("#winsync-" + attr + "-checkbox").prop('checked', false);
+          }
+          repl_winsync_agmt_values[attr] = val;
+        }
 
-      // Open form
-      $("#winsync-agmt-form").modal('toggle');
+        // Fill Password Confirm Input
+        if ( 'nsds5replicacredentials' in agmt_obj['attrs'] ){
+          $("#winsync-nsds5replicacredentials-confirm").val(agmt_obj['attrs']["nsds5replicacredentials"][0]);
+        }
+
+        // Transport info
+        val = agmt_obj['attrs']["nsds5replicatransportinfo"][0].toLowerCase();
+        if (val == "ldap"){
+          $("#winsync-nsds5replicatransportinfo").val("LDAP");
+        } else if (val == "ldaps"){
+          $("#winsync-nsds5replicatransportinfo").val("LDAPS");
+        } else if (val == "starttls" || val == "tls"){
+          $("#winsync-nsds5replicatransportinfo").val("StartTLS");
+        }
+
+        // Finally open the form
+        $("#winsync-agmt-form").modal('toggle');
+      }).fail(function(data) {
+        popup_err("Failed to load replication winsync agreement entry", data.message);
+      });
     });
+
 
     // Handle disabling/enabling of agmt schedule panel
     $('#agmt-schedule-panel *').attr('disabled', true); /// Disabled by default
@@ -539,160 +1588,296 @@ $(document).ready( function() {
      * Handle the repl agmt wizard select lists
      */
 
-    // Fractional attrs
-    $("#frac-list-add-btnZZ").on("click", function () {
-      var add_attrs = $("#frac-attr-list").val();
-      if (add_attrs != '' && add_attrs.length > 0) {
-        for (var i = 0; i < add_attrs.length; i++) {
-          if ( $('#frac-list option[value="' + add_attrs[i] + '"]').val() === undefined) {
-            $('#frac-list').append($("<option/>") .val(add_attrs[i]) .text(add_attrs[i]));
-          }
-        }
-        $("#frac-attr-list").find('option:selected').remove();
-      }
+    /*
+     * Set the "select"'s list-id in a hidden field on the select attribute form
+     * so we know what list to update after the selection
+     */
+
+    $(".ds-fractional-btn").on('click', function() {
+      // reset the list
+      $("#select-attr-list").prop('selectedIndex',-1);
     });
+    $("#frac-list-add-btn").on('click', function () {
+      $("#attr-form-id").val("frac-exclude-list");
+    });
+    $("#frac-total-list-add-btn").on('click', function () {
+      $("#attr-form-id").val("frac-exclude-tot-list");
+    });
+    $("#frac-strip-list-add-btn").on('click', function () {
+      $("#attr-form-id").val("frac-strip-list");
+    });
+
+    // Handle the attribute removal from the lists
     $("#frac-list-remove-btn").on("click", function () {
-      var add_attrs = $("#frac-list").find('option:selected');
-      if (add_attrs && add_attrs != '' && add_attrs.length > 0) {
-        for (var i = 0; i < add_attrs.length; i++) {
-          if ( $('#frac-attr-list option[value="' + add_attrs[i].text + '"]').val() === undefined) {
-            $('#frac-attr-list').append($("<option/>").val(add_attrs[i].text).text(add_attrs[i].text));
-          }
-        }
-      }
-      $("#frac-list").find('option:selected').remove();
-      sort_list( $("#frac-attr-list") );
-    });
-
-
-    // Total Fractional attrs
-    $("#frac-total-list-add-btnZZ").on("click", function () {
-      var add_attrs = $("#total-attr-list").val();
-      if (add_attrs != '' && add_attrs.length > 0) {
-        for (var i = 0; i < add_attrs.length; i++) {
-          if ( $('#frac-total-list option[value="' + add_attrs[i] + '"]').val() === undefined) {
-            // Not a duplicate
-            $('#frac-total-list').append($("<option/>") .val(add_attrs[i]) .text(add_attrs[i]));
-          }
-        }
-        $("#total-attr-list").find('option:selected').remove();
-      }
+      $("#frac-exclude-list").find('option:selected').remove();
     });
     $("#frac-total-list-remove-btn").on("click", function () {
-      var add_attrs = $("#frac-total-list").find('option:selected');
-      if (add_attrs && add_attrs != '' && add_attrs.length > 0) {
-        for (var i = 0; i < add_attrs.length; i++) {
-          if ( $('#total-attr-list option[value="' + add_attrs[i].text + '"]').val() === undefined) {
-            $('#total-attr-list').append($("<option/>").val(add_attrs[i].text).text(add_attrs[i].text));
-          }
-        }
-      }
-      $("#frac-total-list").find('option:selected').remove();
-      sort_list( $("#total-attr-list") );
-    });
-
-    // Strip Fractional attrs
-    $("#frac-strip-list-add-btnZZ").on("click", function () {
-      var add_attrs = $("#strip-attr-list").val();
-      if (add_attrs != '' && add_attrs.length > 0) {
-        for (var i = 0; i < add_attrs.length; i++) {
-          if ( $('#frac-strip-list option[value="' + add_attrs[i] + '"]').val() === undefined) {
-            // Not a duplicate
-            $('#frac-strip-list').append($("<option/>") .val(add_attrs[i]) .text(add_attrs[i]));
-          }
-        }
-        $("#strip-attr-list").find('option:selected').remove();
-      }
+      $("#frac-exclude-tot-list").find('option:selected').remove();
     });
     $("#frac-strip-list-remove-btn").on("click", function () {
-      var add_attrs = $("#frac-strip-list").find('option:selected');
-      if (add_attrs && add_attrs != '' && add_attrs.length > 0) {
-        for (var i = 0; i < add_attrs.length; i++) {
-          if ( $('#strip-attr-list option[value="' + add_attrs[i].text + '"]').val() === undefined) {
-            $('#strip-attr-list').append($("<option/>").val(add_attrs[i].text).text(add_attrs[i].text));
-          }
-        }
-      }
       $("#frac-strip-list").find('option:selected').remove();
-      sort_list( $("#strip-attr-list") );
     });
 
-    // Modals
+    // Update agmt form attribute selection lists
+    $("#select-attr-save").on("click", function () {
+      // Get the id from the hidden input filed and append the attribute to it
+      var list_id = $("#attr-form-id").val();
+      var add_attrs = $("#select-attr-list").find('option:selected');
+      if (add_attrs && add_attrs != '' && add_attrs.length > 0) {
+        for (var i = 0; i < add_attrs.length; i++) {
+          if ( $('#' + list_id + ' option[value="' + add_attrs[i].text + '"]').val() === undefined) {
+            $('#' + list_id).append($("<option/>").val(add_attrs[i].text).text(add_attrs[i].text));
+          }
+        }
+        sort_list( $("#" + list_id) );
+      }
+      $("#select-attr-form").modal('toggle');
+    });
 
 
-
+    /*
+     * Modals
+     */
 
     // Winsync-agmt Agreement Wizard
 
     $("#winsync-create-agmt").on("click", function() {
       clear_winsync_agmt_wizard(); // TODO
     });
+
+    $("#create-agmt").on("click", function() {
+      clear_agmt_wizard();
+    });
+
     $("#winsync-agmt-save").on("click", function() {
+      var suffix = $("#select-repl-winsync-suffix").val();
+      var cmd = [];
+      var cmd_args = [];
+      var param_err = false;
+      var editing = false;
+      var init_replica = false;
 
       // Check passwords match:
-
       var agmt_passwd = $("#winsync-nsds5replicacredentials").val();
       var passwd_confirm = $("#winsync-nsds5replicacredentials-confirm").val();
-
       if (agmt_passwd != passwd_confirm) {
         popup_msg("Attention!", "Passwords do not match!");
         return;
       }
       // Get form values
-      var repl_root = repl_suffix;
+      var repl_root = $("#select-repl-winsync-suffix").val();
       var agmt_name = $("#winsync-agmt-cn").val();
-      var win_domain = $("#nsds7windowsdomain").val();
+      var win_domain = $("#winsync-nsds7windowsdomain").val();
       var agmt_host = $("#winsync-nsds5replicahost").val();
       var agmt_port = $("#winsync-nsds5replicaport").val();
-      var win_subtree = $("#nsds7windowsreplicasubtree").val();
-      var ds_subtree = $("#nsds7directoryreplicasubtree").val();
+      var win_subtree = $("#winsync-nsds7windowsreplicasubtree").val();
+      var ds_subtree = $("#winsync-nsds7directoryreplicasubtree").val();
       var bind_dn = $("#winsync-nsds5replicabinddn").val();
-      var conn_protocol = $("#winsync-nsds5replicabindmethod").val();
-      var sync_new_users = "no";
-      var sync_new_groups = "no";
-      if ( $("#nsds7newwinusersyncenabled-checkbox").is(":checked") ){
-        sync_new_users = "yes";
+      var bind_pw = $("#winsync-nsds5replicacredentials").val();
+      var agmt_conn = $("#winsync-nsds5replicatransportinfo").val();
+      var sync_new_users = "off";
+      var sync_new_groups = "off";
+      if ( $("#winsync-nsds7newwinusersyncenabled-checkbox").is(":checked") ){
+        sync_new_users = "on";
       }
-      if ( $("#nsds7newwingroupsyncenabled-checkbox").is(":checked") ){
-        sync_new_groups = "yes"
+      if ( $("#winsync-nsds7newwingroupsyncenabled-checkbox").is(":checked") ){
+        sync_new_groups = "on"
+      }
+      if ($("#winsync-agmt-wizard-title").text().includes('Edit') ) {
+        editing = true;
       }
 
-      // Validate
+      // Check required settings
+      if (bind_pw == "") {
+        $("#winsync-nsds5replicacredentials").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds5replicacredentials").css("border-color", "initial");
+        cmd_args.push("--bind-passwd=" + bind_pw);
+      }
+      if ( ds_subtree == "") {
+        $("#winsync-nsds7directoryreplicasubtree").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds7directoryreplicasubtree").css("border-color", "initial");
+        cmd_args.push("--ds-subtree=" + ds_subtree);
+      }
+      if ( win_subtree == "") {
+        $("#winsync-nsds7windowsreplicasubtree").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds7windowsreplicasubtree").css("border-color", "initial");
+        cmd_args.push("--win-subtree=" + win_subtree);
+      }
+      if ( win_domain == "") {
+        $("#winsync-nsds7windowsdomain").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds7windowsdomain").css("border-color", "initial");
+        cmd_args.push("--win-domain=" + win_domain);
+      }
+      if ( agmt_port == "") {
+        $("#winsync-nsds5replicaport").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds5replicaport").css("border-color", "initial");
+        cmd_args.push("--port=" + agmt_port);
+      }
+      if ( agmt_host == "") {
+        $("#winsync-nsds5replicahost").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds5replicahost").css("border-color", "initial");
+        cmd_args.push('--host=' + agmt_host);
+      }
+      if ( agmt_conn == "") {
+        $("#winsync-nsds5replicatransportinfo").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds5replicatransportinfo").css("border-color", "initial");
+        cmd_args.push('--conn-protocol=' + agmt_conn);
+      }
+      if ( bind_dn == "") {
+        $("#winsync-nsds5replicabinddn").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#winsync-nsds5replicabinddn").css("border-color", "initial");
+        cmd_args.push('--bind-dn=' + bind_dn);
+      }
+      if (param_err ){
+        popup_msg("Error", "Missing required parameters");
+        return;
+      }
 
+      // Checkboxes
+      if ( ($("#winsync-nsds7newwinusersyncenabled-checkbox").is(":checked")) ){
+        sync_new_users = "on";
+      }
+      if ( ($("#winsync-nsds7newwingroupsyncenabled-checkbox").is(":checked")) ){
+        sync_groups_users = "on";
+      }
+      if ( ($("#winsync-init-chbx").is(":checked")) ){
+        init_replica = true;
+      }
+      cmd_args.push('--sync-users=' + sync_new_users);
+      cmd_args.push('--sync-groups=' + sync_new_groups);
 
-      // Update DS
+      // Create winsync agreement in DS
+      if ( editing ) {
+        cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'set', '"' + agmt_name + '"', '--suffix=' + suffix ];
+      } else {
+        cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'create', '"' + agmt_name + '"', '--suffix=' + suffix];
+      }
+      cmd = cmd.concat(cmd_args);
+      console.log("CMD: Set/Create winsync agmt: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        if (editing){
+          popup_success('Successfully edited replication winsync agreement');
+        } else {
+          popup_success('Successfully created replication winsync agreement');
+        }
+        if (init_replica) {
+          // Launch popup stating initialization has begun
+          var init_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
+          console.log("CMD: Init winsync agmt: " + init_cmd.join(' '));
+          cockpit.spawn(init_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+            popup_msg("Agreement Initialization", "The agreement initialization has begun...");
+          }).fail(function(data) {
+            popup_err("Failed to initialize replication agreement", data.message);
+          });
+        }
+        // Reload table
+        get_and_set_repl_winsync_agmts();
+      }).fail(function(data) {
+        if (editing) {
+         popup_err("Failed to edit replication winsync agreement", data.message);
+       } else {
+         popup_err("Failed to create replication winsync agreement", data.message);
+       }
+      });
 
-      // Update Winsync Agmt Table
-      repl_winsync_agmt_table.row.add( [
-        agmt_name,
-        agmt_host,
-        agmt_port,
-        ds_subtree,
-        win_subtree,
-        winsync_agmt_action_html
-      ] ).draw( false );
-
-      // Done
+      // Reload winsync agmt table
       $("#winsync-agmt-form").modal('toggle');
     });
 
-    // Create CleanAllRUV Task
+    // Create CleanAllRUV Task - TODO
     $("#create-cleanallruv-btn").on("click", function() {
       clear_cleanallruv_form();
     });
-    $("#cleanallruv-save").on("click", function() {
-      $("#cleanallruv-form").css('display', 'none');
-      // Do the actual save in DS
-      // Update html
 
-      // Update Agmt Table
-      repl_clean_table.row.add( [
-        "Creation date WIP",
-        $("#cleanallruv-rid").val(),
-        "Task starting...",
-        cleanallruv_action_html
-      ] ).draw( false );
+    $("#cleanallruv-save").on("click", function() {
+      // Do the actual save in DS
+      var suffix = $("#cleanallruv-suffix").val();
+      var rid = $("#cleanallruv-rid").val();
+      var force = false;
+      if ( $("#force-clean").is(":checked") ) {
+        force = true;
+      }
+      if (suffix == ""){
+        popup_msg("Error", "There is no suffix to run the task on");
+        return;
+      }
+      if (rid == ""){
+        popup_msg("Error", "You must enter a Replica ID to clean");
+        return;
+      }
       $("#cleanallruv-form").modal('toggle');
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'cleanallruv', '--suffix=' + suffix, '--replica-id=' + rid ];
+      if (force) {
+        cmd.push('--force-cleaning');
+      }
+      console.log("CMD: Creating cleanAllRUV Task: " + cmd.join(' '));
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+        var list_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
+        console.log("CMD: Listing cleanAllRUV tasks: " + list_cmd.join(' '));
+        cockpit.spawn(list_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+          repl_clean_table.clear();
+          var obj = JSON.parse(data);
+          for (var idx in obj['items']) {
+            task_attrs = obj['items'][idx]['attrs'];
+            var task_create_date = task_attrs['createtimestamp'][0];
+            var abort_btn = cleanallruv_action_html;
+            if (task_attrs['nstaskstatus'][0].includes('Successfully cleaned rid') ){
+              abort_btn = "";
+            }
+            repl_clean_table.row.add( [
+              task_attrs['cn'][0],
+              get_date_string(task_create_date),
+              suffix,
+              rid,
+              task_attrs['nstaskstatus'][0],
+              abort_btn
+            ] ).draw( false );
+          }
+        }).fail( function (data) {
+          popup_err("Failed to get CleanAllRUV Tasks", data.message);
+        });
+      }).fail( function (data) {
+        popup_err("Failed to create CleanAllRUV Task", data.message);
+      });
+    });
+
+    $(document).on('click', '.abort_cleanallruv_btn', function(e) {
+      e.preventDefault();
+      var data = repl_clean_table.row( $(this).parents('tr') ).data();
+      var suffix = $("#cleanallruv-suffix").val();
+      var task_rid = data[3];
+      popup_confirm("Are you sure you want to abort the cleaning task on: <b>" + suffix + "</b> for Replica ID <b>" + task_rid + "</b>", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'abort-cleanallruv', '--replica-id=' + task_rid, '--suffix=' + suffix];
+          console.log("CMD: Abort cleanAllRUV task: " + cmd.join(' '));
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            popup_success("Creating task to abort the CleanAllRUV Task");
+          }).fail(function(data) {
+            popup_err("Failed to add Abort CleanAllRUV Task", data.message);
+          });
+        }
+      });
+    });
+
+    $("#refresh-cleanlist-btn").on('click', function () {
+      // Refresh the list
+      get_and_set_cleanallruv();
     });
 
     // Add repl manager
@@ -712,66 +1897,206 @@ $(document).ready( function() {
       if (repl_mgr_dn.val() !== undefined) {
         popup_confirm("Are you sure you want to delete replication manager: <b>" + repl_mgr_dn.val() + "</b>", "Confirmation", function (yes) {
           if (yes) {
-            // TODO Update replica config entry, do not delete the real repl mgr entry
-
-            // Update HTML
-            repl_mgr_dn.remove();
-            check_repl_binddn_list();
+            // Update replica config entry, do not delete the real repl mgr entry
+           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--suffix="' + suffix + '"', "--repl-remove-bind-dn=" + repl_mgr_dn.val() ];
+           console.log("CMD: Setting replication configuration: " + cmd.join(' '));
+           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+               // Update HTML
+               repl_mgr_dn.remove();
+               // Just refresh the entire config
+               get_and_set_repl_config();
+               popup_success("Successfully updated replication configuration");
+             }).fail( function(err) {
+               popup_err("Failed to remove the replication manager from the replication configuration", data.message);
+             });
           }
         });
       }
     });
 
-    // Add repl manager modal
+    /*
+     * Add repl manager modal
+     */
     $("#add-repl-manager").on("click", function() {
       clear_repl_mgr_form();
       $("#add-repl-mgr-form").css('display', 'block');
     });
-    $("#add-repl-mgr-close").on("click", function() {
-      $("#add-repl-mgr-form").css('display', 'none');
-    });
-    $("#add-repl-mgr-cancel").on("click", function() {
-      $("#add-repl-mgr-form").css('display', 'none');
-    });
+
     $("#add-repl-mgr-save").on("click", function() {
+      var suffix = $("#select-repl-cfg-suffix").val();
       var repl_dn = $("#add-repl-mgr-dn").val();
+      var repl_pw = "";
       if (repl_dn == ""){
         popup_msg("Attention!", "Replication Manager DN is required");
         return;
       }
       if ( $("#add-repl-mgr-checkbox").is(":checked") ){
         // Confirm passwords match
-        var agmt_bindpw = $("#add-repl-pw").val();
-        var agmt_bindpw_confirm = $("#add-repl-pw-confirm").val();
-        if (agmt_bindpw != agmt_bindpw_confirm) {
+        repl_pw = $("#add-repl-pw").val();
+        var repl_pw_confirm = $("#add-repl-pw-confirm").val();
+        if (repl_pw != repl_pw_confirm) {
           popup_msg("Attention!", "Passwords do not match");
           $("#add-repl-pw").val("");
           $("#add-repl-pw-confirm").val("");
           return;
         }
       }
-
-      console.log("Validate dn...");
       if (!valid_dn(repl_dn)){
         popup_msg("Attention!", "Invalid DN for Replication Manager");
         return;
       }
 
-
-      // Do the actual save in DS
-
-      // Update html
-
-      add_repl_mgr(repl_dn);
-
-
-      $("#add-repl-mgr-form").modal('toggle');
-
+      // If we are creating the entry do it now
+      if (repl_pw != ""){
+        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'create-manager', '--name=' + repl_dn, '--passwd=' + repl_pw ];
+        console.log("CMD: Creating replication manager: " + cmd.join(' '));
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+          /*
+           * Success, now update the repl config
+           */
+          var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--repl-add-bind-dn=' + repl_dn, '--suffix=' + suffix];
+          console.log("CMD: Adding replication manager to configuration: " + update_cmd.join(' '));
+          cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+            // Update html
+            get_and_set_repl_config();
+            popup_success("Success created replication manager and added it to the replication configuration");
+            $("#add-repl-mgr-form").modal('toggle');
+          }).fail( function(err) {
+            popup_err("Failed to add replication manager to configuration", err.message);
+            $("#add-repl-mgr-form").modal('toggle');
+          });
+        }).fail( function(err) {
+          popup_err("Failed to create replication manager entry", err.message);
+          $("#add-repl-mgr-form").modal('toggle');
+        });
+      } else {
+        // Just update repl config
+        var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--repl-add-bind-dn=' + repl_dn, '--suffix=' + suffix];
+        console.log("CMD: Adding replication manager to configuration: " + update_cmd.join(' '));
+        cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+          // Update html
+          get_and_set_repl_config();
+          popup_success("Success created replication manager and added it to the replication configuration");
+          $("#add-repl-mgr-form").modal('toggle');
+        }).fail( function(err) {
+          popup_err("Failed to add replication manager to replication configuration", err.message);
+          $("#add-repl-mgr-form").modal('toggle');
+        });
+      }
     });
 
 
     $(document).on('click', '.abort-cleanallruv-btn', function(e) {
        // TODO - abort the cleantask - update table (remove or update existing clean task?)
+    });
+
+    /* Send update now */
+    $(document).on('click', '.agmt-send-updates-btn', function(e) {
+      var suffix = $("#select-repl-agmt-suffix").val();
+      var data = repl_agmt_table.row( $(this).parents('tr') ).data();
+      var update_agmt_name = data[0];
+
+      var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'poke', update_agmt_name, '--suffix=' + suffix];
+      console.log("CMD: Trigger send updates now: " + update_cmd.join(' '));
+      cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+        popup_success("Triggered replication updates");
+      }).fail( function(err) {
+        popup_err("Failed to send updates", err.message);
+      });
+    });
+
+    /* Send update now (winsync) */
+    $(document).on('click', '.winsync-agmt-send-updates-btn', function(e) {
+      var suffix = $("#select-repl-winsync-suffix").val();
+      var data = repl_winsync_agmt_table.row( $(this).parents('tr') ).data();
+      var update_agmt_name = data[0];
+
+      var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'poke', update_agmt_name, '--suffix=' + suffix];
+      console.log("CMD: Trigger send updates now: " + update_cmd.join(' '));
+      cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+        popup_success("Kick started replication");
+      }).fail( function(err) {
+        popup_err("Failed to send updates", err.message);
+      });
+    });
+
+
+    /*
+     * Enable/Disable repl agmt
+     */
+    $(document).on('click', '.agmt-enable-btn', function(e) {
+      var suffix = $("#select-repl-agmt-suffix").val();
+      var data = repl_agmt_table.row( $(this).parents('tr') ).data();
+      var enable_agmt_name = data[0];
+      var agmt_state = data[3];  // 4th column in table
+      if (agmt_state.toLowerCase() == "enabled") {
+        // We must be trying to disable this agreement - confirm it
+        popup_confirm("Are you sure you want to disable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
+          if (yes) {
+            var disable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'disable', enable_agmt_name, '--suffix=' + suffix];
+            console.log("CMD: Disable replication agmt: " + disable_cmd.join(' '));
+            cockpit.spawn(disable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+              get_and_set_repl_agmts();
+              popup_success("The replication agreement has been disabled.");
+            }).fail( function(err) {
+              popup_err("Failed to disable agreement", err.message);
+            });
+          }
+        });
+      } else {
+        // Enabling agreement - confirm it
+        popup_confirm("Are you sure you want to enable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
+          if (yes) {
+            var enable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'enable', enable_agmt_name, '--suffix=' + suffix];
+            console.log("CMD: Enable replication agmt: " + enable_cmd.join(' '));
+            cockpit.spawn(enable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+              get_and_set_repl_agmts();
+              popup_success("The replication agreement has been enabled.");
+            }).fail( function(err) {
+              popup_err("Failed to enable agreement", err.message);
+            });
+          }
+        });
+      }
+    });
+
+    /*
+     * Enable/Disable winsync repl agmt
+     */
+    $(document).on('click', '.winsync-agmt-enable-btn', function(e) {
+      var suffix = $("#select-repl-winsync-suffix").val();
+      var data = repl_winsync_agmt_table.row( $(this).parents('tr') ).data();
+      var enable_agmt_name = data[0];
+      var agmt_state = data[3];  // 4th column in table
+      if (agmt_state.toLowerCase() == "enabled") {
+        // We must be trying to disable this agreement - confirm it
+        popup_confirm("Are you sure you want to disable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
+          if (yes) {
+            var disable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'disable', enable_agmt_name, '--suffix=' + suffix];
+            console.log("CMD: Disable winsync agmt: " + disable_cmd.join(' '));
+            cockpit.spawn(disable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+              get_and_set_repl_winsync_agmts();
+              popup_success("The replication agreement has been disabled.");
+            }).fail( function(err) {
+              popup_err("Failed to disable agreement", err.message);
+            });
+          }
+        });
+      } else {
+        // Enabling agreement - confirm it
+        popup_confirm("Are you sure you want to enable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
+          if (yes) {
+            var enable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'enable', enable_agmt_name, '--suffix=' + suffix];
+            console.log("CMD: Enable winsync agmt: " + enable_cmd.join(' '));
+            cockpit.spawn(enable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+              get_and_set_repl_winsync_agmts();
+              popup_success("The replication agreement has been enabled.");
+            }).fail( function(err) {
+              popup_err("Failed to enable agreement", err.message);
+            });
+          }
+        });
+      }
     });
 
     // Page is loaded, mark it as so...

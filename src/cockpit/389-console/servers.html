@@ -133,36 +133,38 @@
 
      <hr>
      <div class="ds-inline">
-       <div>
-         <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn).">Directory Manager DN</label><input
-           class="ds-input" type="text" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
-       </div>
-       <div>
-         <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw).">Directory Manager Password</label><input
-           class="ds-input" type="password" id="nsslapd-rootpw" size="40"/>
-       </div>
-       <div>
-         <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password.">Confirm Password</label><input
-           class="ds-input" type="password" id="nsslapd-rootpw-confirm" size="40"/>
-       </div>
-       <div>
-         <label for="nsslapd-rootpwstoragescheme" class="ds-config-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme).">Password Storage Scheme</label><select
-           class="btn btn-default dropdown" id="nsslapd-rootpwstoragescheme">
-             <option>PBKDF2_SHA256</option>
-             <option>SSHA512</option>
-             <option>SSHA384</option>
-             <option>SSHA256</option>
-             <option>SSHA</option>
-             <option>NS-MTA-MD5</option>
-             <option>MD5</option>
-             <option>SMD5</option>
-             <option>CRYPT-MD5</option>
-             <option>CRYPT-SHA512</option>
-             <option>CRYPT-SHA256</option>
-             <option>CRYPT</option>
-             <option>CLEAR</option>
-           </select>
-        </div>
+       <form>
+         <div>
+           <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn).">Directory Manager DN</label><input
+             class="ds-input" type="text" autocomplete="username" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
+         </div>
+         <div>
+           <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw).">Directory Manager Password</label><input
+             class="ds-input" type="password" autocomplete="new-password" id="nsslapd-rootpw" size="40"/>
+         </div>
+         <div>
+           <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password.">Confirm Password</label><input
+             class="ds-input" type="password" autocomplete="new-password" id="nsslapd-rootpw-confirm" size="40"/>
+         </div>
+         <div>
+           <label for="nsslapd-rootpwstoragescheme" class="ds-config-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme).">Password Storage Scheme</label><select
+             class="btn btn-default dropdown" id="nsslapd-rootpwstoragescheme">
+               <option>PBKDF2_SHA256</option>
+               <option>SSHA512</option>
+               <option>SSHA384</option>
+               <option>SSHA256</option>
+               <option>SSHA</option>
+               <option>NS-MTA-MD5</option>
+               <option>MD5</option>
+               <option>SMD5</option>
+               <option>CRYPT-MD5</option>
+               <option>CRYPT-SHA512</option>
+               <option>CRYPT-SHA256</option>
+               <option>CRYPT</option>
+               <option>CLEAR</option>
+             </select>
+          </div>
+        </form>
       </div>
     </div>
     <p></p>
@@ -462,7 +464,7 @@
     <div id="local-password-policy" class="all-pages" hidden>
       <h3 class="ds-config-header">Local Password Policies  </h3>
       <label class="ds-config-label-med" for="local-pwp-suffix">Database Suffix</Label> <select
-        class="btn btn-default dropdown ds-select" id="local-pwp-suffix">
+        class="btn btn-default dropdown" id="local-pwp-suffix">
         <option>dc=example,dc=com</option>
         <option>o=ipaca</option>
       </select>
@@ -593,8 +595,8 @@
             class="ds-input" type="text" id="nsslapd-auditlog" size="40"/>
         </div>
         <div>
-          <input type="checkbox" class="ds-server-checkbox" id="nsslapd-auditfaillog-logging-enabled2"><label
-            for="nsslapd-auditfaillog-logging-enabled2" class="ds-label" title="Log failed operations in the audit log (nsslapd-auditfaillog-logging-enabled).">
+          <input type="checkbox" class="ds-server-checkbox" id="nsslapd-auditfaillog-logging-enabled"><label
+            for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Log failed operations in the audit log (nsslapd-auditfaillog-logging-enabled).">
             Log Failed Operations</label>
         </div>
       </div>
@@ -1069,8 +1071,8 @@
 
   <!-- Create Local Password Policy -->
   <div class="modal fade" id="local-pwp-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="local-pwp-header" aria-hidden="true">
-    <div class="modal-dialog ds-modal-wide">
-      <div class="modal-content">
+    <div class="modal-dialog">
+      <div class="modal-content ds-modal-wide">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>

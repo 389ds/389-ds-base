@@ -273,39 +273,41 @@
       <h3 class="ds-config-header" id="chaining-header">Database Chaining Configuration</h3>
       <div class="ds-container">
         <div class="ds-inline">
-          <div>
-            <label for="nsfarmserverurl" class="ds-config-label" title=
-              "The URL for the remote server.  Add additional failure servers URLs separated by a space. (nsfarmserverurl)">
-              Remote Server URL(s)</label><input class="ds-input" type="text" id="nsfarmserverurl"/>
-          </div>
-          <div>
-            <label for="nsmultiplexorbinddn" class="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn).">Remote Server Bind DN</label><input
-              class="ds-input" type="text" placeholder="Bind DN" id="nsmultiplexorbinddn">
-          </div>
-          <div>
-            <label for="nsmultiplexorcredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Bind DN Credentials</label><input
-              class="ds-input" type="password" placeholder="Enter password" id="nsmultiplexorcredentials">
-          </div>
-          <div>
-            <label for="nsmultiplexorcredentials-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-              class="ds-input" type="password" placeholder="Confirm password" id="nsmultiplexorcredentials-confirm">
-          </div>
-          <div>
-            <label for="dblink-conn" class="ds-config-label" title="The connection protocol for the remote server.">Connection Protocol</label><select
-              class="btn btn-default dropdown ds-dblink-dropdown" id="dblink-conn">
-                <option>LDAP</option>
-                <option>LDAPS</option>
-                <option>Start TLS</option>
-              </select>
-          </div>
-          <div>
-            <label for="nsbindmechanism" class="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism).">Bind Method</label><select
-              class="btn btn-default dropdown ds-dblink-dropdown" id="nsbindmechanism">
-                <option>Simple</option>
-                <option>SASL/DIGEST-MD5</option>
-                <option>SASL/GSSAPI</option>
-              </select>
-          </div>
+          <form>
+            <div>
+              <label for="nsfarmserverurl" class="ds-config-label" title=
+                "The URL for the remote server.  Add additional failure servers URLs separated by a space. (nsfarmserverurl)">
+                Remote Server URL(s)</label><input class="ds-input" type="text" id="nsfarmserverurl"/>
+            </div>
+            <div>
+              <label for="nsmultiplexorbinddn" class="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn).">Remote Server Bind DN</label><input
+                class="ds-input" type="text" autocomplete="username" placeholder="Bind DN" id="nsmultiplexorbinddn">
+            </div>
+            <div>
+              <label for="nsmultiplexorcredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Bind DN Credentials</label><input
+                class="ds-input" type="password" autocomplete="new-password" placeholder="Enter password" id="nsmultiplexorcredentials">
+            </div>
+            <div>
+              <label for="nsmultiplexorcredentials-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
+                class="ds-input" type="password" autocomplete="new-password" placeholder="Confirm password" id="nsmultiplexorcredentials-confirm">
+            </div>
+            <div>
+              <label for="dblink-conn" class="ds-config-label" title="The connection protocol for the remote server.">Connection Protocol</label><select
+                class="btn btn-default dropdown ds-dblink-dropdown" id="dblink-conn">
+                  <option>LDAP</option>
+                  <option>LDAPS</option>
+                  <option>Start TLS</option>
+                </select>
+            </div>
+            <div>
+              <label for="nsbindmechanism" class="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism).">Bind Method</label><select
+                class="btn btn-default dropdown ds-dblink-dropdown" id="nsbindmechanism">
+                  <option>Simple</option>
+                  <option>SASL/DIGEST-MD5</option>
+                  <option>SASL/GSSAPI</option>
+                </select>
+            </div>
+          </form>
         </div>
       </div>
       <p></p>

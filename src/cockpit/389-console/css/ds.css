@@ -12,7 +12,6 @@
 .ds-logo-hr {
   padding: 0 !important;
   margin-top: -20px !important;
-  /*margin-bottom: 25px;*/
   line-height:0;
 }
 
@@ -136,7 +135,6 @@
 .ds-button {
   height: 30px;
   width: 160px !important;
-  /* margin-left: 10px; */
   margin-top: 5px;
   float:none;
   left:auto;
@@ -191,11 +189,10 @@
   margin-top: 0px !important;
   margin-left: 6px;
   padding: 0px !important;
-  padding-left: 10px;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
   height: 30px;
-  width: 250px !important;
   text-align: left;
-  /* border-radius: 5px; */
 }
 
 .ds-passwd-dropdown {
@@ -220,17 +217,6 @@
   width: 175px;
   border-radius: 5px;
 }
-
-/*
-.dropdown {
-  color: black !important;
-}
-*/
-/* Fix Chrome dropdowns 
-.dropdownZZZZ select, .dropdownZZZZ option, .dropdownZZZ option:hover, .dropdownZZZ select:hover {
-  background-color: white !important;
-  color: #181818; !important;
-}*/
 
 .ds-table {
   padding: 0px;
@@ -338,37 +324,6 @@ td {
   font-size: 16px;
 }
 
-/*
-input[type=text], input[type=search], input[type=password], input[type=""], textarea {
-  Zborder-radius: 5px;
-  border-style: solid;
-  border-color:	#B8B8B8 !important;
-  padding-left: 5px !important;
-  min-height: 30px;
-}
-*/
-
-/*
-input[type=text]:focus, input[type=search]:focus, input[type=password]:focus, input[type=""]:focus, textarea:focus{
-  outline:none;
-  webkit-box-shadow: 0px 0px 0px 0px #0a676f;
-  box-shadow: 0px 0px .1px 0px #0a676f;
-}
-*/
-Zselect:focus {
-  outline:none !important;
-  -webkit-box-shadow: 0px 0px 4px 0px #0a676f !important;
-  box-shadow: 0px 0px 2px 0px #0a676f !important;
-  max-height: 350px !important;
-}
-
-Zbutton:focus {
-  outline:none !important;
-  border: 1.5px solid #0a676f;
-  -webkit-box-shadow: 0px 0px 4px 0px #0a676f !important;
-  box-shadow: 0px 0px 4px 0px #0a676f !important;
-}
-
 .ds-input {
   margin-top: 5px !important;
   padding-right: 5px !important;
@@ -392,7 +347,6 @@ Zbutton:focus {
 }
 
 .ds-ro-input {
-  height: 37px !important;
   margin-top: 5px;
   padding-left: 5px;
   margin-right: 5px;
@@ -400,7 +354,7 @@ Zbutton:focus {
 }
 
 .ds-input-lrg {
-  width: 315px !important;  /* <input size="40"> */
+  width: 315px !important;
   height: 37px !important;
   margin-top: 5px;
   padding-right: 10px;
@@ -409,6 +363,17 @@ Zbutton:focus {
 
 .ds-input-long {
   width: 500px !important;
+}
+
+.ds-input-max {
+  margin-left: 10px;
+  margin-bottom: 20px;
+  width: 500px;
+  max-width: 600px;
+}
+
+.ds-repl-mgr {
+  max-width: 600px !important;
 }
 
 .ds-role-input {
@@ -538,7 +503,6 @@ Zbutton:focus {
   text-align: left;
 }
 
-
 .ds-agmt-wiz-dropdown {
   width: 175px !important;
   text-align: left;
@@ -579,7 +543,7 @@ Zbutton:focus {
 }
 
 .ds-agmt-dropdown-button {
-  width: 160px;
+  width: 120px;
 }
 
 .ds-agmt-button {
@@ -705,13 +669,14 @@ Zbutton:focus {
 }
 
 .ds-modal-wide {
-  width: 850px;
+  min-width: 850px;
   vertical-align: middle;
 }
 
 .modal-content {
   position: absolute;
   max-height: 750px;
+  max-width: 550px;
   overflow: auto;
 }
 
@@ -869,6 +834,11 @@ Zbutton:focus {
   padding-left: 20px;
 }
 
+.ds-label-lrg {
+  width: 200px;
+  margin-bottom: 10px !important;
+}
+
 .ds-label-med {
   width: 180px;
   margin-bottom: 10px !important;
@@ -880,8 +850,24 @@ Zbutton:focus {
   margin-bottom: 10px !important;
 }
 
+.ds-monitor-label-med {
+  width: 175px;
+  margin-top: 10px;
+  margin-bottom: 10px !important;
+}
+
 .ds-label-sm {
   width: 130px !important;
+  margin-bottom: 10px !important;
+}
+
+.ds-label-xsm {
+  width: 100px !important;
+  margin-bottom: 10px !important;
+}
+
+.ds-cleanallruv-label {
+  width: 110px !important;
   margin-bottom: 10px !important;
 }
 
@@ -1220,6 +1206,38 @@ option {
   margin-top: 0px;
 }
 
+/* wizard accordions are narrower */
+.ds-wiz-accordion {
+  margin-top: 20px;
+  color: #228bc0 !important;
+  background-color: white;
+  border: 0;
+  position: relative;
+  overflow: hidden;
+	width:500px;
+	text-align:left;
+}
+
+.ds-wiz-accordion:after {
+  display: inline-block;
+  content: "";
+  height: 1px;
+  background: #228bc0;
+  position: absolute;
+  width: 500px;
+  top: 50% !important;
+  margin-left: 10px;
+	text-align:left;
+}
+
+.ds-wiz-accordion:focus {
+  outline: none !important;
+  border: 0 !important;
+  -moz-outline: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: 0 !important;
+}
+
 .ds-indent {
   margin-left: 15px !important;
   margin-right: 15px !important;
@@ -1238,18 +1256,9 @@ option {
   height: 30px;
   outline: 0 !important;
   padding: 0px !important;
-  padding-left: 10px;
+  padding-left: 5px;
+  padding-right: 10px;
   text-align: left;
-  width: 250px;
-}
-
-.ds-select-sm {
-  height: 30px;
-  outline: 0 !important;
-  padding: 0px !important;
-  padding-left: 10px;
-  text-align: left;
-  width: 100px;
 }
 
 .ds-center {
@@ -1268,7 +1277,6 @@ option {
   height: 30px;
 }
 
-
 .ds-td {
  padding-left: 10px !important;
  padding-top: 8px !important;
@@ -1277,8 +1285,8 @@ option {
 }
 
 .ds-mgr-table {
-  max-width: 700px;
-  min-width: 700px;
+  max-width: 600px;
+  min-width: 600px;
 }
 
 .ds-loglevel-table {
@@ -1327,6 +1335,11 @@ option {
   margin-right: 10px;
 }
 
+.ds-spacing-med {
+  margin-right: 20px;
+}
+
+
 .navbar-default {
   margin-bottom: 0px;
 }
@@ -1368,4 +1381,20 @@ option {
 .ds-suffix-cfg-div {
   min-width: 500px;
 }
+
+.ds-loading-spinner {
+  position: fixed;
+  top: 25%;
+  left: 50%;
+  transform: translate(-25%, -50%);
+}
+
+.ds-loader {
+  font-size: 15px;
+}
+
+.ds-popup {
+  min-width: 350px !important;
+}
+
 

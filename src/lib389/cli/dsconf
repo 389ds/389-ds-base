@@ -140,7 +140,6 @@ if __name__ == '__main__':
 
     # Done!
     log.debug("dsconf is brought to you by the letter H and the number 25.")
-
     if result is False:
         sys.exit(1)
 

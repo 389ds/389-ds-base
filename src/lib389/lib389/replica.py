@@ -1012,9 +1012,13 @@ class Replica(DSLdapObject):
         :raises: ValueError - If replica is not promoted
         """
 
-
+        # Set the bind dn, use the existing one if it exists
         if binddn is None and binddn_group is None:
-            binddn = defaultProperties[REPLICATION_BIND_DN]
+            curr_dn = self.get_attr_val(REPL_BINDDN)
+            if curr_dn is None:
+                binddn = defaultProperties[REPLICATION_BIND_DN]
+            else:
+                binddn = curr_dn
 
         # Check the role type
         replicarole = self.get_role()

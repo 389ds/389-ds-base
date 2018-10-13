@@ -277,6 +277,7 @@ $(document).ready( function() {
       "bAutoWidth": false,
       "searching": false,
       "dom": '<"pull-left"f><"pull-right"l>tip',
+      "lengthChange": false,
       "lengthMenu": [ 10, 25, 50, 100],
       "language": {
         "emptyTable": "No active connections",

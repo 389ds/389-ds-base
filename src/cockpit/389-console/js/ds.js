@@ -14,24 +14,28 @@ var repl_page_loaded = 0;
 var plugin_page_loaded = 0;
 var schema_page_loaded = 0;
 var monitor_page_loaded = 0;
+var config_loaded = 0;
 
 // objects to store original values (used for comparing what changed when saving
 var config_values = {};
 var localpwp_values = {};
-//TODO - need "config_values" for all the other pages: backend, replication, suffix, etc.
+var repl_config_values = {};
+var repl_cl_values = {};
 
+//TODO - need "config_values" for all the other pages: backend, replication, suffix, etc.
+/*
 var DSCONF = "dsconf";
 var DSCTL = "dsctl";
 var DSCREATE = "dscreate";
 var ENV = "";
+*/
 
-/*
 // Used for local development testing
 var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
 var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
 var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
 var ENV = "PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389";
-*/
+
 
 // TODO validation functions
 
@@ -82,13 +86,27 @@ function sort_list (sel) {
 }
 
 
+function get_date_string (timestamp) {
+  // Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
+  var year = timestamp.substr(0,4);
+  var month = timestamp.substr(4,2);
+  var day = timestamp.substr(6,2);
+  var hour = timestamp.substr(8,2);
+  var minute = timestamp.substr(10,2);
+  var sec = timestamp.substr(12,2);
+  var date = new Date(parseInt(year), parseInt(month), parseInt(day),
+                      parseInt(hour), parseInt(minute), parseInt(sec));
+
+  return date.toLocaleString();
+}
+
+
+
 function set_no_insts () {
-    var select = document.getElementById("select-server");
-    var el = document.createElement("option");
-    el.textContent = "No instances";
-    el.value = "No instances";
-    select.appendChild(el);
-    select.selectedIndex = "0";
+    $("#select-server").empty();
+    $("#select-server").append('<option value="No instances">No instances</option>');
+    $("#select-server").prop('selectedIndex',0);
+
     server_id = "";
     server_inst = "";
 
@@ -121,16 +139,18 @@ function check_inst_alive (connect_err) {
       $(".all-pages").hide();
       $("#no-connect").show();
     } else {
-      $(".all-pages").hide();
-      $("#ds-navigation").show();
-      $("#server-content").show();
-      $("#server-config").show();
-      //$("#no-instances").hide();
-      //$("#no-package").hide();
+      // if nav page was hidden reset everything
+      if ($("#ds-navigation").is(":hidden") ){
+        $(".all-pages").hide();
+        $("#ds-navigation").show();
+        $("#server-content").show();
+        $("#server-config").show();
+      }
       $("#not-running").hide();
-      $("#no_connect").hide();
+      $("#no-connect").hide();
     }
   }).fail(function(data) {
+    $("#loading-page").hide();
     $("#ds-navigation").hide();
     $(".all-pages").hide();
     $("#not-running").show();
@@ -138,6 +158,12 @@ function check_inst_alive (connect_err) {
 }
 
 function get_insts() {
+  // Load initial forms
+  $("#server-list-menu").attr('disabled', false);
+  $("#ds-navigation").show();
+  $(".all-pages").hide();
+  $("#no-instances").hide();
+
   var insts = [];
   var cmd = ["/bin/sh", "-c", "/usr/bin/ls -d " + DS_HOME + "slapd-*"];
   cockpit.spawn(cmd, { superuser: true }).done(function(data) {
@@ -156,43 +182,27 @@ function get_insts() {
     }
 
     // Populate the server instance drop down
-    var select = document.getElementById("select-server");
-    var list_length = select.options.length;
-
-    // Clear the list first
-    for (i = 0; i < list_length; i++) {
-      select.options[i] = null;
-    }
-
-    // Update the list
+    $("#select-server").empty();
     for (i = 0; i < insts.length; i++) {
-      var opt = insts[i];
-      var el = document.createElement("option");
-      el.textContent = opt;
-      el.value = opt;
-      select.appendChild(el);
+      $("#select-server").append('<option value="' + insts[i] + '">' + insts[i] +'</option>');
     }
-    select.selectedIndex = "0";
+    $("#select-server").prop('selectedIndex',0);
+
     if (insts[0] === undefined) {
       set_no_insts();
+      $("#loading-page").hide();
+      $("#everything").show();
     } else {
       // We have at least one instance, make sure we "open" the UI
-      $("#server-list-menu").attr('disabled', false);
-      $("#ds-navigation").show();
-      $(".all-pages").hide();
-      $("#no-instances").hide();
-      $("#server-content").show();
-      $("#server-config").show();
       server_id = insts[0];
       server_inst = insts[0].replace("slapd-", "");
       check_inst_alive();
-      // We have an instance, so load its config
       load_config();
     }
-    $("body").show();
   }).fail(function(error){
     set_no_insts();
-    $("body").show();
+    $("#loading-page").hide();
+    $("#everything").show();
   });
 }
 
@@ -211,6 +221,7 @@ function popup_err(title, msg) {
       '<pre>' + msg + '</pre>'
     ]
   });
+  check_inst_alive(0);
 }
 
 function popup_msg(title, msg) {
@@ -235,14 +246,14 @@ function popup_confirm(msg, title, callback) {
     showclose: false,
     buttons: ["no", "yes"],
     yes: function() { answer = true; },
-    dismiss: function() { callback(answer); }
+    dismiss: function() { callback(answer); },
   });
 }
 
 function popup_success(msg) {
   $('#success-msg').html(msg);
   $('#success-form').modal('show');
-  setTimeout(function() {$('#success-form').modal('hide');}, 1500);
+  setTimeout(function() {$('#success-form').modal('hide');}, 2000);
 }
 
 // This is called when any Save button is clicked on the main page.  We call
@@ -259,21 +270,75 @@ function save_all () {
 }
 
 function load_config (){
-  // Populate all the suffix dropdown lists
-  update_suffix_dropdowns();
+  // Load the configuration for all the pages.
+  var dropdowns = ['local-pwp-suffix', 'select_repl_suffix', 'select-repl-cfg-suffix',
+                   'select-repl-agmt-suffix', 'select-repl-winsync-suffix',
+                   'cleanallruv-suffix', 'monitor-repl-backend-list'];
 
-  // Server page
-  get_and_set_config(); // cn=config stuff
-  get_and_set_sasl();
-  get_and_set_localpwp();
-  get_and_set_schema_tables();
+  // Show the spinner, and reset the pages
+  $("#loading-msg").html("Loading Directory Server configuration for <i><b>" + server_id + "</b></i>...");
+  $("#everything").hide();
+  $(".all-pages").hide();
+  $("#loading-page").show();
+  config_loaded = 0;
 
-  // Security page
-  // Database page
-  // Replication page
-  // Schema page
-  // Plugin page
-  // Monitoring page
+  /*
+   * Start with the dropdowns, if this fails we stop here, otherwise we assume
+   * we are up and running and we can load the other config/
+   */
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'list', '--suffix'];
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    // Update dropdowns
+    for (var idx in dropdowns) {
+      $("#" + dropdowns[idx]).empty();
+    }
+    var obj = JSON.parse(data);
+    for (var idx in obj['items']) {
+      for (var list in dropdowns){
+        $("#" + dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
+      }
+    }
+
+    // Server page
+    get_and_set_config();
+    get_and_set_sasl();
+    get_and_set_localpwp();
+
+    // Schema page
+    get_and_set_schema_tables();
+
+    // Replication page
+    get_and_set_repl_config();
+    get_and_set_repl_agmts();
+    get_and_set_repl_winsync_agmts();
+    get_and_set_cleanallruv();
+
+    // Security page
+    // Database page
+    // Plugin page
+    // Monitoring page
+
+    // Initialize the tabs
+    $(".ds-tab-list").css( 'color', '#777');
+    $("#server-tab").css( 'color', '#228bc0');
+
+    // Set an interval event to wait for all the pages to load, then show the content
+    var loading_config = setInterval(function() {
+      if (config_loaded == 1) {
+        $("#loading-page").hide();
+        $("#everything").show();
+        $("#server-content").show();
+        $("#server-config").show();
+        clearInterval(loading_config);
+        console.log("Completed configuration initialization.");
+      }
+    }, 300);
+
+  }).fail(function(data) {
+    popup_err("Failed To Contact Server",data.message);
+    $("#everything").show();
+    check_inst_alive(1);
+  });
 }
 
 $(window.document).ready(function() {

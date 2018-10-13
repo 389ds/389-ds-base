@@ -33,509 +33,515 @@
   <script src="js/ds.js"></script>
 </head>
 
-<body hidden>
-  <div class="ds-nav-bar">
-    <div class="ds-logo">
-      <h2 class="ds-logo-style" id="main-banner"></h2>
+<body>
+  <div id="loading-page" class="ds-center ds-loading-spinner" hidden>
+    <h3 id="loading-msg">Loading Directory Server Configuration...</h3>
+    <p><span class="spinner spinner-lg spinner-inline"></span></p>
+  </div>
+  <div id="everything" hidden>
+    <div class="ds-nav-bar">
+      <div class="ds-logo">
+        <h2 class="ds-logo-style" id="main-banner"></h2>
+      </div>
+
+      <nav class="navbar navbar-default" id="ds-navigation" role="navigation">
+        <div class="collapse navbar-collapse navbar-collapse-5 ds-nav">
+          <ul class="nav navbar-nav navbar-primary">
+
+            <!-- Server Config navtab -->
+            <li class="dropdown ds-nav-tab">
+              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="server-tab">
+                Server Settings
+                <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu dropup ds-nav-item">
+                <li><a href="#0" class="ds-nav-choice" id="server-config-btn" parent-id="server-tab">Server Configuration</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="server-tuning-btn" parent-id="server-tab">Tuning & Limits</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="server-sasl-btn"   parent-id="server-tab">SASL</a></li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#0">Password Policy</a>
+                  <ul class="dropdown-menu">
+                    <li><a href="#0" class="ds-nav-choice" id="server-gbl-pwp-btn"   parent-id="server-tab">Global Password Policy</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="server-local-pwp-btn" parent-id="server-tab">Local Password Policy</a></li>
+                  </ul>
+                </li>
+                <li><a href="#0" class="ds-nav-choice" id="server-ldapi-btn" parent-id="server-tab">LDAPI & Autobind</a></li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#0">Logging</a>
+                  <ul class="dropdown-menu">
+                    <li><a href="#0" class="ds-nav-choice" id="server-log-access-btn"    parent-id="server-tab">Access Log</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="server-log-audit-btn"     parent-id="server-tab">Audit Log</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="server-log-auditfail-btn" parent-id="server-tab">Audit Failure Log</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="server-log-errors-btn"    parent-id="server-tab">Errors Log</a></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Security navtab -->
+            <li class="dropdown ds-nav-tab">
+              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="security-tab">
+                Security
+                <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu ds-nav-item">
+                <li><a href="#0" class="ds-nav-choice" id="sec-config-btn" parent-id="security-tab">Security Settings</a></li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#0">Certificate Management</a>
+                  <ul class="dropdown-menu">
+                    <li><a href="#0" class="ds-nav-choice" id="sec-cacert-btn"  parent-id="security-tab">CA Certificates</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="sec-srvcert-btn" parent-id="security-tab">Server Certificates</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="sec-revoked-btn" parent-id="security-tab">Revoked Certificates</a></li>
+                  </ul>
+                </li>
+                <li><a href="#0" class="ds-nav-choice" id="sec-ciphers-btn" parent-id="security-tab">Supported Ciphers</a></li>
+              </ul>
+            </li>
+
+            <!-- Database navtab -->
+            <li class="dropdown ds-nav-tab">
+              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="database-tab">
+                Database
+                <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu dropup ds-nav-item">
+                <li><a href="#0" class="ds-nav-choice" id="db-chaining-btn" parent-id="database-tab">Chaining Settings</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="db-global-btn" parent-id="database-tab">Global Database Settings</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="db-suffix-btn"   parent-id="database-tab">Database Management</a></li>
+              </ul>
+            </li>
+
+            <!-- Replication navtab -->
+            <li class="dropdown ds-nav-tab">
+              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="replication-tab">
+                Replication
+                <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu ds-nav-item">
+                <li><a href="#0" class="ds-nav-choice" id="repl-config-btn" parent-id="replication-tab">Configuration</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="repl-agmts-btn" parent-id="replication-tab">Agreements</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="repl-winsync-btn" parent-id="replication-tab">Winsync Agreements</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="repl-cleanallruv-btn" parent-id="replication-tab">CleanAllRUV Tasks</a></li>
+              </ul>
+            </li>
+
+            <!-- Schema navtab -->
+            <li class="dropdown ds-nav-tab">
+              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="schema-tab">
+                Schema
+                <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu ds-nav-item">
+                <li><a href="#0"class="ds-nav-choice" id="objectclass-btn" parent-id="schema-tab">Objectclasses</a></li>
+                <li><a href="#0"class="ds-nav-choice" id="attribute-btn" parent-id="schema-tab">Attributes</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="schema-mr-btn" parent-id="schema-tab">Matching Rules</a></li>
+              </ul>
+            </li>
+
+            <!-- Plugins navtab -->
+            <li class="ds-nav-tab">
+              <a href="#0" class="ds-tab-list ds-tab-standalone" id="plugin-tab">
+                Plugins
+              </a>
+            </li>
+
+            <!-- Monitoring navtab -->
+            <li class="dropdown ds-nav-tab">
+              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="monitor-tab">
+                Monitoring
+                <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu ds-nav-item">
+                <li><a tabindex="-1" id="monitor-db-btn" class="ds-nav-choice"  parent-id="monitor-tab" href="#0">Database Performance</a></li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#0">Logging</a>
+                  <ul class="dropdown-menu">
+                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-access-btn"    parent-id="monitor-tab">Access Log</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-audit-btn"     parent-id="monitor-tab">Audit Log</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-auditfail-btn" parent-id="monitor-tab">Audit Failure Log</a></li>
+                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-errors-btn"    parent-id="monitor-tab">Errors Log</a></li>
+                  </ul>
+                </li>
+                <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-repl-btn"   href="#0">Replication</a></li>
+                <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-server-btn" href="#0">Server Statistics</a></li>
+                <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-snmp-btn"   href="#0">SNMP Counters</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </nav>
     </div>
 
-    <nav class="navbar navbar-default" id="ds-navigation" role="navigation">
-      <div class="collapse navbar-collapse navbar-collapse-5 ds-nav">
-        <ul class="nav navbar-nav navbar-primary">
 
-          <!-- Server Config navtab -->
-          <li class="dropdown ds-nav-tab">
-            <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="server-tab">
-              Server Settings
-              <b class="caret"></b>
-            </a>
-            <ul class="dropdown-menu dropup ds-nav-item">
-              <li><a href="#0" class="ds-nav-choice" id="server-config-btn" parent-id="server-tab">Server Configuration</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="server-tuning-btn" parent-id="server-tab">Tuning & Limits</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="server-sasl-btn"   parent-id="server-tab">SASL</a></li>
-              <li class="dropdown-submenu">
-                <a tabindex="-1" href="#0">Password Policy</a>
-                <ul class="dropdown-menu">
-                  <li><a href="#0" class="ds-nav-choice" id="server-gbl-pwp-btn"   parent-id="server-tab">Global Password Policy</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="server-local-pwp-btn" parent-id="server-tab">Local Password Policy</a></li>
-                </ul>
-              </li>
-              <li><a href="#0" class="ds-nav-choice" id="server-ldapi-btn" parent-id="server-tab">LDAPI & Autobind</a></li>
-              <li class="dropdown-submenu">
-                <a tabindex="-1" href="#0">Logging</a>
-                <ul class="dropdown-menu">
-                  <li><a href="#0" class="ds-nav-choice" id="server-log-access-btn"    parent-id="server-tab">Access Log</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="server-log-audit-btn"     parent-id="server-tab">Audit Log</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="server-log-auditfail-btn" parent-id="server-tab">Audit Failure Log</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="server-log-errors-btn"    parent-id="server-tab">Errors Log</a></li>
-                </ul>
-              </li>
-            </ul>
-          </li>
+    <!-- -------------------------------------
+    popup modals from any action dropdown, or right-click option need to be defined here
+    ---------------------------------------- -->
 
-          <!-- Security navtab -->
-          <li class="dropdown ds-nav-tab">
-            <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="security-tab">
-              Security
-              <b class="caret"></b>
-            </a>
-            <ul class="dropdown-menu ds-nav-item">
-              <li><a href="#0" class="ds-nav-choice" id="sec-config-btn" parent-id="security-tab">Security Settings</a></li>
-              <li class="dropdown-submenu">
-                <a tabindex="-1" href="#0">Certificate Management</a>
-                <ul class="dropdown-menu">
-                  <li><a href="#0" class="ds-nav-choice" id="sec-cacert-btn"  parent-id="security-tab">CA Certificates</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="sec-srvcert-btn" parent-id="security-tab">Server Certificates</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="sec-revoked-btn" parent-id="security-tab">Revoked Certificates</a></li>
-                </ul>
-              </li>
-              <li><a href="#0" class="ds-nav-choice" id="sec-ciphers-btn" parent-id="security-tab">Supported Ciphers</a></li>
-            </ul>
-          </li>
-
-          <!-- Database navtab -->
-          <li class="dropdown ds-nav-tab">
-            <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="database-tab">
-              Database
-              <b class="caret"></b>
-            </a>
-            <ul class="dropdown-menu dropup ds-nav-item">
-              <li><a href="#0" class="ds-nav-choice" id="db-chaining-btn" parent-id="database-tab">Chaining Settings</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="db-global-btn" parent-id="database-tab">Global Database Settings</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="db-suffix-btn"   parent-id="database-tab">Database Management</a></li>
-            </ul>
-          </li>
-
-          <!-- Replication navtab -->
-          <li class="dropdown ds-nav-tab">
-            <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="replication-tab">
-              Replication
-              <b class="caret"></b>
-            </a>
-            <ul class="dropdown-menu ds-nav-item">
-              <li><a href="#0" class="ds-nav-choice" id="repl-config-btn" parent-id="replication-tab">Configuration</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="repl-agmts-btn" parent-id="replication-tab">Agreements</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="repl-winsync-btn" parent-id="replication-tab">Winsync Agreements</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="repl-cleanallruv-btn" parent-id="replication-tab">CleanAllRUV Tasks</a></li>
-            </ul>
-          </li>
-
-          <!-- Schema navtab -->
-          <li class="dropdown ds-nav-tab">
-            <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="schema-tab">
-              Schema
-              <b class="caret"></b>
-            </a>
-            <ul class="dropdown-menu ds-nav-item">
-              <li><a href="#0"class="ds-nav-choice" id="objectclass-btn" parent-id="schema-tab">Objectclasses</a></li>
-              <li><a href="#0"class="ds-nav-choice" id="attribute-btn" parent-id="schema-tab">Attributes</a></li>
-              <li><a href="#0" class="ds-nav-choice" id="schema-mr-btn" parent-id="schema-tab">Matching Rules</a></li>
-            </ul>
-          </li>
-
-          <!-- Plugins navtab -->
-          <li class="ds-nav-tab">
-            <a href="#0" class="ds-tab-list ds-tab-standalone" id="plugin-tab">
-              Plugins
-            </a>
-          </li>
-
-          <!-- Monitoring navtab -->
-          <li class="dropdown ds-nav-tab">
-            <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="monitor-tab">
-              Monitoring
-              <b class="caret"></b>
-            </a>
-            <ul class="dropdown-menu ds-nav-item">
-              <li><a tabindex="-1" id="monitor-db-btn" class="ds-nav-choice"  parent-id="monitor-tab" href="#0">Database Performance</a></li>
-              <li class="dropdown-submenu">
-                <a tabindex="-1" href="#0">Logging</a>
-                <ul class="dropdown-menu">
-                  <li><a href="#0" class="ds-nav-choice" id="monitor-log-access-btn"    parent-id="monitor-tab">Access Log</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="monitor-log-audit-btn"     parent-id="monitor-tab">Audit Log</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="monitor-log-auditfail-btn" parent-id="monitor-tab">Audit Failure Log</a></li>
-                  <li><a href="#0" class="ds-nav-choice" id="monitor-log-errors-btn"    parent-id="monitor-tab">Errors Log</a></li>
-                </ul>
-              </li>
-              <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-repl-btn"   href="#0">Replication Monitoring</a></li>
-              <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-server-btn" href="#0">Server Statistics</a></li>
-              <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-snmp-btn"   href="#0">SNMP Counters</a></li>
-            </ul>
-          </li>
-        </ul>
-      </div>
-    </nav>
-  </div>
-
-
-  <!-- -------------------------------------
-  popup modals from any action dropdown, or right-click option need to be defined here
-  ---------------------------------------- -->
-
-  <div class="modal fade" id="success-form" tabindex="-1" role="dialog" aria-labelledby="success-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-           <h4 class="modal-title" id="success-label">Success!</h4>
-        </div>
-        <div class="modal-body">
-          <p id="success-msg"><p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="restart-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restart-inst-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content ds-modal">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="restart-inst-label">Restart Instance</h4>
-        </div>
-        <div class="modal-body">
-          <div id="reload-spinner" class="ds-center">
-            <p></p>
-            <p id="ds-restart-inst"><span class="spinner spinner-xs spinner-inline"></span> Restarting instance...</p>
+    <div class="modal fade" id="success-form" tabindex="-1" role="dialog" aria-labelledby="success-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content ds-popup">
+          <div class="modal-header">
+             <h4 class="modal-title" id="success-label">Success!</h4>
+          </div>
+          <div class="modal-body">
+            <p id="success-msg"><p>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="modal fade" id="stop-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="stop-inst-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content ds-modal">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="stop-inst-label">Stop Instance</h4>
-        </div>
-        <div class="modal-body">
-          <div id="reload-spinner" class="ds-center">
-            <p></p>
-            <p id="ds-stop-inst"><span class="spinner spinner-xs spinner-inline"></span> Stopping instance...</p>
+    <div class="modal fade" id="restart-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restart-inst-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content ds-modal">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="restart-inst-label">Restart Instance</h4>
+          </div>
+          <div class="modal-body">
+            <div id="reload-spinner" class="ds-center">
+              <p></p>
+              <p id="ds-restart-inst"><span class="spinner spinner-xs spinner-inline"></span> Restarting instance...</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="modal fade" id="start-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="start-inst-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content ds-modal">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="start-inst-label">Start Instance</h4>
-        </div>
-        <div class="modal-body">
-          <div id="reload-spinner" class="ds-center">
-            <p></p>
-            <p id="ds-start-inst"><span class="spinner spinner-xs spinner-inline"></span> Starting instance...</p>
+    <div class="modal fade" id="stop-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="stop-inst-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content ds-modal">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="stop-inst-label">Stop Instance</h4>
+          </div>
+          <div class="modal-body">
+            <div id="reload-spinner" class="ds-center">
+              <p></p>
+              <p id="ds-stop-inst"><span class="spinner spinner-xs spinner-inline"></span> Stopping instance...</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="modal fade" id="remove-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="remove-inst-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content ds-modal">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="remove-inst-label">Remove Instance</h4>
-        </div>
-        <div class="modal-body">
-          <div id="reload-spinner" class="ds-center">
-            <p></p>
-            <p id="ds-remove-inst"><span class="spinner spinner-xs spinner-inline"></span> Removing instance...</p>
+    <div class="modal fade" id="start-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="start-inst-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content ds-modal">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="start-inst-label">Start Instance</h4>
           </div>
-        </div>>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="schema-reload-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="reload-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content ds-modal">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="reload-label">Reload Schema Files</h4>
-        </div>
-        <div class="modal-body">
-          <form class="form-horizontal">
-            <label for="reload-dir" class="ds-config-label" title="The name of the database link.">Schema File Directory</label><input
-              class="ds-input" type="text" placeholder="Leave empty to use default schema location" id="reload-dir">
-          </form>
-          <div id="reload-spinner" class="ds-center" hidden>
-            <p></p>
-            <p><span class="spinner spinner-xs spinner-inline"></span> Reloading schema files...</p>
+          <div class="modal-body">
+            <div id="reload-spinner" class="ds-center">
+              <p></p>
+              <p id="ds-start-inst"><span class="spinner spinner-xs spinner-inline"></span> Starting instance...</p>
+            </div>
           </div>
-        </div>
-        <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id ="schema-reload-btn">Reload Schema</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Manage Backups/restore -->
-  <div class="modal fade" id="restore-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restore-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="restore-label">Restore Directory Server</h4>
-        </div>
-        <div class="modal-body">
-          <form class="form-horizontal">
-            <table id="backup-table" class="display ds-repl-table" cellspacing="0" width="100%">
-              <thead>
-                <tr class="ds-table-header">
-                  <th>Backup Name</th>
-                  <th>Date</th>
-                  <th>Size</th>
-                  <th>Restore</th>
-                  <th>Delete</th>
-                </tr>
-              </thead>
-              <tbody id="restore-tbody">
-              </tbody>
-            </table>
-          </form>
-          <div id="restore-spinner" class="ds-center" hidden>
-            <p></p>
-            <p><span class="spinner spinner-xs spinner-inline"></span> Restoring the server...</p>
+    <div class="modal fade" id="remove-instance-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="remove-inst-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content ds-modal">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="remove-inst-label">Remove Instance</h4>
           </div>
-        </div>
-        <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+          <div class="modal-body">
+            <div id="reload-spinner" class="ds-center">
+              <p></p>
+              <p id="ds-remove-inst"><span class="spinner spinner-xs spinner-inline"></span> Removing instance...</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Create database link -->
-  <div class="modal fade" id="create-db-link-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="dblink-label" aria-hidden="true">
-    <div class="modal-dialog ds-modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="dblink-label">Create Database Link</h4>
+    <div class="modal fade" id="schema-reload-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="reload-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content ds-modal">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="reload-label">Reload Schema Files</h4>
+          </div>
+          <div class="modal-body">
+            <form class="form-horizontal">
+              <label for="reload-dir" class="ds-config-label" title="The name of the database link.">Schema File Directory</label><input
+                class="ds-input" type="text" placeholder="Leave empty to use default schema location" id="reload-dir">
+            </form>
+            <div id="reload-spinner" class="ds-center" hidden>
+              <p></p>
+              <p><span class="spinner spinner-xs spinner-inline"></span> Reloading schema files...</p>
+            </div>
+          </div>
+          <div class="modal-footer ds-modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id ="schema-reload-btn">Reload Schema</button>
+          </div>
         </div>
-        <div class="modal-body">
-          <form class="form-horizontal">
-            <div class="ds-container">
+      </div>
+    </div>
+
+    <!-- Manage Backups/restore -->
+    <div class="modal fade" id="restore-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="restore-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="restore-label">Restore Directory Server</h4>
+          </div>
+          <div class="modal-body">
+            <form class="form-horizontal">
+              <table id="backup-table" class="display ds-repl-table" cellspacing="0" width="100%">
+                <thead>
+                  <tr class="ds-table-header">
+                    <th>Backup Name</th>
+                    <th>Date</th>
+                    <th>Size</th>
+                    <th>Restore</th>
+                    <th>Delete</th>
+                  </tr>
+                </thead>
+                <tbody id="restore-tbody">
+                </tbody>
+              </table>
+            </form>
+            <div id="restore-spinner" class="ds-center" hidden>
+              <p></p>
+              <p><span class="spinner spinner-xs spinner-inline"></span> Restoring the server...</p>
+            </div>
+          </div>
+          <div class="modal-footer ds-modal-footer">
+            <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create database link -->
+    <div class="modal fade" id="create-db-link-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="dblink-label" aria-hidden="true">
+      <div class="modal-dialog ds-modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="dblink-label">Create Database Link</h4>
+          </div>
+          <div class="modal-body">
+            <form class="form-horizontal">
+              <div class="ds-container">
+                <div class="ds-inline">
+                  <div>
+                    <label for="chaining-name" class="ds-config-label" title="The name of the database link.">Database Link Name</label><input
+                      class="ds-dblink-form-input" type="text" placeholder="Bind DN" id="chaining-name" name="name">
+                  </div>
+                  <div>
+                    <label for="create-nsfarmserverurl" class="ds-config-label" title=
+                      "The URL for the remote server.  Add additional failure servers URLs separated by a space. (nsfarmserverurl)">
+                      Remote Server URL(s)</label><input class="ds-dblink-form-input" type="text" id="create-nsfarmserverurl"/>
+                  </div>
+                  <div>
+                    <label for="create-nsmultiplexorbinddn" class="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn).">Remote Server Bind DN</label><input
+                      class="ds-dblink-form-input" type="text" autocomplete="username" placeholder="Bind DN" id="create-nsmultiplexorbinddn" name="name">
+                  </div>
+                  <div>
+                    <label for="create-nsmultiplexorcredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Bind DN Credentials</label><input
+                      class="ds-dblink-form-input" type="password" autocomplete="new-password" placeholder="Enter password" id="create-nsmultiplexorcredentials" name="name">
+                  </div>
+                  <div>
+                    <label for="create-nsmultiplexorcredentials-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
+                      class="ds-dblink-form-input" type="password" autocomplete="new-password" placeholder="Confirm password" id="create-nsmultiplexorcredentials-confirm" name="name">
+                  </div>
+                  <div>
+                    <label for="dblink-conn" class="ds-config-label" title="The connection protocol for the remote server.">Connection Protocol</label><select
+                      class="btn btn-default dropdown ds-dblink-dropdown" id="dblink-conn">
+                        <option>LDAP</option>
+                        <option>LDAPS</option>
+                        <option>Start TLS</option>
+                      </select>
+                  </div>
+                  <div>
+                    <label for="nsbindmechanism" class="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism).">Bind Method</label><select
+                      class="btn btn-default dropdown ds-dblink-dropdown" id="nsbindmechanism">
+                        <option>Simple</option>
+                        <option>SASL/DIGEST-MD5</option>
+                        <option>SASL/GSSAPI</option>
+                      </select>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer ds-modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="chaining-save">Create Link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--
+        Create New Instance
+    -->
+    <div class="modal fade" id="create-inst-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="create-inst-header" aria-hidden="true">
+      <div class="modal-dialog ds-modal">
+        <div class="modal-content animate">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="create-inst-header">Create New Server Instance</h4>
+          </div>
+          <div class="modal-body">
+            <form class="form-horizontal">
+              <p class="ds-modal-error"></p>
               <div class="ds-inline">
                 <div>
-                  <label for="chaining-name" class="ds-config-label" title="The name of the database link.">Database Link Name</label><input
-                    class="ds-dblink-form-input" type="text" placeholder="Bind DN" id="chaining-name" name="name">
+                  <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to \"slapi-\"">
+                    Instance Name</label><input class="ds-input ds-inst-input" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
                 </div>
                 <div>
-                  <label for="create-nsfarmserverurl" class="ds-config-label" title=
-                    "The URL for the remote server.  Add additional failure servers URLs separated by a space. (nsfarmserverurl)">
-                    Remote Server URL(s)</label><input class="ds-dblink-form-input" type="text" id="create-nsfarmserverurl"/>
+                  <label for="create-inst-port" class="ds-config-label" title="The server port number">
+                    Port</label><input class="ds-input ds-inst-input" type="text" value="389" id="create-inst-port" required />
                 </div>
                 <div>
-                  <label for="create-nsmultiplexorbinddn" class="ds-config-label" title="Bind DN used to authenticate against the remote server (nsmultiplexorbinddn).">Remote Server Bind DN</label><input
-                    class="ds-dblink-form-input" type="text" placeholder="Bind DN" id="create-nsmultiplexorbinddn" name="name">
+                  <label for="create-inst-secureport" class="ds-config-label" title="The secure port number for TLS connections">
+                    Secure Port</label><input class="ds-input ds-inst-input" type="text" value="636" id="create-inst-secureport" required />
                 </div>
                 <div>
-                  <label for="create-nsmultiplexorcredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Bind DN Credentials</label><input
-                    class="ds-dblink-form-input" type="password" placeholder="Enter password" id="create-nsmultiplexorcredentials" name="name">
+                  <label for="create-inst-rootdn" class="ds-config-label" title="The DN for the unrestricted  user">
+                    Directory Manager DN</label><input class="ds-input ds-inst-input" autocomplete="username" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
                 </div>
                 <div>
-                  <label for="create-nsmultiplexorcredentials-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-                    class="ds-dblink-form-input" type="password" placeholder="Confirm password" id="create-nsmultiplexorcredentials-confirm" name="name">
+                  <label for="rootdn-pw" class="ds-config-label" title="Directory Manager password.">Directory Manager Password</label><input
+                    class="ds-input ds-inst-input" type="password" autocomplete="new-password" placeholder="Enter password" id="rootdn-pw" name="name" required>
                 </div>
                 <div>
-                  <label for="dblink-conn" class="ds-config-label" title="The connection protocol for the remote server.">Connection Protocol</label><select
-                    class="btn btn-default dropdown ds-dblink-dropdown" id="dblink-conn">
-                      <option>LDAP</option>
-                      <option>LDAPS</option>
-                      <option>Start TLS</option>
-                    </select>
+                  <label for="rootdn-pw-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
+                    class="ds-input ds-inst-input" type="password" autocomplete="new-password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
                 </div>
-                <div>
-                  <label for="nsbindmechanism" class="ds-config-label" title="The bind method for contacting the remote server  (nsbindmechanism).">Bind Method</label><select
-                    class="btn btn-default dropdown ds-dblink-dropdown" id="nsbindmechanism">
-                      <option>Simple</option>
-                      <option>SASL/DIGEST-MD5</option>
-                      <option>SASL/GSSAPI</option>
-                    </select>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="chaining-save">Create Link</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!--
-      Create New Instance
-  -->
-  <div class="modal fade" id="create-inst-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="create-inst-header" aria-hidden="true">
-    <div class="modal-dialog ds-modal">
-      <div class="modal-content animate">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="create-inst-header">Create New Server Instance</h4>
-        </div>
-        <div class="modal-body">
-          <form class="form-horizontal">
-            <p class="ds-modal-error"></p>
-            <div class="ds-inline">
-              <div>
-                <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to \"slapi-\"">
-                  Instance Name</label><input class="ds-input ds-inst-input" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
-              </div>
-              <div>
-                <label for="create-inst-port" class="ds-config-label" title="The server port number">
-                  Port</label><input class="ds-input ds-inst-input" type="text" value="389" id="create-inst-port" required />
-              </div>
-              <div>
-                <label for="create-inst-secureport" class="ds-config-label" title="The secure port number for TLS connections">
-                  Secure Port</label><input class="ds-input ds-inst-input" type="text" value="636" id="create-inst-secureport" required />
-              </div>
-              <div>
-                <label for="create-inst-rootdn" class="ds-config-label" title="The DN for the unrestricted  user">
-                  Directory Manager DN</label><input class="ds-input ds-inst-input" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
-              </div>
-              <div>
-                <label for="rootdn-pw" class="ds-config-label" title="Directory Manager password.">Directory Manager Password</label><input
-                  class="ds-input ds-inst-input" type="password" placeholder="Enter password" id="rootdn-pw" name="name" required>
-              </div>
-              <div>
-                <label for="rootdn-pw-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-                  class="ds-input ds-inst-input" type="password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
-              </div>
-              <hr>
-              <div>
-                <label for="backend-name" class="ds-config-label" title="The backend name, like 'userroot'">Backend Name (optional)</label><input
-                  class="ds-input ds-inst-input" type="text" id="backend-name">
-              </div>
-              <div>
-                <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'">Backend Suffix (optional)</label><input
-                  class="ds-input ds-inst-input" type="text" id="backend-suffix">
-              </div>
-              <div>
-                <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
-                  type="checkbox" class="ds-input ds-config-checkbox" id="create-sample-entries">
-              </div>
-              <hr>
-              <div>
-                <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
-                  for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
-              </div>
-              <div id="create-inst-spinner" class="ds-center" hidden>
                 <hr>
-                <p><span class="spinner spinner-xs spinner-inline"></span> Creating instance...</p>
+                <div>
+                  <label for="backend-name" class="ds-config-label" title="The backend name, like 'userroot'">Backend Name (optional)</label><input
+                    class="ds-input ds-inst-input" type="text" id="backend-name">
+                </div>
+                <div>
+                  <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'">Backend Suffix (optional)</label><input
+                    class="ds-input ds-inst-input" type="text" id="backend-suffix">
+                </div>
+                <div>
+                  <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
+                    type="checkbox" class="ds-input ds-config-checkbox" id="create-sample-entries">
+                </div>
+                <hr>
+                <div>
+                  <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
+                    for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
+                </div>
+                <div id="create-inst-spinner" class="ds-center" hidden>
+                  <hr>
+                  <p><span class="spinner spinner-xs spinner-inline"></span> Creating instance...</p>
+                </div>
               </div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="create-inst-save">Create Instance</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!--
-      Do Backup
-  -->
-  <div class="modal fade" id="backup-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="backup-label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
-            <span class="pficon pficon-close"></span>
-          </button>
-          <h4 class="modal-title" id="backup-label">Backup Directory Server</h4>
-        </div>
-        <div class="modal-body">
-          <form class="form-horizontal">
-            <div class="ds-inline">
-              <label for="backup-name" title="Enter a directory name for the backup">
-                Backup Name</label><input class="ds-input ds-left-margin" type="text" id="backup-name"/>
-            </div>
-          </form>
-          <div id="backup-spinner" class="ds-center" hidden>
-            <p></p>
-            <p><span class="spinner spinner-xs spinner-inline"></span> Backing up the server...</p>
+            </form>
+          </div>
+          <div class="modal-footer ds-modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="create-inst-save">Create Instance</button>
           </div>
         </div>
-        <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="ds-backup-btn">Do Backup</button>
+      </div>
+    </div>
+
+    <!--
+        Do Backup
+    -->
+    <div class="modal fade" id="backup-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="backup-label" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+              <span class="pficon pficon-close"></span>
+            </button>
+            <h4 class="modal-title" id="backup-label">Backup Directory Server</h4>
+          </div>
+          <div class="modal-body">
+            <form class="form-horizontal">
+              <div class="ds-inline">
+                <label for="backup-name" title="Enter a directory name for the backup">
+                  Backup Name</label><input class="ds-input ds-left-margin" type="text" id="backup-name"/>
+              </div>
+            </form>
+            <div id="backup-spinner" class="ds-center" hidden>
+              <p></p>
+              <p><span class="spinner spinner-xs spinner-inline"></span> Backing up the server...</p>
+            </div>
+          </div>
+          <div class="modal-footer ds-modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="ds-backup-btn">Do Backup</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- The Nav Tabs  -->
+
+    <div class="ds-content">
+      <div id="no-package" class="all-pages ds-center" hidden>
+        <h3>There is no <b>389-ds-base</b> package installed on this system.  Sorry there is nothing to manage...</h3>
+      </div>
+      <div id="no-instances" class="all-pages ds-center" hidden>
+        <h3>There are no Directory Server instances to manage</h3>
+        <p>
+          <button type="button" class="btn btn-primary" id="no-inst-create-btn" data-toggle="modal" data-target="#create-inst-form">Create New Instance</button>
+        </p>
+      </div>
+      <div id="not-running" class="all-pages ds-center" hidden>
+        <h3>This server instance is not running, either start it from the <b>Actions</b> dropdown menu, or choose a different instance</h3>
+      </div>
+      <div id="no-connect" class="all-pages ds-center" hidden>
+        <h3>This server instance is running, but we can not connect to it.  Check LDAPI is properly configured on this instance.</h3>
+      </div>
+
+      <div id="server-content" class="all-pages" hidden>
+      </div>
+
+      <div id="security-content" class="all-pages" hidden>
+      </div>
+
+      <div id="database-content" class="all-pages" hidden>
+      </div>
+
+      <div id="replication-content" class="all-pages" hidden>
+      </div>
+
+      <div id="schema-content" class="all-pages" hidden>
+      </div>
+
+      <div id="plugin-content" class="all-pages" hidden>
+      </div>
+
+      <div id="monitor-content" class="all-pages" hidden>
+      </div>
+
+    </div>
+
   </div>
-
-  <!-- The Nav Tabs  -->
-
-  <div class="ds-content">
-    <div id="no-package" class="all-pages ds-center" hidden>
-      <h3>There is no <b>389-ds-base</b> package installed on this system.  Sorry there is nothing to manage...</h3>
-    </div>
-    <div id="no-instances" class="all-pages ds-center" hidden>
-      <h3>There are no Directory Server instances to manage</h3>
-      <p>
-        <button type="button" class="btn btn-primary" id="no-inst-create-btn" data-toggle="modal" data-target="#create-inst-form">Create New Instance</button>
-      </p>
-    </div>
-    <div id="not-running" class="all-pages ds-center" hidden>
-      <h3>This server instance is not running, either start it from the <b>Actions</b> dropdown menu, or choose a different instance</h3>
-    </div>
-    <div id="no-connect" class="all-pages ds-center" hidden>
-      <h3>This server instance is running, but we can not connect to it.  Check LDAPI is properly configured on this instance.</h3>
-    </div>
-
-    <div id="server-content" class="all-pages" hidden>
-    </div>
-
-    <div id="security-content" class="all-pages" hidden>
-    </div>
-
-    <div id="database-content" class="all-pages" hidden>
-    </div>
-
-    <div id="replication-content" class="all-pages" hidden>
-    </div>
-
-    <div id="schema-content" class="all-pages" hidden>
-    </div>
-
-    <div id="plugin-content" class="all-pages" hidden>
-    </div>
-
-    <div id="monitor-content" class="all-pages" hidden>
-    </div>
-
-  </div>
-
 </body>
 </html>
 

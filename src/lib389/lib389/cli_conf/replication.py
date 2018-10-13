@@ -14,6 +14,7 @@ from lib389.changelog import Changelog5
 from lib389.utils import is_a_dn
 from lib389.replica import Replicas, BootstrapReplicationManager
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
+from lib389._mapped_object import DSLdapObjects
 
 
 arg_to_attr = {
@@ -29,6 +30,7 @@ arg_to_attr = {
         'repl_backoff_max': 'nsds5replicabackoffmax',
         'repl_release_timeout': 'nsds5replicareleasetimeout',
         # Changelog
+        'cl_dir': 'nsslapd-changelogdir',
         'max_entries': 'nsslapd-changelogmaxentries',
         'max_age': 'nsslapd-changelogmaxage',
         'compact_interval': 'nsslapd-changelogcompactdb-interval',
@@ -69,7 +71,7 @@ arg_to_attr = {
 
 
 def get_agmt(inst, args, winsync=False):
-    agmt_name = args.AGMT_NAME[0]
+    agmt_name = get_agmt_name(args)
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
     agmts = replica.get_agreements(winsync=winsync)
@@ -78,6 +80,14 @@ def get_agmt(inst, args, winsync=False):
     except ldap.NO_SUCH_OBJECT:
         raise ValueError("Could not find the agreement \"{}\" for suffix \"{}\"".format(agmt_name, args.suffix))
     return agmt
+
+
+def get_agmt_name(args):
+    agmt_name = args.AGMT_NAME[0]
+    if agmt_name.startswith('"') and agmt_name.endswith('"'):
+        # Remove quotes from quoted value
+        agmt_name = agmt_name[1:-1]
+    return agmt_name
 
 
 def _args_to_attrs(args):
@@ -116,6 +126,7 @@ def enable_replication(inst, basedn, log, args):
         'nsDS5ReplicaRoot': repl_root,
         'nsDS5Flags': repl_flag,
         'nsDS5ReplicaType': repl_type,
+        'nsDS5ReplicaId': '65535'
         }
 
     # Validate master settings
@@ -129,14 +140,14 @@ def enable_replication(inst, basedn, log, args):
         try:
             rid_num = int(rid)
         except ValueError:
-            raise ValueError("--rid expects a number between 1 and 65534")
+            raise ValueError("--replica-id expects a number between 1 and 65534")
 
         # Is it in range?
         if rid_num < 1 or rid_num > 65534:
             raise ValueError("--replica-id expects a number between 1 and 65534")
 
         # rid is good add it to the props
-        repl_properties['nsDS5ReplicaId'] = rid
+        repl_properties['nsDS5ReplicaId'] = args.replica_id
 
     # Bind DN or Bind DN Group?
     if args.bind_group_dn:
@@ -181,7 +192,7 @@ def promote_replica(inst, basedn, log, args):
 
     if role == 'master':
         newrole = ReplicaRole.MASTER
-        if args.rreplica_idid is None:
+        if args.replica_id is None:
             raise ValueError("You need to provide a replica ID (--replica-id) to promote replica to a master")
     elif role == 'hub':
         newrole = ReplicaRole.HUB
@@ -221,38 +232,45 @@ def set_repl_config(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
     attrs = _args_to_attrs(args)
-    op_count = 0
+    did_something = False
 
     # Add supplier DNs
     if args.repl_add_bind_dn is not None:
-        if not is_a_dn(repl_add_bind_dn):
+        if not is_a_dn(args.repl_add_bind_dn):
             raise ValueError("The replica bind DN is not a valid DN")
         replica.add('nsds5ReplicaBindDN', args.repl_add_bind_dn)
-        op_count += 1
+        did_something = True
 
     # Remove supplier DNs
     if args.repl_del_bind_dn is not None:
         replica.remove('nsds5ReplicaBindDN', args.repl_del_bind_dn)
-        op_count += 1
+        did_something = True
 
     # Add referral
     if args.repl_add_ref is not None:
         replica.add('nsDS5ReplicaReferral', args.repl_add_ref)
-        op_count += 1
+        did_something = True
 
     # Remove referral
     if args.repl_del_ref is not None:
         replica.remove('nsDS5ReplicaReferral', args.repl_del_ref)
-        op_count += 1
+        did_something = True
 
     # Handle the rest of the changes that use mod_replace
-    modlist = []
+    replace_list = []
+
     for attr, value in attrs.items():
-        modlist.append((attr, value))
-    if len(modlist) > 0:
-        replica.replace_many(*modlist)
-    elif op_count == 0:
+        if value == "":
+            # Delete value
+            replica.remove_all(attr)
+            did_something = True
+        else:
+            replace_list.append((attr, value))
+    if len(replace_list) > 0:
+        replica.replace_many(*replace_list)
+    elif not did_something:
         raise ValueError("There are no changes to set in the replica")
+
     print("Successfully updated replication configuration")
 
 
@@ -280,13 +298,19 @@ def delete_cl(inst, basedn, log, args):
 def set_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
     attrs = _args_to_attrs(args)
-    modlist = []
+    replace_list = []
+    did_something = False
     for attr, value in attrs.items():
-        modlist.append((attr, value))
-    if len(modlist) > 0:
-        cl.replace_many(*modlist)
-    else:
+        if value == "":
+            cl.remove_all(attr)
+            did_something = True
+        else:
+            replace_list.append((attr, value))
+    if len(replace_list) > 0:
+        cl.replace_many(*replace_list)
+    elif not did_something:
         raise ValueError("There are no changes to set for the replication changelog")
+
     print("Successfully updated replication changelog")
 
 
@@ -342,7 +366,7 @@ def create_repl_manager(inst, basedn, log, args):
 
 
 def del_repl_manager(inst, basedn, log, args):
-    if is_a_dn(agmt.name):
+    if is_a_dn(args.name):
         manager_dn = args.name
     else:
         manager_dn = "cn={},cn=config".format(args.name)
@@ -394,9 +418,9 @@ def add_agmt(inst, basedn, log, args):
 
     # Required properties
     properties = {
-            'cn': args.AGMT_NAME[0],
+            'cn': get_agmt_name(args),
             'nsDS5ReplicaRoot': repl_root,
-            'description': args.AGMT_NAME[0],
+            'description': get_agmt_name(args),
             'nsDS5ReplicaHost': args.host,
             'nsDS5ReplicaPort': args.port,
             'nsDS5ReplicaBindMethod': bind_method,
@@ -429,7 +453,7 @@ def add_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    print("Successfully created replication agreement \"{}\"".format(args.AGMT_NAME[0]))
+    print("Successfully created replication agreement \"{}\"".format(get_agmt_name(args)))
     if args.init:
         init_agmt(inst, basedn, log, args)
 
@@ -478,12 +502,20 @@ def set_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     attrs = _args_to_attrs(args)
     modlist = []
+    did_something = False
     for attr, value in attrs.items():
-        modlist.append((attr, value))
+        if value == "":
+            # Delete value
+            agmt.remove_all(attr)
+            did_something = True
+        else:
+            modlist.append((attr, value))
+
     if len(modlist) > 0:
         agmt.replace_many(*modlist)
-    else:
+    elif not did_something:
         raise ValueError("There are no changes to set in the agreement")
+
     print("Successfully updated agreement")
 
 
@@ -551,9 +583,9 @@ def add_winsync_agmt(inst, basedn, log, args):
 
     # Required properties
     properties = {
-            'cn': args.AGMT_NAME[0],
+            'cn': get_agmt_name(args),
             'nsDS5ReplicaRoot': args.suffix,
-            'description': args.AGMT_NAME[0],
+            'description': get_agmt_name(args),
             'nsDS5ReplicaHost': args.host,
             'nsDS5ReplicaPort': args.port,
             'nsDS5ReplicaTransportInfo': args.conn_protocol,
@@ -590,7 +622,7 @@ def add_winsync_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    print("Successfully created winsync replication agreement \"{}\"".format(args.AGMT_NAME[0]))
+    print("Successfully created winsync replication agreement \"{}\"".format(get_agmt_name(args)))
     if args.init:
         init_winsync_agmt(inst, basedn, log, args)
 
@@ -606,12 +638,19 @@ def set_winsync_agmt(inst, basedn, log, args):
 
     attrs = _args_to_attrs(args)
     modlist = []
-    for attr, value in attrs.items():
-        modlist.append((attr, value))
+    did_something = False
+    for attr, value in list(attrs.items()):
+        if value == "":
+            # Delete value
+            agmt.remove_all(attr)
+            did_something = True
+        else:
+            modlist.append((attr, value))
     if len(modlist) > 0:
         agmt.replace_many(*modlist)
-    else:
+    elif not did_something:
         raise ValueError("There are no changes to set in the agreement")
+
     print("Successfully updated agreement")
 
 
@@ -678,16 +717,44 @@ def run_cleanallruv(inst, basedn, log, args):
     properties = {'replica-base-dn': args.suffix,
                   'replica-id': args.replica_id}
     if args.force_cleaning:
-        properties['replica-force-cleaning'] = args.force_cleaning
+        properties['replica-force-cleaning'] = 'yes'
     clean_task = CleanAllRUVTask(inst)
     clean_task.create(properties=properties)
+    rdn = clean_task.rdn
+    if args.json:
+        print(json.dumps(rdn))
+    else:
+        print('Created task ' + rdn)
+
+
+def list_cleanallruv(inst, basedn, log, args):
+    tasksobj = DSLdapObjects(inst)
+    tasksobj._basedn = "cn=cleanallruv, cn=tasks, cn=config"
+    tasksobj._scope = ldap.SCOPE_ONELEVEL
+    tasksobj._objectclasses = ['top']
+    tasks = tasksobj.list()
+    result = {"type": "list", "items": []}
+    tasks_found = False
+    for task in tasks:
+        tasks_found = True
+        if args.json:
+            entry = task.get_all_attrs_json()
+            # Append decoded json object, because we are going to dump it later
+            result['items'].append(json.loads(entry))
+        else:
+            print(task.display())
+    if args.json:
+        print(json.dumps(result))
+    else:
+        if not tasks_found:
+            print("No CleanAllRUV tasks found")
 
 
 def abort_cleanallruv(inst, basedn, log, args):
     properties = {'replica-base-dn': args.suffix,
                   'replica-id': args.replica_id}
     if args.certify:
-        properties['replica-certify-all'] = args.certify
+        properties['replica-certify-all'] = 'yes'
     clean_task = AbortCleanAllRUVTask(inst)
     clean_task.create(properties=properties)
 
@@ -747,6 +814,7 @@ def create_parser(subparsers):
 
     repl_set_cl = repl_subcommands.add_parser('set-changelog', help='Delete the replication changelog.  This will invalidate any existing replication agreements')
     repl_set_cl.set_defaults(func=set_cl)
+    repl_set_cl.add_argument('--cl-dir', help="The replication changelog location on the filesystem")
     repl_set_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
     repl_set_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
     repl_set_cl.add_argument('--compact-interval', help="The replication changelog compaction interval")
@@ -1034,6 +1102,9 @@ def create_parser(subparsers):
     task_cleanallruv.add_argument('--replica-id', required=True, help="The replica ID to remove/clean")
     task_cleanallruv.add_argument('--force-cleaning', action='store_true', default=False,
                                   help="Ignore errors and do a best attempt to clean all the replicas")
+
+    task_cleanallruv_list = task_subcommands.add_parser('list-cleanallruv', help='List all the running CleanAllRUV Tasks')
+    task_cleanallruv_list.set_defaults(func=list_cleanallruv)
 
     # Abort cleanallruv
     task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Set an attribute in the replication winsync agreement')

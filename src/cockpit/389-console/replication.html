@@ -3,31 +3,35 @@
 <div id="repl-config" class="all-pages" hidden>
   <h3 class="ds-config-header">Replication Configuration Settings</h3>
 
-  <label class="ds-config-label-med" for="select-repl-role">Database Suffix</Label> <select 
-    class="btn btn-default dropdown ds-select" id="select-repl-cfg-suffix">
+  <label class="ds-config-label-med" for="select-repl-role">Database Suffix</Label> <select
+    class="btn btn-default dropdown" id="select-repl-cfg-suffix">
     <option>dc=example,dc=com</option>
     <option>o=ipaca</option>
   </select>
 
   <div>
-    <label class="ds-config-label-med" for="select-repl-role">Replication Role</Label> <select class="btn btn-default dropdown ds-select-sm" id="select-repl-role">
+    <label class="ds-config-label-med" for="select-repl-role">Replication Role</Label> <select class="btn btn-default dropdown" id="select-repl-role">
         <option>Disabled</option>
         <option>Master</option>
         <option>Hub</option>
         <option>Consumer</option>
     </select>
+    <p></p>
+    <label for="nsds5replicaid" class="ds-config-label-med" title=
+      "The replica identifier for Master/Supplier (nsds5ReplicaId).">
+      Replica ID</label><input class="ds-input" type="text" id="nsds5replicaid" size="15"/>
+
+    <p></p>
   </div>
-  
+
   <div id="repl-config-content">
     <hr>
-    <div>
-      <label for="nsds5replicaid" class="ds-config-label-med" title=
-        "The replica identifier for Master/Supplier (nsds5ReplicaId).">
-        Replica ID</label><input class="ds-input" type="text" id="nsds5replicaid" size="15"/>
-    </div>
-    <p></p>
-
-    <div>
+    <div class="ds-repl-mgr">
+      <div class="ds-inline ds-repl-mgr">
+        <label for="nsds5replicabinddngroup" title=
+          "The DN of a group that contains entries that are allowed to make replication updates (nsDS5ReplicaBindDnGroup).">Bind DN Group</label><input
+          class="ds-input-max" type="text" id="nsds5replicabinddngroup"/>
+      </div>
       <table class="table table-bordered ds-mgr-table" id="repl-mgr-table"
         title="Specifies entries that can perform replication updates on this server.  Also known as supplier DN, update DN, or Replication Manager">
         <thead>
@@ -37,13 +41,6 @@
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td class="ds-td">cn=replication manager,cn=config</td>
-            <td class="ds-center">
-             <button type="button" class="btn btn-default ds-table-btn del-repl-mgr">
-               <span class="glyphicon glyphicon-trash"></span> Remove
-             </button></td>
-          </tr>
         </tbody>
       </table>
       <button class="btn btn-default ds-repl-managers-button"  data-toggle="modal" data-target="#add-repl-mgr-form" id="add-repl-manager">Add Replication Manager</button>
@@ -70,6 +67,10 @@
             <label for="nsds5replicaprecisetombstonepurging" class="ds-config-label" title=
               "NEEDS WORK (nsds5ReplicaPreciseTombstonePurging).">Precise Tombstone Purging</label><input class="ds-input" type="text" id="nsds5replicaprecisetombstonepurging" size="15"/>
           </div>
+          <div>
+            <label for="nsds5replicabinddngroupcheckinterval" class="ds-config-label" title=
+            "NEEDS WORK (nsDS5ReplicaBindDnGroupCheckInterval).">Bind DN Group Check Interval</label><input class="ds-input" type="text" id="nsds5replicabinddngroupcheckinterval" size="15"/>
+          </div>
         </div>
         <div class="ds-divider"></div>
         <div class="ds-inline">
@@ -93,59 +94,67 @@
       </div>
       <hr>
       <div>
-        <label for="nsds5replicabinddngroup" class="ds-config-label" title="NEEDS WORK (nsDS5ReplicaBindDnGroup).">Bind DN Group</label><input 
-          class="ds-input-long" type="text" id="nsds5replicabinddngroup"/>
+        <label for="nsslapd-changelogdir" class="ds-config-label" title="The location on the filesystem for the replication changelog database (nsslapd-changelogdir).">Changelog Location</label><input
+          class="ds-input-long ds-cl" type="text" id="nsslapd-changelogdir"/>
       </div>
-      <div>
-        <label for="nsds5replicabinddngroupcheckinterval" class="ds-config-label" title=
-          "NEEDS WORK (nsDS5ReplicaBindDnGroupCheckInterval).">Bind DN Group Check Interval</label><input class="ds-input" type="text" id="nsds5replicabinddngroupcheckinterval" size="15"/>
-      </div>
-      <hr>
       <div class="ds-container">
         <div name="changelog" class="ds-line">
           <div>
             <label for="nsslapd-changelogmaxentries" class="ds-config-label" title=
               "Changelog trimming parameter.  Set the maximum number of changelog entries (nsslapd-changelogmaxentries).">
-              Changelog Maximum Entries</label><input class="ds-input" type="text" id="nsslapd-changelogmaxentries" size="15"/>
+              Changelog Maximum Entries</label><input class="ds-input ds-cl" type="text" id="nsslapd-changelogmaxentries" size="15"/>
           </div>
           <div>
             <label for="nsslapd-changelogmaxage" class="ds-config-label" title=
               "Changelog trimming parameter.  This set the maximum age of a changelog entry.  It is recommended to use the same value as the ReplicationPurgeDelay.  (nsslapd-changelogmaxage).">
-              Changelog Maximum Age</label><input class="ds-input" type="text" id="nsslapd-changelogmaxage" size="15"/>
+              Changelog Maximum Age</label><input class="ds-input ds-cl" type="text" id="nsslapd-changelogmaxage" size="15"/>
           </div>
+          <div>
+            <label for="nsslapd-changelogtrim-interval" class="ds-config-label" title=
+              "The changelog trimming internal.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval).">
+              Changelog Trim Interval</label><input class="ds-input ds-cl" type="text" id="nsslapd-changelogtrim-interval" size="15"/>
+          </div>
+          <p></p>
         </div>
         <div class="ds-divider"></div>
         <div class="ds-inline">
           <div>
-            <label for="nsslapd-changelogtrim-interval" class="ds-config-label" title=
-              "The changelog trimming internal.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval).">
-              Changelog Trim Interval</label><input class="ds-input" type="text" id="nsslapd-changelogtrim-interval" size="15"/>
+            <label for="nsslapd-changelogcompactdb-interval" class="ds-config-label" title=
+              "The changelog compaction internal.  Set how often the changelog will compact itself, meaning remove empty/trimmed database slots (nsslapd-changelogcompactdb-interval).">
+              Changelog Compaction Interval</label><input class="ds-input ds-cl" type="text" id="nsslapd-changelogcompactdb-interval" size="15"/>
           </div>
           <div>
             <label for="nsslapd-encryptionalgorithm" class="ds-config-label" title=
-              "Encryption algorithm used to encrypt the changelog (AES or DES3).  Requires thathe server is already has TLS configured (nsslapd-encryptionalgorithm).">
-              Changelog Encryption Algorithm</label><input class="ds-input" type="text" id="nsslapd-encryptionalgorithm" size="15"/>
-            <p></p>
+              "Encryption algorithm used to encrypt the changelog (AES or DES3).  Requires that the server is already has TLS configured (nsslapd-encryptionalgorithm).">
+              Changelog Encryption Algorithm</label><input class="ds-input ds-cl" type="text" id="nsslapd-encryptionalgorithm" size="15"/>
           </div>
         </div>
       </div>
+
+      <!-- Buttons to create and delete changelog -->
+      <div id="cl-create-div">
+        <button class="btn btn-default" id="create-cl-btn">Create Changelog</button>
+      </div>
+      <div id ="cl-del-div" hidden>
+        <button class="btn btn-default" id="delete-cl-btn">Delete Changelog</button>
+      </div>
       <p></p>
     </div>
-    <div class="ds-footer">
-      <button class="btn btn-primary save-button">Save</button>
-    </div>
+  </div>
+  <div class="ds-footer">
+    <button class="btn btn-primary" id="repl-config-save">Save</button>
   </div>
 </div>
 
-  
+
 <!-- -----------------------------
 
 Replication Agreements
 
 -------------------------------- -->
 <div id="repl-agmts" class="all-pages" hidden>
-  <h3 class="ds-config-header">Replication Agreements for <select 
-    class="btn btn-default dropdown ds-select" id="select-repl-agmt-suffix">
+  <h3 class="ds-config-header">Replication Agreements for <select
+    class="btn btn-default dropdown" id="select-repl-agmt-suffix">
     <option>dc=example,dc=com</option>
     <option>o=ipaca</option>
   </select></h3>
@@ -158,52 +167,12 @@ Replication Agreements
           <th>Host</th>
           <th>Port</th>
           <th>State</th>
+          <th>Last Update Status</th>
+          <th>Last Init Status</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="agmt-body">
-        <tr>
-          <td>me2beaker</td>
-          <td>beaker.host.com</td>
-          <td>3890</td>
-          <td>Enabled</td>
-          <td>
-            <div class="dropdown">
-              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">Choose Action...
-                <span class="caret"></span></button>
-              <ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">
-                <li><a class="agmt-edit-btn">View/Edit Agreement</a></li>
-                <li><a>Initialize Consumer (online)</a></li>
-                <li><a>Initialize Consumer (ldif)</a></li>
-                <li><a>Send Updates Now</a></li>
-                <li><a>Enable/Disable Agreement</a></li>
-                <li><a class="agmt-del-btn">Delete Agreement</a></li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        <tr class="">
-          <td>me2beaker2</td>
-          <td>beaker2.host.com</td>
-          <td>389</td>
-          <td>Enabled</td>
-          <td>
-            <div class="dropdown">
-              <button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">
-                Choose Action...
-                <span class="caret"></span>
-              </button>
-              <ul class="dropdown-menu ds-agmt-dropdown" role="menu">
-                <li><a class="agmt-edit-btn">View/Edit Agreement</a></li>
-                <li><a>Initialize Consumer (online)</a></li>
-                <li><a>Initialize Consumer (ldif)</a></li>
-                <li><a>Send Updates Now</a></li>
-                <li><a>Enable/Disable Agreement</a></li>
-                <li><a class="agmt-del-btn" href="#">Delete Agreement</a></li>
-              </ul>
-            </div>
-          </td>
-        </tr>
       </tbody>
     </table>
     <button class="btn btn-primary" type="button" data-toggle="modal" data-target="#agmt-form" id="create-agmt">Create Replication Agreement</button>
@@ -217,8 +186,8 @@ Winsync Agreements
 
 -------------------------------- -->
 <div id="repl-winsync" class="all-pages" hidden>
-  <h3 class="ds-config-header">Windows Synchronization Agreements for <select 
-    class="btn btn-default dropdown ds-select" id="select-repl-winsync-suffix">
+  <h3 class="ds-config-header">Windows Synchronization Agreements for <select
+    class="btn btn-default dropdown" id="select-repl-winsync-suffix">
     <option>dc=example,dc=com</option>
     <option>o=ipaca</option>
   </select></h3>
@@ -229,12 +198,13 @@ Winsync Agreements
           <th>Agreement Name</th>
           <th>Windows Host</th>
           <th>Port</th>
-          <th>DS Subtree</th>
-          <th>Windows Subtree</th>
+          <th>State</th>
+          <th>Last Update Status</th>
+          <th>Last Init Status</th>
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody id="agmt-body">
+      <tbody id="winsync-agmt-body">
       </tbody>
     </table>
     <button class="btn btn-primary" data-toggle="modal" data-target="#winsync-agmt-form"  type="button" id="winsync-create-agmt">Create Winsync Agreement</button>
@@ -250,26 +220,30 @@ CleanAllRUV Tasks
 <div id="repl-cleanallruv" class="all-pages" hidden>
   <h3 class="ds-config-header">CleanAllRUV Tasks</h3>
   <div class="ds-page-content">
-    <table id="repl-clean-table" class="display ds-repl-table" cellspacing="0" width="100%">
-      <thead>
-        <tr class="ds-table-header">
-          <th>Creation Time</th>
-          <th>Replica ID</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>2017023402340234Z</td>
-          <td>222</td>
-          <td>Waiting for replica (host.domain.com) to be online...Long long long kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk</td>
-          <td><button class="btn btn-default ds-agmt-dropdown-button" type="button" class="abort-cleanallruv-btn">Abort Task</button></td>
-        </tr>
-      </tbody>
-    </table>
-    <button class="btn btn-primary" type="button" data-toggle="modal" data-target="#cleanallruv-form" id="create-cleanallruv-btn">Create CleanAllRUV Task</button>
+
+    <div>
+      <button class="btn btn-primary" type="button" data-toggle="modal" data-target="#cleanallruv-form" id="create-cleanallruv-btn">Create CleanAllRUV Task</button><div
+        class="ds-float-right"><button class="btn btn-default ds-float-right" type="button" id="refresh-cleanlist-btn">Refresh Task List</button></div>
+    </div>
     <p></p>
+    <div>
+      <p></p>
+      <table id="repl-clean-table" class="display ds-repl-table" cellspacing="0" width="100%">
+        <caption class="ds-center"><b>Running CleanAllRUV Tasks</caption>
+        <thead>
+          <tr class="ds-table-header">
+            <th>Task Name</th>
+            <th>Creation Time</th>
+            <th>Suffix</th>
+            <th>Replica ID</th>
+            <th>Last Update Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -280,8 +254,6 @@ CleanAllRUV Tasks
   Replication Agreement Form (wizard)
 
   ----------------------------------------------------------- -->
-
-
 
   <div class="modal fade" id="agmt-form" data-backdrop="static" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="agmt-wizard-title" aria-hidden="true">
     <div class="modal-dialog">
@@ -297,59 +269,60 @@ CleanAllRUV Tasks
             <div class="ds-container">
               <div class="ds-inline">
                 <div>
-                  <label for="agmt-cn" class="ds-config-label" title="Agreement name (cn).">Agreement Name</label><input
-                    class="ds-input" type="text" placeholder="Agreement name" id="agmt-cn" name="name"  size="40" required>
+                  <label for="agmt-cn" class="ds-config-label agmt-form-input" title="Agreement name (cn).">Agreement Name</label><input
+                    class="ds-input" type="text" placeholder="Agreement name" id="agmt-cn" name="name"  size="35" required>
                 </div>
                 <div>
-                  <label for="nsds5replicahost" class="ds-config-label" title="Agreement name (nsDS5ReplicaHost).">Consumer Host</label><input
-                    class="ds-input" type="text" placeholder="Consumer hostname" id="nsds5replicahost" name="port" size="40" required>
+                  <label for="nsds5replicahost" class="ds-config-label agmt-form-input" title="Agreement name (nsDS5ReplicaHost).">Consumer Host</label><input
+                    class="ds-input" type="text" placeholder="Consumer hostname" id="nsds5replicahost" name="port" size="35" required>
                 </div>
                 <div>
-                  <label for="nsds5replicaport" class="ds-config-label" title="Agreement name (nsDS5ReplicaPort).">Consumer Port</label><input
-                    class="ds-input" type="text" placeholder="Consumer port number" id="nsds5replicaport" name="name" size="40" required>
+                  <label for="nsds5replicaport" class="ds-config-label agmt-form-input" title="Agreement name (nsDS5ReplicaPort).">Consumer Port</label><input
+                    class="ds-input" type="text" placeholder="Consumer port number" id="nsds5replicaport" name="name" size="35" required>
                 </div>
                 <div>
-                  <label for="nsds5replicabinddn" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaBindDN).">Replication Bind DN</label><input
-                    class="ds-input" type="text" placeholder="Bind DN" id="nsds5replicabinddn" name="name" size="40" required>
+                  <label for="nsds5replicabinddn" class="ds-config-label agmt-form-input" title="Replication Bind DN (nsDS5ReplicaBindDN).">Replication Bind DN</label><input
+                    class="ds-input" type="text" autocomplete="username" placeholder="Bind DN" id="nsds5replicabinddn" name="name" size="35" required>
                 </div>
                 <div>
-                  <label for="nsds5replicacredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Replication Bind DN Credentials</label><input
-                    class="ds-input" type="password" placeholder="Enter password" id="nsds5replicacredentials" name="name" size="40" required>
+                  <label for="nsds5replicacredentials" class="ds-config-label agmt-form-input" title="Replication Bind DN (nsDS5ReplicaCredentials).">Replication Bind DN Credentials</label><input
+                    class="ds-input" type="password" autocomplete="new-password" placeholder="Enter password" id="nsds5replicacredentials" name="name" size="35" required>
                 </div>
                 <div>
-                  <label for="nsds5replicacredentials-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-                    class="ds-input" type="password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" size="40" required>
+                  <label for="nsds5replicacredentials-confirm" class="ds-config-label agmt-form-input" title="Confirm password">Confirm Password</label><input
+                    class="ds-input" type="password" autocomplete="new-password" placeholder="Confirm password" id="nsds5replicacredentials-confirm" name="name" size="35" required>
                 </div>
                 <div>
-                  <label for="nsds5replicatransportinfo" class="ds-config-label" title="The protocol used to connect to the replica  (nsDS5ReplicaTransportInfo).">Connection Protocol</label><select
+                  <label for="nsds5replicatransportinfo" class="ds-config-label agmt-form-input" title="The protocol used to connect to the replica  (nsDS5ReplicaTransportInfo).">Connection Protocol</label><select
                     class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="nsds5replicatransportinfo">
                       <option>LDAP</option>
                       <option>LDAPS</option>
-                      <option>Start TLS</option>
+                      <option>StartTLS</option>
                     </select>
                 </div>
                 <div>
-                  <label for="nsds5replicabindmethod" class="ds-config-label" title="The authentication method (nsDS5ReplicaBindMethod).">Bind Method</label><select
+                  <label for="nsds5replicabindmethod" class="ds-config-label agmt-form-input" title="The authentication method (nsDS5ReplicaBindMethod).">Bind Method</label><select
                     class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="nsds5replicabindmethod">
-                      <option>Simple</option>
+                      <option>SIMPLE</option>
+                      <option>SSLCLIENTAUTH</option>
                       <option>SASL/DIGEST-MD5</option>
                       <option>SASL/GSSAPI</option>
                     </select>
                 </div>
-                <div>
-                  <label for="init-options" class="ds-config-label">Initialize Consumer</label><select 
+                <div id="init-agmt-dropdown">
+                  <label for="init-options" class="ds-config-label">Initialize Consumer</label><select
                     class="btn btn-default dropdown ds-agmt-wiz-dropdown ds-agmt-init-dropdown" id="init-options">
                     <option id="init-nothing" value="noinit">Do Not Initialize</option>
-                    <option id="init-online"  value="online-init">Online Initialization</option>
-                    <option id="init-offline" value="offline-init">Offline Initialization</option>
+                    <option id="init-online"  value="online-init">Do Online Initialization</option>
+                    <option id="init-offline" value="offline-init">Create Initialization LDIF File</option>
                   </select>
                 </div>
               </div>
             </div>
-    
+
             <!-- Fractional settings -->
             <p></p>
-            <button class="accordion ds-accordion" id="frac-accordion" type="button">&#9658 Show Fractional Settings</button>
+            <button class="accordion ds-wiz-accordion" id="frac-accordion" type="button">&#9658 Show Fractional Settings</button>
             <div class="ds-accordion-panel">
               <p><b>Excluded Attributes</b></p>
               <div class="ds-container">
@@ -389,7 +362,7 @@ CleanAllRUV Tasks
                   </div>
                 </div>
               </div>
-    
+
               <hr>
               <p><b>Strip Attributes</b></p>
               <div class="ds-container">
@@ -410,10 +383,10 @@ CleanAllRUV Tasks
                 </div>
               </div>
             </div>
-    
+
             <!-- Schedule settings -->
 
-            <button class="accordion ds-accordion" id="schedule-accordion" type="button">&#9658 Show Scheduling Settings</button>
+            <button class="accordion ds-wiz-accordion" id="schedule-accordion" type="button">&#9658 Show Scheduling Settings</button>
             <div class="ds-accordion-panel">
               <input type="checkbox" class="ds-repl-manager-checkbox" id="agmt-schedule-checkbox" checked><label
                 for="agmt-schedule-checkbox" class="ds-label"> Always keep directories in sync </label>
@@ -478,7 +451,7 @@ CleanAllRUV Tasks
           </div>
         <div class="modal-footer ds-modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="agmt-save">Create Agreement</button>
+          <button type="button" class="btn btn-primary" id="agmt-save">Save Agreement</button>
         </div>
       </div>
     </div>
@@ -487,14 +460,14 @@ CleanAllRUV Tasks
 
   <!-- Winsync Agreement Wizard  -->
 
-  <div class="modal fade" id="winsync-agmt-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="winsync-label" aria-hidden="true">
+  <div class="modal fade" id="winsync-agmt-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="winsync-agmt-wizard-title" aria-hidden="true">
     <div class="modal-dialog ds-modal-wide">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>
           </button>
-          <h4 class="modal-title" id="winsync-label">Create Winsync Agreement</h4>
+          <h4 class="modal-title" id="winsync-agmt-wizard-title">Create Winsync Agreement</h4>
         </div>
         <div class="modal-body">
           <form class="form-horizontal">
@@ -505,8 +478,8 @@ CleanAllRUV Tasks
                     class="ds-input" type="text" placeholder="Agreement name" id="winsync-agmt-cn" name="name" required>
                 </div>
                 <div>
-                  <label for="nsds7windowsdomain" class="ds-config-label" title="Agreement name (nsds7WindowsDomain).">Windows Domain Name</label><input
-                    class="ds-input" type="text" placeholder="Windows Domain Name, example:  mydomain.com" id="nsds7windowsdomain" name="name" required>
+                  <label for="winsync-nsds7windowsdomain" class="ds-config-label" title="Agreement name (nsds7WindowsDomain).">Windows Domain Name</label><input
+                    class="ds-input" type="text" placeholder="Windows Domain Name, example:  mydomain.com" id="winsync-nsds7windowsdomain" name="name" required>
                 </div>
                 <div>
                   <label for="winsync-nsds5replicahost" class="ds-config-label" title="Agreement name (nsDS5ReplicaHost).">Windows Host</label><input
@@ -517,42 +490,46 @@ CleanAllRUV Tasks
                     class="ds-input" type="text" placeholder="Windows server port number" id="winsync-nsds5replicaport" name="name" required>
                 </div>
                 <div>
-                  <label for="nsds7windowsreplicasubtree" class="ds-config-label" title="Agreement name (nsds7WindowsReplicaSubtree).">Windows Subtree</label><input
-                    class="ds-input" type="text" placeholder="Active Directory subtree" id="nsds7windowsreplicasubtree" name="name" required>
+                  <label for="winsync-nsds7windowsreplicasubtree" class="ds-config-label" title="Agreement name (nsds7WindowsReplicaSubtree).">Windows Subtree</label><input
+                    class="ds-input" type="text" placeholder="Active Directory subtree" id="winsync-nsds7windowsreplicasubtree" name="name" required>
                 </div>
                 <div>
-                  <label for="nsds7directoryreplicasubtree" class="ds-config-label" title="Agreement name (nsds7DirectoryReplicaSubtree).">Directory Server Subtree</label><input
-                    class="ds-input" type="text" placeholder="The local Directory Server subtree" id="nsds7directoryreplicasubtree" name="name" required>
+                  <label for="winsync-nsds7directoryreplicasubtree" class="ds-config-label" title="Agreement name (nsds7DirectoryReplicaSubtree).">Directory Server Subtree</label><input
+                    class="ds-input" type="text" placeholder="The local Directory Server subtree" id="winsync-nsds7directoryreplicasubtree" name="name" required>
                 </div>
                 <div>
-                  <input type="checkbox" class="ds-config-checkbox" id="nsds7newwinusersyncenabled-checkbox" checked><label
-                    for="nsds7newwinusersyncenabled-checkbox" class="ds-label" title=
+                  <input type="checkbox" class="ds-config-checkbox" id="winsync-nsds7newwinusersyncenabled-checkbox" checked><label
+                    for="winsync-nsds7newwinusersyncenabled-checkbox" class="ds-label" title=
                     "Add new user to Directory Server when it is added to Active Directory (nsds7NewWinUserSyncEnabled)."> Sync New Windows Users</label>
                 </div>
                 <div>
-                  <input type="checkbox" class="ds-config-checkbox" id="nsds7newwingroupsyncenabled-checkbox" checked><label
-                    for="nsds7newwingroupsyncenabled-checkbox" class="ds-label" title=
+                  <input type="checkbox" class="ds-config-checkbox" id="winsync-nsds7newwingroupsyncenabled-checkbox" checked><label
+                    for="winsync-nsds7newwingroupsyncenabled-checkbox" class="ds-label" title=
                     "Add new group to Directory Server when it is added to Active Directory (nsds7NewWinGroupSyncEnabled)."> Sync New Windows Groups</label>
+                </div>
+                <div id="winsync-init-chbx">
+                  <input type="checkbox" class="ds-config-checkbox" id="winsync-init-checkbox" checked><label
+                    for="winsync-init-checkbox" class="ds-label" title=
+                    "Do a full synchronization after creating winsync agreement."> Initiate Full Synchronization</label>
                 </div>
                 <div>
                   <hr class="ds-hr">
                   <label for="winsync-nsds5replicabinddn" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaBindDN).">Replication Bind DN</label><input
-                    class="ds-input" type="text" placeholder="Bind DN" id="winsync-nsds5replicabinddn" name="name" required>
+                    class="ds-input" type="text" autocomplete="username" placeholder="Bind DN" id="winsync-nsds5replicabinddn" name="name" required>
                 </div>
                 <div>
                   <label for="winsync-nsds5replicacredentials" class="ds-config-label" title="Replication Bind DN (nsDS5ReplicaCredentials).">Replication Bind DN Credentials</label><input
-                    class="ds-input" type="password" placeholder="Enter password" id="winsync-nsds5replicacredentials" name="name" required>
+                    class="ds-input" type="password" autocomplete="new-password" placeholder="Enter password" id="winsync-nsds5replicacredentials" name="name" required>
                 </div>
                 <div>
                   <label for="winsync-nsds5replicacredentials-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-                    class="ds-input" type="password" placeholder="Confirm password" id="winsync-nsds5replicacredentials-confirm" name="name" required>
+                    class="ds-input" type="password"autocomplete="new-password" placeholder="Confirm password" id="winsync-nsds5replicacredentials-confirm" name="name" required>
                 </div>
                 <div>
-                  <label for="winsync-nsds5replicabindmethod" class="ds-config-label" title="The protocol used to connect to the replica (nsds5replicabindmethod).">Connection Protocol</label><select
-                    class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="winsync-nsds5replicabindmethod">
-                      <option>LDAP</option>
+                  <label for="winsync-nsds5replicatransportinfo" class="ds-config-label" title="The protocol used to connect to the replica (nsDS5ReplicaTransportInfo).">Connection Protocol</label><select
+                    class="btn btn-default dropdown ds-agmt-wiz-dropdown" id="winsync-nsds5replicatransportinfo">
                       <option>LDAPS</option>
-                      <option>Start TLS</option>
+                      <option>StartTLS</option>
                     </select>
                 </div>
               </div>
@@ -561,11 +538,41 @@ CleanAllRUV Tasks
         </div>
         <div class="modal-footer ds-modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="winsync-agmt-save">Create Agreement</button>
+          <button type="button" class="btn btn-primary" id="winsync-agmt-save">Save Agreement</button>
         </div>
       </div>
     </div>
   </div>
+
+
+  <!-- Remove repl manager -->
+  <div class="modal fade" id="del-repl-mgr-form" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="rm-mgr-label" aria-hidden="true">
+    <div class="modal-dialog ds-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
+            <span class="pficon pficon-close"></span>
+          </button>
+          <h4 class="modal-title" id="rm-mgr-label">Remove Replication Manager</h4>
+        </div>
+        <div class="modal-body">
+          <form class="form-horizontal">
+            <p>Are you sure you want to remove this Replication Manager from the replication configuration?</p>
+            <div>
+              <input type="checkbox" class="ds-config-checkbox" id="delete-mgr-checkbox"><label
+                for="delete-mgr-checkbox" class="ds-label" title=
+                "In addition to removing the manager from the configuration, also delete the manager entry from the server"> Delete the manager entry</label>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer ds-modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="remove-mgr-btn">Remove Manager</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
 
   <!-- CleanAllRUV Form -->
@@ -585,11 +592,17 @@ CleanAllRUV Tasks
               <p>The CleanAllRUV task will clean up traces of a deleted replica from
                  the database and changelog.  The task follows the replication agreements
                  so the cleaning task propagates itself to all the replication servers.</p>
+              <hr>
+              <div>
+                <label for="cleanallruv-suffix" class="ds-cleanallruv-label"><b>Replication Suffix</b></label><select
+                  class="btn btn-default dropdown" id="cleanallruv-suffix">
+                </select>
+              </div>
               <p></p>
               <div>
-                <label for="cleanallruv-rid" class="" title=
+                <label for="cleanallruv-rid" class="ds-cleanallruv-label" title=
                   "The Replica ID of a deleted replica (replica-id)"><b
-                  >Replica ID</label><input class="ds-form-input" type="text" id="cleanallruv-rid" size="5"/>
+                  >Replica ID</label><input type="text" id="cleanallruv-rid" size="5"/>
               </div>
               <div>
                 <input type="checkbox" class="ds-config-checkbox" id="force-clean" checked><label
@@ -606,6 +619,9 @@ CleanAllRUV Tasks
       </div>
     </div>
   </div>
+
+
+
 
   <!-- Add replication manager Form -->
 
@@ -624,7 +640,7 @@ CleanAllRUV Tasks
               <div>
                 <label for="add-repl-mgr-dn" class="" title=
                   "The DN of the replication manager (nsds5replicabinddn)"><b
-                  >Replication Manager DN</label><input class="ds-form-input" type="text" id="add-repl-mgr-dn" size="60"/>
+                  >Replication Manager DN</label><input class="ds-form-input" type="text" autocomplete="username" id="add-repl-mgr-dn" size="60"/>
               </div>
               <div>
                 <input type="checkbox" class="ds-config-checkbox" id="add-repl-mgr-checkbox"><label
@@ -634,11 +650,11 @@ CleanAllRUV Tasks
                 <div id="add-repl-mgr-passwd" class="ds-indent" hidden>
                   <div>
                     <label for="add-repl-pw" class="ds-label-sm" title="Replication manager password (userpassword).">Bind DN Credentials</label><input
-                      class="ds-input" type="password" placeholder="Enter credentials" id="add-repl-pw" name="name" required>
+                      class="ds-input" type="password" autocomplete="new-password" placeholder="Enter credentials" id="add-repl-pw" name="name" required>
                   </div>
                   <div>
                     <label for="add-repl-pw-confirm" class="ds-label-sm" title="Confirm password">Confirm Credentials</label><input
-                      class="ds-input" type="password" placeholder="Confirm credentials" id="add-repl-pw-confirm" name="name" required>
+                      class="ds-input" type="password" autocomplete="new-password" placeholder="Confirm credentials" id="add-repl-pw-confirm" name="name" required>
                   </div>
                 </div>
               </div>
@@ -653,6 +669,7 @@ CleanAllRUV Tasks
     </div>
   </div>
 
+  <!-- Select an attribute for repl agmt forms -->
   <div class="modal fade" id="select-attr-form" data-backdrop="static" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="attr-header" aria-hidden="true">
     <div class="modal-dialog ds-modal">
       <div class="modal-content ds-nested-modal">
@@ -662,18 +679,15 @@ CleanAllRUV Tasks
           </button>
           <h4 class="modal-title" id="attr-header">Choose Attributes...</h4>
         </div>
+        <input class="ds-input" type="text" id="attr-form-id" value="" hidden>
         <div class="modal-body">
           <form class="form-horizontal">
             <select id="select-attr-list" class="ds-attr-select" multiple>
-              <option value="cn">cn</option>
-              <option value="uid">uid</option>
-              <option value="sn">sn</option>
-              <option value="description">description</option>
             </select>
           </form>
         </div>
         <div class="modal-footer ds-modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
           <button type="button" class="btn btn-primary" id="select-attr-save">Add Attributes</button>
         </div>
       </div>

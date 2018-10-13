@@ -157,11 +157,14 @@ function add_validate_arg (arg_list, valtype, val, def_val, edit, attr, arg, msg
 
 function get_and_set_config () {
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'get'];
+  console.log("Loading server configuration.");
+  console.log("CMD: get config: " + cmd.join(' '));
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
     // Reset tables before populating them
     $(".ds-accesslog-table").prop('checked', false);
     $(".ds-errorlog-table").prop('checked', false);
+    config_values = {};
 
     for (var attr in obj['attrs']) {
       var val = obj['attrs'][attr][0];
@@ -196,9 +199,11 @@ function get_and_set_config () {
         }
       }
     }
+    console.log("Finished loading server configuration.");
+    config_loaded = 1;
     check_inst_alive();
   }).fail(function(data) {
-      console.log("failed: " + data.message);
+      popup_err("Error", "Failed to set config\n" + data.message);
       check_inst_alive(1);
   });
 }
@@ -209,6 +214,7 @@ function update_suffix_dropdowns () {
                      'monitor-repl-backend-list'];
 
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'list', '--suffix'];
+    console.log("CMD: Get backends: " + cmd.join(' '));
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       // Clear all the dropdowns first
       for (var idx in dropdowns) {
@@ -221,13 +227,23 @@ function update_suffix_dropdowns () {
           $("#" + dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
         }
       }
+  }).fail(function(data) {
+      if (quiet === undefined) {
+        popup_err("Error", "Failed to get backend suffix list\n" + data.message);
+      }
+      check_inst_alive(1);
   });
 }
 
-function get_and_set_localpwp () {
+function get_and_set_localpwp (quiet) {
   // Now populate the table
+  console.log("Loading local password policies...");
   var suffix = $('#local-pwp-suffix').val();
+  if (suffix == null){
+    return;
+  }
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'list', suffix ];
+  console.log("CMD: Get local password policies: " + cmd.join(' '));
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
     // Empty table
@@ -241,18 +257,25 @@ function get_and_set_localpwp () {
         local_pwp_html,]
       ).draw( false );
     }
+    console.log("Finished loading password policies.");
+  }).fail(function(data) {
+    popup_err("Error", "Failed to get password policy configuration\n" + data.message);
+    check_inst_alive(1);
   });
 }
 
 function get_and_set_sasl () {
   // First empty the table
-  sasl_table.clear().draw();
+  console.log("Loading SASL configuration...");
 
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'list'];
+  console.log("CMD: get SASL mappings: " + cmd.join(' '));
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
+    sasl_table.clear().draw();
     for (var idx in obj['items']) {
       var map_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'get', obj['items'][idx] ];
+      console.log("CMD: get SASL mapping: " + map_cmd.join(' '));
       cockpit.spawn(map_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var map_obj = JSON.parse(data);
 
@@ -271,8 +294,9 @@ function get_and_set_sasl () {
         ] ).draw( false );
       });
     }
+    console.log("Finished loading SASL configuration.");
   }).fail(function(data) {
-      console.log("failed: " + data.message);
+      popup_err("Failed to SASL configuration", data.message);
       check_inst_alive(1);
   });
 }
@@ -286,13 +310,12 @@ function apply_mods(mods) {
   }
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'replace'];
   cmd.push(mod.attr + "=" + mod.val);
-
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
     config_values[mod.attr] = mod.val;
     // Continue with next mods (if any))
     apply_mods(mods);
   }, function(ex) {
-     popup_err("Error", "Failed to update attribute: " + mod.attr + "\n\n" +  ex);
+     popup_err("Failed to update attribute: " + mod.attr, ex.message);
      // Reset HTML for remaining values that have not been processed
      $("#" + mod.attr).val(config_values[mod.attr]);
      for (remaining in mods) {
@@ -380,7 +403,10 @@ function save_config() {
   }
 }
 
-// load the server config pages
+
+/*
+ * load the server config pages
+ */
 $(document).ready( function() {
 
   // Set an interval event to wait for all the pages to load, then load the config
@@ -390,10 +416,11 @@ $(document).ready( function() {
           monitor_page_loaded == 1)
       {
         get_insts();
-        console.log("Loaded configuration.");
         clearInterval(init_config);
       }
-  }, 200);
+  }, 250);
+
+  console.log("Loading Server Page...");
 
   $("#main-banner").load("banner.html");
   check_for_389();
@@ -631,12 +658,12 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to delete sasl mapping: <b>" + del_sasl_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'delete', del_sasl_name];
+          console.log("CMD: delete SASL mapping: " + cmd.join(' '));
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             sasl_table.row( sasl_row.parents('tr') ).remove().draw( false );
             popup_success("Removed SASL mapping <b>" + del_sasl_name + "</b>");
           }).fail(function(data) {
-            popup_err("Failure Deleting SASL Mapping",
-                      "Failed To Delete SASL Mapping: <b>" + del_sasl_name + "</b>: \n" + data.message);
+            popup_err("Failed To Delete SASL Mapping: <b>" + del_sasl_name + "</b>", data.message);
           });
         }
       });
@@ -1007,6 +1034,7 @@ $(document).ready( function() {
       if ( edit ) {
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'set', policy_name];
         cmd = cmd.concat(arg_list);
+        console.log("CMD: Set local password policy: " + cmd.join(' '));
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           popup_success('Successfully edited local password policy');
           $("#local-pwp-form").modal('toggle')
@@ -1021,6 +1049,7 @@ $(document).ready( function() {
         }
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', action, policy_name];
         cmd = cmd.concat(arg_list);
+        console.log("CMD: Add local password policy: " + cmd.join(' '));
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           pwp_table.row.add( [
               policy_name,
@@ -1046,12 +1075,13 @@ $(document).ready( function() {
         if (yes) {
           // Delete pwp from DS
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'remove', del_pwp_name];
+          console.log("CMD: Remove local password policy: " + cmd.join(' '));
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             // Update html table
             pwp_table.row( pwp_row.parents('tr') ).remove().draw( false );
             popup_success('Successfully deleted local password policy');
           }).fail(function(data) {
-              popup_err("Failed to delete local password policy\n" + data.message);
+              popup_err("Failed to delete local password policy", data.message);
           });
         }
       });
@@ -1106,6 +1136,7 @@ $(document).ready( function() {
         // Create new mapping and update table
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'create',
                    sasl_name_cmd, sasl_regex_cmd, sasl_base_cmd, sasl_filter_cmd, sasl_priority_cmd];
+        console.log("CMD: Create SASL mapping: " + cmd.join(' '));
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
           // Update html table
           sasl_table.row.add( [
@@ -1119,13 +1150,13 @@ $(document).ready( function() {
           popup_success("Successfully added new SASL mapping");
           $("#sasl-map-form").modal('toggle');
         }).fail(function(data) {
-          popup_err("Failure Adding SASL Mapping",
-                    "Failed To Add SASL Mapping: <b>" + sasl_map_name + "</b>: \n" + data.message);
+          popup_err("Failed To Add SASL Mapping: " + sasl_map_name, data.message);
           $("#sasl-map-form").modal("toggle");
         });
       } else {
         // Editing mapping.  First delete the old mapping
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'delete', sasl_map_name];
+        console.log("CMD: Delete SASL mapping: " + cmd.join(' '));
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
           // Remove row from old
           sasl_table.rows( function ( idx, data, node ) {
@@ -1135,6 +1166,7 @@ $(document).ready( function() {
           // Then add new mapping and update table
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'create',
                      sasl_name_cmd, sasl_regex_cmd, sasl_base_cmd, sasl_filter_cmd, sasl_priority_cmd];
+          console.log("CMD: create SASL mapping: " + cmd.join(' '));
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
             // Update html table
             sasl_table.row.add( [
@@ -1167,13 +1199,14 @@ $(document).ready( function() {
       $("#ds-start-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Starting instance <b>" + server_id + "</b>...");
       $("#start-instance-form").modal('toggle');
       var cmd = [DSCTL, server_inst, 'start'];
+      console.log("CMD: Start instance: " + cmd.join(' '));
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         $("#start-instance-form").modal('toggle');
         load_config();
         popup_success("Started instance \"" + server_id + "\"");
       }).fail(function(data) {
         $("#start-instance-form").modal('toggle');
-        popup_err("Error", "Failed to start instance \"" + server_id + "\"\n" + data.message);
+        popup_err("Failed to start instance \"" + server_id,  data.message);
       });
     });
 
@@ -1181,13 +1214,14 @@ $(document).ready( function() {
       $("#ds-stop-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Stopping instance <b>" + server_id + "</b>...");
       $("#stop-instance-form").modal('toggle');
       var cmd = [DSCTL, server_inst, 'stop'];
+      console.log("CMD: Stop instance: " + cmd.join(' '));
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         $("#stop-instance-form").modal('toggle');
         popup_success("Stopped instance \"" + server_id + "\"");
         check_inst_alive();
       }).fail(function(data) {
         $("#stop-instance-form").modal('toggle');
-        popup_err("Error", "Failed to stop instance \"" + server_id + "\"\n" + data.message);
+        popup_err("Error", "Failed to stop instance \"" + server_id+ "\"", data.message);
         check_inst_alive();
       });
     });
@@ -1196,13 +1230,14 @@ $(document).ready( function() {
       $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Retarting instance <b>" + server_id + "</b>...");
       $("#restart-instance-form").modal('toggle');
       var cmd = [DSCTL, server_inst, 'restart'];
+      console.log("CMD: Restart instance: " + cmd.join(' '));
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         $("#restart-instance-form").modal('toggle');
         load_config();
         popup_success("Restarted instance \"" + server_id + "\"");
       }).fail(function(data) {
         $("#restart-instance-form").modal('toggle');
-        popup_err("Error", "Failed to restart instance \"" + server_id + "\"\n" + data.message);
+        popup_err("Failed to restart instance \"" + server_id + "\"", data.message);
       });
     });
 
@@ -1227,6 +1262,7 @@ $(document).ready( function() {
       cockpit.spawn(cmd, { superuser: true}).
       done(function() {
         var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
+        console.log("CMD: Backup database: " + cmd.join(' '));
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
         done(function(data) {
           $("#backup-spinner").hide();
@@ -1235,11 +1271,12 @@ $(document).ready( function() {
         }).
         fail(function(data) {
           $("#backup-spinner").hide();
-          popup_err("Error", "Failed to backup the server\n" + data.message);
+          popup_err("Failed to backup the server", data.message);
         })
       }).
       fail(function() {
         var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+        console.log("CMD: Backup database(offline): " + cmd.join(' '));
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
         done(function(data) {
           $("#backup-spinner").hide();
@@ -1248,7 +1285,7 @@ $(document).ready( function() {
         }).
         fail(function(data) {
           $("#backup-spinner").hide();
-          popup_err("Error", "Failed to backup the server\n" + data.message);
+          popup_err("Failed to backup the server", data.message);
         });
       });
     });
@@ -1260,6 +1297,7 @@ $(document).ready( function() {
     /* Restore.  load restore table with current backups */
     $("#restore-server-btn").on('click', function () {
       var cmd = [DSCTL, server_id, '-j', 'backups'];
+      console.log("CMD: Resotre database(offline): " + cmd.join(' '));
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var backup_btn = "<button class=\"btn btn-default restore-btn\" type=\"button\">Restore</button>";
         var del_btn =  "<button title=\"Delete backup directory\" class=\"btn btn-default ds-del-backup-btn\" type=\"button\"><span class='glyphicon glyphicon-trash'></span></button>";
@@ -1272,7 +1310,7 @@ $(document).ready( function() {
           backup_table.row.add([backup_name, backup_date, backup_size, backup_btn, del_btn]).draw( false );
         }
       }).fail(function(data) {
-        popup_err("Error", "Failed to get list of backups\n" + data.message);
+        popup_err("Failed to get list of backups", data.message);
       });
     });
 
@@ -1288,6 +1326,7 @@ $(document).ready( function() {
           cockpit.spawn(cmd, { superuser: true}).
           done(function() {
             var cmd = [DSCONF, server_inst, 'backup', 'restore',  restore_name];
+            console.log("CMD: Restore database(online): " + cmd.join(' '));
             cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
             done(function(data) {
               $("#restore-spinner").hide();
@@ -1296,11 +1335,12 @@ $(document).ready( function() {
             }).
             fail(function(data) {
               $("#restore-spinner").hide();
-              popup_err("Error", "Failed to restore from the backup\n" + data.message);
+              popup_err("Failed to restore from the backup", data.message);
             });
           }).
           fail(function() {
             var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
+            console.log("CMD: Restore database (offline): " + cmd.join(' '));
             cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
             done(function(data) {
               $("#restore-spinner").hide();
@@ -1309,7 +1349,7 @@ $(document).ready( function() {
             }).
             fail(function(data) {
               $("#restore-spinner").hide();
-              popup_err("Error", "Failed to restore from the backup\n" + data.message);
+              popup_err("Failed to restore from the backup", data.message);
             });
           });
         }
@@ -1326,13 +1366,14 @@ $(document).ready( function() {
         if (yes) {
           var cmd = [DSCTL, server_inst, 'backups', '--delete', restore_name];
           $("#restore-spinner").show();
+          console.log("CMD: Delete backup: " + cmd.join(' '));
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             $("#restore-spinner").hide();
             backup_table.row( backup_row.parents('tr') ).remove().draw( false );
             popup_success("The backup has been deleted");
           }).fail(function(data) {
             $("#restore-spinner").hide();
-            popup_err("Error", "Failed to delete the backup\n" + data.message);
+            popup_err("Failed to delete the backup", data.message);
           });
         }
       });
@@ -1347,12 +1388,13 @@ $(document).ready( function() {
         var cmd = [DSCONF, server_id, 'schema', 'reload', '--wait'];
       }
       $("#reload-spinner").show();
+      console.log("CMD: Reload schema files: " + cmd.join(' '));
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-        popup_msg("Success", "Successfully reloaded schema");  // TODO use timed interval success msg (waiting for another PR top be merged before we can add it)
+        popup_success("Successfully reloaded schema");  // TODO use timed interval success msg (waiting for another PR top be merged before we can add it)
         $("#schema-reload-form").modal('toggle');
         $("#reload-spinner").hide();
       }).fail(function(data) {
-        popup_err("Error", "Failed to reload schema files\n" + data.message);
+        popup_err("Failed to reload schema files", data.message);
         $("#reload-spinner").hide();
       });
     });
@@ -1365,13 +1407,14 @@ $(document).ready( function() {
           var cmd = [DSCTL, server_id, "remove", "--doit"];
           $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
           $("#remove-instance-form").modal('toggle');
+          console.log("CMD: Delete instance: " + cmd.join(' '));
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             $("#remove-instance-form").modal('toggle');
-            popup_msg("Success", "Instance has been deleted");
+            popup_success("Instance has been deleted");
             get_insts();
           }).fail(function(data) {
             $("#remove-instance-form").modal('toggle');
-            popup_err("Error", "Failed to remove instance\n" + data.message);
+            popup_err("Failed to remove instance", data.message);
           });
         }
       });
@@ -1550,13 +1593,15 @@ $(document).ready( function() {
                 $("#server-list-menu").attr('disabled', false);
                 $("#no-instances").hide();
                 get_insts();  // Refresh server list
-                popup_msg("Success!", "Successfully created instance:  <b>slapd-" + new_server_id + "</b>", );
+                popup_success("Successfully created instance:  <b>slapd-" + new_server_id + "</b>");
                 $("#create-inst-form").modal('toggle');
               });
             });
             $("#create-inst-spinner").show();
           });
         });
+      }).fail(function(data) {
+        console.log("failed: " + data.message);
       });
     });
 
@@ -1610,6 +1655,7 @@ $(document).ready( function() {
 
       // lookup the entry, and get the current settings
       var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'get', policy_name];
+      console.log("CMD: Get local password policy: " + cmd.join(' '));
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         localpwp_values = {};  // Clear it out
         var obj = JSON.parse(data);
