@@ -384,6 +384,22 @@ main_setuid(char *username)
             slapi_log_err(SLAPI_LOG_ERR, "main_setuid", "getpwnam(%s) == NULL, error %d (%s)\n",
                           username, oserr, slapd_system_strerror(oserr));
         } else {
+            /*
+             * According to https://pagure.io/389-ds-base/issue/49975 and
+             * POS36-C. Observe correct revocation order while relinquishing privileges
+             * setgroups must be called to ensure our supplemental group list is
+             * correctly limited. Because we only care about our single group
+             * dirsrv for the target user, we set that.
+             *
+             * In the future this may change however.
+             */
+            if (setgroups(0, NULL) != 0) {
+                int oserr = errno;
+
+                slapi_log_err(SLAPI_LOG_ERR, "main_setuid", "setgroups(0, NULL) != 0, error %d (%s)\n",
+                              oserr, slapd_system_strerror(oserr));
+                return -1;
+            }
             if (setgid(pw->pw_gid) != 0) {
                 int oserr = errno;
 

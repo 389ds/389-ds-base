@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
