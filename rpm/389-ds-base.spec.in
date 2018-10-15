@@ -299,17 +299,6 @@ Requires: python%{python3_pkgversion}-argcomplete
 This module contains tools and libraries for accessing, testing,
  and configuring the 389 Directory Server.
 
-%package -n python%{python3_pkgversion}-%{srcname}-tests
-Summary:          The lib389 Continuous Integration Tests
-Group:            Development/Libraries
-BuildArch:        noarch
-Requires: krb5-server
-Requires: python%{python3_pkgversion}
-Requires: python%{python3_pkgversion}-lib389
-
-%description  -n  python%{python3_pkgversion}-%{srcname}-tests
-The lib389 CI tests that can be run against the Directory Server.
-
 %package -n cockpit-389-ds
 Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
 BuildArch:        noarch
@@ -391,7 +380,6 @@ autoreconf -fiv
            --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
-make setup.py
 
 # lib389
 pushd ./src/lib389
@@ -404,8 +392,6 @@ sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/m
 sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/man/dsidm.8
 sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/man/dscreate.8
 
-# tests
-%py3_build
 %endif
 
 # Generate symbolic info for debuggers
@@ -433,8 +419,6 @@ pushd src/lib389
 %py3_install
 popd
 
-# tests
-%py3_install
 %endif
 
 mkdir -p $RPM_BUILD_ROOT/var/log/%{pkgname}
@@ -832,11 +816,6 @@ exit 0
 %{_mandir}/man8/dsctl.8.gz
 %{_sbindir}/dsidm
 %{_mandir}/man8/dsidm.8.gz
-
-%files -n python%{python3_pkgversion}-%{srcname}-tests
-%defattr(-,root,root,-)
-%doc LICENSE LICENSE.GPLv3+
-%{python3_sitelib}/dirsrvtests*
 
 %files -n cockpit-389-ds -f cockpit.list
 %defattr(-,root,root,-)

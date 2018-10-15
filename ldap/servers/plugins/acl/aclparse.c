@@ -219,6 +219,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
     char *tmpstr;
     char *s = NULL;
     char *value = NULL;
+    char *single_space = "";
     Slapi_Filter *f = NULL;
     int targetattrlen = strlen(aci_targetattr);
     int targetdnlen = strlen(aci_targetdn);
@@ -262,7 +263,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
 
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_ATTR_NOT;
-                strncpy(s, " ", 1);
+                strncpy(s, single_space, 1);
             }
             /* Get individual components of the targetattr.
              * (targetattr = "cn || u* || phone ||tel:add:(tel=1234)
@@ -344,7 +345,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_NOT;
-                strncpy(s, " ", 1);
+                strncpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
                 value = s + 1;
@@ -397,7 +398,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_NOT;
-                strncpy(s, " ", 1);
+                strncpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
                 value = s + 1;

@@ -1262,7 +1262,7 @@ set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
     /* Start a txn */
     li = (struct ldbminfo *)be->be_database->plg_private;
     dblayer_txn_init(li, &txn);
-    if (rc = dblayer_txn_begin(be, txn.back_txn_txn, &txn)) {
+    if ((rc = dblayer_txn_begin(be, txn.back_txn_txn, &txn))) {
         slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Fail to update %s index with  %s/%d (key/ID): txn begin fails\n",
                   info->index, info->key, info->id);
         return rc;
@@ -1272,7 +1272,7 @@ set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
     sv_key[1] = NULL;
     slapi_value_init_string(sv_key[0], info->key);
 
-    if (rc = index_addordel_values_sv(be, info->index, sv_key, NULL, info->id, BE_INDEX_ADD, &txn)) {
+    if ((rc = index_addordel_values_sv(be, info->index, sv_key, NULL, info->id, BE_INDEX_ADD, &txn))) {
         value_done(sv_key[0]);
         dblayer_txn_abort(be, &txn);
         slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Fail to update %s index with  %s/%d (key/ID): index_addordel_values_sv fails\n",
@@ -1281,7 +1281,7 @@ set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
     }
 
     value_done(sv_key[0]);
-    if (rc = dblayer_txn_commit(be, &txn)) {
+    if ((rc = dblayer_txn_commit(be, &txn))) {
         slapi_log_err(SLAPI_LOG_ERR, "set_suffix_key", "Fail to update %s index with  %s/%d (key/ID): commit fails\n",
                   info->index, info->key, info->id);
         return rc;

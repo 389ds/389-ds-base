@@ -647,7 +647,6 @@ dist_noinst_DATA = \
 	$(srcdir)/LICENSE \
 	$(srcdir)/LICENSE.* \
 	$(srcdir)/VERSION.sh \
-	$(srcdir)/setup.py.in \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/wrappers/systemd.template.sysconfig \
 	$(srcdir)/dirsrvtests \
@@ -2378,12 +2377,6 @@ lib389: src/lib389/setup.py
 
 lib389-install: lib389
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
-
-tests: setup.py.in lib389
-	$(PYTHON) setup.py build
-
-tests-install: tests
-	$(PYTHON) setup.py install
 
 # RPM-related tasks
 
