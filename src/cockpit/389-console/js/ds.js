@@ -23,19 +23,19 @@ var repl_config_values = {};
 var repl_cl_values = {};
 
 //TODO - need "config_values" for all the other pages: backend, replication, suffix, etc.
-/*
+
 var DSCONF = "dsconf";
 var DSCTL = "dsctl";
 var DSCREATE = "dscreate";
 var ENV = "";
-*/
 
+/*
 // Used for local development testing
 var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
 var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
 var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
 var ENV = "PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389";
-
+*/
 
 // TODO validation functions
 
