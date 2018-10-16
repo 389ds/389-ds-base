@@ -379,7 +379,7 @@ idl_new_range_fetch(
             bck_info.index = SLAPI_ATTR_PARENTID;
             bck_info.key = "0";
 
-            if (rc = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info)) {
+            if ((rc = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info))) {
                 slapi_log_err(SLAPI_LOG_WARNING, "idl_new_range_fetch", "Total update: fail to retrieve suffix entryID, continue assuming it is the first entry\n");
             }
             if (bck_info.key_found) {
