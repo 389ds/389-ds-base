@@ -304,6 +304,8 @@ int index_buffer_init(size_t size, int flags, void **h);
 int index_buffer_flush(void *h, backend *be, DB_TXN *txn, struct attrinfo *a);
 int index_buffer_terminate(void *h);
 
+int get_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info);
+int set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info);
 char *index_index2prefix(const char *indextype);
 void index_free_prefix(char *);
 
