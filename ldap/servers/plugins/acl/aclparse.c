@@ -219,7 +219,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
     char *tmpstr;
     char *s = NULL;
     char *value = NULL;
-    char *single_space = "";
+    char *single_space = " ";
     Slapi_Filter *f = NULL;
     int targetattrlen = strlen(aci_targetattr);
     int targetdnlen = strlen(aci_targetdn);
