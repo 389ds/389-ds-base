@@ -158,7 +158,7 @@ function add_validate_arg (arg_list, valtype, val, def_val, edit, attr, arg, msg
 function get_and_set_config () {
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'get'];
   console.log("Loading server configuration.");
-  console.log("CMD: get config: " + cmd.join(' '));
+  log_cmd('get_and_set_config', 'Get server configuration', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
     // Reset tables before populating them
@@ -214,7 +214,7 @@ function update_suffix_dropdowns () {
                      'monitor-repl-backend-list'];
 
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'list', '--suffix'];
-    console.log("CMD: Get backends: " + cmd.join(' '));
+    log_cmd('update_suffix_dropdowns', 'Get suffix list', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       // Clear all the dropdowns first
       for (var idx in dropdowns) {
@@ -243,7 +243,7 @@ function get_and_set_localpwp (quiet) {
     return;
   }
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'list', suffix ];
-  console.log("CMD: Get local password policies: " + cmd.join(' '));
+  log_cmd('get_and_set_localpwp', 'Get local password policies', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
     // Empty table
@@ -269,13 +269,13 @@ function get_and_set_sasl () {
   console.log("Loading SASL configuration...");
 
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'list'];
-  console.log("CMD: get SASL mappings: " + cmd.join(' '));
+  log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
     sasl_table.clear().draw();
     for (var idx in obj['items']) {
       var map_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'get', obj['items'][idx] ];
-      console.log("CMD: get SASL mapping: " + map_cmd.join(' '));
+      log_cmd('get_and_set_sasl', 'Get sASL mapping', map_cmd);
       cockpit.spawn(map_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var map_obj = JSON.parse(data);
 
@@ -658,7 +658,7 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to delete sasl mapping: <b>" + del_sasl_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'delete', del_sasl_name];
-          console.log("CMD: delete SASL mapping: " + cmd.join(' '));
+          log_cmd('.sasl-del-btn (click)', 'Delete SASL mapping', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             sasl_table.row( sasl_row.parents('tr') ).remove().draw( false );
             popup_success("Removed SASL mapping <b>" + del_sasl_name + "</b>");
@@ -1034,7 +1034,7 @@ $(document).ready( function() {
       if ( edit ) {
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'set', policy_name];
         cmd = cmd.concat(arg_list);
-        console.log("CMD: Set local password policy: " + cmd.join(' '));
+        log_cmd('local-pwp-save', 'Set local password policy', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           popup_success('Successfully edited local password policy');
           $("#local-pwp-form").modal('toggle')
@@ -1049,7 +1049,7 @@ $(document).ready( function() {
         }
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', action, policy_name];
         cmd = cmd.concat(arg_list);
-        console.log("CMD: Add local password policy: " + cmd.join(' '));
+        log_cmd('local-pwp-save', 'Add local password policy', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           pwp_table.row.add( [
               policy_name,
@@ -1075,7 +1075,7 @@ $(document).ready( function() {
         if (yes) {
           // Delete pwp from DS
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'remove', del_pwp_name];
-          console.log("CMD: Remove local password policy: " + cmd.join(' '));
+          log_cmd('.delete-local-pwp (click)', 'Remove local password policy', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             // Update html table
             pwp_table.row( pwp_row.parents('tr') ).remove().draw( false );
@@ -1136,7 +1136,7 @@ $(document).ready( function() {
         // Create new mapping and update table
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'create',
                    sasl_name_cmd, sasl_regex_cmd, sasl_base_cmd, sasl_filter_cmd, sasl_priority_cmd];
-        console.log("CMD: Create SASL mapping: " + cmd.join(' '));
+        log_cmd('#sasl-map-save (click)', 'Add SASL mapping', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
           // Update html table
           sasl_table.row.add( [
@@ -1156,7 +1156,7 @@ $(document).ready( function() {
       } else {
         // Editing mapping.  First delete the old mapping
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'delete', sasl_map_name];
-        console.log("CMD: Delete SASL mapping: " + cmd.join(' '));
+        log_cmd('#sasl-map-save (click)', 'Delete SASL mapping', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
           // Remove row from old
           sasl_table.rows( function ( idx, data, node ) {
@@ -1166,7 +1166,7 @@ $(document).ready( function() {
           // Then add new mapping and update table
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'create',
                      sasl_name_cmd, sasl_regex_cmd, sasl_base_cmd, sasl_filter_cmd, sasl_priority_cmd];
-          console.log("CMD: create SASL mapping: " + cmd.join(' '));
+          log_cmd('#sasl-map-save (click)', 'Add SASL mapping', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
             // Update html table
             sasl_table.row.add( [
@@ -1199,7 +1199,7 @@ $(document).ready( function() {
       $("#ds-start-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Starting instance <b>" + server_id + "</b>...");
       $("#start-instance-form").modal('toggle');
       var cmd = [DSCTL, server_inst, 'start'];
-      console.log("CMD: Start instance: " + cmd.join(' '));
+      log_cmd('#start-server-btn (click)', 'Start server instance', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         $("#start-instance-form").modal('toggle');
         load_config();
@@ -1214,7 +1214,7 @@ $(document).ready( function() {
       $("#ds-stop-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Stopping instance <b>" + server_id + "</b>...");
       $("#stop-instance-form").modal('toggle');
       var cmd = [DSCTL, server_inst, 'stop'];
-      console.log("CMD: Stop instance: " + cmd.join(' '));
+      log_cmd('#stop-server-btn (click)', 'Stop server instance', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         $("#stop-instance-form").modal('toggle');
         popup_success("Stopped instance \"" + server_id + "\"");
@@ -1230,7 +1230,7 @@ $(document).ready( function() {
       $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Retarting instance <b>" + server_id + "</b>...");
       $("#restart-instance-form").modal('toggle');
       var cmd = [DSCTL, server_inst, 'restart'];
-      console.log("CMD: Restart instance: " + cmd.join(' '));
+      log_cmd('#restart-server-btn (click)', 'Restart server instance', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         $("#restart-instance-form").modal('toggle');
         load_config();
@@ -1262,7 +1262,7 @@ $(document).ready( function() {
       cockpit.spawn(cmd, { superuser: true}).
       done(function() {
         var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
-        console.log("CMD: Backup database: " + cmd.join(' '));
+        log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
         done(function(data) {
           $("#backup-spinner").hide();
@@ -1276,7 +1276,7 @@ $(document).ready( function() {
       }).
       fail(function() {
         var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
-        console.log("CMD: Backup database(offline): " + cmd.join(' '));
+        log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
         done(function(data) {
           $("#backup-spinner").hide();
@@ -1297,7 +1297,7 @@ $(document).ready( function() {
     /* Restore.  load restore table with current backups */
     $("#restore-server-btn").on('click', function () {
       var cmd = [DSCTL, server_id, '-j', 'backups'];
-      console.log("CMD: Resotre database(offline): " + cmd.join(' '));
+      log_cmd('#restore-server-btn (click)', 'Restore server instance', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var backup_btn = "<button class=\"btn btn-default restore-btn\" type=\"button\">Restore</button>";
         var del_btn =  "<button title=\"Delete backup directory\" class=\"btn btn-default ds-del-backup-btn\" type=\"button\"><span class='glyphicon glyphicon-trash'></span></button>";
@@ -1326,7 +1326,7 @@ $(document).ready( function() {
           cockpit.spawn(cmd, { superuser: true}).
           done(function() {
             var cmd = [DSCONF, server_inst, 'backup', 'restore',  restore_name];
-            console.log("CMD: Restore database(online): " + cmd.join(' '));
+            log_cmd('.restore-btn (click)', 'Restore server instance(online)', cmd);
             cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
             done(function(data) {
               $("#restore-spinner").hide();
@@ -1340,7 +1340,7 @@ $(document).ready( function() {
           }).
           fail(function() {
             var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
-            console.log("CMD: Restore database (offline): " + cmd.join(' '));
+            log_cmd('.restore-btn (click)', 'Restore server instance(offline)', cmd);
             cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
             done(function(data) {
               $("#restore-spinner").hide();
@@ -1366,7 +1366,7 @@ $(document).ready( function() {
         if (yes) {
           var cmd = [DSCTL, server_inst, 'backups', '--delete', restore_name];
           $("#restore-spinner").show();
-          console.log("CMD: Delete backup: " + cmd.join(' '));
+          log_cmd('.ds-del-backup-btn (click)', 'Delete backup', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             $("#restore-spinner").hide();
             backup_table.row( backup_row.parents('tr') ).remove().draw( false );
@@ -1388,7 +1388,7 @@ $(document).ready( function() {
         var cmd = [DSCONF, server_id, 'schema', 'reload', '--wait'];
       }
       $("#reload-spinner").show();
-      console.log("CMD: Reload schema files: " + cmd.join(' '));
+      log_cmd('#schema-reload-btn (click)', 'Reload schema files', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         popup_success("Successfully reloaded schema");  // TODO use timed interval success msg (waiting for another PR top be merged before we can add it)
         $("#schema-reload-form").modal('toggle');
@@ -1407,7 +1407,7 @@ $(document).ready( function() {
           var cmd = [DSCTL, server_id, "remove", "--doit"];
           $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
           $("#remove-instance-form").modal('toggle');
-          console.log("CMD: Delete instance: " + cmd.join(' '));
+          log_cmd('#remove-server-btn (click)', 'Remove instance', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             $("#remove-instance-form").modal('toggle');
             popup_success("Instance has been deleted");
@@ -1655,7 +1655,7 @@ $(document).ready( function() {
 
       // lookup the entry, and get the current settings
       var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','localpwp', 'get', policy_name];
-      console.log("CMD: Get local password policy: " + cmd.join(' '));
+      log_cmd('.edit-local-pwp (click)', 'Get local password policy', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         localpwp_values = {};  // Clear it out
         var obj = JSON.parse(data);

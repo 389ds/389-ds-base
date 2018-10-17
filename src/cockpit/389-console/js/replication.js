@@ -154,7 +154,7 @@ function add_repl_mgr(dn){
 
 function do_agmt_init(suffix, agmt_cn, idx) {
   var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init-status', '--suffix=' + suffix, '"' + agmt_cn + '"' ];
-  console.log("CMD: Get initialization status for agmt: " + status_cmd.join(' '));
+  log_cmd('do_agmt_init', 'Get initialization status for agmt', status_cmd);
   cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var init_stat = JSON.parse(data);
     if (init_stat == 'Agreement successfully initialized.' ||
@@ -169,7 +169,7 @@ function do_agmt_init(suffix, agmt_cn, idx) {
 
 function do_winsync_agmt_init(suffix, agmt_cn, idx) {
   var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init-status', '--suffix=' + suffix, '"' + agmt_cn + '"' ];
-  console.log("CMD: Get initialization status for agmt: " + status_cmd.join(' '))
+  log_cmd('do_winsync_agmt_init', 'Get initialization status for agmt', status_cmd);
   cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var init_stat = JSON.parse(data);
     if (init_stat == 'Agreement successfully initialized.' ||
@@ -192,7 +192,7 @@ function get_and_set_repl_winsync_agmts() {
   if (suffix) {
     console.log("Loading winsync replication agreements...");
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'list', '--suffix=' + suffix ];
-    console.log("CMD: Get winsync agmts: " + cmd.join(' '))
+    log_cmd('get_and_set_repl_winsync_agmts', 'Get the winsync agmts', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       var obj = JSON.parse(data);
       for (var idx in obj['items']) {
@@ -220,7 +220,7 @@ function get_and_set_repl_winsync_agmts() {
             var ws_interval_agmt_name = agmt_name;
             var ws_init_status_interval = setInterval(function() {
               var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init-status', '--suffix=' + suffix, '"' + ws_interval_agmt_name + '"' ];
-              console.log("CMD: Get initialization status for winsync agmt: " + status_cmd.join(' '))
+              log_cmd('get_and_set_repl_winsync_agmts', 'Get initialization status for winsync agmt', status_cmd);
               cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
                 var init_stat = JSON.parse(data);
                 if (init_stat == 'Agreement successfully initialized.' ||
@@ -265,7 +265,7 @@ function get_and_set_repl_agmts () {
   if (suffix) {
     console.log("Loading replication agreements...");
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'list', '--suffix=' + suffix ];
-    console.log("CMD: Get agmts: " + cmd.join(' '))
+    log_cmd('get_and_set_repl_agmts', 'Get replication agreements', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       var obj = JSON.parse(data);
       for (var idx in obj['items']) {
@@ -325,7 +325,7 @@ function get_and_set_repl_agmts () {
 function get_and_set_cleanallruv() {
   console.log("Loading replication tasks...");
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
-  console.log("CMD: Get repl tasks: " + cmd.join(' '));
+  log_cmd('get_and_set_cleanallruv', 'Get the cleanAllRUV tasks', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var tasks = JSON.parse(data);
     repl_clean_table.clear();
@@ -361,7 +361,7 @@ function get_and_set_repl_config () {
     console.log("Loading replication configuration...");
 
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get', '--suffix=' + suffix ];
-    console.log("CMD: Get repl config: " + cmd.join(' '));
+    log_cmd('get_and_set_repl_config', 'Get replication configuration', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       var repl = JSON.parse(data);
       var repl_type;
@@ -445,7 +445,7 @@ function get_and_set_repl_config () {
   $("#cl-create-div").show();
   $("#cl-del-div").hide();
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get-changelog'];
-  console.log("CMD: Get changelog: " + cmd.join(' '));
+  log_cmd('get_and_set_repl_config', 'Get replication changelog', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     $(".ds-cl").val("");  // Clear form
     var cl = JSON.parse(data);
@@ -527,7 +527,7 @@ function save_repl_config(suffix, ignore_rid) {
 
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--suffix=' + suffix ];
     cmd = cmd.concat(arg_list);
-    console.log("CMD: set replication: " + cmd.join(' '));
+    log_cmd('save_repl_config', 'Set replication configuration', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       popup_success('Saved replication configuration');
       for (var key in set_repl_values) {
@@ -541,7 +541,7 @@ function save_repl_config(suffix, ignore_rid) {
       if (arg_cl_list.length > 0){
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set-changelog'];
         cmd = cmd.concat(arg_cl_list);
-        console.log("CMD: Set changelog: " + cmd.join(' '));
+        log_cmd('save_repl_config', 'Set changelog configuration', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           popup_success('Saved changelog configuration');
           for (var key in set_cl_values) {
@@ -565,7 +565,7 @@ function save_repl_config(suffix, ignore_rid) {
      */
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set-changelog'];
     cmd = cmd.concat(arg_cl_list);
-    console.log("CMD: Set changelog: " + cmd.join(' '));
+    log_cmd('save_repl_config', 'Set changelog configuration', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       popup_success('Saved changelog configuration');
       for (var key in set_cl_values) {
@@ -752,7 +752,7 @@ $(document).ready( function() {
               }
               cmd.push("--replica-id=" + rid);
             }
-            console.log("CMD: Enable replication: " + cmd.join(' '));
+            log_cmd('#repl-config-save (click)', 'Enable replication', cmd);
             cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
               popup_success('Successfully enabled replication');
               get_and_set_repl_config();
@@ -769,7 +769,7 @@ $(document).ready( function() {
             popup_confirm("Are you sure you want to disable replication?  This will remove all your replication agreements and can not be undone!", "Confirmation", function (yes) {
               if (yes) {
                 var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'disable', '--suffix=' + suffix ];
-                console.log("CMD: Disable replication: " + cmd.join(' '));
+                log_cmd('#repl-config-save (click)', 'Disable replication', cmd);
                 cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
                   current_role = "Disabled";
                   $("#repl-config-content").hide();
@@ -806,7 +806,7 @@ $(document).ready( function() {
                   }
                   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
                              '--suffix=' + suffix, "--newrole=" + new_role, "--replica-id=" + rid];
-                  console.log("CMD: Promote replica: " + cmd.join(' '));
+                  log_cmd('#repl-config-save (click)', 'Promote replica to Master', cmd);
                   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
                     current_role = "Master";;
                     popup_success('Successfully promoted replica to a <b>Master</b>');
@@ -822,7 +822,7 @@ $(document).ready( function() {
                    */
                   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'demote',
                              '--suffix=' + suffix, "--newrole=" + new_role];
-                  console.log("CMD: Demote replica: " + cmd.join(' '));
+                  log_cmd('#repl-config-save (click)', 'Demote replica to Hub', cmd);
                   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
                     current_role = "Hub";
                     popup_success('Successfully demoted replica to a <b>Hub</b>');
@@ -837,7 +837,7 @@ $(document).ready( function() {
                    */
                   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
                              '--suffix=' + suffix, "--newrole=" + new_role];
-                  console.log("CMD: Promote replica: " + cmd.join(' '));
+                  log_cmd('#repl-config-save (click)', 'Promote replica to Hub ', cmd);
                   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
                     current_role = "Hub";;
                     popup_success('Successfully promoted replica to a <b>Hub</b>');
@@ -852,7 +852,7 @@ $(document).ready( function() {
                    */
                   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'demote',
                              '--suffix=' + suffix, "--newrole=" + new_role];
-                  console.log("CMD: Demote replica: " + cmd.join(' '));
+                  log_cmd('#repl-config-save (click)', 'Demote replication to Consumer', cmd);
                   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
                     current_role = "Consumer";
                     popup_success('Successfully demoted replica to a <b>Consumer</b>');
@@ -881,7 +881,7 @@ $(document).ready( function() {
     // Create changelog
     $("#create-cl-btn").on('click', function () {
       var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'create-changelog'];
-      console.log("CMD: Create changelog: " + cmd.join(' '));
+      log_cmd('#create-cl-btn (click)', 'Create replication changelog', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         get_and_set_repl_config();
         popup_success('Successfully created replication changelog');
@@ -896,7 +896,7 @@ $(document).ready( function() {
       popup_confirm("Are you sure you want to delete the replication changelog as it will break all the existing agreements?", "Confirmation", function (yes) {
         if (yes) {
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'delete-changelog'];
-          console.log("CMD: Delete changelog: " + cmd.join(' '));
+          log_cmd('#delete-cl-btn (click)', 'Delete replication changelog', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             get_and_set_repl_config();
             popup_success('Successfully removed replication changelog');
@@ -1121,7 +1121,7 @@ $(document).ready( function() {
         cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'create', '--suffix=' + suffix];
       }
       cmd = cmd.concat(cmd_args);
-      console.log("CMD: Set/Create repl agmt: " + cmd.join(' '));
+      log_cmd('#agmt-save (click)', 'Create/Set replication agreement', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         if (editing){
           popup_success('Successfully edited replication agreement');
@@ -1131,7 +1131,7 @@ $(document).ready( function() {
         if (init_replica) {
           // Launch popup stating initialization has begun
           var init_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init', '--suffix=' + suffix, agmt_name ];
-          console.log("CMD: Init agmt: " + init_cmd.join(' '));
+          log_cmd('#agmt-save (click)', 'Initialize agreement', init_cmd);
           cockpit.spawn(init_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
             popup_msg("Agreement Initialization", "The agreement initialization has begun...");
           }).fail(function(data) {
@@ -1164,9 +1164,9 @@ $(document).ready( function() {
       var row_idx = $(this).closest('tr').index();
       repl_agmt_table.cell({row: row_idx, column: 5}).data(progress_html).draw();
 
-      var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
-      console.log("CMD: init agmt: " + status_cmd.join(' '));
-      cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
+      log_cmd('.agmt-init-btn (click)', 'Initialize replication agreement', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var init_idx = agmt_init_counter;
         agmt_init_counter += 1;
         agmt_init_intervals[init_idx] = setInterval( do_agmt_init, 2000, suffix, agmt_name, init_idx);
@@ -1184,9 +1184,9 @@ $(document).ready( function() {
       var row_idx = $(this).closest('tr').index();
       repl_winsync_agmt_table.cell({row: row_idx, column: 5}).data(progress_html).draw();
 
-      var status_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
-      console.log("CMD: Init winsync agmt: " + status_cmd.join(' '));
-      cockpit.spawn(status_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
+      log_cmd('.winsync-agmt-init-btn (click)', 'Initialize replication winsync agreement', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var init_idx = agmt_init_counter;
         agmt_init_counter += 1;
         agmt_init_intervals[init_idx] = setInterval( do_winsync_agmt_init, 2000, suffix, agmt_name, init_idx);
@@ -1210,14 +1210,14 @@ $(document).ready( function() {
       var suffix = $("#select-repl-cfg-suffix").val();
       var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set',
                  '--repl-del-bind-dn=' + mgr_dn.text(), '--suffix=' + suffix];
-      console.log("CMD: Set replication config: " + cmd.join(' '));
+      log_cmd('#remove-mgr-btn (click)', 'Remove replication manager from the configuration', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         /* Success, now check if they want the entry deleted */
         if ($("#delete-mgr-checkbox").is(":checked")) {
           /* Remove the manager entry */
           var del_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication',
                          'delete-manager', "--name=" + mgr_dn.text()];
-          console.log("CMD: Delete replication manager: " + del_cmd.join(' '));
+          log_cmd('#remove-mgr-btn (click)', 'Delete replication manager entry', del_cmd);
           cockpit.spawn(del_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             popup_success('Successfully removed replication manager');
           });
@@ -1245,7 +1245,7 @@ $(document).ready( function() {
         if (yes) {
           var suffix = $("#select-repl-agmt-suffix").val();
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'delete', '--suffix=' + suffix, '"' + del_agmt_name + '"'];
-          console.log("CMD: Delete agmt: " + cmd.join(' '));
+          log_cmd('.agmt-del-btn (click)', 'Delete replication agreement', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             popup_success('Successfully removed replication agreement');
             // Update table
@@ -1267,7 +1267,7 @@ $(document).ready( function() {
         if (yes) {
           var suffix = $("#select-repl-agmt-suffix").val();
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'delete', '--suffix=' + suffix, '"' + del_agmt_name + '"'];
-          console.log("CMD: Delete winsync agmt: " + cmd.join(' '));
+          log_cmd('.winsync-agmt-del-btn (click)', 'Delete replication winsync agreement', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             popup_success('Successfully removed replication winsync agreement');
             // Update table
@@ -1297,7 +1297,7 @@ $(document).ready( function() {
 
       // Get agreement from DS and populate form
       var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'get', '--suffix=' + suffix, '"' + edit_agmt_name + '"'];
-      console.log("CMD: Get agmt: " + cmd.join(' '));
+      log_cmd('.agmt-edit-btn (click)', 'Edit replication agreement', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var agmt_obj = JSON.parse(data);
         var frac_attrs = "";
@@ -1430,7 +1430,7 @@ $(document).ready( function() {
 
       // Get agreement from DS and populate form
       var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'get', '--suffix=' + suffix, '"' + edit_agmt_name + '"'];
-      console.log("CMD: Get winsync agmt: " + cmd.join(' '));
+      log_cmd('.winsync-agmt-edit-btn (click)', 'Get replication winsync agreement', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var agmt_obj = JSON.parse(data);
 
@@ -1769,7 +1769,7 @@ $(document).ready( function() {
         cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'create', '"' + agmt_name + '"', '--suffix=' + suffix];
       }
       cmd = cmd.concat(cmd_args);
-      console.log("CMD: Set/Create winsync agmt: " + cmd.join(' '));
+      log_cmd('#winsync-agmt-save (click)', 'Create/Set replication winsync agreement', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         if (editing){
           popup_success('Successfully edited replication winsync agreement');
@@ -1779,7 +1779,7 @@ $(document).ready( function() {
         if (init_replica) {
           // Launch popup stating initialization has begun
           var init_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'init', '--suffix=' + suffix, '"' + agmt_name + '"' ];
-          console.log("CMD: Init winsync agmt: " + init_cmd.join(' '));
+          log_cmd('#winsync-agmt-save (click)', 'Initialize winsync agreement', init_cmd);
           cockpit.spawn(init_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
             popup_msg("Agreement Initialization", "The agreement initialization has begun...");
           }).fail(function(data) {
@@ -1826,10 +1826,10 @@ $(document).ready( function() {
       if (force) {
         cmd.push('--force-cleaning');
       }
-      console.log("CMD: Creating cleanAllRUV Task: " + cmd.join(' '));
+      log_cmd('#cleanallruv-save (click)', 'Create CleanAllRUV Task', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
         var list_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
-        console.log("CMD: Listing cleanAllRUV tasks: " + list_cmd.join(' '));
+        log_cmd('#cleanallruv-save (click)', 'List all the CleanAllRUV tasks', list_cmd);
         cockpit.spawn(list_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           repl_clean_table.clear();
           var obj = JSON.parse(data);
@@ -1865,7 +1865,7 @@ $(document).ready( function() {
       popup_confirm("Are you sure you want to abort the cleaning task on: <b>" + suffix + "</b> for Replica ID <b>" + task_rid + "</b>", "Confirmation", function (yes) {
         if (yes) {
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'abort-cleanallruv', '--replica-id=' + task_rid, '--suffix=' + suffix];
-          console.log("CMD: Abort cleanAllRUV task: " + cmd.join(' '));
+          log_cmd('.abort_cleanallruv_btn (click)', 'Abort CleanAllRUV task', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             popup_success("Creating task to abort the CleanAllRUV Task");
           }).fail(function(data) {
@@ -1898,17 +1898,15 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to delete replication manager: <b>" + repl_mgr_dn.val() + "</b>", "Confirmation", function (yes) {
           if (yes) {
             // Update replica config entry, do not delete the real repl mgr entry
-           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--suffix="' + suffix + '"', "--repl-remove-bind-dn=" + repl_mgr_dn.val() ];
-           console.log("CMD: Setting replication configuration: " + cmd.join(' '));
-           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-               // Update HTML
-               repl_mgr_dn.remove();
-               // Just refresh the entire config
-               get_and_set_repl_config();
-               popup_success("Successfully updated replication configuration");
-             }).fail( function(err) {
-               popup_err("Failed to remove the replication manager from the replication configuration", data.message);
-             });
+            var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--suffix="' + suffix + '"', "--repl-remove-bind-dn=" + repl_mgr_dn.val() ];
+            log_cmd('#delete-repl-manager (click)', 'Remove replication manager from the configuration', cmd);
+            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+              repl_mgr_dn.remove();
+              get_and_set_repl_config();
+              popup_success("Successfully updated replication configuration");
+            }).fail( function(err) {
+              popup_err("Failed to remove the replication manager from the replication configuration", data.message);
+            });
           }
         });
       }
@@ -1949,13 +1947,13 @@ $(document).ready( function() {
       // If we are creating the entry do it now
       if (repl_pw != ""){
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'create-manager', '--name=' + repl_dn, '--passwd=' + repl_pw ];
-        console.log("CMD: Creating replication manager: " + cmd.join(' '));
+        log_cmd('#add-repl-mgr-save (click)', 'Create replication manager entry', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
           /*
            * Success, now update the repl config
            */
           var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--repl-add-bind-dn=' + repl_dn, '--suffix=' + suffix];
-          console.log("CMD: Adding replication manager to configuration: " + update_cmd.join(' '));
+          log_cmd('#add-repl-mgr-save (click)', 'Add replication manager to configuration', update_cmd);
           cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
             // Update html
             get_and_set_repl_config();
@@ -1972,7 +1970,7 @@ $(document).ready( function() {
       } else {
         // Just update repl config
         var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--repl-add-bind-dn=' + repl_dn, '--suffix=' + suffix];
-        console.log("CMD: Adding replication manager to configuration: " + update_cmd.join(' '));
+        log_cmd('#add-repl-mgr-save (click)', 'Add replication manager to configuration', update_cmd);
         cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
           // Update html
           get_and_set_repl_config();
@@ -1985,11 +1983,6 @@ $(document).ready( function() {
       }
     });
 
-
-    $(document).on('click', '.abort-cleanallruv-btn', function(e) {
-       // TODO - abort the cleantask - update table (remove or update existing clean task?)
-    });
-
     /* Send update now */
     $(document).on('click', '.agmt-send-updates-btn', function(e) {
       var suffix = $("#select-repl-agmt-suffix").val();
@@ -1997,7 +1990,7 @@ $(document).ready( function() {
       var update_agmt_name = data[0];
 
       var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'poke', update_agmt_name, '--suffix=' + suffix];
-      console.log("CMD: Trigger send updates now: " + update_cmd.join(' '));
+      log_cmd('.agmt-send-updates-btn (click)', 'Trigger send updates now (replication)', update_cmd);
       cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
         popup_success("Triggered replication updates");
       }).fail( function(err) {
@@ -2012,14 +2005,13 @@ $(document).ready( function() {
       var update_agmt_name = data[0];
 
       var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'poke', update_agmt_name, '--suffix=' + suffix];
-      console.log("CMD: Trigger send updates now: " + update_cmd.join(' '));
+      log_cmd('.winsync-agmt-send-updates-btn (click)', 'Trigger send updates now (winsync)', update_cmd);
       cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
         popup_success("Kick started replication");
       }).fail( function(err) {
         popup_err("Failed to send updates", err.message);
       });
     });
-
 
     /*
      * Enable/Disable repl agmt
@@ -2034,7 +2026,7 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to disable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
           if (yes) {
             var disable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'disable', enable_agmt_name, '--suffix=' + suffix];
-            console.log("CMD: Disable replication agmt: " + disable_cmd.join(' '));
+            log_cmd('.agmt-enable-btn (click)', 'Disable replication agreement', disable_cmd);
             cockpit.spawn(disable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
               get_and_set_repl_agmts();
               popup_success("The replication agreement has been disabled.");
@@ -2048,7 +2040,7 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to enable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
           if (yes) {
             var enable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'enable', enable_agmt_name, '--suffix=' + suffix];
-            console.log("CMD: Enable replication agmt: " + enable_cmd.join(' '));
+            log_cmd('.agmt-enable-btn (click)', 'Enable replication agreement', enable_cmd);
             cockpit.spawn(enable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
               get_and_set_repl_agmts();
               popup_success("The replication agreement has been enabled.");
@@ -2073,7 +2065,7 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to disable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
           if (yes) {
             var disable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'disable', enable_agmt_name, '--suffix=' + suffix];
-            console.log("CMD: Disable winsync agmt: " + disable_cmd.join(' '));
+            log_cmd('.winsync-agmt-enable-btn (click)', 'Disable winsync agreement', disable_cmd);
             cockpit.spawn(disable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
               get_and_set_repl_winsync_agmts();
               popup_success("The replication agreement has been disabled.");
@@ -2087,7 +2079,7 @@ $(document).ready( function() {
         popup_confirm("Are you sure you want to enable replication agreement: <b>" + enable_agmt_name + "</b>", "Confirmation", function (yes) {
           if (yes) {
             var enable_cmd =  [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-winsync-agmt', 'enable', enable_agmt_name, '--suffix=' + suffix];
-            console.log("CMD: Enable winsync agmt: " + enable_cmd.join(' '));
+            log_cmd('.winsync-agmt-enable-btn (click)', 'Enable winsync agreement', disable_cmd);
             cockpit.spawn(enable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
               get_and_set_repl_winsync_agmts();
               popup_success("The replication agreement has been enabled.");

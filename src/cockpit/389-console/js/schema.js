@@ -107,7 +107,7 @@ function clear_attr_form() {
 
 function load_schema_objects_to_select(object, select_id) {
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', object, 'list'];
-  console.log("CMD: Get schema: " + cmd.join(' '));
+  log_cmd('load_schema_objects_to_select', 'Get schema', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(select_data) {
     var obj = JSON.parse(select_data);
     var data = [];
@@ -153,7 +153,7 @@ function get_and_set_schema_tables() {
 
   // Setup the tables: standard, custom, and Matching Rules
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'objectclasses', 'list'];
-  console.log("CMD: Get objectclasses: " + cmd.join(' '));
+  log_cmd('get_and_set_schema_tables', 'Get objectclasses', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(oc_data) {
     var obj = JSON.parse(oc_data);
     var data = [];
@@ -201,7 +201,8 @@ function get_and_set_schema_tables() {
   });
 
   // Get syntaxes and use the data to populate the attribute's table
-  console.log("CMD: Get syntaxes: " + cmd.join(' '));
+  log_cmd('get_and_set_schema_tables', 'Get syntaxes', cmd);
+  get_and_set_schema_tables
   cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', "attributetypes", 'get_syntaxes'];
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(syntax_data) {
     var obj = JSON.parse(syntax_data);
@@ -227,7 +228,7 @@ function get_and_set_schema_tables() {
     });
 
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'attributetypes', 'list'];
-    console.log("CMD: Get attributes: " + cmd.join(' '));
+    log_cmd('get_and_set_schema_tables', 'Get attributes', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(at_data) {
       var obj = JSON.parse(at_data);
       var data = [];
@@ -296,7 +297,7 @@ function get_and_set_schema_tables() {
   });
 
   cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'matchingrules', 'list'];
-  console.log("CMD: Get matching rules: " + cmd.join(' '));
+  log_cmd('get_and_set_schema_tables', 'Get matching rules', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(mr_data) {
     var obj = JSON.parse(mr_data);
     var data = [];
@@ -412,7 +413,7 @@ $(document).ready( function() {
       }
 
       $("#save-oc-spinner").show();
-      console.log("CMD: Save objectclass: " + cmd.join(' '));
+      log_cmd('#save-oc-button (click)', 'Save objectclasses', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
       done(function(data) {
         $("#oc-name").attr('disabled', false);
@@ -423,7 +424,7 @@ $(document).ready( function() {
           schema_oc_table.row(selector).remove().draw(false);
         }
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'objectclasses', 'query', oc_name];
-        console.log("CMD: Query objectclass: " + cmd.join(' '));
+        log_cmd('#save-oc-button (click)', 'Search objectclasses', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
         done(function(oc_data) {
           var obj = JSON.parse(oc_data);
@@ -600,7 +601,7 @@ $(document).ready( function() {
         cmd.push.apply(cmd, [""]);
       }
       $("#save-attr-spinner").show();
-      console.log("CMD: Save attribute: " + cmd.join(' '));
+      log_cmd('#save-attr-button (click)', 'Save attribute', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
       done(function(data) {
         var attr_syntax_name = '<div title="' + attr_syntax + '">' +
@@ -612,7 +613,7 @@ $(document).ready( function() {
           schema_at_table.row(selector).remove().draw(false);
         }
         var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'attributetypes', 'query', attr_name];
-        console.log("CMD: Query attribute: " + cmd.join(' '));
+        log_cmd('#save-oc-button (click)', 'Get attribute', cmd);
         cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
         done(function(at_data) {
           var obj = JSON.parse(at_data);
@@ -730,7 +731,7 @@ $(document).ready( function() {
       popup_confirm("Are you sure you want to delete attribute: <b>" + del_attr_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'attributetypes', 'remove', del_attr_name];
-          console.log("CMD: Remove attribute: " + cmd.join(' '));
+          log_cmd('.attr-del-btn (click)', 'Remove attribute', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             popup_success("Attribute was successfully removed!");
             schema_at_table.row( at_row.parents('tr') ).remove().draw( false );
@@ -809,7 +810,7 @@ $(document).ready( function() {
       popup_confirm("Are you sure you want to delete objectclass: <b>" + del_oc_name + "</b>", "Confirmation", function (yes) {
         if (yes) {
           var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'objectclasses', 'remove', del_oc_name];
-          console.log("CMD: Remove objectclass: " + cmd.join(' '));
+          log_cmd('.oc-del-btn (click)', 'Remove objectclass', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             popup_success("ObjectClass was successfully removed!");
             schema_oc_table.row( oc_row.parents('tr') ).remove().draw( false );
